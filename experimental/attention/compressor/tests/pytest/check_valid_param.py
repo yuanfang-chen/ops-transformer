@@ -17,4 +17,5 @@ logger = logging.getLogger(__name__)
 
 def check_valid_param(params):
     batch_size, hidden_size, Seq_len, head_dim, block_size, rope_head_dim, cmp_ratio, coff, norm_eps, \
-    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos = params
+    start_p, rotary_mode, layout_x, data_type, cu_seqlens, seqused, start_pos , \
+    x_datarange, wkv_datarange,  wgate_datarange, ape_datarange, norm_weight_datarange, kv_state_datarange, score_state_datarange = params

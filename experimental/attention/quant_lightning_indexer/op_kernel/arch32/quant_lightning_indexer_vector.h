@@ -12,8 +12,8 @@
  * \file quant_lightning_indexer_vector.h
  * \brief
  */
-#ifndef quant_lightning_indexer_VECTOR_H
-#define quant_lightning_indexer_VECTOR_H
+#ifndef QUANT_LIGHTNING_INDEXER_VECTOR_H
+#define QUANT_LIGHTNING_INDEXER_VECTOR_H
 
 #include "kernel_operator.h"
 #include "quant_lightning_indexer_vector.h"
@@ -190,4 +190,4 @@ __aicore__ inline void SetWaitFlag(HardEvent evt)
 }
 
 }  // namespace QLIServiceVec
-#endif  // quant_lightning_indexer_VECTOR_H
+#endif  // QUANT_LIGHTNING_INDEXER_VECTOR_H

@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
- /*!
+/*!
  * \file sparse_attn_sharedkv.cpp
  * \brief
  */
@@ -24,28 +24,25 @@ using namespace AscendC;
 using namespace optiling::detail;
 using namespace SASKernel;
 
-#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
-    do {                                                                                          \
-        templateClass<SASType<__VA_ARGS__>> op;                                                   \
-        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tiling_data_in, tiling);                     \
-        const tilingdataClass *__restrict tiling_data = &tiling_data_in;                          \
-        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedQ, seqUsedKV, sinks, metadata, attentionOut, user, tiling_data, tiling,   \
-                &tPipe);                                                                          \
-        op.Process();                                                                             \
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                                               \
+    do {                                                                                                               \
+        templateClass<SASType<__VA_ARGS__>> op;                                                                        \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tiling_data_in, tiling);                                          \
+        const tilingdataClass *__restrict tiling_data = &tiling_data_in;                                               \
+        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, seqUsedQ, seqUsedKV,  \
+                sinks, metadata, attentionOut, user, tiling_data, tiling, &tPipe);                                     \
+        op.Process();                                                                                                  \
     } while (0)
 
 
-template<int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
- __global__ __aicore__ void
+template <int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
+__global__ __aicore__ void
 sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
-                       __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices,
-                       __gm__ uint8_t* oriBlockTable, __gm__ uint8_t* cmpBlockTable,
-                       __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *cuSeqlensOriKv,
- 	                   __gm__ uint8_t *cuSeqlensCmpKv, __gm__ uint8_t *seqUsedQ,
-                       __gm__ uint8_t *seqUsedKV, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
-                       __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmax_lse,
-                       __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
+                     __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
+                     __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *cuSeqlensOriKv,
+                     __gm__ uint8_t *cuSeqlensCmpKv, __gm__ uint8_t *seqUsedQ, __gm__ uint8_t *seqUsedKV,
+                     __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut,
+                     __gm__ uint8_t *softmax_lse, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
 
@@ -53,20 +50,22 @@ sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
     if constexpr (ORIG_DTYPE_Q == DT_FLOAT16 && ORIG_DTYPE_ORI_KV == DT_FLOAT16 && ORIG_DTYPE_ATTN_OUT == DT_FLOAT16) {
         if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE) {
-            SAS_OP_IMPL(SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, half, half, half,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
+            SAS_OP_IMPL(SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, half, half, half, FLASH_DECODE,
+                        static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         } else {
-            SAS_OP_IMPL(SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, half, half, half,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
+            SAS_OP_IMPL(SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, half, half, half, FLASH_DECODE,
+                        static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
         }
     }
     if constexpr (ORIG_DTYPE_Q == DT_BF16 && ORIG_DTYPE_ORI_KV == DT_BF16 && ORIG_DTYPE_ATTN_OUT == DT_BF16) {
         if constexpr (TEMPLATE_MODE == SCFA_TEMPLATE) {
             SAS_OP_IMPL(SparseAttnSharedkvScfa, SparseAttnSharedkvTilingData, bfloat16_t, bfloat16_t, bfloat16_t,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
+                        FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T),
+                        TEMPLATE_MODE);
         } else {
             SAS_OP_IMPL(SparseAttnSharedkvSwa, SparseAttnSharedkvTilingData, bfloat16_t, bfloat16_t, bfloat16_t,
-                FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T), TEMPLATE_MODE);
+                        FLASH_DECODE, static_cast<SAS_LAYOUT>(LAYOUT_T), static_cast<SAS_LAYOUT>(KV_LAYOUT_T),
+                        TEMPLATE_MODE);
         }
     }
 }

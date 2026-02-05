@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file quant_lightning_indexer_proto.cpp
+ * \file quant_lightning_indexer_infershape.cpp
  * \brief
  */
 #include <graph/utils/type_utils.h>

@@ -764,8 +764,25 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadState(const LocalTensor<
                     // dDealSize必须为64
                     Duplicate(kvLocal, FLOAT_ZERO, dDealSize, constInfo_.cmpRatio, 1, 2 * dDealSize / 8);
                     Duplicate(scoreLocal, SOFTMAX_MIN_NUM, dDealSize, constInfo_.cmpRatio, 1, 2 * dDealSize / 8);
+                    if (blockInfo.bStartPos) {
+                        uint32_t copySeqCnt = blockInfo.bStartPos;
+                        uint64_t endSeqIdx = blockInfo.bStartPos;
+                        uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+                        uint64_t srcBaseOffset = dDealSize * constInfo_.cmpRatio * 2;
+                        ReadFromCacheState(kvLocal[srcBaseOffset], kvStateGm_, kvBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+                        ReadFromCacheState(scoreLocal[srcBaseOffset], scoreStateGm_, scoreBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+                    }
                 } else {
                     uint32_t copySeqCnt = constInfo_.cmpRatio + blockInfo.bStartPos % constInfo_.cmpRatio;
+                    uint64_t endSeqIdx = blockInfo.bStartPos;
+                    uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
+                    uint64_t srcBaseOffset = 0;
+                    ReadFromCacheState(kvLocal, kvStateGm_, kvBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+                    ReadFromCacheState(scoreLocal, scoreStateGm_, scoreBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize);
+                }
+            } else if (blockInfo.sIdx == (constInfo_.cmpRatio - (blockInfo.bStartPos % constInfo_.cmpRatio))) {
+                if ((blockInfo.bStartPos % constInfo_.cmpRatio) > 0) {
+                    uint32_t copySeqCnt = blockInfo.bStartPos % constInfo_.cmpRatio;
                     uint64_t endSeqIdx = blockInfo.bStartPos;
                     uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
                     uint64_t srcBaseOffset = 0;
@@ -1117,15 +1134,10 @@ __aicore__ inline void CompressorBlockVector<COMP>::CalRope(const Compressor::Ru
         inputQue1.EnQue(sinUb);
         inputQue1.DeQue<X_T>();
 
-        if constexpr (COMP::rotaryMode == ROTARY_MODE::INTERLEAVE) {
-            PipeBarrier<PIPE_V>();
-            InterleaveModeVF(sinUb, cosUb, tmpRopeInUb, tmpRopeOutUb, constInfo_.ropeHeadDim, curDealScSize, 1);
-            PipeBarrier<PIPE_V>();
-        } else {
-            PipeBarrier<PIPE_V>();
-            HalfAlignVF(sinUb, cosUb, tmpRopeInUb, tmpRopeOutUb, constInfo_.ropeHeadDim, curDealScSize, 1);
-            PipeBarrier<PIPE_V>();
-        }
+        bool isInterleave = (COMP::rotaryMode == ROTARY_MODE::INTERLEAVE) ? true : false;
+        PipeBarrier<PIPE_V>();
+        RopeVF(sinUb, cosUb, tmpRopeInUb, tmpRopeOutUb, constInfo_.ropeHeadDim, curDealScSize, 1, isInterleave);
+        PipeBarrier<PIPE_V>();
         inputQue1.FreeTensor(sinUb);
         // normal部分和rope拼接，并搬到outputub
         ropeCopyParams.blockCount = curDealScSize;

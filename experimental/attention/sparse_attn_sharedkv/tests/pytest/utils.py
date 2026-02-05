@@ -10,17 +10,11 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
 
-import itertools
-import torch
-import check_result
-import sparse_attn_sharedkv_process
-import pytest
-import random
+import numpy as np
+import os
 import pandas as pd
 from pathlib import Path
-import numpy as np
-import math
-import os
+import pytest
 
 def load_excel_test_cases(excel_file_path: str, sheetname: str):
 
@@ -92,6 +86,7 @@ def save_result(result, fulfill_percent, params, result_path='./result/sas_resul
         "block_size1": params[14],
         "block_size2": params[15],
         "cu_seqlens_q": params[16],
+        "seqused_q": None if len(params) < 30 else params[29],
         "seqused_kv": params[17],
         "softmax_scale": params[18],
         "cmp_ratio": params[19],

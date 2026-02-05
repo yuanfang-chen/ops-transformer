@@ -10,18 +10,16 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
 
-import itertools
 import torch
 import torch_npu
-import check_result
-import deal_excel
-import sparse_attn_sharedkv_process
+import result_compare_method
+import utils
+from batch import sparse_attn_sharedkv_process
 import pytest
 import random
 import pandas as pd
 from pathlib import Path
 import numpy as np
-import math
 import os
 import multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -47,20 +45,20 @@ print("files:", locals()["testcase_files"])
 
 def call_sas_npu(testcase_files):   # 初始化参数和tensor
     print("执行文件: ", testcase_files)
-    torch_npu.npu.set_device(7)
+    torch_npu.npu.set_device(0)
     test_data = torch.load(testcase_files, map_location="cpu")
     npu_result = None
     try:
         npu_result, softmax_lse = sparse_attn_sharedkv_process.call_npu(test_data)
     except Exception as e:
-        deal_excel.save_result('Exception', 0, test_data['params'], result_path)
+        utils.save_result('Exception', 0, test_data['params'], result_path)
         raise e
     if npu_result != None:
-        result, fulfill_percent = check_result.check_result(test_data['cpu_output'], npu_result)
+        result, fulfill_percent = result_compare_method.check_result(test_data['cpu_output'], npu_result)
     else:
         result = "Failed"
         fulfill_percent = 0
-    deal_excel.save_result(result, fulfill_percent, test_data['params'], result_path)
+    utils.save_result(result, fulfill_percent, test_data['params'], result_path)
 
 @pytest.mark.ci
 @pytest.mark.parametrize("testcase_files", locals()["testcase_files"])

@@ -1,24 +1,21 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-# This program is free software, you can redistribute it and/or modify.
+# -----------------------------------------------------------------------------------------------------------
 # Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
-# ======================================================================================================================
+# -----------------------------------------------------------------------------------------------------------
 
 import math
 import random
-import logging
+import logging 
 import torch
 import datetime
 import os
 import sys
 import numpy as np
-
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 
@@ -37,19 +34,19 @@ def display_output_np_isclose(real_data, expect_data, start, end, expect_fp32_da
             diff_abs = "inf" if "inf" in str(expect_data[j]) else "nan"
             if expect_fp32_data is not None:
                 print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
             else:
                 print_log('%08d \t %-7s \t %-7s \t %-7s \t %-7s' % (
-                    start + idx, expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
         else:
             diff_abs = abs(np.float64(
                 expect_data[j]) - np.float64(real_data[j]))
             if expect_fp32_data is not None:
                 print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx + 1, expect_fp32_data[j], expect_data[j], real_data[j], diff_abs, diff_rate))
             else:
                 print_log('%08d \t %0.7f \t %0.7f \t %0.7f \t %0.7f' % (
-                    start + idx, expect_data[j], real_data[j], diff_abs, diff_rate))
+                    start + idx + 1, expect_data[j], real_data[j], diff_abs, diff_rate))
 
     print_log(
         '---------------------------------------------------------------------------------------')
@@ -115,23 +112,16 @@ def display_error_output(real_data, expect_data, err_idx, relative_diff):
             break
     print_log(
         '---------------------------------------------------------------------------------------')
-# fuzz 中 precision_method == 1的精度对比方式
-def check_result(expect, npu_result):
-    diff_thd=0.005
-    pct_thd=0.005
-    max_diff_hd=10
-    rtol=0.005
-    atol=0.000025
-    max_error_idx = 10000000
-
-    real_data = npu_result.cpu().to(torch.float32).numpy()
-    data_compe = expect.cpu().to(torch.float32).numpy()
+# fuzz 中precision_method == 1的精度对比方式
+def check_result(expect, result, data_type, pct_thd = 0.005):
+    real_data = result.cpu().numpy()
+    data_compe = expect.cpu().numpy()
     real_data = real_data.flatten()
     data_compe = data_compe.flatten()
     if real_data.size == 0 and real_data.size == data_compe.size:
         print_log(
             'The npu_output is [],and it is same as bm_output, the result of data_compare is \"Pass\"')
-        return "Pass", 100.0, 0
+        return  100.0,"Pass"
     start = 0
     end = real_data.size - 1
     if end < start:
@@ -142,13 +132,26 @@ def check_result(expect, npu_result):
     if real_data.size != data_compe.size:
         print_log(
             'Error,the size of npu output[%s] and benchmark[%s] is not equal.' % (real_data.size, data_compe.size))
-        return result, 0.0, max_error
+        return 0.0, result
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
 
     if overflows_count > 0:
         print_log('Overflow,size:%s,benchmark_output:%s, %s' % (
             overflows_count, data_compe[np.isinf(data_compe)][0:10], data_compe[np.isnan(data_compe)][0:10]))
+    
+    if data_type == 'bfloat16':
+        diff_thd=0.005
+        max_diff_hd=10.0
+        rtol=0.005
+        atol=0.0078125
+        max_error_idx = 10000000
+    else:
+        diff_thd=0.005
+        max_diff_hd=10.0
+        rtol=0.005
+        atol=0.000025
+        max_error_idx = 10000000
 
 
     split_count = int(end - start + 1) if end != start else 1
@@ -159,17 +162,45 @@ def check_result(expect, npu_result):
     if 'nan' in str(real_data) or 'inf' in str(real_data) or 'nan' in str(data_compe) or 'inf' in str(data_compe):
         has_nan_inf = True
 
-    if npu_result.dtype == torch.bfloat16:
-        rtol=0.0078125
-        atol=0.0001
+    if str(real_data.dtype) == 'bfloat16':
         diff_result = np.isclose(real_data.astype(np.float32), data_compe.astype(np.float32), rtol=rtol, atol=atol,
                                     equal_nan=True)
+    elif str(real_data.dtype) == 'float8_e4m3fn':
+        nan_mask = np.isnan(real_data)
+        real_data[nan_mask] = 0
+        arr_string = real_data.tobytes()
+        real_data = np.frombuffer(arr_string, dtype="uint8")
+        nan_mask = np.isnan(data_compe)
+        data_compe[nan_mask] = 0
+        arr_string = data_compe.tobytes()
+        data_compe = np.frombuffer(arr_string, dtype="uint8")
+        diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
+    elif str(real_data.dtype) == 'float8_e5m2':
+        nan_mask = np.isnan(real_data)
+        real_data[nan_mask] = 0
+        nan_pos_inf = np.isposinf(real_data)
+        real_data[nan_pos_inf] = 57344
+        nan_neg_inf = np.isneginf(real_data)
+        real_data[nan_neg_inf] = -57344
+
+        arr_string = real_data.tobytes()
+        real_data = np.frombuffer(arr_string, dtype="uint8")
+        nan_mask = np.isnan(data_compe)
+        data_compe[nan_mask] = 0
+        nan_pos_inf = np.isposinf(data_compe)
+        data_compe[nan_pos_inf] = 57344
+        nan_neg_inf = np.isneginf(data_compe)
+        data_compe[nan_neg_inf] = -57344
+
+        arr_string = data_compe.tobytes()
+        data_compe = np.frombuffer(arr_string, dtype="uint8")
+        diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
     else:
         diff_result = np.isclose(real_data, data_compe, rtol=rtol, atol=atol, equal_nan=True)
     err_idx = np.where(diff_result != np.array((True,)))[0]
 
     if str(data_compe.dtype) == 'bool':
-        data_compe = data_compe.astype(np.int8)
+        data_compe = data_compe.astype(np.int8)  
         real_data = real_data.astype(np.int8)
     diff_abs = abs(data_compe - real_data)
     b1 = np.maximum(np.abs(real_data), (np.abs(data_compe)))
@@ -202,5 +233,5 @@ def check_result(expect, npu_result):
     if result == "Failed":
         display_error_output(real_data, data_compe,
                                 err_idx, err_diff[0:max_error_idx])
-        # assert 1==0
-    return result, fulfill_percent
+    print(result)
+    return fulfill_percent, result

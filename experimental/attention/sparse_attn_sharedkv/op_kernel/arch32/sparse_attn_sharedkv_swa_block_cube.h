@@ -22,8 +22,9 @@
 #include "lib/matrix/matmul/tiling.h"
 #include "../sparse_attn_sharedkv_common.h"
 
-namespace SASKernel{
-template <typename SAST> class SWACubeBlock {
+namespace SASKernel {
+template <typename SAST>
+class SWACubeBlock {
 public:
     // 中间计算数据类型为float, 高精度模式
     using T = float;
@@ -57,8 +58,8 @@ private:
 
     static constexpr uint32_t M_SPLIT_SIZE = 128;     // m方向切分
     static constexpr uint32_t N_SPLIT_SIZE = 128;     // n方向切分
-    static constexpr uint32_t K_L0_SPLIT_SIZE = 128;     // k方向L0切分
-    static constexpr uint32_t K_L1_SPLIT_SIZE = 256;     // k方向L1切分
+    static constexpr uint32_t K_L0_SPLIT_SIZE = 128;  // k方向L0切分
+    static constexpr uint32_t K_L1_SPLIT_SIZE = 256;  // k方向L1切分
     static constexpr uint32_t N_WORKSPACE_SIZE = 512; // n方向切分
 
     static constexpr uint32_t L1_BLOCK_SIZE = (64 * 512 * sizeof(Q_T));
@@ -82,7 +83,7 @@ private:
     static constexpr uint32_t L0AB_EVENT0 = EVENT_ID3;
     static constexpr uint32_t L0AB_EVENT1 = EVENT_ID4;
 
-    static constexpr IsResetLoad3dConfig LOAD3DV2_CONFIG = {true, true};                    // isSetFMatrix isSetPadding;
+    static constexpr IsResetLoad3dConfig LOAD3DV2_CONFIG = {true, true}; // isSetFMatrix isSetPadding;
     static constexpr uint32_t mte21QPIds[4] = {L1_EVENT0, L1_EVENT1, L1_EVENT2, L1_EVENT3}; // mte12复用
     static constexpr uint32_t mte21KVIds[3] = {L1_EVENT4, L1_EVENT5, L1_EVENT6};
 
@@ -149,15 +150,16 @@ private:
 };
 
 
-template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::InitParams(const ConstInfo &constInfo)
+template <typename SAST>
+__aicore__ inline void SWACubeBlock<SAST>::InitParams(const ConstInfo &constInfo)
 {
     this->constInfo = constInfo;
 }
 
 template <typename SAST>
-__aicore__ inline void
-SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<KV_T> oriKvGm,
-                                                   GlobalTensor<KV_T> cmpKvGm, GlobalTensor<MM_OUT_T> mm1ResGm)
+__aicore__ inline void SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<KV_T> oriKvGm,
+                                                               GlobalTensor<KV_T> cmpKvGm,
+                                                               GlobalTensor<MM_OUT_T> mm1ResGm)
 {
     // mm1
     this->queryGm = queryGm;
@@ -169,9 +171,9 @@ SWACubeBlock<SAST>::InitMm1GlobalTensor(GlobalTensor<Q_T> queryGm, GlobalTensor<
 }
 
 template <typename SAST>
-__aicore__ inline void
-SWACubeBlock<SAST>::InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm,
-                                        GlobalTensor<OUT_T> attentionOutGm)
+__aicore__ inline void SWACubeBlock<SAST>::InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm,
+                                                               GlobalTensor<MM_OUT_T> mm2ResGm,
+                                                               GlobalTensor<OUT_T> attentionOutGm)
 {
     // mm2
     this->vec1ResGm = vec1ResGm;
@@ -182,8 +184,7 @@ SWACubeBlock<SAST>::InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTens
 template <typename SAST>
 __aicore__ inline void
 SWACubeBlock<SAST>::InitPageAttentionInfo(GlobalTensor<KV_T> oriKvGm, // const GlobalTensor<KV_T>& kvMergeGm,
-                                          GlobalTensor<int32_t> oriBlockTableGm,
-                                          GlobalTensor<int32_t> cmpBlockTableGm)
+                                          GlobalTensor<int32_t> oriBlockTableGm, GlobalTensor<int32_t> cmpBlockTableGm)
 {
     this->oriKvGm = oriKvGm;
     this->oriBlockTableGm = oriBlockTableGm;
@@ -192,7 +193,8 @@ SWACubeBlock<SAST>::InitPageAttentionInfo(GlobalTensor<KV_T> oriKvGm, // const G
     }
 }
 
-template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::InitBuffers(TPipe *pipe)
+template <typename SAST>
+__aicore__ inline void SWACubeBlock<SAST>::InitBuffers(TPipe *pipe)
 {
     pipe->InitBuffer(bufQPL1, L1_BLOCK_SIZE * 4);
     l1QPTensor = bufQPL1.Get<Q_T>();
@@ -209,7 +211,8 @@ template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::InitBuffers(
     cL0TensorPingPong = tmpBufL0C.Get<MM_OUT_T>();
 }
 
-template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::AllocEventID()
+template <typename SAST>
+__aicore__ inline void SWACubeBlock<SAST>::AllocEventID()
 {
     SetFlag<HardEvent::MTE1_MTE2>(L1_EVENT0);
     SetFlag<HardEvent::MTE1_MTE2>(L1_EVENT1);
@@ -222,7 +225,8 @@ template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::AllocEventID
     SetFlag<HardEvent::M_MTE1>(L0AB_EVENT1);
 }
 
-template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::FreeEventID()
+template <typename SAST>
+__aicore__ inline void SWACubeBlock<SAST>::FreeEventID()
 {
     WaitFlag<HardEvent::MTE1_MTE2>(L1_EVENT0);
     WaitFlag<HardEvent::MTE1_MTE2>(L1_EVENT1);
@@ -236,9 +240,8 @@ template <typename SAST> __aicore__ inline void SWACubeBlock<SAST>::FreeEventID(
 }
 
 template <typename SAST>
-__aicore__ inline void SWACubeBlock<SAST>::CopyGmToL1(LocalTensor<KV_T> &l1Tensor,
-                                                                 GlobalTensor<KV_T> &gmSrcTensor, uint32_t srcN,
-                                                                 uint32_t srcD, uint32_t srcDstride)
+__aicore__ inline void SWACubeBlock<SAST>::CopyGmToL1(LocalTensor<KV_T> &l1Tensor, GlobalTensor<KV_T> &gmSrcTensor,
+                                                      uint32_t srcN, uint32_t srcD, uint32_t srcDstride)
 {
     Nd2NzParams nd2nzPara;
     nd2nzPara.ndNum = 1;
@@ -254,17 +257,17 @@ __aicore__ inline void SWACubeBlock<SAST>::CopyGmToL1(LocalTensor<KV_T> &l1Tenso
 
 template <typename SAST>
 __aicore__ inline void SWACubeBlock<SAST>::CopyInMm1AToL1(LocalTensor<KV_T> &l1Tensor, const RunInfo &info,
-                                                                     uint32_t mSeqIdx, uint32_t mSizeAct,
-                                                                     uint32_t headSize, uint32_t headOffset)
+                                                          uint32_t mSeqIdx, uint32_t mSizeAct, uint32_t headSize,
+                                                          uint32_t headOffset)
 {
     auto srcGm = queryGm[info.tensorAOffset + mSeqIdx * constInfo.headDim + headOffset];
     CopyGmToL1(l1Tensor, srcGm, mSizeAct, headSize, constInfo.headDim);
 }
 
 template <typename SAST>
-__aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1A(LocalTensor<KV_T> &aL0Tensor,
-                                                                   LocalTensor<KV_T> &aL1Tensor, uint32_t idx,
-                                                                   uint32_t kSplitSize, uint32_t mSize, uint32_t kSize)
+__aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1A(LocalTensor<KV_T> &aL0Tensor, LocalTensor<KV_T> &aL1Tensor,
+                                                        uint32_t idx, uint32_t kSplitSize, uint32_t mSize,
+                                                        uint32_t kSize)
 {
     LocalTensor<KV_T> srcTensor = aL1Tensor[mSize * kSplitSize * idx];
     LoadData3DParamsV2<KV_T> loadData3DParams;
@@ -296,9 +299,9 @@ __aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1A(LocalTensor<KV_T> &aL0Te
 }
 
 template <typename SAST>
-__aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1B(LocalTensor<KV_T> &l0Tensor,
-                                                                   LocalTensor<KV_T> &l1Tensor, uint32_t idx,
-                                                                   uint32_t kSplitSize, uint32_t kSize, uint32_t nSize)
+__aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1B(LocalTensor<KV_T> &l0Tensor, LocalTensor<KV_T> &l1Tensor,
+                                                        uint32_t idx, uint32_t kSplitSize, uint32_t kSize,
+                                                        uint32_t nSize)
 {
     // N 方向全载
     LocalTensor<KV_T> srcTensor = l1Tensor[nSize * kSplitSize * idx];
@@ -313,8 +316,8 @@ __aicore__ inline void SWACubeBlock<SAST>::LoadDataMm1B(LocalTensor<KV_T> &l0Ten
 
 template <typename SAST>
 __aicore__ inline void SWACubeBlock<SAST>::CopyInMm2AToL1(LocalTensor<KV_T> &aL1Tensor, const RunInfo &info,
-                                                                     uint32_t mSeqIdx, uint32_t subMSizeAct,
-                                                                     uint32_t nSize, uint32_t nOffset)
+                                                          uint32_t mSeqIdx, uint32_t subMSizeAct, uint32_t nSize,
+                                                          uint32_t nOffset)
 {
     auto srcGm = vec1ResGm[(info.loop % constInfo.preLoadNum) * constInfo.mmResUbSize +
                            mSeqIdx * info.actualSingleProcessSInnerSizeAlign + nOffset];
@@ -376,7 +379,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                     startPos.n2Idx = info.n2Idx;
                     startPos.s2Idx = curS2Offset;
                     // 256、32等待7buf命名更改
-                    startPos.dIdx = kL1 * 256;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
+                    startPos.dIdx = kL1 * 256; // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
                     PAShape shape;
                     shape.blockSize = constInfo.paOriBlockSize;
                     shape.headNum = constInfo.kvHeadNum;
@@ -406,7 +409,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                     startPos.n2Idx = info.n2Idx;
                     startPos.s2Idx = curS2Offset;
                     // 256、32等待7buf命名更改
-                    startPos.dIdx = kL1 * 256;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
+                    startPos.dIdx = kL1 * 256; // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
 
                     PAShape shape;
                     shape.blockSize = constInfo.paCmpBlockSize;
@@ -438,8 +441,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                 }
                 uint32_t mIdx = qpL1BufIter + mL1;
                 ka = GetQPL1RealIdx(mIdx, kL1);
-                LocalTensor<Q_T> aL1Tensor =
-                    l1QPTensor[ka * L1_BLOCK_OFFSET + (1 - kL1) * aL1PaddingSize];
+                LocalTensor<Q_T> aL1Tensor = l1QPTensor[ka * L1_BLOCK_OFFSET + (1 - kL1) * aL1PaddingSize];
                 if (nL1 == 0) {
                     if (kL1 == 0) {
                         WaitFlag<HardEvent::MTE1_MTE2>(mte21QPIds[ka]);
@@ -498,7 +500,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
 
                     Fixpipe(mm1ResGm[(info.loop % (constInfo.preLoadNum)) * constInfo.mmResUbSize + nL1 * N_SPLIT_SIZE +
                                      (mSplitInfo.nBufferStartM + mL1 * M_SPLIT_SIZE) *
-                                      info.actualSingleProcessSInnerSizeAlign],
+                                         info.actualSingleProcessSInnerSizeAlign],
                             cL0Tensor, fixParams);
                 }
                 if (mL1Loops == 2) {
@@ -579,7 +581,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                 uint32_t copyFinishRowCnt = 0;
 
                 if (info.isOri) {
-                    uint32_t curS2Offset = info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint + kL1 * K_L0_SPLIT_SIZE;
+                    uint32_t curS2Offset =
+                        info.s2Idx * constInfo.s2BaseSize + info.s2StartPoint + kL1 * K_L0_SPLIT_SIZE;
                     while (copyFinishRowCnt < kL0Size) {
                         copyRowCnt = constInfo.paOriBlockSize - curS2Offset % constInfo.paOriBlockSize;
                         if (copyFinishRowCnt + copyRowCnt > kL0Size) {
@@ -589,7 +592,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         startPos.bIdx = info.bIdx;
                         startPos.n2Idx = info.n2Idx;
                         startPos.s2Idx = curS2Offset;
-                        startPos.dIdx = nL1 * N_SPLIT_SIZE;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
+                        startPos.dIdx =
+                            nL1 * N_SPLIT_SIZE; // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
                         PAShape shape;
                         shape.blockSize = constInfo.paOriBlockSize;
                         shape.headNum = constInfo.kvHeadNum;
@@ -598,7 +602,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         shape.maxblockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
                         shape.copyRowNum = copyRowCnt;
                         shape.copyRowNumAlign = kL0SizeAlign;
-                        subvTensor = bL1Tensor[(kL1 - kOffset) * K_L0_SPLIT_SIZE * N_SPLIT_SIZE + copyFinishRowCnt * 16];
+                        subvTensor =
+                            bL1Tensor[(kL1 - kOffset) * K_L0_SPLIT_SIZE * N_SPLIT_SIZE + copyFinishRowCnt * 16];
                         DataCopyPA<KV_T, KV_LAYOUT_T>(subvTensor, oriKvGm, oriBlockTableGm, shape, startPos);
 
                         // 更新循环变量
@@ -619,7 +624,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         startPos.n2Idx = info.n2Idx;
                         startPos.s2Idx = curS2Offset;
                         // 256、32等待7buf命名更改
-                        startPos.dIdx = nL1 * N_SPLIT_SIZE;  // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
+                        startPos.dIdx =
+                            nL1 * N_SPLIT_SIZE; // mm1 右矩阵 bn2s2d, d为k轴不切; mm2 右矩阵, s2为k轴, d轴切分
 
                         PAShape shape;
                         shape.blockSize = constInfo.paCmpBlockSize;
@@ -629,7 +635,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                         shape.maxblockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
                         shape.copyRowNum = copyRowCnt;
                         shape.copyRowNumAlign = kL0SizeAlign;
-                        subvTensor = bL1Tensor[(kL1 - kOffset) * K_L0_SPLIT_SIZE * N_SPLIT_SIZE + copyFinishRowCnt * 16];
+                        subvTensor =
+                            bL1Tensor[(kL1 - kOffset) * K_L0_SPLIT_SIZE * N_SPLIT_SIZE + copyFinishRowCnt * 16];
                         DataCopyPA<KV_T, KV_LAYOUT_T>(subvTensor, cmpKvGm, cmpBlockTableGm, shape, startPos);
                         // 更新循环变量
                         copyFinishRowCnt += copyRowCnt;
@@ -641,7 +648,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
             SetFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             WaitFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             mL1SizeAlign = M_SPLIT_SIZE;
-            mL1Size = M_SPLIT_SIZE;      // m的实际大小
+            mL1Size = M_SPLIT_SIZE; // m的实际大小
             for (uint32_t mL1 = 0; mL1 < mL1Loops; mL1++) {
                 if (mL1 == (mL1Loops - 1)) {
                     // 尾块
@@ -675,54 +682,57 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     WaitFlag<HardEvent::M_MTE1>(Mte1MmABEventId(abL0BufIter % 2));
                     LocalTensor<KV_T> bL0Tensor = bL0TensorPingPong[(abL0BufIter % 2) * (L0B_PP_SIZE / sizeof(KV_T))];
                     LoadData3DParamsV2<KV_T> loadData3DParamsForB;
-                    loadData3DParamsForB.l1H = kL0SizeAlign / 16;    // 源操作数height
-                    loadData3DParamsForB.l1W = 16;                   // 源操作数weight=16，目的height=l1H*L1W
+                    loadData3DParamsForB.l1H = kL0SizeAlign / 16; // 源操作数height
+                    loadData3DParamsForB.l1W = 16;                // 源操作数weight=16，目的height=l1H*L1W
                     loadData3DParamsForB.padList[0] = 0;
                     loadData3DParamsForB.padList[1] = 0;
                     loadData3DParamsForB.padList[2] = 0;
-                    loadData3DParamsForB.padList[3] = 255;           // 尾部数据不影响滑窗的结果
+                    loadData3DParamsForB.padList[3] = 255; // 尾部数据不影响滑窗的结果
 
-                    loadData3DParamsForB.mExtension = kL0SizeAlign;  // 在目的操作数height维度的传输长度
-                    loadData3DParamsForB.kExtension = nL1SizeAlign;  // 在目的操作数width维度的传输长度
-                    loadData3DParamsForB.mStartPt = 0;               // 卷积核在目的操作数width维度的起点
-                    loadData3DParamsForB.kStartPt = 0;               // 卷积核在目的操作数height维度的起点
+                    loadData3DParamsForB.mExtension = kL0SizeAlign; // 在目的操作数height维度的传输长度
+                    loadData3DParamsForB.kExtension = nL1SizeAlign; // 在目的操作数width维度的传输长度
+                    loadData3DParamsForB.mStartPt = 0;              // 卷积核在目的操作数width维度的起点
+                    loadData3DParamsForB.kStartPt = 0;              // 卷积核在目的操作数height维度的起点
                     loadData3DParamsForB.strideW = 1;
                     loadData3DParamsForB.strideH = 1;
                     loadData3DParamsForB.filterW = 1;
-                    loadData3DParamsForB.filterSizeW = false;        // 是否在filterW的基础上将卷积核width增加256个元素
+                    loadData3DParamsForB.filterSizeW = false; // 是否在filterW的基础上将卷积核width增加256个元素
                     loadData3DParamsForB.filterH = 1;
-                    loadData3DParamsForB.filterSizeH = false;        // 是否在filterH的基础上将卷积核height增加256个元素
-                    loadData3DParamsForB.dilationFilterW = 1;        // 卷积核width膨胀系数
-                    loadData3DParamsForB.dilationFilterH = 1;        // 卷积核height膨胀系数
-                    loadData3DParamsForB.enTranspose = 1;            // 是否启用转置功能
-                    loadData3DParamsForB.fMatrixCtrl = 0;            // 使用FMATRIX_LEFT还是使用FMATRIX_RIGHT，=0使用FMATRIX_LEFT，=1使用FMATRIX_RIGHT 1
-                    loadData3DParamsForB.channelSize = nL1SizeAlign; // 源操作数的通道数。膨胀系数为1时，目的weight为filterW*filterH*channelSize
+                    loadData3DParamsForB.filterSizeH = false; // 是否在filterH的基础上将卷积核height增加256个元素
+                    loadData3DParamsForB.dilationFilterW = 1; // 卷积核width膨胀系数
+                    loadData3DParamsForB.dilationFilterH = 1; // 卷积核height膨胀系数
+                    loadData3DParamsForB.enTranspose = 1;     // 是否启用转置功能
+                    loadData3DParamsForB.fMatrixCtrl =
+                        0; // 使用FMATRIX_LEFT还是使用FMATRIX_RIGHT，=0使用FMATRIX_LEFT，=1使用FMATRIX_RIGHT 1
+                    loadData3DParamsForB.channelSize =
+                        nL1SizeAlign; // 源操作数的通道数。膨胀系数为1时，目的weight为filterW*filterH*channelSize
                     LoadData<KV_T, LOAD3DV2_CONFIG>(bL0Tensor, bL1Tensor[kL0 * baseK * baseN], loadData3DParamsForB);
 
                     LocalTensor<KV_T> aL0Tensor = aL0TensorPingPong[(abL0BufIter % 2) * (L0A_PP_SIZE / sizeof(KV_T))];
                     LoadData3DParamsV2<KV_T> loadData3DParamsForA;
-                    loadData3DParamsForA.l1H = mL1SizeAlign / 16;    // 源操作数height
-                    loadData3DParamsForA.l1W = 16;                   // 源操作数weight
+                    loadData3DParamsForA.l1H = mL1SizeAlign / 16; // 源操作数height
+                    loadData3DParamsForA.l1W = 16;                // 源操作数weight
                     loadData3DParamsForA.padList[0] = 0;
                     loadData3DParamsForA.padList[1] = 0;
                     loadData3DParamsForA.padList[2] = 0;
-                    loadData3DParamsForA.padList[3] = 255;           // 尾部数据不影响滑窗的结果
+                    loadData3DParamsForA.padList[3] = 255; // 尾部数据不影响滑窗的结果
 
-                    loadData3DParamsForA.mExtension = mL1SizeAlign;  // 在目的操作数height维度的传输长度
-                    loadData3DParamsForA.kExtension = kL0SizeAlign;  // 在目的操作数width维度的传输长度
-                    loadData3DParamsForA.mStartPt = 0;               // 卷积核在目的操作数width维度的起点
-                    loadData3DParamsForA.kStartPt = 0;               // 卷积核在目的操作数height维度的起点
-                    loadData3DParamsForA.strideW = 1;                // 卷积核在源操作数width维度滑动的步长
-                    loadData3DParamsForA.strideH = 1;                // 卷积核在源操作数height维度滑动的步长
-                    loadData3DParamsForA.filterW = 1;                // 卷积核width
-                    loadData3DParamsForA.filterSizeW = false;        // 是否在filterW的基础上将卷积核width增加256个元素
-                    loadData3DParamsForA.filterH = 1;                // 卷积核height
-                    loadData3DParamsForA.filterSizeH = false;        // 是否在filterH的基础上将卷积核height增加256个元素
-                    loadData3DParamsForA.dilationFilterW = 1;        // 卷积核width膨胀系数
-                    loadData3DParamsForA.dilationFilterH = 1;        // 卷积核height膨胀系数
-                    loadData3DParamsForA.enTranspose = 0;            // 是否启用转置功能，对整个目标矩阵进行转置
+                    loadData3DParamsForA.mExtension = mL1SizeAlign; // 在目的操作数height维度的传输长度
+                    loadData3DParamsForA.kExtension = kL0SizeAlign; // 在目的操作数width维度的传输长度
+                    loadData3DParamsForA.mStartPt = 0;              // 卷积核在目的操作数width维度的起点
+                    loadData3DParamsForA.kStartPt = 0;              // 卷积核在目的操作数height维度的起点
+                    loadData3DParamsForA.strideW = 1;         // 卷积核在源操作数width维度滑动的步长
+                    loadData3DParamsForA.strideH = 1;         // 卷积核在源操作数height维度滑动的步长
+                    loadData3DParamsForA.filterW = 1;         // 卷积核width
+                    loadData3DParamsForA.filterSizeW = false; // 是否在filterW的基础上将卷积核width增加256个元素
+                    loadData3DParamsForA.filterH = 1;         // 卷积核height
+                    loadData3DParamsForA.filterSizeH = false; // 是否在filterH的基础上将卷积核height增加256个元素
+                    loadData3DParamsForA.dilationFilterW = 1; // 卷积核width膨胀系数
+                    loadData3DParamsForA.dilationFilterH = 1; // 卷积核height膨胀系数
+                    loadData3DParamsForA.enTranspose = 0; // 是否启用转置功能，对整个目标矩阵进行转置
                     loadData3DParamsForA.fMatrixCtrl = 0;
-                    loadData3DParamsForA.channelSize = kL0SizeAlign; // 源操作数的通道数。膨胀系数为1时，目的weight为filterW*filterH*channelSize
+                    loadData3DParamsForA.channelSize =
+                        kL0SizeAlign; // 源操作数的通道数。膨胀系数为1时，目的weight为filterW*filterH*channelSize
                     LoadData<KV_T, LOAD3DV2_CONFIG>(aL0Tensor, aL1Tensor[kL0 * baseK * mL1SizeAlign],
                                                     loadData3DParamsForA);
                     SetFlag<HardEvent::MTE1_M>(Mte1MmABEventId(abL0BufIter % 2));
@@ -744,7 +754,7 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     abL0BufIter++;
                 }
 
-                if (nL1 == (nL1Loops - 1)) {    // nL1最后一轮, 需要将B驻留在L1中, 用于下一轮的计算？
+                if (nL1 == (nL1Loops - 1)) { // nL1最后一轮, 需要将B驻留在L1中, 用于下一轮的计算？
                     SetFlag<HardEvent::MTE1_MTE2>(mte21QPIds[ka]); // 反向同步, 表示L1中的A已经被mte1消费完
                 }
 
@@ -759,8 +769,8 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
                     fixParams.unitFlag = 0b11;
 
                     uint64_t mm2Offset = (mSplitInfo.nBufferStartM + mL1 * M_SPLIT_SIZE) * nSize + nL1 * N_SPLIT_SIZE;
-                    Fixpipe(mm2ResGm[(info.loop % (constInfo.preLoadNum)) *
-                            constInfo.bmm2ResUbSize + mm2Offset], cL0Tensor, fixParams);
+                    Fixpipe(mm2ResGm[(info.loop % (constInfo.preLoadNum)) * constInfo.bmm2ResUbSize + mm2Offset],
+                            cL0Tensor, fixParams);
                 }
 
                 if (mL1Loops == 2) {
@@ -776,5 +786,5 @@ __aicore__ inline void SWACubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
     }
     qpL1BufIter += mL1Loops;
 }
-}
+} // namespace SASKernel
 #endif

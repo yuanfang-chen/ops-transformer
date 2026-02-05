@@ -12,8 +12,8 @@
  * \file quant_lightning_indexer_common.h
  * \brief
  */
-#ifndef quant_lightning_indexer_COMMON_H
-#define quant_lightning_indexer_COMMON_H
+#ifndef QUANT_LIGHTNING_INDEXER_COMMON_H
+#define QUANT_LIGHTNING_INDEXER_COMMON_H
 
 namespace QLICommon {
 
@@ -58,7 +58,6 @@ struct RunInfo {
 
     bool isFirstS2InnerLoop;
     bool isLastS2InnerLoop;
-    bool isAllLoopEnd = false;
     bool isValid = false;
 };
 
@@ -143,4 +142,4 @@ __aicore__ inline T CeilDiv(T num, T rnd)
 }
 }  // namespace QLICommon
 
-#endif  // quant_lightning_indexer_COMMON_H
+#endif  // QUANT_LIGHTNING_INDEXER_COMMON_H
