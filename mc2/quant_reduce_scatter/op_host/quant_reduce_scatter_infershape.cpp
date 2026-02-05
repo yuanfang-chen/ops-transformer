@@ -95,7 +95,7 @@ static ge::graphStatus GetRankSize(gert::InferShapeContext* context, QuantReduce
     const int *rankSize = attrs->GetAttrPointer<int>(WORLD_SIZE_INDEX);
     OP_LOGE_IF(rankSize == nullptr, ge::GRAPH_FAILED, context->GetNodeName(), "Get rank_size failed in quant_reduce_scatter");
     OP_TILING_CHECK(SUPPORT_RANK_SIZE.find(*rankSize) == SUPPORT_RANK_SIZE.end(),
-                    OP_LOGE(INNER_DEBUG, "Rank size must be 2/4/8/16/32, but the actual value is %ld", *rankSize),
+                    OP_LOGE(INNER_DEBUG, "Rank size must be 2/4/8, but the actual value is %ld", *rankSize),
                     return ge::GRAPH_FAILED);
 
     shapeInfo.rank_num = *rankSize;

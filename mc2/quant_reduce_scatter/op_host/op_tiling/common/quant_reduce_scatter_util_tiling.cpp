@@ -210,14 +210,14 @@ static bool CheckXShapeValid(const gert::TilingContext *context, TilingRunInfo &
     OP_TILING_CHECK(emptyTensor, 
                     OP_LOGE(nodeName, 
                             "Input tensor 'x' has shape %s, but empty tensor is not supported. All dimensions must be positive (>=1).",
-                            Ops::Base::ToString(xShape->GetStorageShape())), 
+                            Ops::Base::ToString(xShape->GetStorageShape()).c_str()), 
                     return false);
 
     // 校验BS是否被worldSize整除
     OP_TILING_CHECK(xValueBS % runInfo.rankSize != 0,
                     OP_LOGE(nodeName,
                             "Input tensor 'x' has shape %s. The B*S dimension (%lu) is invalid, which must be divisible by rank size (%u).",
-                            Ops::Base::ToString(xShape->GetStorageShape()), xValueBS, runInfo.rankSize),
+                            Ops::Base::ToString(xShape->GetStorageShape()).c_str(), xValueBS, runInfo.rankSize),
                     return false);
 
     // 校验H是否在[1024, 8192]之间，且能被128整除
@@ -225,7 +225,7 @@ static bool CheckXShapeValid(const gert::TilingContext *context, TilingRunInfo &
         xValueH < H_VALUE_LOWER_LIMIT || xValueH > H_VALUE_UPPER_LIMIT || xValueH % TG_QUANT_NUMBER != 0,
         OP_LOGE(nodeName,
                 "Input tensor 'x' has shape %s. The H dimension (%lu) is invalid, which must be in [1024, 8192] and 128 multiple.",
-                Ops::Base::ToString(xShape->GetStorageShape()), xValueH),
+                Ops::Base::ToString(xShape->GetStorageShape()).c_str(), xValueH),
         return false);
     return true;
 }
@@ -327,7 +327,7 @@ static bool CheckScalesValid(const gert::TilingContext *context,
                 "Expected shape: %s, Actual shape: %s",
                 quantModeStr, expectedScalesDims.size(), actualDimNum,
                 FormatShape(expectedScalesDims).c_str(),
-                Ops::Base::ToString(scalesShape->GetStorageShape()));
+                Ops::Base::ToString(scalesShape->GetStorageShape()).c_str());
         return false;
     }
     
@@ -342,7 +342,7 @@ static bool CheckScalesValid(const gert::TilingContext *context,
                     "Expected shape: %s, Actual shape: %s",
                     i, quantModeStr, expectedDim, actualDim,
                     FormatShape(expectedScalesDims).c_str(),
-                    Ops::Base::ToString(scalesShape->GetStorageShape()));
+                    Ops::Base::ToString(scalesShape->GetStorageShape()).c_str());
             return false;
         }
     }
@@ -361,7 +361,7 @@ static bool CheckInputTensorDim(const gert::TilingContext *context, TilingRunInf
     const char *nodeName = context->GetNodeName();
     // 1.校验x相关
     const gert::StorageShape *xShape = context->GetInputShape(X_INDEX);
-    OP_LOGI(nodeName, "Input tensor 'x' has shape %s.", Ops::Base::ToString(xShape->GetStorageShape()));
+    OP_LOGI(nodeName, "Input tensor 'x' has shape %s.", Ops::Base::ToString(xShape->GetStorageShape()).c_str());
     // 校验x不为空
     OP_TILING_CHECK(xShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return false);
     // 校验x维度数量合法性
@@ -371,7 +371,7 @@ static bool CheckInputTensorDim(const gert::TilingContext *context, TilingRunInf
 
     // 2.校验scales
     const gert::StorageShape *scalesShape = context->GetInputShape(SCALES_INDEX);
-    OP_LOGI(nodeName, "Input tensor 'scale' has shape %s.", Ops::Base::ToString(scalesShape->GetStorageShape()));
+    OP_LOGI(nodeName, "Input tensor 'scales' has shape %s.", Ops::Base::ToString(scalesShape->GetStorageShape()).c_str());
     // 根据x计算正确的scales, 当scale形状不匹配时，会打印预期的形状和实际的形状
     std::vector<uint64_t> expectedScalesDims = CalculateExpectedScalesShape(context, runInfo);
     // 校验scales不为空
