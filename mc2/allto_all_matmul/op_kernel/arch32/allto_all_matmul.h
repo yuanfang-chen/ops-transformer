@@ -47,15 +47,15 @@ using namespace Catlass;
 namespace AlltoAllMatmulImpl {
 
 // A2AMM : AlltoAllMatmul
-#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename PerTokenScaleType, typename ScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB
-#define TemplateA2AMMFunc AType, BType, BiasType, PerTokenScaleType, ScaleType, CType, AllToAllResultType, hasBias, transB
+#define TemplateA2AMMClass typename AType, typename BType, typename BiasType, typename PerTokenScaleType, typename ScaleType, typename CType, typename AllToAllResultType, bool hasBias, bool transB, bool needDynamicQuant
+#define TemplateA2AMMFunc AType, BType, BiasType, PerTokenScaleType, ScaleType, CType, AllToAllResultType, hasBias, transB, needDynamicQuant
 
 using namespace AscendC;
 template <TemplateA2AMMClass>
 class AlltoAllMatmul : public CommBase{
     // A16W8和A16W4场景需要进行动态量化
-    static constexpr bool needDynamicQuant = (std::is_same<AType, float16_t>::value || std::is_same<AType, bfloat16_t>::value) && 
-        (std::is_same<BType, int8_t>::value || std::is_same<BType, int4b_t>::value);
+    // static constexpr bool needDynamicQuant = (std::is_same<AType, float16_t>::value || std::is_same<AType, bfloat16_t>::value) && 
+    //     (std::is_same<BType, int8_t>::value || std::is_same<BType, int4b_t>::value);
 public:
     __aicore__ inline AlltoAllMatmul() {};
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
@@ -383,9 +383,6 @@ template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::SmoothQuantProc(event_t eventId, int32_t dataSegmentOffset, int32_t smoothScaleCastOffset,
     int32_t actualMoveSize, LocalTensor<float> copyTensor, LocalTensor<float> smoothScaleTensor)
 {
-    if (!isSmoothQuant) {
-        return;
-    }
     SetFlag<HardEvent::V_MTE2>(eventId);
     WaitFlag<HardEvent::V_MTE2>(eventId);                
     CopyGmToUbufAlignB16(smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset],
@@ -423,7 +420,9 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CalcTokenMaxValue(Loca
         WaitFlag<HardEvent::MTE2_V>(eventId);
         Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[castOffset], RoundMode::CAST_NONE, actualMoveSize);
         PipeBarrier<PIPE_V>();
-        SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
+        if (isSmoothQuant) {
+            SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
+        }
         Abs(absTensor, copyTensor, actualMoveSize);
         PipeBarrier<PIPE_V>();
         ReduceMax<float>(copyTensor, absTensor, absTensor, actualMoveSize);
@@ -464,7 +463,9 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantPerSegment(LocalT
         WaitFlag<HardEvent::MTE2_V>(eventId);
         Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[castOffset], RoundMode::CAST_NONE, actualMoveSize);
         PipeBarrier<PIPE_V>();
-        SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
+        if (isSmoothQuant) {
+            SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
+        }
         Muls(copyTensor, copyTensor, quantScaleReciproal, actualMoveSize);
         PipeBarrier<PIPE_V>();
         Cast(copyTensor.ReinterpretCast<int32_t>(), copyTensor, RoundMode::CAST_RINT, actualMoveSize);
