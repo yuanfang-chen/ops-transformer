@@ -48,12 +48,12 @@ ge::graphStatus TilingSparseLightningIndexerGradKLLoss(gert::TilingContext *cont
 {
     auto platformInfoPtr = context->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND950) {
-        OP_LOGW(context, "Current soc version is ASCEND950.");
+    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGW(context, "Current npu arch is dav-3510.");
     } else {
-        OP_LOGW(context, "Current soc version is not ASCEND950.");
+        OP_LOGW(context, "Current npu arch is not dav-3510.");
     }
-    return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
+    return Ops::Transformer::OpTiling::TilingRegistryArch::GetInstance().DoTilingImpl(context);
 }
 
 ge::graphStatus TilingPrepareForSparseLightningIndexerGradKLLoss(gert::TilingParseContext *context)

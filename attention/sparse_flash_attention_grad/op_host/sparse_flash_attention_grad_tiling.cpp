@@ -28,7 +28,13 @@ namespace sfag {
 
 ASCENDC_EXTERN_C ge::graphStatus TilingSparseFlashAttentionGrad(gert::TilingContext *context)
 {
-    return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
+    auto npuArch = compilePtr->npuArch;
+    if (npuArch == NpuArch::DAV_3510) {
+        OP_LOGW(context, "Current npu arch is dav-3510.");
+    } else {
+        OP_LOGW(context, "Current npu arch is not dav-3510.");
+    }
+    return Ops::Transformer::OpTiling::TilingRegistryArch::GetInstance().DoTilingImpl(context);
 }
 
 ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForSparseFlashAttentionGrad(gert::TilingParseContext *context)
