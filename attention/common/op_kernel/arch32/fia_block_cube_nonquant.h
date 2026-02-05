@@ -41,14 +41,11 @@ public:
     static constexpr bool FLASH_DECODE = FIAT::flashDecode;
     static constexpr FIA_LAYOUT LAYOUT_T = FIAT::layout;
     static constexpr FIA_LAYOUT KV_LAYOUT_T = FIAT::kvLayout;
-    static constexpr uint8_t ANTIQUANT_MODE = FIAT::antiquantMode;
-
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
     static constexpr GmFormat KV_FORMAT = GetKVFormat<KV_LAYOUT_T, PAGE_ATTENTION>();
 
     static constexpr bool ANTIQUANT = !IsSameType<Q_T, KV_T>::value;
     static constexpr bool QUANT = (IsSameType<Q_T, KV_T>::value && IsSameType<KV_T, int8_t>::value);
-    using ANTIQ_PARAMS_T = typename AscendC::Conditional<ANTIQUANT_PER_TOKEN, T, Q_T>::type;
     // define pse datetype
     using pseShiftType = typename AscendC::Conditional<AscendC::IsSameType<Q_T, int8_t>::value, half, Q_T>::type;
     // 后接量化的条件需要重新审视
