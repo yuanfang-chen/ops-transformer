@@ -39,7 +39,7 @@
 - test_compressor_paramset.py      # 单用例入参配置
 #### 批量用例测试
 - test_compressor_batch.py         # 用例批量测试主程序并生成excel文件保存结果
-- compressor_loadprocess.py        # 读取pt文件并调用算子获取npu输出
+- compressor_pt_loadprocess.py     # 读取pt文件并调用算子获取npu输出
 - compressor_pt_save.py            # 读取excel表格批量生成用例pt文件
 - replace_path.py                  # test_compressor_batch.py占位符替换
  
