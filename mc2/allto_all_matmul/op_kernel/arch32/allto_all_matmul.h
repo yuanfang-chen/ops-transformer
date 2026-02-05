@@ -79,6 +79,8 @@ private:
                                         int32_t dataLen, int32_t commIdx);
     __aicore__ inline void QuantTokenSegment(__gm__ AType *dataSrc, int32_t dataOffset, int32_t tokenPerCore,
                                         int32_t dataLen, int32_t commIdx);
+    __aicore__ inline void SmoothQuantProc(event_t eventId, int32_t dataSegmentOffset, int32_t smoothScaleCastOffset, int32_t actualMoveSize,
+        LocalTensor<float> copyTensor, LocalTensor<float> smoothScaleTensor);
     __aicore__ inline void CalcTokenMaxValue(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1, LocalTensor<float> absTensor0,
         LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1, int32_t castOffset,
         __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, LocalTensor<float> reduceMaxTensor);
@@ -378,6 +380,25 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ ATyp
 }
 
 template <TemplateA2AMMClass>
+__aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::SmoothQuantProc(event_t eventId, int32_t dataSegmentOffset, int32_t smoothScaleCastOffset,
+    int32_t actualMoveSize, LocalTensor<float> copyTensor, LocalTensor<float> smoothScaleTensor)
+{
+    if (!isSmoothQuant) {
+        return;
+    }
+    SetFlag<HardEvent::V_MTE2>(eventId);
+    WaitFlag<HardEvent::V_MTE2>(eventId);                
+    CopyGmToUbufAlignB16(smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset],
+            reinterpret_cast<__gm__ AType *>(x1ScaleGM_) + dataSegmentOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
+    SetFlag<HardEvent::MTE2_V>(eventId);
+    WaitFlag<HardEvent::MTE2_V>(eventId);
+    Cast(smoothScaleTensor, smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset], RoundMode::CAST_NONE, actualMoveSize);
+    PipeBarrier<PIPE_V>();                
+    Mul(copyTensor, copyTensor, smoothScaleTensor, actualMoveSize);
+    PipeBarrier<PIPE_V>();
+}
+
+template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CalcTokenMaxValue(LocalTensor<float> copyTensor0, LocalTensor<float> copyTensor1,
     LocalTensor<float> absTensor0, LocalTensor<float> absTensor1, LocalTensor<float> smoothScaleTensor0, LocalTensor<float> smoothScaleTensor1,
     int32_t castOffset, __gm__ AType *dataSrc, int32_t dataTokenOffset, int32_t smoothScaleCastOffset, int32_t sizeScale, LocalTensor<float> reduceMaxTensor)
@@ -402,18 +423,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CalcTokenMaxValue(Loca
         WaitFlag<HardEvent::MTE2_V>(eventId);
         Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[castOffset], RoundMode::CAST_NONE, actualMoveSize);
         PipeBarrier<PIPE_V>();
-        if (isSmoothQuant) {
-            SetFlag<HardEvent::V_MTE2>(eventId);
-            WaitFlag<HardEvent::V_MTE2>(eventId);                
-            CopyGmToUbufAlignB16(smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset],
-                reinterpret_cast<__gm__ AType *>(x1ScaleGM_) + dataSegmentOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
-            SetFlag<HardEvent::MTE2_V>(eventId);
-            WaitFlag<HardEvent::MTE2_V>(eventId);
-            Cast(smoothScaleTensor, smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset], RoundMode::CAST_NONE, actualMoveSize);
-            PipeBarrier<PIPE_V>();                
-            Mul(copyTensor, copyTensor, smoothScaleTensor, actualMoveSize);
-            PipeBarrier<PIPE_V>();
-        }
+        SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
         Abs(absTensor, copyTensor, actualMoveSize);
         PipeBarrier<PIPE_V>();
         ReduceMax<float>(copyTensor, absTensor, absTensor, actualMoveSize);
@@ -454,18 +464,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantPerSegment(LocalT
         WaitFlag<HardEvent::MTE2_V>(eventId);
         Cast(copyTensor, copyTensor.ReinterpretCast<AType>()[castOffset], RoundMode::CAST_NONE, actualMoveSize);
         PipeBarrier<PIPE_V>();
-        if (isSmoothQuant) {
-            SetFlag<HardEvent::V_MTE2>(eventId);
-            WaitFlag<HardEvent::V_MTE2>(eventId);                
-            CopyGmToUbufAlignB16(smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset],
-                reinterpret_cast<__gm__ AType *>(x1ScaleGM_) + dataSegmentOffset, 1, actualMoveSize * sizeof(AType), 0, 0);
-            SetFlag<HardEvent::MTE2_V>(eventId);
-            WaitFlag<HardEvent::MTE2_V>(eventId);
-            Cast(smoothScaleTensor, smoothScaleTensor.ReinterpretCast<AType>()[smoothScaleCastOffset], RoundMode::CAST_NONE, actualMoveSize);
-            PipeBarrier<PIPE_V>();
-            Mul(copyTensor, copyTensor, smoothScaleTensor, actualMoveSize);
-            PipeBarrier<PIPE_V>();
-        }
+        SmoothQuantProc(eventId, dataSegmentOffset, smoothScaleCastOffset, actualMoveSize, copyTensor, smoothScaleTensor);
         Muls(copyTensor, copyTensor, quantScaleReciproal, actualMoveSize);
         PipeBarrier<PIPE_V>();
         Cast(copyTensor.ReinterpretCast<int32_t>(), copyTensor, RoundMode::CAST_RINT, actualMoveSize);

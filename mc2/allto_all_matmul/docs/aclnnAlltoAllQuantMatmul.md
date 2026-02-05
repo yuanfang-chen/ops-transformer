@@ -21,8 +21,8 @@
       $$
       commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
       permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-      x1_{quant}, x1_{scale} = Quant(permutedOut) \\
-      output_{quant} = x1_{quant} @ x2 \\
+      permutedOut_{quant}, x1_{scale} = Quant(permutedOut * x1ScaleOptional) \\
+      output_{quant} = permutedOut_{quant} @ x2 \\
       output = output_{quant} \times x1_{scale} \times x2_{scale} \\
       output = output + bias
       $$
