@@ -164,7 +164,7 @@ static ge::graphStatus TilingParseForMoeDistributeDispatchV2Extend(gert::TilingP
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MoeDistributeDispatchV2)
+IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
     .Tiling(MoeDistributeDispatchV2ExtendTilingFunc)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2Extend);
 } // namespace optiling
