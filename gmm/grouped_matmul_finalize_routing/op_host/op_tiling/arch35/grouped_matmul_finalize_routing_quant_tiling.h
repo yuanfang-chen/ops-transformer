@@ -102,6 +102,7 @@ private:
     bool IsFp4Dtype(ge::DataType dtype);
     bool IsFp8Dtype(ge::DataType dtype);
     bool CheckFp4Shape();
+    bool CheckCoreNum() const override;
 
     GMMFinalizeRoutingTilingData tilingData_;
     uint64_t sharedInputLen_ = 0;
