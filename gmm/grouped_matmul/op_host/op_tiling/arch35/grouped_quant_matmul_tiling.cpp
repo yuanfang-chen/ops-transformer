@@ -547,7 +547,7 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                     "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
                     static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
                     return false);
-    } else { // scale为2维且shape为(g,1)时，作为右矩阵PERCHANNEL处理
+    } else {
         inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     }
     return true;
