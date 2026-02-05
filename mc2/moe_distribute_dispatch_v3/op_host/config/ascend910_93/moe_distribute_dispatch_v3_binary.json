@@ -174,11 +174,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -194,8 +189,8 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
+                "name": "ccl_buffer_size",
+                "dtype": "int",
                 "value": ""
             },
             {
@@ -438,11 +433,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -458,8 +448,8 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
+                "name": "ccl_buffer_size",
+                "dtype": "int",
                 "value": ""
             },
             {
@@ -702,11 +692,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -722,8 +707,8 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
+                "name": "ccl_buffer_size",
+                "dtype": "int",
                 "value": ""
             },
             {
@@ -966,11 +951,6 @@
             ],
             "attrs": [
             {
-                "name": "group_ep",
-                "dtype": "string",
-                "value": ""
-            },
-            {
                 "name": "ep_world_size",
                 "dtype": "int",
                 "value": 0
@@ -986,8 +966,8 @@
                 "value": 0
             },
             {
-                "name": "group_tp",
-                "dtype": "string",
+                "name": "ccl_buffer_size",
+                "dtype": "int",
                 "value": ""
             },
             {

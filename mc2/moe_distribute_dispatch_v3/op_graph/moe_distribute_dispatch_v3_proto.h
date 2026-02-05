@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file fusion_ops.h
+ * \file moe_distribute_dispatch_v3_proto.h
  * \brief
  */
 #ifndef OPS_BUILT_IN_OP_PROTO_INC_FUSION_OPS_H_
@@ -22,7 +22,8 @@ namespace ge {
 * @brief MoeDistributeDispatchV3 operator interface implementation.
 
 * @par Inputs
-* Five inputs, including:
+* Six inputs, including:
+* @li context: A tensor. Support dtype: int32, dimension must be 1. Shape supports (2052, ), support format: ND.
 * @li x: A tensor. Support dtype: float16,bfloat16, dimension must be 2. Shape supports (BS, H), support format: ND.
 * @li expertIds: A tensor. Support dtype: int32, indicates top k experts of each token, dimension must be 2. Shape supports (BS, K), support format: ND.
 * @li scales: An optional tensor. Support dtype: float32, dimension must be 2, support format: ND.
@@ -31,11 +32,10 @@ namespace ge {
 * @li performance_info: An optional tensor. Support dtype: int64, support format: ND.
 
 * @par Attributes
-* @li group_ep: Required. Input ep comm group name, ep means experts parallelism, dtype: String.
 * @li ep_world_size: Required. Input ep comm world size, dtype: int64.
 * @li ep_rank_id: Required. Input ep comm rank Id, dtype: int64.
 * @li moe_expert_num: Required. Input moe expert num, dtype: int64.
-* @li group_tp: Input tp comm group name, tp means tensor parallelism, dtype: String.
+* @li ccl_buffer_size: Required. Input ccl buffer size, dtype: int64.
 * @li tp_world_size: Input tp comm world size, dtype: int64.
 * @li tp_rank_id: Input tp comm rank Id, dtype: int64.
 * @li expert_shard_type: Input moe shard type, dtype: int64.
@@ -72,11 +72,10 @@ REG_OP(MoeDistributeDispatchV3)
     .OUTPUT(ep_recv_count, TensorType({DT_INT32}))
     .OUTPUT(tp_recv_count, TensorType({DT_INT32}))
     .OUTPUT(expand_scales, TensorType({DT_FLOAT}))
-    .REQUIRED_ATTR(group_ep, String)
     .REQUIRED_ATTR(ep_world_size, Int)
     .REQUIRED_ATTR(ep_rank_id, Int)
     .REQUIRED_ATTR(moe_expert_num, Int)
-    .ATTR(group_tp, String, "")
+    .REQUIRED_ATTR(ccl_buffer_size, Int)
     .ATTR(tp_world_size, Int, 0)
     .ATTR(tp_rank_id, Int, 0)
     .ATTR(expert_shard_type, Int, 0)
