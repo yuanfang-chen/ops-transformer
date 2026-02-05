@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_infer_v2.cpp
+ * \file moe_distribute_combine_v2_infershape.cpp
  * \brief
  */
 #include "register/op_impl_registry.h"
