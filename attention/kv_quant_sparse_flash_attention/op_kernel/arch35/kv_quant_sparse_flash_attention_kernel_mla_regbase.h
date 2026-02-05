@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file kv_quant_sparse_flash_attention_kernel_mla.h
+ * \file kv_quant_sparse_flash_attention_kernel_mla_regbase.h
  * \brief
  */
 
-#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
-#define KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -942,4 +942,4 @@ __aicore__ inline void KvQuantSparseFlashAttentionMlaRegbase<QSFAT>::GetAxisStar
         constInfo.gS1Start++;
     }
 }
-#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_REGBASE_H

@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file kv_quant_sparse_flash_attention_service_cube_mla.h
+ * \file kv_quant_sparse_flash_attention_service_cube_mla_regbase.h
  * \brief use 7 buffer for matmul l1, better pipeline
  */
-#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
-#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_REGBASE_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_REGBASE_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -947,4 +947,4 @@ __aicore__ inline void QSFAMatmulServiceRegbase<QSFAT>::ComputeMm2(const RunInfo
     qpL1BufIter += mL1Loops;
 }
 
-#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_REGBASE_H
