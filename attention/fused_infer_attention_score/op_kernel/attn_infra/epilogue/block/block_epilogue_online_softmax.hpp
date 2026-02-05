@@ -660,7 +660,7 @@ public:
             // hm = Maxs(hm, sink)
             if constexpr (SINK_MODE == SinkMode::ENABLE){
                 if (isLastStackTile) {
-                    UpdateRowMaxWithSink(gSink, rowOffset, curLoop);
+                    UpdateRowMaxWithSink(gSink, rowOffset, dmUbOffsetCurCycle, curLoop);
                 }
             }
         } else {
@@ -677,7 +677,7 @@ public:
             // hm = Maxs(hm, sink)
             if constexpr (SINK_MODE == SinkMode::ENABLE){
                 if (isLastStackTile) {
-                    UpdateRowMaxWithSink(gSink, rowOffset, curLoop);
+                    UpdateRowMaxWithSink(gSink, rowOffset, dmUbOffsetCurCycle, curLoop);
                     SetVecMask(rowNumCurLoop);
                 }
             }
@@ -953,7 +953,7 @@ public:
     }
 
      __aicore__ inline
-    void UpdateRowMaxWithSink(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowOffset, SinkLoopParam &curLoop) 
+    void UpdateRowMaxWithSink(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowOffset, uint32_t dmUbOffsetCurCycle, SinkLoopParam &curLoop) 
     {
         const uint32_t loopStart = curLoop.rowOffsetIoGm;
         const uint32_t loopEnd = curLoop.rowOffsetIoGm + curLoop.rowNumCurLoop - 1;
