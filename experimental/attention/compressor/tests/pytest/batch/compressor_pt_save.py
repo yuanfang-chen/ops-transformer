@@ -190,8 +190,8 @@ def compressor_output_single(data_case):
             block_num = 0
             for i in range(batch_size):
                 block_num += math.ceil((int(start_pos[i])) / block_size)
-            shuffled_indices = torch.randperm(block_num)
-            index = torch.arange(0, block_num, 1, dtype=torch.int32)
+            shuffled_indices = torch.randperm(batch_size)
+            index = torch.arange(0, batch_size, 1, dtype=torch.int32)
             index = index[shuffled_indices]
             for i in range(batch_size):
                 block_table[i] = index[i]
