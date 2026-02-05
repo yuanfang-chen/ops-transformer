@@ -614,12 +614,12 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     uint32_t tokenSize = info.K * info.rankSize;
     if (quantType == TILINGKEY_TPL_A16W8) {
         OP_TILING_CHECK((tokenSize % 16 != 0), 
-                    OP_LOGE(opName_, "%lu times of the second dim of x1 should be a multiple of 16, but it is %lu.",
+                    OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
                     return ge::GRAPH_FAILED);
     } else if (quantType == TILINGKEY_TPL_A16W4) {
         OP_TILING_CHECK((tokenSize % 16 != 0),
-                    OP_LOGE(opName_, "%lu times of the second dim of x1 should be a multiple of 16, but it is %lu.",
+                    OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
                     return ge::GRAPH_FAILED);
         OP_TILING_CHECK((info.N % 2 == 1), 
