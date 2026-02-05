@@ -10,7 +10,7 @@
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
-
+#include "block_sparse_attention_grad_interface.h"
 // ============================================================================
 // Kernel Entry Point
 // ============================================================================
