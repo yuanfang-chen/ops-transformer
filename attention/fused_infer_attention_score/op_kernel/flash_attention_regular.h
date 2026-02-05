@@ -101,31 +101,47 @@ namespace SplitFuse {
                 Losize = fATilingData->splitOTotalSize;
             }
 
+            AscendC::GlobalTensor<ElementQ> gQ;
             gQ.SetGlobalBuffer((__gm__ ElementQ *)params.q);
             AscendC::ListTensorDesc keyListTensorDescInit((__gm__ void*)params.k);
             AscendC::ListTensorDesc valueListTensorDescInit((__gm__ void*)params.v);
             __gm__ uint8_t* currentKey = (__gm__ uint8_t*)keyListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
             __gm__ uint8_t* currentValue = (__gm__ uint8_t*)valueListTensorDescInit.GetDataPtr<__gm__ uint8_t>(0);
+            AscendC::GlobalTensor<ElementK> gK;
             gK.SetGlobalBuffer((__gm__ ElementK *)currentKey);
+            AscendC::GlobalTensor<ElementK> gV;
             gV.SetGlobalBuffer((__gm__ ElementK *)currentValue);
+            AscendC::GlobalTensor<ElementMask> gMask;
             gMask.SetGlobalBuffer((__gm__ ElementMask *)params.mask);
+            AscendC::GlobalTensor<int32_t> gBlockTable;
             gBlockTable.SetGlobalBuffer((__gm__ int32_t *)(params.blockTables));
+            AscendC::GlobalTensor<int64_t> gActualQseqlen;
             gActualQseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualQseqlen);
+            AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
+            AscendC::GlobalTensor<ElementO> gO;
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
+            AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
     
+            
+            AscendC::GlobalTensor<ElementLse> gmlse;
+            AscendC::GlobalTensor<ElementLse> gmlo;
             if constexpr (IS_FD) {
                 gmlse.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace));
                 gmlo.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace + Lsesize));
             }
 
-
+            AscendC::GlobalTensor<ElementS> gS;
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace + Lsesize + Losize));
+            AscendC::GlobalTensor<ElementP> gP;
             gP.SetGlobalBuffer((__gm__ ElementP *)(params.workSpace + Lsesize + Losize + mm1OutSize));
+            AscendC::GlobalTensor<ElementOTmp> gOTmp;
             gOTmp.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace + Lsesize + Losize + mm1OutSize + smOnlineOutSize));
+            AscendC::GlobalTensor<ElementOTmp> gOUpdate;
             gOUpdate.SetGlobalBuffer((__gm__ ElementOTmp *)(params.workSpace + Lsesize + Losize +
                 mm1OutSize + smOnlineOutSize + mm2OutSize));
+            AscendC::GlobalTensor<ElementSink> gSink;
             gSink.SetGlobalBuffer((__gm__ ElementSink *)(params.sink));
 
             uint32_t coreIdx = AscendC::GetBlockIdx();
@@ -250,7 +266,11 @@ namespace SplitFuse {
                             runMainLoop(
                                 coreIdx, BIdx, n1Idx, s1Idx,
                                 isSplitKV, stS2IdxNow, enS2IdxNow,
-                                gmlse0ffset, gmlooffset
+                                gmlse0ffset, gmlooffset,
+                                gQ, gK, gV, gMask, gBlockTable,
+                                gActualQseqlen, gActualKvseqlen,
+                                gO, gLse, gmlse, gmlo,
+                                gS, gP, gOTmp, gOUpdate, gSink
                             );
 
                             if (isSplitKV) {
@@ -321,7 +341,11 @@ namespace SplitFuse {
                     runMainLoop(
                         coreIdx, curBatchTmp, qNBlockIdxCur, qSBlockIdxCur,
                         false, 0, 0,
-                        0, 0
+                        0, 0,
+                        gQ, gK, gV, gMask, gBlockTable,
+                        gActualQseqlen, gActualKvseqlen,
+                        gO, gLse, gmlse, gmlo,
+                        gS, gP, gOTmp, gOUpdate, gSink
                     );
                 }
             }
@@ -397,7 +421,23 @@ namespace SplitFuse {
             int32_t stS2IdxNow,
             int32_t enS2IdxNow, 
             uint64_t gmlse0ffset,
-            uint64_t gmlooffset
+            uint64_t gmlooffset,
+            AscendC::GlobalTensor<ElementQ>& gQ,
+            AscendC::GlobalTensor<ElementK>& gK,
+            AscendC::GlobalTensor<ElementK>& gV,
+            AscendC::GlobalTensor<ElementMask>& gMask,
+            AscendC::GlobalTensor<int32_t>& gBlockTable,
+            AscendC::GlobalTensor<int64_t>& gActualQseqlen,
+            AscendC::GlobalTensor<int64_t>& gActualKvseqlen,
+            AscendC::GlobalTensor<ElementO>& gO,
+            AscendC::GlobalTensor<ElementLse>& gLse,
+            AscendC::GlobalTensor<ElementLse>& gmlse,
+            AscendC::GlobalTensor<ElementLse>& gmlo,
+            AscendC::GlobalTensor<ElementS>& gS,
+            AscendC::GlobalTensor<ElementP>& gP,
+            AscendC::GlobalTensor<ElementOTmp>& gOTmp,
+            AscendC::GlobalTensor<ElementOTmp>& gOUpdate,
+            AscendC::GlobalTensor<ElementSink>& gSink
         ) {
 
             uint32_t qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(BIdx));
@@ -891,26 +931,6 @@ namespace SplitFuse {
         }
 
     private:
-        AscendC::GlobalTensor<ElementQ> gQ;
-        AscendC::GlobalTensor<ElementK> gK;
-        AscendC::GlobalTensor<ElementK> gV;
-        AscendC::GlobalTensor<ElementMask> gMask;
-        AscendC::GlobalTensor<int32_t> gBlockTable;
-        AscendC::GlobalTensor<int64_t> gActualQseqlen;
-        AscendC::GlobalTensor<int64_t> gActualKvseqlen;
-        AscendC::GlobalTensor<ElementO> gO;
-        AscendC::GlobalTensor<ElementLse> gLse;
-        
-
-        AscendC::GlobalTensor<ElementLse> gmlse;
-        AscendC::GlobalTensor<ElementLse> gmlo;
-        
-        AscendC::GlobalTensor<ElementS> gS;
-        AscendC::GlobalTensor<ElementP> gP;
-        AscendC::GlobalTensor<ElementOTmp> gOTmp;
-        AscendC::GlobalTensor<ElementOTmp> gOUpdate;
-        AscendC::GlobalTensor<ElementSink> gSink;
-
         uint64_t mm1OutSize;
         uint64_t smOnlineOutSize;
         uint64_t mm2OutSize;
@@ -930,7 +950,6 @@ namespace SplitFuse {
         int64_t preToken;
         int64_t nextToken;
         uint32_t totalQTokens;
-
 
         uint64_t strideQ;
         uint64_t strideO;
