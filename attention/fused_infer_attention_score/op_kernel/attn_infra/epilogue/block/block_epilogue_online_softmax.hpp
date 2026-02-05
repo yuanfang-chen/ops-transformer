@@ -826,7 +826,7 @@ public:
         // gl = gl + exp(sink-lm)
         if constexpr (SINK_MODE == SinkMode::ENABLE) {
             if (isLastStackTile) {
-                UpdateRowSumWithSink(gSink, rowOffset, curLoop);
+                UpdateRowSumWithSink(rowOffset, curLoop.rowNumCurLoop);
             }
         }
     }
@@ -984,10 +984,19 @@ public:
 
             // hm = Maxs(hm, sink)
             AscendC::Maxs<float, false>(
-                lmUbTensor[rowOffset],  
+                dmUbTensor[dmUbOffsetCurCycle],  
                 hmUbTensor[rowOffset], 
                 sinkValue,              
                 (uint64_t)0, 1,                 
+                maxsRepeatParams
+            );
+
+            // sinkTensor
+            AscendC::Adds<float, false>(
+                lmUbTensor[rowOffset],  
+                lmUbTensor[rowOffset], 
+                sinkValue,              
+                (uint64_t)0,  1,                 
                 maxsRepeatParams
             );
 
@@ -1000,54 +1009,16 @@ public:
                 mask, 1, AscendC::UnaryRepeatParams(1, 1, 8, 8));
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::Select(hmUbTensor[rowOffset], selMaskUbTensor, hmUbTensor[rowOffset], lmUbTensor[rowOffset], AscendC::SELMODE::VSEL_CMPMASK_SPR, 
+        AscendC::Select(hmUbTensor[rowOffset], selMaskUbTensor, hmUbTensor[rowOffset], dmUbTensor[dmUbOffsetCurCycle], AscendC::SELMODE::VSEL_CMPMASK_SPR, 
                 mask, 1, AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
         AscendC::PipeBarrier<PIPE_V>();
         
     }
 
     __aicore__ inline
-    void UpdateRowSumWithSink(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowOffset, SinkLoopParam &curLoop) 
+    void UpdateRowSumWithSink(uint32_t rowOffset, uint32_t rowNumCurLoop) 
     {       
-        const uint32_t loopStart = curLoop.rowOffsetIoGm;
-        const uint32_t loopEnd = curLoop.rowOffsetIoGm + curLoop.rowNumCurLoop - 1;
-        const uint32_t qSBlockSize = curLoop.qSBlockSize;
-
-        const uint32_t firstHeadId = loopStart / qSBlockSize;
-        const uint32_t lastHeadId = loopEnd / qSBlockSize; 
-
-        SetVecMask(curLoop.rowNumCurLoop);
-        float zeroNum = 0.0f;
-        AscendC::Duplicate<float, false>(lmUbTensor[rowOffset], zeroNum, (uint64_t)0, 1,  1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1); 
-
-        for (uint32_t headId = firstHeadId; headId <= lastHeadId; headId++) {
-            uint32_t curHeadQsBlockStartGm = headId * qSBlockSize;
-            uint32_t curHeadQsBlockEndGm = curHeadQsBlockStartGm + qSBlockSize - 1U;
-
-            uint32_t headActualStartThisSubCore = AscendC::Std::max(curHeadQsBlockStartGm, loopStart) - curLoop.rowOffsetThisSubBlock - rowOffset;
-            uint32_t headActualEndThisSubCore =  AscendC::Std::min(curHeadQsBlockEndGm, loopEnd) - curLoop.rowOffsetThisSubBlock - rowOffset;
-
-            float sinkValue = ConvertElementSinkToFloat(gSink.GetValue(headId));
-            uint32_t headRowNumThisSubCore = headActualEndThisSubCore - headActualStartThisSubCore + 1;
-
-            SetSinkVecMask(headActualStartThisSubCore, headActualEndThisSubCore);
-
-            AscendC::UnaryRepeatParams maxsRepeatParams(1, 1, 8, 8);
-
-            // sinkTensor
-            AscendC::Adds<float, false>(
-                lmUbTensor[rowOffset],  
-                lmUbTensor[rowOffset], 
-                sinkValue,              
-                (uint64_t)0,  1,                 
-                maxsRepeatParams
-            );
-        }
-
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(curLoop.rowNumCurLoop);
+        SetVecMask(rowNumCurLoop);
         // sink = sink - hm
         AscendC::Sub<float, false>(
             lmUbTensor[rowOffset],
@@ -1076,6 +1047,7 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
     }
+
     __aicore__ inline
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementInput> gInput, AscendC::GlobalTensor<ElementSink> gSink,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
@@ -1325,7 +1297,7 @@ public:
         const LayoutInput &layoutMask, GemmCoord actualBlockShape, uint32_t isFirstStackTile, uint32_t qSBlockSize,
         uint32_t qNBlockSize, uint32_t curStackTileMod, Arch::CrossCoreFlag qkReady,
         int32_t kvSStartIdx, bool doTriUPreMask,  bool doTriUNextMask, int32_t preTokenStartLen,
-        int32_t preTokenEndLen, int32_t nextTokenStartLen, bool isLastStackTile, int32_t nextTokenEndLen)
+        int32_t preTokenEndLen, int32_t nextTokenStartLen, int32_t nextTokenEndLen, bool isLastStackTile)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
