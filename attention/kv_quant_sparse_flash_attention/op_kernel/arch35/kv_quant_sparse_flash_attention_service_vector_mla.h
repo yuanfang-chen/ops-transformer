@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file kv_quant_sparse_flash_attention_service_vector_mla_regbase.h
+ * \file kv_quant_sparse_flash_attention_service_vector_mla.h
  * \brief
  */
-#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
-#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -25,7 +25,7 @@
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 
-template <typename QSFAT> class QSFAVectorServiceRegbase {
+template <typename QSFAT> class QSFAVectorService {
 public:
     // 中间计算数据类型为float，高精度模式
     using T = float;
@@ -37,7 +37,7 @@ public:
     using MM2_OUT_T = float;
     bool NO_AMLA = true;
 
-    __aicore__ inline QSFAVectorServiceRegbase(){};
+    __aicore__ inline QSFAVectorService(){};
     __aicore__ inline void ProcessVec1L(const RunInfo &info);
     __aicore__ inline void ProcessVec2L(const RunInfo &info);
     __aicore__ inline void InitBuffers(TPipe *pipe);
@@ -193,7 +193,7 @@ private:
     LocalTensor<int32_t> v0ValidSizeUb_;
 };
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitBuffers(TPipe *pipe)
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitBuffers(TPipe *pipe)
 {
     pipe->InitBuffer(inputBuff1, ConstInfo::BUFFER_SIZE_BYTE_32K * 2); // 2:pingpong
     pipe->InitBuffer(inputBuff2, ConstInfo::BUFFER_SIZE_BYTE_32K);
@@ -225,7 +225,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::InitParams(const struct ConstInfo &constInfo,
+QSFAVectorService<QSFAT>::InitParams(const struct ConstInfo &constInfo,
                                      const KvQuantSparseFlashAttentionTilingDataMla *__restrict tilingData)
 {
     this->constInfo = constInfo;
@@ -234,13 +234,13 @@ QSFAVectorServiceRegbase<QSFAT>::InitParams(const struct ConstInfo &constInfo,
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::InitMm2ResInt32GmGlobalTensor(GlobalTensor<int32_t> mm2ResInt32Gm)
+QSFAVectorService<QSFAT>::InitMm2ResInt32GmGlobalTensor(GlobalTensor<int32_t> mm2ResInt32Gm)
 {
     this->mm2ResInt32Gm = mm2ResInt32Gm;
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec0GlobalTensor(
+__aicore__ inline void QSFAVectorService<QSFAT>::InitVec0GlobalTensor(
     const GlobalTensor<int32_t> &kvValidSizeGm, const GlobalTensor<K_ROPE_T> &kvMergeGm,
     const GlobalTensor<K_ROPE_T> &keyRopeGm, const GlobalTensor<KV_T> &keyGm, const GlobalTensor<int32_t> &blkTableGm)
 {
@@ -252,7 +252,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec0GlobalTensor(
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec1GlobalTensor(
+__aicore__ inline void QSFAVectorService<QSFAT>::InitVec1GlobalTensor(
     GlobalTensor<MM1_OUT_T> mm1ResGm, GlobalTensor<K_ROPE_T> vec1ResGm,
     GlobalTensor<int32_t> actualSeqLengthsQGm, GlobalTensor<int32_t> actualSeqLengthsKVGm, GlobalTensor<T> lseMaxFdGm,
     GlobalTensor<T> lseSumFdGm, GlobalTensor<int32_t> topKGm)
@@ -267,7 +267,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec1GlobalTensor(
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec2GlobalTensor(GlobalTensor<T> accumOutGm,
+__aicore__ inline void QSFAVectorService<QSFAT>::InitVec2GlobalTensor(GlobalTensor<T> accumOutGm,
                                                                       GlobalTensor<T> vec2ResGm,
                                                                       GlobalTensor<MM2_OUT_T> mm2ResGm,
                                                                       GlobalTensor<OUT_T> attentionOutGm)
@@ -278,7 +278,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitVec2GlobalTensor(Glo
     this->attentionOutGm = attentionOutGm;
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::AllocEventID()
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::AllocEventID()
 {
     SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF1_FLAG);
     SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF1_PONG_FLAG);
@@ -287,7 +287,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>
     SetFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::FreeEventID()
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::FreeEventID()
 {
     WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF1_FLAG);
     WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_INPUT_BUF1_PONG_FLAG);
@@ -296,14 +296,14 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>
     WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_OUTPUT_BUF2_FLAG);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::InitSoftmaxDefaultBuffer()
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitSoftmaxDefaultBuffer()
 {
     Duplicate(softmaxMaxDefaultUb, SOFTMAX_MIN_NUM, SOFTMAX_TMP_BUFFER_OFFSET);
     Duplicate(softmaxSumDefaultUb, ConstInfo::FLOAT_ZERO, SOFTMAX_TMP_BUFFER_OFFSET);
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ComputeLogSumExpAndCopyToGm(const RunInfo &info,
+__aicore__ inline void QSFAVectorService<QSFAT>::ComputeLogSumExpAndCopyToGm(const RunInfo &info,
                                                                                          const MSplitInfo &mSplitInfo,
                                                                                          LocalTensor<T> &softmaxSumUb,
                                                                                          LocalTensor<T> &softmaxMaxUb)
@@ -341,7 +341,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ComputeLogSumExpAndCopyT
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ElewiseCompute(const RunInfo &info,
+__aicore__ inline void QSFAVectorService<QSFAT>::ElewiseCompute(const RunInfo &info,
                                                                 const LocalTensor<T> &mmResUb,
                                                                 uint32_t dealRowCount, uint32_t columnCount)
 {
@@ -391,7 +391,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ElewiseCompute(const Run
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SetInfInBlk(const LocalTensor<T> &mmResUb,
+__aicore__ inline void QSFAVectorService<QSFAT>::SetInfInBlk(const LocalTensor<T> &mmResUb,
                                                              uint32_t dealRowCount, uint32_t columnCount,
                                                              uint64_t startId, uint64_t endId)
 {
@@ -419,7 +419,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SetInfInBlk(const LocalT
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SetMidInf(const LocalTensor<T> &mmResUb,
+__aicore__ inline void QSFAVectorService<QSFAT>::SetMidInf(const LocalTensor<T> &mmResUb,
                                                            uint32_t dealRowCount, uint32_t columnCount,
                                                            uint64_t startId, uint64_t endId)
 {
@@ -435,7 +435,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SetMidInf(const LocalTen
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SoftmaxFlashV2Compute(
+__aicore__ inline void QSFAVectorService<QSFAT>::SoftmaxFlashV2Compute(
     const RunInfo &info, const MSplitInfo &mSplitInfo, LocalTensor<T> &mmResUb, LocalTensor<uint8_t> &softmaxTmpUb,
     uint32_t startRow, uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
@@ -467,7 +467,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::SoftmaxFlashV2Compute(
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::DealBmm1ResBaseBlock(
+__aicore__ inline void QSFAVectorService<QSFAT>::DealBmm1ResBaseBlock(
     const RunInfo &info, const MSplitInfo &mSplitInfo, uint32_t startRow, uint32_t dealRowCount,
     uint32_t columnCount, uint32_t loopId)
 {
@@ -510,7 +510,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::DealBmm1ResBaseBlock(
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec1SingleBuf(const RunInfo &info,
+__aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec1SingleBuf(const RunInfo &info,
                                                                                   const MSplitInfo &mSplitInfo)
 {
     if (mSplitInfo.vecDealM == 0) {
@@ -554,7 +554,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec1SingleBuf(con
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::GetRealS2Idx(int64_t s2GmOffset, int64_t &realS2Idx,
+__aicore__ inline void QSFAVectorService<QSFAT>::GetRealS2Idx(int64_t s2GmOffset, int64_t &realS2Idx,
                                                               int64_t topkGmBaseOffset, const RunInfo &runInfo)
 {
     int64_t topkGmIdx = (s2GmOffset + runInfo.s2Idx * constInfo.s2BaseSize) / constInfo.sparseBlockSize;
@@ -567,7 +567,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::GetRealS2Idx(int64_t s2G
 }
 
 template <typename QSFAT>
-__aicore__ inline int64_t QSFAVectorServiceRegbase<QSFAT>::GetKeyBNBOffset(int64_t realS2Idx,
+__aicore__ inline int64_t QSFAVectorService<QSFAT>::GetKeyBNBOffset(int64_t realS2Idx,
                                                                     const RunInfo &runInfo, int64_t s2IdLimit)
 {
     if (realS2Idx < 0 || realS2Idx >= s2IdLimit) {
@@ -591,7 +591,7 @@ __aicore__ inline int64_t QSFAVectorServiceRegbase<QSFAT>::GetKeyBNBOffset(int64
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::CopyInSingleKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx,
+QSFAVectorService<QSFAT>::CopyInSingleKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx, int64_t realS2Idx,
                                          int64_t keyBNBOffset, int64_t s2IdLimit, const RunInfo &runInfo)
 {
     if (keyBNBOffset < 0) {
@@ -623,7 +623,7 @@ QSFAVectorServiceRegbase<QSFAT>::CopyInSingleKv(int64_t &mte2Size, int64_t mte3S
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::CopyInKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx,
+__aicore__ inline void QSFAVectorService<QSFAT>::CopyInKv(int64_t &mte2Size, int64_t mte3Size, int64_t mergeMte3Idx,
                                                           int64_t realS2Idx1, int64_t realS2Idx2,
                                                           const RunInfo &runInfo)
 {
@@ -681,7 +681,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::CopyInKv(int64_t &mte2Si
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::CopyOutMrgeResult(int64_t mte2Size, int64_t mte3Size,
+__aicore__ inline void QSFAVectorService<QSFAT>::CopyOutMrgeResult(int64_t mte2Size, int64_t mte3Size,
                                                                    int64_t s2GmStartOffset, int64_t mergeMte3Idx,
                                                                    const RunInfo &runInfo)
 {
@@ -791,7 +791,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::CopyOutMrgeResult(int64_
 
 // b s1 k
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::MergeKv(const RunInfo &runInfo)
+__aicore__ inline void QSFAVectorService<QSFAT>::MergeKv(const RunInfo &runInfo)
 {
     int64_t s2ProcessSize = runInfo.actualSingleProcessSInnerSize;
     int64_t s2Pair = CeilDiv(s2ProcessSize, 2L * constInfo.sparseBlockSize);
@@ -887,7 +887,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::MergeKv(const RunInfo &r
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec1L(const RunInfo &info)
+__aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec1L(const RunInfo &info)
 {
     uint32_t nBufferLoopTimes = (info.actMBaseSize + constInfo.nBufferMBaseSize - 1) / constInfo.nBufferMBaseSize;
     uint32_t nBufferTail = info.actMBaseSize - (nBufferLoopTimes - 1) * constInfo.nBufferMBaseSize;
@@ -924,13 +924,13 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec1L(const RunIn
 }
 
 template <typename QSFAT>
-__aicore__ inline uint64_t QSFAVectorServiceRegbase<QSFAT>::CalcAccumOffset(uint32_t bN2Idx, uint32_t gS1Idx)
+__aicore__ inline uint64_t QSFAVectorService<QSFAT>::CalcAccumOffset(uint32_t bN2Idx, uint32_t gS1Idx)
 {
     return 0;
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec2SingleBuf(const RunInfo &info,
+__aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec2SingleBuf(const RunInfo &info,
                                                                       const MSplitInfo &mSplitInfo)
 {
     if (mSplitInfo.vecDealM == 0) {
@@ -954,7 +954,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec2SingleBuf(con
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::DealBmm2ResBaseBlock(const RunInfo &info, const MSplitInfo &mSplitInfo,
+__aicore__ inline void QSFAVectorService<QSFAT>::DealBmm2ResBaseBlock(const RunInfo &info, const MSplitInfo &mSplitInfo,
                                                                       uint32_t startRow, uint32_t dealRowCount,
                                                                       uint32_t columnCount, uint32_t actualColumnCount)
 {
@@ -1022,7 +1022,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::DealBmm2ResBaseBlock(con
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec2L(const RunInfo &info)
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec2L(const RunInfo &info)
 {
     uint32_t nBufferLoopTimes = (info.actMBaseSize + constInfo.nBufferMBaseSize - 1) / constInfo.nBufferMBaseSize;
     uint32_t nBufferTail = info.actMBaseSize - (nBufferLoopTimes - 1) * constInfo.nBufferMBaseSize;
@@ -1045,7 +1045,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>
 }
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec2Inner(const RunInfo &info,
+__aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec2Inner(const RunInfo &info,
                                                                   const MSplitInfo &mSplitInfo,
                                                                   uint32_t mStartRow, uint32_t mDealSize)
 {
@@ -1068,7 +1068,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::ProcessVec2Inner(const R
 
 
 template <typename QSFAT>
-__aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::GetConfusionTransposeTiling(
+__aicore__ inline void QSFAVectorService<QSFAT>::GetConfusionTransposeTiling(
     int64_t numR, int64_t numC, const uint32_t stackBufferSize, const uint32_t typeSize,
     ConfusionTransposeTiling &tiling)
 {
@@ -1090,7 +1090,7 @@ __aicore__ inline void QSFAVectorServiceRegbase<QSFAT>::GetConfusionTransposeTil
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::Bmm2FDDataCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb,
+QSFAVectorService<QSFAT>::Bmm2FDDataCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb,
                                             uint32_t wsMStart, uint32_t dealRowCount, uint32_t columnCount,
                                             uint32_t actualColumnCount)
 {
@@ -1120,7 +1120,7 @@ QSFAVectorServiceRegbase<QSFAT>::Bmm2FDDataCopyOut(const RunInfo &info, LocalTen
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::Bmm2DataCopyOutTrans(const RunInfo &info, LocalTensor<OUT_T> &attenOutUb,
+QSFAVectorService<QSFAT>::Bmm2DataCopyOutTrans(const RunInfo &info, LocalTensor<OUT_T> &attenOutUb,
                                                uint32_t wsMStart, uint32_t dealRowCount,
                                                uint32_t columnCount, uint32_t actualColumnCount)
 {
@@ -1135,7 +1135,7 @@ QSFAVectorServiceRegbase<QSFAT>::Bmm2DataCopyOutTrans(const RunInfo &info, Local
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::Bmm2CastAndCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb,
+QSFAVectorService<QSFAT>::Bmm2CastAndCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb,
                                              uint32_t wsMStart, uint32_t dealRowCount, uint32_t columnCount,
                                              uint32_t actualColumnCount)
 {
@@ -1155,7 +1155,7 @@ QSFAVectorServiceRegbase<QSFAT>::Bmm2CastAndCopyOut(const RunInfo &info, LocalTe
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::Bmm2ResCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb, uint32_t wsMStart,
+QSFAVectorService<QSFAT>::Bmm2ResCopyOut(const RunInfo &info, LocalTensor<T> &bmm2ResUb, uint32_t wsMStart,
                                          uint32_t dealRowCount, uint32_t columnCount,
                                          uint32_t actualColumnCount)
 {
@@ -1172,7 +1172,7 @@ QSFAVectorServiceRegbase<QSFAT>::Bmm2ResCopyOut(const RunInfo &info, LocalTensor
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::RowDivs(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
+QSFAVectorService<QSFAT>::RowDivs(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
                                   uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
     // divs by row, 每行的元素除以相同的元素
@@ -1219,7 +1219,7 @@ QSFAVectorServiceRegbase<QSFAT>::RowDivs(LocalTensor<float> dstUb, LocalTensor<f
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAVectorServiceRegbase<QSFAT>::RowMuls(LocalTensor<T> dstUb, LocalTensor<T> src0Ub, LocalTensor<T> src1Ub,
+QSFAVectorService<QSFAT>::RowMuls(LocalTensor<T> dstUb, LocalTensor<T> src0Ub, LocalTensor<T> src1Ub,
                                   uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
     // muls by row, 每行的元素乘以相同的元素
@@ -1299,4 +1299,4 @@ QSFAVectorServiceRegbase<QSFAT>::RowMuls(LocalTensor<T> dstUb, LocalTensor<T> sr
     }
 }
 
-#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
