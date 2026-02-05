@@ -581,10 +581,10 @@ ge::graphStatus FiaTilingCheck::SetAttenMaskCompare()
         if (maskDimNum == DIM_NUM_ONE) {
             maskLayout = FiaLayout::S1S1;
         } else if (maskDimNum == DIM_NUM_THREE) {
-            maskLayout = FiaLayout::BS1S1;
+            maskLayout = FiaLayout::BS1S2;
         } else {
             OP_LOGE(opName_, "%s dim num only support %zu, %zu, but got %zu",
-                ATTEN_MASK_NAME.c_str(), DIM_NUM_TWO, DIM_NUM_THREE, maskDimNum);
+                ATTEN_MASK_NAME.c_str(), DIM_NUM_ONE, DIM_NUM_THREE, maskDimNum);
             return ge::GRAPH_FAILED;
         }
     } else {
@@ -640,9 +640,17 @@ ge::graphStatus FiaTilingCheck::CheckAttentionMask()
         shapeParams.S1 = OPT_ATTEN_MASK_LEN;
         shapeParams.S2 = OPT_ATTEN_MASK_LEN;
     } else if (sparseMode == SPARSE_MODE_TREE) { //TODO待补充
+        uint64_t sSize = 0; 
+        if (qLayout_ == FiaLayout::TND) {
+            for (uint32_t i = 0; i < qSize.size(); i++) {
+                sSize += qSize[i] * qSize[i];
+            }
+        } else {
+            sSize = s1Size_;
+        }
         shapeParams.B = static_cast<int64_t>(bSize_);
-        shapeParams.S1 = static_cast<int64_t>(s1Size_);
-        shapeParams.S2 = static_cast<int64_t>(s1Size_);
+        shapeParams.S1 = static_cast<int64_t>(sSize);
+        shapeParams.S2 = static_cast<int64_t>(sSize);
         shapeParams.compareTypeMap = {
             {FiaAxis::S1, FiaCompareType::GREATER_EQUAL},
             {FiaAxis::S2, FiaCompareType::GREATER_EQUAL},
