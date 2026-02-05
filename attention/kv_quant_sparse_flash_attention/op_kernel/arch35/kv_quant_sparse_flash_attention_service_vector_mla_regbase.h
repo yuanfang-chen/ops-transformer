@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file kv_quant_sparse_flash_attention_service_vector_mla.h
+ * \file kv_quant_sparse_flash_attention_service_vector_mla_regbase.h
  * \brief
  */
-#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
-#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
+#ifndef KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
+#define KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
@@ -1299,4 +1299,4 @@ QSFAVectorServiceRegbase<QSFAT>::RowMuls(LocalTensor<T> dstUb, LocalTensor<T> sr
     }
 }
 
-#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_H
+#endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_VECTOR_MLA_REGBASE_H
