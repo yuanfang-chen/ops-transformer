@@ -7,7 +7,6 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#include "aclnn_moe_distribute_combine_v5.h"
 #include <algorithm>
 #include "op_mc2.h"
 #include "op_mc2_def.h"
@@ -33,9 +32,9 @@ extern aclnnStatus aclnnInnerMoeDistributeCombineV3GetWorkspaceSize(
     const aclTensor* elasticInfo, const aclTensor* oriX,
     const aclTensor* constExpertAlpha1, const aclTensor* constExpertAlpha2, 
     const aclTensor* constExpertV, const aclTensor *performanceInfo,
-    const char* groupEp, int64_t epWorldSize,
-    int64_t epRankId, int64_t moeExpertNum,
-    const char* groupTp, int64_t tpWorldSize, int64_t tpRankId,
+    int64_t epWorldSize,
+    int64_t epRankId, int64_t moeExpertNum, int64_t cclBufferSize,
+    int64_t tpWorldSize, int64_t tpRankId,
     int64_t expertShardType, int64_t sharedExpertNum, int64_t sharedExpertRankNum,
     int64_t globalBs, int64_t outDtype, int64_t commQuantMode,
     int64_t groupListType, const char* commAlg, 
@@ -54,8 +53,8 @@ aclnnStatus aclnnMoeDistributeCombineV5GetWorkspaceSize(
     const aclTensor* sharedExpertXOptional, const aclTensor* elasticInfoOptional, const aclTensor* oriXOptional,
     const aclTensor* constExpertAlpha1Optional, const aclTensor* constExpertAlpha2Optional, 
     const aclTensor* constExpertVOptional,  const aclTensor* performanceInfoOptional,
-    const char* groupEp, int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum,
-    const char* groupTp, int64_t tpWorldSize, int64_t tpRankId, int64_t expertShardType,
+    int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t cclBufferSize,
+    int64_t tpWorldSize, int64_t tpRankId, int64_t expertShardType,
     int64_t sharedExpertNum, int64_t sharedExpertRankNum, int64_t globalBs, int64_t outDtype,
     int64_t commQuantMode, int64_t groupListType, const char* commAlg, 
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum,
@@ -66,8 +65,8 @@ aclnnStatus aclnnMoeDistributeCombineV5GetWorkspaceSize(
         context, expandX, expertIds, assistInfoForCombine, epSendCounts, expertScales, tpSendCountsOptional, xActiveMaskOptional,
         activationScaleOptional, weightScaleOptional, groupListOptional, expandScalesOptional, sharedExpertXOptional,
         elasticInfoOptional, oriXOptional, constExpertAlpha1Optional, constExpertAlpha2Optional,
-        constExpertVOptional, performanceInfoOptional, groupEp, epWorldSize, epRankId, moeExpertNum,
-        groupTp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum, sharedExpertRankNum, globalBs,
+        constExpertVOptional, performanceInfoOptional, epWorldSize, epRankId, moeExpertNum, cclBufferSize,
+        tpWorldSize, tpRankId, expertShardType, sharedExpertNum, sharedExpertRankNum, globalBs,
         outDtype, commQuantMode, groupListType, commAlg, zeroExpertNum, copyExpertNum, constExpertNum,
         xOut, workspaceSize, executor);
     return getWorkspaceSizesRes;
