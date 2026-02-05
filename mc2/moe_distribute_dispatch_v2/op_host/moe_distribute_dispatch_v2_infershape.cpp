@@ -220,7 +220,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     OP_LOGD(context->GetNodeName(), "expandx shape is :%s after infershape.",
         Ops::Base::ToString(*expandXShape).c_str());
 
-    if (IsTargetNpuArchInfershape(context->GetNodeName(), NPUARCH_A5)) {
+    if (IsTargetSocVersionInfershape(context->GetNodeName(), PLATFORM_A5)) {
         InferShapeDynamicScalesA5(dynamicScalesShape, *quantMode, a, h);
     } else {
         dynamicScalesShape->SetDimNum(DIM_ONE);
@@ -307,7 +307,7 @@ static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeC
     OPS_CHECK_NULL_WITH_CONTEXT(context, quantMode);
     const auto scalesType = context->GetOptionalInputDataType(DISPATCH_INPUT_SCALES_IDX_INDEX);
     const int64_t *yDtypePtr = nullptr;
-    if (IsTargetNpuArchInfershape(context->GetNodeName(), NPUARCH_A5)) {
+    if (IsTargetSocVersionInfershape(context->GetNodeName(), PLATFORM_A5)) {
         yDtypePtr = attrs->GetAttrPointer<int64_t>(DISPATCH_INPUT_ATTR_Y_DTYPE_INDEX);
     }
     bool quantFlag = (scalesType != ge::DT_UNDEFINED) ? true : false;

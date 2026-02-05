@@ -38,8 +38,7 @@ namespace ops {
     static constexpr uint32_t VERSION_SIZE = 32;
     const std::set<std::string> PLATFORM_A2 = {"Ascend910B"};
     const std::set<std::string> PLATFORM_A3 = {"Ascend910_93"};
-    const std::set<std::string> NPUARCH_A2A3 = {std::to_string(static_cast<uint32_t>(NpuArch::DAV_2201))};
-    const std::set<std::string> NPUARCH_A5 = {std::to_string(static_cast<uint32_t>(NpuArch::DAV_3510))};
+    const std::set<std::string> PLATFORM_A5 = {"Ascend950"};
 
     struct CommParas {
         const gert::Shape* x1MatrixShape;
@@ -54,6 +53,5 @@ namespace ops {
     ge::graphStatus AllGatherMatmulCommonInferShape(gert::InferShapeContext* context, const size_t gatherIndex);
     ge::graphStatus InferMatmulReduceScatterCommon(gert::InferShapeContext* context);
     bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform);
-    bool IsTargetNpuArchInfershape(const char *nodeName, const std::set<std::string> &targetPlatform);
 } // namespace ops
 #endif // MC2_COMMON_INFERSHAPE_H_

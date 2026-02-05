@@ -167,15 +167,4 @@ bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::stri
     OPS_LOG_D(nodeName, "(IsTargetSocVersionInfershape)Get Short_SoC_version %s", versionValVersion);
     return (targetPlatform.count(versionValVersion) > 0);
 }
-
-bool IsTargetNpuArchInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
-{
-    char versionValNpuArch[VERSION_SIZE];
-    if (rtGetSocSpec("version", "NpuArch", versionValNpuArch, VERSION_SIZE) != RT_ERROR_NONE) {
-        OPS_LOG_E(nodeName, "Cannot get npuArch info in infershape!");
-        return false;
-    }
-    OPS_LOG_D(nodeName, "(IsTargetNpuArchInfershape)Get NpuArch %s", versionValNpuArch);
-    return (targetPlatform.count(versionValNpuArch) > 0);
-}
 } // namespace ops
