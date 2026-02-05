@@ -1801,10 +1801,17 @@ bool IFATilingV2::CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool 
   bool checkMask = false;
   std::string strMaskShape;
 
-  if (attenMaskDim == MASKDIM_BS_SS) {
-    attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM0);
-    attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM1);
-    strMaskShape = std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskSize_);
+  if (attenMaskDim == MASKDIM_SS) {
+    if (isDefaultSparseMode || (ifaContext_->sparseMode != nullptr && sparseMode_ == SPARSE_MODE_ALL_MASK)) { // sparse 0、1时不支持二维mask
+      OP_LOGE(ifaContext_->opName, "The current dimension of the mask is 2. "
+        "When sparseMode is 0 or 1, the mask dimension only supports 3 and 4. "
+        "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\]");
+      return false;
+    } else {
+      attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM0);
+      attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM1);
+      strMaskShape = std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskSize_);
+    }
   } else if (attenMaskDim == MASKDIM_1SS_BSS) {
     attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM1);
@@ -1832,7 +1839,7 @@ bool IFATilingV2::CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool 
       (attenMaskQSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE) && (attenMaskSize_ == SPARSE_OPTIMIZE_ATTENTION_SIZE);
   }
 
-  if (isDefaultSparseMode || ((ifaContext_->sparseMode != nullptr) && (sparseMode_ == SPARSE_MODE_ALL_MASK))) {
+  if (isDefaultSparseMode || (ifaContext_->sparseMode != nullptr && sparseMode_ == SPARSE_MODE_ALL_MASK)) {
     OP_CHECK_IF(!checkMask, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
         "attenMask batch(%u) must be 1 or %u, attenMask Q_S(%u) must be larger than or equal to sQ(%u),"
         "attenMask KV_S(%u) must be larger than or equal to sK(%u), please check",
@@ -1864,11 +1871,11 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
   size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
   attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
   ge::DataType attenMaskType = ifaContext_->attenMask.desc->GetDataType();
-  if (attenMaskDim == MASKDIM_BS_SS) {
-    OP_CHECK_IF(attenMaskBatch_ != batchSize_,
-      OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query, "
-                "when mask is two-dimensional.", attenMaskBatch_, batchSize_),
-                return ge::GRAPH_FAILED);
+  if (attenMaskDim == MASKDIM_SS) { // 伪量化qs=1在未生效sparse时仅支持二维mask为BS，所以此处全部拦截
+    OP_LOGE(ifaContext_->opName, "The current dimension of the mask is 2. "
+      "When sparseMode is 0 or 1, the mask dimension only supports 3 and 4. "
+      "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\]");
+    return ge::GRAPH_FAILED;
   } else {
     OP_CHECK_IF(!(attenMaskBatch_ == batchSize_ || attenMaskBatch_ == 1),
       OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query or 1, "
