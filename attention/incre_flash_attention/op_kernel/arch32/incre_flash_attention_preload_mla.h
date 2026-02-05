@@ -1551,54 +1551,67 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         outputQue2.EnQue(softmaxlseUb);
         outputQue2.DeQue<T>();
 
-        uint32_t startS1Idx = s1Idx * s1SizeSub + mSizeVStart / gSize;
-        uint32_t startGIdx = mSizeVStart % gSize;
-        uint32_t endS1Idx = s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
-        uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
-        uint64_t outOffset = 0;
-        uint64_t ubOffset = 0;
-        uint32_t curDealRowCount = 0;
-
         if constexpr (LAYOUT_T == LAYOUT::TND) {
-            uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
-            uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
-
-            for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-                outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
-                if (s1Idx != endS1Idx) {
-                    curDealRowCount = gSize - startGIdx;
-                } else {
-                    curDealRowCount = endGIdx + 1 - startGIdx;
-                }
-                DataCopyExtParams dataCopyParams;
-                dataCopyParams.blockCount = curDealRowCount;
-                dataCopyParams.blockLen = sizeof(T);
-                dataCopyParams.srcStride = 0;
-                dataCopyParams.dstStride = 0;
-                DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-                startGIdx = 0;
-                ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-            }
+            uint64_t preLseOffset = attenOutOffset / headDim + startRow;
+            AscendC::printf("tkd preLseOffset: %llu\n", preLseOffset);
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockLen = sizeof(T);
+            dataCopyParams.blockCount = dealRowCount;
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = 0;
+            preLseOffset += startRow;
+            DataCopyPad(softmaxLseGm[preLseOffset], softmaxlseUb, dataCopyParams);
         } else {
-            uint64_t bN2Offset = bIdx * qHeadNum * qSeqSize + n2Idx * gSize * qSeqSize;
-
-            for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-                outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
-                if (s1Idx != endS1Idx) {
-                    curDealRowCount = gSize - startGIdx;
-                } else {
-                    curDealRowCount = endGIdx + 1 - startGIdx;
-                }
-                DataCopyExtParams dataCopyParams;
-                dataCopyParams.blockCount = curDealRowCount;
-                dataCopyParams.blockLen = sizeof(T);
-                dataCopyParams.srcStride = 0;
-                dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
-                DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-                startGIdx = 0;
-                ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-            }
+            uint64_t preLseOffset = attenOutOffset / headDim + startRow;
+            AscendC::printf("tkd preLseOffset: %llu\n", preLseOffset);
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockLen = sizeof(T);
+            dataCopyParams.blockCount = dealRowCount;
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = 0;
+            preLseOffset += startRow;
+            DataCopyPad(softmaxLseGm[preLseOffset], softmaxlseUb, dataCopyParams);
         }
+        // if constexpr (LAYOUT_T == LAYOUT::TND) {
+        //     uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
+        //     uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
+
+        //     for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+        //         outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
+        //         if (s1Idx != endS1Idx) {
+        //             curDealRowCount = gSize - startGIdx;
+        //         } else {
+        //             curDealRowCount = endGIdx + 1 - startGIdx;
+        //         }
+        //         DataCopyExtParams dataCopyParams;
+        //         dataCopyParams.blockCount = curDealRowCount;
+        //         dataCopyParams.blockLen = sizeof(T);
+        //         dataCopyParams.srcStride = 0;
+        //         dataCopyParams.dstStride = 0;
+        //         DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+        //         startGIdx = 0;
+        //         ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+        //     }
+        // } else {
+        //     uint64_t bN2Offset = bIdx * qHeadNum * qSeqSize + n2Idx * gSize * qSeqSize;
+
+        //     for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+        //         outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
+        //         if (s1Idx != endS1Idx) {
+        //             curDealRowCount = gSize - startGIdx;
+        //         } else {
+        //             curDealRowCount = endGIdx + 1 - startGIdx;
+        //         }
+        //         DataCopyExtParams dataCopyParams;
+        //         dataCopyParams.blockCount = curDealRowCount;
+        //         dataCopyParams.blockLen = sizeof(T);
+        //         dataCopyParams.srcStride = 0;
+        //         dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
+        //         DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+        //         startGIdx = 0;
+        //         ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+        //     }
+        // }
         outputQue2.FreeTensor(softmaxlseUb);
     }
 }
