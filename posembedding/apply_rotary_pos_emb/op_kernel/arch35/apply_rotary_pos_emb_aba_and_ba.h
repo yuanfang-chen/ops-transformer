@@ -135,7 +135,7 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::InitAllBuffer
     } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
         this->dSplitCoef_ = QUARTER_MODE_COEF;
     }
-    this->dAlign_ = Ops::Base::CeilAlign<int64_t>(D_ / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T)) * dSplitCoef_;
+    this->dAlign_ = Ops::Base::CeilAlign<int64_t>(this->tilingData_->realDim / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T)) * dSplitCoef_;
 
     this->pipe_->InitBuffer(this->qInQueue_, DOUBLE_BUFFER, ubFactorB_ * ubFactorS_ * ubFactorN_ * dAlign_ * sizeof(T));
     this->pipe_->InitBuffer(
@@ -255,7 +255,7 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyInCosAndS
     loopParams.loop1Size = bLength;
     loopParams.loop2SrcStride = 0;
     loopParams.loop2DstStride = 0;
-    loopParams.loop1SrcStride = tilingData_->S * D_ * sizeof(T);
+    loopParams.loop1SrcStride = tilingData_->S * this->tilingData_->realDim * sizeof(T);
     loopParams.loop1DstStride = ubFactorS_ * dAlign_ * sizeof(T);
     SetLoopModePara(loopParams, DataCopyMVType::OUT_TO_UB);
     DataCopyPadExtParams<T> copyPadExtparams;
@@ -265,11 +265,11 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyInCosAndS
     copyPadExtparams.paddingValue = 0;
     DataCopyExtParams copyExtParams;
     copyExtParams.blockCount = sLength * dSplitCoef_;
-    copyExtParams.blockLen = D_ * sizeof(T) / dSplitCoef_;
+    copyExtParams.blockLen = this->tilingData_->realDim * sizeof(T) / dSplitCoef_;
     copyExtParams.srcStride = 0;
     copyExtParams.dstStride = 0;
-    DataCopyPad(cosUb, this->cosGm_[bStart * tilingData_->S * D_ + sStart * D_], copyExtParams, copyPadExtparams);
-    DataCopyPad(sinUb, this->sinGm_[bStart * tilingData_->S * D_ + sStart * D_], copyExtParams, copyPadExtparams);
+    DataCopyPad(cosUb, this->cosGm_[bStart * tilingData_->S * this->tilingData_->realDim + sStart * this->tilingData_->realDim], copyExtParams, copyPadExtparams);
+    DataCopyPad(sinUb, this->sinGm_[bStart * tilingData_->S * this->tilingData_->realDim + sStart * this->tilingData_->realDim], copyExtParams, copyPadExtparams);
     ResetLoopModePara(DataCopyMVType::OUT_TO_UB);
     this->cosInQueue_.template EnQue(cosUb);
     this->sinInQueue_.template EnQue(sinUb);
@@ -292,8 +292,8 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyInQOrK(
     SetLoopModePara(loopParams, DataCopyMVType::OUT_TO_UB);
     DataCopyExtParams copyExtParams;
     copyExtParams.blockCount = sLength * dSplitCoef_;
-    copyExtParams.blockLen = D_ * sizeof(T) / dSplitCoef_;
-    copyExtParams.srcStride = 0;
+    copyExtParams.blockLen = tilingData_->realDim * sizeof(T) / dSplitCoef_;
+    copyExtParams.srcStride = tilingData_->D - tilingData_->realDim;
     copyExtParams.dstStride = 0;
     DataCopyPadExtParams<T> copyPadExtparams;
     copyPadExtparams.isPad = false;
@@ -324,8 +324,8 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyOutQOrK(
     SetLoopModePara(loopParams, DataCopyMVType::UB_TO_OUT);
     DataCopyExtParams copyExtParams;
     copyExtParams.blockCount = sLength * dSplitCoef_;
-    copyExtParams.blockLen = D_ * sizeof(T) / dSplitCoef_;
-    copyExtParams.srcStride = 0;
+    copyExtParams.blockLen = tilingData_->realDim * sizeof(T) / dSplitCoef_;
+    copyExtParams.srcStride = tilingData_->D - tilingData_->realDim;
     copyExtParams.dstStride = 0;
     DataCopyPad(
         target[bStart * nTotalSize * tilingData_->S * D_ + nStart * tilingData_->S * D_ + sStart * D_], source,
@@ -343,15 +343,15 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::Compute(
     if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
         BatchHalfAlignVF<T, IsBBoardcast>(
             (__local_mem__ T*)inUb.GetPhyAddr(), (__local_mem__ T*)cos.GetPhyAddr(), (__local_mem__ T*)sin.GetPhyAddr(),
-            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, D_, dAlign_, ubFactorS_, ubFactorN_);
+            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, tilingData_->realDim, dAlign_, ubFactorS_, ubFactorN_);
     } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::INTERLEAVE)) {
         BatchInterleaveModeVF<T, IsBBoardcast>(
             (__local_mem__ T*)inUb.GetPhyAddr(), (__local_mem__ T*)cos.GetPhyAddr(), (__local_mem__ T*)sin.GetPhyAddr(),
-            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, D_, dAlign_, ubFactorS_, ubFactorN_);
+            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, tilingData_->realDim, dAlign_, ubFactorS_, ubFactorN_);
     } else {
         BatchQuarterAlignVF<T, IsBBoardcast>(
             (__local_mem__ T*)inUb.GetPhyAddr(), (__local_mem__ T*)cos.GetPhyAddr(), (__local_mem__ T*)sin.GetPhyAddr(),
-            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, D_, dAlign_, ubFactorS_, ubFactorN_);
+            (__local_mem__ T*)outUb.GetPhyAddr(), sLength, bLength, nLength, tilingData_->realDim, dAlign_, ubFactorS_, ubFactorN_);
     }
     this->qInQueue_.FreeTensor(inUb);
     this->qOutQueue_.template EnQue(outUb);
