@@ -113,7 +113,8 @@ public:
     uint8_t isKvContinuous;
     uint8_t fromFused;
     uint8_t isBSNDOut;
-    uint8_t transposeLayout;
+    uint8_t isNTDOut;
+    uint8_t isTNDOut;
     uint8_t isGqa;
     uint8_t isSoftMaxLseEnable;
     uint8_t isActualSharedPrefixLenNull;
@@ -239,8 +240,10 @@ public:
     void set_fromFused(uint8_t fromFusedParam) {this->fromFused = fromFusedParam;}
     uint8_t get_isBSNDOut() const {return isBSNDOut;}
     void set_isBSNDOut(uint8_t isBSNDOutParam) {this->isBSNDOut = isBSNDOutParam;}
-    uint8_t get_transposeLayout() const {return transposeLayout;}
-    void set_transposeLayout(uint8_t transposeLayoutParam) {this->transposeLayout = transposeLayoutParam;}
+    uint8_t get_isTNDOut() const {return isTNDOut;}
+    void set_isTNDOut(uint8_t isTNDOutParam) {this->isTNDOut = isTNDOutParam;}
+    uint8_t get_isNTDOut() const {return isNTDOut;}
+    void set_isNTDOut(uint8_t isNTDOutParam) {this->isNTDOut = isNTDOutParam;}
     uint8_t get_isGqa() const {return isGqa;}
     void set_isGqa(uint8_t isGqaParam) {this->isGqa = isGqaParam;}
     uint8_t get_isSoftMaxLseEnable() const {return isSoftMaxLseEnable;}
@@ -375,6 +378,38 @@ public:
     MultiCoreParamsRegbase multiCoreParamsRegbase;
     DropmaskParamsRegbase dropmaskParamsRegbase;
     InitOutputParams initOutputParams;
+};
+
+const uint32_t AIC_CORE_NUM = 32;
+const uint32_t AIV_CORE_NUM = 64;
+const uint32_t MAX_FD_NUM = AIV_CORE_NUM;
+
+struct FDResult {
+    uint32_t fdNum = 0U;
+    uint32_t fdBN2Idx[MAX_FD_NUM];
+    uint32_t fdMIdx[MAX_FD_NUM];
+    uint32_t fdS2SplitNum[MAX_FD_NUM];
+
+    uint32_t fdUsedVecNum = 0;
+    uint32_t fdBalanceMBaseSize = 0;
+    uint32_t fdBalanceMSplitNum[MAX_FD_NUM];
+    uint32_t fdBalanceMTailSize[MAX_FD_NUM];
+    uint32_t fdBalanceEndIdx1[AIV_CORE_NUM];
+    uint32_t fdBalanceEndIdx2[AIV_CORE_NUM];
+};
+
+struct OuterSplitParams {
+    uint32_t usedCoreNum = 0;
+    uint32_t bN2End[AIC_CORE_NUM];
+    uint32_t mEnd[AIC_CORE_NUM];
+    uint32_t s2End[AIC_CORE_NUM];
+    uint32_t headFdDataIdx[AIC_CORE_NUM];
+    struct FDResult fdRes;
+};
+
+class FusedInferAttentionScoreTilingData : public FlashAttentionScoreSimplifiedTilingData {
+public:
+    struct OuterSplitParams outerSplitParams;
 };
 
 }  // namespace optiling

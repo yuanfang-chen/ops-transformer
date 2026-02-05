@@ -24,6 +24,7 @@ using AscendC::QuePosition;
 namespace regbaseutil {
 constexpr uint16_t regBytes = 256;
 constexpr int64_t MAX_PRE_NEXT_TOKENS = 0x7FFFFFFF;
+constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float); // BLOCK的FP32元素数
 enum class VselrIndexEnum {GT_64_AND_LTE_128_INDEX = 0, GT_0_AND_LTE_64_INDEX = 1, DN_INDEX = 2};
 enum class DTemplateType {
     Aligned16 = 16,
@@ -131,7 +132,6 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     // IFA_MLA
     int64_t actualSeqLengthOfMlaPerBatch = 0; // 在mla场景下Q的actualSeqLength
     int64_t nextTokensOfMlaPerBatch = 0;   // 在mla场景下左上顶点的nexttoken，用于计算BNSD的行无效
-    int64_t preTokensOfMlaPerBatch = 0;   // 在mla场景下左上顶点的nexttoken，用于计算BNSD的行无效
 
     // prefix
     int64_t prefixCoreOffset = 0;       // 保存当前循环，prefix在bn维度的地址偏移
@@ -177,7 +177,6 @@ struct RunParamStr<true> {  // 分核与切块需要使用到参数
     int64_t b1SSOffsetAlign; /* TND场景s2 16对齐之后，前面batch的s1*s2之和 */ \
     int64_t deScaleKvOffset; /* KV的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, 1, Ceil(S2, 128), 1] */ \
     int64_t nextTokensOfMlaPerBatch = 0; /* 在mla场景下左上顶点的nexttoken，用于计算BNSD的行无效 */ \
-    int64_t preTokensOfMlaPerBatch = 0; /* 在mla场景下左上顶点的nexttoken，用于计算BNSD的行无效 */ \
     uint8_t taskIdMod2; \
     uint8_t taskIdMod3; \
     uint8_t multiCoreIdxMod2 = 0; \
@@ -288,7 +287,16 @@ struct RunInfo<false> {
     float keepProb; \
     float scaleValue; \
     int64_t matmulMSize;     /* 在matmul运算中，左矩阵的M轴大小需要区分GS1合轴与不合轴的情况 */ \
-    bool learnableSinkFlag = false /* attentionsink */
+    /* BUFFER的字节数 */ \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_64B = 64; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_256B = 256; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_512B = 512; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_2K = 2048; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_4K = 4096; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_8K = 8192; \
+    static constexpr uint32_t BUFFER_SIZE_BYTE_16K = 16384;
 
 
 #define ROPE_INFO \
@@ -335,7 +343,10 @@ struct RunInfo<false> {
     uint32_t blockSize; \
     uint32_t paLayoutType; \
     uint32_t paBlockNumSum; \
-    uint32_t transposeLayout; \
+    /* LAYOUT是否为BNSD_BSND */ \
+    uint32_t isBSNDOut; \
+    uint32_t isNTDOut; \
+    uint32_t isTNDOut; \
     /* GS1合轴场景，外层循环是B、N2，内层循环G、S1，headNumRatio = 1 */ \
     /* GS1不合轴场景，外层循环是B、N2、G，内层循环S1，headNumRatio = gSize */ \
     uint32_t headNumRatio; \
@@ -344,6 +355,7 @@ struct RunInfo<false> {
     /* 左padding */ \
     bool isQHasLeftPadding; \
     bool isKVHasLeftPadding; \
+    int64_t queryLeftPaddingSize; /* FD新增 */ \
     int64_t queryRightPaddingSize; \
     int64_t kvRightPaddingSize; \
     /* FD */ \
@@ -355,7 +367,7 @@ struct RunInfo<false> {
     bool isPostQuantBF16; \
     bool isPostQuantOffsetExist; \
     float postQuantScaleValue; \
-    float postQuantOffsetValue
+    float postQuantOffsetValue;
 
 #define CV_SHARED_PARAMS \
     /* base params */ \
@@ -453,12 +465,14 @@ struct CVSharedParams<true, false> {
     uint32_t isActualSeqLengthsKVNull : 1;
     uint32_t isQHasLeftPadding : 1;
     uint32_t isKVHasLeftPadding : 1;
+    uint32_t isBSNDOut : 1;
+    uint32_t isNTDOut : 1;
+    uint32_t isTNDOut : 1;
     uint32_t needInit : 1;
     uint32_t isPostQuantPerChnl : 1;
     uint32_t isPostQuantBF16 : 1;
     uint32_t headNumRatio : 20;
 
-    uint32_t transposeLayout;
     uint32_t actualSeqLengthsSize;
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;
@@ -486,12 +500,14 @@ struct CVSharedParams<true, true> {
     uint32_t isActualSeqLengthsKVNull : 1;
     uint32_t isQHasLeftPadding : 1;
     uint32_t isKVHasLeftPadding : 1;
+    uint32_t isBSNDOut : 1;
+    uint32_t isNTDOut : 1;
+    uint32_t isTNDOut : 1;
     uint32_t needInit : 1;
     uint32_t isPostQuantPerChnl : 1;
     uint32_t isPostQuantBF16 : 1;
     uint32_t headNumRatio : 20;
 
-    uint32_t transposeLayout;
     uint32_t actualSeqLengthsSize;
     uint32_t actualSeqLengthsKVSize;
     uint32_t splitKVNum;
@@ -510,6 +526,17 @@ struct CVSharedParams<true, true> {
     // prefix
     bool isActualSharedPrefixLenNull;
     int64_t kvPrefixSize;
+};
+struct FDparams {
+    uint32_t *fdBN2Idx;
+    uint32_t *fdMIdx;
+    uint32_t *fdS2SplitNum;
+    uint32_t *fdBalanceMSplitNum;
+    uint32_t *fdBalanceMTailSize;
+    uint32_t *fdBalanceEndIdx1;
+    uint32_t *fdBalanceEndIdx2;
+    uint32_t fdUsedVecNum;
+    uint32_t fdBalanceMBaseSize;
 };
 }
 

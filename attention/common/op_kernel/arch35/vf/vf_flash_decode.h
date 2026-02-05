@@ -21,9 +21,7 @@ constexpr float FLT_ZERO = 0;
 constexpr float FLT_MAX_NEW = 3.402823466e+38F;
 
 namespace FaVectorApi {
-// bf16->fp32
-static constexpr MicroAPI::CastTrait castTraitFp16_32 = {MicroAPI::RegLayout::ZERO, MicroAPI::SatMode::UNKNOWN,
-                                                   MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
+
 // 处理循环splitKVIndex=0的场景，vregDst需要置0
 template <typename T>
 __simd_vf__ void ReduceFinalRes_0_VF(__ubuf__ T * dstUb, __ubuf__ T * lseUb, __ubuf__ T * accumOutUb, uint16_t k, uint16_t z, 
@@ -143,21 +141,18 @@ __aicore__ inline void ReduceFinalRes_const_VF(LocalTensor<T>& dstLocal, LocalTe
 }
 
 // 处理g<=8的场景
-template <typename T, typename SINK_T>
-__simd_vf__ void ComputeScaleValue_8_VF(__ubuf__ uint16_t * lseSink, __ubuf__ T * lseMax, __ubuf__ T * lseMaxTmp, __ubuf__ T * lseSum, 
+template <typename T>
+__simd_vf__ void ComputeScaleValue_8_VF(__ubuf__ T * lseMax, __ubuf__ T * lseMaxTmp, __ubuf__ T * lseSum, 
                                         __ubuf__ T * lseSumTmp, __ubuf__ T * lseUb, uint32_t dealCount, uint16_t i, 
-                                        uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag, bool learnableSinkFlag)
+                                        uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     MicroAPI::RegTensor<T> vregLseMax;
     MicroAPI::RegTensor<T> vregLseMaxTmp;
     MicroAPI::RegTensor<T> vregLseSum;
     MicroAPI::RegTensor<T> vregLseSumTmp;
-    MicroAPI::RegTensor<SINK_T> vregLseSink;
-    MicroAPI::RegTensor<T> vregLseSinkCast;
     MicroAPI::RegTensor<T> vregRes;
     uint32_t n = dealCount;
     MicroAPI::MaskReg pregTailN = MicroAPI::UpdateMask<T>(n);
-    MicroAPI::MaskReg pregSinkTailN = MicroAPI::UpdateMask<SINK_T>(n);
     uint16_t blockStride = 0x1;
     uint16_t repeatStride = dealRowCount;
 
@@ -181,15 +176,6 @@ __simd_vf__ void ComputeScaleValue_8_VF(__ubuf__ uint16_t * lseSink, __ubuf__ T 
         MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSumTmp, pregTailN);
         MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)lseSumTmp + i * dealCount, 
                                                                     vregLseSumTmp, pregTailN);
-    }
-
-    if (learnableSinkFlag) {
-        MicroAPI::LoadAlign<uint16_t, MicroAPI::LoadDist::DIST_UNPACK_B16>((MicroAPI::RegTensor<uint16_t>&)vregLseSink, lseSink);
-        MicroAPI::Cast<T, SINK_T, castTraitFp16_32>(vregLseSinkCast, vregLseSink, pregSinkTailN);
-        
-        MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast, vregLseSinkCast, vregLseMax, pregTailN);
-        MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast, vregLseSinkCast, pregTailN);
-        MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSinkCast, pregTailN);
     }
 
     if (softmaxLseFlag) {
@@ -220,9 +206,9 @@ __simd_vf__ void ComputeScaleValue_8_VF(__ubuf__ uint16_t * lseSink, __ubuf__ T 
     }
 }
 
-template <typename T, typename SINK_T>
-__aicore__ inline void ComputeScaleValue_8(const LocalTensor<SINK_T>& tmpSinkUb, const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
-    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag, bool learnableSinkFlag)
+template <typename T>
+__aicore__ inline void ComputeScaleValue_8(const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
+    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     uint32_t dealCount = dealRowCount * 8;
     uint16_t i = 0;
@@ -232,17 +218,83 @@ __aicore__ inline void ComputeScaleValue_8(const LocalTensor<SINK_T>& tmpSinkUb,
     __ubuf__ T * lseSum = (__ubuf__ T *)lseSumUb.GetPhyAddr();
     __ubuf__ T * lseSumTmp = lseSum;
     __ubuf__ T * lseUb = (__ubuf__ T *)lseOutputUb.GetPhyAddr();
-    __ubuf__ uint16_t * lseSink = (__ubuf__ uint16_t *)tmpSinkUb.GetPhyAddr();
 
-    ComputeScaleValue_8_VF<T, SINK_T>(lseSink, lseMax, lseMaxTmp, lseSum, lseSumTmp, lseUb, dealCount, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag, learnableSinkFlag);
+    ComputeScaleValue_8_VF<T>(lseMax, lseMaxTmp, lseSum, lseSumTmp, lseUb, dealCount, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
+}
+
+//lseUb作为scale最终输出
+template <typename T>
+__simd_vf__ void ComputeScaleValue_8_VF_FD(__ubuf__ T * lseMax, __ubuf__ T * lseMaxTmp, __ubuf__ T * lseSum, 
+                                        __ubuf__ T * lseSumTmp, __ubuf__ T * lseUb, uint32_t dealCount, uint16_t i, 
+                                        uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
+{
+    MicroAPI::RegTensor<T> vregLseMax;
+    MicroAPI::RegTensor<T> vregLseMaxTmp;
+    MicroAPI::RegTensor<T> vregLseSum;
+    MicroAPI::RegTensor<T> vregLseSumTmp;
+    MicroAPI::RegTensor<T> vregRes;
+    uint32_t n = dealCount;
+    MicroAPI::MaskReg pregTailN = MicroAPI::UpdateMask<T>(n);
+    uint16_t blockStride = 0x1;
+    uint16_t repeatStride = dealRowCount;
+
+    MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vregLseMax, -FLT_MAX_NEW, pregTailN);
+    MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vregLseSum, FLT_ZERO, pregTailN);
+
+    for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+                                                                (__ubuf__ float *&)lseMaxTmp + i * dealCount);
+        MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMax, vregLseMax, vregLseMaxTmp, pregTailN);
+    }
+
+    for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+                                                                (__ubuf__ float *&)lseMaxTmp + i * dealCount);
+        MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, vregLseMax, pregTailN);
+        MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, pregTailN);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+                                                                (__ubuf__ float *&)lseSumTmp + i * dealCount);
+        MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseMaxTmp, pregTailN);
+        MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSumTmp, pregTailN);
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)lseSumTmp + i * dealCount, 
+                                                                    vregLseSumTmp, pregTailN);
+    }
+
+    MicroAPI::LocalMemBar<MicroAPI::MemType::VEC_STORE, MicroAPI::MemType::VEC_LOAD>();
+    // PRINTF("---------VF---8------RRIGHT--------");
+    for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+                                                                (__ubuf__ float *&)lseSumTmp + i * dealCount);
+        MicroAPI::Div<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseSum, pregTailN);
+        // MicroAPI::StoreAlign<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        //     ((__ubuf__ float *&)lseSum, vregLseSumTmp, blockStride, repeatStride, pregTailN);
+        MicroAPI::StoreAlign<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            ((__ubuf__ float *&)lseUb, vregLseSumTmp, blockStride, repeatStride, pregTailN);
+    }
+}
+
+template <typename T>
+__aicore__ inline void ComputeScaleValue_8_FD(const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
+    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
+{
+    uint32_t dealCount = dealRowCount * 8;
+    uint16_t i = 0;
+
+    __ubuf__ T * lseMax = (__ubuf__ T *)lseMaxUb.GetPhyAddr();
+    __ubuf__ T * lseMaxTmp = lseMax;
+    __ubuf__ T * lseSum = (__ubuf__ T *)lseSumUb.GetPhyAddr();
+    __ubuf__ T * lseSumTmp = lseSum;
+    __ubuf__ T * lseUb = (__ubuf__ T *)lseOutputUb.GetPhyAddr();
+
+    ComputeScaleValue_8_VF_FD<T>(lseMax, lseMaxTmp, lseSum, lseSumTmp, lseUb, dealCount, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
 }
 
 // 处理8<g<=16的场景
-template <typename T, typename SINK_T>
-__simd_vf__ void ComputeScaleValue_16_VF(__ubuf__ uint16_t * lseSink, __ubuf__ uint16_t * lseSink2, __ubuf__ T * lseMax, __ubuf__ T * lseMax2, __ubuf__ T * lseMaxSrc, __ubuf__ T * lseSum, 
+template <typename T>
+__simd_vf__ void ComputeScaleValue_16_VF(__ubuf__ T * lseMax, __ubuf__ T * lseMax2, __ubuf__ T * lseMaxSrc, __ubuf__ T * lseSum, 
                                         __ubuf__ T * lseSum2, __ubuf__ T * lseSumSrc, __ubuf__ T * lseUb, __ubuf__ T * lseUb2, 
                                         uint32_t dealCountSum, uint32_t dealCount, uint32_t dealCount2, 
-                                        uint16_t i, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag, bool learnableSinkFlag)
+                                        uint16_t i, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     MicroAPI::RegTensor<T> vregLseMax;
     MicroAPI::RegTensor<T> vregLseMaxTmp;
@@ -252,18 +304,12 @@ __simd_vf__ void ComputeScaleValue_16_VF(__ubuf__ uint16_t * lseSink, __ubuf__ u
     MicroAPI::RegTensor<T> vregLseSumTmp;
     MicroAPI::RegTensor<T> vregLseSum2;
     MicroAPI::RegTensor<T> vregLseSumTmp2;
-    MicroAPI::RegTensor<SINK_T> vregLseSink;
-    MicroAPI::RegTensor<SINK_T> vregLseSink2;
-    MicroAPI::RegTensor<T> vregLseSinkCast;
-    MicroAPI::RegTensor<T> vregLseSinkCast2;
     MicroAPI::RegTensor<T> vregRes;
     MicroAPI::RegTensor<T> vregRes2;
     uint32_t n = dealCount;
     uint32_t n2 = dealCount2;
     MicroAPI::MaskReg pregTailN = MicroAPI::UpdateMask<T>(n);
     MicroAPI::MaskReg pregTailN2 = MicroAPI::UpdateMask<T>(n2);
-    MicroAPI::MaskReg pregSinkTailN = MicroAPI::UpdateMask<SINK_T>(n);
-    MicroAPI::MaskReg pregSinkTailN2 = MicroAPI::UpdateMask<SINK_T>(n2);
     uint16_t blockStride = 0x1;
     uint16_t repeatStride = dealRowCount;
 
@@ -300,23 +346,6 @@ __simd_vf__ void ComputeScaleValue_16_VF(__ubuf__ uint16_t * lseSink, __ubuf__ u
         MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum2, vregLseSum2, vregLseSumTmp2, pregTailN2);
         MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum, vregLseSumTmp, pregTailN);
         MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum + dealCount, vregLseSumTmp2, pregTailN2);
-    }
-
-    if (learnableSinkFlag) {
-        MicroAPI::LoadAlign<uint16_t, MicroAPI::LoadDist::DIST_UNPACK_B16>((MicroAPI::RegTensor<uint16_t>&)vregLseSink, lseSink);
-        MicroAPI::LoadAlign<uint16_t, MicroAPI::LoadDist::DIST_UNPACK_B16>((MicroAPI::RegTensor<uint16_t>&)vregLseSink2, lseSink + dealCount);
-        
-        MicroAPI::Cast<T, SINK_T, castTraitFp16_32>(vregLseSinkCast, vregLseSink, pregSinkTailN);
-        MicroAPI::Cast<T, SINK_T, castTraitFp16_32>(vregLseSinkCast2, vregLseSink2, pregSinkTailN2);
-
-        MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast, vregLseSinkCast, vregLseMax, pregTailN);
-        MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast2, vregLseSinkCast2, vregLseMax2, pregTailN2);
-
-        MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast, vregLseSinkCast, pregTailN);
-        MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSinkCast2, vregLseSinkCast2, pregTailN2);
-
-        MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSinkCast, pregTailN);
-        MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum2, vregLseSum2, vregLseSinkCast2, pregTailN2);
     }
 
     if (softmaxLseFlag) {
@@ -358,9 +387,9 @@ __simd_vf__ void ComputeScaleValue_16_VF(__ubuf__ uint16_t * lseSink, __ubuf__ u
     }
 }
 
-template <typename T, typename SINK_T>
-__aicore__ inline void ComputeScaleValue_16(const LocalTensor<SINK_T>& tmpSinkUb, const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
-    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag, bool learnableSinkFlag)
+template <typename T>
+__aicore__ inline void ComputeScaleValue_16(const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
+    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     uint32_t dealCountSum = dealRowCount * 8;
     uint32_t dealCount = 8 * 8;
@@ -375,22 +404,29 @@ __aicore__ inline void ComputeScaleValue_16(const LocalTensor<SINK_T>& tmpSinkUb
     __ubuf__ T * lseSumSrc = lseSum;
     __ubuf__ T * lseUb = (__ubuf__ T *)lseOutputUb.GetPhyAddr();
     __ubuf__ T * lseUb2 = lseUb + 64;
-    __ubuf__ uint16_t * lseSink = (__ubuf__ uint16_t *)tmpSinkUb.GetPhyAddr();
-    __ubuf__ uint16_t * lseSink2 = lseSink + 64;
 
-    ComputeScaleValue_16_VF<T, SINK_T>(lseSink, lseSink2, lseMax, lseMax2, lseMaxSrc, lseSum, lseSum2, lseSumSrc, lseUb, lseUb2, 
-                            dealCountSum, dealCount, dealCount2, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag, learnableSinkFlag);
+    ComputeScaleValue_16_VF<T>(lseMax, lseMax2, lseMaxSrc, lseSum, lseSum2, lseSumSrc, lseUb, lseUb2, 
+                            dealCountSum, dealCount, dealCount2, i, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
 }
 
-template <typename T, typename SINK_T>
-__aicore__ inline void ComputeScaleValue_VF(const LocalTensor<SINK_T>& tmpSinkUb, const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
-    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag, bool learnableSinkFlag)
+template <typename T>
+__aicore__ inline void ComputeScaleValue_VF(const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
+    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
 {
     if (dealRowCount <= 8) {
-        ComputeScaleValue_8(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, dealRowCount, actualCombineLoopSize, softmaxLseFlag, learnableSinkFlag);
+        ComputeScaleValue_8(lseMaxUb, lseSumUb, lseOutputUb, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
     } else if (dealRowCount <= 16) {
-        ComputeScaleValue_16(tmpSinkUb, lseMaxUb, lseSumUb, lseOutputUb, dealRowCount, actualCombineLoopSize, softmaxLseFlag, learnableSinkFlag);
+        ComputeScaleValue_16(lseMaxUb, lseSumUb, lseOutputUb, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
     }
+}
+
+//gqa 非量化走这个，目前dealRowCount默认为8
+template <typename T>
+__aicore__ inline void ComputeScaleValue_VF_FD(const LocalTensor<T>& lseMaxUb, const LocalTensor<T>& lseSumUb,
+    const LocalTensor<T>& lseOutputUb, uint32_t dealRowCount, uint32_t actualCombineLoopSize, bool softmaxLseFlag)
+{
+    
+    ComputeScaleValue_8_FD(lseMaxUb, lseSumUb, lseOutputUb, dealRowCount, actualCombineLoopSize, softmaxLseFlag);
 }
 
 // 处理g<=8的场景
