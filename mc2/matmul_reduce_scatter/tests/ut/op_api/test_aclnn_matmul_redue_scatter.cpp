@@ -26,14 +26,14 @@ class L2AclnnMatmulReduceScatterTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2AclnnMatmulReduceScatterTest SetUp" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2AclnnMatmulReduceScatterTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2AclnnMatmulReduceScatterTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2AclnnMatmulReduceScatterTest TearDown" << endl;
     }
 };
 
