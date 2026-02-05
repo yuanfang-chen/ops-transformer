@@ -20,12 +20,15 @@
 #include "kernel_operator.h"
 #endif
 #include "common.h"
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+#else
 #include "./arch35/template_head.h"
 #include "./arch35/matmul_allto_all_tiling_key.h"
 #include "./arch35/matmul_allto_all_arch35.h"
 #include "./arch35/kc_quant_matmul_allto_all_arch35.h"
 #include "./arch35/mx_quant_matmul_allto_all_arch35.h"
 
+#endif
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace MatmulAlltoAllImpl;
@@ -59,6 +62,8 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+#else
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     //注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
     REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingData);
@@ -108,5 +113,6 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
         op.Init(x1, x2, bias, y, x1Scale, x2Scale, workspaceGM, &tilingData, &pipe);
         op.Process(); 
     }
+#endif
 #endif
 }
