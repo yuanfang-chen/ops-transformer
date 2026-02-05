@@ -228,20 +228,11 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
         KERNEL_LOG_ERROR("When cmp_kv is not enabled, cmpRatio_ should be 0!");
         return false;
     }
-    // TopK 关联校验
-    if (!hasOriKv_ && oriTopK_ != 0) {
-        KERNEL_LOG_ERROR("When ori_kv is disabled, oriTopK_ should be 0!");
-        return false;
-    }
-    if (!hasCmpKv_ && cmpTopK_ != 0) {
-        KERNEL_LOG_ERROR("When cmp_kv is disabled, cmpTopK_ should be 0!");
-        return false;
-    }
     return true;
 }
 
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
-    return (CheckConsistency() && CheckFeature());
+    return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
 }
 
 ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
