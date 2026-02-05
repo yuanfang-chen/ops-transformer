@@ -104,6 +104,7 @@ ge::graphStatus ApplyRotaryPosEmbTilingAB::PostTiling()
     tilingData_.set_ubFactorN(ubFactor_);
     tilingData_.set_ubTailN(ubTail_);
     tilingData_.set_rotaryMode(static_cast<int64_t>(rotaryMode_));
+    tilingData_.set_realDim(reald_);
 
     context_->SetTilingKey(GetTilingKey());
     context_->SetBlockDim(blockNum_);
