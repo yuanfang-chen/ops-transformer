@@ -41,6 +41,7 @@ static bool IsContain(const std::vector<uint32_t> &list, uint32_t value)
 ge::graphStatus AllToAllMatmulTilingBase::GetShapeAttrsInfo()
 {
     opName_ = context_->GetNodeName();
+    
     return ge::GRAPH_SUCCESS;
 };
 
