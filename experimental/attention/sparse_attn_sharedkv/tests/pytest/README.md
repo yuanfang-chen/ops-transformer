@@ -48,8 +48,7 @@
 bash test_run.sh single
 ```
 #### 用例的批量生成与测试
-1、excel路径下存放用例excel表格
-
+1、excel路径下存放用例excel表格  
 2、执行指令批量生成：
 ``` bash
 bash test_run.sh save # 默认路径执行用例生成
