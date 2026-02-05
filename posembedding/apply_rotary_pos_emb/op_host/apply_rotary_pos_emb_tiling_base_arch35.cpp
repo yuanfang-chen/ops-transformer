@@ -312,7 +312,7 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::GetShapeAttrsInfo()
         kn_ = kShape_.GetDim(DIM_2);
         d_ = qShape_.GetDim(DIM_3);
     }
-    reald_ = cosShape.GetDim(DIM_3);
+    reald_ = cosShape_.GetDim(DIM_3);
     return ge::GRAPH_SUCCESS;
 }
 } // namespace optiling
