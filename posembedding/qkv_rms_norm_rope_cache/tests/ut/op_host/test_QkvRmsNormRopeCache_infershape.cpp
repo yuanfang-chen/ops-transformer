@@ -84,9 +84,9 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeA)
             {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         {
             // attr
@@ -146,9 +146,9 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeB)
             {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         {
             // attr
@@ -208,9 +208,9 @@ TEST_F(QkvRmsNormRopeCache, QkvRmsNormRopeCache_infershapeC)
             {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         {
             // attr

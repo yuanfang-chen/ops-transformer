@@ -75,7 +75,6 @@ static string to_string(void *buf, size_t size)
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantA)
 {
-    // dlog_setlevel(0, 0, 0);
     batch_size = 72;
     seq_len = 2;
     Nqkv = 18;
@@ -112,9 +111,9 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
             {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
             {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
         },
         {
             // attr
@@ -130,4040 +129,1694 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
     string expectTilingData = "";
     std::vector<size_t> expectWorkspaces = {32};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-
-    // gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-    // gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-    // gert::StorageShape gammaK_shape = {{dim}, {dim}};
-    // gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-    // gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-    // gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-    // gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-    // gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-    // gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-    // gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-    // gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-    // gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-    // gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-    // gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-    // gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-    // gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-    // gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-    // string compile_info_string = R"({
-    //    "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-    //                      "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-    //                      "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-    //                      "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-    //                      "CORE_NUM": 48, "socVersion": "Ascend910B"}
-    //                      })";
-    // map<string, string> soc_infos;
-    // map<string, string> aicore_spec;
-    // map<string, string> intrinsics;
-    // GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-    // // platform info
-    // fe::PlatFormInfos platform_info;
-    // platform_info.Init();
-    // // compile info
-    // optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-    // std::string op_type("QkvRmsNormRopeCache");
-    // ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-    // auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-    // auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-    // // tilingParseFunc simulate
-    // auto kernel_holder =
-    //     gert::KernelRunContextFaker()
-    //         .KernelIONum(2, 1)
-    //         .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-    //         .Outputs({&compile_info})
-    //         .Build();
-
-    // ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-    // kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-    // kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-    // kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-    // kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-    //     "AICoreintrinsicDtypeMap", intrinsics);
-
-    // ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-    // // tilingFunc simulate
-    // auto param = gert::TilingData::CreateCap(4096);
-    // auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-    // auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-    // ASSERT_NE(param, nullptr);
-    // string cache_mode("PA_NZ");
-    // vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-    // vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-    // auto holder = gert::TilingContextFaker()
-    //                   .SetOpType("QkvRmsNormRopeCache")
-    //                   .NodeIoNum(13, 6)
-    //                   .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-    //                   .InputShapes(
-    //                       {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-    //                        &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-    //                   .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-    //                   .CompileInfo(&compile_info)
-    //                   .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-    //                   .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-    //                   .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-    //                   .NodeAttrs(
-    //                       {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-    //                        {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-    //                        {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-    //                        {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-    //                        {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-    //                   .TilingData(param.get())
-    //                   .Workspace(ws_size)
-    //                   .Build();
-
-    // gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-    // ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-    // holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-    // holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-    // holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-    // holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-    // // workspaces nullptr return failed
-    // EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-    // auto tiling_key = tiling_context->GetTilingKey();
-    // ASSERT_EQ(tiling_key, 3);
-    // auto block_dim = tiling_context->GetBlockDim();
-    // ASSERT_EQ(block_dim, 48);
-    // auto tilingData = tiling_context->GetRawTilingData();
-    // ASSERT_NE(tilingData, nullptr);
 }
 
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_AS)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-//     gert::StorageShape kOffset_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vOffset_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, &kOffset_shape, &vOffset_shape})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantB)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 11898;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantC)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 16;
-//     seq_len = 3;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 11898;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, nullptr, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, nullptr, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, nullptr, nullptr, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_small)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 4;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant_small)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 4;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, nullptr, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant_small)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 4;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, nullptr, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant_small)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 4;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gammaQ_shape = {{dim}, {dim}};
-//     gert::StorageShape gammaK_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gammaQ_shape, &gammaK_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, nullptr, nullptr, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_SUCCESS);
-//     auto tiling_key = tiling_context->GetTilingKey();
-//     ASSERT_EQ(tiling_key, 3);
-//     auto block_dim = tiling_context->GetBlockDim();
-//     ASSERT_EQ(block_dim, 48);
-//     auto tilingData = tiling_context->GetRawTilingData();
-//     ASSERT_NE(tilingData, nullptr);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_is_None_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {nullptr, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dimSize_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size + 2, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dtype_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkvDim_32_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 129;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dtype_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_BF16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dims_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{1, dim}, {1, dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dimOne_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{72}, {72}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_is_None_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, nullptr, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dims_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{1 * seq_len, dim}, {1 * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dtype_diff_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_BF16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_is_None_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, nullptr, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dims_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{dim}, {dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dtype_diff_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_BF16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_is_None_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, nullptr, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dims_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len + 2}, {batch_size * seq_len + 2}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dtype_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_is_None_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, nullptr, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dtype_diff_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
-
-// TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dims_wrong)
-// {
-//     // dlog_setlevel(0, 0, 0);
-//     batch_size = 72;
-//     seq_len = 2;
-//     Nqkv = 18;
-//     Nq = 16;
-//     Nk = 1;
-//     Nv = 1;
-//     dim = 128;
-//     block_num = 72;
-//     block_size = 128;
-
-//     gert::StorageShape qkv_shape = {{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}};
-//     gert::StorageShape gamma_shape = {{dim}, {dim}};
-//     gert::StorageShape cos_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape sin_shape = {{batch_size * seq_len, dim}, {batch_size * seq_len, dim}};
-//     gert::StorageShape index_shape = {{batch_size * seq_len}, {batch_size * seq_len}};
-//     gert::StorageShape qOut_shape = {{batch_size * seq_len, Nq * dim + 2}, {batch_size * seq_len, Nq * dim + 2}};
-//     gert::StorageShape kCache_shape = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape kScale_shape = {{Nk, dim}, {Nk, dim}};
-//     gert::StorageShape vScale_shape = {{Nv, dim}, {Nv, dim}};
-
-//     gert::StorageShape qOut_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_shape_out = {{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}};
-//     gert::StorageShape vCache_shape_out = {{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}};
-//     gert::StorageShape qOut_proto_shape_out = {{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}};
-//     gert::StorageShape kCache_proto_shape_out = {{batch_size * seq_len, Nk * dim}, {batch_size * seq_len, Nk * dim}};
-//     gert::StorageShape vCache_proto_shape_out = {{batch_size * seq_len, Nv * dim}, {batch_size * seq_len, Nv * dim}};
-
-//     string compile_info_string = R"({
-//        "hardware_info": {"BT_SIZE": 0, "load3d_constraints": "1",
-//                          "Intrinsic_fix_pipe_l0c2out": false, "Intrinsic_data_move_l12ub": true, "Intrinsic_data_move_l0c2ub": true, "Intrinsic_data_move_out2l1_nd2nz": false,
-//                          "UB_SIZE": 196608, "L2_SIZE": 33554432, "L1_SIZE": 524288,
-//                          "L0A_SIZE": 65536, "L0B_SIZE": 65536, "L0C_SIZE": 131072,
-//                          "CORE_NUM": 48, "socVersion": "Ascend910B"}
-//                          })";
-//     map<string, string> soc_infos;
-//     std::map<std::string, std::string> soc_version = {{"Short_SoC_version", "Ascend910B"}};
-//     map<string, string> aicore_spec;
-//     map<string, string> intrinsics;
-//     GetPlatFormInfos(compile_info_string.c_str(), soc_infos, aicore_spec, intrinsics);
-
-//     // platform info
-//     fe::PlatFormInfos platform_info;
-//     platform_info.Init();
-//     // compile info
-//     optiling::QkvRmsNormRopeCacheCompileInfo compile_info;
-
-//     std::string op_type("QkvRmsNormRopeCache");
-//     ASSERT_NE(gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str()), nullptr);
-//     auto tiling_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling;
-//     auto tiling_parse_func = gert::OpImplRegistry::GetInstance().GetOpImpl(op_type.c_str())->tiling_parse;
-
-//     // tilingParseFunc simulate
-//     auto kernel_holder =
-//         gert::KernelRunContextFaker()
-//             .KernelIONum(2, 1)
-//             .Inputs({const_cast<char*>(compile_info_string.c_str()), reinterpret_cast<void*>(&platform_info)})
-//             .Outputs({&compile_info})
-//             .Build();
-
-//     ASSERT_TRUE(kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->Init());
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("version", soc_version);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     kernel_holder.GetContext<gert::TilingParseContext>()->GetPlatformInfo()->SetPlatformRes(
-//         "AICoreintrinsicDtypeMap", intrinsics);
-
-//     ASSERT_EQ(tiling_parse_func(kernel_holder.GetContext<gert::KernelContext>()), ge::GRAPH_SUCCESS);
-
-//     // tilingFunc simulate
-//     auto param = gert::TilingData::CreateCap(4096);
-//     auto workspace_size_holer = gert::ContinuousVector::Create<size_t>(4096);
-//     auto ws_size = reinterpret_cast<gert::ContinuousVector*>(workspace_size_holer.get());
-//     ASSERT_NE(param, nullptr);
-//     string cache_mode("PA_NZ");
-//     vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
-//     vector<int64_t> head_nums = {Nq, Nk, Nv};
-
-//     auto holder = gert::TilingContextFaker()
-//                       .SetOpType("QkvRmsNormRopeCache")
-//                       .NodeIoNum(13, 6)
-//                       .IrInstanceNum({1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1})
-//                       .InputShapes(
-//                           {&qkv_shape, &gamma_shape, &gamma_shape, &cos_shape, &sin_shape, &index_shape, &qOut_shape, &kCache_shape,
-//                            &vCache_shape, &kScale_shape, &vScale_shape, nullptr, nullptr})
-//                       .OutputShapes({&qOut_shape_out, &kCache_shape_out, &vCache_shape_out, &qOut_proto_shape_out, &kCache_proto_shape_out, &vCache_proto_shape_out})
-//                       .CompileInfo(&compile_info)
-//                       .PlatformInfo(reinterpret_cast<char*>(&platform_info))
-//                       .NodeInputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(2,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(3,ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(5, ge::DT_INT64, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(6, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(7, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(8, ge::DT_INT8, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(9, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(10, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(11, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeInputTd(12, ge::DT_FLOAT, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(0, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(1, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(2, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(3, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(4, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-//                       .NodeOutputTd(5, ge::DT_FLOAT16, ge::FORMAT_ND, ge::FORMAT_ND)
-
-//                       .NodeAttrs(
-//                           {{"qkv_size", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(qkv_size)},
-//                            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(head_nums)},
-//                            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
-//                            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
-//                            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)}})
-//                       .TilingData(param.get())
-//                       .Workspace(ws_size)
-//                       .Build();
-
-//     gert::TilingContext* tiling_context = holder.GetContext<gert::TilingContext>();
-//     ASSERT_NE(tiling_context->GetPlatformInfo(), nullptr);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("SoCInfo", soc_infos);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreSpec", aicore_spec);
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetCoreNumByCoreType("AICore");
-//     holder.GetContext<gert::TilingContext>()->GetPlatformInfo()->SetPlatformRes("AICoreintrinsicDtypeMap", intrinsics);
-
-//     // workspaces nullptr return failed
-//     EXPECT_EQ(tiling_func(tiling_context), ge::GRAPH_FAILED);
-// }
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_AS)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantB)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 11898;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantC)
+{
+    batch_size = 16;
+    seq_len = 3;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 11898;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_small)
+{
+    batch_size = 4;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant_small)
+{
+    batch_size = 4;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant_small)
+{
+    batch_size = 4;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant_small)
+{
+    batch_size = 4;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 16, block_size, 16}, {block_num, Nk * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 16, block_size, 16}, {block_num, Nv * dim / 16, block_size, 16}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_is_None_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dimSize_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size + 2, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dtype_wrong)
+{
+    // dlog_setlevel(0, 0, 0);
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkvDim_32_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 129;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dtype_wrong)
+{
+    // dlog_setlevel(0, 0, 0);
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_BF16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dims_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{1, dim}, {1, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dimOne_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{72}, {72}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_is_None_wrong)
+{
+    // dlog_setlevel(0, 0, 0);
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dims_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{1 * seq_len, dim}, {1 * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dtype_diff_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_BF16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_is_None_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dims_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dtype_diff_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_BF16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_is_None_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dims_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len + 2}, {batch_size * seq_len + 2}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dtype_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_is_None_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dtype_diff_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim}, {batch_size * seq_len, Nq * dim}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dims_wrong)
+{
+    batch_size = 72;
+    seq_len = 2;
+    Nqkv = 18;
+    Nq = 16;
+    Nk = 1;
+    Nv = 1;
+    dim = 128;
+    block_num = 72;
+    block_size = 128;
+
+    string cache_mode("PA_NZ");
+    vector<int64_t> qkv_size = {batch_size, seq_len, Nqkv, dim};
+    vector<int64_t> head_nums = {Nq, Nk, Nv};
+
+    optiling::QkvRmsNormRopeCacheCompileInfo compileInfo = {};
+    gert::TilingContextPara tilingContextPara(
+        "QkvRmsNormRopeCache",
+        {
+            // input info
+            {{{batch_size * seq_len, Nqkv * dim}, {batch_size * seq_len, Nqkv * dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{dim}, {dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len, dim}, {batch_size * seq_len, dim}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{batch_size * seq_len}, {batch_size * seq_len}}, ge::DT_INT64, ge::FORMAT_ND},
+            {{{batch_size * seq_len, Nq * dim + 2}, {batch_size * seq_len, Nq * dim + 2}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{block_num, Nk * dim / 32, block_size, 32}, {block_num, Nk * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{block_num, Nv * dim / 32, block_size, 32}, {block_num, Nv * dim / 32, block_size, 32}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{Nk, dim}, {Nk, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+            {{{Nv, dim}, {Nv, dim}}, ge::DT_FLOAT, ge::FORMAT_ND},
+        },
+        {
+            // output info
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_INT8, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        {
+            // attr
+            {"qkv_size", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(qkv_size)},
+            {"head_nums", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>(head_nums)},
+            {"epsilon", Ops::Transformer::AnyValue::CreateFrom<float>(1e-06)},
+            {"cache_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(cache_mode)},
+            {"is_output_qkv", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
+        },
+        &compileInfo);
+
+    uint64_t expectTilingKey = 3;
+    string expectTilingData = "";
+    std::vector<size_t> expectWorkspaces = {32};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+}
 
 // TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_is_None_wrong)
 // {
