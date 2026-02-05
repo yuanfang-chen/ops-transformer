@@ -15,7 +15,8 @@
 #include "runtime_util.h"
 #include "mc2_log.h"
 #include "platform/platform_info.h"
-#include "mc2_common_infershape.h"
+#include "runtime/rt_external_base.h"
+#include "platform/soc_spec.h"
 
 using namespace ge;
 namespace ops {
@@ -44,6 +45,21 @@ static constexpr size_t DISPATCH_INPUT_ATTR_EXPERT_SHARD_TYPE_INDEX = 7;
 static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
 static constexpr size_t DISPATCH_INPUT_ATTR_QUANT_MODE_INDEX = 10;
 static constexpr size_t DISPATCH_INPUT_ATTR_GLOBAL_BS_INDEX = 11;
+
+static constexpr uint32_t VERSION_SIZE = 32;
+const std::set<std::string> PLATFORM_A2 = {"Ascend910B"};
+
+bool IsTargetSocVersionInfershape(const char *nodeName, const std::set<std::string> &targetPlatform)
+{
+    char versionValVersion[VERSION_SIZE];
+    // rtGetSocSpec获取成功返回值是0，获取失败返回非0
+    if (rtGetSocSpec("version", "Short_SoC_version", versionValVersion, VERSION_SIZE) != RT_ERROR_NONE) {
+        OPS_LOG_E(nodeName, "Cannot get Short_SoC_version info in infershape!");
+        return false;
+    }
+    OPS_LOG_D(nodeName, "(IsTargetSocVersionInfershape)Get Short_SoC_version %s", versionValVersion);
+    return (targetPlatform.count(versionValVersion) > 0);
+}
 
 static ge::graphStatus InferShapeMoeDistributeDispatch(gert::InferShapeContext *context)
 {
