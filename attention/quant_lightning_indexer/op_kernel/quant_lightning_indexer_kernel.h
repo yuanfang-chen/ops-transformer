@@ -102,7 +102,7 @@ protected:
     // ================================Global Buffer区=================================
     GlobalTensor<Q_T> queryGm;
     GlobalTensor<K_T> keyGm;
-    GlobalTensor<half> weightsGm;
+    GlobalTensor<bfloat16_t> weightsGm;
 
     GlobalTensor<int32_t> indiceOutGm;
     GlobalTensor<int32_t> blockTableGm;
@@ -421,14 +421,14 @@ __aicore__ inline void QLIPreload<QLIT>::Init(__gm__ uint8_t *query, __gm__ uint
     weightWorkspaceGm.SetGlobalBuffer((__gm__ half *)(workspace + offset + aiCoreIdx * weightMemSize));
     offset += GetBlockNum() * weightMemSize;
 
-    GlobalTensor<half> qScaleGm;
-    GlobalTensor<half> kScaleGm;
+    GlobalTensor<float> qScaleGm;
+    GlobalTensor<float> kScaleGm;
     if ASCEND_IS_AIV {
         vectorService.InitParams(constInfo, tiling);
         indiceOutGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
-        weightsGm.SetGlobalBuffer((__gm__ half *)weights);
-        qScaleGm.SetGlobalBuffer((__gm__ half *)queryScale);
-        kScaleGm.SetGlobalBuffer((__gm__ half *)keyScale);
+        weightsGm.SetGlobalBuffer((__gm__ bfloat16_t *)weights);
+        qScaleGm.SetGlobalBuffer((__gm__ float *)queryScale);
+        kScaleGm.SetGlobalBuffer((__gm__ float *)keyScale);
         blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
         vectorService.InitVecInputTensor(weightsGm, qScaleGm, kScaleGm, indiceOutGm, blockTableGm);
         vectorService.InitVecWorkspaceTensor(weightWorkspaceGm, mm1ResGm, vec1ResGm, vec1ParamGm);
