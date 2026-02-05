@@ -1976,7 +1976,8 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
         (GetQueryD(context, inputLayoutStr, queryD) != ge::GRAPH_SUCCESS)) {
         return ge::GRAPH_FAILED;
     }
-    // 校验intput
+    // 校验intput test 
+    
     OP_CHECK_IF(CheckInputLayout(context, inputLayoutStr, queryS, queryD, isPageAttention) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check InputLayout failed"), return ge::GRAPH_FAILED);
     // 校验OutShape
