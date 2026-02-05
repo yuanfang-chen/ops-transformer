@@ -67,6 +67,24 @@ namespace SplitFuse {
         static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
         static constexpr Epilogue::SinkMode SINK_MODE = EpilogueOnlineSoftmax::SINK_MODE;
 
+        struct GlobalTensorBundle {
+            AscendC::GlobalTensor<ElementQ>& gQ;
+            AscendC::GlobalTensor<ElementK>& gK;
+            AscendC::GlobalTensor<ElementK>& gV;
+            AscendC::GlobalTensor<ElementMask>& gMask;
+            AscendC::GlobalTensor<int32_t>& gBlockTable;
+            AscendC::GlobalTensor<int64_t>& gActualQseqlen;
+            AscendC::GlobalTensor<int64_t>& gActualKvseqlen;
+            AscendC::GlobalTensor<ElementO>& gO;
+            AscendC::GlobalTensor<ElementLse>& gLse;
+            AscendC::GlobalTensor<ElementLse>& gmlse;
+            AscendC::GlobalTensor<ElementLse>& gmlo;
+            AscendC::GlobalTensor<ElementS>& gS;
+            AscendC::GlobalTensor<ElementP>& gP;
+            AscendC::GlobalTensor<ElementOTmp>& gOTmp;
+            AscendC::GlobalTensor<ElementOTmp>& gOUpdate;
+            AscendC::GlobalTensor<ElementSink>& gSink;
+        };
 
         __aicore__ inline
         FAInferKernel() {}
@@ -123,15 +141,12 @@ namespace SplitFuse {
             gO.SetGlobalBuffer((__gm__ ElementO *)params.o);
             AscendC::GlobalTensor<ElementLse> gLse;
             gLse.SetGlobalBuffer((__gm__ ElementLse *)params.lse);
-    
-            
             AscendC::GlobalTensor<ElementLse> gmlse;
             AscendC::GlobalTensor<ElementLse> gmlo;
             if constexpr (IS_FD) {
                 gmlse.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace));
                 gmlo.SetGlobalBuffer((__gm__ ElementLse *)(params.workSpace + Lsesize));
             }
-
             AscendC::GlobalTensor<ElementS> gS;
             gS.SetGlobalBuffer((__gm__ ElementS *)(params.workSpace + Lsesize + Losize));
             AscendC::GlobalTensor<ElementP> gP;
@@ -143,6 +158,13 @@ namespace SplitFuse {
                 mm1OutSize + smOnlineOutSize + mm2OutSize));
             AscendC::GlobalTensor<ElementSink> gSink;
             gSink.SetGlobalBuffer((__gm__ ElementSink *)(params.sink));
+
+            GlobalTensorBundle globalTensors{
+                gQ, gK, gV, gMask, gBlockTable,
+                gActualQseqlen, gActualKvseqlen,
+                gO, gLse, gmlse, gmlo,
+                gS, gP, gOTmp, gOUpdate, gSink
+            };
 
             uint32_t coreIdx = AscendC::GetBlockIdx();
             uint32_t coreNum = AscendC::GetBlockNum();
@@ -267,10 +289,7 @@ namespace SplitFuse {
                                 coreIdx, BIdx, n1Idx, s1Idx,
                                 isSplitKV, stS2IdxNow, enS2IdxNow,
                                 gmlse0ffset, gmlooffset,
-                                gQ, gK, gV, gMask, gBlockTable,
-                                gActualQseqlen, gActualKvseqlen,
-                                gO, gLse, gmlse, gmlo,
-                                gS, gP, gOTmp, gOUpdate, gSink
+                                globalTensors
                             );
 
                             if (isSplitKV) {
@@ -342,10 +361,7 @@ namespace SplitFuse {
                         coreIdx, curBatchTmp, qNBlockIdxCur, qSBlockIdxCur,
                         false, 0, 0,
                         0, 0,
-                        gQ, gK, gV, gMask, gBlockTable,
-                        gActualQseqlen, gActualKvseqlen,
-                        gO, gLse, gmlse, gmlo,
-                        gS, gP, gOTmp, gOUpdate, gSink
+                        globalTensors
                     );
                 }
             }
@@ -422,23 +438,24 @@ namespace SplitFuse {
             int32_t enS2IdxNow, 
             uint64_t gmlse0ffset,
             uint64_t gmlooffset,
-            AscendC::GlobalTensor<ElementQ>& gQ,
-            AscendC::GlobalTensor<ElementK>& gK,
-            AscendC::GlobalTensor<ElementK>& gV,
-            AscendC::GlobalTensor<ElementMask>& gMask,
-            AscendC::GlobalTensor<int32_t>& gBlockTable,
-            AscendC::GlobalTensor<int64_t>& gActualQseqlen,
-            AscendC::GlobalTensor<int64_t>& gActualKvseqlen,
-            AscendC::GlobalTensor<ElementO>& gO,
-            AscendC::GlobalTensor<ElementLse>& gLse,
-            AscendC::GlobalTensor<ElementLse>& gmlse,
-            AscendC::GlobalTensor<ElementLse>& gmlo,
-            AscendC::GlobalTensor<ElementS>& gS,
-            AscendC::GlobalTensor<ElementP>& gP,
-            AscendC::GlobalTensor<ElementOTmp>& gOTmp,
-            AscendC::GlobalTensor<ElementOTmp>& gOUpdate,
-            AscendC::GlobalTensor<ElementSink>& gSink
+            GlobalTensorBundle& globalTensors
         ) {
+            auto& gQ = globalTensors.gQ;
+            auto& gK = globalTensors.gK;
+            auto& gV = globalTensors.gV;
+            auto& gMask = globalTensors.gMask;
+            auto& gBlockTable = globalTensors.gBlockTable;
+            auto& gActualQseqlen = globalTensors.gActualQseqlen;
+            auto& gActualKvseqlen = globalTensors.gActualKvseqlen;
+            auto& gO = globalTensors.gO;
+            auto& gLse = globalTensors.gLse;
+            auto& gmlse = globalTensors.gmlse;
+            auto& gmlo = globalTensors.gmlo;
+            auto& gS = globalTensors.gS;
+            auto& gP = globalTensors.gP;
+            auto& gOTmp = globalTensors.gOTmp;
+            auto& gOUpdate = globalTensors.gOUpdate;
+            auto& gSink = globalTensors.gSink;
 
             uint32_t qSeqlen = static_cast<uint32_t>(gActualQseqlen.GetValue(BIdx));
             uint32_t kvSeqlen = static_cast<uint32_t>(gActualKvseqlen.GetValue(BIdx));
