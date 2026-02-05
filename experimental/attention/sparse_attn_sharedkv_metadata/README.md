@@ -8,26 +8,18 @@
 
 ## 功能说明
 - API功能：`SparseAttnSharedkvMetadata`算子旨在生成一个任务列表，包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引，供后续`SparseAttnSharedkv`算子使用。
-- `SparseAttnSharedkvMetadata`计算公式：
 
-    $$
-    O = \text{softmax}(Q@\tilde{K}^T \cdot \text{softmax\_scale})@\tilde{V}
-    $$
-
-    其中$\tilde{K}=\tilde{V}$为基于入参控制的实际参与计算的$KV$。
 
 
 ## 参数说明
 
->- 参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Hidden Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）注意力头的维度，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
-
-<table style="undefined;table-layout: fixed; width: 1000px">
+<table style="undefined;table-layout: fixed; width: 1576px">
   <colgroup>
+  <col style="width: 170px">
+  <col style="width: 170px">
+  <col style="width: 310px">
+  <col style="width: 212px">
   <col style="width: 100px">
-  <col style="width: 120px">
-  <col style="width: 500px">
-  <col style="width: 80px">
-  <col style="width: 80px">
   </colgroup>
   <thead>
     <tr>
@@ -42,21 +34,21 @@
     <tr>
       <td>num_heads_q</td>
       <td>属性</td>
-      <td>公式中的Q的多头数。</td>
+      <td>Q的多头数，目前仅支持64。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>num_heads_kv</td>
       <td>属性</td>
-      <td>公式中的K和V的多头数。</td>
+      <td>K和V的多头数，目前仅支持1。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>head_dim</td>
       <td>属性</td>
-      <td>注意力头的维度。</td>
+      <td>注意力头的维度，目前仅支持512。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
@@ -105,35 +97,35 @@
     <tr>
       <td>max_seqlen_q</td>
       <td>可选属性</td>
-      <td>当layout_query为BSND时，表示每个Batch中的q的有效token数。</td>
+      <td>表示所有batch中`q`的最大有效token数。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>max_seqlen_kv</td>
       <td>可选属性</td>
-      <td>当layout_kv为BSND时，表示每个Batch中的ori_kv的有效token数。</td>
+      <td>表示所有batch中`ori_kv`的最大有效token数。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>ori_topk</td>
       <td>可选属性</td>
-      <td>表示选取ori_topk的K个token。目前暂不支持指定该参数。</td>
+      <td>表示通过QLI算法从`ori_kv`中筛选出的关键稀疏token的个数。目前暂不支持指定该参数。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>cmp_topk</td>
       <td>可选属性</td>
-      <td>表示选取cmp_topk的K个token，目前仅支持4或128。</td>
+      <td>表示通过QLI算法从`cmp_kv`中筛选出的关键稀疏token的个数，目前仅支持512。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
     <tr>
       <td>cmp_ratio</td>
       <td>可选属性</td>
-      <td>表示对ori_kv的压缩率。</td>
+      <td>表示对`ori_kv`的压缩率，数据范围支持4/128，</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
@@ -168,41 +160,41 @@
     <tr>
       <td>layout_q</td>
       <td>可选属性</td>
-      <td>用于标识输入q的数据排布格式。</td>
-      <td>STRING</td>
+      <td>用于标识输入q的数据排布格式,默认值为BSND，目前支持传入BSND和TND。</td>
+      <td>String</td>
     </tr>
     <tr>
       <td>layout_kv</td>
       <td>可选属性</td>
-      <td>用于标识输入ori_kv和cmp_kv的数据排布格式。</td>
-      <td>STRING</td>
+      <td>用于标识输入ori_kv和cmp_kv的数据排布格式，目前仅支持传入默认值PA_ND。</td>
+      <td>String</td>
       <td>-</td>
     </tr>
     <tr>
       <td>has_ori_kv</td>
       <td>可选属性</td>
-      <td>是否含有ori_kv。</td>
+      <td>是否传入ori_kv。</td>
       <td>BOOL</td>
       <td>-</td>
     </tr>
     <tr>
       <td>has_cmp_kv</td>
       <td>可选属性</td>
-      <td>是否含有cmp_kv。</td>
+      <td>是否传入cmp_kv。</td>
       <td>BOOL</td>
       <td>-</td>
     </tr>
     <tr>
       <td>device</td>
       <td>可选属性</td>
-      <td>npu的ID。</td>
-      <td>STRING</td>
+      <td>npu的ID，当输入`Tensor`均没有传入时，此字段必填，用于获取设备信息。</td>
+      <td>String</td>
       <td>-</td>
     </tr>
     <tr>
       <td>metadata</td>
       <td>输出</td>
-      <td>包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引的列表。</td>
+      <td>每个cube核上FlashAttention计算任务的Batch、Head、以及 Q 和 K 的分块的索引，以及每个vector核上FlashDecode的规约任务索引。</td>
       <td>INT32</td>
       <td>-</td>
     </tr>
@@ -214,5 +206,3 @@
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
 
-## 调用示例
-- 支持单算子模式调用和aclgraph模式调用，作为SparseAttnSharedkv算子的前序算子，调用示例见[SparseAttnSharedkv调用示例](../sparse_attn_sharedkv/README.md)。
