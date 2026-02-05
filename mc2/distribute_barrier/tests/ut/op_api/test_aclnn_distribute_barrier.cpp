@@ -26,14 +26,14 @@ class L2AclnnDistributeBarrierTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
-      cout << "L2AclnnDistributeBarrierTest SetUp" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
+        cout << "L2AclnnDistributeBarrierTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2AclnnDistributeBarrierTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2AclnnDistributeBarrierTest TearDown" << endl;
     }
 };
 

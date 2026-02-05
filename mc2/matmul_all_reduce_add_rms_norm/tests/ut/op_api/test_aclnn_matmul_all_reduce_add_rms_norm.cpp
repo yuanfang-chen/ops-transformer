@@ -29,14 +29,14 @@ class L2MatmulAllReduceAddRmsNormTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2MatmulAllReduceAddRmsNormTest SetUp" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2MatmulAllReduceAddRmsNormTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2MatmulAllReduceAddRmsNormTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2MatmulAllReduceAddRmsNormTest TearDown" << endl;
     }
 };
 
