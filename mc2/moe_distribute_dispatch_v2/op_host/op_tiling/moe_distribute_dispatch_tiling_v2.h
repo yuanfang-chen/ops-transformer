@@ -16,9 +16,13 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_TILING_V2
 #define MOE_DISTRIBUTE_DISPATCH_TILING_V2
 
-#include "tiling/mc2_tiling_utils.h"
-#include "register/tilingdata_base.h"
+#include <cstdint>
 #include "tiling/tiling_api.h"
+#include "graph/utils/type_utils.h"
+#include "register/tilingdata_base.h"
+#include "tiling_base/tiling_base.h"
+#include "tiling/mc2_opversion_manager.h"
+using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
 
@@ -34,7 +38,7 @@ struct DispatchV2Config {
     bool isMc2Context = false;
 };
 
-ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext* context, const DispatchV2Config& config);
+ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext* context, DispatchV2Config& config);
 
 }
 
