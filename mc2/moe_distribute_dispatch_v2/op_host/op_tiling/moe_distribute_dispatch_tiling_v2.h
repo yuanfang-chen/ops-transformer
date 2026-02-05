@@ -34,7 +34,7 @@ struct DispatchV2Config {
     bool isMc2Context = false;
 };
 
-ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext* context, const DispatchV2Config& config);
+ge::graphStatus MoeDistributeDispatchA3TilingFuncImplPublic(gert::TilingContext* context, const DispatchV2Config& config);
 
 }
 
