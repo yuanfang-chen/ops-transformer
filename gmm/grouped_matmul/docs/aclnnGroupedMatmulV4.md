@@ -374,7 +374,7 @@ aclnnStatus aclnnGroupedMatmulV4(
     - scaleOptional支持UINT64、INT64、BFLOAT16、FLOAT32、FLOAT8_E8M0
     - perTokenScaleOptional支持FLOAT32、FLOAT8_E8M0
     - groupListType不支持取2
-    - actType支持传入0、1、2、4、5
+    - actType支持0、1、2、4、5，综合约束请参见<a href="#约束说明">约束说明</a>
     - out支持BFLOAT16、FLOAT16、FLOAT32
     - 不支持offsetOptional
     - groupType支持m轴分组，仅非量化和量化支持k轴分组，仅非量化和伪量化支持不分组

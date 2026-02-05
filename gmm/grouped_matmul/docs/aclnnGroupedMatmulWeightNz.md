@@ -427,7 +427,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
         - `scaleOptional`支持UINT64/INT64/BFLOAT16/FLOAT32。`offsetOptional`、`antiquantOffsetOptional`暂不支持。
         - `groupType`支持m轴分组，仅非量化支持不分组。
         - `quantGroupSize`暂不支持。
-        - `actType`在伪量化和非量化场景下，仅支持0。在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，`actType`参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
+        - `actType`支持0、1、2、4、5。综合约束请参见<a href="#约束说明">约束说明</a>。
         - 输入参数`x`、`weight`，输出参数`out`在非量化场景支持最多1024个tensor，在伪量化和全量化场景支持最多128个tensor。
 
   - **返回值：**
