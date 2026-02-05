@@ -127,7 +127,7 @@ public:
 
     __aicore__ inline bool GetTileIdx(BlockCoord& blockCoord)
     {
-        if (roundIdx_ > round_ - 1) {
+        if (round_ == 0 || roundIdx_ > round_ - 1) {
             return false;
         }
         int64_t newBlockIdx = (roundIdx_ == round_ - 1) ? blockIdx_ / tailCnt_ : blockIdx_;

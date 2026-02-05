@@ -212,6 +212,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(con
     yTensorPtr_ = params.mmadParams.cGmAddr;
 
     groupNum_ = params.gmmParams.groupNum;
+    curBaseM_ = params.gmmParams.baseM;
     groupType_ = params.gmmParams.groupType;
     groupListType_ = params.gmmParams.groupListType;
     isBias_ = params.gmmParams.isBias == 1;

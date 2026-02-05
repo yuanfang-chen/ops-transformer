@@ -1129,8 +1129,8 @@ void GroupedQbmmTiling::CalScaleFactors()
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
     uint32_t scaleFactorBMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
-    uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
-    uint32_t scaleFactorB = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKb * basicTiling_.baseK));
+    uint32_t scaleFactorA = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKa * basicTiling_.baseK));
+    uint32_t scaleFactorB = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKb * basicTiling_.baseK));
     basicTiling_.scaleFactorA = std::max(SCALER_FACTOR_MIN, scaleFactorA);
     basicTiling_.scaleFactorB = std::max(SCALER_FACTOR_MIN, scaleFactorB);
     basicTiling_.scaleFactorA = std::min(scaleFactorAMax, basicTiling_.scaleFactorA);
