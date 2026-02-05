@@ -271,17 +271,12 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_totalQBlocks(totalQBlocks_);
     tilingData_->set_maxKvBlockNum(maxKvBlockNum_);
 
-    tilingData_->set_kvCacheLayout(static_cast<uint32_t>(layout_));
-    tilingData_->set_queryLayout(static_cast<uint32_t>(layout_));
+    tilingData_->set_inputLayout(static_cast<uint32_t>(layout_));
     tilingData_->set_maxQSeqlen(maxQSeqlen_);
     tilingData_->set_maxKvSeqlen(maxKvSeqlen_);
 
-    // BNSD格式下当actualSeqLengths为nullptr时，使用maxQSeqlen和maxKvSeqlen作为统一值
-    tilingData_->set_useUniformQSeqlen(useUniformQSeqlen_ ? 1 : 0);
-    tilingData_->set_useUniformKvSeqlen(useUniformKvSeqlen_ ? 1 : 0);
-
     // 生成tilingKey（按照开发规范：在tiling层生成）
-    uint64_t tilingKey = GenerateTilingKey(context);
+    uint64_t tilingKey = GenerateTilingKey();
     tilingData_->set_tilingKey(tilingKey);
     context->SetTilingKey(tilingKey);
     context->SetBlockDim(blockDim_);
@@ -296,13 +291,13 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t BSAGradTiling::GenerateTilingKey(gert::TilingContext *context)
+uint64_t BSAGradTiling::GenerateTilingKey()
 {
     return 0;
 }
 
-ge::graphStatus BSAGradTiling::GetRFATiling(gert::TilingContext *context,
-                                            BlockSparseAttentionGradTilingData &tilingData)
+ge::graphStatus BSAGradTiling::GetBSAGradTiling(gert::TilingContext *context,
+                                                BlockSparseAttentionGradTilingData &tilingData)
 {
     tilingData_ = &tilingData;
     ge::graphStatus ret = GetNpuInfo(context);

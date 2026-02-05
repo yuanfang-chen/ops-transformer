@@ -49,8 +49,6 @@ TILING_DATA_FIELD_DEF(uint32_t, inputLayout);
 TILING_DATA_FIELD_DEF(uint32_t, maxQSeqlen);  // BNSD格式Q的第三维（S维度），或统一的qseqlen值
 // 当actualSeqLengthsKv为nullptr时，maxKvSeqlen也用作统一的kvseqlen值
 TILING_DATA_FIELD_DEF(uint32_t, maxKvSeqlen);  // BNSD格式KV的第三维（S维度），或统一的kvseqlen值
-TILING_DATA_FIELD_DEF(uint32_t, useUniformQSeqlen);  // 是否使用统一的qseqlen值（1=是，0=否）
-TILING_DATA_FIELD_DEF(uint32_t, useUniformKvSeqlen);  // 是否使用统一的kvseqlen值（1=是，0=否）
 
 // TilingKey for kernel dispatch (生成在tiling层)
 TILING_DATA_FIELD_DEF(uint64_t, tilingKey);
@@ -102,7 +100,7 @@ private:
     ge::graphStatus CalculateWorkSpace(gert::TilingContext *context);
     ge::graphStatus FillTilingData(gert::TilingContext *context);
     
-    uint64_t GenerateTilingKey(gert::TilingContext *context);
+    uint64_t GenerateTilingKey();
 
 private:
     uint32_t batch_ = 0;
@@ -133,7 +131,7 @@ private:
     uint64_t mm2OutSize_ = 0;
     uint64_t updateSize_ = 0;
     
-    InputLayout layout_ = RFAKvCacheLayout::TND;
+    InputLayout layout_ = InputLayout::TND;
     
     uint32_t blockDim_ = 20;
     uint32_t aivNum_ = 0;
