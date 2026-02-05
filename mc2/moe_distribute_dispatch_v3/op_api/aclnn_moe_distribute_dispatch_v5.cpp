@@ -29,8 +29,8 @@ extern "C" {
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
     const aclTensor* context, const aclTensor* x, const aclTensor* expertIds, const aclTensor* scales,
     const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
-    const aclTensor* performanceInfo, const char* groupEp, int64_t epWorldSize,
-    int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
+    const aclTensor* performanceInfo, int64_t epWorldSize,
+    int64_t epRankId, int64_t moeExpertNum, int64_t cclBufferSize, int64_t tpWorldSize,
     int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, int64_t shareExpertRankNum,
     int64_t quantMode, int64_t globalBs, int64_t expertTokenNumsType, const char* commAlg,
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, int64_t ydtype, aclTensor* expandX,
@@ -45,8 +45,8 @@ aclnnStatus aclnnMoeDistributeDispatchV5GetWorkspaceSize(const aclTensor* contex
     const aclTensor* x, const aclTensor* expertIds,
     const aclTensor* scalesOptional, const aclTensor* xActiveMaskOptional,
     const aclTensor* expertScalesOptional, const aclTensor* elasticInfoOptional,
-    const aclTensor* performanceInfoOptional, const char* groupEp, int64_t epWorldSize, int64_t epRankId,
-    int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
+    const aclTensor* performanceInfoOptional, int64_t epWorldSize, int64_t epRankId,
+    int64_t moeExpertNum, int64_t cclBufferSize, int64_t tpWorldSize,
     int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, 
     int64_t sharedExpertRankNum, int64_t quantMode, int64_t globalBs,
     int64_t expertTokenNumsType, const char* commAlg,
@@ -60,8 +60,8 @@ aclnnStatus aclnnMoeDistributeDispatchV5GetWorkspaceSize(const aclTensor* contex
     int64_t yDtype = expandXOut->GetDataType();
     aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV3GetWorkspaceSize(
         context, x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
-        elasticInfoOptional, performanceInfoOptional, groupEp, epWorldSize, epRankId, moeExpertNum,
-        groupTp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+        elasticInfoOptional, performanceInfoOptional, epWorldSize, epRankId, moeExpertNum,
+        cclBufferSize, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
         sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
         constExpertNum, yDtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
         epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
