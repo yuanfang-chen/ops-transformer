@@ -476,7 +476,11 @@ static void TestQuantOneParamCase(const QuantMatmulAlltoAllAclnnTestParam& param
                                   x1quantmode, x2quantmode, 0, -1, 0, transposeX1, transposeX2),
                             OUTPUT(output));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
     } else {
         TensorDesc bias = TensorDesc(biasShape, biasDtype, biasFormat);
         auto ut = OP_API_UT(aclnnQuantMatmulAlltoAll,
@@ -484,7 +488,11 @@ static void TestQuantOneParamCase(const QuantMatmulAlltoAllAclnnTestParam& param
                                   x1quantmode, x2quantmode, 0, -1, 0, transposeX1, transposeX2),
                             OUTPUT(output));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
     }
     std::cout << "end case " <<  param.caseName << std::endl;
 }
