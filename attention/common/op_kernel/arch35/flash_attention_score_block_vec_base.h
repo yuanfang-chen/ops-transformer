@@ -277,7 +277,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
     float descaleQK = 1.0;
     if constexpr (isFp8) {
         int64_t deScaleQOffset = 0;
-        if (layout == LayOutTypeEnum::LAYOUT_NTD) {
+        if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
             int64_t s1BlockCnt = constInfo.t1Size / FP8_QUANT_BLOCK_SIZE + constInfo.bSize; // Q的反量化scale内容在Gm中的偏移 原始shape为 [N2, G,T // 128 + B, 1]
             int64_t s2BlockCnt = constInfo.t2Size / FP8_QUANT_KV_BLOCK_SIZE + constInfo.bSize; // KV的反量化scale内容在Gm中的偏移 原始shape为 [N2, G, T // 256 + B, 1]
             deScaleQOffset = runInfo.n2oIdx * constInfo.gSize * s1BlockCnt +
