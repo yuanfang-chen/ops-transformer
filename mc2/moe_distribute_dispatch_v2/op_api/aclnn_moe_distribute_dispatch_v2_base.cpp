@@ -20,7 +20,7 @@
 #include "opdev/common_types.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
-
+#include "mc2_moe_context.h"
 using namespace Ops::Transformer;
 using namespace op;
 #ifdef __cplusplus
@@ -81,6 +81,92 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
     return ACLNN_SUCCESS;
 }
 
+aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void * ctx, Mc2MoeContext*  mc2_context)
+{
+    uint64_t ctxSize = sizeof(Mc2MoeContext);
+    void * tempBuffer = nullptr;
+    uint64_t buffersize = 0;
+    uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
+
+    ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");
+        return ACLNN_ERR_INNER;
+    }
+
+    //获取对应的资源
+    ret = HcclGetRankId(hcclHandle, &mc2_context->rankId);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Id failed.");
+        return ACLNN_ERR_INNER;
+    }
+
+    ret = HcclGetRankSize(hcclHandle, &mc2_context->rankDim);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
+        return ACLNN_ERR_INNER;
+    }
+
+    for(uint64_t index = 0; index < mc2_context->rankDim; index++) {
+        if(index == mc2_context->rankId) {
+            ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winsize);
+        } else {
+            ret = HcclChannelGetHcclBuffer(hcclHandle, index, &tempBuffer, &buffersize);
+        }
+        if(ret != HCCL_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
+            return ACLNN_ERR_INNER;
+        }
+        mc2_context->windowsIn[index] = reinterpret_cast<uint64_t>(tempBuffer);
+    }
+    
+    //把数据拷贝到device侧
+    ret = HcclEngineCtxCopy(hcclHandle, engine, mc2Ctxtag.c_str(), mc2_context, ctxSize, dstCtxOffset);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Copy data from host to device failed.");
+        return ACLNN_ERR_INNER;
+    }
+    return ACLNN_SUCCESS;
+}
+
+void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
+{
+    
+    uint64_t mc2ContextLength = sizeof(mc2Context);
+    int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
+    int64_t strides[1] = {1};
+    mc2context = aclCreateTensor(
+        shap, 1, aclDataType::ACL_UINT32, strides, 0, 
+        aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
+}
+
+aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context) 
+{
+    Mc2MoeContext mc2_context;
+    HcclComm hcclHandle;
+    HcclResult ret;
+    CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
+    std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
+    void * ctx = nullptr;
+    uint64_t ctxSize = sizeof(Mc2MoeContext);
+    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
+        return ACLNN_ERR_INNER;
+    }
+
+    ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
+    if(ret != HCCL_SUCCESS) { 
+        //如果资源不存在则进行context结构体创建
+        auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
+        CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    }
+
+    CreatMc2ContextTensor(ctx, mc2Context);
+
+    return ACLNN_SUCCESS;
+}
+
 aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* scalesOptional,
     const aclTensor* xActiveMaskOptional, const aclTensor* expertScalesOptional,
@@ -101,6 +187,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
+    const aclTensor* mc2Context = nullptr;
+    HcclComm hcclHandle;
     if (is910B) {
         groupTpDispatchV2Temp = "";
     } else if (is950) {
@@ -108,14 +196,27 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     }
 
     int64_t ydtype = expandXOut->GetDataType();
-    aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
-        x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
-        elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
-        groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
-        sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
-        constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
-        epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
+    if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
+        auto ret =GetMc2Context(groupEp, mc2Context);
+        CHECK_RET(ret == ACLNN_SUCCESS, ret);
+        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
+            x, expertIds, mc2context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
+            elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
+            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
+            constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
+            epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
 
+    } else if {
+        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
+            x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
+            elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
+            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
+            constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
+            epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
+    }
+    
     if (NnopbaseSetHcclServerType) {
         if (is910B) {
             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
