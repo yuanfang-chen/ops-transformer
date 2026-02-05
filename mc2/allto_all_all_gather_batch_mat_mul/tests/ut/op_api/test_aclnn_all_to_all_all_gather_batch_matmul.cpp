@@ -28,14 +28,14 @@ class L2AllToAllAllGatherBatchMatmulTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
-      cout << "L2AllToAllAllGatherBatchMatmulTest SetUp" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910_93);
+        cout << "L2AllToAllAllGatherBatchMatmulTest SetUp" << endl;
     }
 
     static void TearDownTestCase()
     {
-      op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
-      cout << "L2AllToAllAllGatherBatchMatmulTest TearDown" << endl;
+        op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+        cout << "L2AllToAllAllGatherBatchMatmulTest TearDown" << endl;
     }
 };
 
