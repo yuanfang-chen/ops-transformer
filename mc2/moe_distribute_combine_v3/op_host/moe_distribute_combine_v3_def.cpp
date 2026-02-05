@@ -19,6 +19,11 @@ namespace ops {
 class MoeDistributeCombineV3 : public OpDef {
 public:
   explicit MoeDistributeCombineV3(const char* name) : OpDef(name) {
+    this->Input("expert_ids")
+        .ParamType(REQUIRED)
+        .DataTypeList({ge::DT_INT32})
+        .FormatList({ge::FORMAT_ND})
+        .AutoContiguous();
     this->Input("expand_x")
         .ParamType(REQUIRED)
         .DataType({ge::DT_BF16, ge::DT_FLOAT16, ge::DT_INT32, ge::DT_INT32})
