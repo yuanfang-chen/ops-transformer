@@ -28,6 +28,8 @@
 #include "attn_infra/epilogue/block/block_epilogue.hpp"
 #include "attn_infra/epilogue/dispatch_policy.hpp"
 
+using namespace NpuArch;
+
 namespace BSA {
     template <
         class BlockMmadFAGCube1_,
@@ -79,7 +81,7 @@ namespace BSA {
                 GM_ADDR blockShape_, GM_ADDR attentionMask_, GM_ADDR actualQseqlen_, GM_ADDR actualKvseqlen_,
                 GM_ADDR dq_, GM_ADDR dk_, GM_ADDR dv_, GM_ADDR workspace_, GM_ADDR tiling_data_
             ) : dout(dout_), q(q_), k(k_), v(v_), out(out_), softmaxLse(softmaxLse_), blockSparseMask(blockSparseMask_),
-                blockShape(blockShape_), attentionMask(attentionMask_), actualQseqlen_(actualQseqlen), actualKvseqlen(actualKvseqlen_),
+                blockShape(blockShape_), attentionMask(attentionMask_), actualQseqlen(actualQseqlen_), actualKvseqlen(actualKvseqlen_),
                 dq(dq_), dk(dk_), dv(dv_), workspace(workspace_), tiling_data(tiling_data_)
             {
             }    
