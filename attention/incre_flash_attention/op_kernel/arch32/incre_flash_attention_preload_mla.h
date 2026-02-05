@@ -495,7 +495,11 @@ protected:
                                                      uint32_t actualColumnCount);
     __aicore__ inline void ProcessVec1Inner(const ExtraInfoMla &info);
 
-    __aicore__ inline bool IsExistSoftmaxLseInvalidRows(uint64_t curS1Size, uint64_t curS2Size, uint32_t curS1Idx);
+    __aicore__ inline void SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T> &lseMaxUb,
+                                             LocalTensor<T> &lseSumUb, uint32_t dealRowCount);
+
+    __aicore__ inline void DealSoftmaxLseInvalidRows(LocalTensor<T> &softmaxlseUb, LocalTensor<T> &lseMaxUb,
+                                                     uint32_t dealRowCount, uint32_t curS1Idx);
 
     __aicore__ inline void GetConfusionTransposeTiling(int64_t numR, int64_t numC, const uint32_t stackBufferSize,
                                                        const uint32_t typeSize, ConfusionTransposeTiling &tiling);
@@ -1539,79 +1543,51 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         Add(softmaxlseUb, softmaxlseUb, lseMaxUb, dealRowCountAlign);
         PipeBarrier<PIPE_V>();
 
-        bool IsExistInvalidRows = IsExistSoftmaxLseInvalidRows(actS1Size, curActualSeqLen, s1Idx * s1SizeSub);
-
-        if (IsExistInvalidRows) {
-            SoftMaxShapeInfo softmaxShapeInfo{
-                static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
-                static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
-            AdjustSoftMaxRes<T, T>(softmaxlseUb, lseMaxUb, negativeIntScalar, FLOAT_INF, softmaxShapeInfo);
-        }
+        DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, s1Idx * s1SizeSub);
 
         outputQue2.EnQue(softmaxlseUb);
         outputQue2.DeQue<T>();
 
         if constexpr (LAYOUT_T == LAYOUT::TND) {
-            uint64_t preLseOffset = attenOutOffset / headDim + startRow;
-            AscendC::printf("tkd preLseOffset: %llu\n", preLseOffset);
-            DataCopyExtParams dataCopyParams;
-            dataCopyParams.blockLen = sizeof(T);
-            dataCopyParams.blockCount = dealRowCount;
-            dataCopyParams.srcStride = 0;
-            dataCopyParams.dstStride = 0;
-            preLseOffset += startRow;
-            DataCopyPad(softmaxLseGm[preLseOffset], softmaxlseUb, dataCopyParams);
+            uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
+            uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
+
+            for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+                outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
+                if (s1Idx != endS1Idx) {
+                    curDealRowCount = gSize - startGIdx;
+                } else {
+                    curDealRowCount = endGIdx + 1 - startGIdx;
+                }
+                DataCopyExtParams dataCopyParams;
+                dataCopyParams.blockCount = curDealRowCount;
+                dataCopyParams.blockLen = sizeof(T);
+                dataCopyParams.srcStride = 0;
+                dataCopyParams.dstStride = 0;
+                DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+                startGIdx = 0;
+                ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+            }
         } else {
-            uint64_t preLseOffset = attenOutOffset / headDim + startRow;
-            AscendC::printf("tkd preLseOffset: %llu\n", preLseOffset);
-            DataCopyExtParams dataCopyParams;
-            dataCopyParams.blockLen = sizeof(T);
-            dataCopyParams.blockCount = dealRowCount;
-            dataCopyParams.srcStride = 0;
-            dataCopyParams.dstStride = 0;
-            preLseOffset += startRow;
-            DataCopyPad(softmaxLseGm[preLseOffset], softmaxlseUb, dataCopyParams);
+            uint64_t bN2Offset = bIdx * qHeadNum * qSeqSize + n2Idx * gSize * qSeqSize;
+
+            for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+                outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
+                if (s1Idx != endS1Idx) {
+                    curDealRowCount = gSize - startGIdx;
+                } else {
+                    curDealRowCount = endGIdx + 1 - startGIdx;
+                }
+                DataCopyExtParams dataCopyParams;
+                dataCopyParams.blockCount = curDealRowCount;
+                dataCopyParams.blockLen = sizeof(T);
+                dataCopyParams.srcStride = 0;
+                dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
+                DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+                startGIdx = 0;
+                ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+            }
         }
-        // if constexpr (LAYOUT_T == LAYOUT::TND) {
-        //     uint64_t tokenPrefixSum = (bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(bIdx - 1);
-        //     uint64_t bN2Offset = tokenPrefixSum * qHeadNum + n2Idx * gSize;
-
-        //     for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-        //         outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
-        //         if (s1Idx != endS1Idx) {
-        //             curDealRowCount = gSize - startGIdx;
-        //         } else {
-        //             curDealRowCount = endGIdx + 1 - startGIdx;
-        //         }
-        //         DataCopyExtParams dataCopyParams;
-        //         dataCopyParams.blockCount = curDealRowCount;
-        //         dataCopyParams.blockLen = sizeof(T);
-        //         dataCopyParams.srcStride = 0;
-        //         dataCopyParams.dstStride = 0;
-        //         DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-        //         startGIdx = 0;
-        //         ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-        //     }
-        // } else {
-        //     uint64_t bN2Offset = bIdx * qHeadNum * qSeqSize + n2Idx * gSize * qSeqSize;
-
-        //     for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-        //         outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
-        //         if (s1Idx != endS1Idx) {
-        //             curDealRowCount = gSize - startGIdx;
-        //         } else {
-        //             curDealRowCount = endGIdx + 1 - startGIdx;
-        //         }
-        //         DataCopyExtParams dataCopyParams;
-        //         dataCopyParams.blockCount = curDealRowCount;
-        //         dataCopyParams.blockLen = sizeof(T);
-        //         dataCopyParams.srcStride = 0;
-        //         dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
-        //         DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-        //         startGIdx = 0;
-        //         ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-        //     }
-        // }
         outputQue2.FreeTensor(softmaxlseUb);
     }
 }
@@ -2782,81 +2758,9 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
                  {1, BLOCK_ELEMENT_NUM});
             PipeBarrier<PIPE_V>();
 #endif
-
-            uint64_t dealRowCount = mSizeVector;
-            uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
-
-            LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
-            Log(softmaxlseUb, lseSumUb, dealRowCountAlign);
-            PipeBarrier<PIPE_V>();
-            Add(softmaxlseUb, softmaxlseUb, lseMaxUb, dealRowCountAlign);
-            PipeBarrier<PIPE_V>();
-
-            uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
-
-            bool IsExistInvalidRows = IsExistSoftmaxLseInvalidRows(curS1Size, info.s2Size, info.s1Idx * s1SizeSub);
-
-            if (IsExistInvalidRows) {
-                SoftMaxShapeInfo softmaxShapeInfo{
-                    static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
-                    static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
-                AdjustSoftMaxRes<T, T>(softmaxlseUb, lseMaxUb, negativeIntScalar, FLOAT_INF, softmaxShapeInfo);
-            }
-
-            outputQue2.EnQue(softmaxlseUb);
-            outputQue2.DeQue<T>();
-
-            uint32_t startS1Idx = info.s1Idx * s1SizeSub + mSizeVStart / gSize;
-            uint32_t startGIdx = mSizeVStart % gSize;
-            uint32_t endS1Idx = info.s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
-            uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
-            uint64_t outOffset = 0;
-            uint64_t ubOffset = 0;
-            uint32_t curDealRowCount = 0;
-
-            if constexpr (LAYOUT_T == LAYOUT::TND) {
-                uint64_t tokenPrefixSum = (info.bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(info.bIdx - 1);
-                uint64_t bN2Offset = tokenPrefixSum * qHeadNum + info.n2Idx * gSize;
-
-                for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-                    outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
-                    if (s1Idx != endS1Idx) {
-                        curDealRowCount = gSize - startGIdx;
-                    } else {
-                        curDealRowCount = endGIdx + 1 - startGIdx;
-                    }
-                    DataCopyExtParams dataCopyParams;
-                    dataCopyParams.blockCount = curDealRowCount;
-                    dataCopyParams.blockLen = sizeof(T);
-                    dataCopyParams.srcStride = 0;
-                    dataCopyParams.dstStride = 0;
-                    DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-                    startGIdx = 0;
-                    ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-                }
-            } else {
-                uint64_t bN2Offset = info.bIdx * qHeadNum * qSeqSize + info.n2Idx * gSize * qSeqSize;
-
-                for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
-                    outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
-                    if (s1Idx != endS1Idx) {
-                        curDealRowCount = gSize - startGIdx;
-                    } else {
-                        curDealRowCount = endGIdx + 1 - startGIdx;
-                    }
-                    DataCopyExtParams dataCopyParams;
-                    dataCopyParams.blockCount = curDealRowCount;
-                    dataCopyParams.blockLen = sizeof(T);
-                    dataCopyParams.srcStride = 0;
-                    dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
-                    DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
-                    startGIdx = 0;
-                    ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
-                }
-            }
-            outputQue2.FreeTensor(softmaxlseUb);
+            SoftmaxLseCopyOut(info, lseMaxUb, lseSumUb, mSizeVector);
         }
-        
+
         if constexpr (BALANCE) {
             if (!info.tndIsS2SplitCore) {
                 return;
@@ -2874,26 +2778,91 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 }
 
 template <typename IFAT>
-__aicore__ inline bool IncreFlashAttentionAttenPreloadMla<IFAT>::IsExistSoftmaxLseInvalidRows(uint64_t curS1Size,
-                                                                                              uint64_t curS2Size,
-                                                                                              uint32_t curs1Idx)
+__aicore__ inline void SoftmaxLseCopyOut(const ExtraInfoMla &info, LocalTensor<T> &lseMaxUb, LocalTensor<T> &lseSumUb,
+                                         uint32_t dealRowCount)
+{
+    uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
+    LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+    Log(softmaxlseUb, lseSumUb, dealRowCountAlign);
+    PipeBarrier<PIPE_V>();
+    Add(softmaxlseUb, softmaxlseUb, lseMaxUb, dealRowCountAlign);
+    PipeBarrier<PIPE_V>();
+
+    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, s1Idx * s1SizeSub);
+
+    outputQue2.EnQue(softmaxlseUb);
+    outputQue2.DeQue<T>();
+
+    uint32_t startS1Idx = info.s1Idx * s1SizeSub + mSizeVStart / gSize;
+    uint32_t startGIdx = mSizeVStart % gSize;
+    uint32_t endS1Idx = info.s1Idx * s1SizeSub + (mSizeVStart + dealRowCount - 1) / gSize;
+    uint32_t endGIdx = (mSizeVStart + dealRowCount - 1) % gSize;
+    uint64_t outOffset = 0;
+    uint64_t ubOffset = 0;
+    uint32_t curDealRowCount = 0;
+
+    if constexpr (LAYOUT_T == LAYOUT::TND) {
+        uint64_t tokenPrefixSum = (info.bIdx == 0) ? 0 : actualSeqLengthsGmQ.GetValue(info.bIdx - 1);
+        uint64_t bN2Offset = tokenPrefixSum * qHeadNum + info.n2Idx * gSize;
+
+        for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+            outOffset = bN2Offset + s1Idx * kvHeadNum * gSize + startGIdx;
+            if (s1Idx != endS1Idx) {
+                curDealRowCount = gSize - startGIdx;
+            } else {
+                curDealRowCount = endGIdx + 1 - startGIdx;
+            }
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockCount = curDealRowCount;
+            dataCopyParams.blockLen = sizeof(T);
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = 0;
+            DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+            startGIdx = 0;
+            ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+        }
+    } else {
+        uint64_t bN2Offset = info.bIdx * qHeadNum * qSeqSize + info.n2Idx * gSize * qSeqSize;
+
+        for (uint32_t s1Idx = startS1Idx; s1Idx <= endS1Idx; s1Idx++) {
+            outOffset = bN2Offset + startGIdx * qSeqSize + s1Idx;
+            if (s1Idx != endS1Idx) {
+                curDealRowCount = gSize - startGIdx;
+            } else {
+                curDealRowCount = endGIdx + 1 - startGIdx;
+            }
+            DataCopyExtParams dataCopyParams;
+            dataCopyParams.blockCount = curDealRowCount;
+            dataCopyParams.blockLen = sizeof(T);
+            dataCopyParams.srcStride = 0;
+            dataCopyParams.dstStride = (qSeqSize - 1) * sizeof(T);
+            DataCopyPad(softmaxLseGm[outOffset], softmaxlseUb[ubOffset], dataCopyParams);
+            startGIdx = 0;
+            ubOffset += curDealRowCount * FP32_ONE_BLOCK_SIZE;
+        }
+    }
+    outputQue2.FreeTensor(softmaxlseUb);
+}
+
+template <typename IFAT>
+__aicore__ inline void DealSoftmaxLseInvalidRows(LocalTensor<T> &softmaxlseUb, LocalTensor<T> &lseMaxUb,
+                                                 uint32_t dealRowCount, uint32_t curS1Idx)
 {
     if (!attenMaskFlag) {
-        return false;
+        return;
     }
 
-    if (curS1Size < curS2Size) {
-        return false;
+    if (actS1Size < curActualSeqLen) {
+        return;
     }
 
-    PipeBarrier<PIPE_V>();
-    uint32_t seqLenGap = curS1Size - curS2Size;
-
-    uint32_t startS1Idx = s1Idx + mSizeVStart / gSize;
+    uint64_t seqLenGap = actS1Size - curActualSeqLen;
+    uint64_t startS1Idx = curs1Idx + mSizeVStart / gSize;
     if (startS1Idx < seqLenGap) {
-        return true;
+        SoftMaxShapeInfo softmaxShapeInfo{static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
+                                          static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
+        AdjustSoftMaxRes<T, T>(softmaxlseUb, lseMaxUb, negativeIntScalar, FLOAT_INF, softmaxShapeInfo);
     }
-    return false;
 }
 
 template <typename IFAT>
