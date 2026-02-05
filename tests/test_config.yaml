@@ -57,6 +57,22 @@ global_config:
     - mc2/common
     - attention/common/op_kernel
 
+examples:
+    mc2:
+      all_gather_add:
+        module: True
+        src:
+          - examples/mc2/all_gather_add
+        exclude:
+          - examples/mc2/all_gather_add/README.md
+        ut_cov_exclude:
+          - examples/mc2/all_gather_add
+        test:
+          example: True
+          ut: False
+        options:
+          - all_gather_add
+
 attention:
   flash_attention_score:
     module: True
