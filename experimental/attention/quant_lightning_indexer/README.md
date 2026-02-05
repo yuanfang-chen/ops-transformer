@@ -21,18 +21,12 @@
     2. 相关性结果与`query`和`key`对应的反量化系数`query_dequant_scale`（$Scale_Q$）和`key_dequant_scale`（$Scale_K^T$）相乘，通过激活函数$ReLU$过滤无效负相关信号后，得到当前Token与所有前序Token的相关性分数向量。
     3. 将其与权重系数`weights`（$W$）相乘后，沿g的方向，选取前$Top-k$个索引值得到输出$out$，作为Attention的输入。
 
-## 函数原型
-
-```
-custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key_dequant_scale, *, actual_seq_lengths_query=None, actual_seq_lengths_key=None, block_table=None, metadata=None, query_quant_mode=0, key_quant_mode=0, layout_query='BSND', layout_key='BSND', sparse_count=2048, sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, cmp_ratio=1, return_value=False) -> (Tensor, Tensor)
-```
-
 ## 参数说明
 | 参数名                     | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
 |----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
 | query                     | 输入      | 公式中的$Q_{index}\in\R^{g\times d}，表示输入Index Query$ | INT8、FLOAT8_e4m3fn | ND         |
 | key                   | 输入      | 公式的$K_{index}\in\R^{S_{k}\times d}，表示压缩后的输入Index Key$ | INT8、FLOAT8_e4m3fn | ND |
-| weights                 | 输入      | 公式中的$W$，表示权重系数，不支持非连续。| INT8、BF16、FLOAT32 | ND |
+| weights                 | 输入      | 公式中的$W$，表示权重系数，不支持非连续。| FLOAT16、FLOAT32 | ND |
 | query_dequant_scale             | 输入      | 公式中的$Scale_Q$，表示Index Query的反量化系数，不支持非连续 | FLOAT16、FLOAT32     | ND         |
 | key_dequant_scale            | 输入      | 公式中的$Scale_Q$，表示Index Key的反量化系数，不支持非连续 | FLOAT16、FLOAT32       | ND         |
 | actual_seq_lengths_query                    | 可选输入      | 表示不同Batch中`query`的有效token数 | INT32       | ND         |
@@ -52,9 +46,8 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
 | sparse_indices     | 输出      | 公式中的输出Out，参与稀疏attention计算的token索引值 | INT32          | ND         |
 | sparse_values           | 输出      | 公式中的Indices输出对应的value值，**目前暂不支持返回sparse_values。** | FLOAT32         | ND          |
 
-- <term>Ascend 950PR/Ascend 950DT</term>：query、key不支持INT8；weights不支持INT8、BF16，query_dequant_scale和key_dequant_scale不支持FLOAT16。
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn、weights不支持FLOAT32，query_dequant_scale和key_dequant_scale不支持FLOAT32。
+- <term>Ascend 950PR/Ascend 950DT</term>：query、key不支持INT8；weights、query_dequant_scale和key_dequant_scale不支持FLOAT16。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：query、key不支持FLOAT8_e4m3fn；weights、query_dequant_scale和key_dequant_scale不支持FLOAT32。
 
 ## 约束说明
 -   该接口支持图模式。
@@ -252,186 +245,4 @@ custom.npu_quant_lightning_indexer(query, key, weights, query_dequant_scale, key
                         cmp_ratio=cmp_ratio, return_value=False)
     ```
    
-    ## Ascend 950PR/Ascend 950DT 调用说明
-
--   单算子模式调用
-    ```python
-    import torch
-    import torch_npu
-    import numpy as np
-    import torch.nn as nn
-    import math
-    import custom_ops
-
-    n1 = 64
-    n2 = 1
-    d = 128
-    block_size = 128
-    layout_key = "PA_BSND"
-    layout_query = "BSND"
-    query_quant_mode = 0
-    key_quant_mode = 0
-    np.random.seed(0)
-    # -------------
-    b = 32
-    t = None
-    s1 = 4
-    s2 = 512
-    act_seq_q = None
-    act_seq_k = None
-    sparse_mode = 0
-    sparse_count = 512
-    cmp_ratio = 1
-    max_block_table_num = (s2 + block_size - 1) // block_size
-    block_table = torch.tensor([range(b * max_block_table_num)], dtype = torch.int32).reshape(b, -1)
-    key = torch.tensor(np.random.uniform(-128, 127, (b * max_block_table_num, block_size, n2, d))).to(torch.float8_e4m3fn)
-    key_dequant_scale = torch.tensor(np.random.uniform(0, 10, (b * max_block_table_num, block_size, n2)))
-    key_dequant_scale = key_dequant_scale.to(torch.float32)
-    query = torch.tensor(np.random.uniform(-128, 127, (b, s1, n1, d))).to(torch.float8_e4m3fn)
-    query_dequant_scale = torch.tensor(np.random.uniform(0, 10, (b, s1, n1))).to(torch.float32)
-    weights = torch.tensor(np.random.uniform(0, 0.01, (b, s1, n1))).to(torch.float32)
-    actual_seq_lengths_query = torch.tensor(np.random.uniform(s1, s1, (b))).to(torch.int32) \
-                                if act_seq_q is None else torch.tensor(act_seq_q).to(torch.int32)
-    actual_seq_lengths_key = torch.tensor(np.random.uniform(s2, s2, (b))).to(torch.int32) \
-                                if act_seq_k is None else torch.tensor(act_seq_k).to(torch.int32)
-    max_seqlen_q = actual_seq_lengths_query.max().item()
-    max_seqlen_k = actual_seq_lengths_key.max().item()
-    metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata (
-                                    actual_seq_lengths_query = actual_seq_lengths_query.npu(),
-                                    actual_seq_lengths_key = actual_seq_lengths_key.npu(),
-                                    num_heads_q = n1,
-                                    num_heads_k = n2,
-                                    head_dim = d,
-                                    query_quant_mode = query_quant_mode, 
-                                    key_quant_mode = key_quant_mode,
-                                    batch_size = b, 
-                                    max_seqlen_q = max_seqlen_q,
-                                    max_seqlen_k = max_seqlen_k,  
-                                    layout_query = layout_query, 
-                                    layout_key = layout_key,
-                                    sparse_count = sparse_count, 
-                                    sparse_mode = sparse_mode, 
-                                    pre_tokens = (1<<63)-1, 
-                                    next_tokens = (1<<63)-1, 
-                                    cmp_ratio = cmp_ratio,
-                                    device = 'npu:0')
-
-    sparse_indices, sparse_values = torch.ops.custom.npu_quant_lightning_indexer(query.npu(), key.npu(), weights.npu(), query_dequant_scale.npu(),
-                                                    key_dequant_scale.npu(),
-                                                    actual_seq_lengths_query=actual_seq_lengths_query.npu(),
-                                                    actual_seq_lengths_key=actual_seq_lengths_key.npu(),
-                                                    block_table=block_table.npu(),
-                                                    metadata = metadata,
-                                                    query_quant_mode=query_quant_mode,
-                                                    key_quant_mode=key_quant_mode,
-                                                    layout_query=layout_query,
-                                                    layout_key=layout_key, sparse_count=sparse_count,
-                                                    sparse_mode=sparse_mode, pre_tokens=(1<<63)-1,
-                                                    next_tokens=(1<<63)-1, cmp_ratio=cmp_ratio)
-    ```
--   aclgarph调用
-
-    ```python
-    import torch
-    import torch_npu
-    import numpy as np
-    import torch.nn as nn
-    import math
-    import torchair
-    import custom_ops
-    from torchair.configs.compiler_config import CompilerConfig
-
-    n1 = 64
-    n2 = 1
-    d = 128
-    block_size = 128
-    layout_key = "PA_BSND"
-    layout_query = "BSND"
-    query_quant_mode = 0
-    key_quant_mode = 0
-    np.random.seed(0)
-    # -------------
-    b = 32
-    t = None
-    s1 = 4
-    s2 = 512
-    act_seq_q = None
-    act_seq_k = None
-    sparse_mode = 0
-    sparse_count = 512
-    cmp_ratio = 1
-    max_block_table_num = (s2 + block_size - 1) // block_size
-    block_table = torch.tensor([range(b * max_block_table_num)], dtype = torch.int32).reshape(b, -1)
-    key = torch.tensor(np.random.uniform(-128, 127, (b * max_block_table_num, block_size, n2, d))).to(torch.float8_e4m3fn)
-    key_dequant_scale = torch.tensor(np.random.uniform(0, 10, (b * max_block_table_num, block_size, n2)))
-    key_dequant_scale = key_dequant_scale.to(torch.float32)
-    query = torch.tensor(np.random.uniform(-128, 127, (b, s1, n1, d))).to(torch.float8_e4m3fn)
-    query_dequant_scale = torch.tensor(np.random.uniform(0, 10, (b, s1, n1))).to(torch.float32)
-    weights = torch.tensor(np.random.uniform(0, 0.01, (b, s1, n1))).to(torch.float32)
-    actual_seq_lengths_query = torch.tensor(np.random.uniform(s1, s1, (b))).to(torch.int32) \
-                                if act_seq_q is None else torch.tensor(act_seq_q).to(torch.int32)
-    actual_seq_lengths_key = torch.tensor(np.random.uniform(s2, s2, (b))).to(torch.int32) \
-                                if act_seq_k is None else torch.tensor(act_seq_k).to(torch.int32)
-    max_seqlen_q = actual_seq_lengths_query.max().item()
-    max_seqlen_k = actual_seq_lengths_key.max().item()
-    
-    class QLINetwork(nn.Module):
-        def __init__(self):
-            super(QLINetwork, self).__init__()
-
-        def forward(self, query, key, weights, q_scale, k_scale, query_quant_mode, key_quant_mode,
-                    batch_size, num_heads_q, num_heads_k, head_dim,
-                    actual_seq_lengths_query=None, actual_seq_lengths_key=None,
-                    block_table=None, layout_query='BSND', layout_key='BSND',
-                    sparse_count=512, sparse_mode=3, pre_tokens=(1<<63)-1, 
-                    next_tokens=(1<<63)-1, cmp_ratio=cmp_ratio, return_value=False):
-            metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata(
-                                    actual_seq_lengths_query = actual_seq_lengths_query,
-                                    actual_seq_lengths_key = actual_seq_lengths_key,
-                                    num_heads_q = num_heads_q,
-                                    num_heads_k = num_heads_k,
-                                    head_dim = head_dim,
-                                    query_quant_mode = query_quant_mode, 
-                                    key_quant_mode = key_quant_mode,
-                                    batch_size = batch_size, 
-                                    max_seqlen_q = max_seqlen_q,
-                                    max_seqlen_k = max_seqlen_k,  
-                                    layout_query = layout_query, 
-                                    layout_key = layout_key,
-                                    sparse_count = sparse_count, 
-                                    sparse_mode = sparse_mode, 
-                                    pre_tokens = (1<<63)-1, 
-                                    next_tokens = (1<<63)-1, 
-                                    cmp_ratio = cmp_ratio,
-                                    device = 'npu:0')
-
-            sparse_indices, _ = torch.ops.custom.npu_quant_lightning_indexer(query, key, weights,
-                                                        q_scale, k_scale,
-                                                        actual_seq_lengths_query=actual_seq_lengths_query,
-                                                        actual_seq_lengths_key=actual_seq_lengths_key,
-                                                        block_table=block_table, metadata=metadata,
-                                                        query_quant_mode=query_quant_mode,
-                                                        key_quant_mode=key_quant_mode,
-                                                        layout_query=layout_query,
-                                                        layout_key=layout_key, sparse_count=sparse_count,
-                                                        sparse_mode=sparse_mode,pre_tokens=pre_tokens,
-                                                        next_tokens=next_tokens, cmp_ratio=cmp_ratio,
-                                                        return_value=return_value)
-            return sparse_indices
-    
-    
-    config = CompilerConfig()
-    npu_backend = torchair.get_npu_backend(compiler_config=config)
-    torch._dynamo.reset()
-    npu_mode = torch.compile(QLINetwork().npu(), fullgraph=True, backend=npu_backend, dynamic=False)
-    sparse_indices = npu_mode( query, key, weights, query_dequant_scale, key_dequant_scale,
-                        query_quant_mode, key_quant_mode, b, n1, n2, d,
-                        actual_seq_lengths_query=actual_seq_lengths_query,
-                        actual_seq_lengths_key=actual_seq_lengths_key,
-                        block_table=block_table,
-                        layout_query=layout_query, layout_key=layout_key,
-                        sparse_count=sparse_count, sparse_mode=sparse_mode,
-                        pre_tokens=(1<<63)-1, next_tokens=(1<<63)-1,
-                        cmp_ratio=cmp_ratio, return_value=False)
-    ```
 更多使用示例见[pytest示例](./tests/pytest/README.md)。
