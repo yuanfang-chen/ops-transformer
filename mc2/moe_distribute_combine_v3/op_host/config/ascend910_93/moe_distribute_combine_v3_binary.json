@@ -326,7 +326,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
@@ -645,7 +645,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
@@ -964,7 +964,7 @@
             {
                 "name": "context",
                 "index": 0,
-                "dtype": "bfloat16",
+                "dtype": "int32",
                 "format": "ND",
                 "paramType": "required",
                 "shape": [
