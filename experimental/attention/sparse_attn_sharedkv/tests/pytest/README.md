@@ -42,7 +42,7 @@
 
 ### 运行测试用例
 #### 单用例调测
-1、手动配置sparse_attn_sharedkv_paramset.py的参数
+1、手动配置sparse_attn_sharedkv_paramset.py的参数  
 2、执行指令：
 ```bash
 bash test_run.sh single
