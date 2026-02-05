@@ -15,26 +15,25 @@
 
 ### 环境配置
 #### 前置要求
-1. 确认torch_npu为最新版本
-2. source CANN包
+参考 Attention融合算子Experimental使用说明.md进行环境部署、安装torch和最新版本torch_npu包，编译并安装sparse_attn_sharedkv自定义算子包
 #### custom包调用
 支持custom包调用
 
 ## 文件结构
 ### pytest文件结构说明
-- test_run.sh                         # 执行脚本
-- sparse_attn_sharedkv_process.py     # cpu侧算子golden实现
-- result_compare_method.py            # cpu golden与npu输出精度对比
-- pytest.ini                          # 创建测试标记
+- test_run.sh                               # 执行脚本
+- sparse_attn_sharedkv_golden.py            # cpu侧算子golden实现
+- result_compare_method.py                  # cpu golden与npu输出精度对比
+- pytest.ini                                # 创建测试标记
 
 单用例测试：
-- test_sparse_attn_sharedkv_single.py # pytest测试单用例运行主程序
-- sparse_attn_sharedkv_paramset.py    # 单用例入参配置
+- test_sparse_attn_sharedkv_single.py       # pytest测试单用例运行主程序
+- sparse_attn_sharedkv_paramset.py          # 单用例入参配置
 
 批量测试：
-- test_sparse_attn_sharedkv_batch.py  # 读取pt文件并进行用例批量测试主程序，生成excel文件保存结果
-- sparse_attn_sharedkv_process.py     # 调用算子获取npu输出
-- sparse_attn_sharedkv_pt_save.py     # 读取excel表格批量生成用例pt文件
+- test_sparse_attn_sharedkv_batch.py        # 读取pt文件并进行用例批量测试主程序，生成excel文件保存结果
+- batch/sparse_attn_sharedkv_process.py     # 调用算子获取npu输出
+- batch/sparse_attn_sharedkv_pt_save.py     # 读取excel表格批量生成用例pt文件
 
 ## 使用方法
 
@@ -42,6 +41,8 @@
 
 ### 运行测试用例
 #### 单用例调测
+1、手动配置sparse_attn_sharedkv_paramset.py的参数
+2、执行指令：
 ```bash
 bash test_run.sh single
 ```
