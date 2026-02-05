@@ -620,8 +620,7 @@ bool GroupedQbmmTiling::SetQuantMode(const gert::Shape &wScaleShape, const gert:
         inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     } else if ((wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1) ||  // 2:（g,1) 2维
                (wScaleDims == 1 && static_cast<uint64_t>(wScaleShape[0]) == inputParams_.groupNum)) {
-        // inputParams_.bQuantMode = optiling::QuantMode::PERTENSOR_MODE;
-        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
+        inputParams_.bQuantMode = optiling::QuantMode::PERTENSOR_MODE;
     }
     if (xScaleStorageShape != nullptr) {
         // split_m: pertoken (M,), pertensor（g,1) 2维或（g,）1维;
