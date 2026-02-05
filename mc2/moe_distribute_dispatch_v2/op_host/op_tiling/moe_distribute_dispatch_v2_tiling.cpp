@@ -1852,6 +1852,10 @@ IMPL_OP_OPTILING(MoeDistributeDispatchV2)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2);
 
 #ifdef MC2_EXCEPTION_HANDLER
+IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
+    .Tiling(MoeDistributeDispatchV2TilingFunc)
+    .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2);
+
 // Register exception func
 inline void MoeDistributeDispatchV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
