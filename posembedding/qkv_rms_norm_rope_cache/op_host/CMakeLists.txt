@@ -11,7 +11,7 @@ message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.op_hos
 
 if (BUILD_OPEN_PROJECT)
     message(STATUS "=== Debug: BUILD is BUILD_OPEN_PROJECT")
-    target_sources(op_host_aclnnExc PRIVATE
+    target_sources(op_host_aclnn PRIVATE
         qkv_rms_norm_rope_cache_def.cpp
     )
     add_ops_compile_options(
@@ -24,5 +24,5 @@ endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL)
     message(STATUS "=== Debug: BUILD is NOT BUILD_OPS_RTY_KERNEL")
-    add_modules_sources(OPTYPE qkv_rms_norm_rope_cache ACLNNTYPE aclnn_exclude)
+    add_modules_sources(OPTYPE qkv_rms_norm_rope_cache ACLNNTYPE aclnn)
 endif()
