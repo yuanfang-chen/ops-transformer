@@ -116,7 +116,7 @@ __simd_vf__ void AntiquantVFImplFp8Nz(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T*
   MicroAPI::RegTensor<float> vCastFp32Res1;
   MicroAPI::RegTensor<Q_T> vCastRes0;
   MicroAPI::RegTensor<Q_T> vCastRes1;
-  MicroAPI::RegTensor<Q_T> vScale;
+  MicroAPI::RegTensor<ANTIQ_PARAMS_T> vScale;
   MicroAPI::RegTensor<Q_T> vRes;
 
   MicroAPI::MaskReg kvTypeMaskAll = MicroAPI::CreateMask<KV_T, MicroAPI::MaskPattern::ALL>();
@@ -851,7 +851,7 @@ __simd_vf__ void AntiquantVFImplFp8D64(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_T
   MicroAPI::RegTensor<float> vCastFp32Res1;
   MicroAPI::RegTensor<Q_T> vCastRes0;
   MicroAPI::RegTensor<Q_T> vCastRes1;
-  MicroAPI::RegTensor<Q_T> vScale;
+  MicroAPI::RegTensor<ANTIQ_PARAMS_T> vScale;
   MicroAPI::RegTensor<Q_T> vMulRes;
 
   MicroAPI::MaskReg kvTypeMaskAll = MicroAPI::CreateMask<KV_T, MicroAPI::MaskPattern::ALL>();
@@ -922,7 +922,7 @@ __simd_vf__ void AntiquantVFImplFp8Norm(__ubuf__ uint8_t* ubSrcAddr, __ubuf__ Q_
   MicroAPI::RegTensor<float> vCastFp32Res1;
   MicroAPI::RegTensor<Q_T> vCastRes0;
   MicroAPI::RegTensor<Q_T> vCastRes1;
-  MicroAPI::RegTensor<Q_T> vScale;
+  MicroAPI::RegTensor<ANTIQ_PARAMS_T> vScale;
   MicroAPI::RegTensor<Q_T> vMulRes;
 
   MicroAPI::MaskReg kvTypeMaskAll = MicroAPI::CreateMask<KV_T, MicroAPI::MaskPattern::ALL>();
