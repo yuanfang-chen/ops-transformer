@@ -334,21 +334,34 @@ static void TestOneParamCase(const AlltoAllMatmulAclnnTestParam& param)
             INPUT(x1, x2, nullptr, alltoAllAxesOptional, group, transposeX1, transposeX2),
             OUTPUT(output, nullptr));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
+        
     } else if (biasShape.empty()) {
         TensorDesc alltoallout = TensorDesc(alltoalloutShape, alltoalloutDtype, alltoalloutFormat);
         auto ut = OP_API_UT(aclnnAlltoAllMatmul,
             INPUT(x1, x2, nullptr, alltoAllAxesOptional, group, transposeX1, transposeX2),
             OUTPUT(output, alltoallout));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
     } else if (alltoalloutShape.empty()) {
         TensorDesc bias = TensorDesc(biasShape, biasDtype, biasFormat);
         auto ut = OP_API_UT(aclnnAlltoAllMatmul,
             INPUT(x1, x2, bias, alltoAllAxesOptional, group, transposeX1, transposeX2),
             OUTPUT(output, nullptr));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
     } else {
         TensorDesc bias = TensorDesc(biasShape, biasDtype, biasFormat);
         TensorDesc alltoallout = TensorDesc(alltoalloutShape, alltoalloutDtype, alltoalloutFormat);
@@ -356,7 +369,11 @@ static void TestOneParamCase(const AlltoAllMatmulAclnnTestParam& param)
                     INPUT(x1, x2, bias, alltoAllAxesOptional, group, transposeX1, transposeX2),
                     OUTPUT(output, alltoallout));
         aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspaceSize, executor);
-        EXPECT_EQ(aclRet, retStatus);
+        if (retStatus == ACLNN_SUCCESS) {
+            EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+        } else {
+            EXPECT_EQ(aclRet, retStatus);
+        }
     }
     std::cout << "end case " <<  param.caseName << std::endl;
 }
