@@ -15,19 +15,26 @@
 #ifndef MOE_DISTRIBUTE_COMBINE_V2_A5_LAYERED_HOSTKFC_H
 #define MOE_DISTRIBUTE_COMBINE_V2_A5_LAYERED_HOSTKFC_H
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
+#include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_combine_v2_tiling.h"
+#include "../moe_distribute_combine_v2_quant.h"
+#if __has_include("../../moe_distribute_dispatch_v2/check_winsize.h")
+#include "../../moe_distribute_dispatch_v2/moe_distribute_v2_constant.h"
 #include "../../common/inc/kernel/moe_distribute_base.h"
-#if __has_include("../../moe_distribute_dispatch/check_winsize.h")
-#include "../../moe_distribute_dispatch/check_winsize.h"
+#include "../../moe_distribute_dispatch_v2/check_winsize.h"
 #include "../../moe_distribute_dispatch_v2/moe_distribute_v2_base.h"
+#include "../../moe_distribute_dispatch_v2/moe_distribute_elastic.h"
 #else
-#include "../../../moe_distribute_dispatch/op_kernel/check_winsize.h"
+#include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_constant.h"
+#include "../../../common/inc/kernel/moe_distribute_base.h"
+#include "../../../moe_distribute_dispatch_v2/op_kernel/check_winsize.h"
 #include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_v2_base.h"
+#include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_elastic.h"
 #endif
 
-#include "combine_log.h"
+// #include "combine_log.h"
 
 namespace MoeDistributeCombineV2A5Impl {
 constexpr uint8_t BUFFER_NUM = 2;                      // 多buf
@@ -527,43 +534,6 @@ __aicore__ inline void MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistrib
     }
     tpipe_->InitBuffer(moeQueue_, BUFFER_NUM, tokenMetaBytes_);
     flagRcvCount_ = axisK_ + sharedExpertNum_;
-
-    if (coreIdx_ == 0) {
-        KLOGF("===============[Print Input].H===============\n");
-        KLOGF("axisBS_=%d, axisH_=%d, axisK_=%d \n", axisBS_, axisH_, axisK_);
-        KLOGF("aivNum_=%d, ubSize_=%d,  moeExpertNum_=%d\n", aivNum_, ubSize_, moeExpertNum_);
-        KLOGF("globalBs_=%d, epRankId_=%d, epWorldSize_=%d, selfSendCnt_=%d \n", globalBs_, epRankId_, epWorldSize_,
-              selfSendCnt_);
-
-        KLOGF("[coreIdx_]:%d, [epRankId_]:%d============[Init Bgein]============\n", coreIdx_, epRankId_);
-        KLOGF("↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓\n");
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [ExpertID]:\n", epRankId_);
-        KDump2(expertIdsGM_, axisBS_, axisK_);
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [ExpandX]:\n", epRankId_);
-        KDump2(expandXGM_, MAX(axisBS_, selfSendCnt_), axisH_);
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [ExpertScales]:\n", epRankId_);
-        KDump2(expertScalesGM_, axisBS_, axisK_);
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [ExpandScales] selfSendCnt_:%d:\n", epRankId_, selfSendCnt_);
-        KDump1(expandScalesGM_, selfSendCnt_);
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [ExpandIdx]:\n", epRankId_);
-        KLOGF("[RankId, tokenId, topkId]\n");
-        KDump2(expandIdxGM_, selfSendCnt_, 3);
-
-        KLOGF("\n\n\n");
-        KLOGF("[epRankId_]:%d, [EpSendCount]:\n", epRankId_);
-        KDump1(epSendCountGM_, moeSendNum_);
-        KLOGF("\n\n\n");
-    }
 }
 
 template <TemplateMoeDistributeCombineV2A5KFCTypeClass>
@@ -587,7 +557,7 @@ __aicore__ inline void MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistrib
     metaBytesAlign_ = RoundUp<uint32_t>(TOKEN_META_BYTES, UB_ALIGN);
     tokenMetaBytes_ = tokenDataBytesAlign_ + metaBytesAlign_;
     flagU64CopyCntAlign_ = RoundUp<uint32_t>(FLAG_CNT_U64 * sizeof(uint64_t), UB_ALIGN) / sizeof(uint64_t); // 4
-    maxLocalBs_ = globalBs_ * axisK_ / serverRankSize_; // maxLocalBs_ = tilingData->maxLocalBs;
+    maxLocalBs_ = globalBs_ * axisK_ / serverRankSize_;
     // token 数据需要的 480B block 数（向上取整）
     tokenDataBlockNum_ = DivCeil<uint32_t>(tokenDataBytes_, SPLIT_BLOCK_DATA_SIZE);
     // WinOut Data 区：一个 token 的 bytes
@@ -1189,24 +1159,11 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
     // Step1：统计本核 -> 每个 targetLocalRank 的 token 数。写 gmCoreTargetCnt_[coreIdx_][t]
     CalcLocalTargetCnt(expandIdxLocal);
     AscendC::SyncAll<true>(); // 等所有核写完 cnt
-
-    if (coreIdx_ == 0) {
-        for (uint32_t c = 0; c < 4; ++c) { // 前4行
-            KLOGF("[CNT row %u] ", c);
-            for (uint32_t t = 0; t < serverRankSize_; ++t) {
-                uint32_t v = gmCoreTargetCnt_.GetValue(c * rowStrideElems_ + t);
-                KLOGF("%u ", v);
-            }
-            KLOGF("\n");
-        }
-    }
-
     // Step2core0 计算 prefix base
     BuildPrefixBaseOnCore0();
     AscendC::SyncAll<true>(); // 等 base 计算完成
 
     // Step3：每核读回自己的 base，并清空 run
-    printf("===============[Wait Core0].H===============\n");
     LoadLocalBaseFromGm();
 }
 
@@ -1351,16 +1308,11 @@ __aicore__ inline void
 MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFunc>::DispatchTokenInner(
     uint32_t globalIdx, uint32_t originRankId, uint32_t originTokenId, uint32_t topkId, uint32_t tokenIdInServer,
     uint64_t shareDataAddr)
-{
-    LocalTensor<uint8_t> payloadUb = outBuf_.Get<uint8_t>();
+{ 
+    LocalTensor<ExpandXType> tokenUb = outBuf_.Get<ExpandXType>();
     LocalTensor<ExpandXType> tmpUb = tempBuf_.Get<ExpandXType>();
-
-    // payloadUb 的前半段视为 token 数据区
-    LocalTensor<ExpandXType> tokenUb = payloadUb.template ReinterpretCast<ExpandXType>();
-
     DataCopyExtParams inputCopyParams{1U, static_cast<uint32_t>(tokenDataBytes_), 0U, 0U, 0U};
     DataCopyPadExtParams<ExpandXType> copyPadExtParams{false, 0U, 0U, 0U};
-
     // 1) 生成 tokenData 写入 tokenUb
     if constexpr (IsNeedReduceScatter) {
         DataCopyPad(tmpUb, expandXGM_[globalIdx * axisH_], inputCopyParams, copyPadExtParams);
@@ -1378,26 +1330,27 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         PipeBarrier<PIPE_V>();
     } else {
         DataCopyPad(tokenUb, expandXGM_[globalIdx * axisH_], inputCopyParams, copyPadExtParams);
-        PipeBarrier<PIPE_MTE2>();
     }
 
     // 2) 写 meta：scaleVal + originRankId + originTokenId
     float scaleVal = 0.0f;
     if (globalIdx < selfSendCnt_) {
+        AscendC::DataCacheCleanAndInvalid<float, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(expandScalesGM_[globalIdx]);
         scaleVal = expandScalesGM_.GetValue(globalIdx);
     }
 
-    LocalTensor<float> metaFP32 = payloadUb[tokenDataBytesAlign_].template ReinterpretCast<float>();
-    metaFP32.SetValue(0, scaleVal);
-    LocalTensor<uint32_t> metaU32 =
-        payloadUb[tokenDataBytesAlign_ + sizeof(float)].template ReinterpretCast<uint32_t>();
-    metaU32.SetValue(0, originRankId);
-    metaU32.SetValue(1, tokenIdInServer);
-    SyncFunc<AscendC::HardEvent::S_MTE3>();
-
+    LocalTensor<float> metaFP32 = tokenUb.template ReinterpretCast<float>();
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
+    metaFP32.SetValue(tokenDataBytesAlign_ / sizeof(float), scaleVal);
+    LocalTensor<uint32_t> metaU32 = tokenUb.template ReinterpretCast<uint32_t>();
+    metaU32.SetValue((tokenDataBytesAlign_ + sizeof(float)) / sizeof(uint32_t), originRankId);
+    metaU32.SetValue((tokenDataBytesAlign_ + sizeof(float) + sizeof(uint32_t)) / sizeof(uint32_t), tokenIdInServer);
+    
     // 3) 写 ShareData
+    LocalTensor<uint8_t> payloadUb = outBuf_.Get<uint8_t>();
     GlobalTensor<uint8_t> shareDataByteGm;
     shareDataByteGm.SetGlobalBuffer(reinterpret_cast<__gm__ uint8_t *>(shareDataAddr));
+    SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy(shareDataByteGm, payloadUb, static_cast<uint32_t>(tokenMetaBytes_));
     SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
@@ -1421,7 +1374,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         // 2) 写 flag + cnt
         flagUb.SetValue(0, READY_FLAG);
         flagUb.SetValue(1, cnt);
-
+        SyncFunc<AscendC::HardEvent::S_MTE3>();
         GM_ADDR flagAddr = reinterpret_cast<__gm__ uint8_t *>(serverShareAddr_[targetLocalRank]) +
                            static_cast<uint64_t>(localRankId_) * shareFlagSliceBytes_;
 
@@ -1537,7 +1490,6 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         uint32_t copyLen = (curBatch * tokenMetaBytes_) / sizeof(ExpandXType); // tokenMetaBytes_是32B对齐的
         DataCopy(inputBatchUb, batchGm, copyLen);
         SyncFunc<AscendC::HardEvent::MTE2_S>();
-        // PipeBarrier<PIPE_MTE2>();
         LocalTensor<uint8_t> batchBytes = inputBatchUb.template ReinterpretCast<uint8_t>();
         for (uint32_t k = 0; k < curBatch; ++k) {
             const uint32_t packBaseBytes = k * tokenMetaBytes_;
@@ -1589,9 +1541,6 @@ __aicore__ inline void
 MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFunc>::TokenToWinOut(
     GM_ADDR dstTokenBase, uint32_t tokenIdInServer, LocalTensor<float> srcSumTensor)
 {
-    LocalTensor<ExpandXType> tokenUb = tempBuf1_.Get<ExpandXType>();
-    Cast(tokenUb, srcSumTensor, AscendC::RoundMode::CAST_RINT, axisH_);
-    PipeBarrier<PIPE_V>();
     LocalTensor<uint32_t> headerU32 = outBuf_.Get<uint32_t>();
     constexpr uint32_t HEADER_U32_CNT = SPLIT_BLOCK_SIZE / sizeof(uint32_t);
     headerU32.SetValue(0, tokenIdInServer);
@@ -1599,19 +1548,17 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
     GlobalTensor<uint32_t> headerGm;
     headerGm.SetGlobalBuffer(reinterpret_cast<__gm__ uint32_t *>(dstTokenBase));
     DataCopy(headerGm, headerU32, HEADER_U32_CNT);
-
-    PipeBarrier<PIPE_MTE3>(); // 同步待优化
-
     // 2、写Token
     // 2.1 写tokenData：480B
+    LocalTensor<ExpandXType> tokenUb = tempBuf1_.Get<ExpandXType>();
+    Cast(tokenUb, srcSumTensor, AscendC::RoundMode::CAST_RINT, axisH_);
     GM_ADDR dataBlockBase = dstTokenBase + SPLIT_BLOCK_SIZE;
     GlobalTensor<ExpandXType> dataDstGm;
     dataDstGm.SetGlobalBuffer(reinterpret_cast<__gm__ ExpandXType *>(dataBlockBase));
     DataCopyExtParams dataCopyParams = {static_cast<uint16_t>(tokenDataBlockNum_), SPLIT_BLOCK_DATA_SIZE, 0U, UB_ALIGN,
                                         0U};
+    SyncFunc<AscendC::HardEvent::V_MTE3>();                      
     DataCopyPad(dataDstGm, tokenUb, dataCopyParams);
-
-    PipeBarrier<PIPE_MTE3>(); // 同步待优化
 
     // 2.2 padding写flag：32B
     uint64_t mask[1] = {0x0101010101010101};
@@ -1626,9 +1573,9 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
     constexpr uint32_t PAD_OFFSET_IN_U32 = SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t);
     DataCopyExtParams flagCopyParams = {static_cast<uint16_t>(tokenDataBlockNum_ + 1), UB_ALIGN, 0U,
                                         SPLIT_BLOCK_DATA_SIZE, 0U};
+    SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopyPad(flagDstGm[PAD_OFFSET_IN_U32], flagU32, flagCopyParams);
     PipeBarrier<PIPE_ALL>();
-    SyncFunc<AscendC::HardEvent::V_MTE3>();
 }
 
 template <TemplateMoeDistributeCombineV2A5KFCTypeClass>
@@ -1642,7 +1589,6 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
     headerUb.SetValue(1, winTokenCnt);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy(headerGm, headerUb, flagU64CopyCntAlign_);
-    PipeBarrier<PIPE_MTE3>();
 }
 
 template <TemplateMoeDistributeCombineV2A5KFCTypeClass>
@@ -1918,24 +1864,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         uint32_t tokenAlignCnt = packedTokenBytes_ / sizeof(ExpandXType);
         tokenLocalOutWindow_.SetGlobalBuffer((__gm__ ExpandXType *)(srcAddr + WIN_ADDR_ALIGN));
         tokenLocalInWindow_.SetGlobalBuffer((__gm__ ExpandXType *)(dstAddr + WIN_ADDR_ALIGN));
-
-
-        KLOGF("\n\n\n\n");
-        KLOGF("[coreIdx_]%d, [epRankId_]:%d,[=========WinOut Value Begin=========]\n", coreIdx_, epRankId_);
-        GM_ADDR srcAddrTmp = srcAddr + WIN_ADDR_ALIGN;
-        for (int i = 0; i < tokenDataBlockNum_; i++) {
-            GlobalTensor<ExpandXType> tokenGmPrint;
-            tokenGmPrint.SetGlobalBuffer(
-                reinterpret_cast<__gm__ ExpandXType *>((srcAddrTmp + WIN_ADDR_ALIGN) + static_cast<uint64_t>(i * 512)));
-            KLOGF("\n\n\n\n");
-            KLOGF("[TokenOutBlock]:%d", i);
-            KLOGF("》》{");
-            KDump2(tokenGmPrint, 5, 96 / sizeof(ExpandXType));
-            KLOGF("}《《");
-            KLOGF("\n\n\n\n");
-        }
-        KLOGF("[=========WinOut Value Begin=========]\n");
-
+        SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
         for (uint32_t tokenId = 0U; tokenId < maxLocalBs_; tokenId++) {
             LocalTensor<ExpandXType> inUb = moeQueue_.AllocTensor<ExpandXType>();
             DataCopy(inUb, tokenLocalOutWindow_[tokenId * tokenAlignCnt], tokenAlignCnt);
@@ -1944,22 +1873,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
             DataCopy(tokenLocalInWindow_[tokenId * tokenAlignCnt], outUb, tokenAlignCnt);
             moeQueue_.FreeTensor<ExpandXType>(outUb);
         }
-
-        KLOGF("\n\n\n\n");
-        KLOGF("[coreIdx_]%d, [epRankId_]:%d,[=========WinIn Value Begin=========]\n", coreIdx_, epRankId_);
-        GM_ADDR dstAddrTmp = dstAddr + WIN_ADDR_ALIGN;
-        for (int i = 0; i < tokenDataBlockNum_; i++) {
-            GlobalTensor<ExpandXType> tokenGmPrint;
-            tokenGmPrint.SetGlobalBuffer(
-                reinterpret_cast<__gm__ ExpandXType *>((dstAddrTmp + WIN_ADDR_ALIGN) + static_cast<uint64_t>(i * 512)));
-            KLOGF("\n\n\n\n");
-            KLOGF("[TokenInBlock]:%d", i);
-            KLOGF("》》{");
-            KDump2(tokenGmPrint, 20, 24 / sizeof(ExpandXType));
-            KLOGF("}《《");
-            KLOGF("\n\n\n\n");
-        }
-        KLOGF("[=========WinIn Value Begin=========]\n");
+        PipeBarrier<PIPE_ALL>();
     }
 }
 
@@ -1973,6 +1887,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         localCntTensor_ = localCntBuf_.Get<uint64_t>();
         GlobalTensor<uint64_t> flagGm;
         flagGm.SetGlobalBuffer(reinterpret_cast<__gm__ uint64_t *>(windowInGM_));
+        SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
         // 对winIn中的count的flag位进行等待求和判断
         for (uint32_t serverIndex = 0; serverIndex < serverNum_; serverIndex++) {
             while (true) {
@@ -1981,7 +1896,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
                 PipeBarrier<PIPE_ALL>();
                 uint64_t flagValue = localCntTensor_.GetValue(0);
                 if (flagValue == READY_FLAG) {
-                    printf("=============winIn中的count的flag READY_FLAG===========\n");
+                    // printf("=============winIn中的count的flag READY_FLAG===========\n");
                     break;
                 }
             }
@@ -2000,14 +1915,11 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
         GlobalTensor<uint64_t> flagGmU64;
         flagGmU64.SetGlobalBuffer(reinterpret_cast<__gm__ uint64_t *>(windowInGM_));
         uint32_t offsetOfNum = (serverIndex * winInSliceBytes_) / sizeof(uint64_t); // 获取token数目值偏移
+        SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
         DataCopy(localCntTensor_, flagGmU64[offsetOfNum], flagU64CopyCntAlign_);
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         uint64_t count = localCntTensor_.GetValue(1); // 获取token数目
-
-        KLOGF("\n\n\n\n");
-        KLOGF("[coreIdx_]:%d, [epRankId_]:%d, [WaitWinInToken count]:%d", coreIdx_, epRankId_, count);
-        KLOGF("\n\n\n\n");
-
+        PipeBarrier<PIPE_ALL>();
         GM_ADDR winInTKAddr = windowInGM_ + winHeaderBytes_ + serverIndex * winInSliceBytes_;
         GlobalTensor<uint32_t> IdGm;
         IdGm.SetGlobalBuffer(reinterpret_cast<__gm__ uint32_t *>(winInTKAddr));
@@ -2021,13 +1933,14 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
             uint32_t offsetOfToken = (countIndex * packedTokenBytes_) / sizeof(uint32_t); // 获取token的偏移
             DataCopy(localTokenIdTensor, IdGm[offsetOfToken], flagU64CopyCntAlign_ * 2);  // uint32 32B对齐后的数量为：8
             // uint32_t tokenId = localTokenIdTensor.GetValue(0);
+            SyncFunc<AscendC::HardEvent::MTE2_S>();
             uint32_t tokenIdInServer = localTokenIdTensor.GetValue(0);
             uint32_t originRankId = tokenIdInServer / axisBS_;
             uint32_t originTokenId = tokenIdInServer - originRankId * axisBS_;
             if (originRankId != epRankId_) {
                 continue;
-            }
-
+            } 
+            PipeBarrier<PIPE_ALL>();
             uint32_t sumOfBlockFlag = 0;
             while (sumOfBlockFlag != tokenDataBlockNum_) {
                 for (uint32_t blockIndex = 0; blockIndex < tokenDataBlockNum_; blockIndex++) {
@@ -2037,6 +1950,7 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
                         sizeof(uint32_t); // 获取block中flag偏移
                     DataCopy(localFlagTensor, flagGmU32[offsetOfFlag],
                              flagU64CopyCntAlign_ * 2); // uint32 32B对齐后的数量为：8
+                    SyncFunc<AscendC::HardEvent::MTE2_S>();
                     uint32_t cnt = localFlagTensor.GetValue(0);
                     sumOfBlockFlag += cnt;
                 }
@@ -2050,14 +1964,10 @@ MoeDistributeCombineV2A5LayeredHostcpu<TemplateMoeDistributeCombineV2A5KFCTypeFu
             DataCopyExtParams dataCopyParams = {static_cast<uint16_t>(tokenDataBlockNum_), SPLIT_BLOCK_DATA_SIZE,
                                                 UB_ALIGN, 0U, 0U};
             DataCopyPadExtParams<ExpandXType> padParams{true, 0, 0, 0};
+            SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
             DataCopyPad(localOutTensor, blockGm, dataCopyParams, padParams);
             // 将拼凑好的token, combine后填入到对应expand out id位置中
-            PipeBarrier<PIPE_MTE2>();
-
-            KLOGF("\n\n\n\n");
-            KLOGF("[coreIdx_]:%d, [epRankId_]:%d, [=====localOutTensor=====]", coreIdx_, epRankId_);
-            KDump2(localOutTensor, 16, axisH_ / 16);
-            KLOGF("\n\n\n\n");
+            PipeBarrier<PIPE_ALL>();
             uint32_t localTokenId = tokenIdInServer - tokenIdBaseInServer_;
             tokenAtomicAdd(expandOutGlobal_[localTokenId * axisH_], localOutTensor);
         }
