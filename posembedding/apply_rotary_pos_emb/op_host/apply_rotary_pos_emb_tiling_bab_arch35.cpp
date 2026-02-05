@@ -240,5 +240,5 @@ uint64_t ApplyRotaryPosEmbTilingBAB::GetTilingKey() const
     return TILING_KEY_BAB;
 }
 
-REGISTER_TILING_TEMPLATE(ApplyRotaryPosEmb, ApplyRotaryPosEmbTilingBAB, ROPE_BAB_TILING_PRIORITY);
+REGISTER_OPS_TILING_TEMPLATE(ApplyRotaryPosEmb, ApplyRotaryPosEmbTilingBAB, ROPE_BAB_TILING_PRIORITY);
 } // namespace optiling
