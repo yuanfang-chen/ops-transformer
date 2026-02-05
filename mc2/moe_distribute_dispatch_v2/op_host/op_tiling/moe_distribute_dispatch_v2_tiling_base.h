@@ -79,7 +79,7 @@ namespace DataBase{
         static constexpr uint32_t ATTR_CONST_EXPERT_NUM_INDEX = 16;
     };
 
-    struct TilingExternConst {
+    struct TilingExtendConst {
         static constexpr uint32_t X_INDEX = 0U;
         static constexpr uint32_t EXPERT_IDS_INDEX = 1U;
         static constexpr uint32_t MC2_CONTEXT = 2U; //新增必选输入
