@@ -1423,6 +1423,9 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
     context->SetBlockDim(numBlocks);
     context->SetScheduleMode(1); // 设置为batch mode模式, 所有核同时启动
     tilingData->moeDistributeDispatchV2Info.totalUbSize = ubSize;
+    if (isSetFullMeshV2){
+        OP_TILING_CHECK(aivNum < 4, OP_LOGE(nodeName, "AivNum should be more than or equal to 4, but aivNum = %u.",aivNUm), return ge::GRAPH_FAILED);
+    }
     tilingData->moeDistributeDispatchV2Info.aivNum = aivNum;
     OP_LOGD(nodeName, "numBlocks=%u, aivNum=%u, ubSize=%lu", numBlocks, aivNum, ubSize);
     PrintTilingDataInfo(nodeName, *tilingData);
