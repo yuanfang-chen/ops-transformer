@@ -1314,7 +1314,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         }
         uint32_t numTasks = faInfo.batch * faInfo.kvHeads;
         bool isLongSeq = (numTasks <= 0.8 * aicoreNum) && (minKVSeqlen >= aicoreNum * 512);
-        bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 2048);
+        bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 1024);
         if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
             (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && 
             (isLongSeq || isShortSeq)) {
