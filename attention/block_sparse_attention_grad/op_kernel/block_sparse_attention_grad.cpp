@@ -41,8 +41,9 @@ extern "C" __global__ __aicore__ void block_sparse_attention_grad(__gm__ uint8_t
 
     __gm__ BlockSparseAttentionGradTilingData *tilingDataPtr = 
         reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(tiling);
-    BSA::BlockSparseAttentionGradInfer<half, 0>(
-        dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
-        actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
+    if (TILING_KEY_IS(0)) {
+        BSA::BlockSparseAttentionGradInfer<half, 0>(
+            dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
+            actualSeqLengths, actualSeqLengthsKv, dq, dk, dv, user, tiling);
+    }
 }
-
