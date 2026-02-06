@@ -29,6 +29,7 @@ const std::string HCOM_GET_COMM_FUNC_NAME = "HcomGetCommHandleByGroup";
 #ifdef BUILD_OPEN_PROJECT
 const std::string HCOM_GET_RANK_SIZE_EX = "HcomGetRankSizeEx";
 const std::string HCOM_GET_L0_TOPO_TYPE_EX = "HcomGetL0TopoTypeEx";
+constexpr char HCCL_BUFFSIZE[] = "HCCL_BUFFSIZE";
 #else
 const std::string COMM_GET_NET_LAYERS_NAME = "CommGetNetLayers";
 const std::string COMM_GET_TOPO_TYPE_NAME = "CommGetInstTopoTypeByNetLayer";
@@ -204,11 +205,31 @@ HcclResult MC2HcomTopology::CommGetCclBufferSizeByGroup(const char *group, uint6
 }
 
 #ifdef BUILD_OPEN_PROJECT
+
+uint64_t GetMaxWindowSize() {
+  uint16_t defaultWindowSize = 200;
+  if (getenv(HCCL_BUFFSIZE) == nullptr) {
+    OP_LOGD("", "Env HCCL_BUFFSIZE don't set");
+  } else {
+    try {
+      std::string envStr(getenv(HCCL_BUFFSIZE));
+      defaultWindowSize = std::stoi(envStr);
+    } catch (...) {
+      OP_LOGE("",
+              "Unknown Exception encountered when parser env HCCL_BUFFERSIZE");
+    }
+  }
+  const uint64_t maxWindowSize =
+      static_cast<uint64_t>(defaultWindowSize) * 1024UL * 1024UL;
+  OP_LOGI("", "Get maxWindowSize is %lu", maxWindowSize);
+  return maxWindowSize;
+}
+
 HcclResult MC2HcomTopology::CommGetGroupLocalWindowSize(const char *group, uint64_t *cclBufferSize)
 {
     if (ge::HcomTopoInfo::Instance().GetGroupLocalWindowSize(group, *cclBufferSize) != ge::GRAPH_SUCCESS) {
         OP_LOGD("", "Get winSize from GetGroupLocalWindowSize=%lu", *cclBufferSize);
-        *cclBufferSize = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        *cclBufferSize = GetMaxWindowSize();
         return HCCL_SUCCESS;
     }
     OP_LOGD("", "Get winSize from GetMaxWindowSize=%lu", *cclBufferSize);
