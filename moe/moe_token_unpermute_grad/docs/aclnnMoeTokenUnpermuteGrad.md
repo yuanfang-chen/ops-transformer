@@ -45,7 +45,7 @@
   - probs为None：
 
     $$
-    permutedTokensGrad[sortedIndices[i]] = unpermutedOutputGrad[i]
+    permutedTokensGrad[sortedIndices[i]] = unpermutedTokensGrad[i]
     $$
 
 ## 函数原型
@@ -54,7 +54,7 @@
 
 ```c++
 aclnnStatus aclnnMoeTokenUnpermuteGradGetWorkspaceSize(
-  const aclTensor   *permuteTokens,
+  const aclTensor   *permutedTokens,
   const aclTensor   *unpermutedTokensGrad,
   const aclTensor   *sortedIndices,
   const aclTensor   *probsOptional,
@@ -153,7 +153,7 @@ aclnnStatus aclnnMoeTokenUnpermuteGrad(
     <tr>
       <td>restoreShapeOptional</td>
       <td>输入</td>
-      <td>当paddedMode为true后生效，否则不会对其进行操作。当paddedMode为true以后，此为unpermutedTokens的shape。</td>
+      <td>当paddedMode为true后生效，否则不会对其进行操作。当paddedMode为true时，此为unpermutedTokens的shape。</td>
       <td>当前仅支持nullptr。</td>
       <td>-</td>
       <td>-</td>
@@ -259,7 +259,8 @@ aclnnStatus aclnnMoeTokenUnpermuteGrad(
 
 - 确定性计算：
   - aclnnMoeTokenUnpermuteGrad默认确定性实现。
-
+- tokens_num表示输入的token数量，hidden_size表示词向量维度。
+- 通过paddedMode区分以下两种模式：paddedMode等于true时，每个专家固定能够处理capacity个token。paddedMode等于false时，每个token固定被topK_num个专家处理。
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：topK_num <= 512。
 - <term>Ascend 950PR/Ascend 950DT</term>：
   在调用本接口时，框架内部会转调用[aclnnMoeFinalizeRoutingV2Grad](../../moe_finalize_routing_v2_grad/docs/aclnnMoeFinalizeRoutingV2Grad.md)接口，如果出现参数错误提示，请参考以下参数映射关系：
@@ -279,7 +280,7 @@ aclnnStatus aclnnMoeTokenUnpermuteGrad(
 #include <iostream>
 #include <vector>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_moe_token_unpermute_grad.h"
+#include "aclnnop/aclnn_moe_token_unpermute_with_ep_grad.h"
 #include <iostream>
 
 #define CHECK_RET(cond, return_expr)                                           \
@@ -402,23 +403,23 @@ int main() {
   std::vector<float> probsGradHostData = {0, 0, 0};
 
   ret = CreateAclTensor(permutedTokensHostData, permutedTokensShape,
-                        &permutedTokensDeviceAddr, aclDataType::ACL_BF16,
+                        &permutedTokensDeviceAddr, aclDataType::ACL_FLOAT,
                         &permutedTokens);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(unpermutedTokensGradHostData, unpermutedTokensGradShape, &unpermutedTokensGradDeviceAddr,
-                      aclDataType::ACL_BF16, &unpermutedTokensGrad);
+                      aclDataType::ACL_FLOAT, &unpermutedTokensGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(probsHostData, probsShape, &probsDeviceAddr,
-                      aclDataType::ACL_BF16, &probs);
+                      aclDataType::ACL_FLOAT, &probs);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(sortedIndicesHostData, sortedIndicesShape, &sortedIndicesDeviceAddr,
                       aclDataType::ACL_INT32, &sortedIndices);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-  ret = CreateAclTensor(permutedTokensGradHostData, permutedTokensGradShape, &permutedTokensGradDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(permutedTokensGradHostData, permutedTokensGradShape, &permutedTokensGradDeviceAddr, aclDataType::ACL_FLOAT,
                         &permutedTokensGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(probsGradHostData, probsGradShape, &probsGradDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(probsGradHostData, probsGradShape, &probsGradDeviceAddr, aclDataType::ACL_FLOAT,
                         &probsGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
@@ -426,12 +427,11 @@ int main() {
   uint64_t workspaceSize = 0;
   aclOpExecutor *executor;
 
-  // 调用aclnnMoeTokenUnpermuteGrad第一段接口
-  ret = aclnnMoeTokenUnpermuteGradGetWorkspaceSize(permutedTokens, unpermutedTokensGrad, sortedIndices, probs, paddedMode, nullptr,
-                                               permutedTokensGrad, probsGrad, &workspaceSize, &executor);
+  // 调用aclnnMoeTokenUnpermuteWithEpGrad第一段接口
+  ret = aclnnMoeTokenUnpermuteWithEpGradGetWorkspaceSize(unpermutedTokensGrad, sortedIndices,permutedTokens, probs, paddedMode, nullptr, nullptr, 3, permutedTokensGrad, probsGrad, &workspaceSize, &executor);
   CHECK_RET(
       ret == ACL_SUCCESS,
-      LOG_PRINT("aclnnMoeTokenUnpermuteGradGetWorkspaceSize failed. ERROR: %d\n", ret);
+      LOG_PRINT("aclnnMoeTokenUnpermuteWithEpGradGetWorkspaceSize failed. ERROR: %d\n", ret);
       return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存
@@ -443,10 +443,10 @@ int main() {
               return ret);
   }
 
-  // 调用aclnnMoeTokenUnpermuteGrad第二段接口
-  ret = aclnnMoeTokenUnpermuteGrad(workspaceAddr, workspaceSize, executor, stream);
+  // 调用aclnnMoeTokenUnpermuteWithEpGrad第二段接口
+  ret = aclnnMoeTokenUnpermuteWithEpGrad(workspaceAddr, workspaceSize, executor, stream);
   CHECK_RET(ret == ACL_SUCCESS,
-            LOG_PRINT("aclnnMoeTokenUnpermuteGrad failed. ERROR: %d\n", ret);
+            LOG_PRINT("aclnnMoeTokenUnpermuteWithEpGrad failed. ERROR: %d\n", ret);
             return ret);
 
   // 4. （固定写法）同步等待任务执行结束

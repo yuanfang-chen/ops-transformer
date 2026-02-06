@@ -1,17 +1,7 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
-
 #include <iostream>
 #include <vector>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_moe_token_unpermute_grad.h"
+#include "aclnnop/aclnn_moe_token_unpermute_with_ep_grad.h"
 #include <iostream>
 
 #define CHECK_RET(cond, return_expr)                                           \
@@ -96,7 +86,7 @@ int CreateAclTensor(const std::vector<T> &hostData,
 }
 
 int main() {
-  // 1. （固定写法）device/stream初始化，参考AscendCL对外接口列表
+  // 1. （固定写法）device/stream初始化，参考acl API手册
   // 根据自己的实际device填写deviceId
   int32_t deviceId = 0;
   aclrtStream stream;
@@ -134,23 +124,23 @@ int main() {
   std::vector<float> probsGradHostData = {0, 0, 0};
 
   ret = CreateAclTensor(permutedTokensHostData, permutedTokensShape,
-                        &permutedTokensDeviceAddr, aclDataType::ACL_BF16,
+                        &permutedTokensDeviceAddr, aclDataType::ACL_FLOAT,
                         &permutedTokens);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(unpermutedTokensGradHostData, unpermutedTokensGradShape, &unpermutedTokensGradDeviceAddr,
-                      aclDataType::ACL_BF16, &unpermutedTokensGrad);
+                      aclDataType::ACL_FLOAT, &unpermutedTokensGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(probsHostData, probsShape, &probsDeviceAddr,
-                      aclDataType::ACL_BF16, &probs);
+                      aclDataType::ACL_FLOAT, &probs);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(sortedIndicesHostData, sortedIndicesShape, &sortedIndicesDeviceAddr,
                       aclDataType::ACL_INT32, &sortedIndices);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-  ret = CreateAclTensor(permutedTokensGradHostData, permutedTokensGradShape, &permutedTokensGradDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(permutedTokensGradHostData, permutedTokensGradShape, &permutedTokensGradDeviceAddr, aclDataType::ACL_FLOAT,
                         &permutedTokensGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(probsGradHostData, probsGradShape, &probsGradDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(probsGradHostData, probsGradShape, &probsGradDeviceAddr, aclDataType::ACL_FLOAT,
                         &probsGrad);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
@@ -158,12 +148,11 @@ int main() {
   uint64_t workspaceSize = 0;
   aclOpExecutor *executor;
 
-  // 调用aclnnMoeTokenUnpermuteGrad第一段接口
-  ret = aclnnMoeTokenUnpermuteGradGetWorkspaceSize(permutedTokens, unpermutedTokensGrad, sortedIndices, probs, paddedMode, nullptr,
-                                               permutedTokensGrad, probsGrad, &workspaceSize, &executor);
+  // 调用aclnnMoeTokenUnpermuteWithEpGrad第一段接口
+  ret = aclnnMoeTokenUnpermuteWithEpGradGetWorkspaceSize(unpermutedTokensGrad, sortedIndices,permutedTokens, probs, paddedMode, nullptr, nullptr, 3, permutedTokensGrad, probsGrad, &workspaceSize, &executor);
   CHECK_RET(
       ret == ACL_SUCCESS,
-      LOG_PRINT("aclnnMoeTokenUnpermuteGradGetWorkspaceSize failed. ERROR: %d\n", ret);
+      LOG_PRINT("aclnnMoeTokenUnpermuteWithEpGradGetWorkspaceSize failed. ERROR: %d\n", ret);
       return ret);
 
   // 根据第一段接口计算出的workspaceSize申请device内存
@@ -175,10 +164,10 @@ int main() {
               return ret);
   }
 
-  // 调用aclnnMoeTokenUnpermuteGrad第二段接口
-  ret = aclnnMoeTokenUnpermuteGrad(workspaceAddr, workspaceSize, executor, stream);
+  // 调用aclnnMoeTokenUnpermuteWithEpGrad第二段接口
+  ret = aclnnMoeTokenUnpermuteWithEpGrad(workspaceAddr, workspaceSize, executor, stream);
   CHECK_RET(ret == ACL_SUCCESS,
-            LOG_PRINT("aclnnMoeTokenUnpermuteGrad failed. ERROR: %d\n", ret);
+            LOG_PRINT("aclnnMoeTokenUnpermuteWithEpGrad failed. ERROR: %d\n", ret);
             return ret);
 
   // 4. （固定写法）同步等待任务执行结束
