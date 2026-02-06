@@ -21,7 +21,7 @@
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "mc2_moe_context.h"
-#include "hccl/hccl.h"
+#include "hccl/hccl_comm.h"
 using namespace Ops::Transformer;
 using namespace op;
 #ifdef __cplusplus
@@ -88,7 +88,8 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     void * tempBuffer = nullptr;
     uint64_t buffersize = 0;
     uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
-
+    HcclResult ret;
+    
     ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");

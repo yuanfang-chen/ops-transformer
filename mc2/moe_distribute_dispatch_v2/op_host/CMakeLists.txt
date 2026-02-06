@@ -11,6 +11,7 @@
 if (BUILD_OPEN_PROJECT)  # custom
     target_sources(op_host_aclnnInner PRIVATE
         moe_distribute_dispatch_v2_def.cpp
+        moe_distribute_dispatch_v2_extend_def.cpp
     )
     add_modules_sources(
         OP_API_INDEPENDENT ON 
