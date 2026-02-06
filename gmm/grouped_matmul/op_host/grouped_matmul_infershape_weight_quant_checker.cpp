@@ -146,7 +146,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeForXAndWeight(const g
                         "but x's k is [%ld] and weight's k is [%ld].",
                         xKDim_, weightKDim_),
                 return ge::GRAPH_FAILED);
-    // 动态图走到这里的时候不允许出现非确定值
+    // 动态图走到此处时不允许出现非确定值
     OP_CHECK_IF(weightNDim_ < 0,
                 OP_LOGE(context->GetNodeName(),
                         "The n dim value should not be negative, but the actual value is [%ld].", weightNDim_),
