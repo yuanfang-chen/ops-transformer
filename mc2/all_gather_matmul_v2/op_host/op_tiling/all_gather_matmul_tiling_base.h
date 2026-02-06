@@ -110,7 +110,7 @@ protected:
                                  ::TCubeTiling& tailTiling, uint32_t debugMode);
 
     mc2tiling::TilingArgs args_;
-    NpuArch npuArch_;
+    platform_ascendc::SocVersion socVersion_;
     const char* opName_{nullptr};
     const char* group_{nullptr};
     uint64_t tileMValue_{0};

@@ -276,7 +276,7 @@ ge::graphStatus MatmulAllReduceTiling910::CheckInput()
     GE_ASSERT_GRAPH_SUCCESS(CheckInputDtype());
 
     //  非量化场景不支持B矩阵Nz格式 除了310P
-    if (npuArch_ != NpuArch::DAV_2002) {
+    if (socVersion_ != platform_ascendc::SocVersion::ASCEND310P) {
         GE_ASSERT_GRAPH_SUCCESS(CheckInputFormat());
     }
 

@@ -649,20 +649,20 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
 }
 
 /**
- * @brief 校验NpuArch
+ * @brief 校验socVersion
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @return
  */
-ge::graphStatus QuantReduceScatterUtilTiling::CheckNpuArch(const gert::TilingContext *context)
+ge::graphStatus QuantReduceScatterUtilTiling::CheckSocVersion(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    // 校验NpuArch
+    // 校验socVersion
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(nodeName, "platformInfoPtr is null."), return ge::GRAPH_FAILED);
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
-    OP_TILING_CHECK(npuArch != NpuArch::DAV_3510,
-                    OP_LOGE(nodeName, "NpuArch needed to be DAV_3510."), return ge::GRAPH_FAILED);
+    platform_ascendc::SocVersion socVersion = ascendcPlatform.GetSocVersion();
+    OP_TILING_CHECK(socVersion != platform_ascendc::SocVersion::ASCEND950,
+                    OP_LOGE(nodeName, "socVersion needed to be 950."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 

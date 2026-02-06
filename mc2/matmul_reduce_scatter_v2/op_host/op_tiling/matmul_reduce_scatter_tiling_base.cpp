@@ -69,7 +69,8 @@ uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingAr
 
 void MatmulReduceScatterTilingBase::DoFormulaticTiling(Mc2Tiling::RCSTiling &rcsCfg)
 {
-    SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
+    SocVersion inputSocVersion =
+        (socVersion_ == platform_ascendc::SocVersion::ASCEND950) ? SocVersion::SOC950 : SocVersion::SOC910_B;
     MMPlusReduceScatter scatterTilingHccl(args_, args_.rankDim, KernelType::REDUCE_SCATTER, inputSocVersion);
     scatterTilingHccl.GetTiling();
     CutResult mCutScatter = scatterTilingHccl.tilingM_.cutRes;
@@ -208,7 +209,6 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetPlatformInfo()
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
-    npuArch_ = ascendcPlatform.GetCurNpuArch();
     libApiWorkSpaceSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     return ge::GRAPH_SUCCESS;
 };

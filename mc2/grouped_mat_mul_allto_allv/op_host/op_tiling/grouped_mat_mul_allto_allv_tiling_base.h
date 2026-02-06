@@ -35,7 +35,7 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     ge::graphStatus PostTiling() override;
 
-    NpuArch npuArch_;
+    platform_ascendc::SocVersion socVersion_;
 };
 } // namespace optiling
 

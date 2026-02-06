@@ -32,13 +32,13 @@ class MoeTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
     explicit MoeTilingBase(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context) {};
 protected:
-    ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus GetPlatformInfo() override;
+    ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
     ge::graphStatus PostTiling() override;
 
-    NpuArch npuArch_;
+    platform_ascendc::SocVersion socVersion_;
 };
 } // namespace optiling
 

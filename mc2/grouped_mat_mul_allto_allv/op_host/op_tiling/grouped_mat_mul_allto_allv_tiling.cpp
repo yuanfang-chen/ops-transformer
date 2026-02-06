@@ -396,7 +396,7 @@ static bool CheckEpWorldSizeConstraints(
     int64_t epWorldSize = static_cast<int64_t>(tilingData->commonTilingInfo.epWorldSize);
     auto platformInfo = context->GetPlatformInfo();
     platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
-    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
+    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND950) {
         epWorldSizeOptional = {2, 4, 8, 16, 32, 64}; //A5限制epWorldSize为{2，4，8，16，32，64}
     } else {
         epWorldSizeOptional = {8, 16, 32, 64, 128}; //A3限制epWorldSize为{8，16，32，64, 128}
@@ -985,7 +985,7 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetPlatformInfo()
         platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(C_INNER_DEBUG, "fail to get platform info"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    npuArch_ = ascendcPlatform.GetCurNpuArch();
+    socVersion_ = ascendcPlatform.GetSocVersion();
     return ge::GRAPH_SUCCESS;
 }
 
