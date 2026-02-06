@@ -4669,7 +4669,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_activation_tc_case_n_equal_1)
         131072,//l0CSize
         65536,//l0ASize
         65536,//l0BSize
-        platform_ascendc::SocVersion::ASCEND910_95,//ASCEND910_95
+        platform_ascendc::SocVersion::ASCEND950,
     };
     gert::TilingContextPara tilingContextPara("GroupedMatmul", // op_name
                                                 { // input info
