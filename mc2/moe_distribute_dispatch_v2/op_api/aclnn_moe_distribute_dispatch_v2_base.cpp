@@ -108,7 +108,9 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     uint64_t buffersize = 0;
     uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
     HcclResult ret;
-    
+    std::vector<HcclChannelDesc> channelDesc;
+    std::vector<channelHandle> channeles;
+
     ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");
@@ -128,11 +130,25 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         return ACLNN_ERR_INNER;
     }
 
+    channelDesc.resize(mc2_context->rankDim);
+    channeles.resize(mc2_context->rankDim);
+    HcclChannelDescInit(channelDesc.data(), mc2_context->rankDim);
+
+    for (uint64_t index = 0; index < mc2_context->rankDim; index++) {
+        if(index != mc2_context->rankId) {
+            channelDesc[index].remoteRank = index;
+            channelDesc[index].channelProtocal = CommProtocol::COMM_PROTOCOL_UB_MEM;
+            channelDesc[index].notifyNum =3;
+        }
+    }
+
+    HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), mc2_context->rankDim, channeles.data());
+
     for(uint64_t index = 0; index < mc2_context->rankDim; index++) {
         if(index == mc2_context->rankId) {
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winsize);
         } else {
-            ret = HcclChannelGetHcclBuffer(hcclHandle, index, &tempBuffer, &buffersize);
+            ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
         }
         if(ret != HCCL_SUCCESS) {
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
