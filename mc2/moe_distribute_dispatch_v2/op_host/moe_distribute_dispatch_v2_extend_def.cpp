@@ -136,6 +136,6 @@ public:
   }
 };
 
-OP_ADD(MoeDistributeDispatchV2);
+OP_ADD(MoeDistributeDispatchV2Extend);
 
 } // namespace ops
