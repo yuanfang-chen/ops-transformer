@@ -427,7 +427,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
         - `scaleOptional`支持UINT64/INT64/BFLOAT16/FLOAT32。`offsetOptional`、`antiquantOffsetOptional`暂不支持。
         - `groupType`支持m轴分组，仅非量化支持不分组。
         - `quantGroupSize`暂不支持。
-        - `actType`支持0、1、2、4、5。
+        - `actType`支持0、1、2、4、5。综合约束请参见<a href="#约束说明">约束说明</a>。
         - 输入参数`x`、`weight`，输出参数`out`在非量化场景支持最多1024个tensor，在伪量化和全量化场景支持最多128个tensor。
 
   - **返回值：**
@@ -507,13 +507,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 - **公共约束**
   - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列，且长度不能为1；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
   - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
-  - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，当前支持传入0、1、2、4、5。当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数。枚举值如下：
- 	  * 0：GMMActType::GMM_ACT_TYPE_NONE；
- 	  * 1：GMMActType::GMM_ACT_TYPE_RELU；
- 	  * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；
- 	  * 3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）；
- 	  * 4：GMMActType::GMM_ACT_TYPE_FAST_GELU；
- 	  * 5：GMMActType::GMM_ACT_TYPE_SILU；
+  - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。
 
 <details>
 <summary><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term></summary>
@@ -650,7 +644,10 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
       | 0 | 单单单 |1）仅支持splitItem为2/3<br>2）weight中tensor需为3维，shape为（E, N, K）或（E, K, N）；x，out中tensor需为2维，shape分别为（M, K）和（M, N）；bias中tensor需为2维，shape为（E, N）<br>3）必须传groupListOptional，且当groupListType为0时，最后一个值不大于x中tensor的第一维，当groupListType为1时，数值的总和不大于x中tensor的第一维<br>4）groupListOptional第1维最大支持1024，即最多支持1024个group<br>5）支持x不转置，weight转置、不转置均支持|
       | 0 | 单多单 |1）仅支持splitItem为2/3<br>2）必须传groupListOptional， 且当groupListType为0时，最后一个值与x中tensor的第一维相等，当groupListType为1时，数值的总与x中tensor的第一维相等，长度最大为1024<br>3）x，out中tensor需为2维， shape分别为（M, K）和（M, N）；weight中tensor需为2维，shape为（N, K）或（K, N）；bias中tensor需为1维，shape为（N）<br>4）weight中每个tensor的N轴必须相等<br>5）支持weight转置，但weight的tensorList中每tensor是否转置需保持统一<br>6）x不支持转置<br>7）仅支持非量化|
       | 0 | 多多单 |1）仅支持splitItem为2/3<br>2）x，out中tensor需为2维， shape分别为（M, K）和（M, N）；weight中tensor需为2维，shape为（N, K）或（K, N）；bias中tensor需为1维，shape为（N）<br>3）weight中每个tensor的N轴必须相等<br>4）若传入groupListOptional，当groupListType为0时，groupListOptional的差值需与x中tensor的第一维一一对应，当groupListType为1时，groupListOptional的数值需与x中tensor的第一维一一对应，且长度最大为1024<br>5）支持weight转置，但weight的tensorList中每个tensor是否转置需保持统一<br>6）x不支持转置<br>7）仅支持非量化|
+  - actType支持场景:
 
+    - 在伪量化和非量化场景下，actType仅支持0。
+    - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，支持激活函数，actType参数支持传入0、1、2、4、5。其余全量化场景不支持激活函数。
 </details>
 
 ## 调用示例
