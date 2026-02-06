@@ -19,7 +19,7 @@ from operator import methodcaller
 from pathlib import Path
 from typing import Callable, Dict, Iterator, List, Optional, TypeVar, Set
 
-TOP_DIR = str(Path(__file__).resolve().parents[5])
+TOP_DIR = str(Path(__file__).resolve().parents[3])
 TOP_SOURCE_DIR = TOP_DIR + '/scripts/'
 DELIVERY_PATH = "build/_CPack_Packages/makeself_staging"
 CONFIG_SCRIPT_PATH = 'package'
@@ -43,6 +43,8 @@ class PackageConfigError(PackageError):
 class BlockConfigError(PackageError):
     """块配置错误异常。"""
 
+class MultiPkgSoftlinkError(PackageError):
+    """多个pkg_softlink元素报错。"""
 
 class ParseOsArchError(PackageError):
     """解析os_arch失败异常。"""
