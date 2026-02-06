@@ -410,6 +410,8 @@ aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantShape(siz
         CHECK_RET(CheckTensorShape(gmmParams_.antiquantOffsetOptional, idx, "antiquantOffset") == ACLNN_SUCCESS,
                   ACLNN_ERR_PARAM_INVALID);
     }
+
+    return ACLNN_SUCCESS;
 }
 
 aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantShape(size_t idx) const
