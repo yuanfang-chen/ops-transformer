@@ -109,7 +109,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
     HcclResult ret;
     std::vector<HcclChannelDesc> channelDesc;
-    std::vector<channelHandle> channeles;
+    std::vector<ChannelHandle> channeles;
 
     ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
     if(ret != HCCL_SUCCESS) {
