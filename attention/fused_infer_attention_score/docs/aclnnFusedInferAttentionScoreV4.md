@@ -1302,7 +1302,8 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 - 当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准。
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    <table style="undefined;table-layout: fixed;  width: 2072px">
+
+    <table style="undefined;table-layout: fixed;  width: 2084px">
         <colgroup>
             <col style="width: 105px">
             <col style="width: 134px">
@@ -1312,7 +1313,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
             <col style="width: 166px">
             <col style="width: 187px">
             <col style="width: 251px">
-            <col style="width: 418px">
+            <col style="width: 430px">
             <col style="width: 293px">
         </colgroup>
         <thead>
