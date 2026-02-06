@@ -16,13 +16,14 @@
 #include "moe_distribute_dispatch_v2_tiling_base.h"
 
 using namespace Mc2Tiling;
+using namespace Mc2Exception;
 using namespace AscendC;
 using namespace ge;
 using namespace DataBase;
 
 namespace optiling {
 static uint64_t CalTilingKey(const gert::TilingContext *context, const bool isScales, const uint32_t quantMode,
-    const uint32_t tpWorldSize, const bool isSetCommAlg)
+    const uint32_t tpWorldSize, const bool isSetFullMeshV2)
 {
     uint32_t fullMesh = TILINGKEY_NO_FULLMESH;
     bool tp = false;
@@ -33,7 +34,7 @@ static uint64_t CalTilingKey(const gert::TilingContext *context, const bool isSc
     if (isScales) {
             scaleMode = true;
     }
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         commMode = TILINGKEY_TPL_HOST_KFC;
         tilingKey = GET_TPL_TILING_KEY(tp, tilingKeyQuantMode, scaleMode,
                                                 fullMesh, commMode, TILINGKEY_TPL_A5);
@@ -54,12 +55,12 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
     bool isActiveMask = false;
     bool hasElasticInfo = false;
     bool isPerformance = false;
-    bool isSetCommAlg = false;
+    bool isSetFullMeshV2 = false;
     uint32_t localMoeExpertNum = 1;
-    OP_LOGI(nodeName, "Enter MoeDistributeDispatchKfcAndDpuTilingFuncImpl tiling check func.");
+    OP_LOGI(nodeName, "Enter MoeDistributeDispatchV2Extend tiling check func.");
 
     // 获取入参属性
-    OP_TILING_CHECK(GetAttrAndSetTilingData<ConstChosen>(context, nodeName, *tilingData, groupEp, groupTp, isSetCommAlg) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(GetAttrAndSetTilingData<ConstChosen>(context, nodeName, *tilingData, groupEp, groupTp, isSetFullMeshV2) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Get attr and set tiling data failed."), return ge::GRAPH_FAILED);
 
     // 获取scales
@@ -87,7 +88,7 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
     quantMode = tilingData->moeDistributeDispatchV2Info.quantMode;
 
     // 检查quantMode和scales是否匹配
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         OP_TILING_CHECK(CheckQuantModeAndScales<ConstChosen>(context, nodeName, isScales, quantMode) != ge::GRAPH_SUCCESS,
             OP_LOGE(nodeName, "quant mode and scales not match, isScales is %d,quantMode is %u.",
             static_cast<int32_t>(isScales),quantMode), return ge::GRAPH_FAILED);
@@ -105,7 +106,7 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
         OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
 
     // 检查属性的取值是否合法
-    OP_TILING_CHECK(CheckAttrs<ConstChosen>(context, nodeName, *tilingData, localMoeExpertNum, isActiveMask, isSetCommAlg) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(CheckAttrs<ConstChosen>(context, nodeName, *tilingData, localMoeExpertNum, isActiveMask, isSetFullMeshV2) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check attr failed."), return ge::GRAPH_FAILED);
 
     uint32_t epRankId = tilingData->moeDistributeDispatchV2Info.epRankId;
@@ -118,7 +119,7 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
         OP_LOGE(nodeName, "Check tensor shape failed."), return ge::GRAPH_FAILED);
 
     // 校验win区大小
-    // OP_TILING_CHECK(CheckWinSize<ConstChosen>(context, *tilingData, nodeName, isSetCommAlg, localMoeExpertNum) != ge::GRAPH_SUCCESS,
+    // OP_TILING_CHECK(CheckWinSize<ConstChosen>(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum) != ge::GRAPH_SUCCESS,
     //     OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(SetWorkSpace(context, nodeName) != ge::GRAPH_SUCCESS,
@@ -126,7 +127,7 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
     // OP_TILING_CHECK(SetHcommCfg(context, tilingData, groupEp, groupTp, tpWorldSize) != ge::GRAPH_SUCCESS,
     //     OP_LOGE(nodeName, "Tiling set hcomm cfg failed."), return ge::GRAPH_FAILED);
-    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetCommAlg);
+    uint64_t tilingKey = CalTilingKey(context, isScales, quantMode, tpWorldSize, isSetFullMeshV2);
 
     OP_LOGD(nodeName, "tilingKey is %lu", tilingKey);
     context->SetTilingKey(tilingKey);
@@ -148,8 +149,9 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
 static ge::graphStatus MoeDistributeDispatchV2ExtendTilingFunc(gert::TilingContext* context)
 {
     std::string socVersion = mc2tiling::GetSocVersion(context);
+    NpuArch npuArch = mc2tiling::GetNpuArch(context);
     ge::graphStatus ret;
-    if (socVersion == "Ascend950") {
+    if (npuArch == NpuArch::DAV_3510) {
         ret = MoeDistributeDispatchKfcAndDpuTilingFuncImpl<TilingExtendConst>(context);
     } else {
         ret = ge::GRAPH_FAILED;
@@ -167,4 +169,13 @@ static ge::graphStatus TilingParseForMoeDistributeDispatchV2Extend(gert::TilingP
 IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
     .Tiling(MoeDistributeDispatchV2ExtendTilingFunc)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2Extend);
+
+// Register exception func
+inline void MoeDistributeDispatchV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
+{
+    Mc2ExceptionImpl(args, userdata, "MoeDistributeDispatchV2");
+}
+
+IMPL_OP(MoeDistributeDispatchV2)
+    .ExceptionDumpParseFunc(MoeDistributeDispatchV2ExceptionImplWrapper);
 } // namespace optiling

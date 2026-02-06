@@ -30,6 +30,7 @@
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "mc2_log.h"
+#include "mc2_exception_dump.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
@@ -40,6 +41,7 @@
 #include "mc2_hcom_topo_info.h"
 
 using namespace Mc2Tiling;
+using namespace Mc2Exception;
 using namespace AscendC;
 using namespace ge;
 
@@ -569,7 +571,7 @@ template<typename ConstChosen>
 static bool CheckTensorDataType(const gert::TilingContext *context, const char *nodeName,
     const bool isScales, const uint32_t quantMode, const bool isActiveMask, const bool hasElasticInfo, const bool isPerformance)
 {
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         OP_TILING_CHECK(!CheckQuantModeAndExpandXType<ConstChosen>(context, nodeName),
             OP_LOGE(nodeName, "CheckQuantModeAndExpandXType failed."), return false);
         OP_TILING_CHECK(!CheckDistinctTensorDataType<ConstChosen>(context, nodeName, isScales, quantMode), 
@@ -727,7 +729,7 @@ static bool CheckTensorFormat(const gert::TilingContext *context, const char *no
 
 template<typename ConstChosen>
 static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetCommAlg)
+    MoeDistributeDispatchV2TilingData &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetFullMeshV2)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "attrs is nullptr."), return ge::GRAPH_FAILED);
@@ -828,7 +830,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK((moeExpertNum <= 0) || (moeExpertNum > MOE_EXPERT_MAX_NUM),
         OP_LOGE(nodeName, "moeExpertNum is invalid, only support (0, %ld], but got moeExpertNum=%ld.",
         MOE_EXPERT_MAX_NUM, moeExpertNum), return ge::GRAPH_FAILED);
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         OP_TILING_CHECK((*quantModePtr < static_cast<int64_t>(QuantModeA5::NON_QUANT)) ||
         (*quantModePtr > static_cast<int64_t>(QuantModeA5::MX_QUANT)),
         OP_LOGE(nodeName, "quantMode is invalid, only support [0, %ld], but got quantMode=%ld.",
@@ -842,13 +844,14 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     OP_TILING_CHECK((*expertTokenNumsTypePtr != 0) && (*expertTokenNumsTypePtr != 1),
         OP_LOGE(nodeName, "expertTokenNumsType only support 0 or 1, but got expertTokenNumsType=%ld.",
         *expertTokenNumsTypePtr), return ge::GRAPH_FAILED);
-    if (mc2tiling::GetSocVersion(context) != "Ascend950") {
+    // A5 已作校验，这里只校验 A3
+    if (mc2tiling::GetNpuArch(context) != NpuArch::DAV_3510) {
         OP_TILING_CHECK((strlen(commAlgPtr) != 0) && (strcmp(commAlgPtr, "fullmesh_v1") != 0) && (strcmp(commAlgPtr, "fullmesh_v2") != 0),
             OP_LOGE(nodeName, "Attr commAlg is invalid, current only support fullmesh_v1 and fullmesh_v2, but got commAlg = %s.", commAlgPtr),
             return ge::GRAPH_FAILED);
-        isSetCommAlg = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
-        OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetCommAlg = %d\n", isSetCommAlg);
     }
+    isSetFullMeshV2 = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
+    OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetFullMeshV2 = %d\n", isSetFullMeshV2);
 
     groupEp = std::string(groupEpPtr);
     tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(epWorldSize);
@@ -872,7 +875,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     uint32_t localMoeExpertNum = static_cast<uint32_t>(moeExpertNum) / (static_cast<uint32_t>(epWorldSize) - static_cast<uint32_t>(sharedExpertRankNum));
     uint32_t lastDim = localMoeExpertNum * static_cast<uint32_t>(epWorldSize);
     
-    if (mc2tiling::GetSocVersion(context) != "Ascend950" && isSetCommAlg) { 
+    if (isSetFullMeshV2) { 
         lastDim = ((lastDim + CEIL_ALIGN32 - 1) / CEIL_ALIGN32) * CEIL_ALIGN32; 
         std::vector<int64_t> srcShapeDim = {1, lastDim}; 
         auto srcShape = ge::Shape(srcShapeDim); 
@@ -912,7 +915,7 @@ static bool CheckSharedAttrs(const char *nodeName,
 
 template<typename ConstChosen>
 static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *nodeName,
-    const MoeDistributeDispatchV2TilingData &tilingData, bool isSetCommAlg)
+    const MoeDistributeDispatchV2TilingData &tilingData, bool isSetFullMeshV2)
 {
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
     // 获取bs
@@ -926,20 +929,20 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
     uint32_t k = static_cast<uint32_t>(expertIdsDim1);
 
     // 检查comm_alg和tpWorldSize是否冲突
-    OP_TILING_CHECK(isSetCommAlg && (tpWorldSize == TP_WORLD_SIZE_TWO), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, tp_world_size cannot be 2."),
+    OP_TILING_CHECK(isSetFullMeshV2 && (tpWorldSize == TP_WORLD_SIZE_TWO), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, tp_world_size cannot be 2."),
         return false);
     // 检查comm_alg和bs是否冲突
-    OP_TILING_CHECK(isSetCommAlg && (bs > FULLMESH_BS_UPPER_BOUND), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, bs should be between [1, %ld], but got %ld.", FULLMESH_BS_UPPER_BOUND, bs),
+    OP_TILING_CHECK(isSetFullMeshV2 && (bs > FULLMESH_BS_UPPER_BOUND), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, bs should be between [1, %ld], but got %ld.", FULLMESH_BS_UPPER_BOUND, bs),
         return false);
     // 检查comm_alg和topK是否冲突
-    OP_TILING_CHECK(isSetCommAlg && (k > FULLMESH_K_MAX), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, topK should be between [1, %ld], but got %ld.", FULLMESH_K_MAX, k),
+    OP_TILING_CHECK(isSetFullMeshV2 && (k > FULLMESH_K_MAX), OP_LOGE(nodeName, "When comm_alg is fullmesh_v2, topK should be between [1, %ld], but got %ld.", FULLMESH_K_MAX, k),
         return false);
     return true;
 }
 
 template<typename ConstChosen>
 static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetCommAlg)
+    MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetFullMeshV2)
 {
     uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
@@ -948,7 +951,7 @@ static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char
 
     OP_TILING_CHECK(!CheckSharedAttrs(nodeName, tilingData),
         OP_LOGE(nodeName, "Check shared expert related attributes failed."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckCommAlgAttrs<ConstChosen>(context, nodeName, tilingData, isSetCommAlg),
+    OP_TILING_CHECK(!CheckCommAlgAttrs<ConstChosen>(context, nodeName, tilingData, isSetFullMeshV2),
         OP_LOGE(nodeName, "Check comm_alg related attributes failed."), return ge::GRAPH_FAILED);
     // 校验moe专家数量能否均分给多机
     localMoeExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum);
@@ -1272,7 +1275,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistri
 
 template<typename ConstChosen>
 static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
-    const char *nodeName, const bool isSetCommAlg, uint32_t &localMoeExpertNum)
+    const char *nodeName, const bool isSetFullMeshV2, uint32_t &localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
     uint64_t hcclBufferSizeEp = 0;
@@ -1290,7 +1293,7 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     // dispatch数据区 token首对齐512，有效token长度h_align_32b + scale(32b) + 三元组(3*4b)
     uint64_t tokenActualLen = ((h * MAX_OUT_DTYPE_SIZE  + UB_ALIGN - 1UL) / UB_ALIGN) * UB_ALIGN + SCALE_EXPAND_IDX_BUFFER;
     uint64_t tokenNeedSizeDispatch = 0;
-    if (isSetCommAlg) {
+    if (isSetFullMeshV2) {
         tokenNeedSizeDispatch = ((tokenActualLen + FULL_MESH_DATA_ALIGN - 1UL) / FULL_MESH_DATA_ALIGN) * WIN_ADDR_ALIGN;
     } else {
         tokenNeedSizeDispatch = ((tokenActualLen + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
