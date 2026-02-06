@@ -5,6 +5,7 @@ namespace Mc2Kernel {
 constexpr uint32_t HCCL_HOST_KFC_MAX_RANK_NUM = 1024; //AIV
 }
 namespace Mc2Context {
+    
     struct Mc2MoeContext {
         uint32_t rankId; // 当前卡rankId
         uint32_t rankDim; // 总卡数
