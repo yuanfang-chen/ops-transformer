@@ -918,7 +918,7 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     // 当info.s2StartIdx > treeMaskStart，mask拷贝也是全量拷贝，和其余sparse过程相同
     if (info.sparseMode == TREE && info.s2StartIdx < treeMaskStart) {
         uint32_t attenMaskSize = curS2EnsPos - treeMaskStart;
-        uint32_t attenMaskSizeAlign = Align(attenMaskSize + treeMaskStart % 32, 32U);
+        uint32_t attenMaskSizeAlign = Align(static_cast<uint32_t>(attenMaskSize + treeMaskStart % 32), 32U);
         uint64_t maskOffset = ComputeAttenMaskOffset(info, s1StartIdx, treeMaskStart, isPre);
         DataCopyExtParams dataCopyParams;
         dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
@@ -928,10 +928,10 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
         
         DataCopyPadExtParams<bool> padParams;
         padParams.isPad = true;
-        padParams.leftPadding = static<uint8_t>(treeMaskStart % 32);
-        padParams.rightPadding = static<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
+        padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
+        padParams.rightPadding = static_cast<uint8_t>(attenMaskSizeAlign - (attenMaskSize + treeMaskStart % 32));
         padParams.paddingValue = 0;
-        DataCopyPad(attenMaskUb[treeMaskStart / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
+        DataCopyPad(attenMaskUb[(treeMaskStart - info.s2StartIdx) / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
     } else {
         uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
         uint64_t maskOffset = ComputeAttenMaskOffset(info, s1StartIdx, treeMaskStart, isPre);
@@ -1055,6 +1055,8 @@ __aicore__ inline bool IsSkipAttentionmask(MaskInfo &info)
         // 由于分核时按照Batch进行划分，sparse9在每个batch的所有 S 跳过的范围固定，所以不区分跨g轴的情况
         if (static_cast<int64_t>(info.s2StartIdx + info.s2dealNum) > static_cast<int64_t>(info.s2Size - info.s1Size)) {
             return false;
+        } else {
+            return true;
         }
     }
 

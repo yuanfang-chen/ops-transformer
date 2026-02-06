@@ -85,6 +85,7 @@ private:
     ge::graphStatus ProcessBaseInputs();
     ge::graphStatus ProcessOptionalTensors();
     ge::graphStatus ProcessPseShift();
+    ge::graphStatus CheckTreeSparseMaskShape();
     ge::graphStatus CheckTndMaskShapeWithSparseMode();
     ge::graphStatus CheckMaskShapeWithQSeq() const;
     ge::graphStatus CheckAttenMaskShape();

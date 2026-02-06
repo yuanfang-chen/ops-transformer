@@ -534,7 +534,7 @@ ge::graphStatus FiaTilingCheck::CheckSparseMode()
                 OP_LOGE(opName_, 
                         "In %s situation, when sparse is %d, qSize[%d] should less than or equal to kvSize[%d],"
                         "but got qSize %d and kvSize %d.", 
-                        QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]);
+                        QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]),
             return ge::GRAPH_FAILED);
         }
     }

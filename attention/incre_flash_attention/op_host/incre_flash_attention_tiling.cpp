@@ -1856,23 +1856,23 @@ ge::graphStatus IFATiling::ProcessSparseMode()
         if (ropeFlag_ && quantFlag_) {
             OP_CHECK_IF(kvPaddingSizeFlag_,
                 OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, kvPaddingSize should be not exist.", sparseMode);
+                        "In MLA full quant situation, when sparse is %d, kvPaddingSize should be not exist.", sparseMode_),
                 return ge::GRAPH_FAILED);
 
             OP_CHECK_IF(pseShiftFlag_,
                 OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, pse_shift should be not exist.", sparseMode);
+                        "In MLA full quant situation, when sparse is %d, pse_shift should be not exist.", sparseMode_),
                 return ge::GRAPH_FAILED);
 
             OP_CHECK_IF(sysPrefixFlag_,
                 OP_LOGE(ifaContext_->opName,
                         "In MLA full quant situation, when sparse is %d, key_shared_prefix and key_shared_prefix should be not exist.",
-                        sparseMode);
+                        sparseMode_),
                 return ge::GRAPH_FAILED);
 
             OP_CHECK_IF(outputType_ == ge::DT_INT8,
                 OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode);
+                        "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode_),
                 return ge::GRAPH_FAILED);
             
             // 补充s2 >= s1的拦截
@@ -1887,17 +1887,17 @@ ge::graphStatus IFATiling::ProcessSparseMode()
                     kvActSize = (b == 0) ? actualSeqKVTnd[0] : (actualSeqKVTnd[b] - actualSeqKVTnd[b - 1]);
                     OP_CHECK_IF(qActSize > kvActSize,
                         OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode);
+                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode_),
                     return ge::GRAPH_FAILED);
                 }
             } else {
                 OP_CHECK_IF(qSeqSize_ > seqSize_,
                     OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode);
+                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode_),
                     return ge::GRAPH_FAILED);
             }
         } else {
-            OP_LOGE(opName_, "Tree Sparse(%d) is only supported in MLA full quant situation.", sparseMode_);
+            OP_LOGE(ifaContext_->opName, "Tree Sparse(%d) is only supported in MLA full quant situation.", sparseMode_);
             return ge::GRAPH_FAILED;
         }
     }
@@ -3031,7 +3031,6 @@ void IFATiling::FillTilingBaseParams()
     tilingData_->baseParams.set_antiquantParamsInPagedAttentionFlag(antiquantParamsInPagedAttentionFlag_);
     tilingData_->baseParams.set_attenMaskFlag(attenMaskFlag_ ? 1 : 0);
     tilingData_->baseParams.set_attenMaskSize(attenMaskSize_);
-    tilingData_->baseParams.set_sparseMode(sparseMode_);
     tilingData_->baseParams.set_l2CacheOffFlag(l2CacheOffFlag_);
     tilingData_->baseParams.set_softmaxLseFlag(softmaxLseFlag_); // whether return lse
     tilingData_->baseParams.set_totalBlockNum(totalBlockNum_);

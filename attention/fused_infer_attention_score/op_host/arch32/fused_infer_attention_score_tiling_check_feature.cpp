@@ -178,25 +178,25 @@ ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
         OP_CHECK_IF(fiaInfo_.qPaddingSizeFlag || fiaInfo_.kvPaddingSizeFlag,
             OP_LOGE(opName_,
                     "In %s situation, when sparse is %d, query_padding_size or kv_padding_size should be not exist.", 
-                    QuantModeToSerialString(quantMode_).c_str(), sparseMode);
+                    QuantModeToSerialString(quantMode_).c_str(), sparseMode),
             return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(fiaInfo_.pseShiftFlag,
             OP_LOGE(opName_, 
                     "In %s situation, when sparse is %d, pse_shift should be not exist.", 
-                    QuantModeToSerialString(quantMode_).c_str(), sparseMode);
+                    QuantModeToSerialString(quantMode_).c_str(), sparseMode),
             return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(fiaInfo_.sysPrefixFlag,
             OP_LOGE(opName_, 
                     "In %s situation, when sparse is %d, key_shared_prefix and key_shared_prefix should be not exist.",
-                    QuantModeToSerialString(quantMode_).c_str(), sparseMode);
+                    QuantModeToSerialString(quantMode_).c_str(), sparseMode),
             return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(outputType_ == ge::DT_INT8,
             OP_LOGE(opName_, 
                     "In %s situation, when sparse is %d, output dtype %d is not currently supported.", 
-                    QuantModeToSerialString(quantMode_).c_str(), sparseMode, static_cast<int32_t>(outputType_));
+                    QuantModeToSerialString(quantMode_).c_str(), sparseMode, static_cast<int32_t>(outputType_)),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
