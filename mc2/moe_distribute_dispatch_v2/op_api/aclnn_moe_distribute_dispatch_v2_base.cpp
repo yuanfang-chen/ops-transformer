@@ -22,6 +22,12 @@
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "mc2_moe_context.h"
 #include "hccl/hccl_comm.h"
+#include "hccl/hccl_rankgraph.h"
+#include "hccl/hccl_types.h"
+#include "hccl/hccl.h"
+#include "hccl/hccl_res.h"
+#include "hccl/hccl_ctrl.h"
+#include "hccl/hcomm_primitives.h"
 using namespace Ops::Transformer;
 using namespace op;
 #ifdef __cplusplus
