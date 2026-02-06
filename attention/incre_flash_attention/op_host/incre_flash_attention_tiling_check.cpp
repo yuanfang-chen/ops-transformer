@@ -1349,6 +1349,7 @@ ge::graphStatus IFATiling::CheckTreeSparseMaskShape()
 {
     // sparse9时需要传入Mask，在TND场景，传入∑s1²，一维矩阵
     // 非TND场景传入[B, S1, S1]
+    auto maskShape = ifaContext_->attenMask.tensor;
     if (inputLayout_ == IfaLayout::TND) {
         // sparse9时需要传入Mask，在TND场景，传入∑s1²，一维矩阵
         OP_CHECK_IF(maskShape == nullptr,
