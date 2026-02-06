@@ -22,9 +22,16 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 namespace ChunkGatedDeltaRule {
     #pragma pack(push, 8)
     struct alignas(8) ChunkGatedDeltaRuleTilingData { 
-        uint32_t vectorCoreNum;
+        int64_t aiCoreNum;
+        int64_t t;
+        int64_t nk;
+        int64_t dk;
+        int64_t nv;
+        int64_t dv;
+        int64_t b;
+        int64_t hasGamma;
+        int64_t chunkSize;
         float scale;
-        uint32_t hasGamma;
     };
     #pragma pack(pop)
 }  // ChunkGatedDeltaRule

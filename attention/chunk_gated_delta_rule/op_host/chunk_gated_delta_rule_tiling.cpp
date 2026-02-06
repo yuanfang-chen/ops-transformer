@@ -46,7 +46,7 @@ namespace optiling {
     const size_t DIM_2 = 2;
     const size_t DIM_3 = 3;
 
-    const size_t MAX_MTP = 8;
+    constexpr int64_t CHUNK_SIZE = 64; 
 
     void ChunkGatedDeltaRuleTiling::InitCompileInfo() {
         auto platformInfoPtr = context_->GetPlatformInfo();
@@ -62,7 +62,7 @@ namespace optiling {
             OP_LOGE(context_->GetNodeName(), "aivNum <= 0");
             return;
         }
-        tilingData_.vectorCoreNum = compileInfo_.aivNum;
+        tilingData_.aiCoreNum = compileInfo_.aivNum;
     }
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::GetPlatformInfo() {
@@ -92,9 +92,6 @@ namespace optiling {
     }
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling() {
-        OP_CHECK_IF(CalUbSize() != ge::GRAPH_SUCCESS, OP_LOGE(inputParams_.opName, "CalUbSize failed."),
-            return ge::GRAPH_FAILED);
-
         PrintTilingData();
         return ge::GRAPH_SUCCESS;
     }
@@ -117,7 +114,7 @@ namespace optiling {
     };
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::PostTiling() {
-        context_->SetBlockDim(tilingData_.vectorCoreNum);
+        context_->SetBlockDim(tilingData_.aiCoreNum);
         auto tilingDataSize = sizeof(ChunkGatedDeltaRuleTilingData);
         errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(), 
             reinterpret_cast<void *>(&tilingData_), tilingDataSize);
@@ -242,7 +239,25 @@ namespace optiling {
                 return ge::GRAPH_FAILED;
             }
 
-        /* */
+        tilingData_.t = queryShape.GetDim(DIM_0);
+        tilingData_.nk = queryShape.GetDim(DIM_1);
+        tilingData_.dk = queryShape.GetDim(DIM_2);
+        tilingData_.nv = valueShape.GetDim(DIM_1);
+        tilingData_.dv = valueShape.GetDim(DIM_2);
+        tilingData_.b = cuSeqlensShape.GetDim(DIM_0);
+        tilingData_.chunkSize = CHUNK_SIZE;
+
+        OP_CHECK_IF(tilingData_.nk > 64 || tilingData_.nv > 64,
+                OP_LOGE(inputParams_.opName,
+                        "nk and nv should no bigger than 64, but nk is %u, nv is %u",
+                        tilingData_.nk, tilingData_.nv),
+                return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF(tilingData_.nv % tilingData_.nk != 0,
+                OP_LOGE(inputParams_.opName,
+                        "nv should be an integer multiple of nk, but nv is %u, nk is %u",
+                        tilingData_.nv, tilingData_.nk),
+                return ge::GRAPH_FAILED);
 
         return ge::GRAPH_SUCCESS;
     }
@@ -292,15 +307,17 @@ namespace optiling {
         return ge::GRAPH_SUCCESS;
     }
 
-    void ChunkGatedDeltaRuleTiling::PrintTilingData() {
-        OP_LOGD(context_->GetNodeName(), "vectorCoreNum: [%u]", tilingData_.vectorCoreNum);
+     void ChunkGatedDeltaRuleTiling::PrintTilingData() {
+        OP_LOGD(context_->GetNodeName(), "aiCoreNum: [%u]", tilingData_.aiCoreNum);
+        OP_LOGD(context_->GetNodeName(), "t: [%u]", tilingData_.t);
+        OP_LOGD(context_->GetNodeName(), "nk: [%u]", tilingData_.nk);
+        OP_LOGD(context_->GetNodeName(), "dk: [%u]", tilingData_.dk);
+        OP_LOGD(context_->GetNodeName(), "nv: [%u]", tilingData_.nv);
+        OP_LOGD(context_->GetNodeName(), "dv: [%u]", tilingData_.dv);
+        OP_LOGD(context_->GetNodeName(), "b: [%u]", tilingData_.b);
         OP_LOGD(context_->GetNodeName(), "hasGamma: [%u]", tilingData_.hasGamma);
-        /* */
-    }
-
-    ge::graphStatus ChunkGatedDeltaRuleTiling::CalUbSize() {
-        /* */
-        return ge::GRAPH_SUCCESS;
+        OP_LOGD(context_->GetNodeName(), "chunkSize: [%u]", tilingData_.chunkSize);
+        OP_LOGD(context_->GetNodeName(), "scale: [%f]", tilingData_.scale);
     }
 
     static ge::graphStatus ChunkGatedDeltaRuleTilingFunc(gert::TilingContext *context) {

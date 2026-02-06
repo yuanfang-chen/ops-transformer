@@ -75,7 +75,6 @@ protected:
     ge::graphStatus CheckContext();
     ge::graphStatus AnalyzeDtype();
     ge::graphStatus AnalyzeShapes();
-    ge::graphStatus CalUbSize();
     ge::graphStatus GetScale();
     ge::graphStatus GetOptionalInput();
     ge::graphStatus AnalyzeFormat();
