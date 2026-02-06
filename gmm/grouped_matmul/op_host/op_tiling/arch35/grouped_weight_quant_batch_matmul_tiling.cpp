@@ -327,7 +327,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckDimValue(const gert::TilingContex
     int64_t xKDimValue = context->GetDynamicInputTensor(X_IDX, idx)->GetStorageShape().GetDim(xDimNum - 1);
     OP_CHECK_IF(xKDimValue <= 0,
                 OP_LOGE(context->GetNodeName(),
-                        "The K dimension of the tensor[%zu] should be positive, but actual is %ld ", idx, xKDimValue),
+                        "The k dimension of the tensor[%zu] should be positive, but actual value is %ld ", idx, xKDimValue),
                 return false);
     if (!IsA16W4ND()) {
         return true;
@@ -338,15 +338,15 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckDimValue(const gert::TilingContex
     auto wKDimNum = transB_ ? (wDimNum - 1) : (wDimNum - 2);
     int64_t weightNDimValue = wShape.GetDim(wNDimNum);
     int64_t weightKDimValue = wShape.GetDim(wKDimNum);
-    OP_CHECK_IF(weightNDimValue <= 0,
+    OP_CHECK_IF(weightNDimValue < 0,
                 OP_LOGE(context->GetNodeName(),
-                        "The N dimensions of the tensor[%zu] should be positive, but actual is %ld.", idx,
+                        "The n dimensions of the tensor[%zu] should not be negative, but actual value is %ld.", idx,
                         weightKDimValue),
                 return false);
     OP_CHECK_IF(
         xKDimValue != weightKDimValue,
         OP_LOGE(context->GetNodeName(),
-                "The k dimension of the tensor[%zu] of x and weight should be equal, but actual are %ld and %ld.",
+                "The k dimension of the tensor[%zu] of x and weight should be equal, but actual values are %ld and %ld.",
                 idx, xKDimValue, weightKDimValue),
         return false);
     return true;
