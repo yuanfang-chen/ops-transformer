@@ -14,7 +14,6 @@
 #include "opdev/op_def.h"
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
-#include "aclnn_fused_infer_attention_score_inner.h"
 
 using namespace op;
 
