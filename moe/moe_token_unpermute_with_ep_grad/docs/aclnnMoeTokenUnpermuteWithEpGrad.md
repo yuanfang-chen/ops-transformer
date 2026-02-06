@@ -56,7 +56,7 @@
     -  当rangeOptional[0] <= sortedIndices[i] < rangeOptional[1]时：
     
     $$
-    permutedTokensGradOut[sortedIndices[i]-rangeOptional[0]] = unpermutedOutputGrad[i]
+    permutedTokensGradOut[sortedIndices[i]-rangeOptional[0]] = unpermutedTokensGrad[i]
     $$
 
 ## 函数原型
@@ -156,7 +156,7 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEpGrad(
     <tr>
       <td>paddedMode</td>
       <td>输入</td>
-      <td>true表示开启paddedMode，false表示关闭paddedMode，paddedMode解释见restoreShapeOptional参数。</td>
+      <td>true表示开启paddedMode，false表示关闭paddedMode。paddedMode表示填充模式。</td>
       <td>目前仅支持false。</td>
       <td>-</td>
       <td>-</td>
