@@ -1828,7 +1828,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td rowspan="6">通用场景</td>
             <td>query</td>
             <td>Q_N=[1,2,4,8,16,32,64,128]</td>
-            <td>Ascend 950PR/Ascend 950DT当前有Q_S=[1-16]约束，会在后续发布版本放开限制</td>
+            <td>当前Ascend 950PR/Ascend 950DT有Q_S=[1-16]约束，会在后续发布版本放开限制</td>
         </tr>
         <tr>
             <td>key</td>
@@ -1847,8 +1847,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </tr>
         <tr>
             <td>actualSeqLengths</td>
-            <td>仅TND且Q_S&gt;1时支持配置</td>
-            <td>-</td>
+            <td></td>
+            <td>当前Ascend 950PR/Ascend 950DT仅在TND/NTD排布下支持配置，会在后续发布版本放开限制</td>
         </tr>
         <tr>
             <td>inputLayout</td>
