@@ -21,6 +21,8 @@
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "mc2_moe_context.h"
+#include <memory>
+#include "hccl/hcom.h"
 #include "hccl/hccl_comm.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl_res.h"
@@ -35,6 +37,18 @@ extern "C" {
 #endif
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* scales,
+    const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
+    const aclTensor* performanceInfo, const char* groupEp, int64_t epWorldSize,
+    int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
+    int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, int64_t shareExpertRankNum,
+    int64_t quantMode, int64_t globalBs, int64_t expertTokenNumsType, const char* commAlg,
+    int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, int64_t ydtype, aclTensor* expandX,
+    aclTensor* dynamicScales, aclTensor* assist_info_for_combine, aclTensor* expertTokensNums, aclTensor* epRecvCounts,
+    aclTensor* tpRecvCounts, aclTensor* expandScales,
+    uint64_t* workspaceSize, aclOpExecutor** executor);
+
+extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
+    const aclTensor* x, const aclTensor* expertIds, const aclTensor* mc2Context,const aclTensor* scales,
     const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
     const aclTensor* performanceInfo, const char* groupEp, int64_t epWorldSize,
     int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
