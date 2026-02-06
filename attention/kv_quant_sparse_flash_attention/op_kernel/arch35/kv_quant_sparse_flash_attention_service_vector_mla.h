@@ -694,20 +694,18 @@ __aicore__ inline void QSFAVectorService<QSFAT>::CopyOutMrgeResult(int64_t mte2S
     LocalTensor<float> kvTensorAsFp32 = tmpBuff1.Get<float>();
     uint64_t mask = ConstInfo::BUFFER_SIZE_BYTE_256B / sizeof(float);
     LocalTensor<KV_T> srcTensor = kvMergUb_[mergeMte3Idx % 2 * INPUT1_BUFFER_OFFSET / sizeof(KV_T)];
-    if (dealRow == 1) {
-        Cast(kvTensorAsFp16, srcTensor, RoundMode::CAST_NONE, mask, 4, {1, 1, 8, 4});
-    } else {
-        uint8_t repeatTimes = static_cast<uint8_t>(dealRow);
+
+    uint8_t repeatTimes = static_cast<uint8_t>(dealRow);
         
-        Cast(kvTensorAsFp32, srcTensor, RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21}); // 21=(512+64*2+32)/32
-        Cast(kvTensorAsFp32[64], srcTensor[64], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[128], srcTensor[128], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[192], srcTensor[192], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[256], srcTensor[256], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[320], srcTensor[320], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[384], srcTensor[384], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-        Cast(kvTensorAsFp32[448], srcTensor[448], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
-    }
+    Cast(kvTensorAsFp32, srcTensor, RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21}); // 21=(512+64*2+32)/32
+    Cast(kvTensorAsFp32[64], srcTensor[64], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[128], srcTensor[128], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[192], srcTensor[192], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[256], srcTensor[256], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[320], srcTensor[320], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[384], srcTensor[384], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+    Cast(kvTensorAsFp32[448], srcTensor[448], RoundMode::CAST_NONE, mask, repeatTimes, {1, 1, 64, 21});
+
     PipeBarrier<PIPE_V>();
     LocalTensor<T> antiQuantScale = tmpBuff2.Get<T>();
     LocalTensor<T> oriQuantScaleTensor = srcTensor[640].template ReinterpretCast<T>();
@@ -759,7 +757,7 @@ __aicore__ inline void QSFAVectorService<QSFAT>::CopyOutMrgeResult(int64_t mte2S
     uint64_t tail = dealRow - (loops - 1) * dataBlocks;
     uint64_t repeatElementNum = FP32_REPEAT_ELEMENT_NUM * 2;
     uint64_t blockElementNum = FP32_BLOCK_ELEMENT_NUM * 2;
-    uint8_t repeatTimes = static_cast<uint8_t>(constInfo.headDim / blockElementNum);
+    repeatTimes = static_cast<uint8_t>(constInfo.headDim / blockElementNum);
     for (int i = 0; i < loops; i++) {
         mask = (i == loops - 1) ? tail * blockElementNum : repeatElementNum;
         Copy(antiKvTensorAsB16Nz[i * repeatElementNum], antiKvTensorAsB16[i * dataBlocks * constInfo.headDim], mask,
