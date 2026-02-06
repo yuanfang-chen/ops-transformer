@@ -45,6 +45,7 @@ private:
     aclnnStatus CheckV1GroupList(size_t idx) const;
 
     aclnnStatus CheckAntiQuantDtype(size_t idx) const;
+    aclnnStatus CheckAntiQuantShape(size_t idx) const;
     aclnnStatus CheckScaleAndPerTokenScaleShape() const;
     aclnnStatus CheckGroupSize(size_t idx) const;
 
