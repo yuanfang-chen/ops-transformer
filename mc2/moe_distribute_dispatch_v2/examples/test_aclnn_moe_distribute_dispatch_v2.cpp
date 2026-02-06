@@ -107,7 +107,7 @@ int launchOneThreadDispatchV2AndCombineV2(Args &args)
     // 设置场景
     int64_t BS = 8;
     int64_t H = 7168;
-    int64_t K = 1;
+    int64_t K = 32;
     int64_t expertShardType = 0;
     int64_t sharedExpertNum = 0;
     int64_t sharedExpertRankNum = 0;
