@@ -56,6 +56,14 @@
      target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRC})
    endif()
  endif()
+ file(GLOB OPINFER_SRCS  
+     src/mc2_common_infershape.cpp
+     src/mc2_hcom_topo_info.cpp
+   ) 
+   if(OPINFER_SRCS) 
+     add_infer_modules() 
+     target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPINFER_SRCS}) 
+   endif()
 endif()
 
 file(GLOB NEW_MC2_MM_SRC new_mc2_mm/*.cpp)
