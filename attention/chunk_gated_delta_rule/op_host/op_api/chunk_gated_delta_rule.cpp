@@ -27,7 +27,7 @@ using namespace op;
 namespace l0op {
     OP_TYPE_REGISTER(ChunkGatedDeltaRule);
     
-    const aclTensor *ChunkGatedDeltaRule(
+    const std::array<const aclTensor *, 2> ChunkGatedDeltaRule(
         const aclTensor *query,
         const aclTensor *key, 
         const aclTensor *value,
@@ -44,25 +44,26 @@ namespace l0op {
         Format format = Format::FORMAT_ND;
 
         auto out = executor->AllocTensor(outType, format, format);
-        OP_CHECK(out != nullptr, OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "out AllocTensor failed."), return nullptr);
-
         auto finalState = executor->AllocTensor(outType, format, format);
-        OP_CHECK(finalState != nullptr, OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "finalState AllocTensor failed."), 
-            return nullptr);
 
         // infershape
         auto ret = INFER_SHAPE(ChunkGatedDeltaRule, 
             OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional),
             OP_OUTPUT(out, finalState), 
             OP_ATTR(scaleValue));
-        OP_CHECK_INFERSHAPE(ret != ACLNN_SUCCESS, return nullptr, "ChunkGatedDeltaRule InferShape failed.");
-
+        if (ret != ACLNN_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "ChunkGatedDeltaRule InferShape failed.");
+            return {nullptr, nullptr};
+        }
+ 
         ret = ADD_TO_LAUNCHER_LIST_AICORE(ChunkGatedDeltaRule,
             OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional),
             OP_OUTPUT(out, finalState), 
             OP_ATTR(scaleValue));
-        OP_CHECK_ADD_TO_LAUNCHER_LIST_AICORE(
-            ret != ACLNN_SUCCESS, return nullptr, "ChunkGatedDeltaRule ADD_TO_LAUNCHER_LIST_AICORE failed.");
+        if (ret != ACLNN_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "ChunkGatedDeltaRule ADD_TO_LAUNCHER_LIST_AICORE failed.");
+            return {nullptr, nullptr};
+        }
 
         return {out, finalState};
     }

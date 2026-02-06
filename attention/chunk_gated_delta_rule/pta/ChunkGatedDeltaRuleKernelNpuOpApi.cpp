@@ -19,7 +19,6 @@
 namespace op_api {
     constexpr int VALUE_DIM_NUM = 3;  
     constexpr int OUT_DIM_NUM = 3;
-    constexpr int INITIAL_STATE_DIM_NUM = 4;
 
     using npu_preparation = at_npu::native::OpPreparation;
 
@@ -34,7 +33,6 @@ namespace op_api {
         const c10::optional<at::Tensor> &g) 
     {
         TORCH_CHECK(value.dim() == VALUE_DIM_NUM, "value dim should be ", VALUE_DIM_NUM, OPS_ERROR(ErrCode::PARAM));
-        TORCH_CHECK(initial_state.dim() == INITIAL_STATE_DIM_NUM, "initial_state dim should be ", INITIAL_STATE_DIM_NUM, OPS_ERROR(ErrCode::PARAM));
         TORCH_CHECK(scale.has_value(), "scale cannot be empty", OPS_ERROR(ErrCode::PARAM));
 
         auto t_dim = value.size(0);
@@ -47,20 +45,13 @@ namespace op_api {
         c10::TensorOptions options = value.options().dtype(at::ScalarType::BFloat16);
         at::Tensor outResult = npu_preparation::apply_tensor_without_format(out, options);
 
-        auto b_dim = initial_state.size(0);
-        auto dk_dim = initial_state.size(3);
-        c10::SmallVector<int64_t, OUT_DIM_NUM> final_state;
-        final_state.push_back(b_dim);
-        final_state.push_back(nv_dim);
-        final_state.push_back(dv_dim);
-        final_state.push_back(dk_dim);
-        at::Tensor finalStateResult = npu_preparation::apply_tensor_without_format(final_state, options);
+        at::Tensor finalStateResult = initial_state.value().clone();
 
         float scale_real = static_cast<float>(scale.value());
 
         EXEC_NPU_CMD(aclnnChunkGatedDeltaRule, 
             query, key, value, beta, initial_state, actual_seq_lengths, g, scale_real, outResult, finalStateResult);
 
-        return std::tuple<at::Tensor, at::Tensor>(outResult, final_state);
+        return std::tuple<at::Tensor, at::Tensor>(outResult, finalStateResult);
     }
 }  // namespace op_api

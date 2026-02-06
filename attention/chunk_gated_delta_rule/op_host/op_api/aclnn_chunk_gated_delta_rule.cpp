@@ -129,8 +129,8 @@ aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     const aclTensor *actualSeqLengths,
     const aclTensor *gOptional,
     float scaleValue,
-    aclTensor *out, 
-    aclTensor *finalState,
+    const aclTensor *out, 
+    const aclTensor *finalState,
     uint64_t *workspaceSize,
     aclOpExecutor **executor) 
 {
@@ -167,9 +167,11 @@ aclnnStatus aclnnChunkGatedDeltaRuleGetWorkspaceSize(
     if (outRet[0] == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
     if (outRet[1] == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
 
-    auto ViewCopyOut = l0op::ViewCopy(outRet[0], out_, uniqueExecutor.get());
+    auto outRet0 = outRet[0];
+    auto outRet1 = outRet[1];
+    auto ViewCopyOut = l0op::ViewCopy(outRet0, out_, uniqueExecutor.get());
+    auto ViewCopyFinalState = l0op::ViewCopy(outRet1, finalState_, uniqueExecutor.get());
     if (ViewCopyOut == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
-    auto ViewCopyFinalState = l0op::ViewCopy(outRet[1], finalState_, uniqueExecutor.get());
     if (ViewCopyFinalState == nullptr) {return ACLNN_ERR_INNER_NULLPTR;}
 
     // 获取计算过程中需要使用的workspace大小。

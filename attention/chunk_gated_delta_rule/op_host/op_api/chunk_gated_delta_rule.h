@@ -15,7 +15,7 @@
 #include "opdev/make_op_executor.h"
 
 namespace l0op {
-    const aclTensor *ChunkGatedDeltaRule(
+    const std::array<const aclTensor *, 2> ChunkGatedDeltaRule(
         const aclTensor *query,
         const aclTensor *key, 
         const aclTensor *value,
