@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_fused_infer_attention_score_V5.h"
+#include "aclnn_fused_infer_attention_score_v5.h"
 
 #include "opdev/make_op_executor.h"
 #include "opdev/op_def.h"
