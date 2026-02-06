@@ -182,9 +182,9 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
     LocalTensor<T> qkBuffer = qkInQueue_.AllocTensor<T>();
     LocalTensor<T> outBuffer = outQueue_.AllocTensor<T>();
     DataCopyExtParams qkParams = {
-        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, tilingData_->realDim, 0, 0};
+        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, tilingData_->D - tilingData_->realDim, 0, 0};
     DataCopyExtParams qkOutParams = {static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_,
-                                  0, tilingData_->realDim, 0};
+                                  0, tilingData_->D - tilingData_->realDim, 0};
     DataCopyPad(qkBuffer, inGm[qkGmOffset], qkParams, padParams_);
     qkInQueue_.EnQue(qkBuffer);
     qkBuffer = qkInQueue_.DeQue<T>();
