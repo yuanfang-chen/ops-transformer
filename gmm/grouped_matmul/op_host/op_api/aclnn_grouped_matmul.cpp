@@ -2219,9 +2219,11 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
       size_t xDimNum = xShape.GetDimNum();
       CHECK_COND(xDimNum >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
                  "GroupedMatmul x dim num should larger than 2, but actual %zu.", xDimNum);
+      uint64_t m = 1;
       for (size_t dimIdx = 0; dimIdx < xDimNum - 1; dimIdx++) {
-          zeroM = zeroM && (xShape.GetDim(dimIdx) == 0);
+          m *= xShape.GetDim(dimIdx);
       }
+      zeroM = zeroM && m == 0;
       zeroK = zeroK || (xShape.GetDim(xShape.GetDimNum() - 1) == 0);
   }
   for (size_t i = 0; i < weight->Size(); ++i) {

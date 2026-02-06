@@ -410,6 +410,8 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckAntiQuantShape(size_
         CHECK_RET(CheckTensorShape(gmmParams_.antiquantOffsetOptional, idx, "antiquantOffset") == ACLNN_SUCCESS,
                   ACLNN_ERR_PARAM_INVALID);
     }
+
+    return ACLNN_SUCCESS;
 }
 
 aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantDtype() const
