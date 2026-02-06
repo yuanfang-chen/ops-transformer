@@ -18,6 +18,13 @@
 #include "moe_distribute_dispatch_v2_full_mesh.h"
 #include "moe_distribute_dispatch_v2_tiling_key.h"
 
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
+#include "../common/inc/mc2_moe_context.h"
+#else 
+#include "../../common/inc/mc2_moe_context.h"
+#endif
+
+
 #if defined(__DAV_C310__)
 #include "arch35/moe_distribute_dispatch_arch35.h"
 #endif // defined(__DAV_C310__)
@@ -46,6 +53,8 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 
 #if defined(__DAV_C310__)
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
+    Mc2MoeContext * ptr = (Mc2MoeContext *)(mc2context);
+    ptritf("rankid %d",ptr->rankId);
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         if constexpr (CommMode == TILINGKEY_TPL_CCU) {
             MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
