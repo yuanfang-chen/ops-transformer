@@ -25,10 +25,12 @@
 
 namespace ops {
 #ifdef BUILD_OPEN_PROJECT
+
 ge::Status AlltoAllMatmulGenTaskCallback(const gert::ExeResGenerationContext *context, std::vector<std::vector<uint8_t>> &tasks)
 {
     return Mc2GenTaskOpsUtils::CommonKFCMc2GenTask(context, tasks);
 }
+
 static ge::Status AlltoAllMatmulCalcOpParamFunc(gert::ExeResGenerationContext *context)
 {
     if (Mc2GenTaskOpsUtils::IsTargetPlatformNpuArch(context->GetNodeName(), NPUARCH_A5)) {
