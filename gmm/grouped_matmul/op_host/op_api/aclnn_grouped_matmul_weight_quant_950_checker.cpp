@@ -276,8 +276,8 @@ aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckDimValue(size_t id
     CHECK_COND(yNDim == weightNDim, ACLNN_ERR_PARAM_INVALID,
                "y[%zu] dim n value %zu should equal to weight[%zu] dim n value %zu.", idx, yNDim, idx, weightNDim);
 
-    CHECK_COND(weightNDim > 0, ACLNN_ERR_PARAM_INVALID,
-               "The n dim value should be positive, but the actual value is [%zu].", weightNDim);
+    CHECK_COND(weightNDim >= 0, ACLNN_ERR_PARAM_INVALID,
+               "The n dim value should not be negative, but the actual value is [%zu].", weightNDim);
     CHECK_COND(weightKDim > 0, ACLNN_ERR_PARAM_INVALID,
                "The k dim value should be positive, but the actual value is [%zu].", weightKDim);
 
