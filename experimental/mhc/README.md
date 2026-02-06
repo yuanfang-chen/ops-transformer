@@ -1,6 +1,6 @@
 # mHC 昇腾 AscendC 算子
 
-面向昇腾 NPU 的 mHC（Manifold-Constrained Hyper-Connections，流形约束超连接）算子 AscendC 实现。
+面向昇腾 NPU 的 mHC（Manifold-Constrained Hyper-Connections，流形约束超连接）算子 AscendC 实现，此算子由智子芯元 KernelCAT 智能体生成。
 
 论文：[arXiv:2512.24880](https://arxiv.org/abs/2512.24880)
 
