@@ -210,6 +210,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
     const aclTensor* mc2Context = nullptr;
+    aclnnStatus getWorkspaceSizesRes;
     HcclComm hcclHandle;
     if (is910B) {
         groupTpDispatchV2Temp = "";
@@ -221,7 +222,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
         auto ret =GetMc2Context(groupEp, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
-        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
             groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
@@ -230,7 +231,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
 
     } else if {
-        aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
             x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
             groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
