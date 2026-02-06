@@ -78,7 +78,7 @@ int launchOneThread_AllGatherMm(Args &args)
     LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p\n", args.rankId, hcomName, args.stream);
     std::vector<int64_t> x1Shape = {128, 256};
     std::vector<int64_t> x2Shape = {256, 512};
-    std::vector<int64_t> biasShape = {512};
+    std::vector<int64_t> biasShape = {1024};
     std::vector<int64_t> outShape = {128 * DEV_NUM, 512};
     std::vector<int64_t> gatherOutShape = {128 * DEV_NUM, 256};
     void *x1DeviceAddr = nullptr;
