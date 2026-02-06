@@ -507,7 +507,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
         *context_->GetAttrs()->GetAttrPointer<float>(static_cast<size_t>(AttrIndex::SCALE_VALUE)));
     tilingData.opInfo.set_selectedBlockCount(selected_block_count);
     tilingData.opInfo.set_selectedBlockSize(selected_block_size);
-    bool deterministic =  *context_->GetAttrs()->GetAttrPointer<bool>(static_cast<size_t>(AttrIndex::DETERMINISTIC));
+    bool deterministic =  (context_->GetDeterministic() == 1);
     tilingData.opInfo.set_deterministic(deterministic);
 
     tmpData.d = tilingData.opInfo.get_D();
@@ -538,8 +538,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(SparseFlashAttentionGrad, SparseFlashAttentionGradBasicTiling, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)}), 1);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(SparseFlashAttentionGrad, SparseFlashAttentionGradBasicTiling, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201)}), 1);
 
 } // namespace sfag
 } // namespace optiling
