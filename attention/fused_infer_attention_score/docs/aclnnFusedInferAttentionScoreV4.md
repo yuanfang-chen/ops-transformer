@@ -891,7 +891,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 <details>
 
 <summary><a id="Mask"></a>Mask</summary>
-    <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+    &nbsp;&nbsp;<table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
         <col style="width: 165px">
         <col style="width: 625px">
         <col style="width: 360px">
@@ -1010,7 +1010,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
 <details>
 
 <summary><a id="innerPrecise"></a>innerPrecise</summary>
-说明：
+
+&nbsp;&nbsp;**说明：**
+
 <blockquote>
 BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLOAT16和INT8均生效。<br>
 当前0、1为保留配置值，当计算过程中“参与计算的mask部分”存在某整行全为1的情况时，精度可能会有损失。此时可以尝试将该参数配置为2或3来使能行无效功能以提升精度，但是该配置会导致性能下降。<br>
@@ -1088,7 +1090,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 
 <summary><a id="pseShift"></a>pseShift：</summary>
     <div style="overflow-x: auto;">
-    <table style="undefined;table-layout: fixed;  width: 1460px">
+    &nbsp;&nbsp;<table style="undefined;table-layout: fixed;  width: 1460px">
         <colgroup>
             <col style="width: 130px">
             <col style="width: 190px">
@@ -1154,7 +1156,10 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 
 <summary><a id="INT8"></a>int8量化场景：</summary>
 
+
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+
+
     <table style="undefined;table-layout: fixed;  width: 1150px">
         <colgroup>
             <col style="width: 275px">
@@ -1441,6 +1446,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 <details>
 
 <summary><a id="TND"></a>TND、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：</summary>
+
 - actualSeqLengths和actualSeqLengthsKv必须传入
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
@@ -1527,7 +1533,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 <details>
 
 <summary><a id="MLA"></a>MLA场景（queryRope和keyRope输入不为空时）</summary>
-    <table style="undefined;table-layout: fixed; width: 1389px"><colgroup>
+    &nbsp;&nbsp;<table style="undefined;table-layout: fixed; width: 1389px"><colgroup>
         <col style="width: 158px">
         <col style="width: 125px">
         <col style="width: 226px">
@@ -1708,7 +1714,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 <details>
 
 <summary><a id="GQA"></a>GQA/MHA/MQA伪量化场景下key/value shape为五维时的参数约束如下：</summary>
-<table style="undefined;table-layout: fixed; width: 983px"><colgroup>
+&nbsp;&nbsp;<table style="undefined;table-layout: fixed; width: 983px"><colgroup>
     <col style="width: 96px">
     <col style="width: 104px">
     <col style="width: 179px">
