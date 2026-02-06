@@ -212,6 +212,17 @@ enum class PfaSparseEnum : uint8_t {
     PFA_BAND_LEFT_UP_CAUSAL = 9
 };
 
+ // TODO，这里的取值与接口对不上，但是直接改成下面这样部分场景会出现精度问题，待确认
+// enum PfaAttenMaskCompressMode : uint8_t {
+//     PFA_NO_COMPRESS_MODE = 0,
+//     PFA_LEFT_UP_CAUSAL_MODE = 2,
+//     PFA_RIGHT_DOWN_CAUSAL_MODE = 3,
+//     PFA_BAND_MODE = 4,
+//     PFA_PREFIX_MODE = 5,
+//     PFA_RIGHT_DOWN_CAUSAL_BAND_MODE = 6,
+//     PFA_BAND_LEFT_UP_CAUSAL_MODE = 7
+// };
+
 enum PfaAttenMaskCompressMode : uint8_t {
     PFA_NO_COMPRESS_MODE = 0,
     PFA_LEFT_UP_CAUSAL_MODE,
@@ -1614,7 +1625,8 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
 
     if (queryShapeInfo.s <= 1U) {
-        return false;
+        // return false;
+ 	    return true;
     }
 
     const int32_t nQ = *contextKeyParams.headsNumber;
@@ -1630,7 +1642,7 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     std::string layoutStr(contextKeyParams.layout);
     bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
         layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD";
-    bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
+    bool hasCrossoverAttr = enablePseShift || enableAlibiPse ||
         enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
         enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || isTransposeLayout || enableLearnSink;
 
@@ -1689,7 +1701,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     }
     if (queryShapeInfo.d == MLA_QKD_SIZE && valueShapeInfo.d == MLA_VD_SIZE) {
         enablePFAMLA = true;
-        enablePFAMerge = false;
+        // enablePFAMerge = false;
     }
 
     if(queryShapeInfo.d != valueShapeInfo.d && !enablePFAMLA){
@@ -1826,7 +1838,7 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         return false);
     enableIFA = false;
     enableIFAMask = false;
-    enablePFAMerge = false;
+    // enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
     } else {
@@ -2213,6 +2225,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                 return false);
             // query act seq len padding情况下不支持合轴
             if (actSeqTmp < queryShapeInfo.s) {
+                // TODO，padding场景待适配
                 enablePFAMerge = false;
             }
         }
@@ -4806,6 +4819,8 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
     OP_CHECK_IF(gSize == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "calculate gSize = 0"), return ge::GRAPH_FAILED);
 
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
+        OP_LOGI(contextKeyParams.opName,
+ 	        "enter gs1 merge! enableIFAMLA is %s, enableIFA is %d, enablePFAMerge is %f", enableIFAMLA, enableIFA, enablePFAMerge);
         queryShapeInfo.n = queryShapeInfo.n / gSize;
         queryShapeInfo.s = queryShapeInfo.s * gSize;
     }
