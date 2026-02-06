@@ -1085,19 +1085,35 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
     return ge::GRAPH_SUCCESS;
 }
 
- ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
+ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
  	         auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
  	         auto sinkDataType = context->GetInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+             auto queryShape = context->GetInputShape(QUERY_INDEX);
+             auto learnableSinkShape = context->GetInputShape(LEARNABLE_SINK_INDEX);
+
  	         auto attrs = context->GetAttrs();
  	         int32_t tempInnerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
  	         int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
  	 
- 	         OP_CHECK_IF((sinkDataType != qDataType),
+ 	        OP_CHECK_IF((sinkDataType != qDataType),
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of Q and learnable sink must be consistent"),
  	                 return ge::GRAPH_FAILED);
- 	         OP_CHECK_IF(((sinkDataType != ge::DT_FLOAT16) && (sinkDataType != ge::DT_BF16)),
+
+ 	        OP_CHECK_IF(((sinkDataType != ge::DT_FLOAT16) && (sinkDataType != ge::DT_BF16)),
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of learnable sink must be FP16 or BF16"),
  	                 return ge::GRAPH_FAILED);
+
+            auto sinkDim = learnableSinkShape->GetStorageShape().GetDimNum();
+            OP_CHECK_IF(sinkDim != 1U,
+                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape dim(%u) must be 1!", sinkDim),
+                return ge::GRAPH_FAILED);
+
+            auto sinkDimValue = learnableSinkShape->GetStorageShape().GetDim(DIM_0);
+            auto queryN = queryShape->GetStorageShape().GetDim(DIM_1);
+            OP_CHECK_IF(sinkDimValue != queryN,
+                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape(%u) must be same equal queryN(%u)!", sinkDimValue, queryN),
+                return ge::GRAPH_FAILED);
+
  	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
  	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
