@@ -121,13 +121,13 @@ namespace BSA {
         using EpilogueFAGPost = Epilogue::Block::BlockEpilogue<EpilogueAtlasA2FAGPost, OutputType, UpdateType, InputType>;
 
         // Kernel instantiation
-        using BlockSparseAttentionGradKernelType = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2,BlockMmadCube3,
-                                                                                  EpilogueFAGPre, EpilogueFAGSfmg, EpilogueAtlasA2FAGOp,
-                                                                                  EpilogueAtlasA2FAGPost, InputLayout>;
-        typename BlockSparseAttentionGradKernel::Params params{dout, q, k, v, out, softmaxLse, blockSparseMask, blockShape,
-            attentionMask, actualQseqlen, actualKvseqlen, dq, dk, dv, workspace, tiling};
-        BlockSparseAttentionGradKernelType bsaGradKernel;
-        bsaGradKernel(params);
+        using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2,BlockMmadCube3,
+                                                          EpilogueFAGPre, EpilogueFAGSfmg, EpilogueAtlasA2FAGOp,
+                                                          EpilogueAtlasA2FAGPost, InputLayout>;
+        typename BSAGKernel::Params params{dout, q, k, v, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
+                                           actualQseqlen, actualKvseqlen, dq, dk, dv, workspace, tiling};
+        BSAGKernel kernel;
+        kernel(params);
     }
 }
 
