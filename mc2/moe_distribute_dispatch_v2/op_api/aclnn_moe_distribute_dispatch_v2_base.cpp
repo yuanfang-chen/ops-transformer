@@ -26,7 +26,7 @@
 #include "hccl/hccl_res.h"
 #include "hccl/hccl_types.h"
 #include "hccl/hccl.h"
-#include "hccl/hccl_rping.h"
+#include "hccl/hccn_rping.h"
 #include "hccl/hcomm_primitives.h"
 using namespace Ops::Transformer;
 using namespace op;
