@@ -208,7 +208,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         auto ret =GetMc2Context(groupEp, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         aclnnStatus getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
-            x, expertIds, mc2context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
+            x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
             groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
             sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
