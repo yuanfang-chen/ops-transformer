@@ -404,7 +404,7 @@ public:
             uint32_t innerGOUbOffset = 0;
             uint32_t subBlockStart = (qNBlockSize == 1U) ? rowStart  : rowStart  + rowOffsetLoop;
             subBlockStart  = (qNBlockSize == 1U) ? subBlockStart
-                                                : (subBlockStart > qSThisSubBlock ? subBlockStart - qSThisSubBlock : subBlockStart);
+                                                : (subBlockStart >= qSThisSubBlock ? subBlockStart - qSThisSubBlock : subBlockStart);
             if (delStartRow != 0) {
                 if (proTokenNum != 0U && subBlockStart + proTokenNum  >= delStartRow) {
                     uint32_t start = subBlockStart >= delStartRow ? 0 : delStartRow - subBlockStart;
