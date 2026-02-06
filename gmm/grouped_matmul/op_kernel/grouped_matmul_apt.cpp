@@ -13,6 +13,8 @@
  * \brief
  */
 
+#define STR_HELPER(x) #x
+#define STR(x) STR_HELPER(x)
 #include "grouped_matmul_utils.h"
 #include "arch35/grouped_matmul_tiling_data_apt.h"
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
@@ -224,12 +226,202 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
     }
 #endif
 #if defined(V310_GMM_QUANT_CUBE) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // scale64/perTensor/double perTensor
-    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
-        && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-        GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
-    } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
-        && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-        GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
+    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        do {
+            GmmASWKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, DTYPE_Y, wFormat, false, false> op;
+            GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);
+            GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);
+            GET_TILING_DATA_MEMBER_ADDR(GMMQuantTilingData, gmmArray, gmmArrayAddr_, tiling);
+            // Print gmmQuantParams in C++ assignment format
+            if (GetBlockIdx() == 0) {
+                AscendC::PRINTF(
+                    "[GMM_QUANT] Template types: DTYPE_X=%s, DTYPE_WEIGHT=%s, DTYPE_BIAS=%s, DTYPE_SCALE=%s, "
+                    "DTYPE_Y=%s, wFormat=%d, transX1=false, transX2=false\n",
+                    STR(DTYPE_X), STR(DTYPE_WEIGHT), STR(DTYPE_BIAS), STR(DTYPE_SCALE), STR(DTYPE_Y), wFormat);
+                AscendC::PRINTF("// GMMQuantParams\n");
+                AscendC::PRINTF("gmmQuantParams.groupNum = %u;        // uint32_t: 组数量\n", gmmQuantParams_.groupNum);
+                AscendC::PRINTF("gmmQuantParams.activeType = %u;      // uint32_t: 激活类型\n",
+                                gmmQuantParams_.activeType);
+                AscendC::PRINTF("gmmQuantParams.aQuantMode = %u;      // uint32_t: A矩阵量化模式\n",
+                                gmmQuantParams_.aQuantMode);
+                AscendC::PRINTF("gmmQuantParams.bQuantMode = %u;      // uint32_t: B矩阵量化模式\n",
+                                gmmQuantParams_.bQuantMode);
+                AscendC::PRINTF("gmmQuantParams.singleX = %d;         // uint8_t: 单一X标志\n",
+                                gmmQuantParams_.singleX);
+                AscendC::PRINTF("gmmQuantParams.singleW = %d;         // uint8_t: 单一W标志\n",
+                                gmmQuantParams_.singleW);
+                AscendC::PRINTF("gmmQuantParams.singleY = %d;         // uint8_t: 单一Y标志\n",
+                                gmmQuantParams_.singleY);
+                AscendC::PRINTF("gmmQuantParams.groupType = %d;       // int8_t: 组类型\n", gmmQuantParams_.groupType);
+                AscendC::PRINTF("gmmQuantParams.groupListType = %d;   // uint8_t: 组列表类型\n",
+                                gmmQuantParams_.groupListType);
+                AscendC::PRINTF("gmmQuantParams.hasBias = %d;         // uint8_t: 是否有偏置\n",
+                                gmmQuantParams_.hasBias);
+                AscendC::PRINTF("gmmQuantParams.reserved = %d;        // uint16_t: 保留字段\n",
+                                gmmQuantParams_.reserved);
+                // Print gmmArray in C++ assignment format (all groups)
+                AscendC::PRINTF("// GMMArray (all %u groups)\n", gmmQuantParams_.groupNum);
+                for (int32_t i = 0; i < static_cast<int32_t>(gmmQuantParams_.groupNum); i++) {
+                    AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, *(gmmArrayAddr_ + i));
+                    AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, *(gmmArrayAddr_ + 128 + i));
+                    AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, *(gmmArrayAddr_ + 256 + i));
+                }
+                // Print mmTilingData all fields
+                AscendC::PRINTF("// TCubeTiling\n");
+                AscendC::PRINTF("mmTilingData.usedCoreNum = %d;    // 使用的核心数\n", mmTilingData_.usedCoreNum);
+                AscendC::PRINTF("mmTilingData.M = %d;              // M维度\n", mmTilingData_.M);
+                AscendC::PRINTF("mmTilingData.N = %d;              // N维度\n", mmTilingData_.N);
+                AscendC::PRINTF("mmTilingData.Ka = %d;             // Ka维度\n", mmTilingData_.Ka);
+                AscendC::PRINTF("mmTilingData.Kb = %d;             // Kb维度\n", mmTilingData_.Kb);
+                AscendC::PRINTF("mmTilingData.singleCoreM = %d;    // 单核M维度\n", mmTilingData_.singleCoreM);
+                AscendC::PRINTF("mmTilingData.singleCoreN = %d;    // 单核N维度\n", mmTilingData_.singleCoreN);
+                AscendC::PRINTF("mmTilingData.singleCoreK = %d;    // 单核K维度\n", mmTilingData_.singleCoreK);
+                AscendC::PRINTF("mmTilingData.baseM = %d;          // 基准M\n", mmTilingData_.baseM);
+                AscendC::PRINTF("mmTilingData.baseN = %d;          // 基准N\n", mmTilingData_.baseN);
+                AscendC::PRINTF("mmTilingData.baseK = %d;          // 基准K\n", mmTilingData_.baseK);
+                AscendC::PRINTF("mmTilingData.depthA1 = %d;        // A1深度\n", mmTilingData_.depthA1);
+                AscendC::PRINTF("mmTilingData.depthB1 = %d;        // B1深度\n", mmTilingData_.depthB1);
+                AscendC::PRINTF("mmTilingData.stepM = %d;          // M步长\n", mmTilingData_.stepM);
+                AscendC::PRINTF("mmTilingData.stepN = %d;          // N步长\n", mmTilingData_.stepN);
+                AscendC::PRINTF("mmTilingData.isBias = %d;         // 是否有偏置\n", mmTilingData_.isBias);
+                AscendC::PRINTF("mmTilingData.transLength = %d;    // 转置长度\n", mmTilingData_.transLength);
+                AscendC::PRINTF("mmTilingData.iterateOrder = %d;   // 迭代顺序\n", mmTilingData_.iterateOrder);
+                AscendC::PRINTF("mmTilingData.shareMode = %d;      // 共享模式\n", mmTilingData_.shareMode);
+                AscendC::PRINTF("mmTilingData.shareL1Size = %d;    // L1共享大小\n", mmTilingData_.shareL1Size);
+                AscendC::PRINTF("mmTilingData.shareL0CSize = %d;   // L0C共享大小\n", mmTilingData_.shareL0CSize);
+                AscendC::PRINTF("mmTilingData.shareUbSize = %d;    // UB共享大小\n", mmTilingData_.shareUbSize);
+                AscendC::PRINTF("mmTilingData.batchM = %d;         // 批处理M\n", mmTilingData_.batchM);
+                AscendC::PRINTF("mmTilingData.batchN = %d;         // 批处理N\n", mmTilingData_.batchN);
+                AscendC::PRINTF("mmTilingData.singleBatchM = %d;   // 单批M\n", mmTilingData_.singleBatchM);
+                AscendC::PRINTF("mmTilingData.singleBatchN = %d;   // 单批N\n", mmTilingData_.singleBatchN);
+                AscendC::PRINTF("mmTilingData.stepKa = %d;         // Ka步长\n", mmTilingData_.stepKa);
+                AscendC::PRINTF("mmTilingData.stepKb = %d;         // Kb步长\n", mmTilingData_.stepKb);
+                AscendC::PRINTF("mmTilingData.depthAL1CacheUB = %d; // AL1缓存UB深度\n", mmTilingData_.depthAL1CacheUB);
+                AscendC::PRINTF("mmTilingData.depthBL1CacheUB = %d; // BL1缓存UB深度\n", mmTilingData_.depthBL1CacheUB);
+                AscendC::PRINTF("mmTilingData.dbL0A = %d;          // L0A双缓冲\n", mmTilingData_.dbL0A);
+                AscendC::PRINTF("mmTilingData.dbL0B = %d;          // L0B双缓冲\n", mmTilingData_.dbL0B);
+                AscendC::PRINTF("mmTilingData.dbL0C = %d;          // L0C双缓冲\n", mmTilingData_.dbL0C);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoB = %d;   // A布局B\n", mmTilingData_.ALayoutInfoB);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoS = %d;   // A布局S\n", mmTilingData_.ALayoutInfoS);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoN = %d;   // A布局N\n", mmTilingData_.ALayoutInfoN);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoG = %d;   // A布局G\n", mmTilingData_.ALayoutInfoG);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoD = %d;   // A布局D\n", mmTilingData_.ALayoutInfoD);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoB = %d;   // B布局B\n", mmTilingData_.BLayoutInfoB);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoS = %d;   // B布局S\n", mmTilingData_.BLayoutInfoS);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoN = %d;   // B布局N\n", mmTilingData_.BLayoutInfoN);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoG = %d;   // B布局G\n", mmTilingData_.BLayoutInfoG);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoD = %d;   // B布局D\n", mmTilingData_.BLayoutInfoD);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoB = %d;   // C布局B\n", mmTilingData_.CLayoutInfoB);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoS1 = %d;  // C布局S1\n", mmTilingData_.CLayoutInfoS1);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoN = %d;   // C布局N\n", mmTilingData_.CLayoutInfoN);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoG = %d;   // C布局G\n", mmTilingData_.CLayoutInfoG);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoS2 = %d;  // C布局S2\n", mmTilingData_.CLayoutInfoS2);
+                AscendC::PRINTF("mmTilingData.BatchNum = %d;       // 批次数\n", mmTilingData_.BatchNum);
+                AscendC::PRINTF("mmTilingData.mxTypePara = %d;     // mx类型参数\n", mmTilingData_.mxTypePara);
+            }
+            op.Init(x, weight, bias, scale, groupList, perTokenScale, y, user1, &gmmQuantParams_, &mmTilingData_,
+                    gmmArrayAddr_, &tPipe);
+            op.Process();
+        } while (0);
+    } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&
+                         KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        do {
+            // 宏字符串化辅助宏
+            GmmASWKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, DTYPE_Y, wFormat, false, true> op;
+            GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);
+            GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);
+            GET_TILING_DATA_MEMBER_ADDR(GMMQuantTilingData, gmmArray, gmmArrayAddr_, tiling);
+            // Print gmmQuantParams in C++ assignment format
+            if (GetBlockIdx() == 0) {
+                AscendC::PRINTF("[GMM_QUANT] Template types: DTYPE_X=%s, DTYPE_WEIGHT=%s, DTYPE_BIAS=%s, "
+                                "DTYPE_SCALE=%s, DTYPE_Y=%s, wFormat=%d, transX1=false, transX2=true\n",
+                                STR(DTYPE_X), STR(DTYPE_WEIGHT), STR(DTYPE_BIAS), STR(DTYPE_SCALE), STR(DTYPE_Y),
+                                wFormat);
+                AscendC::PRINTF("// GMMQuantParams\n");
+                AscendC::PRINTF("gmmQuantParams.groupNum = %u;        // uint32_t: 组数量\n", gmmQuantParams_.groupNum);
+                AscendC::PRINTF("gmmQuantParams.activeType = %u;      // uint32_t: 激活类型\n",
+                                gmmQuantParams_.activeType);
+                AscendC::PRINTF("gmmQuantParams.aQuantMode = %u;      // uint32_t: A矩阵量化模式\n",
+                                gmmQuantParams_.aQuantMode);
+                AscendC::PRINTF("gmmQuantParams.bQuantMode = %u;      // uint32_t: B矩阵量化模式\n",
+                                gmmQuantParams_.bQuantMode);
+                AscendC::PRINTF("gmmQuantParams.singleX = %d;         // uint8_t: 单一X标志\n",
+                                gmmQuantParams_.singleX);
+                AscendC::PRINTF("gmmQuantParams.singleW = %d;         // uint8_t: 单一W标志\n",
+                                gmmQuantParams_.singleW);
+                AscendC::PRINTF("gmmQuantParams.singleY = %d;         // uint8_t: 单一Y标志\n",
+                                gmmQuantParams_.singleY);
+                AscendC::PRINTF("gmmQuantParams.groupType = %d;       // int8_t: 组类型\n", gmmQuantParams_.groupType);
+                AscendC::PRINTF("gmmQuantParams.groupListType = %d;   // uint8_t: 组列表类型\n",
+                                gmmQuantParams_.groupListType);
+                AscendC::PRINTF("gmmQuantParams.hasBias = %d;         // uint8_t: 是否有偏置\n",
+                                gmmQuantParams_.hasBias);
+                AscendC::PRINTF("gmmQuantParams.reserved = %d;        // uint16_t: 保留字段\n",
+                                gmmQuantParams_.reserved);
+                // Print gmmArray in C++ assignment format (all groups)
+                AscendC::PRINTF("// GMMArray (all %u groups)\n", gmmQuantParams_.groupNum);
+                for (int32_t i = 0; i < static_cast<int32_t>(gmmQuantParams_.groupNum); i++) {
+                    AscendC::PRINTF("gmmArray.mList[%d] = %d;   // M维度\n", i, *(gmmArrayAddr_ + i));
+                    AscendC::PRINTF("gmmArray.kList[%d] = %d;   // K维度\n", i, *(gmmArrayAddr_ + 128 + i));
+                    AscendC::PRINTF("gmmArray.nList[%d] = %d;   // N维度\n", i, *(gmmArrayAddr_ + 256 + i));
+                }
+                // Print mmTilingData all fields
+                AscendC::PRINTF("// TCubeTiling\n");
+                AscendC::PRINTF("mmTilingData.usedCoreNum = %d;    // 使用的核心数\n", mmTilingData_.usedCoreNum);
+                AscendC::PRINTF("mmTilingData.M = %d;              // M维度\n", mmTilingData_.M);
+                AscendC::PRINTF("mmTilingData.N = %d;              // N维度\n", mmTilingData_.N);
+                AscendC::PRINTF("mmTilingData.Ka = %d;             // Ka维度\n", mmTilingData_.Ka);
+                AscendC::PRINTF("mmTilingData.Kb = %d;             // Kb维度\n", mmTilingData_.Kb);
+                AscendC::PRINTF("mmTilingData.singleCoreM = %d;    // 单核M维度\n", mmTilingData_.singleCoreM);
+                AscendC::PRINTF("mmTilingData.singleCoreN = %d;    // 单核N维度\n", mmTilingData_.singleCoreN);
+                AscendC::PRINTF("mmTilingData.singleCoreK = %d;    // 单核K维度\n", mmTilingData_.singleCoreK);
+                AscendC::PRINTF("mmTilingData.baseM = %d;          // 基准M\n", mmTilingData_.baseM);
+                AscendC::PRINTF("mmTilingData.baseN = %d;          // 基准N\n", mmTilingData_.baseN);
+                AscendC::PRINTF("mmTilingData.baseK = %d;          // 基准K\n", mmTilingData_.baseK);
+                AscendC::PRINTF("mmTilingData.depthA1 = %d;        // A1深度\n", mmTilingData_.depthA1);
+                AscendC::PRINTF("mmTilingData.depthB1 = %d;        // B1深度\n", mmTilingData_.depthB1);
+                AscendC::PRINTF("mmTilingData.stepM = %d;          // M步长\n", mmTilingData_.stepM);
+                AscendC::PRINTF("mmTilingData.stepN = %d;          // N步长\n", mmTilingData_.stepN);
+                AscendC::PRINTF("mmTilingData.isBias = %d;         // 是否有偏置\n", mmTilingData_.isBias);
+                AscendC::PRINTF("mmTilingData.transLength = %d;    // 转置长度\n", mmTilingData_.transLength);
+                AscendC::PRINTF("mmTilingData.iterateOrder = %d;   // 迭代顺序\n", mmTilingData_.iterateOrder);
+                AscendC::PRINTF("mmTilingData.shareMode = %d;      // 共享模式\n", mmTilingData_.shareMode);
+                AscendC::PRINTF("mmTilingData.shareL1Size = %d;    // L1共享大小\n", mmTilingData_.shareL1Size);
+                AscendC::PRINTF("mmTilingData.shareL0CSize = %d;   // L0C共享大小\n", mmTilingData_.shareL0CSize);
+                AscendC::PRINTF("mmTilingData.shareUbSize = %d;    // UB共享大小\n", mmTilingData_.shareUbSize);
+                AscendC::PRINTF("mmTilingData.batchM = %d;         // 批处理M\n", mmTilingData_.batchM);
+                AscendC::PRINTF("mmTilingData.batchN = %d;         // 批处理N\n", mmTilingData_.batchN);
+                AscendC::PRINTF("mmTilingData.singleBatchM = %d;   // 单批M\n", mmTilingData_.singleBatchM);
+                AscendC::PRINTF("mmTilingData.singleBatchN = %d;   // 单批N\n", mmTilingData_.singleBatchN);
+                AscendC::PRINTF("mmTilingData.stepKa = %d;         // Ka步长\n", mmTilingData_.stepKa);
+                AscendC::PRINTF("mmTilingData.stepKb = %d;         // Kb步长\n", mmTilingData_.stepKb);
+                AscendC::PRINTF("mmTilingData.depthAL1CacheUB = %d; // AL1缓存UB深度\n", mmTilingData_.depthAL1CacheUB);
+                AscendC::PRINTF("mmTilingData.depthBL1CacheUB = %d; // BL1缓存UB深度\n", mmTilingData_.depthBL1CacheUB);
+                AscendC::PRINTF("mmTilingData.dbL0A = %d;          // L0A双缓冲\n", mmTilingData_.dbL0A);
+                AscendC::PRINTF("mmTilingData.dbL0B = %d;          // L0B双缓冲\n", mmTilingData_.dbL0B);
+                AscendC::PRINTF("mmTilingData.dbL0C = %d;          // L0C双缓冲\n", mmTilingData_.dbL0C);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoB = %d;   // A布局B\n", mmTilingData_.ALayoutInfoB);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoS = %d;   // A布局S\n", mmTilingData_.ALayoutInfoS);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoN = %d;   // A布局N\n", mmTilingData_.ALayoutInfoN);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoG = %d;   // A布局G\n", mmTilingData_.ALayoutInfoG);
+                AscendC::PRINTF("mmTilingData.ALayoutInfoD = %d;   // A布局D\n", mmTilingData_.ALayoutInfoD);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoB = %d;   // B布局B\n", mmTilingData_.BLayoutInfoB);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoS = %d;   // B布局S\n", mmTilingData_.BLayoutInfoS);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoN = %d;   // B布局N\n", mmTilingData_.BLayoutInfoN);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoG = %d;   // B布局G\n", mmTilingData_.BLayoutInfoG);
+                AscendC::PRINTF("mmTilingData.BLayoutInfoD = %d;   // B布局D\n", mmTilingData_.BLayoutInfoD);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoB = %d;   // C布局B\n", mmTilingData_.CLayoutInfoB);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoS1 = %d;  // C布局S1\n", mmTilingData_.CLayoutInfoS1);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoN = %d;   // C布局N\n", mmTilingData_.CLayoutInfoN);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoG = %d;   // C布局G\n", mmTilingData_.CLayoutInfoG);
+                AscendC::PRINTF("mmTilingData.CLayoutInfoS2 = %d;  // C布局S2\n", mmTilingData_.CLayoutInfoS2);
+                AscendC::PRINTF("mmTilingData.BatchNum = %d;       // 批次数\n", mmTilingData_.BatchNum);
+                AscendC::PRINTF("mmTilingData.mxTypePara = %d;     // mx类型参数\n", mmTilingData_.mxTypePara);
+            }
+            op.Init(x, weight, bias, scale, groupList, perTokenScale, y, user1, &gmmQuantParams_, &mmTilingData_,
+                    gmmArrayAddr_, &tPipe);
+            op.Process();
+        } while (0);
     }
 #endif
 #if defined(V310_GMM_QUANT_MX) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // mx/perTensor/double perTensor

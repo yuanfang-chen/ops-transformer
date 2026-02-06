@@ -1,0 +1,792 @@
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1042864, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[GMM_QUANT] Template types: DTYPE_X=hifloat8_t, DTYPE_WEIGHT=hifloat8_t, DTYPE_BIAS=float, DTYPE_SCALE=float, DTYPE_Y=bfloat16_t, wFormat=0, transX1=false, transX2=true
+// GMMQuantParams
+gmmQuantParams.groupNum = 2;        // uint32_t: 组数量
+gmmQuantParams.activeType = 0;      // uint32_t: 激活类型
+gmmQuantParams.aQuantMode = 1;      // uint32_t: A矩阵量化模式
+gmmQuantParams.bQuantMode = 1;      // uint32_t: B矩阵量化模式
+gmmQuantParams.singleX = 1;         // uint8_t: 单一X标志
+gmmQuantParams.singleW = 1;         // uint8_t: 单一W标志
+gmmQuantParams.singleY = 1;         // uint8_t: 单一Y标志
+gmmQuantParams.groupType = 0;       // int8_t: 组类型
+gmmQuantParams.groupListType = 0;   // uint8_t: 组列表类型
+gmmQuantParams.hasBias = 0;         // uint8_t: 是否有偏置
+gmmQuantParams.reserved = 0;        // uint16_t: 保留字段
+// GMMArray (all 2 groups)
+gmmArray.mList[0] = -1;   // M维度
+gmmArray.kList[0] = 512;   // K维度
+gmmArray.nList[0] = 7168;   // N维度
+gmmArray.mList[1] = 0;   // M维度
+gmmArray.kList[1] = 0;   // K维度
+gmmArray.nList[1] = 0;   // N维度
+// TCubeTiling
+mmTilingData.usedCoreNum = 36;    // 使用的核心数
+mmTilingData.M = 576;              // M维度
+mmTilingData.N = 7168;              // N维度
+mmTilingData.Ka = 512;             // Ka维度
+mmTilingData.Kb = 512;             // Kb维度
+mmTilingData.singleCoreM = 256;    // 单核M维度
+mmTilingData.singleCoreN = 256;    // 单核N维度
+mmTilingData.singleCoreK = 512;    // 单核K维度
+mmTilingData.baseM = 256;          // 基准M
+mmTilingData.baseN = 256;          // 基准N
+mmTilingData.baseK = 128;          // 基准K
+mmTilingData.depthA1 = 8;        // A1深度
+mmTilingData.depthB1 = 8;        // B1深度
+mmTilingData.stepM = 1;          // M步长
+mmTilingData.stepN = 1;          // N步长
+mmTilingData.isBias = 0;         // 是否有偏置
+mmTilingData.transLength = 0;    // 转置长度
+mmTilingData.iterateOrder = 0;   // 迭代顺序
+mmTilingData.shareMode = 0;      // 共享模式
+mmTilingData.shareL1Size = 0;    // L1共享大小
+mmTilingData.shareL0CSize = 0;   // L0C共享大小
+mmTilingData.shareUbSize = 0;    // UB共享大小
+mmTilingData.batchM = 0;         // 批处理M
+mmTilingData.batchN = 0;         // 批处理N
+mmTilingData.singleBatchM = 0;   // 单批M
+mmTilingData.singleBatchN = 0;   // 单批N
+mmTilingData.stepKa = 4;         // Ka步长
+mmTilingData.stepKb = 4;         // Kb步长
+mmTilingData.depthAL1CacheUB = 0; // AL1缓存UB深度
+mmTilingData.depthBL1CacheUB = 0; // BL1缓存UB深度
+mmTilingData.dbL0A = 2;          // L0A双缓冲
+mmTilingData.dbL0B = 2;          // L0B双缓冲
+mmTilingData.dbL0C = 1;          // L0C双缓冲
+mmTilingData.ALayoutInfoB = 0;   // A布局B
+mmTilingData.ALayoutInfoS = 0;   // A布局S
+mmTilingData.ALayoutInfoN = 0;   // A布局N
+mmTilingData.ALayoutInfoG = 0;   // A布局G
+mmTilingData.ALayoutInfoD = 0;   // A布局D
+mmTilingData.BLayoutInfoB = 0;   // B布局B
+mmTilingData.BLayoutInfoS = 0;   // B布局S
+mmTilingData.BLayoutInfoN = 0;   // B布局N
+mmTilingData.BLayoutInfoG = 0;   // B布局G
+mmTilingData.BLayoutInfoD = 0;   // B布局D
+mmTilingData.CLayoutInfoB = 0;   // C布局B
+mmTilingData.CLayoutInfoS1 = 0;  // C布局S1
+mmTilingData.CLayoutInfoN = 0;   // C布局N
+mmTilingData.CLayoutInfoG = 0;   // C布局G
+mmTilingData.CLayoutInfoS2 = 0;  // C布局S2
+mmTilingData.BatchNum = 0;       // 批次数
+mmTilingData.mxTypePara = 0;     // mx类型参数
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-32, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-33, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-34, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-35, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[W204 16:15:27.089381120 ToKernelNpu.cpp:164] Warning: Device do not support double dtype now, dtype cast replace with float. (function operator())
+x_shape=(576, 512)
+weight_shape=(2, 7168, 512)
+group_list=[100, 576]
+npu_out=[tensor([[-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00],
+        [-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00],
+        [-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00],
+        ...,
+        [2.3097e-07, 2.6450e-07, 3.1292e-07,  ..., 2.7195e-07, 2.7381e-07,
+         2.7381e-07],
+        [2.3842e-07, 2.6636e-07, 3.1851e-07,  ..., 2.9430e-07, 2.7940e-07,
+         2.8126e-07],
+        [2.3842e-07, 2.6077e-07, 2.9989e-07,  ..., 2.6263e-07, 2.7195e-07,
+         2.8126e-07]], device='npu:0', dtype=torch.bfloat16)]
+=====================================
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1042864, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[GMM_QUANT] Template types: DTYPE_X=hifloat8_t, DTYPE_WEIGHT=hifloat8_t, DTYPE_BIAS=float, DTYPE_SCALE=float, DTYPE_Y=bfloat16_t, wFormat=0, transX1=false, transX2=true
+// GMMQuantParams
+gmmQuantParams.groupNum = 2;        // uint32_t: 组数量
+gmmQuantParams.activeType = 0;      // uint32_t: 激活类型
+gmmQuantParams.aQuantMode = 1;      // uint32_t: A矩阵量化模式
+gmmQuantParams.bQuantMode = 1;      // uint32_t: B矩阵量化模式
+gmmQuantParams.singleX = 1;         // uint8_t: 单一X标志
+gmmQuantParams.singleW = 1;         // uint8_t: 单一W标志
+gmmQuantParams.singleY = 1;         // uint8_t: 单一Y标志
+gmmQuantParams.groupType = 0;       // int8_t: 组类型
+gmmQuantParams.groupListType = 0;   // uint8_t: 组列表类型
+gmmQuantParams.hasBias = 0;         // uint8_t: 是否有偏置
+gmmQuantParams.reserved = 0;        // uint16_t: 保留字段
+// GMMArray (all 2 groups)
+gmmArray.mList[0] = -1;   // M维度
+gmmArray.kList[0] = 512;   // K维度
+gmmArray.nList[0] = 7168;   // N维度
+gmmArray.mList[1] = 0;   // M维度
+gmmArray.kList[1] = 0;   // K维度
+gmmArray.nList[1] = 0;   // N维度
+// TCubeTiling
+mmTilingData.usedCoreNum = 36;    // 使用的核心数
+mmTilingData.M = 576;              // M维度
+mmTilingData.N = 7168;              // N维度
+mmTilingData.Ka = 512;             // Ka维度
+mmTilingData.Kb = 512;             // Kb维度
+mmTilingData.singleCoreM = 256;    // 单核M维度
+mmTilingData.singleCoreN = 256;    // 单核N维度
+mmTilingData.singleCoreK = 512;    // 单核K维度
+mmTilingData.baseM = 256;          // 基准M
+mmTilingData.baseN = 256;          // 基准N
+mmTilingData.baseK = 128;          // 基准K
+mmTilingData.depthA1 = 8;        // A1深度
+mmTilingData.depthB1 = 8;        // B1深度
+mmTilingData.stepM = 1;          // M步长
+mmTilingData.stepN = 1;          // N步长
+mmTilingData.isBias = 0;         // 是否有偏置
+mmTilingData.transLength = 0;    // 转置长度
+mmTilingData.iterateOrder = 0;   // 迭代顺序
+mmTilingData.shareMode = 0;      // 共享模式
+mmTilingData.shareL1Size = 0;    // L1共享大小
+mmTilingData.shareL0CSize = 0;   // L0C共享大小
+mmTilingData.shareUbSize = 0;    // UB共享大小
+mmTilingData.batchM = 0;         // 批处理M
+mmTilingData.batchN = 0;         // 批处理N
+mmTilingData.singleBatchM = 0;   // 单批M
+mmTilingData.singleBatchN = 0;   // 单批N
+mmTilingData.stepKa = 4;         // Ka步长
+mmTilingData.stepKb = 4;         // Kb步长
+mmTilingData.depthAL1CacheUB = 0; // AL1缓存UB深度
+mmTilingData.depthBL1CacheUB = 0; // BL1缓存UB深度
+mmTilingData.dbL0A = 2;          // L0A双缓冲
+mmTilingData.dbL0B = 2;          // L0B双缓冲
+mmTilingData.dbL0C = 1;          // L0C双缓冲
+mmTilingData.ALayoutInfoB = 0;   // A布局B
+mmTilingData.ALayoutInfoS = 0;   // A布局S
+mmTilingData.ALayoutInfoN = 0;   // A布局N
+mmTilingData.ALayoutInfoG = 0;   // A布局G
+mmTilingData.ALayoutInfoD = 0;   // A布局D
+mmTilingData.BLayoutInfoB = 0;   // B布局B
+mmTilingData.BLayoutInfoS = 0;   // B布局S
+mmTilingData.BLayoutInfoN = 0;   // B布局N
+mmTilingData.BLayoutInfoG = 0;   // B布局G
+mmTilingData.BLayoutInfoD = 0;   // B布局D
+mmTilingData.CLayoutInfoB = 0;   // C布局B
+mmTilingData.CLayoutInfoS1 = 0;  // C布局S1
+mmTilingData.CLayoutInfoN = 0;   // C布局N
+mmTilingData.CLayoutInfoG = 0;   // C布局G
+mmTilingData.CLayoutInfoS2 = 0;  // C布局S2
+mmTilingData.BatchNum = 0;       // 批次数
+mmTilingData.mxTypePara = 0;     // mx类型参数
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-32, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-33, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-34, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-35, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[W204 16:20:59.437922933 ToKernelNpu.cpp:164] Warning: Device do not support double dtype now, dtype cast replace with float. (function operator())
+x_shape=(576, 512)
+weight_shape=(2, 7168, 512)
+group_list=[301, 576]
+npu_out=[tensor([[2.6636e-07, 2.4773e-07, 2.6077e-07,  ..., 2.5146e-07, 2.7567e-07,
+         2.5332e-07],
+        [2.5146e-07, 2.8312e-07, 2.6636e-07,  ..., 2.5146e-07, 2.8126e-07,
+         2.7381e-07],
+        [2.5705e-07, 2.7567e-07, 2.7567e-07,  ..., 2.3283e-07, 2.8871e-07,
+         2.3283e-07],
+        ...,
+        [-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00],
+        [-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00],
+        [-0.0000e+00, -0.0000e+00, -0.0000e+00,  ..., -0.0000e+00, -0.0000e+00,
+         -0.0000e+00]], device='npu:0', dtype=torch.bfloat16)]
+=============================================
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1043080, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[GMM_QUANT] Template types: DTYPE_X=hifloat8_t, DTYPE_WEIGHT=hifloat8_t, DTYPE_BIAS=float, DTYPE_SCALE=float, DTYPE_Y=bfloat16_t, wFormat=0, transX1=false, transX2=true
+// GMMQuantParams
+gmmQuantParams.groupNum = 1;        // uint32_t: 组数量
+gmmQuantParams.activeType = 0;      // uint32_t: 激活类型
+gmmQuantParams.aQuantMode = 1;      // uint32_t: A矩阵量化模式
+gmmQuantParams.bQuantMode = 1;      // uint32_t: B矩阵量化模式
+gmmQuantParams.singleX = 1;         // uint8_t: 单一X标志
+gmmQuantParams.singleW = 1;         // uint8_t: 单一W标志
+gmmQuantParams.singleY = 1;         // uint8_t: 单一Y标志
+gmmQuantParams.groupType = 0;       // int8_t: 组类型
+gmmQuantParams.groupListType = 0;   // uint8_t: 组列表类型
+gmmQuantParams.hasBias = 0;         // uint8_t: 是否有偏置
+gmmQuantParams.reserved = 0;        // uint16_t: 保留字段
+// GMMArray (all 1 groups)
+gmmArray.mList[0] = -1;   // M维度
+gmmArray.kList[0] = 512;   // K维度
+gmmArray.nList[0] = 7168;   // N维度
+// TCubeTiling
+mmTilingData.usedCoreNum = 36;    // 使用的核心数
+mmTilingData.M = 576;              // M维度
+mmTilingData.N = 7168;              // N维度
+mmTilingData.Ka = 512;             // Ka维度
+mmTilingData.Kb = 512;             // Kb维度
+mmTilingData.singleCoreM = 256;    // 单核M维度
+mmTilingData.singleCoreN = 256;    // 单核N维度
+mmTilingData.singleCoreK = 512;    // 单核K维度
+mmTilingData.baseM = 256;          // 基准M
+mmTilingData.baseN = 256;          // 基准N
+mmTilingData.baseK = 128;          // 基准K
+mmTilingData.depthA1 = 8;        // A1深度
+mmTilingData.depthB1 = 8;        // B1深度
+mmTilingData.stepM = 1;          // M步长
+mmTilingData.stepN = 1;          // N步长
+mmTilingData.isBias = 0;         // 是否有偏置
+mmTilingData.transLength = 0;    // 转置长度
+mmTilingData.iterateOrder = 0;   // 迭代顺序
+mmTilingData.shareMode = 0;      // 共享模式
+mmTilingData.shareL1Size = 0;    // L1共享大小
+mmTilingData.shareL0CSize = 0;   // L0C共享大小
+mmTilingData.shareUbSize = 0;    // UB共享大小
+mmTilingData.batchM = 0;         // 批处理M
+mmTilingData.batchN = 0;         // 批处理N
+mmTilingData.singleBatchM = 0;   // 单批M
+mmTilingData.singleBatchN = 0;   // 单批N
+mmTilingData.stepKa = 4;         // Ka步长
+mmTilingData.stepKb = 4;         // Kb步长
+mmTilingData.depthAL1CacheUB = 0; // AL1缓存UB深度
+mmTilingData.depthBL1CacheUB = 0; // BL1缓存UB深度
+mmTilingData.dbL0A = 2;          // L0A双缓冲
+mmTilingData.dbL0B = 2;          // L0B双缓冲
+mmTilingData.dbL0C = 1;          // L0C双缓冲
+mmTilingData.ALayoutInfoB = 0;   // A布局B
+mmTilingData.ALayoutInfoS = 0;   // A布局S
+mmTilingData.ALayoutInfoN = 0;   // A布局N
+mmTilingData.ALayoutInfoG = 0;   // A布局G
+mmTilingData.ALayoutInfoD = 0;   // A布局D
+mmTilingData.BLayoutInfoB = 0;   // B布局B
+mmTilingData.BLayoutInfoS = 0;   // B布局S
+mmTilingData.BLayoutInfoN = 0;   // B布局N
+mmTilingData.BLayoutInfoG = 0;   // B布局G
+mmTilingData.BLayoutInfoD = 0;   // B布局D
+mmTilingData.CLayoutInfoB = 0;   // C布局B
+mmTilingData.CLayoutInfoS1 = 0;  // C布局S1
+mmTilingData.CLayoutInfoN = 0;   // C布局N
+mmTilingData.CLayoutInfoG = 0;   // C布局G
+mmTilingData.CLayoutInfoS2 = 0;  // C布局S2
+mmTilingData.BatchNum = 0;       // 批次数
+mmTilingData.mxTypePara = 0;     // mx类型参数
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-32, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-33, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-34, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-35, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+x_shape=(576, 512)
+weight_shape=(1, 7168, 512)
+group_list=[576]
+npu_out=[tensor([[-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        ...,
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.]], device='npu:0',
+       dtype=torch.bfloat16)]
+CANN Version: 9.0.0, TimeStamp: 202602
+========================================
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1043080, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[GMM_QUANT] Template types: DTYPE_X=hifloat8_t, DTYPE_WEIGHT=hifloat8_t, DTYPE_BIAS=float, DTYPE_SCALE=float, DTYPE_Y=bfloat16_t, wFormat=0, transX1=false, transX2=true
+// GMMQuantParams
+gmmQuantParams.groupNum = 1;        // uint32_t: 组数量
+gmmQuantParams.activeType = 0;      // uint32_t: 激活类型
+gmmQuantParams.aQuantMode = 1;      // uint32_t: A矩阵量化模式
+gmmQuantParams.bQuantMode = 1;      // uint32_t: B矩阵量化模式
+gmmQuantParams.singleX = 1;         // uint8_t: 单一X标志
+gmmQuantParams.singleW = 1;         // uint8_t: 单一W标志
+gmmQuantParams.singleY = 1;         // uint8_t: 单一Y标志
+gmmQuantParams.groupType = 0;       // int8_t: 组类型
+gmmQuantParams.groupListType = 0;   // uint8_t: 组列表类型
+gmmQuantParams.hasBias = 0;         // uint8_t: 是否有偏置
+gmmQuantParams.reserved = 0;        // uint16_t: 保留字段
+// GMMArray (all 1 groups)
+gmmArray.mList[0] = -1;   // M维度
+gmmArray.kList[0] = 512;   // K维度
+gmmArray.nList[0] = 7168;   // N维度
+// TCubeTiling
+mmTilingData.usedCoreNum = 36;    // 使用的核心数
+mmTilingData.M = 12;              // M维度
+mmTilingData.N = 7168;              // N维度
+mmTilingData.Ka = 512;             // Ka维度
+mmTilingData.Kb = 512;             // Kb维度
+mmTilingData.singleCoreM = 12;    // 单核M维度
+mmTilingData.singleCoreN = 256;    // 单核N维度
+mmTilingData.singleCoreK = 512;    // 单核K维度
+mmTilingData.baseM = 16;          // 基准M
+mmTilingData.baseN = 256;          // 基准N
+mmTilingData.baseK = 128;          // 基准K
+mmTilingData.depthA1 = 8;        // A1深度
+mmTilingData.depthB1 = 8;        // B1深度
+mmTilingData.stepM = 1;          // M步长
+mmTilingData.stepN = 1;          // N步长
+mmTilingData.isBias = 0;         // 是否有偏置
+mmTilingData.transLength = 0;    // 转置长度
+mmTilingData.iterateOrder = 0;   // 迭代顺序
+mmTilingData.shareMode = 0;      // 共享模式
+mmTilingData.shareL1Size = 0;    // L1共享大小
+mmTilingData.shareL0CSize = 0;   // L0C共享大小
+mmTilingData.shareUbSize = 0;    // UB共享大小
+mmTilingData.batchM = 0;         // 批处理M
+mmTilingData.batchN = 0;         // 批处理N
+mmTilingData.singleBatchM = 0;   // 单批M
+mmTilingData.singleBatchN = 0;   // 单批N
+mmTilingData.stepKa = 4;         // Ka步长
+mmTilingData.stepKb = 4;         // Kb步长
+mmTilingData.depthAL1CacheUB = 0; // AL1缓存UB深度
+mmTilingData.depthBL1CacheUB = 0; // BL1缓存UB深度
+mmTilingData.dbL0A = 2;          // L0A双缓冲
+mmTilingData.dbL0B = 2;          // L0B双缓冲
+mmTilingData.dbL0C = 2;          // L0C双缓冲
+mmTilingData.ALayoutInfoB = 0;   // A布局B
+mmTilingData.ALayoutInfoS = 0;   // A布局S
+mmTilingData.ALayoutInfoN = 0;   // A布局N
+mmTilingData.ALayoutInfoG = 0;   // A布局G
+mmTilingData.ALayoutInfoD = 0;   // A布局D
+mmTilingData.BLayoutInfoB = 0;   // B布局B
+mmTilingData.BLayoutInfoS = 0;   // B布局S
+mmTilingData.BLayoutInfoN = 0;   // B布局N
+mmTilingData.BLayoutInfoG = 0;   // B布局G
+mmTilingData.BLayoutInfoD = 0;   // B布局D
+mmTilingData.CLayoutInfoB = 0;   // C布局B
+mmTilingData.CLayoutInfoS1 = 0;  // C布局S1
+mmTilingData.CLayoutInfoN = 0;   // C布局N
+mmTilingData.CLayoutInfoG = 0;   // C布局G
+mmTilingData.CLayoutInfoS2 = 0;  // C布局S2
+mmTilingData.BatchNum = 0;       // 批次数
+mmTilingData.mxTypePara = 0;     // mx类型参数
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-32, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-33, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-34, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-35, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+x_shape=(12, 512)
+weight_shape=(1, 7168, 512)
+group_list=[12]
+npu_out=[tensor([[-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        ...,
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.],
+        [-0., -0., -0.,  ..., -0., -0., -0.]], device='npu:0',
+       dtype=torch.bfloat16)]
+CANN Version: 9.0.0, TimeStamp: 202602
+===========================================================
+x_shape=(0, 512)
+weight_shape=(1, 7168, 512)
+group_list=[0]
+npu_out=[tensor([], device='npu:0', size=(0, 7168), dtype=torch.bfloat16)]
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+[Warning]: tiling struct [ReduceOpTilingDataV2] is conflict with one in file lp_norm_reduce.cc, line 41
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1043080, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+[GMM_QUANT] Template types: DTYPE_X=hifloat8_t, DTYPE_WEIGHT=hifloat8_t, DTYPE_BIAS=float, DTYPE_SCALE=float, DTYPE_Y=bfloat16_t, wFormat=0, transX1=false, transX2=true
+// GMMQuantParams
+gmmQuantParams.groupNum = 1;        // uint32_t: 组数量
+gmmQuantParams.activeType = 0;      // uint32_t: 激活类型
+gmmQuantParams.aQuantMode = 1;      // uint32_t: A矩阵量化模式
+gmmQuantParams.bQuantMode = 1;      // uint32_t: B矩阵量化模式
+gmmQuantParams.singleX = 1;         // uint8_t: 单一X标志
+gmmQuantParams.singleW = 1;         // uint8_t: 单一W标志
+gmmQuantParams.singleY = 1;         // uint8_t: 单一Y标志
+gmmQuantParams.groupType = 0;       // int8_t: 组类型
+gmmQuantParams.groupListType = 0;   // uint8_t: 组列表类型
+gmmQuantParams.hasBias = 0;         // uint8_t: 是否有偏置
+gmmQuantParams.reserved = 0;        // uint16_t: 保留字段
+// GMMArray (all 1 groups)
+gmmArray.mList[0] = -1;   // M维度
+gmmArray.kList[0] = 512;   // K维度
+gmmArray.nList[0] = 7168;   // N维度
+// TCubeTiling
+mmTilingData.usedCoreNum = 36;    // 使用的核心数
+mmTilingData.M = 234;              // M维度
+mmTilingData.N = 7168;              // N维度
+mmTilingData.Ka = 512;             // Ka维度
+mmTilingData.Kb = 512;             // Kb维度
+mmTilingData.singleCoreM = 234;    // 单核M维度
+mmTilingData.singleCoreN = 256;    // 单核N维度
+mmTilingData.singleCoreK = 512;    // 单核K维度
+mmTilingData.baseM = 240;          // 基准M
+mmTilingData.baseN = 256;          // 基准N
+mmTilingData.baseK = 128;          // 基准K
+mmTilingData.depthA1 = 8;        // A1深度
+mmTilingData.depthB1 = 8;        // B1深度
+mmTilingData.stepM = 1;          // M步长
+mmTilingData.stepN = 1;          // N步长
+mmTilingData.isBias = 0;         // 是否有偏置
+mmTilingData.transLength = 0;    // 转置长度
+mmTilingData.iterateOrder = 0;   // 迭代顺序
+mmTilingData.shareMode = 0;      // 共享模式
+mmTilingData.shareL1Size = 0;    // L1共享大小
+mmTilingData.shareL0CSize = 0;   // L0C共享大小
+mmTilingData.shareUbSize = 0;    // UB共享大小
+mmTilingData.batchM = 0;         // 批处理M
+mmTilingData.batchN = 0;         // 批处理N
+mmTilingData.singleBatchM = 0;   // 单批M
+mmTilingData.singleBatchN = 0;   // 单批N
+mmTilingData.stepKa = 4;         // Ka步长
+mmTilingData.stepKb = 4;         // Kb步长
+mmTilingData.depthAL1CacheUB = 0; // AL1缓存UB深度
+mmTilingData.depthBL1CacheUB = 0; // BL1缓存UB深度
+mmTilingData.dbL0A = 2;          // L0A双缓冲
+mmTilingData.dbL0B = 2;          // L0B双缓冲
+mmTilingData.dbL0C = 1;          // L0C双缓冲
+mmTilingData.ALayoutInfoB = 0;   // A布局B
+mmTilingData.ALayoutInfoS = 0;   // A布局S
+mmTilingData.ALayoutInfoN = 0;   // A布局N
+mmTilingData.ALayoutInfoG = 0;   // A布局G
+mmTilingData.ALayoutInfoD = 0;   // A布局D
+mmTilingData.BLayoutInfoB = 0;   // B布局B
+mmTilingData.BLayoutInfoS = 0;   // B布局S
+mmTilingData.BLayoutInfoN = 0;   // B布局N
+mmTilingData.BLayoutInfoG = 0;   // B布局G
+mmTilingData.BLayoutInfoD = 0;   // B布局D
+mmTilingData.CLayoutInfoB = 0;   // C布局B
+mmTilingData.CLayoutInfoS1 = 0;  // C布局S1
+mmTilingData.CLayoutInfoN = 0;   // C布局N
+mmTilingData.CLayoutInfoG = 0;   // C布局G
+mmTilingData.CLayoutInfoS2 = 0;  // C布局S2
+mmTilingData.BatchNum = 0;       // 批次数
+mmTilingData.mxTypePara = 0;     // mx类型参数
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-32, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-33, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-34, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+CANN Version: 9.0.0, TimeStamp: 202602
+opType=GroupedMatmul, DumpHead: AIC-35, CoreType=MIX, block dim=36, total_block_num=108, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+x_shape=(234, 512)
+weight_shape=(1, 7168, 512)
+group_list=[234]
+npu_out=[tensor([[0., 0., 0.,  ..., 0., 0., 0.],
+        [0., 0., 0.,  ..., 0., 0., 0.],
+        [0., 0., 0.,  ..., 0., 0., 0.],
+        ...,
+        [0., 0., 0.,  ..., 0., 0., 0.],
+        [0., 0., 0.,  ..., 0., 0., 0.],
+        [0., 0., 0.,  ..., 0., 0., 0.]], device='npu:0', dtype=torch.bfloat16)]
+CANN Version: 9.0.0, TimeStamp: 202602

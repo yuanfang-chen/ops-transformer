@@ -16,6 +16,10 @@
 #include "allto_allv_grouped_mat_mul_coarse_grained.h"
 #include "allto_allv_grouped_mat_mul_tiling_key.h"
 
+// Include GmmASWKernel for INT8 quantization support
+#include "3rd/gqmm_cube_on_the_fly.h"
+#include "3rd/grouped_matmul_tiling_data_apt.h"
+
 using namespace AscendC;
 
 #define INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL()                                                                 \
@@ -59,4 +63,10 @@ if (D_T_MM == ADD_TPL_FP16) {
     INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
     return;
 }
+
+// 仅作编译测试用
+AscendC::GmmASWKernel<half, half, half, half, half, CubeFormat::NZ, true, false> kernel;
+kernel.Init(gmmxGM, nullptr, gmmxGM, gmmxGM, gmmxGM, gmmxGM, gmmxGM, gmmxGM, nullptr, nullptr, nullptr,
+            &pipe);
+kernel.Process();
 }
