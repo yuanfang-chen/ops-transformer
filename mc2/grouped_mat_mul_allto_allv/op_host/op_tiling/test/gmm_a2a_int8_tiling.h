@@ -15,7 +15,7 @@
 #ifndef GMM_A2A_INT8_TILING_H
 #define GMM_A2A_INT8_TILING_H
 
-#include "mc2\allto_allv_grouped_mat_mul\op_host\op_tiling\3rd\gmm_qbmm_tiling.h"
+#include "allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/gmm_qbmm_tiling.h"
 
 namespace optiling {
 
