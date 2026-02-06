@@ -71,6 +71,7 @@ private:
     int64_t gmXOffset_ = 0;
     int64_t gmStateOffset_ = 0;
     int64_t batchNum_ = 1;
+    int64_t inStateOffset_ = 0;
 
     __aicore__ inline void MTE2ToVSync()
     {
@@ -187,6 +188,7 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
         int64_t numAccept = actSeqLen;
         if (tilingData_.hasNumAccept) {
             numAccept = numAcceptGm_.GetValue(blockIdx_ * tilingData_.blockFactor + i);
+            inStateOffset_ = numAccept - 1;
         }
 
         int64_t calcSeqLen = numAccept < actSeqLen ? numAccept : actSeqLen;
@@ -195,12 +197,12 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
             LocalTensor<T> outLocal = outQueueY_.AllocTensor<T>();
             for (int64_t k = 0; k < tilingData_.width - 1; ++k) {
                 // 循环历史token
-                CopyInState(tilingData_.dim, stateOffset + k * tilingData_.dim);
+                CopyInState(tilingData_.dim, stateOffset + (k + inStateOffset_) * tilingData_.dim);
                 MTE2ToMTE3Sync();
 
-                if (k != 0) {
+                if ((k + inStateOffset_) != 0) {
                     // 搬出覆盖conv state
-                    CopyOutState(tilingData_.dim, stateOffset + (k-1) * tilingData_.dim);
+                    CopyOutState(tilingData_.dim, stateOffset + (k + inStateOffset_ -1) * tilingData_.dim);
                     MTE3ToMTE2Sync();
                 }
 
@@ -214,7 +216,7 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
             // 搬入 x
             CopyInX(tilingData_.dim, xOffset + j * tilingData_.dim);
             MTE2ToMTE3Sync();
-            CopyOutState(tilingData_.dim, stateOffset + (tilingData_.width - 2) * tilingData_.dim);
+            CopyOutState(tilingData_.dim, stateOffset + (tilingData_.width - 2 + inStateOffset_) * tilingData_.dim);
             MTE3ToMTE2Sync();
 
             MTE2ToVSync();
