@@ -335,6 +335,10 @@ function set_env()
     export BISHENG_REAL_PATH=$(which bisheng || true)
 
     if [ -z "${BISHENG_REAL_PATH}" ];then
+        if [[ "$ENABLE_BUILT_JIT" == "true" ]]; then
+            log "Warning: bisheng compilation tool not found, but --jit is enabled, so continue."
+            return
+        fi
         log "Error: bisheng compilation tool not found, Please check whether the cann package or environment variables are set."
         exit 1
     fi
