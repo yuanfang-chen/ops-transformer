@@ -21,17 +21,16 @@
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "mc2_moe_context.h"
-#include <memory>
+
 #include "hccl/hcom.h"
 #include "hccl/hccl_comm.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl_res.h"
-#include "hccl/hccl_types.h"
 #include "hccl/hccl.h"
 #include "hccl/hccn_rping.h"
-#include "hccl/hcomm_primitives.h"
 using namespace Ops::Transformer;
 using namespace op;
+using namespace Mc2Context;
 #ifdef __cplusplus
 extern "C" {
 #endif
