@@ -2006,7 +2006,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 <summary>当Q_S等于1时（IFA非MTP场景）：</summary>
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    <div style="overflow-x: auto;">
+
     <table style="undefined;table-layout: fixed; width: 1080px"><colgroup>
     <col style="width: 180px">
     <col style="width: 150px">
@@ -2106,7 +2106,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td colspan="2">query、key、value输入类型均为INT8的场景暂不支持。</td>
             </tr>
         </tbody>
-    </table></div>
+    </table>
 </details>
 
 
