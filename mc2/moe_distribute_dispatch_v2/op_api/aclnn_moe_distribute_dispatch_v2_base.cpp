@@ -140,10 +140,10 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
 void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
 {
     
-    uint64_t mc2ContextLength = sizeof(mc2Context);
+    uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
-    mc2context = aclCreateTensor(
+    mc2Context = aclCreateTensor(
         shap, 1, aclDataType::ACL_UINT32, strides, 0, 
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
 }
