@@ -44,6 +44,7 @@ static ge::graphStatus CheckAttrsInfo(const gert::TilingContext *context, Tiling
     OP_TILING_CHECK(groupPtr == nullptr, OP_LOGE(nodeName, "groupPtr is null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(std::string(groupPtr).empty(), OP_LOGE(nodeName, "group should not be empty."),
                     return ge::GRAPH_FAILED);
+    runInfo.groupPtr = groupPtr;
     runInfo.group = std::string(groupPtr);
     // 校验reduce_op的类型是否为sum
     const char *reduceOpPtr = attrs->GetAttrPointer<char>(REDUCE_OP_INDEX);
@@ -72,12 +73,21 @@ static ge::graphStatus CheckAttrsInfo(const gert::TilingContext *context, Tiling
 static ge::graphStatus SetRankSize(const gert::TilingContext *context, TilingRunInfo &runInfo)
 {
     const char *nodeName = context->GetNodeName();
-    uint32_t rankSize = mc2tiling::MatmulFormulaicTiling::GetRankSize(runInfo.group.c_str());
-    OP_TILING_CHECK(!IsContains(RANK_SIZE_LIST, rankSize),
-                    OP_LOGE(nodeName, "The rankSize should be in [2, 4, 8], but actual value is %u.", rankSize),
+    // attrs在函数CheckAttrsInfo中已做校验
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const int *rankSizePtr = attrs->GetAttrPointer<int>(WORLD_SIZE_INDEX);
+    if (rankSizePtr == nullptr || *rankSizePtr == RANK_SIZE_DEFAULT) {
+        int64_t rankSize = 0;
+        OP_TILING_CHECK(!mc2tiling::GetRankSize(nodeName, runInfo.groupPtr, rankSize),
+                        OP_LOGE(nodeName, "Get rankSize failed."),
+                        return ge::GRAPH_FAILED);
+        runInfo.rankSize = rankSize;
+    } else {
+        runInfo.rankSize = *rankSizePtr;
+    }
+    OP_TILING_CHECK(!IsContains(RANK_SIZE_LIST, runInfo.rankSize),
+                    OP_LOGE(nodeName, "The rankSize should be in [2, 4, 8], but actual value is %u.", runInfo.rankSize),
                     return ge::GRAPH_FAILED);
-    // 设置rankSize
-    runInfo.rankSize = rankSize;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -614,20 +624,20 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
 }
 
 /**
- * @brief 校验socVersion
+ * @brief 校验NpuArch
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @return
  */
-ge::graphStatus QuantReduceScatterUtilTiling::CheckSocVersion(const gert::TilingContext *context)
+ge::graphStatus QuantReduceScatterUtilTiling::CheckNpuArch(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    // 校验socVersion
+    // 校验NpuArch
     fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
     OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(nodeName, "platformInfoPtr is null."), return ge::GRAPH_FAILED);
     platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    platform_ascendc::SocVersion socVersion = ascendcPlatform.GetSocVersion();
-    OP_TILING_CHECK(socVersion != platform_ascendc::SocVersion::ASCEND950,
-                    OP_LOGE(nodeName, "socVersion needed to be 950."), return ge::GRAPH_FAILED);
+    NpuArch npuArch = ascendcPlatform.GetCurNpuArch();
+    OP_TILING_CHECK(npuArch != NpuArch::DAV_3510,
+                    OP_LOGE(nodeName, "NpuArch needed to be DAV_3510."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
