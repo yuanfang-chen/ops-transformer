@@ -22,7 +22,7 @@
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "mc2_moe_context.h"
 #include "hccl/hccl_comm.h"
-#include "hccl/hccl_rankgraph.h"
+#include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl_types.h"
 #include "hccl/hccl.h"
 #include "hccl/hccl_res.h"
