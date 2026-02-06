@@ -10,7 +10,7 @@
 
 # useage: add_modules_sources(DIR OPTYPE ACLNNTYPE)
 # ACLNNTYPE 支持类型aclnn/aclnn_inner/aclnn_exclude
-# ACLNNEXTRAVERSION 算子版本(ex., v2, v3, 5, etc.)
+# ACLNNEXTRAVERSION 算子版本(ex., v2, v3, v5, etc.)
 # OPTYPE 和 ACLNNTYPE 需一一对应
 
 # 用于custom自定算子包host侧obj生成
@@ -49,9 +49,6 @@ macro(add_modules_sources)
   list(LENGTH MODULE_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
   if((AclnnExtraVersionLen GREATER 1) AND (OpTypeLen GREATER 1))
     message(FATAL_ERROR "There should be only 1 optype if there are more than 1 aclnn extra versions!")
-  endif()
-  if (AclnnExtraVersionLen GREATER 0)
-    set(VersionLen ${AclnnExtraVersionLen} CACHE INTERNAL "")
   endif()
   
   # opapi 默认全部编译
