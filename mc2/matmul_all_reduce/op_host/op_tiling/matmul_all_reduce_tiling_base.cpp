@@ -50,6 +50,7 @@ constexpr uint32_t ADD_X3_BF16_UB_BUF_FACTOR = 10; // 对应add x3算子中BF16�
 constexpr uint32_t ALIGN_DATA_SIZE = 32;
 constexpr uint64_t L2_CACHE_SIZE_910_B4 = 100663296;
 constexpr uint32_t COMM_QUANT_MODE_TRUE = 2;
+constexpr uint64_t CCU_ALLTOALL_MAX_DATACNT = 200 * 1024 * 1024;
 
 struct HcclAicpuOpParam {
     uint8_t res[64];
@@ -339,6 +340,27 @@ void MatmulAllReduceTilingBase::DoSplitMTiling()
                 param.tailCnt = mCutAllreduce.numLongTile;
             } else {
                 param.tailCnt = 0;
+            }
+        }
+        if (param.isInputCommQuantScale == COMM_QUANT_MODE_TRUE) {
+            uint64_t maxDataCnt = CCU_ALLTOALL_MAX_DATACNT * rankSize_;
+            if (param.tailM * param.rankN > maxDataCnt) {
+                OP_LOGD(opName_, "Comm DataCnt Exeeds CCU Limit.");
+                param.tailM = maxDataCnt / param.rankN;
+                param.tailCnt = param.rankM / param.tailM;
+                tileMValue_ = param.rankM % param.tailM;
+                if (tileMValue_ == 0) {
+                    tileMValue_ = param.tailM;
+                    param.tileCnt = param.tailCnt;
+                    param.tailCnt = 0;
+                    param.tailM = 0;
+                    tailMValue_ = 0;
+                } else {
+                    param.tileCnt = 1;
+                    tailMValue_ = param.tailM;
+                }
+                OP_LOGD(opName_, "TileCnt Enter CommFp8. tileM=%u, tailM=%u, tileCnt=%u, tailCnt=%u.",
+                    tileMValue_, param.tailM, param.tileCnt, param.tailCnt);
             }
         }
     }
