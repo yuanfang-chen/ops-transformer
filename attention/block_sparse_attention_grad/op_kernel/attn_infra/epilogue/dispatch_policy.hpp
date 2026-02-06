@@ -34,6 +34,11 @@ struct EpilogueAtlasA2RescaleO {
     static constexpr LseMode LSE_MODE = LSE_MODE_;
 };
 
+// For AtlasA2, BSAG Pre
+struct EpilogueAtlasA2FAGPre {
+    using ArchTag = Arch::AtlasA2;
+};
+
 }  // namespace NpuArch::Epilogue
 
 #endif  // EPILOGUE_DISPATCH_POLICY_HPP
