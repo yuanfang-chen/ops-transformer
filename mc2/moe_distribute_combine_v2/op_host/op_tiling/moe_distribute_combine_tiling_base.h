@@ -41,7 +41,8 @@
 #include "../../op_kernel/moe_distribute_combine_v2_tiling.h"
 #include "../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
 #include "mc2_hcom_topo_info.h"
-namespace optiling {
+
+namespace common_const {
 struct Index {
     static constexpr uint32_t OP_VERSION_2 = 2;
     struct input {

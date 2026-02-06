@@ -43,9 +43,9 @@
 using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
-using namespace common_const;
 
-// using Idx = common_const::IndexExtend;
+
+using Idx = common_const::IndexExtend;
 // CheckInputTensorDim_1<Idx>(cxt, nodeName);
 
 
@@ -55,29 +55,29 @@ static ge::graphStatus MoeDistributeCombineA5ExtendTilingFuncImpl(gert::TilingCo
 {
     auto attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
-    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(attr::ATTR_COMM_ALG_INDEX));
+    auto commAlgPtr = attrs->GetAttrPointer<char>(static_cast<int>(IndexExtend::attr::ATTR_COMM_ALG_INDEX));
     // 检查 commAlg 参数合法性校验
-    // bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
-    // bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
+    bool isNullOrEmpty = (commAlgPtr == nullptr) || (std::strlen(commAlgPtr) == 0);
+    bool isMte = std::strcmp(commAlgPtr, "mte") == 0;
     
-    // OP_TILING_CHECK(!(isNullOrEmpty || isMte),
-    //     OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' is supported."
-    //         "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
-    //     return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!(isNullOrEmpty || isMte),
+        OP_LOGE(nodeName, "Invalid parameter: 'commAlg'='%s'. Only 'mte' is supported."
+            "Nullptr and empty char* are also allowed but will be interpreted as 'mte'.", commAlgPtr),
+        return ge::GRAPH_FAILED);
 
-    // // 默认空指针和空字符走 MTE 方式
-    // if (isNullOrEmpty) {
-    //     OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
-    // }
-    // // MTE 调用 A3 tiling 实现
-    // return MoeDistributeCombineA3TilingFuncImpl(context);
+    // 默认空指针和空字符走 MTE 方式
+    if (isNullOrEmpty) {
+        OP_LOGI(nodeName, "Parameter 'commAlg' is nullptr/empty, defaulting to 'mte'.");
+    }
+    // MTE 调用 A3 tiling 实现
+    return MoeDistributeCombineA3TilingFuncImpl(context);
     return ge::GRAPH_SUCCESS;
 }
 
 static ge::graphStatus MoeDistributeCombineV2ExtendTilingFunc(gert::TilingContext* context)
 {
     // 不支持 expandX数据类型为int32 type
-    auto expandXDesc = context->GetInputDesc(EXPAND_X_INDEX);
+    auto expandXDesc = context->GetInputDesc(Idx::input::EXPAND_X_INDEX);
     const char *nodeName = context->GetNodeName();
     OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandxDesc is null."), return ge::GRAPH_FAILED);
     // 检查expandX数据类型为DT_INT32
