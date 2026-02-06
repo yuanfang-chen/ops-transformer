@@ -146,13 +146,14 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeForXAndWeight(const g
                         "but x's k is [%ld] and weight's k is [%ld].",
                         xKDim_, weightKDim_),
                 return ge::GRAPH_FAILED);
+    // 动态图走到这里的时候不允许出现非确定值
     OP_CHECK_IF(weightNDim_ < 0,
-                OP_LOGE(context->GetNodeName(), "The n dim value should be not be negative, but the actual value is [%ld].",
-                        weightNDim_),
+                OP_LOGE(context->GetNodeName(),
+                        "The n dim value should not be negative, but the actual value is [%ld].", weightNDim_),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(weightKDim_ <= 0,
-                OP_LOGE(context->GetNodeName(), "The k dim value should be positive, but the actual value is [%ld].",
-                        weightKDim_),
+    OP_CHECK_IF(weightKDim_ < 0,
+                OP_LOGE(context->GetNodeName(),
+                        "The k dim value should not be negative, but the actual value is [%ld].", weightKDim_),
                 return ge::GRAPH_FAILED);
     if (weightDtype_ == ge::DT_FLOAT4_E2M1 || weightDtype_ == ge::DT_FLOAT || IsS8S4NZ(xDtype_, weightDtype_)) {
         // A16MxF4/MxA8W4/S8S4校验32B对齐

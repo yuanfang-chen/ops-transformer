@@ -341,13 +341,14 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckDimValue(const gert::TilingContex
     OP_CHECK_IF(weightNDimValue < 0,
                 OP_LOGE(context->GetNodeName(),
                         "The n dimensions of the tensor[%zu] should not be negative, but actual value is %ld.", idx,
-                        weightKDimValue),
+                        weightNDimValue),
                 return false);
     OP_CHECK_IF(
         xKDimValue != weightKDimValue,
-        OP_LOGE(context->GetNodeName(),
-                "The k dimension of the tensor[%zu] of x and weight should be equal, but actual values are %ld and %ld.",
-                idx, xKDimValue, weightKDimValue),
+        OP_LOGE(
+            context->GetNodeName(),
+            "The k dimension of the tensor[%zu] of x and weight should be equal, but actual values are %ld and %ld.",
+            idx, xKDimValue, weightKDimValue),
         return false);
     return true;
 }
