@@ -193,7 +193,7 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
         for (int64_t j = 0; j < calcSeqLen; ++j) {
             Duplicate<float>(resultLocal, 0, tilingData_.dim);
             LocalTensor<T> outLocal = outQueueY_.AllocTensor<T>();
-            for (int64_t k = 0; k < tilingData_.stateLen; ++k) {
+            for (int64_t k = 0; k < tilingData_.width - 1; ++k) {
                 // 循环历史token
                 CopyInState(tilingData_.dim, stateOffset + k * tilingData_.dim);
                 MTE2ToMTE3Sync();
@@ -214,7 +214,7 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
             // 搬入 x
             CopyInX(tilingData_.dim, xOffset + j * tilingData_.dim);
             MTE2ToMTE3Sync();
-            CopyOutState(tilingData_.dim, stateOffset + (tilingData_.stateLen - 1) * tilingData_.dim);
+            CopyOutState(tilingData_.dim, stateOffset + (tilingData_.width - 2) * tilingData_.dim);
             MTE3ToMTE2Sync();
 
             MTE2ToVSync();
