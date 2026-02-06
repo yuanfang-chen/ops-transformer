@@ -792,7 +792,6 @@ aclnnStatus aclnnGroupedMatmulV4(
     - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。
       - 在伪量化和非量化场景下，actType仅支持0。
       - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，actType支持传入0、1、2、4、5。其余全量化场景actType仅支持0。
-
     <a id="静态量化场景约束"></a>
     <details>
     <summary>静态量化场景约束</summary>
