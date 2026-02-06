@@ -38,30 +38,7 @@ class FunctionaclnnKvRmsNormRopeCacheV2(AclnnBaseApi):
         import random
         import ctypes
         from atk.tasks.backends.lib_interface.acl_wrapper import nnopbase, AclDataType, AclFormat, AclTensor
-        input_args, output_packages = super().init_by_input_data(input_data)
-
-
-        AclTensorPtr = ctypes.POINTER(AclTensor)  # tensor指针类型
-        null_void_ptr = ctypes.c_void_p(None)  # 声明一个空指针
-        null_tensor_ptr = ctypes.cast(null_void_ptr, AclTensorPtr)  # 把这个空指针类型转换为tensor指针类型
-
-        if type(input_args[7]).__name__ == "c_void_p":
-            input_args[7] = null_tensor_ptr
-        if type(input_args[8]).__name__ == "c_void_p":
-            input_args[8] = null_tensor_ptr
-        if type(input_args[9]).__name__ == "c_void_p":
-            input_args[9] = null_tensor_ptr
-        if type(input_args[10]).__name__ == "c_void_p":
-            input_args[10] = null_tensor_ptr
-        if type(input_args[11]).__name__ == "c_void_p":
-            input_args[11] = null_tensor_ptr
-
-        input_args.pop(15)
-        input_args.pop(15)
-
-        self.is_output_kv = input_data.kwargs['isOutputKv']
-        output_packages[:] = [input_args[5], input_args[6], input_args[15], input_args[16]]
-
+        
         idx = self.task_result.case_config.id
         # torch.random.manual_seed(idx)
         kv = input_data.kwargs['kv']
@@ -136,6 +113,29 @@ class FunctionaclnnKvRmsNormRopeCacheV2(AclnnBaseApi):
                 index[i,:] = sub_index
         
         input_data.kwargs['index'] = index
+        
+        input_args, output_packages = super().init_by_input_data(input_data)
+
+        AclTensorPtr = ctypes.POINTER(AclTensor)  # tensor指针类型
+        null_void_ptr = ctypes.c_void_p(None)  # 声明一个空指针
+        null_tensor_ptr = ctypes.cast(null_void_ptr, AclTensorPtr)  # 把这个空指针类型转换为tensor指针类型
+
+        if type(input_args[7]).__name__ == "c_void_p":
+            input_args[7] = null_tensor_ptr
+        if type(input_args[8]).__name__ == "c_void_p":
+            input_args[8] = null_tensor_ptr
+        if type(input_args[9]).__name__ == "c_void_p":
+            input_args[9] = null_tensor_ptr
+        if type(input_args[10]).__name__ == "c_void_p":
+            input_args[10] = null_tensor_ptr
+        if type(input_args[11]).__name__ == "c_void_p":
+            input_args[11] = null_tensor_ptr
+
+        input_args.pop(15)
+        input_args.pop(15)
+
+        self.is_output_kv = input_data.kwargs['isOutputKv']
+        output_packages[:] = [input_args[5], input_args[6], input_args[15], input_args[16]]
 
         return input_args, output_packages
 
@@ -516,4 +516,3 @@ class FunctionKvRmsNormRopeCache(BaseApi):
                 index[i,:] = sub_index
                 
         input_data.kwargs['index'] = index
-    
