@@ -50,6 +50,7 @@ constexpr uint32_t ADD_X3_BF16_UB_BUF_FACTOR = 10; // 对应add x3算子中BF16�
 constexpr uint32_t ALIGN_DATA_SIZE = 32;
 constexpr uint64_t L2_CACHE_SIZE_910_B4 = 100663296;
 constexpr uint32_t COMM_QUANT_MODE_TRUE = 2;
+constexpr uint64_t CCU_ALLTOALL_MAX_DATACNT = 200 * 1024 * 1024;
 
 struct HcclAicpuOpParam {
     uint8_t res[64];

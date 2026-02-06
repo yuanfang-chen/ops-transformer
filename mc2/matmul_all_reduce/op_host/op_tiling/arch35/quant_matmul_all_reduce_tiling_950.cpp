@@ -136,6 +136,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     DoRCSTiling();
     DoSplitMTiling();
+    DoCommFp8ReTiling();
     GE_ASSERT_GRAPH_SUCCESS(DoQuantTiling());
     if (MutableRCSTilingData().isInputCommQuantScale == 1) {
         isCommInt8Enable_ = true;
@@ -147,6 +148,32 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::DoOpTiling()
         GE_ASSERT_GRAPH_SUCCESS(GetDynamicQuantTempBuffSize());
     }
     return ge::GRAPH_SUCCESS;
+}
+
+void QuantMatmulAllReduceTilingA5::DoCommFp8ReTiling()
+{
+    auto&& param = MutableRCSTilingData();
+    if (param.isInputCommQuantScale == COMM_QUANT_MODE_TRUE) {
+        uint64_t maxDataCnt = CCU_ALLTOALL_MAX_DATACNT * rankSize_;
+        if (param.tailM * param.rankN > maxDataCnt) {
+            OP_LOGD(opName_, "Comm DataCnt Exeeds CCU Limit.");
+            param.tailM = maxDataCnt / param.rankN;
+            param.tailCnt = param.rankM / param.tailM;
+            tileMValue_ = param.rankM % param.tailM;
+            if (tileMValue_ == 0) {
+                tileMValue_ = param.tailM;
+                param.tileCnt = param.tailCnt;
+                param.tailCnt = 0;
+                param.tailM = 0;
+                tailMValue_ = 0;
+            } else {
+                param.tileCnt = 1;
+                tailMValue_ = param.tailM;
+            }
+            OP_LOGD(opName_, "TileCnt Enter CommFp8. tileM=%u, tailM=%u, tileCnt=%u, tailCnt=%u.", tileMValue_,
+                    param.tailM, param.tileCnt, param.tailCnt);
+        }
+    }
 }
 
 ge::graphStatus QuantMatmulAllReduceTilingA5::GetDynamicQuantTempBuffSize()
