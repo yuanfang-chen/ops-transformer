@@ -57,4 +57,13 @@ struct AlltoAllKcQuantMatmulTilingData {
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2KcQuantMmTailTilingData; // 通算切分尾块matmul tiling数据
 };
 
+// mx量化tilingData结构体
+struct AlltoAllMxQuantMatmulTilingData {
+    Mc2InitTiling mc2InitTiling; // 初始化通信任务配置
+    Mc2CcTiling mc2CcTiling;     // 具体每个通信任务的参数配置
+    MatmulAlltoAllTilingInfo mxQuantMatmulAlltoAllTilingInfo;
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2MxQuantBmmV3TileTilingData;
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2MxQuantBmmV3TailTilingData;
+};
+
 #endif // ALLTO_ALL_MATMUL_TILING_H
