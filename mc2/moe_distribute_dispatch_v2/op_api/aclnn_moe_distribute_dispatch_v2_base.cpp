@@ -137,7 +137,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     for (uint64_t index = 0; index < mc2_context->rankDim; index++) {
         if(index != mc2_context->rankId) {
             channelDesc[index].remoteRank = index;
-            channelDesc[index].channelProtocal = CommProtocol::COMM_PROTOCOL_UB_MEM;
+            channelDesc[index].ChannelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
             channelDesc[index].notifyNum =3;
         }
     }
