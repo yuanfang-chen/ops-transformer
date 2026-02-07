@@ -58,10 +58,22 @@ constexpr double AVERAGE_CUBE_UTIL = 0.75;
 class MatmulPerformanceModel {
 public:
     MatmulParameters mmShapeInfo_;
-    MatmulCalcType calcType_; //区分非两会、全量化、伪量化
+    MatmulCalcType calcType_; // Distinguish the non-quantization, full-quantization and fake-quantization
     double cubeUtil_ = 0.8;
     double matmulGradient_ = 1.0;
     uint64_t mmMinDataSize_ = MatmulPerformance::MM_MIN_DATASIZE_OTHER_SOC; 
+
+    const std::map<SocVersion, TilingBestBaseBlock> TILING_BEST_BASE_MAP {
+        {SocVersion::SOC950, TilingBestBaseBlock{256, 256, 128}},
+    };
+
+    TilingBestBaseBlock GetBestBaseBlock(SocVersion SocVersion)
+    {
+        if (TILING_BEST_BASE_MAP.find(SocVersion) != TILING_BEST_BASE_MAP.end()) {
+            return TILING_BEST_BASE_MAP.at(SocVersion);
+        }
+        return TilingBestBaseBlock{mc2tiling::BASE_BLOCK_M, mc2tiling::BASE_BLOCK_N, mc2tiling::BASE_BLOCK_K};
+    }
 
     void SetCyclePerMicroSec(SocVersion inputSocVersion)
     {
@@ -104,9 +116,10 @@ public:
         mmShapeInfo_.nValue = args.nValue;
         mmShapeInfo_.kValue = args.kValue;
         // 获取后续计算用的基本块
-        mmShapeInfo_.baseM = mc2tiling::BASE_BLOCK_M;
-        mmShapeInfo_.baseN = mc2tiling::BASE_BLOCK_N;
-        mmShapeInfo_.baseK = mc2tiling::BASE_BLOCK_K;
+        TilingBestBaseBlock bestBaseBlock = GetBestBaseBlock(inputSocVersion);
+        mmShapeInfo_.baseM = bestBaseBlock.baseM;
+        mmShapeInfo_.baseN = bestBaseBlock.baseN;
+        mmShapeInfo_.baseK = bestBaseBlock.baseK;
         mmShapeInfo_.batchSize = 1UL; // 初始值
         SetCalcType(args);
         SetCyclePerMicroSec(inputSocVersion);
@@ -134,7 +147,10 @@ public:
     {
         mmShapeInfo_.batchSize = bSize;
     };
-
+    uint32_t GetBaseM()
+    {
+        return mmShapeInfo_.baseM;
+    };
     // 返回允许切分的最小数据量
     uint64_t GetLinearThresholdLen(uint64_t rankTileNum);
     // 性能预测
