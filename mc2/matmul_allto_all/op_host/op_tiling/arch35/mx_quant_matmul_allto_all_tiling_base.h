@@ -26,16 +26,22 @@
 #include "../../../op_kernel/arch35/matmul_allto_all_tiling_data.h"
 #include "../../../op_kernel/arch35/matmul_allto_all_tiling_key.h"
 #include "quant_batch_matmul_v3/op_host/op_tiling/arch35/adaptive_sliding_window_tiling.h"
+#include "quant_batch_matmul_v3/op_kernel/arch35/quant_batch_matmul_v3_tiling_data.h"
+
 
 namespace MC2Tiling {
 using namespace optiling;
-using namespace mc2_matmul_v3_advanced;
+using namespace DequantBmm;
+constexpr size_t X1_QUANTMODE_VALUES = 6;
+constexpr size_t X2_QUANTMODE_VALUES = 6;
+constexpr uint64_t MX_SCALE_OFFSET = 64;
+constexpr uint64_t EVEN_ALIGN = 2;
 
-class KcQuantMatmulAllToAllTilingBase : public MatmulAllToAllTilingBase {
-    friend class KcQuantMatmulAlltoAllHelper;
+class MxQuantMatmulAllToAllTilingBase : public MatmulAllToAllTilingBase {
+    friend class MxQuantMatmulAlltoAllHelper;
 public:
-    explicit KcQuantMatmulAllToAllTilingBase(gert::TilingContext *context);
-    ~KcQuantMatmulAllToAllTilingBase() override = default;
+    explicit MxQuantMatmulAllToAllTilingBase(gert::TilingContext *context);
+    ~MxQuantMatmulAllToAllTilingBase() override = default;
 protected:
     bool IsCapable() override;
     ge::graphStatus DoOpTiling() override;
@@ -43,23 +49,32 @@ protected:
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters();
-    ge::graphStatus DoKcQuantMMTiling();
+    ge::graphStatus DoMxQuantMMTiling();
     ge::graphStatus SetHcclTiling();
+    ge::graphStatus CheckMxQuantTensorDataType(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus CheckX2Transpose(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema);
+    ge::graphStatus CheckMxQuantShapeInfo(const gert::TilingContext *context, const char *opName,
+                                                                const OpAttrIndexSchema &indexSchema);
+    ge::graphStatus CheckMxQuantMatrixMulShapes(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus CheckMxQuantScaleShapes(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus CheckMxQuantInputShapesValid(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName,
+                                             TilingContextInfo &contextInfo);
     
     void SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const;
-    void PrintKcQuantMatmulAlltoAllTilingData(QuantMatmulAlltoAllTilingData &outTilingData);
+    void PrintMxQuantMatmulAlltoAllTilingData(QuantMatmulAlltoAllTilingData &outTilingData);
     
 private:
     QuantMatmulAlltoAllTilingData localTilingData_;
     uint64_t mmMvalueLen = 0;
-    void PrintKcQuantMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
-    void PrintKcQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
+    void PrintMxQuantMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
+    void PrintMxQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
     void PrintExtendMatmulTiling(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
 };
 
-class KcQuantMatmulAlltoAllHelper : public Mc2AdaptiveSlidingWindowTiling {
+class MxQuantMatmulAlltoAllHelper : public Mc2AdaptiveSlidingWindowTiling {
 public:
-    KcQuantMatmulAlltoAllHelper(KcQuantMatmulAllToAllTilingBase& kcQuantMatmulAllToAllTilingBase,
+    MxQuantMatmulAlltoAllHelper(MxQuantMatmulAllToAllTilingBase& mxQuantMatmulAllToAllTilingBase,
                                 DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& out, uint64_t& mmMvalueLen);
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
@@ -73,8 +88,8 @@ public:
     ge::graphStatus PostTiling() override;
 
 private:
-    uint64_t mmLen = 0;
-    KcQuantMatmulAllToAllTilingBase& tilingProcesser_;
+    uint64_t mm_len = 0;
+    MxQuantMatmulAllToAllTilingBase& tilingProcesser_;
 };
 } // namespace MC2Tiling
 #endif
