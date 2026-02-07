@@ -67,7 +67,7 @@ ge::graphStatus MoeReRoutingReTiling::DoOpTiling()
         tilingKey_ =
             scaleDtype_ == ge::DT_FLOAT ? MOE_RE_ROUTING_RE_WITH_SCALE_FLOAT : MOE_RE_ROUTING_RE_WITH_SCALE_FLOAT8_E8M0;
         if ((tokenDtype_ == ge::DT_FLOAT8_E4M3FN || tokenDtype_ == ge::DT_FLOAT8_E5M2) && scaleDtype_ == ge::DT_FLOAT) {
-            tilingKey_ = MOE_RE_ROUTING_R_WITH_SCALE_FLOAT8_E8M0;
+            tilingKey_ = MOE_RE_ROUTING_RE_WITH_SCALE_FLOAT8_E8M0;
         }
     } else {
         tilingKey_ = MOE_RE_ROUTING_RE_WITHOUT_SCALE;
