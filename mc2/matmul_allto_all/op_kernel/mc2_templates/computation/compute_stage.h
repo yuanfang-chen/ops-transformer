@@ -19,6 +19,7 @@
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
 #include "./matmul/fp_matmul.h"
 #else
+#include "./matmul/mx_quant_matmul.h"
 #include "./matmul/quant_matmul.h"
 #endif
 #include "./math/mc2_vec_transpose.h"
