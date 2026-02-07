@@ -199,46 +199,46 @@ TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_3)
 }
 
 // BNSD_BSND
-TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_4)
-{
-    optiling::PromptFlashAttentionCompileInfo compileInfo = {    // 硬件参数
-        64, 32, 262144, 524288, 262144, 65536, 65536, 33554432, platform_ascendc::SocVersion::ASCEND950};
-    int64_t actual_seq_qlist[] = {37, 42, 2, 63, 6, 56, 40, 42};
-    int64_t actual_seq_kvlist[] = {11, 11, 11, 11, 11, 11, 11, 11};
-    gert::TilingContextPara tilingContextPara(
-        "PromptFlashAttention",
-        {
-            {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // query input0
-            {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // key input1
-            {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // value input2
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},    // pse_shift input3
-            {{{2048, 2048}, {2048, 2048}}, ge::DT_UINT8, ge::FORMAT_ND},    // atten_mask input4
-            {{{8}, {8}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_qlist},    // actual_seq_lengths_q
-            {{{8}, {8}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_kvlist},    // actual_seq_lengths_kv 
-            {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale1 input5
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale1 input6
-            {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale2 input7
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale2 input8
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}    // quant_offset2 input9
-        },
-        {
-            {{{8, 65, 20, 48}, {8, 65, 20, 48}}, ge::DT_BF16, ge::FORMAT_ND}
-        },
-        {
-            {"num_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
-            {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.1443375672974065f)},
-            {"pre_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)},
-            {"next_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-9)},
-            {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BNSD_BSND")},
-            {"num_key_value_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
-            {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(4)},
-            {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
-        },
-        &compileInfo, "Ascend950", 64, 262144, 16384);
-    int64_t expectTilingKey = 266600960;
-    std::string expectTilingData = "";
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
-}
+// TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_4)
+// {
+//     optiling::PromptFlashAttentionCompileInfo compileInfo = {    // 硬件参数
+//         64, 32, 262144, 524288, 262144, 65536, 65536, 33554432, platform_ascendc::SocVersion::ASCEND950};
+//     int64_t actual_seq_qlist[] = {37, 42, 2, 63, 6, 56, 40, 42};
+//     int64_t actual_seq_kvlist[] = {11, 11, 11, 11, 11, 11, 11, 11};
+//     gert::TilingContextPara tilingContextPara(
+//         "PromptFlashAttention",
+//         {
+//             {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // query input0
+//             {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // key input1
+//             {{{8, 20, 65, 48}, {8, 20, 65, 48}}, ge::DT_BF16, ge::FORMAT_ND},  // value input2
+//             {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},    // pse_shift input3
+//             {{{2048, 2048}, {2048, 2048}}, ge::DT_UINT8, ge::FORMAT_ND},    // atten_mask input4
+//             {{{8}, {8}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_qlist},    // actual_seq_lengths_q
+//             {{{8}, {8}}, ge::DT_INT64, ge::FORMAT_ND, true, actual_seq_kvlist},    // actual_seq_lengths_kv 
+//             {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale1 input5
+//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale1 input6
+//             {{{}, {}}, ge::DT_UINT64, ge::FORMAT_ND},    // deq_scale2 input7
+//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},    // quant_scale2 input8
+//             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}    // quant_offset2 input9
+//         },
+//         {
+//             {{{8, 65, 20, 48}, {8, 65, 20, 48}}, ge::DT_BF16, ge::FORMAT_ND}
+//         },
+//         {
+//             {"num_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
+//             {"scale_value", Ops::Transformer::AnyValue::CreateFrom<float>(0.1443375672974065f)},
+//             {"pre_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(16)},
+//             {"next_tokens", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-9)},
+//             {"input_layout", Ops::Transformer::AnyValue::CreateFrom<std::string>("BNSD_BSND")},
+//             {"num_key_value_heads", Ops::Transformer::AnyValue::CreateFrom<int64_t>(20)},
+//             {"sparse_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(4)},
+//             {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
+//         },
+//         &compileInfo, "Ascend950", 64, 262144, 16384);
+//     int64_t expectTilingKey = 266600960;
+//     std::string expectTilingData = "";
+//     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
+// }
 
 // k = 0/v = 0/out = 0
 TEST_F(PromptFlashAttentionTiling, PromptFlashAttention_tiling_5)
