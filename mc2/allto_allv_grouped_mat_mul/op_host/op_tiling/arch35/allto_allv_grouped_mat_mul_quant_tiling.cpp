@@ -111,16 +111,16 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
     if (mSize_ != 0) {
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
-        SetGMMArray(gmmQuantTilingData);
-        SetTilingParams(gmmQuantTilingData);
+        SetTilingArray(gmmQuantTilingData, maxMSize, n1_, h1_);
+        SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
     mSize_ = bs_;
     if (mSize_ != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
-        SetGMMArray(mmQuantTilingData);
-        SetTilingParams(mmQuantTilingData);
+        SetTilingArray(mmQuantTilingData, bs_, n2_, h2_);
+        SetTilingParams(mmQuantTilingData, bs_, n2_, h2_);
         PrintGMMQuantTilingData(mmQuantTilingData);
     }
     OP_LOGD(context_->GetNodeName(), "end DoLibApiTiling.");
@@ -186,36 +186,36 @@ void AlltoAllvGmmQuantTiling::SetGMMQuantParams(
     gmmQuantTilingData.gmmQuantParams.reserved = 0;
 }
 
-void AlltoAllvGmmQuantTiling::SetGMMArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const
+void AlltoAllvGmmQuantTiling::SetTilingArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const
 {
-    gmmQuantTilingData.gmmArray.mList[0] = static_cast<int32_t>(mSize_);
-    gmmQuantTilingData.gmmArray.kList[0] = static_cast<int32_t>(h1_);
-    gmmQuantTilingData.gmmArray.nList[0] = static_cast<int32_t>(n1_);
+    gmmQuantTilingData.gmmArray.mList[0] = static_cast<int32_t>(M);
+    gmmQuantTilingData.gmmArray.kList[0] = static_cast<int32_t>(K);
+    gmmQuantTilingData.gmmArray.nList[0] = static_cast<int32_t>(N);
 }
 
-void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const
+void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const
 {
     auto &mm = gmmQuantTilingData.mmTilingData;
 
-    mm.M = mSize_;
-    mm.N = n1_;
-    mm.Ka = h1_;
-    mm.Kb = h1_;
+    mm.M = M;
+    mm.N = N;
+    mm.Ka = K;
+    mm.Kb = K;
     mm.usedCoreNum = aicCoreNum_;
     mm.isBias = 0;
     mm.dbL0A = DOUBLE_BUFFER;
     mm.dbL0B = DOUBLE_BUFFER;
 
-    mm.baseM = std::min(static_cast<int32_t>(mSize_), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
+    mm.baseM = std::min(static_cast<int32_t>(M), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
     mm.baseM = Ops::Base::CeilAlign(mm.baseM, static_cast<int32_t>(CUBE_BLOCK));
-    mm.baseN = std::min(static_cast<int32_t>(n1_), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
+    mm.baseN = std::min(static_cast<int32_t>(N), static_cast<int32_t>(BASIC_BLOCK_SIZE_256));
     mm.baseN = Ops::Base::CeilAlign(mm.baseN, static_cast<int32_t>(CUBE_BLOCK));
-    mm.baseK = std::min(static_cast<int32_t>(h1_), static_cast<int32_t>(BASIC_BLOCK_SIZE_128));
+    mm.baseK = std::min(static_cast<int32_t>(K), static_cast<int32_t>(BASIC_BLOCK_SIZE_128));
     mm.baseK = Ops::Base::CeilAlign(mm.baseK, static_cast<int32_t>(CUBE_REDUCE_BLOCK));
 
-    mm.singleCoreM = std::min(static_cast<int32_t>(mSize_), mm.baseM);
-    mm.singleCoreN = std::min(static_cast<int32_t>(n1_), mm.baseN);
-    mm.singleCoreK = h1_;
+    mm.singleCoreM = std::min(static_cast<int32_t>(M), mm.baseM);
+    mm.singleCoreN = std::min(static_cast<int32_t>(N), mm.baseN);
+    mm.singleCoreK = K;
 
     uint64_t l0cRequired = mm.baseM * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
     mm.dbL0C = (l0cRequired <= l0cSize_) ? DB_SIZE : 1;
