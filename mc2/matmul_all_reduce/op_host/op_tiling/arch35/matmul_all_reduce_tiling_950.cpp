@@ -324,5 +324,6 @@ MatmulAllReduceTilingA5::MatmulAllReduceTilingA5(
 {}
 
 //注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,MatmulAllReduceTilingA5,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950),2);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(MatmulAllReduce, MatmulAllReduceTilingA5, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 2);
 } // namespace optiling
