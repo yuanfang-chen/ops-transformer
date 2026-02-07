@@ -21,6 +21,7 @@
 #include "../../../attn_infra/gemm_coord.hpp"
 #include "../../../attn_infra/matrix_coord.hpp"
 
+
 namespace NpuArch::Epilogue::Block {
 
 struct SinkLoopParam
