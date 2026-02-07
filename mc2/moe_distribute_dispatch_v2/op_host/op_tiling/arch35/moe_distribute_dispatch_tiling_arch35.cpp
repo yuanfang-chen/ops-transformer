@@ -28,13 +28,16 @@
 #include <string>
 #include <sys/types.h>
 #include "tiling/tiling_api.h"
+#include "mc2_exception_dump.h"
 #include "mc2_log.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "../../../op_kernel/moe_distribute_dispatch_v2_tiling.h"
 #include "../../../op_kernel/moe_distribute_dispatch_v2_tiling_key.h"
+
 using namespace Mc2Tiling;
+using namespace Mc2Exception;
 
 namespace {
 constexpr uint32_t ATTR_GROUP_EP_INDEX = 0;
@@ -961,4 +964,15 @@ bool MoeDistributeDispatchTilingA5::IsCapable()
     }
     return false;
 }
+
+#ifdef MC2_EXCEPTION_HANDLER
+// Register exception func
+inline void MoeDistributeDispatchV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
+{
+    Mc2ExceptionImpl(args, userdata, "MoeDistributeDispatchV2");
+}
+
+IMPL_OP(MoeDistributeDispatchV2)
+    .ExceptionDumpParseFunc(MoeDistributeDispatchV2ExceptionImplWrapper);
+#endif
 } // namespace optiling
