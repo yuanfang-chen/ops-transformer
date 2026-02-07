@@ -33,9 +33,8 @@ using namespace op;
 extern "C" {
 #endif
 namespace {
-static constexpr int64_t GRAD_Y_SHAPE_WITH_GROUP_IDX = 2;
-static constexpr int64_t GRAD_Y_SHAPE_NO_GROUP_IDX = 3;
-static constexpr int64_t GROUP_INDEX_SHAPE = 1;
+static constexpr int64_t MAX_INDICES_NUM = 512;
+static constexpr int64_t TOKENS_SHAPE_SIZE = 2;
 static constexpr int64_t TRANSPOSE_SHAPE_SIZE = 2;
 static constexpr int64_t INPUT_MAX_GROUP = 2048;
 static constexpr int64_t SORT_LIMIT_LENGTH = 16777215;
@@ -128,6 +127,26 @@ static bool CheckShapeValid(const aclTensor* routingMap, const aclTensor* probsO
     return true;
 }
 
+static aclnnStatus CheckTokensAndTopKValid(const aclTensor* tokens, int64_t numOutTokens, int64_t tokenNum, bool dropAndPad)
+{
+    int64_t topKNum = numOutTokens / tokenNum;
+
+    auto tokensDimNum = tokens->GetViewShape().GetDimNum();
+    OP_CHECK(
+        tokensDimNum == TOKENS_SHAPE_SIZE,
+        OP_LOGE(
+            ACLNN_ERR_PARAM_INVALID, "The dimensions of tokens should be two, but got %ld.",
+            static_cast<int64_t>(tokensDimNum)),
+        return ACLNN_ERR_PARAM_INVALID);
+    if (dropAndPad == false && topKNum > MAX_INDICES_NUM) {
+        OP_LOGE(
+            ACLNN_ERR_PARAM_INVALID, "numOutTokens / numTokens [%ld] should not large than max topK[%ld].", topKNum,
+            MAX_INDICES_NUM);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    return ACLNN_SUCCESS;
+}
+
 static aclnnStatus CheckParams(
     const aclTensor* tokens, const aclTensor* routingMap, const aclTensor* probsOptional,
     const aclTensor* permuteTokensOut, const aclTensor* permuteProbsOutOptional, const aclTensor* sortedIndicesOut,
@@ -148,6 +167,7 @@ static aclnnStatus CheckParams(
 
     int64_t alignNum = (dropAndPad == true) ? expertNum : tokenNum;
     alignNum = (alignNum == 0) ? 1 : alignNum;
+    CHECK_RET(CheckTokensAndTopKValid(tokens, numOutTokens, tokenNum, dropAndPad), ACLNN_ERR_PARAM_INVALID);
     OP_CHECK(
         numOutTokens >= 0,
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "numOutTokens should great than %ld, but got %ld.", int64_t(0), numOutTokens),
@@ -183,6 +203,8 @@ static aclnnStatus CheckParams(
                 permuteProbOutD),
             return ACLNN_ERR_PARAM_INVALID);
     }
+
+
     return ACLNN_SUCCESS;
 }
 
