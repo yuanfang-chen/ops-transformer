@@ -148,7 +148,7 @@ if (BUILD_OPEN_PROJECT)
     )
     target_compile_options(cust_opmaster PRIVATE
             $<$<COMPILE_LANGUAGE:CXX>:-std=c++11>
-            -fvisibility=hidden
+            -fvisibility=default
     )
     target_compile_definitions(cust_opmaster PRIVATE
             LOG_CPP
@@ -159,6 +159,9 @@ if (BUILD_OPEN_PROJECT)
             $<BUILD_INTERFACE:ops_transformer_utils_tiling_headers>
             $<$<BOOL:${alog_FOUND}>:$<BUILD_INTERFACE:alog_headers>>
             $<$<BOOL:${dlog_FOUND}>:$<BUILD_INTERFACE:dlog_headers>>
+            -Wl,--whole-archive
+            ${OPHOST_NAME}_tiling_obj  # 确保这一行存在
+            -Wl,--no-whole-archive
             -Wl,--whole-archive
             rt2_registry
             -Wl,--no-whole-archive
@@ -181,6 +184,13 @@ if (BUILD_OPEN_PROJECT)
     set_target_properties(cust_opmaster PROPERTIES OUTPUT_NAME
             cust_opmaster_rt2.0
     )
+
+    if(UNIX AND NOT APPLE)
+        target_link_options(cust_opmaster PRIVATE 
+            "-Wl,--export-dynamic"
+        )
+    endif()
+
     add_custom_command(TARGET cust_opmaster
             POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory ${TILING_CUSTOM_DIR}
@@ -566,8 +576,14 @@ target_link_libraries(
 target_link_libraries(
     cust_proto
     PUBLIC ${OPHOST_NAME}_infer_obj
+    PRIVATE cust_opmaster 
     PRIVATE $<$<TARGET_EXISTS:opsbase>:opsbase>
 )
+if(UNIX AND NOT APPLE)
+    target_link_options(cust_proto PRIVATE
+        "-Wl,-rpath,$ORIGIN"
+    )
+endif()
 if (generate_aclnn_headers)
     install(FILES ${generate_aclnn_headers}
             DESTINATION ${ACLNN_INC_INSTALL_DIR} OPTIONAL
