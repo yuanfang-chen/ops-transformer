@@ -391,6 +391,7 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
             auto iter = TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.find(*outTypePtr);
             if (iter != TORCH_DTYPE_ENUM_VALUE_TO_GE_DTYPE_MAP.end()) {
                 outputType = iter->second;
+                
             }
         }
     } else if (context->GetInputDataType(FIA_QUERY_INDEX) == ge::DT_INT8 ||
