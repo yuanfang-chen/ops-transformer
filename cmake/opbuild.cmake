@@ -107,7 +107,17 @@ function(gen_aclnn_master_header aclnn_master_header_name aclnn_master_header op
     get_filename_component(header_name ${header_file} NAME)
     set(aclnn_all_header_include_content "${aclnn_all_header_include_content}#include \"${header_name}\"\n")
   endforeach()
-
+  set(filtered_header_include_content "")
+  message(STATUS "======== LIUWENDA aclnn_all_header_include_content is : ${aclnn_all_header_include_content} =======")
+  message(STATUS "======== LIUWENDA header_name is : ${header_name} =======")
+  foreach(element ${aclnn_all_header_include_content})
+    message(STATUS "======== LIUWENDA element is : ${element} =======")
+    if (element MATCHES "#include aclnn" AND NOT element MATCHES "#inlcude aclnnInner")
+      list(APPEND filtered_header_include_content ${element})
+    endif()
+  endforeach()
+  message(STATUS "======== LIUWENDA aclnn_all_header_include_content is : ${aclnn_all_header_include_content} =======")
+  message(STATUS "======== LIUWENDA header_name is : ${header_name} =======")
   # 根据模板生成头文件
   message(STATUS "create aclnn master header file: ${aclnn_master_header}")
   configure_file(
