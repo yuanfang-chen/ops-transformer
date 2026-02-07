@@ -2753,12 +2753,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
-    AscendC::printf("tkd noinfo s1Idx: %u\n", s1Idx);
-    AscendC::printf("tkd info 1Idx: %u\n", info.s1Idx);
-    AscendC::printf("tkd info s1SizeSub: %u\n", s1SizeSub);
-    AscendC::printf("tkd tnd s1Size: %u\n", info.actS1Size);
-    AscendC::printf("tkd bshbsnd s1Size: %u\n", qSeqSize);
-    AscendC::printf("tkd bshbsnd s2Size: %u\n", info.s2Size);
     uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
     DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, curS1Size, info.s1Idx * s1SizeSub);
 
@@ -2831,11 +2825,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseI
                                                                                            uint64_t s1Size,
                                                                                            uint32_t curS1Idx)
 {
-    AscendC::printf("tkd actS1Size: %llu\n", actS1Size);
-    AscendC::printf("tkd real S1Size: %llu\n", s1Size);
-    AscendC::printf("tkd curActualSeqLen: %llu\n", curActualSeqLen);
-    AscendC::printf("tkd attenMaskFlag: %d\n", static_cast<int>(attenMaskFlag));
-
     if (!attenMaskFlag) {
         return;
     }
@@ -2846,9 +2835,6 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseI
 
     uint64_t seqLenGap = s1Size - curActualSeqLen;
     uint64_t startS1Idx = curS1Idx + mSizeVStart / gSize;
-    AscendC::printf("tkd seqLenGap: %llu\n", seqLenGap);
-    AscendC::printf("tkd startS1Idx: %llu\n", startS1Idx);
-    AscendC::printf("tkd no info startS1Idx: %llu\n", s1Idx * s1SizeSub + mSizeVStart / gSize);
     if (startS1Idx < seqLenGap) {
         SoftMaxShapeInfo softmaxShapeInfo{static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
                                           static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
