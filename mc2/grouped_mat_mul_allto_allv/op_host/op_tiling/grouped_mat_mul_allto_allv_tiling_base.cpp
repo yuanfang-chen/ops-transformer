@@ -26,9 +26,9 @@ namespace optiling {
 ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
 {
     opName_ = context_->GetNodeName();
-    auto gmmXTensorDesc = context->GetInputDesc(GMM_X_INDEX);
-    auto gmmWeightTensorDesc = context->GetInputDesc(GMM_WEIGHT_INDEX);
-    auto gmmYDesc = context->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
+    auto gmmXTensorDesc = context_->GetInputDesc(GMM_X_INDEX);
+    auto gmmWeightTensorDesc = context_->GetInputDesc(GMM_WEIGHT_INDEX);
+    auto gmmYDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
     OP_TILING_CHECK((gmmXTensorDesc == nullptr), OP_LOGE(opName_, "the input gmmX tensor is null."),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((gmmWeightTensorDesc == nullptr), OP_LOGE(opName_, "the input gmmWeight tensor is null."),
@@ -36,19 +36,30 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
     OP_TILING_CHECK((gmmYDesc == nullptr), OP_LOGE(opName_, "the output gmmY tensor is null."),
                     return ge::GRAPH_FAILED);
     
-    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
     const char *group = attrs->GetAttrPointer<char>(ATTR_GROUP_INDEX);
     // 判断为空或者空字符串
-    OP_TILING_CHECK(group == nullptr, OP_LOGE(opName, "The input attr group is null pointer."),
+    OP_TILING_CHECK(group == nullptr, OP_LOGE(opName_, "The input attr group is null pointer."),
                     return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(group[0] == '\0', OP_LOGE(opName, "The input attr group is empty string."),
+    OP_TILING_CHECK(group[0] == '\0', OP_LOGE(opName_, "The input attr group is empty string."),
                     return ge::GRAPH_FAILED);
     // 判断group是否超过127
-    size_t groupLen = strlen(group);
-    OP_TILING_CHECK(groupLen > MAX_GROUP_NAME_LEN,
-                    OP_LOGE(opName, "The input attr group length is %zu, which exceeds the limit of 128.", groupLen),
+    const char* nullTerminator = static_cast<const char*>(memchr(group, '\0', MAX_GROUP_BUFFER_SIZE));
+    OP_TILING_CHECK(nullTerminator == nullptr, OP_LOGE(opName_, "The input attr group length is large than 128!"),
                     return ge::GRAPH_FAILED);
+    
+    auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
+    auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
+    auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
+    OP_TILING_CHECK(epWorldSizePtr == nullptr, OP_LOGE(opName_, "The input attr epWorldSizePtr is null!"),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(sendCountsPtr == nullptr, OP_LOGE(opName_, "The input attr sendCountsPtr is null!"),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(recvCountsPtr == nullptr, OP_LOGE(opName_, "The input attr recvCountsPtr is null!"),
+                    return ge::GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
-}
+
+} // namespace
