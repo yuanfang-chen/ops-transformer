@@ -593,7 +593,7 @@ template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadM
     attenMaskFlag = (tilingData->baseParams.attenMaskFlag != 0) ? true : false;
     attenMaskSize = tilingData->baseParams.attenMaskSize;
 
-    softmaxLseFlag = (tilingData->baseParams.softmaxLseFlag != 0) ? true : false;
+    softmaxLseFlag = tilingData->baseParams.softmaxLseFlag;
 
     maxBlockNumPerBatch = tilingData->baseParams.maxBlockNumPerBatch;
     kvCacheBlockSize = tilingData->baseParams.blockSize;
@@ -2753,7 +2753,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
-    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, s1Idx * s1SizeSub);
+    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, info.s1Idx * s1SizeSub);
 
     outputQue2.EnQue(softmaxlseUb);
     outputQue2.DeQue<T>();
