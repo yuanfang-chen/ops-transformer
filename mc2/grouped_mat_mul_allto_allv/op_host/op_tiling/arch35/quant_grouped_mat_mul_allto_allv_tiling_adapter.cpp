@@ -188,23 +188,25 @@ using namespace GmmConstant;
 //     return ge::GRAPH_SUCCESS;
 // }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(const int16_t* sendCounts,
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(const int32_t* sendCounts,
     uint64_t worldSize, uint64_t index, uint32_t epNums)
 {
     // uint32_t worldSize = tilingProcesser_.localTilingData_.taskTilingInfo.epWorldSize;
     // auto sendCounts = &tilingProcesser_.localTilingData_.taskTilingInfo.sendCnt[0];
-    uint64_t mSizePerLoop = 0;
+    int32_t mSizePerLoop = 0;
     // index sendcounts起始   epNums 当前loop专家数 -- 每轮专家 与 尾轮专家
     if (epNums == 1) {
         for (uint32_t i = 0; i < worldSize; i++) {
             mSizePerLoop += sendCounts[index + i];
         }
 
-        inputParams_.mSize = mSizePerLoop;
+        inputParams_.mSize = static_cast<uint64_t>(mSizePerLoop);
         inputParams_.isSingleX = true;
         inputParams_.isSingleW = true;
         inputParams_.isSingleY = true;
-
+        mList_[0] = static_cast<int32_t>(mSizePerLoop);
+        kList_[0] = static_cast<int32_t>(inputParams_.kSize);
+        nList_[0] = static_cast<int32_t>(inputParams_.nSize);
         return ge::GRAPH_SUCCESS; 
     }
 

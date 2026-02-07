@@ -69,8 +69,8 @@ struct TaskTilingInfo {
     uint32_t totalLoopCount;     // 总循环次数
     
     // 通信参数（对应sendCounts和recvCounts）
-    int64_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
-    int64_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
+    int32_t sendCnt[MAX_EXPERT_SIZE];  // 每个expert的发送计数
+    int32_t recvCnt[MAX_EXPERT_SIZE];  // 每个expert的接收计数
 };
 
 }
