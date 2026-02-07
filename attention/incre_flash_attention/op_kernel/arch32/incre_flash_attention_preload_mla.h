@@ -2759,7 +2759,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     AscendC::printf("tkd tnd s1Size: %u\n", info.actS1Size);
     AscendC::printf("tkd bshbsnd s1Size: %u\n", qSeqSize);
     AscendC::printf("tkd bshbsnd s2Size: %u\n", info.s2Size);
-    uint64 curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
+    uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
     DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, curS1Size, info.s1Idx * s1SizeSub);
 
     outputQue2.EnQue(softmaxlseUb);
