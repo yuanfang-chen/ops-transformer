@@ -2754,6 +2754,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
     DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, info.s1Idx * s1SizeSub);
+    AscendC::printf("tkd noinfo curS1Idx: %u\n", s1Idx * s1SizeSub);
+    AscendC::printf("tkd info curS1Idx: %u\n", info.s1Idx * s1SizeSub);
 
     outputQue2.EnQue(softmaxlseUb);
     outputQue2.DeQue<T>();
