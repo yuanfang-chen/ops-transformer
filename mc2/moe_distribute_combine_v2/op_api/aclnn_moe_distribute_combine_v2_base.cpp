@@ -63,6 +63,11 @@ extern aclnnStatus aclnnInnerMoeDistributeCombineV2ExtendGetWorkspaceSize(
     int64_t commQuantMode, int64_t groupListType, const char *commAlg, int64_t zeroExpertNum, int64_t copyExpertNum,
     int64_t constExpertNum, aclTensor *x, uint64_t *workspaceSize, aclOpExecutor **executor);
 
+extern aclnnStatus aclnnInnerMoeDistributeCombineV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                    aclrtStream stream);
+
+extern aclnnStatus aclnnInnerMoeDistributeCombineV2Extned(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                    aclrtStream stream);
 namespace {
 inline aclnnStatus CheckHccl(HcclResult res, aclnnStatus err, const char *msg)
 {
@@ -84,7 +89,7 @@ inline aclnnStatus CheckHccl(HcclResult res, aclnnStatus err, const char *msg)
 namespace {
 constexpr CommEngine commEngine = CommEngine::COMM_ENGINE_AIV; // 默认AIV引擎
 std::string opName = "moe_distribute_combine_v2";
-
+const bool isCcu = false;
 enum Mc2TopoType : uint32_t {
     MC2_TOPO_AIV_DPU = 0,
     MC2_TOPO_HOST_KFC = 1,
@@ -282,7 +287,7 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
         performanceInfoOptionalCombineV2Temp = nullptr;
     }
 
-    const bool isCcu = (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0);
+    isCcu = (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0);
     if (is950 && !isCcu) {
         void *devCtx = nullptr;
         aclTensor *mc2Context = nullptr;
@@ -326,6 +331,21 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     }
     return getWorkspaceSizesRes;
 }
+
+aclnnStatus aclnnMoeDistributeCombineBase(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                  aclrtStream stream)
+{
+    const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+    const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
+    aclnnStatus getWorkspaceSizesRes;
+    if (is950 && !isCcu) {
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2Extend(workspace, workspaceSize, executor, stream);
+    }else{
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2(workspace, workspaceSize, executor, stream);
+    }
+    return getWorkspaceSizesRes;
+}
+
 #ifdef __cplusplus
 }
 #endif

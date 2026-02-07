@@ -38,6 +38,11 @@ ACLNN_API aclnnStatus CombineCheckParams(const aclTensor* expandX, const aclTens
                                          const aclTensor* epSendCounts, const aclTensor* expertScales, const char* groupEp,
                                          const char* groupTp, aclTensor* x);
 
+ACLNN_API aclnnStatus DetectTopoType(HcclComm hcclHandle, int64_t epRankId, int64_t epRankSize, uint32_t &topoTypeOut);
+
+ACLNN_API aclnnStatus BuildMc2Context(const char *groupEp, int64_t epRankId, void *&devCtx, aclTensor *&mc2TensorOut,
+                            uint32_t &topoTypeOut, int64_t &hcclBuffSize);
+
 ACLNN_API aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     const aclTensor* expandX, const aclTensor* expertIds,
     const aclTensor* assistInfoForCombine, const aclTensor* epSendCounts,
@@ -54,6 +59,9 @@ ACLNN_API aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     int64_t commQuantMode, int64_t groupListType, const char* commAlg, 
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum,
     aclTensor* xOut, uint64_t* workspaceSize, aclOpExecutor** executor);
+    
+ACLNN_API aclnnStatus aclnnMoeDistributeCombineBase(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                  aclrtStream stream);
 #ifdef __cplusplus
 }
 #endif
