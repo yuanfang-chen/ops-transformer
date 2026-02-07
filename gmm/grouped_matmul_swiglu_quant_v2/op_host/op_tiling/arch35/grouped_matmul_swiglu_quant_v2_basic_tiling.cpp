@@ -285,6 +285,7 @@ bool GroupedMatmulSwigluQuantDavidV2Tiling::CheckDims() const
 }
 bool GroupedMatmulSwigluQuantDavidV2Tiling::AnalyzeInputs()
 {
+    std::cout << "===== 0207 enter AnalyzeInputs" << std::endl;
     if (inputParams_.aQuantMode == optiling::QuantMode::PERTOKEN_MODE) {
         return AnalyzeInputsPertoken();
     }
