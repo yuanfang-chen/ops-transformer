@@ -682,125 +682,125 @@ __aicore__ inline void ComputeSoftMaxLse(LocalTensor<T> &softmaxlseUb, LocalTens
     AscendC::PipeBarrier<PIPE_V>();
 }
 
-static constexpr uint64_t headDim = 512ULL;
-template <FIA_LAYOUT LAYOUT_T, typename OUT_T>
-__aicore__ inline void Bmm2DataCopyOutNBSDMTiling(LocalTensor<OUT_T> &attenOutUb, const FusedTransposeInfo &transInfo,
-                                                  const AttentionCommon::ConstInfo &constInfo,
-                                                  GlobalTensor<uint64_t> &actualSeqLengthsGmQ,
-                                                  GlobalTensor<OUT_T> &attentionOutGm)
-{
-    uint32_t tSize = constInfo.batchSize * constInfo.qSeqSize;
-    uint32_t tBase = transInfo.bIdx * constInfo.qSeqSize;
-    if constexpr (LAYOUT_T == FIA_LAYOUT::TND) {
-        tSize = actualSeqLengthsGmQ.GetValue(constInfo.batchSize - 1);
-        tBase = transInfo.bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(transInfo.bIdx - 1);
-    }
+// static constexpr uint64_t headDim = 512ULL;
+// template <FIA_LAYOUT LAYOUT_T, typename OUT_T>
+// __aicore__ inline void Bmm2DataCopyOutNBSDMTiling(LocalTensor<OUT_T> &attenOutUb, const FusedTransposeInfo &transInfo,
+//                                                   const AttentionCommon::ConstInfo &constInfo,
+//                                                   GlobalTensor<uint64_t> &actualSeqLengthsGmQ,
+//                                                   GlobalTensor<OUT_T> &attentionOutGm)
+// {
+//     uint32_t tSize = constInfo.batchSize * constInfo.qSeqSize;
+//     uint32_t tBase = transInfo.bIdx * constInfo.qSeqSize;
+//     if constexpr (LAYOUT_T == FIA_LAYOUT::TND) {
+//         tSize = actualSeqLengthsGmQ.GetValue(constInfo.batchSize - 1);
+//         tBase = transInfo.bIdx == 0 ? 0 : actualSeqLengthsGmQ.GetValue(transInfo.bIdx - 1);
+//     }
 
-    uint32_t s1Idx = transInfo.s1StartIdx;
-    uint32_t attenOutUbOffset = 0;
-    for (int i = 0; i < transInfo.s1Count; i++) {
-        uint32_t gIdx = 0; // 中间块
-        uint32_t gCountOneS1 = constInfo.gSize;
-        if (i == 0) { // 首块
-            gIdx = transInfo.gStartIdx;
-            gCountOneS1 = (constInfo.gSize - transInfo.gStartIdx) < transInfo.gCount ?
-                              (constInfo.gSize - transInfo.gStartIdx) :
-                              transInfo.gCount;  // min(info.gSize - gStartIdx, gCount);
-        } else if (i == transInfo.s1Count - 1) { // 尾块
-            gIdx = 0;
-            gCountOneS1 = transInfo.gEndIdx + 1;
-        }
-        uint64_t attenOutOffset = transInfo.n2Idx * constInfo.gSize * tSize * headDim + // N2轴的偏移
-                                  gIdx * tSize * headDim +                              // G轴的偏移
-                                  tBase * headDim +                                     // B轴的偏移
-                                  s1Idx * headDim;                                      // S1轴的偏移
-        bool dstStrideFlag = ((tSize - 1) * headDim * sizeof(OUT_T) / 32U) > UINT16_MAX ? 1 : 0;
-        if (dstStrideFlag) {
-            DataCopyExtParams dataCopyParams;
-            dataCopyParams.blockCount = gCountOneS1;
-            dataCopyParams.blockLen = headDim * sizeof(OUT_T);                // 一个D的大小
-            dataCopyParams.srcStride = 0;                                     // 连读
-            dataCopyParams.dstStride = (tSize - 1) * headDim * sizeof(OUT_T); // 跳写
-            DataCopyPad(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
-        } else {
-            DataCopyParams dataCopyParams;
-            dataCopyParams.blockCount = gCountOneS1;
-            dataCopyParams.blockLen = headDim * sizeof(OUT_T) / 32U;                // 一个D的大小
-            dataCopyParams.srcStride = 0;                                           // 连读
-            dataCopyParams.dstStride = (tSize - 1) * headDim * sizeof(OUT_T) / 32U; // 跳写
-            DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
-        }
-        s1Idx++;
-        attenOutUbOffset += gCountOneS1 * headDim;
-    }
-}
+//     uint32_t s1Idx = transInfo.s1StartIdx;
+//     uint32_t attenOutUbOffset = 0;
+//     for (int i = 0; i < transInfo.s1Count; i++) {
+//         uint32_t gIdx = 0; // 中间块
+//         uint32_t gCountOneS1 = constInfo.gSize;
+//         if (i == 0) { // 首块
+//             gIdx = transInfo.gStartIdx;
+//             gCountOneS1 = (constInfo.gSize - transInfo.gStartIdx) < transInfo.gCount ?
+//                               (constInfo.gSize - transInfo.gStartIdx) :
+//                               transInfo.gCount;  // min(info.gSize - gStartIdx, gCount);
+//         } else if (i == transInfo.s1Count - 1) { // 尾块
+//             gIdx = 0;
+//             gCountOneS1 = transInfo.gEndIdx + 1;
+//         }
+//         uint64_t attenOutOffset = transInfo.n2Idx * constInfo.gSize * tSize * headDim + // N2轴的偏移
+//                                   gIdx * tSize * headDim +                              // G轴的偏移
+//                                   tBase * headDim +                                     // B轴的偏移
+//                                   s1Idx * headDim;                                      // S1轴的偏移
+//         bool dstStrideFlag = ((tSize - 1) * headDim * sizeof(OUT_T) / 32U) > UINT16_MAX ? 1 : 0;
+//         if (dstStrideFlag) {
+//             DataCopyExtParams dataCopyParams;
+//             dataCopyParams.blockCount = gCountOneS1;
+//             dataCopyParams.blockLen = headDim * sizeof(OUT_T);                // 一个D的大小
+//             dataCopyParams.srcStride = 0;                                     // 连读
+//             dataCopyParams.dstStride = (tSize - 1) * headDim * sizeof(OUT_T); // 跳写
+//             DataCopyPad(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
+//         } else {
+//             DataCopyParams dataCopyParams;
+//             dataCopyParams.blockCount = gCountOneS1;
+//             dataCopyParams.blockLen = headDim * sizeof(OUT_T) / 32U;                // 一个D的大小
+//             dataCopyParams.srcStride = 0;                                           // 连读
+//             dataCopyParams.dstStride = (tSize - 1) * headDim * sizeof(OUT_T) / 32U; // 跳写
+//             DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
+//         }
+//         s1Idx++;
+//         attenOutUbOffset += gCountOneS1 * headDim;
+//     }
+// }
 
-template <typename OUT_T>
-__aicore__ inline void Bmm2DataCopyOutNBSDGTiling(LocalTensor<OUT_T> &attenOutUb, const FusedTransposeInfo &transInfo,
-                                                  const AttentionCommon::ConstInfo &constInfo, GlobalTensor<OUT_T> &attentionOutGm)
-{
-    bool hasHeadBlock = transInfo.s1StartIdx != 0;
-    bool hasTailBlock = (transInfo.s1EndIdx + 1) != constInfo.qSeqSize;
-    uint32_t attenOutUbOffset = 0;
-    if (hasHeadBlock) { // 头块单独一条DataCopy指令
-        DataCopyParams dataCopyParamsHead;
-        dataCopyParamsHead.blockCount = 1;
-        dataCopyParamsHead.blockLen = (constInfo.qSeqSize - transInfo.s1StartIdx) * headDim * sizeof(OUT_T) / 32U;
-        dataCopyParamsHead.srcStride = 0;
-        dataCopyParamsHead.dstStride = 0; // blockCount = 1 无所谓跳写
-        uint64_t attenOutOffset =
-            transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
-            transInfo.gStartIdx * constInfo.batchSize * constInfo.qSeqSize * headDim +               // G轴的偏移
-            transInfo.bIdx * constInfo.qSeqSize * headDim +                                          // B轴的偏移
-            transInfo.s1StartIdx * headDim;                                                          // S1轴的偏移
-        DataCopy(attentionOutGm[attenOutOffset], attenOutUb, dataCopyParamsHead);
-        attenOutUbOffset += (constInfo.qSeqSize - transInfo.s1StartIdx) * headDim;
-    }
-    // 中间块DataCopy指令
-    uint64_t attenOutOffset =
-        transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
-        (transInfo.gStartIdx + static_cast<uint32_t>(hasHeadBlock)) * constInfo.batchSize * constInfo.qSeqSize *
-            headDim +                                  // G轴的偏移
-        transInfo.bIdx * constInfo.qSeqSize * headDim; // B轴的偏移
-    bool dstStrideFlag =
-        ((constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T) / 32U) > UINT16_MAX ?
-            1 :
-            0;
-    if (dstStrideFlag) {
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount =
-            transInfo.gCount - static_cast<uint32_t>(hasHeadBlock) - static_cast<uint32_t>(hasTailBlock); // 处理多少个G
-        dataCopyParams.blockLen = constInfo.qSeqSize * headDim * sizeof(OUT_T); // 一个S1*D的大小
-        dataCopyParams.srcStride = 0;                                           // 连读
-        dataCopyParams.dstStride =
-            (constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T); // 跳写
-        DataCopyPad(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
-        attenOutUbOffset += dataCopyParams.blockCount * (constInfo.qSeqSize * headDim);
-    } else {
-        DataCopyParams dataCopyParams;
-        dataCopyParams.blockCount =
-            transInfo.gCount - static_cast<uint32_t>(hasHeadBlock) - static_cast<uint32_t>(hasTailBlock); // 处理多少个G
-        dataCopyParams.blockLen = constInfo.qSeqSize * headDim * sizeof(OUT_T) / 32U; // 一个S1*D的大小
-        dataCopyParams.srcStride = 0;                                                 // 连读
-        dataCopyParams.dstStride =
-            (constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T) / 32U; // 跳写
-        DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
-        attenOutUbOffset += dataCopyParams.blockCount * (constInfo.qSeqSize * headDim);
-    }
-    if (hasTailBlock) { // 尾块单独一条DataCopy指令
-        DataCopyParams dataCopyParamsTail;
-        dataCopyParamsTail.blockCount = 1;
-        dataCopyParamsTail.blockLen = (transInfo.s1EndIdx + 1) * headDim * sizeof(OUT_T) / 32U;
-        dataCopyParamsTail.srcStride = 0;
-        dataCopyParamsTail.dstStride = 0; // blockCount = 1 无所谓跳写
-        uint64_t attenOutOffset =
-            transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
-            (transInfo.gStartIdx + transInfo.gCount - 1) * constInfo.batchSize * constInfo.qSeqSize *
-                headDim +                                  // G轴的偏移
-            transInfo.bIdx * constInfo.qSeqSize * headDim; // B轴的偏移
-        DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParamsTail);
-    }
-}
+// template <typename OUT_T>
+// __aicore__ inline void Bmm2DataCopyOutNBSDGTiling(LocalTensor<OUT_T> &attenOutUb, const FusedTransposeInfo &transInfo,
+//                                                   const AttentionCommon::ConstInfo &constInfo, GlobalTensor<OUT_T> &attentionOutGm)
+// {
+//     bool hasHeadBlock = transInfo.s1StartIdx != 0;
+//     bool hasTailBlock = (transInfo.s1EndIdx + 1) != constInfo.qSeqSize;
+//     uint32_t attenOutUbOffset = 0;
+//     if (hasHeadBlock) { // 头块单独一条DataCopy指令
+//         DataCopyParams dataCopyParamsHead;
+//         dataCopyParamsHead.blockCount = 1;
+//         dataCopyParamsHead.blockLen = (constInfo.qSeqSize - transInfo.s1StartIdx) * headDim * sizeof(OUT_T) / 32U;
+//         dataCopyParamsHead.srcStride = 0;
+//         dataCopyParamsHead.dstStride = 0; // blockCount = 1 无所谓跳写
+//         uint64_t attenOutOffset =
+//             transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
+//             transInfo.gStartIdx * constInfo.batchSize * constInfo.qSeqSize * headDim +               // G轴的偏移
+//             transInfo.bIdx * constInfo.qSeqSize * headDim +                                          // B轴的偏移
+//             transInfo.s1StartIdx * headDim;                                                          // S1轴的偏移
+//         DataCopy(attentionOutGm[attenOutOffset], attenOutUb, dataCopyParamsHead);
+//         attenOutUbOffset += (constInfo.qSeqSize - transInfo.s1StartIdx) * headDim;
+//     }
+//     // 中间块DataCopy指令
+//     uint64_t attenOutOffset =
+//         transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
+//         (transInfo.gStartIdx + static_cast<uint32_t>(hasHeadBlock)) * constInfo.batchSize * constInfo.qSeqSize *
+//             headDim +                                  // G轴的偏移
+//         transInfo.bIdx * constInfo.qSeqSize * headDim; // B轴的偏移
+//     bool dstStrideFlag =
+//         ((constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T) / 32U) > UINT16_MAX ?
+//             1 :
+//             0;
+//     if (dstStrideFlag) {
+//         DataCopyExtParams dataCopyParams;
+//         dataCopyParams.blockCount =
+//             transInfo.gCount - static_cast<uint32_t>(hasHeadBlock) - static_cast<uint32_t>(hasTailBlock); // 处理多少个G
+//         dataCopyParams.blockLen = constInfo.qSeqSize * headDim * sizeof(OUT_T); // 一个S1*D的大小
+//         dataCopyParams.srcStride = 0;                                           // 连读
+//         dataCopyParams.dstStride =
+//             (constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T); // 跳写
+//         DataCopyPad(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
+//         attenOutUbOffset += dataCopyParams.blockCount * (constInfo.qSeqSize * headDim);
+//     } else {
+//         DataCopyParams dataCopyParams;
+//         dataCopyParams.blockCount =
+//             transInfo.gCount - static_cast<uint32_t>(hasHeadBlock) - static_cast<uint32_t>(hasTailBlock); // 处理多少个G
+//         dataCopyParams.blockLen = constInfo.qSeqSize * headDim * sizeof(OUT_T) / 32U; // 一个S1*D的大小
+//         dataCopyParams.srcStride = 0;                                                 // 连读
+//         dataCopyParams.dstStride =
+//             (constInfo.batchSize * constInfo.qSeqSize - constInfo.qSeqSize) * headDim * sizeof(OUT_T) / 32U; // 跳写
+//         DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParams);
+//         attenOutUbOffset += dataCopyParams.blockCount * (constInfo.qSeqSize * headDim);
+//     }
+//     if (hasTailBlock) { // 尾块单独一条DataCopy指令
+//         DataCopyParams dataCopyParamsTail;
+//         dataCopyParamsTail.blockCount = 1;
+//         dataCopyParamsTail.blockLen = (transInfo.s1EndIdx + 1) * headDim * sizeof(OUT_T) / 32U;
+//         dataCopyParamsTail.srcStride = 0;
+//         dataCopyParamsTail.dstStride = 0; // blockCount = 1 无所谓跳写
+//         uint64_t attenOutOffset =
+//             transInfo.n2Idx * constInfo.gSize * constInfo.batchSize * constInfo.qSeqSize * headDim + // N2轴的偏移
+//             (transInfo.gStartIdx + transInfo.gCount - 1) * constInfo.batchSize * constInfo.qSeqSize *
+//                 headDim +                                  // G轴的偏移
+//             transInfo.bIdx * constInfo.qSeqSize * headDim; // B轴的偏移
+//         DataCopy(attentionOutGm[attenOutOffset], attenOutUb[attenOutUbOffset], dataCopyParamsTail);
+//     }
+// }
 
 enum LAYOUT_Q {
     GS,
@@ -831,6 +831,7 @@ struct MaskInfo {
     uint32_t batchIdx;
     uint32_t attenMaskBatchStride;
     uint32_t attenMaskStride;
+    uint32_t attenMaskDstStride = 0;
 
     LAYOUT_Q layout;
     MaskDataType attenMaskType;
@@ -904,10 +905,54 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
     dataCopyParams.blockLen = info.s2dealNum;
     dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
-    dataCopyParams.dstStride = 0;
-    DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 0};
+    dataCopyParams.dstStride = info.attenMaskDstStride;
+    DataCopyPadExtParams<T> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 1U};      // TODO，后续确认影响
 
     DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+}
+
+ template <typename T, typename U>
+__aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
+{
+    int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
+    int32_t s1EndIdx = (info.gs1StartIdx + info.gs1dealNum - 1) % info.s1Size + 1;
+    uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+    if (info.gs1dealNum <= info.s1Size) {
+        if (s1StartIdx + info.gs1dealNum > info.s1Size) {
+            AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, info.s1Size, isPre);
+            LocalTensor<T> attenMaskSecUb = attenMaskUb[(info.s1Size - s1StartIdx) * attenMaskSizeAlign];
+            AttentionmaskDataCopy(attenMaskSecUb, srcGmAddr, info, 0, s1EndIdx, isPre);
+        } else {
+            AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, s1EndIdx, isPre);
+        }
+        event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(enQueEvtID);
+        WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
+    } else {
+        uint32_t headS1Count = info.s1Size - s1StartIdx;
+        uint32_t remainRowCount = info.gs1dealNum - headS1Count;
+        uint32_t midGCount = remainRowCount / info.s1Size;
+        uint32_t tailS1Size = remainRowCount % info.s1Size;
+
+        // 第一块完整的mask
+        AttentionmaskDataCopy(attenMaskUb[headS1Count * attenMaskSizeAlign], srcGmAddr, info, 0, info.s1Size, isPre);
+        event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(enQueEvtID);
+        WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
+
+        // head
+        DataCopy(attenMaskUb, attenMaskUb[info.s1Size * attenMaskSizeAlign], headS1Count * attenMaskSizeAlign);
+        // mid
+        for (uint32_t i = 1; i < midGCount; i++) {
+            DataCopy(attenMaskUb[(headS1Count + i * info.s1Size) * attenMaskSizeAlign],
+                    attenMaskUb[headS1Count * attenMaskSizeAlign], info.s1Size * attenMaskSizeAlign);
+        }
+        // tail
+        if (tailS1Size > 0) {
+            DataCopy(attenMaskUb[(headS1Count + midGCount * info.s1Size) * attenMaskSizeAlign],
+                    attenMaskUb[headS1Count * attenMaskSizeAlign], tailS1Size * attenMaskSizeAlign);
+        }
+    }
 }
 
 template <typename T, typename U>
@@ -1052,6 +1097,80 @@ __aicore__ inline bool IsSkipAttentionmaskForPre(MaskInfo &info)
     return false;
 }
 
+template <typename T>
+__aicore__ inline void AttentionmaskCopyInForSgLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
+{
+    if ((isPre && IsSkipAttentionmaskForPre(info)) || (!isPre && IsSkipAttentionmask(info))) {
+        Duplicate(attenMaskUb, static_cast<T>(0U), info.gs1dealNum * Align(info.s2dealNum, 32U));
+        event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(enQueEvtID);
+        WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
+        PipeBarrier<PIPE_V>();
+        return;
+    }
+    uint32_t s1StartIdx = info.gs1StartIdx / info.gSize;
+    uint32_t s1EndIdx = (info.gs1StartIdx + info.gs1dealNum - 1) / info.gSize;
+    uint32_t s1Count = s1EndIdx - s1StartIdx + 1;
+    uint32_t headGCount = s1Count > 1 ? (info.gSize - info.gs1StartIdx % info.gSize) : info.gs1dealNum;
+    uint32_t remainRowCount = info.gs1dealNum - headGCount;
+    uint32_t midS1Count = remainRowCount / info.gSize;
+    uint32_t tailGSize = remainRowCount % info.gSize;
+    uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+    uint32_t attenMaskS2Stride = attenMaskSizeAlign + 32 * info.attenMaskDstStride;
+
+    // ub-head
+    AttentionmaskDataCopy(attenMaskUb, srcGmAddr, info, s1StartIdx, info.s1Size, isPre);
+
+    // ub-remain
+    if (remainRowCount > 0) {
+        uint64_t maskOffset = ComputeAttenMaskOffset(info, s1StartIdx + 1, isPre);
+        DataCopyExtParams dataCopyParams;
+        dataCopyParams.blockCount = midS1Count + (tailGSize > 0);
+        dataCopyParams.blockLen = info.s2dealNum;
+        dataCopyParams.srcStride = info.attenMaskStride - info.s2dealNum;
+        dataCopyParams.dstStride = (info.gSize - 1) * attenMaskS2Stride / 32 + info.attenMaskDstStride;
+        DataCopyPadExtParams<T> padParams{true, 0, static_cast<uint8_t>(attenMaskSizeAlign - info.s2dealNum), 1U};
+
+        DataCopyPad(attenMaskUb[headGCount * attenMaskS2Stride], srcGmAddr[maskOffset], dataCopyParams, padParams);
+    }
+
+    // TODO，后续考虑封装成VF
+    // TODO，后续做scalar优化
+
+    event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+    SetFlag<HardEvent::MTE2_V>(enQueEvtID);
+    WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
+
+    LocalTensor<int16_t> attenMaskUbDst = attenMaskUb.template ReinterpretCast<int16_t>();
+    LocalTensor<int16_t> mask16 = attenMaskUb.template ReinterpretCast<int16_t>();
+    uint32_t dstMaskOffset = 0;
+    uint32_t srcMaskBaseOffset = 0;
+
+    // head
+    SetMaskCount();
+    SetVectorMask<int16_t, MaskMode::COUNTER>(attenMaskSizeAlign / 2);
+    Copy<int16_t, false>(attenMaskUbDst[dstMaskOffset], mask16[srcMaskBaseOffset], AscendC::MASK_PLACEHOLDER,
+                        headGCount, {1, 1, static_cast<uint16_t>(info.attenMaskDstStride + attenMaskSizeAlign / 32), 0});
+    dstMaskOffset += headGCount * attenMaskS2Stride / sizeof(int16_t);
+    srcMaskBaseOffset += headGCount * attenMaskS2Stride / sizeof(int16_t);
+
+    // mid
+    for (uint32_t midIdx = 0; midIdx < midS1Count; midIdx++) {
+        Copy<int16_t, false>(attenMaskUbDst[dstMaskOffset], mask16[srcMaskBaseOffset], AscendC::MASK_PLACEHOLDER,
+                            info.gSize, {1, 1, static_cast<uint16_t>(info.attenMaskDstStride + attenMaskSizeAlign / 32), 0});
+        dstMaskOffset += info.gSize * attenMaskS2Stride / sizeof(int16_t);
+        srcMaskBaseOffset += info.gSize * attenMaskS2Stride / sizeof(int16_t);
+    }
+    // tail
+    if (tailGSize > 0) {
+        Copy<int16_t, false>(attenMaskUbDst[dstMaskOffset], mask16[srcMaskBaseOffset], AscendC::MASK_PLACEHOLDER,
+                            tailGSize, {1, 1, static_cast<uint16_t>(info.attenMaskDstStride + attenMaskSizeAlign / 32), 0});
+    }
+    SetMaskNorm();
+    ResetMask();
+    PipeBarrier<PIPE_V>();
+}
+
 template <typename T, typename U>
 __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
@@ -1080,28 +1199,28 @@ __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTe
     }
 }
 
-template <typename T, typename M, typename U>
-__aicore__ inline void AttentionMaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
-{
-    uint32_t dealRowCount = info.gs1dealNum;
-    uint32_t columnCount = Align(info.s2dealNum, 32U);
-    uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
-    if (info.attenMaskType != MASK_FP16) {
-        // int8 & uint8 is ok
-        SelectWithBytesMaskShapeInfo selectWithBytesMaskShapeInfo;
-        selectWithBytesMaskShapeInfo.firstAxis = dealRowCount;
-        selectWithBytesMaskShapeInfo.srcLastAxis = columnCount;
-        selectWithBytesMaskShapeInfo.maskLastAxis = attenMaskSizeAlign;
-        attenMaskUb.SetSize(dealRowCount * attenMaskSizeAlign); // Select接口要求mask size与参数匹配
-        srcUb.SetSize(dealRowCount * columnCount);            // Select接口要求src size与参数匹配
-        if (isPre) {
-            SelectWithBytesMask(dstUb, *((T *)&info.maskValue), srcUb, attenMaskUb, tmpBuf, selectWithBytesMaskShapeInfo);
-        } else {
-            SelectWithBytesMask(dstUb, srcUb, *((T *)&info.maskValue), attenMaskUb, tmpBuf, selectWithBytesMaskShapeInfo);
-        }
-        srcUb.SetSize(AttentionCommon::ConstInfo::BUFFER_SIZE_BYTE_32K / sizeof(T)); // mmResUb Size复原,mask不用复原,与原来一致
-    }
-}
+// template <typename T, typename M, typename U>
+// __aicore__ inline void AttentionMaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
+// {
+//     uint32_t dealRowCount = info.gs1dealNum;
+//     uint32_t columnCount = Align(info.s2dealNum, 32U);
+//     uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
+//     if (info.attenMaskType != MASK_FP16) {
+//         // int8 & uint8 is ok
+//         SelectWithBytesMaskShapeInfo selectWithBytesMaskShapeInfo;
+//         selectWithBytesMaskShapeInfo.firstAxis = dealRowCount;
+//         selectWithBytesMaskShapeInfo.srcLastAxis = columnCount;
+//         selectWithBytesMaskShapeInfo.maskLastAxis = attenMaskSizeAlign;
+//         attenMaskUb.SetSize(dealRowCount * attenMaskSizeAlign); // Select接口要求mask size与参数匹配
+//         srcUb.SetSize(dealRowCount * columnCount);            // Select接口要求src size与参数匹配
+//         if (isPre) {
+//             SelectWithBytesMask(dstUb, *((T *)&info.maskValue), srcUb, attenMaskUb, tmpBuf, selectWithBytesMaskShapeInfo);
+//         } else {
+//             SelectWithBytesMask(dstUb, srcUb, *((T *)&info.maskValue), attenMaskUb, tmpBuf, selectWithBytesMaskShapeInfo);
+//         }
+//         srcUb.SetSize(AttentionCommon::ConstInfo::BUFFER_SIZE_BYTE_32K / sizeof(T)); // mmResUb Size复原,mask不用复原,与原来一致
+//     }
+// }
 
 enum class UbInputFormat
 {
