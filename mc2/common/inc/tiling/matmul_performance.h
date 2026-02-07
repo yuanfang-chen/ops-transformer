@@ -30,7 +30,7 @@ constexpr uint64_t MIN_M_SIZE_FACTOR = 3;
 constexpr uint64_t MARK_CORE_NUM_SOC910B = 20;
 // start: cycle per micro second for different soc version
 constexpr double CYCLE_PER_MICRO_SEC = 1.8 * ONE_KBYTE;
-constexpr double CYCLE_PER_MICRO_SEC_NPUARCH_3510 = 1.65 * ONE_KBYTE;
+constexpr double CYCLE_PER_MICRO_SEC_NPUARCH_3510 = 1.65 * 1000;
 constexpr double CYCLE_PER_MICRO_SEC_VERSION310_P = 1.08 * ONE_KBYTE;
 // end: cycle per micro second for different soc version
 constexpr auto DEFAULT_KEY_FOR_PAR_MAP = "0_0_2_2_2";
