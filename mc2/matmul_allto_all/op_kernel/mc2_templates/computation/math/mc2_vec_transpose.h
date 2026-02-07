@@ -94,9 +94,12 @@ protected:
         loadGm2UbParams.dstStride = static_cast<int64_t>(0);
 
         DataCopyPadExtParams<tranposeDataType> padExtParams{false, 0, 0, 0};
-
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+        DataCopyPad<tranposeDataType>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams, padExtParams);
+#else
         DataCopyPad<tranposeDataType, PaddingMode::Normal>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
                                                         padExtParams);
+#endif
         vecInQueue_.EnQue(vecInBuf);
     }
 
