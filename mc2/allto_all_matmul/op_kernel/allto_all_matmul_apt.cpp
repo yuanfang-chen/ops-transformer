@@ -22,6 +22,10 @@
 #include "./arch35/allto_all_matmul_arch35.h"
 #include "./arch35/allto_all_kc_quant_matmul_arch35.h"
 
+#include "./arch32/allto_all_matmul_tiling_data_910_93.h"
+#include "./arch32/allto_all_matmul_tiling_key_910_93.h"
+#include "./arch32/allto_all_matmul_910_93.h"
+
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace AlltoAllMatmulImpl;
