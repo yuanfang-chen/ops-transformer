@@ -8,7 +8,7 @@ using namespace AscendC;
 
 namespace MC2KernelTemplate {
 template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
-    CubeFormat wFormat, bool aTrans, bool bTrans>
+    CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal>
 class QuantGroupedMatmul {
 public:
     __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR weightScaleGM, GM_ADDR yGM,
@@ -26,9 +26,16 @@ public:
         tilingData_ = tilingData;
         tPipe_ = tPipe;
         workspaceGM_ = workspaceGM;
-        groupListGm_ = workspaceGM_;
         gmmTilingData_ = gmmTilingData;
         gmmArrayAddrIn_ = gmmArrayAddrIn;
+
+        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
+        epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
+        H1_ = tilingData_->taskTilingInfo.H1;
+        N1_ = tilingData_->taskTilingInfo.N1;
+        BS_ = tilingData_->taskTilingInfo.BS;
+        BSK_ = tilingData_->taskTilingInfo.BSK;
+        groupListGm_ = workspaceGM_ + BSK_ * H1_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -37,10 +44,6 @@ public:
         xScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)xScaleGM);
         wScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)weightScaleGM);
 
-        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
-        epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
-        H1_ = tilingData_->taskTilingInfo.H1;
-        N1_ = tilingData_->taskTilingInfo.N1;
         const auto *recvCnt = &tilingData_->taskTilingInfo.recvCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < epWorldSize_; i++) {
@@ -57,12 +60,14 @@ public:
         if (expertTokenNum_[expertIdx] == 0) {
             return ;
         }
-        groupListGlobalBuffer_.SetValue(0, expertTokenNum_[expertIdx]);
+        uint64_t groupListToken = isLocal ? BS_ : expertTokenNum_[expertIdx];
+        groupListGlobalBuffer_.SetValue(0, groupListToken);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
 
         this->UpdateAddr(expertIdx);
         GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
+        tPipe_->Reset();
         gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
             &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
         gmmASWKernel.Process();
@@ -107,6 +112,8 @@ private:
     uint64_t epWorldSize_ = 0;
     uint64_t H1_;
     uint64_t N1_;
+    uint64_t BS_;
+    uint64_t BSK_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
 };
