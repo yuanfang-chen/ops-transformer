@@ -127,10 +127,8 @@ static bool CheckShapeValid(const aclTensor* routingMap, const aclTensor* probsO
     return true;
 }
 
-static bool CheckTokensAndTopKValid(const aclTensor* tokens, int64_t numOutTokens, int64_t tokenNum, bool dropAndPad)
+static bool CheckTokensValid(const aclTensor* tokens)
 {
-    int64_t topKNum = numOutTokens / tokenNum;
-
     auto tokensDimNum = tokens->GetViewShape().GetDimNum();
     OP_CHECK(
         tokensDimNum == TOKENS_SHAPE_SIZE,
@@ -138,12 +136,6 @@ static bool CheckTokensAndTopKValid(const aclTensor* tokens, int64_t numOutToken
             ACLNN_ERR_PARAM_INVALID, "The dimensions of tokens should be two, but got %ld.",
             static_cast<int64_t>(tokensDimNum)),
         return false);
-    if (dropAndPad == false && topKNum > MAX_INDICES_NUM) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "numOutTokens / numTokens [%ld] should not large than max topK[%ld].", topKNum,
-            MAX_INDICES_NUM);
-        return false;
-    }
     return true;
 }
 
@@ -167,7 +159,7 @@ static aclnnStatus CheckParams(
 
     int64_t alignNum = (dropAndPad == true) ? expertNum : tokenNum;
     alignNum = (alignNum == 0) ? 1 : alignNum;
-    CHECK_RET(CheckTokensAndTopKValid(tokens, numOutTokens, tokenNum, dropAndPad), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckTokensValid(tokens), ACLNN_ERR_PARAM_INVALID);
     OP_CHECK(
         numOutTokens >= 0,
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "numOutTokens should great than %ld, but got %ld.", int64_t(0), numOutTokens),
