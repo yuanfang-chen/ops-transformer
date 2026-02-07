@@ -143,6 +143,13 @@ inline std::string GetSocVersion(const gert::TilingContext *context)
     return socVersion;
 }
 
+inline NpuArch GetNpuArch(const gert::TilingContext *context)
+{
+    auto platformInfo = context->GetPlatformInfo();
+    platform_ascendc::platformAscendC ascendcPlatform(platformInfo);
+    return ascendcPlatform.GetCurNpuArch();
+}
+
 class Mc2TilingUtils {
  public:
   static uint8_t GetDebugMode();

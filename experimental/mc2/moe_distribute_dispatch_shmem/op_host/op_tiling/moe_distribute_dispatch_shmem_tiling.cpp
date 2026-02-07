@@ -1822,11 +1822,8 @@ static ge::graphStatus MoeDistributeDispatchShmemTilingFunc(
   fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
   fe::PlatFormInfos &platformInfo = *platformInfoPtr;
 
-  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-  (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version",
-                                            socVersion);
   ge::graphStatus ret;
-  if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_2201) {
+  if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_2201) {
     ret = MoeDistributeDispatchA2TilingFuncImpl(context);
   } else {
     ret = MoeDistributeDispatchA3TilingFuncImpl(context);

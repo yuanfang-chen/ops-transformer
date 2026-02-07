@@ -11,6 +11,7 @@
 
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_shmem.h"
+#include "tiling/platform/platform_ascendc.h"
 #include "opdev/platform.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
@@ -124,9 +125,8 @@ aclnnStatus aclnnMoeDistributeDispatchShmemGetWorkspaceSize(
     aclOpExecutor** executor) {
   OP_LOGD("aclnnMoeDistributeDispatchShmemGetWorkspaceSize start");
 
-  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
   const static bool is910B =
-      ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_2201;
+      GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201;
   auto ret_param =
       CheckParams(x, expertIds, groupEp, groupTp, quantMode, expandXOut,
                   dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,

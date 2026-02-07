@@ -1996,11 +1996,8 @@ static ge::graphStatus MoeDistributeCombineShmemTilingFunc(
   fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
   fe::PlatFormInfos &platformInfo = *platformInfoPtr;
 
-  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-  (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version",
-                                            socVersion);
   ge::graphStatus ret;
-  if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_2201) {
+  if (mc2tiling::GetCurNpuArch(context) == NpuArch::DAV_2201) {
     ret = MoeDistributeCombineA2TilingFuncImpl(context);
   } else {
     ret = MoeDistributeCombineA3TilingFuncImpl(context);
