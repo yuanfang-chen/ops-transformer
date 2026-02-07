@@ -252,7 +252,6 @@ ge::graphStatus AlltoAllvGmmNoQuantTiling::CheckDType() const
 ge::graphStatus AlltoAllvGmmNoQuantTiling::SetHcclTiling() const
 {
     OP_LOGD(context_->GetNodeName(), "start SetHcclTiling.");
-    (void)context_; // Unused
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(context_->GetNodeName(), "Tiling Data is null!"),
         return ge::GRAPH_FAILED);
 

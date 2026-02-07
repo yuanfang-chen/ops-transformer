@@ -85,16 +85,9 @@ constexpr uint32_t COMM_MAX_SIZE = 100 * 1024 * 1024;
 // cube compute
 constexpr uint64_t DOUBLE_BUFFER = 2;
 constexpr uint64_t CUBE_BLOCK = 16;
-
-enum class QuantModeType : int64_t {
-    NO_QUANT = 0,
-    PERTENSOR_QUANT = 1,
-    PERCHANNEL_QUANT = 2,
-    PERTOKEN_QUANT = 3,
-    PERGROUP_QUANT = 4,
-    PERBLOCK_QUANT = 5,
-    MX_QUANT = 6,
-};
+// quant mode
+constexpr uint64_t NO_QUANT_MODE = 0;
+constexpr uint64_t PERTENSOR_QUANT_MODE = 1;
 
 class AlltoAllvGmmTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
@@ -184,5 +177,6 @@ private:
     ge::graphStatus CheckEpWorldSizeValue();
     ge::graphStatus CheckCommCountsRange();
     ge::graphStatus CheckCommCountsValue();
+    ge::graphStatus CheckFormat();
 };
 }  // namespace optiling

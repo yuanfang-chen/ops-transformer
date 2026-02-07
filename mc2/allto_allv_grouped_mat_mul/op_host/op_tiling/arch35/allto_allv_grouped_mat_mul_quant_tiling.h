@@ -46,7 +46,9 @@ protected:
     ge::graphStatus PostTiling() override;
 
 private:
-    ge::graphStatus CheckDType() const;
+    ge::graphStatus CheckGmmDType() const;
+    ge::graphStatus CheckMmDType() const;
+    ge::graphStatus CheckQuantMode() const;
     ge::graphStatus SetHcclTiling() const;
     void SetGMMQuantParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
     void SetGMMArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const;
