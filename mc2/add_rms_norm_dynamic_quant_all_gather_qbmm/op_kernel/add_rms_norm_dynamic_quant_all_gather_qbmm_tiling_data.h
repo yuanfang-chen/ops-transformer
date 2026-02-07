@@ -34,13 +34,21 @@ struct AddRmsNormDynamicQuantV2TilingData {
     float avgFactor = 0;
 };
 
+struct AllGatherTilingData {
+    uint64_t bs;
+    uint64_t hiddenSize;
+    uint64_t scaleHiddenSize;
+    uint64_t aivNum;
+    uint64_t totalWinSize;   // Win区总大小，即HCCL_BUFFER_SIZE
+};
+
 // tiling struct待完善
 struct AddRmsNormDynamicQuantAllGatherQbmmTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
     AddRmsNormDynamicQuantV2TilingData addRmsNormDynamicQuantV2TilingData;
+    AllGatherTilingData allGatherTilingData;
     TCubeTiling matmulTiling;
-    uint64_t aivnum;
 };
 
 #endif // ADD_RMS_NORM_DYNAMIC_QUANT_ALL_GATHER_QBMM_H

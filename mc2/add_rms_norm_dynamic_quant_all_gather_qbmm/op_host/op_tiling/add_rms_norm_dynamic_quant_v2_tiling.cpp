@@ -57,7 +57,7 @@ bool CheckOptionalShapeExistingV2(const gert::StorageShape* smoothShape)
     return true;
 }
 
-void AddRmsNormDynamicQuantV2TilingHelper::SetTilingDataAndTilingKeyAndWorkSpace(
+void AddRmsNormDynamicQuantV2TilingHelper::SetTilingData(
     AddRmsNormDynamicQuantV2TilingData* tiling)
 {
     context_->SetBlockDim(this->useCore_);
@@ -90,30 +90,31 @@ void AddRmsNormDynamicQuantV2TilingHelper::SetTilingDataAndTilingKeyAndWorkSpace
 
     context_->SetTilingKey(tilingKey);
 
-    // tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(AddRmsNormDynamicQuantV2TilingData));
+    tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(tiling->GetDataSize());
 
     // set workspace
-    size_t* currentWorkspace = context_->GetWorkspaceSizes(1);
-    currentWorkspace[0] = this->sysWorkspaceSize_ + usrSize;
+    // TODO: move to tiling of ARNDQ_AG_QBMM (or preserve a intermediate result)
+    // size_t* currentWorkspace = context_->GetWorkspaceSizes(1);
+    // currentWorkspace[0] = this->sysWorkspaceSize_ + usrSize;
 
     OP_LOGI(
-        "SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata useCore_: %lu, smoothNum_: %u", this->useCore_,
+        "SetTilingData", "Tilingdata useCore_: %lu, smoothNum_: %u", this->useCore_,
         this->smoothNum_);
     OP_LOGI(
-        "SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata N: %lu, D:%lu, DAligned: %lu", numFirstDim_, numLastDim_,
+        "SetTilingData", "Tilingdata N: %lu, D:%lu, DAligned: %lu", numFirstDim_, numLastDim_,
         numLastDimAligned_);
     OP_LOGI(
-        "SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata firstDimPerCore_: %lu, firstDimPerCoreTail_: %lu",
+        "SetTilingData", "Tilingdata firstDimPerCore_: %lu, firstDimPerCoreTail_: %lu",
         firstDimPerCore_, firstDimPerCoreTail_);
-    OP_LOGI("SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata firstDimPerLoop_: %lu", firstDimPerLoop_);
+    OP_LOGI("SetTilingData", "Tilingdata firstDimPerLoop_: %lu", firstDimPerLoop_);
     OP_LOGI(
-        "SetTilingDataAndTilingKeyAndWorkSpace",
+        "SetTilingData",
         "Tilingdata lastDimSliceLen_: %lu, lastDimLoopNum_: %lu, lastDimSliceLenTail_: %lu", lastDimSliceLen_,
         lastDimLoopNum_, lastDimSliceLenTail_);
-    OP_LOGI("SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata eps_: %f, avgFactor_: %f", eps_, avgFactor_);
+    OP_LOGI("SetTilingData", "Tilingdata eps_: %f, avgFactor_: %f", eps_, avgFactor_);
     OP_LOGI(
-        "SetTilingDataAndTilingKeyAndWorkSpace", "Tilingdata tilingKey = %u, usr Workspace: %zu", tilingKey, usrSize);
+        "SetTilingData", "Tilingdata tilingKey = %u, usr Workspace: %zu", tilingKey, usrSize);
 }
 
 bool AddRmsNormDynamicQuantV2TilingHelper::DoTiling()
