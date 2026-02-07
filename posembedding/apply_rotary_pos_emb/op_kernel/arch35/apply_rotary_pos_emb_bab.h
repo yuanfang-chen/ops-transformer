@@ -93,6 +93,11 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::Init(
     this->pipe_->InitBuffer(cosInQue_, bufferNum, ubFactorS_ * dAlign_ * sizeof(T));
     this->pipe_->InitBuffer(sinInQue_, bufferNum, ubFactorS_ * dAlign_ * sizeof(T));
     this->pipe_->InitBuffer(qkOutQue_, bufferNum, ubFactorS_ * ubFactorN * dAlign_ * sizeof(T));
+
+    if (GetBlockIdx() == 0) {
+        printf("realDim=%ld, D=%ld, dAlign_=%ld\n", tilingData_->realDim, tilingData_->D, dAlign_);
+        printf("ApplyRotaryPosEmbBAB Init END");
+    }
 }
 
 template <typename T>
@@ -162,13 +167,13 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessQN(
         DataCopyExtParams copyParams;
         copyParams.blockCount = currSNum * currDNum * dSplitCoef_;
         copyParams.blockLen = dSplitSize_;
-        copyParams.srcStride = tilingData_->D - tilingData_->realDim;
+        copyParams.srcStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
         copyParams.dstStride = 0;
         DataCopyExtParams copyOutParams;
         copyOutParams.blockCount = currSNum * currDNum * dSplitCoef_;
         copyOutParams.blockLen = dSplitSize_;
         copyOutParams.srcStride = 0;
-        copyOutParams.dstStride = tilingData_->D - tilingData_->realDim;
+        copyOutParams.dstStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         DataCopyPad(qTensor, qGm_[offset], copyParams, padParams);
         qkInQue_.EnQue(qTensor);
@@ -179,6 +184,13 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessQN(
         qkOutQue_.EnQue(qOutTensor);
         qOutTensor = qkOutQue_.DeQue<T>();
         DataCopyPad(qOutGm_[offset], qOutTensor, copyOutParams);
+
+        if (GetBlockIdx() == 0) {
+            for (int j = 0; j < dSplitSize_; j++) {
+                printf("qOutTensor[%d] = %f", j, qOutTensor.GetValue(j));
+            }
+        }
+
         qkOutQue_.FreeTensor(qOutTensor);
     }
 }
@@ -199,13 +211,13 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessKN(
         DataCopyExtParams copyParams;
         copyParams.blockCount = currSNum * currDNum * dSplitCoef_;
         copyParams.blockLen = dSplitSize_;
-        copyParams.srcStride = tilingData_->D - tilingData_->realDim;
+        copyParams.srcStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
         copyParams.dstStride = 0;
         DataCopyExtParams copyOutParams;
         copyOutParams.blockCount = currSNum * currDNum * dSplitCoef_;
         copyOutParams.blockLen = dSplitSize_;
         copyOutParams.srcStride = 0;
-        copyOutParams.dstStride = tilingData_->D - tilingData_->realDim;
+        copyOutParams.dstStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         DataCopyPad(kTensor, kGm_[offset], copyParams, padParams);
         qkInQue_.EnQue(kTensor);

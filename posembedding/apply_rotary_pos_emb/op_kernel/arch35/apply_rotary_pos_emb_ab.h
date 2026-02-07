@@ -79,6 +79,10 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::Init(
     pipe_->InitBuffer(cosInQueue_, DB_FLAG, ubFactorBS_ * bufferSize);
     pipe_->InitBuffer(sinInQueue_, DB_FLAG, ubFactorBS_ * bufferSize);
     pipe_->InitBuffer(outQueue_, DB_FLAG, bufferSize * ubFactorBS_ * tilingData_->ubFactorN);
+    if (GetBlockIdx() == 0) {
+        printf("realDim=%d, D=%d, dAlign_=%d\n", tilingData_->realDim, tilingData_->D, tilingData_->dAlign);
+        printf("ApplyRotaryPosEmbAB Init END");
+    }
 }
 
 template <typename T>
@@ -124,18 +128,18 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
     int64_t nCount = (ubIdx == tilingData_->ubLoopN - 1) ? tilingData_->ubTailN : tilingData_->ubFactorN;
     int64_t qCount = (tilingData_->QN - ubStart);
     DataCopyExtParams qkParams = {static_cast<uint16_t>(nCount * tilingData_->dSplitCoef), dSplitSize_,
-                                  tilingData_->D - tilingData_->realDim, 0, 0};
+                                  static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0, 0};
     DataCopyExtParams qParams = {static_cast<uint16_t>(qCount * tilingData_->dSplitCoef), dSplitSize_,
-                                 tilingData_->D - tilingData_->realDim, 0, 0};
+                                 static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0, 0};
     DataCopyExtParams kParams = {static_cast<uint16_t>((ubStart + nCount - tilingData_->QN) * tilingData_->dSplitCoef),
-                                 dSplitSize_, tilingData_->D - tilingData_->realDim, 0, 0};
+                                 dSplitSize_, static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0, 0};
 
     DataCopyExtParams qkOutParams = {static_cast<uint16_t>(nCount * tilingData_->dSplitCoef), dSplitSize_,
-                                  0, tilingData_->D - tilingData_->realDim, 0};
+                                  0, static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0};
     DataCopyExtParams qOutParams = {static_cast<uint16_t>(qCount * tilingData_->dSplitCoef), dSplitSize_,
-                                 0, tilingData_->D - tilingData_->realDim, 0};
+                                 0, static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0};
     DataCopyExtParams kOutParams = {static_cast<uint16_t>((ubStart + nCount - tilingData_->QN) * tilingData_->dSplitCoef),
-                                 dSplitSize_, 0, tilingData_->D - tilingData_->realDim, 0};
+                                 dSplitSize_, 0, static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0};
 
     LocalTensor<T> qkBuffer = qkInQueue_.AllocTensor<T>();
     LocalTensor<T> outBuffer = outQueue_.AllocTensor<T>();
@@ -182,9 +186,10 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
     LocalTensor<T> qkBuffer = qkInQueue_.AllocTensor<T>();
     LocalTensor<T> outBuffer = outQueue_.AllocTensor<T>();
     DataCopyExtParams qkParams = {
-        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, tilingData_->D - tilingData_->realDim, 0, 0};
-    DataCopyExtParams qkOutParams = {static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_,
-                                  0, tilingData_->D - tilingData_->realDim, 0};
+        static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_,
+        static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0, 0};
+    DataCopyExtParams qkOutParams = {static_cast<uint16_t>(currBSNum * count * tilingData_->dSplitCoef), dSplitSize_, 0,
+                                     static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T)), 0};
     DataCopyPad(qkBuffer, inGm[qkGmOffset], qkParams, padParams_);
     qkInQueue_.EnQue(qkBuffer);
     qkBuffer = qkInQueue_.DeQue<T>();
@@ -200,6 +205,11 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
     outQueue_.EnQue(outBuffer);
     outBuffer = outQueue_.DeQue<T>();
     DataCopyPad(outGm[qkGmOffset], outBuffer, qkOutParams);
+    if (GetBlockIdx() == 0) {
+        for (int j = 0; j < 64; j++) {
+            printf("outBuffer[%d] = %f", j, outBuffer.GetValue(j));
+        }
+    }
     outQueue_.FreeTensor(outBuffer);
 }
 
