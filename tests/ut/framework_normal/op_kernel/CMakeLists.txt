@@ -49,13 +49,19 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
         target_include_directories(${OP_KERNEL_UT_EXE}_${socVersion} PRIVATE
             ${ASCEND_DIR}/pkg_inc
             )
+        # Special handling for ascend950: tikicpulib uses ascend950pr_9599
+        if(${socVersion} STREQUAL "ascend950")
+            set(TIKICPULIB_TARGET "tikicpulib::ascend950pr_9599")
+        else()
+            set(TIKICPULIB_TARGET "tikicpulib::${socVersion}")
+        endif()
         target_link_libraries(${OP_KERNEL_UT_EXE}_${socVersion} PRIVATE
                 $<BUILD_INTERFACE:intf_llt_pub_asan_cxx17>
                 -Wl,--no-as-needed
                     ${OP_KERNEL_MODULE_NAME}_${socVersion}_cases
                 -Wl,--as-needed
                 gtest
-                tikicpulib::${socVersion}
+                ${TIKICPULIB_TARGET}
                 opp_registry
                 metadef
                 register
