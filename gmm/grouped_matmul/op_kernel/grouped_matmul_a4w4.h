@@ -215,7 +215,7 @@ __aicore__ inline void DataCopyPad2DA4W4(const LocalTensor<T> dst, const GlobalT
     uint64_t xOffset, uint64_t weightOffset, uint32_t tailN){
         mm.SetSingleShape(curSingleM, curSingleN, quantGroupSize_);
         GlobalTensor<DTYPE_WEIGHT_A4W4> weightSlice;
-        mm.SetTensorAA(xGm[xOffset]);
+        mm.SetTensorA(xGm[xOffset]);
         weightSlice = weightGm[weightOffset];
         if (mnConfig.blockDimM == 1) {
             weightSlice.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE); 
