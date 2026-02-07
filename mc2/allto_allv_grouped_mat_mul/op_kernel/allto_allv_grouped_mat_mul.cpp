@@ -12,7 +12,7 @@
  * \file allto_allv_grouped_mat_mul.cpp
  * \brief
  */
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "allto_allv_grouped_mat_mul_coarse_grained.h"
 #include "allto_allv_grouped_mat_mul_tiling_key.h"
 
