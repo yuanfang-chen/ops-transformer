@@ -20,39 +20,34 @@ extern "C" {
 #endif
 
 /**
- * 算子功能：实现MoeDistributeDispatchTeardown功能，接受EP域的alltoallv通信结果，并整理结果输出
+ * 算子功能：实现MoeDistributeDispatchTeardown功能，接收EP域的alltoallv通信结果，并整理结果输出
  * @brief aclnnMoeDistributeDispatchTeardown的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
- * @param [in] x: 计算输入，Tensor，数据类型float16，bfloat16，必须为2维，数据格式支持ND。本卡发送的token数据。
- * @param [in] y: 计算输入，Tensor，数据类型float16，bfloat16，必须为2维，数据格式支持ND。本卡的通信数据。
+ * @param [in] x: 计算输入，Tensor，数据类型float16，bfloat16，必须为2维，数据格式支持ND。输入的token数据。
+ * @param [in] y: 计算输入，Tensor，数据类型float16，bfloat16，必须为2维，数据格式支持ND。本卡待发送的通信数据。
  * @param [in] expertIds: 
-    计算输入，Tensor，数据类型int32，必须为1维，数据格式支持ND。aclnnMoeDistributeDispatchSetUp的输出，每个token的topK个专家索引。
+    计算输入，Tensor，数据类型int32，必须为1维，数据格式支持ND。每个token的topK个专家索引。
  * @param [in] commCmdInfo: 计算输入，Tensor，数据类型int32，必须为2维，数据格式支持ND，通信的cmd信息。
- * @param [in] groupEp: 计算输入，str。ep通信域名称，专家并行的通信域。字符串长度范围为[1, 128)，不能和groupTp相同。
- * @param [in] epWorldSize: 计算输入，数据类型int64。ep通信域size。在昇腾910_93场景中取值支持8/16/32/64/128/144/256/288。
- * @param [in] epRankId: 计算输入，数据类型int64。ep域本卡Id。取值范围[0, epWorldSize)，同一个EP通信域中各卡的epRankId不能重复。
- * @param [in] moeExpertNum: 计算输入，int64。MOE专家数量。取值范围[1, 512]，且
-    满足moeExpertNum % (epWorldSize-sharedExpertRankNum) = 0。
- * @param [in] expertShardType: 计算可选输入，int64。专家卡分布类型。当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
- * @param [in] sharedExpertNum: 计算可选输入，int64。共享专家数量。取值范围[0, 1]。0表示无共享专家。
- * @param [in] sharedExpertRankNum: 计算可选输入，int64。共享专家卡数量。支持传0表示无共享专家卡，不为0时需满足
-    sharedExpertRankNum < epWorldSize且(epWorldSize % sharedExpertRankNum) = 0。
- * @param [in] quantMode: 计算可选输入，int64，表示量化模式，支持0：非量化，2：动态量化。
- * @param [in] globalBs: 计算可选输入，int64。表示ep域全局的Bs大小。当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或
-    globalBs = 0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。
- * @param [in] expertTokenNumsType:
-    计算可选输入，int64。输出expertTokenNums中的值语义类型。支持0：expertTokenNumsOut中的输出
-    为每个专家处理的token数的前缀和，1：expertTokenNumsOut中的输出为每个专家处理的token数量。
- * @param [in] comm_type: 计算输入，int。表示通信方案选择。支持0：系统自选择，1：AIV-SDMA。当前仅支持0。
+ * @param [in] groupEp: 计算输入，str。ep通信域名称，专家并行的通信域。不能和groupTp相同。
+ * @param [in] epWorldSize: 计算输入，数据类型int64。ep通信域size。
+ * @param [in] epRankId: 计算输入，数据类型int64。ep域本卡Id。同一个EP通信域中各卡的epRankId不能重复。
+ * @param [in] moeExpertNum: 计算输入，int64。MOE专家数量。
+ * @param [in] expertShardType: 计算可选输入，int64。专家卡分布类型。
+ * @param [in] sharedExpertNum: 计算可选输入，int64。共享专家数量。
+ * @param [in] sharedExpertRankNum: 计算可选输入，int64。共享专家卡数量。
+ * @param [in] quantMode: 计算可选输入，int64。量化模式。
+ * @param [in] globalBs: 计算可选输入，int64。ep通信域全局的batch size大小。
+ * @param [in] expertTokenNumsType: 计算可选输入，int64。输出expertTokenNums中的值语义类型。
+ * @param [in] comm_type: 计算输入，int。通信方案选择。
  * @param [in] commAlg: 计算输入，char*。通信亲和内存布局算法。当前版本不支持，传空指针即可。
- * @param [out] expandXOut: 计算输出，Tensor，必选输出，数据类型支持float16, bfloat16,
+ * @param [out] expandXOut: 计算输出，Tensor，必选输出，数据类型支持float16，bfloat16，
     int8，仅支持2维，数据格式支持ND。根据expertIdx进行扩展过的token特征。
  * @param [out] dynamicScalesOut:
     计算输出，Tensor，必选输出，数据类型float32，仅支持1维，数据格式支持ND。quantMode为0时输出为空。
  * @param [out] expertTokenNumsOut:
     计算输出，Tensor，必选输出，数据类型int64，仅支持1维，数据格式支持ND。每个专家收到的token个数。
  * @param [out] epRecvCountsOut:
-    计算输出，Tensor，必选输出，数据类型int32，仅支持1维，数据格式支持ND。表示从各卡接收的token数。
+    计算输出，Tensor，必选输出，数据类型int32，仅支持1维，数据格式支持ND。从各卡接收的token数。
  * @param [out] workspaceSize: 出参，返回需要在npu device侧申请的workspace大小。
  * @param [out] executor: 出参，返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回值，返回状态码。

@@ -106,7 +106,7 @@ protected:
 // 用例列表集
 static MoeDistributeDispatchTeardownTilingTestParam test_cases[] = {
 //===============================================典型shape====================================================
-{4, 4, "moe_distribute_dispatch_teardown_critical_case_1", "Ascend910_95", 
+{4, 4, "moe_distribute_dispatch_teardown_critical_case_1", "3510", 
  {16, 4096},{16 * (6 + 0), 4096},{16, 6},{(16 * (6 + 0) + 16 * 16)* 16 }, 
  ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT32, ge::DT_INT32, 
  16, 0, 256, 0, 0, 0, 0, 0, 1, 0,

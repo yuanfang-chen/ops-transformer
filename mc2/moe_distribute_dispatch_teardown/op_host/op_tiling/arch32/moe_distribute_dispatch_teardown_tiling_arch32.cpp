@@ -15,12 +15,12 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_teardown_tiling_a3.cc
+ * \file moe_distribute_dispatch_teardown_tiling_arch32.cpp
  * \brief
  */
 
 #include "op_log.h"
-#include "moe_distribute_dispatch_teardown_tiling_a3.h"
+#include "moe_distribute_dispatch_teardown_tiling_arch32.h"
 
 namespace {
 constexpr uint32_t INPUT_X_INDEX = 0U;

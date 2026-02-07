@@ -16,12 +16,14 @@
 #include "register/op_def_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "arch35/moe_distribute_dispatch_teardown_tiling_arch35.h"
+#include "arch32/moe_distribute_dispatch_teardown_tiling_arch32.h"
 
 using namespace Ops::Transformer::OpTiling;
 using namespace AscendC;
-+
+
 namespace optiling {
 REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatchTeardown, MoeDistributeDispatchTeardownTilingA5, 0);
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatchTeardown, MoeDistributeDispatchTeardownTilingA3, 1);
 
 ge::graphStatus MoeDistributeDispatchTeardownTilingFunc(gert::TilingContext* context)
 {
