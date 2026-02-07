@@ -16,10 +16,13 @@
 #include <lib/matmul_intf.h>
 #include "basic_api/kernel_basic_intf.h"
 #include "common.h"
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+#else
 #include "./arch35/template_head.h"
 #include "./arch35/matmul_allto_all_tiling_key.h"
 #include "./arch35/matmul_allto_all_arch35.h"
 #include "./arch35/kc_quant_matmul_allto_all_arch35.h"
+#endif
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace MatmulAlltoAllImpl;
@@ -51,6 +54,8 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
 
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+#else
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     //注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
     REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingData);
@@ -80,5 +85,6 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, KcQuantMatmulAlltoAllTilingData> op(&SchedulerImpl);
     op.Init(x1, x2, bias, y, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
     op.Process();
+#endif
 #endif
 }
