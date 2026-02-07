@@ -516,7 +516,7 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
 static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRoutingDAV3510Checker checker;
+        GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRouting91095Checker checker;
         aclnnStatus status = checker.CheckParams(params);
         CHECK_RET(status == ACLNN_SUCCESS, status);
     } else {

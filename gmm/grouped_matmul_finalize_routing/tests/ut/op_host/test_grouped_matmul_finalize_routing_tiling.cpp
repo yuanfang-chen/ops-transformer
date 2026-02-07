@@ -171,8 +171,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8NormalCaseTransposeWeightFal
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;
@@ -237,8 +236,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8NormalCaseTransposeWeightTru
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;
@@ -303,8 +301,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8IllegalCaseSharedOffset)
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;
@@ -365,8 +362,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8IllegalCaseNullRowindex)
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;
@@ -427,8 +423,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8IllegalCaseWrongxDtype)
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;
@@ -489,8 +484,7 @@ TEST_F(GroupedMatmulFinalizeRoutingTiling, TestMXFP8IllegalCaseWrongScaleDtype)
                                                                      0,
                                                                      platform_ascendc::SocVersion::ASCEND950,
                                                                      false,
-                                                                     true,
-                                                                     NpuArch::DAV_3510};
+                                                                     true};
     int m = 1024;
     int k = 2048;
     int n = 7168;

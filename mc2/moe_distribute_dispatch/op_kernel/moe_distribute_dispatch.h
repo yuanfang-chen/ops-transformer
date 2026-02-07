@@ -45,17 +45,17 @@ constexpr uint64_t STATE_WIN_OFFSET = 900 * 1024;
 constexpr uint32_t TP_STATE_SIZE = 100 * 1024;
 
 
-#define TemplateDispatchTypeClass \
+#define TemplateMC2TypeClass \
     typename XType, \
     typename ExpandXOutType, \
     bool StaticQuant, \
     bool DynamicQuant, \
     bool IsSmoothScaleExist, \
     bool IsNeedAllgather
-#define TemplateDispatchTypeFunc XType, ExpandXOutType, StaticQuant, DynamicQuant, IsSmoothScaleExist, IsNeedAllgather
+#define TemplateMC2TypeFunc XType, ExpandXOutType, StaticQuant, DynamicQuant, IsSmoothScaleExist, IsNeedAllgather
 
 using namespace AscendC;
-template <TemplateDispatchTypeClass>
+template <TemplateMC2TypeClass>
 class MoeDistributeDispatch {
 public:
     __aicore__ inline MoeDistributeDispatch() {};
@@ -227,8 +227,8 @@ private:
     __gm__ Mc2Kernel::HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
 };
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Init(
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::Init(
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut,
     GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
     GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchTilingData *tilingData)
@@ -374,8 +374,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Init(
     dataCopyParamsFloat_ = {1U, sizeof(float), 0U, 0U, 0U};
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::QuantInit(GM_ADDR scales)
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::QuantInit(GM_ADDR scales)
 {
     tpipe_->InitBuffer(xInQueue_, BUFFER_NUM, hSize_); // 14K *2
     tpipe_->InitBuffer(xOutQueue_, BUFFER_NUM, hCommuSize_); // 7K *2
@@ -391,8 +391,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::QuantIni
     dynamicScalesTensor_ = dynamicScalesBuf_.Get<float>();
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SendToSharedExpert()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::SendToSharedExpert()
 {
     uint32_t startTokenId, endTokenId, sendTokenNum;
     SplitToCore(axisBS_, sharedUsedAivNum_, startTokenId, endTokenId, sendTokenNum, false);
@@ -444,8 +444,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SendToSh
     }
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::CalTokenSendExpertCnt(uint32_t dstExpertId, int32_t calCnt,
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::CalTokenSendExpertCnt(uint32_t dstExpertId, int32_t calCnt,
     int32_t &curExpertCnt)
 {
     if (isQuant_) { // 量化模式下buffer复用
@@ -470,8 +470,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::CalToken
     }
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, 
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, 
     uint32_t &startTokenId, uint32_t &endTokenId, uint32_t &sendTokenNum, bool isFront)
 {
     sendTokenNum = curSendCnt / curUseAivNum; // 每个aiv需要发送的token数
@@ -492,8 +492,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SplitToC
     endTokenId = startTokenId + sendTokenNum;
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SendToMoeExpert()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::SendToMoeExpert()
 {
     uint32_t startTokenId = 0;
     uint32_t endTokenId = 0;
@@ -549,8 +549,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SendToMo
 共享专家卡：所有核用于给moe专家发送数据
 moe专家卡：部分核用于给共享专家发送数据，部分核用于给moe专家发送数据
 */
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AlltoAllDispatch()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::AlltoAllDispatch()
 {
     DataCopyExtParams expertIdsCntParams = {1U, static_cast<uint32_t>(expertIdsCnt_ * sizeof(uint32_t)), 0U, 0U, 0U};
     DataCopyPadExtParams<int32_t> copyPadParams{false, 0U, 0U, 0U};
@@ -574,8 +574,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AlltoAll
     SendToMoeExpert();
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SetStatus()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::SetStatus()
 {
     totalExpertNum_ = sharedExpertRankNum_ + moeExpertNum_;
     SplitToCore(totalExpertNum_, aivNum_, startExpertId_, endExpertId_, sendExpertNum_);
@@ -614,8 +614,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::SetStatu
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::QuantProcess(uint32_t expertIndex)
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::QuantProcess(uint32_t expertIndex)
 {
     float dynamicScale = 0.0;
     LocalTensor<float> floatLocalTemp;
@@ -664,8 +664,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::QuantPro
     floatLocalTemp.SetValue(axisH_ / sizeof(float), float(1.0) / dynamicScale); // int8->float32
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::WaitDispatch()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::WaitDispatch()
 {
     uint32_t startStatusIndex = 0;
     uint32_t endStatusIndex = 0;
@@ -705,8 +705,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::WaitDisp
     SyncAll<true>();
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::GetCumSum(LocalTensor<int32_t>& outLocal, int32_t totalCount)
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::GetCumSum(LocalTensor<int32_t>& outLocal, int32_t totalCount)
 {
     DataCopyParams intriParams{static_cast<uint16_t>(recvWinBlockNum_), 1,
                                static_cast<uint16_t>((recvWinBlockNum_ > 512) ? 7 : 15), 0}; // srcStride为15个block
@@ -743,8 +743,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::GetCumSu
     PipeBarrier<PIPE_V>();
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::CreateZeroTensor(LocalTensor<uint32_t> &outLocal)
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::CreateZeroTensor(LocalTensor<uint32_t> &outLocal)
 {
     TBuf<> outBuf;
     tpipe_->InitBuffer(outBuf, UB_ALIGN);
@@ -754,8 +754,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::CreateZe
     }
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::LocalWindowCopy()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::LocalWindowCopy()
 {
     uint32_t totalMoeExpert = 0;
     LocalTensor<int32_t> outCountLocal;
@@ -851,8 +851,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::LocalWin
     PipeBarrier<PIPE_MTE3>();
 }
  
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllGatherSetStatusAndWait()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::AllGatherSetStatusAndWait()
 {
     PipeBarrier<PIPE_ALL>();
     if(startExpertId_ >=  totalExpertNum_) {
@@ -887,8 +887,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllGathe
     }
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::AllgatherProcessOut()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::AllgatherProcessOut()
 {
     if(startExpertId_ >=  totalExpertNum_) {
         return;
@@ -949,8 +949,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Allgathe
 }
 
 // 更新多专家卡上的tokenNumsOut tensor
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::UpdateMultiMoeTokenNumsOut()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::UpdateMultiMoeTokenNumsOut()
 {
     uint32_t tokenSums = 0;
     GlobalTensor<int32_t> sendCountsGlobal;
@@ -981,8 +981,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::UpdateMu
     }
 }
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitBufferWait()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::InitBufferWait()
 {
     tpipe_->Reset();
     tpipe_->InitBuffer(statusBuf_, recvWinBlockNum_ * UB_ALIGN); // expertNum * 32B
@@ -1002,8 +1002,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::InitBuff
 }
 
 // 更新tokenNumsOut tensor
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::UpdateTokenNumsOut()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::UpdateTokenNumsOut()
 {
     // 最后一个核做更新，Moe专家只有最后一个核有计算出所有 sendCountsGlobal
     if (!isShareExpertRank_ && moeExpertNumPerRank_ > 1) {
@@ -1045,8 +1045,8 @@ __aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::UpdateTo
 //          24 win->ub ub->win
 //                              1 waitStatus
 
-template <TemplateDispatchTypeClass>
-__aicore__ inline void MoeDistributeDispatch<TemplateDispatchTypeFunc>::Process()
+template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeDispatch<TemplateMC2TypeFunc>::Process()
 {
     if ASCEND_IS_AIV { // 全aiv处理
         AlltoAllDispatch();

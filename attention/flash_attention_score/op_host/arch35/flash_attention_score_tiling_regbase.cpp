@@ -1600,12 +1600,12 @@ void FlashAttentionScoreTilingRegbase::CalcDVBasicBlock() {
 
 ge::graphStatus FlashAttentionScoreTilingRegbase::PostTiling()
 {
-    auto numBlocks = CalcTschBlockDim(multiCoreParamsRegbase_->get_coreNum() * 2, aicNum, aivNum);
-    context_->SetBlockDim(numBlocks);
+    auto blockDim = CalcTschBlockDim(multiCoreParamsRegbase_->get_coreNum() * 2, aicNum, aivNum);
+    context_->SetBlockDim(blockDim);
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     if (inputParamsRegbase_->get_needDropMaskOp() == 1) {
-        numBlocks = CalcTschBlockDim(aivNum, aicNum, aivNum);
-        context_->SetBlockDim(numBlocks);
+        blockDim = CalcTschBlockDim(aivNum, aicNum, aivNum);
+        context_->SetBlockDim(blockDim);
 
         int64_t shapeTotalSize = bSize * n2Size * gSize * s1Size * s2Size;
         auto layoutType = inputParamsRegbase_->get_layoutType();

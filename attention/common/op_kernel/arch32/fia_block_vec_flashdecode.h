@@ -146,49 +146,29 @@ protected:
     TaskInfo taskInfo{};
 private:    
  // ================================FD Local Buffer区====================================
-    TBuf<> fdSumBuf1;
-    TBuf<> fdSumBuf2;
-    TBuf<> fdMaxBuf1;
-    TBuf<> fdMaxBuf2;
-    TBuf<> fdLseExpBuf;
-    TBuf<> fdMm2ResBuf1;
-    TBuf<> fdMm2ResBuf2;
-    TBuf<> fdReduceBuf;
-    TBuf<> fdOutputBuf;
-    TBuf<> fdSinkCopyInBuf;
-    TBuf<> fdSinkValueBuf;
-    TBuf<> fdSinkExpBuf;
-    TBuf<> fdSinkTmpBuf;
+    TBuf<> fdSumBuf1;    // 1.5k: 16*24*4
+    TBuf<> fdSumBuf2;    // 1.5k: 16*24*4
+    TBuf<> fdMaxBuf1;    // 1.5k: 16*24*4
+    TBuf<> fdMaxBuf2;    // 1.5k: 16*24*4
+    TBuf<> fdLseExpBuf;  // 1.5k: 16*24*4
+    TBuf<> fdMm2ResBuf1; // 32k: 16*512*4
+    TBuf<> fdMm2ResBuf2; // 32k: 16*512*4
+    TBuf<> fdReduceBuf;  // 32k: 16*512*4
+    TBuf<> fdOutputBuf;  // 32k: 16*512*4
+    TBuf<> fdSinkCopyInBuf;   // 2*1k: 2*128*8
+    TBuf<> fdSinkValueBuf;    // 2k
+    TBuf<> fdSinkExpBuf;      // 256B
+    TBuf<> fdSinkTmpBuf;      // 2k
 
-    TBuf<> fdLseMaxUbBuf1;
-    TBuf<> fdLseMaxUbBuf2;
-    TBuf<> fdLseSumUbBuf1;
-    TBuf<> fdLseSumUbBuf2;
+    TBuf<> fdLseMaxUbBuf1; // 64B: 16*4
+    TBuf<> fdLseMaxUbBuf2; // 64B: 16*4
+    TBuf<> fdLseSumUbBuf1; // 64B: 16*4
+    TBuf<> fdLseSumUbBuf2; // 64B: 16*4
     TBuf<> quant2TmpBuf1;
     TBuf<> quant2TmpBuf2;
-    TBuf<> fdLseUbBuf;
-};
-
-template <typename FIAT> 
-class FiaBlockVecFlashDecodeDummy {
-public:
-    // =================================类型定义区=================================
-    // 中间计算数据类型为float，高精度模式
-    using T = float;
-    using OUT_T = typename FIAT::outputType;  
-    using SINK_T = bfloat16_t;
-
-    __aicore__ inline void InitGlobalTensor(GlobalTensor<T> lseMaxFdGm, GlobalTensor<T> lseSumFdGm, GlobalTensor<T> accumOutGm, 
-         GlobalTensor<OUT_T> attentionOutGm, GlobalTensor<uint64_t> actualSeqLengthsGmQ, GlobalTensor<uint64_t> actualSeqLengthsGm,
-         __gm__ uint8_t *key, __gm__ uint8_t *quantScale2, __gm__ uint8_t *quantOffset2);
-    __aicore__ inline void InitParams(const AttentionCommon::ConstInfo &constInfo);
-    __aicore__ inline void InitSoftmaxLseGm(GlobalTensor<float> softmaxLseGm);
-    __aicore__ inline void InitLearnableSinkGm(GlobalTensor<SINK_T> learnableSink);
-    __aicore__ inline void FlashDecode(FDparams &fd);
-    __aicore__ inline void InitBuffers(TPipe *pipe);
-    __aicore__ inline void InitDecodeParams();
-    __aicore__ inline void AllocEventID();
-    __aicore__ inline void FreeEventID();
+    TBuf<> fdLseMaxUbBuf; // 64B: 16*4
+    TBuf<> fdLseSumUbBuf; // 64B: 16*4
+    TBuf<> fdLseUbBuf; // 64B: 16*4
 };
 
 template <typename FIAT> __aicore__ inline 
@@ -514,17 +494,18 @@ __aicore__ inline void FiaBlockVecFlashDecode<FIAT>::Bmm2DataCopyOutTrans(LocalT
     }
 }
 
-template <typename FIAT> __aicore__ inline 
+template <typename FIAT>__aicore__ inline 
 void FiaBlockVecFlashDecode<FIAT>::Bmm2DataCopyOut(uint64_t attenOutOffset, LocalTensor<OUT_T> &attenOutUb,
-                                                   uint32_t startRow, uint32_t dealRowCount,
-                                                   uint32_t columnCount, uint32_t actualColumnCount)
+                                                               uint32_t startRow, uint32_t dealRowCount,
+                                                               uint32_t columnCount, uint32_t actualColumnCount)
 {
     DataCopyExtParams dataCopyParams;
     dataCopyParams.blockCount = dealRowCount;
     dataCopyParams.blockLen = actualColumnCount * sizeof(OUT_T);
     dataCopyParams.srcStride = (columnCount - actualColumnCount) / (fa_base_vector::BYTE_BLOCK / sizeof(OUT_T));
     dataCopyParams.dstStride = 0;
-    DataCopyPad(attentionOutGm[attenOutOffset + startRow * actualColumnCount], attenOutUb, dataCopyParams);
+    DataCopyPad(attentionOutGm[attenOutOffset + startRow * actualColumnCount], attenOutUb,
+                dataCopyParams);
 }
 
 template <typename FIAT>__aicore__ inline 
@@ -799,7 +780,7 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
         taskInfo.actualCombineLoopSize = fd.s2SplitNumOfFdHead[fdTaskId]; // 当前规约任务kv方向有几份
 
         uint64_t combineTaskPrefixSum = 0;
-        for (uint32_t i = 0; i < fdTaskId; i++) {
+        for (int i = 0; i < fdTaskId; i++) {
             // 计算此前规约数据的累计份数，每一份的数据大小为 kvHeadNum * constInfo.tndSgBasicSize
             // |Task0-0|Task0-1|Task0-3|Task1-0|Task1-2|...|
             combineTaskPrefixSum += fd.s2SplitNumOfFdHead[i];
@@ -859,17 +840,17 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
                 SetFlag<HardEvent::V_MTE3>(SYNC_LSEOUTPUT_BUF_FLAG);
                 WaitFlag<HardEvent::V_MTE3>(SYNC_LSEOUTPUT_BUF_FLAG);
                 uint32_t mOffset = taskInfo.gS1Idx + startRow;
-                if constexpr (LAYOUT_T == FIA_LAYOUT::TND) {
+                if (LAYOUT_T == FIA_LAYOUT::TND) {
                     uint32_t prefixBS1 = taskInfo.bIdx == 0U ? 0U : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1);
                     uint64_t bN2Offset = prefixBS1 * constInfo.qHeadNum + taskInfo.n2Idx * constInfo.gSize;
                     DataCopySoftmaxLseTND(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo);
-                } else if constexpr (LAYOUT_T == FIA_LAYOUT::NTD) {
+                } else if (LAYOUT_T == FIA_LAYOUT::NTD) {
                     uint32_t prefixBS1 = taskInfo.bIdx == 0U ? 0U : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1);
                     uint32_t s1Size = taskInfo.bIdx == 0U ? 
                             actualSeqLengthsGmQ.GetValue(0U) : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx) - actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1U);
                     uint64_t bN2Offset = prefixBS1 * constInfo.qHeadNum + taskInfo.n2Idx * constInfo.gSize;
                     DataCopySoftmaxLseNTD(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, s1Size);
-                } else if constexpr (LAYOUT_T == FIA_LAYOUT::BSND || LAYOUT_T == FIA_LAYOUT::BSH) {
+                } else if (LAYOUT_T == FIA_LAYOUT::BSND || LAYOUT_T == FIA_LAYOUT::BSH) {
                     uint64_t bN2Offset = taskInfo.bIdx * constInfo.qHeadNum * constInfo.qSeqSize + taskInfo.n2Idx * constInfo.gSize * constInfo.qSeqSize;
                     DataCopySoftmaxLseBSND(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, qActSeqLensParser, taskInfo.bIdx);
                 } else { // BNSD

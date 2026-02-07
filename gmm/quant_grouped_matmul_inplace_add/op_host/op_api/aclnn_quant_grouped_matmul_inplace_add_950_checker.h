@@ -17,12 +17,12 @@
 
 namespace QGmmInPlaceAdd {
 template <typename T>
-class AclnnQuantGroupedMatmulInplaceAddDAV3510Checker {
+class AclnnQuantGroupedMatmulInplaceAdd91095Checker {
 public:
-    explicit AclnnQuantGroupedMatmulInplaceAddDAV3510Checker(const gmm::GroupedMatmulParamsBase<T> &gmmParams)
+    explicit AclnnQuantGroupedMatmulInplaceAdd91095Checker(const gmm::GroupedMatmulParamsBase<T> &gmmParams)
         : gmmParams_(gmmParams){};
-    ~AclnnQuantGroupedMatmulInplaceAddDAV3510Checker(){};
-    aclnnStatus CheckQuantGroupedMatmulInplaceAddDAV3510() const;
+    ~AclnnQuantGroupedMatmulInplaceAdd91095Checker(){};
+    aclnnStatus CheckQuantGroupedMatmulInplaceAdd91095() const;
     aclnnStatus IsGmmInplaceAddTCQuantMode() const;
     void SetInputName(const std::string &xName, const std::string &weightName, const std::string &perTokenScaleName,
                       const std::string &scaleName, const std::string &groupTensorName);

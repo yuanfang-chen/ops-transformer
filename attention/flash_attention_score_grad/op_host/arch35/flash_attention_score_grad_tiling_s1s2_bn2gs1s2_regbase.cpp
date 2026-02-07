@@ -3067,18 +3067,18 @@ std::tuple<uint32_t, uint32_t, uint32_t> FlashAttentionScoreGradTilingUs1s2Bs2Re
 ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::PostTiling()
 {
     SaveToTilingData();
-    auto numBlocks = 0;
+    auto blockdim = 0;
     if (fBaseParams.isDeterministic) {
-        numBlocks = fBaseParams.aicNum;
+        blockdim = fBaseParams.aicNum;
     } else {
-        numBlocks = CalcTschBlockDim(s1s2BNGS1S2SplitCoreParams_->get_blockOuter() * AICV_RATIO_DEFAULT, fBaseParams.aicNum,
+        blockdim = CalcTschBlockDim(s1s2BNGS1S2SplitCoreParams_->get_blockOuter() * AICV_RATIO_DEFAULT, fBaseParams.aicNum,
                                     fBaseParams.coreNum);
     }
     OP_CHECK_IF(
-        numBlocks == 0, OPS_REPORT_VECTOR_INNER_ERR("FlashAttentionScoreGradTilingUs1s2Bs2Regbase", "numBlocks is 0, aicNum is %lu, aivNum is %lu.", fBaseParams.aicNum,
+        blockdim == 0, OPS_REPORT_VECTOR_INNER_ERR("FlashAttentionScoreGradTilingUs1s2Bs2Regbase", "blockdim is 0, aicNum is %lu, aivNum is %lu.", fBaseParams.aicNum,
                                            fBaseParams.coreNum),
                return ge::GRAPH_FAILED);
-    context_->SetBlockDim(numBlocks);
+    context_->SetBlockDim(blockdim);
     
     // 使用SyncAll，需要设置为batch mode模式，所有核同时启动，否则在多流方式下执行可能会卡死
     if (fBaseParams.splitAxis != SplitAxisEnum::BN2 || !fBaseParams.isBn2MultiBlk || fBaseParams.layoutType != INPUT_FROAMT_TND) {

@@ -60,6 +60,14 @@ static void InitHcclParam(AllGatherAddTilingData* tilingData, const char* group)
     mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
 }
 
+ge::graphStatus GetWorkspaceSize(gert::TilingContext* context)
+{
+    size_t* currentWorkspace = context->GetWorkspaceSizes(1);
+    OP_CHECK_NULL_WITH_CONTEXT(context, currentWorkspace);
+    currentWorkspace[0] = WS_SYS_SIZE;
+    return ge::GRAPH_SUCCESS;
+}
+
 static ge::graphStatus AllGatherAddTilingFunc(gert::TilingContext *context) {
     // 1.对参数进行校验
     OP_CHECK_IF(AllGatherParamsCheck(context) != ge::GRAPH_SUCCESS,
@@ -69,9 +77,8 @@ static ge::graphStatus AllGatherAddTilingFunc(gert::TilingContext *context) {
     context->SetBlockDim(ascendcPlatform.GetCoreNumAiv());
 
     // 2.获取WorkspaceSize信息
-    size_t* currentWorkspace = context->GetWorkspaceSizes(1);
-    OP_CHECK_NULL_WITH_CONTEXT(context, currentWorkspace);
-    currentWorkspace[0] = WS_SYS_SIZE;
+    OP_CHECK_IF(GetWorkspaceSize(context) != ge::GRAPH_SUCCESS, 
+                OP_LOGE(context, "GetWorkspaceSize error"), return ge::GRAPH_FAILED);
     
     // 3.设置TilingData
     AllGatherAddTilingData* tilingData = context->GetTilingData<AllGatherAddTilingData>();
