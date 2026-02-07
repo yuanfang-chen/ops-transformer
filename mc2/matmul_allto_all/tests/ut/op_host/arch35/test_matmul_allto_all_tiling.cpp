@@ -1161,6 +1161,21 @@ static MatmulAlltoAllTestParam g_testCases[] = {
     "3510",
     ge::GRAPH_FAILED,
     33UL, "", {1069023232}, 0},
+
+    {"mx_quant_matmul_alltoall_case_legal_nobias_dtype_float8_e5m2_float8_e4m3fn_float16",
+    {28543, 3072}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND,
+    {3072, 9216}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {28543, 48, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND,
+    {48, 9216, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {57086, 4608},ge::DT_FLOAT16, ge::FORMAT_ND,
+    "group", 2, 0, 0, 6, 6, 0, 0, false, false, 0,
+    "3510",
+    ge::GRAPH_SUCCESS,
+    34UL, "", {1068986368}, 0},    
 };
 
 // setup & teardown
