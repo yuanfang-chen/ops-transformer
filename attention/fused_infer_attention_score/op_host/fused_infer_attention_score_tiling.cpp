@@ -904,13 +904,13 @@ static ge::graphStatus TilingProcess4PFA(gert::TilingContext *context, const uin
     OP_CHECK_IF((tempD % D_ALIGN_16 != 0), OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
         "D should be 16 elements aligned when with FP16/BF16 dtype!"), return ge::GRAPH_FAILED);
     uint64_t tilingKey = 7U;
-    uint32_t blockDimToBeSet;
+    uint32_t numBlocksToBeSet;
     pfa_tiling.fromPFA_ = false;
-    ret = pfa_tiling.RunBigKernelTilingWithParams(contextParamsForPFATiling, tilingKey, blockDimToBeSet, pfaTilingData);
+    ret = pfa_tiling.RunBigKernelTilingWithParams(contextParamsForPFATiling, tilingKey, numBlocksToBeSet, pfaTilingData);
     tilingKey += BENCHMARK_TILING_KEY;
     OP_LOGD(contextParamsForPFATiling.opName, "The final tiling key is: %lu", tilingKey);
     context->SetTilingKey(tilingKey);
-    context->SetBlockDim(blockDimToBeSet);
+    context->SetNumBlocks(numBlocksToBeSet);
     pfa_tiling.PromptFlashAttentionSetTilingData(context, pfaTilingData);
 
     return ret;
@@ -1410,12 +1410,12 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     if (faiContext.flashDecodeFlag) {
         auto needCoreNum = faiTilingData.get_needCoreNum();
         if (needCoreNum == 0) {
-            context->SetBlockDim(fai_tiling.GetCoreNum());
+            context->SetNumBlocks(fai_tiling.GetCoreNum());
         } else {
-            context->SetBlockDim(needCoreNum);
+            context->SetNumBlocks(needCoreNum);
         }
     } else {
-        context->SetBlockDim(fai_tiling.GetCoreNum());
+        context->SetNumBlocks(fai_tiling.GetCoreNum());
     }
     context->SetTilingKey(fai_tiling.GetTilingKey());
     return ge::GRAPH_SUCCESS;
