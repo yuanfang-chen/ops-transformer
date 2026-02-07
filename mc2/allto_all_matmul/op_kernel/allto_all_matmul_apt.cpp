@@ -22,9 +22,33 @@
 #include "./arch35/allto_all_matmul_arch35.h"
 #include "./arch35/allto_all_kc_quant_matmul_arch35.h"
 
+#include "./arch32/allto_all_matmul_tiling_data_910_93.h"
+#include "./arch32/allto_all_matmul_tiling_key_910_93.h"
+#include "./arch32/allto_all_matmul_910_93.h"
+
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace AlltoAllMatmulImpl;
+
+#ifndef ALLTO_ALL_MATMUL_A3_FP_IMPL
+#define ALLTO_ALL_MATMUL_A3_FP_IMPL(tilingData, pipe)                                                                 \
+    do {                                                                                                               \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllMatmulTilingData,        \
+                                          CommunicationType);                                                          \
+        CommunicationType commImplName(&tilingData);                                                                   \
+        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
+        TransposeType transposeImplName(&pipe);                                                                        \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(Mc2MatMulV3TilingData, ComputationType);                           \
+        ComputationType matmulImplName(&pipe);                                                                         \
+        using SchedulerContextType = PipelineContext<FpQuantExtraData, Mc2MatMulV3TilingData>;                         \
+        using SchedulerType = MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType,              \
+                                                                        ComputationType, SchedulerContextType>;        \
+        SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &matmulImplName);                               \
+        AlltoAllMatmulA3<SchedulerType, SchedulerContextType, AlltoAllMatmulTilingData> op(&SchedulerImpl);        \
+        op.Init(x1, x2, bias, y, all2all_out, workspaceGM, &tilingData, &pipe);                                        \
+        op.Process();                                                                                                  \
+    } while (0)
+#endif
 
 #ifndef ALLTO_ALL_MATMUL_APT_FP_IMPL
 #define ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe)                                                                 \
@@ -86,10 +110,10 @@ __global__ __aicore__ void allto_all_matmul(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
 
     if constexpr (DTYPEBIAS == DTYPE_BIAS_SAME_WITH_X) {
         using DtypeBias = DTYPE_X1;
-        ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe);
+        ALLTO_ALL_MATMUL_A3_FP_IMPL(tilingData, pipe);
     } else if constexpr (DTYPEBIAS == DTYPE_BIAS_FP32) {
         using DtypeBias = float;
-        ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe);
+        ALLTO_ALL_MATMUL_A3_FP_IMPL(tilingData, pipe);
     }
 #else
     REGISTER_TILING_DEFAULT(AlltoAllKcQuantMatmulTilingData);
