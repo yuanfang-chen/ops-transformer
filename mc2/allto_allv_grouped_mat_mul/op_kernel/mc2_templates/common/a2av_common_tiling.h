@@ -31,19 +31,6 @@ static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
 using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
 
-/**
- * GMM Tiling 数组封装
- * 供 GMM All2AllV 和 All2AllV GMM 两个算子共用
- */
- //TODO 删除
-struct GmmTilingArray {
-    uint32_t count;                              // 实际使用的 tiling 数量
-    GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
-};
-
-struct GmmExpertDiffArray {
-};
-
 struct HcclA2avTilingInfo {
     Mc2InitTiling hcclInitTiling;
     Mc2CcTiling a2avCcTiling;
