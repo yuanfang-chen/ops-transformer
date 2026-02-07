@@ -105,7 +105,9 @@ function(gen_aclnn_master_header aclnn_master_header_name aclnn_master_header op
   set(aclnn_all_header_include_content "")
   foreach(header_file ${opbuild_out_headers})
     get_filename_component(header_name ${header_file} NAME)
-    set(aclnn_all_header_include_content "${aclnn_all_header_include_content}#include \"${header_name}\"\n")
+    if ("${header_name}" MATCHES "aclnn" AND NOT "${header_name}" MATCHES "aclnnInner")
+      set(aclnn_all_header_include_content "${aclnn_all_header_include_content}#include \"${header_name}\"\n")
+    endif()
   endforeach()
 
   # 根据模板生成头文件
