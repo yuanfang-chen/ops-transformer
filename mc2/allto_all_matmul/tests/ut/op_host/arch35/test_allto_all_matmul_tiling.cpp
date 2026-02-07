@@ -802,6 +802,22 @@ static AlltoAllMatmulTestParam testCases[] = {
     "group", 2, 0, 0, 7, 2, 0, 0, 0, false, false, 0, true,
     "3510",
     ge::GRAPH_FAILED, 33UL, "", {279943680}, 0},
+
+    // MX量化
+    {"alltoall_matmul_mx_case_legal_nobias_bf16_float8e4m3fn",
+    {57086, 1536}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND,
+    {3072, 9216}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {28543, 48, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND,
+    {48, 9216, 2}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {}, ge::DT_FLOAT, ge::FORMAT_ND,
+    {28543, 9216}, ge::DT_FLOAT16, ge::FORMAT_ND,
+    {28543, 3072}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND,
+    "group", 2, 0, 0, 6, 6, 0, 0, 0, false, false, 0, true,
+    "3510",
+    ge::GRAPH_SUCCESS, 35UL, "", {104461312}, 0},
 };
 
 // setup & teardown
