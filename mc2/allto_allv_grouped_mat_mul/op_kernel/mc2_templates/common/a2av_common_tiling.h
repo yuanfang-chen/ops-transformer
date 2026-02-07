@@ -24,7 +24,7 @@
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 
 // 类型复用声明
@@ -41,8 +41,36 @@ struct GmmTilingArray {
     GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
 };
 
-struct GmmExpertDiffArray {
+/**
+ * 每次 GMM 迭代中随专家切分而变化的 Tiling 参数
+ *
+ * 在 GMM A2Av / A2Av GMM 融合算子中，调度器按专家颗粒度切分，
+ * 每次迭代可能处理不同数量的专家、不同的 token 总数(M)，
+ * 导致以下 5 个字段随每次 GMM 迭代变化，其余字段恒定。
+ */
+#pragma pack(push, 8)
+struct GmmExpertDiffTiling {
+    // --- GMMQuantParams 中的变化字段 ---
+    uint32_t groupNum;        // 本次迭代处理的专家(组)数量
+
+    // --- TCubeTiling 中的 M 相关变化字段 ---
+    uint32_t M;               // 本次迭代的 token 总数
+    uint32_t singleCoreM;     // 单核分配的 M
+    uint32_t baseM;           // M 方向基础分块大小
+    uint32_t dbL0C;           // L0C 双缓冲开关 (1 或 2)
 };
+#pragma pack(pop)
+
+/**
+ * GMM 专家差异 Tiling 数组
+ * 记录每次 GMM 迭代（按专家颗粒度切分）的变化 tiling
+ */
+#pragma pack(push, 8)
+struct GmmExpertDiffTilingArray {
+    uint32_t count;                                 // 实际使用的条目数
+    GmmExpertDiffTiling array[MAX_EXPERT_PER_EP];   // 每次迭代的差异 tiling
+};
+#pragma pack(pop)
 
 struct HcclA2avTilingInfo {
     Mc2InitTiling hcclInitTiling;

@@ -28,6 +28,7 @@ using MC2KernelTemplate::GmmTilingArray;
 using MC2KernelTemplate::GMMQuantTilingData;
 using MC2KernelTemplate::GMMArray;
 using MC2KernelTemplate::TaskTilingInfo;
+using MC2KernelTemplate::GmmExpertDiffTilingArray;
 
 /**
  * GMM A2AV Workspace 信息
@@ -52,5 +53,8 @@ struct QuantGmmA2avTilingData {
 
     // ============ 普通专家 GMM Tiling 数组 ============
     GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
+
+    // ============ 普通专家 GMM 差异 Tiling 数组 ============
+    GmmExpertDiffTilingArray gmmExpertDiffTiling; // 每次迭代的差异 tiling
 };
 #endif
