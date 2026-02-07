@@ -287,7 +287,8 @@ uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 }
 
 // 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 1);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling, 1);
+// REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
+//                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 1);
 
 // }
