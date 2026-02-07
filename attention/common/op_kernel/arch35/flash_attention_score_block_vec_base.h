@@ -1286,7 +1286,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopy
 {
     int64_t s1DealSize = runInfo.vec2S1RealSize;
     int64_t curGIdx = runInfo.sOuterOffset / constInfo.s1Size;
-    int64_t curS1Idx = runInfo.sOuterOffset % (uint32_t)s1TemplateType;
+    int64_t curS1Idx = runInfo.sOuterOffset % constInfo.s1Size;
     if (constInfo.subBlockIdx == 1) {
         curGIdx = (curGIdx + s1DealSize / constInfo.s1Size) % constInfo.gSize;
         curS1Idx = (curGIdx + s1DealSize) % constInfo.s1Size;
@@ -1319,10 +1319,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopy
     if (hasTailBlock) { // 尾块单独一条DataCopy指令
         DataCopyExtParams dataCopyParamsTail;
         dataCopyParamsTail.blockCount = 1;
-        dataCopyParamsTail.blockLen = tailBlock * constInfo.s1Size * sizeof(OUTPUT_T);
+        dataCopyParamsTail.blockLen = tailBlock * constInfo.dSizeV * sizeof(OUTPUT_T);
         dataCopyParamsTail.srcStride = 0;
         dataCopyParamsTail.dstStride = 0;
-        runInfo.attentionOutOffset += (gCount - int(hasHeadBlock) - 1) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
+        runInfo.attentionOutOffset += gCount * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
         DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParamsTail);
     }
 }
