@@ -74,13 +74,13 @@ bool Mc2WeightQuantBatchMatmulV2TilingAS::IsCapable()
 {
     OP_TILING_CHECK(
         matmulInfoPtr_->antiQuantScaleDtype == ge::DT_UINT64,
-        OP_LOGE(opName_, "ascend950 does not support antiQuantScaleDtype is uint64."),
+        OP_LOGE(opName_, "Npuarch 3510 does not support antiQuantScaleDtype is uint64."),
         return false);
     OP_TILING_CHECK(
         (matmulInfoPtr_->bDtype == ge::DT_INT4 && matmulInfoPtr_->bFormat == ge::FORMAT_FRACTAL_NZ) &&
             (matmulInfoPtr_->transA || matmulInfoPtr_->transB),
         OP_LOGE(
-            opName_, "ascend950 does not support A16W4 transA or transB when weight's layout is FRACTAL_NZ."),
+            opName_, "Npuarch 3510 does not support A16W4 transA or transB when weight's layout is FRACTAL_NZ."),
         return false);
 
     // PS 从RegBase模板迁移的场景: pergroup int4 Nz groupsize(32, 64, 128, 256)
@@ -170,24 +170,7 @@ void Mc2WeightQuantBatchMatmulV2TilingAS::ComputeCubeTiling(bool highPerfFlag)
 {
     SetDefaultMatmulTiling();
     ComputeCubeSplit(highPerfFlag);
-    if (compileInfoPtr_->socVersion == SocVersion::ASCEND910_55) {
-        SetAttrs();
-    }
     OptimizeMatmulTiling();
-}
-
-void Mc2WeightQuantBatchMatmulV2TilingAS::SetAttrs()
-{
-    // 910_55的tiling分核属性设置
-    uint64_t mainBlockL1SizeDefault = l1NMaxSize_;
-    uint64_t mainBlockCountDefault = ops::CeilDiv(matmulInfoPtr_->nSize, mainBlockL1SizeDefault);
-    uint64_t cubeBlockDimMMax =
-        ops::CeilDiv(static_cast<uint64_t>(matmulInfoPtr_->mSize), static_cast<uint64_t>(M_MAX_SIZE));
-    tilingData_->cubeBlockDimN = (
-        static_cast<uint32_t>(std::min(static_cast<uint64_t>(compileInfoPtr_->aicNum), mainBlockCountDefault)));
-    tilingData_->cubeBlockDimM = (
-        static_cast<uint32_t>(std::min(
-            cubeBlockDimMMax, static_cast<uint64_t>(compileInfoPtr_->aicNum / tilingData_->cubeBlockDimN))));
 }
 
 void Mc2WeightQuantBatchMatmulV2TilingAS::SetDefaultMatmulTiling()
@@ -209,12 +192,6 @@ void Mc2WeightQuantBatchMatmulV2TilingAS::SetDefaultMatmulTiling()
     tilingData_->matmulTiling.baseK = (
         (compileInfoPtr_->l0aSize >> 1) / GetSizeByDataType(matmulInfoPtr_->aDtype) /
         tilingData_->matmulTiling.singleCoreN);
-    if (compileInfoPtr_->socVersion == SocVersion::ASCEND910_55 && matmulInfoPtr_->transB) {
-        tilingData_->matmulTiling.baseK = (
-            (compileInfoPtr_->l0aSize >> 1) / GetSizeByDataType(matmulInfoPtr_->aDtype) /
-            // 910_55上转置情况下singleCoreN为128，会导致算出的baseK增大为128，超L0A，故此处baseK除以2缩小为64
-            tilingData_->matmulTiling.singleCoreN / 2);
-    }
     tilingData_->matmulTiling.dbL0A = DOUBLE_BUFFER_NUM;
     tilingData_->matmulTiling.dbL0B = DOUBLE_BUFFER_NUM;
     tilingData_->matmulTiling.dbL0C = SINGLE_BUFFER_NUM;
@@ -350,10 +327,6 @@ void Mc2WeightQuantBatchMatmulV2TilingAS::ComputeHighPerfSceneCubeSplit()
 
 void Mc2WeightQuantBatchMatmulV2TilingAS::EnlargeBaseK(uint64_t l0aMaxBaseK)
 {
-    // 910_55不走basek放大的优化方案
-    if (compileInfoPtr_->socVersion == SocVersion::ASCEND910_55) {
-        return;
-    }
     // 根据理论需要处理的N推算L0B上K的最大值
     uint64_t l0bMaxBaseK = (compileInfoPtr_->l0bSize >> 1) / GetSizeByDataType(matmulInfoPtr_->aDtype) /
                            tilingData_->matmulTiling.singleCoreN / BLOCK_CUBE * BLOCK_CUBE;
