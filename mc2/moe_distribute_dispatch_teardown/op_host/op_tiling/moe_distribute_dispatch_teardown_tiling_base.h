@@ -34,6 +34,31 @@ protected:
     std::string groupEp_;
 
     uint64_t GetTilingKey() const override;
+    ge::graphStatus DoOpTiling() override;
+    bool IsCapable() override;
+
+    ge::graphStatus CheckRequiredAttrValue();
+    ge::graphStatus GetRequiredAttrAndSetTilingData();
+    ge::graphStatus CheckOptionalAttrValue();
+    ge::graphStatus GetOptionalAttrAndSetTilingData();
+
+    ge::graphStatus MoeDistributeDispatchTeardownTilingFuncImpl();
+    ge::graphStatus CheckTensorShape();
+    ge::graphStatus CheckTensorDataType();
+    ge::graphStatus CheckHcclBuffSize();
+    ge::graphStatus SetWorkSpace();
+    void SetTilingKey();
+    void SetHcommCfg();
+    void SetPlatformInfo();
+    void PrintTilingDataInfo();
+
+    bool CheckInputTensorShapeDim();
+    bool CheckOutputTensorShapeDim();
+    bool CheckTensorShapeRelation();
+    bool CheckTensorShapeSize();
+    bool CheckInputTensorDataType();
+    bool CheckOutputTensorDataType();
+    bool CheckRelationTensorDataType();
 };
 } // namespace optiling
 #endif

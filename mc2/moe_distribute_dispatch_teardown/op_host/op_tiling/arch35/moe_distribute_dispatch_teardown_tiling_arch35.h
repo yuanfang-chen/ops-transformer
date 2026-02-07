@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_A5_H_
-#define MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_A5_H_
+#ifndef MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_ARCH35_H_
+#define MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_ARCH35_H_
 
 #include "../moe_distribute_dispatch_teardown_tiling_base.h"
 
@@ -27,33 +27,6 @@ public:
     {
         socTilingName_ = "MoeDistributeDispatchTeardownA5";
     }
-
-private:
-    ge::graphStatus DoOpTiling() final;
-    bool IsCapable() final;
-
-    ge::graphStatus CheckRequiredAttrValue();
-    ge::graphStatus GetRequiredAttrAndSetTilingData();
-    ge::graphStatus CheckOptionalAttrValue();
-    ge::graphStatus GetOptionalAttrAndSetTilingData();
-
-    ge::graphStatus MoeDistributeDispatchTeardownTilingFuncImpl();
-    ge::graphStatus CheckTensorShape();
-    ge::graphStatus CheckTensorDataType();
-    ge::graphStatus CheckHcclBuffSize();
-    ge::graphStatus SetWorkSpace();
-    void SetTilingKey();
-    void SetHcommCfg();
-    void SetPlatformInfo();
-    void PrintTilingDataInfo();
-
-    bool CheckInputTensorShapeDim();
-    bool CheckOutputTensorShapeDim();
-    bool CheckTensorShapeRelation();
-    bool CheckTensorShapeSize();
-    bool CheckInputTensorDataType();
-    bool CheckOutputTensorDataType();
-    bool CheckRelationTensorDataType();
 };
 } // namespace optiling
-#endif // MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_A5_H_
+#endif // MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_ARCH35_H_

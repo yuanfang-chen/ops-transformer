@@ -31,7 +31,7 @@ namespace {
 class test_aclnn_moe_distribute_dispatch_teardown : public testing::Test {
     protected:
        static void SetUpTestCase() {
-            op::SetPlatformSocVersion(op::SocVersion::ASCEND910_95);
+            op::SetPlatformSocVersion(NpuArch::DAV_3510);
             std::cout << "test_aclnn_moe_distribute_dispatch_teardown SetUp" << std::endl;
         }
         static void TearDownTestCase() {

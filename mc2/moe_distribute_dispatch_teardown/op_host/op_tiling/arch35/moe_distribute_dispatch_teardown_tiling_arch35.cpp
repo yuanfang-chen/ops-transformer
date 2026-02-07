@@ -724,6 +724,7 @@ void MoeDistributeDispatchTeardownTilingA5::SetHcommCfg()
 void MoeDistributeDispatchTeardownTilingA5::SetPlatformInfo()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
     uint32_t aivNum = USED_AIV_NUMS;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
@@ -771,7 +772,12 @@ ge::graphStatus MoeDistributeDispatchTeardownTilingA5::MoeDistributeDispatchTear
 
 bool MoeDistributeDispatchTeardownTilingA5::IsCapable()
 {
-    return true;
+    if (npuArch_ == NpuArch::DAV_3510) {
+        const char *nodeName = context_->GetNodeName();
+        OP_LOGD(nodeName, "Do MoeDistributeDispatchTeardownTilingA5 tiling.");
+        return true;
+    }
+    return false;
 }
 
 ge::graphStatus MoeDistributeDispatchTeardownTilingA5::DoOpTiling()
