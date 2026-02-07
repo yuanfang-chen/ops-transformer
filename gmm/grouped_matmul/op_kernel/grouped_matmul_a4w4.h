@@ -326,7 +326,7 @@ __aicore__ inline void GMMA4W4Compute<mmType>::VectorCompute(uint32_t groupIdx, 
     uint32_t taskRation = GetTaskRation(); // 2
     uint32_t nCount = 0;
     for (uint32_t offsetN = 0; offsetN < curCubeSingleN; offsetN += mnConfig.baseN) {
-        mnConfig.workspaceOffset = mmBaseBlockOffset_ * \
+        mnConfig.workSpaceOffset = mmBaseBlockOffset_ * \
                                    (coreIdx + (cubeCount % PARALL_NUM) * tiling->coreNum);
         if (unlikely(offsetN + mnConfig.baseN >= curCubeSingleN)) curVecBaseN = curCubeSingleN - offsetN; 
         uint32_t alignBaseN = Ceil(curVecBaseN, uint32_t(16)) * 16;  //  16: fp16 num per 32B
