@@ -42,6 +42,7 @@ using namespace AscendC;
 using namespace ge;
 
 namespace {
+constexpr uint32_t AICPU_BLOCK_DIM_A2 =6u;
 constexpr uint32_t SHMEM_CONTEXT_INDEX = 0;
 constexpr uint32_t EXPAND_X_INDEX = 1;
 constexpr uint32_t EXPERT_IDS_INDEX = 2;
@@ -1898,83 +1899,6 @@ static uint64_t MoeDistributeCombineA2CalcTilingKey(
   return tilingKey;
 }
 
-static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(
-    gert::TilingContext *context) {
-  const char *nodeName = context->GetNodeName();
-  OP_LOGI(nodeName, "Enter MoeDistributeCombineA2 tiling func.");
-
-  // tilingData
-  MoeDistributeCombineA2TilingData *tilingData =
-      context->GetTilingData<MoeDistributeCombineA2TilingData>();
-  OP_TILING_CHECK(
-      tilingData == nullptr,
-      VECTOR_INNER_ERR_REPORT_TILING(nodeName, "tilingData is nullptr."),
-      return ge::GRAPH_FAILED);
-  MoeDistributeCombineA2Info &info = tilingData->moeDistributeCombineInfo;
-
-  bool isLayered = false;
-  OP_TILING_CHECK(
-      MoeDistributeCombineCheckCommAlg(context, isLayered) != ge::GRAPH_SUCCESS,
-      VECTOR_INNER_ERR_REPORT_TILING(
-          context->GetNodeName(), "MoeDistributeCombineA2 CheckCommAlg Failed"),
-      return ge::GRAPH_FAILED);
-  int32_t commQuantMode = 0;
-  OP_TILING_CHECK(MoeDistributeCombineA2CheckShapeAndSetTiling(
-                      context, info, isLayered) != ge::GRAPH_SUCCESS,
-                  VECTOR_INNER_ERR_REPORT_TILING(
-                      context->GetNodeName(),
-                      "MoeDistributeCombineA2 CheckShapeAndSetTiling Failed"),
-                  return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(
-      MoeDistributeCombineA2CheckAttrAndSetTiling(
-          context, info, commQuantMode, isLayered) != ge::GRAPH_SUCCESS,
-      VECTOR_INNER_ERR_REPORT_TILING(
-          context->GetNodeName(),
-          "MoeDistributeCombineA2 CheckAttrAndSetTiling Failed"),
-      return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(
-      MoeDistributeCombineA2GetPlatformInfoAndSetTiling(context, info) !=
-          ge::GRAPH_SUCCESS,
-      VECTOR_INNER_ERR_REPORT_TILING(
-          context->GetNodeName(),
-          "MoeDistributeCombineA2 GetPlatformInfoAndSetTiling Failed"),
-      return ge::GRAPH_FAILED);
-
-  uint32_t blockDim = 1U;
-  auto ascendcPlatform =
-      platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
-  uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
-  blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-  context->SetBlockDim(blockDim);
-  context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
-
-  uint64_t tilingKey =
-      MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
-  context->SetTilingKey(tilingKey);
-  // 2. workspace
-  size_t *workSpaces = context->GetWorkspaceSizes(1);
-  OP_TILING_CHECK(
-      workSpaces == nullptr,
-      VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
-      return ge::GRAPH_FAILED);
-  size_t userWorkspaceSize = info.moeExpertNum * sizeof(uint32_t) * 2U;
-  workSpaces[0] = SYSTEM_NEED_WORKSPACE + userWorkspaceSize;
-
-  // 3. communication
-  auto attrs = context->GetAttrs();
-  auto group =
-      attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-  std::string algConfig =
-      isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
-  uint32_t opType = 18;  // DispatchCombine
-
-  AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
-
-  return ge::GRAPH_SUCCESS;
-}
-
 static ge::graphStatus MoeDistributeCombineShmemTilingFunc(
     gert::TilingContext *context) {
   // 不支持 expandX数据类型为int32 type
@@ -1994,17 +1918,8 @@ static ge::graphStatus MoeDistributeCombineShmemTilingFunc(
 
   fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
   fe::PlatFormInfos &platformInfo = *platformInfoPtr;
-
-  std::string socVersion;
-  (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version",
-                                            socVersion);
   ge::graphStatus ret;
-  if (socVersion == "Ascend910B") {
-    ret = MoeDistributeCombineA2TilingFuncImpl(context);
-  } else {
-    ret = MoeDistributeCombineA3TilingFuncImpl(context);
-  }
-
+  ret = MoeDistributeCombineA3TilingFuncImpl(context);
   return ret;
 }
 
