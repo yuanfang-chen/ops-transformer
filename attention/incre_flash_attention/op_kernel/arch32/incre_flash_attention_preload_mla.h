@@ -2753,7 +2753,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
-    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, info.s1Idx * s1SizeSub);
+    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, s1Idx * s1SizeSub);
     AscendC::printf("tkd noinfo curS1Idx: %u\n", s1Idx * s1SizeSub);
     AscendC::printf("tkd info curS1Idx: %u\n", info.s1Idx * s1SizeSub);
 
