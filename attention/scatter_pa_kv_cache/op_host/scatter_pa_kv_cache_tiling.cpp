@@ -239,10 +239,10 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputDimNumNorm()
     size_t vDimNum = inputValueShape_.GetDimNum();
     size_t vCacheDimNum = inputValueCacheInShape_.GetDimNum();
 
-    OP_CHECK_IF((vDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "key should be is 3 dim."),
+    OP_CHECK_IF((vDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "value should be is 3 dim."),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "key_cache should be is 4 dim."),
+    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4)), OP_LOGE(context_, "value_cache should be is 4 dim."),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -259,7 +259,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputDimNumNz()
     OP_CHECK_IF((kDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "key should be is 3 dim."),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((kCacheDimNum != static_cast<size_t>(DIM_4) || kCacheDimNum != static_cast<size_t>(DIM_5)),
+    OP_CHECK_IF((kCacheDimNum != static_cast<size_t>(DIM_4) && kCacheDimNum != static_cast<size_t>(DIM_5)),
                 OP_LOGE(context_, "key_cache should be is 4 dim or 5 dim."),
                 return ge::GRAPH_FAILED);
 
@@ -269,7 +269,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputDimNumNz()
     OP_CHECK_IF((vDimNum != static_cast<size_t>(DIM_3)), OP_LOGE(context_, "value should be is 3 dim."),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4) || vCacheDimNum != static_cast<size_t>(DIM_5)),
+    OP_CHECK_IF((vCacheDimNum != static_cast<size_t>(DIM_4) && vCacheDimNum != static_cast<size_t>(DIM_5)),
                 OP_LOGE(context_, "value_cache should be is 4 dim or 5 dim."),
                 return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -383,7 +383,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeNz()
 
     if (inputKeyCacheInShape_.GetDimNum() == 4) {
         params_.blockSize = inputKeyCacheInShape_.GetDim(DIM_2);
-        OP_CHECK_IF((params_.blockSize < UINT16_MAX),
+        OP_CHECK_IF((params_.blockSize > UINT16_MAX),
                     OP_LOGE(context_, "blockSize should less than UINT16_MAX."), return ge::GRAPH_FAILED);
         OP_CHECK_IF((static_cast<uint64_t>(numBlocks) * params_.blockSize < params_.numTokens),
                     OP_LOGE(context_, "numBlocks * blockSize should larger than numTokens."), return ge::GRAPH_FAILED);
@@ -399,7 +399,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeNz()
                     return ge::GRAPH_FAILED);
     } else {
         params_.blockSize = inputKeyCacheInShape_.GetDim(DIM_3);
-        OP_CHECK_IF((params_.blockSize < UINT16_MAX),
+        OP_CHECK_IF((params_.blockSize > UINT16_MAX),
                     OP_LOGE(context_, "blockSize should less than UINT16_MAX."), return ge::GRAPH_FAILED);
         OP_CHECK_IF((static_cast<uint64_t>(numBlocks) * params_.blockSize < params_.numTokens),
                     OP_LOGE(context_, "numBlocks * blockSize should larger than numTokens."), return ge::GRAPH_FAILED);
@@ -446,7 +446,7 @@ ge::graphStatus ScatterPaKvCacheMembaseTiling::CheckInputShapeCompress()
     OP_CHECK_IF((inputKeyCacheInShape_.GetDim(DIM_2) != inputValueCacheInShape_.GetDim(DIM_2)),
                 OP_LOGE(context_, "dim2 of keyCache should be same as ValueCache."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((inputKeyCacheInShape_.GetDim(DIM_2) != 1),
-                OP_LOGE(context_, "dim2 of keyCache should be same as ValueCache."), return ge::GRAPH_FAILED);
+                OP_LOGE(context_, "dim2 of keyCache should be 1."), return ge::GRAPH_FAILED);
 
     auto seqLens = context_->GetOptionalInputTensor(INPUT_SEQ_LENS);
     OP_CHECK_NULL_WITH_CONTEXT(context_, seqLens);
