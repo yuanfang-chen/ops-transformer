@@ -827,7 +827,7 @@ bool CheckTempLimit(Mc2WeightQuantBatchMatmulInfo* inputParams)
         OP_TILING_CHECK(
             std::find(GROUP_SIZE_LIST.begin(), GROUP_SIZE_LIST.end(), inputParams->groupSize) == GROUP_SIZE_LIST.end(),
             OP_LOGE(inputParams->opName,
-                                            "In the A16Fp4 pergroup scenario of the ASCEND950 , groupsize only "
+                                            "In the A16Fp4 pergroup scenario of the NpuArch3510 , groupsize only "
                                             "supports 32, 64, 128, 256, but is [%lu]",
                                             inputParams->groupSize),
             return false);
