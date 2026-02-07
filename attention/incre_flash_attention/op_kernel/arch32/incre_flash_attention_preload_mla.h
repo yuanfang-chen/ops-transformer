@@ -2827,8 +2827,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeSoftmaxL
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseInvalidRows(LocalTensor<T> &softmaxlseUb,
                                                                                            LocalTensor<T> &lseMaxUb,
-                                                                                           uint64_t s1Size,
                                                                                            uint32_t dealRowCount,
+                                                                                           uint64_t s1Size,
                                                                                            uint32_t curS1Idx)
 {
     AscendC::printf("tkd actS1Size: %llu\n", actS1Size);
