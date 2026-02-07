@@ -104,9 +104,70 @@ public:
             .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
             .ExtendCfgInfo("opFile.value", "allto_all_matmul_apt");
         this->AICore().AddConfig("ascend950", aicoreConfig_950);
-        this->AICore().AddConfig("ascend910_93", aicoreConfig_950);
-
         // 将group配置为该算子的通信域
+        this->MC2().HcclGroup("group");
+
+        OpAICoreConfig aicore_config_910_93;
+        aicore_config_910_93.Input("x1")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16,  ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("x2")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16,  ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("bias")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16,  ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("x1_scale")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT,    ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("x2_scale")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("comm_scale")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("x1_offset")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Input("x2_offset")
+            .ParamType(OPTIONAL)
+            .DataTypeList({ge::DT_FLOAT})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        aicore_config_910_93.Output("y")
+            .ParamType(REQUIRED)
+            .DataType({ge::DT_FLOAT16,  ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+        aicore_config_910_93.Output("all2all_out")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16,  ge::DT_BF16})
+            .FormatList({ge::FORMAT_ND});
+
+        aicore_config_910_93.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
+            .PrecisionReduceFlag(true)
+            .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
+            .ExtendCfgInfo("jitCompile.flag", "static_false")
+            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
+            .ExtendCfgInfo("opFile.value", "allto_all_matmul_apt");
+        this->AICore().AddConfig("ascend910_93", aicore_config_910_93);
         this->MC2().HcclGroup("group");
 
         OpAICoreConfig aicore_config_910b;
