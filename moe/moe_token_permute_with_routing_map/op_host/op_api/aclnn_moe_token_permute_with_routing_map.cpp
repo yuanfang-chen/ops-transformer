@@ -203,8 +203,6 @@ static aclnnStatus CheckParams(
                 permuteProbOutD),
             return ACLNN_ERR_PARAM_INVALID);
     }
-
-
     return ACLNN_SUCCESS;
 }
 
