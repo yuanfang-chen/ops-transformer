@@ -295,6 +295,7 @@ ge::graphStatus MatmulAlltoAllTilingUtil::CheckKcQuantTensorDataType(const gert:
     return ge::GRAPH_SUCCESS;
 }
 
+
 /**
  * @brief 校验tiling inputshape非空
  *

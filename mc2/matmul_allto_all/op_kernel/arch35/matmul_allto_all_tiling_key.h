@@ -20,6 +20,7 @@
 // 量化组合模式
 #define NON_QUANT_MODE 0
 #define KC_QUANT_MODE 1 // KC quant tiling
+#define MX_QUANT_MODE 2
 
 // bias的数据类型
 #define DTYPE_BIAS_SAME_WITH_X 0
@@ -50,6 +51,13 @@ ASCENDC_TPL_SEL(ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL
                                      ASCENDC_TPL_UINT_SEL(DTYPEBIAS, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_FP32), ),
                 ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, KC_QUANT_MODE),
                                      ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 1),
-                                     ASCENDC_TPL_UINT_SEL(DTYPEBIAS, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_FP32), ),);                                                          
+                                     ASCENDC_TPL_UINT_SEL(DTYPEBIAS, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_FP32), ),
+                ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, MX_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 0),
+                                     ASCENDC_TPL_UINT_SEL(DTYPEBIAS, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_FP32), ),
+                ASCENDC_TPL_ARGS_SEL(ASCENDC_TPL_UINT_SEL(QUANTMODE, ASCENDC_TPL_UI_LIST, MX_QUANT_MODE),
+                                     ASCENDC_TPL_BOOL_SEL(X2TRANSPOSE, 1),
+                                     ASCENDC_TPL_UINT_SEL(DTYPEBIAS, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_FP32), ),); 
+                                                                         
 
 #endif // MATMUL_ALLTO_ALL_TILING_KEY_H
