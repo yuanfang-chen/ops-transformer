@@ -486,6 +486,9 @@ function(add_bin_compile_target)
     set(SRC_OUT_DIR      ${_OUT_DIR}/src)
     file(MAKE_DIRECTORY  ${BIN_OUT_DIR})
 
+    # 创建kernel编译耗时日志目录
+    file(MAKE_DIRECTORY ${BIN_OUT_DIR}/build_logs)
+
     foreach(_op_info ${BINARY_OP_INFO})
         get_filename_component(_op_name "${_op_info}" NAME)
         set(${_op_name}_dir ${_op_info})
