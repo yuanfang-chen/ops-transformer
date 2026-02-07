@@ -668,6 +668,7 @@ void Mc2QuantBatchMatmulV3TilingBase::InitCompileInfo()
     compileInfo_.aivNum = ascendcPlatform.GetCoreNumAiv();
     platformInfoPtr->GetPlatformRes("version", "Soc_version", compileInfo_.socVersionStr);
     compileInfo_.socVersion = ascendcPlatform.GetSocVersion();
+    compileInfo_.npuArch = ascendcPlatform.GetCurNpuArch();
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo_.ubSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, compileInfo_.l2Size);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, compileInfo_.l1Size);
