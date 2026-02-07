@@ -364,6 +364,7 @@ protected:
     uint64_t combineAccumOutOffset = 0ULL;
 
     uint64_t curActualSeqLen = 0ULL;
+    uint64_t curActualSeqLenQ = 0ULL;
     uint64_t actualSingleProcessSInnerSize = 0ULL;
     uint64_t actualSingleProcessSInnerSizeAlign = 0ULL;
     uint32_t beforeBlockSplitBn2Nums = 0U;
@@ -732,13 +733,16 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::GetActualSeqLen
 {
     if (actualLenDims == 0) {
         curActualSeqLen = kvSeqSize;
+        curActualSeqLenQ = qSeqSize;
         if (!batchContinuous) {
             curActualSeqLen = SeqLenFromTensorList(bIdx);
         }
     } else if (actualLenDims == 1) {
         curActualSeqLen = actualSeqLengthsGm.GetValue(0);
+        curActualSeqLenQ = actualSeqLengthsGmQ.GetValue(0);
     } else {
         curActualSeqLen = actualSeqLengthsGm.GetValue(bIdx);
+        curActualSeqLenQ = actualSeqLengthsGmQ.GetValue(bIdx);
     }
 
     if constexpr (BALANCE) {
@@ -785,7 +789,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealActSeqLenIs
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::UpdateInnerLoopCond()
 {
-    if ((curActualSeqLen == 0) || (actS1Size == 0)) {
+    if ((curActualSeqLenQ == 0) || (curActualSeqLen == 0) || (actS1Size == 0)) {
         curActSeqLenIsZero = true;
         return;
     }
