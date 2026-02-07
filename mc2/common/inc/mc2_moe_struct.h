@@ -21,6 +21,7 @@ constexpr uint32_t HCCL_HOST_KFC_MAX_RANK_NUM = 64;
 
 struct Mc2MoeContext {
     int32_t epRankId;
+    int32_t epRankSize;
     int32_t tpRankId;
     int32_t winSize;
     uint64_t kfcContextAddr;    // host kfc方案中，需要传递通信API所需的地址
