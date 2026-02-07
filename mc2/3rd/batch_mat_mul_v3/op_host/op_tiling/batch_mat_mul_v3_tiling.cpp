@@ -69,6 +69,7 @@ static ge::graphStatus Mc2TilingPrepareForBatchMatMulV3(gert::TilingParseContext
     compileInfoPtr->aicNum = ascendcPlatform.GetCoreNumAic();
     compileInfoPtr->socVersion =
         supportMmadS8S4 ? platform_ascendc::SocVersion::RESERVED_VERSION : ascendcPlatform.GetSocVersion();
+    compileInfoPtr->npuArch = supportMmadS8S4 ? NpuArch::DAV_RESV : ascendcPlatform.GetCurNpuArch();
     compileInfoPtr->btSize = compileInfoPtr->supportL0c2out ? 1024UL : 0UL; // 1024 is btSize
     compileInfoPtr->btSize = compileInfoPtr->supportL12BtBf16 ? 4096UL : compileInfoPtr->btSize; // 4096 is btSize
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfoPtr->ubSize);
@@ -83,8 +84,8 @@ static ge::graphStatus Mc2TilingPrepareForBatchMatMulV3(gert::TilingParseContext
     }
     OP_LOGI(
         context->GetNodeName(),
-        "compile info success soc:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
-        static_cast<int>(compileInfoPtr->socVersion), compileInfoPtr->l1Size, compileInfoPtr->l2Size,
+        "compile info success npuArch:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
+        static_cast<int>(compileInfoPtr->npuArch), compileInfoPtr->l1Size, compileInfoPtr->l2Size,
         compileInfoPtr->aicNum, compileInfoPtr->supportL0c2out, compileInfoPtr->supportL12BtBf16);
     return ge::GRAPH_SUCCESS;
 }
