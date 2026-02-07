@@ -172,6 +172,7 @@ void Mc2MatmulV3BaseTiling::InitCompileInfo() // 检查输入属性是否支持
     compileInfo.aicNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAic());
     compileInfo.aivNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
     compileInfo.socVersion = ascendcPlatform.GetSocVersion();
+    compileInfo.npuArch = ascendcPlatform.GetCurNpuArch();
     compileInfo.btSize = compileInfo.supportL0c2out ? 1024UL : 0UL;                    // 1024 is btSize
     compileInfo.btSize = compileInfo.supportL12BtBf16 ? 4096 : compileInfo.btSize; // 4096 is btSize
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo.ubSize);
@@ -183,8 +184,8 @@ void Mc2MatmulV3BaseTiling::InitCompileInfo() // 检查输入属性是否支持
 
     TilingPrepareForOpCache(context_);
     OP_LOGI(context_->GetNodeName(),
-        "parse compile info soc:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
-        static_cast<int32_t>(compileInfo.socVersion), compileInfo.l1Size, compileInfo.l2Size, compileInfo.aicNum,
+        "parse compile info npuArch:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
+        static_cast<int32_t>(compileInfo.npuArch), compileInfo.l1Size, compileInfo.l2Size, compileInfo.aicNum,
         compileInfo.supportL0c2out, compileInfo.supportL12BtBf16);
     compileInfoInit_ = true;
     compileInfo_ = compileInfo;
