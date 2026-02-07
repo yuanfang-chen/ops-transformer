@@ -21,8 +21,10 @@ namespace allto_allv_grouped_mat_mul_checker {
 
 using namespace op;
 
+static constexpr int64_t ZERO = 0;
+static constexpr size_t MAX_GROUP_LEN = 128U;
 
-aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts)
+aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts, const aclTensor *gmmX, const aclTensor *gmmY)
 {
     if (sendCounts == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCounts should not be null.");
@@ -44,7 +46,40 @@ aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *r
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCounts should not be empty.");
         return ACLNN_ERR_PARAM_INVALID;
     }
+    uint64_t sendSum = 0U;
+    uint64_t recvSum = 0U;
+    for(uint64_t i = 0; i < recvSize; i++){
+        recvSum += (*recvCounts)[i];
+    }
+    for(uint64_t i = 0; i < sendSize; i++){
+        sendSum += (*sendCounts)[i];
+    }
+    if((sendSum != (gmmX->GetViewShape().GetDim(0)))){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendSum should be BSK.");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if((recvSum != (gmmY->GetViewShape().GetDim(0)))){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "recvSum should be A.");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
     return ACLNN_SUCCESS;
 }
+
+// 检查通信域名的字符串长度是否符合要求
+bool CheckGroup(const char *group)
+{
+    if (group == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Group should not be nullptr.");
+        return false;
+    }
+    auto len = strnlen(group, MAX_GROUP_LEN);
+    if ((len >= MAX_GROUP_LEN) || (len == ZERO)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "Required group name length in range (0, 128), but it is %zu.", len);
+        return false;
+    }
+    return true;
+}
+
 
 } // namespace allto_allv_grouped_mat_mul_checker

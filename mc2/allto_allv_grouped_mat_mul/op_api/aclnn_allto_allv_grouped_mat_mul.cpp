@@ -57,10 +57,6 @@ static bool CheckNullStatus(const aclTensor *gmmX, const aclTensor *gmmWeight,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sendCountsTensorOptional and recvCountsTensorOptional should be empty.");
         return false;
     }
-    if ((group == nullptr) || (strnlen(group, HCCL_GROUP_NAME_MAX) == 0)) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required group name is Empty.");
-        return false;
-    }
     if ((!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr))) &&
         (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr)))) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -87,12 +83,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckNullStatus(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
         mmWeightOptional, group, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional),
         ACLNN_ERR_PARAM_NULLPTR);
-
-    if (strnlen(group, HCCL_GROUP_NAME_MAX) >= HCCL_GROUP_NAME_MAX) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Required group name exceeds %zu.", HCCL_GROUP_NAME_MAX);
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-
+    CHECK_RET(allto_allv_grouped_mat_mul_checker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
     return ACLNN_SUCCESS;
 }
 
@@ -105,9 +96,8 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX, c
     auto ret_param = CheckParams(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
         mmWeightOptional, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
-    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts);
+    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
-
     int64_t noQuantMode = 0;
     int64_t noQuantDtype = 0;
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX, gmmWeight, sendCountsTensorOptional,

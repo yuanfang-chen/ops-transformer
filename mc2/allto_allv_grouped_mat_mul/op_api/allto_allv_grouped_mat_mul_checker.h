@@ -17,8 +17,9 @@
 
 namespace allto_allv_grouped_mat_mul_checker {
 
-aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts);
+aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts, const aclTensor *gmmX, const aclTensor *gmmY);
 
+bool CheckGroup(const char *group);
 } // namespace allto_allv_grouped_mat_mul_checker
 
 #endif //CHECKER_H

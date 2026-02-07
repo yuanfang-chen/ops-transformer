@@ -46,6 +46,14 @@ enum class QuantModeType : int64_t {
 
 // 需要使用的常量定义
 static constexpr int64_t ZERO = 0;
+static constexpr size_t MAX_BSK_LEN = 52428800U;
+static constexpr size_t MAX_H1_LEN = 65536U;
+static constexpr size_t MAX_EXPERT_SIZE = 256U;
+static constexpr size_t MAX_E_SIZE = 32U;
+static constexpr size_t MAX_H2_LEN = 12288U;
+static constexpr size_t MAX_N_LEN = 65536U;
+static constexpr size_t MIN_K_LEN = 2U;
+static constexpr size_t MAX_K_LEN = 8U;
 
 extern "C" aclnnStatus aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
@@ -62,7 +70,8 @@ extern "C" aclnnStatus aclnnInnerAlltoAllvGroupedMatMul(void *workspace, uint64_
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
 static bool CheckNullStatus(const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional,
-                            const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, const char *group,
+                            const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
+                            const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
                             bool permuteOutFlag, const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
     // // 检查必选入参出参为非空
@@ -81,10 +90,6 @@ static bool CheckNullStatus(const aclTensor *sendCountsTensorOptional, const acl
             mmXOptional == nullptr, mmWeightOptional == nullptr, mmYOptional == nullptr);
         return false;
     }
-    if ((group == nullptr) || (strnlen(group, HCCL_GROUP_NAME_MAX) == 0)) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required group name is Empty.");
-        return false;
-    }
     if (permuteOutFlag == (permuteOutOptional == nullptr)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Optional output flag does not match optional output ptr!");
         return false;
@@ -92,8 +97,10 @@ static bool CheckNullStatus(const aclTensor *sendCountsTensorOptional, const acl
     return true;
 }
 
-// 检查必要输入是否为空，必须非空
-static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
+// 检查必要输入是否为空/quantMode=1，必须非空/1
+static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY,
+                         const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional,
+                         int64_t gmmXQuantMode, int64_t gmmWeightQuantMode)
 {
     if (gmmX == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmX should not be null.");
@@ -107,33 +114,25 @@ static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, cons
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "gmmY should not be null.");
         return false;
     }
-    return true;
-}
-
-// 检查暂不支持的输入参数是否为空，必须为空
-static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTensor *gmmWeightOffsetOptional,
-                                const aclTensor *mmXOffsetOptional, const aclTensor *mmWeightOffsetOptional)
-{
-    if (gmmXOffsetOptional != nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmXOffsetOptional should be null.");
+    if (gmmXScaleOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "gmmXScaleOptional should not be null.");
         return false;
     }
-    if (gmmWeightOffsetOptional != nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmWeightOffsetOptional should be null.");
+    if (gmmWeightScaleOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "gmmXScaleOptional should not be null.");
         return false;
     }
-    if (mmXOffsetOptional != nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input mmXOffsetOptional should be null.");
+    if (gmmXQuantMode != 1) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "gmmXQuantMode should be 1.");
         return false;
     }
-    if (mmWeightOffsetOptional != nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input mmWeightOffsetOptional should be null.");
+    if (gmmWeightQuantMode != 1) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "gmmWeightQuantMode should be 1.");
         return false;
     }
     return true;
 }
 
-// 检查维度
 static bool CheckDimValid(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY,
                      const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional,
                      const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, const aclTensor *mmYOptional,
@@ -172,6 +171,94 @@ static bool CheckDimValid(const aclTensor *gmmX, const aclTensor *gmmWeight, con
     }
     return true;
 }
+
+// 根据API定义，列出输入的所能支持的所有dtype
+static const std::initializer_list<op::DataType> IN_DTYPE_SUPPORT_LIST = {op::DataType::DT_HIFLOAT8};
+// 根据API定义，列出输入Scale所能支持的所有dtype
+static const std::initializer_list<op::DataType> SCALE_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+// 根据API定义，列出输出output所能支持的所有dtype
+static const std::initializer_list<op::DataType> OUT_DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT16,
+                                                                           op::DataType::DT_BF16};
+// 根据API定义，列出mode所能支持的所有dtype
+static const std::initializer_list<op::DataType> QUANT_DTYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
+// 根据API定义，列出sendcounts/recvCounts所能支持的所有dtype
+static const std::initializer_list<op::DataType> COUNT_DTYPE_SUPPORT_LIST = {op::DataType::DT_INT64}; 
+static const std::initializer_list<op::DataType> EP_DTYPE_SUPPORT_LIST = {op::DataType::DT_INT64};                                                 
+// 校验所有输入的参数类型是否正确
+static bool CheckDtypesValid(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
+                             const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXOptional,
+                             const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
+                             const aclTensor *mmWeightScaleOptional, const aclTensor *gmmY,
+                             const aclTensor *mmYOptional, const aclTensor *permuteOutOptional, int64_t gmmXQuantMode,
+                             int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
+                             const aclIntArray *sendCounts, const aclIntArray *recvCounts, int64_t epWorldSize)
+{
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmX, IN_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmWeight, IN_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmY, OUT_DTYPE_SUPPORT_LIST, return false);
+
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmXScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmWeightScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
+
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmXQuantMode, QUANT_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(gmmWeightQuantMode, QUANT_DTYPE_SUPPORT_LIST, return false);
+
+    if ((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr) &&
+        (mmXScaleOptional != nullptr) && (mmWeightScaleOptional != nullptr)) {
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmXOptional, IN_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmWeightOptional, IN_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmYOptional, OUT_DTYPE_SUPPORT_LIST, return false);
+
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmXScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmWeightScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
+
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmXQuantMode, QUANT_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(mmWeightQuantMode, QUANT_DTYPE_SUPPORT_LIST, return false);
+    }
+
+    if (permuteOutOptional != nullptr) {
+        OP_CHECK_DTYPE_NOT_SUPPORT(permuteOutOptional, IN_DTYPE_SUPPORT_LIST, return false);
+    }
+
+    OP_CHECK_DTYPE_NOT_SUPPORT(sendCounts, COUNT_DTYPE_SUPPORT_LIST, return false);
+    OP_CHECK_DTYPE_NOT_SUPPORT(recvCounts, COUNT_DTYPE_SUPPORT_LIST, return false);
+
+    OP_CHECK_DTYPE_NOT_SUPPORT(recvCounts, EP_DTYPE_SUPPORT_LIST, return false);
+    return true;
+}
+
+// 检查暂不支持的输入参数是否为空，必须为空
+static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTensor *gmmWeightOffsetOptional,
+                                const aclTensor *mmXOffsetOptional, const aclTensor *mmWeightOffsetOptional,
+                                int64_t gmmXQuantDType, int64_t mmXQuantDType)
+{
+    if (gmmXOffsetOptional != nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmXOffsetOptional should be null.");
+        return false;
+    }
+    if (gmmWeightOffsetOptional != nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmWeightOffsetOptional should be null.");
+        return false;
+    }
+    if (mmXOffsetOptional != nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input mmXOffsetOptional should be null.");
+        return false;
+    }
+    if (mmWeightOffsetOptional != nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input mmWeightOffsetOptional should be null.");
+        return false;
+    }
+    if (gmmXQuantDType != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input gmmXQuantDType should be 0.");
+        return false;
+    }
+    if (mmXQuantDType != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input mmXQuantDType should be 0.");
+        return false;
+    }
+    return true;
+}
+
 
 // 检查是否有空tensor
 static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, const aclTensor *mmYOptional)
@@ -227,100 +314,6 @@ static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeigh
     return true;
 }
 
-// 检查所有要用到的输入format是否为ND，如果内部不为ND格式，会打印warning日志
-static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *mmXOptional,
-                        const aclTensor *mmWeightOptional, const aclTensor *gmmY, const aclTensor *mmYOptional)
-{
-    // 输入格式只支持ND格式
-    if (IsPrivateFormat(gmmX->GetStorageFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmX format %s does not support private format.",
-                op::ToString(gmmX->GetStorageFormat()).GetString());
-        return false;
-    }
-    if (IsPrivateFormat(gmmWeight->GetStorageFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmWeight format %s does not support private format.",
-                op::ToString(gmmWeight->GetStorageFormat()).GetString());
-        return false;
-    }
-    if (mmXOptional != nullptr) {
-        if (IsPrivateFormat(mmXOptional->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmXOptional format %s does not support private format.",
-                    op::ToString(mmXOptional->GetStorageFormat()).GetString());
-            return false;
-        }
-    }
-    if (mmWeightOptional != nullptr) {
-        if (IsPrivateFormat(mmWeightOptional->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmWeightOptional format %s does not support private format.",
-                    op::ToString(mmWeightOptional->GetStorageFormat()).GetString());
-            return false;
-        }
-    }
-    if (IsPrivateFormat(gmmY->GetStorageFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmY format %s does not support private format.",
-                op::ToString(gmmY->GetStorageFormat()).GetString());
-        return false;
-    }
-    if (mmYOptional != nullptr) {
-        if (IsPrivateFormat(mmYOptional->GetStorageFormat())) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmYOptional format %s does not support private format.",
-                    op::ToString(mmYOptional->GetStorageFormat()).GetString());
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool ReFormatNotND(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *mmXOptional,
-                        const aclTensor *mmWeightOptional, const aclTensor *gmmY, const aclTensor *mmYOptional)
-{
-    // 内部只处理ND格式，这里做reformat操作
-    if (gmmX->GetStorageFormat() != op::Format::FORMAT_ND) {
-        OP_LOGW("gmmX origin format is %s.", op::ToString(gmmX->GetStorageFormat()).GetString());
-        gmmX = l0op::ReFormat(gmmX, op::Format::FORMAT_ND);
-        CHECK_RET(gmmX != nullptr, false);
-    }
-    if (gmmWeight->GetStorageFormat() != op::Format::FORMAT_ND) {
-        OP_LOGW("gmmWeight origin format is %s.", op::ToString(gmmWeight->GetStorageFormat()).GetString());
-        gmmWeight = l0op::ReFormat(gmmWeight, op::Format::FORMAT_ND);
-        CHECK_RET(gmmWeight != nullptr, false);
-    }
-    if (gmmY->GetStorageFormat() != op::Format::FORMAT_ND) {
-        OP_LOGW("gmmY origin format is %s.", op::ToString(gmmY->GetStorageFormat()).GetString());
-        gmmY = l0op::ReFormat(gmmY, op::Format::FORMAT_ND);
-        CHECK_RET(gmmY != nullptr, false);
-    }
-    if (mmXOptional != nullptr) {
-        if (mmXOptional->GetStorageFormat() != op::Format::FORMAT_ND) {
-            OP_LOGW("mmXOptional origin format is %s.", op::ToString(mmXOptional->GetStorageFormat()).GetString());
-            mmXOptional = l0op::ReFormat(mmXOptional, op::Format::FORMAT_ND);
-            CHECK_RET(mmXOptional != nullptr, false);
-        }
-    }
-    if (mmWeightOptional != nullptr) {
-        if (mmWeightOptional->GetStorageFormat() != op::Format::FORMAT_ND) {
-            OP_LOGW("mmWeightOptional origin format is %s.", op::ToString(mmWeightOptional->GetStorageFormat()).GetString());
-            mmWeightOptional = l0op::ReFormat(mmWeightOptional, op::Format::FORMAT_ND);
-            CHECK_RET(mmWeightOptional != nullptr, false);
-        }
-    }
-    if (mmYOptional != nullptr) {
-        if (mmYOptional->GetStorageFormat() != op::Format::FORMAT_ND) {
-            OP_LOGW("mmYOptional origin format is %s.", op::ToString(mmYOptional->GetStorageFormat()).GetString());
-            mmYOptional = l0op::ReFormat(mmYOptional, op::Format::FORMAT_ND);
-            CHECK_RET(mmYOptional != nullptr, false);
-        }
-    }
-    return true;
-}
-
-
 static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmXScaleOptional,
 const aclTensor *gmmWeightScaleOptional, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
                             const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional) {
@@ -375,6 +368,122 @@ const aclTensor *gmmWeightScaleOptional, int64_t mmXQuantMode, int64_t mmWeightQ
     return true;
 }
 
+// 检查维度
+static bool CheckShape(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
+                       const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXOptional,
+                       const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
+                       const aclTensor *mmWeightScaleOptional, const aclTensor *gmmY, const aclTensor *mmYOptional,
+                       int64_t epWorldSize)
+{
+    if ((gmmX->GetViewShape().GetDim(0) == ZERO) || (gmmX->GetViewShape().GetDim(0) > MAX_BSK_LEN)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the first dimension of gmmX does not match.");
+        return false;
+    }
+    if ((gmmX->GetViewShape().GetDim(1) == ZERO) || (gmmX->GetViewShape().GetDim(1) > MAX_H1_LEN)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the second dimension of gmmX does not match.");
+        return false;
+    }
+    if ((((gmmWeight->GetViewShape().GetDim(0)) * epWorldSize) > MAX_EXPERT_SIZE) || ((gmmWeight->GetViewShape().GetDim(0)) > MAX_E_SIZE)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the size of e does not match.");
+        return false;
+    }
+    if (gmmWeight->GetViewShape().GetDim(1) != gmmX->GetViewShape().GetDim(1)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the second dimension of gmmWeight does not match.");
+        return false;
+    }
+    if ((gmmWeight->GetViewShape().GetDim(2) == ZERO) || (gmmWeight->GetViewShape().GetDim(2) > MAX_N_LEN)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the third dimension of gmmWeight does not match.");
+        return false;
+    }
+    if((gmmXScaleOptional->GetViewShape().GetDim(0) != 1) ||( gmmWeightScaleOptional->GetViewShape().GetDim(0) != 1)){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXScaleOptional or gmmWeightScaleOptional do not match.");
+        return false;
+    }
+    if((gmmY->GetViewShape().GetDim(0) != gmmX->GetViewShape().GetDim(0)) || (gmmY->GetViewShape().GetDim(1) != gmmWeight->GetViewShape().GetDim(2))){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of gmmY does not match.");
+        return false;
+    }
+    if (mmXOptional != nullptr) {
+        if ((mmXOptional->GetViewShape().GetDim(0) == ZERO) || (mmXOptional->GetViewShape().GetDim(0) == ZERO) ||
+            (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmX does not match.");
+            return false;
+        }
+    }
+    if (mmWeightOptional != nullptr) {
+        if (((mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1)) || (mmWeightOptional->GetViewShape().GetDim(1) == ZERO) ||
+            (mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN)) || (mmXScaleOptional->GetViewShape().GetDim(0) != 1)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmWeight  or mmXScaleOptional do not match.");
+            return false;
+        }
+    }
+    if (mmWeightOptional != nullptr) {
+        if (((mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1)) || (mmWeightOptional->GetViewShape().GetDim(1) == ZERO) ||
+            (mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN)) || (mmWeightScaleOptional->GetViewShape().GetDim(0) != 1)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmWeight or mmWeightScaleOptional do not match.");
+            return false;
+        }
+    }
+    if (mmYOptional != nullptr) {
+        if ((mmYOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(0)) ||
+            (mmYOptional->GetViewShape().GetDim(1) != mmWeightOptional->GetViewShape().GetDim(1))) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmYOptional does not match.");
+            return false;
+        }
+    }
+    return true;
+}
+
+// 检查所有要用到的输入format是否为ND，如果内部不为ND格式，会打印warning日志
+static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *mmXOptional,
+                        const aclTensor *mmWeightOptional, const aclTensor *gmmY, const aclTensor *mmYOptional)
+{
+    // 输入格式只支持ND格式
+    if (IsPrivateFormat(gmmX->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "aclnnQuantAlltoAllVGroupMatmul, gmmX format %s does not support private format.",
+                op::ToString(gmmX->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (IsPrivateFormat(gmmWeight->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "aclnnQuantAlltoAllVGroupMatmul, gmmWeight format %s does not support private format.",
+                op::ToString(gmmWeight->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (mmXOptional != nullptr) {
+        if (IsPrivateFormat(mmXOptional->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "aclnnQuantAlltoAllVGroupMatmul, mmXOptional format %s does not support private format.",
+                    op::ToString(mmXOptional->GetStorageFormat()).GetString());
+            return false;
+        }
+    }
+    if (mmWeightOptional != nullptr) {
+        if (IsPrivateFormat(mmWeightOptional->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "aclnnQuantAlltoAllVGroupMatmul, mmWeightOptional format %s does not support private format.",
+                    op::ToString(mmWeightOptional->GetStorageFormat()).GetString());
+            return false;
+        }
+    }
+    if (IsPrivateFormat(gmmY->GetStorageFormat())) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "aclnnQuantAlltoAllVGroupMatmul, gmmY format %s does not support private format.",
+                op::ToString(gmmY->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (mmYOptional != nullptr) {
+        if (IsPrivateFormat(mmYOptional->GetStorageFormat())) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "aclnnQuantAlltoAllVGroupMatmul, mmYOptional format %s does not support private format.",
+                    op::ToString(mmYOptional->GetStorageFormat()).GetString());
+            return false;
+        }
+    }
+    return true;
+}
+
 static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
                                const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
                                const aclTensor *gmmWeightOffsetOptional, const aclTensor *sendCountsTensorOptional,
@@ -390,19 +499,16 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
 {
     (void)epWorldSize; // Unused
     // 1.检查空状态
-    CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, group,
+    CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,mmXScaleOptional,mmWeightScaleOptional
                               permuteOutFlag, mmYOptional, permuteOutOptional),
-              ACLNN_ERR_PARAM_NULLPTR);
-    // 2.检查group长度
-    if (strnlen(group, HCCL_GROUP_NAME_MAX) >= HCCL_GROUP_NAME_MAX) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Required group name exceeds %zu.", HCCL_GROUP_NAME_MAX);
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-    // 3.检查参数是否为空指针
-    CHECK_RET(CheckNotNull(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_NULLPTR);
+              ACLNN_ERR_PARAM_INVALID);
+    //  检查group长度是否小于等于128
+    CHECK_RET(allto_allv_grouped_mat_mul_checker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
+    // 3.检查参数是否为空
+    CHECK_RET(CheckNotNull(gmmX, gmmWeight, gmmY, gmmXScaleOptional, gmmWeightScaleOptional, gmmXQuantMode, gmmWeightQuantMode), ACLNN_ERR_PARAM_INVALID);
     // 4.检查暂不支持的参数是否为空，不影响场景
     CHECK_RET(
-        CheckNotSupportNull(gmmXOffsetOptional, gmmWeightOffsetOptional, mmXOffsetOptional, mmWeightOffsetOptional),
+        CheckNotSupportNull(gmmXOffsetOptional, gmmWeightOffsetOptional, mmXOffsetOptional, mmWeightOffsetOptional, gmmXQuantDType, mmXQuantDType),
         ACLNN_ERR_PARAM_INVALID);
     // 5.检查维度
     CHECK_RET(CheckDimValid(gmmX, gmmWeight, gmmY, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional, mmWeightOptional,
@@ -411,14 +517,21 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     // 5.检查空tensor
     CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, gmmY, mmXOptional, mmWeightOptional, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 6.检查输入的数据格式是否为ND
-    CHECK_RET(CheckFormat(gmmX, gmmWeight, mmXOptional, mmWeightOptional, gmmY, mmYOptional), ACLNN_ERR_PARAM_INVALID);
-    // 7.兼容性处理非ND格式
-    CHECK_RET(ReFormatNotND(gmmX, gmmWeight, mmXOptional, mmWeightOptional, gmmY, mmYOptional), ACLNN_ERR_PARAM_INVALID);
+    // 检查所有输入/量化数据类型
+    CHECK_RET(CheckDtypesValid(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional,
+                               mmWeightOptional, mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional,
+                               permuteOutOptional, gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, sendCounts, recvCounts, epWorldSize),
+              ACLNN_ERR_PARAM_INVALID);
     // 8.检查Quant
     CHECK_RET(CheckQuantValid(gmmXQuantMode, gmmWeightQuantMode, gmmXScaleOptional, gmmWeightScaleOptional,
                               mmXQuantMode, mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
+    // 检查shape
+    CHECK_RET(CheckShape(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional, mmWeightOptional,
+                         mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, epWorldSize),
+              ACLNN_ERR_PARAM_INVALID);
+    // 6.检查输入的数据格式是否为ND
+    CHECK_RET(CheckFormat(gmmX, gmmWeight, mmXOptional, mmWeightOptional, gmmY, mmYOptional), ACLNN_ERR_PARAM_INVALID);
 
     OP_LOGD("aclnnQuantMatmulAlltoAll checkParams success");
     return ACLNN_SUCCESS;
@@ -443,7 +556,7 @@ extern "C" aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
         mmXQuantMode, mmWeightQuantMode, gmmXQuantDType, mmXQuantDType, sendCounts, recvCounts, group, epWorldSize,
         permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
-    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts);
+    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
