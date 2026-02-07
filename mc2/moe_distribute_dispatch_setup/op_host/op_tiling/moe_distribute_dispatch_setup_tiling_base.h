@@ -36,6 +36,45 @@ protected:
     uint64_t GetTilingKey() const override;
 
     void PrintTilingDataInfo();
+    
+    enum TensorType
+    {
+        INPUT = 0,
+        OUTPUT = 1,
+        OPTIONINPUT = 2
+    };
+    ge::graphStatus DoOpTiling() override;
+    bool IsCapable() override;
+
+    ge::graphStatus CheckRequiredAttrValue();
+    ge::graphStatus GetRequiredAttrAndSetTilingData();
+    ge::graphStatus CheckSharedExpertAttrValue();
+    ge::graphStatus CheckOptionalAttrValue();
+    ge::graphStatus GetOptionalAttrAndSetTilingData();
+    ge::graphStatus GetComplexAttrAndSetTilingData();
+
+    ge::graphStatus CheckInputTensorDataType();
+    ge::graphStatus CheckOptionalInputTensorDataType();
+    ge::graphStatus CheckOutputTensorDataType();
+    ge::graphStatus CheckTensorDataType();
+    ge::graphStatus CheckTensorDim();
+    ge::graphStatus CheckTensorShapeRelation();
+    ge::graphStatus CheckComplexTensorShapeSize();
+    ge::graphStatus CheckTensorShapeSizeAndSetTilingData();
+    ge::graphStatus CheckCalcTensorShapeSizeAndSetTilingData();
+
+    ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl();
+    ge::graphStatus CheckOneTensorDim(std::string name, TensorType tensortype, uint32_t index, uint32_t dims);
+    ge::graphStatus CheckInputTensorDim();
+    ge::graphStatus CheckOptionalInputTensorDim();
+    ge::graphStatus CheckOutputTensorDim();
+
+    ge::graphStatus SetWorkspace();
+    ge::graphStatus CheckHcclBuffSize();
+    void SetTilingKey();
+    void SetPlatformInfo();
+    void SetHcommCfg();
+    void PrintTilingDataInfo();
 };
 } // namespace optiling
 #endif

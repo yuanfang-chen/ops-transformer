@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include <register/op_def_registry.h>
 #include "moe_distribute_dispatch_setup_tiling_arch35.h"
 #include "mc2_log.h"
 #include "tiling/mc2_tiling_utils.h"
@@ -831,13 +830,16 @@ ge::graphStatus MoeDistributeDispatchSetupTilingA5::MoeDistributeDispatchSetupTi
 
 bool MoeDistributeDispatchSetupTilingA5::IsCapable()
 {
-    return true;
+    if (npuArch_ == NpuArch::DAV_3510) {
+        const char *nodeName = context_->GetNodeName();
+        OP_LOGD(nodeName, "Do MoeDistributeDispatchSetupTilingA5 tiling.");
+        return true;
+    }
+    return false;
 }
 
 ge::graphStatus MoeDistributeDispatchSetupTilingA5::DoOpTiling()
 {
     return MoeDistributeDispatchSetupTilingFuncImpl();
 }
-// REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MoeDistributeDispatchSetup, MoeDistributeDispatchSetupTilingArch35,
-//                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_95), 0);
 } // namespace optiling

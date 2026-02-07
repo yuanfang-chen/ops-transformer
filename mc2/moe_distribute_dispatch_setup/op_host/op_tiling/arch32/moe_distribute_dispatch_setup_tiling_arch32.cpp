@@ -15,11 +15,11 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_setup_tiling_a3.cc
+ * \file moe_distribute_dispatch_setup_tiling_arch32.cpp
  * \brief
  */
 
-#include "moe_distribute_dispatch_setup_tiling_a3.h"
+#include "moe_distribute_dispatch_setup_tiling_arch32.h"
 #include "op_log.h"
 #include "op_util.h"
 

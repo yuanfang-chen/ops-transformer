@@ -15,16 +15,20 @@
 
 #include <register/op_def_registry.h>
 #include "tiling_base/tiling_templates_registry.h"
+#include "arch32/moe_distribute_dispatch_setup_tiling_arch32.h"
+#include "arch35/moe_distribute_dispatch_setup_tiling_arch35.h"
 
 using namespace Ops::Transformer::OpTiling;
 using namespace ge;
 
 namespace optiling {
 
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatchSetup, MoeDistributeDispatchSetupTilingA5, 0);
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeDispatchSetup, MoeDistributeDispatchSetupTilingA3, 1);
+
 ge::graphStatus MoeDistributeDispatchSetupTilingFunc(gert::TilingContext* context)
 {
-    (void)context;
-    return ge::GRAPH_SUCCESS;
+    return TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
 ge::graphStatus TilingParseForMoeDistributeDispatchSetup(gert::TilingParseContext* context)
@@ -34,5 +38,6 @@ ge::graphStatus TilingParseForMoeDistributeDispatchSetup(gert::TilingParseContex
 }
 
 IMPL_OP_OPTILING(MoeDistributeDispatchSetup)
-    .Tiling(MoeDistributeDispatchSetupTilingFunc);
+    .Tiling(MoeDistributeDispatchSetupTilingFunc)
+    .TilingParse<MoeDistributeDispatchSetupCompileInfo>(TilingParseForMoeDistributeDispatchSetup);
 } // namespace optiling

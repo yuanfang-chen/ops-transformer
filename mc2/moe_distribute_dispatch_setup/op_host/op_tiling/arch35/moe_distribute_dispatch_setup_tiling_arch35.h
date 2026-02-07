@@ -27,46 +27,6 @@ public:
     {
         socTilingName_ = "MoeDistributeDispatchSetupA5";
     }
-
-private:
-    enum TensorType
-    {
-        INPUT = 0,
-        OUTPUT = 1,
-        OPTIONINPUT = 2
-    };
-    ge::graphStatus DoOpTiling() final;
-    bool IsCapable() final;
-
-    ge::graphStatus CheckRequiredAttrValue();
-    ge::graphStatus GetRequiredAttrAndSetTilingData();
-    ge::graphStatus CheckSharedExpertAttrValue();
-    ge::graphStatus CheckOptionalAttrValue();
-    ge::graphStatus GetOptionalAttrAndSetTilingData();
-    ge::graphStatus GetComplexAttrAndSetTilingData();
-
-    ge::graphStatus CheckInputTensorDataType();
-    ge::graphStatus CheckOptionalInputTensorDataType();
-    ge::graphStatus CheckOutputTensorDataType();
-    ge::graphStatus CheckTensorDataType();
-    ge::graphStatus CheckTensorDim();
-    ge::graphStatus CheckTensorShapeRelation();
-    ge::graphStatus CheckComplexTensorShapeSize();
-    ge::graphStatus CheckTensorShapeSizeAndSetTilingData();
-    ge::graphStatus CheckCalcTensorShapeSizeAndSetTilingData();
-
-    ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl();
-    ge::graphStatus CheckOneTensorDim(std::string name, TensorType tensortype, uint32_t index, uint32_t dims);
-    ge::graphStatus CheckInputTensorDim();
-    ge::graphStatus CheckOptionalInputTensorDim();
-    ge::graphStatus CheckOutputTensorDim();
-
-    ge::graphStatus SetWorkspace();
-    ge::graphStatus CheckHcclBuffSize();
-    void SetTilingKey();
-    void SetPlatformInfo();
-    void SetHcommCfg();
-    void PrintTilingDataInfo();
 };
 } // namespace optiling
 #endif // MOE_DISTRIBUTE_DISPATCH_SETUP_TILING_ARCH35_H_

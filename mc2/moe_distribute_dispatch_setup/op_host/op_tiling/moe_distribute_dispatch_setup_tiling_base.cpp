@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_setup_tiling_base.cc
+ * \file moe_distribute_dispatch_setup_tiling_base.cpp
  * \brief
  */
 

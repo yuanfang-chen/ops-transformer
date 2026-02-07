@@ -15,21 +15,24 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_setup_tiling_base.cc
+ * \file moe_distribute_dispatch_setup_tiling_arch32.h
  * \brief
  */
 
-#include "runtime/base/mc2/moe_tiling_base.h"
-#include "moe_distribute_dispatch_setup_tiling_base.h"
+#ifndef MOE_DISTRIBUTE_DISPATCH_SETUP_TILING_ARCH32_H_
+#define MOE_DISTRIBUTE_DISPATCH_SETUP_TILING_ARCH32_H_
+
+#include "..\moe_distribute_dispatch_setup_tiling_base.h"
 
 namespace optiling {
-
-uint64_t MoeDistributeDispatchSetupTilingBase::GetTilingKey() const
+class MoeDistributeDispatchSetupTilingA3 : public MoeDistributeDispatchSetupTilingBase
 {
-    // TilingKey calculation is done in DoOptiling
-    const uint64_t tilingKey = context_->GetTilingKey();
-    OP_LOGD(nodeName_, "%s get tiling key %lu", this->socTilingName_, tilingKey);
-    return tilingKey;
-}
-
+public:
+    explicit MoeDistributeDispatchSetupTilingA3(gert::TilingContext* context)
+        : MoeDistributeDispatchSetupTilingBase(context)
+    {
+        socTilingName_ = "MoeDistributeDispatchSetupA3";
+    }
+};
 } // namespace optiling
+#endif // MOE_DISTRIBUTE_DISPATCH_SETUP_TILING_ARCH32_H_
