@@ -71,8 +71,8 @@ const static int64_t ATTR_ROW_IDX_TYPE_INDEX = 8LL;
 
 const static int64_t ACTIVE_NUM_MIN_VALUE = -1LL;
 const static int64_t DYNAMIC_QUANT_COLS_BUFFER = 21LL;
-const static int64_t HIF8_PERTENSOR_QUANT_COLS_BUFFER = 5LL;
-const static int64_t HIF8_PERTOKEN_QUANT_COLS_BUFFER = 5LL;
+const static int64_t HIF8_PERTENSOR_QUANT_COLS_BUFFER = 9LL;
+const static int64_t HIF8_PERTOKEN_QUANT_COLS_BUFFER = 9LL;
 
 // 输入attrs相关
 const static int64_t ROW_IDX_GATHER = 0LL;
@@ -1124,11 +1124,11 @@ void MoeInitRoutingV3Arch35TilingClass::Tiling4GatherOutCompute()
     int64_t perLoopMaxIndicesElements = 0;
     if (quantMode_ == QUANT_MODE_DYNAMIC) {
         colMultiple = DYNAMIC_QUANT_COLS_BUFFER;
-        rowMultiple = NUM_FOUR;
+        rowMultiple = NUM_FOUR * NUM_TWO;
     }
     if (quantMode_ == QUANT_MODE_HIF8_PERTOKEN) {
         colMultiple = HIF8_PERTOKEN_QUANT_COLS_BUFFER;
-        rowMultiple = NUM_FOUR;
+        rowMultiple = NUM_FOUR * NUM_TWO;
     }
     if (quantMode_ == QUANT_MODE_HIF8_PERTENSOR) {
         colMultiple = HIF8_PERTENSOR_QUANT_COLS_BUFFER;

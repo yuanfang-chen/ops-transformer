@@ -21,7 +21,7 @@
 
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
-constexpr int64_t GATHER_OUT_HIF8_PERTOKEN_QUANT_BUFFER_NUM = 1;
+constexpr int64_t GATHER_OUT_HIF8_PERTOKEN_QUANT_BUFFER_NUM = 2;
 
 template <typename T>
 class MoeGatherOutHif8PertokenQuant {
