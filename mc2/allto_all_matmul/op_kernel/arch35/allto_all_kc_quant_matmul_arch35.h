@@ -85,6 +85,7 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
 
     // 初始化流水线
     pipeLine_->Init();
+    pipeLine_->GetContext(&pipeLineContext_);
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename AlltoAllMatmulTilingDataType>
@@ -137,6 +138,8 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.transposeContext->rankCnt = (uint64_t)mc2Tiling_.rankDim;
     pipeLineContext_.transposeContext->innerAxis = (uint64_t)mc2Tiling_.rankK;
     pipeLineContext_.transposeContext->transM = (uint64_t)mc2Tiling_.tileM;
+    pipeLineContext_.transposeContext->innerOffsetIn = (uint64_t)mc2Tiling_.rankK;
+    pipeLineContext_.transposeContext->innerOffsetOut = (uint64_t)mc2Tiling_.rankK * mc2Tiling_.rankDim;
 
     // 动态量化相关地址和偏移
     pipeLineContext_.quantizationContext->quantOutputScaleAddr = x1ScaleGM_;
@@ -161,7 +164,7 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->additionalData.x1_scale_offset = (uint64_t)mc2Tiling_.tileM * sizeof(float);
     pipeLineContext_.computationContext->additionalData.x2_scale = x2Scale_;
     pipeLineContext_.computationContext->additionalData.x2_offset = x2Offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTileTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTileTilingData);
 
     pipeLine_->Process(taskCnt);
 }
@@ -214,9 +217,10 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->additionalData.x1_scale_offset = (uint64_t)mc2Tiling_.tailM * sizeof(float);
     pipeLineContext_.computationContext->additionalData.x2_scale = x2Scale_;
     pipeLineContext_.computationContext->additionalData.x2_offset = x2Offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTailTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTailTilingData);
 
     pipeLine_->Process(taskCnt);
 }
+
 } // namespace AlltoAllMatmulImpl
 #endif

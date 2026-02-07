@@ -153,13 +153,13 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::DoKcQuantMMTiling()
 {
     // 在切m时已经考虑除了rankDim
     mm_mvalue_len = inferredInfo.tileM;
-    AlltoAllKcQuantMatmulHelper mmTile(*this, localTilingData_.mc2KcQuantMmTileTilingData, mm_mvalue_len);
+    AlltoAllKcQuantMatmulHelper mmTile(*this, localTilingData_.mc2QuantMmTileTilingData, mm_mvalue_len);
     GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
     if (inferredInfo.tailCnt == 0) {
         return ge::GRAPH_SUCCESS;
     }
     mm_mvalue_len = inferredInfo.tailM;
-    AlltoAllKcQuantMatmulHelper mmTail(*this, localTilingData_.mc2KcQuantMmTailTilingData, mm_mvalue_len);
+    AlltoAllKcQuantMatmulHelper mmTail(*this, localTilingData_.mc2QuantMmTailTilingData, mm_mvalue_len);
     GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
     return ge::GRAPH_SUCCESS;
 }
@@ -404,16 +404,16 @@ void AllToAllKcQuantMatmulTilingBase::PrintAlltoAllKcQuantMatmulTilingInfo(const
  *
  * @param outTilingData tilingData参数
  */
-void AllToAllKcQuantMatmulTilingBase::PrintAlltoAllKcQuantMatmulTilingData(
-    AlltoAllKcQuantMatmulTilingData &outTilingData)
+void AllToAllKcQuantMatmulTilingBase::PrintAlltoAllQuantMatmulTilingData(
+    AlltoAllQuantMatmulTilingData &outTilingData)
 {
     PrintAlltoAllKcQuantMatmulTilingInfo(opName_, outTilingData.alltoAllKcQuantMatmulTilingInfo);
-    PrintKcQuantMMV3TilingData(opName_, outTilingData.mc2KcQuantMmTileTilingData);
+    PrintKcQuantMMV3TilingData(opName_, outTilingData.mc2QuantMmTileTilingData);
     if (outTilingData.alltoAllKcQuantMatmulTilingInfo.tailCnt == 0) {
         return;
     }
     OP_LOGD(opName_, "AlltoallKcQuantMatmul has tail");
-    PrintKcQuantMMV3TilingData(opName_, outTilingData.mc2KcQuantMmTailTilingData);
+    PrintKcQuantMMV3TilingData(opName_, outTilingData.mc2QuantMmTailTilingData);
 }
 
 /**
@@ -425,7 +425,7 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::PostTiling()
 {
     context_->SetScheduleMode(1);
     SetTilingInfo(localTilingData_.alltoAllKcQuantMatmulTilingInfo);
-    AlltoAllKcQuantMatmulTilingData *outTilingData = context_->GetTilingData<AlltoAllKcQuantMatmulTilingData>();
+    AlltoAllQuantMatmulTilingData *outTilingData = context_->GetTilingData<AlltoAllQuantMatmulTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Failed to get tiling data from context"),
                     return ge::GRAPH_FAILED);
@@ -439,10 +439,10 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::PostTiling()
         return ge::GRAPH_FAILED;
     }
     OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.",
-            sizeof(AlltoAllKcQuantMatmulTilingData), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(AlltoAllKcQuantMatmulTilingData));
+            sizeof(AlltoAllQuantMatmulTilingData), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(sizeof(AlltoAllQuantMatmulTilingData));
     context_->SetBlockDim(contextInfo.args_.aicCoreNum);
-    PrintAlltoAllKcQuantMatmulTilingData(*outTilingData);
+    PrintAlltoAllQuantMatmulTilingData(*outTilingData);
     return ge::GRAPH_SUCCESS;
 }
 

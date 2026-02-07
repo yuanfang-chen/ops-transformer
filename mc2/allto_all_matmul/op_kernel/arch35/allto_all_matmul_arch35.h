@@ -129,7 +129,7 @@ __aicore__ inline void AlltoAllMatmulArch35<SchedulerType, SchedulerContextType,
     pipeLineContext_.communicationContext->sendOffset = tileMMultiRankK * (uint64_t)sizeof(DTYPE_X1);
     pipeLineContext_.communicationContext->recvOffset = pipeLineContext_.communicationContext->sendOffset;
     pipeLineContext_.communicationContext->sendCount = tileMMultiRankK;
-    pipeLineContext_.communicationContext->strideCount = pipeLineContext_.transposeContext->nextSrcBlockOffset;
+    pipeLineContext_.communicationContext->strideCount = pipeLineContext_.communicationContext->nextSrcBlockOffset;
     pipeLineContext_.communicationContext->hcclDataType = mc2Tiling_.hcclDataType;
 
     pipeLine_->Process(taskCnt);
