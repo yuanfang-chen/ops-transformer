@@ -280,8 +280,8 @@ aclnnStatus aclnnMoeTokenPermuteWithRoutingMap(
         <td>numOutTokens < 0 或 numOutTokens > tokens_num * experts_num</td>
       </tr>
       <tr>
-        <td>ACLNN_ERR_INNER_FIND_KERNEL_ERROR</td>
-        <td>561003</td>
+        <td>ACLNN_ERR_INNER_NULLPTR</td>
+        <td>561103</td>
         <td>topK > 512</td>
       </tr>
     </tbody>
