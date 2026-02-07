@@ -153,7 +153,7 @@ private:
      * 内部：获取 groupList 来源数组
      * 根据 USE_SEND_COUNTS 模板参数选择 sendCnt 或 recvCnt
      */
-    __aicore__ inline const int16_t *GetGroupCounts() const
+    __aicore__ inline const int32_t *GetGroupCounts() const
     {
         if constexpr (USE_SEND_COUNTS) {
             return taskTilingInfo_->sendCnt;
@@ -186,7 +186,7 @@ private:
      */
     __aicore__ inline int64_t CalcXOffset(uint32_t expertIdx) const
     {
-        const int16_t *counts = GetGroupCounts();
+        auto *counts = GetGroupCounts();
         int64_t offset = 0;
         for (uint32_t i = 0; i < expertIdx; ++i) {
             offset += (int64_t)counts[i];
@@ -237,7 +237,7 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::PrepareGroupList(
                                                                                 uint32_t expertNum)
 {
     // 将 counts 转换为累积和形式的 groupList 写入 groupListCache_
-    const int16_t *counts = this->GetGroupCounts();
+    auto *counts = this->GetGroupCounts();
     __gm__ int64_t *groupList = reinterpret_cast<__gm__ int64_t *>(this->groupListCache_);
 
     int64_t cumSum = 0;
