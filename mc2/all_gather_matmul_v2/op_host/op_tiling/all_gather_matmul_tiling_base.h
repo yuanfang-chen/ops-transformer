@@ -129,4 +129,5 @@ protected:
     uint32_t gatherIndex_{0};
 };
 }  // namespace optiling
+
 #endif  // __ALL_GATHER_MATMUL_TILING_BASE__

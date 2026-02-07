@@ -12,8 +12,8 @@
  * \file hccl_performance_arch35.h
  * \brief
  */
-#ifndef __HCCL_PERFORMANCE_ARCH5_H__
-#define __HCCL_PERFORMANCE_ARCH5_H__
+#ifndef __HCCL_PERFORMANCE_ARCH35_H__
+#define __HCCL_PERFORMANCE_ARCH35_H__
 
 #pragma once
 #include <map>
@@ -39,4 +39,4 @@ public:
     uint64_t InverseCommTime(double targetTime) const override;
 };
 
-#endif // __HCCL_PERFORMANCE_A5_H__
+#endif // __HCCL_PERFORMANCE_ARCH35_H__

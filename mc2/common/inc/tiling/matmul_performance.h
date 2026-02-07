@@ -67,10 +67,10 @@ public:
         {SocVersion::SOC950, TilingBestBaseBlock{256, 256, 128}},
     };
 
-    TilingBestBaseBlock GetBestBaseBlock(SocVersion SocVersion)
+    TilingBestBaseBlock GetBestBaseBlock(SocVersion socVersion)
     {
-        if (TILING_BEST_BASE_MAP.find(SocVersion) != TILING_BEST_BASE_MAP.end()) {
-            return TILING_BEST_BASE_MAP.at(SocVersion);
+        if (TILING_BEST_BASE_MAP.find(socVersion) != TILING_BEST_BASE_MAP.end()) {
+            return TILING_BEST_BASE_MAP.at(socVersion);
         }
         return TilingBestBaseBlock{mc2tiling::BASE_BLOCK_M, mc2tiling::BASE_BLOCK_N, mc2tiling::BASE_BLOCK_K};
     }
