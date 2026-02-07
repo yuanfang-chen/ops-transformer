@@ -130,8 +130,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_AS)
@@ -194,8 +193,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantB)
@@ -256,8 +254,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quantC)
@@ -318,8 +315,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant)
@@ -380,8 +376,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant)
@@ -442,8 +437,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant)
@@ -504,8 +498,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant_small)
@@ -566,8 +559,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_bath_quant
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant_small)
@@ -628,8 +620,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_k_quant_sm
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant_small)
@@ -690,8 +681,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_v_quant_sm
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant_small)
@@ -752,8 +742,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_fp16_pa_nz_no_quant_s
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_is_None_wrong)
@@ -814,8 +803,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dimSize_wrong)
@@ -876,8 +864,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dimSize_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dtype_wrong)
@@ -939,8 +926,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_dtype_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkvDim_32_wrong)
@@ -1001,8 +987,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkvDim_32_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dtype_wrong)
@@ -1064,8 +1049,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dtype_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dims_wrong)
@@ -1126,8 +1110,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dimOne_wrong)
@@ -1188,8 +1171,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_gamma_dimOne_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_is_None_wrong)
@@ -1251,8 +1233,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dims_wrong)
@@ -1313,8 +1294,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dtype_diff_wrong)
@@ -1375,8 +1355,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_cos_dtype_diff_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_is_None_wrong)
@@ -1437,8 +1416,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dims_wrong)
@@ -1499,8 +1477,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dtype_diff_wrong)
@@ -1561,8 +1538,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_sin_dtype_diff_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_is_None_wrong)
@@ -1623,8 +1599,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dims_wrong)
@@ -1685,8 +1660,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dtype_wrong)
@@ -1747,8 +1721,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_index_dtype_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_is_None_wrong)
@@ -1809,8 +1782,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dtype_diff_wrong)
@@ -1871,8 +1843,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dtype_diff_wrong
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dims_wrong)
@@ -1935,8 +1906,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qout_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_is_None_wrong)
@@ -1996,8 +1966,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -2060,8 +2029,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_dtype_diff_wro
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_dims_wrong)
@@ -2123,8 +2091,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_blocksize_32_wrong)
@@ -2186,8 +2153,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kcache_blocksize_32_w
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_is_None_wrong)
@@ -2247,8 +2213,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dtype_diff_wrong)
@@ -2310,8 +2275,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dtype_diff_wro
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dims_wrong)
@@ -2373,8 +2337,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -2437,8 +2400,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vcache_dims_blocksize
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_is_None_wrong)
@@ -2500,8 +2462,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_is_None_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dtype_wrong)
@@ -2563,8 +2524,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dtype_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dims_wrong)
@@ -2626,8 +2586,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_kscale_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_None_int8_wrong)
@@ -2689,8 +2648,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_None_int8_w
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_notNone_fp16_wrong)
@@ -2752,8 +2710,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_is_notNone_fp1
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_dtype_wrong)
@@ -2815,8 +2772,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_dtype_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -2879,8 +2835,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_vscale_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_is_None_wrong)
@@ -2942,8 +2897,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_is_None_wron
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_dims_wrong)
@@ -3005,8 +2959,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -3069,8 +3022,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_qkv_size_dims_relatio
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_is_None_wrong)
@@ -3132,8 +3084,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_is_None_wron
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -3196,8 +3147,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_dims_wrong)
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -3260,8 +3210,7 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_shape_wrong1
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }
 
 
@@ -3321,6 +3270,5 @@ TEST_F(QkvRmsNormRopeCacheTiling, test_QkvRmsNormRopeCache_headNums_shape_wrong2
 
     uint64_t expectTilingKey = 3;
     string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {32};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData, expectWorkspaces);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, expectTilingData);
 }

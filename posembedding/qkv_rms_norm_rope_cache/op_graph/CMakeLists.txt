@@ -8,3 +8,4 @@
 # ============================================================================
 
 message(STATUS "=== Debug: start ops.posembedding.qkv_rms_norm_rope_cache.graph_plugin.CMakeLists.txt ")
+add_graph_plugin_sources()
