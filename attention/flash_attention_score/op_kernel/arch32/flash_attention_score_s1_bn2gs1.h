@@ -272,7 +272,7 @@ protected:
     int64_t n2GS2;
 
     int64_t softmaxBufSize = 256;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 

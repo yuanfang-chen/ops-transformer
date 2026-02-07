@@ -518,7 +518,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
             shape.headNum = constInfo.n2Size;
             shape.headDim = constInfo.dSizeV;
             shape.actHeadDim = realN;
-            shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+            shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
             shape.copyRowNum = runInfo.s2RealSize;
             if constexpr (isFp8) {
                 shape.copyRowNumAlign = (runInfo.s2RealSize + 31) >> 5 << 5;
@@ -614,7 +614,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             shape.headNum = constInfo.n2Size;
             shape.headDim = constInfo.dSizeV;
             shape.actHeadDim = constInfo.dSizeV;
-            shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+            shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
             shape.copyRowNum = runInfo.s2RealSize;
             if constexpr (isFp8) {
                 shape.copyRowNumAlign = (runInfo.s2RealSize + 31) >> 5 << 5;
@@ -772,7 +772,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
         shape.headNum = constInfo.n2Size;
         shape.headDim = constInfo.dSize;
         shape.actHeadDim = constInfo.dSize;
-        shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+        shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
         shape.copyRowNum = runInfo.s2RealSize;
         if constexpr (isFp8) {
             shape.copyRowNumAlign = (runInfo.s2RealSize + 31) >> 5 << 5;
@@ -911,7 +911,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
         shape.headNum = constInfo.n2Size;
         shape.headDim = constInfo.dSize;
         shape.actHeadDim = constInfo.dSize;
-        shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+        shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
         shape.copyRowNum = runInfo.s2RealSize;
         shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
         GlobalTensor<INPUT_T> mm1AGmTensor = GetKeyGm(runInfo, constInfo);
@@ -1013,7 +1013,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
         shape.headNum = constInfo.n2Size;
         shape.headDim = constInfo.dSize;
         shape.actHeadDim = constInfo.dSize;
-        shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+        shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
         shape.copyRowNum = runInfo.s2RealSize;
         if constexpr (isFp8) {
             shape.copyRowNumAlign = (runInfo.s2RealSize + 31) >> 5 << 5;
@@ -1134,7 +1134,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
             shape.headNum = constInfo.n2Size;
             shape.headDim = constInfo.dSize;
             shape.actHeadDim = realK;
-            shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+            shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
             shape.copyRowNum = runInfo.s2RealSize;
             shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
             GlobalTensor<INPUT_T> mm1BGmTensor = this->keyGm.gmTensor;
@@ -1231,7 +1231,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
         shape.headNum = constInfo.n2Size;
         shape.headDim = constInfo.dSize;
         shape.actHeadDim = constInfo.dSize;
-        shape.maxblockNumPerBatch = maxBlockNumPerBatch;
+        shape.maxBlockNumPerBatch = maxBlockNumPerBatch;
         shape.copyRowNum = runInfo.s2RealSize;
         shape.copyRowNumAlign = (runInfo.s2RealSize + 15) >> 4 << 4;
         GlobalTensor<INPUT_T> mm1AGmTensor = GetKeyGm(runInfo, constInfo);

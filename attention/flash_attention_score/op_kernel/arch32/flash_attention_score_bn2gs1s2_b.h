@@ -257,7 +257,7 @@ protected:
     int64_t s1Vec2OuterSize;
     int64_t dSizeAlign16;
     int64_t softmaxBufSize = 256;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     constexpr static int32_t repeatMaxBytes = 256;
     constexpr static int32_t repeatMaxTimes = 255;
     int32_t repeatMaxSize;
