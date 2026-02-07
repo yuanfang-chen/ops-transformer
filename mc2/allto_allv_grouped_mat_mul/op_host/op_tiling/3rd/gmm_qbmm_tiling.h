@@ -18,18 +18,6 @@
 #include "grouped_matmul_tiling.h"
 #include "../../../op_kernel/3rd/grouped_matmul_tiling_data_apt.h"
 #include "tiling_base/tiling_base.h"
-
-// Activation function type enum (from grouped_matmul_infershape_common_util.h)
-enum class GMMActType : int64_t {
-    GMM_ACT_TYPE_NONE = 0,
-    GMM_ACT_TYPE_RELU,
-    GMM_ACT_TYPE_GELU_TANH,
-    GMM_ACT_TYPE_GELU_ERR_FUNC,
-    GMM_ACT_TYPE_FAST_GELU,
-    GMM_ACT_TYPE_SILU,
-    END_ACT_TYPE_ENUM
-};
-
 namespace optiling {
 namespace GmmConstant {
 constexpr uint64_t MX_GROUP_SIZE = 32;
@@ -94,6 +82,15 @@ enum class QuantMode : uint32_t {
     PERGROUP_MODE = 0x1U << 4,
     PERBLOCK_MODE = 0x1U << 5,
 };
+
+typedef enum {
+    GMM_ACT_TYPE_NONE = 0L,
+    GMM_ACT_TYPE_RELU = 1L,
+    GMM_ACT_TYPE_GELU_TANH = 2L,
+    GMM_ACT_TYPE_GELU_ERR_FUNC = 3L,
+    GMM_ACT_TYPE_FAST_GELU = 4L,
+    GMM_ACT_TYPE_SILU = 5L,
+} GMMActType;
 
 struct GQmmBasicTiling {
     uint32_t usedCoreNum = 1;
@@ -220,7 +217,7 @@ private:
     bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
     bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     bool CheckActiveModeDtype(const gert::StorageShape *xScaleStorageShape) const;
- 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape) const;
+ 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
 
     GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;
