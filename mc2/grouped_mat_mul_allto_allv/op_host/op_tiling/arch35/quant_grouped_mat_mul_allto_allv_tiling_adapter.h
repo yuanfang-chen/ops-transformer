@@ -155,7 +155,7 @@ public:
 
     // ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus SetSharedExpertInputParameters();
-    ge::graphStatus SetExpertInputParameters(const int16_t* sendCounts, uint64_t worldSize, uint64_t index,
+    ge::graphStatus SetExpertInputParameters(const int32_t* sendCounts, uint64_t worldSize, uint64_t index,
                                              uint32_t epNums);
     const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingAdapterData() const { return tilingData_; }
 

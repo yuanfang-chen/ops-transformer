@@ -97,14 +97,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
         gmmQTilingCommonInfoPtr->BSK * gmmQTilingCommonInfoPtr->N1 * yDtypeSize, alignAddrLen);
     
     // inferredInfo.permuteLen = inferredInfo.gmmResultLen;
-    auto mmyDesc = context_->GetOutputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
-    if (mmyDesc != nullptr) {
-        auto mmyDType = mmyDesc->GetDataType();
-        auto mmyDtypeSize = mc2tiling::GetDataTypeSize(opName_, mmyDType);
-        inferredInfo.mmResultLen = mc2tiling::AlignUp(
-            gmmQTilingCommonInfoPtr->BS * gmmQTilingCommonInfoPtr->N2 * mmyDtypeSize, alignAddrLen); 
-    }
     // commLen
+    // inferredInfo.mmResultLen = 0;
     // inferredInfo.commLen = inferredInfo.gmmResultLen;
     return ge::GRAPH_SUCCESS;
 }
@@ -135,9 +129,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
-    const int16_t* sendCounts = static_cast<const int16_t*>(sendCountsPtr->GetData());
-    const int16_t* recvCounts = static_cast<const int16_t*>(recvCountsPtr->GetData());
-    for (int i = 0; i < MAX_EXPERT_NUM; i++) {
+    const int32_t* sendCounts = static_cast<const int32_t*>(sendCountsPtr->GetData());
+    const int32_t* recvCounts = static_cast<const int32_t*>(recvCountsPtr->GetData());
+    int32_t maxCountsSize = std::min<int32_t>(epNum_ * gmmQTilingCommonInfoPtr->epWorldSize, MAX_EXPERT_NUM);
+    for (int32_t i = 0; i < maxCountsSize; i++) {
         // memcpy_s
         gmmQTilingCommonInfoPtr->sendCnt[i] = sendCounts[i];
         gmmQTilingCommonInfoPtr->recvCnt[i] = recvCounts[i];
@@ -154,8 +149,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     CalTilingInferredInfo();
-    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.mmResultLen +
-        inferredInfo.commLen + inferredInfo.permuteLen;
+    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.commLen + inferredInfo.permuteLen;
     localTilingData_.workspaceInfo.wsGmmSize = workSpaceSize_;
 }
 
@@ -277,7 +271,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
 {
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
-    workspaces[0] = workspaceSize_;
+    workspaces[0] = workSpaceSize_;
     OP_LOGD(opName_, "Workspaces[0] size=%ld", workspaces[0]);
 
     return ge::GRAPH_SUCCESS;
