@@ -212,17 +212,6 @@ enum class PfaSparseEnum : uint8_t {
     PFA_BAND_LEFT_UP_CAUSAL = 9
 };
 
- // TODO，这里的取值与接口对不上，但是直接改成下面这样部分场景会出现精度问题，待确认
-// enum PfaAttenMaskCompressMode : uint8_t {
-//     PFA_NO_COMPRESS_MODE = 0,
-//     PFA_LEFT_UP_CAUSAL_MODE = 2,
-//     PFA_RIGHT_DOWN_CAUSAL_MODE = 3,
-//     PFA_BAND_MODE = 4,
-//     PFA_PREFIX_MODE = 5,
-//     PFA_RIGHT_DOWN_CAUSAL_BAND_MODE = 6,
-//     PFA_BAND_LEFT_UP_CAUSAL_MODE = 7
-// };
-
 enum PfaAttenMaskCompressMode : uint8_t {
     PFA_NO_COMPRESS_MODE = 0,
     PFA_LEFT_UP_CAUSAL_MODE,

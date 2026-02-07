@@ -594,7 +594,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.preToken = runInfo.preTokensPerBatch;
                 maskInfo.nextToken = runInfo.nextTokensPerBatch;
                 maskInfo.batchIdx = runInfo.boIdx;
-                // maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;      // TODO，待确认，是否需要
+                maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
                 if (runInfo.actualS1Size == 1) {
@@ -605,8 +605,9 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                     maskInfo.layout = fa_base_vector::LAYOUT_Q::GS;
                 }
                 maskInfo.attenMaskType = fa_base_vector::MaskDataType::MASK_BOOL;
-                // maskInfo.sparseMode = static_cast<fa_base_vector::SparseMode>(attenMaskInfoPtr->compressMode);
-                maskInfo.sparseMode = static_cast<fa_base_vector::SparseMode>(3);       // TODO，待适配，当前先调试3
+                uint8_t sparseMode = (attenMaskInfoPtr->compressMode == 0) ?            // sparseMode与compressMode定义不同
+                    attenMaskInfoPtr->compressMode : attenMaskInfoPtr->compressMode + 1;
+                maskInfo.sparseMode = static_cast<fa_base_vector::SparseMode>(sparseMode);
                 maskInfo.maskValue = negativeIntScalar;
                 maskInfo.s1LeftPaddingSize = 0;
                 maskInfo.s2LeftPaddingSize = 0;

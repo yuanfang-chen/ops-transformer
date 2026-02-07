@@ -492,6 +492,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
+    // TODO，三段式拷贝待适配
     CalcS1Coord(runInfo, constInfo);
     CalcS2Coord(runInfo, constInfo);
     if constexpr (isMlaFullQuant) {
