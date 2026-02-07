@@ -428,6 +428,7 @@ __aicore__ inline void FiaBlockVecNonQuantMla<FIAT>::ElewiseCompute(
             maskUb = mask16.template ReinterpretCast<bool>();
 
             // 修改attenMaskStride、attenMaskBatchStride值
+            maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
             if (LAYOUT_T == FIA_LAYOUT::TND) {
                 maskInfo.attenMaskStride = info.actS1Size;
                 maskInfo.attenMaskBatchStride = 0;

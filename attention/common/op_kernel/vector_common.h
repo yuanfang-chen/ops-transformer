@@ -910,9 +910,8 @@ template <typename T>
 __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, uint32_t s1StartIdx, uint32_t s1EndIdx, bool isPre = false)
 {
     // TODO 由于sparse9 mask只有一部分，不能合并处理
-    // 先实现BSND的处理，TND稍后处理
-    uint64_t treeMaskStart = info.s2Size - info.s1Size;
-    uint64_t curS2EnsPos = info.s2StartIdx + info.s2dealNum;
+    uint32_t treeMaskStart = info.s2Size - info.s1Size;
+    uint32_t curS2EnsPos = info.s2StartIdx + info.s2dealNum;
 
     // 只有info.s2StartIdx + info.s2dealNum > treeMaskStart时，才会进入此流程；
     // 当info.s2StartIdx > treeMaskStart，mask拷贝也是全量拷贝，和其余sparse过程相同
