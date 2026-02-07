@@ -194,7 +194,6 @@ protected:
     GQmmBasicTiling basicTiling_;
     GQmmInputInfo inputParams_;
 
-private:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
     void CalStepKs();
     void CalScaleFactors();
