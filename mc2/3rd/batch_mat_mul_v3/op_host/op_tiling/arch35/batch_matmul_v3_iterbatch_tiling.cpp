@@ -20,9 +20,9 @@
 namespace optiling {
 namespace Mc2batch_matmul_v3_advanced {
 using namespace strategy;
-MC2_MM_REGISTER_TILING_TEMPLATE(Mc2BatchMatMulV3, Mc2BatchMatMulV3IterBatchTiling, ASCEND950, ITER_BATCH);
+MC2_MM_REGISTER_TILING_TEMPLATE(Mc2BatchMatMulV3, Mc2BatchMatMulV3IterBatchTiling, DAV_3510, ITER_BATCH);
 //supportMmadS8S4平台
-MC2_MM_REGISTER_TILING_TEMPLATE(Mc2BatchMatMulV3, Mc2BatchMatMulV3IterBatchTiling, RESERVED_VERSION, ITER_BATCH);
+MC2_MM_REGISTER_TILING_TEMPLATE(Mc2BatchMatMulV3, Mc2BatchMatMulV3IterBatchTiling, DAV_RESV, ITER_BATCH);
 
 bool Mc2BatchMatMulV3IterBatchTiling::IsCapable()
 {
