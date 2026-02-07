@@ -2835,6 +2835,9 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseI
 
     uint64_t seqLenGap = actS1Size - curActualSeqLen;
     uint64_t startS1Idx = curS1Idx + mSizeVStart / gSize;
+    AscendC::printf("tkd seqLenGap: %llu\n", seqLenGap);
+    AscendC::printf("tkd startS1Idx: %llu\n", startS1Idx);
+    AscendC::printf("tkd no info startS1Idx: %llu\n", s1Idx * s1SizeSub + mSizeVStart / gSize);
     if (startS1Idx < seqLenGap) {
         SoftMaxShapeInfo softmaxShapeInfo{static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM),
                                           static_cast<uint32_t>(dealRowCount), static_cast<uint32_t>(BLOCK_ELEMENT_NUM)};
