@@ -599,7 +599,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
     </tr>
     <tr>
         <td>learnableSinkOptional</td>
-        <td>可选输入</td>
+        <td>输入</td>
         <td>表示通过可学习的"Sink Token"起到吸收Attention Score的作用。</td>
         <td>
         <ul>
