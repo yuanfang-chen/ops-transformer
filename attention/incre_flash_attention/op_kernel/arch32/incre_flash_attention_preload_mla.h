@@ -789,7 +789,8 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealActSeqLenIs
 
 template <typename IFAT> __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::UpdateInnerLoopCond()
 {
-    if ((curActualSeqLenQ == 0) || (curActualSeqLen == 0) || (actS1Size == 0)) {
+    if ((curActualSeqLenQ == 0 && LAYOUT_T != LAYOUT::TND) || (curActualSeqLen == 0) || (actS1Size == 0)) {
+        AscendC::printf("tkd actqseqlen: %llu\n", curActualSeqLenQ);
         curActSeqLenIsZero = true;
         return;
     }
