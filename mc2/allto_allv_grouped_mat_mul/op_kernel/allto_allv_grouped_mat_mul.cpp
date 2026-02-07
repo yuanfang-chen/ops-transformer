@@ -22,13 +22,12 @@
 
 using namespace AscendC;
 
-#define INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL()                                                                 \
-    do {                                                                                                          \
-        op.Init(                                                                                                  \
-            gmmxGM, gmmweightGM, sendCountsTensorOptionalGM, recvCountsTensorOptionalGM, mmxOptionalGM,           \
-            mmweightOptionalGM, gmmyGM, mmyOptionalGM, permuteOutOptionalGM, workspaceGM, contextGM, &tilingData, \
-            hcclInitTiling, alltoAllvCcTiling, &pipe);                                                            \
-        op.Process();                                                                                             \
+#define INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL()                                                                      \
+    do {                                                                                                               \
+        op.Init(gmmxGM, gmmweightGM, sendCountsTensorOptionalGM, recvCountsTensorOptionalGM, mmxOptionalGM,            \
+                mmweightOptionalGM, gmmyGM, mmyOptionalGM, permuteOutOptionalGM, workspaceGM, contextGM, &tilingData,  \
+                hcclInitTiling, alltoAllvCcTiling, &pipe);                                                             \
+        op.Process();                                                                                                  \
     } while (0)
 
 template <
@@ -44,25 +43,25 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
 
     REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
-    auto tiling = (__gm__ AlltoAllvGmmTilingData*)tilingGM;
-    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
-    __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->alltoAllvCcTiling));
+    auto tiling = (__gm__ AlltoAllvGmmTilingData *)tilingGM;
+    __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclInitTiling));
+    __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->alltoAllvCcTiling));
     GET_TILING_DATA(tilingData, tilingGM);
 
     TPipe pipe;
     GM_ADDR contextGM = GetHcclContext<HCCL_GROUP_ID_0>();
 
-if (D_T_MM == ADD_TPL_BP16) {
-    AlltoAllvGmmCoarseGrained<bfloat16_t, TILINGKEY_MM, TILINGKEY_GMM_WEIGHT_TRANSPOSE,
-                                TILINGKEY_MM_WEIGHT_TRANSPOSE> op;
-    INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
-    return;
-}
+    if (D_T_MM == ADD_TPL_BP16) {
+        AlltoAllvGmmCoarseGrained<bfloat16_t, TILINGKEY_MM, TILINGKEY_GMM_WEIGHT_TRANSPOSE,
+                                  TILINGKEY_MM_WEIGHT_TRANSPOSE>
+            op;
+        INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
+        return;
+    }
 
-if (D_T_MM == ADD_TPL_FP16) {
-    AlltoAllvGmmCoarseGrained<half, TILINGKEY_MM, TILINGKEY_GMM_WEIGHT_TRANSPOSE,
-                                TILINGKEY_MM_WEIGHT_TRANSPOSE> op;
-    INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
-    return;
-}
+    if (D_T_MM == ADD_TPL_FP16) {
+        AlltoAllvGmmCoarseGrained<half, TILINGKEY_MM, TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE> op;
+        INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMPL();
+        return;
+    }
 }
