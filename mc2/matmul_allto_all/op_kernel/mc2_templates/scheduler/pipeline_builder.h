@@ -16,11 +16,19 @@
 #ifndef MC2_PIPELINE_BUILDER_H
 #define MC2_PIPELINE_BUILDER_H
 
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+#include "../communication/comm_stage.h"
+#include "../computation/compute_stage.h"
+#include "./template/pipeline_template_comm_trans_compute.h"
+#include "./template/pipeline_template_compute_trans_comm.h"
+#include "./template/pipeline_template_comm_trans_quantize_compute.h"
+#else
 #include "../communication/comm_stage.h"
 #include "../computation/compute_stage.h"
 #include "../quantization/quantize_stage.h"
 #include "./template/pipeline_template_comm_trans_compute.h"
 #include "./template/pipeline_template_compute_trans_comm.h"
 #include "./template/pipeline_template_comm_trans_quantize_compute.h"
+#endif
 
 #endif
