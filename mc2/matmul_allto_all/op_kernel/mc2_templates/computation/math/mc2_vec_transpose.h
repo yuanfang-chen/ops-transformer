@@ -94,9 +94,12 @@ protected:
         loadGm2UbParams.dstStride = static_cast<int64_t>(0);
 
         DataCopyPadExtParams<tranposeDataType> padExtParams{false, 0, 0, 0};
-
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
         DataCopyPad<tranposeDataType, PaddingMode::Normal>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
                                                         padExtParams);
+#else
+        DataCopyPad<tranposeDataType>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams, padExtParams);
+#endif
         vecInQueue_.EnQue(vecInBuf);
     }
 
@@ -114,7 +117,11 @@ protected:
         loadUb2GmParams.srcStride = 0;
         loadUb2GmParams.dstStride = static_cast<int64_t>(innerOffsetOut_ * sizeof(tranposeDataType) - loadUb2GmParams.blockLen);
 
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
         DataCopyPad<tranposeDataType, PaddingMode::Normal>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
+#else
+        DataCopyPad<tranposeDataType>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
+#endif
         vecInQueue_.FreeTensor(vecOutBuf);
     }
 
