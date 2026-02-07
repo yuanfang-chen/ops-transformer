@@ -2753,9 +2753,13 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
-    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, s1Idx * s1SizeSub);
-    AscendC::printf("tkd noinfo curS1Idx: %u\n", s1Idx * s1SizeSub);
-    AscendC::printf("tkd info curS1Idx: %u\n", info.s1Idx * s1SizeSub);
+    AscendC::printf("tkd noinfo s1Idx: %u\n", s1Idx);
+    AscendC::printf("tkd info 1Idx: %u\n", info.s1Idx);
+    AscendC::printf("tkd info s1SizeSub: %u\n", s1SizeSub);
+    AscendC::printf("tkd tnd s1Size: %u\n", info.actS1Size);
+    AscendC::printf("tkd bshbsnd s1Size: %u\n", qSeqSize);
+    AscendC::printf("tkd bshbsnd s2Size: %u\n", info.s2Size);    
+    DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, info.s1Idx * s1SizeSub);
 
     outputQue2.EnQue(softmaxlseUb);
     outputQue2.DeQue<T>();
@@ -2825,6 +2829,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::DealSoftmaxLseI
                                                                                            uint32_t dealRowCount,
                                                                                            uint32_t curS1Idx)
 {
+    AscendC::printf("tkd actS1Size: %llu\n", actS1Size);
+    AscendC::printf("tkd curActualSeqLen: %llu\n", curActualSeqLen);
+    AscendC::printf("tkd attenMaskFlag: %d\n", static_cast<int>(attenMaskFlag));
+
     if (!attenMaskFlag) {
         return;
     }
