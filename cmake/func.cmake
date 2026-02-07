@@ -486,6 +486,9 @@ function(add_bin_compile_target)
     set(SRC_OUT_DIR      ${_OUT_DIR}/src)
     file(MAKE_DIRECTORY  ${BIN_OUT_DIR})
 
+    # 创建kernel编译耗时日志目录
+    file(MAKE_DIRECTORY ${BIN_OUT_DIR}/build_logs)
+
     foreach(_op_info ${BINARY_OP_INFO})
         get_filename_component(_op_name "${_op_info}" NAME)
         set(${_op_name}_dir ${_op_info})
@@ -642,6 +645,12 @@ function(add_bin_compile_target)
         endif ()
 
         if (_compile_flag)
+            # 记录kernel的编译耗时
+            # 1. 获取编译脚本的文件名
+            get_filename_component(bin_script_name ${bin_script} NAME)
+            # 2. 创建日志文件名
+            set(kernel_compile_cost_time_log_file "${BIN_OUT_DIR}/build_logs/${bin_script_name}_${op_index}.log")
+
             set(_BUILD_COMMAND)
             set(_BUILD_FLAG ${GEN_OUT_DIR}/${OP_TARGET_NAME}_${op_index}.done)
             if (ENABLE_OPS_HOST OR ENABLE_HOST_TILING)
@@ -650,7 +659,14 @@ function(add_bin_compile_target)
             list(APPEND _BUILD_COMMAND export HI_PYTHON="python3" &&)
             list(APPEND _BUILD_COMMAND export TILINGKEY_PAR_COMPILE=1 &&)
             list(APPEND _BUILD_COMMAND export BIN_FILENAME_HASHED=1 &&)
+            # 3. 增加带时间统计的命令
+            list(APPEND _BUILD_COMMAND "(")
+            list(APPEND _BUILD_COMMAND "start_time=$(date +%s.%N)" &&)
             list(APPEND _BUILD_COMMAND bash ${bin_script} ${OP_SRC_OUT_DIR}/${op_type}.py ${OP_BIN_OUT_DIR})
+            list(APPEND _BUILD_COMMAND "end_time=$(date +%s.%N)" &&)
+            list(APPEND _BUILD_COMMAND "duration=$(echo \"${end_time} - ${start_time}\" | bc)" &&)
+            list(APPEND _BUILD_COMMAND "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Execution time: ${duration} seconds\" >> ${log_file}")
+            list(APPEND _BUILD_COMMAND ")")
             if(CMAKE_GENERATOR MATCHES "Unix Makefiles")
                 list(APPEND _BUILD_COMMAND && echo $(MAKE))
             endif()
