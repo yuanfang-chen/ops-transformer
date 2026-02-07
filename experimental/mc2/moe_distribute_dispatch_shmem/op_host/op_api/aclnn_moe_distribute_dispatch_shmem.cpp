@@ -124,9 +124,9 @@ aclnnStatus aclnnMoeDistributeDispatchShmemGetWorkspaceSize(
     aclOpExecutor** executor) {
   OP_LOGD("aclnnMoeDistributeDispatchShmemGetWorkspaceSize start");
 
-
+  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
   const static bool is910B =
-      GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+      ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_2201;
   auto ret_param =
       CheckParams(x, expertIds, groupEp, groupTp, quantMode, expandXOut,
                   dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,

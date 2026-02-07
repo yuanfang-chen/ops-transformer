@@ -120,8 +120,9 @@ aclnnStatus aclnnMoeDistributeCombineShmemGetWorkspaceSize(
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum,
     int64_t shmem_size, aclTensor* xOut, uint64_t* workspaceSize,
     aclOpExecutor** executor) {
+  auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
   const static bool is910B =
-      GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+      ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_2201;
   auto ret_param =
       CheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts,
                   expertScales, groupEp, groupTp, xOut);
