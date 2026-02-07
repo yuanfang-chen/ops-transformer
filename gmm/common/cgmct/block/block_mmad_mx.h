@@ -172,13 +172,14 @@ public:
         isBias_ = isBias;
         l1BufNum_ = l1Params.l1BufNum;
         enableL0cPingPong_ = dbL0C;
-        bL1OneBuffer_ = baseN_ * kBL1_;
-        scaleBL1OneBuffer_ = baseN_ * Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE) * MXFP_MULTI_BASE_SIZE;
+        bL1OneBuffer_ = baseN_ * Cgmct::Gemm::Align(kBL1_, MXFP_DIVISOR_SIZE);
+        auto mxScaleKL1 = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE) * MXFP_MULTI_BASE_SIZE;
+        scaleBL1OneBuffer_ = baseN_ * mxScaleKL1;
         if (isBias_) {
             biasL1OneBuffer_ = baseN_ * sizeof(BiasType);
         }
         aL1OneBuffer_ = baseM_ * Cgmct::Gemm::Align(kAL1_, MXFP_DIVISOR_SIZE);
-        scaleAL1OneBuffer_ = baseM_ * Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE) * MXFP_MULTI_BASE_SIZE;
+        scaleAL1OneBuffer_ = baseM_ * mxScaleKL1;
         for (int32_t bufferId = 0; bufferId < l1BufNum_; bufferId++) {
             // 2 buffer: L1 space is : A0|B0|AScale0|BScale0|bias0|...|A1|B1|AScale1|BScale1|bias1|...
             // 4 buffer: L1 space is : A0A2|B0B2|AScale0|BScale0|bias0|...|A1A3|B1B3|AScale1|BScale1|bias1|...
@@ -579,8 +580,9 @@ public:
 
     __aicore__ inline void UpdateKL0(TileL1L0Param &tileL1L0Param, uint64_t kL0Offset)
     {
-        if (kL0Offset + baseK_ > tileL1L0Param.curPadBKL1) {
-            tileL1L0Param.curKL0 = tileL1L0Param.curPadBKL1 - kL0Offset; // todo: 有可能akl1更小，需取min值
+        uint64_t minPadKL1 = Cgmct::Gemm::Min(tileL1L0Param.curPadBKL1, tileL1L0Param.curPadAKL1);
+        if (kL0Offset + baseK_ > minPadKL1) {
+            tileL1L0Param.curKL0 = minPadKL1 - kL0Offset;
         } else {
             tileL1L0Param.curKL0 = baseK_;
         }
