@@ -821,6 +821,16 @@ function(pack_tiling_sink)
   ")
 endfunction()
 
+# determine whether aicpu kernels skip the processing.
+function(skip_aicpu_kernel op_type ascend_op_name)
+    set(SKIP_FLAG FALSE PARENT_SCOPE)
+    if(ENABLE_AICPU)
+        return()
+ 	endif()
+ 	message(STATUS "disable aicpu kernel ${op_type}, skip it.")
+ 	set(SKIP_FLAG TRUE PARENT_SCOPE)
+endfunction()
+
 if (BUILD_OPEN_PROJECT)
     if (TESTS_UT_OPS_TEST)
         include(${OPS_ADV_CMAKE_DIR}/func_utest.cmake)
