@@ -1289,7 +1289,7 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsBelow(Loca
                     s1Num = s1RealEnd + 1;
                 }
                 int32_t s1RealStart = s1RealEnd - s1Num + 1;
-                Duplicate(attenOutUb[s1RealStart * params.columnCount], static_cast<T>(FLOAT_ZERO), params.columnCount * s1Num);
+                Duplicate(attenOutUb[s1RealStart * params.columnCount], static_cast<T>(0.0F), params.columnCount * s1Num);
                 AscendC::PipeBarrier<PIPE_V>();
             }
             s1RealEnd -= s1End + 1;
@@ -1317,7 +1317,7 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsBelow(Loca
                 if (i + gNum > params.dealRowCount) {
                     gNum = params.dealRowCount - i;
                 }
-                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(FLOAT_ZERO), params.columnCount * gNum);
+                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(0.0F), params.columnCount * gNum);
                 AscendC::PipeBarrier<PIPE_V>();
                 i += gNum;
                 s1++;
@@ -1342,7 +1342,7 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsAbove(Loca
                 if (i + s1Num > params.dealRowCount) {
                     s1Num = params.dealRowCount - i;
                 }
-                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(FLOAT_ZERO), params.columnCount * s1Num);
+                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(0.0F), params.columnCount * s1Num);
                 AscendC::PipeBarrier<PIPE_V>();
             }
             i += params.actS1Size - s1;
@@ -1357,7 +1357,7 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsAbove(Loca
                 if (i + gNum > params.dealRowCount) {
                     gNum = params.dealRowCount - i;
                 }
-                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(FLOAT_ZERO), params.columnCount * gNum);
+                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(0.0F), params.columnCount * gNum);
                 AscendC::PipeBarrier<PIPE_V>();
                 i += gNum;
                 s1++;
@@ -1380,10 +1380,10 @@ __aicore__ inline void InvalidMaskRows(uint32_t softmaxOutOffset, uint32_t dealR
     AscendC::PipeBarrier<PIPE_V>();
     if constexpr (SOFTMAX_WITH_BRC) {
         AdjustSoftMaxRes<OUT_T, SOFTMAX_T>(bmm2ResUb, softmaxMaxUb[softmaxOutOffset], softmaxMinSaclar,
-                                               (OUT_T)FLOAT_ZERO, softmaxShapeInfo);
+                                               (OUT_T)0.0F, softmaxShapeInfo);
     } else {
         AdjustSoftMaxRes<OUT_T, SOFTMAX_T, false, 1>(bmm2ResUb, softmaxMaxUb[softmaxOutOffset], softmaxMinSaclar,
-                                                         (OUT_T)FLOAT_ZERO, softmaxShapeInfo);
+                                                         (OUT_T)0.0F, softmaxShapeInfo);
     }
 }
 
