@@ -399,6 +399,7 @@ function(add_ops_src_copy)
         "inplace_matmul_all_reduce_add_rms_norm;"
         "attention_to_ffn;"
         "ffn_to_attention;"
+        "qbmm_reduce_scatter_add_rms_norm_cast;"
     ) # mc2算子列表
 
     get_filename_component(FOLDER_NAME "${SRC_COPY_DST}" NAME_WE)
