@@ -131,17 +131,14 @@ public:
             for (uint32_t i = 1U; i < rankDim_; i++) {
                 alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
                 for (uint32_t j = 0U; j < e_; j++) {
-                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[(i - 1U) * e_ + j]) * H1_;
+                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * H1_;
                 }
             }
-            uint64_t alltoAllvRecvOffsetLastSum = 0UL;
+
             for (uint32_t i = 0U; i < rankDim_; i++) {
-                if (i == 0U) {
+                if ((startExpertIdx == 0U) && (i == 0U)) {
                     alltoAllvRecvOffset[i] = 0UL;
-                    for (uint32_t j = 0U; j < startExpertIdx; j++) {
-                        alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[j]) * H1_;
-                    }
-                    alltoAllvRecvOffsetLastSum = alltoAllvRecvOffset[i] + alltoAllvRecvCnt[0];
+                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
                 } else {
                     alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
                     alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
@@ -172,11 +169,12 @@ public:
                 }
             }
         }
-        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendBuffer_, alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
-            (__gm__ uint8_t *)recvBuffer_, alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+        alltoAllvHandleId_[startExpertIdx] =
+        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+            (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
-    __aicore__ inline void Wait(uint32_t expertIdx)
+    __aicore__ inline void Wait(uint32_t startExpertIdx)
     {
         if ASCEND_IS_AIC {
             return;
@@ -186,7 +184,7 @@ public:
                 return;
             }
         }
-        hccl_.Wait(alltoAllvHandleId_[expertIdx]);
+        hccl_.Wait(alltoAllvHandleId_[startExpertIdx]);
     }
 
     __aicore__ inline void End()
