@@ -125,7 +125,7 @@ const static std::map<platform_ascendc::SocVersion, GetL0C2OutFlagFunc> GetL0C2O
 namespace optiling {
 namespace mc2_matmul_v3_advanced {
 using namespace strategy;
-MC2_MM_REGISTER_TILING_TEMPLATE(Mc2MatMulV3, Mc2MatMulV3BasicStreamKTiling, ASCEND950, BASIC_STREAM_K);
+MC2_MM_REGISTER_TILING_TEMPLATE(Mc2MatMulV3, Mc2MatMulV3BasicStreamKTiling, DAV_3510, BASIC_STREAM_K);
 
 bool Mc2MatMulV3BasicStreamKTiling::CheckStreamKSKTiling() const
 {
