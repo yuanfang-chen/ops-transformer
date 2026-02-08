@@ -25,9 +25,6 @@
 
 
 namespace optiling {
-#ifndef UINT_MAX
-#define UINT_MAX (__INT_MAX__ * 2U + 1U)
-#endif
 constexpr uint64_t DIM_0 = 0;
 constexpr uint64_t DIM_1 = 1;
 constexpr uint64_t DIM_2 = 2;
@@ -47,36 +44,23 @@ constexpr uint64_t INPUT_CACHE_MODE_INDEX = 0;
 constexpr uint64_t INPUT_SCATTER_MODE_INDEX = 1;
 constexpr uint64_t INPUT_STRIDES_INDEX = 2;
 constexpr uint64_t INPUT_OFFSET_INDEX = 3;
-constexpr uint64_t TILING_ID_OBP_NZ = 1000;
-constexpr uint64_t TILING_ID_DTYPE_NZ = 10;
-constexpr uint64_t TILING_ID_MODE_NZ = 100;
-constexpr uint64_t TILING_ID_FULL_NZ = 1;
 constexpr uint64_t ALIGN = 32;
 constexpr uint64_t RESERVED_BUFFER = 1024;
-constexpr uint64_t INT32_DTYPE_SIZE = 4;
-constexpr uint64_t INT64_DTYPE_SIZE = 8;
-constexpr uint64_t NORM = 0;
-constexpr uint64_t PA_NZ = 1;
+
+constexpr uint64_t TILING_ID_TEMPLATE = 1000;
+constexpr uint64_t TILING_ID_FULL = 1;
+
+constexpr int64_t TEMPLATE_NORMAL = 1;
+constexpr int64_t TEMPLATE_NZ = 2;
+constexpr int64_t TEMPLATE_ALIBI = 3;
+constexpr int64_t TEMPLATE_ROPE = 4;
+constexpr int64_t TEMPLATE_SISO = 5;
+constexpr int64_t TEMPLATE_OMNI = 6;
+constexpr int64_t TEMPLATE_NORM_NCT = 7;
+constexpr int64_t TEMPLATE_SISO_NCT = 8;
+
 constexpr uint64_t TASK_MULTIPLE = 2; // Compress_rope模式下KV分核，分核任务量翻倍
-constexpr uint64_t TILING_PARA_SIZE = 64;
-constexpr uint64_t TILING_ID_DTYPE = 100000000;
-constexpr uint64_t TILING_ID_MODE = 10000000;
-constexpr uint64_t TILING_ID_MLA = 1000000;
-constexpr uint64_t TILING_ID_MLA_FULL = 2000000;
-constexpr uint32_t TILING_ID_NCT = 200000;
-constexpr uint64_t SMALL_SHAPE = 1000;
-constexpr uint64_t UB_SLOT_MAPPING_SIZE = static_cast<uint64_t>(128) * 1024;
-
-constexpr int64_t TEMPLATE_NORMAL = 0;
-constexpr int64_t TEMPLATE_NZ = 1;
-constexpr int64_t TEMPLATE_ALIBI = 2;
-constexpr int64_t TEMPLATE_ROPE = 3;
-constexpr int64_t TEMPLATE_SISO = 4;
-constexpr int64_t TEMPLATE_OMNI = 5;
-constexpr int64_t TEMPLATE_NORM_NCT = 6;
-constexpr int64_t TEMPLATE_SISO_NCT = 7;
-
-constexpr uint64_t ASCENDC_TOOLS_WORKSPACE = static_cast<uint64_t>(16) * 1024 * 1024;
+constexpr uint64_t SMALL_TOKEN = 1000; // token数
 
 bool ScatterPaKvCacheMembaseTiling::IsCapable()
 {
