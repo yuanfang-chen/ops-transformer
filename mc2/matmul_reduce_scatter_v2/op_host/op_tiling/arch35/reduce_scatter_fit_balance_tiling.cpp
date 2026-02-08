@@ -16,7 +16,9 @@
 #include "mc2_log.h"
 #include "reduce_scatter_fit_balance_tiling.h"
 
-constexpr static double MIN_TIMECOST_FOR_NO_CUT = 40;
+constexpr static double MM_EXPANSION_TIME = 30;
+constexpr static double COMM_EXPANSION_TIME = 40;
+constexpr static uint64_t L2_CACHE_SIZE = 128;
 
 void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 {
@@ -43,12 +45,14 @@ void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 
 void MMReduceScatterFitBalanceTiling::SetShortTileLen()
 {
-    // Encourage split more if  the comm and calc is balanced and the cost of cutLen is sufficiently high
+    // Encourage split more if the comm and calc is balanced and the cost of cutLen is sufficiently high
     bool isCalcCommBalance = ratioCalcComm_ < 2.0;
     uint64_t cutLen = tilingM_.GetAlignLength() / TWO;
     double mmCost = matmulPerf_.MatmulTime(cutLen, 1);
     double commCost = commPerfArch35_.CommTime(cutLen);
-    if (isCalcCommBalance && (mmCost > MIN_TIMECOST_FOR_NO_CUT) && (commCost > MIN_TIMECOST_FOR_NO_CUT)) {
+    uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
+        mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
+    if (isCalcCommBalance && (mmCost > MM_EXPANSION_TIME) && (commCost > COMM_EXPANSION_TIME) && (l2UseSize < L2_CACHE_SIZE)) {
         tilingM_.SetAlignLength(cutLen);
         tilingM_.SetMinLenByMin(cutLen);
     }
