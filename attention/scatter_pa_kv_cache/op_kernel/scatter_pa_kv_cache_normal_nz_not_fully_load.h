@@ -89,7 +89,7 @@ __aicore__ inline void ScatterPaKvCacheNormalNzNotFullyLoad<T1, T2, IndexDtype>:
     loopHV_ = (tokenSizeV_ * sizeof(T2)) / maxUbUsed_;
     tailHV_ = (tokenSizeV_ * sizeof(T2)) % maxUbUsed_;
     ubSizeK_ = loopHK_ == 0 ? tokenSizeK_ * sizeof(T1) : maxUbUsed_;
-    ubSizeV_ = tailHK_ == 0 ? tokenSizeV_ * sizeof(T2) : maxUbUsed_;
+    ubSizeV_ = loopHV_ == 0 ? tokenSizeV_ * sizeof(T2) : maxUbUsed_;
     pipe_->InitBuffer(inputQueue_, BUFFER_NUM, maxUbUsed_);
 }
 
