@@ -38,7 +38,8 @@ using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
  //TODO 删除
 struct GmmTilingArray {
     uint32_t count;                              // 实际使用的 tiling 数量
-    GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
+    // GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
+    GMMQuantTilingData array;
 };
 
 struct HcclA2avTilingInfo {

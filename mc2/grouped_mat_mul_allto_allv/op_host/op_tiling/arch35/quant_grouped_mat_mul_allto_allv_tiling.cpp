@@ -129,13 +129,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
 
     auto sendCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_SEND_COUNTS_INDEX);
     auto recvCountsPtr = attrs->GetAttrPointer<gert::ContinuousVector>(ATTR_RECV_COUNTS_INDEX);
-    const int32_t* sendCounts = static_cast<const int32_t*>(sendCountsPtr->GetData());
-    const int32_t* recvCounts = static_cast<const int32_t*>(recvCountsPtr->GetData());
+    const int64_t* sendCounts = static_cast<const int64_t*>(sendCountsPtr->GetData());
+    const int64_t* recvCounts = static_cast<const int64_t*>(recvCountsPtr->GetData());
     int32_t maxCountsSize = std::min<int32_t>(epNum_ * gmmQTilingCommonInfoPtr->epWorldSize, MAX_EXPERT_NUM);
     for (int32_t i = 0; i < maxCountsSize; i++) {
         // memcpy_s
-        gmmQTilingCommonInfoPtr->sendCnt[i] = sendCounts[i];
-        gmmQTilingCommonInfoPtr->recvCnt[i] = recvCounts[i];
+        gmmQTilingCommonInfoPtr->sendCnt[i] = static_cast<int32_t>(sendCounts[i]);
+        gmmQTilingCommonInfoPtr->recvCnt[i] = static_cast<int32_t>(recvCounts[i]);
     }
 
     auto mmYDesc = context_->GetInputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
@@ -151,6 +151,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
     CalTilingInferredInfo();
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.commLen + inferredInfo.permuteLen;
     localTilingData_.workspaceInfo.wsGmmSize = workSpaceSize_;
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
@@ -171,7 +172,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
             loop * expertNumPerLoop * worldSize, expertNumPerLoop));
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-        gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingAdapterData();
+        gmmTilingPtr->array = gmmTile.GetGmmQuantTilingAdapterData();
     }
 
     // 尾轮
@@ -179,7 +180,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
         loop * expertNumPerLoop * worldSize, expertNumPerLoop));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-    gmmTilingPtr->array[loop] = gmmTile.GetGmmQuantTilingAdapterData();
+    gmmTilingPtr->array = gmmTile.GetGmmQuantTilingAdapterData();
 
     // SharedMM切分
     auto status = gmmTile.SetSharedExpertInputParameters();
