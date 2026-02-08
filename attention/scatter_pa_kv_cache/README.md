@@ -4,27 +4,31 @@
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
+| <term>Ascend 950PR/Ascend 950DT</term>                 |    √     |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term> |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term> |      ×     |
+| <term>Atlas 推理系列产品</term> |      ×     |
+| <term>Atlas 训练系列产品</term> |      ×     |
 
 ## 功能说明
 
-- 算子功能：更新KvCache中指定位置的key和value。
+- 更新KvCache中指定位置的key和value。
 
-- 输入输出场景根据构造的参数来区别，输入输出支持以下场景，其中场景一、场景二、场景六没有compressLensOptional、seqLensOptional、compressSeqOffsetOptional这三个可选参数，场景四没有compressSeqOffsetOptional可选参数：
-
+- 输入输出支持以下场景：
   - 场景一：
+
     ```
     key:[batch * seq_len, num_head, k_head_size]
-    value:[batch, num_head, v_head_size]
-    keyCache:[num_blocks, num_head * k_head_size // last_dim_k, block_size, last_dim_k]
-    valueCache:[num_blocks, num_head * v_head_size // last_dim_k, block_size, last_dim_k]
+    value:[batch * seq_len, num_head, v_head_size]
+    keyCache:[num_blocks, num_head * k_head_size // last_dim_k, block_size, last_dim_k]/[num_blocks, num_head, k_head_size // last_dim_k, block_size, last_dim_k]
+    valueCache:[num_blocks, num_head * v_head_size // last_dim_v, block_size, last_dim_v]/[num_blocks, num_head, v_head_size // last_dim_v, block_size, last_dim_v]
     slotMapping:[batch * seq_len]
     cacheMode:"PA_NZ"
-    scatter_mode:"None"
     ```  
     
   - 场景二：
+
     ```
     key:[batch * seq_len, num_head, k_head_size]
     value:[batch * seq_len, num_head, v_head_size]
@@ -34,14 +38,16 @@
     cacheMode:"Norm"
     scatter_mode:"None"/"Nct"
     ```
+
     其中k_head_size与v_head_size可以不同，也可以相同。
 
   - 场景三：
+
     ```
     key:[batch, seq_len, num_head, k_head_size]
     value:[batch, seq_len, num_head, v_head_size]
     keyCache:[num_blocks, block_size, 1, k_head_size]
-    valueCache:[num_blocks, block_size, 1, k_head_size]
+    valueCache:[num_blocks, block_size, 1, v_head_size]
     slotMapping:[batch, num_head]
     compressLensOptional:[batch, num_head]
     seqLensOptional:[batch]
@@ -50,11 +56,12 @@
     ```
 
   - 场景四：
+
     ```
     key:[num_tokens, num_head, k_head_size]
     value:[num_tokens, num_head, v_head_size]
     keyCache:[num_blocks, block_size, 1, k_head_size]
-    valueCache:[num_blocks, block_size, 1, k_head_size]
+    valueCache:[num_blocks, block_size, 1, v_head_size]
     slotMapping:[batch * num_head]
     compressLensOptional:[batch * num_head]
     seqLensOptional:[batch]
@@ -63,11 +70,12 @@
     ```
 
   - 场景五：
+
     ```
     key:[num_tokens, num_head, k_head_size]
     value:[num_tokens, num_head, v_head_size]
     keyCache:[num_blocks, block_size, 1, k_head_size]
-    valueCache:[num_blocks, block_size, 1, k_head_size]
+    valueCache:[num_blocks, block_size, 1, v_head_size]
     slotMapping:[batch * num_head]
     compressLensOptional:[batch * num_head]
     seqLensOptional:[batch]
@@ -76,7 +84,8 @@
     scatter_mode:"Rope"/"Omni"
     ```
 
-  - 场景六：
+    - 场景六：
+
     ```
     key:[batch * seq_len, num_head, k_head_size]
     value:[]
