@@ -20,6 +20,7 @@
 #include "quant_grouped_mat_mul_allto_allv_tiling_split_strategy.h"
 #include "tiling/mc2_tiling_utils.h"
 #include <tiling/tiling_api.h>
+#include <numeric>
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -61,7 +62,7 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((dimNum != dims),
-        OP_LOGE(opName_, "The %s dimNum should be %llu.", shapeName, dims), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "The %s dimNum should be %lu.", shapeName, dims), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -247,7 +248,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsMm()
 
     uint64_t mmYDim0 = mmYStorageShape->GetStorageShape().GetDim(DIM_ZERO);
     OP_TILING_CHECK(localParams_.Bs != mmYDim0,
-        OP_LOGE(opName_, "mmX DIM0 %llu and mmY DIM0 %llu is not valid!", localParams_.Bs, mmYDim0),
+        OP_LOGE(opName_, "mmX DIM0 %lu and mmY DIM0 %lu is not valid!", localParams_.Bs, mmYDim0),
         return ge::GRAPH_FAILED);
 
     localParams_.N2 = mmYStorageShape->GetStorageShape().GetDim(DIM_ONE);
@@ -269,7 +270,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
     auto gmmYDtypeptr = attrs->GetAttrPointer<int>(ATTR_GMM_Y_DTYPE_INDEX);
     localParams_.gmmYDtype = *gmmYDtypeptr;
     // OP_TILING_CHECK(localParams_.gmmYDtype != 28,
-    //     OP_LOGE(opName_, "tiling not need gmmYDtype, but gmmYDtype is %lld !", localParams_.gmmYDtype),
+    //     OP_LOGE(opName_, "tiling not need gmmYDtype, but gmmYDtype is %ld !", localParams_.gmmYDtype),
     //     return ge::GRAPH_FAILED);
 
     auto commQuantModeptr = attrs->GetAttrPointer<int>(ATTR_COMM_QUANT_MODE_INDEX);
@@ -277,17 +278,17 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
     auto commQuantDtypeptr = attrs->GetAttrPointer<int>(ATTR_COMM_QUANT_DTYPE_INDEX);
     localParams_.commQuantDtype = *commQuantDtypeptr;
     OP_TILING_CHECK(localParams_.commQuantMode != QUANT_NONE,
-        OP_LOGE(opName_, "not support commQuant now, but commQuantMode is %lld !", localParams_.commQuantMode),
+        OP_LOGE(opName_, "not support commQuant now, but commQuantMode is %ld !", localParams_.commQuantMode),
         return ge::GRAPH_FAILED);
     // para check dtype enum 28 or -1 ???
     // OP_TILING_CHECK(localParams_.commQuantDtype != 28,
-    //     OP_LOGE(opName_, "not support commQuant now, but commQuantDtype is %lld !", localParams_.commQuantDtype),
+    //     OP_LOGE(opName_, "not support commQuant now, but commQuantDtype is %ld !", localParams_.commQuantDtype),
     //     return ge::GRAPH_FAILED);
 
     auto mmYDtypeptr = attrs->GetAttrPointer<int>(ATTR_MM_Y_DTYPE_INDEX);
     localParams_.mmYDtype = *mmYDtypeptr;
     // OP_TILING_CHECK(localParams_.mmYDtype != 28,
-    //     OP_LOGE(opName_, "tiling not need mmYDtype, but mmYDtype is %lld !", localParams_.mmYDtype),
+    //     OP_LOGE(opName_, "tiling not need mmYDtype, but mmYDtype is %ld !", localParams_.mmYDtype),
     //     return ge::GRAPH_FAILED);
     if (!localParams_.hasSharedMm) {
         auto mmXQuantModeptr = attrs->GetAttrPointer<int>(ATTR_MM_X_QUANT_MODE_INDEX);
@@ -297,10 +298,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
         auto mmTransWeightptr = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
         localParams_.isMmWeightTrans = *mmTransWeightptr;
         OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_NONE,
-            OP_LOGE(opName_, "no sharedmm, but mmXQuantMode is %lld !", localParams_.mmXQuantMode),
+            OP_LOGE(opName_, "no sharedmm, but mmXQuantMode is %ld !", localParams_.mmXQuantMode),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_NONE,
-            OP_LOGE(opName_, "no sharedmm, but mmWeightQuantMode is %lld !", localParams_.mmWeightQuantMode),
+            OP_LOGE(opName_, "no sharedmm, but mmWeightQuantMode is %ld !", localParams_.mmWeightQuantMode),
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(localParams_.isMmWeightTrans != false,
             OP_LOGE(opName_, "no sharedmm, but mmWeightTrans is true !"),
@@ -350,7 +351,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     
     ge::graphStatus status = ge::GRAPH_FAILED;
     OP_TILING_CHECK(localParams_.gmmXQuantMode != QUANT_PERTENSOR,
-        OP_LOGE(opName_, "gmmXQuantMode just support tensor mode now, mode is %lld !", localParams_.gmmXQuantMode),
+        OP_LOGE(opName_, "gmmXQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmXQuantMode),
         return ge::GRAPH_FAILED);
     if (localParams_.gmmXQuantMode == QUANT_PERTENSOR) {
         status = CheckShapeDimensions(gmmXScaleStorageShape, 1, "gmmXScaleShape", opName_);
@@ -360,7 +361,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
     }
     OP_TILING_CHECK(localParams_.gmmWeightQuantMode != QUANT_PERTENSOR,
         OP_LOGE(opName_,
-                "gmmWeightQuantMode just support tensor mode now, mode is %lld !", localParams_.gmmWeightQuantMode),
+                "gmmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.gmmWeightQuantMode),
         return ge::GRAPH_FAILED);
     if (localParams_.gmmWeightQuantMode == QUANT_PERTENSOR) {
         status = CheckShapeDimensions(gmmWeightScaleStorageShape, 1, "gmmWeightScaleShape", opName_);
@@ -371,12 +372,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 
     if (localParams_.isGmmWeightTrans) {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "gmmX shape %llu not match gmmWeight shape %llu !",
+            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !",
                 localParams_.H1, localParams_.gmmWeightDim2),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim1,
-            OP_LOGE(opName_, "gmmX shape %llu not match gmmWeight shape %llu !",
+            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !",
                 localParams_.H1, localParams_.gmmWeightDim1),
             return ge::GRAPH_FAILED);
     }
@@ -407,7 +408,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     
     ge::graphStatus status = ge::GRAPH_FAILED;
     OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_PERTENSOR,
-        OP_LOGE(opName_, "mmXQuantMode just support tensor mode now, mode is %lld !", localParams_.mmXQuantMode),
+        OP_LOGE(opName_, "mmXQuantMode just support tensor mode now, mode is %ld !", localParams_.mmXQuantMode),
         return ge::GRAPH_FAILED);
     if (localParams_.mmXQuantMode == QUANT_PERTENSOR) {
         status = CheckShapeDimensions(mmXScaleStorageShape, 1, "mmXScaleShape", opName_);
@@ -417,7 +418,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     }
     OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_PERTENSOR,
         OP_LOGE(opName_,
-                "mmWeightQuantMode just support tensor mode now, mode is %lld !", localParams_.mmWeightQuantMode),
+                "mmWeightQuantMode just support tensor mode now, mode is %ld !", localParams_.mmWeightQuantMode),
         return ge::GRAPH_FAILED);
     if (localParams_.mmWeightQuantMode == QUANT_PERTENSOR) {
         status = CheckShapeDimensions(mmWeightScaleStorageShape, 1, "mmWeightScaleShape", opName_);
@@ -428,12 +429,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
 
     if (localParams_.isMmWeightTrans) {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
-            OP_LOGE(opName_, "mmX shape %llu not match mmWeight shape %llu !",
+            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !",
                 localParams_.H2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim0,
-            OP_LOGE(opName_, "mmX shape %llu not match mmWeight shape %llu !",
+            OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !",
                 localParams_.H2, localParams_.mmWeightDim0),
             return ge::GRAPH_FAILED);
     }
@@ -448,13 +449,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalP
     int64_t rankDim = 0;
     auto epWorldSizePtr = attrs->GetAttrPointer<int>(ATTR_EP_WORLD_SIZE_INDEX);
     if ((epWorldSizePtr == nullptr) || (*epWorldSizePtr == RANK_DEFAULT_NUM)) {
-        OP_TILING_CHECK(!mc2tiling::GetRankSize(opName_, group, &rankDim), OP_LOGE(opName_, "GetRankSize failed."),
+        OP_TILING_CHECK(!mc2tiling::GetRankSize(opName_, group, rankDim), OP_LOGE(opName_, "GetRankSize failed."),
                         return ge::GRAPH_FAILED);
     } else {
         rankDim = *epWorldSizePtr;
     }
     OP_TILING_CHECK(SUPPORT_RANK_SIZE.find(rankDim) == SUPPORT_RANK_SIZE.end(),
-        OP_LOGE(opName_, "World_size should be in 2 4 8 16 32 64 128 256, but the actual value is %lld.", rankDim),
+        OP_LOGE(opName_, "World_size should be in 2 4 8 16 32 64 128 256, but the actual value is %ld.", rankDim),
         return ge::GRAPH_FAILED);
     localParams_.epWorldSize = rankDim;
 
@@ -462,10 +463,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalP
     if (isEpNumMatch) {
         uint64_t expertNum = localParams_.ep * rankDim;
         OP_TILING_CHECK(expertNum > MAX_EXPERT_NUM,
-            OP_LOGE(opName_, "expert Num lager than MAX_EXPERT_NUM, expertNum is %llu !", expertNum),
+            OP_LOGE(opName_, "expert Num lager than MAX_EXPERT_NUM, expertNum is %lu !", expertNum),
             return ge::GRAPH_FAILED);
     } else {
-        OP_LOGE(opName_, "expert Per Rank is not match range, expertNum is %llu !", localParams_.ep);
+        OP_LOGE(opName_, "expert Per Rank is not match range, expertNum is %lu !", localParams_.ep);
         return ge::GRAPH_FAILED;
     }
 
@@ -473,7 +474,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalP
     OP_TILING_CHECK(groupSizePtr == nullptr, OP_LOGE(opName_, "groupSizePtr is null !"), return ge::GRAPH_FAILED);
     localParams_.groupSize = *groupSizePtr;
     OP_TILING_CHECK(localParams_.groupSize != 0,
-        OP_LOGE(opName_, "not support group quant now, but groupSize is %lld !", localParams_.groupSize),
+        OP_LOGE(opName_, "not support group quant now, but groupSize is %ld !", localParams_.groupSize),
         return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -488,30 +489,30 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetSendRecvCountsAttr
     uint64_t sendCountsSize = sendCountsPtr->GetSize();
     uint64_t recvCountsSize = recvCountsPtr->GetSize();
     OP_TILING_CHECK(sendCountsSize != recvCountsSize,
-        OP_LOGE(opName_, "sendCountSize %llu should be equal to recvCountSize %llu !", sendCountsSize, recvCountsSize),
+        OP_LOGE(opName_, "sendCountSize %lu should be equal to recvCountSize %lu !", sendCountsSize, recvCountsSize),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(sendCountsSize != expertNum,
-        OP_LOGE(opName_, "sendCountSize %llu should be equal to expertTotalNums %llu !", sendCountsSize, expertNum),
+        OP_LOGE(opName_, "sendCountSize %lu should be equal to expertTotalNums %lu !", sendCountsSize, expertNum),
         return ge::GRAPH_FAILED);
 
     const int64_t* sendCounts = static_cast<const int64_t*>(sendCountsPtr->GetData());
     const int64_t* recvCounts = static_cast<const int64_t*>(recvCountsPtr->GetData());
     uint64_t sendCountsSum = std::accumulate(sendCounts, sendCounts + sendCountsSize, 0ULL);
     OP_TILING_CHECK(sendCountsSum != localParams_.A,
-        OP_LOGE(opName_, "sendCountsSum %llu should be equal to A %llu !", sendCountsSum, localParams_.A),
+        OP_LOGE(opName_, "sendCountsSum %lu should be equal to A %lu !", sendCountsSum, localParams_.A),
         return ge::GRAPH_FAILED);
     uint64_t recvCountsSum = std::accumulate(recvCounts, recvCounts + recvCountsSize, 0ULL);
     OP_TILING_CHECK(recvCountsSum != localParams_.BsK,
-        OP_LOGE(opName_, "recvCountsSum %llu should be equal to BsK %llu !", recvCountsSum, localParams_.BsK),
+        OP_LOGE(opName_, "recvCountsSum %lu should be equal to BsK %lu !", recvCountsSum, localParams_.BsK),
         return ge::GRAPH_FAILED);
 
     auto gmmQTilingCommonInfoPtr = &localTilingData_.taskTilingInfo;
     uint64_t maxCountsSize = std::min<uint64_t>(expertNum, MAX_EXPERT_NUM);
     for (uint64_t i = 0; i < maxCountsSize; i++) {
         OP_TILING_CHECK(sendCounts[i] < 0,
-            OP_LOGE(opName_, "sendCounts value %lld should not be < 0 !", sendCounts[i]), return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(recvCountsi < 0,
-            OP_LOGE(opName_, "recvCounts value %lld should not be < 0 !", recvCounts[i]), return ge::GRAPH_FAILED);
+            OP_LOGE(opName_, "sendCounts value %ld should not be < 0 !", sendCounts[i]), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(recvCounts[i] < 0,
+            OP_LOGE(opName_, "recvCounts value %ld should not be < 0 !", recvCounts[i]), return ge::GRAPH_FAILED);
         gmmQTilingCommonInfoPtr->sendCnt[i] = static_cast<int32_t>(sendCounts[i]);
         gmmQTilingCommonInfoPtr->recvCnt[i] = static_cast<int32_t>(recvCounts[i]);
     }
@@ -522,30 +523,30 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetSendRecvCountsAttr
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckLocalParams()
 {
     OP_TILING_CHECK((localParams_.H1 == 0) || (localParams_.H1 >= MAX_H1_VALUE),
-        OP_LOGE(opName_, "H1 should be less than %llu, but got %llu.", MAX_H1_VALUE, localParams_.H1),
+        OP_LOGE(opName_, "H1 should be less than %lu, but got %lu.", MAX_H1_VALUE, localParams_.H1),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.BsK >= MAX_BSK_VALUE),
-        OP_LOGE(opName_, "BsK should be less than %llu, but got %llu.", MAX_BSK_VALUE, localParams_.BsK),
+        OP_LOGE(opName_, "BsK should be less than %lu, but got %lu.", MAX_BSK_VALUE, localParams_.BsK),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.N1 == 0) || (localParams_.N1 >= MAX_N1_VALUE),
-        OP_LOGE(opName_, "N1 should be less than %llu, but got %llu.", MAX_N1_VALUE, localParams_.N1),
+        OP_LOGE(opName_, "N1 should be less than %lu, but got %lu.", MAX_N1_VALUE, localParams_.N1),
         return ge::GRAPH_FAILED);
 
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
     }
     OP_TILING_CHECK((localParams_.Bs == 0) || (localParams_.BsK % localParams_.Bs != 0),
-        OP_LOGE(opName_, "BSK should be divisible by BS, got BSK[%llu] and BS[%llu].", localParams_.BsK,localParams_.Bs),
+        OP_LOGE(opName_, "BSK should be divisible by BS, got BSK[%lu] and BS[%lu].", localParams_.BsK,localParams_.Bs),
         return ge::GRAPH_FAILED);
     uint64_t k = localParams_.BsK / localParams_.Bs;
     OP_TILING_CHECK((k < MIN_K_VALUE) || (k > MAX_K_VALUE),
-        OP_LOGE(opName_, "K should be in (%llu, %llu), but got %llu.", MIN_K_VALUE, MAX_K_VALUE, k),
+        OP_LOGE(opName_, "K should be in (%lu, %lu), but got %lu.", MIN_K_VALUE, MAX_K_VALUE, k),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.H2 == 0) || (localParams_.H2 > MAX_SHARED_H_SHAPE_SIZE),
-        OP_LOGE(opName_, "H2 should be less than %llu, but got %llu.", MAX_SHARED_H_SHAPE_SIZE, localParams_.H2),
+        OP_LOGE(opName_, "H2 should be less than %lu, but got %lu.", MAX_SHARED_H_SHAPE_SIZE, localParams_.H2),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.N2 == 0) || (localParams_.N2 > MAX_N2_VALUE),
-        OP_LOGE(opName_, "N2 should be less than %llu, but got %llu.", MAX_N2_VALUE, localParams_.N2),
+        OP_LOGE(opName_, "N2 should be less than %lu, but got %lu.", MAX_N2_VALUE, localParams_.N2),
         return ge::GRAPH_FAILED);
     
     return ge::GRAPH_SUCCESS;

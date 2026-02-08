@@ -103,9 +103,9 @@ protected:
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t workSpaceSize_{0};
-    QuantGmmA2avTilingData localTilingData_ = {0};
-    TilingInferredInfo inferredInfo = {0};
-    QuantGmmAlltoAllvParamsInfo localParams_ = {0};
+    QuantGmmA2avTilingData localTilingData_{0};
+    TilingInferredInfo inferredInfo{0};
+    QuantGmmAlltoAllvParamsInfo localParams_{0};
 
 private:
     ge::graphStatus CheckOpInputSingleParamsTensorNotSup();
