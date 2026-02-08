@@ -776,7 +776,7 @@ bool GmmAlltoAllvTilingStruct::IsCapable()
     auto attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return false);
 
-    auto gmmXQuantMode = attrs->GetAttrPointer<char>(ATTR_GMM_X_QUANT_MODE_INDEX);
+    auto gmmXQuantMode = attrs->GetAttrPointer<int64_t>(ATTR_GMM_X_QUANT_MODE_INDEX);
     if (*gmmXQuantMode >= 1) {
         return false;
     }
