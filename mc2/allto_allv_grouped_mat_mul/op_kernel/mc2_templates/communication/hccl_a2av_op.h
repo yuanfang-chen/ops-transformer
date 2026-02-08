@@ -187,6 +187,21 @@ public:
         hccl_.Wait(alltoAllvHandleId_[startExpertIdx]);
     }
 
+    __aicore__ inline void WaitAll(uint32_t allNum)
+    {
+        if ASCEND_IS_AIC {
+            return;
+        }
+        if ASCEND_IS_AIV {
+            if (GetBlockIdx() != 0) {
+                return;
+            }
+        }
+        for (uint32_t i = 0U; i < allNum; i++) {
+            hccl_.Wait(alltoAllvHandleId_[i]);
+        }
+    }
+
     __aicore__ inline void End()
     {
         if ASCEND_IS_AIC {

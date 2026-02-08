@@ -37,10 +37,7 @@ public:
             SyncAll<false>();
             hcclOp_.Launch(e, 1);   // 每次专家数量设置为1进行调试
         }
-        // TODO WaitAll()
-        for (uint32_t i = 0U; i < expertNumInOneRank; i++) {
-            hcclOp_.Wait(i);
-        }
+        hcclOp_.WaitAll(expertNumInOneRank);
         End();
     }
 
