@@ -24,7 +24,7 @@
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 1U; // TODO等待整改
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 
 // 类型复用声明
@@ -39,9 +39,6 @@ using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
 struct GmmTilingArray {
     uint32_t count;                              // 实际使用的 tiling 数量
     GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
-};
-
-struct GmmExpertDiffArray {
 };
 
 struct HcclA2avTilingInfo {
