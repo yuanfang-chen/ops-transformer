@@ -48,6 +48,9 @@ using MC2KernelTemplate::TaskTilingInfo;
 struct GmmA2avWorkspaceInfo {
     uint64_t wsGmmOutputSize;              // GMM 主输出缓冲大小 (x @ weight -> gmm_output -> hccl -> y)
     uint64_t wsGmmComputeWorkspaceSize;    // GmmComputeOp 内部工作空间大小
+    // TODO: wsGmmSize 已被拆分为 wsGmmOutputSize + wsGmmComputeWorkspaceSize，
+    // 待 grouped_mat_mul_allto_allv 侧 Tiling 适配完成后删除此字段
+    uint64_t wsGmmSize;                    // [废弃] 原 GMM workspace 大小，保留兼容
 };
 
 struct QuantGmmA2avTilingData {

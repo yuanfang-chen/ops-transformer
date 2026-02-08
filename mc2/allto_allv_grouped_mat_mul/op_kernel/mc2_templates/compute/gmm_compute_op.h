@@ -18,13 +18,19 @@
 
 #include "../common/a2av_common_tiling.h"
 #include "kernel_operator.h"
+// GmmComputeOp 依赖 op_kernel/3rd/ 下的 gqmm_cube_on_the_fly.h
+// 在 pkg 联编时，mc2 版本可能已被 quant_grouped_matmul.h 提前 include，
+// 两者接口一致（仅内部命名空间不同），通过双 guard 避免 GmmASWKernel 重复定义
+#if !defined(GQMM_CUBE_ON_THE_FLY_H) && !defined(MC2_GQMM_CUBE_ON_THE_FLY_H)
 #include "../../3rd/gqmm_cube_on_the_fly.h"
+#endif
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
 
-// ascend950 L0C 大小：256KB
+// ascend950 L0C 大小：256KB, 依赖的GmmASWKernel
+// tilingdata需要动态刷新dbL0C,因此需要这个LOC_SIZE变量以动态计算是否使用double buffer
 static constexpr uint64_t GMM_COMPUTE_L0C_SIZE = 256ULL * 1024ULL;
 
 /**
@@ -75,6 +81,7 @@ public:
                                 GM_ADDR y, GM_ADDR workspace,
                                 const TaskTilingInfo *taskTilingInfo,
                                 const GMMQuantTilingData *gmmBaseTiling,
+                                TILING_TYPE *gmmArrayAddr,
                                 TPipe *tPipe);
 
     /**
@@ -93,6 +100,7 @@ public:
 private:
     const TaskTilingInfo *taskTilingInfo_ = nullptr;
     const GMMQuantTilingData *gmmBaseTiling_ = nullptr;
+    TILING_TYPE *gmmArrayAddr_ = nullptr;
     TPipe *tPipe_ = nullptr;
 
     // 可变 tiling 副本
@@ -157,18 +165,23 @@ private:
         currentTiling_.mmTilingData.M = static_cast<uint32_t>(M);
 
         // baseM: CeilAlign(min(M, 256), alignUnit)
-        uint64_t baseMCandidate = QuantUtils::Min(M, static_cast<uint64_t>(256));
+        // 内联 Min / Align 逻辑，避免对 QuantUtils / Mc2QuantUtils 命名空间的编译期依赖
+        constexpr uint64_t MAX_BASE_M = 256;
+        constexpr uint64_t CUBE_ALIGN = 16;
+        constexpr uint64_t INNER_AXIS_ALIGN = 128;
+        uint64_t baseMCandidate = (M < MAX_BASE_M) ? M : MAX_BASE_M;
         if constexpr (!aTrans) {
             currentTiling_.mmTilingData.baseM = static_cast<uint32_t>(
-                QuantUtils::Align(baseMCandidate, QuantUtils::CUBE_BLOCK));
+                ((baseMCandidate + CUBE_ALIGN - 1) / CUBE_ALIGN) * CUBE_ALIGN);
         } else {
             currentTiling_.mmTilingData.baseM = static_cast<uint32_t>(
-                QuantUtils::Align(baseMCandidate, QuantUtils::INNER_AXIS_MIN_SPLIT_VAL));
+                ((baseMCandidate + INNER_AXIS_ALIGN - 1) / INNER_AXIS_ALIGN) * INNER_AXIS_ALIGN);
         }
 
         // singleCoreM = min(M, baseM)
+        uint64_t baseMVal = currentTiling_.mmTilingData.baseM;
         currentTiling_.mmTilingData.singleCoreM = static_cast<uint32_t>(
-            QuantUtils::Min(M, static_cast<uint64_t>(currentTiling_.mmTilingData.baseM)));
+            (M < baseMVal) ? M : baseMVal);
 
         // dbL0C: 如果 baseM * baseN * 4（float 占 4 字节）* 2（double buffer）能装入 L0C 则为 2，否则为 1
         uint64_t baseM = currentTiling_.mmTilingData.baseM;
@@ -213,10 +226,12 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
     GM_ADDR y, GM_ADDR workspace,
     const TaskTilingInfo *taskTilingInfo,
     const GMMQuantTilingData *gmmBaseTiling,
+    TILING_TYPE *gmmArrayAddr,
     TPipe *tPipe)
 {
     taskTilingInfo_ = taskTilingInfo;
     gmmBaseTiling_ = gmmBaseTiling;
+    gmmArrayAddr_ = gmmArrayAddr;
     tPipe_ = tPipe;
 
     xBase_ = x;
@@ -287,15 +302,12 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
         //    因此需要在栈上重新构造，确保 mm_.Init() 在干净状态下初始化
         tPipe_->Reset();
         GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmKernel;
-        // GmmASWKernel 使用 GroupedMatmulTilingData::GMMQuantParams（全局 ::GMMQuantParams），
-        // 而 currentTiling_ 使用 Mc2GroupedMatmulTilingData::GMMQuantParams，
-        // 两者布局完全一致，通过 reinterpret_cast 桥接命名空间差异
         gmmKernel.Init(xPtr, wPtr, biasBase_, scaleBPtr,
                         groupListBase_, scaleABase_, yPtr,
                         kernelWorkspace,
                         reinterpret_cast<const ::GMMQuantParams *>(&currentTiling_.gmmQuantParams),
                         &currentTiling_.mmTilingData,
-                        reinterpret_cast<TILING_TYPE *>(&currentTiling_.gmmArray),
+                        gmmArrayAddr_,
                         tPipe_);
         gmmKernel.Process();
 

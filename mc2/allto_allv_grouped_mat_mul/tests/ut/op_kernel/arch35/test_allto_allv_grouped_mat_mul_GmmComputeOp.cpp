@@ -91,7 +91,8 @@ static void gmmComputeOpWrapper(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     AscendC::TPipe tPipe;
     MC2KernelTemplate::GmmComputeOp<hifloat8_t, hifloat8_t, float, float, bfloat16_t,
                                      CubeFormat::ND, false, true, true> op;
-    op.Init(x, weight, bias, scaleA, scaleB, y, workspace, taskTiling, baseTiling, &tPipe);
+    op.Init(x, weight, bias, scaleA, scaleB, y, workspace, taskTiling, baseTiling,
+            reinterpret_cast<TILING_TYPE *>(&baseTiling->gmmArray), &tPipe);
     op.ProcessExperts(0, static_cast<uint32_t>(taskTiling->e));
 }
 
