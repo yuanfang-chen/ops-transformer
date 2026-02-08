@@ -516,6 +516,9 @@ protected:
     __aicore__ inline bool IsSkipAttenMask(const ExtraInfoMla &info, uint32_t startRow, uint32_t dealRowCount);
     // 针对BSND/BSH/TND等切G的格式拷贝AttentionMask
     __aicore__ inline void AttenMaskCopyForSplitG(const ExtraInfoMla &info, LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount);
+    __aicore__ inline void AttenMaskCopyForTree(const ExtraInfoMla &info, LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount);
+    __aicore__ inline void AttenMaskCopyNoFull(LocalTensor<bool> &attenMaskUb, const ExtraInfoMla &info, uint32_t s1StartIdx, uint32_t s1EndIdx);
+
     __aicore__ inline void ElewiseCompute(const ExtraInfoMla &info, LocalTensor<T> &mmResUb, TBuf<> &tmpBuf, uint32_t startRow,
                                           uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount);
 
@@ -1828,64 +1831,56 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyForSplitG(const ExtraInfo
 
 // TODO 新增sparse9的处理
 template <typename IFAT>
-__aicore__ inline void AttenMaskCopyNoFull(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, ExtraInfoMla &info, uint32_t s1StartIdx, uint32_t s1EndIdx)
+__aicore__ inline void
+IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyNoFull(LocalTensor<bool> &attenMaskUb, const ExtraInfoMla &info, uint32_t s1StartIdx, uint32_t s1EndIdx)
 {
     uint32_t actualSeqQ = qSeqSize;
-        if constexpr (LAYOUT_T == LAYOUT::TND) {
+    if constexpr (LAYOUT_T == LAYOUT::TND) {
         actualSeqQ = info.actS1Size;
     }
 
-    uint64_t treeMaskStart = info.s2Size - actualSeqQ;
-    uint64_t s2EndPos = info.s2Idx * singleProcessSInnerSize + info.actualSingleProcessSInnerSize;
-    uint64_t s2StartPos = info.s2Idx * singleProcessSInnerSize;
+    uint32_t treeMaskStart = info.s2Size - actualSeqQ;
+    uint32_t curS2EndPos = info.s2Idx * singleProcessSInnerSize + info.actualSingleProcessSInnerSize;
+    uint32_t curS2StartPos = info.s2Idx * singleProcessSInnerSize;
 
-    // TODO先实现BSH的，后面实现TND
     uint64_t attenMaskBatchStride = actualSeqQ * actualSeqQ;
     uint64_t attenMaskStride = actualSeqQ;
-    uint64_t maskOffset = info.bIdx * maskBatchOffset + s1StartIdx * maskOffset;
 
-    if (s2StartPos < treeMaskStart && s2EndPos < info.s2Size) {               // 情况1，基本块部分包含mask块
+    uint64_t bOffset = static_cast<uint64_t>(info.bIdx) * static_cast<uint64_t>(attenMaskBatchStride);
+    uint64_t s1Offset = (s1StartIdx % actualSeqQ)* attenMaskStride;
+    uint64_t s2Offset = curS2StartPos > treeMaskStart ? curS2StartPos - treeMaskStart : 0;
+
+    uint64_t maskOffset = bOffset + s1Offset + s2Offset;
+
+    if (curS2StartPos < treeMaskStart) { //mask占不满UB空间
         // 不对齐场景下的搬运
         DataCopyExtParams dataCopyParams;
         dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
-        dataCopyParams.blockLen = s2EndPos - treeMaskStart;
+        dataCopyParams.blockLen = curS2EndPos - treeMaskStart;
         dataCopyParams.srcStride = 0;
-        dataCopyParams.dstStride = (treeMaskStart - s2StartPos) / 32 * 32;
-        DataCopyPadExtParams<bool> padParams;
-        padParams.isPad = true;
-        padParams.leftPadding = static<uint8_t>(treeMaskStart % 32);
-        padParams.rightPadding = static<uint8_t>(Align(s2EndPos - treeMaskStart + treeMaskStart % 32, 32U) - 
-                                (s2EndPos - treeMaskStart + treeMaskStart % 32));
-        padParams.paddingValue = 0;
-        DataCopyPad(attenMaskUb[treeMaskStart / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
-    } else if (s2StartPos < treeMaskStart && s2EndPos >= info.s2Size) {       // 情况2，基本块包含所有的mask块
-        DataCopyExtParams dataCopyParams;
-        dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
-        dataCopyParams.blockLen = s2EndPos - treeMaskStart;
-        dataCopyParams.srcStride = 0;
-        dataCopyParams.dstStride = (treeMaskStart - s2StartPos) / 32 * 32;
+        dataCopyParams.dstStride = (treeMaskStart - curS2StartPos) / 32;
 
         DataCopyPadExtParams<bool> padParams;
         padParams.isPad = true;
-        padParams.leftPadding = static<uint8_t>(treeMaskStart % 32);
-        padParams.rightPadding = static<uint8_t>(Align(s2EndPos - treeMaskStart + treeMaskStart % 32, 32U) - \
-                                (s2EndPos - treeMaskStart + treeMaskStart % 32));
+        padParams.leftPadding = static_cast<uint8_t>(treeMaskStart % 32);
+        padParams.rightPadding = static_cast<uint8_t>(Align(static_cast<uint32_t>(curS2EndPos - treeMaskStart + treeMaskStart % 32), 32U) - \
+                                (curS2EndPos - treeMaskStart + treeMaskStart % 32));
         padParams.paddingValue = 0;
-        DataCopyPad(attenMaskUb[treeMaskStart / 32 * 32], srcGmAddr[maskOffset], dataCopyParams, padParams);
-    } else { // 情况3，mask块包含所有的基本块,最基础的
+        DataCopyPad(attenMaskUb[(treeMaskStart - curS2StartPos) / 32 * 32], attenMaskBoolGm[maskOffset], dataCopyParams, padParams);
+    } else { // mask 占满UB空间
         DataCopyExtParams dataCopyParams;
         dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
-        dataCopyParams.blockLen = singleProcessSInnerSize;
-        dataCopyParams.srcStride = attenMaskStride - singleProcessSInnerSize;
+        dataCopyParams.blockLen = info.actualSingleProcessSInnerSize;
+        dataCopyParams.srcStride = attenMaskStride - info.actualSingleProcessSInnerSize;
         dataCopyParams.dstStride = 0;
-        DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(Align(singleProcessSInnerSize, 32U) - singleProcessSInnerSize), 0};
-        DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
+        DataCopyPadExtParams<bool> padParams{true, 0, static_cast<uint8_t>(info.actualSingleProcessSInnerSizeAlign - info.actualSingleProcessSInnerSize), 0};
+        DataCopyPad(attenMaskUb, attenMaskBoolGm[maskOffset], dataCopyParams, padParams);
     }
 }
 
 template <typename IFAT>
 __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyForTree(const ExtraInfoMla &info,
-LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount)
+                                        LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount)
 {
     uint32_t s1StartIdx = (mSizeVStart + startRow) / info.gSize;
     uint32_t s1EndIdx = (mSizeVStart + startRow + dealRowCount - 1) / info.gSize;
@@ -1896,12 +1891,22 @@ LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount)
         actualSeqQ = info.actS1Size;
     }
 
+    attenMaskSizeAlign = Align(info.actualSingleProcessSInnerSize, 32U);
+    // 第一步，将mask的 ub空间赋值为0
+    // 申请的16k空间，前8k给从GM拷贝到Ub时使用，后8k用来在拓展G轴时使用
+    // 这里好像没使用double buffer???
     attenMaskUb = inputQue2.AllocTensor<bool>();
-    AttenMaskCopyNoFull(attenMaskUb, attenMaskBoolGm, info, s1StartIdx, s1EndIdx);
+    LocalTensor<int16_t> mask16_0 = attenMaskUb.template ReinterpretCast<int16_t>();
+    AscendC::Duplicate(mask16_0, static_cast<int16_t>(0), s1Count * attenMaskSizeAlign / sizeof(int16_t));
+    attenMaskUb = mask16_0.template ReinterpretCast<bool>();
 
-    // 添加拷贝同步信号
+    // 第二步，计算偏移 从Gm上把mask拷过来
+    AttenMaskCopyNoFull(attenMaskUb, info, s1StartIdx, s1EndIdx + 1);
+    DumpTensor(attenMaskUb, 210, s1Count * 512);
+    // 第三步，添加拷贝同步信号
     inputQue2.template EnQue(attenMaskUb);
     attenMaskUb = inputQue2.DeQue<bool>();
+
     LocalTensor<int16_t> mask16 = attenMaskUb.template ReinterpretCast<int16_t>();
     LocalTensor<int16_t> attenMaskUbDst = mask16[BUFFER_SIZE_BYTE_16K / 4];
 
@@ -1928,16 +1933,16 @@ LocalTensor<bool> &attenMaskUb, uint32_t startRow, uint32_t dealRowCount)
     uint32_t tailGSize = reminRowCount % info.gSize;
     for (uint32_t midIdx = 0; midIdx < midS1Count; midIdx++) {
         Copy<int16_t, false>(attenMaskUbDst[dstMaskOffset], mask16[srcMaskBaseOffset],
-                            AscendC::MASK_PLACEHOLDER, info.gSize,
-                            {1, 1, static_cast<uint16_t>(attenMaskSizeAlign / 32), 0});
+                             AscendC::MASK_PLACEHOLDER, info.gSize,
+                             {1, 1, static_cast<uint16_t>(attenMaskSizeAlign / 32), 0});
         dstMaskOffset += info.gSize * attenMaskSizeAlign / 2;
         srcMaskBaseOffset += attenMaskSizeAlign / 2;
     }
     // tail
     if (tailGSize > 0) {
         Copy<int16_t, false>(attenMaskUbDst[dstMaskOffset], mask16[srcMaskBaseOffset],
-                            AscendC::MASK_PLACEHOLDER, tailGSize,
-                            {1, 1, static_cast<uint16_t>(attenMaskSizeAlign / 32), 0});
+                             AscendC::MASK_PLACEHOLDER, tailGSize,
+                             {1, 1, static_cast<uint16_t>(attenMaskSizeAlign / 32), 0});
     }
     SetMaskNorm();
     ResetMask();
@@ -1956,7 +1961,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::IsSkipAttenMask(const ExtraInfoMla &in
     uint32_t s2EndPos = info.s2Idx * singleProcessSInnerSize + info.actualSingleProcessSInnerSize;
     // 新增sparse9的处理，sparse9和sparse3类似，但是sparse9是用户自己传入的mask矩阵，算子无法感知具体数值，所以涉及到基本块都要参与计算
     if (sparseMode == 9U) {
-        if (s2EndPos > (info.s2Size - actualSeqQ + 1)) {
+        if (s2EndPos > (info.s2Size - actualSeqQ)) {
             return false;
         } else {
             return true;
@@ -2040,7 +2045,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ElewiseCompute(const ExtraInfoMla &inf
                 attenMaskUb = attenMaskUbDst;
             } else { // BSH/BSND/TND
                 if (sparseMode == 9U) {
-                    
+                    AttenMaskCopyForTree(info, attenMaskUb, startRow, dealRowCount);
                 } else {
                     AttenMaskCopyForSplitG(info, attenMaskUb, startRow, dealRowCount);
                 }

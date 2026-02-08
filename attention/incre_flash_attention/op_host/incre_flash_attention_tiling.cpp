@@ -1875,25 +1875,27 @@ ge::graphStatus IFATiling::ProcessSparseMode()
                         "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode_),
                 return ge::GRAPH_FAILED);
             
-            // 补充s2 >= s1的拦截
+            // 补充s2 >= s1的拦截，在MLA全量化场景，必须开启PA(NZ)，所以actualSeqKV不进行累加
             if (inputLayout_ == IfaLayout::TND) {
                 const int64_t *actualSeqQTnd = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>();
                 const int64_t *actualSeqKVTnd = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
-                uint64_t qActSize = 0;
-                uint64_t kvActSize = 0;
+                int64_t qActSize = 0;
+                int64_t kvActSize = 0;
 
                 for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
                     qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
-                    kvActSize = (b == 0) ? actualSeqKVTnd[0] : (actualSeqKVTnd[b] - actualSeqKVTnd[b - 1]);
+                    kvActSize = actualSeqKVTnd[b];
                     OP_CHECK_IF(qActSize > kvActSize,
                         OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode_),
+                            "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).", 
+                            sparseMode_, qActSize, kvActSize),
                     return ge::GRAPH_FAILED);
                 }
             } else {
                 OP_CHECK_IF(qSeqSize_ > seqSize_,
                     OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize should less than or equal to kvSize.", sparseMode_),
+                            "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).", 
+                            sparseMode_, qSeqSize_, seqSize_),
                     return ge::GRAPH_FAILED);
             }
         } else {
@@ -3286,6 +3288,7 @@ void IFATiling::FillTilingBaseParamsMla()
     tilingDataMla_.baseParams.set_actualLenDims(actualLenDims_);
     tilingDataMla_.baseParams.set_attenMaskFlag(attenMaskFlag_ ? 1 : 0);
     tilingDataMla_.baseParams.set_attenMaskSize(attenMaskSize_);
+    tilingDataMla_.baseParams.set_sparseMode(sparseMode_);
     tilingDataMla_.baseParams.set_outputLayout(static_cast<uint32_t>(outputLayout_));
 }
 
