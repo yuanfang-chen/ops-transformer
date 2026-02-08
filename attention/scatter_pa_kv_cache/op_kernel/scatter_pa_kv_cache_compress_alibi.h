@@ -24,9 +24,8 @@ public:
     {
     }
 
-    __aicore__ inline void Process(GM_ADDR keyIn, GM_ADDR valueIn, GM_ADDR keyCacheIn, GM_ADDR valueCacheIn,
-                                   GM_ADDR slotMapping, GM_ADDR winsIn, GM_ADDR seqLenIn, GM_ADDR keyCacheOut,
-                                   GM_ADDR valueCacheOut)
+    __aicore__ inline void Process(GM_ADDR keyIn, GM_ADDR valueIn, GM_ADDR slotMapping, GM_ADDR winsIn,
+                                   GM_ADDR seqLenIn, GM_ADDR keyCacheOut, GM_ADDR valueCacheOut)
     {
         InitGlobalTensor<T>(keyInputGt_, keyIn);
         InitGlobalTensor<T>(valueInputGt_, valueIn);

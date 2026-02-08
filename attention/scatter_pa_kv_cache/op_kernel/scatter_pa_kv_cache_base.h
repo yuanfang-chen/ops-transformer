@@ -122,54 +122,6 @@ public:
         AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventID);
     }
 
-    template <typename T1, bool NCT = false>
-    __aicore__ inline void
-    CopyToCache(uint32_t index, uint32_t tokenSize, uint32_t loop, uint32_t tail, AscendC::GlobalTensor<T1> &src,
-                AscendC::GlobalTensor<T1> &dst, AscendC::GlobalTensor<int32_t> &slotInput, const int32_t &maxUbUsed,
-                AscendC::TQueBind<AscendC::QuePosition::VECIN, AscendC::QuePosition::VECOUT, BUFFER_NUM> &queBind)
-    {
-        int64_t slotValue = (int64_t)(slotInput.GetValue(index + startTaskId_));
-        if (slotValue < 0) {
-            return;
-        }
-        uint64_t cacheStart = static_cast<uint64_t>(slotValue) * tokenSize;
-        AscendC::DataCopyParams copyParams = {1, static_cast<uint16_t>(maxUbUsed / BLOCK_SIZE), 0, 0};
-        uint64_t start = static_cast<uint64_t>(tokenSize) * (index + startTaskId_);
-        if (NCT) {
-            start = static_cast<uint64_t>(strideK_) * (index + startTaskId_);
-        }
-        for (uint32_t j = 0; j < loop; j++) {
-            auto bindLocal = queBind.AllocTensor<T1>();
-            DataCopy(bindLocal, src[start], copyParams);
-            queBind.EnQue(bindLocal);
-            bindLocal = queBind.DeQue<T1>();
-            DataCopy(dst[cacheStart], bindLocal, copyParams);
-            queBind.FreeTensor(bindLocal);
-            start += (maxUbUsed / sizeof(T1));
-            cacheStart += static_cast<uint64_t>(maxUbUsed / sizeof(T1));
-        }
-        if (tail > 0) {
-            AscendC::DataCopyExtParams copyParam = {1, tail, 0, 0, 0};
-            AscendC::DataCopyPadExtParams<T1> padParams = {false, 0, 0, 0};
-            auto bindLocal = queBind.AllocTensor<T1>();
-            DataCopyPad(bindLocal, src[start], copyParam, padParams);
-            queBind.EnQue(bindLocal);
-            bindLocal = queBind.DeQue<T1>();
-            DataCopyPad(dst[cacheStart], bindLocal, copyParam);
-            queBind.FreeTensor(bindLocal);
-        }
-    }
-
-    template <typename T>
-    __aicore__ inline void
-    PrepareCopy(uint32_t tokenSize, uint32_t &loop, uint32_t &tail, const int32_t &maxUbUsed,
-                AscendC::TQueBind<AscendC::QuePosition::VECIN, AscendC::QuePosition::VECOUT, BUFFER_NUM> &queBind)
-    {
-        loop = (tokenSize * sizeof(T)) / maxUbUsed;
-        tail = (tokenSize * sizeof(T)) % maxUbUsed;
-        pipe_->InitBuffer(queBind, BUFFER_NUM, maxUbUsed);
-    }
-
     template <typename T>
     __aicore__ inline void RopeInitscalarBuf()
     {

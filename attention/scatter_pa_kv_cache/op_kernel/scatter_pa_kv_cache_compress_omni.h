@@ -137,8 +137,8 @@ public:
         OmniInitBuf<T>(copyLocalPing_, copyLocalPong_);
     }
 
-    __aicore__ inline void Method(GM_ADDR keyIn, GM_ADDR valueIn, GM_ADDR keyCacheIn, GM_ADDR valueCacheIn,
-                                  GM_ADDR slotMapping, GM_ADDR winsIn, GM_ADDR seqLenIn, GM_ADDR offsetIdx,
+    __aicore__ inline void Method(GM_ADDR keyIn, GM_ADDR valueIn, GM_ADDR slotMapping, GM_ADDR winsIn,
+                                  GM_ADDR seqLenIn, GM_ADDR offsetIdx,
                                   GM_ADDR keyCacheOut, GM_ADDR valueCacheOut)
     {
         InitTensor(keyIn, valueIn, slotMapping, winsIn, seqLenIn, offsetIdx, keyCacheOut, valueCacheOut);
