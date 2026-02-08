@@ -193,14 +193,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(con
 {
     // uint32_t worldSize = tilingProcesser_.localTilingData_.taskTilingInfo.epWorldSize;
     // auto sendCounts = &tilingProcesser_.localTilingData_.taskTilingInfo.sendCnt[0];
-    int32_t mSizePerLoop = 0;
+    uint64_t mSizePerLoop = 0;
     // index sendcounts起始   epNums 当前loop专家数 -- 每轮专家 与 尾轮专家
     if (epNums == 1) {
         for (uint32_t i = 0; i < worldSize; i++) {
             mSizePerLoop += sendCounts[index + i];
         }
 
-        inputParams_.mSize = static_cast<uint64_t>(mSizePerLoop);
+        inputParams_.mSize = mSizePerLoop;
         inputParams_.isSingleX = true;
         inputParams_.isSingleW = true;
         inputParams_.isSingleY = true;
@@ -244,7 +244,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     // 是否做切分
-    inputParams_.groupType = Mc2GroupedMatmul::NO_SPLIT;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
     inputParams_.groupListType = 0;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 2;
@@ -286,7 +286,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams()
     inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     // 是否做切分
-    inputParams_.groupType = Mc2GroupedMatmul::NO_SPLIT;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
     inputParams_.groupListType = 0;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 0;
@@ -396,8 +396,8 @@ void QuantGroupedMatmulAllToAllvAdapter::CalBasicBlock()
                          inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE;
     basicTiling_.baseM = std::min(inputParams_.mSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
     basicTiling_.baseM = !inputParams_.transA ?
-                             CeilAlign(basicTiling_.baseM, CUBE_BLOCK) :
-                             CeilAlign(basicTiling_.baseM, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.aDtype));
+                             Ops::Base::CeilAlign(basicTiling_.baseM, CUBE_BLOCK) :
+                             Ops::Base::CeilAlign(basicTiling_.baseM, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.aDtype));
     if (isGBQuantMode) {
         // 不管M/K轴分组，单单单场景下，N不变，可以确定baseN
         if (inputParams_.nSize <= PER_BLOCK_GROUP_SIZE || basicTiling_.baseM > PER_BLOCK_GROUP_SIZE) {
@@ -410,18 +410,18 @@ void QuantGroupedMatmulAllToAllvAdapter::CalBasicBlock()
     }
     basicTiling_.baseN = std::min(inputParams_.nSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
     basicTiling_.baseN = inputParams_.transB ?
-                             CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
-                             CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
-    basicTiling_.baseK = CeilAlign(
+                             Ops::Base::CeilAlign(basicTiling_.baseN, CUBE_BLOCK) :
+                             Ops::Base::CeilAlign(basicTiling_.baseN, GetShapeWithDataType(L1_ALIGN_SIZE, inputParams_.bDtype));
+    basicTiling_.baseK = Ops::Base::CeilAlign(
         std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
         GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
 
     if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
-        basicTiling_.baseK = CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
+        basicTiling_.baseK = Ops::Base::CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
         bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2;
         if (isFp4Input && !inputParams_.transB) {
             // 64: mx_mmad requires the inner axis to align to 64
-            basicTiling_.baseN = CeilAlign(basicTiling_.baseN, static_cast<uint64_t>(64));
+            basicTiling_.baseN = Ops::Base::CeilAlign(basicTiling_.baseN, static_cast<uint64_t>(64));
         }
     }
 }
@@ -484,11 +484,11 @@ void QuantGroupedMatmulAllToAllvAdapter::CalStepKs()
     basicTiling_.stepKb = basicTiling_.depthB1 == 1UL ? 1UL : basicTiling_.depthB1 / DB_SIZE;
 
     if (basicTiling_.stepKa * basicTiling_.baseK > inputParams_.kSize) {
-        basicTiling_.stepKa = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
+        basicTiling_.stepKa = Ops::Base::CeilDiv(inputParams_.kSize, basicTiling_.baseK);
     }
 
     if (basicTiling_.stepKb * basicTiling_.baseK >= inputParams_.kSize) {
-        basicTiling_.stepKb = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
+        basicTiling_.stepKb = Ops::Base::CeilDiv(inputParams_.kSize, basicTiling_.baseK);
     }
     // G-B量化场景下，限制stepK最大为4, 防止issue queue阻塞
     if (inputParams_.aQuantMode == QuantMode::PERGROUP_MODE &&
@@ -511,10 +511,10 @@ void QuantGroupedMatmulAllToAllvAdapter::CalScaleFactors()
 {
     uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
     uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
-    uint64_t baseScaleASize = GetSizeWithDataType(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseM,
+    uint64_t baseScaleASize = GetSizeWithDataType(Ops::Base::CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseM,
                                                   inputParams_.perTokenScaleDtype);
     uint64_t baseScaleBSize =
-        GetSizeWithDataType(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseN, inputParams_.scaleDtype);
+        GetSizeWithDataType(Ops::Base::CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE) * basicTiling_.baseN, inputParams_.scaleDtype);
     uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
     uint64_t baseBiasSize = inputParams_.hasBias ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t leftL1Size =
@@ -564,12 +564,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::CalL1Depth(uint64_t leftL1Si
     uint64_t baseScaleASize = 0;
     uint64_t baseScaleBSize = 0;
     if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
-        if (inputParams_.groupType == SPLIT_M) {
+        if (inputParams_.groupType == optiling::Mc2GroupedMatmul::GmmConstant::SPLIT_M) {
             baseScaleASize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
+                GetSizeWithDataType(Ops::Base::CeilAlign(Ops::Base::CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
                                     inputParams_.perTokenScaleDtype);
             baseScaleBSize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
+                GetSizeWithDataType(Ops::Base::CeilAlign(Ops::Base::CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
                                     inputParams_.scaleDtype);
         } else {
             baseScaleASize = GetSizeWithDataType(

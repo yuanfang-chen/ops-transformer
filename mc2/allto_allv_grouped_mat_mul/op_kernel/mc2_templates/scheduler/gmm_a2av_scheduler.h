@@ -34,7 +34,12 @@ public:
         uint32_t expertNumInOneRank = taskTilingInfo_->e;
         for (uint32_t e = 0U; e < expertNumInOneRank; e++) {
             computeOp_.ProcessExpert(e, 1); // 每次专家数量设置为1进行调试
+            SyncAll<false>();
             hcclOp_.Launch(e, 1);   // 每次专家数量设置为1进行调试
+        }
+        // TODO WaitAll()
+        for (uint32_t i = 0U; i < expertNumInOneRank; i++) {
+            hcclOp_.Wait(i);
         }
         End();
     }

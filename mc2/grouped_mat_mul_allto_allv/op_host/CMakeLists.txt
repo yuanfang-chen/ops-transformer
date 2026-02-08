@@ -31,6 +31,12 @@ if (BUILD_OPEN_PROJECT)  # custom
             OPTIONS --cce-auto-sync=off
                     -DAICORE_EXCEPTION_RESTART
         )
+    elseif("${CONDITION_UNIT}" STREQUAL "ascend950")
+        add_ops_compile_options(
+            OP_NAME GroupedMatMulAlltoAllv
+            OPTIONS --cce-auto-sync=off
+                    -DAICORE_EXCEPTION_RESTART
+        )
     endif()
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE grouped_mat_mul_allto_allv grouped_mat_mul_allto_allv ACLNNTYPE aclnn aclnn_inner)
