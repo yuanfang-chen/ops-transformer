@@ -640,8 +640,8 @@ bool QuantGroupedMatmulAllToAllvAdapter::IsCapable()
 ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::DoLibApiTiling()
 {
     CalBasicBlock();
-    OP_CHECK_IF(CalL1Tiling() != ge::GRAPH_SUCCESS,
-               OP_LOGE(context_->GetNodeName(), "CalL1Tiling failed"), return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(CalL1Tiling() != ge::GRAPH_SUCCESS,
+    //            OP_LOGE(context_->GetNodeName(), "CalL1Tiling failed"), return ge::GRAPH_FAILED);
     tilingData_.mmTilingData.M = inputParams_.mSize;
     tilingData_.mmTilingData.N = inputParams_.nSize;
     tilingData_.mmTilingData.Ka = inputParams_.kSize;
