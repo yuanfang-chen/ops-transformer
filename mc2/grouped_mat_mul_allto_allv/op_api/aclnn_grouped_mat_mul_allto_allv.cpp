@@ -161,7 +161,6 @@ aclnnStatus aclnnGroupedMatMulAlltoAllvGetWorkspaceSize(
     aclTensor* mmXOffsetOptional = nullptr;
     aclTensor* mmWeightOffsetOptional = nullptr;
     aclTensor* commQuantScaleOptional = nullptr;
-    const aclTensor* out = output;
     char* str_group = const_cast<char*>(group);
     int64_t gmmXQuantMode = 0;
     int64_t gmmWeightQuantMode = 0;
