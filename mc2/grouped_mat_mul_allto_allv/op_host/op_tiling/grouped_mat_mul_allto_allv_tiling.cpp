@@ -773,14 +773,14 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
 bool GmmAlltoAllvTilingStruct::IsCapable()
 {
-    auto attrs = context_->GetAttrs();
-    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return false);
-
-    auto gmmXQuantMode = attrs->GetAttrPointer<int64_t>(ATTR_GMM_X_QUANT_MODE_INDEX);
-    if (*gmmXQuantMode >= 1) {
+    if (context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
+        context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_BF16) {
         return false;
     }
-
+    if (context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
+        context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_BF16) {
+        return false;
+    }
     return true;
 }
 

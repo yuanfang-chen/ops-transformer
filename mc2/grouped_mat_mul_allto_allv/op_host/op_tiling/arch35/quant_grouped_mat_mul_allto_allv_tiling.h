@@ -35,6 +35,36 @@
 namespace optiling {
 namespace Mc2GroupedMatmul {
 
+struct QuantGmmAlltoAllvParamsInfo {
+    uint64_t A;
+    uint64_t H1;
+    uint64_t ep;
+    uint64_t BsK;
+    uint64_t N1;
+    uint64_t Bs;
+    uint64_t H2;
+    uint64_t N2;
+    uint64_t epWorldSize;
+    uint64_t aivCoreNum;
+    uint64_t aicCoreNum;
+    uint64_t gmmWeightDim1;
+    uint64_t gmmWeightDim2;
+    uint64_t mmWeightDim0;
+    uint64_t mmWeightDim1;
+    int64_t gmmXQuantMode;
+    int64_t gmmWeightQuantMode;
+    int64_t mmXQuantMode;
+    int64_t mmWeightQuantMode;
+    int64_t commQuantMode;
+    int64_t commQuantDtype;
+    int64_t gmmYDtype;
+    int64_t mmYDtype;
+    int64_t groupSize;
+    bool hasSharedMm;
+    bool isGmmWeightTrans;
+    bool isMmWeightTrans;
+};
+
 struct TilingInferredInfo {
     uint64_t gmmResultLen = 0UL; // 存储计算GMM的地址大小
     // uint64_t mmResultLen = 0UL; // 存储计算MM的地址大小
@@ -60,26 +90,38 @@ protected:
     ge::graphStatus PostTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
-    ge::graphStatus CheckOpInputInfo();
+    ge::graphStatus CheckAndSetInputOutputInfo();
     ge::graphStatus InitTilingContextParameters(); // set默认值，当前不支持功能参数
     ge::graphStatus SetTilingCommonInfo();
     ge::graphStatus SetGmmA2avWorkspaceInfo();
     ge::graphStatus DoQuantGMMTiling(); // 按专家为粒度执行
     ge::graphStatus SetHcclTiling();
-
     void PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData);
-
-    QuantGmmA2avTilingData localTilingData_;
     void PrintCommonTilingInfo(TaskTilingInfo &tilingInfo);
     void PrintSharedGmmTilingInfo(Mc2GroupedMatmulTilingData::GMMQuantTilingData &tiling);
     void PrintGmmQTilingDataInfo(GmmTilingArray &tilingInfo);
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t workSpaceSize_{0};
-    uint32_t epNum_{0};
-    uint32_t aicNum_{0};
-    TilingInferredInfo inferredInfo;
+    QuantGmmA2avTilingData localTilingData_{0};
+    TilingInferredInfo inferredInfo{0};
+    QuantGmmAlltoAllvParamsInfo localParams_{0};
+
 private:
+    ge::graphStatus CheckOpInputSingleParamsTensorNotSup();
+    ge::graphStatus CheckOpInputSingleParamsTensorSup();
+    ge::graphStatus CheckOpInputSingleParamsTensorMM();
+    ge::graphStatus CheckOpInputSingleParamsTensor();
+    ge::graphStatus CheckAndSetLocalParamsGmm();
+    ge::graphStatus CheckAndSetLocalParamsMm();
+    ge::graphStatus CheckAndSetLocalParamsAttr();
+    ge::graphStatus CheckAndSetLocalParams();
+    ge::graphStatus CheckParamsRelationGmm();
+    ge::graphStatus CheckParamsRelationMm();
+    ge::graphStatus CheckParamsAttrEpAndSetLocalParams();
+    ge::graphStatus CheckAndSetSendRecvCountsAttr();
+    ge::graphStatus CheckLocalParams();
+    ge::graphStatus CheckParamsRelationAndSetLocalParams();
     ge::graphStatus CalTilingInferredInfo();
 };
 
