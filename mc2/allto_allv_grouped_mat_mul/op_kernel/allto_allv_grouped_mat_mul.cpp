@@ -78,12 +78,36 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
 #endif
 #elif defined(ALLTO_ALLV_GMM_QUANT)
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
+    
+    using ComputeOpType = QuantGroupedMatmul<
+        QuantAlltoAllvGroupedMatmulTilingData, 
+        GMMQuantTilingData, 
+        DTYPE_GMM_X, 
+        DTYPE_GMM_WEIGHT,
+        float, 
+        DTYPE_GMM_Y, 
+        CubeFormat::ND, 
+        TILINGKEY_GMM_WEIGHT_TRANSPOSE, 
+        TILINGKEY_MM_WEIGHT_TRANSPOSE,
+        false>;  // isLocal=false
+
+    using LocalComputeOpType = QuantGroupedMatmul<
+        QuantAlltoAllvGroupedMatmulTilingData, 
+        GMMQuantTilingData, 
+        DTYPE_GMM_X, 
+        DTYPE_GMM_WEIGHT,
+        float, 
+        DTYPE_GMM_Y, 
+        CubeFormat::ND, 
+        TILINGKEY_GMM_WEIGHT_TRANSPOSE, 
+        TILINGKEY_MM_WEIGHT_TRANSPOSE,
+        true>;  // isLocal=true
+
     A2avGmmScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, true>,
-        QuantGroupedMatmul<QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, DTYPE_GMM_X, DTYPE_GMM_WEIGHT,
-        float, DTYPE_GMM_Y, CubeFormat::ND, TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE>,
-        QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, TILING_TYPE, TILINGKEY_MM>
+        ComputeOpType, LocalComputeOpType, QuantAlltoAllvGroupedMatmulTilingData, 
+        GMMQuantTilingData, TILING_TYPE, TILINGKEY_MM>
         a2avGmmScheduler;
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, mmQuantTilingData,
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, gmmQuantTilingData,
         gmmArray, gmmArrayAddr_, tilingGM);
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantAlltoAllvGroupedMatmulTilingData, GMMQuantTilingData, mmQuantTilingData,
         gmmArray, mmArrayAddr_, tilingGM);

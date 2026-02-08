@@ -23,7 +23,7 @@
 #include "tiling/new_mc2_tiling_utils.h"
 // #include "3rd/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
 // #include "3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
-#include "3rd/grouped_matmul/op_host/grouped_matmul_host_util.h"
+// #include "3rd/grouped_matmul/op_host/grouped_matmul_host_util.h"
 #include "../grouped_mat_mul_allto_allv_tiling_base.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
@@ -66,6 +66,8 @@ constexpr uint64_t MXFP_BASEK_FACTOR = 64;
 constexpr size_t MXFP_TYPE_K_SCALE_DIM_NUM = 3;
 constexpr size_t MXFP_TYPE_M_SCALE_DIM_NUM = 4;
 constexpr size_t MXFP_PER_TOKEN_SCALE_DIM_NUM = 3;
+constexpr int32_t NO_SPLIT = -1;
+constexpr int32_t SPLIT_M = 0;
 
 constexpr size_t WEIGHTNZ_DIM_NUM = 5;
 constexpr size_t WEIGHTNZ_FIRST_DIM = 0;
@@ -121,7 +123,7 @@ struct MC2GQmmInputInfo {
     uint64_t kernelType = 0UL;
     QuantMode aQuantMode = QuantMode::DEFAULT;
     QuantMode bQuantMode = QuantMode::DEFAULT;
-    int8_t groupType = Mc2GroupedMatmul::NO_SPLIT;
+    int8_t groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
     int8_t groupListType = 0;
     int8_t splitItem = 0;
     int8_t actType = 0;
@@ -197,9 +199,9 @@ public:
     void SetKernelType();
     Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
 
-    int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t mList_[128] = {0};
+    int32_t kList_[128] = {0};
+    int32_t nList_[128] = {0};
 };
 
 } // namespace MC2Tiling

@@ -52,5 +52,7 @@ struct QuantGmmA2avTilingData {
 
     // ============ 普通专家 GMM Tiling 数组 ============
     GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
+    // ============ 普通专家 GMM Tiling ============
+    GMMQuantTilingData gmmBaseTiling; // 共享专家 GMM Tiling 数据，后续还会在kernel中根据任务刷新
 };
 #endif

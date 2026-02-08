@@ -8,6 +8,14 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+# Add arch35 subdirectory for ascend950 support
+file(GLOB ARCH_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/arch*)
+foreach(ARCH_DIR ${ARCH_DIRS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${ARCH_DIR}/CMakeLists.txt")
+        add_subdirectory(${ARCH_DIR})
+    endif()
+endforeach()
+
 if (UT_TEST_ALL OR OP_KERNEL_UT)
     AddOpTestCase(allto_allv_grouped_mat_mul "Ascend910_9391" "-DDTYPE_X_REF=half -include${CMAKE_CURRENT_SOURCE_DIR}/allto_allv_grouped_mat_mul_tiling_def.h" "")
 endif()

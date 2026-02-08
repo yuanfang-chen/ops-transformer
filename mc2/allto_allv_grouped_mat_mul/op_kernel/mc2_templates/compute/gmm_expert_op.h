@@ -18,7 +18,9 @@
 
 #include "../common/a2av_common_tiling.h"
 #include "kernel_operator.h"
+//diff
 #include "../../../grouped_mat_mul_allto_allv/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
+
 #include "../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
 
 #if defined(CONST_TILING)
@@ -27,10 +29,11 @@
     const innerType *innerPtr##var = &(outerPtr##var->outerPtr##var);                                   \
     const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));
 #else
-#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
+#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, arrayType, outerMember, innerMember, arrayMenber, var, tiling) \
     size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
     size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
-    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);
+    size_t arrayOffset##var = (size_t)(&((arrayType *)0)->arrayMenber);                                 \
+    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var + arrayOffset##var);
 #endif
 
 using namespace AscendC;
@@ -68,7 +71,7 @@ public:
         gmmTilingArray_ = gmmTilingArray;
         sharedGmmTiling_ = nullptr;
         tPipe_ = tPipe;
-        GM_ADDR tilingGM_ = tilingGM;
+        tilingGM_ = tilingGM;
         expertNum_ = static_cast<uint32_t>(taskTilingInfo_->e);
     }
 
@@ -88,7 +91,7 @@ public:
         gmmTilingArray_ = nullptr;
         sharedGmmTiling_ = sharedGmmTiling;
         tPipe_ = tPipe;
-        GM_ADDR tilingGM_ = tilingGM;
+        tilingGM_ = tilingGM;
         expertNum_ = 1; // 共享专家只有一个
     }
 
@@ -148,12 +151,15 @@ private:
     GM_ADDR tilingGM_ = nullptr;
     GM_ADDR workspaceBase_ = nullptr;
     GM_ADDR groupListCache_ = nullptr;
+    uint64_t expertTokenNum_[32] = {0};
+    uint64_t expertNumInOneRank_ = 0;
+    uint64_t epWorldSize_ = 0;
 
     /**
      * 内部：获取 groupList 来源数组
      * 根据 USE_SEND_COUNTS 模板参数选择 sendCnt 或 recvCnt
      */
-    __aicore__ inline const int16_t *GetGroupCounts() const
+    __aicore__ inline const int32_t *GetGroupCounts() const
     {
         if constexpr (USE_SEND_COUNTS) {
             return taskTilingInfo_->sendCnt;
@@ -173,7 +179,7 @@ private:
             return sharedGmmTiling_;
         } else {
             // 路由专家根据索引返回对应的 tiling
-            return &gmmTilingArray_->array[expertIdx];
+            return &gmmTilingArray_->array;
         }
     }
 
@@ -186,7 +192,7 @@ private:
      */
     __aicore__ inline int64_t CalcXOffset(uint32_t expertIdx) const
     {
-        const int16_t *counts = GetGroupCounts();
+        auto *counts = GetGroupCounts();
         int64_t offset = 0;
         for (uint32_t i = 0; i < expertIdx; ++i) {
             offset += (int64_t)counts[i];
@@ -237,7 +243,7 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::PrepareGroupList(
                                                                                 uint32_t expertNum)
 {
     // 将 counts 转换为累积和形式的 groupList 写入 groupListCache_
-    const int16_t *counts = this->GetGroupCounts();
+    auto *counts = this->GetGroupCounts();
     __gm__ int64_t *groupList = reinterpret_cast<__gm__ int64_t *>(this->groupListCache_);
 
     int64_t cumSum = 0;
@@ -265,8 +271,8 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     // 获取对应类型的大小
     // 注意：这里我们使用 uint8_t 指针算术，因为 GM_ADDR 是 void*
     // 类型大小需要在调用时由外部传入或者通过其他方式获取
-    int64_t K = static_cast<int64_t>(this->taskTilingInfo_->H1);
-    int64_t N = static_cast<int64_t>(this->taskTilingInfo_->N1);
+    // int64_t K = static_cast<int64_t>(this->taskTilingInfo_->H1);
+    // int64_t N = static_cast<int64_t>(this->taskTilingInfo_->N1);
 
     // 3. 获取本次循环对应的 tiling 数据
     //    路由专家：从 gmmTilingArray_->array[startExpertIdx] 获取
@@ -281,18 +287,33 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     // const int32_t *gmmArrayAddr = tilingData->gmmArray.mList;
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData,
                 GmmTilingArray,
+                GMMQuantTilingData,
                 gmmTiling,
                 array,
+                gmmArray,
                 gmmArrayAddr_,
                 tilingGM_);
 
     // 4. 计算偏移后的地址（使用基于字节的偏移）
     // 由于我们不知道具体的数据类型大小，使用 H1 和 N1 作为元素数来计算
     // 实际使用时，调用者需要确保 xBase_, yBase_, weightBase_ 的类型正确
-
+    expertNumInOneRank_ = taskTilingInfo_->e;
+    epWorldSize_ = taskTilingInfo_->epWorldSize;
+    for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+        // 处理每个 expert 的逻辑
+        for (uint32_t i = 0U; i < epWorldSize_; i++) {
+            expertTokenNum_[e] += static_cast<uint64_t>(taskTilingInfo_->sendCnt[e + i * expertNumInOneRank_]);
+        }
+    }
+    if (startExpertIdx != 0) {
+        this->xBase_ += expertTokenNum_[startExpertIdx - 1] * taskTilingInfo_->H1 * 1;
+        this->weightBase_ += startExpertIdx * taskTilingInfo_->H1 * 1;
+        this->yBase_ += expertTokenNum_[startExpertIdx - 1] * taskTilingInfo_->H1 * 2;
+    }
     // 5. 一次调用 GmmASWKernel 处理所有 expertNum 个专家
     //    GmmASWKernel.Process() 内部会遍历 groupNum 个 group
     //    注意：实际的地址计算和类型转换需要在调用者处理
+    tPipe_->Reset();
     this->gmmKernel_.Init(this->xBase_,          // x (需要调用者计算偏移)
                           this->weightBase_,     // weight (需要调用者计算偏移)
                           this->biasBase_,       // bias
