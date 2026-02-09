@@ -10,6 +10,9 @@ struct GetAddrInfo {
     /* WinSize结构如下：
        | Ping RDMA                                 |-| Half IPC                             |-| Pong RDMA                                               |-| Rest IPC                                              |
        | RDMA Flag: 1MB | RDMA Data: rdmaDataSizeB |-| IPC DATA, FromRankId < worldSize / 2 |-| IPC Flag 2M | RDMA Flag: 1MB | RDMA Data: rdmaDataSizeB |-| IPC DATA, FromRankId >= worldSize / 2 |-| IPC Flag 2M |
+       Dispatch IPC Flag 结构如下：
+       | IPC Flag 2M                                                                         |-| IPC Flag 2M         |
+       | Unused | IPC FLAG, Start: 1M, Size: 256B | Unused | Magic, Start: 2M - 4K, Size: 4K |-| Token Cnt, Size: 2M |
     */
     __aicore__ inline void Init(uint64_t winSize, uint64_t bufferId, uint64_t ipcDataSize, uint64_t ipcFlagSize)
     {
@@ -17,7 +20,7 @@ struct GetAddrInfo {
         ipcAddrOffset[1] = winSize - (ipcDataSize - ipcFlagSize) / 2UL;
         ipcAddrOffset[0] = (ipcAddrOffset[0] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         ipcAddrOffset[1] = (ipcAddrOffset[1] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
-        ipcFlagOffset = winSize / 2UL - ipcFlagSize / 2 - ipcAddrOffset[0]
+        ipcFlagOffset = winSize / 2UL - ipcFlagSize / 2 - ipcAddrOffset[0];
         if (bufferId == 1UL) {
             rdmaAddrOffset = winSize / 2UL;
         }
