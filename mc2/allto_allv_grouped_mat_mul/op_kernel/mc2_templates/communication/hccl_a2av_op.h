@@ -39,61 +39,6 @@ public:
         recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer_);
     }
 
-    // TODO 临时调试方法，为保证通路正常，后续改用Launch
-    __aicore__ inline void TempLaunch()
-    {
-        if ASCEND_IS_AIC {
-            return;
-        }
-        if ASCEND_IS_AIV {
-            if (GetBlockIdx() != 0) {
-                return;
-            }
-        }
-
-        if constexpr (AscendC::IsSameType<hcclDataType, bfloat16_t>::value) {
-            hcclDataType_ = HCCL_DATA_TYPE_BFP16;
-        } else if constexpr (AscendC::IsSameType<hcclDataType, hifloat8_t>::value) {
-            hcclDataType_ = HCCL_DATA_TYPE_HIF8;
-        } else {
-            hcclDataType_ = HCCL_DATA_TYPE_FP16;
-        }
-
-        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
-        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
-
-        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
-            for (uint32_t i = 0U; i < rankDim_; i++) {
-                alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * e_ + expertIdx]) * H1_;
-                alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * e_ + expertIdx]) * H1_;
-
-            }
-            alltoAllvSendOffset[0] = 0UL;
-            for (uint32_t j = 0U; j < expertIdx; j++) { // 0sendOffset
-                alltoAllvSendOffset[0U] += static_cast<uint64_t>(sendCnt[j]) * H1_;
-            }
-            for (uint32_t i = 1U; i < rankDim_; i++) {
-                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
-                for (uint32_t j = 0U; j < e_; j++) {
-                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1U) * e_ + j]) * H1_;
-                }
-            }
-            for (uint32_t i = 0U; i < rankDim_; i++) {
-                if ((expertIdx == 0U) && (i == 0U)) {
-                    alltoAllvRecvOffset[i] = 0UL;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
-                } else {
-                    alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
-                }
-            }
-            alltoAllvHandleId_[expertIdx] =
-                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
-                hcclDataType_, (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
-        }
-    }
-
-    // 注意：未调试，可能出现通信问题
     __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum)
     {
         if ASCEND_IS_AIC {

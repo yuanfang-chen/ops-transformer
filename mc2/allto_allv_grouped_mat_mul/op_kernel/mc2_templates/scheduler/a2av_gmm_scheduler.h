@@ -52,11 +52,9 @@ public:
             localComputeOp.Process(0);
             SyncAll<false>();
         }
-        // TODO commOp.Launch(0, e_);
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Launch(expertIdx, 1);
         }
-        // commOp.TempLaunch();
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
             SyncAll<false>();
