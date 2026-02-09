@@ -4195,6 +4195,8 @@ public:
     uint32_t formerDkNum = 0;
     uint32_t formerDvNum = 0;
     uint32_t formerDpseNum = 0;
+    uint32_t formerDqRopeNum = 0;
+    uint32_t formerDkRopeNum = 0;
     uint32_t res = 0;
     uint8_t singleCoreDqNumPH[4] = {};
     uint64_t singleCoreDqNum = 0;
@@ -4205,6 +4207,10 @@ public:
     uint64_t tailCoreDvNum = 0;
     uint64_t singleCoreDpseNum = 0;
     uint64_t tailCoreDpseNum = 0;
+    uint64_t singleCoreDqRopeNum = 0;
+    uint64_t tailCoreDqRopeNum = 0;
+    uint64_t singleCoreDkRopeNum = 0;
+    uint64_t tailCoreDkRopeNum = 0;
 
     // formerDqNum
     uint32_t get_formerDqNum() const
@@ -4244,6 +4250,26 @@ public:
     void set_formerDpseNum(uint32_t formerDpseNum_val)
     {
         this->formerDpseNum = formerDpseNum_val;
+    }
+
+    // formerDqRopeNum
+    uint32_t get_formerDqRopeNum() const
+    {
+        return formerDqRopeNum;
+    }
+    void set_formerDqRopeNum(uint32_t formerDqRopeNum_val)
+    {
+        this->formerDqRopeNum = formerDqRopeNum_val;
+    }
+
+    // formerDkRopeNum
+    uint32_t get_formerDkRopeNum() const
+    {
+        return formerDkRopeNum;
+    }
+    void set_formerDkRopeNum(uint32_t formerDkRopeNum_val)
+    {
+        this->formerDkRopeNum = formerDkRopeNum_val;
     }
 
     // res
@@ -4334,6 +4360,26 @@ public:
     void set_tailCoreDpseNum(uint64_t tailCoreDpseNum_val)
     {
         this->tailCoreDpseNum = tailCoreDpseNum_val;
+    }
+
+    // singleCoreDqRopeNum
+    uint64_t get_singleCoreDqRopeNum() const
+    {
+        return singleCoreDqRopeNum;
+    }
+    void set_singleCoreDqRopeNum(uint64_t singleCoreDqRopeNum_val)
+    {
+        this->singleCoreDqRopeNum = singleCoreDqRopeNum_val;
+    }
+
+    // tailCoreDkRopeNum
+    uint64_t get_tailCoreDkRopeNum() const
+    {
+        return tailCoreDkRopeNum;
+    }
+    void set_tailCoreDkRopeNum(uint64_t tailCoreDkRopeNum_val)
+    {
+        this->tailCoreDkRopeNum = tailCoreDkRopeNum_val;
     }
 
     void reset()
