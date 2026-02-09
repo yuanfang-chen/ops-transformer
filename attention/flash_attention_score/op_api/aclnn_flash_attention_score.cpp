@@ -213,14 +213,18 @@ static aclnnStatus AnalysisAxis(const aclTensor *query, const aclTensor *key, co
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "not support input_layout %s with dim_num %lu", inputLayout, shapeInfo.dimNum);
         return ACLNN_ERR_PARAM_INVALID;
     }
-    if (shapeInfo.axes.d != shapeInfo.axes.dk) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same, but got qD=%ld kD=%ld", shapeInfo.axes.d, 
-            shapeInfo.axes.dk);
+    bool threeDimLimitDk = (shapeInfo.dimNum == DIM_NUM_3 &&
+        ((shapeInfo.axes.d == 0 && kShape[2] > 0) || (shapeInfo.axes.d != 0 && shapeInfo.axes.d != shapeInfo.axes.dk)));
+    bool fourDimLimitDk = (shapeInfo.dimNum == DIM_NUM_4 && shapeInfo.axes.d != shapeInfo.axes.dk);
+    if (threeDimLimitDk || fourDimLimitDk) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same");
         return ACLNN_ERR_PARAM_INVALID;
     }
-    if (shapeInfo.axes.d < shapeInfo.axes.dv) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "only support kD >= vD, but got kD=%ld vD=%ld", shapeInfo.axes.d, 
-            shapeInfo.axes.dv);
+    bool threeDimLimitDv = (shapeInfo.dimNum == DIM_NUM_3 &&
+        ((shapeInfo.axes.d == 0 && vShape[2] > 0) || (shapeInfo.axes.d != 0 && shapeInfo.axes.d < shapeInfo.axes.dv)));
+    bool fourDimLimitDv = (shapeInfo.dimNum == DIM_NUM_4 && shapeInfo.axes.d < shapeInfo.axes.dv);
+    if (fourDimLimitDv || threeDimLimitDv) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "only support kD >= vD");
         return ACLNN_ERR_PARAM_INVALID;
     }
     return ACLNN_SUCCESS;
