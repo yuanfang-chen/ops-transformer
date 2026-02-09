@@ -1199,10 +1199,19 @@ bool RouteToFia(gert::TilingContext *context)
         auto attrs = context->GetAttrs();
         int32_t headNum = *(attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX));
         int32_t kvHeadNum = *(attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX));
-        bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
-        bool isPageAttention = (context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr);
-        bool isPrefix = (context->GetOptionalInputShape(KEY_SHARED_PREFIX_INDEX) != nullptr) ||
-                        (context->GetOptionalInputShape(VALUE_SHARED_PREFIX_INDEX) != nullptr);
+        bool isMha = false;
+        bool isPageAttention = false;
+        bool isPrefix = false;
+        if (kvHeadNum == 0 || headNum == kvHeadNum) {
+            isMha = true;
+        }
+        if (context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr){
+            isPageAttention = true;
+        }
+        if(context->GetOptionalInputShape(KEY_SHARED_PREFIX_INDEX) != nullptr ||
+            context->GetOptionalInputShape(VALUE_SHARED_PREFIX_INDEX) != nullptr){
+            isPrefix = true;
+        }
     
         int64_t queryD = 0;
         int64_t queryRopeD = 0;
