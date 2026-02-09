@@ -24,7 +24,6 @@
 #pragma once
 
 // 使用公共命名空间中的类型
-using MC2KernelTemplate::GmmTilingArray;
 using MC2KernelTemplate::GMMQuantTilingData;
 using MC2KernelTemplate::GMMArray;
 using MC2KernelTemplate::TaskTilingInfo;
@@ -66,8 +65,6 @@ struct QuantGmmA2avTilingData {
     // ============ 共享专家 GMM Tiling（放在前面）============
     GMMQuantTilingData sharedGmmTiling; // 共享专家 GMM Tiling 数据
 
-    // ============ 普通专家 GMM Tiling 数组 ============
-    GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
     // ============ 普通专家 GMM Tiling ============
     GMMQuantTilingData gmmBaseTiling; // 共享专家 GMM Tiling 数据，后续还会在kernel中根据任务刷新
 };
