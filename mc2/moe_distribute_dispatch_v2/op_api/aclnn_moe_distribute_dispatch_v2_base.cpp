@@ -14,20 +14,20 @@
  */
 
 #include <algorithm>
+#include "mc2_moe_context.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
-#include "mc2_moe_context.h"
-
 #include "hccl/hcom.h"
 #include "hccl/hccl_comm.h"
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl_res.h"
 #include "hccl/hccl.h"
 #include "hccl/hccn_rping.h"
+#include "opdev/op_executor.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
@@ -45,7 +45,6 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
     aclTensor* dynamicScales, aclTensor* assist_info_for_combine, aclTensor* expertTokensNums, aclTensor* epRecvCounts,
     aclTensor* tpRecvCounts, aclTensor* expandScales,
     uint64_t* workspaceSize, aclOpExecutor** executor);
-
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* mc2Context,const aclTensor* scales,
     const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
@@ -57,14 +56,13 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
     aclTensor* dynamicScales, aclTensor* assist_info_for_combine, aclTensor* expertTokensNums, aclTensor* epRecvCounts,
     aclTensor* tpRecvCounts, aclTensor* expandScales,
     uint64_t* workspaceSize, aclOpExecutor** executor);
-
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV2(void* workspace, uint64_t workspaceSize,
                                                      aclOpExecutor* executor, aclrtStream stream);
-
 extern aclnnStatus aclnnInnerMoeDistributeDispatchV2Extend(void* workspace, uint64_t workspaceSize,
                                                      aclOpExecutor* executor, aclrtStream stream);
-
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
+extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
+extern "C" void NnopbaseGetUserHandle(void *executor)
 
 bool DispatchCheckNotNull(const aclTensor* x, const aclTensor* expertIds, const char* groupEp,
                           [[maybe_unused]] const char* groupTp, aclTensor* expandX, [[maybe_unused]] aclTensor* dynamicScales,
