@@ -86,7 +86,7 @@ aclnnStatus aclnnMoeFinalizeRoutingV2(
         <td>-</td>
         <td>FLOAT16、BFLOAT16、FLOAT32</td>
         <td>ND</td>
-        <td>drop less场景：(NUM_ROWS * K, H)，<br>drop pad场景：(E, C, H)。</td>
+        <td>drop less场景：(NUM_ROWS * K, H)，<br>drop pad场景：(E, C, H).。</td>
         <td>√</td>
   </tr>
   <tr>
@@ -317,6 +317,7 @@ C：表示expert capacity，即专家处理token数量的能力阈值。
 #include "aclnnop/aclnn_moe_finalize_routing_v2.h"
 #include <iostream>
 #include <vector>
+
 
 #define CHECK_RET(cond, return_expr) \
   do {                               \
