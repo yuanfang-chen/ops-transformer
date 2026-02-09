@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file all_gather_matmul_v2_tiling_a5.cpp
+ * \file all_gather_matmul_v2_tiling_common.cpp
  * \brief
  */
 
@@ -18,14 +18,22 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
+#include "all_gather_matmul_v2_tiling_common.h"
 
 using namespace AscendC;
 using namespace ge;
 
-namespace optiling
+namespace optiling {
+ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context);
+struct AllGatherMatmulCompileInfo {
+};
+ge::graphStatus TilingParseForAllGatherMatmulV2(gert::TilingParseContext* context)
 {
-ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
-{
-    return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
+    (void)context;
+    return ge::GRAPH_SUCCESS;
 }
+
+IMPL_OP_OPTILING(AllGatherMatmulV2)
+    .Tiling(AllGatherMatmulTilingV2Func)
+    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2);
 }  // namespace optiling
