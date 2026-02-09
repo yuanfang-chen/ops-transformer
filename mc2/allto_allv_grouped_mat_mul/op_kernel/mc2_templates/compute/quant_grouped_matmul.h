@@ -52,7 +52,7 @@ public:
         N1_ = tilingData_->taskTilingInfo.N1;
         BS_ = tilingData_->taskTilingInfo.BS;
         BSK_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = workspaceGM_ + BSK_ * H1_ * sizeof(xType);
+        groupListGm_ = workspaceGM_ + BSK_ * H1_;
         tokenOffset_ = 0;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
@@ -99,9 +99,9 @@ public:
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
-        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_ * sizeof(xType));
-        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_ * sizeof(wType));
-        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_ * sizeof(yType));
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
