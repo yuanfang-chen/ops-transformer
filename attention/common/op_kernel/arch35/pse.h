@@ -276,7 +276,7 @@ __aicore__ inline void ComputeInnerPseOffset(float &slopes, float &posShift, con
         int64_t bOffset = 0;
         int64_t n2Offset = runInfo.n2oIdx * constInfo.gSize;
         int64_t gOffset = runInfo.goIdx;
-        if (pseInfo.pseLayoutType == PseLayoutTypeEnum::PSESLOPBN) {
+        if (pseInfo.pseLayoutType == PseLayoutTypeEnum::PSE_SLOPE_BN) {
             bOffset = runInfo.boIdx * constInfo.n2G;
         }
         int64_t offset = bOffset + n2Offset + gOffset;
