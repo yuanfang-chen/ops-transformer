@@ -2,7 +2,7 @@
 #define MC2_QUANT_GROUPED_MATMUL_H
 
 #include "kernel_operator.h"
-#include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../../3rd/gqmm_cube_on_the_fly.h"
 
 using namespace AscendC;
 
