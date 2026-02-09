@@ -127,8 +127,6 @@ protected:
     const int64_t *gmmWeightQuantModePtr_;
     const int64_t *mmXQuantModePtr_;
     const int64_t *mmWeightQuantModePtr_;
-    const int64_t *gmmXQuantDTypePtr_;
-    const int64_t *mmXQuantDTypePtr_;
     // shape
     uint64_t bsk_ = 0;
     uint64_t h1_ = 0;

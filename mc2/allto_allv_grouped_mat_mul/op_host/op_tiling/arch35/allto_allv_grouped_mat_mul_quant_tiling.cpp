@@ -420,7 +420,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckQuantMode() const
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape can not be null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
-        context_->GetOptionalInputShape(GMMX_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
+        context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape should be [1]"), return ge::GRAPH_FAILED);
     // check gmmWeightScale shape
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX) == nullptr,
