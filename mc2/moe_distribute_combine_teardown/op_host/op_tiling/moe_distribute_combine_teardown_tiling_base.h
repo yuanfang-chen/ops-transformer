@@ -53,6 +53,7 @@ protected:
     ge::graphStatus CheckTensorShapeSize();
     virtual ge::graphStatus CheckBsHKSize(int64_t bs, int64_t h, int64_t k);
     ge::graphStatus CheckTensorDataType();
+    ge::graphStatus CheckTensorDataTypeSecondPart();
     virtual ge::graphStatus SetWorkspace();
     ge::graphStatus CheckHcclBuffsize();
     virtual ge::graphStatus SetHcommCfg();
