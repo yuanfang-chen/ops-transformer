@@ -143,6 +143,7 @@ namespace {
     constexpr int32_t MAX_MOE_EXPERT_NUMS_A2 = 512;
     constexpr int32_t UNLAYERED_EXP_NUM_PER_RANK_A2 = 120;
     constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
+    constexpr uint32_t LAYERED_MAX_BATCH_SIZE_A2 = 512;
     constexpr size_t USER_WORKSPACE_A2 = 1UL * 1024UL * 1024UL; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
     constexpr uint64_t TILING_KEY_BASE_A2 = 2000000000;
     constexpr uint64_t TILING_KEY_LAYERED_COMM_A2 = 100000000;
@@ -1581,7 +1582,8 @@ static ge::graphStatus MoeDistributeDispatchA2CheckShapeAndSetTiling(const gert:
     uint32_t maxHiddenSizeA2 = isLayered ? LAYERED_MAX_HIDDEN_SIZE_A2 : MAX_HIDDEN_SIZE_A2;
     OP_TILING_CHECK(h % BLOCK_SIZE_A2 != 0 || h == 0 || h > maxHiddenSizeA2,
         OP_LOGE(K_INNER_DEBUG, "hiddensize is invalid."), return GRAPH_FAILED);
-    OP_TILING_CHECK(bs == 0 || bs > MAX_BATCH_SIZE_A2,
+    uint32_t maxBatchSizeA2 = isLayered ? LAYERED_MAX_BATCH_SIZE_A2 : MAX_BATCH_SIZE_A2;
+    OP_TILING_CHECK(bs == 0 || bs > maxBatchSizeA2,
         OP_LOGE(K_INNER_DEBUG, "batchsize is invalid."), return GRAPH_FAILED);
 
     auto moeExpertNumPtr = attrs->GetAttrPointer<int>(ATTR_MOE_EXPERT_NUM_INDEX);
@@ -1698,6 +1700,57 @@ static ge::graphStatus MoeDistributeDispatchA2CheckCommAlg(const gert::TilingCon
     }
 }
 
+static ge::graphStatus MoeDistributeDispatchA2CheckWinSize(const gert::TilingContext *context, MoeDistributeDispatchA2Info& info, const bool isLayered)
+{
+    const char *nodeName = context->GetNodeName();
+    uint64_t hcclBufferSizeEp = 0;
+    uint64_t maxWindowSizeEp = 0;
+    OP_TILING_CHECK(
+        mc2tiling::GetEpWinSize(context, nodeName, hcclBufferSizeEp, maxWindowSizeEp, ATTR_GROUP_EP_INDEX) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Get EP WinSize failed"), return ge::GRAPH_FAILED);
+    uint64_t h = static_cast<uint64_t>(info.h);
+    uint64_t k = static_cast<uint64_t>(info.k);
+    uint64_t epWorldSize = static_cast<uint64_t>(info.epWorldSize);
+    uint64_t maxBs = static_cast<uint64_t>(info.globalBs) / epWorldSize;
+    uint64_t moeExpertNum = static_cast<uint64_t>(info.moeExpertNum);
+    // combine数据区 token首地址对齐512
+    constexpr static uint64_t DOUBLE_DATA_BUFFER_A2 = 2UL;
+    constexpr static uint64_t MAX_OUT_DTYPE_SIZE_A2 = 2UL;
+    constexpr static uint64_t EXTRA_TOKEN_INFO_NUM = 4UL; // 专家信息 权重信息 量化Scale 到达标志位
+    uint64_t actualSize = 0;
+    if (isLayered) {
+        uint64_t serverNum = epWorldSize / 8UL; // 最多8卡之间fullmesh
+        uint64_t tokenStructLen = h * MAX_OUT_DTYPE_SIZE_A2 + (k * sizeof(uint32_t) + UB_ALIGN - 1) / UB_ALIGN * UB_ALIGN * EXTRA_TOKEN_INFO_NUM;
+        constexpr static uint64_t IPC_FLAG_BUFFSIZE = 4 * 1024 * 1024UL;
+        constexpr static uint32_t RDMA_FLAG_BUFFSIZE = 1 * 1024 * 1024UL;
+        constexpr static uint32_t RDMA_ALIGN = 4096UL;
+        actualSize = moeExpertNum * maxBs * tokenStructLen; // IPC
+        actualSize += IPC_FLAG_BUFFSIZE; // IPC Flag
+        actualSize += (RDMA_FLAG_BUFFSIZE + ((maxBs * tokenStructLen + RDMA_ALIGN - 1) / RDMA_ALIGN * RDMA_ALIGN) * serverNum) * DOUBLE_DATA_BUFFER_A2; // RDMA Data
+        OP_TILING_CHECK((actualSize > maxWindowSizeEp),
+            OP_LOGE(nodeName, "HCCL_BUFFSIZE is too SMALL, maxBs = %lu, h = %lu, epWorldSize = %lu,"
+                " moeExpertNum = %u,"
+                " k = %lu, NEEDED_HCCL_BUFFSIZE(moeExpertNum * maxBs * (h * 2 + 16 * Align8(k))B +"
+                " Align4096(maxBs * (h * 2 + 16 * Align8(k)))B * epWorldSize / 8 * 2 + 2MB) = %luMB, HCCL_BUFFSIZE=%luMB.",
+                maxBs, h, epWorldSize, moeExpertNum, k,
+                actualSize / MB_SIZE + 1UL, hcclBufferSizeEp / MB_SIZE), return ge::GRAPH_FAILED);
+    } else {
+        constexpr static uint64_t EXTRA_BUFFSIZE_A2 = 2 * 1024 * 1024UL;
+        uint64_t localMoeExpertNum = moeExpertNum / epWorldSize;
+        actualSize = (maxBs * epWorldSize * std::min(localMoeExpertNum, k) * h * MAX_OUT_DTYPE_SIZE_A2 + EXTRA_BUFFSIZE_A2) * DOUBLE_DATA_BUFFER_A2;
+        OP_TILING_CHECK((actualSize > maxWindowSizeEp),
+            OP_LOGE(nodeName, "HCCL_BUFFSIZE is too SMALL, maxBs = %lu, h = %lu, epWorldSize = %lu,"
+                " moeExpertNum = %u,"
+                " k = %lu, NEEDED_HCCL_BUFFSIZE((maxBs * epWorldSize * min(localMoeExpertNum, k) * h * 2B +"
+                " 2MB) * 2 = %luMB, HCCL_BUFFSIZE=%luMB.",
+                maxBs, h, epWorldSize, moeExpertNum, k,
+                actualSize / MB_SIZE + 1UL, hcclBufferSizeEp / MB_SIZE), return ge::GRAPH_FAILED);
+    }
+    OP_LOGD(nodeName, "windowSize = %lu", maxWindowSizeEp);
+    return ge::GRAPH_SUCCESS;
+}
+
+
 static uint64_t MoeDistributeDispatchA2CalcTilingKey(const gert::TilingContext *context, const bool isLayered)
 {
     bool tp = false;
@@ -1750,6 +1803,10 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"),
+        return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(MoeDistributeDispatchA2CheckWinSize(context, info, isLayered) != ge::GRAPH_SUCCESS,
+        VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 CheckWinSize Failed"),
         return ge::GRAPH_FAILED);
 
     uint32_t numBlocks = 1U;

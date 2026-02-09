@@ -329,7 +329,9 @@ $$
         - `H`：表示hidden size隐藏层大小。
             - `commAlg` = "fullmesh"：取值范围(0, 7168]，且保证是32的整数倍。
             - `commAlg` = "hierarchy"：取值范围(0, 10 * 1024]，且保证是32的整数倍。
-        - `Bs`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 256]。
+        - `Bs`：表示batch sequence size，即本卡最终输出的token数量。
+            - `commAlg` = "fullmesh"：取值范围为[1, 256]。
+            - `commAlg` = "hierarchy"：取值范围为[1, 512]。
     - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
         - `commAlg` = "fullmesh"：要求 >= (`Bs` * `epWorldSize` * min(`localExpertNum`, `K`) * `H` * 4B + 4MB)。
         - `commAlg` = "hierarchy"：要求 >= `moeExpertNum` * `Bs` * (`H` * 2 + 16 * Align8(`K`))B + 104MB，不要求`moeExpertNum` / `epWorldSize` <= 24，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
