@@ -36,6 +36,7 @@
 #else
 #define CMP_EXTERN_C
 #endif
+// #define DAY0_SCOPE
 
 namespace optiling {
 
@@ -231,8 +232,13 @@ struct CompressorBaseShapeInfo {
 
 const std::vector<int> ROPE_HEAD_DIM {64};
 const std::vector<int> COFF {1, 2};
+#ifdef DAY0_SCOPE
 const std::vector<int> CMP_RATIO {4, 128};
 const std::vector<int> ROTARY_MODE {2};
+#else
+const std::vector<int> CMP_RATIO {2, 4, 8, 16, 32, 64, 128};
+const std::vector<int> ROTARY_MODE {1, 2};
+#endif
 const std::vector<uint32_t> HEAD_DIM {128, 512};
 const std::vector<bool> ENABLE_GRAD {false};
 
