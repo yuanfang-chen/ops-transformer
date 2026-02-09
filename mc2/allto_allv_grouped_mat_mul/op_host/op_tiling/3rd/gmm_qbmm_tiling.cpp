@@ -20,13 +20,15 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling_base/tiling_type.h"
 #include "../../../op_kernel/3rd/gqmm_tiling_key.h"
-using namespace Ops::Transformer::OpTiling;
-using namespace GroupedMatmul;
-using namespace optiling::GmmConstant;
-using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
-using GMMQuantParams = Mc2GroupedMatmulTilingData::GMMQuantParams;
-namespace optiling {
 
+using namespace Ops::Transformer::OpTiling;
+using namespace optiling::Mc2GroupedMatmulTiling;
+using namespace Mc2GroupedMatmulTilingData;
+using namespace Mc2GroupedMatmul;
+using namespace optiling::Mc2GroupedMatmulTiling::GmmConstant;
+
+namespace optiling {
+namespace Mc2GroupedMatmulTiling {
 bool GroupedQbmmTiling::IsCapable()
 {
     return true;
@@ -411,15 +413,15 @@ bool GroupedQbmmTiling::CheckQuantParams(const gert::StorageShape *xScaleStorage
                                          const gert::Shape &wScaleShape) const
 {
     // 非k分组量化校验
-    if (inputParams_.bQuantMode != optiling::QuantMode::MX_PERGROUP_MODE &&
-        inputParams_.bQuantMode != optiling::QuantMode::PERGROUP_MODE &&
-        inputParams_.bQuantMode != optiling::QuantMode::PERBLOCK_MODE) {
+    if (inputParams_.bQuantMode != QuantMode::MX_PERGROUP_MODE &&
+        inputParams_.bQuantMode != QuantMode::PERGROUP_MODE &&
+        inputParams_.bQuantMode != QuantMode::PERBLOCK_MODE) {
         OP_CHECK_IF(!CheckQuantParamsForNonKGroupQuantMode(wScaleShape),
                    OP_LOGE(inputParams_.opName, "CheckQuantParamsForNonKGroupQuantMode failed."),
                    return false);
     }
     // mx量化校验
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         OP_CHECK_IF(!CheckQuantParamsForMxQuantMode(xScaleStorageShape, wScaleShape),
                    OP_LOGE(inputParams_.opName, "CheckParamsForMxQuantMode failed."), return false);
     }
@@ -547,7 +549,7 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                 static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
                 return false);
     if (inputParams_.nSize == 1) {
-        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
+        inputParams_.bQuantMode = QuantMode::PERCHANNEL_MODE;
     }
     return true;
 }
@@ -609,17 +611,17 @@ bool GroupedQbmmTiling::SetQuantMode(const gert::Shape &wScaleShape, const gert:
 {
     auto wScaleDims = wScaleShape.GetDimNum();
     if (IsMicroScaling()) {
-        inputParams_.bQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
-        inputParams_.aQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
+        inputParams_.bQuantMode = QuantMode::MX_PERGROUP_MODE;
+        inputParams_.aQuantMode = QuantMode::MX_PERGROUP_MODE;
         return true;
     }
     // scale pertensor: (g,1) 2维或（g,）1维, perchannel:（g, N), 2维
     if (wScaleDims == 2 && static_cast<uint64_t>(wScaleShape.GetDim(wScaleDims - 1)) == inputParams_.nSize &&
         inputParams_.nSize != 1UL) {
-        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
+        inputParams_.bQuantMode = QuantMode::PERCHANNEL_MODE;
     } else if ((wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1) ||  // 2:（g,1) 2维
                (wScaleDims == 1 && static_cast<uint64_t>(wScaleShape[0]) == inputParams_.groupNum)) {
-        inputParams_.bQuantMode = optiling::QuantMode::PERTENSOR_MODE;
+        inputParams_.bQuantMode = QuantMode::PERTENSOR_MODE;
     }
     if (xScaleStorageShape != nullptr) {
         // split_m: pertoken (M,), pertensor（g,1) 2维或（g,）1维;
@@ -630,9 +632,9 @@ bool GroupedQbmmTiling::SetQuantMode(const gert::Shape &wScaleShape, const gert:
             ((xScaleDims == 2 && xScaleShape[xScaleDims - 1] == 1) ||  // 2:（g,1) 2维
              (xScaleDims == 1 && static_cast<uint64_t>(xScaleShape[0]) == inputParams_.groupNum &&
               inputParams_.groupNum != inputParams_.mSize))) {
-            inputParams_.aQuantMode = optiling::QuantMode::PERTENSOR_MODE;
+            inputParams_.aQuantMode = QuantMode::PERTENSOR_MODE;
         } else {
-            inputParams_.aQuantMode = optiling::QuantMode::PERTOKEN_MODE;
+            inputParams_.aQuantMode = QuantMode::PERTOKEN_MODE;
         }
         SetPerGroupQuantMode(xScaleShape, wScaleShape, wShape);
     }
@@ -655,20 +657,20 @@ void GroupedQbmmTiling::SetPerGroupQuantMode(const gert::Shape &xScaleShape, con
         (inputParams_.groupType == SPLIT_K && wScaleDims < SPLIT_K_W_DIMS)) {
         return;
     }
-    optiling::QuantMode aQuantMode = optiling::QuantMode::DEFAULT;
-    optiling::QuantMode bQuantMode = optiling::QuantMode::DEFAULT;
+    QuantMode aQuantMode = QuantMode::DEFAULT;
+    QuantMode bQuantMode = QuantMode::DEFAULT;
     if (inputParams_.groupType == SPLIT_M) {
         for (uint64_t i = 1; i < wScaleDims; ++i) {
             if (wScaleShape.GetDim(i) != CeilDiv(wShape.GetDim(i), PER_BLOCK_GROUP_SIZE)) {
                 return;
             }
         }
-        bQuantMode = optiling::QuantMode::PERBLOCK_MODE;
+        bQuantMode = QuantMode::PERBLOCK_MODE;
 
         uint64_t scaleKPerBlock = CeilDiv(inputParams_.kSize, PER_BLOCK_GROUP_SIZE);
         if (static_cast<uint64_t>(xScaleShape.GetDim(xScaleDims - LAST_FIRST_DIM_INDEX)) == scaleKPerBlock &&
             static_cast<uint64_t>(xScaleShape.GetDim(xScaleDims - LAST_SECOND_DIM_INDEX)) == inputParams_.mSize) {
-            aQuantMode = optiling::QuantMode::PERGROUP_MODE;
+            aQuantMode = QuantMode::PERGROUP_MODE;
         }
     }
     if (inputParams_.groupType == SPLIT_K) {
@@ -676,16 +678,16 @@ void GroupedQbmmTiling::SetPerGroupQuantMode(const gert::Shape &xScaleShape, con
         uint64_t scaleNPerBlock = CeilDiv(inputParams_.nSize, PER_BLOCK_GROUP_SIZE);
         if (static_cast<uint64_t>(xScaleShape.GetDim(xScaleDims - LAST_SECOND_DIM_INDEX)) == scaleKPerBlock &&
             static_cast<uint64_t>(xScaleShape.GetDim(xScaleDims - LAST_FIRST_DIM_INDEX)) == inputParams_.mSize) {
-            aQuantMode = optiling::QuantMode::PERGROUP_MODE;
+            aQuantMode = QuantMode::PERGROUP_MODE;
         }
         if (static_cast<uint64_t>(wScaleShape.GetDim(wScaleDims - LAST_SECOND_DIM_INDEX)) == scaleKPerBlock &&
             static_cast<uint64_t>(wScaleShape.GetDim(wScaleDims - LAST_FIRST_DIM_INDEX)) == scaleNPerBlock) {
-            bQuantMode = optiling::QuantMode::PERBLOCK_MODE;
+            bQuantMode = QuantMode::PERBLOCK_MODE;
         }
     }
-    if (aQuantMode == optiling::QuantMode::PERGROUP_MODE && bQuantMode == optiling::QuantMode::PERBLOCK_MODE) {
-        inputParams_.aQuantMode = optiling::QuantMode::PERGROUP_MODE;
-        inputParams_.bQuantMode = optiling::QuantMode::PERBLOCK_MODE;
+    if (aQuantMode == QuantMode::PERGROUP_MODE && bQuantMode == QuantMode::PERBLOCK_MODE) {
+        inputParams_.aQuantMode = QuantMode::PERGROUP_MODE;
+        inputParams_.bQuantMode = QuantMode::PERBLOCK_MODE;
     }
 }
 
@@ -817,7 +819,7 @@ ge::graphStatus GroupedQbmmTiling::DoLibApiTiling()
     tilingData_.mmTilingData.dbL0A = 2; // db switch, 1: off, 2: on
     tilingData_.mmTilingData.dbL0B = 2; // db switch, 1: off, 2: on
     tilingData_.mmTilingData.dbL0C = basicTiling_.dbL0c;
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         if (basicTiling_.scaleFactorA >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorA <= SCALER_FACTOR_MAX &&
             basicTiling_.scaleFactorB >= SCALER_FACTOR_MIN && basicTiling_.scaleFactorB <= SCALER_FACTOR_MAX) {
             tilingData_.mmTilingData.mxTypePara = (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_N_BIT) + (SCALER_FACTOR_DEFAULT << SCALER_FACTOR_M_BIT) +
@@ -836,17 +838,17 @@ void GroupedQbmmTiling::SetKernelType()
     // 以选择主模板设置kernelType, 0: dequant fixp随路（包含K轴分组）；1：dequant vector计算；2：perGroup-perBlock
     inputParams_.kernelType = 0UL;
     // mx K轴分组当前是独立的模板，后续归一
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         return;
     }
     // perGroup-perBlock(GB)有独立pertile模板
-    if (inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE) {
         inputParams_.kernelType = 2UL;
         return;
     }
     // pertensor-pertensor且没有后处理的bias，都可以走dequant fixp随路
-    bool isPertensorCube = inputParams_.aQuantMode <= optiling::QuantMode::PERTENSOR_MODE &&
-                           inputParams_.bQuantMode == optiling::QuantMode::PERTENSOR_MODE;
+    bool isPertensorCube = inputParams_.aQuantMode <= QuantMode::PERTENSOR_MODE &&
+                           inputParams_.bQuantMode == QuantMode::PERTENSOR_MODE;
     bool isBiasEpilogue =
         inputParams_.aDtype == ge::DT_INT8 && inputParams_.hasBias && inputParams_.biasDtype != ge::DT_INT32;
     // 如果bias bf16/fp16/fp32，需mix模板进行后处理
@@ -911,8 +913,8 @@ void GroupedQbmmTiling::PrintQuantParams()
 
 void GroupedQbmmTiling::CalBasicBlock()
 {
-    bool isGBQuantMode = inputParams_.aQuantMode == optiling::QuantMode::PERGROUP_MODE &&
-                         inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE;
+    bool isGBQuantMode = inputParams_.aQuantMode == QuantMode::PERGROUP_MODE &&
+                         inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE;
     basicTiling_.baseM = std::min(inputParams_.mSize, static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256));
     basicTiling_.baseM = !inputParams_.transA ?
                              CeilAlign(basicTiling_.baseM, CUBE_BLOCK) :
@@ -935,7 +937,7 @@ void GroupedQbmmTiling::CalBasicBlock()
         std::min(GetShapeWithDataType(GmmConstant::BASIC_BLOCK_SIZE_128, inputParams_.aDtype), inputParams_.kSize),
         GetShapeWithDataType(CUBE_REDUCE_BLOCK, inputParams_.aDtype));
 
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         basicTiling_.baseK = CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
         bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2;
         if (isFp4Input && !inputParams_.transB) {
@@ -968,7 +970,7 @@ ge::graphStatus GroupedQbmmTiling::CalL1Tiling()
         (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
     uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t singleCoreScaleSize =
-        inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE && inputParams_.kernelType == 0 ?
+        inputParams_.bQuantMode == QuantMode::PERCHANNEL_MODE && inputParams_.kernelType == 0 ?
             basicTiling_.baseN * scaleDtypeSize :
             0;
     uint64_t usedSize = singleCoreBiasSize + singleCoreScaleSize;
@@ -987,7 +989,7 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
 
     uint64_t baseScaleASize = 0;
     uint64_t baseScaleBSize = 0;
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         if (inputParams_.groupType == SPLIT_M) {
             baseScaleASize =
                 GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
@@ -1023,7 +1025,7 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
         basicTiling_.depthB1 = depthASec < depthBSec ? depthBSec : depthInit;
     }
     CalStepKs();
-    if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
+    if (inputParams_.bQuantMode == QuantMode::MX_PERGROUP_MODE) {
         CalScaleFactors();
     }
     return ge::GRAPH_SUCCESS;
@@ -1071,8 +1073,8 @@ void GroupedQbmmTiling::CalStepKs()
         basicTiling_.stepKb = CeilDiv(inputParams_.kSize, basicTiling_.baseK);
     }
     // G-B量化场景下，限制stepK最大为4, 防止issue queue阻塞
-    if (inputParams_.aQuantMode == optiling::QuantMode::PERGROUP_MODE &&
-        inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE) {
+    if (inputParams_.aQuantMode == QuantMode::PERGROUP_MODE &&
+        inputParams_.bQuantMode == QuantMode::PERBLOCK_MODE) {
         basicTiling_.stepKa = std::min(basicTiling_.stepKa, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
         basicTiling_.stepKb = std::min(basicTiling_.stepKb, static_cast<uint64_t>(4)); // 4: G-B最大stepk值
     }
@@ -1165,4 +1167,5 @@ uint64_t GroupedQbmmTiling::GetShapeWithDataType(uint64_t shapeSize, ge::DataTyp
 }
 
 REGISTER_OPS_TILING_TEMPLATE(GroupedMatmul, GroupedQbmmTiling, 0);
+} // namespace Mc2GroupedMatmulTiling
 } // namespace optiling
