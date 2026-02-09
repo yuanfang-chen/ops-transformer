@@ -18,7 +18,11 @@
 
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
+#if __has_include("../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h")
+#include "../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h"
+#else
+#include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+#endif
 
 constexpr uint32_t MAX_EXPERT_SIZE = 512U; // 最大通信域专家的数量
 
