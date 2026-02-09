@@ -194,10 +194,43 @@ public:
             emptyTensorTilingDataRegbase->set_singleCoreDpseNum(dpseNum / aivNum + 1);
             emptyTensorTilingDataRegbase->set_tailCoreDpseNum(dpseNum / aivNum);
         }
+
+        // rope场景清零的处理
+        const gert::StorageShape *dqRopeShape = context->GetOutputShape(OUTPUT_IDX_DQ_ROPE);
+        const gert::StorageShape *dkRopeShape = context->GetOutputShape(OUTPUT_IDX_DK_ROPE);
+        if (dqRopeShape == nullptr && dkRopeShape == nullptr) {
+            emptyTensorTilingDataRegbase->isRope = 0;
+        } else {
+            emptyTensorTilingDataRegbase->isRope = 1;
+        }
+        if (emptyTensorTilingDataRegbase->isRope) {
+            uint64_t dqRopeNum = (dqRopeShape == nullptr) ? 0 : static_cast<uint64_t>(dqRopeShape->GetStorageShape().GetShapeSize());
+            if (dqRopeNum % aivNum == 0ULL) {
+                emptyTensorTilingDataRegbase->set_formerDqRopeNum(aivNum);
+                emptyTensorTilingDataRegbase->set_singleCoreDqRopeNum(dqRopeNum / aivNum);
+                emptyTensorTilingDataRegbase->set_tailCoreDqRopeNum(0);
+            } else {
+                emptyTensorTilingDataRegbase->set_formerDqRopeNum(dqRopeNum % aivNum);
+                emptyTensorTilingDataRegbase->set_singleCoreDqRopeNum(dqRopeNum / aivNum + 1);
+                emptyTensorTilingDataRegbase->set_tailCoreDqRopeNum(dqRopeNum / aivNum);
+            }
+
+            uint64_t dkRopeNum = (dkRopeShape == nullptr) ? 0 : static_cast<uint64_t>(dkRopeShape->GetStorageShape().GetShapeSize());
+            if (dkRopeNum % aivNum == 0ULL) {
+                emptyTensorTilingDataRegbase->set_formerDkRopeNum(aivNum);
+                emptyTensorTilingDataRegbase->set_singleCoreDkRopeNum(dkRopeNum / aivNum);
+                emptyTensorTilingDataRegbase->set_tailCoreDkRopeNum(0);
+            } else {
+                emptyTensorTilingDataRegbase->set_formerDkRopeNum(dkRopeNum % aivNum);
+                emptyTensorTilingDataRegbase->set_singleCoreDkRopeNum(dkRopeNum / aivNum + 1);
+                emptyTensorTilingDataRegbase->set_tailCoreDkRopeNum(dkRopeNum / aivNum);
+            }
+        }
  
-        context->SetTilingKey(GET_TPL_TILING_KEY(TILING_KEY_1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILING_KEY_1));
+        context->SetTilingKey(GET_TPL_TILING_KEY(TILING_KEY_1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, TILING_KEY_1));
         auto sliceNum =
-            (dqNum < aivNum && dkNum < aivNum && dpseNum < aivNum) ? std::max(std::max(dqNum, dkNum), dpseNum) : aivNum;
+            (dqNum < aivNum && dkNum < aivNum && dpseNum < aivNum && dvNum < aivNum) ?
+            std::max(std::max(std::max(dqNum, dkNum), dpseNum), dvNum) : aivNum;
         context->SetBlockDim(CalculateTschBlockDim(sliceNum, aicNum, aivNum));
         size_t *workspaces = context->GetWorkspaceSizes(1);
         workspaces[0] = WORKSPACE_SIZE;
