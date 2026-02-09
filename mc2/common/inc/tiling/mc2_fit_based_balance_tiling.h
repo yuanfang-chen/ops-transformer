@@ -18,7 +18,7 @@
 #pragma once
 #include "matmul_formulaic_tiling.h"
 #include "hccl_performance_arch35.h"
-#include "matmul_performance.h"
+#include "matmul_performance_arch35.h"
 #include "hccl_formulaic_tiling.h"
 
 class Mc2FitBasedBalanceTiling {

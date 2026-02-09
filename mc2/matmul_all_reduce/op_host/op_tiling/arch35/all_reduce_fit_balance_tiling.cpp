@@ -19,12 +19,11 @@
 constexpr static double LARGE_BACKTILE_CALC_COMM_RATIO_BAR = 1.75;
 constexpr static double MM_EXPANSION_TIME = 30;
 constexpr static double COMM_EXPANSION_TIME = 40;
-constexpr static uint64_t L2_CACHE_SIZE = 128;
+constexpr static uint64_t L2_CACHE_SIZE = 128 * ONE_MBYTE;
 
 void MMAllReduceFitBalanceTiling::EstimateMMCommTime()
 {
-    matmulPerf_.FindCubeUtil(tilingM_.GetMinLen(), rankTileNum_, true,
-                           &tilingM_.tileArgs.maxTileLen);
+    matmulPerf_.FindCubeUtil(rankTileNum_);
     matmulPerf_.GetMatmulGradient();
 
     // Find total matmul time and comm time

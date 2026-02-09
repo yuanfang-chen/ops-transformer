@@ -22,8 +22,7 @@ constexpr static uint64_t L2_CACHE_SIZE = 128;
 
 void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 {
-    matmulPerf_.FindCubeUtil(tilingM_.GetMinLen(), rankTileNum_, true,
-                           &tilingM_.tileArgs.maxTileLen);
+    matmulPerf_.FindCubeUtil(rankTileNum_);
     matmulPerf_.GetMatmulGradient();
 
     // Find total matmul time and comm time
