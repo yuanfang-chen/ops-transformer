@@ -18,4 +18,9 @@ foreach(SUB_DIR ${CURRENT_DIRS})
     endif()
 endforeach()
 
+target_link_libraries(op_api PRIVATE
+    ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhccl_v2.so
+    ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
+)
+
 set(MC2_COMPILE ${SUB_MC2_COMPILE} PARENT_SCOPE)
