@@ -13,6 +13,7 @@
  * \brief host侧tiling实现
  */
 
+#include <string>
 #include <register/op_def_registry.h>
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
@@ -21,7 +22,29 @@ namespace MC2Tiling {
 
 constexpr uint64_t SCALE_INDEX = 5;
 constexpr uint64_t BIAS_INDEX = 7;
+constexpr uint64_t ONE_BATCH_DIM = 1;
 constexpr uint64_t TWO_BATCH_DIM = 2;
+constexpr uint64_t THREE_BATCH_DIM = 3;
+constexpr uint64_t FOUR_BATCH_DIM = 4;
+constexpr uint64_t LAST_DIM = 1;
+constexpr uint64_t LAST_SECOND_DIM = 2;
+
+const std::map<ge::DataType, matmul_tiling::DataType> DTYPE_MAP =
+{
+    {ge::DT_FLOAT16, matmul_tiling::DataType::DT_FLOAT16},
+    {ge::DT_FLOAT, matmul_tiling::DataType::DT_FLOAT},
+    {ge::DT_BF16, matmul_tiling::DataType::DT_BF16},
+    {ge::DT_INT8, matmul_tiling::DataType::DT_INT8},
+};
+
+enum class MatmulV3Trans : int32_t
+{
+    NO_TRANS = 0,
+    A_TRANS = 1,
+    B_TRANS = 2,
+    AB_TRANS = 3
+};
+
 template<typename T>
 inline bool Is256BAlign(T base, uint64_t dTypeSize) {
     if (base * dTypeSize % 256 == 0) { // 256: align byte size
@@ -32,11 +55,11 @@ inline bool Is256BAlign(T base, uint64_t dTypeSize) {
 
 ge::graphStatus MmTilingHelper::GetPlatformInfo() // 检查平台信息是否支持
 {
-    if (!compileInfoInit_) {
-        auto compileInfoPtr = reinterpret_cast<const MatmulV3CompileInfo *>(context_->GetCompileInfo());
-        OP_CHECK_NULL_WITH_CONTEXT(context_, compileInfoPtr);
-        compileInfo_ = *compileInfoPtr;
-    }
+    
+    auto compileInfoPtr = reinterpret_cast<const Mc2MatmulCompileInfo *>(context_->GetCompileInfo());
+    OP_CHECK_NULL_WITH_CONTEXT(context_, compileInfoPtr);
+    compileInfo_ = *compileInfoPtr;
+
     if (compileInfo_.aicNum == 0) {
         OP_LOGE(context_->GetNodeName(), "compileInfo.aicNum is zero.");
         return ge::GRAPH_FAILED;
@@ -51,7 +74,7 @@ void MmTilingHelper::InitCompileInfo() // 检查输入属性是否支持
         OP_LOGW(context_->GetNodeName(), "platformInfo is null");
         return;
     }
-    Mc2MatmulV3CompileInfo compileInfo;
+    Mc2MatmulCompileInfo compileInfo;
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     platformInfo->GetPlatformRes("version", "SoC_version", compileInfo.socVersionStr);
@@ -73,45 +96,33 @@ void MmTilingHelper::InitCompileInfo() // 检查输入属性是否支持
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfo.l0CSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, compileInfo.l2Size);
 
-    TilingPrepareForOpCache(context_);
+    // TilingPrepareForOpCache(context_);
     OP_LOGI(context_->GetNodeName(),
         "parse compile info soc:%d, l1Size:%lu, l2Size:%lu, coreNum:%lu, supportL0c2out:%d, supportL12BtBf16:%d",
         static_cast<int32_t>(compileInfo.socVersion), compileInfo.l1Size, compileInfo.l2Size, compileInfo.aicNum,
         compileInfo.supportL0c2out, compileInfo.supportL12BtBf16);
-    compileInfoInit_ = true;
+    // compileInfoInit_ = true;
     compileInfo_ = compileInfo;
 }
 
-ge::graphStatus InitTCubeTilingData(TCubeTiling &tCubeTiling) const
+ge::graphStatus MmTilingHelper::InitTCubeTilingData(TCubeTiling &tCubeTiling)
 {
-    matmul_tiling::MultiCoreMatmulTiling mm;
     auto aFormat = args_.aFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
     auto bFormat = args_.bFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
     auto cFormat = args_.outFormat == ge::FORMAT_ND ? matmul_tiling::CubeFormat::ND : matmul_tiling::CubeFormat::NZ;
-    try {
-        mm.SetAType(matmul_tiling::TPosition::GM, aFormat, dtypeMap_.at(args_.aType), args_.isATrans);
-        mm.SetBType(matmul_tiling::TPosition::GM, bFormat, dtypeMap_.at(args_.bType), args_.isBTrans);
-        mm.SetCType(matmul_tiling::TPosition::GM, cFormat, dtypeMap_.at(args_.cType));
-        mm.SetDim(compileInfo_.aicNum);
-        mm.SetShape(args_.mValue, args_.nValue, args_.kValue);
-        mm.SetOrgShape(args_.mValue, args_.nValue, args_.kValue);
-        if (args_.hasBias) {
-            mm.SetBias(true);
-            mm.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
-                            dtypeMap_.at(args_.biasType));
-        }
-    } catch (const std::out_of_range &e) {
-        OP_LOGE(args_.opName, "MatMulV3 Set Type Failed! %d, %d, %d, %d",
-                static_cast<int32_t>(args_.aType),
-                static_cast<int32_t>(args_.bType),
-                static_cast<int32_t>(args_.cType),
-                static_cast<int32_t>(args_.biasType));
-        return ge::GRAPH_FAILED;
+    mm_.SetAType(matmul_tiling::TPosition::GM, aFormat, DTYPE_MAP.at(args_.aType), args_.isATrans);
+    mm_.SetBType(matmul_tiling::TPosition::GM, bFormat, DTYPE_MAP.at(args_.bType), args_.isBTrans);
+    mm_.SetCType(matmul_tiling::TPosition::GM, cFormat, DTYPE_MAP.at(args_.cType));
+    mm_.SetDim(compileInfo_.aicNum);
+    mm_.SetShape(args_.mValue, args_.nValue, args_.kValue);
+    mm_.SetOrgShape(args_.mValue, args_.nValue, args_.kValue);
+    if (args_.hasBias) {
+        mm_.SetBias(true);
+        mm_.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, DTYPE_MAP.at(args_.biasType));
     }
-
-    mm.SetBufferSpace(compileInfo_.l1Size, compileInfo_.l0CSize, compileInfo_.ubSize);
-    if (mm.GetTiling(tCubeTiling) == -1) {
-        OP_LOGE(args_.opName, "MatMulV3 Get Tiling Failed!");
+    mm_.SetBufferSpace(compileInfo_.l1Size, compileInfo_.l0CSize, compileInfo_.ubSize);
+    if (mm_.GetTiling(tCubeTiling) == -1) {
+        OP_LOGE(args_.opName, "MatmulV3 Get Tiling Failed!");
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -135,7 +146,7 @@ static ge::graphStatus GetInputDims(const gert::Shape &storageShape, ge::Format 
     return ge::GRAPH_SUCCESS;
 }
 static ge::graphStatus SetMatmulDimensions(
-    const gert::TilingContext& context, MatmulV3Args& args, int64_t m, int64_t k, int64_t n)
+    const gert::TilingContext& context, Mc2MatMulArgs& args, int64_t m, int64_t k, int64_t n)
 {
     auto isValidDimValue = [](int64_t dim) -> bool { return (dim > 0) && (dim <= INT32_MAX); };
     if (!isValidDimValue(m) || !isValidDimValue(k) || !isValidDimValue(n)) {
@@ -167,7 +178,7 @@ static ge::graphStatus SetMatmulDimensions(
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus GetShape(const gert::TilingContext &context, MatMulArgs &args)
+static ge::graphStatus GetShape(const gert::TilingContext &context, Mc2MatMulArgs &args)
 {
     // get transpose
     args.isBTrans = *context.GetAttrs()->GetAttrPointer<bool>(2);
@@ -226,7 +237,7 @@ static inline void GetDtype(const gert::TilingContext &context, Mc2MatMulArgs &a
     args.bType = context.GetInputDesc(1)->GetDataType();
     args.cType = context.GetOutputDesc(0)->GetDataType();
     args.hasBias = context.GetOptionalInputDesc(BIAS_INDEX) != nullptr;
-    OP_LOGD(args.opName, "hasBias is: %d", args.hasBias);
+    OP_LOGD(args.opName, "hasBias is: %d", static_cast<int>(args.hasBias));
     if (args.hasBias) {
         args.biasType = context.GetOptionalInputDesc(BIAS_INDEX)->GetDataType();
     }
@@ -242,7 +253,7 @@ ge::graphStatus MmTilingHelper::getMamtulArgs()
     return ge::GRAPH_SUCCESS;
 }
 
-inline bool GetNd2nzA(const MatMulArgs& args_, const MatmulV3CompileInfo& compileInfo_)
+inline bool GetNd2nzA(const Mc2MatMulArgs& args_, const Mc2MatmulCompileInfo& compileInfo_)
 {
     constexpr uint64_t nMataThread = 16384;
     constexpr uint64_t mMataThread = 4096;
@@ -254,7 +265,7 @@ inline bool GetNd2nzA(const MatMulArgs& args_, const MatmulV3CompileInfo& compil
            (args_.aType == ge::DT_FLOAT16 || args_.aType == ge::DT_BF16);
 }
 
-inline bool GetNd2nzB(const MatMulArgs& args_, const MatmulV3CompileInfo& compileInfo_)
+inline bool GetNd2nzB(const Mc2MatMulArgs& args_, const Mc2MatmulCompileInfo& compileInfo_)
 {
     constexpr uint64_t kMataCond = 16384;
     constexpr uint64_t nMataCond = 7168;
@@ -329,38 +340,38 @@ inline int GetSizeByDataType(DataType data_type) {
 
 ge::graphStatus MmTilingHelper::GetMoreArgs()
 {
-    aDtypeSize_ = GetSizeByDataType(args_.aType);
-    bDtypeSize_ = GetSizeByDataType(args_.bType);
-    cDtypeSize_ = GetSizeByDataType(args_.cType);
-    m256Align_ = Is256BAlign(args_.mValue, aDtypeSize_); // A矩阵 m轴256B对齐
-    kA256Align_ = Is256BAlign(args_.kValue, aDtypeSize_); // A矩阵 k轴256B对齐
-    kB256Align_ = Is256BAlign(args_.kValue, bDtypeSize_); // B矩阵 k轴256B对齐
-    n256Align_ = Is256BAlign(args_.nValue, bDtypeSize_);  // B矩阵 n轴256B对齐
-    bool innerAlignA = kA256Align_;
-    bool innerAlignB = n256Align_;
+    uint64_t aDtypeSize = GetSizeByDataType(args_.aType);
+    uint64_t bDtypeSize = GetSizeByDataType(args_.bType);
+    uint64_t cDtypeSize = GetSizeByDataType(args_.cType);
+    uint64_t m256Align = Is256BAlign(args_.mValue, aDtypeSize); // A矩阵 m轴256B对齐
+    uint64_t kA256Align = Is256BAlign(args_.kValue, aDtypeSize); // A矩阵 k轴256B对齐
+    uint64_t kB256Align = Is256BAlign(args_.kValue, bDtypeSize); // B矩阵 k轴256B对齐
+    uint64_t n256Align = Is256BAlign(args_.nValue, bDtypeSize);  // B矩阵 n轴256B对齐
+    bool innerAlignA = kA256Align;
+    bool innerAlignB = n256Align;
     uint64_t innerSizeA = args_.kValue;
     uint64_t innerSizeB = args_.nValue;
     uint64_t outerSizeA = args_.mValue;
     uint64_t outerSizeB = args_.kValue;
-    trans_ = MatmulV3Trans::NO_TRANS;
+    auto trans = MatmulV3Trans::NO_TRANS;
     if (args_.isATrans) {
-        trans_ = MatmulV3Trans::A_TRANS;
+        trans = MatmulV3Trans::A_TRANS;
         innerAlignA = m256Align_;
         innerSizeA = args_.mValue;
         outerSizeA = args_.kValue;
     }
     if (args_.isBTrans) {
-        trans_ = MatmulV3Trans::B_TRANS;
+        trans = MatmulV3Trans::B_TRANS;
         innerAlignB = kB256Align_;
         innerSizeB = args_.kValue;
         outerSizeB = args_.nValue;
     }
     if (args_.isATrans && args_.isBTrans) {
-        trans_ = MatmulV3Trans::AB_TRANS;
+        trans = MatmulV3Trans::AB_TRANS;
     }
-    calcMBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_M_BASIC;
-    calcMNBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_MN_BASIC;
-    l2TileLength_ = L2_TILE_LENGTH;
+    // uint64_t calcMBasic = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_M_BASIC;
+    // calcMNBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_MN_BASIC;
+    // l2TileLength_ = L2_TILE_LENGTH;
     OP_TILING_CHECK(!compileInfo_.supportL0c2out, tilingSelect_ = TilingCalcSelect::BASE, return ge::GRAPH_SUCCESS);
 
     // check the size is equaled to {32, 64, 96, 128, 160, 192, 224, 256, 384}.
