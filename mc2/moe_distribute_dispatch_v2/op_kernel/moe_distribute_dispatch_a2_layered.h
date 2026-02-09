@@ -1307,7 +1307,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             continue;
             // 目标Rank没Token发来则跳过
         }
-        uint32_t index = srIdx / halfWorldSize;
+        uint32_t index = (srIdx % worldSize_) / halfWorldSize;
         uint32_t restRankId = srIdx % halfWorldSize;
         uint32_t tokenCntInUB = tokenUbSize_ / tokenStructLen_;
         // 单次能搬移的token数据量
