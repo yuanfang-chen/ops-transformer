@@ -11,11 +11,11 @@
 
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_combine_shmem.h"
-#include "matmul_util.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/common_types.h"
 #include "opdev/op_log.h"
+#include "opdev/platform.h"
 
 using namespace op;
 
@@ -121,7 +121,7 @@ aclnnStatus aclnnMoeDistributeCombineShmemGetWorkspaceSize(
     int64_t shmem_size, aclTensor* xOut, uint64_t* workspaceSize,
     aclOpExecutor** executor) {
   const static bool is910B =
-      GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+      GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201;
   auto ret_param =
       CheckParams(expandX, expertIds, assistInfoForCombine, epSendCounts,
                   expertScales, groupEp, groupTp, xOut);

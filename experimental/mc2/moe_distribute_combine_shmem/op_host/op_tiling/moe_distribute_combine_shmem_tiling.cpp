@@ -42,6 +42,7 @@ using namespace AscendC;
 using namespace ge;
 
 namespace {
+constexpr uint32_t AICPU_BLOCK_DIM_A2 =6u;
 constexpr uint32_t SHMEM_CONTEXT_INDEX = 0;
 constexpr uint32_t EXPAND_X_INDEX = 1;
 constexpr uint32_t EXPERT_IDS_INDEX = 2;
@@ -1946,7 +1947,7 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(
   uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
   blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
   context->SetBlockDim(blockDim);
-  context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+  context->SetAicpuBlockDim(AICPU_BLOCK_DIM_A2);
 
   uint64_t tilingKey =
       MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
@@ -1995,11 +1996,8 @@ static ge::graphStatus MoeDistributeCombineShmemTilingFunc(
   fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
   fe::PlatFormInfos &platformInfo = *platformInfoPtr;
 
-  std::string socVersion;
-  (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version",
-                                            socVersion);
   ge::graphStatus ret;
-  if (socVersion == "Ascend910B") {
+  if (mc2tiling::GetCurNpuArch(context) == NpuArch::DAV_2201) {
     ret = MoeDistributeCombineA2TilingFuncImpl(context);
   } else {
     ret = MoeDistributeCombineA3TilingFuncImpl(context);
