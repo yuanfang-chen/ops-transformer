@@ -28,42 +28,21 @@
 #include "moe_distribute_combine_v2.h"
 
 #ifndef __DAV_C310__
-using namespace MoeDistributeCombineA2Impl;
+using namespace MoeDistributeCombineV2A5Impl;
 #endif // __DAV_C310__
 
 using namespace MoeDistributeCombineV2Impl;
 using namespace Mc2Tiling;
 using namespace AscendC;
 
-// namespace {
-// template <TemplateMC2TypeClass>
-// __aicore__ inline void ExecMoeDistributeCombineV2(GM_ADDR expandX, GM_ADDR expertIds,
-//                                                 GM_ADDR assistInfoForCombine, GM_ADDR epSendCount, 
-//                                                 GM_ADDR tpSendCount, GM_ADDR scales, GM_ADDR xActiveMask, 
-//                                                 GM_ADDR sharedExpertX, GM_ADDR elasticInfo, GM_ADDR oriX, 
-//                                                 GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2,
-//                                                 GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut, 
-//                                                 GM_ADDR workspaceGM, GM_ADDR tilingGM, TPipe *pipePtr)
-// {
-//     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
-//     MoeDistributeCombineV2<TemplateMC2TypeFunc> op;
-//     op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, 
-//             scales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1, 
-//             constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, pipePtr, &tilingData);
-//     op.Process();
-// }
-// }
-
-
-template<bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t ArchTag>
-__global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine,
-                                                    GM_ADDR epSendCount, GM_ADDR scales, GM_ADDR tpSendCount,
-                                                    GM_ADDR xActiveMask, GM_ADDR activationScale, GM_ADDR weightScale,
-                                                    GM_ADDR groupList, GM_ADDR expandScales, GM_ADDR sharedExpertX, 
-                                                    GM_ADDR elasticInfo, GM_ADDR oriX, GM_ADDR constExpertAlpha1,
-                                                    GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, 
-                                                    GM_ADDR performanceInfo, GM_ADDR XOut, GM_ADDR workspaceGM, 
-                                                    GM_ADDR tilingGM)
+template <bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t ArchTag>
+__global__ __aicore__ void
+moe_distribute_combine_v2_extend(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine, GM_ADDR epSendCount,
+                                 GM_ADDR scales, GM_ADDR tpSendCount, GM_ADDR xActiveMask, GM_ADDR activationScale,
+                                 GM_ADDR weightScale, GM_ADDR groupList, GM_ADDR expandScales, GM_ADDR sharedExpertX,
+                                 GM_ADDR elasticInfo, GM_ADDR oriX, GM_ADDR constExpertAlpha1,
+                                 GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut,
+                                 GM_ADDR workspaceGM, GM_ADDR tilingGM)
 
 {
     REGISTER_TILING_DEFAULT(MoeDistributeCombineV2TilingData);
@@ -74,65 +53,16 @@ __global__ __aicore__ void moe_distribute_combine_v2(GM_ADDR expandX, GM_ADDR ex
 
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
 #ifdef __DAV_C310__
-    // if constexpr (ArchTag == TILINGKEY_TPL_A5) {
-    //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
-    //     MoeDistributeCombineA5Impl::MoeDistributeCombineA5<DTYPE_EXPAND_X, int32_t> op;
-    //     op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, xActiveMask,
-    //             scales, sharedExpertX, XOut, workspaceGM, &pipe, &tilingData);
-    //     op.Process();
-    // }
-    GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
-    MoeDistributeCombineV2A5Impl::MoeDistributeCombineV2A5LayeredHostcpu<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp,
-                                                                         QuantMode == TILINGKEY_INT8_QUANT>
-        op;
-    op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, expandScales, xActiveMask, sharedExpertX,
-            elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM, &pipe,
-            &tilingData);
-    op.Process();
-
-#else
-    // if constexpr ((ArchTag == TILINGKEY_TPL_A2) && 
-    //             (LayeredMode == TILINGKEY_TPL_MTE) && (QuantMode == TILINGKEY_NO_QUANT)) {
-    //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineA2TilingData, tilingData, tilingGM);
-    //     MoeDistributeCombineA2<DTYPE_EXPAND_X, int32_t> op;
-    //     op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, scales, xActiveMask, oriX, constExpertAlpha1, 
-    //             constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, &pipe, &tilingData);
-    //     op.Process();
-    // } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && 
-    //                     (QuantMode == TILINGKEY_NO_QUANT) && (LayeredMode == TILINGKEY_TPL_AICPU)) {
-    //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineA2TilingData, tilingData, tilingGM);
-    //     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
-    //     DataplaneMode dataplaneMode = GetDataplaneMode(contextGM0);
-    //     if (dataplaneMode == DataplaneMode::AICPU) {
-    //         MoeDistributeCombineA2LayeredAicpu<DTYPE_EXPAND_X, int32_t> op;
-    //         op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, expandScales, 
-    //                 XOut, workspaceGM, &pipe, &tilingData, contextGM0);
-    //         op.Process();
-    //     } else if (dataplaneMode == DataplaneMode::AIV) {
-    //         MoeDistributeCombineA2Layered<DTYPE_EXPAND_X, int32_t, DTYPE_EXPAND_X> op;
-    //         op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, expandScales, performanceInfo, 
-    //                 XOut, workspaceGM, &pipe, &tilingData, contextGM0);
-    //         op.Process();
-    //     }
-    // } else if constexpr ((ArchTag == TILINGKEY_TPL_A2) && 
-    //                     (QuantMode == TILINGKEY_INT8_QUANT) && (LayeredMode == TILINGKEY_TPL_AICPU)) {
-    //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineA2TilingData, tilingData, tilingGM);
-
-    //     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
-    //     DataplaneMode dataplaneMode = GetDataplaneMode(contextGM0);
-    //     if (dataplaneMode == DataplaneMode::AIV) {
-    //         MoeDistributeCombineA2Layered<DTYPE_EXPAND_X, int32_t, int8_t> op;
-    //         op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, expandScales, performanceInfo,
-    //                 XOut, workspaceGM, &pipe, &tilingData, contextGM0);
-    //         op.Process();
-    //     }
-    // }
+    if constexpr (ArchTag == TILINGKEY_TPL_A5) {
+        GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
+        MoeDistributeCombineV2A5Impl::MoeDistributeCombineV2A5LayeredHostcpu<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp,
+                                                                             QuantMode == TILINGKEY_INT8_QUANT>
+            op;
+        op.Init(expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, expandScales, xActiveMask,
+                sharedExpertX, elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, XOut, workspaceGM,
+                &pipe, &tilingData);
+        op.Process();
+    }
 #endif
-    // if constexpr (ArchTag == TILINGKEY_TPL_A3) {
-    //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineV2TilingData, tilingData, tilingGM);
-    //     ExecMoeDistributeCombineV2<DTYPE_EXPAND_X, DTYPE_X, int32_t, HasTp, QuantMode == TILINGKEY_INT8_QUANT>(
-    //     expandX, expertIds, assistInfoForCombine, epSendCount, tpSendCount, scales, xActiveMask, sharedExpertX, 
-    //     elasticInfo, oriX, constExpertAlpha1, constExpertAlpha2, constExpertV, performanceInfo, XOut, workspaceGM, tilingGM, &pipe);
-    // }
 #endif
 }
