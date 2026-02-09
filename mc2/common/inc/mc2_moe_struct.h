@@ -20,10 +20,10 @@ namespace Mc2Moe {
 constexpr uint32_t HCCL_HOST_KFC_MAX_RANK_NUM = 64;
 
 struct Mc2MoeContext {
-    int32_t epRankId;
-    int32_t epRankSize;
-    int32_t tpRankId;
-    int32_t winSize;
+    uint32_t epRankId;
+    uint32_t epRankSize;
+    uint32_t tpRankId;
+    uint32_t winSize;
     uint64_t tpHcclBuffer_[2];
     uint64_t epHcclBuffer_[HCCL_HOST_KFC_MAX_RANK_NUM];   // 按最大数设置
     uint64_t kfcContextAddr;    // host kfc方案中，需要传递通信API所需的地址
