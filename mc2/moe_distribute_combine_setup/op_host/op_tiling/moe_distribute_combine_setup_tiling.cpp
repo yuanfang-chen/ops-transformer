@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include "register/op_def_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "arch35/moe_distribute_combine_setup_tiling_arch35.h"
+#include "arch32/moe_distribute_combine_setup_tiling_arch32.h"
 
 using namespace Ops::Transformer::OpTiling;
 using namespace AscendC;
@@ -24,6 +25,7 @@ using namespace ge;
 namespace optiling {
 
 REGISTER_OPS_TILING_TEMPLATE(MoeDistributeCombineSetup, MoeDistributeCombineSetupTilingA5, 0);
+REGISTER_OPS_TILING_TEMPLATE(MoeDistributeCombineSetup, MoeDistributeCombineSetupTilingA3, 1);
 
 ge::graphStatus MoeDistributeCombineSetupTilingFunc(gert::TilingContext* context)
 {

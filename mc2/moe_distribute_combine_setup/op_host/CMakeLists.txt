@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -20,6 +20,15 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
     set(MC2_OPT ON PARENT_SCOPE)
     set(moe_distribute_combine_setup_depends mc2/common mc2/3rd PARENT_SCOPE)
+
+    # --cce-auto-sync=off：指定CCE编译器是否自动执行线程间或模块间的同步操作 
+    set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT}) 
+    if("${CONDITION_UNIT}" STREQUAL "ascend950") 
+        add_ops_compile_options( 
+            OP_NAME MoeDistributeCombineSetup 
+            OPTIONS --cce-auto-sync=off 
+        ) 
+    endif()
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE moe_distribute_combine_setup moe_distribute_combine_setup ACLNNTYPE aclnn aclnn_inner)
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE) 
