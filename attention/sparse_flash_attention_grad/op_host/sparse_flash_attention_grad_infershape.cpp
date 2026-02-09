@@ -21,6 +21,10 @@ using namespace ge;
 
 namespace ops {
 namespace sfag {
+static const uint64_t DIM_NUM_0 = 0;
+static const uint64_t DIM_NUM_1 = 1;
+static const uint64_t DIM_NUM_2 = 2;
+static const uint64_t DIM_NUM_3 = 3;
 
 enum class InputIndex : uint32_t {
     QUERY = 0,
@@ -75,6 +79,16 @@ ge::graphStatus InferShape4SparseFlashAttentionGrad(gert::InferShapeContext *con
     OP_CHECK_NULL_WITH_CONTEXT(context, selectedBlockSize);
     OP_CHECK_NULL_WITH_CONTEXT(context, inputLayout);
 
+    std::string inputLayoutSfag = std::string(inputLayout);
+    for (auto &c : inputLayoutSfag) {
+        c = toupper(c);
+    }
+    if (inputLayoutSfag != "BSND" && inputLayoutSfag != "TND") {
+        OP_LOGE(context, "The SparseFlashAttentionGrad inputLayout should be BSND/TND, but got %s.",
+                  inputLayoutSfag.c_str());
+        return GRAPH_FAILED;
+    }
+
     gert::Shape *dqShape = context->GetOutputShape(static_cast<size_t>(OutputIndex::DQ));
     gert::Shape *dkShape = context->GetOutputShape(static_cast<size_t>(OutputIndex::DK));
     gert::Shape *dvShape = context->GetOutputShape(static_cast<size_t>(OutputIndex::DV));
@@ -94,6 +108,81 @@ ge::graphStatus InferShape4SparseFlashAttentionGrad(gert::InferShapeContext *con
         gert::Shape *dkRopeShape = context->GetOutputShape(static_cast<size_t>(OutputIndex::DK_ROPE));
         OP_CHECK_NULL_WITH_CONTEXT(context, dkRopeShape);
         *dkRopeShape = *keyRopeShape;
+    }
+
+    // 比较维度数值与输入是否能够对应
+    if (inputLayoutStr == "BSND") {
+        if (queryShape->GetDim(DIM_NUM_0) != dqShape->GetDim(DIM_NUM_0) || queryShape->GetDim(DIM_NUM_1) != dqShape->GetDim(DIM_NUM_1) || 
+            queryShape->GetDim(DIM_NUM_2) != dqShape->GetDim(DIM_NUM_2) || queryShape->GetDim(DIM_NUM_3) != dqShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input query shape is [%ld, %ld, %ld, %ld], but d_query got [%ld, %ld, %ld, %ld].", queryShape->GetDim(DIM_NUM_0),
+                queryShape->GetDim(DIM_NUM_1), queryShape->GetDim(DIM_NUM_2), queryShape->GetDim(DIM_NUM_3), 
+                dqShape->GetDim(DIM_NUM_0), dqShape->GetDim(DIM_NUM_1), dqShape->GetDim(DIM_NUM_2), dqShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;                
+        }
+        if (keyShape->GetDim(DIM_NUM_0) != dkShape->GetDim(DIM_NUM_0) || keyShape->GetDim(DIM_NUM_1) != dkShape->GetDim(DIM_NUM_1) || 
+            keyShape->GetDim(DIM_NUM_2) != dkShape->GetDim(DIM_NUM_2) || keyShape->GetDim(DIM_NUM_3) != dkShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input key shape is [%ld, %ld, %ld, %ld], but d_key got [%ld, %ld, %ld, %ld].", keyShape->GetDim(DIM_NUM_0),
+                keyShape->GetDim(DIM_NUM_1), keyShape->GetDim(DIM_NUM_2), keyShape->GetDim(DIM_NUM_3), 
+                dkShape->GetDim(DIM_NUM_0), dkShape->GetDim(DIM_NUM_1), dkShape->GetDim(DIM_NUM_2), dkShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;                
+        }
+        if (valueShape->GetDim(DIM_NUM_0) != dvShape->GetDim(DIM_NUM_0) || valueShape->GetDim(DIM_NUM_1) != dvShape->GetDim(DIM_NUM_1) || 
+            valueShape->GetDim(DIM_NUM_2) != dvShape->GetDim(DIM_NUM_2) || valueShape->GetDim(DIM_NUM_3) != dvShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input value shape is [%ld, %ld, %ld, %ld], but d_value got [%ld, %ld, %ld, %ld].", valueShape->GetDim(DIM_NUM_0),
+                valueShape->GetDim(DIM_NUM_1), valueShape->GetDim(DIM_NUM_2), valueShape->GetDim(DIM_NUM_3), 
+                dvShape->GetDim(DIM_NUM_0), dvShape->GetDim(DIM_NUM_1), dvShape->GetDim(DIM_NUM_2), dvShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;         
+        }
+        if (queryRopeShape->GetDim(DIM_NUM_0) != dqRopeShape->GetDim(DIM_NUM_0) || queryRopeShape->GetDim(DIM_NUM_1) != dqRopeShape->GetDim(DIM_NUM_1) || 
+            queryRopeShape->GetDim(DIM_NUM_2) != dqRopeShape->GetDim(DIM_NUM_2) || queryRopeShape->GetDim(DIM_NUM_3) != dqRopeShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input query_rope shape is [%ld, %ld, %ld, %ld], but d_query_rope got [%ld, %ld, %ld, %ld].", queryRopeShape->GetDim(DIM_NUM_0),
+                queryRopeShape->GetDim(DIM_NUM_1), queryRopeShape->GetDim(DIM_NUM_2), queryRopeShape->GetDim(DIM_NUM_3), 
+                dqRopeShape->GetDim(DIM_NUM_0), dqRopeShape->GetDim(DIM_NUM_1), dqRopeShape->GetDim(DIM_NUM_2), dqRopeShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;         
+        }
+        if (keyRopeShape->GetDim(DIM_NUM_0) != dkRopeShape->GetDim(DIM_NUM_0) || keyRopeShape->GetDim(DIM_NUM_1) != dkRopeShape->GetDim(DIM_NUM_1) || 
+            keyRopeShape->GetDim(DIM_NUM_2) != dkRopeShape->GetDim(DIM_NUM_2) || keyRopeShape->GetDim(DIM_NUM_3) != dkRopeShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input key_rope shape is [%ld, %ld, %ld, %ld], but d_key_rope got [%ld, %ld, %ld, %ld].", keyRopeShape->GetDim(DIM_NUM_0),
+                keyRopeShape->GetDim(DIM_NUM_1), keyRopeShape->GetDim(DIM_NUM_2), keyRopeShape->GetDim(DIM_NUM_3), 
+                dkRopeShape->GetDim(DIM_NUM_0), dkRopeShape->GetDim(DIM_NUM_1), dkRopeShape->GetDim(DIM_NUM_2), dkRopeShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;    
+        }
+    } else if (inputLayoutStr == "TND") {
+        if (queryShape->GetDim(DIM_NUM_0) != dqShape->GetDim(DIM_NUM_0) || queryShape->GetDim(DIM_NUM_1) != dqShape->GetDim(DIM_NUM_1) || 
+            queryShape->GetDim(DIM_NUM_2) != dqShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input query shape is [%ld, %ld, %ld], but d_query got [%ld, %ld, %ld].", queryShape->GetDim(DIM_NUM_0),
+                queryShape->GetDim(DIM_NUM_1), queryShape->GetDim(DIM_NUM_2), 
+                dqShape->GetDim(DIM_NUM_0), dqShape->GetDim(DIM_NUM_1), dqShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;                
+        }
+        if (keyShape->GetDim(DIM_NUM_0) != dkShape->GetDim(DIM_NUM_0) || keyShape->GetDim(DIM_NUM_1) != dkShape->GetDim(DIM_NUM_1) || 
+            keyShape->GetDim(DIM_NUM_2) != dkShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input key shape is [%ld, %ld, %ld], but d_key got [%ld, %ld, %ld].", keyShape->GetDim(DIM_NUM_0),
+                keyShape->GetDim(DIM_NUM_1), keyShape->GetDim(DIM_NUM_2), 
+                dkShape->GetDim(DIM_NUM_0), dkShape->GetDim(DIM_NUM_1), dkShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;            
+        }
+        if (valueShape->GetDim(DIM_NUM_0) != dvShape->GetDim(DIM_NUM_0) || valueShape->GetDim(DIM_NUM_1) != dvShape->GetDim(DIM_NUM_1) || 
+            valueShape->GetDim(DIM_NUM_2) != dvShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input value shape is [%ld, %ld, %ld], but d_value got [%ld, %ld, %ld].", valueShape->GetDim(DIM_NUM_0),
+                valueShape->GetDim(DIM_NUM_1), valueShape->GetDim(DIM_NUM_2), 
+                dvShape->GetDim(DIM_NUM_0), dvShape->GetDim(DIM_NUM_1), dvShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;         
+        }
+        if (queryRopeShape->GetDim(DIM_NUM_0) != dqRopeShape->GetDim(DIM_NUM_0) || queryRopeShape->GetDim(DIM_NUM_1) != dqRopeShape->GetDim(DIM_NUM_1) || 
+            queryRopeShape->GetDim(DIM_NUM_2) != dqRopeShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input query_rope shape is [%ld, %ld, %ld], but d_query_rope got [%ld, %ld, %ld].", queryRopeShape->GetDim(DIM_NUM_0),
+                queryRopeShape->GetDim(DIM_NUM_1), queryRopeShape->GetDim(DIM_NUM_2), 
+                dqRopeShape->GetDim(DIM_NUM_0), dqRopeShape->GetDim(DIM_NUM_1), dqRopeShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;         
+        }
+        if (keyRopeShape->GetDim(DIM_NUM_0) != dkRopeShape->GetDim(DIM_NUM_0) || keyRopeShape->GetDim(DIM_NUM_1) != dkRopeShape->GetDim(DIM_NUM_1) || 
+            keyRopeShape->GetDim(DIM_NUM_2) != dkRopeShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input key_rope shape is [%ld, %ld, %ld], but d_key_rope got [%ld, %ld, %ld].", keyRopeShape->GetDim(DIM_NUM_0),
+                keyRopeShape->GetDim(DIM_NUM_1), keyRopeShape->GetDim(DIM_NUM_2),  
+                dkRopeShape->GetDim(DIM_NUM_0), dkRopeShape->GetDim(DIM_NUM_1), dkRopeShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;   
+        }
     }
 
     return GRAPH_SUCCESS;

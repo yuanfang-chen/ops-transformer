@@ -20,6 +20,12 @@
 using namespace ge;
 
 namespace ops {
+static const uint64_t INDEX_LAYOUT = 1;
+static const uint64_t DIM_NUM_0 = 0;
+static const uint64_t DIM_NUM_1 = 1;
+static const uint64_t DIM_NUM_2 = 2;
+static const uint64_t DIM_NUM_3 = 3;
+
 enum InputIdx {
     queryEnum = 0,
     keyEnum,
@@ -59,6 +65,22 @@ ge::graphStatus InferShapeSparseLightningIndexerGradKLLoss(gert::InferShapeConte
     const gert::Shape *keyIndexShape = context->GetInputShape(keyIndexEnum);
     OP_CHECK_NULL_WITH_CONTEXT(context, keyIndexShape);
 
+    auto attrs = context->GetAttrs();
+    OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
+
+    const char *inputLayout = attrs->GetAttrPointer<char>(INDEX_LAYOUT);
+    OP_CHECK_NULL_WITH_CONTEXT(context, inputLayout);
+
+    std::string inputLayoutSlig = std::string(inputLayout);
+    for (auto &c : inputLayoutSlig) {
+        c = toupper(c);
+    }
+    if (inputLayoutSlig != "BSND" && inputLayoutSlig != "TND") {
+        OP_LOGE(context, "The SparseLightningIndexerGradKLLoss inputLayout should be BSND/TND, but got %s.",
+                  inputLayoutSlig.c_str());
+        return GRAPH_FAILED;
+    }
+
     gert::Shape *lossShape = context->GetOutputShape(lossEnum);
     OP_CHECK_NULL_WITH_CONTEXT(context, lossShape);
     gert::Shape *dWeightShape = context->GetOutputShape(dWeightEnum);
@@ -68,9 +90,64 @@ ge::graphStatus InferShapeSparseLightningIndexerGradKLLoss(gert::InferShapeConte
     gert::Shape *dKIndexShape = context->GetOutputShape(dKeyIndexEnum);
     OP_CHECK_NULL_WITH_CONTEXT(context, dKIndexShape);
 
+    lossShape->SetDimNum(1); // 1代表设置维度为1
+    lossShape->SetDim(DIM_NUM_0, 1); // 设置第0维数值为1
     *dWeightShape = *weightShape;
     *dQIndexShape = *queryIndexShape;
     *dKIndexShape = *keyIndexShape;
+
+    if (lossShape->GetShapeSize() != 1){
+        OP_LOGE(context, "The Shape Len of Loss should be 1, but got %ld.", lossShape->GetShapeSize());
+        return GRAPH_FAILED;
+    } else if (lossShape->GetDim(DIM_NUM_0) != 1) {
+        OP_LOGE(context, "The Shape data of Loss should be 1, but got %ld.", lossShape->GetDim(DIM_NUM_0));
+        return GRAPH_FAILED;     
+    }
+
+    // 比较维度数值与输入是否能够对应
+    if (inputLayoutStr == "BSND") {
+        if (dWeightShape->GetDim(DIM_NUM_0) != weightShape->GetDim(DIM_NUM_0) || dWeightShape->GetDim(DIM_NUM_1) != weightShape->GetDim(DIM_NUM_1)
+            || dWeightShape->GetDim(DIM_NUM_2) != weightShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input weights shape is [%ld, %ld, %ld], but d_weights got [%ld, %ld, %ld].", weightShape->GetDim(DIM_NUM_0),
+                weightShape->GetDim(DIM_NUM_1), weightShape->GetDim(DIM_NUM_2), dWeightShape->GetDim(DIM_NUM_0),
+                dWeightShape->GetDim(DIM_NUM_1), dWeightShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;
+        }
+        if (queryIndexShape->GetDim(DIM_NUM_0) != dQIndexShape->GetDim(DIM_NUM_0) || queryIndexShape->GetDim(DIM_NUM_1) != dQIndexShape->GetDim(DIM_NUM_1) || 
+            queryIndexShape->GetDim(DIM_NUM_2) != dQIndexShape->GetDim(DIM_NUM_2) || queryIndexShape->GetDim(DIM_NUM_3) != dQIndexShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input query_index shape is [%ld, %ld, %ld, %ld], but d_query_index got [%ld, %ld, %ld, %ld].", queryIndexShape->GetDim(DIM_NUM_0),
+                queryIndexShape->GetDim(DIM_NUM_1), queryIndexShape->GetDim(DIM_NUM_2), queryIndexShape->GetDim(DIM_NUM_3), 
+                dQIndexShape->GetDim(DIM_NUM_0), dQIndexShape->GetDim(DIM_NUM_1), dQIndexShape->GetDim(DIM_NUM_2), dQIndexShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;                
+        }
+        if (keyIndexShape->GetDim(DIM_NUM_0) != dKIndexShape->GetDim(DIM_NUM_0) || keyIndexShape->GetDim(DIM_NUM_1) != dKIndexShape->GetDim(DIM_NUM_1) || 
+            keyIndexShape->GetDim(DIM_NUM_2) != dKIndexShape->GetDim(DIM_NUM_2) || keyIndexShape->GetDim(DIM_NUM_3) != dKIndexShape->GetDim(DIM_NUM_3)) {
+                OP_LOGE(context, "The input key_index shape is [%ld, %ld, %ld, %ld], but d_key_index got [%ld, %ld, %ld, %ld].", keyIndexShape->GetDim(DIM_NUM_0),
+                keyIndexShape->GetDim(DIM_NUM_1), keyIndexShape->GetDim(DIM_NUM_2), keyIndexShape->GetDim(DIM_NUM_3), 
+                dKIndexShape->GetDim(DIM_NUM_0), dKIndexShape->GetDim(DIM_NUM_1), dKIndexShape->GetDim(DIM_NUM_2), dKIndexShape->GetDim(DIM_NUM_3));
+                return GRAPH_FAILED;         
+        }
+    } else if (inputLayoutStr == "TND") {
+        if (dWeightShape->GetDim(DIM_NUM_0) != weightShape->GetDim(DIM_NUM_0) || dWeightShape->GetDim(DIM_NUM_1) != weightShape->GetDim(DIM_NUM_1)) {
+                OP_LOGE(context, "The input weights shape is [%ld, %ld], but d_weights got [%ld, %ld].", weightShape->GetDim(DIM_NUM_0),
+                weightShape->GetDim(DIM_NUM_1), dWeightShape->GetDim(DIM_NUM_0), dWeightShape->GetDim(DIM_NUM_1));
+                return GRAPH_FAILED;
+        }
+        if (queryIndexShape->GetDim(DIM_NUM_0) != dQIndexShape->GetDim(DIM_NUM_0) || queryIndexShape->GetDim(DIM_NUM_1) != dQIndexShape->GetDim(DIM_NUM_1) || 
+            queryIndexShape->GetDim(DIM_NUM_2) != dQIndexShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input query_index shape is [%ld, %ld, %ld], but d_query_index got [%ld, %ld, %ld].", queryIndexShape->GetDim(DIM_NUM_0),
+                queryIndexShape->GetDim(DIM_NUM_1), queryIndexShape->GetDim(DIM_NUM_2), 
+                dQIndexShape->GetDim(DIM_NUM_0), dQIndexShape->GetDim(DIM_NUM_1), dQIndexShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;                
+        }
+        if (keyIndexShape->GetDim(DIM_NUM_0) != dKIndexShape->GetDim(DIM_NUM_0) || keyIndexShape->GetDim(DIM_NUM_1) != dKIndexShape->GetDim(DIM_NUM_1) || 
+            keyIndexShape->GetDim(DIM_NUM_2) != dKIndexShape->GetDim(DIM_NUM_2)) {
+                OP_LOGE(context, "The input key_index shape is [%ld, %ld, %ld], but d_key_index got [%ld, %ld, %ld].", keyIndexShape->GetDim(DIM_NUM_0),
+                keyIndexShape->GetDim(DIM_NUM_1), keyIndexShape->GetDim(DIM_NUM_2),  
+                dKIndexShape->GetDim(DIM_NUM_0), dKIndexShape->GetDim(DIM_NUM_1), dKIndexShape->GetDim(DIM_NUM_2));
+                return GRAPH_FAILED;         
+        }
+    }
 
     return GRAPH_SUCCESS;
 }
@@ -82,7 +159,10 @@ ge::graphStatus InferDataTypeSparseLightningIndexerGradKLLoss(gert::InferDataTyp
         return ge::GRAPH_FAILED;
     } 
     const auto inputDataType = context->GetInputDataType(queryEnum);
-    context->SetOutputDataType(0, inputDataType);
+    context->SetOutputDataType(dQueryIndexEnum, inputDataType);
+    context->SetOutputDataType(dKeyIndexEnum, inputDataType);
+    context->SetOutputDataType(dWeightEnum, inputDataType);
+    context->SetOutputDataType(lossEnum, DT_FLOAT);
     return ge::GRAPH_SUCCESS;
 }
 
