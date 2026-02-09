@@ -365,7 +365,7 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
         auto k1 = (gmmX->GetViewShape().GetDim(0)) % (mmXOptional->GetViewShape().GetDim(0));
         auto k2 = (gmmX->GetViewShape().GetDim(0)) / (mmXOptional->GetViewShape().GetDim(0));
 
-        if ((mmXOptional->GetViewShape().GetDim(0) < ZERO) || (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
+        if ((mmXOptional->GetViewShape().GetDim(1) < ZERO) || (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmX does not match.");
             return false;
         }
