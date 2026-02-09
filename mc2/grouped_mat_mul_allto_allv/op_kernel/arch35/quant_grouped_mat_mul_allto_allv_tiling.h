@@ -33,7 +33,7 @@ using MC2KernelTemplate::TaskTilingInfo;
  *
  * 算子级 workspace 分为两部分:
  *   [0, wsGmmOutputSize)                                              → GMM 输出缓冲, 传给 GmmComputeOp.Init 的 y 参数
- *   [wsGmmOutputSize, wsGmmOutputSize + wsGmmComputeWorkspaceSize)    → GmmComputeOp 内部工作空间, 传给 GmmComputeOp.Init 的 workspace 参数
+ *   [wsGmmOutputSize, wsGmmOutputSize + wsGmmComputeWorkspaceSize)    → GmmComputeOp 内部临时空间, 传给 GmmComputeOp.Init 的 tempAddr 参数
  *
  * GmmComputeOp workspace 内部布局 (由 GmmComputeOp 内部管理, tiling 侧仅需计算并分配总大小):
  *   [0, 64)                   ptrTable:  4 × 16B GetTensorAddr 双重间接指针表 (x, weight, scaleB, y)
