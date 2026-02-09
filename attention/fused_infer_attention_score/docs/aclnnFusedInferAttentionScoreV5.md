@@ -724,7 +724,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <td>
         <ul>
             <li>用户不特意指定时建议传入0，表示key/value和query的head个数相等。</li>
-            <li>需要满足numHeads整除numKeyValueHeads，GQA非量化场景在D=64或者D=128和Prefill MLA非量化场景下numHeads与numKeyValueHeads的比值无限制; 其他场景仅支持numHeads与numKeyValueHeads的比值不能大于64</li>
+            <li>需要满足numHeads整除numKeyValueHeads，GQA非量化场景(D=64或者D=128)，和Prefill MLA非量化场景下，numHeads与numKeyValueHeads的比值无限制; 其他场景仅支持numHeads与numKeyValueHeads的比值不能大于64</li>
             <li>在BNSD、BSND、BNSD_BSND、BSND_BNSD、BNSD_NBSD、BSND_NBSD、TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常</li>
         </ul>
         </td>
@@ -1066,7 +1066,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td>N</td>
-                <td><ul><li>GQA非量化场景在D=64或者D=128下和Prefill MLA非量化场景下支持N轴无限制</li>
+                <td><ul><li>GQA非量化场景(D=64或者D=128)，和Prefill MLA非量化场景下N轴无限制</li>
                     <li>其余场景仅支持N轴小于等于256</li></ul>
                 </td>
             </tr>
