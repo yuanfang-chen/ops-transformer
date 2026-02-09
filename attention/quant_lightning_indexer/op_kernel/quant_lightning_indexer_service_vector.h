@@ -49,8 +49,8 @@ public:
                                       const QLITilingData *__restrict tilingData);
     __aicore__ inline void InitVecWorkspaceTensor(GlobalTensor<half> vec0OutGm, GlobalTensor<MM1_OUT_T> mm1ResGm,
                                                   GlobalTensor<float> vec1ResGm, GlobalTensor<int64_t> vec1ParamGm);
-    __aicore__ inline void InitVecInputTensor(GlobalTensor<bfloat16_t> weightsGm, GlobalTensor<float> qScaleGm,
-                                              GlobalTensor<float> kScaleGm, GlobalTensor<int32_t> indiceOutGm,
+    __aicore__ inline void InitVecInputTensor(GlobalTensor<half> weightsGm, GlobalTensor<half> qScaleGm,
+                                              GlobalTensor<half> kScaleGm, GlobalTensor<int32_t> indiceOutGm,
                                               GlobalTensor<int32_t> blockTableGm);
     __aicore__ inline void CleanInvalidOutput(int64_t invalidS1offset);
     __aicore__ inline void AllocEventID();
@@ -61,16 +61,16 @@ protected:
     GlobalTensor<MM1_OUT_T> mm1ResGm;
     GlobalTensor<float> vec1ResGm;
     GlobalTensor<int64_t> vec1ParamGm;
-    GlobalTensor<bfloat16_t> weightsGm;
-    GlobalTensor<float> qScaleGm;
-    GlobalTensor<float> kScaleGm;
+    GlobalTensor<half> weightsGm;
+    GlobalTensor<half> qScaleGm;
+    GlobalTensor<half> kScaleGm;
     GlobalTensor<half> vec0OutGm;
     GlobalTensor<int32_t> indiceOutGm;
     GlobalTensor<int32_t> blockTableGm;
     // =================================常量区=================================
 
 private:
-    __aicore__ inline void GetKeyScale(const QLICommon::RunInfo &runInfo, const LocalTensor<float> &resUb,
+    __aicore__ inline void GetKeyScale(const QLICommon::RunInfo &runInfo, const LocalTensor<half> &resUb,
                                        int64_t batchId, int64_t startS2, int64_t getLen);
     // ================================Local Buffer区====================================
     // queue
@@ -114,11 +114,11 @@ private:
 };
 
 template <typename QLIT>
-__aicore__ inline void QLIVector<QLIT>::GetKeyScale(const QLICommon::RunInfo &runInfo, const LocalTensor<float> &resUb,
+__aicore__ inline void QLIVector<QLIT>::GetKeyScale(const QLICommon::RunInfo &runInfo, const LocalTensor<half> &resUb,
                                                     int64_t batchId, int64_t startS2, int64_t getLen)
 {
     // startS2一定能整除kCacheBlockSize_
-    AscendC::DataCopyPadExtParams<float> padParams{false, 0, 0, 0};
+    AscendC::DataCopyPadExtParams<half> padParams{false, 0, 0, 0};
     AscendC::DataCopyExtParams copyInParams;
     if constexpr (PAGE_ATTENTION) {
         int32_t startBlockTableIdx = startS2 / kCacheBlockSize_;
@@ -142,10 +142,10 @@ __aicore__ inline void QLIVector<QLIT>::GetKeyScale(const QLICommon::RunInfo &ru
             resUbBaseOffset = firstPartLen;
         }
         int32_t getLoopNum = CeilDiv(getLen, kCacheBlockSize_);
-        copyInParams.blockLen = kCacheBlockSize_ * sizeof(float);
+        copyInParams.blockLen = kCacheBlockSize_ * sizeof(half);
         for (int32_t i = 0; i < getLoopNum; i++) {
             if (i == getLoopNum - 1) {
-                copyInParams.blockLen = (getLen - i * kCacheBlockSize_) * sizeof(float);
+                copyInParams.blockLen = (getLen - i * kCacheBlockSize_) * sizeof(half);
             }
             int32_t blockId = blockTableGm.GetValue(blockTableBatchOffset + startBlockTableIdx + i);
             SetWaitFlag<HardEvent::S_MTE2>(HardEvent::S_MTE2);
@@ -154,7 +154,7 @@ __aicore__ inline void QLIVector<QLIT>::GetKeyScale(const QLICommon::RunInfo &ru
         }
     } else {
         copyInParams.blockCount = 1;
-        copyInParams.blockLen = getLen * sizeof(float);
+        copyInParams.blockLen = getLen * sizeof(half);
         copyInParams.srcStride = 0;
         copyInParams.dstStride = 0;
         copyInParams.rsv = 0;
@@ -226,8 +226,8 @@ __aicore__ inline void QLIVector<QLIT>::InitParams(const struct QLICommon::Const
 }
 
 template <typename QLIT>
-__aicore__ inline void QLIVector<QLIT>::InitVecInputTensor(GlobalTensor<bfloat16_t> weightsGm, GlobalTensor<float> qScaleGm,
-                                                           GlobalTensor<float> kScaleGm,
+__aicore__ inline void QLIVector<QLIT>::InitVecInputTensor(GlobalTensor<half> weightsGm, GlobalTensor<half> qScaleGm,
+                                                           GlobalTensor<half> kScaleGm,
                                                            GlobalTensor<int32_t> indiceOutGm,
                                                            GlobalTensor<int32_t> blockTableGm)
 {
@@ -289,42 +289,24 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
     int32_t cuS1ProcNum = cuBaseS1Idx + s1BaseSize_ > info.actS1Size ? info.actS1Size % s1BaseSize_ : s1BaseSize_;
     int32_t cuProcEleNum = cuS1ProcNum * gSize_;
 
-    LocalTensor<bfloat16_t> inWeightsUb = inQueue_.AllocTensor<bfloat16_t>();
-    LocalTensor<float> inWeightsFp32 = inWeightsUb.template ReinterpretCast<float>();
-    LocalTensor<float> inQScaleUb = inWeightsUb.template ReinterpretCast<float>()[cuProcEleNum];
-    LocalTensor<half> mulResHalf = inWeightsUb.template ReinterpretCast<half>();
+    LocalTensor<half> inWeightsUb = inQueue_.AllocTensor<half>();
+    LocalTensor<half> inQScaleUb = inWeightsUb[cuProcEleNum];
+    AscendC::DataCopyPadExtParams<half> padParams{false, 0, 0, 0};
+    AscendC::DataCopyExtParams copyInParams;
+    copyInParams.blockCount = 1;
+    copyInParams.blockLen = cuProcEleNum * sizeof(half);
+    copyInParams.srcStride = 0;
+    copyInParams.dstStride = 0;
+    copyInParams.rsv = 0;
+    AscendC::DataCopyPad(inWeightsUb, weightsGm[weightGmOffset], copyInParams, padParams);
+    AscendC::DataCopyPad(inQScaleUb, qScaleGm[weightGmOffset], copyInParams, padParams);
 
-    AscendC::DataCopyPadExtParams<bfloat16_t> weightsPadParams{false, 0, 0, 0};
-    AscendC::DataCopyExtParams weightsCopyInParams;
-    weightsCopyInParams.blockCount = 1;
-    weightsCopyInParams.blockLen = cuProcEleNum * sizeof(bfloat16_t);
-    weightsCopyInParams.srcStride = 0;
-    weightsCopyInParams.dstStride = 0;
-    weightsCopyInParams.rsv = 0;
-    AscendC::DataCopyPad(inWeightsUb, weightsGm[weightGmOffset], weightsCopyInParams, weightsPadParams);
-
-    AscendC::DataCopyPadExtParams<float> qScalePadParams{false, 0, 0, 0};
-    AscendC::DataCopyExtParams qScaleCopyInParams;
-    qScaleCopyInParams.blockCount = 1;
-    qScaleCopyInParams.blockLen = cuProcEleNum * sizeof(float);
-    qScaleCopyInParams.srcStride = 0;
-    qScaleCopyInParams.dstStride = 0;
-    qScaleCopyInParams.rsv = 0;
-    AscendC::DataCopyPad(inQScaleUb, qScaleGm[weightGmOffset], qScaleCopyInParams, qScalePadParams);
-
-    inQueue_.EnQue<bfloat16_t>(inWeightsUb);
-    inWeightsUb = inQueue_.DeQue<bfloat16_t>();
-    AscendC::Cast(inWeightsFp32, inWeightsUb, RoundMode::CAST_NONE, cuProcEleNum);
-    PipeBarrier<PIPE_V>();
-
-    AscendC::Mul(inWeightsFp32, inWeightsFp32, inQScaleUb, cuProcEleNum);
-
-    PipeBarrier<PIPE_V>();
-    AscendC::Cast(mulResHalf, inWeightsFp32, RoundMode::CAST_NONE, cuProcEleNum);
-
+    inQueue_.EnQue<half>(inWeightsUb);
+    inWeightsUb = inQueue_.DeQue<half>();
+    AscendC::Mul(inWeightsUb, inWeightsUb, inQScaleUb, cuProcEleNum);
     PipeBarrier<PIPE_V>();
     LocalTensor<half> resUb = outQueue_.AllocTensor<half>();
-    AscendC::Brcb(resUb, mulResHalf, static_cast<uint8_t>(cuProcEleNum / 8), {1, 8});
+    AscendC::Brcb(resUb, inWeightsUb, static_cast<uint8_t>(cuProcEleNum / 8), {1, 8});
     inQueue_.FreeTensor(inWeightsUb);
 
     outQueue_.EnQue<half>(resUb);
@@ -383,6 +365,7 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             int32_t cuS2LenVecAlign = CeilDiv(cuS2Len, s2BaseSize_) * s2BaseSize_;
             LocalTensor<float> mmInUb = inQueue_.AllocTensor<float>();
             LocalTensor<float> kScaleUb = mmInUb[cuS2LenVecAlign];
+            LocalTensor<half> kScaleTUb = kScaleUb.template ReinterpretCast<half>()[cuS2LenVecAlign];
             AscendC::DataCopyPadExtParams<float> padParams{false, 0, 0, 0};
             AscendC::DataCopyPadExtParams<half> padTParams{false, 0, 0, 0};
             AscendC::DataCopyExtParams copyInParams;
@@ -392,9 +375,10 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
             copyInParams.dstStride = 0;
             copyInParams.rsv = 0;
             AscendC::DataCopyPad(mmInUb, mm1ResGm[mmGmOffset + innerS1Idx * s2BaseSize_], copyInParams, padParams);
-            GetKeyScale(info, kScaleUb, info.bIdx, cuBaseS2Idx, cuS2Len);
+            GetKeyScale(info, kScaleTUb, info.bIdx, cuBaseS2Idx, cuS2Len);
             inQueue_.EnQue<float>(mmInUb);
             mmInUb = inQueue_.DeQue<float>();
+            AscendC::Cast(kScaleUb, kScaleTUb, RoundMode::CAST_NONE, cuS2Len);
             PipeBarrier<PIPE_V>();
             AscendC::Mul(mmInUb, mmInUb, kScaleUb, cuS2Len);
             PipeBarrier<PIPE_V>();

@@ -433,7 +433,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gL1Offset, uin
     loadData2DParamsA.dstStride = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
     loadData2DParamsA.ifTranspose = false;
     
-    LoadData(ql0a_[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_S8_16K],
+    LoadData(l0a_[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_S8_16K],
                     queryL1_[(qwL1Mte2BufIdx_ % DOUBLE_BUF_NUM) * QUERY_BUFFER_OFFSET],loadData2DParamsA);
 }
 
