@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -227,35 +227,34 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
 // 检查是否有空tensor
 static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
 {
-    if((gmmX->GetViewShape().GetDim(0) == ZERO) {
+    if(gmmX->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
         return false;
-    });
-    if((gmmX->GetViewShape().GetDim(1) == ZERO) {
+    }
+    if(gmmX->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
         return false;
-    });
-    if((gmmWeight->GetViewShape().GetDim(0) == ZERO){
+    }
+    if(gmmWeight->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
         return false;
-    });
-    if((gmmWeight->GetViewShape().GetDim(1) == ZERO){
+    }
+    if(gmmWeight->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
         return false;
-    });
-    if((gmmWeight->GetViewShape().GetDim(2) == ZERO) {
+    }
+    if(gmmWeight->GetViewShape().GetDim(2) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
         return false;
-    });
-
-    if((gmmY->GetViewShape().GetDim(0) == ZERO) {
+    }
+    if(gmmY->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimM, which is unsupported.");
         return false;
-    });
-    if((gmmY->GetViewShape().GetDim(1) == ZERO) {
+    }
+    if(gmmY->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with one dimN, which is unsupported.");
         return false;
-    });
+    }
     return true;
 }
 
@@ -367,7 +366,7 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
         auto k1 = (gmmX->GetViewShape().GetDim(0)) % (mmXOptional->GetViewShape().GetDim(0));
         auto k2 = (gmmX->GetViewShape().GetDim(0)) / (mmXOptional->GetViewShape().GetDim(0));
 
-        if ((mmXOptional->GetViewShape().GetDim(0) < ZERO) || (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
+        if ((mmXOptional->GetViewShape().GetDim(1) < ZERO) || (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmX does not match.");
             return false;
         }
@@ -468,7 +467,6 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
                                const char *group, int64_t epWorldSize, bool permuteOutFlag, const aclTensor *gmmY,
                                const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
-    (void)epWorldSize; // Unused
     // 1.检查空状态
     CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
                               mmXScaleOptional, mmWeightScaleOptional, permuteOutFlag, mmYOptional, permuteOutOptional),
