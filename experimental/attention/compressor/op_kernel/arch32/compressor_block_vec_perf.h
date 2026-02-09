@@ -1042,7 +1042,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::SplitCoreV2(const Compre
     uint32_t curVecCoreGroupIdx = currCoreIdx / coreNum; // 当前vec核所在组ID
     vec1ResGmStart = curVecCoreGroupIdx * constInfo_.nSize * constInfo_.tcBaseSize * constInfo_.headDim;
     // 1.计算总vec2基本块数量
-    uint64_t totalBaseNum = info.dealScSize; // 当前组核累积的实际数据量
+    uint32_t totalBaseNum = info.dealScSize; // 当前组核累积的实际数据量
     // 2.每个vec核上分到的数据量
     uint32_t avgBaseNum = 1;
     if (totalBaseNum > coreNum) {
