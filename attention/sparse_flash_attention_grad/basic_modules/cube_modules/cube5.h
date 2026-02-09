@@ -46,7 +46,6 @@ CubeOp<T1>::cube5ProcessSparse(const int64_t pGmOffset, const int64_t dyGmOffset
         WaitFlag<HardEvent::MTE1_MTE2>(MM_L1_P_EVENT[ping_pong_flag_l1_p_]);
 
         mmParam.singleM = min(selectedBlockSize * blockOffset, totalSel - (mIdx - blkCntOffset) * selectedBlockSize);
-
         int64_t mm5ResOutOffset = mm5ResOutBaseOffset + mIdx * selectedBlockSize * dimDv;
         CopyGmToL1(l1_p_tensor, pWorkspaceGm[pGmOffset + (mIdx - blkCntOffset) * selectedBlockSize], dimG, mmParam.singleM, PER_LOOP_BLOCK_SIZE);
         for (int32_t dIdx = 0; dIdx < dLoopTimes; dIdx++) {
