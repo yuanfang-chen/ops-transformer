@@ -346,7 +346,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w8a8_multi_wei
                         OUTPUT(out1_desc, out2_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    // EXPECT_EQ(aclRet, 0);
+    EXPECT_EQ(aclRet, 0);
 }
 
 TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend91095_test_opapi_normal_case)
