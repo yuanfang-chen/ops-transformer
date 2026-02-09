@@ -1,4 +1,4 @@
-/**
+/* *
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -6,14 +6,14 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+  */
 
-/*!
+/* !
  * \file grouped_matmul_tiling.h
  * \brief
  */
-#ifndef AIR_CXX_RUNTIME_V2_OP_IMPL_GROUPED_MATMUL_H
-#define AIR_CXX_RUNTIME_V2_OP_IMPL_GROUPED_MATMUL_H
+#ifndef MC2_GROUPED_MATMUL_TILING_H
+#define MC2_GROUPED_MATMUL_TILING_H
 
 #include <exe_graph/runtime/tiling_context.h>
 #include <graph/utils/type_utils.h>
@@ -35,18 +35,18 @@ TILING_DATA_FIELD_DEF(uint32_t, singleWeight);
 TILING_DATA_FIELD_DEF(uint32_t, singleX);
 TILING_DATA_FIELD_DEF(uint32_t, singleY);
 TILING_DATA_FIELD_DEF(int32_t, groupType);
-TILING_DATA_FIELD_DEF(uint32_t, singleN);     // If sequential write， the value should be zero!
-TILING_DATA_FIELD_DEF(uint32_t, quantParam);  // in quant case, PerToken: 1; in antiquant case, represents PerGroupSize
+TILING_DATA_FIELD_DEF(uint32_t, singleN);    // If sequential write， the value should be zero!
+TILING_DATA_FIELD_DEF(uint32_t, quantParam); // in quant case, PerToken: 1; in antiquant case, represents PerGroupSize
 TILING_DATA_FIELD_DEF(uint32_t, groupListType);
 TILING_DATA_FIELD_DEF(uint32_t, m);
 TILING_DATA_FIELD_DEF(uint32_t, hasBias);
 TILING_DATA_FIELD_DEF(uint64_t, workspaceSize);
-TILING_DATA_FIELD_DEF(uint64_t, totalInGroup);         // for A8W4 MSD
-TILING_DATA_FIELD_DEF(uint64_t, k);                    // for A8W4 MSD
-TILING_DATA_FIELD_DEF(uint64_t, n);                    // for A8W4 MSD
-TILING_DATA_FIELD_DEF(uint64_t, vBaseM);               // for A8W4 MSD
-TILING_DATA_FIELD_DEF(uint64_t, parallNum);            // for A8W4 MSD
-TILING_DATA_FIELD_DEF(uint64_t, quantGroupNum);        // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, totalInGroup);  // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, k);             // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, n);             // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, vBaseM);        // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, parallNum);     // for A8W4 MSD
+TILING_DATA_FIELD_DEF(uint64_t, quantGroupNum); // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, isPreTiling);
 TILING_DATA_FIELD_DEF(uint32_t, withOffset);
 TILING_DATA_FIELD_DEF(uint32_t, isOutputDisableL2Cache);
@@ -54,7 +54,7 @@ END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GMMBaseParamsOp, GMMBaseParams)
 
 BEGIN_TILING_DATA_DEF(GMMArray)
-TILING_DATA_FIELD_DEF_ARR(int32_t, 128, mList);  // 128 ：MAX_TENSOR_CONT
+TILING_DATA_FIELD_DEF_ARR(int32_t, 128, mList); // 128 ：MAX_TENSOR_CONT
 TILING_DATA_FIELD_DEF_ARR(int32_t, 128, kList);
 TILING_DATA_FIELD_DEF_ARR(int32_t, 128, nList);
 END_TILING_DATA_DEF;
@@ -115,6 +115,7 @@ public:
     ge::graphStatus RunFusionKernelTiling(gert::TilingContext *context);
     ge::graphStatus A8W4Tiling(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
     ge::graphStatus A16W4MsdTiling(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
+
 protected:
     bool IsAivAicRatioTwoRequired();
     bool IsFixedAxisMoveCondition();
@@ -131,25 +132,26 @@ protected:
     ge::graphStatus PrepareTilingData(const gert::TilingContext *context);
     ge::graphStatus CheckWeightNZShape(const gert::TilingContext *context, int64_t numInOneBlk) const;
     ge::graphStatus GMMGetTensorShapeSplitM(const gert::TilingContext *context, const gert::Shape &xShape,
-                                            const gert::Shape &wShape);
+        const gert::Shape &wShape);
     ge::graphStatus GMMGetTensorShapeSplitK(const gert::TilingContext *context, const gert::Shape &xShape,
-                                            const gert::Shape &wShape);
+        const gert::Shape &wShape);
     ge::graphStatus SplitMSingleXSingleWeightSingleY(const gert::Shape &xShape, const gert::Shape &wShape);
     ge::graphStatus SplitMSingleXSeparatedWeight(const gert::TilingContext *context, const gert::Shape &xShape);
     ge::graphStatus SeparatedXSeparatedWeight(const gert::TilingContext *context);
     ge::graphStatus SeparatedXSingleWeight(const gert::TilingContext *context, const gert::Shape &wShape);
     ge::graphStatus SplitKSingleXSingleWeightSingleY(const gert::TilingContext *context, const gert::Shape &xShape,
-                                                     const gert::Shape &wShape);
-    ge::graphStatus SplitKSingleXSeparatedWeight(const gert::TilingContext* context, const gert::Shape &xShape,
-    const gert::Shape &wShape);
+        const gert::Shape &wShape);
+    ge::graphStatus SplitKSingleXSeparatedWeight(const gert::TilingContext *context, const gert::Shape &xShape,
+        const gert::Shape &wShape);
     ge::graphStatus DivideUbAndSetWorkspace(gert::TilingContext *context, const uint32_t &aicNum);
-    ge::graphStatus DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum, const GMMCompileInfo *compileInfoPtr);
+    ge::graphStatus DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum,
+        const GMMCompileInfo *compileInfoPtr);
     ge::graphStatus IsOutputDisableL2Cache(gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
     int32_t FindBestSingleN(const uint32_t &aicNum);
     bool TryFullLoadA(int32_t baseM, const GMMCompileInfo *compileInfoPtr);
     void DivideUbAndSetWorkspaceAntiquant(size_t *workspaces, const uint32_t &aicNum, uint32_t &ubSize);
     ge::graphStatus CalcStepKaKb(const gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr,
-                                 int64_t mInMM, uint32_t &mmStepKa, uint32_t &mmStepKb);
+        int64_t mInMM, uint32_t &mmStepKa, uint32_t &mmStepKb);
     ge::graphStatus SetBias(const gert::TilingContext *context, matmul_tiling::MultiCoreMatmulTiling &mm) const;
     int32_t FindBestSingleNPertoken(const uint32_t aicNum) const;
     void FindBestUsedCoreNumOneGroup(const uint32_t aicNum);
@@ -165,7 +167,7 @@ protected:
     void GMMSetTplTilingKey(gert::TilingContext *context);
     uint32_t GetTplDataType(const ge::DataType &dtype);
     ge::graphStatus CheckA16W4MsdEnable(uint64_t mSize, uint64_t antiquantGroupNum, const gert::TilingContext *context,
-                                        const GMMCompileInfo *compileInfoPtr);
+        const GMMCompileInfo *compileInfoPtr);
     uint64_t GetWithOffset(const gert::TilingContext *context);
     bool CheckTensorListLength(const gert::TilingContext *context);
 
@@ -185,7 +187,7 @@ private:
     uint32_t ubDivideBlkNum_ = 0;
     uint32_t ubIoBlkNum_ = 0;
     uint32_t ubBlockAlign_ = 0;
-    uint64_t workspacesSize_ = 0UL;  // for antiquant
+    uint64_t workspacesSize_ = 0UL; // for antiquant
     uint32_t groupNum_ = 0;
     bool transposeWeight_ = false;
     bool transposeX_ = false;
@@ -225,8 +227,8 @@ private:
     bool isA16W8Msd_ = false;
     uint32_t totalM_ = 0;
     matmul_tiling::CubeFormat wFormat_;
-    int32_t nzFactor_;  // for weight nz format
+    int32_t nzFactor_; // for weight nz format
 };
-}  // namespace optiling
+} // namespace optiling
 
-#endif  // AIR_CXX_RUNTIME_V2_OP_IMPL_GROUPED_MATMUL_H
+#endif // MC2_GROUPED_MATMUL_TILING_H
