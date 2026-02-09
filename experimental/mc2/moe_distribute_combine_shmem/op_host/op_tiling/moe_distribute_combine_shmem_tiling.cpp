@@ -42,6 +42,7 @@ using namespace AscendC;
 using namespace ge;
 
 namespace {
+constexpr uint32_t AICPU_BLOCK_DIM_A2 =6u;
 constexpr uint32_t SHMEM_CONTEXT_INDEX = 0;
 constexpr uint32_t EXPAND_X_INDEX = 1;
 constexpr uint32_t EXPERT_IDS_INDEX = 2;
@@ -1946,7 +1947,7 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(
   uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
   blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
   context->SetBlockDim(blockDim);
-  context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
+  context->SetAicpuBlockDim(AICPU_BLOCK_DIM_A2);
 
   uint64_t tilingKey =
       MoeDistributeCombineA2CalcTilingKey(isLayered, commQuantMode);
