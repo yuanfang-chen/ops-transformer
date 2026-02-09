@@ -170,9 +170,9 @@ protected:
     bool CheckTensorListLength(const gert::TilingContext *context);
 
 private:
-    int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t nList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
     int64_t maxM_ = 0L;
     int64_t maxN_ = 0L;
     int64_t maxK_ = 0L;
