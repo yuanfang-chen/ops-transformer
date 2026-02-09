@@ -71,17 +71,17 @@ public:
      * @param scaleA         X 的量化 scale 基地址（perTokenScale，直接透传给 GmmASWKernel）
      * @param scaleB         Weight 的量化 scale 基地址（直接透传给 GmmASWKernel）
      * @param y              输出 Y 基地址（直接数据地址，输出 token 连续排列）
-     * @param workspace      工作空间基地址
+     * @param tempAddr       临时空间基地址（内含 ptrTable / groupList / GMMArray 副本 / kernel workspace）
+     * @param tempAddrSize   临时空间总大小（字节）
      * @param taskTilingInfo 任务调度 Tiling（含 sendCnt/recvCnt、维度参数、循环参数）
      * @param gmmBaseTiling  GMM 基础 Tiling（K/N 相关字段已计算，M 相关字段待动态刷新）
      * @param tPipe          TPipe 指针
      */
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
                                 GM_ADDR scaleA, GM_ADDR scaleB,
-                                GM_ADDR y, GM_ADDR workspace,
+                                GM_ADDR y, GM_ADDR tempAddr, uint64_t tempAddrSize,
                                 const TaskTilingInfo *taskTilingInfo,
                                 const GMMQuantTilingData *gmmBaseTiling,
-                                TILING_TYPE *gmmArrayAddr,
                                 TPipe *tPipe);
 
     /**
@@ -113,7 +113,8 @@ private:
     GM_ADDR scaleABase_ = nullptr;
     GM_ADDR scaleBBase_ = nullptr;
     GM_ADDR yBase_ = nullptr;
-    GM_ADDR workspaceBase_ = nullptr;
+    GM_ADDR tempAddr_ = nullptr;
+    uint64_t tempAddrSize_ = 0;
 
     // 维度缓存
     uint64_t K_ = 0;
@@ -124,11 +125,18 @@ private:
     // 偏移状态
     uint64_t tokenOffset_ = 0;
 
-    // workspace 中的指针表区域（4 个 tensor * 16 bytes = 64 bytes）
+    // tempAddr 中的指针表区域（4 个 tensor * 16 bytes = 64 bytes）
     GM_ADDR ptrTableBase_ = nullptr;
 
-    // workspace 中 groupList 区域（紧接指针表之后）
+    // tempAddr 中 groupList 区域（紧接指针表之后）
     GM_ADDR groupListBase_ = nullptr;
+
+    // tempAddr 内存布局常量
+    static constexpr uint64_t PTR_TABLE_SIZE = 64;
+    static constexpr uint64_t GROUP_LIST_SIZE = 8;
+    static constexpr uint64_t GMM_ARRAY_OFFSET = PTR_TABLE_SIZE + GROUP_LIST_SIZE; // 72
+    static constexpr uint64_t GMM_ARRAY_SIZE = sizeof(GMMArray);                  // 1536
+    static constexpr uint64_t KERNEL_WS_OFFSET = GMM_ARRAY_OFFSET + GMM_ARRAY_SIZE; // 1608
 
     /**
      * 获取 count 数组（根据 USE_SEND_COUNTS 选择 sendCnt 或 recvCnt）
@@ -151,7 +159,7 @@ private:
         const int32_t *counts = GetGroupCounts();
         uint64_t total = 0;
         for (uint64_t rank = 0; rank < epWorldSize_; ++rank) {
-            total += static_cast<uint64_t>(counts[expertIdx + rank * expertNumPerRank_]);
+            total += static_cast<uint64_t>(counts[expertIdx * epWorldSize_ + rank]);
         }
         return total;
     }
@@ -223,15 +231,16 @@ __aicore__ inline void
 GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, USE_SEND_COUNTS>::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     GM_ADDR scaleA, GM_ADDR scaleB,
-    GM_ADDR y, GM_ADDR workspace,
+    GM_ADDR y, GM_ADDR tempAddr, uint64_t tempAddrSize,
     const TaskTilingInfo *taskTilingInfo,
     const GMMQuantTilingData *gmmBaseTiling,
-    TILING_TYPE *gmmArrayAddr,
     TPipe *tPipe)
 {
+    if ASCEND_IS_AIV {
+        return;
+    }
     taskTilingInfo_ = taskTilingInfo;
     gmmBaseTiling_ = gmmBaseTiling;
-    gmmArrayAddr_ = gmmArrayAddr;
     tPipe_ = tPipe;
 
     xBase_ = x;
@@ -240,7 +249,8 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
     scaleABase_ = scaleA;
     scaleBBase_ = scaleB;
     yBase_ = y;
-    workspaceBase_ = workspace;
+    tempAddr_ = tempAddr;
+    tempAddrSize_ = tempAddrSize;
 
     K_ = taskTilingInfo_->H1;
     N_ = taskTilingInfo_->N1;
@@ -252,10 +262,23 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
     // 拷贝 gmmBaseTiling 到可变副本
     currentTiling_ = *gmmBaseTiling_;
 
-    // workspace 布局：[ptrTable: 64 bytes][groupList: 8 bytes][GmmASWKernel workspace ...]
-    ptrTableBase_ = workspace;
+    // tempAddr 布局：
+    //   [0, 64)       ptrTable: 4 × 16B GetTensorAddr 双重间接指针
+    //   [64, 72)      groupList: 1 × int64_t
+    //   [72, 1608)    GMMArray 副本 (从 gmmBaseTiling->gmmArray 拷贝)
+    //   [1608, ...)   GmmASWKernel workspace
+    ptrTableBase_ = tempAddr;
     groupListBase_ = reinterpret_cast<GM_ADDR>(
-        reinterpret_cast<__gm__ uint8_t *>(workspace) + 64);
+        reinterpret_cast<__gm__ uint8_t *>(tempAddr) + PTR_TABLE_SIZE);
+
+    // 拷贝 GMMArray 到 tempAddr + GMM_ARRAY_OFFSET
+    __gm__ int32_t *gmmArrayDst = reinterpret_cast<__gm__ int32_t *>(
+        reinterpret_cast<__gm__ uint8_t *>(tempAddr) + GMM_ARRAY_OFFSET);
+    const int32_t *gmmArraySrc = reinterpret_cast<const int32_t *>(&gmmBaseTiling_->gmmArray);
+    for (uint32_t i = 0; i < GMM_ARRAY_SIZE / sizeof(int32_t); ++i) {
+        gmmArrayDst[i] = gmmArraySrc[i];
+    }
+    gmmArrayAddr_ = reinterpret_cast<TILING_TYPE *>(gmmArrayDst);
 }
 
 template <class xType, class wType, class biasType, class scaleType, class yType,
@@ -264,6 +287,9 @@ __aicore__ inline void
 GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, USE_SEND_COUNTS>::ProcessExperts(
     uint32_t startExpertIdx, uint32_t expertNum)
 {
+    if ASCEND_IS_AIV {
+        return;
+    }
     for (uint32_t i = 0; i < expertNum; ++i) {
         uint32_t expertIdx = startExpertIdx + i;
         uint64_t tokenCount = GetExpertTokenCount(expertIdx);
@@ -293,9 +319,9 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
         GM_ADDR scaleBPtr = BuildPtrTable(scaleBBase_, 2);
         GM_ADDR yPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(yAddr), 3);
 
-        // 5. GmmASWKernel workspace 起始于 ptrTable + groupList 之后（72 bytes offset）
+        // 5. GmmASWKernel workspace 起始于 tempAddr 的 KERNEL_WS_OFFSET 处
         GM_ADDR kernelWorkspace = reinterpret_cast<GM_ADDR>(
-            reinterpret_cast<__gm__ uint8_t *>(workspaceBase_) + 72);
+            reinterpret_cast<__gm__ uint8_t *>(tempAddr_) + KERNEL_WS_OFFSET);
 
         // 6. 每次迭代创建新的 GmmASWKernel 实例
         //    MatmulImpl 内部的 buffer 状态在 Process() 后无法通过 TPipe::Reset() 完全清理，
