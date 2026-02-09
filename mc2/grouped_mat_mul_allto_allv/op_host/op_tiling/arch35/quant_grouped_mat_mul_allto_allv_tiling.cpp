@@ -699,7 +699,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     CalTilingInferredInfo();
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.commLen + inferredInfo.permuteLen;
-    localTilingData_.workspaceInfo.wsGmmSize = workSpaceSize_;
+    localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
+    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     return ge::GRAPH_SUCCESS;
 }
 
