@@ -106,11 +106,6 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %ld", kvHeadNum_);
         return false;
     }
-    // cmp_topk 校验
-    if (cmpTopK_ != 512) {
-        KERNEL_LOG_ERROR("cmp_topk should only be 512, but got %ld", cmpTopK_);
-        return false;
-    }
     // ori_mask_mode 校验
     if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
         KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %ld", oriMaskMode_);
@@ -226,6 +221,11 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
     if (hasCmpKv_) { // CFA or SCFA
         if (cmpRatio_ != 4 && cmpRatio_ != 128) {
             KERNEL_LOG_ERROR("In CFA or SCFA, cmpRatio_ should only be 4 or 128, but got %ld", cmpRatio_);
+            return false;
+        }
+        // cmp_topk 校验
+        if (cmpTopK_ != 0 && cmpTopK_ != 512 ) {
+            KERNEL_LOG_ERROR("cmp_topk should be 0 or 512, but got %ld", cmpTopK_);
             return false;
         }
     }
