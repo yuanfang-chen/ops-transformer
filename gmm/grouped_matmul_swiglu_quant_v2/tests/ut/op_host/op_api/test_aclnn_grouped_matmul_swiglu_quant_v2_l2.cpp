@@ -47,8 +47,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w8a8_normal_ca
     int64_t quantGroupSize = 256;
 
     TensorDesc x_desc = TensorDesc({m, k}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc weight =
-        TensorDesc({e, k, n}, ACL_INT8, ACL_FORMAT_ND, {}, 0, {e, n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
+    TensorDesc weight = TensorDesc({e, n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-1, 1);
     TensorListDesc weight_desc = TensorListDesc({weight});
     TensorDesc weight_sacle = TensorDesc({e, n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
     TensorListDesc weight_scale_desc = TensorListDesc({weight_sacle});
@@ -247,7 +246,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w4a4_smoothsca
                         OUTPUT(out1_desc, out2_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_NE(aclRet, 161002);
+    EXPECT_EQ(aclRet, 161002);
 }
 
 TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w4a4_smoothscale_wrong_shape_case)
@@ -277,7 +276,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w4a4_smoothsca
                         OUTPUT(out1_desc, out2_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    EXPECT_NE(aclRet, 161002);
+    EXPECT_EQ(aclRet, 161002);
 }
 
 TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w4a4_wtrans_case)
@@ -319,14 +318,10 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w8a8_multi_wei
     int64_t quantGroupSize = 256;
 
     TensorDesc x_desc = TensorDesc({m, k}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-1, 1);
-    TensorDesc weight0 =
-        TensorDesc({k, n}, ACL_INT8, ACL_FORMAT_ND, {}, 0, {n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
-    TensorDesc weight1 =
-        TensorDesc({k, n}, ACL_INT8, ACL_FORMAT_ND, {}, 0, {n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
-    TensorDesc weight2 =
-        TensorDesc({k, n}, ACL_INT8, ACL_FORMAT_ND, {}, 0, {n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
-    TensorDesc weight3 =
-        TensorDesc({k, n}, ACL_INT8, ACL_FORMAT_ND, {}, 0, {n / 32, k / 16, 16, 32}).ValueRange(-1, 1);
+    TensorDesc weight0 = TensorDesc({n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-1, 1);
+    TensorDesc weight1 = TensorDesc({n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-1, 1);
+    TensorDesc weight2 = TensorDesc({n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-1, 1);
+    TensorDesc weight3 = TensorDesc({n / 32, k / 16, 16, 32}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-1, 1);
     TensorListDesc weight_desc = TensorListDesc({weight0, weight1, weight2, weight3});
     TensorDesc weight_sacle0 = TensorDesc({n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
     TensorDesc weight_sacle1 = TensorDesc({n}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(0, 3);
@@ -346,7 +341,7 @@ TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend910B2_test_opapi_w8a8_multi_wei
                         OUTPUT(out1_desc, out2_desc));
     uint64_t workspace_size = 0;
     aclnnStatus aclRet = ut.TestGetWorkspaceSize(&workspace_size);
-    // EXPECT_EQ(aclRet, 0);
+    EXPECT_EQ(aclRet, 0);
 }
 
 TEST_F(l2_GroupedMatmulSwigluQuantV2_test, ascend91095_test_opapi_normal_case)
