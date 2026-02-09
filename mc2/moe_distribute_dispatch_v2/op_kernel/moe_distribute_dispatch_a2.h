@@ -172,6 +172,7 @@ private:
     bool needPerformanceInfo_{false};
     bool isSingleServer_{false};
     uint32_t dataOffset_{0}; // 数据空间起始偏移
+    uint32_t maxMoeExpertNum_{0};
     TaskInfo worldTaskInfo_;
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
     __gm__ HcclOpResParam *winContext_{nullptr};
@@ -204,6 +205,7 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::Init(
     isTokenMaskFlag_ = tilingData.moeDistributeDispatchInfo.isTokenMask;
     isExpertMaskFlag_ = tilingData.moeDistributeDispatchInfo.isExpertMask;
     zeroComputeExpertNum_ = tilingData.moeDistributeDispatchInfo.zeroComputeExpertNum;
+    maxMoeExpertNum_ = tilingData.moeDistributeDispatchInfo.maxMoeExpertNum;
     totalSize_ = winContext_->winSize / BUFFER_NUM;
     dataSize_ = totalSize_ - STATE_SIZE;
     dataSizePerRank_ = dataSize_ / worldSize_ / UB_ALIGN * UB_ALIGN;
@@ -896,7 +898,8 @@ __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::CleanUpFl
 {
     if (aivId_ == 0) {
         constexpr uint32_t multiMachineMaxStatusSize = 512U; // 多机，固定清理512Bytes，可最大支持单卡127个Moe专家
-        constexpr uint32_t singleMachineMaxStatusSize = 1024U + 32U; // 单机，最大支持单卡256个Moe专家，尾部还存在一个flag
+        // 单机，根据单卡理论最大MoeExpertNum专家计算，尾部还存在一个flag
+        constexpr uint32_t singleMachineMaxStatusSize = RoundUp((maxMoeExpertNum_ / worldSize_ + 1) * sizeof(uint32_t), UB_ALIGN);
         uint32_t statusSize = isSingleServer_ ? singleMachineMaxStatusSize : multiMachineMaxStatusSize;
         Duplicate<int32_t>(statusTensor_, 0, worldSize_ * statusSize / sizeof(int32_t));
         SyncFunc<AscendC::HardEvent::V_MTE3>();

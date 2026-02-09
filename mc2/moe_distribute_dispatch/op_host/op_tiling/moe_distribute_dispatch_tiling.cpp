@@ -649,6 +649,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(gert::Tiling
     info.sharedExpertRankNum = static_cast<uint32_t>(0);
     info.moeExpertNum = *moeExpertNumPtr;
     info.quantMode = *quantModePtr;
+    info.maxMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2;
     if (*globalBsPtr == 0) {
         info.globalBs = *epWorldSizePtr * bs;
     } else {
