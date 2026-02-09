@@ -290,6 +290,8 @@ ge::graphStatus ScatterPaKvCacheTiling::TemplateRope()
         std::max(alignKHead, alignVHead) * floatFactor * DIM1 +    // reduce Buf for inputKeyLocal or inputValueLocal
         std::max(alignKHead, alignVHead) * floatFactor * DIM1 +    // divide Buf
         std::max(alignKHead, alignVHead) * floatFactor * DIM1;     // cast Buf
+    printf("===============mark1\n");
+    std::cout << "===============mark2" << std::endl;
     if (ubThreshold <= maxHandleNumPerLoop) {
         // tail dim can fully load
         isFullyLoad_ = FULLY_LOAD;

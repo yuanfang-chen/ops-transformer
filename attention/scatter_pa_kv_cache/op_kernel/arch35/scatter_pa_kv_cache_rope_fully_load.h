@@ -460,6 +460,7 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutValue(int64_t it
 template <typename T, typename IndexDtype, int64_t InOutMode>
 __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::Process()
 {
+    AscendC::printf("===============mark3\n");
     if (blockIdx_ >= tilingData_->usedCoreNum) {
         return;
     }
