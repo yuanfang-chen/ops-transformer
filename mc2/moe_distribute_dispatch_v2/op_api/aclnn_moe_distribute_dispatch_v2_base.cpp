@@ -235,8 +235,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
     int64_t ydtype = expandXOut->GetDataType();
     if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
-        std::cout<<"commAlg: "<<commAlg<<endl;
-        std::cout<<"inter to the mc2_context"<<endl;
+        std::cout<<"commAlg: "<<commAlg<<std::endl;
+        std::cout<<"inter to the mc2_context"<<std::endl;
         auto ret =GetMc2Context(groupEp, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
