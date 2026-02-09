@@ -709,9 +709,7 @@ __aicore__ inline void CompressorVec1SliceIterator<COMP, USE_SEQ_USED>::Iterator
             isStasticFirst_ = false;
         }
     }
-    // printf("needDealTcSize_: %d -> ", needDealTcSize_);
     needDealTcSize_ -= sliceInfo_.dealTcSize;
-    // printf("%d\n", needDealTcSize_);
     canDealTcSize_ -= sliceInfo_.dealTcSize;
     sliceInfo_.dealedSeqCnt += sliceInfo_.validSeqCnt;
     sliceInfo_.dealedTcCnt += sliceInfo_.dealTcSize;

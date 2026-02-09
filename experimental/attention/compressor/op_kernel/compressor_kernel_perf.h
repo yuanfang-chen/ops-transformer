@@ -444,7 +444,6 @@ __aicore__ inline BasicBlockInfo CompressorKernelPerf<COMP>::SkipOneBasicBlock(
             if ((leftSeqCnt == 0) || (leftFinishSeqCnt + leftSeqCnt > constInfo.mBaseSize)) {
                 break;
             }
-            // PRINTF("rightSeqCnt:%d leftSeqCnt:%d\n", rightSeqCnt, leftSeqCnt);
             rightFinishSeqCnt += rightSeqCnt;
             leftFinishSeqCnt += leftSeqCnt;
 
@@ -453,11 +452,7 @@ __aicore__ inline BasicBlockInfo CompressorKernelPerf<COMP>::SkipOneBasicBlock(
             UpdateBasicBlockInfo(basicBlockInfo, rightCmpBlockInfo, false);
 
             AcceptUpdate(rightCmpBlockInfo);
-            // PRINTF("Right cmpBlockInfo.bIdx:%d cmpBlockInfo.sIdx:%d cmpBlockInfo.bSeqUsed:%d cmpBlockInfo.bStartPos:%d\n",
-            //     rightCmpBlockInfo.bIdx, rightCmpBlockInfo.sIdx, rightCmpBlockInfo.bSeqUsed, rightCmpBlockInfo.bStartPos);
             AcceptUpdate(leftCmpBlockInfo);
-            // PRINTF("Left cmpBlockInfo.bIdx:%d cmpBlockInfo.sIdx:%d cmpBlockInfo.bSeqUsed:%d cmpBlockInfo.bStartPos:%d\n",
-            //     leftCmpBlockInfo.bIdx, leftCmpBlockInfo.sIdx, leftCmpBlockInfo.bSeqUsed, leftCmpBlockInfo.bStartPos);
         }
     } else {
         uint32_t rightFinishSeqCnt = 0;
@@ -540,9 +535,7 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcSplitCoreInfo()
     } else {
         constInfo.realDealBasicBlockNum = constInfo.tailBasicBlockNum;
     }
-    // PRINTF("constInfo.dBaseSize:%d dBasicBlockNum:%d coreGroupNum:%d dIdx:%d curGroupIdx:%d singleCoreDealTcBasicNum:%d tailGroupIdx:%d tailBasicBlockNum:%d realDealBasicBlockNum:%d\n",
-    //     constInfo.dBaseSize, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.dIdx, constInfo.curGroupIdx, constInfo.singleCoreDealTcBasicNum, constInfo.tailGroupIdx, constInfo.tailBasicBlockNum, constInfo.realDealBasicBlockNum);
-}
+ }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernelPerf<COMP>::InitWorkspace(__gm__ uint8_t *workspace) {
@@ -714,7 +707,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::Process()
     CmpBlockInfo leftCmpBlockInfo(constInfo.bIdxOfLastTc, constInfo.sIdxOfLastTc, true);
     CmpBlockInfo rightCmpBlockInfo(0, 0, false);
     CalcCurCoreStartIdx(rightCmpBlockInfo, leftCmpBlockInfo);
-    // PRINTF("allCompressedTcNum_:%d curCompressedTcNum_:%d\n", allCompressedTcNum_, curCompressedTcNum_);
 
     RunInfo extraInfo[1];
     Vec2RunInfo vec2Info{};
