@@ -9,41 +9,40 @@
  */
 
 /*!
- * \file quant_matmul.h
+ * \file mx_quant_matmul.h
  * \brief
  */
 
-#ifndef MC2_QUANT_MATMUL_H
-#define MC2_QUANT_MATMUL_H
+#ifndef MX_QUANT_MATMUL_H
+#define MX_QUANT_MATMUL_H
 #include "matmul_factory.h"
 
 namespace MC2KernelTemplate {
-struct KCQuantMMAdditionalData {
+struct MxQuantMMAdditionalData {
     GM_ADDR x1_scale;
     GM_ADDR x2_scale;
-    GM_ADDR x2_offset;
     uint64_t x1_scale_offset;
 };
 
-//非量化场景的相关逻辑实现
+//mx量化场景的相关逻辑实现
 template <typename MMType>
-class KCQuantMMControl {
+class MxQuantMMControl {
 protected:
     MC2MMBaseGmAddrs* baseDataPtr_;
-    KCQuantMMAdditionalData* additionalDataPtr_;
+    MxQuantMMAdditionalData* additionalDataPtr_;
     MMType* MMImplPtr_;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr_;
     AscendC::TPipe* tPipePtr_;
 
 public:
-    __aicore__ inline void  Init(MC2MMBaseGmAddrs* baseDataPtr, KCQuantMMAdditionalData* additionalDataPtr, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr, MMType* MMImplPtr, AscendC::TPipe *tPipe);
+    __aicore__ inline void  Init(MC2MMBaseGmAddrs* baseDataPtr, MxQuantMMAdditionalData* additionalDataPtr, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr, MMType* MMImplPtr, AscendC::TPipe *tPipe);
     __aicore__ inline void  UpdateAdditionalData();
     __aicore__ inline void  InitMM();
     __aicore__ inline void  EndMM();
 };
 
 template <typename MMType>
-__aicore__ inline void KCQuantMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseDataPtr, KCQuantMMAdditionalData *additionalDataPtr,
+__aicore__ inline void MxQuantMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseDataPtr, MxQuantMMAdditionalData *additionalDataPtr,
                                                  DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *tilingDataPtr, MMType *MMImplPtr,
                                                  AscendC::TPipe *tPipe)
 {
@@ -55,30 +54,27 @@ __aicore__ inline void KCQuantMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseData
 }
 
 template <typename MMType>
-__aicore__ inline void KCQuantMMControl<MMType>::UpdateAdditionalData()
+__aicore__ inline void MxQuantMMControl<MMType>::UpdateAdditionalData()
 {
     additionalDataPtr_->x1_scale = additionalDataPtr_->x1_scale + additionalDataPtr_->x1_scale_offset;
 }
 
 template <typename MMType>
-__aicore__ inline void KCQuantMMControl<MMType>::InitMM()
+__aicore__ inline void MxQuantMMControl<MMType>::InitMM()
 {
     tPipePtr_->Reset();
-    MMImplPtr_->Init(baseDataPtr_->aGM, baseDataPtr_->bGM, additionalDataPtr_->x2_scale, additionalDataPtr_->x2_offset, baseDataPtr_->biasGM, additionalDataPtr_->x1_scale, baseDataPtr_->cGM, nullptr, tilingDataPtr_, tPipePtr_);
+    MMImplPtr_->Init(baseDataPtr_->aGM, baseDataPtr_->bGM, baseDataPtr_->biasGM, additionalDataPtr_->x2_scale, additionalDataPtr_->x1_scale, baseDataPtr_->cGM, nullptr, tilingDataPtr_, tPipePtr_);
 }
 
 template <typename MMType>
-__aicore__ inline void KCQuantMMControl<MMType>::EndMM(){}
+__aicore__ inline void MxQuantMMControl<MMType>::EndMM(){}
 
-#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT
-#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, MMDtypeX1, MMDtypeX2) \
+#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT
+#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType) \
     using ComputationType = MC2MMFactory<\
-        MC2MMContext<KCQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>,\
-        KCQuantMMControl,\
-        Mc2QuantBatchMatmulV3::Mc2QuantBmmPertokenRegbaseKernel<MMDtypeX1, MMDtypeX2, float, float, float,\
-            DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE, float, Mc2QuantBatchMatmulV3::Mc2QuantBmmAswBlock>\
-        >
+        MC2MMContext<MxQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>, MxQuantMMControl,\
+        MatMulASWKernel<DTYPE_X1, DTYPE_X2, AscendC::fp8_e8m0_t, float, DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE>>
 #endif
-};
+} // namespace MC2KernelTemplate
 #endif
 
