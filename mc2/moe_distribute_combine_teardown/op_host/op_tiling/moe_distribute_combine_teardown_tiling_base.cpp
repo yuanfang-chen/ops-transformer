@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -170,37 +170,45 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckAttrsNullptr()
 {
     auto attrs = context_->GetAttrs();
 
-    auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
-    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
-    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
-    auto expertShardTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_EXPERT_SHARD_TYPE_INDEX);
-    auto sharedExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_NUM_INDEX);
-    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
-    auto globalBsPtr = attrs->GetAttrPointer<int64_t>(ATTR_GLOBAL_BS_INDEX);
-    auto quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_QUANT_MODE_INDEX);
-    auto commTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_TYPE_INDEX);
-    auto commAlgPtr = attrs->GetAttrPointer<char>(ATTR_COMM_ALG_INDEX);
-
     // 判空指针
+    auto groupEpPtr = attrs->GetAttrPointer<char>(ATTR_GROUP_EP_INDEX);
     OP_TILING_CHECK(groupEpPtr == nullptr, OP_LOGE(nodeName_, "groupEp is nullptr."), return ge::GRAPH_FAILED);
+
+    auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     OP_TILING_CHECK(epWorldSizePtr == nullptr, OP_LOGE(nodeName_, "epWorldSizePtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
     OP_TILING_CHECK(epRankIdPtr == nullptr, OP_LOGE(nodeName_, "epRankIdPtr is nullptr"), return ge::GRAPH_FAILED);
+
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     OP_TILING_CHECK(moeExpertNumPtr == nullptr, OP_LOGE(nodeName_, "moeExpertNumPtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto expertShardTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_EXPERT_SHARD_TYPE_INDEX);
     OP_TILING_CHECK(expertShardTypePtr == nullptr, OP_LOGE(nodeName_, "expertShardTypePtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto sharedExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_NUM_INDEX);
     OP_TILING_CHECK(sharedExpertNumPtr == nullptr, OP_LOGE(nodeName_, "sharedExpertNumPtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
     OP_TILING_CHECK(sharedExpertRankNumPtr == nullptr, OP_LOGE(nodeName_, "sharedExpertRankNumPtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto globalBsPtr = attrs->GetAttrPointer<int64_t>(ATTR_GLOBAL_BS_INDEX);
     OP_TILING_CHECK(globalBsPtr == nullptr, OP_LOGE(nodeName_, "globalBsPtr is nullptr"), return ge::GRAPH_FAILED);
+
+    auto quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_QUANT_MODE_INDEX);
     OP_TILING_CHECK(quantModePtr == nullptr, OP_LOGE(nodeName_, "commQuantModePtr is nullptr"),
                     return ge::GRAPH_FAILED);
+
+    auto commTypePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_TYPE_INDEX);
     OP_TILING_CHECK(commTypePtr == nullptr, OP_LOGE(nodeName_, "commTypePtr is nullptr"), return ge::GRAPH_FAILED);
 
     // 判非空指针
+    auto commAlgPtr = attrs->GetAttrPointer<char>(ATTR_COMM_ALG_INDEX);
     if (commAlgPtr != nullptr) {
         const std::string commAlg = std::string(commAlgPtr);
         OP_TILING_CHECK((commAlg != ""), OP_LOGE(nodeName_, "commAlg shoud be null or empty string."),
@@ -355,17 +363,10 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelation
 
 ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelationSecondPart()
 {
-    auto expandXShape = context_->GetInputShape(EXPAND_X_INDEX);            // A, K
-    auto quantExpandXShape = context_->GetInputShape(QUANT_EXPAND_X_INDEX); // A, tokenMsgSize
-    auto commCmdInfoShape = context_->GetInputShape(COMM_CMD_INFO_INDEX);   // 一维
-    auto expertIdsStorageShape = context_->GetInputShape(EXPERT_IDS_INDEX); // Bs, K
+    const int64_t A = context_->GetInputShape(EXPAND_X_INDEX)->GetStorageShape().GetDim(0);
+    const int64_t Bs = context_->GetInputShape(EXPERT_IDS_INDEX)->GetStorageShape().GetDim(0);
+    const int64_t K = context_->GetInputShape(EXPERT_IDS_INDEX)->GetStorageShape().GetDim(1);
 
-    const int64_t A = expandXShape->GetStorageShape().GetDim(0);
-    const int64_t commCmdInfoSize = commCmdInfoShape->GetStorageShape().GetDim(0);
-    const int64_t Bs = expertIdsStorageShape->GetStorageShape().GetDim(0);
-    const int64_t K = expertIdsStorageShape->GetStorageShape().GetDim(1);
-
-    const auto epRankId = tilingData_->moeDistributeCombineTeardownInfo.epRankId;
     const auto sharedExpertRankNum = tilingData_->moeDistributeCombineTeardownInfo.sharedExpertRankNum;
     const auto epWorldSize = tilingData_->moeDistributeCombineTeardownInfo.epWorldSize;
     const auto sharedExpertNum = tilingData_->moeDistributeCombineTeardownInfo.sharedExpertNum;
@@ -377,10 +378,10 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelation
                     OP_LOGE(nodeName_,
                             "globalBs[%u] should be >= Bs * epWorldSize[%lu] and <= MaxBs * epWorldSize, or = 0",
                             globalBs, Bs * epWorldSize),
-                    return ge::GRAPH_FAILED); // TODO maxBs为什么是定值？ // TODO globalBs的取值应该不是个范围？
+                    return ge::GRAPH_FAILED);
 
     // 校验A的取值约束
-    if (epRankId < sharedExpertRankNum) { // 共享专家
+    if (tilingData_->moeDistributeCombineTeardownInfo.epRankId < sharedExpertRankNum) { // 共享专家
         bool AisValid = (globalBs == 0) ? (A == Bs * epWorldSize * sharedExpertNum / sharedExpertRankNum) :
                                           (A == globalBs * sharedExpertNum / sharedExpertRankNum);
         OP_TILING_CHECK(
@@ -410,15 +411,9 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelation
     }
 
     // 校验quantExpandX的A
-    OP_TILING_CHECK(quantExpandXShape->GetStorageShape().GetDim(0) != A,
+    OP_TILING_CHECK(context_->GetInputShape(QUANT_EXPAND_X_INDEX)->GetStorageShape().GetDim(0) != A,
                     OP_LOGE(nodeName_, "expandx's dim0[%ld] should be equal to quantexpandx's dim0[%ld]", A,
-                            quantExpandXShape->GetStorageShape().GetDim(0)),
-                    return ge::GRAPH_FAILED);
-
-    // 校验commCmdInfoSize的取值约束
-    OP_TILING_CHECK((commCmdInfoSize != (A + epWorldSize) * COMM_CMD_INFO_SIZE),
-                    OP_LOGE(nodeName_, "commCmdInfoSize[%ld] should be (A[%ld] + epWorldSize[%u]) * %u",
-                            commCmdInfoSize, A, epWorldSize, COMM_CMD_INFO_SIZE),
+                            context_->GetInputShape(QUANT_EXPAND_X_INDEX)->GetStorageShape().GetDim(0)),
                     return ge::GRAPH_FAILED);
 
     return CheckTensorShapeRelationThirdPart();
@@ -428,9 +423,19 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelation
 {
     auto expandXStorageShape = context_->GetInputShape(EXPAND_X_INDEX);     // A, H
     auto expertIdsStorageShape = context_->GetInputShape(EXPERT_IDS_INDEX); // Bs, K
+    auto commCmdInfoShape = context_->GetInputShape(COMM_CMD_INFO_INDEX);   // 一维
 
     const int64_t Bs = expertIdsStorageShape->GetStorageShape().GetDim(0);
     const int64_t H = expandXStorageShape->GetStorageShape().GetDim(1);
+    const int64_t A = expandXStorageShape->GetStorageShape().GetDim(0);
+    const int64_t commCmdInfoSize = commCmdInfoShape->GetStorageShape().GetDim(0);
+    const auto epWorldSize = tilingData_->moeDistributeCombineTeardownInfo.epWorldSize;
+
+    // 校验commCmdInfoSize的取值约束
+    OP_TILING_CHECK((commCmdInfoSize != (A + epWorldSize) * COMM_CMD_INFO_SIZE),
+                    OP_LOGE(nodeName_, "commCmdInfoSize[%ld] should be (A[%ld] + epWorldSize[%u]) * %u",
+                            commCmdInfoSize, A, epWorldSize, COMM_CMD_INFO_SIZE),
+                    return ge::GRAPH_FAILED);
 
     if (tilingData_->moeDistributeCombineTeardownInfo.isActiveMask) {
         auto xActiveMaskStorageShape = context_->GetOptionalInputShape(X_ACTIVE_MASK_INDEX); // Bs
@@ -545,6 +550,11 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorDataType()
                             Ops::Base::ToString(commCmdInfoDesc->GetDataType()).c_str()),
                     return ge::GRAPH_FAILED);
 
+    return CheckTensorDataTypeSecondPart();
+}
+
+ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorDataTypeSecondPart()
+{
     if (tilingData_->moeDistributeCombineTeardownInfo.isActiveMask) {
         auto xActiveMaskDesc = context_->GetOptionalInputDesc(X_ACTIVE_MASK_INDEX);
         OP_TILING_CHECK(xActiveMaskDesc == nullptr, OP_LOGE(nodeName_, "xActiveMaskDesc is null."),
@@ -555,12 +565,12 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorDataType()
                         return ge::GRAPH_FAILED);
     }
 
+    auto expandXDesc = context_->GetInputDesc(EXPAND_X_INDEX);
     if (tilingData_->moeDistributeCombineTeardownInfo.hasSharedExpertX) {
         auto shardExpertXDesc = context_->GetOptionalInputDesc(SHARED_EXPERT_X_INDEX);
         OP_TILING_CHECK(shardExpertXDesc == nullptr, OP_LOGE(nodeName_, "shardExpertXDesc is null."),
                         return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(
-            (shardExpertXDesc->GetDataType() != expandXDesc->GetDataType()),
+        OP_TILING_CHECK((shardExpertXDesc->GetDataType() != expandXDesc->GetDataType()),
             OP_LOGE(nodeName_,
                     "shardExpertX dataType is invalid, dataType should be equal to expandX dataType %s, but is %s",
                     Ops::Base::ToString(expandXDesc->GetDataType()).c_str(),

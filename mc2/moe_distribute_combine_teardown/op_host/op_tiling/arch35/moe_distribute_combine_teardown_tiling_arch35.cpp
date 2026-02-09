@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -93,19 +93,18 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckAttrsComplex()
 
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
-    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
-
     OP_TILING_CHECK((*epRankIdPtr < 0) || (*epRankIdPtr >= *epWorldSizePtr),
         OP_LOGE(nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu), get %lu",
         *epWorldSizePtr, *epRankIdPtr),
         return ge::GRAPH_FAILED);
 
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     OP_TILING_CHECK(!((*moeExpertNumPtr == MOE_EXPERT_NUM_32) || (*moeExpertNumPtr == MOE_EXPERT_NUM_64) ||
         (*moeExpertNumPtr == MOE_EXPERT_NUM_128)),
         OP_LOGE(nodeName_, "moeExpertNum shoud be in {32, 64, 128}, get %lu", *moeExpertNumPtr),
         return ge::GRAPH_FAILED);
 
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
     OP_TILING_CHECK((*sharedExpertRankNumPtr != 0),
         OP_LOGE(nodeName_, "sharedExpertRankNum shoud be 0, get %lu", *sharedExpertRankNumPtr),
         return ge::GRAPH_FAILED);

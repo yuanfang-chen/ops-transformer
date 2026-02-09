@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -87,21 +87,23 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA3::CheckAttrsComplex()
 
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
-    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
-    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
-
     OP_TILING_CHECK((*epRankIdPtr < 0) || (*epRankIdPtr >= *epWorldSizePtr),
                     OP_LOGE(nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu), get %lu",
                             *epWorldSizePtr, *epRankIdPtr),
                     return ge::GRAPH_FAILED);
+
+    auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     OP_TILING_CHECK((*moeExpertNumPtr <= 0) || (*moeExpertNumPtr > MAX_MOE_EXPERT_NUM),
                     OP_LOGE(nodeName_, "moeExpertNum shoud be within the range of (0, %lu], get %lu",
                             MAX_MOE_EXPERT_NUM, *moeExpertNumPtr),
                     return ge::GRAPH_FAILED);
+
+    auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
     OP_TILING_CHECK((*sharedExpertRankNumPtr < 0) || (*sharedExpertRankNumPtr > *epWorldSizePtr / 2),
                     OP_LOGE(nodeName_, "sharedExpertRankNum shoud be within the range of [0, %lu], get %lu",
                             *epWorldSizePtr / 2, *sharedExpertRankNumPtr),
                     return ge::GRAPH_FAILED);
+
     OP_TILING_CHECK(
         (*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr) != 0),
         OP_LOGE(nodeName_,
