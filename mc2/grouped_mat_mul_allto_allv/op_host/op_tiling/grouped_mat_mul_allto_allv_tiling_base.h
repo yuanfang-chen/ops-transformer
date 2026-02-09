@@ -41,29 +41,39 @@ constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
 constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
 constexpr uint32_t GMM_X_SCALE_OPTIONAL_INDEX = 6;
 constexpr uint32_t GMM_WEIGHT_SCALE_OPTIONAL_INDEX = 7;
-constexpr uint32_t MM_X_SCALE_OPTIONAL_INDEX = 8;
-constexpr uint32_t MM_WEIGHT_SCALE_OPTIONAL_INDEX = 9;
-constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 10;
+constexpr uint32_t GMM_X_OFFSET_OPTIONAL_INDEX = 8;
+constexpr uint32_t GMM_WEIGHT_OFFSET_OPTIONAL_INDEX = 9;
+constexpr uint32_t MM_X_SCALE_OPTIONAL_INDEX = 10;
+constexpr uint32_t MM_WEIGHT_SCALE_OPTIONAL_INDEX = 11;
+constexpr uint32_t MM_X_OFFSET_OPTIONAL_INDEX = 12;
+constexpr uint32_t MM_WEIGHT_OFFSET_OPTIONAL_INDEX = 13;
+constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 14;
+
 constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0;
 constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
+
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
+constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
+constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
+
+constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
+constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
+constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 6;
+constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 7;
+constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 8;
+constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 9;
+constexpr uint32_t ATTR_COMM_QUANT_MODE_INDEX = 10;
+constexpr uint32_t ATTR_GROUP_SIZE_OPTIONAL_INDEX = 11;
+constexpr uint32_t ATTR_GMM_Y_DTYPE_INDEX = 12;
+constexpr uint32_t ATTR_MM_Y_DTYPE_INDEX = 13;
+constexpr uint32_t ATTR_COMM_QUANT_DTYPE_INDEX = 14;
 
 constexpr uint32_t DIM_ZERO = 0;
 constexpr uint32_t DIM_ONE = 1;
 constexpr uint32_t DIM_TWO = 2;
 constexpr uint32_t DIM_THREE = 3;
 
-constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 0;
-constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 1;
-constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 2;
-constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 3;
-constexpr uint32_t ATTR_COMM_QUANT_MODE_INDEX = 4;
-constexpr uint32_t ATTR_COMM_QUANT_DTYPE_INDEX = 5;
-constexpr uint32_t ATTR_GROUP_INDEX = 6;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 7;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 8;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 9;
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 10;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 11;
 
 constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
 constexpr uint32_t HCCL_CMD_ALLTOALLV = 8;
@@ -89,6 +99,11 @@ constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
 constexpr uint64_t MAX_EXPERT_NUM = 256;
 constexpr int64_t MAX_EXPERT_NUM_PER_RANK = 32;
 constexpr int64_t MAX_DIM_VALUE = 65536;
+constexpr uint64_t MAX_H1_VALUE = 65536;
+constexpr uint64_t MAX_N1_VALUE = 65536;
+constexpr uint64_t MAX_N2_VALUE = 65536;
+constexpr uint64_t MIN_K_VALUE = 2;
+constexpr uint64_t MAX_K_VALUE = 10; // ???  8?
 constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
 constexpr int64_t MAX_BSK_VALUE = 52428800;
 constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);         // 2M / sizeof(gmmX)
@@ -102,13 +117,13 @@ public:
     explicit GmmAlltoAllvTilingBase(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context){};
 
 protected:
-    ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus GetShapeAttrsInfo() override;
+    ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus PostTiling() override;
-
+    const char *opName_{nullptr};
     platform_ascendc::SocVersion socVersion_;
 };
 } // namespace optiling

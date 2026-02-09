@@ -93,6 +93,24 @@ public:
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
+        this->Input("gmmXOffsetOptional")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                     ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                                 ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        this->Input("gmmWeightOffsetOptional")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                     ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                                 ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
         this->Input("mmXScaleOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
@@ -103,6 +121,24 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("mmWeightScaleOptional")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                     ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                                 ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        this->Input("mmXOffsetOptional")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                     ge::FORMAT_ND, ge::FORMAT_ND})
+            .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                                 ge::FORMAT_ND, ge::FORMAT_ND})
+            .AutoContiguous();
+        this->Input("mmWeightOffsetOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
                        ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
@@ -138,19 +174,21 @@ public:
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                                  ge::FORMAT_ND, ge::FORMAT_ND});
 
-        this->Attr("gmm_x_quant_mode").AttrType(REQUIRED).Int();
-        this->Attr("gmm_weight_quant_mode").AttrType(REQUIRED).Int();
-        this->Attr("mm_x_quant_mode").AttrType(REQUIRED).Int();
-        this->Attr("mm_weight_quant_mode").AttrType(REQUIRED).Int();
-        this->Attr("comm_quant_mode").AttrType(REQUIRED).Int();
-        this->Attr("comm_quant_Dtype").AttrType(OPTIONAL).Int();
-
         this->Attr("group").AttrType(REQUIRED).String();
         this->Attr("ep_world_size").AttrType(REQUIRED).Int();
         this->Attr("send_counts").AttrType(REQUIRED).ListInt();
         this->Attr("recv_counts").AttrType(REQUIRED).ListInt();
         this->Attr("trans_gmm_weight").AttrType(OPTIONAL).Bool(false);
         this->Attr("trans_mm_weight").AttrType(OPTIONAL).Bool(false);
+        this->Attr("gmm_x_quant_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("gmm_weight_quant_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("mm_x_quant_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("mm_weight_quant_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("comm_quant_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("group_size").AttrType(OPTIONAL).Int(0);
+        this->Attr("gmm_y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
+        this->Attr("mm_y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
+        this->Attr("comm_quant_Dtype").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)

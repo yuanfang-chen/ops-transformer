@@ -51,17 +51,25 @@ enum class NnopbaseHcclServerType : uint32_t { // HCCL Server
 static constexpr int64_t ZERO = 0;
 
 extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize( // Innner的参数要保持与def一致
-    const aclTensor* gmmX, const aclTensor* gmmWeight,
+    const aclTensor* gmmX, 
+    const aclTensor* gmmWeight,
     const aclTensor* sendCountsTensorOptional, 
     const aclTensor* recvCountsTensorOptional,
     const aclTensor* mmXOptional, 
     const aclTensor* mmWeightOptional,
     const aclTensor* gmmXScaleOptional,
     const aclTensor* gmmWeightScaleOptional,
+    const aclTensor* gmmXOffsetOptional,
+    const aclTensor* gmmWeightOffsetOptional,
     const aclTensor* mmXScaleOptional,
     const aclTensor* mmWeightScaleOptional,
+    const aclTensor* mmXOffsetOptional,
+    const aclTensor* mmWeightOffsetOptional,
+    const aclTensor* commQuantScaleOptional,
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
-    bool transGmmWeight, bool transMmWeight, 
+    bool transGmmWeight, bool transMmWeight,
+    int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
+    int64_t commQuantMode, int64_t groupSize, int64_t gmmYDtype, int64_t mmYDtype, int64_t commQuantDtypeOptional,
     const aclTensor* yOut, const aclTensor* mmYOptional, uint64_t* workspaceSize,
     aclOpExecutor** executor
 );
@@ -474,19 +482,20 @@ static aclnnStatus CheckParams(const aclTensor* gmmX, const aclTensor* gmmWeight
 
 extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor* gmmX, const aclTensor* gmmWeight, const aclTensor* gmmXScaleOptional,
-    const aclTensor* gmmWeightScaleOptional, 
+    const aclTensor* gmmWeightScaleOptional,
     const aclTensor* gmmXOffsetOptional,
     const aclTensor* gmmWeightOffsetOptional,
     const aclTensor* sendCountsTensorOptional,
     const aclTensor* recvCountsTensorOptional, 
     const aclTensor* mmXOptional, const aclTensor* mmWeightOptional, const aclTensor* mmXScaleOptional,
-    const aclTensor* mmWeightScaleOptional, const aclTensor* commQuantScaleOptional,
-    const aclTensor* mmXOffsetOptional, const aclTensor* mmWeightOffsetOptional,
+    const aclTensor* mmWeightScaleOptional, const aclTensor* mmXOffsetOptional,
+    const aclTensor* mmWeightOffsetOptional, const aclTensor* commQuantScaleOptional,
     int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-    int64_t commQuantMode, int64_t commQuantDtypeOptional,
+    int64_t commQuantMode, int64_t commQuantDtypeOptional, int64_t groupSize,
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
-    bool transGmmWeight, bool transMmWeight, const aclTensor* y, const aclTensor* mmYOptional, uint64_t* workspaceSize,
-    aclOpExecutor** executor)
+    bool transGmmWeight, bool transMmWeight, int64_t gmmYDtype, int64_t mmYDtype,
+    const aclTensor* y, const aclTensor* mmYOptional,
+    uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     auto ret_param = 
         CheckParams(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, gmmXOffsetOptional,
@@ -500,15 +509,19 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     auto ret_send_and_recv = CheckSendAndRecv(sendCounts, recvCounts);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
+    char* str_group = const_cast<char*>(group);
     aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
             gmmX, gmmWeight,
             sendCountsTensorOptional,
             recvCountsTensorOptional,
             mmXOptional, mmWeightOptional,
-            gmmXScaleOptional, gmmWeightScaleOptional, 
-            mmXScaleOptional,
-            mmWeightScaleOptional,
-            group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight, 
+            gmmXScaleOptional, gmmWeightScaleOptional,
+            gmmXOffsetOptional, gmmWeightOffsetOptional,
+            mmXScaleOptional, mmWeightScaleOptional,
+            mmXOffsetOptional, mmWeightOffsetOptional, commQuantScaleOptional,
+            str_group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight,
+            gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, commQuantMode,
+            groupSize, gmmYDtype, mmYDtype, commQuantDtypeOptional,
             y, mmYOptional, workspaceSize, executor);
     return ret;
 }

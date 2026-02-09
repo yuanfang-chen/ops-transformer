@@ -31,10 +31,26 @@ using MC2KernelTemplate::TaskTilingInfo;
 
 /**
  * GMM A2AV Workspace 信息
- * 专门管理 workspace 相关配置
+ *
+ * 算子级 workspace 分为两部分:
+ *   [0, wsGmmOutputSize)                                              → GMM 输出缓冲, 传给 GmmComputeOp.Init 的 y 参数
+ *   [wsGmmOutputSize, wsGmmOutputSize + wsGmmComputeWorkspaceSize)    → GmmComputeOp 内部工作空间, 传给 GmmComputeOp.Init 的 workspace 参数
+ *
+ * GmmComputeOp workspace 内部布局 (由 GmmComputeOp 内部管理, tiling 侧仅需计算并分配总大小):
+ *   [0, 64)                   ptrTable:  4 × 16B GetTensorAddr 双重间接指针表 (x, weight, scaleB, y)
+ *                              注: scaleA (perTokenScale) 不经过 GetTensorAddr, 直接作为 float* 使用
+ *                              注: 若后续 hasBias=1, bias 也经过 GetTensorAddr, 需增加第 5 个 slot (80B)
+ *   [64, 64 + expertNum * 8)  groupList: expertNum × int64_t 累积和
+ *   总大小 = 64 + expertNum * sizeof(int64_t)
+ *   其中 expertNum = 单次 GmmASWKernel 调用中的专家数 (当前 groupNum=1 时 expertNum=1,
+ *   后续多专家同时计算时 expertNum 随融合算子切分的专家数量变化)
  */
 struct GmmA2avWorkspaceInfo {
-    uint64_t wsGmmSize;           // GMM workspace 大小
+    uint64_t wsGmmOutputSize;              // GMM 主输出缓冲大小 (x @ weight -> gmm_output -> hccl -> y)
+    uint64_t wsGmmComputeWorkspaceSize;    // GmmComputeOp 内部工作空间大小
+    // TODO: wsGmmSize 已被拆分为 wsGmmOutputSize + wsGmmComputeWorkspaceSize，
+    // 待 grouped_mat_mul_allto_allv 侧 Tiling 适配完成后删除此字段
+    uint64_t wsGmmSize;                    // [废弃] 原 GMM workspace 大小，保留兼容
 };
 
 struct QuantGmmA2avTilingData {
@@ -52,5 +68,7 @@ struct QuantGmmA2avTilingData {
 
     // ============ 普通专家 GMM Tiling 数组 ============
     GmmTilingArray gmmTiling; // 普通专家 GMM Tiling 数组
+    // ============ 普通专家 GMM Tiling ============
+    GMMQuantTilingData gmmBaseTiling; // 共享专家 GMM Tiling 数据，后续还会在kernel中根据任务刷新
 };
 #endif

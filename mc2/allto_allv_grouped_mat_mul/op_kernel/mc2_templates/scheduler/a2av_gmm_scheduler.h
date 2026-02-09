@@ -22,7 +22,7 @@
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-template <typename CommOpType, typename ComputationOpType, typename TilingDataType, typename GmmTilingDataType,
+template <typename CommOpType, typename ComputeOpType, typename LocalComputeOpType, typename TilingDataType, typename GmmTilingDataType,
     typename GmmArrayAddrType, bool isNeedMM>
 class A2avGmmScheduler {
 public:
@@ -38,21 +38,25 @@ public:
         __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.hcclInitTiling));
         __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.a2avCcTiling));
         commOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
-        // if (isNeedMM) {
-        //     localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
-        //         workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
-        // }
+        if (isNeedMM) {
+            localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
+                workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
+        }
         computeOp.Init(permuteOutOptionalGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
             &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
     }
 
     __aicore__ inline void Process()
     {
-        // if (isNeedMM) {
-        //     localComputeOp.Process(0);
-        // }
+        if (isNeedMM) {
+            localComputeOp.Process(0);
+            SyncAll<false>();
+        }
         // TODO commOp.Launch(0, e_);
-        commOp.TempLaunch();
+        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
+            commOp.Launch(expertIdx, 1);
+        }
+        // commOp.TempLaunch();
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
             SyncAll<false>();
@@ -66,13 +70,13 @@ protected:
     {
         commOp.End();
         computeOp.End();
-        // localComputeOp.End();
+        localComputeOp.End();
     }
 
 private:
     CommOpType commOp;
-    ComputationOpType computeOp;
-    ComputationOpType localComputeOp;
+    ComputeOpType computeOp;
+    LocalComputeOpType localComputeOp;
     const TilingDataType *tilingData_;
     uint32_t e_ = 0U;
 };

@@ -773,14 +773,14 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
 bool GmmAlltoAllvTilingStruct::IsCapable()
 {
-    auto attrs = context_->GetAttrs();
-    OP_TILING_CHECK(attrs == nullptr, OP_LOGE(C_INNER_DEBUG, "GetAttrs returned nullptr!"), return false);
-
-    auto gmmXQuantMode = attrs->GetAttrPointer<char>(ATTR_GMM_X_QUANT_MODE_INDEX);
-    if (*gmmXQuantMode < 1) {
+    if (context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
+        context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_BF16) {
         return false;
     }
-
+    if (context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
+        context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_BF16) {
+        return false;
+    }
     return true;
 }
 
@@ -796,48 +796,18 @@ uint64_t GmmAlltoAllvTilingStruct::GetTilingKey() const
     return tilingKey;
 }
 
-ge::graphStatus GmmAlltoAllvTilingBase::GetPlatformInfo()
-{
-    auto platformInfo = context_->GetPlatformInfo();
-    OP_TILING_CHECK(
-        platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(C_INNER_DEBUG, "fail to get platform info"),
-        return ge::GRAPH_FAILED);
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    socVersion_ = ascendcPlatform.GetSocVersion();
-    return ge::GRAPH_SUCCESS;
-}
-
-// Every thing is done by DoOptiling.
-ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
+ge::graphStatus GmmAlltoAllvTilingStruct::GetShapeAttrsInfo()
 {
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus GmmAlltoAllvTilingBase::DoLibApiTiling()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus GmmAlltoAllvTilingBase::GetWorkspaceSize()
-{
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus GmmAlltoAllvTilingBase::PostTiling()
-{
-    return ge::GRAPH_SUCCESS;
-}
-uint64_t GmmAlltoAllvTilingBase::GetTilingKey() const
-{
-    return 0;
-}
-// REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct, 0);
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct, 0);
+// REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct,
+//                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
 
 static ge::graphStatus GroupedMatMulAlltoAllvTilingFunc(gert::TilingContext* context)
 {
-    return TilingRegistryNew::GetInstance().DoTilingImpl(context);
+    return TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
 struct GroupedMatMulAlltoAllvCompileInfo {
@@ -848,9 +818,9 @@ static ge::graphStatus TilingParseForGroupedMatMulAlltoAllv(gert::TilingParseCon
     return ge::GRAPH_SUCCESS;
 }
 
-// IMPL_OP_OPTILING(GroupedMatMulAlltoAllv)
-//     .Tiling(GroupedMatMulAlltoAllvTilingFunc)
-//     .TilingParse<GroupedMatMulAlltoAllvCompileInfo>(TilingParseForGroupedMatMulAlltoAllv);
-IMPL_OP_OPTILING(GroupedMatMulAlltoAllv).Tiling(GroupedMatMulAlltoAllvTilingFunc);
+IMPL_OP_OPTILING(GroupedMatMulAlltoAllv)
+    .Tiling(GroupedMatMulAlltoAllvTilingFunc)
+    .TilingParse<GroupedMatMulAlltoAllvCompileInfo>(TilingParseForGroupedMatMulAlltoAllv);
+// IMPL_OP_OPTILING(GroupedMatMulAlltoAllv).Tiling(GroupedMatMulAlltoAllvTilingFunc);
 
 } // end of namespace optiling
