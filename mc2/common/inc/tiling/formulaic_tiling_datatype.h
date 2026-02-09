@@ -151,8 +151,8 @@ struct TileArguments {
 };
 
 struct TilingBestBaseBlock {
-    uint32_t baseM = 256;
-    uint32_t baseN = 256;
-    uint32_t baseK = 128;
+    uint32_t baseM = 256; // 256: init value for baseM
+    uint32_t baseN = 256; // 256: init value for baseN
+    uint32_t baseK = 128; // 128: init value for baseK
 };
 #endif // __FORMULAIC_TILING_DATATYPE_H__

@@ -21,7 +21,6 @@
 class MMReduceScatterFitBalanceTiling : public Mc2FitBasedBalanceTiling
 {
 public:
-
     explicit MMReduceScatterFitBalanceTiling(const mc2tiling::TilingArgs& args, KernelType kernelType,
         TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950) :
         Mc2FitBasedBalanceTiling(args, kernelType, topoType, socVersion)

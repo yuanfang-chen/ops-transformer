@@ -29,7 +29,12 @@ void AllGatherMMFitBalanceTiling::EstimateMMCommTime()
     double totalMatmulTime = matmulPerf_.MatmulTime(mmInfo_.mValue, rankDim_);
     double totalTpTime = commPerf_.CommTime(mmInfo_.mValue);
     double frontUtil = matmulPerf_.FindCubeUtilByL2Usage(mmInfo_.mValue, 1);
-    frontMMTime_ = matmulPerf_.MatmulTime(mmInfo_.mValue, 1) / frontUtil;
+
+    if (std::abs(frontUtil) > 1e-10) {
+        frontMMTime_ = matmulPerf_.MatmulTime(mmInfo_.mValue, 1) / frontUtil;
+    } else {
+        frontMMTime_ = matmulPerf_.MatmulTime(mmInfo_.mValue, 1);
+    }
     tilingM_.cutRes.shortTileAtBack = true;
     ratioCalcComm_ = (std::max(totalTpTime, totalMatmulTime) / std::min(totalTpTime, totalMatmulTime));
 

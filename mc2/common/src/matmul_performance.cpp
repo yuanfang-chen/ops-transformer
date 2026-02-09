@@ -26,7 +26,7 @@ const static std::map<std::string, double> CUBE_CALC_PER_CYCLE_MAP = {
     {"0_1_1_1_2", 8192},
     {"3_1_1_1_2", 8192},
     {"4_1_1_1_2", 8192},
-    {"4_1_1_1_1", 8192},
+    {"4_1_1_1_1", 8192}, // socType_calcType_matrixADtype_matrixBDtypeSize_matrixCDtype
 };
 
 const static std::map<std::string, L2CacheEstimateParameters> L2_PARAMETER_MAP = {
