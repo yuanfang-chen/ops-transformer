@@ -516,7 +516,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
     char* str_group = const_cast<char*>(group);
     // 规避cc文件编译问题
-    int64_t groupsize = 0;
+    int64_t groupSize = 0;
     int64_t gmmYDtype = 28;
     int64_t mmYDtype = 28;
 
