@@ -235,7 +235,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     } else if (is950) {
         performanceInfoOptionalDispatchV2Temp = nullptr;
     }
-
+    OP_LOGD("PRINT commAlg:%s",commAlg);
+    OP_LOGD("aclnnMoeDistributeDispatchGetWorkspaceSizeBase start");
     int64_t ydtype = expandXOut->GetDataType();
     if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
         // std::cout<<"commAlg: "<<commAlg<<std::endl;
@@ -284,6 +285,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
 aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream) 
 {
+    OP_LOGD("aclnnMoeDistributeDispatchBase start");
     const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
     if(is950) {
         OP_LOGD("PRINT is950");
