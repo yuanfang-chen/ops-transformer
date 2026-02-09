@@ -260,7 +260,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(opName_, "Failed to get attrs."), return ge::GRAPH_FAILED);
-    // aclnn para dtype int64 use int 32 ???? ???
+
     auto gmmXQuantModeptr = attrs->GetAttrPointer<int>(ATTR_GMM_X_QUANT_MODE_INDEX);
     localParams_.gmmXQuantMode = *gmmXQuantModeptr;
     auto gmmWeightQuantModeptr = attrs->GetAttrPointer<int>(ATTR_GMM_WEIGHT_QUANT_MODE_INDEX);
@@ -290,13 +290,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
     // OP_TILING_CHECK(localParams_.mmYDtype != 28,
     //     OP_LOGE(opName_, "tiling not need mmYDtype, but mmYDtype is %ld !", localParams_.mmYDtype),
     //     return ge::GRAPH_FAILED);
+
+    auto mmXQuantModeptr = attrs->GetAttrPointer<int>(ATTR_MM_X_QUANT_MODE_INDEX);
+    localParams_.mmXQuantMode = *mmXQuantModeptr;
+    auto mmWeightQuantModeptr = attrs->GetAttrPointer<int>(ATTR_MM_WEIGHT_QUANT_MODE_INDEX);
+    localParams_.mmWeightQuantMode = *mmWeightQuantModeptr;
+    auto mmTransWeightptr = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
+    localParams_.isMmWeightTrans = *mmTransWeightptr;
     if (!localParams_.hasSharedMm) {
-        auto mmXQuantModeptr = attrs->GetAttrPointer<int>(ATTR_MM_X_QUANT_MODE_INDEX);
-        localParams_.mmXQuantMode = *mmXQuantModeptr;
-        auto mmWeightQuantModeptr = attrs->GetAttrPointer<int>(ATTR_MM_WEIGHT_QUANT_MODE_INDEX);
-        localParams_.mmWeightQuantMode = *mmWeightQuantModeptr;
-        auto mmTransWeightptr = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
-        localParams_.isMmWeightTrans = *mmTransWeightptr;
         OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_NONE,
             OP_LOGE(opName_, "no sharedmm, but mmXQuantMode is %ld !", localParams_.mmXQuantMode),
             return ge::GRAPH_FAILED);
