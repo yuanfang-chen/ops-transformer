@@ -225,31 +225,31 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
 // 检查是否有空tensor
 static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
 {
-    if((gmmX->GetViewShape().GetDim(0) == ZERO)) {
+    if(gmmX->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
         return false;
     }
-    if((gmmX->GetViewShape().GetDim(1) == ZERO)) {
+    if(gmmX->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
         return false;
     }
-    if((gmmWeight->GetViewShape().GetDim(0) == ZERO)) {
+    if(gmmWeight->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
         return false;
     }
-    if((gmmWeight->GetViewShape().GetDim(1) == ZERO)) {
+    if(gmmWeight->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
         return false;
     }
-    if((gmmWeight->GetViewShape().GetDim(2) == ZERO)) {
+    if(gmmWeight->GetViewShape().GetDim(2) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
         return false;
     }
-    if((gmmY->GetViewShape().GetDim(0) == ZERO)) {
+    if(gmmY->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimM, which is unsupported.");
         return false;
     }
-    if((gmmY->GetViewShape().GetDim(1) == ZERO)) {
+    if(gmmY->GetViewShape().GetDim(1) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with one dimN, which is unsupported.");
         return false;
     }
