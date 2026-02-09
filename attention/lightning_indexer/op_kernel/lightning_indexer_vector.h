@@ -15,7 +15,7 @@
 #ifndef LIGHTNING_INDEXER_VECTOR_H
 #define LIGHTNING_INDEXER_VECTOR_H
 
-#include "lightning_indexer_vector.h"
+#include "lightning_indexer_vector.h"     
 #include "kernel_operator.h"
 
 namespace LIServiceVec {
