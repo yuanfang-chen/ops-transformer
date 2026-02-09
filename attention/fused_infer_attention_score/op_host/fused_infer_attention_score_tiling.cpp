@@ -1454,7 +1454,12 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     } else {
         context->SetBlockDim(fai_tiling.GetCoreNum());
     }
-    context->SetTilingKey(fai_tiling.GetTilingKey());
+    uint64_t tilingKey = fai_tiling.GetTilingKey();
+    OP_LOGD("TilingProcess4SplitFuse", "TilingProcess4SplitFuse0209-1700-laninfdm1754—fp16—bf16_-tilingKey: %lu", tilingKey);
+    printf("TilingProcess4SplitFuse0209-1700-laninfdm21754—fp16—bf16_-tilingKey: %lu \n", tilingKey);
+    context->SetTilingKey(tilingKey);
+    // context->SetTilingKey(fai_tiling.GetTilingKey());
+
     return ge::GRAPH_SUCCESS;
 }
 
