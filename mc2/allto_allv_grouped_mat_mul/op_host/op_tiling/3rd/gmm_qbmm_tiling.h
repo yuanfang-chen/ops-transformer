@@ -1,4 +1,4 @@
-/**
+/* *
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -8,12 +8,12 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
+/* !
  * \file gmm_qbmm_tiling.h
  * \brief Copied from gmm/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h
  */
-#ifndef GMM_QBMM_TILING_H
-#define GMM_QBMM_TILING_H
+#ifndef MC2_GMM_QBMM_TILING_H
+#define MC2_GMM_QBMM_TILING_H
 
 #include "grouped_matmul_tiling.h"
 #include "../../../op_kernel/3rd/grouped_matmul_tiling_data_apt.h"
@@ -201,15 +201,15 @@ protected:
     uint64_t GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
     uint64_t GetShapeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
     bool SetQuantMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape,
-                      const gert::Shape &wShape);
+        const gert::Shape &wShape);
     void SetPerGroupQuantMode(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape,
-                              const gert::Shape &wShape);
+        const gert::Shape &wShape);
     bool CheckQuantParamsForMXTypeK(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     bool CheckFp4Shape() const;
     bool CheckBiasDtype() const;
     bool CheckBiasShape(const gert::StorageShape *biasStorageShape) const;
     bool CheckQuantParamsForMxQuantMode(const gert::StorageShape *xScaleStorageShape,
-                                        const gert::Shape &wScaleShape) const;
+        const gert::Shape &wScaleShape) const;
     bool CheckQuantParams(const gert::StorageShape *xScaleStorageShape, const gert::Shape &wScaleShape) const;
     bool CheckQuantParamsForNonKGroupQuantMode(const gert::Shape &wScaleShape) const;
     bool SetMKNList();
@@ -217,7 +217,7 @@ protected:
     bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
     bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     bool CheckActiveModeDtype(const gert::StorageShape *xScaleStorageShape) const;
- 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
+    bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
 
     Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;
@@ -229,4 +229,4 @@ protected:
 } // namespace Mc2GroupedMatmulTiling
 } // namespace optiling
 
-#endif // GMM_QBMM_TILING_H
+#endif // MC2_GMM_QBMM_TILING_H
