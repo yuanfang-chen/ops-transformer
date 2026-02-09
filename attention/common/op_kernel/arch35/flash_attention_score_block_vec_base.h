@@ -25,8 +25,7 @@
 #include "vf/vf_div_cast.h"
 #include "vf/vf_flash_decode.h"
 #include "flash_attention_score_tiling_regbase.h"
-#include "../fia_public_define.h"
-#include "../vector_common.h"
+#include "attenmask_gs1.h"
 
 using namespace AscendC;
 using namespace FaVectorApi;
@@ -576,7 +575,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
             attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
         } else if constexpr (isGqaNoQuant) {
             if (constInfo.isGqa) {
-                fa_base_vector::MaskInfo maskInfo;
+                MaskInfo maskInfo;
                 maskInfo.gs1StartIdx = (constInfo.subBlockIdx == 0) ? 0 : runInfo.firstHalfS1RealSize;
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_TND ||
                                 layout == LayOutTypeEnum::LAYOUT_BSH ||
@@ -598,16 +597,16 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
                 if (runInfo.actualS1Size == 1) {
-                    maskInfo.layout = fa_base_vector::LAYOUT_Q::S1_EQUAL1;
+                    maskInfo.layout = LAYOUT_Q::S1_EQUAL1;
                 } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
-                    maskInfo.layout = fa_base_vector::LAYOUT_Q::SG;
+                    maskInfo.layout = LAYOUT_Q::SG;
                 } else {
-                    maskInfo.layout = fa_base_vector::LAYOUT_Q::GS;
+                    maskInfo.layout = LAYOUT_Q::GS;
                 }
-                maskInfo.attenMaskType = fa_base_vector::MaskDataType::MASK_BOOL;
+                maskInfo.attenMaskType = MaskDataType::MASK_BOOL;
                 uint8_t sparseMode = (attenMaskInfoPtr->compressMode == 0) ?            // sparseMode与compressMode定义不同
                     attenMaskInfoPtr->compressMode : attenMaskInfoPtr->compressMode + 1;
-                maskInfo.sparseMode = static_cast<fa_base_vector::SparseMode>(sparseMode);
+                maskInfo.sparseMode = static_cast<SparseMode>(sparseMode);
                 maskInfo.maskValue = negativeIntScalar;
                 maskInfo.s1LeftPaddingSize = 0;
                 maskInfo.s2LeftPaddingSize = 0;
