@@ -60,7 +60,7 @@ public:
      * @param scaleA         X 的量化 scale（perTokenScale，直接透传给 GmmASWKernel）
      * @param scaleB         Weight 的量化 scale（透传给 GmmASWKernel）
      * @param y              输出 Y 基地址，shape (m, n)，由调用方指定最终输出目标
-     * @param tempAddr       临时空间基地址（内含 ptrTable / groupList / GMMArray / kernel workspace）
+     * @param tempAddr       临时空间基地址（内含 ptrTable / groupList / kernel workspace）
      * @param tempAddrSize   临时空间总大小（字节）
      * @param m              token 数量（即共享专家的 M 维度，通常为 BS）
      * @param n              输出维度 N
@@ -106,12 +106,10 @@ private:
     GM_ADDR ptrTableBase_ = nullptr;
     GM_ADDR groupListBase_ = nullptr;
 
-    // tempAddr 内存布局常量（与 GmmComputeOp 一致）
+    // tempAddr 内存布局常量
     static constexpr uint64_t PTR_TABLE_SIZE = 64;   // 4 x 16B
     static constexpr uint64_t GROUP_LIST_SIZE = 8;    // 1 x int64_t
-    static constexpr uint64_t GMM_ARRAY_OFFSET = PTR_TABLE_SIZE + GROUP_LIST_SIZE; // 72
-    static constexpr uint64_t GMM_ARRAY_SIZE = sizeof(GMMArray);                   // 1536
-    static constexpr uint64_t KERNEL_WS_OFFSET = GMM_ARRAY_OFFSET + GMM_ARRAY_SIZE; // 1608
+    static constexpr uint64_t KERNEL_WS_OFFSET = PTR_TABLE_SIZE + GROUP_LIST_SIZE; // 72
 
     /** 在 ptrTable 区域构建 GetTensorAddr 双重间接指针 */
     __aicore__ inline GM_ADDR BuildPtrTable(GM_ADDR dataAddr, uint32_t slotIdx);
@@ -159,26 +157,14 @@ SharedGmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bT
     // tempAddr 布局：
     //   [0, 64)       ptrTable: 4 x 16B GetTensorAddr 双重间接指针
     //   [64, 72)      groupList: 1 x int64_t
-    //   [72, 1608)    GMMArray (从 m/n/k 构建)
-    //   [1608, ...)   GmmASWKernel workspace
+    //   [72, ...)     GmmASWKernel workspace
     ptrTableBase_ = tempAddr;
     groupListBase_ = reinterpret_cast<GM_ADDR>(
         reinterpret_cast<__gm__ uint8_t *>(tempAddr) + PTR_TABLE_SIZE);
 
-    // 在 tempAddr + GMM_ARRAY_OFFSET 构建 GMMArray
-    // 使用栈上临时对象设置字段，然后逐元素拷贝到 GM workspace
-    GMMArray localArray;
-    localArray.mList[0] = -1;  // SPLIT_M 模式：M 从 groupList 动态读取
-    localArray.kList[0] = static_cast<int32_t>(k);
-    localArray.nList[0] = static_cast<int32_t>(n);
-
-    __gm__ int32_t *gmmArrayDst = reinterpret_cast<__gm__ int32_t *>(
-        reinterpret_cast<__gm__ uint8_t *>(tempAddr) + GMM_ARRAY_OFFSET);
-    const int32_t *arraySrc = reinterpret_cast<const int32_t *>(&localArray);
-    for (uint32_t i = 0; i < GMM_ARRAY_SIZE / sizeof(int32_t); ++i) {
-        gmmArrayDst[i] = arraySrc[i];
-    }
-    gmmArrayAddr_ = reinterpret_cast<TILING_TYPE *>(gmmArrayDst);
+    // GmmASWKernel 只读 gmmArray，直接引用 tiling 中的连续地址
+    gmmArrayAddr_ = reinterpret_cast<TILING_TYPE *>(
+        const_cast<GMMArray *>(&sharedGmmTiling->gmmArray));
 }
 
 template <class xType, class wType, class biasType, class scaleType, class yType,

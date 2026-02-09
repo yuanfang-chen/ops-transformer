@@ -179,7 +179,7 @@ TEST_F(SharedGmmComputeOpArch35Test, Case1_SmallMatrix_bTransTrue)
     float expected[] = {64.0f, -64.0f, 32.0f, -32.0f};
     for (uint32_t i = 0; i < M * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case1 index " << i;
+        EXPECT_NEAR(actual, expected[i], 1e-3f) << "Case1 index " << i;
     }
 
     // 7. Free
@@ -253,7 +253,7 @@ TEST_F(SharedGmmComputeOpArch35Test, Case2_LargerM_bTransTrue)
     float expected[] = {48.0f, -12.0f, 8.0f, 20.0f, -80.0f, 48.0f, -44.0f, 12.0f};
     for (uint32_t i = 0; i < M * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case2 index " << i;
+        EXPECT_NEAR(actual, expected[i], 1e-3f) << "Case2 index " << i;
     }
 
     // 7. Free
@@ -360,7 +360,7 @@ TEST_F(SharedGmmComputeOpArch35Test, Case3_bTransFalse_Expert0FromCase6)
     };
     for (uint32_t i = 0; i < M * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case3 index " << i;
+        EXPECT_NEAR(actual, expected[i], 1e-3f) << "Case3 index " << i;
     }
 
     // 7. Free
