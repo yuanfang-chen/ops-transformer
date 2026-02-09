@@ -240,7 +240,7 @@ public:
         if constexpr (formatB == CubeFormat::NZ) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) + CeilDiv(n, WEIGHTNZ_N0_32) *
  	                                           CeilDiv(k, WEIGHTNZ_K0_16) * WEIGHTNZ_N0_K0;
-        } else if constexpr (formatB == CubeFormat::Zn) {
+        } else if constexpr (formatB == CubeFormat::ZN) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) + CeilDiv(k, WEIGHTNZ_K0_32) *
  	                                           CeilDiv(n, WEIGHTNZ_N0_16) * WEIGHTNZ_N0_K0;
         } else {
