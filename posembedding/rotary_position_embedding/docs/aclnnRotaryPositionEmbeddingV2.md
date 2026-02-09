@@ -100,7 +100,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
     aclrtStream    stream)
 ```
 
-## aclnnRotaryPositionEmbeddingGetWorkspaceSizeV2
+## aclnnRotaryPositionEmbeddingV2GetWorkspaceSize
 
 - **参数说明**
 
