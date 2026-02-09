@@ -16,11 +16,7 @@
 #ifndef A2AV_COMMON_H
 #define A2AV_COMMON_H
 
-#if __has_include("../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h")
-#include "../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
-#else
-#include "../../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
-#endif
+#include "../../3rd/grouped_matmul_tiling_data_apt.h"
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
@@ -30,17 +26,6 @@ static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 // 类型复用声明
 using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
 using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
-
-/**
- * GMM Tiling 数组封装
- * 供 GMM All2AllV 和 All2AllV GMM 两个算子共用
- */
- //TODO 删除
-struct GmmTilingArray {
-    uint32_t count;                              // 实际使用的 tiling 数量
-    // GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
-    GMMQuantTilingData array;
-};
 
 struct HcclA2avTilingInfo {
     Mc2InitTiling hcclInitTiling;

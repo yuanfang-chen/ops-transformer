@@ -1902,8 +1902,12 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {mmWeightStorageShape,param.mmWeightDataType, param.mmWeightFormat},
             {gmmXScaleStorageShape, param.gmmXScaleDataType, param.gmmXScaleFormat},
             {gmmWeightScaleStorageShape, param.gmmWeightScaleDataType, param.gmmWeightScaleFormat},
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmXOffset
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmWeightOffset
             {mmXScaleStorageShape, param.mmXScaleDataType, param.mmXScaleFormat},
-            {mmWeightScaleStorageShape, param.mmWeightScaleDataType, param.mmWeightScaleFormat}
+            {mmWeightScaleStorageShape, param.mmWeightScaleDataType, param.mmWeightScaleFormat},
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmXOffset
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmWeightOffset
         },
         {
             {{{param.gmmYShape[0], param.gmmYShape[1]},{param.gmmYShape[0], param.gmmYShape[1]}}, param.gmmYDataType, param.gmmYFormat},
