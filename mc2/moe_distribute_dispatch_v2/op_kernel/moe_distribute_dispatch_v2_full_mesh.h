@@ -1077,19 +1077,15 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     GlobalTensor<ExpandXOutType> dataFlagGlobal, expandXOutGlobal;
     dataFlagGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(wAddr));
     expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(expandXOutGM_) + (dstPosition) * axisH_);
-    DataCopyExtParams srcTokenCopyParams{static_cast<uint16_t>(blockCntPerToken_ * arriveCount), 
-        static_cast<uint32_t>(SPLIT_BLOCK_DATA_SIZE), static_cast<uint32_t>(UB_ALIGN), 0, 0};
+    DataCopyParams srcTokenCopyParams{static_cast<uint16_t>(blockCntPerToken_ * arriveCount), 
+        static_cast<uint16_t>(SPLIT_BLOCK_DATA_SIZE), static_cast<uint16_t>(UB_ALIGN), 0};
     DataCopyExtParams scalesCopyParams{uint16_t(arriveCount), static_cast<uint32_t>(scaleOutBytes_), 
         static_cast<uint32_t>((blockCntPerToken_ * SPLIT_BLOCK_DATA_SIZE - scaleOutBytes_) / UB_ALIGN), 0U, 0U};
     DataCopyExtParams tokenCopyParams{uint16_t(arriveCount), hOutSize_, 
         static_cast<uint32_t>((blockCntPerToken_ * SPLIT_BLOCK_DATA_SIZE - hOutSize_) / UB_ALIGN), 0U, 0U};
     DataCopyExtParams expandIdxCopyParams{uint16_t(arriveCount), EXPAND_IDX_INFO * sizeof(int32_t),
         static_cast<uint32_t>((blockCntPerToken_ * SPLIT_BLOCK_DATA_SIZE) / UB_ALIGN - 1), 0U, 0U};
-#ifdef __DAV_C310__
-    DataCopyPadExtParams<ExpandXOutType> srcTokenPadParams{false, 0U, 0U, *reinterpret_cast<ExpandXOutType*>(uint8_t(0))};
-#else
-    DataCopyPadExtParams<ExpandXOutType> srcTokenPadParams{false, 0U, 0U, 0U};
-#endif
+    DataCopyPadParams<ExpandXOutType> srcTokenPadParams{false, 0U, 0U, 0U};
 
     DataCopyPad(xTmpTensor_, dataFlagGlobal[expertFinishNumTensor_(index) * hCommuSize_ / sizeof(ExpandXOutType)],
                 srcTokenCopyParams, srcTokenPadParams);
