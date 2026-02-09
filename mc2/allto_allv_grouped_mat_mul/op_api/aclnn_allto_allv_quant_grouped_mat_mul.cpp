@@ -112,11 +112,11 @@ static bool CheckNotNull(const aclTensor *gmmX, const aclTensor *gmmWeight, cons
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightScale should not be null.");
         return false;
     }
-    if (gmmXQuantMode != 1) {
+    if (gmmXQuantMode != QuantModeType::PERTENSOR_QUANT) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXQuantMode should be 1.");
         return false;
     }
-    if (gmmWeightQuantMode != 1) {
+    if (gmmWeightQuantMode != QuantModeType::PERTENSOR_QUANT) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightQuantMode should be 1.");
         return false;
     }
