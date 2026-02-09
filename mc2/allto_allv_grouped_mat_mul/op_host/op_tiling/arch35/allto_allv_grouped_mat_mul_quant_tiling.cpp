@@ -102,20 +102,20 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
     uint64_t maxMSize = 0;
     uint64_t mSize = 0;
     for (uint64_t expertIdx = 0; expertIdx < e_; expertIdx++) {
-        mSize_ = 0;
+        mSize = 0;
         for (uint64_t rankIdx = 0; rankIdx < epWorldSize_; rankIdx++) {
-            mSize_ += recvCounts[rankIdx * e_ + expertIdx];
+            mSize += recvCounts[rankIdx * e_ + expertIdx];
         }
-        maxMSize = std::max(mSize_, maxMSize);
+        maxMSize = std::max(mSize, maxMSize);
     }
-    if (mSize_ != 0) {
+    if (mSize != 0) {
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
         SetTilingArray(gmmQuantTilingData, maxMSize, n1_, h1_);
         SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
-    if (mSize_ != 0) {
+    if (mSize != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
         SetTilingArray(mmQuantTilingData, bs_, n2_, h2_);
