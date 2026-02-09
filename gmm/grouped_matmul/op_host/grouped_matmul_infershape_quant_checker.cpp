@@ -123,7 +123,7 @@ weight is %s.", ge::TypeUtils::DataTypeToAscendString(xDtype).GetString(),
     OP_CHECK_IF(SCALE_TYPE_SUPPORT_SET.find(ScaleDtype) == SCALE_TYPE_SUPPORT_SET.end(),
                 OP_LOGE(context->GetNodeName(),
                         "Data type [%s] is not supported for scale; supported types are: UINT64, INT64, "
-                        "FLOAT, BF16, and FLOAT8_E8M0",
+                        "FLOAT, BF16, and FLOAT8_E8M0.",
                         ge::TypeUtils::DataTypeToAscendString(ScaleDtype).GetString()),
                 return ge::GRAPH_FAILED);
 
