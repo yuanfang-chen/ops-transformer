@@ -90,6 +90,7 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     // 7、保存Tiling数据
     void GetActualSeqLenData(int64_t inputIdx, std::vector<int64_t> &res, int64_t &actualLen) const;
+    ge::graphStatus CheckOutPut();
     ge::graphStatus CheckContext();
     bool AnalyzeAttrs();
     bool CrossShapeVerify(const gert::Shape &queryRopeShape, const gert::Shape &keyRopeShap);
