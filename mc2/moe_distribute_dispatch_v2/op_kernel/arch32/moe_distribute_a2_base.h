@@ -16,8 +16,8 @@ struct GetAddrInfo {
     */
     __aicore__ inline void Init(uint64_t winSize, uint64_t bufferId, uint64_t ipcDataSize, uint64_t ipcFlagSize)
     {
-        ipcAddrOffset[0] = winSize / 2UL - (ipcDataSize - ipcFlagSize) / 2UL;
-        ipcAddrOffset[1] = winSize - (ipcDataSize - ipcFlagSize) / 2UL;
+        ipcAddrOffset[0] = winSize / 2UL - (ipcDataSize + ipcFlagSize) / 2UL;
+        ipcAddrOffset[1] = winSize - (ipcDataSize + ipcFlagSize) / 2UL;
         ipcAddrOffset[0] = (ipcAddrOffset[0] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         ipcAddrOffset[1] = (ipcAddrOffset[1] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         ipcFlagOffset = winSize / 2UL - ipcFlagSize / 2 - ipcAddrOffset[0];
