@@ -52,7 +52,6 @@ private:
     GM_ADDR workspaceGM_;
     GM_ADDR commOutGM_;
     GM_ADDR transOutGM_;
-    GM_ADDR permuteOutGM_;
 private:
     static constexpr uint64_t MXFP_GROUP_SIZE = 64UL;
  	static constexpr uint64_t NUM_TWO = 2UL;
