@@ -21,189 +21,52 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "tiling/new_mc2_tiling_utils.h"
-// #include "3rd/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.h"
-// #include "3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
-// #include "3rd/grouped_matmul/op_host/grouped_matmul_host_util.h"
-#include "../grouped_mat_mul_allto_allv_tiling_base.h"
+#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/gmm_qbmm_tiling.h"
+#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_host_util.h"
+#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_tiling.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 
 namespace optiling {
+// 引用3rd目录中的定义
+using Mc2GroupedMatmulTiling::GmmConstant;
+using Mc2GroupedMatmulTiling::QuantMode;
+using Mc2GroupedMatmulTiling::GQmmBasicTiling;
+using Mc2GroupedMatmulTiling::GQmmInputInfo;
+using Mc2GroupedMatmulTiling::GroupedQbmmTiling;
+
 namespace Mc2GroupedMatmul {
-namespace GmmConstant {
-constexpr uint64_t MX_GROUP_SIZE = 32;
-constexpr uint64_t NUM_HALF = 2;
-constexpr uint64_t EVEN_FACTOR = 2;
-constexpr uint32_t DB_SIZE = 2;
-constexpr uint32_t BASIC_BLOCK_SIZE_512 = 512;
-constexpr uint32_t BASIC_BLOCK_SIZE_256 = 256;
-constexpr uint32_t BASIC_BLOCK_SIZE_128 = 128;
-constexpr uint64_t CUBE_BLOCK = 16;
-constexpr uint64_t L1_ALIGN_SIZE = 32;
-constexpr uint64_t UB_ALIGN_SIZE = 32;
-constexpr uint64_t CUBE_REDUCE_BLOCK = 32;
-constexpr uint32_t DATA_SIZE_L0C = 4;
-constexpr uint32_t SCALER_FACTOR_MAX = 127;
-constexpr uint32_t SCALER_FACTOR_MIN = 1;
-constexpr uint32_t SCALER_FACTOR_DEFAULT = 1;
-constexpr uint32_t SCALER_FACTOR_B_BIT = 8;
-constexpr uint32_t SCALER_FACTOR_M_BIT = 16;
-constexpr uint32_t SCALER_FACTOR_N_BIT = 24;
-constexpr uint64_t MTE2_MIN_LOAD_SIZE_V120 = 64 * 1024UL;
-constexpr uint64_t MAX_REPEAT_TIMES = 255; // InitOutput接口取值
-constexpr uint64_t GMM_MAX_GROUP_LIST_SIZE = 1024UL;
-constexpr size_t LAST_FIRST_DIM_INDEX = 1;
-constexpr size_t LAST_SECOND_DIM_INDEX = 2;
-constexpr uint64_t PER_BLOCK_GROUP_SIZE = 128;
-constexpr uint64_t SPLIT_M_W_DIMS = 3;
-constexpr uint64_t SPLIT_K_W_DIMS = 2;
-constexpr uint64_t X_DIMS = 2;
-constexpr uint64_t BIAS_DIMS = 2;
-constexpr uint64_t MXFP_MULTI_BASE_SIZE = 2;
-constexpr uint64_t MXFP_BASEK_FACTOR = 64;
-constexpr size_t MXFP_TYPE_K_SCALE_DIM_NUM = 3;
-constexpr size_t MXFP_TYPE_M_SCALE_DIM_NUM = 4;
-constexpr size_t MXFP_PER_TOKEN_SCALE_DIM_NUM = 3;
-constexpr int32_t NO_SPLIT = -1;
-constexpr int32_t SPLIT_M = 0;
 
-constexpr size_t WEIGHTNZ_DIM_NUM = 5;
-constexpr size_t WEIGHTNZ_FIRST_DIM = 0;
-constexpr size_t WEIGHTNZ_SECOND_DIM = 1;
-constexpr size_t WEIGHTNZ_THIRD_DIM = 2;
-constexpr size_t WEIGHTNZ_FORTH_DIM = 3;
-constexpr size_t WEIGHTNZ_FIFTH_DIM = 4;
+} // namespace Mc2GroupedMatmul
 
-constexpr uint32_t WEIGHTNZ_K0_16 = 16;
-constexpr uint32_t WEIGHTNZ_N0_16 = 16;
-constexpr uint32_t WEIGHTNZ_K0_32 = 32;
-constexpr uint32_t WEIGHTNZ_N0_32 = 32;
-
-} // namespace GmmConstant
-
-enum class QuantMode : uint32_t {
-    DEFAULT = 0x0U,
-    PERTENSOR_MODE = 0x1U,
-    PERCHANNEL_MODE = 0x1U << 1,
-    PERTOKEN_MODE = 0x1U << 2,
-    MX_PERGROUP_MODE = 0x1U << 3,
-    PERGROUP_MODE = 0x1U << 4,
-    PERBLOCK_MODE = 0x1U << 5,
-};
-
-struct MC2GQmmBasicTiling {
-    uint32_t usedCoreNum = 1;
-    uint32_t tilingMode = 0;
-    uint64_t singleCoreM = 1;
-    uint64_t singleCoreN = 1;
-    uint64_t singleCoreK = 1;
-    uint64_t baseM = 1;
-    uint64_t baseN = 1;
-    uint64_t baseK = 1;
-    uint64_t stepKa = 1;
-    uint64_t stepKb = 1;
-    uint64_t depthA1 = 1;
-    uint64_t depthB1 = 1;
-    uint64_t stepM = 1;
-    uint64_t stepN = 1;
-    uint32_t iterateOrder = 0;
-    uint32_t dbL0c = 1;
-    uint32_t calOrder = 0;
-    uint32_t scaleFactorA = 1;
-    uint32_t scaleFactorB = 1;
-};
-struct MC2GQmmInputInfo {
-    uint64_t mSize = 0UL;
-    uint64_t kSize = 0UL;
-    uint64_t nSize = 0UL;
-    uint64_t groupNum = 0UL;
-    int64_t outDtype = 0L;
-    uint64_t kernelType = 0UL;
-    QuantMode aQuantMode = QuantMode::DEFAULT;
-    QuantMode bQuantMode = QuantMode::DEFAULT;
-    int8_t groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
-    int8_t groupListType = 0;
-    int8_t splitItem = 0;
-    int8_t actType = 0;
-    const char *opName = nullptr;
-    ge::DataType aDtype = ge::DT_INT8;
-    ge::DataType bDtype = ge::DT_INT8;
-    ge::DataType cDtype = ge::DT_FLOAT16;
-    ge::DataType biasDtype = ge::DT_INT32;
-    ge::DataType scaleDtype = ge::DT_UINT64;
-    ge::DataType perTokenScaleDtype = ge::DT_FLOAT;
-    ge::DataType outDataDtype = ge::DT_FLOAT16;
-    ge::DataType outScaleDtype = ge::DT_FLOAT;
-
-    ge::Format aFormat = ge::FORMAT_ND;
-    ge::Format bFormat = ge::FORMAT_ND;
-    ge::Format cFormat = ge::FORMAT_ND;
-    bool transA = false;
-    bool transB = false;
-    bool hasBias = false;
-    bool isSingleX = false;
-    bool isSingleW = false;
-    bool isSingleY = false;
-};
-
-class QuantGroupedMatmulAllToAllvAdapter : public GmmAlltoAllvTilingBase {
+class QuantGroupedMatmulAllToAllvAdapter : public GroupedQbmmTiling {
 public:
     explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& tilingImpl,
-        gert::TilingContext *context) : GmmAlltoAllvTilingBase(context), tilingProcesser_(tilingImpl) {};
+        gert::TilingContext *context) : GroupedQbmmTiling(context), tilingProcesser_(tilingImpl) {};
     
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
-    // ge::graphStatus GetShapeAttrsInfo() override;
-    ge::graphStatus SetSharedExpertInputParameters();
+    ge::graphStatus SetSharedExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params);
     ge::graphStatus SetExpertInputParameters(const int32_t* sendCounts, uint64_t worldSize, uint64_t index,
                                              uint32_t epNums);
     const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingAdapterData() const { return tilingData_; }
-
-    // bool AnalyzeAttrs() override;
-    // bool AnalyzeDtype() override;
-    // bool AnalyzeInputs() override;
-    // bool AnalyzeInputs() override;
-    // void PrintQuantParams() override;
+    // Input validation methods - skipped (validated outside class)
+    bool AnalyzeAttrs() override { return true; }
+    bool AnalyzeDtype() override { return true; }
+    bool AnalyzeInputs() override { return true; }
+    void PrintQuantParams() override {}
 
     // void PrintMatmulParams();
-    bool IsCapable() override;
-    // 4、计算高阶API的TilingData
-    ge::graphStatus DoLibApiTiling() override;
-    ge::graphStatus SetCommonContextParameters();
     ge::graphStatus Process();
     ge::graphStatus SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params);
-    ge::graphStatus DoOpTiling() override;
+
     QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
-    MC2GQmmBasicTiling basicTiling_;
-    MC2GQmmInputInfo inputParams_;
 
-    uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
-    void CalStepKs();
-    void CalScaleFactors();
-    uint64_t GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
-    uint64_t GetShapeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
-    // bool SetQuantMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape,
-    //                   const gert::Shape &wShape);
-    // void SetPerGroupQuantMode(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape,
-    //                           const gert::Shape &wShape);
-    bool SetMKNList();
-    bool IsBiasInL1() const;
-    bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
-    bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
-    void CalBasicBlock();
-    ge::graphStatus CalL1Tiling();
-    ge::graphStatus CalL1Depth(uint64_t leftL1Size);
-    bool SetGroupNum(uint32_t groupListIndex);
-    void SetKernelType();
-    Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
-
-    int32_t mList_[128] = {0};
-    int32_t kList_[128] = {0};
-    int32_t nList_[128] = {0};
+protected:
+    // Reuse parent class DoOpTiling() and DoLibApiTiling()
 };
 
-} // namespace MC2Tiling
-}
+} // namespace optiling
 #endif
