@@ -1412,6 +1412,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
             SyncFunc<AscendC::HardEvent::V_MTE3>();
             DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
             if constexpr (HasAddRmsNorm) {
+                SyncFunc<AscendC::HardEvent::MTE3_V>();
                 AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal_,
                                     expandXCopyParams);
             }
