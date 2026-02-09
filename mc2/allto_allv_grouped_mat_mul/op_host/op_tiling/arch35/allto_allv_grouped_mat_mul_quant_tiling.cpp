@@ -218,7 +218,7 @@ void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQua
     mm.singleCoreN = std::min(static_cast<int32_t>(N), mm.baseN);
     mm.singleCoreK = K;
 
-    uint64_t l0cRequired = mm.baseM * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
+    uint64_t l0cRequired = static_cast<uint64_t>(mm.baseM) * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
     mm.dbL0C = (l0cRequired <= l0cSize_) ? DB_SIZE : 1;
 
     mm.iterateOrder = 0U;
