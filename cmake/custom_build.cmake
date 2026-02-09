@@ -755,6 +755,81 @@ if (BUILD_OPEN_PROJECT)
     )
 endif ()
 
+# -------------------------------------------- generate es transformer ----------------------------------------------
+if(generate_proto_srcs AND TARGET cust_proto AND NOT ENABLE_BUILT_IN)
+    message(STATUS "Start Generating es transformer for custom pkg")
+    add_library(
+        proto_transformer_cust SHARED
+        ${generate_proto_srcs}
+    )
+    add_dependencies(proto_transformer_cust ops_transformer_proto_headers)
+    target_link_libraries(
+        proto_transformer_cust PRIVATE
+        $<BUILD_INTERFACE:intf_pub_cxx17>
+        c_sec
+        -Wl,--no-as-needed
+        register
+        $<$<TARGET_EXISTS:opsbase>:opsbase>
+        -Wl,--as-needed
+    )
+    target_link_directories(proto_transformer_cust PRIVATE ${ASCEND_DIR}/${SYSTEM_PREFIX}/lib64)
+
+    add_es_library(
+        ES_LINKABLE_AND_ALL_TARGET es_transformer_cust
+        OPP_PROTO_TARGET proto_transformer_cust
+        OUTPUT_PATH ${CMAKE_BINARY_DIR}/es_packages
+    )
+    install(
+        DIRECTORY ${CMAKE_BINARY_DIR}/es_packages/include/es_transformer_cust/
+        DESTINATION ${ES_INC_INSTALL_DIR}
+        OPTIONAL
+    )
+    install(
+        FILES ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer_cust.so
+        DESTINATION ${ES_LIB_INSTALL_DIR}
+        OPTIONAL
+    )
+
+    # fusion pass 文件理论编入graph_plugin_transformer_obj, 要依赖es_transformer, 但当前仓内暂无 fusion pass
+    # if(TARGET ${GRAPH_PLUGIN_NAME}_obj)
+    #     # proto -> es_transformer -> graph_plugin_obj -> cust_proto
+    #     message(STATUS "custom graph plugin obj")
+    #     unset(GRAPH_SOURCE)
+    #     get_target_property(GRAPH_SOURCE ${GRAPH_PLUGIN_NAME}_obj SOURCES)
+    #     if(GRAPH_SOURCE)
+    #         message(STATUS "custom Graph Source to add es to obj")
+    #         add_dependencies(${GRAPH_PLUGIN_NAME}_obj
+    #             build_es_transformer_cust
+    #         )
+    #         target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
+    #             PRIVATE es_transformer_cust
+    #         )
+    #     endif()
+    #     target_sources(
+    #         cust_proto PUBLIC
+    #         $<$<TARGET_EXISTS:${GRAPH_PLUGIN_NAME}_obj>:$<TARGET_OBJECTS:${GRAPH_PLUGIN_NAME}_obj>>
+    #     )
+    # endif()
+
+    # building es referring infer cpps. When autogen es from AscendC is supported, these can be removed
+    if(TARGET ${OPHOST_NAME}_infer_obj)
+    {
+        # proto -> es transformer -> infer obj
+        message(STATUS "custom infer obj")
+        unset(INFER_SOURCE)
+        get_target_property(INFER_SOURCE ${OPHOST_NAME}_infer_obj SOURCES)
+        if(INFER_SOURCE)
+            message(STATUS "custom Infer Source to add es to obj")
+            add_dependencies(${OPHOST_NAME}_infer_obj
+                build_es_transformer_cust
+            )
+            target_link_libraries(${OPHOST_NAME}_infer_obj
+                PRIVATE es_transformer_cust
+            )
+        endif()
+    }
+endif()
+
 # ------------------------------------------------ generate adapt py ------------------------------------------------
 add_custom_target(generate_transformer_adapt_py
         COMMAND ${HI_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/util/ascendc_impl_build.py
