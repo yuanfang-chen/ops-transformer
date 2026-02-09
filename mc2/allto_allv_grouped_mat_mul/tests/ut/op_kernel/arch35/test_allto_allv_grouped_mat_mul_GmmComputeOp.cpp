@@ -188,7 +188,7 @@ TEST_F(GmmComputeOpArch35Test, Case1_SingleExpert_SmallMatrix)
     float expected[] = {64.0f, -64.0f, 32.0f, -32.0f};
     for (uint32_t i = 0; i < M * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case1 index " << i;
+        EXPECT_NEAR(actual, expected[i], 0.01f) << "Case1 index " << i;
     }
 
     // 7. 释放
@@ -214,9 +214,8 @@ TEST_F(GmmComputeOpArch35Test, Case2_MultiExpert_TokenOffset)
     constexpr uint32_t M0 = 2, M1 = 4, K = 3, N = 2;
     constexpr uint32_t E = 2;
     constexpr uint32_t totalM = M0 + M1;
-    uint32_t NumBlocks = 36;
+    uint32_t NumBlocks = 1;
 
-    // 1. TaskTilingInfo
     auto *taskTiling = reinterpret_cast<MC2KernelTemplate::TaskTilingInfo *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::TaskTilingInfo)));
     memset(taskTiling, 0, sizeof(*taskTiling));
@@ -227,12 +226,11 @@ TEST_F(GmmComputeOpArch35Test, Case2_MultiExpert_TokenOffset)
     taskTiling->sendCnt[0] = M0;
     taskTiling->sendCnt[1] = M1;
 
-    // 2. gmmBaseTiling
     auto *gmmBaseTiling = reinterpret_cast<MC2KernelTemplate::GMMQuantTilingData *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::GMMQuantTilingData)));
     FillBaseTiling(gmmBaseTiling, K, N);
 
-    // 3. 数据 buffer — x: 专家0 (M0=2) + 专家1 (M1=4) 连续排列
+    // x: 专家0 (M0=2) + 专家1 (M1=4) 连续排列
     int8_t *xData = (int8_t *)AscendC::GmAlloc(totalM * K * sizeof(int8_t));
     // 专家0 的 x (复用 Case1)
     int8_t x0Vals[] = {8, -96, -94, 20, -108, -112};
@@ -275,13 +273,13 @@ TEST_F(GmmComputeOpArch35Test, Case2_MultiExpert_TokenOffset)
     float expected0[] = {64.0f, -64.0f, 32.0f, -32.0f};
     for (uint32_t i = 0; i < M0 * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected0[i], 1.0f) << "Case2 expert0 index " << i;
+        EXPECT_NEAR(actual, expected0[i], 0.01f) << "Case2 expert0 index " << i;
     }
     // 校验 — 专家1 输出
     float expected1[] = {48.0f, -12.0f, 8.0f, 20.0f, -80.0f, 48.0f, -44.0f, 12.0f};
     for (uint32_t i = 0; i < M1 * N; i++) {
         float actual = static_cast<float>(yData[M0 * N + i]);
-        EXPECT_NEAR(actual, expected1[i], 1.0f) << "Case2 expert1 index " << i;
+        EXPECT_NEAR(actual, expected1[i], 0.01f) << "Case2 expert1 index " << i;
     }
 
     // 7. 释放
@@ -306,9 +304,8 @@ TEST_F(GmmComputeOpArch35Test, Case3_ZeroTokenExpert_Skip)
     constexpr uint32_t M0 = 2, M1 = 0, M2 = 4, K = 3, N = 2;
     constexpr uint32_t E = 3;
     constexpr uint32_t totalM = M0 + M1 + M2;
-    uint32_t NumBlocks = 36;
+    uint32_t NumBlocks = 1;
 
-    // 1. TaskTilingInfo
     auto *taskTiling = reinterpret_cast<MC2KernelTemplate::TaskTilingInfo *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::TaskTilingInfo)));
     memset(taskTiling, 0, sizeof(*taskTiling));
@@ -317,15 +314,14 @@ TEST_F(GmmComputeOpArch35Test, Case3_ZeroTokenExpert_Skip)
     taskTiling->epWorldSize = 1;
     taskTiling->e = E;
     taskTiling->sendCnt[0] = M0;
-    taskTiling->sendCnt[1] = M1;  // 0 tokens
+    taskTiling->sendCnt[1] = M1;
     taskTiling->sendCnt[2] = M2;
 
-    // 2. gmmBaseTiling
     auto *gmmBaseTiling = reinterpret_cast<MC2KernelTemplate::GMMQuantTilingData *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::GMMQuantTilingData)));
     FillBaseTiling(gmmBaseTiling, K, N);
 
-    // 3. 数据 buffer — x: 专家0 + 专家2 连续（专家1 无 token）
+    // x: 专家0 + 专家2 连续（专家1 无 token）
     int8_t *xData = (int8_t *)AscendC::GmAlloc(totalM * K * sizeof(int8_t));
     int8_t x0Vals[] = {8, -96, -94, 20, -108, -112};
     memcpy(xData, x0Vals, sizeof(x0Vals));
@@ -367,13 +363,13 @@ TEST_F(GmmComputeOpArch35Test, Case3_ZeroTokenExpert_Skip)
     float expected0[] = {64.0f, -64.0f, 32.0f, -32.0f};
     for (uint32_t i = 0; i < M0 * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected0[i], 1.0f) << "Case3 expert0 index " << i;
+        EXPECT_NEAR(actual, expected0[i], 0.01f) << "Case3 expert0 index " << i;
     }
     // 校验 — 专家2 输出 (紧接专家0 输出之后，因为专家1 被跳过)
     float expected2[] = {48.0f, -12.0f, 8.0f, 20.0f, -80.0f, 48.0f, -44.0f, 12.0f};
     for (uint32_t i = 0; i < M2 * N; i++) {
         float actual = static_cast<float>(yData[M0 * N + i]);
-        EXPECT_NEAR(actual, expected2[i], 1.0f) << "Case3 expert2 index " << i;
+        EXPECT_NEAR(actual, expected2[i], 0.01f) << "Case3 expert2 index " << i;
     }
 
     AscendC::GmFree(xData);
@@ -446,7 +442,7 @@ TEST_F(GmmComputeOpArch35Test, Case4_LargeM_DynamicTilingRefresh)
     // 全零输入 → 输出应全为 0
     for (uint32_t i = 0; i < M * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, 0.0f, 1.0f) << "Case4 index " << i;
+        EXPECT_NEAR(actual, 0.0f, 0.01f) << "Case4 index " << i;
     }
 
     AscendC::GmFree(xData);
@@ -469,9 +465,8 @@ TEST_F(GmmComputeOpArch35Test, Case5_FiveExperts_K30N10)
     AscendC::SetKernelMode(KernelMode::AIC_MODE);
     constexpr uint32_t K = 30, N = 10, E = 5;
     constexpr uint32_t totalM = 50;
-    uint32_t NumBlocks = 36;
+    uint32_t NumBlocks = 1;
 
-    // 1. TaskTilingInfo
     auto *taskTiling = reinterpret_cast<MC2KernelTemplate::TaskTilingInfo *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::TaskTilingInfo)));
     memset(taskTiling, 0, sizeof(*taskTiling));
@@ -485,12 +480,11 @@ TEST_F(GmmComputeOpArch35Test, Case5_FiveExperts_K30N10)
     taskTiling->sendCnt[3] = 10;
     taskTiling->sendCnt[4] = 10;
 
-    // 2. gmmBaseTiling
     auto *gmmBaseTiling = reinterpret_cast<MC2KernelTemplate::GMMQuantTilingData *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::GMMQuantTilingData)));
     FillBaseTiling(gmmBaseTiling, K, N);
 
-    // 3. x 数据 (50x30 = 1500, hif8 int8 存储，来自 gmmt2.log x_hif8)
+    // x 数据 (50x30 = 1500, hif8 int8 存储，来自 gmmt2.log x_hif8)
     static const int8_t xVals[1500] = {
         32, 16, 20, 8, 16, -94, -120, -120, -108, 32, -94, -96, 32, -112, -112, -120, 20, 0, 8, 32, 0, -112, -108, 32, -94, 32, 32, 0, 0, -120,
         0, 20, -120, 20, -108, -108, -96, 0, 8, 16, -94, -108, -96, 16, -94, -108, 32, -112, 32, 20, -108, 8, -108, 8, -94, 8, 0, 20, -108, -120,
@@ -784,7 +778,7 @@ TEST_F(GmmComputeOpArch35Test, Case5_FiveExperts_K30N10)
     };
     for (uint32_t i = 0; i < totalM * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case5 index " << i;
+        EXPECT_NEAR(actual, expected[i], 0.01f) << "Case5 index " << i;
     }
 
     // 8. 释放
@@ -808,13 +802,8 @@ TEST_F(GmmComputeOpArch35Test, Case6_ThreeExperts_UnequalTokens_K10N13)
     AscendC::SetKernelMode(KernelMode::AIC_MODE);
     constexpr uint32_t K = 10, N = 13, E = 3;
     constexpr uint32_t totalM = 20;
-    // CPU 模拟器限制：groupList 位于 GmAlloc 共享内存（MAP_SHARED mmap），
-    // GmmASWKernel.Process() 通过 SetMNK→GetSplitValueFromGroupList 在执行期间读取 groupList[0]。
-    // 当各专家 M 不同(10,5,5)时，快进程覆写 groupList 导致慢进程读到错误的 M 值。
-    // 各专家 M 相同时竞态无害（值不变），不同时必须 NumBlocks=1。
     uint32_t NumBlocks = 1;
 
-    // 1. TaskTilingInfo
     auto *taskTiling = reinterpret_cast<MC2KernelTemplate::TaskTilingInfo *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::TaskTilingInfo)));
     memset(taskTiling, 0, sizeof(*taskTiling));
@@ -826,7 +815,6 @@ TEST_F(GmmComputeOpArch35Test, Case6_ThreeExperts_UnequalTokens_K10N13)
     taskTiling->sendCnt[1] = 5;
     taskTiling->sendCnt[2] = 5;
 
-    // 2. gmmBaseTiling
     auto *gmmBaseTiling = reinterpret_cast<MC2KernelTemplate::GMMQuantTilingData *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::GMMQuantTilingData)));
     FillBaseTiling(gmmBaseTiling, K, N);
@@ -943,7 +931,7 @@ TEST_F(GmmComputeOpArch35Test, Case6_ThreeExperts_UnequalTokens_K10N13)
     };
     for (uint32_t i = 0; i < totalM * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case6 index " << i;
+        EXPECT_NEAR(actual, expected[i], 0.01f) << "Case6 index " << i;
     }
 
     // 8. 释放
@@ -969,9 +957,8 @@ TEST_F(GmmComputeOpArch35Test, Case7_MultiRank_CrossRankAccumulation)
     AscendC::SetKernelMode(KernelMode::AIC_MODE);
     constexpr uint32_t K = 30, N = 10, E = 5;
     constexpr uint32_t totalM = 50;
-    uint32_t NumBlocks = 36;
+    uint32_t NumBlocks = 1;
 
-    // 1. TaskTilingInfo — epWorldSize=2, sendCnt 按专家分组连续排列
     auto *taskTiling = reinterpret_cast<MC2KernelTemplate::TaskTilingInfo *>(
         AscendC::GmAlloc(sizeof(MC2KernelTemplate::TaskTilingInfo)));
     memset(taskTiling, 0, sizeof(*taskTiling));
@@ -1290,7 +1277,7 @@ TEST_F(GmmComputeOpArch35Test, Case7_MultiRank_CrossRankAccumulation)
     };
     for (uint32_t i = 0; i < totalM * N; i++) {
         float actual = static_cast<float>(yData[i]);
-        EXPECT_NEAR(actual, expected[i], 1.0f) << "Case7 index " << i;
+        EXPECT_NEAR(actual, expected[i], 0.01f) << "Case7 index " << i;
     }
 
     // 8. 释放
