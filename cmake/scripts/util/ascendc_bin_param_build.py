@@ -379,7 +379,7 @@ grep -q \"None of the given tiling keys are in the supported list\"; then\n"
         compile_file = os.path.join(self.out_path, '-'.join(name_com) + '.sh')
         compile_file = os.path.realpath(compile_file)
 
-        bin_cmd_str = 'res=$(opc $1 --main_func={fun} --input_param={param} --soc_version={soc} \
+        bin_cmd_str = 'res=$(asc_opc $1 --main_func={fun} --input_param={param} --soc_version={soc} \
                 --output=$2 --impl_mode={impl} --simplified_key_mode=0 --op_mode=dynamic '
 
         build_cmd_var = "#!/bin/bash\n"
@@ -547,6 +547,34 @@ if __name__ == '__main__':
     args = parse_args(sys.argv)
     if len(args.argv) <= 3:
         raise RuntimeError('arguments must greater than 3')
+    print("= " * 30, args.argv[1], "= " * 30)
+    print("= " * 30, args.argv[2], "= " * 30)
+    print("= " * 30, args.argv[3], "= " * 30)
+    print("= " * 30, args.opc_config_file, "= " * 30)
+    print("= " * 30, "read", args.argv[1], "= " * 30)
+    try:
+        with open(args.argv[1], 'r', encoding='utf-8') as f:
+            for line_number, line in enumerate(f, 1):
+                stripped_line = line.rstrip('\n')
+                print(f"{line_number} : {stripped_line}")
+    except FileNotFoundError:
+        print(f"wrong {args.argv[1]} not exits!")
+    except PermissionError:
+        print(f"no permission!")
+    except Exception as e:
+        print(f"reade file wrong: {str(e)}")
+    print("= " * 30, "read", args.opc_config_file, "= " * 30)
+    try:
+        with open(args.opc_config_file, 'r', encoding='utf-8') as f:
+            for line_number, line in enumerate(f, 1):
+                stripped_line = line.rstrip('\n')
+                print(f"{line_number} : {stripped_line}")
+    except FileNotFoundError:
+        print(f"wrong {args.opc_config_file} not exits!")
+    except PermissionError:
+        print(f"no permission!")
+    except Exception as e:
+        print(f"reade file wrong: {str(e)}")
     gen_bin_param_file(args.argv[1],
                     args.argv[2],
                     args.argv[3],
