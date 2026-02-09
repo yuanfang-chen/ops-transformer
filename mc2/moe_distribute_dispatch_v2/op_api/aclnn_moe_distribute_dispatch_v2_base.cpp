@@ -15,7 +15,6 @@
 
 #include <algorithm>
 #include "mc2_moe_context.h"
-#include "mc2_hcom_topo_info.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/op_log.h"
@@ -50,7 +49,7 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* mc2Context,const aclTensor* scales,
     const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
     const aclTensor* performanceInfo, const char* groupEp, int64_t epWorldSize,
-    int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
+    int64_t epRankId, int64_t moeExpertNum, int64_t hcclBuffSize, const char * hcclTopoType, const char* groupTp, int64_t tpWorldSize,
     int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, int64_t shareExpertRankNum,
     int64_t quantMode, int64_t globalBs, int64_t expertTokenNumsType, const char* commAlg,
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, int64_t ydtype, aclTensor* expandX,
@@ -191,9 +190,7 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context)
     std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
-    //ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
-    Mc2Hcom::MC2HcomTopology test;
-    ret =  Mc2Hcom::MC2HcomTopology::GetInstance().CallHcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
         return ACLNN_ERR_INNER;
@@ -248,10 +245,12 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         OP_LOGD("PRINT inter to the mc2_context");
         auto ret =GetMc2Context(groupEp, mc2Context);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
+        int64_t hcclBuffSize = 0;
+        char* hcclTopoType = "";
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
-            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            hcclBuffSize, hcclTopoType, groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
             sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
