@@ -1357,8 +1357,9 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
     DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
     const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
-    if (hasAddRmsNorm) {
-        LocalTensor<XType> gammaLocal_ = gammaBuf_.Get<XType>();
+    LocalTensor<XType> gammaLocal_;
+    if (HasAddRmsNorm) {
+        gammaLocal_ = gammaBuf_.Get<XType>();
         DataCopyPad(gammaLocal_, gammaGM_, expandXCopyParams, copyPadXTypeParams);
     }
     TBuf<> tokenStatusBuf;
