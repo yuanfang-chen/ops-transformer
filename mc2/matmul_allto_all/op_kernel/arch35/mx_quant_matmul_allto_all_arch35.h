@@ -83,7 +83,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
 {
     // 获取tilingdata数据
     tilingData_ = tilingData;
-    auto &&mc2Tiling_ = tilingData_->mxQuantMatmulAlltoAllTilingInfo;
+    auto &&mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     // 管道初始化
     tPipe_ = tPipe;
     x1_ = x1;
@@ -103,7 +103,7 @@ template <typename SchedulerType, typename SchedulerContextType, typename Matmul
 __aicore__ inline void
 MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Process()
 {
-    auto &&mc2Tiling_ = tilingData_->mxQuantMatmulAlltoAllTilingInfo;
+    auto &&mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     // 启动主块流水
     if (mc2Tiling_.tileCnt > 0) {
         ProcessTile(mc2Tiling_.tileCnt);
@@ -124,7 +124,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     uint32_t taskCnt)
 {
     // x1,x2,y,bias,x1_scale主轮地址偏移
-    auto &&mc2Tiling_ = tilingData_->mxQuantMatmulAlltoAllTilingInfo;
+    auto &&mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     pipeLineContext_.aGM = x1_;
     pipeLineContext_.bGM = x2_;
     pipeLineContext_.cGM = tempComputeOutGM_;
@@ -137,7 +137,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
         (uint64_t)mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
     pipeLineContext_.extraData.x1_scale = x1_scale_;
     pipeLineContext_.extraData.x2_scale = x2_scale_;
-    pipeLineContext_.tilingData = &(tilingData_->mc2MxQuantBmmV3TileTilingData);
+    pipeLineContext_.tilingData = &(tilingData_->mc2QuantBmmV3TileTilingData);
 
     // 转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
     pipeLineContext_.transposeSrcAddr = tempComputeOutGM_;
@@ -169,7 +169,7 @@ __aicore__ inline void
 MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTail(
     uint32_t taskCnt)
 {
-    auto &&mc2Tiling_ = tilingData_->mxQuantMatmulAlltoAllTilingInfo;
+    auto &&mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     pipeLineContext_.aGM = x1_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
     pipeLineContext_.bGM = x2_;
     pipeLineContext_.cGM =
@@ -183,7 +183,7 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.extraData.x1_scale =
         x1_scale_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
     pipeLineContext_.extraData.x2_scale = x2_scale_;
-    pipeLineContext_.tilingData = &(tilingData_->mc2MxQuantBmmV3TailTilingData);
+    pipeLineContext_.tilingData = &(tilingData_->mc2QuantBmmV3TailTilingData);
 
     uint64_t commonOffset = (uint64_t)mc2Tiling_.rankM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.transposeSrcAddr =
