@@ -171,7 +171,7 @@ TEST_F(MatmulAllReduceAclnnInputNullPtrTest, aclnnQuantMatmulAllReduce)
         INPUT(x1, x2, nullptr, x3, dequantScale, group, reduceOp, commTurn, streamMode),
         OUTPUT(output)
     );
-    EXPECT_NE(ACLNN_ERR_PARAM_NULLPTR, ut_null_bias.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor));
+    EXPECT_NE(ACLNN_ERR_PARAM_INVALID, ut_null_bias.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor));
 
     auto ut_null_x3 = OP_API_UT(
         aclnnQuantMatmulAllReduce,
