@@ -122,42 +122,42 @@ __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
         MicroAPI::Duplicate<T, T>(vreg_min, minValue);
 
         for (uint16_t i = originN; i < ubN; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>
                     ((__ubuf__ T*) input_x_local_UB + i * m, vreg_min, preg_135);
         } // 用最小值覆盖行方向（sInner方向）的脏数据
       
         preg_108 = pge_b16(PAT_ALL);
         for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 8); ++iter_m) {
             auto aReg = AscendC::MicroAPI::CreateAddrReg<T>(iter_m, m * 8);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_00a, src0_ub, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_0a, max_0a, src_00a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_00b, src0_ub_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_0b, max_0b, src_00b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_01a, src0_ub1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_1a, max_1a, src_01a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_01b, src0_ub1_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_1b, max_1b, src_01b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_02a, src0_ub2, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_2a, max_2a, src_02a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_02b, src0_ub2_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_2b, max_2b, src_02b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_03a, src0_ub3, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING> 
                     (max_3a, max_3a, src_03a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_03b, src0_ub3_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_3b, max_3b, src_03b, preg_108);
@@ -179,7 +179,7 @@ __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
         MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>
                 (max_0a, max_0a, scale, preg_108);
 
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>
                 ((__ubuf__ T*)new_global_max, max_0a, preg_108);
 
         MicroAPI::Duplicate<T, T>(vreg_x_sum_even, 0);
@@ -188,13 +188,13 @@ __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
         MicroAPI::Duplicate<T, T>(vreg_x_sum_1_odd, 0);
         for (uint16_t i0 = 0; i0 < uint16_t(ubN / 4); ++i0) {
             auto aReg = AscendC::MicroAPI::CreateAddrReg<T>(i0, m);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_a, ((__ubuf__ T *) input_x_local_UB), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_b, ((__ubuf__ T *) input_x_local_UB + ubN * m / 2), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_1_a, ((__ubuf__ T *) input_x_local_UB + ubN * m / 4 ), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_1_b, ((__ubuf__ T *) input_x_local_UB + ubN * m / 2 + ubN * m / 4), aReg);
 
             MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>
@@ -237,14 +237,14 @@ __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
                     (MicroAPI::RegTensor<uint8_t> &)vreg_x_exp_even_f16_1,
                     (MicroAPI::RegTensor<uint8_t> &)vreg_x_exp_odd_f16_1);
 
-            MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (x_exp, vreg_x_exp_f16_pack, blockStride, repeatStride, preg_136);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_even, vreg_x_exp_even, vreg_x_sum_even, preg_134);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_odd, vreg_x_exp_odd, vreg_x_sum_odd, preg_134);
 
-            MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (x_exp_1, vreg_x_exp_f16_1_pack, blockStride, repeatStride, preg_136);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_1_even, vreg_x_exp_even_1, vreg_x_sum_1_even, preg_134);
@@ -263,7 +263,7 @@ __aicore__ inline void ProcessVec1DnNoUpdateRegbaseV2(
             MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
         MicroAPI::Cast<float, half, castTrait0>(vreg_x_sum0_even, vreg_x_sum0, preg_all_b16);
         MicroAPI::Cast<float, half, castTrait1>(vreg_x_sum0_odd, vreg_x_sum0, preg_all_b16);
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
             (new_global_sum, vreg_x_sum0_even, vreg_x_sum0_odd, preg_all_b32);
     }
 }
@@ -373,47 +373,47 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
         MicroAPI::Duplicate<T, T>(max_3b, minValue);
         MicroAPI::Duplicate<T, T>(vreg_min, minValue);
         for (uint16_t i = originN; i < ubN; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>
                     ((__ubuf__ T*)input_x_local_UB + i * m, vreg_min, preg_135);
         }
 
         preg_108 = pge_b16(PAT_ALL);
         for (uint16_t iter_m = 0; iter_m < uint16_t(ubN / 8); ++iter_m) {
             auto aReg = AscendC::MicroAPI::CreateAddrReg<T>(iter_m, m * 8);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_00a, src0_ub, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_0a, max_0a, src_00a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_00b, src0_ub_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_0b, max_0b, src_00b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_01a, src0_ub1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_1a, max_1a, src_01a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_01b, src0_ub1_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_1b, max_1b, src_01b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_02a, src0_ub2, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_2a, max_2a, src_02a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_02b, src0_ub2_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_2b, max_2b, src_02b, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_03a, src0_ub3, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_3a, max_3a, src_03a, preg_108);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (src_03b, src0_ub3_1, aReg);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                     (max_3b, max_3b, src_03b, preg_108);
         }
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                 (vreg_x_max_f16, ((__ubuf__ T*)new_global_max));
         MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
                 (max_0a, max_0a, max_1a, preg_108);
@@ -436,7 +436,7 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
 
         MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                 MicroAPI::MaskMergeMode::ZEROING>(vreg_x_max_f16, vreg_x_max_f16, max_0a, preg_134);
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>
                 ((__ubuf__ T*)new_global_max, max_0a, preg_108);
         static constexpr MicroAPI::CastTrait castTrait0 = {MicroAPI::RegLayout::ZERO,
                 MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
@@ -444,7 +444,7 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
                 MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
         MicroAPI::Cast<float, half, castTrait0>(vreg_x_max_f32_even, vreg_x_max_f16, preg_all_b16);
         MicroAPI::Cast<float, half, castTrait1>(vreg_x_max_f32_odd, vreg_x_max_f16, preg_all_b16);
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (exp_max_fp32, vreg_x_max_f32_even, vreg_x_max_f32_odd, preg_all_b32);
 
         MicroAPI::Duplicate<T, T>(vreg_x_sum_even, 0);
@@ -454,13 +454,13 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
 
         for(uint16_t i0 = 0; i0 < uint16_t(ubN / 4); ++i0) {
             auto aReg = AscendC::MicroAPI::CreateAddrReg<T>(i0, m);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_a, ((__ubuf__ T *) input_x_local_UB), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_b, ((__ubuf__ T *) input_x_local_UB + ubN * m / 2), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_1_a, ((__ubuf__ T *) input_x_local_UB + ubN * m / 4 ), aReg);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_x_f32_1_b, ((__ubuf__ T *) input_x_local_UB + ubN * m / 2 + ubN * m / 4), aReg);
 
             MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>
@@ -504,14 +504,14 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
                     (MicroAPI::RegTensor<uint8_t> &)vreg_x_exp_even_f16_1,
                     (MicroAPI::RegTensor<uint8_t> &)vreg_x_exp_odd_f16_1);
 
-            MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (x_exp, vreg_x_exp_f16_pack, blockStride, repeatStride, preg_136);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_even, vreg_x_exp_even, vreg_x_sum_even, preg_134);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_odd, vreg_x_exp_odd, vreg_x_sum_odd, preg_134);
 
-            MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (x_exp_1, vreg_x_exp_f16_1_pack, blockStride, repeatStride, preg_136);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_x_sum_1_even, vreg_x_exp_even_1, vreg_x_sum_1_even, preg_134);
@@ -528,9 +528,9 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
         MicroAPI::Cast<float, half, castTrait1>(vreg_x_sum0_odd, vreg_x_sum0, preg_all_b16);
         MicroAPI::RegTensor<float> vreg_l0;
         MicroAPI::RegTensor<float> vreg_l0_1;
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_l0, vreg_l0_1, ((__ubuf__ float*)new_global_sum));
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_x_max_f32, vreg_x_max_f32_1, ((__ubuf__ float*)exp_max_fp32));
         MicroAPI::Mul<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_l0, vreg_x_max_f32, vreg_l0, preg_all_b32);
@@ -540,7 +540,7 @@ __aicore__ inline void ProcessVec1DnUpdateRegbaseV2(
                 (vreg_l0, vreg_l0, vreg_x_sum0_even, preg_all_b32);
         MicroAPI::Add<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_l0_1, vreg_l0_1, vreg_x_sum0_odd, preg_all_b32);
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (new_global_sum, vreg_l0, vreg_l0_1, preg_all_b32); 
     }
 }
