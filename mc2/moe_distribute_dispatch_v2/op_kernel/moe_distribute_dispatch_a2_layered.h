@@ -977,7 +977,8 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint32_t localRankId = rankId_ % SERVER_RANK_SIZE;
     GlobalTensor<uint64_t> globalSet;
     globalSet.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[destRankIdx] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) + localRankId * B64_PER_BLOCK);
+        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) +
+        localRankId * B64_PER_BLOCK);
     LocalTensor<uint64_t> localSet = tBuf.GetWithOffset<uint64_t>(B64_PER_BLOCK, 0);
     uint64_t setVal = magicVal_;
     localSet.SetValue(0, setVal);
@@ -998,8 +999,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint32_t destRankIdx = aivId_;
     uint32_t localRankId = rankId_ % SERVER_RANK_SIZE;
     GlobalTensor<uint64_t> flagIpcGt;
-    flagIpcGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[destRankIdx] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) + destRankIdx * B64_PER_BLOCK);
+    flagIpcGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[localRankId] +
+        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) +
+        destRankIdx * B64_PER_BLOCK);
     PipeBarrier<PIPE_ALL>();
     int64_t startTime = GetCurrentTimestampUs();
     do {
