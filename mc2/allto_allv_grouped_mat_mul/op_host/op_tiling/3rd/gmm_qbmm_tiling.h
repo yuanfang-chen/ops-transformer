@@ -19,6 +19,7 @@
 #include "../../../op_kernel/3rd/grouped_matmul_tiling_data_apt.h"
 #include "tiling_base/tiling_base.h"
 namespace optiling {
+namespace Mc2GroupedMatmulTiling {
 namespace GmmConstant {
 constexpr uint64_t MX_GROUP_SIZE = 32;
 constexpr uint64_t NUM_HALF = 2;
@@ -123,7 +124,7 @@ struct GQmmInputInfo {
     uint64_t kernelType = 0UL;
     QuantMode aQuantMode = QuantMode::DEFAULT;
     QuantMode bQuantMode = QuantMode::DEFAULT;
-    int8_t groupType = GroupedMatmul::NO_SPLIT;
+    int8_t groupType = Mc2GroupedMatmul::NO_SPLIT;
     int8_t groupListType = 0;
     int8_t splitItem = 0;
     int8_t actType = 0;
@@ -221,10 +222,11 @@ protected:
     Mc2GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;
 
-    int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
-    int32_t nList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t mList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t kList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
+    int32_t nList_[Mc2GroupedMatmul::MAX_TENSOR_CONT] = {0};
 };
+} // namespace Mc2GroupedMatmulTiling
 } // namespace optiling
 
 #endif // GMM_QBMM_TILING_H
