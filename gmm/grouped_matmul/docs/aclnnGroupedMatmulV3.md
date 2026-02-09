@@ -213,7 +213,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <td>groupType</td>
       <td>输入</td>
       <td>整数型参数，代表需要分组的轴。</td>
-      <td>如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。</td>
+      <td>如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，2：k轴分组。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -256,7 +256,6 @@ aclnnStatus aclnnGroupedMatmulV3(
     - weight支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - biasOptional支持FLOAT16、FLOAT32、INT32
     - y支持FLOAT16、BFLOAT16、INT8、FLOAT32
-    - groupType不支持n轴分组
     - 输入参数x、weight，输出参数y支持最多128个tensor。
   - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
     - x支持FLOAT16、BFLOAT16、FLOAT32
@@ -286,7 +285,7 @@ aclnnStatus aclnnGroupedMatmulV3(
     </tr></thead>
   <tbody>
     <tr>
-      <td>ACLNN_ERRPARAM_NULLPTR</td>
+      <td>ACLNN_ERR_PARAM_NULLPTR</td>
       <td>161001</td>
       <td>传入参数是必选输入、输出或者必选属性，且是空指针。</td>
     </tr>
