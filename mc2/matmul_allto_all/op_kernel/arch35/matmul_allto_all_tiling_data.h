@@ -46,9 +46,9 @@ struct MatmulAlltoAllTilingData {
 };
 
 struct QuantMatmulAlltoAllTilingData {
-    Mc2InitTiling mc2InitTiling;                                                   // 初始化通信任务配置
-    Mc2CcTiling mc2CcTiling;                                                       // 具体每个通信任务的参数配置
-    MatmulAlltoAllTilingInfo quantMatmulAlltoAllTilingInfo;                        // 传递给kernel的tiling info
+    Mc2InitTiling mc2InitTiling; // 初始化通信任务配置
+    Mc2CcTiling mc2CcTiling;     // 具体每个通信任务的参数配置
+    MatmulAlltoAllTilingInfo quantMatmulAlltoAllTilingInfo; // 传递给kernel的tiling info
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2QuantBmmV3TileTilingData; // 通算切分头块matmul tiling数据
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams mc2QuantBmmV3TailTilingData; // 通算切分尾块matmul tiling数据
 };
