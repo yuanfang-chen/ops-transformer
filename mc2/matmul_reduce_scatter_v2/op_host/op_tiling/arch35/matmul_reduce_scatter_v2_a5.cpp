@@ -20,30 +20,9 @@
 #include "platform/platform_infos_def.h"
 
 namespace optiling {
-ge::graphStatus MatmulReduceScatterTilingV2FuncA5(gert::TilingContext *context);
-ge::graphStatus TilingParseForMatmulReduceScatterV2A5(gert::TilingParseContext *context);
-constexpr uint32_t ATTR_COMMMODE = 10;	
-
-ge::graphStatus MatmulReduceScatterTilingV2FuncA5(gert::TilingContext *context)
+ge::graphStatus MatmulReduceScatterTilingV2Func(gert::TilingContext *context)
 {
-    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
-
-    std::string socVersion;
-    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
     return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
 }
-
-struct MatmulReduceScatterV2CompileInfo {};
-ge::graphStatus TilingParseForMatmulReduceScatterV2A5(gert::TilingParseContext *context)
-{
-    (void)context;
-    return ge::GRAPH_SUCCESS;
-}
-
-IMPL_OP_OPTILING(MatmulReduceScatterV2)
-    .Tiling(MatmulReduceScatterTilingV2FuncA5)
-    .TilingParse<MatmulReduceScatterV2CompileInfo>(TilingParseForMatmulReduceScatterV2A5);
-
 }  // namespace optiling
 
