@@ -335,22 +335,28 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     if (fagShape.inputLayoutStr == "BSH" || fagShape.inputLayoutStr == "SBH") {
         fagShape.h1Dim = queryShape.GetDim(2); // 2:h1
         fagShape.h2Dim = keyShape.GetDim(2);    // 2:h2
+        auto h3Dim = valueShape.GetDim(2);    // 3:h3，h of v
         if (headNum == 0) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The headNum is zero.");
             return ACLNN_ERR_PARAM_INVALID;
         }
         fagShape.dDim = fagShape.h1Dim / headNum; // q Head-dim
+        OP_LOGD("kjc, fagShape.dDim = %ld, fagShape.h3Dim = %ld.", fagShape.dDim, h3Dim);
         if (fagShape.dDim == 0) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dimension of D is zero.");
-            return ACLNN_ERR_PARAM_INVALID;
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = headNum;
+            fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = fagShape.h2Dim;
+            fagShape.dvDim = h3Dim;
+        } else {
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
+            fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
+            fagShape.dvDim = valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
         }
-
-        fagShape.n1Dim = headNum;
-        fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
-        fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
-        fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
-        fagShape.dkDim = keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
-        fagShape.dvDim = valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
     } else if (fagShape.inputLayoutStr == "TND") {
         fagShape.dDim = queryShape.GetDim(2);  // 2:d
         fagShape.n1Dim = queryShape.GetDim(1); // 1:n1
@@ -367,7 +373,7 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     }
 
     if (fagShape.dDim != fagShape.dkDim) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same, but got qD=%ld kD=%ld", fagShape.dDim, fagShape.dkDim);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same");
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -1248,6 +1254,7 @@ static aclnnStatus PostFlashAttentionScoreGrad(std::array<const aclTensor *, l0o
                                                FagInShapeInfo fagShape, FagShapeArray &fagShapeArray,
                                                aclOpExecutor *executor)
 { 
+    OP_LOGD("===in PostFlashAttentionScoreGrad===");
     // 如果是SBH特殊场景，在调用FAG后，需要将SBH重新改成SBND，以完成后续的slice等操作
     auto ret = ReshapeOutputTensor(fagOut, fagShape, fagShapeArray, true, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
@@ -2512,6 +2519,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
     const aclTensor *dqRopeOut, const aclTensor *dkRopeOut, const aclTensor *dpseOut, const aclTensor *dsinkOut, 
     uint64_t *workspaceSize, aclOpExecutor **executor) 
 {
+    OP_LOGD("====in aclnnFlashAttentionScoreGradV4GetWorkspaceSize====");
     L2_DFX_PHASE_1(aclnnFlashAttentionScoreGradV4,
         DFX_IN(query, keyIn, value, dy, pseShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional,
                softmaxMaxOptional, softmaxSumOptional, softmaxInOptional, attentionInOptional, sinkInOptional, queryRopeOptional,
@@ -2521,6 +2529,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
                softmaxInLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional, seed, offset, outDtypeOptional),
         DFX_OUT(dqOut, dkOut, dvOut, dqRopeOut, dkRopeOut, dpseOut, dsinkOut));
  
+    OP_LOGD("====aft L2_DFX_PHASE_1====");
     // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
