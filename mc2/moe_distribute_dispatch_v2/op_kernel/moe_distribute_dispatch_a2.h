@@ -895,8 +895,8 @@ template <TemplateMC2TypeA2Class>
 __aicore__ inline void MoeDistributeDispatchA2<TemplateMC2TypeA2Func>::CleanUpFlags()
 {
     if (aivId_ == 0) {
-        constexpr uint32_t multiMachineMaxStatusSize = 512U; // 多机保持原样
-        constexpr uint32_t singleMachineMaxStatusSize = 1024U + 32U; // 单机最大支持单卡256个Moe专家，尾部还存在一个flag
+        constexpr uint32_t multiMachineMaxStatusSize = 512U; // 多机，固定清理512Bytes，可最大支持单卡127个Moe专家
+        constexpr uint32_t singleMachineMaxStatusSize = 1024U + 32U; // 单机，最大支持单卡256个Moe专家，尾部还存在一个flag
         uint32_t statusSize = isSingleServer_ ? singleMachineMaxStatusSize : multiMachineMaxStatusSize;
         Duplicate<int32_t>(statusTensor_, 0, worldSize_ * statusSize / sizeof(int32_t));
         SyncFunc<AscendC::HardEvent::V_MTE3>();
