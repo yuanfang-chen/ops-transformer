@@ -216,7 +216,7 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
             // 搬入 x
             CopyInX(tilingData_.dim, xOffset + j * tilingData_.dim);
             MTE2ToMTE3Sync();
-            CopyOutState(tilingData_.dim, stateOffset + (tilingData_.width - 2 + inStateOffset_) * tilingData_.dim);
+            CopyOutState(tilingData_.dim, stateOffset + (inStateOffset_ + tilingData_.width - 2) * tilingData_.dim);
             MTE3ToMTE2Sync();
 
             MTE2ToVSync();
@@ -245,11 +245,49 @@ __aicore__ inline void CausalConv1dUpdate<T>::ComputeUpdate(int64_t xOffset)
             CopyOutY(tilingData_.dim, xOffset + j * tilingData_.dim);
         }
 
-        for (int64_t j = calcSeqLen; j < actSeqLen; ++j) {
+        for (int64_t j = 0; j < actSeqLen - calcSeqLen; ++j) {
+            Duplicate<float>(resultLocal, 0, tilingData_.dim);
             LocalTensor<T> outLocal = outQueueY_.AllocTensor<T>();
-            Duplicate<T>(outLocal, 0, tilingData_.dim);
+            for (int64_t k = 0; k < tilingData_.width - 1; ++k) {
+                CopyInState(tilingData_.dim, stateOffset + (k + inStateOffset_ + j) * tilingData_.dim);
+
+                MTE2ToVSync();
+                Cast(castIn, inLocal, RoundMode::CAST_NONE, tilingData_.dim);
+                Cast(castWeight, wLocal[k * tilingData_.dim], RoundMode::CAST_NONE, tilingData_.dim);
+                MulAddDst(resultLocal, castIn, castWeight, tilingData_.dim);
+
+                VToMTE2Sync();
+            }
+
+            CopyInX(tilingData_.dim, xOffset + (calcSeqLen + j) * tilingData_.dim);
+            MTE2ToMTE3Sync();
+            CopyOutState(tilingData_.dim, stateOffset + (inStateOffset_ + tilingData_.width - 1 + j) * tilingData_.dim);
+            MTE3ToMTE2Sync();
+
+            MTE2ToVSync();
+            Cast(castIn, inLocal, RoundMode::CAST_NONE, tilingData_.dim);
+            Cast(castWeight, wLocal[(tilingData_.width - 1) * tilingData_.dim], RoundMode::CAST_NONE, tilingData_.dim);
+            MulAddDst(resultLocal, castIn, castWeight, tilingData_.dim);
+
+            if (tilingData_.hasBias) {
+                CopyInBias(tilingData_.dim, 0);
+                LocalTensor<T> biasLocal = inQueueBias_.DeQue<T>();
+                Cast(castIn, biasLocal, RoundMode::CAST_NONE, tilingData_.dim);
+                Add(resultLocal, castIn, resultLocal, tilingData_.dim);
+                inQueueBias_.FreeTensor(biasLocal);
+            }
+
+            if (tilingData_.activationMode) {
+                Muls(castWeight, resultLocal, (float)-1.0, tilingData_.dim);
+                Exp(castWeight, castWeight, tilingData_.dim);
+                Adds(castWeight, castWeight, (float)1.0, tilingData_.dim);
+                Div(resultLocal, resultLocal, castWeight, tilingData_.dim);
+            }
+
+            Cast(outLocal, resultLocal, RoundMode::CAST_ROUND, tilingData_.dim);
+            
             outQueueY_.EnQue(outLocal);
-            CopyOutY(tilingData_.dim, xOffset + j * tilingData_.dim);
+            CopyOutY(tilingData_.dim, xOffset + (calcSeqLen + j) * tilingData_.dim);
         }
 
         xOffset = xOffset + actSeqLen * tilingData_.dim;
