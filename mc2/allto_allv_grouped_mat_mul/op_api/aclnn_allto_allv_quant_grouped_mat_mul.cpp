@@ -7,9 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
   */
-#include "aclnn_allto_allv_quant_grouped_mat_mul.h"
-#include "allto_allv_grouped_mat_mul_checker.h"
 #include <algorithm>
+
 #include "securec.h"
 #include "op_mc2.h"
 #include "acl/acl.h"
@@ -24,6 +23,9 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/make_op_executor.h"
+#include "aclnn_allto_allv_quant_grouped_mat_mul.h"
+#include "allto_allv_grouped_mat_mul_checker.h"
+
 namespace {
 using namespace op;
 
@@ -579,7 +581,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMul(void *workspace, uint64_
                                                         aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND950) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
