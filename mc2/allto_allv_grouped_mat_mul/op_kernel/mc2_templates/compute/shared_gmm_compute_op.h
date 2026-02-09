@@ -162,9 +162,12 @@ SharedGmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bT
     groupListBase_ = reinterpret_cast<GM_ADDR>(
         reinterpret_cast<__gm__ uint8_t *>(tempAddr) + PTR_TABLE_SIZE);
 
-    // GmmASWKernel 只读 gmmArray，直接引用 tiling 中的连续地址
+    // GmmASWKernel 只读 gmmArray，直接引用 tiling 中的地址
+    // sharedGmmTiling 实际位于 __gm__ 空间（由 kernel 入口 GM_ADDR tiling 派生），
+    // 但 C++ 类型系统中未携带 __gm__ 限定符，需通过 uint64_t 中转绕过地址空间检查
     gmmArrayAddr_ = reinterpret_cast<TILING_TYPE *>(
-        const_cast<GMMArray *>(&sharedGmmTiling->gmmArray));
+        reinterpret_cast<uint64_t>(
+            const_cast<GMMArray *>(&sharedGmmTiling->gmmArray)));
 }
 
 template <class xType, class wType, class biasType, class scaleType, class yType,
