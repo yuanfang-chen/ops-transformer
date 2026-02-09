@@ -99,7 +99,7 @@ protected:
     void PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData);
     void PrintCommonTilingInfo(TaskTilingInfo &tilingInfo);
     void PrintSharedGmmTilingInfo(Mc2GroupedMatmulTilingData::GMMQuantTilingData &tiling);
-    void PrintGmmQTilingDataInfo(GmmTilingArray &tilingInfo);
+    void PrintGmmQTilingDataInfo(Mc2GroupedMatmulTilingData::GMMQuantTilingData &tilingInfo);
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t workSpaceSize_{0};

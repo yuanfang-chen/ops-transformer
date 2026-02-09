@@ -699,7 +699,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     CalTilingInferredInfo();
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.commLen + inferredInfo.permuteLen;
-    localTilingData_.workspaceInfo.wsGmmSize = workSpaceSize_;
+    localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
+    localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -708,10 +709,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     // 设置GMM切前信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(*this, context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonContextParameters());
-    auto gmmTilingPtr = &localTilingData_.gmmTiling;
     // 当前为 epNums，每轮一专家
     auto taskTilingInfoPtr = &localTilingData_.taskTilingInfo;
-    gmmTilingPtr->count = taskTilingInfoPtr->totalLoopCount;
     auto expertNumPerLoop = taskTilingInfoPtr->mainLoopExpertNum;
     // 每轮
     uint32_t loop;
@@ -721,15 +720,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
             loop * expertNumPerLoop * worldSize, expertNumPerLoop));
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-        gmmTilingPtr->array = gmmTile.GetGmmQuantTilingAdapterData();
+        localTilingData_.gmmBaseTiling = gmmTile.GetGmmQuantTilingAdapterData();
     }
 
     // 尾轮
-    expertNumPerLoop = taskTilingInfoPtr->tailLoopExpertNum;
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
-        loop * expertNumPerLoop * worldSize, expertNumPerLoop));
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-    gmmTilingPtr->array = gmmTile.GetGmmQuantTilingAdapterData();
+    // expertNumPerLoop = taskTilingInfoPtr->tailLoopExpertNum;
+    // GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
+    //     loop * expertNumPerLoop * worldSize, expertNumPerLoop));
+    // GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
 
     // SharedMM切分
     auto status = gmmTile.SetSharedExpertInputParameters();
@@ -796,7 +794,7 @@ void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2av
     return ;
     // PrintCommonTilingInfo(outTilingData.taskTilingInfo);
     // PrintSharedGmmTilingInfo(outTilingData.sharedGmmTiling);
-    // PrintGmmQTilingDataInfo(outTilingData.gmmTiling);
+    // PrintGmmQTilingDataInfo(outTilingData.gmmBaseTiling);
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
