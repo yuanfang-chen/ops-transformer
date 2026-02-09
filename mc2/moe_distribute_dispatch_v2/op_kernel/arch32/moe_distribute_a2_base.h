@@ -5,17 +5,19 @@ namespace MoeDistributeA2Base {
 struct GetAddrInfo {
     uint64_t rdmaAddrOffset{0UL};
     uint64_t ipcAddrOffset[2]{0UL};
+    uint64_t ipcFlagOffset{0UL};
     constexpr static uint32_t IPC_BUFF_ALIGN{512};
     /* WinSize结构如下：
        | Ping RDMA                                 |-| Half IPC                             |-| Pong RDMA                                               |-| Rest IPC                                              |
        | RDMA Flag: 1MB | RDMA Data: rdmaDataSizeB |-| IPC DATA, FromRankId < worldSize / 2 |-| IPC Flag 2M | RDMA Flag: 1MB | RDMA Data: rdmaDataSizeB |-| IPC DATA, FromRankId >= worldSize / 2 |-| IPC Flag 2M |
     */
-    __aicore__ inline void Init(uint64_t winSize, uint64_t bufferId, uint64_t ipcSize)
+    __aicore__ inline void Init(uint64_t winSize, uint64_t bufferId, uint64_t ipcDataSize, uint64_t ipcFlagSize)
     {
-        ipcAddrOffset[0] = winSize / 2UL - ipcSize;
-        ipcAddrOffset[1] = winSize - ipcSize;
-        ipcAddrOffset[0] = ipcAddrOffset[0] / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
-        ipcAddrOffset[1] = ipcAddrOffset[1] / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+        ipcAddrOffset[0] = winSize / 2UL - (ipcDataSize - ipcFlagSize) / 2UL;
+        ipcAddrOffset[1] = winSize - (ipcDataSize - ipcFlagSize) / 2UL;
+        ipcAddrOffset[0] = (ipcAddrOffset[0] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+        ipcAddrOffset[1] = (ipcAddrOffset[1] + IPC_BUFF_ALIGN - 1) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+        ipcFlagOffset = winSize / 2UL - ipcFlagSize / 2 - ipcAddrOffset[0]
         if (bufferId == 1UL) {
             rdmaAddrOffset = winSize / 2UL;
         }
