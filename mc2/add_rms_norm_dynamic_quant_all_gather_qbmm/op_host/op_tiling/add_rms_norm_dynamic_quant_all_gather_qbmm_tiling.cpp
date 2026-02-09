@@ -17,7 +17,8 @@
 // #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_key.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
-#include "add_rms_norm_dynamic_quant_v2.h"
+#include "add_rms_norm_dynamic_quant_v2_tiling.h"
+#include "mc2_log.h"
 
 namespace MC2Tiling {
 
@@ -42,7 +43,7 @@ static void GetAddRmsNormDynamicQuantAllGatherQbmm(gert::TilingContext *context,
     bool status = instanceNormV3TilingHelper.DoTiling();
     OP_CHECK_IF(!status, OP_LOGE(context, "DoTiling Failed, return Failed."), return ge::GRAPH_FAILED);
 
-    instanceNormV3TilingHelper.SetTilingDataAndTilingKeyAndWorkSpace(&tiling.addRmsNormDynamicQuantV2TilingData);
+    instanceNormV3TilingHelper.SetTilingDataAndTilingKeyAndWorkSpace(&tilingData.addRmsNormDynamicQuantV2TilingData);
 }
 
 // matmul切分

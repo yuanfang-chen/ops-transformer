@@ -16,8 +16,10 @@
 #include <register/op_def_registry.h>
 // #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_key.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
-#include "add_rms_norm_dynamic_quant_v2.h"
 #include "tiling/platform/platform_ascendc.h"
+#include "tiling_base/tiling_base.h"
+#include "register/tilingdata_base.h"
+#include "tiling/tiling_api.h"
 
 namespace MC2Tiling {
 // 如何直接使用matmul高阶api进行拷贝
@@ -26,26 +28,27 @@ struct Mc2MatMulArgs {
     bool isATrans = false;
     bool isBTrans = false;
     bool isHf32 = false;
+    bool isForceGrpAccForFp32 = false;
     bool hasBias = false;
+    bool nd2nzA = false;
+    bool nd2nzB = false;
+    bool isNzA = false;
+    bool isNzB = false;
     ge::DataType aType = ge::DT_FLOAT16;
     ge::DataType bType = ge::DT_FLOAT16;
     ge::DataType cType = ge::DT_FLOAT16;
-    ge::DataType x3Type = ge::DT_FLOAT16;
     ge::DataType biasType = ge::DT_FLOAT16;
     ge::Format aFormat = ge::FORMAT_ND;
     ge::Format bFormat = ge::FORMAT_ND;
     ge::Format outFormat = ge::FORMAT_ND;
-    uint64_t mValue = 0UL;
-    uint64_t mOriValue = 0UL;
-    uint64_t nOriValue = 0UL;
-    uint64_t kValue = 0UL;
-    uint64_t nValue = 0UL;
-    uint64_t aDtypeSize = 1UL;
-    uint64_t bDtypeSize = 1UL;
-    uint64_t fusedOpType = 0UL;
-    uint64_t batchX3 = 1UL;
-    bool hasX3Input = false;
-    MatMulV3BatchInfo *batchInfo = nullptr;
+    uint8_t unAlignProcessType = 0;
+    uint64_t mValue = 0L;
+    uint64_t mOriValue = 0L;
+    uint64_t nOriValue = 0L;
+    uint64_t kValue = 0L;
+    uint64_t nValue = 0L;
+    double l2Ratio = 0;
+    // MatMulV3BatchInfo *batchInfo = nullptr;
 };
 
 struct Mc2MatmulCompileInfo {
@@ -65,23 +68,31 @@ struct Mc2MatmulCompileInfo {
     bool supportL12BtBf16 = false;
 };
 
+enum class Mc2TilingCalcSelect : int32_t //选择不同的计算Tiling的方法
+{
+    ALL = 0,
+    BASE = 1,
+    SINGLE_CORE_SPLIT_K = 2,
+    DETERMINISTIC_SPLIT_K = 3
+};
+
 class MmTilingHelper
 {
 public:
-    MmTilingHelper(gert::TilingContext* context):context_(context){}
+    explicit MmTilingHelper(gert::TilingContext* context):context_(context){}
     ~MmTilingHelper() = default;
-    ge::graphStatus InitTCubeTilingData(TCubeTiling &tCubeTiling) const;
+    ge::graphStatus InitTCubeTilingData(TCubeTiling &tCubeTiling);
     ge::graphStatus getMamtulArgs();
     void InitCompileInfo();
     ge::graphStatus GetPlatformInfo();
     ge::graphStatus NeedNd2NzVnchw(uint64_t outerSize, uint64_t innerSize, bool supportNd2NzOnTheWay,
-                                   uint64_t dtypeSize, ge::Format matFormat) const
-private:
+                                   uint64_t dtypeSize, ge::Format matFormat) const;
     ge::graphStatus GetMoreArgs();
 private:
     gert::TilingContext* context_;
-    const Mc2MatMulArgs args_;
-    const Mc2MatmulCompileInfo compileInfo_;
+    Mc2MatMulArgs args_;
+    Mc2MatmulCompileInfo compileInfo_;
     matmul_tiling::MultiCoreMatmulTiling mm_;
+    Mc2TilingCalcSelect tilingSelect_ = Mc2TilingCalcSelect::ALL;
 };
 } // namespace MC2Tiling

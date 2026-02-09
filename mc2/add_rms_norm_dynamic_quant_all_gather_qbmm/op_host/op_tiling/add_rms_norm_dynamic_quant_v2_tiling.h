@@ -22,9 +22,9 @@
 #include "tiling/platform/platform_ascendc.h"
 #include "platform/platform_infos_def.h"
 #include "tiling_base/tiling_templates_registry.h"
+#include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 
-
-namespace optiling {
+namespace MC2Tiling {
 
 struct AddRmsNormDynamicQuantV2CompileInfo {
     int32_t totalCoreNum = 0;
@@ -81,6 +81,6 @@ private:
     UB_TILING_POLICY ubTilingPolicy_{UB_TILING_POLICY::SINGLE_ROW};
 };
 
-} // namespace optiling
+} // namespace MC2Tiling
 
 #endif // OPS_BUILT_IN_OP_TILING_RUNTIME_ADD_RMS_NORM_DYN_QUANT_V2_TILING_H

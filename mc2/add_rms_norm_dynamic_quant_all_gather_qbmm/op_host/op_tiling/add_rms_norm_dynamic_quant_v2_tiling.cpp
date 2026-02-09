@@ -14,7 +14,7 @@
  */
 #include "add_rms_norm_dynamic_quant_v2_tiling.h"
 
-namespace optiling {
+namespace MC2Tiling {
 
 constexpr int X1_IDX = 0;
 constexpr int X2_IDX = 1;
@@ -61,19 +61,19 @@ void AddRmsNormDynamicQuantV2TilingHelper::SetTilingDataAndTilingKeyAndWorkSpace
     AddRmsNormDynamicQuantV2TilingData* tiling)
 {
     context_->SetBlockDim(this->useCore_);
-    tiling->set_useCore(this->useCore_);
-    tiling->set_numFirstDim(this->numFirstDim_);
-    tiling->set_numLastDim(this->numLastDim_);
-    tiling->set_numLastDimAligned(this->numLastDimAligned_);
-    tiling->set_firstDimPerCore(this->firstDimPerCore_);
-    tiling->set_firstDimPerCoreTail(this->firstDimPerCoreTail_);
-    tiling->set_firstDimPerLoop(this->firstDimPerLoop_);
-    tiling->set_lastDimSliceLen(this->lastDimSliceLen_);
-    tiling->set_lastDimLoopNum(this->lastDimLoopNum_);
-    tiling->set_lastDimSliceLenTail(this->lastDimSliceLenTail_);
-    tiling->set_smoothNum(this->smoothNum_);
-    tiling->set_epsilon(this->eps_);
-    tiling->set_avgFactor(this->avgFactor_);
+    tiling->useCore = this->useCore_;
+    tiling->numFirstDim = this->numFirstDim_;
+    tiling->numLastDim = this->numLastDim_;
+    tiling->numLastDimAligned = this->numLastDimAligned_;
+    tiling->firstDimPerCore = this->firstDimPerCore_;
+    tiling->firstDimPerCoreTail = this->firstDimPerCoreTail_;
+    tiling->firstDimPerLoop = this->firstDimPerLoop_;
+    tiling->lastDimSliceLen = this->lastDimSliceLen_;
+    tiling->lastDimLoopNum = this->lastDimLoopNum_;
+    tiling->lastDimSliceLenTail = this->lastDimSliceLenTail_;
+    tiling->smoothNum = this->smoothNum_;
+    tiling->epsilon = this->eps_;
+    tiling->avgFactor = this->avgFactor_;
 
     uint32_t tilingKey = 0;
     size_t usrSize = USR_WORKSPACE_SIZE_910B;
@@ -90,8 +90,8 @@ void AddRmsNormDynamicQuantV2TilingHelper::SetTilingDataAndTilingKeyAndWorkSpace
 
     context_->SetTilingKey(tilingKey);
 
-    tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(tiling->GetDataSize());
+    // tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(sizeof(AddRmsNormDynamicQuantV2TilingData));
 
     // set workspace
     size_t* currentWorkspace = context_->GetWorkspaceSizes(1);
@@ -345,4 +345,5 @@ bool AddRmsNormDynamicQuantV2TilingHelper::CheckInputOutputShape()
         ((gammaDimNum != 1)), OP_LOGE(this->context_->GetNodeName(), "gamma shape dims not equal to 1. Tiling failed."),
         return false);
     return true;
+}
 }
