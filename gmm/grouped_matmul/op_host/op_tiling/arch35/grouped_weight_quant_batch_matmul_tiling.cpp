@@ -27,12 +27,6 @@ static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_
     {ge::DT_FLOAT16, {ge::DT_FLOAT16}},
     {ge::DT_BF16, {ge::DT_BF16, ge::DT_FLOAT}}};
 
-static bool inline IsNonEmpty(const gert::StorageShape *shapePtr)
-{
-    return (shapePtr != nullptr &&
-            !(shapePtr->GetStorageShape().GetDimNum() == 1 && shapePtr->GetStorageShape().GetDim(0) == 0));
-}
-
 bool GroupedWeightQuantBatchMatmulTiling::SetTiling(gert::TilingContext *context)
 {
     OP_CHECK_IF(!AnalyzeAttr(context), OP_LOGE(context->GetNodeName(), "Invalid attr param"),
@@ -78,6 +72,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::Tiling
         OP_LOGE(context->GetNodeName(),
                 "In multi/multi/multi Scenario, tensorlist's length cannot exceed 128, but it is more than 128"),
         return false);
+    OP_CHECK_IF(numX_ == 0, OP_LOGE(context->GetNodeName(), "X must not be empty tensorlist. "), return false);
     if (groupType_ == GroupType::NO_SPLIT) {
         OP_CHECK_IF(
             numX_ != numWeight_,
@@ -430,20 +425,6 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckGroupList(const gert::TilingConte
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckRequiredInputs(const gert::TilingContext *context) const
-{
-    auto xShape = context->GetDynamicInputShape(X_IDX, 0);
-    OP_CHECK_IF(!IsNonEmpty(xShape), OP_LOGE(context->GetNodeName(), "x should not be null, but is null."),
-                return false);
-    auto weightShape = context->GetDynamicInputShape(WEIGHT_IDX, 0);
-    OP_CHECK_IF(!IsNonEmpty(weightShape), OP_LOGE(context->GetNodeName(), "weight should not be null, but is null."),
-                return false);
-    auto antiquantScaleShape = context->GetDynamicInputShape(ANTIQUANT_SCALE_IDX, 0);
-    OP_CHECK_IF(!IsNonEmpty(antiquantScaleShape),
-                OP_LOGE(context->GetNodeName(), "antiquantScale should not be null, but is null."), return false);
-    return true;
-}
-
 bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext *context)
 {
     auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
@@ -472,8 +453,6 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
 
     // 参数校验
     OP_CHECK_IF(coreNum_ <= 0, OP_LOGE(context->GetNodeName(), "Invalid coreNum[%u], expect greater than 0", coreNum_),
-                return false);
-    OP_CHECK_IF(!CheckRequiredInputs(context), OP_LOGE(context->GetNodeName(), "CheckRequiredInputs failed."),
                 return false);
     OP_CHECK_IF(!CheckUnsupportDataFlow(context),
                 OP_LOGE(context->GetNodeName(), "Input data contains unsupported dtype or format."), return false);
@@ -516,7 +495,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeInput(const gert::TilingContext
     weightNzFlag_ = wFormat == ge::FORMAT_FRACTAL_NZ;
 
     auto biasShape = context->GetDynamicInputShape(BIAS_IDX, 0);
-    hasBias_ = !(biasShape == nullptr || biasShape->GetStorageShape().GetShapeSize() == 0);
+    hasBias_ = biasShape != nullptr;
     if (hasBias_) {
         auto biasDesc = context->GetDynamicInputDesc(BIAS_IDX, 0);
         OP_CHECK_IF(biasDesc == nullptr, OP_LOGE(context->GetNodeName(), "biasDesc is nullptr."),
@@ -530,8 +509,7 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeInput(const gert::TilingContext
     antiquantScaleDtype_ = antiquantScaleDesc->GetDataType();
 
     auto antiquantOffsetShape = context->GetDynamicInputShape(ANTIQUANT_OFFSET_IDX, 0);
-    hasAntiquantOffset_ =
-        !(antiquantOffsetShape == nullptr || antiquantOffsetShape->GetStorageShape().GetShapeSize() == 0);
+    hasAntiquantOffset_ = antiquantOffsetShape != nullptr;
     if (hasAntiquantOffset_) {
         auto antiquantOffsetDesc = context->GetDynamicInputDesc(ANTIQUANT_OFFSET_IDX, 0);
         OP_CHECK_IF(antiquantOffsetDesc == nullptr, OP_LOGE(context->GetNodeName(), "antiquantOffsetDesc is nullptr."),
@@ -937,7 +915,7 @@ uint16_t GroupedWeightQuantBatchMatmulTiling::GetTensorListSize(const gert::Tili
     uint16_t count = 0;
     for (int i = 0; i <= GroupedMatmul::MAX_TENSOR_CONT; i++) {
         auto shapePtr = context->GetDynamicInputShape(attrIdx, count);
-        if (!IsNonEmpty(shapePtr)) {
+        if (shapePtr == nullptr) {
             break;
         }
         ++count;
