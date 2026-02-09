@@ -378,8 +378,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     // 每次调用magic++,用来区分不同轮次
     LocalTensor<uint64_t> tempLocal = tBuf.Get<uint64_t>();
     GlobalTensor<uint64_t> magicGt;
+    uint32_t index = IPC_MAGIC_OFFSET < IPC_NON_DATA_SIZE / 2 ? 0U : 1U;
+    uint32_t magicOffset = IPC_MAGIC_OFFSET - (IPC_NON_DATA_SIZE / 2) * index + ipcFlagOffset_;
     magicGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[rankId_ % SERVER_RANK_SIZE] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_MAGIC_OFFSET, 0U)) + aivId_ * UB_32B_ALIGN / sizeof(uint64_t));
+        getAddrInfo_.GetIpcAddrOffset(magicOffset, index)) + aivId_ * UB_32B_ALIGN / sizeof(uint64_t));
 
     DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
     PipeBarrier<PIPE_ALL>();
@@ -976,8 +978,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint32_t destRankIdx = aivId_;
     uint32_t localRankId = rankId_ % SERVER_RANK_SIZE;
     GlobalTensor<uint64_t> globalSet;
+    uint32_t index = IPC_FLAG_OFFSET < IPC_NON_DATA_SIZE / 2 ? 0U : 1U;
+    uint32_t ipcFlagOffset = IPC_FLAG_OFFSET - (IPC_NON_DATA_SIZE / 2) * index + ipcFlagOffset_;
     globalSet.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[destRankIdx] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) +
+        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset, index)) +
         localRankId * B64_PER_BLOCK);
     LocalTensor<uint64_t> localSet = tBuf.GetWithOffset<uint64_t>(B64_PER_BLOCK, 0);
     uint64_t setVal = magicVal_;
@@ -999,8 +1003,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint32_t destRankIdx = aivId_;
     uint32_t localRankId = rankId_ % SERVER_RANK_SIZE;
     GlobalTensor<uint64_t> flagIpcGt;
+    uint32_t index = IPC_FLAG_OFFSET < IPC_NON_DATA_SIZE / 2 ? 0U : 1U;
+    uint32_t ipcFlagOffset = IPC_FLAG_OFFSET - (IPC_NON_DATA_SIZE / 2) * index + ipcFlagOffset_;
     flagIpcGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[localRankId] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_FLAG_OFFSET, 0U)) +
+        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset, index)) +
         destRankIdx * B64_PER_BLOCK);
     PipeBarrier<PIPE_ALL>();
     int64_t startTime = GetCurrentTimestampUs();
@@ -1205,6 +1211,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     }
     // 数据发送结束，填写tokenNum到对端Ipc，每轮填写coresPerServer个，总共要填写 SERVER_RANK_SIZE * localMoeExpertNum_个
     uint32_t batchNum = (SERVER_RANK_SIZE * localMoeExpertNum_ + coresPerServer - 1) / coresPerServer;
+
+    uint32_t index = IPC_TOKEN_CNT_OFFSET < IPC_NON_DATA_SIZE / 2 ? 0U : 1U;
+    uint32_t ipcTokenCntOffset = IPC_TOKEN_CNT_OFFSET - (IPC_NON_DATA_SIZE / 2) * index + ipcFlagOffset_;
     for (uint32_t batch = 0; batch < batchNum; batch++) {
         uint32_t targetExpId = expStartId + batch * coresPerServer + logicAivId % coresPerServer;
         uint32_t targetRankId = GetExpRank(targetExpId);
@@ -1214,8 +1223,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
         uint32_t localExpOffset = targetExpId % (localMoeExpertNum_ * SERVER_RANK_SIZE) * EXP_TOKEN_COUNT_FLAG_CNT;
         uint32_t targetCntOffset = ((targetExpId % localMoeExpertNum_) * worldSize_ +
             formServerId * SERVER_RANK_SIZE + (rankId_ % SERVER_RANK_SIZE)) * EXP_TOKEN_COUNT_FLAG_CNT;
+
         targetCntIpcGt.SetGlobalBuffer((__gm__ int32_t*)(shareAddrs[targetRankId % SERVER_RANK_SIZE] +
-            getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_, 1UL)));
+            getAddrInfo_.GetIpcAddrOffset(ipcTokenCntOffset, index)));
         PipeBarrier<PIPE_ALL>();
         DataCopy(targetCntIpcGt[targetCntOffset], tokenNumPerExp[localExpOffset], EXP_TOKEN_COUNT_FLAG_CNT);
         PipeBarrier<PIPE_ALL>();
@@ -1247,8 +1257,10 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint32_t srCntCurCore = (localAivId < srCntRemain) ? (srCntPerCore + 1) : srCntPerCore;
 
     GlobalTensor<int32_t> tokenCntIpcGt;
+    uint32_t index = IPC_TOKEN_CNT_OFFSET < IPC_NON_DATA_SIZE / 2 ? 0U : 1U;
+    uint32_t ipcTokenCntOffset = IPC_TOKEN_CNT_OFFSET - (IPC_NON_DATA_SIZE / 2) * index + ipcFlagOffset_;
     tokenCntIpcGt.SetGlobalBuffer((__gm__ int32_t*)(shareAddrs[rankId_ % SERVER_RANK_SIZE] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_, 1UL)));
+        getAddrInfo_.GetIpcAddrOffset(ipcTokenCntOffset, index)));
     // tBuf 内存分配
     // 4k ~ 6k 保存按expert统计的token个数信息
     LocalTensor<int64_t> tokenCntByExpUB = tBuf.GetWithOffset<int64_t>(2 * 1024 / sizeof(int64_t), 4 * 1024);
