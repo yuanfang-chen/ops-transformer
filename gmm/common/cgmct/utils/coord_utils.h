@@ -223,7 +223,7 @@ public:
         }
         if constexpr (layoutB == CubeFormat::NZ) {
             Get<1>(offset) = nOffset * CeilDiv(k, OUTER_SIZE) * OUTER_SIZE;
-        } else if constexpr (layoutB == CubeFormat::Zn) {
+        } else if constexpr (layoutB == CubeFormat::ZN) {
             Get<1>(offset) = nOffset * WEIGHTNZ_K0_32;
         } else {
             if constexpr (isTransB) {
