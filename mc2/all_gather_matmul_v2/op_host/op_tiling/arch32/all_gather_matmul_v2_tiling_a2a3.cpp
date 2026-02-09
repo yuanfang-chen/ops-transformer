@@ -25,39 +25,14 @@ using namespace ge;
 
 namespace optiling
 {
-ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context);
-ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context);
 constexpr uint32_t ATTR_COMMMODE = 11;
-
-ge::graphStatus AllGatherMatmulTilingV2FuncA2A3(gert::TilingContext* context)
+ge::graphStatus AllGatherMatmulTilingV2Func(gert::TilingContext* context)
 {
-    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
-
-    std::string socVersion;
-    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
-    if (socVersion == "Ascend910B" || socVersion == "Ascend910_93") {
-        auto attrs = context->GetAttrs();
-        auto commModePtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMMMODE));
-        OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
-            OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
-        if (std::strcmp(commModePtr, "aiv") == 0) {
-            return AllGatherMatmulTilingAIVModeFunc(context);
-        }
-        return Ops::Transformer::OpTiling::TilingRegistryNew::GetInstance().DoTilingImpl(context);
-    }
-    return Ops::Transformer::OpTiling::TilingRegistryArch::GetInstance().DoTilingImpl(context);
+    OP_LOGI("AllGatherMatmulTilingV2", "Start to do tiling in AllGatherMatmulTilingV2Func A2/A3");
+    auto attrs = context->GetAttrs();
+    auto commModePtr = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_COMMMODE));
+    OP_TILING_CHECK((commModePtr == nullptr || !(std::strcmp(commModePtr, "aiv") == 0)),
+        OP_LOGE(context->GetNodeName(), "AivModeTiling commMode is invalid. commMode is %s", commModePtr), return ge::GRAPH_FAILED);
+    return AllGatherMatmulTilingAIVModeFunc(context);
 }
-
-struct AllGatherMatmulCompileInfo {
-};
-ge::graphStatus TilingParseForAllGatherMatmulV2A2A3(gert::TilingParseContext* context)
-{
-    (void)context;
-    return ge::GRAPH_SUCCESS;
-}
-
-IMPL_OP_OPTILING(AllGatherMatmulV2)
-    .Tiling(AllGatherMatmulTilingV2FuncA2A3)
-    .TilingParse<AllGatherMatmulCompileInfo>(TilingParseForAllGatherMatmulV2A2A3);
 }  // namespace optiling
