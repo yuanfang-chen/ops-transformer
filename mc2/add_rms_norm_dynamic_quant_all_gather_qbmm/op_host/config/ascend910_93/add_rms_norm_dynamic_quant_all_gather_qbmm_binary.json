@@ -75,18 +75,18 @@
           "index": 6,
           "dtype": "float32",
           "format": "ND",
-          "paramType": "required",
+          "paramType": "optional",
           "shape": [
             -2
           ],
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "bais",
+          "name": "bias",
           "index": 7,
           "dtype": "bfloat16",
           "format": "ND",
-          "paramType": "required",
+          "paramType": "optional",
           "shape": [
             -2
           ],
@@ -174,7 +174,7 @@
           "name": "residual",
           "index": 2,
           "dtype": "bfloat16",
-          "format": "ND",
+          "format": "NZ",
           "paramType": "required",
           "shape": [
             -2
@@ -219,18 +219,18 @@
           "index": 6,
           "dtype": "float32",
           "format": "ND",
-          "paramType": "required",
+          "paramType": "optional",
           "shape": [
             -2
           ],
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "bais",
+          "name": "bias",
           "index": 7,
           "dtype": "bfloat16",
           "format": "ND",
-          "paramType": "required",
+          "paramType": "optional",
           "shape": [
             -2
           ],

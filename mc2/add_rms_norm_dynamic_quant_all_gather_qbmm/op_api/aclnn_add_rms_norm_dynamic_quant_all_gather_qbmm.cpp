@@ -61,14 +61,13 @@ enum class NnopbaseHcclServerType : uint32_t {
 
 // 检查入参是否为nullptr
 static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* output, const aclTensor* z)
+    const aclTensor* scale, const aclTensor* output, const aclTensor* z)
 {
     OP_CHECK_NULL(x1, return false);
     OP_CHECK_NULL(x2, return false);
     OP_CHECK_NULL(y, return false);
     OP_CHECK_NULL(gamma, return false);
     OP_CHECK_NULL(scale, return false);
-    OP_CHECK_NULL(smoothScale, return false);
     OP_CHECK_NULL(output, return false);
     OP_CHECK_NULL(z, return false);
     return true;
@@ -131,10 +130,10 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
 // }
 
 static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* output, const aclTensor* z)
+    const aclTensor* scale, const aclTensor* output, const aclTensor* z)
 {
     // 1. 检查参数是否为空指针
-    CHECK_RET(CheckNotNull(x1, x2, y, gamma, scale, smoothScale, output, z), ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(CheckNotNull(x1, x2, y, gamma, scale, output, z), ACLNN_ERR_PARAM_NULLPTR);
     // TODO: need to figure out the api definition
     // // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     // CHECK_RET(CheckAllDtypesValid(x, scales, output), ACLNN_ERR_PARAM_INVALID);
@@ -146,7 +145,7 @@ static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const a
 }
 
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
     bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
     uint64_t* workspaceSize, aclOpExecutor** executor);
@@ -154,19 +153,16 @@ extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmm(
     void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
-// ranksize 和dtype不需要作为输入，transposeX2是否输入看SE设计方案
 extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,
-    const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias,
-    const char* group, bool transposeX2, int64_t residualNormMode,
-    aclTensor* output, aclTensor* z, uint64_t* workspaceSize, aclOpExecutor** executor)
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
+    uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     // TODO: Complete the code for checking params
-    aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, smoothScale, output, z);
+    aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, output, z);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    uint64_t rankSize = 0;
-    uint64_t dtype = static_cast<uint64_t>(output->GetDataType());
+    OP_LOGD("Invoking aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize...");
     aclnnStatus ret = aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
         x1, x2, residual, y, gamma, scale, smoothScale, bias, group, rankSize, transposeX2, dtype,
         residualNormMode, output, z, workspaceSize, executor);

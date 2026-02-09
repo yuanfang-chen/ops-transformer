@@ -68,26 +68,25 @@ struct Mc2MatmulCompileInfo {
     bool supportL12BtBf16 = false;
 };
 
-enum class Mc2TilingCalcSelect : int32_t //选择不同的计算Tiling的方法
-{
+// 选择不同的计算Tiling的方法
+enum class Mc2TilingCalcSelect : int32_t {
     ALL = 0,
     BASE = 1,
     SINGLE_CORE_SPLIT_K = 2,
     DETERMINISTIC_SPLIT_K = 3
 };
 
-class MmTilingHelper
-{
+class MmTilingHelper {
 public:
-    explicit MmTilingHelper(gert::TilingContext* context):context_(context){}
+    explicit MmTilingHelper(gert::TilingContext* context):context_(context) {}
     ~MmTilingHelper() = default;
     ge::graphStatus InitTCubeTilingData(TCubeTiling &tCubeTiling);
     ge::graphStatus getMamtulArgs();
     void InitCompileInfo();
     ge::graphStatus GetPlatformInfo();
-    ge::graphStatus NeedNd2NzVnchw(uint64_t outerSize, uint64_t innerSize, bool supportNd2NzOnTheWay,
-                                   uint64_t dtypeSize, ge::Format matFormat) const;
     ge::graphStatus GetMoreArgs();
+    bool NeedNd2NzVnchw(uint64_t outerSize, uint64_t innerSize, bool supportNd2NzOnTheWay,
+                                   uint64_t dtypeSize, ge::Format matFormat) const;
 private:
     gert::TilingContext* context_;
     Mc2MatMulArgs args_;

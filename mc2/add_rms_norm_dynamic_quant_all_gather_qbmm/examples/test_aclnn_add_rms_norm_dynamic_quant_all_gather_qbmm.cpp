@@ -31,7 +31,7 @@
         printf(message, ##__VA_ARGS__); \
     } while(0)
 
-constexpr int DEV_NUM = 2;
+constexpr int DEV_NUM = 4;
 
 int64_t GetShapeSize(const std::vector<int64_t> &shape)
 {
@@ -77,11 +77,11 @@ int LaunchOneThreadAddRmsNormDynamicQuantAllGatherQbmm(Args &args)
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret = %d\n", ret); return -1);
     LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p\n", args.rankId, hcomName, args.stream);
     std::vector<int64_t> x1Shape = {63, 5120};
-    std::vector<int64_t> x2Shape = {3072, 5120}; //转置后，reshape的
+    std::vector<int64_t> x2Shape = {96, 320, 16, 32}; //转置后，reshape的
     std::vector<int64_t> residualShape = {63, 5120};
     std::vector<int64_t> yShape = {63, 5120};
     std::vector<int64_t> gammaShape = {5120};
-    std::vector<int64_t> scaleShape = {252};
+    std::vector<int64_t> scaleShape = {3072};
     std::vector<int64_t> smoothScaleShape = {5120};
     std::vector<int64_t> biasShape = {3072};
     std::vector<int64_t> outShape = {63 * DEV_NUM, 5120};
@@ -109,6 +109,7 @@ int LaunchOneThreadAddRmsNormDynamicQuantAllGatherQbmm(Args &args)
     aclTensor *z = nullptr;
 
     bool transposeX2 = true;
+    int64_t dtype = 0;
     uint64_t residualNormMode = 0;
 
     uint64_t workspaceSize = 0;
@@ -122,47 +123,47 @@ int LaunchOneThreadAddRmsNormDynamicQuantAllGatherQbmm(Args &args)
     long long gammaShapeSize = GetShapeSize(gammaShape);
     long long scaleShapeSize = GetShapeSize(scaleShape);
     long long smoothScaleShapeSize = GetShapeSize(smoothScaleShape);
-    long long biasShapeSize = GetShapeSize(bias);
-    long long outputshapeSize = GetShapeSize(outputShape);
+    long long biasShapeSize = GetShapeSize(biasShape);
+    long long outputshapeSize = GetShapeSize(outShape);
     long long zShapeSize = GetShapeSize(zShape);
 
-    std::vector<int8_t> x1HostData(x1ShapeSize, 0);
+    std::vector<int16_t> x1HostData(x1ShapeSize, 0);
     std::vector<int8_t> x2HostData(x2ShapeSize, 0);
-    std::vector<int8_t> residualHostData(residualShapeSize, 0);
-    std::vector<int32_t> yHostData(yShapeSize, 0);
+    std::vector<int16_t> residualHostData(residualShapeSize, 0);
+    std::vector<int16_t> yHostData(yShapeSize, 0);
     std::vector<int32_t> gammaHostData(gammaShapeSize, 0);
-    std::vector<int32_t> scaleHostData(scaleShapeSize, 0);
+    std::vector<int16_t> scaleHostData(scaleShapeSize, 0);
     std::vector<int32_t> smoothScaleHostData(smoothScaleShapeSize, 0);
-    std::vector<int32_t> biasHostData(biasShapeSize, 0);
-    std::vector<int32_t> outputHostData(outputshapeSize, 0);
+    std::vector<int16_t> biasHostData(biasShapeSize, 0);
+    std::vector<int16_t> outputHostData(outputshapeSize, 0);
     std::vector<int16_t> zHostData(zShapeSize, 0);
     // 创建tensor
-    ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_FLOAT8_E4M3FN, &x1);
+    ret = CreateAclTensor(x1HostData, x1Shape, &x1DeviceAddr, aclDataType::ACL_BF16, &x1);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(x2HostData, x2Shape, &x2DeviceAddr, aclDataType::ACL_FLOAT8_E4M3FN, &x2);
+    ret = CreateAclTensor(x2HostData, x2Shape, &x2DeviceAddr, aclDataType::ACL_INT8, &x2);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(residualHostData, residualShape, &residualDeviceAddr, aclDataType::ACL_FLOAT8_E4M3FN, &residual);
+    ret = CreateAclTensor(residualHostData, residualShape, &residualDeviceAddr, aclDataType::ACL_BF16, &residual);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(yHostData, yShape, &yDeviceAddr, aclDataType::ACL_FLOAT, &y);
+    ret = CreateAclTensor(yHostData, yShape, &yDeviceAddr, aclDataType::ACL_BF16, &y);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
     ret = CreateAclTensor(gammaHostData, gammaShape, &gammaDeviceAddr, aclDataType::ACL_FLOAT, &gamma);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(scaleHostData, scaleShape, &scaleDeviceAddr, aclDataType::ACL_FLOAT16, &scale);
+    ret = CreateAclTensor(scaleHostData, scaleShape, &scaleDeviceAddr, aclDataType::ACL_BF16, &scale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-    ret = CreateAclTensor(smoothScaleHostData, smoothScaleShape, &smoothScaleDeviceAddr, aclDataType::ACL_FLOAT16,
+    ret = CreateAclTensor(smoothScaleHostData, smoothScaleShape, &smoothScaleDeviceAddr, aclDataType::ACL_FLOAT,
         &smoothScale);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_FLOAT16, &bias);
+    ret = CreateAclTensor(biasHostData, biasShape, &biasDeviceAddr, aclDataType::ACL_BF16, &bias);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(outputHostData, outputShape, &outputDeviceAddr, aclDataType::ACL_FLOAT16, &output);
+    ret = CreateAclTensor(outputHostData, outShape, &outputDeviceAddr, aclDataType::ACL_BF16, &output);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
-    ret = CreateAclTensor(zHostData, zShape, &zDeviceAddr, aclDataType::ACL_FLOAT16, &z);
+    ret = CreateAclTensor(zHostData, zShape, &zDeviceAddr, aclDataType::ACL_BF16, &z);
     CHECK_RET(ret == ACL_SUCCESS, return ret);
 
     // 调用第一阶段接口
     ret = aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(x1, x2, residual, y, gamma, scale, smoothScale, bias,
-        hcomName, transposeX2, residualNormMode, output, z, workspaceSize, executor);
+        hcomName, DEV_NUM, transposeX2, dtype, residualNormMode, output, z, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
         LOG_PRINT("[ERROR] aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize failed. ret = %d \n", ret); return ret);
     // 根据第一阶段接口计算出的workspaceSize申请device内存

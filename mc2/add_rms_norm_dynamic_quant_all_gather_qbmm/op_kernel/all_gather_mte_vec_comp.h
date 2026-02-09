@@ -189,6 +189,7 @@ __aicore__ inline void VectorCompute<TemplateType>::DequantReduceSum(
     // 反量化
     Mul(xCastTemp_, xCastTemp_, scaleCalTensor_, xNumPerBlock_);
     PipeBarrier<PIPE_V>();
+    // TODO: 修改，不要累加，改为搬运至win区
     // 累加
     Add(sumTensor, sumTensor, xCastTemp_, xNumPerBlock_);
     PipeBarrier<PIPE_V>();
