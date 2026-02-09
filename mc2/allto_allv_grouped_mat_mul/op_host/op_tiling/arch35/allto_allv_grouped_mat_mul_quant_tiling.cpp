@@ -185,7 +185,7 @@ void AlltoAllvGmmQuantTiling::SetGMMQuantParams(
     gmmQuantTilingData.gmmQuantParams.reserved = 0;
 }
 
-void AlltoAllvGmmQuantTiling::SetTilingArray(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const
+void AlltoAllvGmmQuantTiling::SetTilingArray(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const
 {
     gmmQuantTilingData.gmmArray.mList[0] = static_cast<int32_t>(M);
     gmmQuantTilingData.gmmArray.kList[0] = static_cast<int32_t>(K);
