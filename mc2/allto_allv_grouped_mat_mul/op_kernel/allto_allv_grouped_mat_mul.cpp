@@ -18,17 +18,12 @@
 #include "kernel_operator.h"
 #endif
 #include "allto_allv_grouped_mat_mul_tiling_key.h"
-#ifdef ALLTO_ALLV_GMM_NO_QUANT
 #include "allto_allv_grouped_mat_mul_coarse_grained.h"
-#elif defined(ALLTO_ALLV_GMM_QUANT)
 #include "mc2_templates/mc2_templates.h"
-#endif
 
 using namespace AscendC;
-#if defined(ALLTO_ALLV_GMM_QUANT)
 using namespace MC2KernelTemplate;
 using namespace Mc2GroupedMatmulTilingData;
-#endif
 
 #if defined(CONST_TILING)
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
