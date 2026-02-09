@@ -57,6 +57,8 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
     int64_t            gmmWeightQuantMode,
     int64_t            mmXQuantMode,
     int64_t            mmWeightQuantMode,
+    int64_t            gmmXQuantDType,
+    int64_t            mmXQuantDType,
     const char*        group,
     int64_t            epWorldSize,
     const aclIntArray* sendCounts,
@@ -223,6 +225,20 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <td>mmWeightQuantMode</td>
     <td>输入</td>
     <td>mmWeight的量化模式，当前版本仅支持1。</td>
+    <td>INT64</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>gmmXQuantDType</td>
+    <td>输入</td>
+    <td>预留参数，当前版本仅支持0。</td>
+    <td>INT64</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>mmXQuantDType</td>
+    <td>输入</td>
+    <td>预留参数，当前版本仅支持0。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
@@ -408,7 +424,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
   - BSK：本卡发送的token数，是sendCounts参数累加之和，取值范围(0, 52428800)。
   - H1：表示路由专家hidden size隐藏层大小，取值范围(0, 65536)。
   - H2：表示共享专家hidden size隐藏层大小，取值范围(0, 12288]。
-  - e：表示单卡上专家个数，取值范围(0, 32]，e * epWorldSize最大支持256。
+  - e：表示单卡上专家个数，e<=32，e * epWorldSize最大支持256。
   - N1：表示路由专家的head_num，取值范围(0, 65536)。
   - N2：表示共享专家的head_num，取值范围(0, 65536)。
   - BS：batch sequence size。
@@ -615,6 +631,8 @@ int LaunchOneThreadQuantAlltoAllvGmm(Args &args)
         1, // gmmWeightQuantMode
         1, // mmXQuantMode
         1, // mmWeightQuantMode
+        0, // gmmXQuantDType
+        0, // mmXQuantDType
         hcomName,
         EP_WORLD_SIZE,
         sendCounts,
