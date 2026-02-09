@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -116,33 +116,9 @@ ASCENDC_TPL_SEL(
     ),
     ASCENDC_TPL_ARGS_SEL(
         ASCENDC_TPL_DTYPE_SEL(D_T_MM, ADD_TPL_HIF8),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM, 0),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_GMM_WEIGHT_TRANSPOSE, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM_WEIGHT_TRANSPOSE, 0),
-    ),
-    ASCENDC_TPL_ARGS_SEL(
-        ASCENDC_TPL_DTYPE_SEL(D_T_MM, ADD_TPL_HIF8),
         ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM, 1),
         ASCENDC_TPL_BOOL_SEL(TILINGKEY_GMM_WEIGHT_TRANSPOSE, 0),
         ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM_WEIGHT_TRANSPOSE, 0),
-    ),
-    ASCENDC_TPL_ARGS_SEL(
-        ASCENDC_TPL_DTYPE_SEL(D_T_MM, ADD_TPL_HIF8),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_GMM_WEIGHT_TRANSPOSE, 0),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM_WEIGHT_TRANSPOSE, 1),
-    ),
-    ASCENDC_TPL_ARGS_SEL(
-        ASCENDC_TPL_DTYPE_SEL(D_T_MM, ADD_TPL_HIF8),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_GMM_WEIGHT_TRANSPOSE, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM_WEIGHT_TRANSPOSE, 0),
-    ),
-    ASCENDC_TPL_ARGS_SEL(
-        ASCENDC_TPL_DTYPE_SEL(D_T_MM, ADD_TPL_HIF8),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_GMM_WEIGHT_TRANSPOSE, 1),
-        ASCENDC_TPL_BOOL_SEL(TILINGKEY_MM_WEIGHT_TRANSPOSE, 1),
     ),
 ); // AlltoAllvGroupedMatMu
 

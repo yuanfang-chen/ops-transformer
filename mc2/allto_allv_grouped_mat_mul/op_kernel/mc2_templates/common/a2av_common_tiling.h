@@ -1,12 +1,12 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
-  */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /* !
  * \file a2av_common_tiling.h
@@ -16,20 +16,31 @@
 #ifndef A2AV_COMMON_H
 #define A2AV_COMMON_H
 
-#if __has_include("../../../3rd/grouped_matmul/op_kernel/grouped_matmul_tiling_data_apt.h")
-#include "../../../3rd/grouped_matmul/op_kernel/grouped_matmul_tiling_data_apt.h"
+#if __has_include("../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h")
+#include "../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #else
-#include "../../../../3rd/grouped_matmul/op_kernel/grouped_matmul_tiling_data_apt.h"
+#include "../../../../3rd/grouped_matmul/op_kernel/arch35/grouped_matmul_tiling_data_apt.h"
 #endif
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 1U; // TODO等待整改
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 
 // 类型复用声明
 using GMMQuantTilingData = Mc2GroupedMatmulTilingData::GMMQuantTilingData;
 using GMMArray = Mc2GroupedMatmulTilingData::GMMArray;
+
+/**
+ * GMM Tiling 数组封装
+ * 供 GMM All2AllV 和 All2AllV GMM 两个算子共用
+ */
+ //TODO 删除
+struct GmmTilingArray {
+    uint32_t count;                              // 实际使用的 tiling 数量
+    // GMMQuantTilingData array[MAX_EXPERT_PER_EP]; // GMM Tiling 数组
+    GMMQuantTilingData array;
+};
 
 struct HcclA2avTilingInfo {
     Mc2InitTiling hcclInitTiling;

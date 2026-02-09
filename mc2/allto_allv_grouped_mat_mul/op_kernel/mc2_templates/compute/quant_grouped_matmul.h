@@ -1,34 +1,12 @@
-/* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
-  */
-
-/* !
- * \file quant_grouped_matmul.h
- * \brief
- */
- 
 #ifndef MC2_QUANT_GROUPED_MATMUL_H
 #define MC2_QUANT_GROUPED_MATMUL_H
 
 #include "kernel_operator.h"
-
-#if __has_include("../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h")
-#include "../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h"
-#else
-#include "../../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h"
-#endif
+#include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
-constexpr uint64_t GROUP_LIST_INDEX = 0;
-
 template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
     CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal>
 class QuantGroupedMatmul {
@@ -53,11 +31,11 @@ public:
 
         expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
         epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
-        h1_ = tilingData_->taskTilingInfo.H1;
-        n1_ = tilingData_->taskTilingInfo.N1;
-        bs_ = tilingData_->taskTilingInfo.BS;
-        a_ = tilingData_->taskTilingInfo.A;
-        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ : workspaceGM_ + a_ * h1_;
+        H1_ = tilingData_->taskTilingInfo.H1;
+        N1_ = tilingData_->taskTilingInfo.N1;
+        BS_ = tilingData_->taskTilingInfo.BS;
+        BSK_ = tilingData_->taskTilingInfo.BSK;
+        groupListGm_ = workspaceGM_ + BSK_ * H1_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -82,12 +60,13 @@ public:
         if (expertTokenNum_[expertIdx] == 0) {
             return ;
         }
-        uint64_t groupListToken = isLocal ? bs_ : expertTokenNum_[expertIdx];
-        groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
+        uint64_t groupListToken = isLocal ? BS_ : expertTokenNum_[expertIdx];
+        groupListGlobalBuffer_.SetValue(0, groupListToken);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
+
         this->UpdateAddr(expertIdx);
-        Mc2GroupedMatmul::Mc2GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
+        GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
         tPipe_->Reset();
         gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
             &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
@@ -103,9 +82,9 @@ public:
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
-        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * h1_);
-        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * h1_ * n1_);
-        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * n1_);
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
@@ -131,10 +110,10 @@ private:
     uint64_t expertTokenOffset_ = 0;
     uint64_t expertNumInOneRank_ = 0;
     uint64_t epWorldSize_ = 0;
-    uint64_t h1_;
-    uint64_t n1_;
-    uint64_t bs_;
-    uint64_t a_;
+    uint64_t H1_;
+    uint64_t N1_;
+    uint64_t BS_;
+    uint64_t BSK_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
 };

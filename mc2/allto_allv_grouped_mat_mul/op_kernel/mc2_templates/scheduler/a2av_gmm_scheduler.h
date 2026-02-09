@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -17,17 +17,13 @@
 #define MC2_PIPELINE_TEMPLATE_COMM_COMPUTE_H
 
 #include "kernel_tiling/kernel_tiling.h"
-#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
-#else
-#include "kernel_operator.h"
-#endif
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputeOpType, typename LocalComputeOpType, typename TilingDataType, typename GmmTilingDataType,
-    typename GmmArrayAddrType, bool IsNeedMM>
+    typename GmmArrayAddrType, bool isNeedMM>
 class A2avGmmScheduler {
 public:
     __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM,
@@ -35,31 +31,32 @@ public:
         GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM,
         GmmArrayAddrType *gmmArrayAddrIn, GmmArrayAddrType *mmArrayAddrIn, TPipe *tPipe)
     {
+        auto tiling = (__gm__ TilingDataType *)tilingGM;
         GET_TILING_DATA(tilingData, tilingGM);
         tilingData_ = &tilingData;
         e_ = tilingData_->taskTilingInfo.e;
-        const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
-        uint64_t hcclCcTilingOffset = offsetof(TilingDataType,  hcclA2avTilingInfo) +
-                        offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
-        commOutGm = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
-        commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, commOutGm);
-        if (IsNeedMM) {
+        __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.hcclInitTiling));
+        __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.a2avCcTiling));
+        commOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
+        if (isNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         }
-        computeOp.Init(commOutGm, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
+        computeOp.Init(permuteOutOptionalGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
             &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
     }
 
     __aicore__ inline void Process()
     {
-        if (IsNeedMM) {
+        if (isNeedMM) {
             localComputeOp.Process(0);
             SyncAll<false>();
         }
+        // TODO commOp.Launch(0, e_);
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Launch(expertIdx, 1);
         }
+        // commOp.TempLaunch();
         for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
             commOp.Wait(expertIdx);
             SyncAll<false>();
@@ -80,8 +77,7 @@ private:
     CommOpType commOp;
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
-    GM_ADDR commOutGm = nullptr;
-    const TilingDataType *tilingData_ = nullptr;
+    const TilingDataType *tilingData_;
     uint32_t e_ = 0U;
 };
 };

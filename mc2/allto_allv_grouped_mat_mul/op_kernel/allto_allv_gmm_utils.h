@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -14,6 +14,13 @@
  */
 #ifndef __ALLTO_ALLV_GMM_UTILS_H__
 #define __ALLTO_ALLV_GMM_UTILS_H__
+
+#if defined(ORIG_DTYPE_GMM_X) && defined(DT_BFLOAT16) && defined(DT_FLOAT16) && \
+    (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
+#define ALLTO_ALLV_GMM_NO_QUANT
+#else
+#define ALLTO_ALLV_GMM_QUANT
+#endif
 
 #include "kernel_tiling/kernel_tiling.h"
 #if ASC_DEVKIT_MAJOR >= 9
@@ -58,5 +65,5 @@ template <typename T> __aicore__ inline T LeastCommonMultiple(T a, T b)
 }
 } // namespace ALLTO_ALLV_GMM
 
-#endif
+#endif \
     // __ALLTO_ALLV_GMM_UTILS_H__
