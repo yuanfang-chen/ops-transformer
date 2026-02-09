@@ -755,6 +755,73 @@ if (BUILD_OPEN_PROJECT)
     )
 endif ()
 
+# -------------------------------------------- generate es transformer ----------------------------------------------
+if(TARGET cust_proto AND NOT ENABLE_BUILT_IN)
+    message(STATUS "LSX Start Generating es transformer for custom pkg")
+    add_library(
+        proto_transformer_cust SHARED
+        ${generate_proto_srcs} # 这里添加了的话，上面的cust_proto就不要再target_sources了
+    )
+    add_dependencies(proto_transformer_cust ops_transformer_proto_headers) # 更新文件生成了吗？这里确实直接用merge的target更直接
+    target_link_libraries(
+        proto_transformer_cust PRIVATE
+        $<BUILD_INTERFACE:intf_pub_cxx17>
+        c_sec
+        -Wl,--no-as-needed
+        register
+        $<$<TARGET_EXISTS:opsbase>:opsbase>
+        -Wl,--as-needed
+    )
+    target_link_directories(proto_transformer_cust PRIVATE ${ASCEND_DIR}/${SYSTEM_PREFIX}/lib64)
+
+    add_es_library(
+        ES_LINKABLE_AND_ALL_TARGET es_transformer
+        OPP_PROTO_TARGET proto_transformer_cust
+        OUTPUT_PATH ${CMAKE_BINARY_DIR}/es_packages
+    )
+    install(
+        DIRECTORY ${CMAKE_BINARY_DIR}/es_packages/include/es_transformer/
+        DESTINATION ${ES_INC_INSTALL_DIR}
+        OPTIONAL
+    )
+    install(
+        FILES ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer.so
+        DESTINATION ${ES_LIB_INSTALL_DIR}
+        OPTIONAL
+    )
+
+    if(TARGET ${GRAPH_PLUGIN_NAME}_obj)
+        message(STATUS "LSX Now in custom graph plugin obj")
+        unset(GRAPH_SOURCE)
+        get_target_property(GRAPH_SOURCE ${GRAPH_PLUGIN_NAME}_obj SOURCES)
+        if(GRAPH_SOURCE)
+            message(STATUS "LSX Now in custom Graph Source to add es to obj")
+            add_dependencies(${GRAPH_PLUGIN_NAME}_obj
+                build_es_transformer
+            )
+            target_link_libraries(${GRAPH_PLUGIN_NAME}_obj
+                PRIVATE es_transformer
+            )
+            add_dependencies(cust_proto build_es_transformer)
+            target_link_directories(
+                cust_proto PRIVATE
+                ${CMAKE_BINARY_DIR}/es_packages/lib64
+                ${ES_LIB_INSTALL_DIR}
+            )
+            target_link_libraries(
+                cust_proto PRIVATE
+                -Wl,--no-as-needed
+                es_transformer
+                -Wl,--as-needed
+            )
+        endif()
+        target_sources(
+            cust_proto PUBLIC
+            $<$<TARGET_EXISTS:${GRAPH_PLUGIN_NAME}_obj>:$<TARGET_OBJECTS:$<${GRAPH_PLUGIN_NAME}_obj>>
+        )
+    endif()
+endif()
+
 # ------------------------------------------------ generate adapt py ------------------------------------------------
 add_custom_target(generate_transformer_adapt_py
         COMMAND ${HI_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/util/ascendc_impl_build.py
