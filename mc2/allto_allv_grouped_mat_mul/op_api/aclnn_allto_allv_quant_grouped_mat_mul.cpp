@@ -56,27 +56,32 @@ static constexpr size_t MIN_K_LEN = 2U;
 static constexpr size_t MAX_K_LEN = 8U;
 
 static bool CheckNullStatus(const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional,
-                            const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, bool permuteOutFlag,
-                            const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
+                            const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
+                            const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
+                            bool permuteOutFlag, const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
     // // 检查必选入参出参为非空
     if ((sendCountsTensorOptional != nullptr) || (recvCountsTensorOptional != nullptr)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCountsTensorOptional and recvCountsTensorOptional should be empty.");
         return false;
     }
-    if ((!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr))) &&
-        (!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr)))) {
+    if ((!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr))) &&
+        (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr)))) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
             "mmXOptional, mmWeightOptional and mmYOptional should all be null or all not be null, left: %u, right: %u, "
-            "mmXOptional is nullptr: %u, mmWeightOptional is nullptr: %u, mmYOptional is nullptr: %u",
-            (!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr))),
-            (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr))),
-            mmXOptional == nullptr, mmWeightOptional == nullptr, mmYOptional == nullptr);
+            "mmXOptional is nullptr: %u, mmWeightOptional is nullptr: %u, mmYOptional is nullptr: %u, mmXScaleOptional is nullptr: %u,"
+            "mmWeightScaleOptional is nullptr: %u,",
+            (!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr) &&
+               (mmXScaleOptional != nullptr) && (mmWeightScaleOptional != nullptr))),
+            (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr) &&
+               (mmXScaleOptional == nullptr) && (mmWeightScaleOptional == nullptr))),
+            mmXOptional == nullptr, mmWeightOptional == nullptr, mmYOptional == nullptr, mmXScaleOptional == nullptr,
+            mmWeightScaleOptional == nullptr);
         return false;
     }
     if (permuteOutFlag == (permuteOutOptional == nullptr)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Optional output flag does not match optional output ptr!");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Optional output flag does not match optional output ptr.");
         return false;
     }
     return true;
@@ -123,29 +128,27 @@ static bool CheckDimValid(const aclTensor *gmmX, const aclTensor *gmmWeight, con
                           const aclTensor *mmWeightOptional, const aclTensor *mmYOptional,
                           const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional)
 {
-    if ((gmmX != nullptr) && (gmmWeight != nullptr) && (gmmY != nullptr)) {
-        if ((gmmX->GetViewShape().GetDimNum() != 2) && (gmmWeight->GetViewShape().GetDimNum() != 3) &&
-            (gmmY->GetViewShape().GetDimNum() != 2)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the dimensions of gmmX, gmmWeight and gmmY do not match.");
-            return false;
-        }
+    if ((gmmX->GetViewShape().GetDimNum() != 2) || (gmmWeight->GetViewShape().GetDimNum() != 3) ||
+        (gmmY->GetViewShape().GetDimNum() != 2)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the dimensions of gmmX, gmmWeight or gmmY do not match.");
+        return false;
     }
-    if ((gmmXScale != nullptr) && (gmmWeightScale != nullptr)) {
-        if ((gmmXScale->GetViewShape().GetDimNum() != 1) && (gmmWeightScale->GetViewShape().GetDimNum() != 1)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the dimensions of gmmXScale and gmmWeightScale are not both one.");
-            return false;
-        }
+
+    if ((gmmXScale->GetViewShape().GetDimNum() != 1) || (gmmWeightScale->GetViewShape().GetDimNum() != 1)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the dimensions of gmmXScale and gmmWeightScale are not both one.");
+        return false;
     }
+
     if ((mmXOptional != nullptr) && (mmXScaleOptional != nullptr)) {
-        if (((mmXOptional->GetViewShape().GetDimNum()) != 2) && ((mmXScaleOptional->GetViewShape().GetDimNum()) != 1)) {
+        if (((mmXOptional->GetViewShape().GetDimNum()) != 2) || ((mmXScaleOptional->GetViewShape().GetDimNum()) != 1)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXOptional dim is not two or mmXScaleOptional dim is not one.");
             return false;
         }
     }
     if ((mmWeightOptional != nullptr) && (mmWeightScaleOptional != nullptr)) {
-        if (((mmWeightOptional->GetViewShape().GetDimNum()) != 2) &&
+        if (((mmWeightOptional->GetViewShape().GetDimNum()) != 2) ||
             ((mmWeightScaleOptional->GetViewShape().GetDimNum()) != 1)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightOptional dim is not two.");
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightOptional dim is not two or mmWeightScaleOptional dim is not one.");
             return false;
         }
     }
@@ -220,39 +223,35 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
 
 
 // 检查是否有空tensor
-static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
+static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
 {
-    auto mVal = gmmX->GetViewShape().GetDim(0);
-    auto kVal1 = gmmX->GetViewShape().GetDim(1);
-    auto kVal2 = gmmWeight->GetViewShape().GetDim(1);
-    auto nVal = gmmWeight->GetViewShape().GetDim(2);
-
-    auto outmVal = gmmY->GetViewShape().GetDim(0);
-    auto outnVal = gmmY->GetViewShape().GetDim(1);
-
-    OP_API_CHECK((mVal == ZERO), {
+    if((gmmX->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((kVal1 == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimK, which is unsupported.");
+    if((gmmX->GetViewShape().GetDim(1) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((kVal2 == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimK, which is unsupported.");
+    if((gmmWeight->GetViewShape().GetDim(0) == ZERO){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((nVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimN, which is unsupported.");
+    if((gmmWeight->GetViewShape().GetDim(1) == ZERO){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
+        return false;
+    });
+    if((gmmWeight->GetViewShape().GetDim(2) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
         return false;
     });
 
-    OP_API_CHECK((outmVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimK, which is unsupported.");
+    if((gmmY->GetViewShape().GetDim(0) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimM, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((outnVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimN, which is unsupported.");
+    if((gmmY->GetViewShape().GetDim(1) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with one dimN, which is unsupported.");
         return false;
     });
     return true;
@@ -260,8 +259,7 @@ static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeigh
 
 static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmXScale,
                             const aclTensor *gmmWeightScale, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-                            const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional)
-{
+                            const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional) {
     if (static_cast<QuantModeType>(gmmXQuantMode) == QuantModeType::NO_QUANT) {
         if ((gmmXScale != nullptr)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXScale should be empty.");
@@ -322,11 +320,11 @@ bool is_power_of_two(int64_t n)
 static bool CheckGmmShape(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale,
                           const aclTensor *gmmWeightScale, const aclTensor *gmmY, int64_t epWorldSize)
 {
-    if ((gmmX->GetViewShape().GetDim(0) == ZERO) || (gmmX->GetViewShape().GetDim(0) > MAX_BSK_LEN)) {
+    if ((gmmX->GetViewShape().GetDim(0) < ZERO) || (gmmX->GetViewShape().GetDim(0) > MAX_BSK_LEN)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the first dimension of gmmX does not match.");
         return false;
     }
-    if ((gmmX->GetViewShape().GetDim(1) == ZERO) || (gmmX->GetViewShape().GetDim(1) > MAX_H1_LEN)) {
+    if ((gmmX->GetViewShape().GetDim(1) < ZERO) || (gmmX->GetViewShape().GetDim(1) > MAX_H1_LEN)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the second dimension of gmmX does not match.");
         return false;
     }
@@ -352,7 +350,6 @@ static bool CheckGmmShape(const aclTensor *gmmX, const aclTensor *gmmWeight, con
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of gmmY does not match.");
         return false;
     }
-
     if (!(is_power_of_two(epWorldSize))) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the size of epWorldSize does not match.");
         return false;
@@ -367,8 +364,8 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
     if (mmXOptional != nullptr) {
         auto k1 = (gmmX->GetViewShape().GetDim(0)) % (mmXOptional->GetViewShape().GetDim(0));
         auto k2 = (gmmX->GetViewShape().GetDim(0)) / (mmXOptional->GetViewShape().GetDim(0));
-        if ((mmXOptional->GetViewShape().GetDim(0) == ZERO) || (mmXOptional->GetViewShape().GetDim(0) == ZERO) ||
-            (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
+
+        if ((mmXOptional->GetViewShape().GetDim(0) < ZERO) || (mmXOptional->GetViewShape().GetDim(1) > MAX_H2_LEN)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmX does not match.");
             return false;
         }
@@ -379,7 +376,7 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
     }
     if (mmWeightOptional != nullptr) {
         if (((mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1)) ||
-             (mmWeightOptional->GetViewShape().GetDim(1) == ZERO) ||
+             (mmWeightOptional->GetViewShape().GetDim(1) < ZERO) ||
              (mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN)) ||
             (mmXScaleOptional->GetViewShape().GetDim(0) != 1)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmWeight  or mmXScaleOptional do not match.");
@@ -388,7 +385,7 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
     }
     if (mmWeightOptional != nullptr) {
         if (((mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1)) ||
-             (mmWeightOptional->GetViewShape().GetDim(1) == ZERO) ||
+             (mmWeightOptional->GetViewShape().GetDim(1) < ZERO) ||
              (mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN)) ||
             (mmWeightScaleOptional->GetViewShape().GetDim(0) != 1)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmWeight or mmWeightScaleOptional do not match.");
@@ -411,32 +408,23 @@ static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const
                         const aclTensor *mmWeightOptional, const aclTensor *mmXScaleOptional,
                         const aclTensor *mmWeightScaleOptional, const aclTensor *gmmY, const aclTensor *mmYOptional)
 {
-    // 输入格式只支持ND格式
-    if (IsPrivateFormat(gmmX->GetStorageFormat())) {
+    if ((IsPrivateFormat(gmmX->GetStorageFormat())) || IsPrivateFormat(gmmWeight->GetStorageFormat())) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmX format %s does not support private format.",
-                op::ToString(gmmX->GetStorageFormat()).GetString());
-        return false;
-    }
-    if (IsPrivateFormat(gmmWeight->GetStorageFormat())) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmWeight format %s does not support private format.",
-                op::ToString(gmmWeight->GetStorageFormat()).GetString());
+                "gmmX format %s or gmmWeight format %s do not support private format.",
+                op::ToString(gmmX->GetStorageFormat()).GetString(), op::ToString(gmmWeight->GetStorageFormat()).GetString());
         return false;
     }
     if ((IsPrivateFormat(gmmXScale->GetStorageFormat())) || (IsPrivateFormat(gmmWeightScale->GetStorageFormat()))) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
-            "aclnnQuantAlltoAllVGroupMatmul, gmmXScale or gmmWeightScale format %s does not support private format.",
+            "gmmXScale or gmmWeightScale format %s do not support private format.",
             op::ToString(gmmXScale->GetStorageFormat()).GetString());
         return false;
     }
     if (mmXOptional != nullptr) {
-        if ((IsPrivateFormat(mmXOptional->GetStorageFormat())) ||
-            (IsPrivateFormat(mmXScaleOptional->GetStorageFormat()))) {
+        if ((IsPrivateFormat(mmXOptional->GetStorageFormat())) || (IsPrivateFormat(mmXScaleOptional->GetStorageFormat()))) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmXOptional or mmXScaleOptional format %s does not support "
-                    "private format.",
+                    "mmXOptional or mmXScaleOptional format %s do not support private format.",
                     op::ToString(mmXOptional->GetStorageFormat()).GetString());
             return false;
         }
@@ -445,22 +433,21 @@ static bool CheckFormat(const aclTensor *gmmX, const aclTensor *gmmWeight, const
         if ((IsPrivateFormat(mmWeightOptional->GetStorageFormat())) ||
             (IsPrivateFormat(mmWeightScaleOptional->GetStorageFormat()))) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmWeightOptional or mmWeightScaleOptional format %s does not "
-                    "support private format.",
+                    "mmWeightOptional or mmWeightScaleOptional format %s do not support private format.",
                     op::ToString(mmWeightOptional->GetStorageFormat()).GetString());
             return false;
         }
     }
     if (IsPrivateFormat(gmmY->GetStorageFormat())) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnQuantAlltoAllVGroupMatmul, gmmY format %s does not support private format.",
+                "gmmY format %s does not support private format.",
                 op::ToString(gmmY->GetStorageFormat()).GetString());
         return false;
     }
     if (mmYOptional != nullptr) {
         if (IsPrivateFormat(mmYOptional->GetStorageFormat())) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "aclnnQuantAlltoAllVGroupMatmul, mmYOptional format %s does not support private format.",
+                    "mmYOptional format %s does not support private format.",
                     op::ToString(mmYOptional->GetStorageFormat()).GetString());
             return false;
         }
@@ -482,9 +469,9 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     (void)epWorldSize; // Unused
     // 1.检查空状态
     CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
-                              permuteOutFlag, mmYOptional, permuteOutOptional),
+                              mmXScaleOptional, mmWeightScaleOptional, permuteOutFlag, mmYOptional, permuteOutOptional),
               ACLNN_ERR_PARAM_INVALID);
-    //  检查group长度是否小于等于128
+    // 2.检查group长度是否小于等于128
     CHECK_RET(allto_allv_grouped_mat_mul_checker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
     // 3.检查参数是否为空
     CHECK_RET(CheckNotNull(gmmX, gmmWeight, gmmY, gmmXScale, gmmWeightScale, gmmXQuantMode, gmmWeightQuantMode),
@@ -497,9 +484,9 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckDimValid(gmmX, gmmWeight, gmmY, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                             mmYOptional, mmXScaleOptional, mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 5.检查空tensor
-    CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
-    // 检查所有输入/量化数据类型
+    // 6.检查空tensor
+    CHECK_RET(CheckEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
+    // 7.检查所有输入/量化数据类型
     CHECK_RET(CheckDtypesValid(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                                mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, permuteOutOptional),
               ACLNN_ERR_PARAM_INVALID);
@@ -507,12 +494,12 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckQuantValid(gmmXQuantMode, gmmWeightQuantMode, gmmXScale, gmmWeightScale, mmXQuantMode,
                               mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 检查shape
+    // 9.检查shape
     CHECK_RET(CheckGmmShape(gmmX, gmmWeight, gmmXScale, gmmWeightScale, gmmY, epWorldSize), ACLNN_ERR_PARAM_INVALID);
 
     CHECK_RET(CheckMmShape(gmmX, mmXOptional, mmWeightOptional, mmXScaleOptional, mmWeightScaleOptional, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 6.检查输入的数据格式是否为ND
+    // 10.检查输入的数据格式是否为ND
     CHECK_RET(CheckFormat(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional, mmXScaleOptional,
                           mmWeightScaleOptional, gmmY, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
