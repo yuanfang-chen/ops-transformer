@@ -19,6 +19,5 @@
 #include "communication/hccl_a2av_op.h"
 #include "compute/quant_grouped_matmul.h"
 #include "common/a2av_common_tiling.h"
-#include "../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
 
 #endif // MC2_TEMPLATES_H
