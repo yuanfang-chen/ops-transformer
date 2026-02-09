@@ -44,7 +44,7 @@
 
     - **计算过程**
 
-      - 1.根据groupList[i]确定当前分组的 token ，$i \in [0,Len(groupList)]$。
+      - 1.根据groupList[i]确定当前分组的 token ，$i \in [0,Len(groupList))$。
 
         >例子：假设groupList=[3,4,4,6]、groupListType=cumsum或groupList=[3,1,0,2]、groupListType=count。
         >
@@ -61,7 +61,7 @@
         >注：grouplist中未指定的部分将不会参与更新。
         >例如当groupList=[12,14,18]、GroupListType=cumsum，X的shape为[30，:]时。
         >
-        >则第一个输出Q的shape为[30，:]，其中Q[18:，：]的部分不会进行更新和初始化，其中数据为显存空间申请时的原数据。
+        >则第一个输出Q的shape为[30, :]，其中Q[18:, :]的部分不会进行更新和初始化，其中数据为显存空间申请时的原数据。
         >
         >同理，第二个输出Q\_scale的shape为[30]，其中Q\_scale[18:]的部分不会进行更新或初始化，其中数据为显存空间申请时的原数据。
         >
@@ -69,7 +69,7 @@
 
       - 2.根据分组确定的入参进行如下计算：
 
-        $C_{i} = (X_{i}\cdot W_{i} )\odot x\_scale_{i\ BroadCast} \odot w\_scale_{i\ BroadCast}$
+        $C_{i} = (X_{i}\cdot W_{i} )\odot x\_scale_{i\,\text{Broadcast}} \odot w\_scale_{i\,\text{Broadcast}}$
 
         $C_{i,act}, gate_{i} = split(C_{i})$
 
@@ -96,7 +96,7 @@
     - **输入**：
       * $X∈\mathbb{Z_8}^{M \times K}$：激活矩阵（左矩阵），M是总token数，K是特征维度。
       * $W∈\mathbb{Z_4}^{E \times K \times N}$：分组权重矩阵（右矩阵），E是专家个数，K是特征维度，N是输出维度。
-      * $weightAsistMatrix∈\mathbb{R}^{E \times N}$：计算矩阵乘时的辅助矩阵（生成辅助矩阵的计算过程见下文）。
+      * $weightAssistMatrix∈\mathbb{R}^{E \times N}$：计算矩阵乘时的辅助矩阵（生成辅助矩阵的计算过程见下文）。
       * $w\_scale∈\mathbb{R}^{E \times K\_group\_num \times N}$：分组权重矩阵（右矩阵）的逐通道缩放因子，E是专家个数，K\_group\_num是在K轴维度上的分组数，N是输出维度。
       * $x\_scale∈\mathbb{R}^{M}$：激活矩阵（左矩阵）的逐token缩放因子，M是总token数。
       * $grouplist∈\mathbb{N}^{E}$：cumsum或count的分组索引列表。
@@ -106,14 +106,14 @@
     - **计算过程**
       - 1.根据groupList[i]确定当前分组的token，$i \in [0,Len(groupList)]$。
         - 分组逻辑与A8W8相同。
-      - 2.生成辅助矩阵（weightAsistMatrix）的计算过程（请注意weightAsistMatrix部分计算为离线生成作为输入，并非算子内部完成）：
+      - 2.生成辅助矩阵（weightAssistMatrix）的计算过程（请注意weightAssistMatrix部分计算为离线生成作为输入，并非算子内部完成）：
         - 当为per-channel量化（$w\_scale$为2维）：
 
-          $weightAsistMatrix_{i} = 8 × weightScale × Σ_{k=0}^{K-1} weight[:,k,:]$
+          $weightAssistMatrix_{i} = 8 × w\_scale × Σ_{k=0}^{K-1} weight[:,k,:]$
 
         - 当为per-group量化（$w\_scale$为3维）：
 
-          $weightAsistMatrix_{i} = 8 × Σ_{k=0}^{K-1} (weight[:,k,:] × weightScale[:, ⌊k/num\_per\_group⌋, :])$
+          $weightAssistMatrix_{i} = 8 × Σ_{k=0}^{K-1} (weight[:,k,:] × w\_scale[:, ⌊k/num\_per\_group⌋, :])$
 
           注：$num\_per\_group = K // K\_group\_num$
 
@@ -137,7 +137,7 @@
 
         - 3.3.将高低位的矩阵乘结果还原为整体的结果
 
-          $C_{i} = (C\_high_{i} * 16 + C\_low_{i} + weightAsistMatrix_{i}) \odot x\_scale_{i}$
+          $C_{i} = (C\_high_{i} * 16 + C\_low_{i} + weightAssistMatrix_{i}) \odot x\_scale_{i}$
 
           $C_{i,act}, gate_{i} = split(C_{i})$
 
@@ -395,7 +395,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNZ(
   </thead>
   <tbody>
     <tr><td>workspace</td><td>输入</td><td>在Device侧申请的workspace内存地址。</td></tr>
-    <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnGroupedMatmulSwigluQuantV2GetWorkspaceSize获取。</td></tr>
+    <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnGroupedMatmulSwigluQuantWeightNZGetWorkspaceSize获取。</td></tr>
     <tr><td>executor</td><td>输入</td><td>op执行器，包含了算子计算流程。</td></tr>
     <tr><td>stream</td><td>输入</td><td>指定执行任务的Stream。</td></tr>
   </tbody>
@@ -416,7 +416,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNZ(
   - 2.N轴长度不能超过10240。
 
 
-- A8W4场景（`A`指激活矩阵（左矩阵），`W`指权重矩阵（右矩阵），`8`指数据类型为`INT4`）
+- A8W4场景（`A`指激活矩阵（左矩阵），`W`指权重矩阵（右矩阵），`4`指数据类型为`INT4`）
 
   - 1.x的尾轴长度不能大于等于20000。
   - 2.N轴长度不能超过10240。
@@ -585,7 +585,7 @@ int main() {
                         size * sizeof(out1Data[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
     for (int64_t j = 0; j < size; j++) {
-        LOG_PRINT("result[%d] is: %d\n", j, out1Data[j]);
+        LOG_PRINT("result[%ld] is: %d\n", j, out1Data[j]);
     }
     size = GetShapeSize(outputScaleShape);
     std::vector<float> out2Data(size, 0);
@@ -593,7 +593,7 @@ int main() {
                         size * sizeof(out2Data[0]), ACL_MEMCPY_DEVICE_TO_HOST);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("copy result from device to host failed. ERROR: %d\n", ret); return ret);
     for (int64_t j = 0; j < size; j++) {
-        LOG_PRINT("result[%d] is: %f\n", j, out2Data[j]);
+        LOG_PRINT("result[%ld] is: %f\n", j, out2Data[j]);
     }
     // 6. 释放aclTensor和aclScalar，需要根据具体API的接口定义修改
     aclDestroyTensor(x);
