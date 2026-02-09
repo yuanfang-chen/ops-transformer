@@ -19,6 +19,7 @@
 #include "op_mc2_def.h"
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
+#include "opdev/platform.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "hccl/hcom.h"
@@ -27,11 +28,6 @@
 #include "hccl/hccl_res.h"
 #include "hccl/hccl.h"
 #include "hccl/hccn_rping.h"
-
-#include "opdev/op_executor.h"
-#include "opdev/make_op_executor.h"
-#include "opdev/op_dfx.h"
-#include "opdev/platform.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
