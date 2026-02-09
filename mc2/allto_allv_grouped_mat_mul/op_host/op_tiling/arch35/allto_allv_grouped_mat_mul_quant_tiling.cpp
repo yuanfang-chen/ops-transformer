@@ -140,7 +140,8 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(context_->GetNodeName(), "can not get workspace."),
         return ge::GRAPH_FAILED);
     uint64_t permuteOutSize = permuteOutFlag_ ? 0 : (a_ * h1_ * GetSizeByDataType(gmmXDataType_));
-    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize;
+    uint64_t groupListSize = sizeof(int64_t); // GMM计算所需的groupList GM空间大小
+    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize + groupListSize;
     OP_LOGD(context_->GetNodeName(), "end GetWorkspaceSize.");
     return ge::GRAPH_SUCCESS;
 }
@@ -330,15 +331,15 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckGmmDType() const
     OP_TILING_CHECK(gmmWeightDataType != ge::DT_HIFLOAT8,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmWeight only support hifloat8."),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMMX_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "GetInputDesc gmmXScale returned null."), return ge::GRAPH_FAILED);
-    auto gmmXScaleDataType = context_->GetOptionalInputDesc(GMMX_SCALE_INDEX)->GetDataType();
+    auto gmmXScaleDataType = context_->GetOptionalInputDesc(GMM_X_SCALE_INDEX)->GetDataType();
     OP_TILING_CHECK(gmmXScaleDataType != ge::DT_FLOAT,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmXScale only support float32."),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMMW_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "GetInputDesc gmmWeightScale returned null."), return ge::GRAPH_FAILED);
-    auto gmmWeightScaleDataType = context_->GetOptionalInputDesc(GMMW_SCALE_INDEX)->GetDataType();
+    auto gmmWeightScaleDataType = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_INDEX)->GetDataType();
     OP_TILING_CHECK(gmmWeightScaleDataType != ge::DT_FLOAT,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, gmmWeightScale only support float32."),
         return ge::GRAPH_FAILED);
@@ -378,15 +379,15 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckMmDType() const
     OP_TILING_CHECK(mmWeightDataType != ge::DT_HIFLOAT8,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmWeight only support hifloat8."),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(MMX_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(MM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "GetOptionalInputDesc mmXScale returned null."), return ge::GRAPH_FAILED);
-    auto mmXScaleDataType = context_->GetOptionalInputDesc(MMX_SCALE_INDEX)->GetDataType();
+    auto mmXScaleDataType = context_->GetOptionalInputDesc(MM_X_SCALE_INDEX)->GetDataType();
     OP_TILING_CHECK(mmXScaleDataType != ge::DT_FLOAT,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmXScale only support float32."),
         return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputDesc(MMW_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "GetOptionalInputDesc mmWeightScale returned null."), return ge::GRAPH_FAILED);
-    auto mmWeightScaleDataType = context_->GetOptionalInputDesc(MMW_SCALE_INDEX)->GetDataType();
+    auto mmWeightScaleDataType = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_INDEX)->GetDataType();
     OP_TILING_CHECK(mmWeightScaleDataType != ge::DT_FLOAT,
         OP_LOGE(context_->GetNodeName(), "Unsupported dataType, mmWeightScale only support float32."),
         return ge::GRAPH_FAILED);
@@ -417,16 +418,16 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckQuantMode() const
         OP_LOGE(context_->GetNodeName(), "gmmWeightQuantMode only support 1(pertensor mode)."),
         return ge::GRAPH_FAILED);
     // check gmmXScale shape
-    OP_TILING_CHECK(context_->GetOptionalInputShape(GMMX_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape can not be null."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputShape(GMMX_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
-        context_->GetOptionalInputShape(GMMX_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
+    OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
+        context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape should be [1]"), return ge::GRAPH_FAILED);
     // check gmmWeightScale shape
-    OP_TILING_CHECK(context_->GetOptionalInputShape(GMMW_SCALE_INDEX) == nullptr,
+    OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "gmmWeightScale input shape can not be null."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(context_->GetOptionalInputShape(GMMW_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
-        context_->GetOptionalInputShape(GMMW_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
+    OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
+        context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
         OP_LOGE(context_->GetNodeName(), "gmmWeightScale input shape should be [1]."), return ge::GRAPH_FAILED);
     if (hasSharedExpertFlag_) {
         // mmXQuantMode

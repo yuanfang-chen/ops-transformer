@@ -15,22 +15,22 @@
 
 ## 功能说明
 
-- **接口功能**：完成路由专家AlltoAllv、Permute、GroupedMatMul融合并实现与共享专家MatMul并行融合，**先通信后计算**。
+- **算子功能**：完成路由专家AlltoAllv、Permute、GroupedMatMul融合并实现与共享专家MatMul并行融合，**先通信后计算**。
 
 - **计算公式**：
-    - 路由专家：
+- 路由专家：
 
-    $$
-    ataOut = AlltoAllv(gmmX) \\
-    permuteOut = Permute(ataOut) \\
-    gmmY = permuteOut \times gmmWeight
-    $$
+  $$
+  ataOut = AlltoAllv(gmmX) \\
+  permuteOut = Permute(ataOut) \\
+  gmmY = permuteOut \times gmmWeight
+  $$
 
-    - 共享专家：
+- 共享专家：
 
-    $$
-    mmY = mmX \times mmWeight
-    $$
+  $$
+  mmY = mmX \times mmWeight
+  $$
 
 ## 函数原型
 
@@ -138,21 +138,21 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
-    <td>ep通信域size：<br><term>Atlas A3系列产品</term>支持8、16、32、64、128；<br><term>Ascend 950PR/Ascend 950DT</term>支持4、8、16、32、64。</td>
+    <td>ep通信域size：<br><term>Atlas A3系列产品</term>支持8、16、32、64、128；<br><term>Ascend 950PR/Ascend 950DT</term>支持2、4、8、16、32、64。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>sendCounts</td>
     <td>输入</td>
-    <td>表示发送给其他卡的token数，数据类型支持INT64，取值大小为e * epWorldSize，最大为256。输入类型需为list。</td>
+    <td>表示发送给其他卡的token数，数据类型支持INT64，list大小为e * epWorldSize，最大为256。输入类型需为list。</td>
     <td>aclIntArray*（元素类型INT64）</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>recvCounts</td>
     <td>输入</td>
-    <td>表示接收其他卡的token数，数据类型支持INT64，取值大小为e * epWorldSize，最大为256。输入类型需为list。</td>
+    <td>表示接收其他卡的token数，数据类型支持INT64，list大小为e * epWorldSize，最大为256。输入类型需为list。</td>
     <td>aclIntArray*（元素类型INT64）</td>
     <td>ND</td>
     </tr>
@@ -304,7 +304,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(
   - A：本卡收到的token数，是recvCounts参数累加之和。
   - ep通信域内所有卡的 A 参数的累加和等于所有卡上的 BSK 参数的累加和。
 
-- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量取值需大于等于2MB。
+- <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>: 单卡通信量在2MB以下可能存在性能劣化。
 
 ## 调用示例
 

@@ -32,10 +32,14 @@ constexpr uint32_t SEND_COUNTS_TENSOR_INDEX = 2U;
 constexpr uint32_t RECV_COUNTS_TENSOR_INDEX = 3U;
 constexpr uint32_t MM_X_INDEX = 4U;
 constexpr uint32_t MM_WEIGHT_INDEX = 5U;
-constexpr uint32_t GMMX_SCALE_INDEX = 6U;
-constexpr uint32_t GMMW_SCALE_INDEX = 7U;
-constexpr uint32_t MMX_SCALE_INDEX = 8U;
-constexpr uint32_t MMW_SCALE_INDEX = 9U;
+constexpr uint32_t GMM_X_SCALE_INDEX = 6U;
+constexpr uint32_t GMM_WEIGHT_SCALE_INDEX = 7U;
+constexpr uint32_t GMM_X_OFFSET = 8U;
+constexpr uint32_t GMM_WEIGHT_OFFSET = 9U;
+constexpr uint32_t MM_X_SCALE_INDEX = 10U;
+constexpr uint32_t MM_WEIGHT_SCALE_INDEX = 11U;
+constexpr uint32_t MM_X_OFFSET = 12U;
+constexpr uint32_t MM_WEIGHT_OFFSET = 13U;
 // output
 constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0U;
 constexpr uint32_t OUTPUT_MM_Y_INDEX = 1U;
@@ -52,8 +56,9 @@ constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 7;
 constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 8;
 constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 9;
 constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 10;
-constexpr uint32_t ATTR_GMM_X_QUANT_DTYPE_INDEX = 11;
-constexpr uint32_t ATTR_MM_X_QUANT_DTYPE_INDEX = 12;
+constexpr uint32_t ATTR_GROUP_SIZE_INDEX = 11;
+constexpr uint32_t ATTR_Y_DTYPE = 12;
+constexpr uint32_t ATTR_MM_DTYPE = 13;
 // dim index
 constexpr uint32_t DIM_ZERO = 0;
 constexpr uint32_t DIM_ONE = 1;
@@ -122,8 +127,6 @@ protected:
     const int64_t *gmmWeightQuantModePtr_;
     const int64_t *mmXQuantModePtr_;
     const int64_t *mmWeightQuantModePtr_;
-    const int64_t *gmmXQuantDTypePtr_;
-    const int64_t *mmXQuantDTypePtr_;
     // shape
     uint64_t bsk_ = 0;
     uint64_t h1_ = 0;

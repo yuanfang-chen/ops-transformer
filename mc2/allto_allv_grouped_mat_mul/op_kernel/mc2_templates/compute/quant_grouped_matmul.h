@@ -2,11 +2,13 @@
 #define MC2_QUANT_GROUPED_MATMUL_H
 
 #include "kernel_operator.h"
-#include "../../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../../3rd/gqmm_cube_on_the_fly.h"
 
 using namespace AscendC;
 
 namespace MC2KernelTemplate {
+constexpr uint64_t GROUP_LIST_INDEX = 0;
+
 template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
     CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal>
 class QuantGroupedMatmul {
@@ -61,7 +63,7 @@ public:
             return ;
         }
         uint64_t groupListToken = isLocal ? BS_ : expertTokenNum_[expertIdx];
-        groupListGlobalBuffer_.SetValue(0, groupListToken);
+        groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
 

@@ -139,8 +139,6 @@ ge::graphStatus AlltoAllvGmmTilingBase::GetAttrsInfo()
     gmmWeightQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_GMM_WEIGHT_QUANT_MODE_INDEX);
     mmXQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_MODE_INDEX);
     mmWeightQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_WEIGHT_QUANT_MODE_INDEX);
-    gmmXQuantDTypePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_GMM_X_QUANT_DTYPE_INDEX);
-    mmXQuantDTypePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_DTYPE_INDEX);
     OP_LOGD(context_->GetNodeName(), "end GetAttrsInfo.");
     return ge::GRAPH_SUCCESS;
 }

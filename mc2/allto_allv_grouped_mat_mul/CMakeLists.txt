@@ -8,18 +8,14 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
- file(GLOB SUBDIRECTORIES LIST_DIRECTORIES true RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
- # 遍历子目录
- foreach(SUBDIR ${SUBDIRECTORIES})
-   # 检查子目录中是否存在 CMakeLists.txt
-   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/CMakeLists.txt)
-     add_subdirectory(${SUBDIR})
-   endif()
- endforeach()
-
- if (BUILD_OPEN_PROJECT)
-    get_filename_component(CURRENT_DIR_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
-    set(${CURRENT_DIR_NAME}_depends mc2/common mc2/3rd PARENT_SCOPE)
+file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+if(NOT ENABLE_TEST)
+    list(REMOVE_ITEM CURRENT_DIRS tests)
 endif()
+foreach(SUB_DIR ${CURRENT_DIRS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
+        add_subdirectory(${SUB_DIR})
+    endif()
+endforeach()
 
 set(MC2_COMPILE ${SUB_MC2_COMPILE} PARENT_SCOPE)
