@@ -31,7 +31,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_dfx.h"
-#include "opdev/op_platfrom.h"
+#include "opdev/op_platform.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
