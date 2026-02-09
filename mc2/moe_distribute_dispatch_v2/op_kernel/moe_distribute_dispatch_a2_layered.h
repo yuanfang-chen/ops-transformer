@@ -49,7 +49,7 @@ public:
     constexpr static uint32_t IPC_MAGIC_OFFSET = 2 * 1024 * 1024 - 128 * 32;
     constexpr static uint32_t IPC_FLAG_OFFSET = 1 * 1024 * 1024;
     constexpr static uint32_t IPC_TOKEN_CNT_OFFSET = 2 * 1024 * 1024;
-    constexpr static uint32_t IPC_DATA_OFFSET = 4 * 1024 * 1024;
+    constexpr static uint32_t IPC_NON_DATA_SIZE = 4 * 1024 * 1024;
     constexpr static uint32_t MTU_SIZE = 4 * 1024;
     constexpr static uint32_t IPC_BUFF_ALIGN = 512;
     constexpr static int32_t  IPC_FLAG_STEP_1 = 0x0d0d0d0d;
@@ -264,8 +264,8 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     uint64_t rdmaDataSize = RoundUp(maxBs * maxTokenStructLen, RDMA_BUFFER_ALIGN) * serverNum;
     SERVER_SIZE_ON_WIN = rdmaDataSize / serverNum;
     uint64_t ipcDataSize = moeExpertNum_ * RoundUp(maxBs * maxTokenStructLen, static_cast<uint64_t>(IPC_BUFF_ALIGN));
-    getAddrInfo_.Init(winContext_->winSize, bufferId_, (ipcDataSize + IPC_DATA_OFFSET) / 2UL);
-    ipcFlagOffset_ = winContext_->winSize / 2UL - IPC_DATA_OFFSET / 2UL;
+    getAddrInfo_.Init(winContext_->winSize, bufferId_, ipcDataSize, IPC_NON_DATA_SIZE);
+    ipcFlagOffset_ = getAddrInfo_.ipcFlagOffset;
 
     RANK_SIZE_ON_IPC = ipcDataSize / (localMoeExpertNum_ * worldSize_);
 
@@ -279,7 +279,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     innerTableDataOffset_ = innerTableFlagOffset_ + innerTableFlagTotalSize_;
 
     uint64_t winSizeMin = (rdmaDataSize + STATUS_SIZE_LAYERED) * 2UL +
-        IPC_DATA_OFFSET + ipcDataSize; // 考虑负载极其不均衡时，HCCL BUFFSIZE需要开的大小
+        IPC_NON_DATA_SIZE + ipcDataSize; // 考虑负载极其不均衡时，HCCL BUFFSIZE需要开的大小
 
     //IPC buffer init
     for (int i = 0; i < SERVER_RANK_SIZE; i++) {
@@ -379,7 +379,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     LocalTensor<uint64_t> tempLocal = tBuf.Get<uint64_t>();
     GlobalTensor<uint64_t> magicGt;
     magicGt.SetGlobalBuffer((__gm__ uint64_t*)(shareAddrs[rankId_ % SERVER_RANK_SIZE] +
-        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN, 0U)));
+        getAddrInfo_.GetIpcAddrOffset(ipcFlagOffset_ + IPC_MAGIC_OFFSET, 0U)) + aivId_ * UB_32B_ALIGN / sizeof(uint64_t));
 
     DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
     PipeBarrier<PIPE_ALL>();
@@ -1183,7 +1183,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
 
             // 本卡需要发送
             uint32_t index = fromRankId / halfWorldSize;
-            uint32_t targetExpOffset = (targetExpId % localMoeExpertNum_) * worldSize_ * RANK_SIZE_ON_IPC;// 第几个Exp段
+            uint32_t targetExpOffset = (targetExpId % localMoeExpertNum_) * halfWorldSize * RANK_SIZE_ON_IPC;// 第几个Exp段
             uint32_t targetRankOffset = (fromRankId % halfWorldSize) * RANK_SIZE_ON_IPC;// 第几个Rank段
             uint32_t targetTokenOffset = tokenStructLen_ * targetTokenIdx;  // 第几个Token位
             uint32_t targetOffset = targetExpOffset + targetRankOffset + targetTokenOffset; // 总偏移
@@ -1307,8 +1307,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             continue;
             // 目标Rank没Token发来则跳过
         }
+        uint32_t localExp = srIdx / worldSize_;
         uint32_t index = (srIdx % worldSize_) / halfWorldSize;
-        uint32_t restRankId = srIdx % halfWorldSize;
+        uint32_t loc = srIdx % halfWorldSize + localExp * halfWorldSize;
         uint32_t tokenCntInUB = tokenUbSize_ / tokenStructLen_;
         // 单次能搬移的token数据量
         uint32_t batchCnt = (curSrTokenCnt + tokenCntInUB - 1) / tokenCntInUB;
@@ -1322,7 +1323,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             DataCopyExtParams copyTokenParams{static_cast<uint16_t>(1),
                 static_cast<uint32_t>(tokenCntInBatch * tokenStructLen_), 0, 0, 0};
             DataCopyPadExtParams<uint8_t> padParams;
-            uint32_t srcIpcOffset = restRankId * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
+            uint32_t srcIpcOffset = loc * RANK_SIZE_ON_IPC + batchIdx * tokenCntInUB * tokenStructLen_;
             DataCopyPad(localUB, srcIpcGt[index][srcIpcOffset], copyTokenParams, padParams);
             SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
             DataCopyExtParams writeTokenParams{static_cast<uint16_t>(tokenCntInBatch),
