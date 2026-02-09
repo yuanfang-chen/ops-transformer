@@ -1,4 +1,4 @@
-/**
+/* *
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -6,14 +6,14 @@
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
- */
+  */
 
 /* !
  * \file quant_block_sch.h
  * \brief
  */
-#ifndef GROUPED_MATMUL_QUANT_BLOCK_SCH_H
-#define GROUPED_MATMUL_QUANT_BLOCK_SCH_H
+#ifndef MC2_GROUPED_MATMUL_QUANT_BLOCK_SCH_H
+#define MC2_GROUPED_MATMUL_QUANT_BLOCK_SCH_H
 
 #include "quant_utils.h"
 
@@ -61,16 +61,13 @@ struct ASWOffsetParam {
 class QuantASWBlockSch {
 public:
     __aicore__ inline QuantASWBlockSch() {}
-    template <bool isGmm>
-    __aicore__ inline void Init(const TCubeTiling* __restrict &tilingData, uint32_t blockIdx);
+    template <bool isGmm> __aicore__ inline void Init(const TCubeTiling *__restrict &tilingData, uint32_t blockIdx);
     // 每一个group需要更新mm的group偏移和MNK
     template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat = CubeFormat::ND>
     __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx);
-    template <bool isGmm>
-    __aicore__ inline void UpdateGroupParams(); // 每一个group需要更新mm的参数
+    template <bool isGmm> __aicore__ inline void UpdateGroupParams(); // 每一个group需要更新mm的参数
     __aicore__ inline void UpdateTailTile();
-    template <bool isGmm>
-    __aicore__ inline void UpdateBasicIndex(uint64_t roundIdx, bool isLastGroupRound);
+    template <bool isGmm> __aicore__ inline void UpdateBasicIndex(uint64_t roundIdx, bool isLastGroupRound);
     template <bool aTrans, bool bTrans, CubeFormat wFormat = CubeFormat::ND>
     __aicore__ inline void UpdateBlockParams(uint64_t roundIdx, bool isLastGroupRound = true);
     template <bool aTrans, bool bTrans, class scaleType = AscendC::fp8_e8m0_t, CubeFormat wFormat = CubeFormat::ND>
@@ -82,7 +79,7 @@ public:
 public:
     ASWTilingParam params_;
     ASWOffsetParam offset_;
-    const TCubeTiling* __restrict tilingData_;
+    const TCubeTiling *__restrict tilingData_;
 
 private:
     const uint64_t WINDOW_LEN = 4;
@@ -92,7 +89,7 @@ private:
 };
 
 template <bool isGmm>
-__aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &tilingData, uint32_t blockIdx)
+__aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling *__restrict &tilingData, uint32_t blockIdx)
 {
     blockIdx_ = blockIdx;
     tilingData_ = tilingData;
@@ -101,7 +98,7 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
     params_.xScaleGroupAddrOffset = 0; // xScale is optional, mm不需要，与GMM代码归一
     params_.mTailTile = 1; // 1 说明不切分, mm可直接从mm tiling里获取，但目前仓不同，无法拿到
     params_.nTailTile = 1; // 1 说明不切分
-    startBlockIdx_ = 0; // 每个group核使用开始的索引, 单mm默认从0开始
+    startBlockIdx_ = 0;    // 每个group核使用开始的索引, 单mm默认从0开始
 
     if constexpr (isGmm) { // GMM
         params_.m = 0;
@@ -115,8 +112,8 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
         params_.biasGroupAddrOffset = 0;
         // 标记每个group的结束核
         endBlockIdx_ = tilingData_->usedCoreNum - 1; // 上个group核使用结束的索引
-    } else {               // MM
-        params_.m = tilingData_->M; // mm可以直接从tilingData里取值
+    } else {                                         // MM
+        params_.m = tilingData_->M;                  // mm可以直接从tilingData里取值
         params_.n = tilingData_->N;
         params_.k = tilingData_->Ka;
         UpdateGroupParams<false>();
@@ -127,7 +124,7 @@ template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFo
 __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx)
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
-    if (groupIdx > 0) { // groupIdx==0时，起始点均为0，无需计算，减少scalar
+    if (groupIdx > 0) {                             // groupIdx==0时，起始点均为0，无需计算，减少scalar
         if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
             params_.aGroupAddrOffset += params_.m * params_.k / 2;
             params_.bGroupAddrOffset += params_.n * params_.k / 2;
@@ -136,12 +133,10 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
             if constexpr (wFormat == CubeFormat::NZ) {
                 if constexpr (bTrans) {
                     params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
-                                                QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) *
-                                                QuantUtils::WEIGHTNZ_N0_K0;
+                        QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) * QuantUtils::WEIGHTNZ_N0_K0;
                 } else {
                     params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_32) *
-                                                QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) *
-                                                QuantUtils::WEIGHTNZ_N0_K0;
+                        QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) * QuantUtils::WEIGHTNZ_N0_K0;
                 }
             } else {
                 params_.bGroupAddrOffset += params_.n * params_.k;
@@ -175,8 +170,7 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
 }
 
 // 兼容GMM和MM的更新
-template <bool isGmm>
-__aicore__ inline void QuantASWBlockSch::UpdateGroupParams()
+template <bool isGmm> __aicore__ inline void QuantASWBlockSch::UpdateGroupParams()
 {
     params_.mCnt = QuantUtils::CeilDiv(params_.m, tilingData_->baseM);
     params_.nCnt = QuantUtils::CeilDiv(params_.n, tilingData_->baseN);
@@ -207,8 +201,7 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupParams()
 __aicore__ inline void QuantASWBlockSch::UpdateTailTile()
 {
     uint64_t newEndBlockIdx = params_.mTailTile * params_.nTailTile * (endBlockIdx_ + 1) - 1;
-    if (blockIdx_ > endBlockIdx_ && blockIdx_ <= newEndBlockIdx)
-    {
+    if (blockIdx_ > endBlockIdx_ && blockIdx_ <= newEndBlockIdx) {
         params_.round += 1;
     }
     endBlockIdx_ = newEndBlockIdx;
@@ -265,10 +258,8 @@ __aicore__ inline void QuantASWBlockSch::UpdateBlockParams(uint64_t roundIdx, bo
     }
 
     if (roundIdx == params_.round - 1) {
-        uint64_t singleCoreMSplit = (params_.singleCoreM + params_.mTailTile - 1) /
-                                    params_.mTailTile;
-        uint64_t singleCoreNSplit = (params_.singleCoreN + params_.nTailTile - 1) /
-                                    params_.nTailTile;
+        uint64_t singleCoreMSplit = (params_.singleCoreM + params_.mTailTile - 1) / params_.mTailTile;
+        uint64_t singleCoreNSplit = (params_.singleCoreN + params_.nTailTile - 1) / params_.nTailTile;
         if constexpr (aTrans) { // (k, m)
             singleCoreMSplit = QuantUtils::Align(singleCoreMSplit, QuantUtils::INNER_AXIS_MIN_SPLIT_VAL);
         }
@@ -357,5 +348,5 @@ __aicore__ inline void QuantASWBlockSch::CalcGMOffset()
     offset_.offsetPerTokenScale += params_.xScaleGroupAddrOffset;
     offset_.offsetBias = nOffset;
 }
-}  // namespace GroupedMatmul
-#endif  // GROUPED_MATMUL_QUANT_BLOCK_SCH_H
+} // namespace GroupedMatmul
+#endif // MC2_GROUPED_MATMUL_QUANT_BLOCK_SCH_H
