@@ -17,7 +17,7 @@
 #include <cstdint>
 #include "kernel_tiling/kernel_tiling.h"
 
-namespace GroupedMatmulTilingData {
+namespace Mc2GroupedMatmulTilingData {
 #pragma pack(push, 8)
 struct GMMArray {
     // GroupedMatmul::MAX_TENSOR_CONT
@@ -107,5 +107,5 @@ struct GMMWeightQuantTilingData {
 };
 #pragma pack(pop)
 
-} // GroupedMatmulTilingData
+} // Mc2GroupedMatmulTilingData
 #endif
