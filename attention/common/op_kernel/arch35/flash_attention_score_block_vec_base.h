@@ -25,8 +25,7 @@
 #include "vf/vf_div_cast.h"
 #include "vf/vf_flash_decode.h"
 #include "flash_attention_score_tiling_regbase.h"
-#include "../fia_public_define.h"
-#include "../vector_common.h"
+#include "attenmask_gs1.h"
 
 using namespace AscendC;
 using namespace FaVectorApi;
