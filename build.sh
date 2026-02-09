@@ -548,8 +548,24 @@ function gen_bisheng(){
     popd
 }
 
+function build_es_transformer_cust(){
+    if [ "${ENABLE_BUILT_IN}" = "FALSE" ]; then
+        echo "Start custom mode in building es transformer"
+        local all_targets=$(cmake --build . --target help)
+        if [ "${VERBOSE}" == "true" ];then
+            local option="--VERBOSE=1"
+        fi
+        if echo "${all_targets}" | grep -wq "build_es_transformer_cust"; then
+            echo "Start building es transformer cust target"
+            cmake --build . --target build_es_transformer_cust ${option} -j $THREAD_NUM
+            [ $? -ne 0 ] && echo "[ERROR] target:build_es_transformer_cust compile failed!" && exit 1
+        fi
+    fi
+}
+
 function build_package(){
     build package
+    # build_es_transformer_cust
 }
 
 function build_host(){
