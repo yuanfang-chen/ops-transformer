@@ -48,16 +48,16 @@ __aicore__ inline void ReduceFinalRes_VF_0(LocalTensor<T>& dstLocal, LocalTensor
 
         for (k = 0; k < static_cast<uint16_t>(dealRowCount); k++) {  // repeat g
 
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BLK>(vregLse,
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BLK>(vregLse,
                                                                 (__ubuf__ float*&)lseUb + splitKVIndex * dealRowCount * 8 + k * 8);
             for (z = 0; z < dLoops; z++) {
                 // splitKVIndex=0的场景，vregDst不需要load，直接置0
                 MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vregDst, FLT_ZERO, pregTailN);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(
                     vregAccumOut, (__ubuf__ float*&)accumOutUb + k * repStride * 8 + z * floatRepSize);
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregAccumOut, vregLse, vregAccumOut, pregTailN);
                 MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregDst, vregDst, vregAccumOut, pregTailN);
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                     (__ubuf__ float*&)dstUb + k * repStride * 8 + z * floatRepSize, vregDst, pregTailN);
             }
         }
@@ -90,17 +90,17 @@ __aicore__ inline void ReduceFinalRes_VF_rest(LocalTensor<T>& dstLocal, LocalTen
         uint32_t stride = (0x1 << 16) | 0x8;
 
         for (k = 0; k < static_cast<uint16_t>(dealRowCount); k++) {  // repeat g
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BLK>(vregLse,
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BLK>(vregLse,
                                                                 (__ubuf__ float*&)lseUb + splitKVIndex * dealRowCount * 8 + k * 8);
             for (z = 0; z < dLoops; z++) {
                 // splitKVIndex>0的场景，reg_dst需要先从dstUb中load之前的结果，再进行add
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(
                     vregDst, (__ubuf__ float*&)dstUb + k * repStride * 8 + z * floatRepSize);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(
                     vregAccumOut, (__ubuf__ float*&)accumOutUb + k * repStride * 8 + z * floatRepSize);
                 MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregAccumOut, vregLse, vregAccumOut, pregTailN);
                 MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregDst, vregDst, vregAccumOut, pregTailN);
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(
                     (__ubuf__ float*&)dstUb + k * repStride * 8 + z * floatRepSize, vregDst, pregTailN);
             }
         }
@@ -158,21 +158,21 @@ __aicore__ inline void ComputeScaleValue_VF_8(const LocalTensor<T>& lseMaxUb, co
         MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vregLseSum, FLT_ZERO, pregTailN);
 
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
                                                                  (__ubuf__ float *&)lseMaxTmp + i * dealCount);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMax, vregLseMax, vregLseMaxTmp, pregTailN);
         }
 
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
                                                                  (__ubuf__ float *&)lseMaxTmp + i * dealCount);
             MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, vregLseMax, pregTailN);
             MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, pregTailN);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
                                                                  (__ubuf__ float *&)lseSumTmp + i * dealCount);
             MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseMaxTmp, pregTailN);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSumTmp, pregTailN);
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)lseSumTmp + i * dealCount, 
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)lseSumTmp + i * dealCount, 
                                                                       vregLseSumTmp, pregTailN);
         }
 
@@ -191,15 +191,15 @@ __aicore__ inline void ComputeScaleValue_VF_8(const LocalTensor<T>& lseMaxUb, co
             // 如果 softmaxMax 等于负无穷，则将 lse 结果置为 inf
             MicroAPI::Compare<float, CMPMODE::EQ>(pregCompare, vregLseMax, vregMinValue, pregTailN);
             MicroAPI::Select<T>(vregRes, vregInfValue, vregRes, pregCompare);
-            MicroAPI::DataCopy<T, StoreDist::DIST_NORM_B32>(lseUb, vregRes, pregTailN);
+            MicroAPI::StoreAlign<T, StoreDist::DIST_NORM_B32>(lseUb, vregRes, pregTailN);
         }
 
         MicroAPI::LocalMemBar<MicroAPI::MemType::VEC_STORE, MicroAPI::MemType::VEC_LOAD>();
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
                                                                  (__ubuf__ float *&)lseSumTmp + i * dealCount);
             MicroAPI::Div<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseSum, pregTailN);
-            MicroAPI::DataCopy<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 ((__ubuf__ float *&)lseSum, vregLseSumTmp, blockStride, repeatStride, pregTailN);
         }
     }
@@ -249,33 +249,33 @@ __aicore__ inline void ComputeScaleValue_VF_16(const LocalTensor<T>& lseMaxUb, c
         MicroAPI::Duplicate<T, MicroAPI::MaskMergeMode::ZEROING, float>(vregLseSum2, FLT_ZERO, pregTailN);
 
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
                                                                  lseMaxSrc + i * dealCountSum);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp2, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp2, 
                                                                  lseMaxSrc + i * dealCountSum + dealCount);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMax, vregLseMax, vregLseMaxTmp, pregTailN);
             MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMax2, vregLseMax2, vregLseMaxTmp2, pregTailN2);
         }
 
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp, 
                                                                  lseMaxSrc + i * dealCountSum);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp2, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseMaxTmp2, 
                                                                  lseMaxSrc + i * dealCountSum + dealCount);
             MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, vregLseMax, pregTailN);
             MicroAPI::Sub<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp2, vregLseMaxTmp2, vregLseMax2, pregTailN2);
             MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp, vregLseMaxTmp, pregTailN);
             MicroAPI::Exp<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseMaxTmp2, vregLseMaxTmp2, pregTailN2);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
                                                                  lseSumSrc + i * dealCountSum);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp2, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp2, 
                                                                  lseSumSrc + i * dealCountSum + dealCount);
             MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseMaxTmp, pregTailN);
             MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp2, vregLseSumTmp2, vregLseMaxTmp2, pregTailN2);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum, vregLseSum, vregLseSumTmp, pregTailN);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSum2, vregLseSum2, vregLseSumTmp2, pregTailN2);
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum, vregLseSumTmp, pregTailN);
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum + dealCount, vregLseSumTmp2, pregTailN2);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum, vregLseSumTmp, pregTailN);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM>(lseSumSrc + i * dealCountSum + dealCount, vregLseSumTmp2, pregTailN2);
         }
 
         if (softmaxLseFlag) {
@@ -298,21 +298,21 @@ __aicore__ inline void ComputeScaleValue_VF_16(const LocalTensor<T>& lseMaxUb, c
             MicroAPI::Compare<float, CMPMODE::EQ>(pregCompare2, vregLseMax2, vregMinValue, pregTailN2);
             MicroAPI::Select<T>(vregRes, vregInfValue, vregRes, pregCompare);
             MicroAPI::Select<T>(vregRes2, vregInfValue, vregRes2, pregCompare2);
-            MicroAPI::DataCopy<T, StoreDist::DIST_NORM_B32>(lseUb, vregRes, pregTailN);
-            MicroAPI::DataCopy<T, StoreDist::DIST_NORM_B32>(lseUb2, vregRes2, pregTailN2);
+            MicroAPI::StoreAlign<T, StoreDist::DIST_NORM_B32>(lseUb, vregRes, pregTailN);
+            MicroAPI::StoreAlign<T, StoreDist::DIST_NORM_B32>(lseUb2, vregRes2, pregTailN2);
         }
 
         MicroAPI::LocalMemBar<MicroAPI::MemType::VEC_STORE, MicroAPI::MemType::VEC_LOAD>();
         for (i = 0; i < static_cast<uint16_t>(actualCombineLoopSize); ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp, 
                                                                  lseSumSrc + i * dealCountSum);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp2, 
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregLseSumTmp2, 
                                                                  lseSumSrc + i * dealCountSum + dealCount);
             MicroAPI::Div<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp, vregLseSumTmp, vregLseSum, pregTailN);
             MicroAPI::Div<T, MicroAPI::MaskMergeMode::ZEROING>(vregLseSumTmp2, vregLseSumTmp2, vregLseSum2, pregTailN2);
-            MicroAPI::DataCopy<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (lseSum, vregLseSumTmp, blockStride, repeatStride, pregTailN);
-            MicroAPI::DataCopy<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreAlign<T, MicroAPI::DataCopyMode::DATA_BLOCK_COPY, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (lseSum2, vregLseSumTmp2, blockStride, repeatStride, pregTailN2);
         }
     }
@@ -354,8 +354,8 @@ __aicore__ inline void ComputeLogSumExp_VF_8(const LocalTensor<T>& dstTensor, co
         MicroAPI::Duplicate<float, float>(vregInfValue, infValue);
 
         // 1.load to reg
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregSum, (__ubuf__ float *&)srcSumLocalInt);
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregMax, (__ubuf__ float *&)srcMaxLocalInt);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSum, (__ubuf__ float *&)srcSumLocalInt);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregMax, (__ubuf__ float *&)srcMaxLocalInt);
 
         // 2.LogSumExp
         MicroAPI::Log<T, MicroAPI::MaskMergeMode::ZEROING>(vregRes, vregSum, pregTailN);
@@ -366,7 +366,7 @@ __aicore__ inline void ComputeLogSumExp_VF_8(const LocalTensor<T>& dstTensor, co
         MicroAPI::Select<T>(vregRes, vregInfValue, vregRes, pregCompare);
 
         // 3.copy to ub
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)dstLocalInt, vregRes, pregTailN);
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>((__ubuf__ float *&)dstLocalInt, vregRes, pregTailN);
     }
 }
 
@@ -405,10 +405,10 @@ __aicore__ inline void ComputeLogSumExp_VF_16(const LocalTensor<T>& dstTensor, c
         MicroAPI::Duplicate<float, float>(vregInfValue, infValue);
 
         // 1.load to reg
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregSum, srcSumUb);
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregSum2, srcSumUb2);
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregMax, srcMaxUb);
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vregMax2, srcMaxUb2);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSum, srcSumUb);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSum2, srcSumUb2);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregMax, srcMaxUb);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregMax2, srcMaxUb2);
 
         // 2.LogSumExp
         MicroAPI::Log<T, MicroAPI::MaskMergeMode::ZEROING>(vregRes, vregSum, pregTailN);
@@ -423,8 +423,8 @@ __aicore__ inline void ComputeLogSumExp_VF_16(const LocalTensor<T>& dstTensor, c
         MicroAPI::Select<T>(vregRes2, vregInfValue, vregRes2, pregCompare2);
 
         // 3.copy to ub
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(dstUb, vregRes, pregTailN);
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>(dstUb2, vregRes2, pregTailN2);
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(dstUb, vregRes, pregTailN);
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>(dstUb2, vregRes2, pregTailN2);
     }
 }
 
