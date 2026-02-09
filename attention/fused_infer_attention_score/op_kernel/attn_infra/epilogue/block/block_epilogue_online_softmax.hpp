@@ -984,7 +984,7 @@ public:
 
             // hm = Maxs(hm, sink)
             AscendC::Maxs<float, false>(
-                dmUbTensor[dmUbOffsetCurCycle],  
+                hmUbTensor[dmUbOffsetCurCycle],  
                 hmUbTensor[rowOffset], 
                 sinkValue,              
                 (uint64_t)0, 1,                 
@@ -1003,15 +1003,15 @@ public:
         }
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-        uint64_t mask = static_cast<uint64_t>(curLoop.rowNumCurLoop);
+        // uint64_t mask = static_cast<uint64_t>(curLoop.rowNumCurLoop);
 
-        AscendC::CompareScalar(selMaskUbTensor, hmUbTensor[rowOffset], NEG_INF, AscendC::CMPMODE::EQ, 
-                mask, 1, AscendC::UnaryRepeatParams(1, 1, 8, 8));
-        AscendC::PipeBarrier<PIPE_V>();
+        // AscendC::CompareScalar(selMaskUbTensor, hmUbTensor[rowOffset], NEG_INF, AscendC::CMPMODE::EQ, 
+        //         mask, 1, AscendC::UnaryRepeatParams(1, 1, 8, 8));
+        // AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::Select(hmUbTensor[rowOffset], selMaskUbTensor, hmUbTensor[rowOffset], dmUbTensor[dmUbOffsetCurCycle], AscendC::SELMODE::VSEL_CMPMASK_SPR, 
-                mask, 1, AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-        AscendC::PipeBarrier<PIPE_V>();
+        // AscendC::Select(hmUbTensor[rowOffset], selMaskUbTensor, hmUbTensor[rowOffset], dmUbTensor[dmUbOffsetCurCycle], AscendC::SELMODE::VSEL_CMPMASK_SPR, 
+        //         mask, 1, AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+        // AscendC::PipeBarrier<PIPE_V>();
         
     }
 
