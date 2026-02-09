@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+
 /**
  * 算子功能：实现allGather + mm 融合计算
  * @brief aclnnAllGatherMatmul的第一段接口，根据具体的计算流程，计算workspace大小。
