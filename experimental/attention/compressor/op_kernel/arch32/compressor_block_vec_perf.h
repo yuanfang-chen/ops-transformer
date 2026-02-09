@@ -88,7 +88,7 @@ private:
     __aicore__ inline uint32_t GetBsLength(uint32_t index);
     __aicore__ inline void CalcGlobalScStart(uint32_t bStart, uint32_t scStart, uint32_t bEnd, uint32_t scEnd, uint64_t &globalScStart);
     __aicore__ inline void UpdateOutputIdx(uint32_t &outputBStart, uint32_t &outputSStart, uint32_t &dealScSize, uint32_t &curDealScSize);
-    __aicore__ inline void DealVec1BaseBlock(const RunInfo &info, CompressorVec1SliceIterator<COMP, false> &sliceIterstor, uint32_t dStartIdx, uint32_t dDealSize);
+    __aicore__ inline void DealVec1BaseBlock(const RunInfo &info, CompressorVec1SliceIterator<COMP, false> &sliceIterator, uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void CopyInApe(const LocalTensor<T> &apeUb,uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void AddApeToScore(const LocalTensor<T> &scoreLocal, const LocalTensor<T> &apeUb, uint32_t tcDealSize, uint32_t dDealSize);
     __aicore__ inline void DataCopyAlignUbToUb(const LocalTensor<T> dstLocal, const LocalTensor<T> srcLocal,
@@ -103,7 +103,7 @@ private:
         const Vec1SliceInfo &sliceInfo, uint32_t dStartIdx, uint32_t dDealSize);
     __aicore__ inline void SoftmaxDN(const LocalTensor<T> &scoreLocal, const LocalTensor<T> &tmpUb, uint32_t tcDealSize, uint32_t dDealSize);
     __aicore__ inline void KvMulReduceScore(const LocalTensor<T> &kvLocal, const LocalTensor<T>& scoreLocal, const LocalTensor<T> &dstLocal, const LocalTensor<T> &tmpUb, uint32_t tcDealSize, uint32_t dDealSize);
-    __aicore__ inline void CopyOutVec1Res(const RunInfo &info, const LocalTensor<T> comporessedUb, uint32_t compressTcSize, uint32_t dStartIdx, uint32_t dDealSize);
+    __aicore__ inline void CopyOutVec1Res(const RunInfo &info, const LocalTensor<T> comperssoredUb, uint32_t compressTcSize, uint32_t dStartIdx, uint32_t dDealSize);
 
     __aicore__ inline void SplitCoreV2(const Compressor::Vec2RunInfo& info);
     __aicore__ inline void CopyFinalResultOut(const Compressor::Vec2RunInfo& info, const LocalTensor<X_T> &cmpKvOutUb,
@@ -711,7 +711,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::KvMulReduceScore(
 }
 
 template <typename COMP>
-__aicore__ inline void CompressorBlockVectorPerf<COMP>::CopyOutVec1Res(const RunInfo &info, const LocalTensor<T> comporessedUb,
+__aicore__ inline void CompressorBlockVectorPerf<COMP>::CopyOutVec1Res(const RunInfo &info, const LocalTensor<T> comperssoredUb,
     uint32_t compressTcSize, uint32_t dStartIdx, uint32_t dDealSize)
 {
     uint64_t outGmOffset = info.vec1ResOffset + compressedCnt_ * constInfo_.headDim + dStartIdx;
@@ -720,18 +720,18 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::CopyOutVec1Res(const Run
     copyParams.blockLen = dDealSize / FP32_BLOCK_ELEMENT_NUM;
     copyParams.dstStride = (constInfo_.headDim - dDealSize) / FP32_BLOCK_ELEMENT_NUM;
     copyParams.srcStride = 0;
-    DataCopy(vec1ResGm_[outGmOffset], comporessedUb, copyParams);
+    DataCopy(vec1ResGm_[outGmOffset], comperssoredUb, copyParams);
 }
 
 
 template <typename COMP>
 __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const RunInfo &info,
-                                                                      CompressorVec1SliceIterator<COMP, false> &sliceIterstor,
+                                                                      CompressorVec1SliceIterator<COMP, false> &sliceIterator,
                                                                       uint32_t dStartIdx, uint32_t dDealSize)
 {
-    Vec1SliceInfo originSliceInfo = sliceIterstor.GetSlice();
-    uint32_t needDealTcSize = sliceIterstor.GetNeedDealTcSize();
-    StatisticInfo& statisticInfo = sliceIterstor.template FullIteratorSlice<true>();
+    Vec1SliceInfo originSliceInfo = sliceIterator.GetSlice();
+    uint32_t needDealTcSize = sliceIterator.GetNeedDealTcSize();
+    StatisticInfo& statisticInfo = sliceIterator.template FullIteratorSlice<true>();
     bool onlyPreLastTc = false;
     if (statisticInfo.actualTcCnt == 0) {
         if (statisticInfo.hasPreLastTc) {
@@ -742,21 +742,21 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
         }
     }
 
-    CompressorVec1SliceIterator overLapSliceIterstor(tools_);
-    overLapSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
-    Vec1SliceInfo& overLapSliceInfo = overLapSliceIterstor.GetSlice();
+    CompressorVec1SliceIterator overLapSliceIterator(tools_);
+    overLapSliceIterator.SetMaxBatchSize(constInfo_.batchSize);
+    Vec1SliceInfo& overLapSliceInfo = overLapSliceIterator.GetSlice();
 
     LocalTensor<T> scoreUb = inputQue1.AllocTensor<T>();
     FromWokrSpaceToUb(scoreUb, originSliceInfo, statisticInfo, dStartIdx + constInfo_.dBaseSize, dDealSize);
     inputQue1.EnQue(scoreUb);
     inputQue1.DeQue<T>();
     LocalTensor<T> scoreLocal = tmpBuff1.Get<T>();
-    overLapSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
-    overLapSliceIterstor.SetNeedDealTcSize(needDealTcSize);
-    while (!overLapSliceIterstor.IsEnd()) {
-        overLapSliceIterstor.GetSlice();
+    overLapSliceIterator.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
+    overLapSliceIterator.SetNeedDealTcSize(needDealTcSize);
+    while (!overLapSliceIterator.IsEnd()) {
+        overLapSliceIterator.GetSlice();
         OverLap(scoreLocal, scoreUb, overLapSliceInfo, dStartIdx, dDealSize);
-        overLapSliceIterstor.IteratorSlice();
+        overLapSliceIterator.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(scoreUb);
@@ -768,23 +768,23 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     inputQue1.EnQue(kvUb);
     inputQue1.DeQue<T>();
     LocalTensor<T> kvLocal = tmpBuff2.Get<T>();
-    overLapSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
-    overLapSliceIterstor.SetNeedDealTcSize(needDealTcSize);
-    while (!overLapSliceIterstor.IsEnd()) {
-        overLapSliceIterstor.GetSlice();
+    overLapSliceIterator.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, 0U, 0U);
+    overLapSliceIterator.SetNeedDealTcSize(needDealTcSize);
+    while (!overLapSliceIterator.IsEnd()) {
+        overLapSliceIterator.GetSlice();
         OverLap(kvLocal, kvUb, overLapSliceInfo, dStartIdx, dDealSize);
-        overLapSliceIterstor.IteratorSlice();
+        overLapSliceIterator.IteratorSlice();
     }
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(kvUb);
 
-    CompressorVec1SliceIterator<COMP, true> computeSliceIterstor(tools_);
-    computeSliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
-    computeSliceIterstor.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, originSliceInfo.dealedSeqCnt, originSliceInfo.dealedTcCnt);
-    computeSliceIterstor.SetNeedDealTcSize(statisticInfo.actualTcCnt, needDealTcSize);
-    Vec1SliceInfo& sliceInfo = computeSliceIterstor.GetSlice();
-    while (!computeSliceIterstor.IsEnd() || onlyPreLastTc) {
-        computeSliceIterstor.GetSlice();
+    CompressorVec1SliceIterator<COMP, true> computeSliceIterator(tools_);
+    computeSliceIterator.SetMaxBatchSize(constInfo_.batchSize);
+    computeSliceIterator.template Reset<true>(originSliceInfo.bIdx, originSliceInfo.sIdx, originSliceInfo.dealedSeqCnt, originSliceInfo.dealedTcCnt);
+    computeSliceIterator.SetNeedDealTcSize(statisticInfo.actualTcCnt, needDealTcSize);
+    Vec1SliceInfo& sliceInfo = computeSliceIterator.GetSlice();
+    while (!computeSliceIterator.IsEnd() || onlyPreLastTc) {
+        computeSliceIterator.GetSlice();
         uint32_t ubOffset = sliceInfo.dealedTcCnt * constInfo_.cmpRatio * ((uint32_t)COMP::coff) * dDealSize;
 
         UpdateState(kvLocal[ubOffset], scoreLocal[ubOffset], sliceInfo, dStartIdx, dDealSize);
@@ -798,16 +798,16 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
             PipeBarrier<PIPE_V>();
             SoftmaxDN(scoreLocal[ubOffset], tmpUb, sliceInfo.compressTcSize, dDealSize);
 
-            LocalTensor<T> comporessedUb = outputQue1.AllocTensor<T>();
+            LocalTensor<T> comperssoredUb = outputQue1.AllocTensor<T>();
             PipeBarrier<PIPE_V>();
-            KvMulReduceScore(kvLocal[ubOffset], scoreLocal[ubOffset], comporessedUb, tmpUb, sliceInfo.compressTcSize, dDealSize);
+            KvMulReduceScore(kvLocal[ubOffset], scoreLocal[ubOffset], comperssoredUb, tmpUb, sliceInfo.compressTcSize, dDealSize);
             PipeBarrier<PIPE_V>();
-            outputQue1.EnQue(comporessedUb);
+            outputQue1.EnQue(comperssoredUb);
             outputQue1.DeQue<T>();
-            CopyOutVec1Res(info, comporessedUb, sliceInfo.compressTcSize, dStartIdx, dDealSize);
-            outputQue1.FreeTensor(comporessedUb);
+            CopyOutVec1Res(info, comperssoredUb, sliceInfo.compressTcSize, dStartIdx, dDealSize);
+            outputQue1.FreeTensor(comperssoredUb);
         }
-        computeSliceIterstor.IteratorSlice();
+        computeSliceIterator.IteratorSlice();
         compressedCnt_ += sliceInfo.compressTcSize;
     }
 }
@@ -816,10 +816,10 @@ template <typename COMP>
  __aicore__ inline void CompressorBlockVectorPerf<COMP>::ComputeVec1(const RunInfo &info)
 {
 
-    CompressorVec1SliceIterator sliceIterstor(tools_);
-    sliceIterstor.SetMaxBatchSize(constInfo_.batchSize);
-    sliceIterstor.template Reset<true>(info.bStart, info.sStart, 0U, 0U);
-    Vec1SliceInfo sliceInfo = sliceIterstor.GetSlice();
+    CompressorVec1SliceIterator sliceIterator(tools_);
+    sliceIterator.SetMaxBatchSize(constInfo_.batchSize);
+    sliceIterator.template Reset<true>(info.bStart, info.sStart, 0U, 0U);
+    Vec1SliceInfo sliceInfo = sliceIterator.GetSlice();
     // 计算当前VecCore的任务量
     uint32_t dealSeqStartIdx = 0;
     uint32_t dealTcSize = CeilDivT(info.dealTcNum, 2U);
@@ -828,17 +828,17 @@ template <typename COMP>
     uint32_t curCompressedCnt = 0;
     // 刷新当前VecCore的起始bIdx和sIdx
     if (GetBlockIdx() % 2 == 1) {
-        sliceIterstor.SetNeedDealTcSize(dealTcSize);
+        sliceIterator.SetNeedDealTcSize(dealTcSize);
         dealTcSize = info.dealTcNum - dealTcSize;
         if (dealTcSize == 0) {
             return;
         }
-        while (!sliceIterstor.IsEnd()) {
-            sliceInfo = sliceIterstor.GetSlice();
+        while (!sliceIterator.IsEnd()) {
+            sliceInfo = sliceIterator.GetSlice();
             curCompressedCnt += sliceInfo.compressTcSize;
-            sliceIterstor.IteratorSlice();
+            sliceIterator.IteratorSlice();
         }
-        sliceInfo = sliceIterstor.GetSlice();
+        sliceInfo = sliceIterator.GetSlice();
         dealSeqStartIdx = sliceInfo.dealedSeqCnt;
         curBStart = sliceInfo.bIdx;
         curSStart = sliceInfo.sIdx;
@@ -868,7 +868,7 @@ template <typename COMP>
     for (uint32_t dLoopIdx = 0; dLoopIdx < dLoopCount; dLoopIdx++) {
         CopyInApe(apeUb, dLoopIdx * dSplitSize, dSplitSize);
 
-        sliceIterstor.Reset(curBStart, curSStart, dealSeqStartIdx, 0U);
+        sliceIterator.Reset(curBStart, curSStart, dealSeqStartIdx, 0U);
         uint32_t actDealTcSize = tcSplitSize;
         compressedCnt_ = curCompressedCnt;
         for (uint32_t tcIdx = 0; tcIdx < dealTcSize; tcIdx += tcSplitSize) {
@@ -876,9 +876,9 @@ template <typename COMP>
                 actDealTcSize = dealTcSize - tcIdx;
             }
             // 处理单个切块
-            sliceIterstor.SetNeedDealTcSize(actDealTcSize);
-            sliceIterstor.SetDealedTcCnt(0U);
-            DealVec1BaseBlock(info, sliceIterstor, dLoopIdx * dSplitSize, dSplitSize);
+            sliceIterator.SetNeedDealTcSize(actDealTcSize);
+            sliceIterator.SetDealedTcCnt(0U);
+            DealVec1BaseBlock(info, sliceIterator, dLoopIdx * dSplitSize, dSplitSize);
         }
     }
 }
@@ -960,13 +960,13 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::CalRope(const Compressor
         curDealScSize = dealRowCount;
         uint32_t computeSize = curDealScSize * constInfo_.ropeHeadDim;
         uint64_t SinCosOffset = globalScStart * constInfo_.ropeHeadDim;
-    // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
-    LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
-    LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
+        // sin与cos各占一半, 实际分别最多只会用8K,总占用16K
+        LocalTensor<X_T> cosUb = inputQue1.AllocTensor<X_T>();
+        LocalTensor<X_T> sinUb = cosUb[BUFFER_SIZE_BYTE_8K / sizeof(X_T)];
         DataCopy(cosUb, ropeCosGm_[SinCosOffset], computeSize);
         DataCopy(sinUb, ropeSinGm_[SinCosOffset], computeSize);
-    inputQue1.EnQue(sinUb);
-    inputQue1.DeQue<X_T>();
+        inputQue1.EnQue(sinUb);
+        inputQue1.DeQue<X_T>();
 
         LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
         LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
@@ -1003,21 +1003,21 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::CalRope(const Compressor
                 inputQue1.EnQue(sinUb);
                 inputQue1.DeQue<X_T>();
 
-    LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
-    LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
-    LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
+                LocalTensor<T> ropeCosFp32Local = tmpBuff2.Get<T>();
+                LocalTensor<T> ropeSinFp32Local = ropeCosFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
+                LocalTensor<T> tempLocal = ropeSinFp32Local[BUFFER_SIZE_BYTE_16K / sizeof(T)].template ReinterpretCast<T>();
 
-    PipeBarrier<PIPE_V>();
-    Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
-    Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
-    PipeBarrier<PIPE_V>();
-    inputQue1.FreeTensor(sinUb);
+                PipeBarrier<PIPE_V>();
+                Cast(ropeCosFp32Local, cosUb, RoundMode::CAST_NONE, computeSize);
+                Cast(ropeSinFp32Local, sinUb, RoundMode::CAST_NONE, computeSize);
+                PipeBarrier<PIPE_V>();
+                inputQue1.FreeTensor(sinUb);
 
                 RotaryPosEmb<COMP::rotaryMode>(normResUb[(dealRowCount - dealScSize - curDealScSize) * constInfo_.headDim],
                                     normResUb[(dealRowCount - dealScSize - curDealScSize) * constInfo_.headDim],
                                     ropeCosFp32Local, ropeSinFp32Local, tempLocal, gatherOffsetCastUb, curDealScSize, 
                                     constInfo_.ropeHeadDim, constInfo_.headDim, constInfo_.headDim - constInfo_.ropeHeadDim);
-    PipeBarrier<PIPE_V>();
+                PipeBarrier<PIPE_V>();
             }
             CalcGlobalScStart(preOutputBStartIdx, preOutputSStartIdx, bStartIdx, sStartIdx, globalScStart);
             ubProcessedCount += curDealScSize;
