@@ -148,6 +148,7 @@ __aicore__ inline void AllGatherMte<TemplateType>::ClearSumTensor()
 template <TemplateTypeClass>
 __aicore__ inline void AllGatherMte<TemplateType>::ExecuteAllGather()
 {   
+    // TODO: 修改，最后搬运到 win 区
     // 读状态位，软同步
     mteComm_.ReadStatus(); 
     // 遍历需要搬运的数据块
@@ -168,7 +169,7 @@ __aicore__ inline void AllGatherMte<TemplateType>::ExecuteAllGather()
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)(remoteDataSpaceGm + xSize_));
 
             // 读取对端对应地址的 x 和 scale数据，进行反量化和求和
-            ReadDataBlockReduceSum(curRankXOffset, curRankScaleOffset); // AllGather直接搬运和反量化
+            ReadDataBlockReduceSum(curXOffset, curScaleOffset); // AllGather直接搬运和反量化
         }
 
         // 将计算好的数据拷贝到输出tensor

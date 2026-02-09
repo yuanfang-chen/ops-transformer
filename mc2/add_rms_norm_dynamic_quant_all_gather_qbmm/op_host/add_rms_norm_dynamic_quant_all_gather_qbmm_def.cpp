@@ -53,7 +53,7 @@ class AddRmsNormDynamicQuantAllGatherQbmm : public OpDef {
         .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
         .Format({ge::FORMAT_ND, ge::FORMAT_ND})
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
-    this->Input("bais")
+    this->Input("bias")
         .ParamType(OPTIONAL)
         .DataType({ge::DT_BF16, ge::DT_BF16})
         .Format({ge::FORMAT_ND, ge::FORMAT_ND})
