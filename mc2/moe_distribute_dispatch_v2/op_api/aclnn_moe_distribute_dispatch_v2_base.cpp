@@ -192,7 +192,8 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context)
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
     //ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
-    ret = MC2HcomTopology::CallHcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    Mc2Hcom::MC2HcomTopology test;
+    ret =  Mc2Hcom::MC2HcomTopology::GetInstance().CallHcomGetCommHandleByGroup(groupEp, &hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
         return ACLNN_ERR_INNER;
