@@ -235,6 +235,7 @@ private:
     TBuf<> tokenBuf_;
     TBuf<> gammaBuf_;
     TBuf<TPosition::VECCALC> reduceFp32Buf_;
+    TBuf<> rmsNormYBuf_;
     TBuf<> xActMaskTBuf_;
     TBuf<> xActMaskCastTBuf_;
     TBuf<> tokenTargetTBuf_;
@@ -670,6 +671,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AlltoAllBuffI
     if constexpr (HasAddRmsNorm) {
         tpipe_->InitBuffer(gammaBuf_, hExpandXAlign32Size_);                    // 32K add
         tpipe_->InitBuffer(reduceFp32Buf_, NUM_PER_REP_FP32 * sizeof(float));      // 32K 搬入
+        tpipe_->InitBuffer(rmsNormYBuf_, maxSizeRowTmpFloatBuf);
     }
     tpipe_->InitBuffer(stateBuf_, (flagRcvCount_) * STATE_OFFSET);
     tpipe_->InitBuffer(stateResetBuf_, (flagRcvCount_) * STATE_OFFSET);      // 清理状态区
@@ -1051,7 +1053,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRms
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
-    LocalTensor<XType> yLocal = rowTmpFloatBuf_.Get<XType>();
+    LocalTensor<XType> yLocal = rmsNormYBuf_.Get<XType>();
     Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
     PipeBarrier<PIPE_V>();
     Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
@@ -1354,6 +1356,11 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
     DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
     const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
+    LocalTensor<XType> gammaLocal_;
+    if (HasAddRmsNorm) {
+        gammaLocal_ = gammaBuf_.Get<XType>();
+        DataCopyPad(gammaLocal_, gammaGM_, expandXCopyParams, copyPadXTypeParams);
+    }
     TBuf<> tokenStatusBuf;
     tpipe_->InitBuffer(tokenStatusBuf, Ceil(tokenPerAivNum * sizeof(int32_t), UB_ALIGN) * UB_ALIGN);
     LocalTensor tokenStatusTensor = tokenStatusBuf.Get<int32_t>();
@@ -1405,10 +1412,6 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
             SyncFunc<AscendC::HardEvent::V_MTE3>();
             DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
             if constexpr (HasAddRmsNorm) {
-                SyncFunc<AscendC::HardEvent::MTE3_V>();
-                LocalTensor<XType> gammaLocal_ = gammaBuf_.Get<XType>();
-                DataCopyPad(gammaLocal_, gammaGM_, expandXCopyParams, copyPadXTypeParams);
-                SyncFunc<AscendC::HardEvent::MTE2_V>();
                 AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal_,
                                     expandXCopyParams);
             }
