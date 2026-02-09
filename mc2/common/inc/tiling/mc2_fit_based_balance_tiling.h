@@ -23,8 +23,8 @@
 
 class Mc2FitBasedBalanceTiling {
 public:
-    MatmulPerformanceModel matmulPerf_;
-    HCCLPerformanceArch35 commPerfArch35_;
+    MatmulPerformanceArch35 matmulPerf_;
+    HCCLPerformanceArch35 commPerf_;
     FormPartition tilingM_;
     MatmulParameters mmInfo_;
     uint64_t rankDim_ = 2;
@@ -33,12 +33,12 @@ public:
 
     explicit Mc2FitBasedBalanceTiling(const mc2tiling::TilingArgs &args, KernelType kernelType,
         TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950) :
-        matmulPerf_(args, socVersion), commPerfArch35_(args.rankDim, kernelType, socVersion, topoType), tilingM_(args)
+        matmulPerf_(args, socVersion), commPerf_(args.rankDim, kernelType, socVersion, topoType), tilingM_(args)
     {
         rankDim_ = args.rankDim;
         mmInfo_ = matmulPerf_.mmShapeInfo_;
         tilingM_.SetMaxTileCnt(MAX_TILE_CNT); // Due to the limited FFTS queue size, a maximum of 16 rounds can be cut.
-        rankTileNum_ = commPerfArch35_.GetRankTileNum();
+        rankTileNum_ = commPerf_.GetRankTileNum();
     };
 
     virtual void GetTiling();

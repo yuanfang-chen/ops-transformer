@@ -26,8 +26,8 @@ public:
         TopoType topoType = TopoType::STANDARD_CARD, SocVersion socVersion = SocVersion::SOC950) :
         Mc2FitBasedBalanceTiling(args, kernelType, topoType, socVersion)
     {
-        commPerfArch35_.SetCommShapeLen(args.nValue);
-        commPerfArch35_.SetCommDTypeSize(mmInfo_.outMatrixCDtypeSize);
+        commPerf_.SetCommShapeLen(args.nValue);
+        commPerf_.SetCommDTypeSize(mmInfo_.outMatrixCDtypeSize);
 
         tilingM_.SetMinLenByMax(matmulPerf_.GetBaseM());
         tilingM_.SetAlignLength(matmulPerf_.GetBaseM());

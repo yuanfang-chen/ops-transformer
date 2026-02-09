@@ -22,31 +22,30 @@ constexpr static uint64_t L2_CACHE_SIZE = 128;
 
 void AllGatherMMFitBalanceTiling::EstimateMMCommTime()
 {
-    matmulPerf_.FindCubeUtil(tilingM_.GetMinLen(), rankTileNum_, false,
-                            &tilingM_.tileArgs.maxTileLen);
+    matmulPerf_.FindCubeUtil(rankTileNum_);
     matmulPerf_.GetMatmulGradient();
 
     // Find total matmul time and comm time
     double totalMatmulTime = matmulPerf_.MatmulTime(mmInfo_.mValue, rankDim_);
-    double totalTpTime = commPerfArch35_.CommTime(mmInfo_.mValue);
+    double totalTpTime = commPerf_.CommTime(mmInfo_.mValue);
     double frontUtil = matmulPerf_.FindCubeUtilByL2Usage(mmInfo_.mValue, 1);
     frontMMTime_ = matmulPerf_.MatmulTime(mmInfo_.mValue, 1) / frontUtil;
     tilingM_.cutRes.shortTileAtBack = true;
     ratioCalcComm_ = (std::max(totalTpTime, totalMatmulTime) / std::min(totalTpTime, totalMatmulTime));
 
-    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.kValue * (rankDim_ - 1) / ONE_MBYTE * commPerfArch35_.GetCommDTypeSize();
+    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.kValue * (rankDim_ - 1) / ONE_MBYTE * commPerf_.GetCommDTypeSize();
     OPS_LOG_D("AllGatherMatmul", "Input shape {M, N, K} = {%lu, %lu, %lu}, cubeUtil_ %f, sizeOfComm %lu, "
         "totalMatmulTime %f, totalCommTime %f, minTileSize %lu, mAlignLen %lu, commTimeFactor_ %f, "
         "rankDim_ %lu, rankTile %lu",
         mmInfo_.mValue, mmInfo_.nValue, mmInfo_.kValue, matmulPerf_.cubeUtil_, sizeOfComm,
-        totalMatmulTime, totalTpTime, tilingM_.GetMinLen(), tilingM_.GetAlignLength(), commPerfArch35_.commTimeFactor_,
+        totalMatmulTime, totalTpTime, tilingM_.GetMinLen(), tilingM_.GetAlignLength(), commPerf_.commTimeFactor_,
         rankDim_, rankTileNum_);
 }
 
 void AllGatherMMFitBalanceTiling::SetLongTileLen()
 {
     // Long tile should overlap the cost time of local tile
-    tilingM_.cutRes.longTileLen = commPerfArch35_.InverseCommTime(frontMMTime_);
+    tilingM_.cutRes.longTileLen = commPerf_.InverseCommTime(frontMMTime_);
 }
 
 void AllGatherMMFitBalanceTiling::SetShortTileLen()
@@ -55,7 +54,7 @@ void AllGatherMMFitBalanceTiling::SetShortTileLen()
     bool isCalcCommBalance = ratioCalcComm_ < 2.0;
     uint64_t cutLen = tilingM_.GetAlignLength() / TWO;
     double mmCost = matmulPerf_.MatmulTime(cutLen, rankDim_);
-    double commCost = commPerfArch35_.CommTime(cutLen);
+    double commCost = commPerf_.CommTime(cutLen);
     uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
         mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
     if (isCalcCommBalance && (mmCost > MM_EXPANSION_TIME) && (commCost > COMM_EXPANSION_TIME) && (l2UseSize < L2_CACHE_SIZE)) {

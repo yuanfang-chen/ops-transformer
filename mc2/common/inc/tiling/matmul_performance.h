@@ -63,18 +63,6 @@ public:
     double matmulGradient_ = 1.0;
     uint64_t mmMinDataSize_ = MatmulPerformance::MM_MIN_DATASIZE_OTHER_SOC; 
 
-    const std::map<SocVersion, TilingBestBaseBlock> TILING_BEST_BASE_MAP {
-        {SocVersion::SOC950, TilingBestBaseBlock{256, 256, 128}},
-    };
-
-    TilingBestBaseBlock GetBestBaseBlock(SocVersion socVersion)
-    {
-        if (TILING_BEST_BASE_MAP.find(socVersion) != TILING_BEST_BASE_MAP.end()) {
-            return TILING_BEST_BASE_MAP.at(socVersion);
-        }
-        return TilingBestBaseBlock{mc2tiling::BASE_BLOCK_M, mc2tiling::BASE_BLOCK_N, mc2tiling::BASE_BLOCK_K};
-    }
-
     void SetCyclePerMicroSec(SocVersion inputSocVersion)
     {
         mmShapeInfo_.cyclePerMicroSec = MatmulPerformance::CYCLE_PER_MICRO_SEC;
@@ -116,10 +104,9 @@ public:
         mmShapeInfo_.nValue = args.nValue;
         mmShapeInfo_.kValue = args.kValue;
         // 获取后续计算用的基本块
-        TilingBestBaseBlock bestBaseBlock = GetBestBaseBlock(inputSocVersion);
-        mmShapeInfo_.baseM = bestBaseBlock.baseM;
-        mmShapeInfo_.baseN = bestBaseBlock.baseN;
-        mmShapeInfo_.baseK = bestBaseBlock.baseK;
+        mmShapeInfo_.baseM = mc2tiling::BASE_BLOCK_M;
+        mmShapeInfo_.baseN = mc2tiling::BASE_BLOCK_N;
+        mmShapeInfo_.baseK = mc2tiling::BASE_BLOCK_K;
         mmShapeInfo_.batchSize = 1UL; // 初始值
         SetCalcType(args);
         SetCyclePerMicroSec(inputSocVersion);

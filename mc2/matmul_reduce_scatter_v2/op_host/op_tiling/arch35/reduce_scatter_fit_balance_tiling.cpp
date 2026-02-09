@@ -28,18 +28,18 @@ void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 
     // Find total matmul time and comm time
     double totalMatmulTime = matmulPerf_.MatmulTime(mmInfo_.mValue, rankDim_);
-    double totalTpTime = commPerfArch35_.CommTime(mmInfo_.mValue);
+    double totalTpTime = commPerf_.CommTime(mmInfo_.mValue);
     ratioCalcComm_ = (std::max(totalTpTime, totalMatmulTime) / std::min(totalTpTime, totalMatmulTime));
     if (totalMatmulTime >= totalTpTime) {
         tilingM_.cutRes.shortTileAtBack = true;
     }
 
-    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.nValue * commPerfArch35_.GetCommDTypeSize() / ONE_MBYTE;
+    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.nValue * commPerf_.GetCommDTypeSize() / ONE_MBYTE;
     OP_LOGD("MatmulReduceScatter", "Input shape {M, N, K} = {%lu, %lu, %lu}, cubeUtil_ %f, sizeOfComm %lu, "
         "totalMatmulTime %f, totalCommTime %f, minTileSize %lu, mAlignLen %lu, commTimeFactor_ %f, "
         "rankDim_ %lu, rankTile %lu",
         mmInfo_.mValue, mmInfo_.nValue, mmInfo_.kValue, matmulPerf_.cubeUtil_, sizeOfComm,
-        totalMatmulTime, totalTpTime, tilingM_.GetMinLen(), tilingM_.GetAlignLength(), commPerfArch35_.commTimeFactor_,
+        totalMatmulTime, totalTpTime, tilingM_.GetMinLen(), tilingM_.GetAlignLength(), commPerf_.commTimeFactor_,
         rankDim_, rankTileNum_);
 }
 
@@ -49,7 +49,7 @@ void MMReduceScatterFitBalanceTiling::SetShortTileLen()
     bool isCalcCommBalance = ratioCalcComm_ < 2.0;
     uint64_t cutLen = tilingM_.GetAlignLength() / TWO;
     double mmCost = matmulPerf_.MatmulTime(cutLen, 1);
-    double commCost = commPerfArch35_.CommTime(cutLen);
+    double commCost = commPerf_.CommTime(cutLen);
     uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
         mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
     if (isCalcCommBalance && (mmCost > MM_EXPANSION_TIME) && (commCost > COMM_EXPANSION_TIME) && (l2UseSize < L2_CACHE_SIZE)) {
