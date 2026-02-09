@@ -23,7 +23,7 @@ using namespace optiling;
 using namespace Mc2GroupedMatmulTiling;
 using namespace Mc2GroupedMatmul::GmmConstant;
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(const int32_t* sendCounts,
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameters(const int32_t* sendCounts,
     uint64_t worldSize, uint64_t index, uint32_t epNums)
 {
     uint64_t mSizePerLoop = 0;
@@ -66,9 +66,9 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.mSize = params.Bs;
     inputParams_.kSize = params.H2;
     inputParams_.nSize = params.N2;
-    // quantMode bit position
-    inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
-    inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
+    // quantMode bit position: 1 << mode
+    inputParams_.aQuantMode = static_cast<uint8_t>(1U << params.mmXQuantMode);
+    inputParams_.bQuantMode = static_cast<uint8_t>(1U << params.mmWeightQuantMode);
     // 是否做切分
     inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
     // 非负递增为0，非负数列为1
@@ -77,23 +77,22 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.splitItem = 2;
     inputParams_.actType = 0;
 
-    inputParams_.aDtype = ge::DT_HIFLOAT8;
-    inputParams_.bDtype = ge::DT_HIFLOAT8;
-    // c outputDtype 赋值
-    inputParams_.cDtype = ge::DT_FLOAT16;
+    inputParams_.aDtype = params.mmXDtype;
+    inputParams_.bDtype = params.mmWeightDtype;
+    inputParams_.cDtype = params.mmYDtype;
     inputParams_.biasDtype = ge::DT_INT32;
-    inputParams_.scaleDtype = ge::DT_FLOAT;
-    inputParams_.perTokenScaleDtype = ge::DT_FLOAT;
+    inputParams_.scaleDtype = params.mmXScaleDtype;
+    inputParams_.perTokenScaleDtype = params.mmXScaleDtype;
     inputParams_.aFormat = ge::FORMAT_ND;
     inputParams_.bFormat = ge::FORMAT_ND;
     inputParams_.cFormat = ge::FORMAT_ND;
     inputParams_.transA = false;
-    // ？？？transB 赋值
-    inputParams_.transB = false;
+    inputParams_.transB = params.isMmWeightTrans;
     inputParams_.hasBias = false;
     inputParams_.isSingleX = true;
     inputParams_.isSingleW = true;
     inputParams_.isSingleY = true;
+    SetMKNList();
     SetKernelType();
     return ge::GRAPH_SUCCESS;
 }
@@ -111,8 +110,9 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const Q
     // inputParams_.outScaleDtype = ge::DT_FLOAT;
     // need set
     inputParams_.kernelType = 0UL;
-    inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
-    inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
+    // quantMode bit position: 1 << mode
+    inputParams_.aQuantMode = static_cast<uint8_t>(1U << params.gmmXQuantMode);
+    inputParams_.bQuantMode = static_cast<uint8_t>(1U << params.gmmWeightQuantMode);
     // 是否做切分
     inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::SPLIT_M;
     inputParams_.groupListType = 1;
@@ -123,25 +123,19 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const Q
     inputParams_.bDtype = params.gmmWeightDtype;
     inputParams_.cDtype = params.gmmYDtype;
     inputParams_.biasDtype = ge::DT_INT32;
-    inputParams_.scaleDtype = ge::DT_FLOAT;
-    inputParams_.perTokenScaleDtype = ge::DT_FLOAT;
+    inputParams_.scaleDtype = params.gmmXScaleDtype;
+    inputParams_.perTokenScaleDtype = params.gmmXScaleDtype;
     inputParams_.aFormat = ge::FORMAT_ND;
     inputParams_.bFormat = ge::FORMAT_ND;
     inputParams_.cFormat = ge::FORMAT_ND;
     inputParams_.transA = false;
-    inputParams_.transB = false;
+    inputParams_.transB = params.isGmmWeightTrans;
     inputParams_.hasBias = false;
     inputParams_.isSingleX = true;
     inputParams_.isSingleW = true;
     inputParams_.isSingleY = true;
+    SetMKNList();
     SetKernelType();
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonContextParameters()
-{
-    GE_ASSERT_GRAPH_SUCCESS(SetCommonInputParams());
-    GE_ASSERT_GRAPH_SUCCESS(GetPlatformInfo());
     return ge::GRAPH_SUCCESS;
 }
 

@@ -49,7 +49,7 @@ public:
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
     ge::graphStatus SetSharedExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params);
-    ge::graphStatus SetExpertInputParameters(const int32_t* sendCounts, uint64_t worldSize, uint64_t index,
+    ge::graphStatus SetGroupExpertInputParameters(const int32_t* sendCounts, uint64_t worldSize, uint64_t index,
                                              uint32_t epNums);
     const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingAdapterData() const { return tilingData_; }
     // Input validation methods - skipped (validated outside class)
@@ -57,6 +57,7 @@ public:
     bool AnalyzeDtype() override { return true; }
     bool AnalyzeInputs() override { return true; }
     void PrintQuantParams() override {}
+    void Reset() override {}
 
     // void PrintMatmulParams();
     ge::graphStatus Process();

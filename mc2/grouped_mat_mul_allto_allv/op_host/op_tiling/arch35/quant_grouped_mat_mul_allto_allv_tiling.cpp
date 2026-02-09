@@ -346,14 +346,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParams()
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 {
-    ge::DataType gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
-    ge::DataType gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
-    OP_TILING_CHECK(!IsContains(QUANT_GMM_X_SCALE_DTYPE_LIST, gmmXScaleDtype),
+    localParams_.gmmXScaleDtype = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
+    localParams_.gmmWeightScaleDtype = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
+    OP_TILING_CHECK(!IsContains(QUANT_GMM_X_SCALE_DTYPE_LIST, localParams_.gmmXScaleDtype),
         OP_LOGE(opName_, "The Input gmmX Scale Dtype should be in (float32, ), but Scale is %s.",
-        Ops::Base::ToString(gmmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!IsContains(QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST, gmmWeightScaleDtype),
+        Ops::Base::ToString(localParams_.gmmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!IsContains(QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST, localParams_.gmmWeightScaleDtype),
         OP_LOGE(opName_, "The Input gmmWeight Scale Dtype should be in (float32, ), but Scale is %s.",
-        Ops::Base::ToString(gmmWeightScaleDtype).c_str()), return ge::GRAPH_FAILED);
+        Ops::Base::ToString(localParams_.gmmWeightScaleDtype).c_str()), return ge::GRAPH_FAILED);
 
     const gert::StorageShape* gmmXScaleStorageShape = context_->GetOptionalInputShape(GMM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape* gmmWeightScaleStorageShape = context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
@@ -404,14 +404,15 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
     }
-    ge::DataType mmXScaleDtype = context_->GetOptionalInputDesc(MM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
-    ge::DataType mmWeightScaleDtype = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
-    OP_TILING_CHECK(!IsContains(QUANT_GMM_X_SCALE_DTYPE_LIST, mmXScaleDtype),
+    localParams_.mmXScaleDtype = context_->GetOptionalInputDesc(MM_X_SCALE_OPTIONAL_INDEX)->GetDataType();
+    localParams_.mmWeightScaleDtype = context_->GetOptionalInputDesc(MM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetDataType();
+    
+    OP_TILING_CHECK(!IsContains(QUANT_GMM_X_SCALE_DTYPE_LIST, localParams_.mmXScaleDtype),
         OP_LOGE(opName_, "The Input mmX Scale Dtype should be in (float32, ), but Scale is %s.",
-        Ops::Base::ToString(mmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!IsContains(QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST, mmWeightScaleDtype),
+        Ops::Base::ToString(localParams_.mmXScaleDtype).c_str()), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!IsContains(QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST, localParams_.mmWeightScaleDtype),
         OP_LOGE(opName_, "The Input mmWeight Scale Dtype should be in (float32, ), but Scale is %s.",
-        Ops::Base::ToString(mmWeightScaleDtype).c_str()), return ge::GRAPH_FAILED);
+        Ops::Base::ToString(localParams_.mmWeightScaleDtype).c_str()), return ge::GRAPH_FAILED);
 
     const gert::StorageShape* mmXScaleStorageShape = context_->GetOptionalInputShape(MM_X_SCALE_OPTIONAL_INDEX);
     const gert::StorageShape* mmWeightScaleStorageShape = context_->GetOptionalInputShape(MM_WEIGHT_SCALE_OPTIONAL_INDEX);
@@ -685,7 +686,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
 {
     // 设置GMM切前信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(*this, context_);
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonContextParameters());
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.GetPlatformInfo());
     // 当前为 epNums，每轮一专家
     auto taskTilingInfoPtr = &localTilingData_.taskTilingInfo;
     auto expertNumPerLoop = taskTilingInfoPtr->mainLoopExpertNum;
@@ -694,20 +696,17 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     auto worldSize = taskTilingInfoPtr->epWorldSize;
     auto sendCounts = taskTilingInfoPtr->sendCnt;
     for (loop = 0; loop < taskTilingInfoPtr->totalLoopCount - 1; loop++) {
-        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
+        GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(sendCounts , worldSize,
             loop * expertNumPerLoop * worldSize, expertNumPerLoop));
         GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
         localTilingData_.gmmBaseTiling = gmmTile.GetGmmQuantTilingAdapterData();
     }
 
-    // 尾轮
-    // expertNumPerLoop = taskTilingInfoPtr->tailLoopExpertNum;
-    // GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetExpertInputParameters(sendCounts , worldSize,
-    //     loop * expertNumPerLoop * worldSize, expertNumPerLoop));
-    // GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
-
     // SharedMM切分
-    auto status = gmmTile.SetSharedExpertInputParameters();
+    if (!localParams_.hasSharedMm) {
+        return ge::GRAPH_SUCCESS;
+    }
+    auto status = gmmTile.SetSharedExpertInputParameters(localParams_);
     if (status != ge::GRAPH_SUCCESS) {
         memset_s(&localTilingData_.sharedGmmTiling, sizeof(localTilingData_.sharedGmmTiling),
             0, sizeof(localTilingData_.sharedGmmTiling));
