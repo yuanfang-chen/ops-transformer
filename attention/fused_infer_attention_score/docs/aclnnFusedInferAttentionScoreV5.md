@@ -1889,7 +1889,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td>-</td>
         </tr>
         <tr>
-            <td>key</td>
+            <td>value</td>
             <td>FLOAT8_E4M3FN</td>
             <td>-</td>
         </tr>
