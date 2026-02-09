@@ -550,6 +550,11 @@ function gen_bisheng(){
 
 function build_package(){
     build package
+    # local all_targets=$(cmake --build . --target help)
+    # if echo "${all_targets}" | grep -wq "build_es_transformer"; then
+    #     cmake --build . --target build_es_transformer -- ${VERBOSE} -j $THREAD_NUM
+    #     [ $? -ne 0 ] && echo "[ERROR] target:build_es_transformer compile failed!" && exit 1
+    # fi
 }
 
 function build_host(){
