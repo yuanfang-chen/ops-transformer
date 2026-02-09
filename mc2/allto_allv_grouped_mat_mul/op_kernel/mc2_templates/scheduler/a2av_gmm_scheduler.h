@@ -37,7 +37,7 @@ public:
         const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
         uint64_t hcclCcTilingOffset = offsetof(TilingDataType,  hcclA2avTilingInfo) +
                         offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
-        groupListGm_ = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
+        commOutGm = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
         if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
