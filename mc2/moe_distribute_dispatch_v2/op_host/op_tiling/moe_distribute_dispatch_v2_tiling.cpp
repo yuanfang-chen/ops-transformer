@@ -1512,6 +1512,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
     info.moeExpertNum = *moeExpertNumPtr;
     info.quantMode = *quantModePtr;
     info.maxMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2;
+
     if (*globalBsPtr == 0) {
         info.globalBs = *epWorldSizePtr * bs;
     } else {
@@ -1531,6 +1532,7 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(const gert::
     OP_LOGD(K_INNER_DEBUG, "epRankId=%d", info.epRankId);
     OP_LOGD(K_INNER_DEBUG, "tpRankId=%d", info.tpRankId);
     OP_LOGD(K_INNER_DEBUG, "zeroComputeExpertNum=%d", info.zeroComputeExpertNum);
+    OP_LOGD(K_INNER_DEBUG, "maxMoeExpertNum=%d", info.maxMoeExpertNum);
 
     return ge::GRAPH_SUCCESS;
 }
