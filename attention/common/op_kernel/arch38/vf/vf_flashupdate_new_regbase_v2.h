@@ -69,7 +69,7 @@ __aicore__ inline void FlashUpdateNoTailV510_VF(const LocalTensor<T>& dstTensor,
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
             static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::ONE, MicroAPI::SatMode::NO_SAT,
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-            MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegMax, expMaxUb + i * reduceSize);
+            MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegMax, expMaxUb + i * reduceSize);
             MicroAPI::Cast<T, float, castTrait0>(vSrcRegMaxB16Even, vSrcRegMax, maskRegAllB32);
             MicroAPI::Cast<T, float, castTrait1>(vSrcRegMaxB16Odd, vSrcRegMax, maskRegAllB32);
             MicroAPI::Or<uint16_t, MicroAPI::MaskMergeMode::ZEROING>((MicroAPI::RegTensor<uint16_t>&)vSrcRegMaxB16,
@@ -77,12 +77,12 @@ __aicore__ inline void FlashUpdateNoTailV510_VF(const LocalTensor<T>& dstTensor,
                 preg_d);
 
             // high performance only support d=128
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
 
             MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMaxB16, vSrcRegPre, preg_d);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vDstRegAdd, vSrcRegMul, vSrcRegCur, preg_d);
-            MicroAPI::DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegAdd, preg_d);
+            MicroAPI::StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegAdd, preg_d);
         }
     }
 }
@@ -143,8 +143,8 @@ __aicore__ inline void FlashUpdateLastNoTailV510_VF(const LocalTensor<T>& dstTen
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
             static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::ONE, MicroAPI::SatMode::NO_SAT,
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-            MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegMax, expMaxUb + i * reduceSize);
-            MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegSum, expSumUb + i * reduceSize);
+            MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegMax, expMaxUb + i * reduceSize);
+            MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegSum, expSumUb + i * reduceSize);
             MicroAPI::Cast<T, float, castTrait0>(vSrcRegMaxB16Even, vSrcRegMax, maskRegAllB32);
             MicroAPI::Cast<T, float, castTrait1>(vSrcRegMaxB16Odd, vSrcRegMax, maskRegAllB32);
             MicroAPI::Cast<T, float, castTrait0>(vSrcRegSumB16Even, vSrcRegSum, maskRegAllB32);
@@ -157,13 +157,13 @@ __aicore__ inline void FlashUpdateLastNoTailV510_VF(const LocalTensor<T>& dstTen
                 preg_d);
 
             // high performance only support d=128
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegCur, curUb + i * dSize);
 
             MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegMul, vSrcRegMaxB16, vSrcRegPre, preg_d);
             MicroAPI::Add<T, MicroAPI::MaskMergeMode::ZEROING>(vSrcRegAdd, vSrcRegMul, vSrcRegCur, preg_d);
             MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegAdd, vSrcRegSumB16, preg_d);
-            MicroAPI::DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegDiv, preg_d);
+            MicroAPI::StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegDiv, preg_d);
         }
     }
 }
@@ -212,16 +212,16 @@ __aicore__ inline void FlashUpdateDivNoTailV510_VF(const LocalTensor<T>& dstTens
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
             static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::ONE, MicroAPI::SatMode::NO_SAT,
                 MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-            MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegSum, expSumUb + i * reduceSize);
+            MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_BRC_B32>(vSrcRegSum, expSumUb + i * reduceSize);
             MicroAPI::Cast<T, float, castTrait0>(vSrcRegSumB16Even, vSrcRegSum, maskRegAllB32);
             MicroAPI::Cast<T, float, castTrait1>(vSrcRegSumB16Odd, vSrcRegSum, maskRegAllB32);
             MicroAPI::Or<uint16_t, MicroAPI::MaskMergeMode::ZEROING>((MicroAPI::RegTensor<uint16_t>&)vSrcRegSumB16,
                 (MicroAPI::RegTensor<uint16_t>&)vSrcRegSumB16Even, (MicroAPI::RegTensor<uint16_t>&)vSrcRegSumB16Odd,
                 preg_d);
             // high performance only support d=128
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vSrcRegPre, preUb + i * dSize);
             MicroAPI::Div<T, &mode>(vDstRegDiv, vSrcRegPre, vSrcRegSumB16, preg_d);
-            MicroAPI::DataCopy<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegDiv, preg_d);
+            MicroAPI::StoreAlign<OUTPUT_T, MicroAPI::StoreDist::DIST_NORM_B16>(dstUb + i * dSize, vDstRegDiv, preg_d);
         }
     }
 }

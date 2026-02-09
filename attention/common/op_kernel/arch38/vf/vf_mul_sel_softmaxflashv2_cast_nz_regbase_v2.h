@@ -65,26 +65,26 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl128(
         MicroAPI::RegTensor<T2> vreg_res;      
 
         for (uint16_t i = 0; i < rows; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_input_x, srcUb + i * sInner); // fp16 data 256B one row
             MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_x, vreg_input_x,
                     scale, preg_all_b16); // Muls(scale)
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>
                     (srcUb + i * sInner, vreg_input_x, preg_all_b16);  
             MicroAPI::ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_input_max, vreg_input_x, preg_all_b16);
-            MicroAPI::DataCopyUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (maxUb, vreg_input_max, ureg_max, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (maxUb, ureg_max, 0);
 
         mem_bar(VST_VLD);
 
         for (uint16_t i = 0; i < rows; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B16>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B16>
                     (vreg_max_brc, maxUbStart + i);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_input_x, srcUb + i * sInner);
             MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                     MicroAPI::MaskMergeMode::ZEROING>(vreg_exp_res, vreg_input_x, vreg_max_brc, preg_all_b16);
@@ -95,7 +95,7 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl128(
                 MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
             static constexpr MicroAPI::CastTrait castTrait1 = {MicroAPI::RegLayout::ONE,
                 MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
-        MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+        MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ T2 *&)expUb, vreg_exp_res, blockStride,
                     repeatStride, preg_all_b16);
             
@@ -106,10 +106,10 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl128(
                     (vreg_exp_sum, vreg_exp_even, vreg_exp_odd, preg_all_b32);
             MicroAPI::ReduceSum<float, float, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_exp_sum, vreg_exp_sum, preg_all_b32);
-            MicroAPI::DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (expSumUb, vreg_exp_sum, ureg_exp_sum, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (expSumUb, ureg_exp_sum, 0);
     }
 }
@@ -156,24 +156,24 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl256(
         MicroAPI::RegTensor<T> vreg_exp_res_2;
 
         for (uint16_t i = 0; i < rows; ++i) {
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_x_1, vreg_input_x_1, scale, preg_all_b16);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_x_2, vreg_input_x_2, scale, preg_all_b16);
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner, vreg_input_x_1, preg_all_b16);  
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner + halfRepSize, vreg_input_x_2, preg_all_b16);
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner, vreg_input_x_1, preg_all_b16);  
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner + halfRepSize, vreg_input_x_2, preg_all_b16);
                 MicroAPI::Max(vreg_input_max_tmp, vreg_input_x_1, vreg_input_x_2, preg_all_b16);
                 MicroAPI::ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_max, vreg_input_max_tmp, preg_all_b16);
-                MicroAPI::DataCopyUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(maxUb, vreg_input_max, ureg_max, 1);
+                MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(maxUb, vreg_input_max, ureg_max, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(maxUb, ureg_max, 0);
+        MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(maxUb, ureg_max, 0);
 
         mem_bar(VST_VLD);
 
         for (uint16_t i = 0; i < rows; ++i) {
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B16>(vreg_max_brc, maxUbStart + i);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B16>(vreg_max_brc, maxUbStart + i);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
                 MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                         MicroAPI::MaskMergeMode::ZEROING>(vreg_exp_res_1, vreg_input_x_1, vreg_max_brc, preg_all_b16);
                 MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
@@ -186,10 +186,10 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl256(
                 MicroAPI::SatMode::UNKNOWN, MicroAPI::MaskMergeMode::ZEROING, RoundMode::UNKNOWN};
             
 
-                MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+                MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                         MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ T2 *&)expUb1, vreg_exp_res_1, blockStride,
                         repeatStride, preg_all_b16);
-                MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+                MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                         MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ T2 *&)expUb2, vreg_exp_res_2, blockStride,
                         repeatStride, preg_all_b16);
     
@@ -202,10 +202,10 @@ __aicore__ inline void SoftmaxFlashV510NoUpdateImpl256(
                         (vreg_exp_sum, vreg_exp_even, vreg_exp_odd, preg_all_b32);
                 MicroAPI::ReduceSum<float, float, MicroAPI::MaskMergeMode::ZEROING>
                         (vreg_exp_sum, vreg_exp_sum, preg_all_b32);
-                MicroAPI::DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+                MicroAPI::StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                         (expSumUb, vreg_exp_sum, ureg_exp_sum, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (expSumUb, ureg_exp_sum, 0);
     }
 }
@@ -298,25 +298,25 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl128(const LocalTensor<T2>& dstT
 
         // x_max = max(src, axis=-1, keepdims=True); x_max = Max(x_max, inMax)
         for (uint16_t i = 0; i < rows; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_input_x, srcUb + i * sInner);
             MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_input_x, vreg_input_x, scale, preg_all_b16);
-            MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B32>
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B32>
                     (srcUb + i * sInner, vreg_input_x, preg_all_b16);
             MicroAPI::ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_input_max, vreg_input_x, preg_all_b16);
-            MicroAPI::DataCopyUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (tmpMaxUb, vreg_input_max, ureg_max, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (tmpMaxUb, ureg_max, 0);
         // load history max
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                 (vreg_in_max, inMaxUb);
         mem_bar(VST_VLD);
         // load current max
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                 (vreg_input_max, tmpMaxUbStart);
         // max(history max, current max)
         MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>
@@ -327,18 +327,18 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl128(const LocalTensor<T2>& dstT
         MicroAPI::Cast<float, half, castTrait0>(vreg_exp_max_even, vreg_exp_max, preg_all_b16);
         MicroAPI::Cast<float, half, castTrait1>(vreg_exp_max_odd, vreg_exp_max, preg_all_b16);
         // store exp_max
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (expMaxUb, vreg_exp_max_even, vreg_exp_max_odd, preg_all_b32);
         // store max
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>
                 (maxUb, vreg_max, preg_all_b16);
 
         mem_bar(VST_VLD);
 
         for (uint16_t i = 0; i < rows; ++i) {
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B16>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B16>
                     (vreg_max, maxUb + i);
-            MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>
                     (vreg_input_x, srcUb + i * sInner);
             MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                     MicroAPI::MaskMergeMode::ZEROING>(vreg_exp_res, vreg_input_x, vreg_max, preg_all_b16);
@@ -355,7 +355,7 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl128(const LocalTensor<T2>& dstT
             MicroAPI::Pack<uint8_t, uint16_t, MicroAPI::HighLowPart::LOWEST>((MicroAPI::RegTensor<uint8_t>&)vreg_res, 
                     (MicroAPI::RegTensor<uint16_t>&)vreg_cast);
 
-            MicroAPI::DataCopy<int8_t, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+            MicroAPI::StoreAlign<int8_t, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                     MicroAPI::PostLiteral::POST_MODE_UPDATE>(((__ubuf__ int8_t *&) expUb),
                     vreg_res, blockStride, repeatStride, preg_s8);  
 
@@ -366,17 +366,17 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl128(const LocalTensor<T2>& dstT
                     (vreg_exp_sum, vreg_exp_even, vreg_exp_odd, preg_all_b32);
             MicroAPI::ReduceSum<float, float, MicroAPI::MaskMergeMode::ZEROING>
                     (vreg_exp_sum, vreg_exp_sum, preg_all_b32);
-            MicroAPI::DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+            MicroAPI::StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                     (tmpExpSumUb, vreg_exp_sum, ureg_exp_sum, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (tmpExpSumUb, ureg_exp_sum, 0);
         mem_bar(VST_VLD);
 
         // x_sum = sum(exp_max * in_sum + x_sum)
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_in_exp_sum_even, vreg_in_exp_sum_odd, inExpSumUb);
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_exp_sum_brc_even, vreg_exp_sum_brc_odd, tmpExpSumUbStart);
         MicroAPI::Mul<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_exp_sum_update_even, vreg_exp_max_even, vreg_in_exp_sum_even, preg_all_b32);
@@ -386,7 +386,7 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl128(const LocalTensor<T2>& dstT
                 (vreg_exp_sum_update_even, vreg_exp_sum_update_even, vreg_exp_sum_brc_even, preg_all_b32);
         MicroAPI::Add<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_exp_sum_update_odd, vreg_exp_sum_update_odd, vreg_exp_sum_brc_odd, preg_all_b32);
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (expSumUb, vreg_exp_sum_update_even, vreg_exp_sum_update_odd, preg_all_b32);
     }
 }
@@ -463,22 +463,22 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl256(const LocalTensor<T2>& dstT
 
         // x_max = max(src, axis=-1, keepdims=True); x_max = Max(x_max, inMax)
         for (uint16_t i = 0; i < rows; ++i) {
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_x_1, vreg_input_x_1, scale, preg_all_b16);
                 MicroAPI::Muls<T, T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_x_2, vreg_input_x_2, scale, preg_all_b16);
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner, vreg_input_x_1, preg_all_b16);  
-                MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner + halfRepSize, vreg_input_x_2, preg_all_b16);
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner, vreg_input_x_1, preg_all_b16);  
+                MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>(srcUb + i * sInner + halfRepSize, vreg_input_x_2, preg_all_b16);
                 MicroAPI::Max(vreg_input_max_tmp, vreg_input_x_1, vreg_input_x_2, preg_all_b16);
                 MicroAPI::ReduceMax<T, MicroAPI::MaskMergeMode::ZEROING>(vreg_input_max, vreg_input_max_tmp, preg_all_b16);
-                MicroAPI::DataCopyUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(tmpMaxUb, vreg_input_max, ureg_max, 1);
+                MicroAPI::StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(tmpMaxUb, vreg_input_max, ureg_max, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(tmpMaxUb, ureg_max, 0);
+        MicroAPI::StoreUnAlignPost<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(tmpMaxUb, ureg_max, 0);
         // load history max
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_in_max, inMaxUb);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_in_max, inMaxUb);
         mem_bar(VST_VLD);
         // load current max
-        MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_max, tmpMaxUbStart);
+        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_max, tmpMaxUbStart);
         // max(history max, current max)
         MicroAPI::Max<T, MicroAPI::MaskMergeMode::ZEROING>(vreg_max, vreg_input_max, vreg_in_max, preg_all_b16);
         // exp_max = exp(inmax - x_max)
@@ -487,27 +487,27 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl256(const LocalTensor<T2>& dstT
         MicroAPI::Cast<float, half, castTrait0>(vreg_exp_max_even, vreg_exp_max, preg_all_b16);
         MicroAPI::Cast<float, half, castTrait1>(vreg_exp_max_odd, vreg_exp_max, preg_all_b16);
         // store exp_max
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (expMaxUb, vreg_exp_max_even, vreg_exp_max_odd, preg_all_b32);
         // store max
-        MicroAPI::DataCopy<T, MicroAPI::StoreDist::DIST_NORM_B16>
+        MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_NORM_B16>
                 (maxUb, vreg_max, preg_all_b16);
 
         mem_bar(VST_VLD);
 
         for (uint16_t i = 0; i < rows; ++i) {
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_BRC_B16>(vreg_max, maxUb + i);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
-                MicroAPI::DataCopy<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B16>(vreg_max, maxUb + i);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_1, srcUb + i * sInner);
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vreg_input_x_2, srcUb + i * sInner + halfRepSize);
                 MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                         MicroAPI::MaskMergeMode::ZEROING>(vreg_exp_res_1, vreg_input_x_1, vreg_max, preg_all_b16);
                 MicroAPI::FusedExpSub<T, T, MicroAPI::RegLayout::ONE,
                         MicroAPI::MaskMergeMode::ZEROING>(vreg_exp_res_2, vreg_input_x_2, vreg_max, preg_all_b16);
 
-                MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+                MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                         MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ T2 *&)expUb1, vreg_exp_res_1, blockStride,
                         repeatStride, preg_all_b16);
-                MicroAPI::DataCopy<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
+                MicroAPI::StoreAlign<T2, MicroAPI::DataCopyMode::DATA_BLOCK_COPY,
                         MicroAPI::PostLiteral::POST_MODE_UPDATE>((__ubuf__ T2 *&)expUb2, vreg_exp_res_2, blockStride,
                         repeatStride, preg_all_b16);
 
@@ -520,17 +520,17 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl256(const LocalTensor<T2>& dstT
                         (vreg_exp_sum, vreg_exp_even, vreg_exp_odd, preg_all_b32);
                 MicroAPI::ReduceSum<float, float, MicroAPI::MaskMergeMode::ZEROING>
                         (vreg_exp_sum, vreg_exp_sum, preg_all_b32);
-                MicroAPI::DataCopyUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+                MicroAPI::StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                         (tmpExpSumUb, vreg_exp_sum, ureg_exp_sum, 1);
         }
-        MicroAPI::DataCopyUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
+        MicroAPI::StoreUnAlignPost<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>
                 (tmpExpSumUb, ureg_exp_sum, 0);
         mem_bar(VST_VLD);
 
         // x_sum = sum(exp_max * in_sum + x_sum)
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_in_exp_sum_even, vreg_in_exp_sum_odd, inExpSumUb);
-        MicroAPI::DataCopy<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
+        MicroAPI::LoadAlign<float, MicroAPI::LoadDist::DIST_DINTLV_B32>
                 (vreg_exp_sum_brc_even, vreg_exp_sum_brc_odd, tmpExpSumUbStart);
         MicroAPI::Mul<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_exp_sum_update_even, vreg_exp_max_even, vreg_in_exp_sum_even, preg_all_b32);
@@ -540,7 +540,7 @@ __aicore__ inline void SoftmaxFlashV510UpdateImpl256(const LocalTensor<T2>& dstT
                 (vreg_exp_sum_update_even, vreg_exp_sum_update_even, vreg_exp_sum_brc_even, preg_all_b32);
         MicroAPI::Add<float, MicroAPI::MaskMergeMode::ZEROING>
                 (vreg_exp_sum_update_odd, vreg_exp_sum_update_odd, vreg_exp_sum_brc_odd, preg_all_b32);
-        MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_INTLV_B32>
+        MicroAPI::StoreAlign<float, MicroAPI::StoreDist::DIST_INTLV_B32>
                 (expSumUb, vreg_exp_sum_update_even, vreg_exp_sum_update_odd, preg_all_b32);
     }
 }
