@@ -52,7 +52,7 @@ public:
         N1_ = tilingData_->taskTilingInfo.N1;
         BS_ = tilingData_->taskTilingInfo.BS;
         BSK_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = workspaceGM_ + BSK_ * H1_ * sizeof(xType);
+        groupListGm_ = workspaceGM_ + BSK_ * H1_;
         tokenOffset_ = 0;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
@@ -82,18 +82,6 @@ public:
         groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
-
-        this->UpdateAddr(expertIdx);
-        // __gm__ uint8_t *xAddr = reinterpret_cast<__gm__ uint8_t *>(xGM_);
-        // __gm__ uint8_t *yAddr = reinterpret_cast<__gm__ uint8_t *>(yGM_);
-        // __gm__ uint8_t *wAddr = reinterpret_cast<__gm__ uint8_t *>(weightScaleGM_);
-
-        // // 4. 构建 GetTensorAddr 指针表
-        // GM_ADDR xPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(xAddr), 0);
-        // GM_ADDR wPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(wAddr), 1);
-        // GM_ADDR scaleBPtr = BuildPtrTable(weightScaleGM_, 2);
-        // GM_ADDR yPtr = BuildPtrTable(reinterpret_cast<GM_ADDR>(yAddr), 3);
-
         this->UpdateAddr(expertIdx);
         GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
         tPipe_->Reset();
@@ -111,21 +99,11 @@ public:
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
-        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_ * sizeof(xType));
-        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_ * sizeof(wType));
-        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_ * sizeof(yType));
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
-
-    // __aicore__ inline GM_ADDR BuildPtrTable(GM_ADDR dataAddr, uint32_t slotIdx)
-    // {
-    //     // 每个 slot 占 16 bytes (2 * uint64_t)
-    //     __gm__ uint64_t *slot = reinterpret_cast<__gm__ uint64_t *>(
-    //         reinterpret_cast<__gm__ uint8_t *>(ptrTableBase_) + slotIdx * 16);
-    //     slot[0] = sizeof(uint64_t);  // byteOffset
-    //     slot[1] = reinterpret_cast<uint64_t>(dataAddr);  // 实际数据地址
-    //     return reinterpret_cast<GM_ADDR>(slot);
-    // }
 
 private:
     using biasType = float;
