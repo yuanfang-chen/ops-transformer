@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -139,6 +139,8 @@ ge::graphStatus AlltoAllvGmmTilingBase::GetAttrsInfo()
     gmmWeightQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_GMM_WEIGHT_QUANT_MODE_INDEX);
     mmXQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_MODE_INDEX);
     mmWeightQuantModePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_WEIGHT_QUANT_MODE_INDEX);
+    gmmXQuantDTypePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_GMM_X_QUANT_DTYPE_INDEX);
+    mmXQuantDTypePtr_ = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_DTYPE_INDEX);
     OP_LOGD(context_->GetNodeName(), "end GetAttrsInfo.");
     return ge::GRAPH_SUCCESS;
 }
@@ -455,9 +457,6 @@ ge::graphStatus AlltoAllvGmmTilingBase::GetMmWeightShapeInfo()
     if (context_->GetOptionalInputShape(MM_WEIGHT_INDEX) != nullptr) {
         n2_ = transMmWeight_ ? context_->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(DIM_ZERO) :
                                context_->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(DIM_ONE);
-    } else {
-        OP_TILING_CHECK(transMmWeight_ == true,
-            OP_LOGE(context_->GetNodeName(), "The transMmWeight should be false when mmWeight is null!"), return ge::GRAPH_FAILED);
     }
     OP_LOGD(context_->GetNodeName(), "end GetMmWeightShapeInfo.");
     return ge::GRAPH_SUCCESS;
@@ -602,42 +601,48 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckFormat()
     OP_LOGD(context_->GetNodeName(), "start CheckFormat.");
     auto gmmXDesc = context_->GetInputDesc(GMM_X_INDEX);
     OP_TILING_CHECK(gmmXDesc == nullptr, 
-        OP_LOGE(context_->GetNodeName(), "gmmX tensor desc can not be null."), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->GetNodeName(), "gmmX tensor desc can not be null."), 
+        return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmXDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-        OP_LOGE(context_->GetNodeName(), "gmmX storage format should be ND."), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->GetNodeName(), "gmmX storage format should be ND."),
+        return ge::GRAPH_FAILED);
     auto gmmWeightDesc = context_->GetInputDesc(GMM_WEIGHT_INDEX);
     OP_TILING_CHECK(gmmWeightDesc == nullptr,
-        OP_LOGE(context_->GetNodeName(), "gmmWeight tensor desc can not be null."), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->GetNodeName(), "gmmWeight tensor desc can not be null."),
+        return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmWeightDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-        OP_LOGE(context_->GetNodeName(), "gmmWeight storage format should be ND."), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->GetNodeName(), "gmmWeight storage format should be ND."),
+        return ge::GRAPH_FAILED);
     auto mmXDesc = context_->GetOptionalInputDesc(MM_X_INDEX);
     if (mmXDesc != nullptr) {
         OP_TILING_CHECK(mmXDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-            OP_LOGE(context_->GetNodeName(), "mmX storage format should be ND."), return ge::GRAPH_FAILED);
+            OP_LOGE(context_->GetNodeName(), "mmX storage format should be ND."),
+            return ge::GRAPH_FAILED);
     }
     auto mmWeightDesc = context_->GetOptionalInputDesc(MM_WEIGHT_INDEX);
     if (mmWeightDesc != nullptr) {
         OP_TILING_CHECK(mmWeightDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-            OP_LOGE(context_->GetNodeName(), "mmWeight storage format should be ND."), return ge::GRAPH_FAILED);
+            OP_LOGE(context_->GetNodeName(), "mmWeight storage format should be ND."),
+            return ge::GRAPH_FAILED);
     }
     auto gmmYDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
     OP_TILING_CHECK(gmmYDesc == nullptr,
-        OP_LOGE(context_->GetNodeName(), "gmmY tensor desc can not be null."), return ge::GRAPH_FAILED);
+        OP_LOGE(context_->GetNodeName(), "gmmY tensor desc can not be null."),
+        return ge::GRAPH_FAILED);
     OP_TILING_CHECK(gmmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-        OP_LOGE(context_->GetNodeName(), "gmmY storage format should be ND."), return ge::GRAPH_FAILED);
-    if (hasSharedExpertFlag_) {
-        auto mmYDesc = context_->GetOutputDesc(OUTPUT_MM_Y_INDEX);
-        if (mmYDesc != nullptr) {
-            OP_TILING_CHECK(mmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-                OP_LOGE(context_->GetNodeName(), "mmY storage format should be ND."), return ge::GRAPH_FAILED);
-        }
+        OP_LOGE(context_->GetNodeName(), "gmmY storage format should be ND."),
+        return ge::GRAPH_FAILED);
+    auto mmYDesc = context_->GetOutputDesc(OUTPUT_MM_Y_INDEX);
+    if (mmYDesc != nullptr) {
+        OP_TILING_CHECK(mmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
+            OP_LOGE(context_->GetNodeName(), "mmY storage format should be ND."),
+            return ge::GRAPH_FAILED);
     }
     auto permuteOutDesc = context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX);
-    if (permuteOutFlag_) {
-        if (permuteOutDesc != nullptr) {
-            OP_TILING_CHECK(permuteOutDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-                OP_LOGE(context_->GetNodeName(), "permuteOut storage format should be ND."), return ge::GRAPH_FAILED);
-        }
+    if (permuteOutDesc != nullptr) {
+        OP_TILING_CHECK(permuteOutDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
+            OP_LOGE(context_->GetNodeName(), "permuteOut storage format should be ND."),
+            return ge::GRAPH_FAILED);
     }
     OP_LOGD(context_->GetNodeName(), "end CheckFormat.");
     return ge::GRAPH_SUCCESS;

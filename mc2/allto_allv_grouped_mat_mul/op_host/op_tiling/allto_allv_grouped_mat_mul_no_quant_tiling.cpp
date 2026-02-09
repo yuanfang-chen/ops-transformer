@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -16,11 +16,6 @@
 #include <string>
 #include <numeric>
 #include <climits>
-#include "allto_allv_grouped_mat_mul_tiling_base.h"
-#include "register/op_impl_registry.h"
-#include "tiling_base/tiling_templates_registry.h"
-#include "context_util.h"
-#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 #include "tiling/matmul_formulaic_tiling.h"
 #include "tiling/hccl_formulaic_tiling.h"
 #include "mc2_hcom_topo_info.h"
@@ -28,6 +23,11 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
+#include "allto_allv_grouped_mat_mul_tiling_base.h"
+#include "register/op_impl_registry.h"
+#include "tiling_base/tiling_templates_registry.h"
+#include "context_util.h"
+#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 
 using namespace ge;
 using namespace AscendC;
@@ -181,7 +181,6 @@ ge::graphStatus AlltoAllvGmmNoQuantTiling::PostTiling()
     tilingData->commonTilingInfo.aicCoreNum = aicCoreNum_;
     tilingData->commonTilingInfo.aivCoreNum = aivCoreNum_;
     tilingData->commonTilingInfo.commOut = 0;
-    tilingData->commonTilingInfo.isNeedMM = hasSharedExpertFlag_;
     // set sendCnt
     errno_t ret = memcpy_s(&(tilingData->aicpuTiling.sendCnt), EXPERT_MAX_VALUE * sizeof(int64_t),
         sendCountsPtr_->GetData(), sendCountsPtr_->GetSize() * sizeof(int64_t));

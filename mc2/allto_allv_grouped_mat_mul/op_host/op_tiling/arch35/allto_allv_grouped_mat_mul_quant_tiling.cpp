@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -50,14 +50,14 @@ bool AlltoAllvGmmQuantTiling::IsCapable()
 
 ge::graphStatus AlltoAllvGmmQuantTiling::GetPlatformInfo()
 {
-    OP_LOGD(context_->GetNodeName(), "start quant GetPlatformInfo.");
+    OP_LOGD(context_->GetNodeName(), "start GetPlatformInfo.");
     if (GetCommonPlatformInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     if (CheckCommonPlatformInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    OP_LOGD(context_->GetNodeName(), "end quant GetPlatformInfo.");
+    OP_LOGD(context_->GetNodeName(), "end GetPlatformInfo.");
     return ge::GRAPH_SUCCESS;
 }
 
@@ -86,12 +86,12 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoOpTiling()
     if (CheckCommonShapeAttrsInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    OP_TILING_CHECK(SetHcclTiling() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "set hccl tiling failed!"),
+        return ge::GRAPH_FAILED);
+    context_->SetTilingKey(GetTilingKey());
     auto platformInfo = context_->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     context_->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivCoreNum_, aicCoreNum_, aivCoreNum_));
-    context_->SetTilingKey(GetTilingKey());
-    OP_TILING_CHECK(SetHcclTiling() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "set hccl tiling failed!"),
-        return ge::GRAPH_FAILED);
     OP_LOGD(context_->GetNodeName(), "end DoOpTiling.");
     return ge::GRAPH_SUCCESS;
 }
@@ -100,22 +100,23 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
 {
     OP_LOGD(context_->GetNodeName(), "start DoLibApiTiling.");
     uint64_t maxMSize = 0;
-    uint64_t mSize = 0;
     for (uint64_t expertIdx = 0; expertIdx < e_; expertIdx++) {
-        mSize = 0;
+        mSize_ = 0;
         for (uint64_t rankIdx = 0; rankIdx < epWorldSize_; rankIdx++) {
-            mSize += recvCounts[rankIdx * e_ + expertIdx];
+            mSize_ += recvCounts[rankIdx * e_ + expertIdx];
         }
-        maxMSize = std::max(mSize, maxMSize);
+        maxMSize = std::max(mSize_, maxMSize);
     }
-    if (mSize != 0) {
+    mSize_ = maxMSize;
+    if (mSize_ != 0) {
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
         SetTilingArray(gmmQuantTilingData, maxMSize, n1_, h1_);
         SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
-    if (mSize != 0) {
+    mSize_ = bs_;
+    if (mSize_ != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
         SetTilingArray(mmQuantTilingData, bs_, n2_, h2_);
@@ -139,8 +140,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(context_->GetNodeName(), "can not get workspace."),
         return ge::GRAPH_FAILED);
     uint64_t permuteOutSize = permuteOutFlag_ ? 0 : (a_ * h1_ * GetSizeByDataType(gmmXDataType_));
-    uint64_t groupListSize = sizeof(int64_t); // GMM计算所需的groupList GM空间大小
-    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize + groupListSize;
+    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize;
     OP_LOGD(context_->GetNodeName(), "end GetWorkspaceSize.");
     return ge::GRAPH_SUCCESS;
 }
@@ -169,6 +169,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+// private
 void AlltoAllvGmmQuantTiling::SetGMMQuantParams(
     Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const
 {
@@ -216,16 +217,16 @@ void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQua
     mm.singleCoreN = std::min(static_cast<int32_t>(N), mm.baseN);
     mm.singleCoreK = K;
 
-    uint64_t l0cRequired = static_cast<uint64_t>(mm.baseM) * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
+    uint64_t l0cRequired = mm.baseM * mm.baseN * DATA_SIZE_L0C * DB_SIZE;
     mm.dbL0C = (l0cRequired <= l0cSize_) ? DB_SIZE : 1;
 
     mm.iterateOrder = 0U;
 
-    uint64_t baseASize = static_cast<uint64_t>(mm.baseM) * mm.baseK;
-    uint64_t baseBSize = static_cast<uint64_t>(mm.baseN) * mm.baseK;
+    uint64_t baseASize = mm.baseM * mm.baseK;
+    uint64_t baseBSize = mm.baseN * mm.baseK;
     uint64_t baseL1Size = baseASize + baseBSize;
 
-    OP_TILING_CHECK(baseL1Size == 0, OP_LOGW(context_->GetNodeName(), "baseL1Size cannot be zero."), return );
+    OP_TILING_CHECK(baseL1Size == 0, OP_LOGE(context_->GetNodeName(), "baseL1Size cannot be zero."), return );
 
     uint64_t leftL1Size = l1Size_;
 
@@ -244,7 +245,7 @@ void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQua
     mm.stepKa = (mm.depthA1 > 1) ? (mm.depthA1 / DB_SIZE) : 1;
     mm.stepKb = (mm.depthB1 > 1) ? (mm.depthB1 / DB_SIZE) : 1;
 
-    OP_TILING_CHECK(mm.baseK == 0, OP_LOGW(context_->GetNodeName(), "baseK cannot be zero."), return );
+    OP_TILING_CHECK(mm.baseK == 0, OP_LOGE(context_->GetNodeName(), "baseK cannot be zero."), return );
 
     if (mm.stepKa * mm.baseK > mm.Ka) {
         mm.stepKa = Ops::Base::CeilDiv(mm.Ka, mm.baseK);
@@ -349,7 +350,6 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckGmmDType() const
         return ge::GRAPH_FAILED);
     if (permuteOutFlag_) {
         // check permuteOut dtype
-        tilingData->isPermuteOut = true;
         OP_TILING_CHECK(context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX) == nullptr,
             OP_LOGE(context_->GetNodeName(), "GetOutputDesc permuteOut returned null."), return ge::GRAPH_FAILED);
         auto permuteOutDataType = context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX)->GetDataType();
@@ -420,7 +420,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckQuantMode() const
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX) == nullptr,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape can not be null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDimNum() != DIM_ONE ||
-        context_->GetOptionalInputShape(GMM_X_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
+        context_->GetOptionalInputShape(GMMX_SCALE_INDEX)->GetStorageShape().GetDim(DIM_ZERO) != DIM_ONE,
         OP_LOGE(context_->GetNodeName(), "gmmXScale input shape should be [1]"), return ge::GRAPH_FAILED);
     // check gmmWeightScale shape
     OP_TILING_CHECK(context_->GetOptionalInputShape(GMM_WEIGHT_SCALE_INDEX) == nullptr,
@@ -454,9 +454,10 @@ ge::graphStatus AlltoAllvGmmQuantTiling::SetHcclTiling() const
     std::string alltoAllvConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
 
     const uint32_t alltoAllvReduceType = 0u;
-    OP_TILING_CHECK(mc2tiling::HCCL_DATA_TYPE.find(gmmXDataType_) == mc2tiling::HCCL_DATA_TYPE.end(),
-        OP_LOGE(context_->GetNodeName(), "alltoAllvDataType is not found in HCCL_DATA_TYPE."), return ge::GRAPH_FAILED);
     auto alltoAllvDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(gmmXDataType_)->second);
+
+    OP_TILING_CHECK(alltoAllvDataType == 0,
+        OP_LOGE(context_->GetNodeName(), "alltoAllvDataType is not found in HCCL_DATA_TYPE."), return ge::GRAPH_FAILED);
 
     Mc2CcTilingConfig hcclCcTilingConfig(group_, alltoAllvCmd, alltoAllvConfig, alltoAllvReduceType, alltoAllvDataType,
         alltoAllvDataType);

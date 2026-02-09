@@ -27,6 +27,7 @@
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "context_util.h"
+#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 
 using namespace ge;
 using namespace AscendC;

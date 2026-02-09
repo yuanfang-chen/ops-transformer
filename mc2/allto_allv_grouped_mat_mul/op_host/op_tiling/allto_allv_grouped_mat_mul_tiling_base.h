@@ -1,5 +1,5 @@
 /**
-* Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
+* Copyright (c) 2025 Huawei Technologies Co., Ltd.
 * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 * CANN Open Software License Agreement Version 2.0 (the "License").
 * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -127,6 +127,8 @@ protected:
     const int64_t *gmmWeightQuantModePtr_;
     const int64_t *mmXQuantModePtr_;
     const int64_t *mmWeightQuantModePtr_;
+    const int64_t *gmmXQuantDTypePtr_;
+    const int64_t *mmXQuantDTypePtr_;
     // shape
     uint64_t bsk_ = 0;
     uint64_t h1_ = 0;
