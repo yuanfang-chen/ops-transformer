@@ -49,7 +49,7 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* mc2Context,const aclTensor* scales,
     const aclTensor* xActiveMask, const aclTensor* expertScales,  const aclTensor* elasticInfo,
     const aclTensor* performanceInfo, const char* groupEp, int64_t epWorldSize,
-    int64_t epRankId, int64_t moeExpertNum, const char* groupTp, int64_t tpWorldSize,
+    int64_t epRankId, int64_t moeExpertNum, int64_t hcclBuffSize, const char * hcclTopoType, const char* groupTp, int64_t tpWorldSize,
     int64_t tpRankId, int64_t expertShardType, int64_t sharedExpertNum, int64_t shareExpertRankNum,
     int64_t quantMode, int64_t globalBs, int64_t expertTokenNumsType, const char* commAlg,
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum, int64_t ydtype, aclTensor* expandX,
@@ -181,7 +181,8 @@ void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
 }
 
-aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context) 
+aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize, 
+                            std::string& hcclTopoType) 
 {
     Mc2MoeContext mc2_context;
     HcclComm hcclHandle;
@@ -202,7 +203,8 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context)
         auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
         CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     }
-
+    hcclBuffSize = mc2_context.winsize;
+    hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
     CreatMc2ContextTensor(ctx, mc2Context);
 
     return ACLNN_SUCCESS;
@@ -239,16 +241,16 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     OP_LOGD("aclnnMoeDistributeDispatchGetWorkspaceSizeBase start");
     int64_t ydtype = expandXOut->GetDataType();
     if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
-        // std::cout<<"commAlg: "<<commAlg<<std::endl;
-        // std::cout<<"inter to the mc2_context"<<std::endl;
         OP_LOGD("PRINT commAlg:%s",commAlg);
         OP_LOGD("PRINT inter to the mc2_context");
-        auto ret =GetMc2Context(groupEp, mc2Context);
+        int64_t hcclBuffSize = 0;
+        std::string hcclTopoType;
+        auto ret =GetMc2Context(groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
-            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            hcclBuffSize, hcclTopoType, groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
             sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
