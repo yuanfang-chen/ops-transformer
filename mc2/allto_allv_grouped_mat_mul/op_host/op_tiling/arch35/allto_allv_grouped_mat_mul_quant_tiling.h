@@ -55,8 +55,6 @@ private:
     void SetTilingParams(Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData, uint64_t M, uint64_t N, uint64_t K) const;
     void PrintGMMQuantTilingData(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &data) const;
     void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo& taskTilingInfo) const;
-
-    uint64_t mSize_ = 0;
 };
 }  // namespace optiling
 #endif  // ALLTO_ALLV_GROUPED_MATMUL_QUANT_TILING_H
