@@ -107,6 +107,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 
 aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void * ctx, Mc2MoeContext*  mc2_context)
 {
+    OP_LOGD("PRINT inter to the CreatMc2Context");
     uint64_t ctxSize = sizeof(Mc2MoeContext);
     void * tempBuffer = nullptr;
     uint64_t buffersize = 0;
@@ -167,23 +168,26 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         OP_LOGE(ACLNN_ERR_INNER, "Copy data from host to device failed.");
         return ACLNN_ERR_INNER;
     }
+    OP_LOGD("PRINT end to the CreatMc2Context");
     return ACLNN_SUCCESS;
 }
 
 void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
 {
-    
+    OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
     uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
     mc2Context = aclCreateTensor(
         shap, 1, aclDataType::ACL_UINT32, strides, 0, 
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
+    OP_LOGD("PRINT end to the CreatMc2ContextTensor");
 }
 
 aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize, 
                             std::string& hcclTopoType) 
 {
+    OP_LOGD("PRINT inter to the GetMc2Context");
     Mc2MoeContext mc2_context;
     HcclComm hcclHandle;
     HcclResult ret;
@@ -206,7 +210,7 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int6
     hcclBuffSize = mc2_context.winsize;
     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
     CreatMc2ContextTensor(ctx, mc2Context);
-
+    OP_LOGD("PRINT end to the GetMc2Context");
     return ACLNN_SUCCESS;
 }
 
@@ -237,8 +241,6 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     } else if (is950) {
         performanceInfoOptionalDispatchV2Temp = nullptr;
     }
-    OP_LOGD("PRINT commAlg:%s",commAlg);
-    OP_LOGD("aclnnMoeDistributeDispatchGetWorkspaceSizeBase start");
     int64_t ydtype = expandXOut->GetDataType();
     if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
         OP_LOGD("PRINT commAlg:%s",commAlg);
@@ -287,16 +289,18 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
 aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream) 
 {
-    OP_LOGD("aclnnMoeDistributeDispatchBase start");
+    OP_LOGD("PRINT inter to the 2 aclnnMoeDistributeDispatchBase");
     const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
     if(is950) {
         OP_LOGD("PRINT is950");
         void *arg = NnopbaseGetUserHandle(executor);
         uintptr_t handleVal = reinterpret_cast<uintptr_t>(arg);
         if(handleVal == 0) {
+            OP_LOGD("PRINT inter to the  aclnnInnerMoeDistributeDispatchV2Extend");
             return aclnnInnerMoeDistributeDispatchV2Extend(workspace, workspaceSize, executor, stream); //mte走新模版
         }
     }
+    OP_LOGD("PRINT inter to the  aclnnInnerMoeDistributeDispatchV2");
     return aclnnInnerMoeDistributeDispatchV2(workspace, workspaceSize, executor, stream);
 }
 
