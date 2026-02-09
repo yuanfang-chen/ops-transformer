@@ -1,5 +1,5 @@
 /* *
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -100,6 +100,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
 {
     OP_LOGD(context_->GetNodeName(), "start DoLibApiTiling.");
     uint64_t maxMSize = 0;
+    uint64_t mSize = 0;
     for (uint64_t expertIdx = 0; expertIdx < e_; expertIdx++) {
         mSize_ = 0;
         for (uint64_t rankIdx = 0; rankIdx < epWorldSize_; rankIdx++) {
@@ -107,7 +108,6 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
         }
         maxMSize = std::max(mSize_, maxMSize);
     }
-    mSize_ = maxMSize;
     if (mSize_ != 0) {
         auto &gmmQuantTilingData = tilingData->gmmQuantTilingData;
         SetGMMQuantParams(gmmQuantTilingData);
@@ -115,7 +115,6 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoLibApiTiling()
         SetTilingParams(gmmQuantTilingData, maxMSize, n1_, h1_);
         PrintGMMQuantTilingData(gmmQuantTilingData);
     }
-    mSize_ = bs_;
     if (mSize_ != 0) {
         auto &mmQuantTilingData = tilingData->mmQuantTilingData;
         SetGMMQuantParams(mmQuantTilingData);
@@ -170,7 +169,6 @@ ge::graphStatus AlltoAllvGmmQuantTiling::PostTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-// private
 void AlltoAllvGmmQuantTiling::SetGMMQuantParams(
     Mc2GroupedMatmulTilingData::GMMQuantTilingData &gmmQuantTilingData) const
 {
@@ -223,11 +221,11 @@ void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQua
 
     mm.iterateOrder = 0U;
 
-    uint64_t baseASize = mm.baseM * mm.baseK;
-    uint64_t baseBSize = mm.baseN * mm.baseK;
+    uint64_t baseASize = static_cast<uint64_t>(mm.baseM) * mm.baseK;
+    uint64_t baseBSize = static_cast<uint64_t>(mm.baseN) * mm.baseK;
     uint64_t baseL1Size = baseASize + baseBSize;
 
-    OP_TILING_CHECK(baseL1Size == 0, OP_LOGE(context_->GetNodeName(), "baseL1Size cannot be zero."), return );
+    OP_TILING_CHECK(baseL1Size == 0, OP_LOGW(context_->GetNodeName(), "baseL1Size cannot be zero."), return );
 
     uint64_t leftL1Size = l1Size_;
 
@@ -246,7 +244,7 @@ void AlltoAllvGmmQuantTiling::SetTilingParams(Mc2GroupedMatmulTilingData::GMMQua
     mm.stepKa = (mm.depthA1 > 1) ? (mm.depthA1 / DB_SIZE) : 1;
     mm.stepKb = (mm.depthB1 > 1) ? (mm.depthB1 / DB_SIZE) : 1;
 
-    OP_TILING_CHECK(mm.baseK == 0, OP_LOGE(context_->GetNodeName(), "baseK cannot be zero."), return );
+    OP_TILING_CHECK(mm.baseK == 0, OP_LOGW(context_->GetNodeName(), "baseK cannot be zero."), return );
 
     if (mm.stepKa * mm.baseK > mm.Ka) {
         mm.stepKa = Ops::Base::CeilDiv(mm.Ka, mm.baseK);
@@ -456,10 +454,9 @@ ge::graphStatus AlltoAllvGmmQuantTiling::SetHcclTiling() const
     std::string alltoAllvConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
 
     const uint32_t alltoAllvReduceType = 0u;
-    auto alltoAllvDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(gmmXDataType_)->second);
-
-    OP_TILING_CHECK(alltoAllvDataType == 0,
+    OP_TILING_CHECK(mc2tiling::HCCL_DATA_TYPE.find(gmmXDataType_) == mc2tiling::HCCL_DATA_TYPE.end(),
         OP_LOGE(context_->GetNodeName(), "alltoAllvDataType is not found in HCCL_DATA_TYPE."), return ge::GRAPH_FAILED);
+    auto alltoAllvDataType = static_cast<uint8_t>(mc2tiling::HCCL_DATA_TYPE.find(gmmXDataType_)->second);
 
     Mc2CcTilingConfig hcclCcTilingConfig(group_, alltoAllvCmd, alltoAllvConfig, alltoAllvReduceType, alltoAllvDataType,
         alltoAllvDataType);
