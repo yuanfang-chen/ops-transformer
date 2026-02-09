@@ -12,7 +12,7 @@
 #define MC2_HCCL_IMPL_H
 
 #include "kernel_operator.h"
-#include "kernel_basic_inf.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "lib/hccl/hccl.h"
 #include "../common/a2av_common_tiling.h"
 
