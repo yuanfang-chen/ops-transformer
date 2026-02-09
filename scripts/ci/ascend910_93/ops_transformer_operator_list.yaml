@@ -18,6 +18,8 @@ operator_group_1:
   - nsa_selected_attention_infer
   - mla_preprocess_v2
   - mla_preprocess
+  - all_gather_matmul
+  - all_gather_matmul_v2
 operator_group_2:
   - incre_flash_attention
   - prompt_flash_attention
