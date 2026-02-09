@@ -126,24 +126,24 @@ __aicore__ inline void MoeGatherOutHif8PertokenQuant<T>::Compute()
         for (uint16_t i = 0; i < repeatTimes; i++) {
             maskRegInLoop = MicroAPI::UpdateMask<float>(sreg);
             ops::LoadOneTensorForDtypeT<T>(inUbAddrCastT, inReg, maskRegInLoop, i * FLOAT_REG_TENSOR_LENGTH); // 将fp16、bf16转为fp32
-            MicroAPI::DataCopy(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, inReg, maskRegInLoop); // 将转换后的fp32写回ub
+            MicroAPI::StoreAlign(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, inReg, maskRegInLoop); // 将转换后的fp32写回ub
             MicroAPI::Abs(inReg, inReg, maskRegInLoop);
             MicroAPI::Max(scaleValueReg, scaleValueReg, inReg, maskRegAll); //求当前块中x的最大值
         }
         MicroAPI::ReduceMax(scaleValueReg, scaleValueReg, maskRegAll); //求所有块中的最大值
         MicroAPI::Muls(scaleValueReg, scaleValueReg, 1.0f / HIFLOAT8_MAX_VALUE, maskRegVL1); // hifloat8最大值 计算scale
         MicroAPI::Duplicate(scaleValueReg, scaleValueReg, maskRegAll);// 将scalevalue按照最低位元素进行进行广播
-        MicroAPI::DataCopy(scaleUbAddr, scaleValueReg, maskRegVL8);// 将scale写回，按照块大小32字节对齐
+        MicroAPI::StoreAlign(scaleUbAddr, scaleValueReg, maskRegVL8);// 将scale写回，按照块大小32字节对齐
 
         MicroAPI::LocalMemBar<MicroAPI::MemType::VEC_STORE, MicroAPI::MemType::VEC_LOAD>(); // 确保scale写回ub完成后，在执行量化计算
 
         sreg = static_cast<uint32_t>(cols_);
         for (uint16_t i = 0; i < repeatTimes; i++) {
             maskRegInLoop = MicroAPI::UpdateMask<float>(sreg);
-            MicroAPI::DataCopy(inReg, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
+            MicroAPI::LoadAlign(inReg, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
             MicroAPI::Div(inReg, inReg, scaleValueReg, maskRegInLoop);
             MicroAPI::Cast<hifloat8_t, float, castTraitF32toh8>(outRegH8, inReg, maskRegInLoop);
-            MicroAPI::DataCopy<hifloat8_t, MicroAPI::StoreDist::DIST_PACK4_B32>(outUbAddr + i * FLOAT_REG_TENSOR_LENGTH,
+            MicroAPI::StoreAlign<hifloat8_t, MicroAPI::StoreDist::DIST_PACK4_B32>(outUbAddr + i * FLOAT_REG_TENSOR_LENGTH,
                                                                             outRegH8, maskRegInLoop);
         }
     }
@@ -217,12 +217,12 @@ __aicore__ inline float MoeGatherOutHif8PertokenQuant<T>::ComputeMax(LocalTensor
         for (uint16_t i = 0; i < repeatTimes; i++) {
             maskRegLoop = MicroAPI::UpdateMask<float>(sreg);
             ops::LoadOneTensorForDtypeT<T>(inUbAddrCastT, inReg, maskRegLoop, i * FLOAT_REG_TENSOR_LENGTH);
-            MicroAPI::DataCopy(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, inReg, maskRegLoop);
+            MicroAPI::StoreAlign(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, inReg, maskRegLoop);
             MicroAPI::Abs(inReg, inReg, maskRegLoop);
             MicroAPI::Max(scaleReg, scaleReg, inReg, maskRegAll);
         }
         MicroAPI::ReduceMax(scaleReg, scaleReg, maskRegAll);
-        MicroAPI::DataCopy(scaleUbAddr + 8, scaleReg, maskRegVL2);
+        MicroAPI::StoreAlign(scaleUbAddr + 8, scaleReg, maskRegVL2);
     }
 
     SetWaitFlag<HardEvent::V_MTE3>(HardEvent::V_MTE3);
@@ -261,10 +261,10 @@ __aicore__ inline void MoeGatherOutHif8PertokenQuant<T>::ComputeScale(LocalTenso
         for (uint16_t i = 0; i < repeatTimes; i++) {
             maskRegLoop = MicroAPI::UpdateMask<float>(sreg);
             MicroAPI::Duplicate(tempReg, scaleTemp, maskRegLoop);
-            MicroAPI::DataCopy(inReg, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
+            MicroAPI::LoadAlign(inReg, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
             MicroAPI::Div(tempReg, inReg, tempReg, maskRegLoop);
             MicroAPI::Cast<hifloat8_t, float, castTraitF32toh8>(outRegH8, tempReg, maskRegLoop);
-            MicroAPI::DataCopy<hifloat8_t, MicroAPI::StoreDist::DIST_PACK4_B32>(outUbAddr + i * FLOAT_REG_TENSOR_LENGTH,
+            MicroAPI::StoreAlign<hifloat8_t, MicroAPI::StoreDist::DIST_PACK4_B32>(outUbAddr + i * FLOAT_REG_TENSOR_LENGTH,
                                                                             outRegH8, maskRegLoop);
         }
     }
