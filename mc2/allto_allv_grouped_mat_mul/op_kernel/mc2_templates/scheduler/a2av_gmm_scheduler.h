@@ -23,7 +23,7 @@ using namespace AscendC;
 
 namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputeOpType, typename LocalComputeOpType, typename TilingDataType, typename GmmTilingDataType,
-    typename GmmArrayAddrType, bool isNeedMM>
+    typename GmmArrayAddrType, bool IsNeedMM>
 class A2avGmmScheduler {
 public:
     __aicore__ inline void Init(GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM,
@@ -37,8 +37,9 @@ public:
         const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
         uint64_t hcclCcTilingOffset = offsetof(TilingDataType,  hcclA2avTilingInfo) +
                         offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
+        groupListGm_ = tilingData_->isPermuteOut ? permuteOutOptionalGM : workspaceGM;
         commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
-        if (isNeedMM) {
+        if (IsNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         }
@@ -48,7 +49,7 @@ public:
 
     __aicore__ inline void Process()
     {
-        if (isNeedMM) {
+        if (IsNeedMM) {
             localComputeOp.Process(0);
             SyncAll<false>();
         }
@@ -75,7 +76,8 @@ private:
     CommOpType commOp;
     ComputeOpType computeOp;
     LocalComputeOpType localComputeOp;
-    const TilingDataType *tilingData_;
+    GM_ADDR commOutGm = nullptr;
+    const TilingDataType *tilingData_ = nullptr;
     uint32_t e_ = 0U;
 };
 };
