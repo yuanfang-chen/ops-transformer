@@ -371,6 +371,10 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
     }
     auto selected_block_size =
         *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SELECTED_BLOCK_SIZE));
+    if (selected_block_size != 1) {
+        OP_LOGE(context_, "SparseFlashAttentionGrad only support sparse_block_size [1] now, but got sparse_block_size=%ld.", selected_block_size);
+        return ge::GRAPH_FAILED;
+    }        
     auto sparse_mode = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SPARSE_MODE));
     tmpData.deterministic = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::DETERMINISTIC));
     
@@ -493,7 +497,6 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(SparseFlashAttentionGrad, SparseFlashAttentionGradBs1Regbase, (int32_t)platform_ascendc::SocVersion::ASCEND950, 1);
-
+REGISTER_TILING_TEMPLATE_WITH_ARCH(SparseFlashAttentionGrad, SparseFlashAttentionGradBs1Regbase, static_cast<int32_t>(NpuArch::DAV_3510), 1);
 } // namespace sfag
 } // namespace optiling

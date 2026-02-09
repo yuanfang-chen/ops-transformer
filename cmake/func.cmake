@@ -131,6 +131,13 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
             endif()
         endif()
 
+        if (NOT ENABLE_AICPU)
+            if(EXISTS "${OP_DIR}/op_kernel_aicpu" AND IS_DIRECTORY "${OP_DIR}/op_kernel_aicpu")
+                MESSAGE(STATUS "disable aicpu kernel ${OP_NAME}, skip it.")
+                continue()
+            endif()
+        endif()
+
         list(APPEND _OP_LIST ${OP_NAME})
         list(APPEND _OP_DIR_LIST ${OP_DIR})
     endforeach()
@@ -800,6 +807,25 @@ function(add_static_ops)
                 DEPENDS ${static_src_temp_dir}
         )
     endif()
+endfunction()
+
+function(pack_tiling_sink)
+  ExternalProject_Get_Property(tiling_sink_task BINARY_DIR)
+
+  if(ENABLE_BUILT_IN)
+    set(TRANSFORMER_OPMASTER_SO ${BINARY_DIR}/libtiling_device_transformer.so)
+    set(INSTALL_DIR "ops_transformer/built-in/op_impl/ai_core/tbe/op_tiling_device/lib")
+  else()
+    set(TRANSFORMER_OPMASTER_SO ${BINARY_DIR}/libcust_opmaster.so)
+    set(INSTALL_DIR "packages/vendors/${VENDOR_NAME}_transformer/op_impl/ai_core/tbe/op_master_device/lib")
+  endif()
+  install(CODE "
+    if(EXISTS \"${TRANSFORMER_OPMASTER_SO}\")
+      file(
+        INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${INSTALL_DIR}\"
+        TYPE FILE FILES \"${TRANSFORMER_OPMASTER_SO}\")
+    endif()
+  ")
 endfunction()
 
 if (BUILD_OPEN_PROJECT)

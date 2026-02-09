@@ -23,12 +23,18 @@
 using namespace matmul;
 
 TEMPLATE_INTF
-__aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope>& constInfo, int64_t& actualS1Size)
+__aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer,
+    hasRope>& constInfo, int64_t& actualS1Size)
 {
     if (!constInfo.isQHasLeftPadding) {
         runParam.queryLeftPaddingSize = 0;
     } else {
-        int64_t qLeftPaddingSize = constInfo.s1Size - actualS1Size - constInfo.queryRightPaddingSize;
+        int64_t qLeftPaddingSize = 0;
+        if (constInfo.isGqa) {
+            qLeftPaddingSize = constInfo.s1Size - actualS1Size / constInfo.gSize - constInfo.queryRightPaddingSize;
+        } else {
+            qLeftPaddingSize = constInfo.s1Size - actualS1Size - constInfo.queryRightPaddingSize;
+        }
         runParam.queryLeftPaddingSize = qLeftPaddingSize > 0 ? qLeftPaddingSize : 0;
         if (qLeftPaddingSize < 0) {
             actualS1Size = 0;
@@ -37,7 +43,8 @@ __aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, 
 }
 
 TEMPLATE_INTF
-__aicore__ inline void InitKVLeftPaddingSize(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope>& constInfo, int64_t& actualS2Size)
+__aicore__ inline void InitKVLeftPaddingSize(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer,
+    hasRope>& constInfo, int64_t& actualS2Size)
 {
     if (!constInfo.isKVHasLeftPadding) {
         runParam.kvLeftPaddingSize = 0;
@@ -52,7 +59,7 @@ __aicore__ inline void InitKVLeftPaddingSize(RunParamStr<isInfer>& runParam, con
 
 TEMPLATE_INTF
 __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam, 
-    const ConstInfo<isInfer, hasRope> &constInfo, const AttenMaskInfo &attenMaskInfo, int32_t sIdx,
+    const ConstInfo<isInfer, hasRope> &constInfo, const AttenMaskInfo &attenMaskInfo, int32_t bIdx,
     GlobalTensor<INPUT_T>& keyGm, __gm__ int64_t *actualSeqQlenAddr,
     __gm__ int64_t * actualSeqKvlenAddr)
 {
@@ -62,7 +69,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
         AscendC::TensorDesc<__gm__ uint8_t> kvTensorDesc;
         uint64_t dimInfo[4];
         kvTensorDesc.SetShapeAddr(&dimInfo[0]);
-        keyListTensorDesc.GetDesc(kvTensorDesc, sIdx);
+        keyListTensorDesc.GetDesc(kvTensorDesc, bIdx);
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
             runParam.s2InCurrentBatch = kvTensorDesc.GetShape(2);
         } else {
@@ -84,27 +91,30 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
             actualS1Size = constInfo.gS1;
         }
     } else {
-        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && layout == LayOutTypeEnum::LAYOUT_BSH) {
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) &&
+            layout == LayOutTypeEnum::LAYOUT_BSH) {
             runParam.actualSeqLengthOfMlaPerBatch = ((constInfo.actualSeqLenSize == actualSeqMin) ?
-                actualSeqQlenAddr[0] : actualSeqQlenAddr[sIdx]);
+                actualSeqQlenAddr[0] : actualSeqQlenAddr[bIdx]);
             actualS1Size = runParam.actualSeqLengthOfMlaPerBatch * constInfo.gSize;
-        } else if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && layout == LayOutTypeEnum::LAYOUT_TND) {
-            runParam.actualSeqLengthOfMlaPerBatch = ((sIdx == 0) ? actualSeqQlenAddr[0] :
-                actualSeqQlenAddr[sIdx] - actualSeqQlenAddr[sIdx - 1]);
+        } else if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) &&
+            layout == LayOutTypeEnum::LAYOUT_TND) {
+            runParam.actualSeqLengthOfMlaPerBatch = ((bIdx == 0) ? actualSeqQlenAddr[0] :
+                actualSeqQlenAddr[bIdx] - actualSeqQlenAddr[bIdx - 1]);
             actualS1Size = runParam.actualSeqLengthOfMlaPerBatch * constInfo.gSize;
-        } else if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) && layout == LayOutTypeEnum::LAYOUT_BNSD) {
+        } else if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576) &&
+            layout == LayOutTypeEnum::LAYOUT_BNSD) {
             actualS1Size = constInfo.gS1;
             runParam.actualSeqLengthOfMlaPerBatch = (constInfo.actualSeqLenSize == actualSeqMin) ?
-                actualSeqQlenAddr[0] : actualSeqQlenAddr[sIdx];
+                actualSeqQlenAddr[0] : actualSeqQlenAddr[bIdx];
         } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-            actualS1Size = (sIdx == 0) ? actualSeqQlenAddr[0] :
-                actualSeqQlenAddr[sIdx] - actualSeqQlenAddr[sIdx - 1];
+            actualS1Size = (bIdx == 0) ? actualSeqQlenAddr[0] :
+                actualSeqQlenAddr[bIdx] - actualSeqQlenAddr[bIdx - 1];
             if (constInfo.isGqa) {
                 actualS1Size *= constInfo.gSize;
             }
         } else {
             actualS1Size = (constInfo.actualSeqLenSize == actualSeqMin) ? actualSeqQlenAddr[0] :
-                actualSeqQlenAddr[sIdx];
+                actualSeqQlenAddr[bIdx];
             if (constInfo.isGqa) {
                 actualS1Size *= constInfo.gSize;
             }
@@ -115,13 +125,13 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
             runParam.s2InCurrentBatch;
     } else {
         if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-            actualS2Size = actualSeqKvlenAddr[sIdx];
-            if ((sIdx > 0) && (!isPa)) {
-                actualS2Size -= actualSeqKvlenAddr[sIdx - 1];
+            actualS2Size = actualSeqKvlenAddr[bIdx];
+            if ((bIdx > 0) && (!isPa)) {
+                actualS2Size -= actualSeqKvlenAddr[bIdx - 1];
             }
         } else {
             actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ? 
-                actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
+                actualSeqKvlenAddr[0] : actualSeqKvlenAddr[bIdx];
         }
     }
 
@@ -138,49 +148,65 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr<isInfer>& runParam,
                                     runParam.actualS2Size + constInfo.actualKVPrefixSize + runParam.preTokensPerBatch :
                                     runParam.actualS1Size;
     } else {
-        runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
-                                    runParam.actualS2Size + runParam.preTokensPerBatch :
-                                    runParam.actualS1Size;
+        if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) &&
+            layout != LayOutTypeEnum::LAYOUT_BNSD) {
+            runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size * constInfo.gSize +
+                                     runParam.preTokensPerBatch) ? runParam.actualS2Size * constInfo.gSize +
+                                     runParam.preTokensPerBatch : runParam.actualS1Size;
+        } else if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+            runParam.actualS1Size = (runParam.actualS1Size > (runParam.actualS2Size + runParam.preTokensPerBatch) * constInfo.gSize) ?
+                                    (runParam.actualS2Size + runParam.preTokensPerBatch) * constInfo.gSize :
+                                     runParam.actualS1Size;
+        } else {
+            runParam.actualS1Size = (runParam.actualS1Size > runParam.actualS2Size + runParam.preTokensPerBatch) ?
+                                        runParam.actualS2Size + runParam.preTokensPerBatch :
+                                        runParam.actualS1Size;
+        }
     }
 
     // 计算S1的尾块大小，非对齐
     runParam.actualS1Size = (runParam.nextTokensPerBatch >= 0) ? runParam.actualS1Size :
         (runParam.actualS1Size + runParam.nextTokensPerBatch);
 
+    if (runParam.actualS1Size < 0) { // 修正preToken/nextToken导致全无效场景的qs值
+        runParam.actualS1Size = 0;
+    }
+
     if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
-        runParam.qBOffset = sIdx * constInfo.s1Size * constInfo.n2GD + runParam.queryLeftPaddingSize * constInfo.n2GD;
+        runParam.qBOffset = bIdx * constInfo.s1Size * constInfo.n2GD + runParam.queryLeftPaddingSize * constInfo.n2GD;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        runParam.qBOffset = (sIdx == 0) ? 0 : actualSeqQlenAddr[sIdx - 1] * constInfo.n2GD;
+        runParam.qBOffset = (bIdx == 0) ? 0 : actualSeqQlenAddr[bIdx - 1] * constInfo.n2GD;
     } else {
-        runParam.qBOffset = sIdx * constInfo.s1Size * constInfo.n2GD + runParam.queryLeftPaddingSize * constInfo.dSize;
+        runParam.qBOffset = bIdx * constInfo.s1Size * constInfo.n2GD + runParam.queryLeftPaddingSize * constInfo.dSize;
     }
 
     // 推理的TND场景的mask和pse都是padding过的
     runParam.b1SSOffset = runParam.boIdx * constInfo.s1S2;
     // 推理的mask的sequence length可能大于qk的sequence length
-    runParam.b1SSAttenMaskOffset = runParam.boIdx * (uint64_t)attenMaskInfo.attenMaskS1Size * (uint64_t)attenMaskInfo.attenMaskS2Size;
+    runParam.b1SSAttenMaskOffset = runParam.boIdx * (uint64_t)attenMaskInfo.attenMaskS1Size *
+        (uint64_t)attenMaskInfo.attenMaskS2Size;
     if constexpr (hasRope) {
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
-            runParam.qRopeBOffset = sIdx * constInfo.s1Size * constInfo.n2GDR +
+            runParam.qRopeBOffset = bIdx * constInfo.s1Size * constInfo.n2GDR +
                 runParam.queryLeftPaddingSize * constInfo.n2GDR;
         } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-            runParam.qRopeBOffset = (sIdx == 0) ? 0 : actualSeqQlenAddr[sIdx - 1] * constInfo.n2GDR;
+            runParam.qRopeBOffset = (bIdx == 0) ? 0 : actualSeqQlenAddr[bIdx - 1] * constInfo.n2GDR;
         } else {
-            runParam.qRopeBOffset = sIdx * constInfo.s1Size * constInfo.n2GDR +
+            runParam.qRopeBOffset = bIdx * constInfo.s1Size * constInfo.n2GDR +
                 runParam.queryLeftPaddingSize * constInfo.dSizeRope;
         }
     }
 }
 
 TEMPLATE_INTF
-__aicore__ inline void GetKeyCoreOffsetParam(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo, 
-    int32_t sIdx, __gm__ int64_t *actualSeqKvlenAddr)
+__aicore__ inline void GetKeyCoreOffsetParam(RunParamStr<isInfer>& runParam,
+    const ConstInfo<isInfer, hasRope> &constInfo, int32_t bIdx, __gm__ int64_t *actualSeqKvlenAddr)
 {
     uint64_t keyInnerOffsetSize = 0;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
         if (constInfo.isKvContinuous == 1) {
             // 这是从KV的GM 到 每一个batch的开始地址 所需要的偏移量，即每一个batch需要偏移前面一整个batch的长度
-            keyInnerOffsetSize = sIdx * constInfo.n2S2D + runParam.kvLeftPaddingSize * constInfo.n2D;
+            keyInnerOffsetSize = bIdx * constInfo.n2S2D + runParam.kvLeftPaddingSize * constInfo.n2D;
         } else {
             //KV tensorlist场景下，我们能直接将KV的GM设置成当前batch的开始地址，所以偏移量总是0
             keyInnerOffsetSize = 0;
@@ -189,16 +215,16 @@ __aicore__ inline void GetKeyCoreOffsetParam(RunParamStr<isInfer>& runParam, con
     // 遗留问题：TND PA
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         if constexpr (!isPa) {
-            keyInnerOffsetSize = (sIdx == 0) ? 0 : actualSeqKvlenAddr[sIdx - 1] * constInfo.n2D;
+            keyInnerOffsetSize = (bIdx == 0) ? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2D;
         } else {
-            keyInnerOffsetSize = sIdx * constInfo.n2S2D;
+            keyInnerOffsetSize = bIdx * constInfo.n2S2D;
         }
         runParam.keyCoreOffset = keyInnerOffsetSize + runParam.n2oIdx * constInfo.dSize;
     } else {
         uint64_t headStrideK = 0;
         if (constInfo.isKvContinuous == 1) {
             headStrideK = constInfo.s2D;
-            keyInnerOffsetSize = sIdx * constInfo.n2Size * headStrideK +
+            keyInnerOffsetSize = bIdx * constInfo.n2Size * headStrideK +
                 runParam.kvLeftPaddingSize * constInfo.dSize;
         } else {
             headStrideK = constInfo.dSize * runParam.s2InCurrentBatch;
@@ -210,13 +236,13 @@ __aicore__ inline void GetKeyCoreOffsetParam(RunParamStr<isInfer>& runParam, con
 
 TEMPLATE_INTF
 __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo, 
-    int32_t sIdx, __gm__ int64_t *actualSeqKvlenAddr)
+    int32_t bIdx, __gm__ int64_t *actualSeqKvlenAddr)
 {
     uint64_t valueInnerOffsetSize = 0;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
         if (constInfo.isKvContinuous == 1) {
             // 这是从KV的GM 到 每一个batch的开始地址 所需要的偏移量，即每一个batch需要偏移前面一整个batch的长度
-            valueInnerOffsetSize = sIdx * constInfo.n2S2Dv + runParam.kvLeftPaddingSize * constInfo.n2Dv;
+            valueInnerOffsetSize = bIdx * constInfo.n2S2Dv + runParam.kvLeftPaddingSize * constInfo.n2Dv;
         } else {
             //KV tensorlist场景下，我们能直接将KV的GM设置成当前batch的开始地址，所以偏移量总是0
             valueInnerOffsetSize = 0;
@@ -224,26 +250,26 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         if constexpr (!isPa) {
-            valueInnerOffsetSize = (sIdx == 0) ? 0 : actualSeqKvlenAddr[sIdx - 1] * constInfo.n2Dv;
+            valueInnerOffsetSize = (bIdx == 0) ? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2Dv;
         } else {
-            valueInnerOffsetSize = sIdx * constInfo.n2S2Dv;
+            valueInnerOffsetSize = bIdx * constInfo.n2S2Dv;
         }
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
         uint64_t actualSeqKVLen = 0;
         if constexpr (isPa) {
             actualSeqKVLen = constInfo.s2Size;
-            valueInnerOffsetSize = sIdx * constInfo.s2Dv;
+            valueInnerOffsetSize = bIdx * constInfo.s2Dv;
         } else {
-            actualSeqKVLen = (sIdx == 0) ? actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx] - actualSeqKvlenAddr[sIdx - 1];
-            valueInnerOffsetSize = (sIdx == 0) ? 0 : actualSeqKvlenAddr[sIdx - 1] * constInfo.dSizeV;
+            actualSeqKVLen = (bIdx == 0) ? actualSeqKvlenAddr[0] : actualSeqKvlenAddr[bIdx] - actualSeqKvlenAddr[bIdx - 1];
+            valueInnerOffsetSize = (bIdx == 0) ? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.dSizeV;
         }
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * constInfo.bSize * actualSeqKVLen * constInfo.dSizeV;
     } else {
         uint64_t headStrideV = 0;
         if (constInfo.isKvContinuous == 1) {
             headStrideV = constInfo.s2Dv;
-            valueInnerOffsetSize = sIdx * constInfo.n2Size * headStrideV +
+            valueInnerOffsetSize = bIdx * constInfo.n2Size * headStrideV +
                 runParam.kvLeftPaddingSize * constInfo.dSizeV;
         } else {
             headStrideV = constInfo.dSizeV * runParam.s2InCurrentBatch;
@@ -252,7 +278,7 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
         runParam.valueCoreOffset = valueInnerOffsetSize + runParam.n2oIdx * headStrideV;
     }
     if (unlikely(constInfo.dSize != constInfo.dSizeV)) {
-        GetKeyCoreOffsetParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, sIdx, actualSeqKvlenAddr);
+        GetKeyCoreOffsetParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, bIdx, actualSeqKvlenAddr);
     } else {
         runParam.keyCoreOffset = runParam.valueCoreOffset;
     }
@@ -260,7 +286,7 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
     if constexpr (enableKVPrefix) {
         uint64_t prefixInnerOffsetSize = 0;
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
-            // 前缀区域从 batch 的左padding 后开始；与 value 一致但 sIdx 固定为 0
+            // 前缀区域从 batch 的左padding 后开始；与 value 一致但 bIdx 固定为 0
             prefixInnerOffsetSize = runParam.kvLeftPaddingSize * constInfo.n2Dv;
             runParam.prefixCoreOffset = prefixInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeV;
         } else {
@@ -274,24 +300,24 @@ __aicore__ inline void GetValueCoreOffsetParam(RunParamStr<isInfer>& runParam, c
 }
 
 TEMPLATE_INTF
-__aicore__ inline void GetKeyRopeCoreOffsetParam(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo, 
-    int32_t sIdx, __gm__ int64_t *actualSeqKvlenAddr)
+__aicore__ inline void GetKeyRopeCoreOffsetParam(RunParamStr<isInfer>& runParam,
+    const ConstInfo<isInfer, hasRope> &constInfo, int32_t bIdx, __gm__ int64_t *actualSeqKvlenAddr)
 {
     uint64_t kRopeInnerOffsetSize = 0;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_BSH) {
-        kRopeInnerOffsetSize = sIdx * constInfo.n2S2DR + runParam.kvLeftPaddingSize * constInfo.n2DR;
+        kRopeInnerOffsetSize = bIdx * constInfo.n2S2DR + runParam.kvLeftPaddingSize * constInfo.n2DR;
         runParam.kRopeNBGOffset = kRopeInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeRope;
     } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
         if constexpr (!isPa) {
-            kRopeInnerOffsetSize = (sIdx == 0)? 0 : actualSeqKvlenAddr[sIdx - 1] * constInfo.n2DR;
+            kRopeInnerOffsetSize = (bIdx == 0)? 0 : actualSeqKvlenAddr[bIdx - 1] * constInfo.n2DR;
         } else {
-            kRopeInnerOffsetSize = sIdx * constInfo.n2S2DR;
+            kRopeInnerOffsetSize = bIdx * constInfo.n2S2DR;
         }
         runParam.kRopeNBGOffset = kRopeInnerOffsetSize + runParam.n2oIdx * constInfo.dSizeRope;
     } else {
         uint64_t headStrideKV = 0;
         headStrideKV = constInfo.s2DR;
-        kRopeInnerOffsetSize = sIdx * constInfo.n2Size * headStrideKV +
+        kRopeInnerOffsetSize = bIdx * constInfo.n2Size * headStrideKV +
             runParam.kvLeftPaddingSize * constInfo.dSizeRope;
         runParam.kRopeNBGOffset = kRopeInnerOffsetSize + runParam.n2oIdx * headStrideKV;
     }
@@ -312,8 +338,8 @@ __aicore__ inline void ComputeParamBatch(RunParamStr<isInfer>& runParam, const C
 }
 
 TEMPLATE_INTF
-__aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo, bool lastBN, 
-    int64_t nextGs1Idx)
+__aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo,
+    bool lastBN, int64_t nextGs1Idx)
 {
     constexpr int32_t s1BaseSize = static_cast<int32_t>(s1TemplateType);
     int32_t s1LoopTimes = CeilDiv(runParam.actualS1Size, s1BaseSize);
@@ -342,8 +368,10 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
         runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : runParam.s1RealSizeAlign32 / 2;
     } else {
         runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
-        if (constInfo.s1Size > 1 && constInfo.isGqa && (layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND)) {
-            runParam.halfS1RealSize = (runParam.halfS1RealSize + constInfo.gSize - 1) / constInfo.gSize * constInfo.gSize;
+        if (constInfo.s1Size > 1 && constInfo.isGqa && (layout == LayOutTypeEnum::LAYOUT_BSH ||
+            layout == LayOutTypeEnum::LAYOUT_TND)) {
+            runParam.halfS1RealSize = (runParam.halfS1RealSize + constInfo.gSize - 1) / constInfo.gSize *
+                constInfo.gSize;
         }
     }
     runParam.firstHalfS1RealSize = runParam.halfS1RealSize;
@@ -358,20 +386,20 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
 
 TEMPLATE_INTF
 __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, const ConstInfo<isInfer, hasRope> &constInfo,
-    int32_t sIdx, __gm__ int64_t *actualSeqQlenAddr, PseInfo& pseInfo)
+    int32_t bIdx, __gm__ int64_t *actualSeqQlenAddr, PseInfo& pseInfo)
 {
     if constexpr (pseMode != PseTypeEnum::PSE_NONE_TYPE) {
-        CalPseShiftCoreOffset<TEMPLATE_INTF_ARGS>(runParam, constInfo, sIdx, runParam.sOuterOffset, pseInfo);
+        CalPseShiftCoreOffset<TEMPLATE_INTF_ARGS>(runParam, constInfo, bIdx, runParam.sOuterOffset, pseInfo);
     }
 
     int64_t actualSeqLen = 0;
     int64_t seqOffset = 0;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-        actualSeqLen = (sIdx == 0) ? actualSeqQlenAddr[0] : actualSeqQlenAddr[sIdx] - actualSeqQlenAddr[sIdx - 1];
-        seqOffset = (sIdx == 0) ? 0 : actualSeqQlenAddr[sIdx - 1];
+        actualSeqLen = (bIdx == 0) ? actualSeqQlenAddr[0] : actualSeqQlenAddr[bIdx] - actualSeqQlenAddr[bIdx - 1];
+        seqOffset = (bIdx == 0) ? 0 : actualSeqQlenAddr[bIdx - 1];
     } else {
         actualSeqLen = constInfo.s1Size;
-        seqOffset = sIdx * constInfo.s1Size;
+        seqOffset = bIdx * constInfo.s1Size;
     }
     if ASCEND_IS_AIC {
         if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
@@ -420,15 +448,24 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                 runParam.sOuterOffset * constInfo.dSizeV;
             runParam.tensorQOffset = runParam.qBOffset + runParam.n2oIdx * constInfo.gD * actualSeqLen +
                 runParam.cubeSOuterOffset * constInfo.dSize;
-            if (constInfo.isNTDOut == 1) { // IFA MLA, TND_NTD
+            if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_NBSD)) {
                 attentionOutSeqOffset = seqOffset * constInfo.dSizeV;
-                int64_t curGIdx = runParam.goIdx, curS1Idx = runParam.cubeSOuterOffset / (uint32_t)s1TemplateType; // 64
-                
+                int64_t curGIdx = runParam.sOuterOffset / constInfo.s1Size;
+                int64_t curS1Idx = runParam.sOuterOffset % constInfo.s1Size;
+                runParam.attentionOutOffset = attentionOutSeqOffset + // b
+                    curGIdx * constInfo.t1Size * constInfo.dSizeV + // g
+                    curS1Idx * constInfo.dSizeV; // s1
+            } else if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
+                constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
+                constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::TND_NTD)) {
+                attentionOutSeqOffset = seqOffset * constInfo.dSizeV;
+                int64_t curGIdx = runParam.goIdx;
+                int64_t curS1Idx = runParam.cubeSOuterOffset / (uint32_t)s1TemplateType; // 64
                 if (constInfo.gSize == 128) { // G为128时，基本块位于同一S1行
                     curGIdx = (curS1Idx % 2 == 0) ? curGIdx : (uint32_t)s1TemplateType;
                     curS1Idx /= 2;
                 } else if (constInfo.gSize <= 32) { // G<=32时，每64/G行为一个基本块
-                    curS1Idx *= ((uint32_t)s1TemplateType / constInfo.gSize);
+                    curS1Idx = runParam.cubeSOuterOffset / constInfo.gSize;
                 }
 
                 if (constInfo.subBlockIdx == 1) {
@@ -454,7 +491,10 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr<isInfer>& runParam, cons
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.n2oIdx * constInfo.gDv * actualSeqLen +	
                         runParam.sOuterOffset * constInfo.dSizeV;
             } else {
-                if (constInfo.isBSNDOut == 1 || constInfo.isTNDOut == 1 || layout == LayOutTypeEnum::LAYOUT_BSH || layout == LayOutTypeEnum::LAYOUT_TND) {
+                if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND) ||
+                    constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::NTD_TND) || layout == LayOutTypeEnum::LAYOUT_TND ||
+                    (constInfo.transposeLayout != static_cast<uint32_t>(TransposeLayoutEnum::BSND_BNSD) &&
+                    constInfo.transposeLayout != static_cast<uint32_t>(TransposeLayoutEnum::BSH_BNSD) && layout == LayOutTypeEnum::LAYOUT_BSH)) {
                     runParam.attentionOutOffset = attentionOutSeqOffset + runParam.queryLeftPaddingSize * constInfo.n2GDv +
                         runParam.sOuterOffset * constInfo.n2GDv + runParam.n2oIdx * constInfo.gDv +
                         runParam.goIdx * constInfo.dSizeV;
@@ -545,10 +585,18 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr<isInfer>& runParam, const C
         return false;
     }
 
-    int64_t sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
-        0, runParam.actualS2Size);
-    runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
-        runParam.s1RealSize, 0, runParam.actualS2Size);
+    int64_t sInnerFirstToken = 0;
+    if constexpr ((hasRope && (dTemplateType == DTemplateType::Aligned576)) && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+        sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>((runParam.cubeSOuterOffset - runParam.preTokensPerBatch) / constInfo.gSize,
+            0, runParam.actualS2Size);
+        runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(CeilDiv(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+            runParam.s1RealSize, constInfo.gSize), 0, runParam.actualS2Size);
+    } else {
+        sInnerFirstToken = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
+            0, runParam.actualS2Size);
+        runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+            runParam.s1RealSize, 0, runParam.actualS2Size);
+    }
     runParam.s2LoopEndIdx = (runParam.s2LineEndIdx + s2BaseSize - 1) / s2BaseSize - sInnerFirstToken / s2BaseSize;
     if constexpr (enableKVPrefix) {
         sInnerFirstToken =
@@ -739,6 +787,7 @@ __aicore__ inline void InitTaskParamByRun(const RunParamStr<isInfer>& runParam, 
     runInfo.kvLeftPaddingSize = runParam.kvLeftPaddingSize;
     if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) { // IFA MLA
         runInfo.nextTokensOfMlaPerBatch = runParam.nextTokensOfMlaPerBatch;
+        runInfo.preTokensOfMlaPerBatch = runParam.preTokensOfMlaPerBatch;
     }
 }
 

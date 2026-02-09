@@ -168,6 +168,9 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeAttrs()
     OP_CHECK_IF(sparseMode != SPARSE_MODE_SIZE_3,
                 OP_LOGE(opName, " The value of sparse_mode is [%d], but currently only supports mode [3].", sparseMode),
                 return false);
+    OP_CHECK_IF(strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSND") != 0,
+                OP_LOGE(opName, "Layout only support TND or BSND, now layout is %s.", inputLayout),
+                return false);    
     OP_LOGD(context_, "attrs: scaleValue[%f] input_layout[%s] sparse_mode[%ld].",
             scaleValue, inputLayout, sparseMode);
     return true;
@@ -570,10 +573,11 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeLayout()
 
     size_t layoutLen = strlen(inputLayout);
     OP_CHECK_IF(queryShape.GetDimNum() != layoutLen || keyShape.GetDimNum() != layoutLen ||
-        queryIndexShape.GetDimNum() != layoutLen || keyIndexShape.GetDimNum() != layoutLen, OP_LOGE(opName, "Invalid layout[%s].", inputLayout), return false);
+        queryIndexShape.GetDimNum() != layoutLen || keyIndexShape.GetDimNum() != layoutLen, 
+        OP_LOGE(opName, "Invalid data, inputdata shapelen [%d] is not equal to inputLayout [%s] len[%d].", queryShape.GetDimNum(), inputLayout, layoutLen), return false);
     OP_CHECK_IF(!CrossShapeVerify(queryRopeShape, keyRopeShape), OPS_REPORT_VECTOR_INNER_ERR(opName, "CrossShapeVerify Failed"), return false);    
     OP_CHECK_IF(!AnalyzeDimLayout(queryShape, keyShape, queryIndexShape, topKShape, layoutLen, queryRopeShape, keyRopeShape),
-               OP_LOGE(opName, "Layout: %s, Run Failed", inputLayout), return false);
+               OP_LOGE(opName, "Layout %s data analyze failed.", inputLayout), return false);
     OP_CHECK_IF(gSizeQuery == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "gSizeQuery is zero"), return false);
     OP_CHECK_IF(n2Size == 0, OPS_REPORT_VECTOR_INNER_ERR(opName, "n2Size is zero"), return false);
     OP_CHECK_IF(dSizeQuery <= 0,
@@ -974,11 +978,16 @@ ge::graphStatus SparseLightningIndexerGradKLLossTilingBase::GetWorkspaceSize()
     }
 
     int64_t singlecoreTotalSize = PING_PONG_VALUE * (pSize + bmm1Size + bmm2Size + reluGradSize + sySize + psySyncSize + bmm3Size);
-    int64_t multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize  + lossSize;
+    int64_t multicoreTotalsize = 0;
+    if (deterministic) {
+        multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize * 2 + lossSize;
+    } else {
+        multicoreTotalsize = singlecoreTotalSize * static_cast<int64_t>(sliGradkllossMultiCoreParams_->get_coreNum()) + scatterAddOutSize + lossSize;
+    }
     workspaces[0] = static_cast<size_t>(multicoreTotalsize) + WORK_SPACE_RESERVE_SIZE; // 预留16M空间必须加;
     OP_LOGW(context_, "workspace size:[%ld], multicoreTotalsize:[%ld]", workspaces[0], multicoreTotalsize);
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(SparseLightningIndexerGradKLLoss, SparseLightningIndexerGradKLLossTilingBase, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)}), 10);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(SparseLightningIndexerGradKLLoss, SparseLightningIndexerGradKLLossTilingBase, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201)}), 10);
 } // namespace optiling

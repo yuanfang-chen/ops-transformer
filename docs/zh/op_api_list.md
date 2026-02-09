@@ -150,6 +150,7 @@
 |[aclnnPromptFlashAttention](../../attention/prompt_flash_attention/docs/aclnnPromptFlashAttention.md)|全量推理场景的FlashAttention算子。|默认确定性实现|
 |[aclnnPromptFlashAttentionV2](../../attention/prompt_flash_attention/docs/aclnnPromptFlashAttentionV2.md)|全量推理场景的FlashAttention算子。|默认确定性实现|
 |[aclnnPromptFlashAttentionV3](../../attention/prompt_flash_attention/docs/aclnnPromptFlashAttentionV3.md)|全量推理场景的FlashAttention算子。|默认确定性实现|
+|[aclnnQkvRmsNormRopeCache](../../posembedding/qkv_rms_norm_rope_cache/docs/aclnnQkvRmsNormRopeCache.md)|输入qkv融合张量，通过SplitVD拆分q、k、v张量，执行RmsNorm、ApplyRotaryPosEmb、Quant、Scatter融合操作，输出qOut、kCache、vCache、qBeforeQuant(可选)、kBeforeQuant(可选)、vBeforeQuant(可选)。|默认确定性实现|
 |[aclnnQuantMatmulAllReduce](../../mc2/matmul_all_reduce/docs/aclnnQuantMatmulAllReduce.md)|对量化后的入参x1、x2进行MatMul计算后，接着进行Dequant计算，接着与x3进行Add操作，最后做AllReduce计算。|默认非确定性实现，支持配置开启|
 |[aclnnQuantMatmulAllReduceV2](../../mc2/matmul_all_reduce/docs/aclnnQuantMatmulAllReduceV2.md)|aclnnQuantMatmulAllReduceV2接口是对[aclnnQuantMatmulAllReduce](../../mc2/matmul_all_reduce/docs/aclnnQuantMatmulAllReduce.md)接口的功能扩展。|默认非确定性实现，支持配置开启|
 |[aclnnQuantMatmulAllReduceV3](../../mc2/matmul_all_reduce/docs/aclnnQuantMatmulAllReduceV3.md)|aclnnQuantMatmulAllReduceV3接口是对[aclnnQuantMatmulAllReduceV2](../../mc2/matmul_all_reduce/docs/aclnnQuantMatmulAllReduceV2.md)接口的功能扩展。|默认非确定性实现，支持配置开启|
@@ -164,6 +165,7 @@
 |[aclnnRopeWithSinCosCache](../../posembedding/rope_with_sin_cos_cache/docs/aclnnRopeWithSinCosCache.md)|推理网络为了提升性能，将sin和cos输入通过cache传入，执行旋转位置编码计算。|默认确定性实现|
 |[aclnnRotaryPositionEmbedding](../../posembedding/rotary_position_embedding/docs/aclnnRotaryPositionEmbedding.md)|执行单路旋转位置编码计算。|默认确定性实现|
 |[aclnnRotaryPositionEmbeddingGrad](../../posembedding/rotary_position_embedding_grad/docs/aclnnRotaryPositionEmbeddingGrad.md)|单路旋转位置编码[aclnnRotaryPositionEmbedding](../../posembedding/rotary_position_embedding/docs/aclnnRotaryPositionEmbedding.md)的反向计算。|默认确定性实现|
+|[aclnnScatterPaCache](../../attention/scatter_pa_cache/docs/aclnnScatterPaCache.md)|更新KCache中指定位置的key。|默认确定性实现|
 |[aclnnScatterPaKvCache](../../attention/scatter_pa_kv_cache/docs/aclnnScatterPaKvCache.md)|更新KvCache中指定位置的key和value。|默认确定性实现|
 |[aclnnSparseFlashAttentionGrad](../../attention/sparse_flash_attention_grad/docs/aclnnSparseFlashAttentionGrad.md)|根据topkIndices对key和value选取大小为selectedBlockSize的数据重排，接着进行训练场景下计算注意力的反向输出。|默认非确定性实现，支持配置开启|
 |[aclnnSparseLightningIndexerGradKLLoss](../../attention/sparse_lightning_indexer_grad_kl_loss/docs/aclnnSparseLightningIndexerGradKLLoss.md)|LightningIndexer的反向算子，再额外融合了Loss计算功能。|默认非确定性实现，不支持配置开启|

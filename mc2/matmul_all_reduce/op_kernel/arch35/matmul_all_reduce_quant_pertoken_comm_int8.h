@@ -103,7 +103,9 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     cGM_ = cGM;
     tilingData_ = tilingData;
     tPipe_ = tPipe;
@@ -273,6 +275,8 @@ __aicore__ inline void MatmulAllReduceQuantPertokenCommInt8<xType, WType, YType,
             hccl_.Commit(allGatherHandleId_[reduceScatterWaitIdx_]);
             reduceScatterWaitIdx_++;
         }
+        // 避免MatmulAllReduceQuantMulCastCommInt8的vec计算和quant_batch_matmul_v3的vec计算发生数据覆盖，确保流水正常
+        SyncAll<false>();
         isSendTileFlag_ = true;
         aGM_ += aOffset;
         cGM_ += cOffset;                  // 偏原始大小

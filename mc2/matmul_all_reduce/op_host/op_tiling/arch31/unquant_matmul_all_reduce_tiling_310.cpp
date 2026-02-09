@@ -27,7 +27,7 @@ bool UnQuantMatmulAllReduceTiling310::IsCapable()
         weightTensor == nullptr, VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "weight tensor is invalid"),
         return false);
     auto format = weightTensor->GetStorageFormat();
-    if (socVersion_ != platform_ascendc::SocVersion::ASCEND310P || format == ge::Format::FORMAT_ND) {
+    if ((npuArch_ != NpuArch::DAV_2002) || (format == ge::Format::FORMAT_ND)) {
         OP_LOGI(opName_, "skip normalized unquant tiling when is not 310p or not weight nz[%d].", format);
         return false;
     }
@@ -185,5 +185,6 @@ ge::graphStatus UnQuantMatmulAllReduceTiling310::DoUnQuantTiling()
 }
 
 //注册Tiling
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,UnQuantMatmulAllReduceTiling310,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P),2);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce, UnQuantMatmulAllReduceTiling310, \
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P), 2);
 } // namespace optiling

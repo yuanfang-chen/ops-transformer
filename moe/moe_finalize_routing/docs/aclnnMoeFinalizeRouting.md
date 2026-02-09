@@ -1,11 +1,17 @@
 # aclnnMoeFinalizeRouting
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_finalize_routing)
+
 ## 产品支持情况
 
 | 产品                                                         |  是否支持   |
 | :----------------------------------------------------------- |:-------:|
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×    |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √    |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×    |
+| <term>Atlas 推理系列产品</term>                             |    ×    |
+| <term>Atlas 训练系列产品</term>                              |    ×    |
 
 ## 功能说明
 
@@ -367,7 +373,7 @@ int main() {
   // 创建x1 aclTensor
   ret = CreateAclTensor(x1HostData, x1Shape, &x1Addr, aclDataType::ACL_FLOAT, &x1);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  // 创建x2Optional aclScalar
+  // 创建x2Optional aclTensor
   ret = CreateAclTensor(x2OptionalHostData, x2OptionalShape, &x2OptionalAddr, aclDataType::ACL_FLOAT, &x2Optional);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   // 创建bias aclTensor

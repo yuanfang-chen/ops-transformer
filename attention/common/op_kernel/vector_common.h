@@ -672,7 +672,7 @@ __aicore__ inline void ComputeSoftMaxLse(LocalTensor<T> &softmaxlseUb, LocalTens
                                         uint32_t dealRowCount)
 {
     uint32_t blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
-    if (std::is_same<T, half>::value) {
+    if constexpr (std::is_same<T, half>::value) {
         blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM * 2;
     }
     uint64_t dealRowCountAlign = dealRowCount * fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
@@ -1081,7 +1081,7 @@ __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTe
 }
 
 template <typename T, typename M, typename U>
-__aicore__ inline void AttentionmaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
+__aicore__ inline void AttentionMaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     uint32_t dealRowCount = info.gs1dealNum;
     uint32_t columnCount = Align(info.s2dealNum, 32U);

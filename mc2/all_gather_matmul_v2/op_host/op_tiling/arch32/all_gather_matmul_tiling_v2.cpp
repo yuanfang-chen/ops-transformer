@@ -40,7 +40,7 @@ namespace optiling
 {
 bool AllGatherMatmulTilingV2::IsCapable()
 {
-    if ((socVersion_ == platform_ascendc::SocVersion::ASCEND950) && inputIsBf16Fp16_) {
+    if ((npuArch_ == NpuArch::DAV_3510) && inputIsBf16Fp16_) {
         OP_LOGI(opName_, "Start with AllGatherMatmulTilingV2 tiling.");
         return true;
     }
@@ -151,11 +151,12 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
 
     // 根据芯片型号获取策略模板
     platform_ascendc::SocVersion socVersion = ascendcPlatForm.GetSocVersion();
+    NpuArch npuArch = ascendcPlatForm.GetCurNpuArch();
 
     std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion, priorities, opName_));
+    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch, priorities, opName_));
 
-    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion, priorities};
+    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", npuArch, priorities};
 
     mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
@@ -224,6 +225,6 @@ AllGatherMatmulTilingV2::AllGatherMatmulTilingV2(gert::TilingContext* context)
 {
 }
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AllGatherMatmulV2, AllGatherMatmulTilingV2, \
-                                        static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(AllGatherMatmulV2, AllGatherMatmulTilingV2, \
+                                   static_cast<int32_t>(NpuArch::DAV_3510), 0);
 }  // namespace optiling
