@@ -110,24 +110,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantWeightNzV2GetWorkspaceSize(const aclTen
 
     // weight在该场景下强制绑定StorageFormat 和 ViewFormat 为NZ
     CHECK_RET(weight != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    auto w = (*weight)[0];
-    auto storgeShape = w->GetStorageShape();
-    auto viewShape = w->GetViewShape();
-    aclTensor *weightNZ = const_cast<aclTensor *>(w);
-    CHECK_COND((storgeShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT), ACLNN_ERR_PARAM_INVALID,
-               "aclnnGroupedMatmulSwigluQuantWeightNzV2, The dimnum of storageShape for second input (weight)"
-             "must be 5. \n But StorageShape got %s , and dimNum is %lu.",
-               op::ToString(storgeShape).GetString(), storgeShape.GetDimNum());
-    // weight的StorageFormat无条件视为NZ
-    weightNZ->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
-    if (viewShape.GetDimNum() == WEIGHT_NZ_DIM_LIMIT) {
-        // 若weight的viewShape为5维则视为NZ
-        weightNZ->SetViewFormat(op::Format::FORMAT_FRACTAL_NZ);
-    } else if (viewShape.GetDimNum() == WEIGHT_ND_DIM_LIMIT) {
-        // 若weight的viewShape为3维则视为ND
-        weightNZ->SetViewFormat(op::Format::FORMAT_ND);
-    }
-
     GroupedMatmulSwigluQuantParamsBase params =
         GroupedMatmulSwigluQuantParamsBuilder::Create(x, weight, weightScale, output, outputScale)
         .SetXScale(xScale).SetSmoothScale(smoothScale)
