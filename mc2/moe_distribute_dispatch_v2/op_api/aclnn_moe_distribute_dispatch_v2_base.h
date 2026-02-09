@@ -58,6 +58,9 @@ ACLNN_API aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     aclTensor* tpRecvCountsOut, aclTensor* expandScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 
+ACLNN_API aclnnStatus  aclnnMoeDistributeDispatchBase(
+    void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream);
+
 #ifdef __cplusplus
 }
 #endif

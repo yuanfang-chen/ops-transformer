@@ -58,6 +58,12 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
     aclTensor* tpRecvCounts, aclTensor* expandScales,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 
+extern aclnnStatus aclnnInnerMoeDistributeDispatchV2(void* workspace, uint64_t workspaceSize,
+                                                     aclOpExecutor* executor, aclrtStream stream);
+
+extern aclnnStatus aclnnInnerMoeDistributeDispatchV2Extend(void* workspace, uint64_t workspaceSize,
+                                                     aclOpExecutor* executor, aclrtStream stream);
+
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
 bool DispatchCheckNotNull(const aclTensor* x, const aclTensor* expertIds, const char* groupEp,
@@ -258,6 +264,14 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     }
+
+    if(is950) {
+        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
+        if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
+        }
+        NnopbaseSetUserHandle(executor, arg);
+    }
     
     if (NnopbaseSetHcclServerType) {
         if (is910B) {
@@ -271,6 +285,19 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     return getWorkspaceSizesRes;
 }
 
+aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream) 
+{
+    const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
+    if(is950) {
+        OP_LOGD("PRINT is950");
+        void *arg = NnopbaseGetUserHandle(executor);
+        uintptr_t handleVal = reinterpret_cast<uintptr_t>(arg);
+        if(handleVal == 0) {
+            return aclnnInnerMoeDistributeDispatchV2Extend(workspace, workspaceSize, executor, stream); //mte走新模版
+        }
+    }
+    return aclnnInnerMoeDistributeDispatchV2(workspace, workspaceSize, executor, stream);
+}
 
 #ifdef __cplusplus
 }
