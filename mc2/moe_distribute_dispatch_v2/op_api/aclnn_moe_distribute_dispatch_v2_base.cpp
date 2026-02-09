@@ -195,18 +195,20 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int6
     std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
+    OP_LOGD("PRINT HcomGetCommHandleByGroup start");
     ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
         return ACLNN_ERR_INNER;
     }
-
+    OP_LOGD("PRINT HcomGetCommHandleByGroup success");
     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
     if(ret != HCCL_SUCCESS) { 
         //如果资源不存在则进行context结构体创建
         auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
         CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     }
+    OP_LOGD("PRINT HcclEngineCtxGet success");
     hcclBuffSize = mc2_context.winsize;
     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
     CreatMc2ContextTensor(ctx, mc2Context);
