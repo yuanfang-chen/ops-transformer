@@ -39,6 +39,9 @@ namespace Gemm {
 namespace Kernel {
 
 namespace {
+constexpr uint64_t M_VALUES = 0UL;
+constexpr uint64_t N_VALUES = 1UL;
+constexpr uint64_t K_VALUES = 2UL;
 constexpr uint64_t IDX_A_OFFSETS = 0UL;
 constexpr uint64_t IDX_B_OFFSETS = 1UL;
 constexpr uint64_t IDX_X1SCALE_OFFSETS = 2UL;
@@ -240,7 +243,7 @@ public:
         if constexpr (formatB == CubeFormat::NZ) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) + CeilDiv(n, WEIGHTNZ_N0_32) *
  	                                           CeilDiv(k, WEIGHTNZ_K0_16) * WEIGHTNZ_N0_K0;
-        } else if constexpr (formatB == CubeFormat::Zn) {
+        } else if constexpr (formatB == CubeFormat::ZN) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) + CeilDiv(k, WEIGHTNZ_K0_32) *
  	                                           CeilDiv(n, WEIGHTNZ_N0_16) * WEIGHTNZ_N0_K0;
         } else {
@@ -292,7 +295,7 @@ public:
             BlockShape singleShape = bs.GetBlockShape(tileIdx);
             blockOffset_ = coord.template GetQuantOffset<GroupedMatmul::QuantMode::PERTOKEN_MODE>(
                 Get<IDX_M_TILEIDXS>(tileIdx), Get<IDX_N_TILEIDXS>(tileIdx), Get<IDX_M_TAIL_SPLIT_TILEIDXS>(singleShape),
-                Get<IDX_N_TAIL_SPLIT_TILEIDX>(singleShape));
+                Get<IDX_N_TAIL_SPLIT_TILEIDXS>(singleShape));
             if ASCEND_IS_AIC {
                 if (isVecSetSyncCom_)
                 {

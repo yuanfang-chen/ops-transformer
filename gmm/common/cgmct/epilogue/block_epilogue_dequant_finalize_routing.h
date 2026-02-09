@@ -365,7 +365,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_ );
     AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_ );
     logitCrossPingPongID_ = (logitCrossPingPongID_ + 1) & 1;
-    VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, mSize);
+    VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, singleMInVec);
     uint32_t loopNumY = CeilDiv(singleMInVec, MAX_OUTPUT_M_UBS);
     AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
     AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(1);

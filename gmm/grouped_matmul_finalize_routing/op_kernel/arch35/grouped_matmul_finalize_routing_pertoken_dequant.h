@@ -56,7 +56,7 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
     using BlockMmadBuilder =
         Block::BlockMmadBuilder<AType, LayoutA, BType, LayoutB, C1Type, LayoutC, BiasType, LayoutBias, L1TileShape,
                                 L0TileShape, BlockScheduler, MatmulMultiBlock<>,
-                                Tile::TileCopy<Arch::Ascend950, Tile::CopyInAndCopyOutSplitMWithParams>>;
+                                Tile::TileCopy<Arch::DAV3510, Tile::CopyInAndCopyOutSplitMWithParams>>;
 
     using BlockPrologue = Cgmct::Gemm::Block::BlockPrologueFinalizeRouting<CType, BiasType>;
 
