@@ -464,7 +464,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       y_i=(x_i\times weight_i + bias_i) * scale_i * per\_token\_scale_i
       $$
 
-    - x为INT8，bias为BFLOAT16
+    - x为INT8，bias为BFLOAT16（仅<term>Ascend 950PR/Ascend 950DT AI处理器</term>支持）
 
       $$
       y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i  + bias_i
@@ -529,7 +529,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       |---------|----------------|--------------|--------|------------|----------------|-----------------|---------------|-----------|-----------------|----------------------|-----------------------|---------|
       | INT8 | INT8 (ND) | INT32/null | UINT64 | null | null | null | null | INT64 | null | null | null | INT8 |
       | INT8 | INT8 (ND/NZ) | INT32/null |BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
-      | INT8 | INT8 (NZ) | BFLOAT16/null |FLOAT/BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
+      | INT8 | INT8 (NZ) | null |FLOAT/BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
       | INT8 | INT8 (ND/NZ) | INT32/null | FLOAT | null | null | null | FLOAT/null | INT64 | null | null | null | FLOAT16 |
       | INT8 | INT8 (ND/NZ) | INT32/null | null | null | null | null | null | INT64 | null | null | null | INT32 |
 
