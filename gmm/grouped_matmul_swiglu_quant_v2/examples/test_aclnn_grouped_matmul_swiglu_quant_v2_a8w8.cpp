@@ -18,6 +18,7 @@
 #include "acl/acl.h"
 #include "aclnnop/aclnn_grouped_matmul_swiglu_quant_weight_nz_v2.h"
 
+
 #define CHECK_RET(cond, return_expr)                                                                                   \
     do {                                                                                                               \
         if (!(cond)) {                                                                                                 \
