@@ -140,7 +140,8 @@ ge::graphStatus AlltoAllvGmmQuantTiling::GetWorkspaceSize()
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(context_->GetNodeName(), "can not get workspace."),
         return ge::GRAPH_FAILED);
     uint64_t permuteOutSize = permuteOutFlag_ ? 0 : (a_ * h1_ * GetSizeByDataType(gmmXDataType_));
-    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize;
+    uint64_t groupListSize = e_ * sizeof(int64_t); // GMM计算所需的groupList GM空间大小
+    workspaces[0] = libApiWorkSpaceSize_ + permuteOutSize + groupListSize;
     OP_LOGD(context_->GetNodeName(), "end GetWorkspaceSize.");
     return ge::GRAPH_SUCCESS;
 }
