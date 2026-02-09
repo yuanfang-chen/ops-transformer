@@ -19,6 +19,7 @@
 #include "../matmul.h"
 #include "../FixpipeOut.h"
 #include "../CopyInL1.h"
+#include "../CopyQtoL1.h"
 
 #include "infer_flash_attention_comm.h"
 #include "flash_attention_score_common_regbase.h"
