@@ -20,6 +20,17 @@
 
 namespace MC2KernelTemplate {
 using namespace AscendC;
+
+struct MC2AlltoAllContext {
+    uint32_t taskCnt;
+    GM_ADDR sendBuffer;
+    GM_ADDR recvBuffer;
+    uint64_t sendOffset;
+    uint64_t recvOffset;
+    uint64_t sendCount;
+    uint64_t strideCount;
+    uint64_t hcclDataType;
+};
 /**
  * ServerType:通信控制方式，ccu/mte/aicpu等
  * SendCnt:每轮发送的次数
@@ -31,109 +42,12 @@ template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, 
 class HcclCommunication
 {
 public:
-    __aicore__ inline HcclCommunication(TilingDataType* tiling) : tiling_(tiling)
-    {}
-
-    __aicore__ inline void Init()
-    {
-        notifyFlag_ = false;   
-        if ASCEND_IS_AIV {
-            if (AscendC::GetBlockIdx() == 0) {
-                notifyFlag_ = true; 
-            }
-        }
-        
-        hccl_.InitV2(GetHcclContext<0>(), &(tiling_->mc2InitTiling));
-        hccl_.SetCcTilingV2(offsetof(TilingDataType, mc2CcTiling));
-        if constexpr (SendCnt == 1U && RecvCnt == 0U) {
-            communicationType_ = Communicationtype::COMMUNICATION_SEND_ONE;
-        } else if constexpr (SendCnt == 0U && RecvCnt == 1U) {
-            communicationType_ = Communicationtype::COMMUNICATION_WAIT_ONE;
-        }
-        sendIndex_ = 0;
-        recvIndex_ = 0;
-        sendBuffer_ = 0;
-        recvBuffer_ = 0;
-        sendOffset_ = 0;
-        recvOffset_ = 0;
-        sendCount_ = 0;
-        strideCount_ = 0;
-    }
-
-    /**
-     * 初始化通信相关上下文，包括地址信息和每一轮的偏移信息等
-     * loopType:首尾轮通信区分
-     * sendBuffer:发送地址
-     * recvBuffer:接收地址
-     * sendOffset:每一轮与下一轮发送地址偏移
-     * recvOffset:每一轮与下一轮接收地址偏移
-     * sendCount:发送数据量(个数)
-     * strideCount:发往不同卡数据之间的偏移(个数)
-     * 
-     */
-    __aicore__ inline void Update(uint32_t taskCnt, GM_ADDR sendBuffer, GM_ADDR recvBuffer, 
-        uint64_t sendOffset, uint64_t recvOffset, uint64_t sendCount, uint64_t strideCount, uint8_t hcclDataType)
-    {
-        //只有通信核参与通信
-        if (!notifyFlag_) {
-            return;
-        }
-        sendBuffer_ = (uint64_t)sendBuffer;
-        recvBuffer_ = (uint64_t)recvBuffer;
-        sendOffset_ = sendOffset;
-        recvOffset_ = recvOffset;
-        sendCount_ = sendCount;
-        strideCount_ = strideCount;
-        hcclDataType_ = (AscendC::HcclDataType)(static_cast<uint8_t>(hcclDataType));
-        // 如果是先通后算就全量启动通信
-        if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
-            //alltoall接口职责不单一，这里只使用repeat=1的模式
-            uint8_t repeat = 1;
-            for (uint32_t i = 0; i < taskCnt; i++) {
-                hTasks_[sendIndex_ + i] = hccl_.template AlltoAll<true>((GM_ADDR)sendBuffer, (GM_ADDR)recvBuffer, sendCount, hcclDataType_, strideCount, repeat);
-                sendBuffer += sendOffset;
-                recvBuffer += recvOffset;
-            }
-            //更新全局变量
-            sendIndex_ += taskCnt;
-        }
-    }
-
-    // 执行一轮流水，包括通信地址更新，先通后算等待一轮通信完成，先算后通开始一轮通信
-    __aicore__ inline void Process()
-    {
-        //只有通信核参与通信
-        if (!notifyFlag_) {
-            return;
-        }
-        if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
-            hccl_.Wait(hTasks_[recvIndex_]);
-            recvIndex_++;
-        } else if (communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
-            uint8_t repeat = 1;
-            hTasks_[sendIndex_] = hccl_.template AlltoAll<true>((GM_ADDR)sendBuffer_, (GM_ADDR)recvBuffer_, sendCount_, hcclDataType_, strideCount_, repeat);
-            sendBuffer_ += sendOffset_;
-            recvBuffer_ += recvOffset_;
-            sendIndex_++;
-        }
-    }
-
-    // 结束hccl通信
-    __aicore__ inline void End()
-    {
-        // 如果是先算后通就全量等待通信
-        if (notifyFlag_ && communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
-            for (;recvIndex_ < sendIndex_;++recvIndex_) {
-                hccl_.Wait(hTasks_[recvIndex_]);
-            }
-        }
-
-        // 防止block_idx0执行过快清空RcvCnt,增加全核同步
-        SyncAll<false>();
-        if (notifyFlag_) {
-            hccl_.Finalize();
-        }
-    }       
+    __aicore__ inline HcclCommunication(TilingDataType* tiling) : tiling_(tiling){};
+    __aicore__ inline void Init();
+    __aicore__ inline void Prepare(uint32_t taskCnt);
+    __aicore__ inline MC2AlltoAllContext* GetCommContextPtr();
+    __aicore__ inline void Process();
+    __aicore__ inline void End();
 
 private:
     enum Communicationtype{
@@ -142,21 +56,98 @@ private:
     };
     TilingDataType* tiling_;
     Hccl<ServerType> hccl_;
-    // todo 属性参数可能可以转化为方法入参或者临时变量
-    uint32_t sendIndex_ = 0;
-    uint32_t recvIndex_ = 0;
-    uint64_t sendBuffer_ = 0;
-    uint64_t recvBuffer_ = 0;
-    uint64_t sendOffset_ = 0;
-    uint64_t recvOffset_ = 0;
-    uint64_t sendCount_ = 0;
-    uint64_t strideCount_ = 0;
+    MC2AlltoAllContext context_;
+    uint64_t sendIndex_;
+    uint64_t recvIndex_;
     bool notifyFlag_ = false;
     AscendC::HcclDataType hcclDataType_;
     Communicationtype communicationType_ = COMMUNICATION_WAIT_ONE;
     AscendC::HcclHandle hTasks_[16]; //hccl只支持最多16个任务并行
 };
 
-};
+template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::Init()
+{
+    notifyFlag_ = false;   
+    if ASCEND_IS_AIV {
+        if (AscendC::GetBlockIdx() == 0) {
+            notifyFlag_ = true; 
+        }
+    }
+
+    hccl_.InitV2(GetHcclContext<0>(), &(tiling_->mc2InitTiling));
+    hccl_.SetCcTilingV2(offsetof(TilingDataType, mc2CcTiling));
+    if constexpr (SendCnt == 1U && RecvCnt == 0U) {
+        communicationType_ = Communicationtype::COMMUNICATION_SEND_ONE;
+    } else if constexpr (SendCnt == 0U && RecvCnt == 1U) {
+        communicationType_ = Communicationtype::COMMUNICATION_WAIT_ONE;
+    }
+}
+
+template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::Prepare(uint32_t taskCnt)
+{
+    //只有通信核参与通信
+    if (!notifyFlag_) {
+        return;
+    }
+    hcclDataType_ = (AscendC::HcclDataType)(static_cast<uint8_t>(context_.hcclDataType));
+    // 如果是先通后算就全量启动通信
+    if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
+        //alltoall接口职责不单一，这里只使用repeat=1的模式
+        uint8_t repeat = 1;
+        for (uint32_t i = 0; i < taskCnt; i++) {
+            hTasks_[sendIndex_ + i] = hccl_.template AlltoAll<true>(context_.sendBuffer, context_.recvBuffer, context_.sendCount, hcclDataType_, context_.strideCount, repeat);
+            context_.sendBuffer += context_.sendOffset;
+            context_.recvBuffer += context_.recvOffset;
+        }
+        //更新全局变量
+        sendIndex_ += taskCnt;
+    }
+}
+
+template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline MC2AlltoAllContext*
+HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::GetCommContextPtr()
+{
+    return &context_;
+}
+
+template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::Process()
+{
+    //只有通信核参与通信
+    if (!notifyFlag_) {
+        return;
+    }
+    if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
+        hccl_.Wait(hTasks_[recvIndex_]);
+        recvIndex_++;
+    } else if (communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
+        uint8_t repeat = 1;
+        hTasks_[sendIndex_] = hccl_.template AlltoAll<true>(context_.sendBuffer, context_.recvBuffer, context_.sendCount, hcclDataType_, context_.strideCount, repeat);
+        context_.sendBuffer += context_.sendOffset;
+        context_.recvBuffer += context_.recvOffset;
+        sendIndex_++;
+    }
+}
+
+template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
+__aicore__ inline void HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::End()
+{
+    // 如果是先算后通就全量等待通信
+    if (notifyFlag_ && communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
+        for (;recvIndex_ < sendIndex_;++recvIndex_) {
+            hccl_.Wait(hTasks_[recvIndex_]);
+        }
+    }
+
+    // 防止block_idx0执行过快清空RcvCnt,增加全核同步
+    SyncAll<false>();
+    if (notifyFlag_) {
+        hccl_.Finalize();
+    }
+}
+}; // namespace MC2KernelTemplate
 
 #endif
