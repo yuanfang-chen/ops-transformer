@@ -67,7 +67,7 @@ public:
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
-        gmmTilingArray_ = gmmBaseTiling;
+        gmmBaseTiling_ = gmmBaseTiling;
         sharedGmmTiling_ = nullptr;
         tPipe_ = tPipe;
         tilingGM_ = tilingGM;
@@ -87,7 +87,7 @@ public:
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
-        gmmTilingArray_ = nullptr;
+        gmmBaseTiling_ = nullptr;
         sharedGmmTiling_ = sharedGmmTiling;
         tPipe_ = tPipe;
         tilingGM_ = tilingGM;
@@ -135,7 +135,7 @@ private:
     GmmKernelType gmmKernel_;
 
     const TaskTilingInfo *taskTilingInfo_ = nullptr;
-    const GMMQuantTilingData *gmmTilingArray_ = nullptr;      // 路由专家使用
+    const GMMQuantTilingData *gmmBaseTiling_ = nullptr;      // 路由专家使用
     const GMMQuantTilingData *sharedGmmTiling_ = nullptr; // 共享专家使用
     TPipe *tPipe_ = nullptr;
     uint32_t expertNum_ = 0;
@@ -169,7 +169,7 @@ private:
 
     /**
      * 内部：获取专家索引对应的 tiling 数据
-     * 根据 IS_SHARED_EXPERT 模板参数选择返回 sharedGmmTiling_ 或 gmmTilingArray_->array[expertIdx]
+     * 根据 IS_SHARED_EXPERT 模板参数选择返回 sharedGmmTiling_ 或 gmmBaseTiling_->array[expertIdx]
      */
     __aicore__ inline const GMMQuantTilingData *GetTilingData(uint32_t expertIdx) const
     {
@@ -178,7 +178,7 @@ private:
             return sharedGmmTiling_;
         } else {
             // 路由专家根据索引返回对应的 tiling
-            return gmmTilingArray_;
+            return gmmBaseTiling_;
         }
     }
 
@@ -274,7 +274,7 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     // int64_t N = static_cast<int64_t>(this->taskTilingInfo_->N1);
 
     // 3. 获取本次循环对应的 tiling 数据
-    //    路由专家：从 gmmTilingArray_->array[startExpertIdx] 获取
+    //    路由专家：从 gmmBaseTiling_->array[startExpertIdx] 获取
     //    共享专家：使用 sharedGmmTiling_
     const GMMQuantTilingData *tilingData = this->GetTilingData(startExpertIdx);
 
