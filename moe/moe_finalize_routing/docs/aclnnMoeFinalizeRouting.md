@@ -153,7 +153,7 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的输出。</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td></td>
+      <td>-</td>
       <td>(NUM_ROWS，H)</td>
       <td>-</td>
     </tr>
@@ -379,7 +379,7 @@ int main() {
   // 创建bias aclTensor
   ret = CreateAclTensor(biasHostData, biasShape, &biasAddr, aclDataType::ACL_FLOAT, &bias);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  // 创建totalWeightOut aclTensor
+  // 创建scale aclTensor
   ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT, &scales);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   
