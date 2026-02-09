@@ -466,7 +466,6 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
                                const char *group, int64_t epWorldSize, bool permuteOutFlag, const aclTensor *gmmY,
                                const aclTensor *mmYOptional, const aclTensor *permuteOutOptional)
 {
-    (void)epWorldSize; // Unused
     // 1.检查空状态
     CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
                               mmXScaleOptional, mmWeightScaleOptional, permuteOutFlag, mmYOptional, permuteOutOptional),
