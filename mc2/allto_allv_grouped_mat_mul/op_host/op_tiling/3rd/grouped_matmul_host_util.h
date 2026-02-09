@@ -18,7 +18,7 @@
 
 #include <map>
 
-namespace GroupedMatmul {
+namespace Mc2GroupedMatmul {
 constexpr uint32_t X_INDEX = 0;
 constexpr uint32_t WEIGHT_INDEX = 1;
 constexpr uint32_t BIAS_INDEX = 2;
@@ -188,6 +188,6 @@ template <typename T>
 auto FloorAlign(T x, T align) -> typename std::enable_if<std::is_integral<T>::value, T>::type {
   return align == 0 ? 0 : x / align * align;
 }
-}  // namespace GroupedMatmul
+}  // namespace Mc2GroupedMatmul
 
 #endif // GROUPED_MATMUL_HOST_UTIL_H
