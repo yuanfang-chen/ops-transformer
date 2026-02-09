@@ -18,13 +18,14 @@
 
 using namespace ge;
 using namespace common_const;
-using namespace common_const::index_extend;
+// using namespace common_const::index_extend;
+using Idx = common_const::IndexExtend;
 
 namespace optiling {
 inline bool MoeDistributeCombineTilingHelper::CheckInputTensorDim(const gert::TilingContext *context,
                                                                   const char *nodeName)
 {
-    const gert::StorageShape *expandXStorageShape = context->GetInputShape(input::EXPAND_X_INDEX);
+    const gert::StorageShape *expandXStorageShape = context->GetInputShape(Idx::input::EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXStorageShape == nullptr, OP_LOGE(nodeName, "expandX is null."), return false);
     OP_TILING_CHECK(expandXStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
                     OP_LOGE(nodeName, "expandX must be 2-dimension, but got %lu dim",
@@ -33,7 +34,7 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputTensorDim(const gert::Ti
     OP_LOGD(nodeName, "expandX dim0 = %ld", expandXStorageShape->GetStorageShape().GetDim(0));
     OP_LOGD(nodeName, "expandX dim1 = %ld", expandXStorageShape->GetStorageShape().GetDim(1));
 
-    const gert::StorageShape *expertIdsStorageShape = context->GetInputShape(input::EXPERT_IDS_INDEX);
+    const gert::StorageShape *expertIdsStorageShape = context->GetInputShape(Idx::input::EXPERT_IDS_INDEX);
     OP_TILING_CHECK(expertIdsStorageShape == nullptr, OP_LOGE(nodeName, "expertIds is null."), return false);
     OP_TILING_CHECK(expertIdsStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
                     OP_LOGE(nodeName, "expertIds must be 2-dimension, but got %lu dim",
@@ -50,11 +51,11 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputTensorDim(const gert::Ti
                     return false);
     OP_LOGD(nodeName, "expandIdx dim0 = %ld", expandIdxStorageShape->GetStorageShape().GetDim(0));
     
-    const gert::StorageShape *sharedExpertX = context->GetOptionalInputShape(input::SHARED_EXPERT_X_INDEX);
+    const gert::StorageShape *sharedExpertX = context->GetOptionalInputShape(Idx::input::SHARED_EXPERT_X_INDEX);
     if (sharedExpertX != nullptr) {
         auto attrs = context->GetAttrs();
-        auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(attr::ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
-        OP_TILING_CHECK(*sharedExpertRankNumPtr != 0, OP_LOGE(nodeName, "sharedExpertX only support input None "\
+        auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(Idx::attr::ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
+        OP_TILING_CHECK(*sharedExpertRankNumPtr != 0, OP_LOGE(nodeName, "sharedExpertX only support Idx::input None "\
             "when sharedExpertRankNum is non-zero."), return false);
         OP_TILING_CHECK(((sharedExpertX->GetStorageShape().GetDimNum() != TWO_DIMS) &&
                         (sharedExpertX->GetStorageShape().GetDimNum() != THREE_DIMS)),
@@ -67,7 +68,7 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputTensorDim(const gert::Ti
 inline bool MoeDistributeCombineTilingHelper::CheckInputSendCountsTensorDim(const gert::TilingContext *context,
                                                                             const char *nodeName)
 {
-    const gert::StorageShape *epSendCountsStorageShape = context->GetInputShape(input::EP_SEND_COUNTS_INDEX);
+    const gert::StorageShape *epSendCountsStorageShape = context->GetInputShape(Idx::input::EP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(epSendCountsStorageShape == nullptr, OP_LOGE(nodeName, "epSendCounts is null."), return false);
     OP_TILING_CHECK(epSendCountsStorageShape->GetStorageShape().GetDimNum() != ONE_DIM,
                     OP_LOGE(nodeName, "epSendCounts must be 1-dimension, but got %lu dim",
@@ -75,7 +76,7 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputSendCountsTensorDim(cons
                     return false);
     OP_LOGD(nodeName, "epSendCounts dim0 = %ld", epSendCountsStorageShape->GetStorageShape().GetDim(0));
 
-    const gert::StorageShape *tpSendCountsStorageShape = context->GetOptionalInputShape(input::TP_SEND_COUNTS_INDEX);
+    const gert::StorageShape *tpSendCountsStorageShape = context->GetOptionalInputShape(Idx::input::TP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(tpSendCountsStorageShape == nullptr, OP_LOGE(nodeName, "tpSendCounts is null."), return false);
     OP_TILING_CHECK(tpSendCountsStorageShape->GetStorageShape().GetDimNum() != ONE_DIM,
                     OP_LOGE(nodeName, "tpSendCounts must be 1-dimension, but got %lu dim",
@@ -88,7 +89,7 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputSendCountsTensorDim(cons
 inline bool MoeDistributeCombineTilingHelper::CheckInputExpertScalesTensorDim(const gert::TilingContext *context,
                                                                               const char *nodeName)
 {
-    const gert::StorageShape *expertScalesStorageShape = context->GetInputShape(input::EXPERT_SCALES_INDEX);
+    const gert::StorageShape *expertScalesStorageShape = context->GetInputShape(Idx::input::EXPERT_SCALES_INDEX);
     OP_TILING_CHECK(expertScalesStorageShape == nullptr, OP_LOGE(nodeName, "expertScales is null."), return false);
     OP_TILING_CHECK(expertScalesStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
                     OP_LOGE(nodeName, "expertScale must be 2-dimension, but got %lu dim",
@@ -102,7 +103,7 @@ inline bool MoeDistributeCombineTilingHelper::CheckInputExpertScalesTensorDim(co
 inline bool MoeDistributeCombineTilingHelper::CheckOutputTensorDim(const gert::TilingContext *context,
                                                                    const char *nodeName)
 {
-    const gert::StorageShape *xStorageShape = context->GetOutputShape(output::OUTPUT_X_INDEX);
+    const gert::StorageShape *xStorageShape = context->GetOutputShape(Idx::output::OUTPUT_X_INDEX);
     OP_TILING_CHECK(xStorageShape == nullptr, OP_LOGE(nodeName, "x is null."), return false);
     OP_TILING_CHECK(
         xStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
@@ -123,7 +124,7 @@ bool MoeDistributeCombineTilingHelper::CheckTensorDim(gert::TilingContext *conte
     // A3/A5 v1接口的x_active_mask不支持传入
     if (OpVersionManager::GetInstance().GetVersion() == OP_VERSION_1) {
         const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
-        OP_TILING_CHECK(xActiveMaskStorageShape != nullptr, OP_LOGE(nodeName, "x_active_mask only support input None."),
+        OP_TILING_CHECK(xActiveMaskStorageShape != nullptr, OP_LOGE(nodeName, "x_active_mask only support Idx::input None."),
             return false);
     }
 
@@ -160,12 +161,12 @@ inline bool MoeDistributeCombineTilingHelper::CheckActiveMask(const gert::Tiling
 // 校验数据类型
 bool MoeDistributeCombineTilingHelper::CheckTensorDataType(const gert::TilingContext *context, const char *nodeName)
 {
-    auto expandXDesc = context->GetInputDesc(input::EXPAND_X_INDEX);
+    auto expandXDesc = context->GetInputDesc(Idx::input::EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandxDesc is null."), return false);
     OP_TILING_CHECK((expandXDesc->GetDataType() != ge::DT_BF16) && (expandXDesc->GetDataType() != ge::DT_FLOAT16),
                     OP_LOGE(nodeName, "expandX dataType is invalid, dataType should be bf16 or float16, but is %s",
                             Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
-    auto expertIdsDesc = context->GetInputDesc(input::EXPERT_IDS_INDEX);
+    auto expertIdsDesc = context->GetInputDesc(Idx::input::EXPERT_IDS_INDEX);
     OP_TILING_CHECK(expertIdsDesc == nullptr, OP_LOGE(nodeName, "expertIdsDesc is null."), return false);
     OP_TILING_CHECK((expertIdsDesc->GetDataType() != ge::DT_INT32),
                     OP_LOGE(nodeName, "expertIds dataType is invalid, dataType should be int32, but is %s",
@@ -175,29 +176,29 @@ bool MoeDistributeCombineTilingHelper::CheckTensorDataType(const gert::TilingCon
     OP_TILING_CHECK((expandIdxDesc->GetDataType() != ge::DT_INT32),
                     OP_LOGE(nodeName, "expandIdx dataType is invalid, dataType should be int32, but is %s",
                             Ops::Base::ToString(expandIdxDesc->GetDataType()).c_str()), return false);
-    auto epSendCountsDesc = context->GetInputDesc(input::EP_SEND_COUNTS_INDEX);
+    auto epSendCountsDesc = context->GetInputDesc(Idx::input::EP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(epSendCountsDesc == nullptr, OP_LOGE(nodeName, "epSendCountsDesc is null."), return false);
     OP_TILING_CHECK((epSendCountsDesc->GetDataType() != ge::DT_INT32),
                     OP_LOGE(nodeName, "epSendCounts dataType is invalid, dataType should be int32, but is %s",
                             Ops::Base::ToString(epSendCountsDesc->GetDataType()).c_str()), return false);
-    auto tpSendCountsDesc = context->GetOptionalInputDesc(input::TP_SEND_COUNTS_INDEX);
+    auto tpSendCountsDesc = context->GetOptionalInputDesc(Idx::input::TP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(tpSendCountsDesc == nullptr, OP_LOGE(nodeName, "tpSendCountsDesc is null."), return false);
     OP_TILING_CHECK((tpSendCountsDesc->GetDataType() != ge::DT_INT32),
                     OP_LOGE(nodeName, "tpSendCounts dataType is invalid, dataType should be int32, but is %s",
                             Ops::Base::ToString(tpSendCountsDesc->GetDataType()).c_str()), return false);
-    auto expertScalesDesc = context->GetInputDesc(input::EXPERT_SCALES_INDEX);
+    auto expertScalesDesc = context->GetInputDesc(Idx::input::EXPERT_SCALES_INDEX);
     OP_TILING_CHECK(expertScalesDesc == nullptr, OP_LOGE(nodeName, "expertScalesDesc is null."), return false);
     OP_TILING_CHECK((expertScalesDesc->GetDataType() != ge::DT_FLOAT),
                     OP_LOGE(nodeName, "expertScales dataType is invalid, dataType should be float, but is %s",
                             Ops::Base::ToString(expertScalesDesc->GetDataType()).c_str()), return false);
-    auto sharedExpertXDesc = context->GetOptionalInputDesc(input::SHARED_EXPERT_X_INDEX);
+    auto sharedExpertXDesc = context->GetOptionalInputDesc(Idx::input::SHARED_EXPERT_X_INDEX);
     if (sharedExpertXDesc != nullptr) {
         OP_TILING_CHECK(sharedExpertXDesc->GetDataType() != expandXDesc->GetDataType(),
             OP_LOGE(nodeName, "sharedExpertX dataType should be the same as expandX dataType, but got sharedExpertX"
             "dataType %s, expandX dataType %s.", Ops::Base::ToString(sharedExpertXDesc->GetDataType()).c_str(),
             Ops::Base::ToString(expandXDesc->GetDataType()).c_str()), return false);
     }
-    auto xDesc = context->GetOutputDesc(output::OUTPUT_X_INDEX);
+    auto xDesc = context->GetOutputDesc(Idx::output::OUTPUT_X_INDEX);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     OP_TILING_CHECK((xDesc->GetDataType() != expandXDesc->GetDataType()),
                     OP_LOGE(nodeName, "x dataType is invalid, dataType should be equal expandX dataType %s, but is %s",
@@ -209,13 +210,13 @@ bool MoeDistributeCombineTilingHelper::CheckTensorDataType(const gert::TilingCon
 
 bool MoeDistributeCombineTilingHelper::CheckTensorFormat(const gert::TilingContext *context, const char *nodeName)
 {
-    auto expandXDesc = context->GetInputDesc(input::EXPAND_X_INDEX);
+    auto expandXDesc = context->GetInputDesc(Idx::input::EXPAND_X_INDEX);
     OP_TILING_CHECK(expandXDesc == nullptr, OP_LOGE(nodeName, "expandxDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expandXDesc->GetStorageFormat())) ==
                         ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "expandXFormat is invalid"), return false);
 
-    auto expertIdsDesc = context->GetInputDesc(input::EXPERT_IDS_INDEX);
+    auto expertIdsDesc = context->GetInputDesc(Idx::input::EXPERT_IDS_INDEX);
     OP_TILING_CHECK(expertIdsDesc == nullptr, OP_LOGE(nodeName, "expertIdsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expertIdsDesc->GetStorageFormat())) ==
                         ge::FORMAT_FRACTAL_NZ,
@@ -227,25 +228,25 @@ bool MoeDistributeCombineTilingHelper::CheckTensorFormat(const gert::TilingConte
                         ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "expandIdxFormat is invalid"), return false);
 
-    auto epSendCountsDesc = context->GetInputDesc(input::EP_SEND_COUNTS_INDEX);
+    auto epSendCountsDesc = context->GetInputDesc(Idx::input::EP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(epSendCountsDesc == nullptr, OP_LOGE(nodeName, "epSendCountsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(epSendCountsDesc->GetStorageFormat())) ==
                         ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "epSendCountsFormat is invalid"), return false);
 
-    auto tpSendCountsDesc = context->GetOptionalInputDesc(input::TP_SEND_COUNTS_INDEX);
+    auto tpSendCountsDesc = context->GetOptionalInputDesc(Idx::input::TP_SEND_COUNTS_INDEX);
     OP_TILING_CHECK(tpSendCountsDesc == nullptr, OP_LOGE(nodeName, "tpSendCountsDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(tpSendCountsDesc->GetStorageFormat())) ==
                         ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "tpSendCountsFormat is invalid"), return false);
 
-    auto expertScalesDesc = context->GetInputDesc(input::EXPERT_SCALES_INDEX);
+    auto expertScalesDesc = context->GetInputDesc(Idx::input::EXPERT_SCALES_INDEX);
     OP_TILING_CHECK(expertScalesDesc == nullptr, OP_LOGE(nodeName, "expertScalesDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(expertScalesDesc->GetStorageFormat())) ==
                         ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "expertScalesFormat is invalid"), return false);
 
-    auto xDesc = context->GetOutputDesc(output::OUTPUT_X_INDEX);
+    auto xDesc = context->GetOutputDesc(Idx::output::OUTPUT_X_INDEX);
     OP_TILING_CHECK(xDesc == nullptr, OP_LOGE(nodeName, "xDesc is null."), return false);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(xDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(nodeName, "xFormat is invalid"), return false);
