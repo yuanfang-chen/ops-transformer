@@ -31,13 +31,13 @@ public:
         GM_ADDR mmyOptionalGM, GM_ADDR permuteOutOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM,
         GmmArrayAddrType *gmmArrayAddrIn, GmmArrayAddrType *mmArrayAddrIn, TPipe *tPipe)
     {
-        auto tiling = (__gm__ TilingDataType *)tilingGM; 
-        GET_TILING_DATA(tilingData, tilingGM);	 
-        tilingData_ = &tilingData;	 
-        e_ = tilingData_->taskTilingInfo.e;	 
-        __gm__ void *hcclInitTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.hcclInitTiling));	 
-        __gm__ void *alltoAllvCcTiling = (__gm__ void *)(&(tiling->hcclA2avTilingInfo.a2avCcTiling));	 
-        commOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
+        GET_TILING_DATA(tilingData, tilingGM);
+        tilingData_ = &tilingData;
+        e_ = tilingData_->taskTilingInfo.e;
+        const void *hcclInitTiling = &(tilingData_->hcclA2avTilingInfo.hcclInitTiling);
+        uint64_t hcclCcTilingOffset = offsetof(TilingDataType,  hcclA2avTilingInfo) +
+                        offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
+        commOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData_->taskTilingInfo, gmmxGM, permuteOutOptionalGM);
         if (isNeedMM) {
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
