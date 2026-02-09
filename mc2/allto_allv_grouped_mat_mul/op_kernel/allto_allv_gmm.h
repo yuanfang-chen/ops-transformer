@@ -24,6 +24,8 @@ constexpr uint32_t thresholdDimM = 1;
 #else
 constexpr uint32_t thresholdDimM = 5;
 #endif
+static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
+static constexpr uint32_t MAX_EXPERT_PER_EP = 32U;
 
 struct MNConfig {
     uint32_t m;
