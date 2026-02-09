@@ -8,10 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 #include <algorithm>
-
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_shmem.h"
-#include "matmul_util.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/common_types.h"
@@ -126,7 +124,7 @@ aclnnStatus aclnnMoeDistributeDispatchShmemGetWorkspaceSize(
 
 
   const static bool is910B =
-      GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
+      GetCurrentPlatformInfo().GetNpuArch() == NpuArch::DAV_2201;
   auto ret_param =
       CheckParams(x, expertIds, groupEp, groupTp, quantMode, expandXOut,
                   dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
