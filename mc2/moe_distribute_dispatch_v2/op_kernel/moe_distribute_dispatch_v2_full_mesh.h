@@ -470,7 +470,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     SyncFunc<AscendC::HardEvent::S_V>();
     LocalTensor<int32_t> tempTensorInt32 = tempTensor_.template ReinterpretCast<int32_t>();
     LocalTensor<int32_t> outTensorInt32 = outTensor_.template ReinterpretCast<int32_t>();
-    PipeBarrier<PIPE_V>();
+    PipeBarrier<PIPE_V>(); // QuantProcess中的Cast操作 -> Copy搬运
     // 64 = 256 / sizeof(int32_t) 一次操作字节数; 16、15分别为dst、src相邻迭代间地址步长
     Copy(outTensorInt32[flagPadOffset_ / sizeof(int32_t)], tempTensorInt32, uint64_t(64), uint8_t(blockCntPerToken_), {1, 1, 16, 15}); 
     // 64：偏移前一次拷贝的256字节； 56 = （480 - 256） / sizeof(int32_t); 16、15分别为dst、src相邻迭代间地址步长
