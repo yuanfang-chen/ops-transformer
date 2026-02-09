@@ -19,6 +19,7 @@
 #if __CCE_AICORE__ == 310
 #include "arch35/vf/vf_quant_pertensor.h"
 #include "arch35/vf/vf_dynamic_quant.h"
+#include "arch35/vf/vf_dequant.h"
 #endif
 
 #include "mla_prolog_comm.h"
@@ -225,12 +226,16 @@ template <typename T>
 __aicore__ inline void Dequant(const LocalTensor<float> &outputLocal, const LocalTensor<T> &inputLocal, const LocalTensor<float> &scaleLocal,
                                const LocalTensor<float> &scale2Local, const Rectangle& rectangleParams)
 {
+#if __CCE_AICORE__ == 310
+    DequantVf(outputLocal, inputLocal, scaleLocal, scale2Local, rectangleParams.row, rectangleParams.col, rectangleParams.stride);
+#else
     uint64_t cnt = rectangleParams.col * rectangleParams.row;
     Cast(outputLocal, inputLocal, RoundMode::CAST_RINT, cnt);
     AscendC::PipeBarrier<PIPE_V>();
     RowMuls(outputLocal, outputLocal, scale2Local, rectangleParams);
     AscendC::PipeBarrier<PIPE_V>();
     VecMulMat(outputLocal, scaleLocal, outputLocal, rectangleParams);
+#endif
 }
 
 /**
