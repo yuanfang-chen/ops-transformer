@@ -159,7 +159,7 @@ private:
         const int32_t *counts = GetGroupCounts();
         uint64_t total = 0;
         for (uint64_t rank = 0; rank < epWorldSize_; ++rank) {
-            total += static_cast<uint64_t>(counts[expertIdx + rank * expertNumPerRank_]);
+            total += static_cast<uint64_t>(counts[expertIdx * epWorldSize_ + rank]);
         }
         return total;
     }
@@ -236,6 +236,9 @@ GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, 
     const GMMQuantTilingData *gmmBaseTiling,
     TPipe *tPipe)
 {
+    if ASCEND_IS_AIV {
+        return;
+    }
     taskTilingInfo_ = taskTilingInfo;
     gmmBaseTiling_ = gmmBaseTiling;
     tPipe_ = tPipe;
@@ -284,6 +287,9 @@ __aicore__ inline void
 GmmComputeOp<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans, USE_SEND_COUNTS>::ProcessExperts(
     uint32_t startExpertIdx, uint32_t expertNum)
 {
+    if ASCEND_IS_AIV {
+        return;
+    }
     for (uint32_t i = 0; i < expertNum; ++i) {
         uint32_t expertIdx = startExpertIdx + i;
         uint64_t tokenCount = GetExpertTokenCount(expertIdx);

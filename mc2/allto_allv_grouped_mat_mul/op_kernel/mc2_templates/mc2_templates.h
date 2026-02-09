@@ -21,6 +21,7 @@
 #include "compute/gmm_expert_op.h"
 #include "compute/quant_grouped_matmul.h"
 #include "compute/gmm_compute_op.h"
+#include "compute/shared_gmm_compute_op.h"
 #include "common/a2av_common_tiling.h"
 #include "../3rd/gqmm_cube_on_the_fly.h"
 
