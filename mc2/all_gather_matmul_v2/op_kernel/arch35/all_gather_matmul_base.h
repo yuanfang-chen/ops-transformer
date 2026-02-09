@@ -67,6 +67,7 @@ public:
         UpdateNotifyFlag();
         UpdateMC2TileInfo();
         UpdateBatchWeight();
+	return;
     }
 
 protected:
