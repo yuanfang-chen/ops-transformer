@@ -218,39 +218,35 @@ static bool CheckNotSupportNull(const aclTensor *gmmXOffsetOptional, const aclTe
 
 
 // 检查是否有空tensor
-static bool CheckNotEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
+static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmY)
 {
-    auto mVal = gmmX->GetViewShape().GetDim(0);
-    auto kVal1 = gmmX->GetViewShape().GetDim(1);
-    auto kVal2 = gmmWeight->GetViewShape().GetDim(1);
-    auto nVal = gmmWeight->GetViewShape().GetDim(2);
-
-    auto outmVal = gmmY->GetViewShape().GetDim(0);
-    auto outnVal = gmmY->GetViewShape().GetDim(1);
-
-    OP_API_CHECK((mVal == ZERO), {
+    if((gmmX->GetViewShape().GetDim(0) == ZERO) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimM, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((kVal1 == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with zero dimK, which is unsupported.");
+    if((gmmX->GetViewShape().GetDim(1) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmX is empty tensor with one dimK, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((kVal2 == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimK, which is unsupported.");
+    if((gmmWeight->GetViewShape().GetDim(0) == ZERO){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimE, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((nVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with zero dimN, which is unsupported.");
+    if((gmmWeight->GetViewShape().GetDim(1) == ZERO){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with one dimK, which is unsupported.");
+        return false;
+    });
+    if((gmmWeight->GetViewShape().GetDim(2) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight is empty tensor with three dimN, which is unsupported.");
         return false;
     });
 
-    OP_API_CHECK((outmVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimK, which is unsupported.");
+    if((gmmY->GetViewShape().GetDim(0) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimM, which is unsupported.");
         return false;
     });
-    OP_API_CHECK((outnVal == ZERO), {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with zero dimN, which is unsupported.");
+    if((gmmY->GetViewShape().GetDim(1) == ZERO) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmY is empty tensor with one dimN, which is unsupported.");
         return false;
     });
     return true;
@@ -470,7 +466,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckNullStatus(sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
                               permuteOutFlag, mmYOptional, permuteOutOptional),
               ACLNN_ERR_PARAM_INVALID);
-    //  检查group长度是否小于等于128
+    // 2.检查group长度是否小于等于128
     CHECK_RET(allto_allv_grouped_mat_mul_checker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
     // 3.检查参数是否为空
     CHECK_RET(CheckNotNull(gmmX, gmmWeight, gmmY, gmmXScale, gmmWeightScale, gmmXQuantMode, gmmWeightQuantMode),
@@ -483,9 +479,9 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckDimValid(gmmX, gmmWeight, gmmY, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                             mmYOptional, mmXScaleOptional, mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 5.检查空tensor
-    CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
-    // 检查所有输入/量化数据类型
+    // 6.检查空tensor
+    CHECK_RET(CheckEmptyTensor(gmmX, gmmWeight, gmmY), ACLNN_ERR_PARAM_INVALID);
+    // 7.检查所有输入/量化数据类型
     CHECK_RET(CheckDtypesValid(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional,
                                mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, permuteOutOptional),
               ACLNN_ERR_PARAM_INVALID);
@@ -493,12 +489,12 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckQuantValid(gmmXQuantMode, gmmWeightQuantMode, gmmXScale, gmmWeightScale, mmXQuantMode,
                               mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 检查shape
+    // 9.检查shape
     CHECK_RET(CheckGmmShape(gmmX, gmmWeight, gmmXScale, gmmWeightScale, gmmY, epWorldSize), ACLNN_ERR_PARAM_INVALID);
 
     CHECK_RET(CheckMmShape(gmmX, mmXOptional, mmWeightOptional, mmXScaleOptional, mmWeightScaleOptional, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
-    // 6.检查输入的数据格式是否为ND
+    // 10.检查输入的数据格式是否为ND
     CHECK_RET(CheckFormat(gmmX, gmmWeight, gmmXScale, gmmWeightScale, mmXOptional, mmWeightOptional, mmXScaleOptional,
                           mmWeightScaleOptional, gmmY, mmYOptional),
               ACLNN_ERR_PARAM_INVALID);
