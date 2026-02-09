@@ -72,7 +72,7 @@ CutResult MatmulReduceScatterTilingBase::GetTilingResult()
 {
     SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
     if (inputSocVersion == SocVersion::SOC950) {
-        MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
+        MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::REDUCE_SCATTER, TopoType::STANDARD_CARD);
         scatterTiling.GetTiling();
         return scatterTiling.tilingM_.cutRes;
     } else {
