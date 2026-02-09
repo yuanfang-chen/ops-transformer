@@ -40,6 +40,7 @@
 using namespace AscendC;
 using namespace ge;
 namespace {
+constexpr uint32_t AICPU_BLOCK_DIM_A2 =6u;
 constexpr uint32_t SHMEM_CONTEXT_INDEX = 0U;
 constexpr uint32_t X_INDEX = 1U;
 constexpr uint32_t EXPERT_IDS_INDEX = 2U;
@@ -1741,97 +1742,102 @@ static uint64_t MoeDistributeDispatchA2CalcTilingKey(
   return tilingKey;
 }
 
-static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(
-    gert::TilingContext *context) {
-  const char *nodeName = context->GetNodeName();
-  OP_LOGI(nodeName, "Enter MoeDistributeDispatchA2 tiling func.");
-
-  // 1. tilingData
-  MoeDistributeDispatchA2TilingData *tilingData =
-      context->GetTilingData<MoeDistributeDispatchA2TilingData>();
-  OP_TILING_CHECK(
-      tilingData == nullptr,
-      VECTOR_INNER_ERR_REPORT_TILING(nodeName, "tilingData is nullptr."),
-      return ge::GRAPH_FAILED);
-  MoeDistributeDispatchA2Info &info = tilingData->moeDistributeDispatchInfo;
-
-  bool isLayered = false;
-  OP_TILING_CHECK(MoeDistributeDispatchA2CheckCommAlg(context, isLayered) !=
-                      ge::GRAPH_SUCCESS,
-                  VECTOR_INNER_ERR_REPORT_TILING(
-                      context->GetNodeName(),
-                      "MoeDistributeDispatchA2 CheckCommAlg Failed"),
-                  return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(MoeDistributeDispatchA2CheckShapeAndSetTiling(
-                      context, info, isLayered) != ge::GRAPH_SUCCESS,
-                  VECTOR_INNER_ERR_REPORT_TILING(
-                      context->GetNodeName(),
-                      "MoeDistributeDispatchA2 CheckShapeAndSetTiling Failed"),
-                  return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(MoeDistributeDispatchA2CheckAttrAndSetTiling(context, info) !=
-                      ge::GRAPH_SUCCESS,
-                  VECTOR_INNER_ERR_REPORT_TILING(
-                      context->GetNodeName(),
-                      "MoeDistributeDispatchA2 CheckAttrAndSetTiling Failed"),
-                  return ge::GRAPH_FAILED);
-  OP_TILING_CHECK(
-      MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(context, info) !=
-          ge::GRAPH_SUCCESS,
-      VECTOR_INNER_ERR_REPORT_TILING(
-          context->GetNodeName(),
-          "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"),
-      return ge::GRAPH_FAILED);
-
-  uint32_t blockDim = 1U;
-  auto ascendcPlatform =
-      platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
-  uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
-  blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
-  context->SetBlockDim(blockDim);
-  context->SetAicpuBlockDim(mc2tiling::AICPU_BLOCK_DIM_A2);
-
-  uint64_t tilingKey = MoeDistributeDispatchA2CalcTilingKey(context, isLayered);
-  context->SetTilingKey(tilingKey);
-  // 2. workspace
-  size_t *workSpaces = context->GetWorkspaceSizes(1);
-  OP_TILING_CHECK(
-      workSpaces == nullptr,
-      VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."),
-      return ge::GRAPH_FAILED);
-  workSpaces[0] = SYSTEM_NEED_WORKSPACE + USER_WORKSPACE_A2;
-
-  // 3. communication
-  auto attrs = context->GetAttrs();
-  auto group =
-      attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX));
-  std::string algConfig =
-      isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh";
-  uint32_t opType = 18;  // BatchWrite
-
-  AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
-  mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
-
-  OP_LOGI(nodeName, "Leave MoeDistributeDispatchA2 tiling func.");
-  return ge::GRAPH_SUCCESS;
-}
-
-static ge::graphStatus MoeDistributeDispatchShmemTilingFunc(
-    gert::TilingContext *context) {
-  fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-  fe::PlatFormInfos &platformInfo = *platformInfoPtr;
-
-  std::string socVersion;
-  (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version",
-                                            socVersion);
-  ge::graphStatus ret;
-  if (socVersion == "Ascend910B") {
-    ret = MoeDistributeDispatchA2TilingFuncImpl(context);
-  } else {
-    ret = MoeDistributeDispatchA3TilingFuncImpl(context);
-  }
-  return ret;
-}
+static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl( 
+     gert::TilingContext *context) { 
+   const char *nodeName = context->GetNodeName(); 
+   OP_LOGI(nodeName, "Enter MoeDistributeDispatchA2 tiling func."); 
+ 
+ 
+   // 1. tilingData 
+   MoeDistributeDispatchA2TilingData *tilingData = 
+       context->GetTilingData<MoeDistributeDispatchA2TilingData>(); 
+   OP_TILING_CHECK( 
+       tilingData == nullptr, 
+       VECTOR_INNER_ERR_REPORT_TILING(nodeName, "tilingData is nullptr."), 
+       return ge::GRAPH_FAILED); 
+   MoeDistributeDispatchA2Info &info = tilingData->moeDistributeDispatchInfo; 
+ 
+ 
+   bool isLayered = false; 
+   OP_TILING_CHECK(MoeDistributeDispatchA2CheckCommAlg(context, isLayered) != 
+                       ge::GRAPH_SUCCESS, 
+                   VECTOR_INNER_ERR_REPORT_TILING( 
+                       context->GetNodeName(), 
+                       "MoeDistributeDispatchA2 CheckCommAlg Failed"), 
+                   return ge::GRAPH_FAILED); 
+   OP_TILING_CHECK(MoeDistributeDispatchA2CheckShapeAndSetTiling( 
+                       context, info, isLayered) != ge::GRAPH_SUCCESS, 
+                   VECTOR_INNER_ERR_REPORT_TILING( 
+                       context->GetNodeName(), 
+                       "MoeDistributeDispatchA2 CheckShapeAndSetTiling Failed"), 
+                   return ge::GRAPH_FAILED); 
+   OP_TILING_CHECK(MoeDistributeDispatchA2CheckAttrAndSetTiling(context, info) != 
+                       ge::GRAPH_SUCCESS, 
+                   VECTOR_INNER_ERR_REPORT_TILING( 
+                       context->GetNodeName(), 
+                       "MoeDistributeDispatchA2 CheckAttrAndSetTiling Failed"), 
+                   return ge::GRAPH_FAILED); 
+   OP_TILING_CHECK( 
+       MoeDistributeDispatchA2GetPlatformInfoAndSetTiling(context, info) != 
+           ge::GRAPH_SUCCESS, 
+       VECTOR_INNER_ERR_REPORT_TILING( 
+           context->GetNodeName(), 
+           "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"), 
+       return ge::GRAPH_FAILED); 
+ 
+ 
+   uint32_t blockDim = 1U; 
+   auto ascendcPlatform = 
+       platform_ascendc::PlatformAscendC(context->GetPlatformInfo()); 
+   uint32_t aivNum = ascendcPlatform.GetCoreNumAiv(); 
+   blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum); 
+   context->SetBlockDim(blockDim); 
+   context->SetAicpuBlockDim(AICPU_BLOCK_DIM_A2); 
+ 
+ 
+   uint64_t tilingKey = MoeDistributeDispatchA2CalcTilingKey(context, isLayered); 
+   context->SetTilingKey(tilingKey); 
+   // 2. workspace 
+   size_t *workSpaces = context->GetWorkspaceSizes(1); 
+   OP_TILING_CHECK( 
+       workSpaces == nullptr, 
+       VECTOR_INNER_ERR_REPORT_TILING(nodeName, "workSpaces is nullptr."), 
+       return ge::GRAPH_FAILED); 
+   workSpaces[0] = SYSTEM_NEED_WORKSPACE + USER_WORKSPACE_A2; 
+ 
+ 
+   // 3. communication 
+   auto attrs = context->GetAttrs(); 
+   auto group = 
+       attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_EP_INDEX)); 
+   std::string algConfig = 
+       isLayered ? "BatchWrite=level1:hierarchy" : "BatchWrite=level1:fullmesh"; 
+   uint32_t opType = 18;  // BatchWrite 
+ 
+ 
+   AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig); 
+   mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling); 
+   mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling); 
+ 
+ 
+   OP_LOGI(nodeName, "Leave MoeDistributeDispatchA2 tiling func."); 
+   return ge::GRAPH_SUCCESS; 
+ } 
+ 
+ 
+ static ge::graphStatus MoeDistributeDispatchShmemTilingFunc(	 
+     gert::TilingContext *context) {	 
+   fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();	 
+   fe::PlatFormInfos &platformInfo = *platformInfoPtr;	 
+   auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+   ge::graphStatus ret;	 
+   if (mc2tiling::GetCurNpuArch(context) == NpuArch::DAV_2201) {	 
+     ret = MoeDistributeDispatchA2TilingFuncImpl(context); 
+   } else { 
+     ret = MoeDistributeDispatchA3TilingFuncImpl(context); 
+   } 
+   return ret;	 
+ }
 
 struct MoeDistributeDispatchCompileInfo {};
 static ge::graphStatus TilingParseForMoeDistributeDispatchShmem(
