@@ -755,6 +755,32 @@ if (BUILD_OPEN_PROJECT)
     )
 endif ()
 
+# -------------------------------------------- generate es transformer ----------------------------------------------
+if(TARGET cust_proto)
+    add_es_library(
+        ES_LINKABLE_AND_ALL_TARGET es_transformer
+        OPP_PROTO_TARGET cust_proto
+        OUTPUT_PATH ${CMAKE_BINARY_DIR}/es_packages
+    )
+    install(
+        DIRECTORY ${CMAKE_BINARY_DIR}/es_packages/include/es_transformer/
+        DESTINATION ${ES_INC_INSTALL_DIR}
+        OPTIONAL
+    )
+    if(ENABLE_STATIC)
+        install(
+            DIRECTORY ${CMAKE_BINARY_DIR}/es_packages/include/es_transformer/
+            DESTINATION ${ES_INC_INSTALL_DIR}
+            OPTIONAL
+        )
+    endif()
+    install(
+        FILES ${CMAKE_BINARY_DIR}/es_packages/lib64/libes_transformer.so
+        DESTINATION ${ES_LIB_INSTALL_DIR}
+        OPTIONAL
+    )
+endif()
+
 # ------------------------------------------------ generate adapt py ------------------------------------------------
 add_custom_target(generate_transformer_adapt_py
         COMMAND ${HI_PYTHON} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/scripts/util/ascendc_impl_build.py
