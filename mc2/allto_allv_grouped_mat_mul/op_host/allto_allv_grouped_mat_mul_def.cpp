@@ -115,7 +115,7 @@ public:
             .AutoContiguous();
 
         this->Input("gmm_x_scale")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({
                 ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
                 ge::DT_FLOAT, ge::DT_FLOAT,
@@ -131,7 +131,7 @@ public:
             .AutoContiguous();
 
         this->Input("gmm_weight_scale")
-            .ParamType(OPTIONAL)
+            .ParamType(REQUIRED)
             .DataType({
                 ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
                 ge::DT_FLOAT, ge::DT_FLOAT,
@@ -146,6 +146,38 @@ public:
             })
             .AutoContiguous();
 
+        this->Input("gmm_x_offset")
+            .ParamType(OPTIONAL)
+            .DataType({
+                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                ge::DT_FLOAT, ge::DT_FLOAT,
+            })
+            .Format({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .UnknownShapeFormat({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .AutoContiguous();
+        
+        this->Input("gmm_weight_offset")
+            .ParamType(OPTIONAL)
+            .DataType({
+                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                ge::DT_FLOAT, ge::DT_FLOAT,
+            })
+            .Format({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .UnknownShapeFormat({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .AutoContiguous();
+        
         this->Input("mm_x_scale")
             .ParamType(OPTIONAL)
             .DataType({
@@ -177,7 +209,39 @@ public:
                 ge::FORMAT_ND, ge::FORMAT_ND
             })
             .AutoContiguous();
+        
+        this->Input("mm_x_offset")
+            .ParamType(OPTIONAL)
+            .DataType({
+                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                ge::DT_FLOAT, ge::DT_FLOAT,
+            })
+            .Format({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .UnknownShapeFormat({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .AutoContiguous();
 
+        this->Input("mm_weight_offset")
+            .ParamType(OPTIONAL)
+            .DataType({
+                ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
+                ge::DT_FLOAT, ge::DT_FLOAT,
+            })
+            .Format({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .UnknownShapeFormat({
+                ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
+                ge::FORMAT_ND, ge::FORMAT_ND
+            })
+            .AutoContiguous();
+        
         this->Output("gmm_y")
             .ParamType(REQUIRED)
             .DataType({
@@ -236,8 +300,9 @@ public:
         this->Attr("gmm_weight_quant_mode").AttrType(OPTIONAL).Int();
         this->Attr("mm_x_quant_mode").AttrType(OPTIONAL).Int();
         this->Attr("mm_weight_quant_mode").AttrType(OPTIONAL).Int();
-        this->Attr("gmm_x_quant_dtype").AttrType(OPTIONAL).Int();
-        this->Attr("mm_x_quant_dtype").AttrType(OPTIONAL).Int();
+        this->Attr("group_size").AttrType(OPTIONAL).Int();
+        this->Attr("y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
+        this->Attr("mm_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
 
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
@@ -251,7 +316,7 @@ public:
             .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
         this->AICore().AddConfig("ascend910_93", aicore_config);
         this->AICore().AddConfig("ascend950", aicore_config);
-        this->MC2().HcclGroup({ "group" });
+        this->MC2().HcclGroup({"group"});
     }
 };
 
