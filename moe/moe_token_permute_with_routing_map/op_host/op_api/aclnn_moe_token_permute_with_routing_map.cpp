@@ -33,7 +33,6 @@ using namespace op;
 extern "C" {
 #endif
 namespace {
-static constexpr int64_t MAX_INDICES_NUM = 512;
 static constexpr int64_t TOKENS_SHAPE_SIZE = 2;
 static constexpr int64_t TRANSPOSE_SHAPE_SIZE = 2;
 static constexpr int64_t INPUT_MAX_GROUP = 2048;
