@@ -24,8 +24,6 @@ public:
      __aicore__ inline void Init(const void *hcclInitTiling, uint64_t hcclCcTilingOffset,
         const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
-        sendBuffer_ = sendBuffer;
-        recvBuffer_ = recvBuffer;
         taskTilingInfo_ = taskTilingInfo;
         GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
         hccl_.InitV2(hcclContextGm, hcclInitTiling);
@@ -35,8 +33,8 @@ public:
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
-        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer_);
-        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer_);
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
     }
 
     __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum)
@@ -176,8 +174,6 @@ private:
 
     GlobalTensor<hcclDataType> sendGlobalBuffer_;
     GlobalTensor<hcclDataType> recvGlobalBuffer_;
-    GM_ADDR sendBuffer_;
-    GM_ADDR recvBuffer_;
 
     HcclHandle alltoAllvHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
     HcclDataType hcclDataType_ = HCCL_DATA_TYPE_FP16;

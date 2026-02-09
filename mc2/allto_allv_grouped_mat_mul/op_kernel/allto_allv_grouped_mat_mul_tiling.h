@@ -66,6 +66,7 @@ public:
 struct QuantAlltoAllvGroupedMatmulTilingData {
     MC2KernelTemplate::HcclA2avTilingInfo hcclA2avTilingInfo;
     MC2KernelTemplate::TaskTilingInfo taskTilingInfo;
+    bool isPermuteOut = false;
     Mc2GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
     Mc2GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
 };
