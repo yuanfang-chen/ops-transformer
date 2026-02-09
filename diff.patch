@@ -1,0 +1,369 @@
+diff --git a/attention/sparse_flash_attention_grad/basic_modules/vec_op.h b/attention/sparse_flash_attention_grad/basic_modules/vec_op.h
+index 7a239abe..1b333256 100644
+--- a/attention/sparse_flash_attention_grad/basic_modules/vec_op.h
++++ b/attention/sparse_flash_attention_grad/basic_modules/vec_op.h
+@@ -48,11 +48,12 @@ public:
+ protected:
+     __aicore__ inline void InitParams(const TILING_CLASS *__restrict ordTilingData, GM_ADDR actual_seq_qlen,
+                                       GM_ADDR actual_seq_kvlen);
+-    __aicore__ inline void InitGMBuffer(GM_ADDR key, GM_ADDR value, GM_ADDR attention_out, GM_ADDR attention_out_grad, GM_ADDR softmax_max,
++    __aicore__ inline void InitGMBuffer(GM_ADDR key, GM_ADDR value, GM_ADDR dv, GM_ADDR attention_out, GM_ADDR attention_out_grad, GM_ADDR softmax_max,
+                                         GM_ADDR softmax_sum, GM_ADDR topk_indices, GM_ADDR key_rope, GM_ADDR workspace);
+     __aicore__ inline void InitUB(TPipe *pipe);
+     __aicore__ inline void AtomicClean();
+-    __aicore__ inline void DumpGmZero(GlobalTensor<float> &gm, int64_t num);
++    template <typename GM_TYPE>
++    __aicore__ inline void DumpGmZero(GlobalTensor<GM_TYPE> &gm, int64_t num);
+     __aicore__ inline void CalRowsumAndSftCopyIn(const int64_t dyGmOffset, const int64_t sumGmOffset, const int32_t processM);
+     __aicore__ inline void CalAttenMsk(const int32_t processM, const int32_t actualSelS2Align, const RunInfo &runInfo);
+     __aicore__ inline void CalSoftmax(const int32_t loopIdx, const int32_t processM, const int64_t mm12Addr,
+@@ -89,7 +90,7 @@ protected:
+     GlobalTensor<T1> dsWorkspaceGm;
+     GlobalTensor<float> dqWorkspaceGm;
+     GlobalTensor<float> dkWorkspaceGm;
+-    GlobalTensor<float> dvWorkspaceGm;
++    GlobalTensor<T1> dvGm;
+     GlobalTensor<float> mm4ResWorkspaceGm; // 24 * 2 * K * Dk
+     GlobalTensor<float> mm5ResWorkspaceGm; // 24 * 2 * K * Dv
+ 
+@@ -198,7 +199,7 @@ __aicore__ inline void VecOp<SFAGT>::Init(GM_ADDR query, GM_ADDR key, GM_ADDR va
+                                           const TILING_CLASS *__restrict ordTilingData, TPipe *pipe)
+ {
+     InitParams(ordTilingData, actual_seq_qlen, actual_seq_kvlen);
+-    InitGMBuffer(key, value, attention_out, attention_out_grad, softmax_max, softmax_sum, topk_indices, key_rope, workspace);
++    InitGMBuffer(key, value, dv, attention_out, attention_out_grad, softmax_max, softmax_sum, topk_indices, key_rope, workspace);
+     InitUB(pipe);
+     AtomicClean();
+ }
+@@ -294,7 +295,7 @@ __aicore__ inline void VecOp<SFAGT>::InitParams(const TILING_CLASS *__restrict o
+ }
+ 
+ template <typename SFAGT>
+-__aicore__ inline void VecOp<SFAGT>::InitGMBuffer(GM_ADDR key, GM_ADDR value, GM_ADDR attention_out, GM_ADDR attention_out_grad,
++__aicore__ inline void VecOp<SFAGT>::InitGMBuffer(GM_ADDR key, GM_ADDR value, GM_ADDR dv, GM_ADDR attention_out, GM_ADDR attention_out_grad,
+                                                   GM_ADDR softmax_max, GM_ADDR softmax_sum, GM_ADDR topk_indices, GM_ADDR key_rope, GM_ADDR workspace)
+ {
+     /*
+@@ -308,6 +309,7 @@ __aicore__ inline void VecOp<SFAGT>::InitGMBuffer(GM_ADDR key, GM_ADDR value, GM
+     keyGm.SetGlobalBuffer((__gm__ T1 *)key);
+     valueGm.SetGlobalBuffer((__gm__ T1 *)value);
+     keyRopeGm.SetGlobalBuffer((__gm__ T1 *)key_rope);
++    dvGm.SetGlobalBuffer((__gm__ T1 *)dv);
+ 
+     /*
+      * 初始化workspace
+@@ -345,7 +347,6 @@ __aicore__ inline void VecOp<SFAGT>::InitGMBuffer(GM_ADDR key, GM_ADDR value, GM
+     dsWorkspaceGm.SetGlobalBuffer((__gm__ T1 *)workspace + dsAddr);
+     dqWorkspaceGm.SetGlobalBuffer((__gm__ float *)workspace + dqAddr);
+     dkWorkspaceGm.SetGlobalBuffer((__gm__ float *)workspace + dkAddr);
+-    dvWorkspaceGm.SetGlobalBuffer((__gm__ float *)workspace + dvAddr);
+     selectedKWorkspaceGm.SetGlobalBuffer((__gm__ T1 *)workspace + selectedKAddr);
+     selectedVWorkspaceGm.SetGlobalBuffer((__gm__ T1 *)workspace + selectedVAddr);
+ 
+@@ -466,11 +467,12 @@ __aicore__ inline void VecOp<SFAGT>::AtomicClean()
+ 
+     DumpGmZero(dqWorkspaceGm, dqSize);
+     DumpGmZero(dkWorkspaceGm, dkSize);
+-    DumpGmZero(dvWorkspaceGm, dvSize); // FP32 FUNC:T1 FP16
++    DumpGmZero(dvGm, dvSize); // FP32 FUNC:T1 FP16
+ }
+ 
+ template <typename SFAGT>
+-__aicore__ inline void VecOp<SFAGT>::DumpGmZero(GlobalTensor<float> &gm, int64_t num)
++template <typename GM_TYPE>
++__aicore__ inline void VecOp<SFAGT>::DumpGmZero(GlobalTensor<GM_TYPE> &gm, int64_t num)
+ {
+     int64_t perSize = (num + tilingData->opInfo.castUsedCoreNum - 1) / tilingData->opInfo.castUsedCoreNum;
+     int64_t coreNum = (num + perSize - 1) / perSize;
+@@ -482,7 +484,7 @@ __aicore__ inline void VecOp<SFAGT>::DumpGmZero(GlobalTensor<float> &gm, int64_t
+     }
+ 
+     if (vecBlockIdx < coreNum) {
+-        InitOutput<float>(gm[vecBlockIdx * perSize], initSize, 0);
++        InitOutput<GM_TYPE>(gm[vecBlockIdx * perSize], initSize, 0);
+     }
+ }
+ 
+@@ -865,7 +867,6 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddUnDeter(const RunInfo &runInfo)
+     LocalTensor<float> dvInUb;
+ 
+     GlobalTensor<float> dkOutGm = dkWorkspaceGm[runInfo.mm4OutGmOffset];
+-    GlobalTensor<float> dvOutGm = dvWorkspaceGm[runInfo.mm5OutGmOffset];
+     int64_t s2RealSize = Min(selectedBlockCount, runInfo.actualSelectedBlockCount);
+     int64_t firstCoreKSize = s2RealSize / 2;
+     int64_t currentCoreKSize = subBlockIdx == 0 ? firstCoreKSize : s2RealSize - firstCoreKSize;
+@@ -914,22 +915,28 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddUnDeter(const RunInfo &runInfo)
+         SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
+         WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
+ 
+-        if (runInfo.isSmallS2) {
+-            DataCopy(dkOutGm[(loop * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, ubRowSizeDAlign);
+-            DataCopy(dvOutGm[(loop * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimD2Align], dvInUb, ubRowSizeD2Align);
+-        } else {
+-            for (int64_t row = 0; row < UB_ROW_SIZE;) {
+-                if (curRow / selectedBlockSize > curSelBlk) {
+-                    curSelBlk += 1;
+-                    s2Idx = indicesGm.GetValue(curSelBlk);
++        for (int64_t row = 0; row < UB_ROW_SIZE;) {
++            if (!runInfo.isSmallS2 && curRow / selectedBlockSize > curSelBlk) {
++                curSelBlk += 1;
++                s2Idx = indicesGm.GetValue(curSelBlk);
++            }
++            if (s2Idx >= 0) {
++                for (int32_t subRow = row; subRow < row + curProcessRow; subRow++) {
++                    Add(dkInUb[subRow * dimDAlign], dkInUb[subRow * dimDAlign], dvInUb[subRow * dimD2Align], dimD2Align);
+                 }
+-                if (s2Idx >= 0) {
+-                    DataCopy(dkOutGm[s2Idx * selectedBlockSize * dimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+-                    DataCopy(dvOutGm[s2Idx * selectedBlockSize * dimD2Align + (curRow % selectedBlockSize) * dimD2Align], dvInUb[row * dimD2Align], curProcessRow * dimD2Align);
++                if (!runInfo.isSmallS2) {
++                    SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                    WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                    DataCopy(dkOutGm[s2Idx * selectedBlockSize * dimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign],  curProcessRow * dimDAlign);
+                 }
+-                row += curProcessRow;
+-                curRow += curProcessRow;
+             }
++            row += curProcessRow;
++            curRow += curProcessRow;
++        }
++        if (runInfo.isSmallS2) {
++            SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++            WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++            DataCopy(dkOutGm[(loop * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, ubRowSizeDAlign);
+         }
+ 
+         SetFlag<AscendC::HardEvent::MTE3_MTE2>(backEvent);
+@@ -952,27 +959,33 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddUnDeter(const RunInfo &runInfo)
+ 
+     int64_t totalRound = CeilDiv(tailRows, curProcessRow);
+     int64_t row = 0;
+-    if (runInfo.isSmallS2 && tailRows != 0) {
+-        DataCopy(dkOutGm[((maxLoops - 1) * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, tailRows * dimDAlign);
+-        DataCopy(dvOutGm[((maxLoops - 1) * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimD2Align], dvInUb, tailRows * dimD2Align);
+-    } else {
+-        for (int64_t loop = 0; loop < totalRound; loop++) {
+-            if (curRow / selectedBlockSize > curSelBlk) {
+-                curSelBlk += 1;
+-                s2Idx = indicesGm.GetValue(curSelBlk);
++    for (int64_t loop = 0; loop < totalRound; loop++) {
++        if (!runInfo.isSmallS2 && curRow / selectedBlockSize > curSelBlk) {
++            curSelBlk += 1;
++            s2Idx = indicesGm.GetValue(curSelBlk);
++        }
++        if (s2Idx >= 0) {
++            if (subBlockIdx == 1 && loop == totalRound - 1) {
++                curProcessRow = (runInfo.lastBlockSize % curProcessRow) ? 
++                                runInfo.lastBlockSize % curProcessRow : 
++                                curProcessRow;
+             }
+-            if (s2Idx >= 0) {
+-                if (subBlockIdx == 1 && loop == totalRound - 1) {
+-                    curProcessRow = (runInfo.lastBlockSize % curProcessRow) ? 
+-                                    runInfo.lastBlockSize % curProcessRow : 
+-                                    curProcessRow;
+-                }
+-                DataCopy(dkOutGm[s2Idx * selectedBlockSize * dimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+-                DataCopy(dvOutGm[s2Idx * selectedBlockSize * dimD2Align + (curRow % selectedBlockSize) * dimD2Align], dvInUb[row * dimD2Align], curProcessRow * dimD2Align);
++            for (int32_t subRow = row; subRow < row + curProcessRow; subRow++) {
++                Add(dkInUb[subRow * dimDAlign], dkInUb[subRow * dimDAlign], dvInUb[subRow * dimD2Align], dimD2Align);
++            }
++            if (!runInfo.isSmallS2) {
++                SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                DataCopy(dkOutGm[s2Idx * selectedBlockSizeDimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+             }
+-            row += curProcessRow;
+-            curRow += curProcessRow;
+         }
++        row += curProcessRow;
++        curRow += curProcessRow;
++    }
++    if (runInfo.isSmallS2 && tailRows != 0) {
++        SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++        WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++        DataCopy(dkOutGm[((maxLoops - 1) * UB_ROW_SIZE + subBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, tailRows * dimDAlign);
+     }
+     SetFlag<AscendC::HardEvent::MTE3_MTE2>(backEvent);
+     pingPongIdx = 1 - pingPongIdx;
+@@ -992,7 +1005,6 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddDeter(const RunInfo &runInfo)
+     LocalTensor<float> dvInUb;
+ 
+     GlobalTensor<float> dkOutGm = dkWorkspaceGm[runInfo.mm4OutGmOffset];
+-    GlobalTensor<float> dvOutGm = dvWorkspaceGm[runInfo.mm5OutGmOffset];
+     int64_t s2RealSize = Min(selectedBlockCount, runInfo.actualSelectedBlockCount);
+ 
+     int64_t totalVec = (runInfo.s1End - runInfo.s1Begin) * 2;
+@@ -1051,22 +1063,28 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddDeter(const RunInfo &runInfo)
+         SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
+         WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
+ 
+-        if (runInfo.isSmallS2) {
+-            DataCopy(dkOutGm[(loop * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, ubRowSizeDAlign);
+-            DataCopy(dvOutGm[(loop * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimD2Align], dvInUb, ubRowSizeD2Align);
+-        } else {
+-            for (int64_t row = 0; row < UB_ROW_SIZE;) {
+-                if (curRow / selectedBlockSize > curSelBlk) {
+-                    curSelBlk += 1;
+-                    s2Idx = indicesGm.GetValue(curSelBlk);
++        for (int64_t row = 0; row < UB_ROW_SIZE;) {
++            if (!runInfo.isSmallS2 && curRow / selectedBlockSize > curSelBlk) {
++                curSelBlk += 1;
++                s2Idx = indicesGm.GetValue(curSelBlk);
++            }
++            if (s2Idx >= 0) {
++                for (int32_t subRow = row; subRow < row + curProcessRow; subRow++) {
++                    Add(dkInUb[subRow * dimDAlign], dkInUb[subRow * dimDAlign], dvInUb[subRow * dimD2Align], dimD2Align);
+                 }
+-                if (s2Idx >= 0) {
+-                    DataCopy(dkOutGm[s2Idx * selectedBlockSize * dimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+-                    DataCopy(dvOutGm[s2Idx * selectedBlockSize * dimD2Align + (curRow % selectedBlockSize) * dimD2Align], dvInUb[row * dimD2Align], curProcessRow * dimD2Align);
++                if (!runInfo.isSmallS2) {
++                    SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                    WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                    DataCopy(dkOutGm[s2Idx * selectedBlockSizeDimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+                 }
+-                row += curProcessRow;
+-                curRow += curProcessRow;
+             }
++            row += curProcessRow;
++            curRow += curProcessRow;
++        }
++        if (runInfo.isSmallS2) {
++            SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++            WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++            DataCopy(dkOutGm[(loop * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, ubRowSizeDAlign);
+         }
+         SetFlag<AscendC::HardEvent::MTE3_MTE2>(backEvent);
+         pingPongIdx = 1 - pingPongIdx;
+@@ -1088,27 +1106,33 @@ __aicore__ inline void VecOp<SFAGT>::ScatterAddDeter(const RunInfo &runInfo)
+ 
+     int64_t totalRound = CeilDiv(tailRows, curProcessRow);
+     int64_t row = 0;
+-    if (runInfo.isSmallS2) {
+-        DataCopy(dkOutGm[((maxLoops - 1) * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, tailRows * dimDAlign);
+-        DataCopy(dvOutGm[((maxLoops - 1) * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimD2Align], dvInUb, tailRows * dimD2Align);
+-    } else {
+-        for (int64_t loop = 0; loop < totalRound; loop++) {
+-            if (curRow / selectedBlockSize > curSelBlk) {
+-                curSelBlk += 1;
+-                s2Idx = indicesGm.GetValue(curSelBlk);
++    for (int64_t loop = 0; loop < totalRound; loop++) {
++        if (!runInfo.isSmallS2 && curRow / selectedBlockSize > curSelBlk) {
++            curSelBlk += 1;
++            s2Idx = indicesGm.GetValue(curSelBlk);
++        }
++        if (s2Idx >= 0) {
++            if (vecBlockIdx == totalVec - 1 && loop == totalRound - 1) {
++                curProcessRow = (runInfo.lastBlockSize % curProcessRow) ? 
++                                runInfo.lastBlockSize % curProcessRow : 
++                                curProcessRow;
+             }
+-            if (s2Idx >= 0) {
+-                if (vecBlockIdx == totalVec - 1 && loop == totalRound - 1) {
+-                    curProcessRow = (runInfo.lastBlockSize % curProcessRow) ? 
+-                                    runInfo.lastBlockSize % curProcessRow : 
+-                                    curProcessRow;
+-                }
++            for (int32_t subRow = row; subRow < row + curProcessRow; subRow++) {
++                Add(dkInUb[subRow * dimDAlign], dkInUb[subRow * dimDAlign], dvInUb[subRow * dimD2Align], dimD2Align);
++            }
++            if (!runInfo.isSmallS2) {
++                SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++                WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
+                 DataCopy(dkOutGm[s2Idx * selectedBlockSize * dimDAlign + (curRow % selectedBlockSize) * dimDAlign], dkInUb[row * dimDAlign], curProcessRow * dimDAlign);
+-                DataCopy(dvOutGm[s2Idx * selectedBlockSize * dimD2Align + (curRow % selectedBlockSize) * dimD2Align], dvInUb[row * dimD2Align], curProcessRow * dimD2Align);
+             }
+-            row += curProcessRow;
+-            curRow += curProcessRow;
+         }
++        row += curProcessRow;
++        curRow += curProcessRow;
++    }
++    if (runInfo.isSmallS2 && tailRows != 0) {
++        SetFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++        WaitFlag<AscendC::HardEvent::V_MTE3>(mte3WaitV);
++        DataCopy(dkOutGm[((maxLoops - 1) * UB_ROW_SIZE + vecBlockIdx * firstCoreKSize * selectedBlockSize) * dimDAlign], dkInUb, tailRows * dimDAlign);
+     }
+     SetFlag<AscendC::HardEvent::MTE3_MTE2>(backEvent);
+     pingPongIdx = 1 - pingPongIdx;
+diff --git a/attention/sparse_flash_attention_grad/op_kernel/arch32/sparse_flash_attention_grad_post.h b/attention/sparse_flash_attention_grad/op_kernel/arch32/sparse_flash_attention_grad_post.h
+index 7214d8d4..e7f91bc1 100644
+--- a/attention/sparse_flash_attention_grad/op_kernel/arch32/sparse_flash_attention_grad_post.h
++++ b/attention/sparse_flash_attention_grad/op_kernel/arch32/sparse_flash_attention_grad_post.h
+@@ -58,7 +58,6 @@ public:
+     // input
+     AscendC::GlobalTensor<float> dqWorkSpaceGm;
+     AscendC::GlobalTensor<float> dkWorkSpaceGm;
+-    AscendC::GlobalTensor<float> dvWorkSpaceGm;
+ 
+     const TILING_TYPE *__restrict tilingData;
+     constexpr static uint32_t SYNC_GLOBAL_WORKSPACE_SIZE = 16 * 1024;
+@@ -183,10 +182,6 @@ __aicore__ inline void SparseFlashAttentionGradPost<OUT_TYPE, TILING_TYPE, CAST_
+                                   tilingData->postTilingData.dqWorkSpaceOffset / sizeof(float));
+     dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
+                                   tilingData->postTilingData.dkWorkSpaceOffset / sizeof(float));
+-    if constexpr (CAST_DV) {
+-        dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
+-                                      tilingData->postTilingData.dvWorkSpaceOffset / sizeof(float));
+-    }
+ 
+     if constexpr (INPUT_FORMAT == NZ) {
+         pipe->InitBuffer(inQueuePing, 1, ubBaseSize * 2 + nzReservedSize);
+@@ -467,21 +462,6 @@ __aicore__ inline void SparseFlashAttentionGradPost<OUT_TYPE, TILING_TYPE, CAST_
+         dataSize1 = i + kPostBaseNum >= kPostBlockTotal ? 0 : dataSize1;
+         NZVecClc(dkWorkSpaceGm, dkGm, dataSize1, actual_seq_kvlen_addr, 1, s2, d, dAlign, true, 1);
+     }
+-
+-    // init v
+-    if constexpr (CAST_DV) {
+-        uint64_t vBegin = cBlockIdx * vPostBlockFactor * vPostBaseNum;
+-        uint64_t vEnd = (cBlockIdx + 1) * vPostBlockFactor * vPostBaseNum;
+-        InitIndex(vBegin, 1, s2, d2, d2Align, actual_seq_kvlen_addr);
+-        for (uint64_t i = vBegin; i < vEnd; i = i + 2 * vPostBaseNum) {
+-            uint64_t dataSize = i + vPostBaseNum < vPostBlockTotal ? vPostBaseNum : vPostTailNum;
+-            NZVecClc(dvWorkSpaceGm, dvGm, dataSize, actual_seq_kvlen_addr, 1, s2, d2, d2Align, false, 0);
+-            uint64_t dataSize1 = i + 2 * vPostBaseNum < vPostBlockTotal ? vPostBaseNum : vPostTailNum;
+-            dataSize1 = i + vPostBaseNum >= vPostBlockTotal ? 0 : dataSize1;
+-            NZVecClc(dvWorkSpaceGm, dvGm, dataSize1, actual_seq_kvlen_addr, 1, s2, d2, d2Align, false, 1);
+-        }
+-        PIPE_BARRIER(PIPE_ALL);
+-    }
+ }
+ 
+ template <typename OUT_TYPE, typename TILING_TYPE, const bool CAST_DV, const uint32_t LAYOUT,
+@@ -603,34 +583,4 @@ __aicore__ inline void SparseFlashAttentionGradPost<OUT_TYPE, TILING_TYPE, CAST_
+     }
+     WaitFlag<HardEvent::V_MTE2>(0);
+     PIPE_BARRIER(PIPE_ALL);
+-
+-    // init v
+-    if constexpr (CAST_DV && !AscendC::IsSameType<OUT_TYPE, float>::value) {
+-        uint64_t vBegin = cBlockIdx * vPostBlockFactor * vPostBaseNum;
+-        uint64_t vEnd = (cBlockIdx + 1) * vPostBlockFactor * vPostBaseNum;
+-        if (((cBlockIdx + 1) * vPostBlockFactor * vPostBaseNum) > vPostBlockTotal) {
+-            vEnd = vPostBlockTotal;
+-        }
+-
+-        SetFlag<HardEvent::V_MTE2>(0);
+-        for (uint64_t i = vBegin; i < vEnd; i = i + vPostBaseNum) {
+-            AscendC::LocalTensor<float> vecIn = inQueue.template AllocTensor<float>();
+-            AscendC::LocalTensor<OUT_TYPE> vecOut = outQueue.template AllocTensor<OUT_TYPE>();
+-            uint64_t dataSize = i + vPostBaseNum < vPostBlockTotal ? vPostBaseNum : vPostTailNum;
+-            WaitFlag<HardEvent::V_MTE2>(0);
+-            DataCopy(vecIn, dvWorkSpaceGm[i], (dataSize + 7) / 8 * 8); // dataSize(fp32) align 32B
+-            inQueue.EnQue(vecIn);
+-            inQueue.template DeQue<float>();
+-
+-            Cast(vecOut, vecIn, AscendC::RoundMode::CAST_ROUND, dataSize);
+-            outQueue.EnQue(vecOut);
+-            outQueue.template DeQue<OUT_TYPE>();
+-
+-            DataCopy(dvGm[i], vecOut, (dataSize + 15) / 16 * 16); // dataSize(fp16) align 32B
+-            inQueue.FreeTensor(vecIn);
+-            outQueue.FreeTensor(vecOut);
+-            SetFlag<HardEvent::V_MTE2>(0);
+-        }
+-        WaitFlag<HardEvent::V_MTE2>(0);
+-    }
+ }
