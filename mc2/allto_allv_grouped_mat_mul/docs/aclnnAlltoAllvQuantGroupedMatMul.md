@@ -65,6 +65,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMulGetWorkspaceSize(
     const aclIntArray* recvCounts,
     bool               transGmmWeight,
     bool               transMmWeight,
+    int64_t            groupSize,
     bool               permuteOutFlag,
     const aclTensor*   gmmY,
     const aclTensor*   mmYOptional,
@@ -280,6 +281,13 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <td>transMmWeight</td>
     <td>输入</td>
     <td>共享专家MatMul的右矩阵是否需要转置，true表示需要转置，false表示不转置。</td>
+    <td>BOOL</td>
+    <td>ND</td>
+    </tr>
+    <tr>
+    <td>groupSize</td>
+    <td>输入</td>
+    <td>当前版本不支持，传nullptr。</td>
     <td>BOOL</td>
     <td>ND</td>
     </tr>
