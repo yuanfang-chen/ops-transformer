@@ -9,8 +9,8 @@
     - torch\_npu >=2.7.0
 
 2. 安装torch与torch_npu包
-   
-   根据实际环境，下载对应torch包并安装: `torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl` 下载链接为:[官网地址](http://download.pytorch.org/whl/torch)
+
+   根据实际环境，下载对应torch包并安装：`torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl` 下载链接为：[官网地址](http://download.pytorch.org/whl/torch)
 
    安装命令如下：
 
@@ -18,14 +18,14 @@
     pip install torch-${torch_version}+cpu-${python_version}-linux_${arch}.whl
     ```
 
-   根据实际环境，安装对应torch-npu包: `torch_npu-${torch_version}-${python_version}-linux_${arch}.whl` 下载链接为:[官网地址](https://gitcode.com/Ascend/pytorch/releases)
+   根据实际环境，安装对应torch-npu包：`torch_npu-${torch_version}-${python_version}-linux_${arch}.whl` 下载链接为：[官网地址](https://gitcode.com/Ascend/pytorch/releases)
 
    安装命令如下：
 
     ```sh
     pip install torch_npu-${torch_version}-${python_version}-linux_${arch}.whl
     ```
-    
+
     - \$\{torch\_version\}：表示torch包版本号。
     - \$\{python\_version\}：表示python版本号。
     - \$\{arch\}：表示CPU架构，如aarch64、x86_64。
@@ -152,11 +152,11 @@
   </tr>
 </tbody>
 </table>
-    
+
 ## 自定义算子编译
 Ascend 950PR/Ascend 950DT暂不支持自定义算子编包和调用。
 1. 编译自定义算子包
-    
+
     进入项目根目录，执行如下编译命令：
 
     ```bash
@@ -174,12 +174,12 @@ Ascend 950PR/Ascend 950DT暂不支持自定义算子编包和调用。
     编译成功后，run包存放于项目根目录的build_out目录下。
 
 2. 安装自定义算子包
-   
+
     ```bash
-    ./cann-ops-transformer-${vendor_name}_linux-${arch}.run --install-path={install_path}
+    ./cann-ops-transformer-${vendor_name}_linux-${arch}.run --install-path=${install_path}
     ```
 
-    自定义单算子包安装时若不指定参数`--install-path`，将默认安装于`${ASCEND_HOME_PATH}/opp/vendors`目录下。\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN ops包安装路径。如指定`--install-path={install_path}`，则自定义算子包将安装于`${install_path}/vendors`目录下。注意自定义算子包不支持卸载。安装完成后，需要激活自定义算子包环境变量或导出环境变量，具体方式如下：
+    自定义单算子包安装时若不指定参数`--install-path`，将默认安装于`${ASCEND_HOME_PATH}/opp/vendors`目录下。\$\{ASCEND\_HOME\_PATH\}已通过环境变量配置，表示CANN ops包安装路径。如指定`--install-path=${install_path}`，则自定义算子包将安装于`${install_path}/vendors`目录下。注意自定义算子包不支持卸载。安装完成后，需要激活自定义算子包环境变量或导出环境变量，具体方式如下：
 
     ```bash
     # experimental自定义单算子包自定义安装路径

@@ -1,7 +1,7 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
@@ -869,7 +869,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext 
 {
     const CostInfo &costInfo = splitContext.costInfo;
     
-    int64_t avgCost = assignContext.unassignedCost / (coreNum_ - assignContext.curCoreIdx);
+    int64_t avgCost = assignContext.unassignedCost / (aicCoreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
     if (!supportFd) {
         assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
@@ -907,7 +907,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit, const
 {
     const CostInfo &costInfo = splitContext.costInfo;
 
-    if (coreNum_ == 0U) {
+    if (aicCoreNum_ == 0U) {
         return;
     }
     result.maxCost = 0U;
@@ -923,7 +923,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit, const
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
 
-    for (uint32_t i = 0; i < coreNum_; ++i) {
+    for (uint32_t i = 0; i < aicCoreNum_; ++i) {
         if (result.maxCost > costLimit) {
             return;
         }
