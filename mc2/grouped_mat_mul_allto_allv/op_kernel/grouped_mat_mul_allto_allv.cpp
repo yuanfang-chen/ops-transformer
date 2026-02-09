@@ -125,7 +125,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 
     // gmm
     GmmExpertOpType computeOp;
-    computeOp.Init(&tilingData.taskTilingInfo, &tilingData.gmmTiling, tilingGM, &pipe);
+    computeOp.Init(&tilingData.taskTilingInfo, &tilingData.gmmBaseTiling, tilingGM, &pipe);
     computeOp.InitAddr(gmmxGM, gmmweightGM, nullptr, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, userWorkspace);
     // sharemm
     SharedGmmExpertOpType shareComputeOp;
