@@ -11,6 +11,8 @@
 #ifndef MC2_HCCL_IMPL_H
 #define MC2_HCCL_IMPL_H
 
+#include "kernel_operator.h"
+#include "kernel_basic_inf.h"
 #include "lib/hccl/hccl.h"
 #include "../common/a2av_common_tiling.h"
 
@@ -33,8 +35,8 @@ public:
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
-        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hifloat8_t *)sendBuffer_);
-        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hifloat8_t *)recvBuffer_);
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer_);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer_);
     }
 
     // TODO 临时调试方法，为保证通路正常，后续改用Launch
@@ -227,8 +229,8 @@ private:
     uint64_t H1_ = 0UL;
     uint64_t N1_ = 0UL;
 
-    GlobalTensor<hifloat8_t> sendGlobalBuffer_;
-    GlobalTensor<hifloat8_t> recvGlobalBuffer_;
+    GlobalTensor<hcclDataType> sendGlobalBuffer_;
+    GlobalTensor<hcclDataType> recvGlobalBuffer_;
     GM_ADDR sendBuffer_;
     GM_ADDR recvBuffer_;
 
