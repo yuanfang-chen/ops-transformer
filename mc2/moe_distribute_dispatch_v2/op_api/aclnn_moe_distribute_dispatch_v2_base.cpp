@@ -62,7 +62,7 @@ extern aclnnStatus aclnnInnerMoeDistributeDispatchV2Extend(void* workspace, uint
                                                      aclOpExecutor* executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
-extern "C" void NnopbaseGetUserHandle(void *executor)
+extern "C" void NnopbaseGetUserHandle(void *executor);
 
 bool DispatchCheckNotNull(const aclTensor* x, const aclTensor* expertIds, const char* groupEp,
                           [[maybe_unused]] const char* groupTp, aclTensor* expandX, [[maybe_unused]] aclTensor* dynamicScales,
