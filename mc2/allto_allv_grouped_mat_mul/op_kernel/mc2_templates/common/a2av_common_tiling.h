@@ -20,7 +20,7 @@
 
 namespace MC2KernelTemplate {
 static constexpr uint32_t MAX_EP_RANK_SIZE = 8U;
-static constexpr uint32_t MAX_EXPERT_PER_EP = 1U; // TODO等待整改
+static constexpr uint32_t MAX_EXPERT_PER_EP = 1U;
 static constexpr uint32_t MAX_EXPERT_SIZE = 256U;
 
 // 类型复用声明
