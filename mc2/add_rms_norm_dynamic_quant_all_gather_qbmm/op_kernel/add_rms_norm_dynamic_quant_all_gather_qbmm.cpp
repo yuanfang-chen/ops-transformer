@@ -13,6 +13,7 @@
  * \brief
  */
 
+#include "basic_api/kernel_basic_intf.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_kernel.h"
 #include "add_rms_norm_dynamic_quant_v2_normal_kernel.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
@@ -33,18 +34,20 @@
 
 extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm(
     GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR smooth_scale,
-    GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR workspace, GM_ADDR tiling)
+    GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    TPipe pipe;
-    GET_TILING_DATA(tilingData, tiling);
+    // TPipe pipe;
+    REGISTER_TILING_DEFAULT(AddRmsNormDynamicQuantAllGatherQbmmTilingData);
+    GET_TILING_DATA_WITH_STRUCT(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingData, tilingGM);
+    // GET_TILING_DATA(tilingData, tiling);
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
 
-    if (TILING_KEY_IS(0)) {
-        // 0 Tiling, Do Nothing.
-        INVOKE_ADD_RMS_NORM_DYNAMIC_QUANT_QUANT_ALL_GATHER_OP_IMPL(AddRmsNormDynamicQuantAllGatherQbmm, false);
-    } else(TILING_KEY_IS(1)) {
-        INVOKE_ADD_RMS_NORM_DYNAMIC_QUANT_QUANT_ALL_GATHER_OP_IMPL(AddRmsNormDynamicQuantAllGatherQbmm, true);
-    }
+    // if (TILING_KEY_IS(0)) {
+    //     // 0 Tiling, Do Nothing.
+    //     INVOKE_ADD_RMS_NORM_DYNAMIC_QUANT_QUANT_ALL_GATHER_OP_IMPL(AddRmsNormDynamicQuantAllGatherQbmm, false);
+    // } else(TILING_KEY_IS(1)) {
+    //     INVOKE_ADD_RMS_NORM_DYNAMIC_QUANT_QUANT_ALL_GATHER_OP_IMPL(AddRmsNormDynamicQuantAllGatherQbmm, true);
+    // }
     // kernel: addrmsnormdynamicquant -> allgather -> quantbmm
 
 }

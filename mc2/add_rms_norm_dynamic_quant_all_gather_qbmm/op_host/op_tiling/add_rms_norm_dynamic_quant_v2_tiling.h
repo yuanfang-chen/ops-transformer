@@ -31,6 +31,14 @@ struct AddRmsNormDynamicQuantV2CompileInfo {
     int64_t ubSize = 0;
 };
 
+// 封装参数
+struct TilingRunInfo {
+    const char *groupPtr;  // group指针
+    std::string group;  // group属性
+    uint32_t quantMode; // 量化方式
+    uint32_t rankSize;  // rank大小
+};
+
 enum class UB_TILING_POLICY {
     NORMAL,
     SINGLE_ROW,
@@ -44,7 +52,7 @@ public:
 
     ~AddRmsNormDynamicQuantV2TilingHelper() = default;
     bool DoTiling();
-    void SetTilingDataAndTilingKeyAndWorkSpace(AddRmsNormDynamicQuantV2TilingData* tiling);
+    void SetTilingData(AddRmsNormDynamicQuantV2TilingData* tiling);
 
 private:
     bool GetBaseInfo();

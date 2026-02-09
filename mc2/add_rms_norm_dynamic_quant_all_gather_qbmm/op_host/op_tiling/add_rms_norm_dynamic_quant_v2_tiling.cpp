@@ -90,8 +90,8 @@ void AddRmsNormDynamicQuantV2TilingHelper::SetTilingData(
 
     context_->SetTilingKey(tilingKey);
 
-    tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(tiling->GetDataSize());
+    // tiling->SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
+    // context_->GetRawTilingData()->SetDataSize(tiling->GetDataSize());
 
     // set workspace
     // TODO: move to tiling of ARNDQ_AG_QBMM (or preserve a intermediate result)

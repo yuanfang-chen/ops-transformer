@@ -15,6 +15,9 @@
 
 #include <string>
 #include <register/op_def_registry.h>
+#include "mc2_log.h"
+#include "graph/utils/type_utils.h"
+#include "platform/platform_infos_def.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 
@@ -28,6 +31,8 @@ constexpr uint64_t THREE_BATCH_DIM = 3;
 constexpr uint64_t FOUR_BATCH_DIM = 4;
 constexpr uint64_t LAST_DIM = 1;
 constexpr uint64_t LAST_SECOND_DIM = 2;
+constexpr uint64_t CACHELINE = 512;
+constexpr uint64_t ND2NZ_ON_THE_FLY_LIMIT = 65535;
 
 const std::map<ge::DataType, matmul_tiling::DataType> DTYPE_MAP =
 {
@@ -83,7 +88,7 @@ void MmTilingHelper::InitCompileInfo() // 检查输入属性是否支持
     platformInfo->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_fix_pipe_l0c2out", val);
     platformInfo->GetPlatformRes("AICoreintrinsicDtypeMap", "Intrinsic_data_move_l12bt", dataMoveL12Bt);
     compileInfo.supportL0c2out = !val.empty();
-    compileInfo.supportL12BtBf16 = (dataMoveL12Bt.find("bf16") != string::npos);
+    compileInfo.supportL12BtBf16 = (dataMoveL12Bt.find("bf16") != std::string::npos);
     compileInfo.aicNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAic());
     compileInfo.aivNum = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
     compileInfo.socVersion = ascendcPlatform.GetSocVersion();
@@ -294,55 +299,12 @@ bool MmTilingHelper::NeedNd2NzVnchw(uint64_t outerSize, uint64_t innerSize, bool
     }
     return false;
 }
-inline int GetSizeByDataType(DataType data_type) {
-  static int data_type_size[DT_MAX] = {
-      4,                           // DT_FLOAT = 0,             float type
-      2,                           // DT_FLOAT16 = 1,           fp16 type
-      1,                           // DT_INT8 = 2,              int8 type
-      4,                           // DT_INT32 = 3,             int32 type
-      1,                           // DT_UINT8 = 4,             uint8 type
-      -1,                          // reserved
-      2,                           // DT_INT16 = 6,             int16 type
-      2,                           // DT_UINT16 = 7,            uint16 type
-      4,                           // DT_UINT32 = 8,            unsigned int32
-      8,                           // DT_INT64 = 9,             int64 type
-      8,                           // DT_UINT64 = 10,           unsigned int64
-      8,                           // DT_DOUBLE = 11,           double type
-      1,                           // DT_BOOL = 12,             bool type
-      -1,                          // DT_STRING = 13,           string type
-      1,                           // DT_DUAL_SUB_INT8 = 14,    dual output int8 type
-      1,                           // DT_DUAL_SUB_UINT8 = 15,   dual output uint8 type
-      8,                           // DT_COMPLEX64 = 16,        complex64 type
-      16,                          // DT_COMPLEX128 = 17,       complex128 type
-      1,                           // DT_QINT8 = 18,            qint8 type
-      2,                           // DT_QINT16 = 19,           qint16 type
-      4,                           // DT_QINT32 = 20,           qint32 type
-      1,                           // DT_QUINT8 = 21,           quint8 type
-      2,                           // DT_QUINT16 = 22,          quint16 type
-      8,                           // DT_RESOURCE = 23,         resource type
-      -1,                          // DT_STRING_REF = 24,       string ref type
-      5,                           // DT_DUAL = 25,             dual output type (float + int8)
-      8,                           // DT_VARIANT                variant type
-      2,                           // DT_BF16 = 27,             bf16 type
-      -1,                          // DT_UNDEFINED = 28         Used to indicate a DataType field has not been set.
-      kDataTypeSizeBitOffset + 4,  // DT_INT4 = 29,             int4 type
-      kDataTypeSizeBitOffset + 1,  // DT_UINT1 = 30,            uint1 type
-      kDataTypeSizeBitOffset + 2,  // DT_INT2 = 31,             int2 type
-      kDataTypeSizeBitOffset + 2,  // DT_UINT2 = 32,            uint2 type
-      4,                           // DT_COMPLEX32 = 33,        complex32 type
-                                   // DT_MAX
-  };
-  if ((data_type < 0) || (data_type >= DT_MAX)) {
-    return -1;
-  }
-  return data_type_size[data_type];
-}
 
 ge::graphStatus MmTilingHelper::GetMoreArgs()
 {
-    uint64_t aDtypeSize = GetSizeByDataType(args_.aType);
-    uint64_t bDtypeSize = GetSizeByDataType(args_.bType);
-    uint64_t cDtypeSize = GetSizeByDataType(args_.cType);
+    uint64_t aDtypeSize = ge::GetSizeByDataType(args_.aType);
+    uint64_t bDtypeSize = ge::GetSizeByDataType(args_.bType);
+    uint64_t cDtypeSize = ge::GetSizeByDataType(args_.cType);
     uint64_t m256Align = Is256BAlign(args_.mValue, aDtypeSize); // A矩阵 m轴256B对齐
     uint64_t kA256Align = Is256BAlign(args_.kValue, aDtypeSize); // A矩阵 k轴256B对齐
     uint64_t kB256Align = Is256BAlign(args_.kValue, bDtypeSize); // B矩阵 k轴256B对齐
@@ -356,13 +318,13 @@ ge::graphStatus MmTilingHelper::GetMoreArgs()
     auto trans = MatmulV3Trans::NO_TRANS;
     if (args_.isATrans) {
         trans = MatmulV3Trans::A_TRANS;
-        innerAlignA = m256Align_;
+        innerAlignA = m256Align;
         innerSizeA = args_.mValue;
         outerSizeA = args_.kValue;
     }
     if (args_.isBTrans) {
         trans = MatmulV3Trans::B_TRANS;
-        innerAlignB = kB256Align_;
+        innerAlignB = kB256Align;
         innerSizeB = args_.kValue;
         outerSizeB = args_.nValue;
     }
@@ -372,7 +334,7 @@ ge::graphStatus MmTilingHelper::GetMoreArgs()
     // uint64_t calcMBasic = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_M_BASIC;
     // calcMNBasic_ = compileInfo_.l0CSize == L0C_SIZE_256_KB ? CALC_MN_BASIC_L0C_256 : CALC_MN_BASIC;
     // l2TileLength_ = L2_TILE_LENGTH;
-    OP_TILING_CHECK(!compileInfo_.supportL0c2out, tilingSelect_ = TilingCalcSelect::BASE, return ge::GRAPH_SUCCESS);
+    OP_TILING_CHECK(!compileInfo_.supportL0c2out, tilingSelect_ = Mc2TilingCalcSelect::BASE, return ge::GRAPH_SUCCESS);
 
     // check the size is equaled to {32, 64, 96, 128, 160, 192, 224, 256, 384}.
     bool supportNd2NzOnTheWayA = false;
@@ -380,18 +342,18 @@ ge::graphStatus MmTilingHelper::GetMoreArgs()
     args_.nd2nzA = ((!innerAlignA || innerSizeA > ND2NZ_ON_THE_FLY_LIMIT) && (args_.aFormat == ge::FORMAT_ND) &&
         (!supportNd2NzOnTheWayA) &&
         !(args_.aType == ge::DT_FLOAT && !args_.isHf32 && innerSizeA < ND2NZ_ON_THE_FLY_LIMIT) &&
-        !(args_.aType == ge::DT_FLOAT && args_.isHf32 && innerSizeA * aDtypeSize_ < CACHELINE));
+        !(args_.aType == ge::DT_FLOAT && args_.isHf32 && innerSizeA * aDtypeSize < CACHELINE));
     args_.nd2nzB = ((!innerAlignB || innerSizeB > ND2NZ_ON_THE_FLY_LIMIT) && (args_.bFormat == ge::FORMAT_ND) &&
         (!supportNd2NzOnTheWayB) &&
         !(args_.bType == ge::DT_FLOAT && !args_.isHf32 && innerSizeB < ND2NZ_ON_THE_FLY_LIMIT) &&
-        !(args_.bType == ge::DT_FLOAT && args_.isHf32 && innerSizeB * bDtypeSize_ < CACHELINE));
+        !(args_.bType == ge::DT_FLOAT && args_.isHf32 && innerSizeB * bDtypeSize < CACHELINE));
 
     OP_LOGD(args_.opName, "After judging nd2nz tiling condition, matrix A need normal mode nd2nz = %u, matrix B = %u.",
             static_cast<uint32_t>(args_.nd2nzA), static_cast<uint32_t>(args_.nd2nzB));
     args_.nd2nzA = args_.nd2nzA || NeedNd2NzVnchw(outerSizeA, innerSizeA, supportNd2NzOnTheWayA,
-                                                  aDtypeSize_, args_.aFormat);
+                                                  aDtypeSize, args_.aFormat);
     args_.nd2nzB = args_.nd2nzB || NeedNd2NzVnchw(outerSizeB, innerSizeB, supportNd2NzOnTheWayB,
-                                                  bDtypeSize_, args_.bFormat);
+                                                  bDtypeSize, args_.bFormat);
     // (k, n) n为16384的倍数时，mata冲突严重，m越大，右矩阵重复载入越多，冲突影响越大，将右矩阵先做nd2nz
     // 限制为fp16、bf16场景
     bool mataConflictFlag = GetNd2nzA(args_, compileInfo_);
@@ -400,7 +362,7 @@ ge::graphStatus MmTilingHelper::GetMoreArgs()
     args_.nd2nzB = args_.nd2nzB || mataConflictFlag || mataConflictFlag2;
     OP_LOGI(args_.opName, "After judging nd2nz tiling condition, matrix A need vnchw mode nd2nz = %u, matrix B = %u.",
             static_cast<uint32_t>(args_.nd2nzA), static_cast<uint32_t>(args_.nd2nzB));
-    if (args_.nd2nzA && NeedNd2NzVnchw(outerSizeA, innerSizeA, supportNd2NzOnTheWayA, aDtypeSize_, args_.aFormat)) {
+    if (args_.nd2nzA && NeedNd2NzVnchw(outerSizeA, innerSizeA, supportNd2NzOnTheWayA, aDtypeSize, args_.aFormat)) {
         args_.unAlignProcessType = 1;
     } else {
         args_.unAlignProcessType = 0;

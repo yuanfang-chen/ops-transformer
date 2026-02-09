@@ -36,6 +36,9 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 // static constexpr size_t HCCL_GROUP_NAME_LENGTH_MAX = 128U; // group长度小于128字符
 
 // // 根据API定义，列出T-G量化所能支持的所有dtype
@@ -146,7 +149,7 @@ static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const a
 }
 
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
     bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
     uint64_t* workspaceSize, aclOpExecutor** executor);
@@ -155,18 +158,15 @@ extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmm(
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
 // ranksize 和dtype不需要作为输入，transposeX2是否输入看SE设计方案
-extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual,
-    const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias,
-    const char* group, bool transposeX2, int64_t residualNormMode,
-    aclTensor* output, aclTensor* z, uint64_t* workspaceSize, aclOpExecutor** executor)
+aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
+    const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
+    const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
+    uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     // TODO: Complete the code for checking params
     aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, smoothScale, output, z);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    uint64_t rankSize = 0;
-    uint64_t dtype = static_cast<uint64_t>(output->GetDataType());
     aclnnStatus ret = aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
         x1, x2, residual, y, gamma, scale, smoothScale, bias, group, rankSize, transposeX2, dtype,
         residualNormMode, output, z, workspaceSize, executor);
@@ -174,7 +174,7 @@ extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     return ret;
 }
 
-extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmm(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream)
+aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmm(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
         NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
@@ -186,3 +186,6 @@ extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmm(void* workspace,
     }
     return ACLNN_SUCCESS;
 }
+#ifdef __cplusplus
+}
+#endif
