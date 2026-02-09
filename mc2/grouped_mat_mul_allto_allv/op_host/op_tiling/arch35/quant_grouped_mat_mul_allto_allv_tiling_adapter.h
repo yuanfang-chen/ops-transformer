@@ -173,7 +173,7 @@ public:
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus SetCommonContextParameters();
     ge::graphStatus Process();
-    ge::graphStatus SetCommonInputParams();
+    ge::graphStatus SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params);
     ge::graphStatus DoOpTiling() override;
     QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
     MC2GQmmBasicTiling basicTiling_;

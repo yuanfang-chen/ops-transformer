@@ -36,38 +36,46 @@ namespace optiling {
 namespace Mc2GroupedMatmul {
 
 struct QuantGmmAlltoAllvParamsInfo {
-    uint64_t A;
-    uint64_t H1;
-    uint64_t ep;
-    uint64_t BsK;
-    uint64_t N1;
-    uint64_t Bs;
-    uint64_t H2;
-    uint64_t N2;
-    uint64_t epWorldSize;
-    uint64_t aivCoreNum;
-    uint64_t aicCoreNum;
-    uint64_t gmmWeightDim1;
-    uint64_t gmmWeightDim2;
-    uint64_t mmWeightDim0;
-    uint64_t mmWeightDim1;
-    int64_t gmmXQuantMode;
-    int64_t gmmWeightQuantMode;
-    int64_t mmXQuantMode;
-    int64_t mmWeightQuantMode;
-    int64_t commQuantMode;
-    int64_t commQuantDtype;
-    int64_t gmmYDtype;
-    int64_t mmYDtype;
-    int64_t groupSize;
-    bool hasSharedMm;
-    bool isGmmWeightTrans;
-    bool isMmWeightTrans;
+    uint64_t A = 0;
+    uint64_t H1 = 0;
+    uint64_t ep = 0;
+    uint64_t BsK = 0;
+    uint64_t N1 = 0;
+    uint64_t Bs = 0;
+    uint64_t H2 = 0;
+    uint64_t N2 = 0;
+    uint64_t epWorldSize = 0;
+    uint64_t aivCoreNum = 0;
+    uint64_t aicCoreNum = 0;
+    uint64_t gmmWeightDim1 = 0;
+    uint64_t gmmWeightDim2 = 0;
+    uint64_t mmWeightDim0 = 0;
+    uint64_t mmWeightDim1 = 0;
+    int64_t gmmXQuantMode = 0;
+    int64_t gmmWeightQuantMode = 0;
+    int64_t mmXQuantMode = 0;
+    int64_t mmWeightQuantMode = 0;
+    uint8_t gmmQuantSuit = 0;
+    uint8_t mmQuantSuit = 0;
+    int64_t commQuantMode = 0;
+    int64_t commQuantDtype = 0;
+    int64_t attrGmmYDtype = 0;
+    int64_t attrMmYDtype = 0;
+    int64_t groupSize = 0;
+    bool hasSharedMm = 0;
+    bool isGmmWeightTrans = 0;
+    bool isMmWeightTrans = 0;
+    ge::DataType gmmXDtype = ge::DT_UNDEFINED;
+    ge::DataType gmmWeightDtype = ge::DT_UNDEFINED;
+    ge::DataType gmmYDtype = ge::DT_UNDEFINED;
+    ge::DataType mmXDtype = ge::DT_UNDEFINED;
+    ge::DataType mmWeightDtype = ge::DT_UNDEFINED;
+    ge::DataType mmYDtype = ge::DT_UNDEFINED;
+    const char *opName = "GMMALLTOALLV";
 };
 
 struct TilingInferredInfo {
     uint64_t gmmResultLen = 0UL; // 存储计算GMM的地址大小
-    // uint64_t mmResultLen = 0UL; // 存储计算MM的地址大小
     uint64_t commLen = 0UL; // 存储通信结果的临时空间，recvCounts
     uint64_t permuteLen = 0UL; // 重排空间大小, 应该与result一致
     uint32_t biasLen = 0UL; // 暂不支持bias
@@ -103,9 +111,9 @@ protected:
     const char *opName_{nullptr};
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t workSpaceSize_{0};
-    QuantGmmA2avTilingData localTilingData_{0};
-    TilingInferredInfo inferredInfo{0};
-    QuantGmmAlltoAllvParamsInfo localParams_{0};
+    QuantGmmA2avTilingData localTilingData_;
+    TilingInferredInfo inferredInfo;
+    QuantGmmAlltoAllvParamsInfo localParams_;
 
 private:
     ge::graphStatus CheckOpInputSingleParamsTensorNotSup();

@@ -228,40 +228,34 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetExpertInputParameters(con
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParameters()
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params)
 {
-    auto mmXDesc = context_->GetOptionalInputShape(MM_X_OPTIONAL_INDEX);
-    if (mmXDesc == nullptr) {
-        return ge::GRAPH_FAILED;
-    }
-    auto xShape = mmXDesc->GetStorageShape();
-    inputParams_.mSize = xShape.GetDim(DIM_ZERO);
-    inputParams_.kSize = xShape.GetDim(DIM_ONE);
-    
-    auto weightShape = context_->GetOptionalInputShape(MM_WEIGHT_OPTIONAL_INDEX)->GetStorageShape();
-    inputParams_.nSize = weightShape.GetDim(DIM_ONE);
-
+    inputParams_.mSize = params.Bs;
+    inputParams_.kSize = params.H2;
+    inputParams_.nSize = params.N2;
+    // quantMode bit position
     inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     // 是否做切分
     inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
-    inputParams_.groupListType = 0;
+    // 非负递增为0，非负数列为1
+    inputParams_.groupListType = 1;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 2;
     inputParams_.actType = 0;
+
     inputParams_.aDtype = ge::DT_HIFLOAT8;
     inputParams_.bDtype = ge::DT_HIFLOAT8;
-    // c outputDtype
+    // c outputDtype 赋值
     inputParams_.cDtype = ge::DT_FLOAT16;
-    inputParams_.biasDtype = ge::DT_FLOAT;
+    inputParams_.biasDtype = ge::DT_INT32;
     inputParams_.scaleDtype = ge::DT_FLOAT;
     inputParams_.perTokenScaleDtype = ge::DT_FLOAT;
-    // inputParams_.outDataDtype = ge::DT_FLOAT16;
-    // inputParams_.outScaleDtype = ge::DT_FLOAT;
     inputParams_.aFormat = ge::FORMAT_ND;
     inputParams_.bFormat = ge::FORMAT_ND;
     inputParams_.cFormat = ge::FORMAT_ND;
     inputParams_.transA = false;
+    // ？？？transB 赋值
     inputParams_.transB = false;
     inputParams_.hasBias = false;
     inputParams_.isSingleX = true;
@@ -271,35 +265,33 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams()
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params)
 {
-    inputParams_.opName = context_->GetNodeName();
-    auto xShape = context_->GetInputShape(GMM_X_INDEX)->GetStorageShape();
-    inputParams_.mSize = xShape.GetDim(DIM_ZERO);
-    inputParams_.kSize = xShape.GetDim(DIM_ONE);
-    
-    auto weightShape = context_->GetInputShape(GMM_WEIGHT_INDEX)->GetStorageShape();
-    inputParams_.nSize = weightShape.GetDim(DIM_TWO);
-    inputParams_.groupNum = 1;
-    // inputParams_.outDtype = 0;
-    // inputParams_.kernelType = context_->GetNodeName();
+    inputParams_.opName = params.opName;
+    inputParams_.mSize = params.A;
+    inputParams_.kSize = params.H1;
+    inputParams_.nSize = params.N1;
+    inputParams_.groupNum = params.ep;
+    // gmm未使用
+    // inputParams_.outDtype = params.gmmYDtype;
+    // inputParams_.outDataDtype = ge::DT_FLOAT16;
+    // inputParams_.outScaleDtype = ge::DT_FLOAT;
+    // need set
+    inputParams_.kernelType = 0UL;
     inputParams_.aQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     inputParams_.bQuantMode = Mc2GroupedMatmul::QuantMode::PERTENSOR_MODE;
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
-    inputParams_.groupListType = 0;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::SPLIT_M;
+    inputParams_.groupListType = 1;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 0;
     inputParams_.actType = 0;
-    inputParams_.aDtype = ge::DT_HIFLOAT8;
-    inputParams_.bDtype = ge::DT_HIFLOAT8;
-    // c outputDtype
-    inputParams_.cDtype = ge::DT_FLOAT16;
-    inputParams_.biasDtype = ge::DT_FLOAT;
+    inputParams_.aDtype = params.gmmXDtype;
+    inputParams_.bDtype = params.gmmWeightDtype;
+    inputParams_.cDtype = params.gmmYDtype;
+    inputParams_.biasDtype = ge::DT_INT32;
     inputParams_.scaleDtype = ge::DT_FLOAT;
     inputParams_.perTokenScaleDtype = ge::DT_FLOAT;
-    // inputParams_.outDataDtype = ge::DT_FLOAT16;
-    // inputParams_.outScaleDtype = ge::DT_FLOAT;
     inputParams_.aFormat = ge::FORMAT_ND;
     inputParams_.bFormat = ge::FORMAT_ND;
     inputParams_.cFormat = ge::FORMAT_ND;
@@ -431,6 +423,7 @@ bool QuantGroupedMatmulAllToAllvAdapter::IsBiasInL1() const
     // 目前仅int8进bias int32需要进L1
     return inputParams_.hasBias && inputParams_.biasDtype == ge::DT_INT32;
 }
+
 uint64_t QuantGroupedMatmulAllToAllvAdapter::GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
 {
     // shapeSize应该是偶数
@@ -633,10 +626,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::CalL1Tiling()
     uint64_t leftL1Size = totalL1Size - usedSize;
     return CalL1Depth(leftL1Size);
 }
+
 bool QuantGroupedMatmulAllToAllvAdapter::IsCapable()
 {
     return true;
 }
+
 ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::DoLibApiTiling()
 {
     CalBasicBlock();
