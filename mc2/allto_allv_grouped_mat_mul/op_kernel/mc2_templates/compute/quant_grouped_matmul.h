@@ -48,12 +48,11 @@ public:
 
         expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
         epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
-        H1_ = tilingData_->taskTilingInfo.H1;
-        N1_ = tilingData_->taskTilingInfo.N1;
-        BS_ = tilingData_->taskTilingInfo.BS;
-        BSK_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = workspaceGM_ + BSK_ * H1_;
-        tokenOffset_ = 0;
+        h1_ = tilingData_->taskTilingInfo.H1;
+        n1_ = tilingData_->taskTilingInfo.N1;
+        bs_ = tilingData_->taskTilingInfo.BS;
+        bsk_ = tilingData_->taskTilingInfo.BSK;
+        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ + bsk_ * h1_ : workspaceGM_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -78,7 +77,7 @@ public:
         if (expertTokenNum_[expertIdx] == 0) {
             return ;
         }
-        uint64_t groupListToken = isLocal ? BS_ : expertTokenNum_[expertIdx];
+        uint64_t groupListToken = isLocal ? bs_ : expertTokenNum_[expertIdx];
         groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
@@ -99,9 +98,9 @@ public:
 protected:
     __aicore__ inline void UpdateAddr(uint32_t expertIdx)
     {
-        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
-        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
-        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * h1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * h1_ * n1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * n1_);
         expertTokenOffset_ += expertTokenNum_[expertIdx];
     }
 
@@ -127,14 +126,12 @@ private:
     uint64_t expertTokenOffset_ = 0;
     uint64_t expertNumInOneRank_ = 0;
     uint64_t epWorldSize_ = 0;
-    uint64_t H1_;
-    uint64_t N1_;
-    uint64_t BS_;
-    uint64_t BSK_;
+    uint64_t h1_;
+    uint64_t n1_;
+    uint64_t bs_;
+    uint64_t bsk_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
-    // 偏移状态
-    uint64_t tokenOffset_ = 0;
 };
 } // namespace MC2KernelTemplate
 #endif

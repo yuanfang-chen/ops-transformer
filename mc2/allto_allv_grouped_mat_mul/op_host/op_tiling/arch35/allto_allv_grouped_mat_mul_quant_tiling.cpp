@@ -351,6 +351,7 @@ ge::graphStatus AlltoAllvGmmQuantTiling::CheckGmmDType() const
         return ge::GRAPH_FAILED);
     if (permuteOutFlag_) {
         // check permuteOut dtype
+        tilingData->isPermuteOut = true;
         OP_TILING_CHECK(context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX) == nullptr,
             OP_LOGE(context_->GetNodeName(), "GetOutputDesc permuteOut returned null."), return ge::GRAPH_FAILED);
         auto permuteOutDataType = context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX)->GetDataType();
