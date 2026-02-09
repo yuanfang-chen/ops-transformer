@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -143,8 +143,8 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if data_type == 'bfloat16':
         diff_thd=0.005
         max_diff_hd=10.0
-        rtol=0.005
-        atol=0.0078125
+        rtol=0.0078125
+        atol=0.0001
         max_error_idx = 10000000
     else:
         diff_thd=0.005
