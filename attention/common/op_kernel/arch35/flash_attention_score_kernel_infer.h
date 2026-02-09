@@ -310,6 +310,7 @@ __aicore__ inline void FlashAttentionScoreKernelInfer<CubeBlockType, VecBlockTyp
             runParam.goIdx = gS1Index / runParam.actualS1Size;
             runParam.s1oIdx = gS1Index % runParam.actualS1Size;
         }
+        runParam.gS1Idx = gS1Index;
     } else {
         runParam.goIdx = bnIndex % this->constInfo.headNumRatio;
         runParam.s1oIdx = gS1Index % this->constInfo.s1OuterSize;

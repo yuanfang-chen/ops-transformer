@@ -387,6 +387,7 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams<isInfer, isPa> *sharedParams,
     __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr)
 {
+    // TODO，非TND下也可能传入actual_seq，actual_seq维度不一定等于batch，后续确认是否有影响
     if constexpr (GmLayoutParams<Q_FORMAT>::CATEGORY == FormatCategory::GM_Q_OUT_BNGSD) {
         this->queryGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->gSize,
             sharedParams->s1Size, sharedParams->dSize);
@@ -882,28 +883,65 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
 
         if constexpr (isInfer){
             if (IsGS1Merge(constInfo)) {
-                uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
-                CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], constInfo.s1Size, constInfo.gSize, constInfo.dSize,
-                    constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
+                // TODO，可能影响全量化，后续隔离
+                int32_t subMSizeAlign;
+                if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
+                    IsSameType<INPUT_T, hifloat8_t>::value) {
+                    subMSizeAlign = (runInfo.s1RealSize + 31) >> 5 << 5; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，32对齐
+                } else {
+                    subMSizeAlign = (runInfo.s1RealSize + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，16对齐
+                }
+
+                FaL1Tensor<INPUT_T, L1Format::NZ> dstTensor {
+                    .tensor = mm1ATensor,
+                    .rowCount = subMSizeAlign
+                };
+                GmCoord gmCoord {
+                    .bIdx = runInfo.boIdx,
+                    .n2Idx = runInfo.n2oIdx,
+                    .gS1Idx = runInfo.gS1Idx,
+                    .dIdx = 0,
+                    .gS1DealSize = runInfo.s1RealSize,
+                    .dDealSize = constInfo.dSize
+                };
+                copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
+                if constexpr (hasRope) {
+                    dstTensor.tensor = mm1ATensor[subMSizeAlign * constInfo.dSize];
+                    gmCoord.dDealSize = (uint32_t)constInfo.dSizeRope;
+                    copyQueryGmToL1(dstTensor, this->queryRopeGm, gmCoord);
+                }
+                // uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
+                // CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], constInfo.s1Size, constInfo.gSize, constInfo.dSize,
+                //     constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
             } else {
                 uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
                     CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize, constInfo.mm1Ka);
+                if constexpr (hasRope) {
+                    uint32_t dstNzC0Stride = (runInfo.s1RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
+                    if constexpr (isFp8) {
+                        dstNzC0Stride = (runInfo.s1RealSize + 31) >> 5 << 5; // fp8场景在L1上M方向32对齐，防止loadL12L0出现地址越界
+                    }
+                    uint64_t gmRopeOffset = this->queryRopeGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx,
+                        runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
+                    CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[dstNzC0Stride * constInfo.dSize],
+                        this->queryRopeGm.gmTensor[gmRopeOffset], runInfo.s1RealSize, constInfo.dSizeRope, constInfo.mm1RopeKa); 
+                }
             }
         } else {
             uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
             CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize, constInfo.mm1Ka);
-        }
-        
-        if constexpr (hasRope) {
-            uint32_t dstNzC0Stride = (runInfo.s1RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
-            if constexpr (isFp8) {
-                dstNzC0Stride = (runInfo.s1RealSize + 31) >> 5 << 5; // fp8场景在L1上M方向32对齐，防止loadL12L0出现地址越界
+            if constexpr (hasRope) {
+                uint32_t dstNzC0Stride = (runInfo.s1RealSize + 15) >> 4 << 4; // 转换为NZ矩阵后，相邻Block起始地址之间的偏移, 单位为Block个数;
+                if constexpr (isFp8) {
+                    dstNzC0Stride = (runInfo.s1RealSize + 31) >> 5 << 5; // fp8场景在L1上M方向32对齐，防止loadL12L0出现地址越界
+                }
+                uint64_t gmRopeOffset = this->queryRopeGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx,
+                    runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
+                CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[dstNzC0Stride * constInfo.dSize],
+                    this->queryRopeGm.gmTensor[gmRopeOffset], runInfo.s1RealSize, constInfo.dSizeRope, constInfo.mm1RopeKa); 
             }
-            uint64_t gmRopeOffset = this->queryRopeGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx,
-                runInfo.goIdx, coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-            CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[dstNzC0Stride * constInfo.dSize],
-                this->queryRopeGm.gmTensor[gmRopeOffset], runInfo.s1RealSize, constInfo.dSizeRope, constInfo.mm1RopeKa); 
         }
+
         mm1A.Set<HardEvent::MTE2_MTE1>(); // 通知
     } else { // 非s2的第一次循环直接复用Q
         mm1A = l1QBuffers.GetPre();
@@ -1061,10 +1099,32 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
         mm1B = l1QBuffers.Get();
         mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-        uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
-            coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
-            constInfo.mm1Ka);
+
+        int32_t subMSizeAlign;
+        if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
+            IsSameType<INPUT_T, hifloat8_t>::value) {
+            subMSizeAlign = (runInfo.s1RealSize + 31) >> 5 << 5; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，32对齐
+        } else {
+            subMSizeAlign = (runInfo.s1RealSize + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，16对齐
+        }
+
+        FaL1Tensor<INPUT_T, L1Format::NZ> dstTensor {
+            .tensor = mm1BTensor,
+            .rowCount = subMSizeAlign
+        };
+        GmCoord gmCoord {
+            .bIdx = runInfo.boIdx,
+            .n2Idx = runInfo.n2oIdx,
+            .gS1Idx = runInfo.gS1Idx,
+            .dIdx = 0,
+            .gS1DealSize = runInfo.s1RealSize,
+            .dDealSize = constInfo.dSize
+        };
+        copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
+        // uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
+        //     coordInfo[runInfo.taskIdMod3].s1Coord, 0);
+        // CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
+        //     constInfo.mm1Ka);
         mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
     } else { // 非s2的第一次循环直接复用Q
         mm1B = l1QBuffers.GetPre();
@@ -1340,6 +1400,17 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
         runInfo.keyOffset = this->keyGm.offsetCalculator.GetOffset(
             coordInfo[runInfo.taskIdMod3].curBIdx, runInfo.n2oIdx, coordInfo[runInfo.taskIdMod3].s2Coord, 0);
     }
+
+    int32_t subMSizeAlign;
+    if constexpr (isInfer) {
+        if constexpr (IsSameType<INPUT_T, fp8_e5m2_t>::value || IsSameType<INPUT_T, fp8_e4m3fn_t>::value ||
+            IsSameType<INPUT_T, hifloat8_t>::value) {
+            subMSizeAlign = (runInfo.s1RealSize + 31) >> 5 << 5; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，32对齐
+        } else {
+            subMSizeAlign = (runInfo.s1RealSize + 15) >> 4 << 4; // NZ矩阵相邻Block起始地址之间的偏移，单位为Block个数，16对齐
+        }
+    }
+
     for (uint32_t k = 0; k < kLoops; k++) {
         Buffer<BufferType::L1> mm1B;
         // 左矩阵复用, 但是每次只加载realK列
@@ -1356,9 +1427,22 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
             
             if constexpr (isInfer) {
                 if (IsGS1Merge(constInfo)) { // PFA
-                    gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
-                    CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset], constInfo.s1Size, constInfo.gSize, realK,
-                        constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
+                    FaL1Tensor<INPUT_T, L1Format::NZ> dstTensor {
+                        .tensor = mm1ATensor[k * l1BaseKOffset],
+                        .rowCount = subMSizeAlign
+                    };
+                    GmCoord gmCoord {
+                        .bIdx = runInfo.boIdx,
+                        .n2Idx = runInfo.n2oIdx,
+                        .gS1Idx = runInfo.gS1Idx,
+                        .dIdx = k * baseK,
+                        .gS1DealSize = runInfo.s1RealSize,
+                        .dDealSize = realK
+                    };
+                    copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
+                    // gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
+                    // CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset], constInfo.s1Size, constInfo.gSize, realK,
+                    //     constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
                 } else {
                     CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset],
                         runInfo.s1RealSize, realK, constInfo.mm1Ka);
@@ -1483,7 +1567,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
                     coordInfo[runInfo.taskIdMod3].s1Coord, 0);	
         if constexpr(isInfer) {
                 FaL1Tensor<INPUT_T, L1Format::NZ> dstTensor = {
-                    .tensor = mm1ATensor,
+                    .tensor = mm1BTensor,
                     .rowCount = static_cast<uint32_t>((runInfo.s1RealSize + 15) >> 4 << 4)
                 };
                 GmCoord gmCoord {
