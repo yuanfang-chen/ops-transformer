@@ -4494,7 +4494,7 @@ TEST_F(MlaPrologV3, MlaPrologV3_tiling_test80) {
         {"qc_qr_scale", Ops::Transformer::AnyValue::CreateFrom<float>(0.4f)},
         {"kc_scale", Ops::Transformer::AnyValue::CreateFrom<float>(0.5f)},
     },
-    &compileInfo,"Ascend910_95", MlaPrologV3_tiling_A3SocInfo, 4096);
+    &compileInfo,"Ascend950", MlaPrologV3_tiling_A3SocInfo, 4096);
     int64_t expectTilingKey = 1835026;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
