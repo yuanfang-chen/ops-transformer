@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include "mc2_moe_context.h"
+#include "mc2_hcom_topo_info.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/op_log.h"
@@ -190,7 +191,8 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context)
     std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
-    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    //ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    ret = MC2HcomTopology::CallHcomGetCommHandleByGroup(groupEp, &hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
         return ACLNN_ERR_INNER;
@@ -268,7 +270,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
             arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
         }
-        NnopbaseSetUserHandle(executor, arg);
+        NnopbaseSetUserHandle(*executor, arg);
     }
     
     if (NnopbaseSetHcclServerType) {
