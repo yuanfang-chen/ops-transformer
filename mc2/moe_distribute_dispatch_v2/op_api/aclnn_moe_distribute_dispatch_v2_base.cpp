@@ -27,7 +27,11 @@
 #include "hccl/hccl_res.h"
 #include "hccl/hccl.h"
 #include "hccl/hccn_rping.h"
+
 #include "opdev/op_executor.h"
+#include "opdev/make_op_executor.h"
+#include "opdev/op_dfx.h"
+#include "opdev/op_platfrom.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
@@ -230,7 +234,6 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const char* groupTpDispatchV2Temp = groupTp;
     const aclTensor* mc2Context = nullptr;
     aclnnStatus getWorkspaceSizesRes;
-    HcclComm hcclHandle;
     if (is910B) {
         groupTpDispatchV2Temp = "";
     } else if (is950) {
