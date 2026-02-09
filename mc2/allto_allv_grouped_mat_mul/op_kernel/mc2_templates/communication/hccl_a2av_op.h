@@ -21,17 +21,17 @@ using namespace AscendC;
 namespace MC2KernelTemplate {
 template <typename hcclDataType, bool commBeforeComputeFlag> class HcclA2avOp {
 public:
-    __aicore__ inline void Init(const void *hcclInitTiling, uint64_t hcclCcTilingOffset,
-        const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
-    {
-        sendBuffer_ = sendBuffer;
-        recvBuffer_ = recvBuffer;
-        taskTilingInfo_ = taskTilingInfo;
-        GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
-        hccl_.InitV2(hcclContextGm, hcclInitTiling);
-        hccl_.SetCcTilingV2(hcclCcTilingOffset);
-        rankId_ = hccl_.GetRankId();
-        rankDim_ = hccl_.GetRankDim();
+    __aicore__ inline void Init(__gm__ void *hcclInitTiling, __gm__ void *a2avCcTiling,	 
+        const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)	 
+    {	 
+        sendBuffer_ = sendBuffer;	 
+        recvBuffer_ = recvBuffer;	 
+        taskTilingInfo_ = taskTilingInfo;	 
+        GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();	 
+        hccl_.Init(hcclContextGm, hcclInitTiling);	 
+        hccl_.SetCcTiling(a2avCcTiling);	 
+        rankId_ = hccl_.GetRankId();	 
+        rankDim_ = hccl_.GetRankDim();	 
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
