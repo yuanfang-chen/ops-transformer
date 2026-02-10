@@ -242,7 +242,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::InitBuffers(TPipe *pipe)
     Cast(normWeightUb, normweightInUb, RoundMode::CAST_NONE, constInfo_.headDim);
     inputQue1.FreeTensor(normweightInUb);
     if constexpr (COMP::rotaryMode == Compressor::ROTARY_MODE::INTERLEAVE) {
-        SetGatherSrcOffset<float>(gatherOffsetUb, constInfo_.headDim);
+        SetGatherSrcOffset<float>(gatherOffsetUb, constInfo_.ropeHeadDim);
     }
     gatherOffsetCastUb = gatherOffsetUb.ReinterpretCast<uint32_t>();
     PipeBarrier<PIPE_V>();
