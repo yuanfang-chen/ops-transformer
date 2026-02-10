@@ -1535,7 +1535,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
         AscendC::printf("tkd lseSumUb\n");
         AscendC::DumpTensor(lseSumUb, 1, 512);
         AscendC::printf("tkd lseMaxUb\n");
-        AscendC::DumpTensor(lseMaxUb, 1, 512;
+        AscendC::DumpTensor(lseMaxUb, 1, 512);
         ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
         AscendC::printf("tkd softmaxlseUb\n");
         AscendC::DumpTensor(softmaxlseUb, 1, 512);
