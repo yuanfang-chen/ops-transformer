@@ -26,7 +26,7 @@ using namespace ge;
 
 namespace {
     constexpr uint32_t TILE_NUM = 1;
-    constexpr uint32_t COMM_TURN = 2;
+    constexpr uint32_t COMM_TURN = 3;
     const uint32_t WS_SYS_SIZE = 16U * 1024U * 1024U;
 }
 namespace optiling {
