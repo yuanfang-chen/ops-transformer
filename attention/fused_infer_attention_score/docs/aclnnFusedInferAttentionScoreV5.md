@@ -1030,15 +1030,16 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         - query，attentionOut所有tensor的shapeSize不为0，若有lse且lse不为空，并且key，value中所有tensor的shapeSize为0，属于空Tensor。
         - attentionOut和lse都为空时，属于空Tensor。
         - 属于空Tensor时，跳过校验流程；否则，走正常校验流程。
-    -  BNSD_BSND场景下的综合限制：
-        - 不支持decode mla场景;
-        - GQA非量化场景仅支持D=64或D=128。
-    -  BSH_BNSD、BSND_BNSD场景下的综合限制：
-        - 不支持decode mla场景;
-        - 不支持左padding、tensorlist、pse、prefix。
-        - GQA非量化场景仅支持D=64或D=128。
-    -  BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
-        - 仅支持decode mla场景;
+    -  BNSD_BSND、BSH_BNSD、BSND_BNSD、BSH_NBSD、BSND_NBSD、BNSD_NBSD场景下的综合限制：
+        - 当query的d等于512时：
+          - 仅支持BSH_NBSD、BSND_NBSD、BNSD_NBSD;
+          - 仅支持decode mla场景，要求queryRope和keyRope不等于空，queryRope和keyRope的d为64;
+        - 当query的d不等于512时：
+          - 仅支持BNSD_BSND、BSH_BNSD、BSND_BNSD;
+          - 支持prefill mla或gqa非量化场景，其中prefill mla场景需满足下述条件之一：
+            - query的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
+            - query的d等于192，queryRope和keyRope等于空。
+          - gqa非量化场景，NTD、NTD_TND仅支持D=64或D=128;
     -  TND、NTD、TND_NTD、NTD_TND场景下query，key，value输入的综合限制：
         - 当query的d等于512时：
           - 仅支持TND、TND_NTD;
@@ -1046,6 +1047,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
           - 不支持左padding、tensorlist、pseType=0、prefix、伪量化。
         - 当query的d不等于512时：
           - 仅支持TND、NTD、NTD_TND;
+          - 支持prefill mla或gqa非量化场景，其中prefill mla场景需满足下述条件之一：
+            - query的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
+            - query的d等于192，queryRope和keyRope等于空。
           - gqa非量化场景，NTD、NTD_TND仅支持D=64或D=128;
           - 不支持左padding、tensorlist、pseType=0、prefix、伪量化。
 - <a id="public"></a>通用场景
@@ -1887,7 +1891,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         <tr>
             <td>actualSeqLengths</td>
             <td></td>
-            <td>当前Ascend 950PR/Ascend 950DT仅在TND/NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
+            <td>当前Ascend 950PR/Ascend 950DT仅在TND/TND_NTD排布下支持配置 actualSeqLengthsQ，会在后续发布版本放开限制，actualSeqLengthsKV 支持在所有 layout 配置</td>
         </tr>
         <tr>
             <td>inputLayout</td>
