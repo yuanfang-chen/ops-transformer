@@ -162,7 +162,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       <tr>
           <td>antiquantOffsetOptional</td>
           <td>可选输入</td>
-          <td>公式中的<code>antiquant_offset</code>，代表伪量化参数中的缩放因子。</td>
+          <td>公式中的<code>antiquant_offset</code>，代表伪量化参数中的偏移量。</td>
           <td>长度与weight相同。综合约束请参见<a href="#约束说明">约束说明</a>。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -233,7 +233,7 @@ aclnnStatus aclnnGroupedMatmulV5(
           <td>groupType</td>
           <td>输入</td>
           <td>代表需要分组的轴。</td>
-          <td>枚举值-1、0、1、2。如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。</a>。</td>
+          <td>枚举值-1、0、1、2。如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组（不支持），2：k轴分组。</a>。</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -333,7 +333,7 @@ aclnnStatus aclnnGroupedMatmulV5(
   - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
 
     - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
-    - 输入参数x、weight均不支持INT16类型，且x不支持int4类型；
+    - 输入参数x、weight均不支持INT16类型，且x不支持INT4类型；
     - 输出参数out不支持INT32、INT8类型。
     - 输入参数x、weight，输出参数out在非量化场景支持最多1024个tensor，在伪量化和全量化场景支持最多128个tensor。
 
@@ -387,7 +387,7 @@ aclnnStatus aclnnGroupedMatmulV5(
         <td>若bias不为空，bias的长度不等于weight的长度。</td>
       </tr>
       <tr>
-        <td>groupListOptional维度为1。</td>
+        <td>groupListOptional维度不符合要求（如维度不为1且不为2）。</td>
       </tr>
       <tr>
         <td>splitItem为2、3的场景，out长度不等于1。</td>
