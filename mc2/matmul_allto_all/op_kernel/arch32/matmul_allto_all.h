@@ -18,7 +18,7 @@
 
 using namespace AscendC;
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "matmul_allto_all_tiling.h"

@@ -16,7 +16,7 @@
 #ifndef QUANT_REDUCE_SCATTER_MTE_H
 #define QUANT_REDUCE_SCATTER_MTE_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "adv_api/reduce/sum.h"
 #include "adv_api/pad/broadcast.h"

@@ -15,7 +15,7 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
 
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "tool.h"
 

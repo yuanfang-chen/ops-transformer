@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_BMM_H
 #define MATMUL_ALL_REDUCE_QUANT_BMM_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #ifdef __CCE_KT_TEST__
 #include "rac_server_stub.h"

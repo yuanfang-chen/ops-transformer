@@ -15,7 +15,7 @@
 #ifndef ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 #define ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "allto_allv_gmm.h"
 #include "lib/matmul_intf.h"

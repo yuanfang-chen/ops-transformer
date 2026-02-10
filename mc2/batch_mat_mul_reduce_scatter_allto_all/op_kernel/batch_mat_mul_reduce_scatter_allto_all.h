@@ -15,7 +15,7 @@
 #ifndef BATCH_MAT_MUL_REDUCE_SCATTER_ALLTO_ALL_H
 #define BATCH_MAT_MUL_REDUCE_SCATTER_ALLTO_ALL_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "lib/matmul_intf.h"
 

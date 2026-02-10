@@ -14,7 +14,7 @@
  */
 #define K_MAX_SHAPE_DIM 0
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "grouped_mat_mul_all_reduce_utils.h"
 #include "grouped_mat_mul_all_reduce.h"
 

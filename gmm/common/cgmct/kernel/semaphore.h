@@ -17,7 +17,7 @@
 #define MATMUL_KERNEL_SEMAPHORE_H
 
 #define ASCENDC_CUBE_ONLY
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 
 #include "../utils/common_utils.h"

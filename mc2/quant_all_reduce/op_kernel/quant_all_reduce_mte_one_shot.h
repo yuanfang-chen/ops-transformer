@@ -16,7 +16,7 @@
 #ifndef QUANT_ALL_REDUCE_MTE_ONE_SHOT_H
 #define QUANT_ALL_REDUCE_MTE_ONE_SHOT_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "quant_all_reduce_tiling_data.h"
 #include "../quant_reduce_scatter/utils.h"

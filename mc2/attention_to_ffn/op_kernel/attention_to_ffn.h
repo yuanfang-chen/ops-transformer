@@ -16,7 +16,7 @@
 #ifndef ATTENTION_TO_FFN_H
 #define ATTENTION_TO_FFN_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/reduce/sum.h"
 #include "adv_api/reduce/reduce.h"
 #include "kernel_tiling/kernel_tiling.h"

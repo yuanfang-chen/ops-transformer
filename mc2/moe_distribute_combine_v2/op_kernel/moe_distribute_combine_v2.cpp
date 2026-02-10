@@ -12,7 +12,7 @@
  * \file moe_distribute_combine_v2.cpp
  * \brief
  */
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "moe_distribute_combine_v2_tiling_key.h"
 

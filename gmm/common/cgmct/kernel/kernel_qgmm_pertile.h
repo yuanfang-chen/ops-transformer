@@ -15,7 +15,7 @@
 
 #ifndef MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
 #define MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "../utils/common_utils.h"
 #include "../utils/fill_utils.h"
 #include "../utils/grouped_matmul_constant.h"

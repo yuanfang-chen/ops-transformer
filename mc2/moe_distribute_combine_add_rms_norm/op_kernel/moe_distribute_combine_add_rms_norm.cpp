@@ -12,7 +12,7 @@
  * \file moe_distribute_combine_add_rms_norm.cpp
  * \brief
  */
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #if __has_include("../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h")
 #include "../moe_distribute_combine_v2/moe_distribute_combine_v2.h"

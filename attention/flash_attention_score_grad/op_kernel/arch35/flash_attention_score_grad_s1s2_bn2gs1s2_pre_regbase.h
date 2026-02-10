@@ -14,7 +14,7 @@
  */
 #ifndef FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
 #define FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 
 using namespace AscendC;
 

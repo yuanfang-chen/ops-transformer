@@ -16,7 +16,7 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_NZ_H
 
 #include "basic_block_config.h"
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "tool.h"
 
 namespace MicroAPI = AscendC::MicroAPI;

@@ -16,7 +16,7 @@
 #define ASCENDC_GROUPED_MATMUL_UTILS_H
 
 #if ((defined(__CCE_AICORE__) && (__CCE_AICORE__ == 310)) && !(defined(__NPU_ARCH__) && __NPU_ARCH__ == 3113))
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #else
 #include "kernel_operator.h"
 #endif

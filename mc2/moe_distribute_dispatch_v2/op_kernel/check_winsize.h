@@ -16,7 +16,7 @@
 #ifndef CHECK_WINSIZE_H
 #define CHECK_WINSIZE_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"
 

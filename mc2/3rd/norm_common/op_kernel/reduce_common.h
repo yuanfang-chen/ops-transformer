@@ -12,7 +12,7 @@
  */
 #ifndef REDUCE_COMMON_H_RMS_NORM
 #define REDUCE_COMMON_H_RMS_NORM
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 using namespace AscendC;
 
 constexpr uint32_t MAX_REP_NUM = 255;

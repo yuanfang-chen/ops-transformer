@@ -16,7 +16,7 @@
 #define MATMUL_REDUCE_SCATTER_FULL_MESH_H
 
 #include "matmul_reduce_scatter_base.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 
 namespace AscendC {

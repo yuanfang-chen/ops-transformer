@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #if __has_include("../../matmul_all_reduce/op_kernel/common.h")
 #include "../../matmul_all_reduce/op_kernel/common.h"

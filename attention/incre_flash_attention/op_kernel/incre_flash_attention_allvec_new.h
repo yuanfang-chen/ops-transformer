@@ -15,8 +15,7 @@
 #ifndef INCRE_FLASH_ATTENTION_ALLVEC_NEW
 #define INCRE_FLASH_ATTENTION_ALLVEC_NEW
 
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/activation/softmaxflashv2.h"
 #include "adv_api/math/log.h"
 #include "adv_api/select/selectwithbytesmask.h"

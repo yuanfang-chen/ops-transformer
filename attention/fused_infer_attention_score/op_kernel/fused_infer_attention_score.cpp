@@ -12,8 +12,7 @@
 * \file fused_infer_attention_score.cpp
 * \brief
 */
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/quantization/ascend_quant.h"
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa

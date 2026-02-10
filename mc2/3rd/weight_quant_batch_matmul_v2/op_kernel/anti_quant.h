@@ -17,7 +17,7 @@
 #define ANTIQUANT_H
 
 #include "kernel_log.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_utils.h"
 
 using AscendC::Adds;

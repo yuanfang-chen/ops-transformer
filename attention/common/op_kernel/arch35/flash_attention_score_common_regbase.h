@@ -14,7 +14,7 @@
 #ifndef FLASH_ATTENTION_SCORE_COMMON_REGBASE_H
 #define FLASH_ATTENTION_SCORE_COMMON_REGBASE_H
 
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
 #include "stdarg.h"

@@ -19,7 +19,7 @@
 #include "flash_attention_score_block_vec_train.h"
 #include "flash_attention_score_block_vec_infer.h"
 #include "flash_attention_score_common_regbase.h"
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "attenmask.h"
 
 // 线上编包

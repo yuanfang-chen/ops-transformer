@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_WEIGHT_QUANT_ADAPTIVE_SPLIT_H
 #define MATMUL_ALL_REDUCE_WEIGHT_QUANT_ADAPTIVE_SPLIT_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "../../3rd/weight_quant_batch_matmul_v2/op_kernel/weight_quant_batch_matmul_v2_constant.h"

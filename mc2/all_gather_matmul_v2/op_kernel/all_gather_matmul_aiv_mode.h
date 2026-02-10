@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "gather_moe_distribute_base.h"

@@ -15,7 +15,7 @@
 
 #include "all_gather_matmul_v2_tiling_key.h"
 #include "lib/matmul_intf.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "all_gather_matmul_aiv_mode.h"
 #include "all_gather_matmul_aiv_mode_tiling.h"
 
