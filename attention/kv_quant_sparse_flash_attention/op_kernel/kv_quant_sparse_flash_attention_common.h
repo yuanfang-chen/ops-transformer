@@ -24,6 +24,22 @@ using namespace AscendC;
 // 将isCheckTiling设置为false, 输入输出的max&sum&exp的shape为(m, 1)
 constexpr SoftmaxConfig QSFA_SOFTMAX_FLASHV2_CFG_WITHOUT_BRC = {false, 0, 0, SoftmaxMode::SOFTMAX_OUTPUT_WITHOUT_BRC};
 
+enum class SAS_LAYOUT {
+    BSND = 0,
+    TND = 1
+};
+
+enum class SAS_KV_LAYOUT {
+    TND = 0,
+    PA_ND = 1
+};
+
+enum class SASTemplateMode {
+    SWA_TEMPLATE_MODE = 0,
+    CFA_TEMPLATE_MODE = 1,
+    SCFA_TEMPLATE_MODE = 2
+};
+
 enum class QSFA_LAYOUT {
     BSND = 0,
     TND = 1,

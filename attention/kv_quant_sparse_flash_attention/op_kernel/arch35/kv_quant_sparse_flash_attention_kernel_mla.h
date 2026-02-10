@@ -90,12 +90,12 @@ private:
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
     __aicore__ inline void ComputeConstexpr();
-    __aicore__ inline void SetRunInfo(RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount,
+    __aicore__ inline void SetRunInfo(RunInfo_arch35 &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount,
                                       int64_t s2LoopLimit, int64_t multiCoreInnerIdx);
-    __aicore__ inline void ComputeBmm1Tail(RunInfo &runInfo, RunParamStr &runParam);
+    __aicore__ inline void ComputeBmm1Tail(RunInfo_arch35 &runInfo, RunParamStr &runParam);
     __aicore__ inline void InitUniqueConstInfo();
     __aicore__ inline void ComputeAxisIdxByBnAndGs1(int64_t bnIndex, int64_t gS1Index, RunParamStr &runParam);
-    __aicore__ inline void InitUniqueRunInfo(const RunParamStr &runParam, RunInfo &runInfo);
+    __aicore__ inline void InitUniqueRunInfo(const RunParamStr &runParam, RunInfo_arch35 &runInfo);
     TPipe *pipe;
 
     const KvQuantSparseAttnSharedkvTilingData *__restrict tilingData;
@@ -122,7 +122,7 @@ private:
     int32_t aicIdx;
 
     /* 初始化后不变的信息 */
-    ConstInfo constInfo;
+    ConstInfo_arch35 constInfo;
 
     /* 模板库Block */
     QSFAMatmulService<QSFAT> cubeBlock;
@@ -351,7 +351,7 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
 
     int64_t taskId = 0;
     bool notLast = true;
-    RunInfo runInfo[3];
+    RunInfo_arch35 runInfo[3];
     RunParamStr runParam;
     int64_t multiCoreInnerIdx = 1;
     for (int64_t bnIdx = bN2StartIdx; bnIdx < bN2EndIdx; bnIdx++) {
@@ -395,7 +395,7 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
             }
             for (int64_t s2LoopCount = 0; s2LoopCount <= s2LoopLimit; ++s2LoopCount) {
                 if (notLastTwoLoop) {
-                    RunInfo &runInfo1 = runInfo[taskId % 3];
+                    RunInfo_arch35 &runInfo1 = runInfo[taskId % 3];
                     this->SetRunInfo(runInfo1, runParam, taskId, s2LoopCount, s2LoopLimit, multiCoreInnerIdx);
                     if ASCEND_IS_AIC {
                         this->cubeBlock.IterateBmm1(this->bmm1Buffers.Get(), this->l1RightBuffers.Get(), runInfo1,
@@ -410,14 +410,14 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
                         this->vecBlock.ProcessVec1(this->l1PBuffers.Get(), this->bmm1Buffers.Get(), runInfo2,
                             this->constInfo);
                     } else {
-                        RunInfo &runInfo2 = runInfo[(taskId + 2) % 3];
+                        RunInfo_arch35 &runInfo2 = runInfo[(taskId + 2) % 3];
                         this->cubeBlock.IterateBmm2(this->bmm2Buffers.Get(), this->l1PBuffers, this->l1RightBuffers.GetReused(), runInfo2,
                             this->constInfo);
                     }
                 }
                 if (taskId > 1) {
                     if ASCEND_IS_AIV {
-                        RunInfo &runInfo3 = runInfo[(taskId + 1) % 3];
+                        RunInfo_arch35 &runInfo3 = runInfo[(taskId + 1) % 3];
                         this->vecBlock.ProcessVec2(this->bmm2Buffers.Get(), runInfo3, this->constInfo);
                     }
                 }
@@ -440,7 +440,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeAxisIdxByBn
 
 template <typename QSFAT>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::SetRunInfo(
-    RunInfo &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
+    RunInfo_arch35 &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     if (s2LoopCount < runParam.oriKvLoopEndIdx) {
         runInfo.s2StartIdx = runParam.s2LineStartIdx;
@@ -474,7 +474,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::SetRunInfo(
 }
 
 template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeBmm1Tail(
-    RunInfo &runInfo, RunParamStr &runParam)
+    RunInfo_arch35 &runInfo, RunParamStr &runParam)
 {
     // ------------------------S1 Base Related---------------------------
     runInfo.s1RealSize = runParam.s1RealSize;
