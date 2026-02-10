@@ -126,10 +126,10 @@
       bool transposeX = false;
       bool transposeW = false;
       int64_t groupListType = 1;
-      
+
       std::vector<int64_t> xShape = {m, k};
       std::vector<int64_t> wShape = {e, k, n};
-      std::vector<int64_t> scaleShape = {e, n};
+      std::vector<int64_t> scaleShape = {e, 1, n};
       std::vector<int64_t> pertokenScaleShape = {m};
       std::vector<int64_t> groupListShape = {e};
       std::vector<int64_t> sharedInputShape = {bsdp, n};
