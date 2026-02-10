@@ -230,7 +230,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(tmpBuff2, BUFFER_SIZE_BYTE_64K);
     pipe->InitBuffer(outputQue1, 1, BUFFER_SIZE_BYTE_16K);
     pipe->InitBuffer(normWeightBuf, BUFFER_SIZE_BYTE_4K);
-    pipe->InitBuffer(gatherOffsetBuf, BUFFER_SIZE_BYTE_1K);
+    pipe->InitBuffer(gatherOffsetBuf, BUFFER_SIZE_BYTE_2K);
     pipe->InitBuffer(apeBuf, BUFFER_SIZE_BYTE_32K);
     normWeightUb = normWeightBuf.Get<T>();
     apeUb = apeBuf.Get<T>();
