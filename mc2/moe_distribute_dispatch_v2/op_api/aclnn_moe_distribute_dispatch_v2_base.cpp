@@ -22,12 +22,12 @@
 #include "opdev/platform.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
-#include "hccl/hcom.h"
-#include "hccl/hccl_comm.h"
+// #include "hccl/hcom.h"
+// #include "hccl/hccl_comm.h"
 #include "hccl/hccl_rank_graph.h"
-#include "hccl/hccl_res.h"
+// #include "hccl/hccl_res.h"
 #include "hccl/hccl.h"
-#include "hccl/hccn_rping.h"
+// #include "hccl/hccn_rping.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
@@ -102,6 +102,28 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required groupTp name exceeds %zu", HCCL_GROUP_NAME_MAX);
         return ACLNN_ERR_PARAM_NULLPTR;
     }
+    return ACLNN_SUCCESS;
+}
+
+
+aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
+{
+    OP_LOGD("PRINT GetCommMode start");
+    HcclResult ret;
+    uint32_t* netLayers = nullptr;
+    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Ep Handle failed.");
+        return ACLNN_ERR_INNER;
+    }
+    OP_LOGD("PRINT HcomGetCommHandleByGroup success");
+
+    ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
+        return ACLNN_ERR_INNER;
+    }
+
     return ACLNN_SUCCESS;
 }
 
@@ -184,24 +206,19 @@ void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
     OP_LOGD("PRINT end to the CreatMc2ContextTensor");
 }
 
-aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize, 
-                            std::string& hcclTopoType) 
+
+
+aclnnStatus GetMc2Context(HcclComm hcclHandle,  const aclTensor* mc2Context, int64_t& hcclBuffSize,
+                         std::string& hcclTopoType) 
 {
     OP_LOGD("PRINT inter to the GetMc2Context");
     Mc2MoeContext mc2_context;
-    HcclComm hcclHandle;
     HcclResult ret;
     CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
     std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
-    OP_LOGD("PRINT HcomGetCommHandleByGroup start");
-    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
-    if(ret != HCCL_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_INNER, "Get Hccl Ep Handle failed.");
-        return ACLNN_ERR_INNER;
-    }
-    OP_LOGD("PRINT HcomGetCommHandleByGroup success");
+
     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
     if(ret != HCCL_SUCCESS) { 
         //如果资源不存在则进行context结构体创建
@@ -214,6 +231,27 @@ aclnnStatus GetMc2Context(const char* groupEp, const aclTensor* mc2Context, int6
     CreatMc2ContextTensor(ctx, mc2Context);
     OP_LOGD("PRINT end to the GetMc2Context");
     return ACLNN_SUCCESS;
+}
+
+void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOpExecutor** executor)
+{
+    if(is950) {
+        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
+        if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
+        }
+        NnopbaseSetUserHandle(*executor, arg);
+    }
+    
+    if (NnopbaseSetHcclServerType) {
+        if (is910B) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
+        } else if (is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
+        } else {
+            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        }
+    }
 }
 
 aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
@@ -237,6 +275,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
     const aclTensor* mc2Context = nullptr;
+    HcclComm hcclHandle;
+    uint32_t netLayerNum;
     aclnnStatus getWorkspaceSizesRes;
     if (is910B) {
         groupTpDispatchV2Temp = "";
@@ -244,12 +284,23 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         performanceInfoOptionalDispatchV2Temp = nullptr;
     }
     int64_t ydtype = expandXOut->GetDataType();
-    if(is950 && (commAlg == nullptr || std::strcmp(commAlg, "ccu") != 0)) { //ccu暂不支持新方案
-        OP_LOGD("PRINT commAlg:%s",commAlg);
-        OP_LOGD("PRINT inter to the mc2_context");
+
+    auto res = GetCommMode(groupEp, hcclHandle, netLayerNum);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    OP_LOGD("PRINT commAlg:%s",commAlg);
+    if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") != 0)) { //ccu暂时不支持新方案
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
+            x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
+            elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
+            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
+            constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
+            epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
+    } else {
+        OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
         std::string hcclTopoType;
-        auto ret =GetMc2Context(groupEp, mc2Context, hcclBuffSize, hcclTopoType);
+        auto ret =GetMc2Context(hcclHandle, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
@@ -258,34 +309,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
             sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
-
-    } else {
-        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
-            x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
-            elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
-            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
-            sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
-            constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
-            epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     }
-
-    if(is950) {
-        void *arg = reinterpret_cast<void *>(static_cast<uintptr_t>(0)); // 默认MTE为0
-        if(commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-            arg = reinterpret_cast<void *>(static_cast<uintptr_t>(1)); //ccu为1
-        }
-        NnopbaseSetUserHandle(executor, arg);
-    }
-    
-    if (NnopbaseSetHcclServerType) {
-        if (is910B) {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-        } else if (is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
-        } else {
-            NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
-        }
-    }
+    SetCommArgs(is950, is910B, commAlg, executor);
     return getWorkspaceSizesRes;
 }
 
