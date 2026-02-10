@@ -222,12 +222,12 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckDimNumNoSplit(const gert::
                     OP_LOGE(context->GetNodeName(), "x[%zu] dimNum is %zu, but only support 2-6.", i, xDimNum),
                     return ge::GRAPH_FAILED);
         // 检测 bias antiquantScale antiquantOffset 的每个tensor的dim都需要为1
-        if (paramsInputInfo.numBias != 0) {
+        if (hasBias_) {
             auto biasShape = context->GetDynamicInputShape(GMM_INDEX_IN_BIAS, i);
             OP_CHECK_IF(CheckTensorDimEqualOne(context, biasShape, "bias", i) != ge::GRAPH_SUCCESS,
                         OP_LOGE(context->GetNodeName(), "CheckTensorDimEqualOne is failed."), return ge::GRAPH_FAILED);
         }
-        if (paramsInputInfo.numAntiquantOffset != 0) {
+        if (hasAntiquantOffset_) {
             auto antiquantOffsetShape = context->GetDynamicInputShape(GMM_INDEX_IN_ANTIQUANT_OFFSET, i);
             OP_CHECK_IF(
                 CheckTensorDimEqualOne(context, antiquantOffsetShape, "antiquantOffset", i) != ge::GRAPH_SUCCESS,
@@ -274,7 +274,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorNDimMultiScenario(co
                         wNDimIdx, weightNDimValue, index, antiquantScaleNDim),
                 return ge::GRAPH_FAILED);
 
-    if (paramsInputInfo.numBias != 0) {
+    if (hasBias_) {
         // 检验weigh的n轴和bias的n轴一致
         auto biasShape = context->GetDynamicInputShape(GMM_INDEX_IN_BIAS, index);
         OP_CHECK_NULL_WITH_CONTEXT(context, biasShape);
@@ -285,7 +285,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorNDimMultiScenario(co
                     index, wNDimIdx, weightNDimValue, index, biasNDim),
             return ge::GRAPH_FAILED);
     }
-    if (paramsInputInfo.numAntiquantOffset != 0) {
+    if (hasAntiquantOffset_) {
         // 检验weight的n轴和antiquantOffset的n轴一致
         auto antiquantOffsetShape = context->GetDynamicInputShape(GMM_INDEX_IN_ANTIQUANT_OFFSET, index);
         OP_CHECK_NULL_WITH_CONTEXT(context, antiquantOffsetShape);
@@ -338,13 +338,13 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckCaseMultiScenario(const ge
                                 i, j, xNDimValue),
                         return ge::GRAPH_FAILED);
         }
-        // 校验K轴和N轴大于0
+        // 校验K轴和N轴非不确定值
         OP_CHECK_IF(
-            xKDimValue <= 0,
-            OP_LOGE(context->GetNodeName(), "x[%zu] dim %zu value %ld should more than 0.", i, xDimNum - 1, xKDimValue),
+            xKDimValue < 0,
+            OP_LOGE(context->GetNodeName(), "x[%zu] dim %zu value %ld should not be negative.", i, xDimNum - 1, xKDimValue),
             return ge::GRAPH_FAILED);
-        OP_CHECK_IF(weightNDimValue <= 0,
-                    OP_LOGE(context->GetNodeName(), "w[%zu] dim %zu value %ld should more than 0.", i, wNDimIdx,
+        OP_CHECK_IF(weightNDimValue < 0,
+                    OP_LOGE(context->GetNodeName(), "w[%zu] dim %zu value %ld should not be negative.", i, wNDimIdx,
                             weightNDimValue),
                     return ge::GRAPH_FAILED);
         // 校验X和weight矩阵的K轴
@@ -609,7 +609,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::GetNumOfInputs(const gert::Infe
         param.count = 0;
         for (int i = 0; i < GMM_MAX_GROUP_LIST_SIZE_ARRAY; i++) {
             shape = context->GetDynamicInputShape(param.index, param.count);
-            if (!IsNonEmpty(shape)) {
+            if (shape == nullptr) {
                 break;
             }
             ++param.count;
@@ -627,8 +627,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorListSizeMultiScenari
     const gert::InferShapeContext *context, const GMMInputParamsInfo &paramsInputInfo) const
 {
     // 检测 bias antiquantScale antiquantOffset的 tensorListsize 需要等于 weightSize
-    auto biasShape = context->GetDynamicInputShape(GMM_INDEX_IN_BIAS, 0);
-    if (IsNonEmpty(biasShape)) {
+    if (hasBias_) {
         OP_CHECK_IF(
             paramsInputInfo.numBias != paramsInputInfo.numWeight,
             OP_LOGE(context->GetNodeName(), "Bias size should be equal to weight size, actual size are [%zu] and [%zu]",
@@ -636,8 +635,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckTensorListSizeMultiScenari
             return ge::GRAPH_FAILED);
     }
 
-    auto antiquantOffsetShape = context->GetDynamicInputShape(GMM_INDEX_IN_ANTIQUANT_OFFSET, 0);
-    if (IsNonEmpty(antiquantOffsetShape)) {
+    if (hasAntiquantOffset_) {
         OP_CHECK_IF(paramsInputInfo.numAntiquantOffset != paramsInputInfo.numWeight,
                     OP_LOGE(context->GetNodeName(),
                             "AntiquantOffset size should be equal to weight size, actual size are [%zu] and [%zu]",
@@ -661,6 +659,16 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeValid(const gert::Inf
         GMMInputParamsInfo paramsInputInfo{0, 0, 0, 0, 0, 0, 0};
         OP_CHECK_IF(GetNumOfInputs(context, paramsInputInfo) != ge::GRAPH_SUCCESS,
                     OP_LOGE(context->GetNodeName(), "GetNumOfInputs failed."), return ge::GRAPH_FAILED);
+        hasBias_ = paramsInputInfo.numBias > 0;
+        if (paramsInputInfo.numBias == 1) {
+            auto biasShape = context->GetDynamicInputShape(GMM_INDEX_IN_BIAS, 0);
+            hasBias_ = biasShape->GetShapeSize() != 0;
+        }
+        hasAntiquantOffset_ = paramsInputInfo.numAntiquantOffset > 0;
+        if (paramsInputInfo.numAntiquantOffset == 1) {
+            auto antiQuantOffsetShape = context->GetDynamicInputShape(GMM_INDEX_IN_ANTIQUANT_OFFSET, 0);
+            hasAntiquantOffset_ = antiQuantOffsetShape->GetShapeSize() != 0;
+        }
         OP_CHECK_IF(CheckCaseMultiScenario(context, gmmAttrs, paramsInputInfo) != ge::GRAPH_SUCCESS,
                     OP_LOGE(context->GetNodeName(), "CheckCaseMultiScenario failed."), return ge::GRAPH_FAILED);
     } else {
