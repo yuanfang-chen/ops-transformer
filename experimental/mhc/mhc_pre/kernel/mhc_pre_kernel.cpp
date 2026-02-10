@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_pre AscendC Kernel - Production
  * Computes: output[b, seq, d] = Σ_s (h_pre[s] × x[b * num_streams + s, seq, d])
  * Supports: fp32, fp16, bf16 (via fp32 compute)

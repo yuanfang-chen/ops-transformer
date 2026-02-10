@@ -1,7 +1,11 @@
+/*
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ */
+
 #include <torch/extension.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 
-// Adaptive dispatch functions - select strategy automatically
 extern "C" void mhc_post_do_fp32(
     uint32_t blockDim, void* stream,
     uint8_t* input, uint8_t* h_post, uint8_t* output,
@@ -32,6 +36,7 @@ torch::Tensor mhc_post_forward(
     int64_t seq_len = x.size(1);
     int64_t dim = x.size(2);
     int64_t num_streams = h_post.size(0);
+    TORCH_CHECK(num_streams > 0, "num_streams must be > 0");
 
     auto output = torch::empty({batch * num_streams, seq_len, dim}, x.options());
     void* stream = c10_npu::getCurrentNPUStream().stream();

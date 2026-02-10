@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ */
+
 #include <torch/extension.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 
@@ -28,6 +33,7 @@ torch::Tensor mhc_pre_forward(
     TORCH_CHECK(x.dim() == 3, "Input must be 3D: [batch*num_streams, seq_len, dim]");
 
     int64_t num_streams = h_pre.size(0);
+    TORCH_CHECK(num_streams > 0, "num_streams must be > 0");
     int64_t total_batch = x.size(0);
     int64_t batch = total_batch / num_streams;
     int64_t seq_len = x.size(1);

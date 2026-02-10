@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_res Multi-DType Test (fp32/fp16/bf16)
  * Tests stream mixing: out[b*S+t] = Σ_s h_res[s,t] * in[b*S+s]
  */
@@ -10,6 +13,14 @@
 #include <cmath>
 #include <vector>
 #include <cstring>
+#include <random>
+template <typename To, typename From>
+inline To bit_copy(const From& src) {
+    static_assert(sizeof(To) == sizeof(From), "size mismatch");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
 
 extern "C" void mhc_res_do_fp32(
     uint32_t blockDim, void* stream,
@@ -39,7 +50,7 @@ extern "C" void mhc_res_do_bf16(
 
 uint16_t float_to_half(float f) {
     uint32_t x;
-    memcpy(&x, &f, 4);
+    x = bit_copy<uint32_t>(f);
     uint16_t sign = (x >> 16) & 0x8000;
     int32_t exp = ((x >> 23) & 0xFF) - 127 + 15;
     uint32_t mant = x & 0x7FFFFF;
@@ -56,21 +67,19 @@ float half_to_float(uint16_t h) {
     if (exp == 0) result = sign;
     else if (exp == 31) result = sign | 0x7F800000 | (mant << 13);
     else result = sign | ((exp - 15 + 127) << 23) | (mant << 13);
-    float f;
-    memcpy(&f, &result, 4);
+    float f = bit_copy<float>(result);
     return f;
 }
 
 uint16_t float_to_bf16(float f) {
     uint32_t x;
-    memcpy(&x, &f, 4);
+    x = bit_copy<uint32_t>(f);
     return (uint16_t)(x >> 16);
 }
 
 float bf16_to_float(uint16_t h) {
     uint32_t x = (uint32_t)h << 16;
-    float f;
-    memcpy(&f, &x, 4);
+    float f = bit_copy<float>(x);
     return f;
 }
 
@@ -131,15 +140,17 @@ bool test_fp32(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<float> h_input(io_size), h_weight(weight_size);
     std::vector<float> h_output(io_size), h_ref(io_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < io_size; ++i)
-        h_input[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_input[i] = dist(rng);
     
     // Initialize h_res as a doubly stochastic-ish matrix (rows sum to 1)
     for (int64_t s = 0; s < num_streams; ++s) {
         float sum = 0.0f;
         for (int64_t t = 0; t < num_streams; ++t) {
-            h_weight[s * num_streams + t] = (float)rand() / RAND_MAX + 0.1f;
+            h_weight[s * num_streams + t] = dist_pos(rng);
             sum += h_weight[s * num_streams + t];
         }
         for (int64_t t = 0; t < num_streams; ++t)
@@ -189,16 +200,18 @@ bool test_fp16(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<uint16_t> h_input(io_size), h_weight(weight_size), h_output(io_size);
     std::vector<float> h_ref(io_size), h_npu_f(io_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < io_size; ++i) {
-        h_input_f[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_input_f[i] = dist(rng);
         h_input[i] = float_to_half(h_input_f[i]);
         h_input_f[i] = half_to_float(h_input[i]);
     }
     for (int64_t s = 0; s < num_streams; ++s) {
         float sum = 0.0f;
         for (int64_t t = 0; t < num_streams; ++t) {
-            h_weight_f[s * num_streams + t] = (float)rand() / RAND_MAX + 0.1f;
+            h_weight_f[s * num_streams + t] = dist_pos(rng);
             sum += h_weight_f[s * num_streams + t];
         }
         for (int64_t t = 0; t < num_streams; ++t) {
@@ -254,16 +267,18 @@ bool test_bf16(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<uint16_t> h_input(io_size), h_output(io_size);
     std::vector<float> h_ref(io_size), h_npu_f(io_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < io_size; ++i) {
-        h_input_f[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_input_f[i] = dist(rng);
         h_input[i] = float_to_bf16(h_input_f[i]);
         h_input_f[i] = bf16_to_float(h_input[i]);
     }
     for (int64_t s = 0; s < num_streams; ++s) {
         float sum = 0.0f;
         for (int64_t t = 0; t < num_streams; ++t) {
-            h_weight_f[s * num_streams + t] = (float)rand() / RAND_MAX + 0.1f;
+            h_weight_f[s * num_streams + t] = dist_pos(rng);
             sum += h_weight_f[s * num_streams + t];
         }
         for (int64_t t = 0; t < num_streams; ++t)

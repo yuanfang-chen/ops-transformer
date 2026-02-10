@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_res AscendC Kernel - Stream Mixing
  * Computes: out[b*S + t, seq, d] = Σ_s (h_res[s, t] × x[b*S + s, seq, d])
  * This is an S×S stream mixing operation (residual connection mixing)

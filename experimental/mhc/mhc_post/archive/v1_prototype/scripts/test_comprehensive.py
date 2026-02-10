@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root for details.
 """
 mhc_post 综合验证: 对照论文公式 + PyTorch参考实现 + 多种shape测试
 """
 
 import numpy as np
-import subprocess
+import logging
 import struct
 import os
+import subprocess
+
+logger = logging.getLogger(__name__)
 
 def softmax(x):
     x = x - np.max(x)
@@ -100,23 +105,23 @@ int main() {{
     
     # 编译和运行
     compile_cmd = '''
-    cd /root/tst/mhc_post/build && 
-    source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash &&
-    g++ -o /tmp/test_mhc_run /tmp/test_mhc_run.cpp \
-        -I/usr/local/Ascend/ascend-toolkit/latest/include \
-        -L/usr/local/Ascend/ascend-toolkit/latest/lib64 \
-        -L/root/tst/mhc_post/build/lib \
-        -lmhc_post_kernel -lascendcl -lruntime 2>&1
-    '''
-    result = subprocess.run(compile_cmd, shell=True, capture_output=True, text=True)
+    compile_cmd = [
+        'g++', '-o', '/tmp/test_mhc_run', '/tmp/test_mhc_run.cpp',
+        '-I/usr/local/Ascend/ascend-toolkit/latest/include',
+        '-L/usr/local/Ascend/ascend-toolkit/latest/lib64',
+        '-L/root/tst/mhc_post/build/lib',
+        '-lmhc_post_kernel', '-lascendcl', '-lruntime',
+    ]
+    result = subprocess.run(compile_cmd, capture_output=True, text=True,
+                            cwd='/root/tst/mhc_post/build')
     if result.returncode != 0:
-        print(f"Compile error: {result.stderr}")
+        logger.error("Compile error: %s", result.stderr)
         return None
-    
-    run_cmd = 'source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash && /tmp/test_mhc_run'
-    result = subprocess.run(run_cmd, shell=True, capture_output=True, text=True)
+
+    run_cmd = ['/tmp/test_mhc_run']
+    result = subprocess.run(run_cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"Run error: {result.stderr}")
+        logger.error("Run error: %s", result.stderr)
         return None
     
     # 读取输出

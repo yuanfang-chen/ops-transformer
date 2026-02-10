@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_post Edge Cases Test (fp32/fp16/bf16)
  * Tests unaligned dim, extreme batch/seq/streams, minimal cases
  *
@@ -15,6 +18,14 @@
 #include <cmath>
 #include <vector>
 #include <cstring>
+#include <random>
+template <typename To, typename From>
+inline To bit_copy(const From& src) {
+    static_assert(sizeof(To) == sizeof(From), "size mismatch");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
 
 extern "C" void mhc_post_do_fp32(
     uint32_t blockDim, void* stream, uint8_t* in, uint8_t* h, uint8_t* out,
@@ -37,7 +48,7 @@ extern "C" void mhc_post_do_bf16(
 } while(0)
 
 uint16_t float_to_half(float f) {
-    uint32_t x; memcpy(&x, &f, 4);
+    uint32_t x = bit_copy<uint32_t>(f);
     uint16_t sign = (x >> 16) & 0x8000;
     int32_t exp = ((x >> 23) & 0xFF) - 127 + 15;
     uint32_t mant = x & 0x7FFFFF;
@@ -54,17 +65,17 @@ float half_to_float(uint16_t h) {
     if (exp == 0) result = sign;
     else if (exp == 31) result = sign | 0x7F800000 | (mant << 13);
     else result = sign | ((exp - 15 + 127) << 23) | (mant << 13);
-    float f; memcpy(&f, &result, 4); return f;
+    return bit_copy<float>(result);
 }
 
 uint16_t float_to_bf16(float f) {
-    uint32_t x; memcpy(&x, &f, 4);
+    uint32_t x = bit_copy<uint32_t>(f);
     return (uint16_t)(x >> 16);
 }
 
 float bf16_to_float(uint16_t h) {
     uint32_t x = (uint32_t)h << 16;
-    float f; memcpy(&f, &x, 4); return f;
+    return bit_copy<float>(x);
 }
 
 void cpu_ref(const float* in, const float* h, float* out,
@@ -87,7 +98,7 @@ bool allclose(const float* a, const float* b, int64_t n, float atol, float rtol)
 bool bit_exact(const float* a, const float* b, int64_t n) {
     for (int64_t i = 0; i < n; ++i) {
         uint32_t x, y;
-        memcpy(&x, &a[i], 4); memcpy(&y, &b[i], 4);
+        x = bit_copy<uint32_t>(a[i]); y = bit_copy<uint32_t>(b[i]);
         if (x != y) return false;
     }
     return true;
@@ -98,10 +109,12 @@ bool test_fp32(const char* name, int64_t batch, int64_t seq, int64_t dim, int64_
     int64_t out_sz = batch * streams * seq * dim;
     std::vector<float> h_in(in_sz), h_w(streams), h_out(out_sz), h_ref(out_sz);
 
-    srand(42);
-    for (int64_t i = 0; i < in_sz; ++i) h_in[i] = (float)rand() / RAND_MAX * 2 - 1;
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
+    for (int64_t i = 0; i < in_sz; ++i) h_in[i] = dist(rng);
     float sum = 0;
-    for (int64_t i = 0; i < streams; ++i) { h_w[i] = (float)rand() / RAND_MAX + 0.1f; sum += h_w[i]; }
+    for (int64_t i = 0; i < streams; ++i) { h_w[i] = dist_pos(rng); sum += h_w[i]; }
     for (int64_t i = 0; i < streams; ++i) h_w[i] /= sum;
     cpu_ref(h_in.data(), h_w.data(), h_ref.data(), batch, seq, dim, streams);
 
@@ -131,14 +144,16 @@ bool test_fp16(const char* name, int64_t batch, int64_t seq, int64_t dim, int64_
     std::vector<float> h_in_f(in_sz), h_w_f(streams), h_ref(out_sz), h_out_f(out_sz);
     std::vector<uint16_t> h_in(in_sz), h_w(streams), h_out(out_sz);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < in_sz; ++i) {
-        h_in_f[i] = (float)rand() / RAND_MAX * 2 - 1;
+        h_in_f[i] = dist(rng);
         h_in[i] = float_to_half(h_in_f[i]);
         h_in_f[i] = half_to_float(h_in[i]);
     }
     float sum = 0;
-    for (int64_t i = 0; i < streams; ++i) { h_w_f[i] = (float)rand() / RAND_MAX + 0.1f; sum += h_w_f[i]; }
+    for (int64_t i = 0; i < streams; ++i) { h_w_f[i] = dist_pos(rng); sum += h_w_f[i]; }
     for (int64_t i = 0; i < streams; ++i) {
         h_w_f[i] /= sum;
         h_w[i] = float_to_half(h_w_f[i]);
@@ -173,14 +188,16 @@ bool test_bf16(const char* name, int64_t batch, int64_t seq, int64_t dim, int64_
     std::vector<float> h_in_f(in_sz), h_w_f(streams), h_ref(out_sz), h_out_f(out_sz);
     std::vector<uint16_t> h_in(in_sz), h_out(out_sz);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < in_sz; ++i) {
-        h_in_f[i] = (float)rand() / RAND_MAX * 2 - 1;
+        h_in_f[i] = dist(rng);
         h_in[i] = float_to_bf16(h_in_f[i]);
         h_in_f[i] = bf16_to_float(h_in[i]);
     }
     float sum = 0;
-    for (int64_t i = 0; i < streams; ++i) { h_w_f[i] = (float)rand() / RAND_MAX + 0.1f; sum += h_w_f[i]; }
+    for (int64_t i = 0; i < streams; ++i) { h_w_f[i] = dist_pos(rng); sum += h_w_f[i]; }
     for (int64_t i = 0; i < streams; ++i) h_w_f[i] /= sum;
     cpu_ref(h_in_f.data(), h_w_f.data(), h_ref.data(), batch, seq, dim, streams);
 

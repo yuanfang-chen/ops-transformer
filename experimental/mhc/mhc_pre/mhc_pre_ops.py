@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (c) 2025. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root for details.
 """mhc_pre operator: Reduce N streams to 1 via weighted sum.
 
 This module provides PyTorch interface to the AscendC mhc_pre kernel.
@@ -9,7 +11,10 @@ Usage:
 """
 
 import torch
+import logging
 import torch_npu
+
+logger = logging.getLogger(__name__)
 
 # Try to import C++ extension (built via setup.py)
 try:
@@ -17,7 +22,7 @@ try:
     _USE_CPP_EXT = True
 except ImportError:
     _USE_CPP_EXT = False
-    print("Warning: mhc_pre_ext not found. Run 'python setup.py build_ext --inplace' to build.")
+    logger.warning("mhc_pre_ext not found. Run 'python setup.py build_ext --inplace' to build.")
 
 
 def mhc_pre(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
@@ -46,6 +51,8 @@ def mhc_pre(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
 def mhc_pre_einsum(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
     """Reference implementation using torch.einsum."""
     num_streams = h_pre.size(0)
+    if num_streams == 0:
+        raise ValueError("num_streams must be > 0, got 0")
     batch = x.size(0) // num_streams
     seq_len = x.size(1)
     dim = x.size(2)
@@ -54,7 +61,7 @@ def mhc_pre_einsum(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
 
 
 if __name__ == '__main__':
-    # Quick test
+    logging.basicConfig(level=logging.INFO)
     torch.npu.set_device(0)
     
     batch, seq_len, dim, num_streams = 2, 16, 32, 4
@@ -63,8 +70,8 @@ if __name__ == '__main__':
     
     out_npu = mhc_pre(x, h)
     out_ref = mhc_pre_einsum(x, h)
-    
-    print(f"Input: {x.shape}, h_pre: {h.shape}")
-    print(f"Output: {out_npu.shape}")
-    print(f"Match: {torch.allclose(out_npu, out_ref, atol=1e-5)}")
-    print(f"Max diff: {(out_npu - out_ref).abs().max().item():.2e}")
+
+    logger.info("Input: %s, h_pre: %s", x.shape, h.shape)
+    logger.info("Output: %s", out_npu.shape)
+    logger.info("Match: %s", torch.allclose(out_npu, out_ref, atol=1e-5))
+    logger.info("Max diff: %.2e", (out_npu - out_ref).abs().max().item())

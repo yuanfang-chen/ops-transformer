@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ */
+
 #include <torch/extension.h>
 #include <torch_npu/csrc/core/npu/NPUStream.h>
 
@@ -29,6 +34,7 @@ torch::Tensor mhc_res_forward(
     TORCH_CHECK(h_res.dim() == 2, "h_res must be 2D: [num_streams, num_streams]");
 
     int64_t num_streams = h_res.size(0);
+    TORCH_CHECK(num_streams > 0, "num_streams must be > 0");
     TORCH_CHECK(h_res.size(1) == num_streams, "h_res must be square");
 
     int64_t total_batch = x.size(0);

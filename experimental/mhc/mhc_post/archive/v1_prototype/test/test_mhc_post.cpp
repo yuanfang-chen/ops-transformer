@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_post 算子测试用例
  * 
  * mHC论文 (DeepSeek 2024.12.31): https://arxiv.org/abs/2512.24880

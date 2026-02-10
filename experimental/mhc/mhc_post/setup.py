@@ -1,9 +1,14 @@
+# Copyright (c) 2025. All rights reserved.
+# Licensed under the MIT License. See LICENSE file in the project root for details.
+
+import importlib
 import os
+
 from setuptools import setup
 from torch.utils.cpp_extension import CppExtension, BuildExtension
 
 ASCEND_HOME = os.environ.get('ASCEND_HOME_PATH', '/usr/local/Ascend/ascend-toolkit/latest')
-TORCH_NPU_PATH = os.path.dirname(__import__('torch_npu').__file__)
+TORCH_NPU_PATH = os.path.dirname(importlib.import_module('torch_npu').__file__)
 
 setup(
     name='mhc_post_ext',

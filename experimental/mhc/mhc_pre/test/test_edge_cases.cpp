@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_pre Edge Cases Test
  * Tests boundary conditions: non-aligned dims, small batches, etc.
  */
@@ -10,6 +13,7 @@
 #include <cmath>
 #include <vector>
 #include <cstring>
+#include <random>
 
 extern "C" void mhc_pre_do_fp32(
     uint32_t blockDim, void* stream,
@@ -52,12 +56,14 @@ bool test_case(const char* name, int64_t batch, int64_t seq_len, int64_t dim, in
     std::vector<float> h_input(input_size), h_weight(weight_size);
     std::vector<float> h_ref(output_size), h_npu(output_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < input_size; ++i)
-        h_input[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_input[i] = dist(rng);
     float sum = 0.0f;
     for (int64_t i = 0; i < weight_size; ++i) {
-        h_weight[i] = (float)rand() / RAND_MAX + 0.1f;
+        h_weight[i] = dist_pos(rng);
         sum += h_weight[i];
     }
     for (int64_t i = 0; i < weight_size; ++i)

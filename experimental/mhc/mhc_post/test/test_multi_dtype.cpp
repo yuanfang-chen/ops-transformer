@@ -1,4 +1,7 @@
 /**
+ * Copyright (c) 2025. All rights reserved.
+ * Licensed under the MIT License. See LICENSE file in the project root for details.
+ *
  * mhc_post Multi-DType Test (fp32/fp16/bf16)
  *
  * Precision criteria:
@@ -14,6 +17,14 @@
 #include <cmath>
 #include <vector>
 #include <cstring>
+#include <random>
+template <typename To, typename From>
+inline To bit_copy(const From& src) {
+    static_assert(sizeof(To) == sizeof(From), "size mismatch");
+    To dst;
+    std::memcpy(&dst, &src, sizeof(To));
+    return dst;
+}
 
 extern "C" void mhc_post_do_fp32(
     uint32_t blockDim, void* stream,
@@ -43,7 +54,7 @@ extern "C" void mhc_post_do_bf16(
 
 uint16_t float_to_half(float f) {
     uint32_t x;
-    memcpy(&x, &f, 4);
+    x = bit_copy<uint32_t>(f);
     uint16_t sign = (x >> 16) & 0x8000;
     int32_t exp = ((x >> 23) & 0xFF) - 127 + 15;
     uint32_t mant = x & 0x7FFFFF;
@@ -60,21 +71,19 @@ float half_to_float(uint16_t h) {
     if (exp == 0) result = sign;
     else if (exp == 31) result = sign | 0x7F800000 | (mant << 13);
     else result = sign | ((exp - 15 + 127) << 23) | (mant << 13);
-    float f;
-    memcpy(&f, &result, 4);
+    float f = bit_copy<float>(result);
     return f;
 }
 
 uint16_t float_to_bf16(float f) {
     uint32_t x;
-    memcpy(&x, &f, 4);
+    x = bit_copy<uint32_t>(f);
     return (uint16_t)(x >> 16);
 }
 
 float bf16_to_float(uint16_t h) {
     uint32_t x = (uint32_t)h << 16;
-    float f;
-    memcpy(&f, &x, 4);
+    float f = bit_copy<float>(x);
     return f;
 }
 
@@ -132,12 +141,14 @@ bool test_fp32(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<float> h_branch(input_size), h_weight(weight_size);
     std::vector<float> h_output(output_size), h_ref(output_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < input_size; ++i)
-        h_branch[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_branch[i] = dist(rng);
     float sum = 0.0f;
     for (int64_t i = 0; i < weight_size; ++i) {
-        h_weight[i] = (float)rand() / RAND_MAX + 0.1f;
+        h_weight[i] = dist_pos(rng);
         sum += h_weight[i];
     }
     for (int64_t i = 0; i < weight_size; ++i) h_weight[i] /= sum;
@@ -166,8 +177,8 @@ bool test_fp32(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     int64_t mismatch = 0;
     for (int64_t i = 0; i < output_size; ++i) {
         uint32_t a, b;
-        memcpy(&a, &h_output[i], 4);
-        memcpy(&b, &h_ref[i], 4);
+        a = bit_copy<uint32_t>(h_output[i]);
+        b = bit_copy<uint32_t>(h_ref[i]);
         if (a != b) mismatch++;
     }
 
@@ -193,15 +204,17 @@ bool test_fp16(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<uint16_t> h_branch(input_size), h_weight(weight_size), h_output(output_size);
     std::vector<float> h_ref(output_size), h_npu_f(output_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < input_size; ++i) {
-        h_branch_f[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_branch_f[i] = dist(rng);
         h_branch[i] = float_to_half(h_branch_f[i]);
         h_branch_f[i] = half_to_float(h_branch[i]);
     }
     float sum = 0.0f;
     for (int64_t i = 0; i < weight_size; ++i) {
-        h_weight_f[i] = (float)rand() / RAND_MAX + 0.1f;
+        h_weight_f[i] = dist_pos(rng);
         sum += h_weight_f[i];
     }
     for (int64_t i = 0; i < weight_size; ++i) {
@@ -258,15 +271,17 @@ bool test_bf16(int64_t batch, int64_t seq_len, int64_t dim, int64_t num_streams)
     std::vector<uint16_t> h_branch(input_size), h_output(output_size);
     std::vector<float> h_ref(output_size), h_npu_f(output_size);
 
-    srand(42);
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    std::uniform_real_distribution<float> dist_pos(0.1f, 1.1f);
     for (int64_t i = 0; i < input_size; ++i) {
-        h_branch_f[i] = (float)rand() / RAND_MAX * 2.0f - 1.0f;
+        h_branch_f[i] = dist(rng);
         h_branch[i] = float_to_bf16(h_branch_f[i]);
         h_branch_f[i] = bf16_to_float(h_branch[i]);
     }
     float sum = 0.0f;
     for (int64_t i = 0; i < weight_size; ++i) {
-        h_weight_f[i] = (float)rand() / RAND_MAX + 0.1f;
+        h_weight_f[i] = dist_pos(rng);
         sum += h_weight_f[i];
     }
     for (int64_t i = 0; i < weight_size; ++i)
