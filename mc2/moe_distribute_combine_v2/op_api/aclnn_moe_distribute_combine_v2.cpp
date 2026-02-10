@@ -24,10 +24,6 @@ using namespace op;
 extern "C" {
 #endif
 
-extern aclnnStatus aclnnInnerMoeDistributeCombineV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
-                                                    aclrtStream stream);
-
-
 aclnnStatus aclnnMoeDistributeCombineV2GetWorkspaceSize(
     const aclTensor* expandX, const aclTensor* expertIds,
     const aclTensor* assistInfoForCombine, const aclTensor* epSendCounts,
@@ -55,7 +51,7 @@ aclnnStatus aclnnMoeDistributeCombineV2(void *workspace, uint64_t workspaceSize,
                                                   aclrtStream stream)
 {
     OP_LOGD("aclnn_combine v2 start");
-    return aclnnInnerMoeDistributeCombineV2(workspace, workspaceSize, executor, stream);
+    return aclnnMoeDistributeCombineBase(workspace, workspaceSize, executor, stream);
 }
 
 #ifdef __cplusplus
