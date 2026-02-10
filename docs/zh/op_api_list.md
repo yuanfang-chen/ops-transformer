@@ -27,6 +27,8 @@
 |[aclnnAllGatherMatmul](../../mc2/all_gather_matmul/docs/aclnnAllGatherMatmul.md)|完成AllGather通信与MatMul计算融合。|默认确定性实现|
 |[aclnnAllGatherMatmulV2](../../mc2/all_gather_matmul_v2/doc/aclnnAllGatherMatmulV2.md)|aclnnAllGatherMatmulV2接口是对aclnnAllGatherMatmul接口的功能拓展。|默认确定性实现|
 |[aclnnAlltoAllAllGatherBatchMatMul](../../mc2/allto_all_all_gather_batch_mat_mul/docs/aclnnAlltoAllAllGatherBatchMatMul.md)|完成AllToAll、AllGather集合通信与BatchMatMul计算融合、并行。|默认确定性实现|
+|[aclnnAlltoAllMatmul](../../mc2/allto_all_matmul/docs/aclnnAlltoAllMatmul.md)|完成AlltoAll通信与MatMul计算融合。|默认确定性实现||
+|[aclnnAlltoAllQuantMatmul](../../mc2/allto_all_matmul/docs/aclnnAlltoAllQuantMatmul.md)|完成AlltoAll通信、量化计算、MatMul计算和反量化计算的融合。|默认确定性实现||
 |[aclnnAlltoAllvGroupedMatMul](../../mc2/allto_allv_grouped_mat_mul/docs/aclnnAlltoAllvGroupedMatMul.md)|完成路由专家AlltoAllv、Permute、GroupedMatMul融合并实现与共享专家MatMul并行融合。|默认确定性实现|
 |[aclnnApplyRotaryPosEmb](../../posembedding/apply_rotary_pos_emb/docs/aclnnApplyRotaryPosEmb.md)|将query和key两路算子融合成一路。执行旋转位置编码计算，计算结果执行原地更新。|默认确定性实现|
 |[aclnnApplyRotaryPosEmbV2](../../posembedding/apply_rotary_pos_emb/docs/aclnnApplyRotaryPosEmbV2.md)|将query和key两路算子融合成一路。执行旋转位置编码计算，计算结果执行原地更新。|默认确定性实现|
@@ -61,7 +63,7 @@
 |[aclnnFusedInferAttentionScoreV2](../../attention/fused_infer_attention_score/docs/aclnnFusedInferAttentionScoreV2.md)|适配增量&全量推理场景的FlashAttention算子。|默认确定性实现|
 |[aclnnFusedInferAttentionScoreV3](../../attention/fused_infer_attention_score/docs/aclnnFusedInferAttentionScoreV3.md)|适配增量&全量推理场景的FlashAttention算子。|默认确定性实现|
 |[aclnnFusedInferAttentionScoreV4](../../attention/fused_infer_attention_score/docs/aclnnFusedInferAttentionScoreV4.md)|适配Decode & Prefill场景的FlashAttention算子。|默认确定性实现|
-|[aclnnFusedInferAttentionScoreVX](../../attention/fused_infer_attention_score/docs/aclnnFusedInferAttentionScoreVX.md)|适配增量&全量推理场景的FlashAttention算子。|默认确定性实现|
+|[aclnnFusedInferAttentionScoreV5](../../attention/fused_infer_attention_score/docs/aclnnFusedInferAttentionScoreV5.md)|适配增量&全量推理场景的FlashAttention算子。|默认确定性实现|
 |[aclnnGatherPaKvCache](../../attention/gather_pa_kv_cache/docs/aclnnGatherPaKvCache.md)|根据blockTables中的blockId值、seqLens中key/value的seqLen从keyCache/valueCache中将内存不连续的token搬运、拼接成连续的key/value序列。|默认确定性实现|
 |[aclnnGroupedMatmul](../../gmm/grouped_matmul/docs/aclnnGroupedMatmul.md)|实现分组矩阵乘计算，每组矩阵乘的维度大小可以不同。|默认确定性实现|
 |[aclnnGroupedMatmulV2](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV2.md)|实现分组矩阵乘计算，每组矩阵乘的维度大小可以不同。|默认确定性实现|
