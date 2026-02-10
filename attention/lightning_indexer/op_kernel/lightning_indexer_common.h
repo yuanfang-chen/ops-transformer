@@ -24,8 +24,9 @@ enum class LI_LAYOUT {
     PA_BSND = 2
 };
 
-template <const bool DT_W_FLAG, typename Q_T, typename K_T, typename OUT_T, const bool PAGE_ATTENTION = false,
-          LI_LAYOUT LAYOUT_T = LI_LAYOUT::BSND, LI_LAYOUT K_LAYOUT_T = LI_LAYOUT::PA_BSND, typename... Args>
+template <typename Q_T, typename K_T, typename OUT_T, const bool PAGE_ATTENTION = false,
+          LI_LAYOUT LAYOUT_T = LI_LAYOUT::BSND, LI_LAYOUT K_LAYOUT_T = LI_LAYOUT::PA_BSND,
+          bool DT_W_FLAG = false, typename... Args>
 struct LIType {
     static constexpr bool weightsTypeFlag = DT_W_FLAG;   // weight的dtype是否为FP32
     using queryType = Q_T;
