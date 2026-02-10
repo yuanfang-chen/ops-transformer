@@ -118,6 +118,12 @@ ge::graphStatus MatmulAllReduceTiling910::PostTiling()
     PrintTilingData();
 
     context_->SetBlockDim(args_.aicCoreNum);
+
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    ret = context_->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret);
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -336,5 +342,6 @@ TilingTransferHelper::TilingTransferHelper(MatmulAllReduceTiling910& matmulAllRe
 {}
 
 //注册Tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,MatmulAllReduceTiling910,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B),2);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce, MatmulAllReduceTiling910, \
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), 2);
 } // namespace optiling
