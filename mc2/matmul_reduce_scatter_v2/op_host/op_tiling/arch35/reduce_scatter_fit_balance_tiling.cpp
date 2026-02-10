@@ -55,6 +55,7 @@ void MMReduceScatterFitBalanceTiling::SetShortTileLen()
         tilingM_.SetAlignLength(cutLen);
         tilingM_.SetMinLenByMin(cutLen);
     }
+
     tilingM_.cutRes.shortTileLen = tilingM_.GetMinLen();
     tilingM_.cutRes.numShortTile = 1U;
 }

@@ -27,7 +27,6 @@ public:
     {
         commPerf_.SetCommShapeLen(args.nValue);
         commPerf_.SetCommDTypeSize(mmInfo_.outMatrixCDtypeSize);
-
         tilingM_.SetMinLenByMax(matmulPerf_.GetBaseM());
         tilingM_.SetAlignLength(matmulPerf_.GetBaseM());
     }

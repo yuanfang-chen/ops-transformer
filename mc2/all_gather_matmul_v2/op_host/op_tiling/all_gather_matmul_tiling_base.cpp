@@ -462,15 +462,9 @@ uint32_t AllGatherMatmulTilingBase::AllGatherSplitM(mc2tiling::TilingArgs& args,
 CutResult AllGatherMatmulTilingBase::GetTilingResult()
 {
     SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
-    if (inputSocVersion == SocVersion::SOC950) {
-        AllGatherMMFitBalanceTiling tileFormulate(args_, KernelType::ALL_GATHER, TopoType::STANDARD_CARD);
-        tileFormulate.GetTiling();
-        return tileFormulate.tilingM_.cutRes;
-    } else {
-        AllGatherPlusMMV2 tileFormulate(args_, args_.rankDim, KernelType::ALL_GATHER, SocVersion::SOC910_B);
-        tileFormulate.GetTiling();
-        return tileFormulate.tilingM_.cutRes;
-    }
+    AllGatherPlusMMV2 tileFormulate(args_, args_.rankDim, KernelType::ALL_GATHER, SocVersion::SOC910_B);
+    tileFormulate.GetTiling();
+    return tileFormulate.tilingM_.cutRes;
 }
 
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)

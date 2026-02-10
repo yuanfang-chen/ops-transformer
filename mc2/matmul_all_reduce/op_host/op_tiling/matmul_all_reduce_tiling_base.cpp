@@ -306,10 +306,6 @@ CutResult MatmulAllReduceTilingBase::GetCutResult()
             args_, args_.rankDim, KernelType::ALL_REDUCE, inputSocVersion);
         quantAllReduceTilingHccl.GetTiling();
         mCutAllreduce = quantAllReduceTilingHccl.tilingM_.cutRes;
-    } else if (inputSocVersion == SocVersion::SOC950) {
-        MMAllReduceFitBalanceTiling allReduceTiling(args_, KernelType::ALL_REDUCE, TopoType::STANDARD_CARD);
-        allReduceTiling.GetTiling();
-        mCutAllreduce = allReduceTiling.tilingM_.cutRes;
     } else {
         MMPlusAllReduce allReduceTilingHccl(args_, args_.rankDim, KernelType::ALL_REDUCE, inputSocVersion, isPerBlock_);
         allReduceTilingHccl.GetTiling();

@@ -71,15 +71,9 @@ uint32_t MatmulReduceScatterTilingBase::ReduceScatterSpliteM(mc2tiling::TilingAr
 CutResult MatmulReduceScatterTilingBase::GetTilingResult()
 {
     SocVersion inputSocVersion = (npuArch_ == NpuArch::DAV_3510) ? SocVersion::SOC950 : SocVersion::SOC910_B;
-    if (inputSocVersion == SocVersion::SOC950) {
-        MMReduceScatterFitBalanceTiling scatterTiling(args_, KernelType::REDUCE_SCATTER, TopoType::STANDARD_CARD);
-        scatterTiling.GetTiling();
-        return scatterTiling.tilingM_.cutRes;
-    } else {
-        MMPlusReduceScatter scatterTiling(args_, args_.rankDim, KernelType::REDUCE_SCATTER, inputSocVersion);
-        scatterTiling.GetTiling();
-        return scatterTiling.tilingM_.cutRes;
-    }
+    MMPlusReduceScatter scatterTiling(args_, args_.rankDim, KernelType::REDUCE_SCATTER, inputSocVersion);
+    scatterTiling.GetTiling();
+    return scatterTiling.tilingM_.cutRes;
 }
 
 void MatmulReduceScatterTilingBase::DoFormulaticTiling(Mc2Tiling::RCSTiling &rcsCfg)
