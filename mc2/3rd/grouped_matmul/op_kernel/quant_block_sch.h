@@ -17,7 +17,7 @@
 
 #include "quant_utils.h"
 
-namespace Mc2GroupedMatmul {
+namespace GroupedMatmul {
 struct ASWTilingParam {
     uint64_t m;
     uint64_t n;
@@ -125,34 +125,34 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
     if (groupIdx > 0) {                             // groupIdx==0时，起始点均为0，无需计算，减少scalar
-        if constexpr (Mc2QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
+        if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
             params_.aGroupAddrOffset += params_.m * params_.k / 2;
             params_.bGroupAddrOffset += params_.n * params_.k / 2;
         } else {
             params_.aGroupAddrOffset += params_.m * params_.k;
             if constexpr (wFormat == CubeFormat::NZ) {
                 if constexpr (bTrans) {
-                    params_.bGroupAddrOffset += Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::WEIGHTNZ_K0_32) *
-                        Mc2QuantUtils::CeilDiv(params_.n, Mc2QuantUtils::WEIGHTNZ_N0_16) * Mc2QuantUtils::WEIGHTNZ_N0_K0;
+                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_32) *
+                        QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_16) * QuantUtils::WEIGHTNZ_N0_K0;
                 } else {
-                    params_.bGroupAddrOffset += Mc2QuantUtils::CeilDiv(params_.n, Mc2QuantUtils::WEIGHTNZ_N0_32) *
-                        Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::WEIGHTNZ_K0_16) * Mc2QuantUtils::WEIGHTNZ_N0_K0;
+                    params_.bGroupAddrOffset += QuantUtils::CeilDiv(params_.n, QuantUtils::WEIGHTNZ_N0_32) *
+                        QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) * QuantUtils::WEIGHTNZ_N0_K0;
                 }
             } else {
                 params_.bGroupAddrOffset += params_.n * params_.k;
             }
         }
         params_.cGroupAddrOffset += params_.m * params_.n;
-        if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
-            uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
+        if constexpr (QuantUtils::IsMxType<scaleType>()) {
+            uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
             if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
-                scaleK *= Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::MXFP_DIVISOR_SIZE);
+                scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
                 params_.xScaleGroupAddrOffset += params_.m * scaleK;
                 params_.wScaleGroupAddrOffset += params_.n * scaleK;
             } else if constexpr (aTrans && !bTrans) { // mx (k / 64 + G, m, 2)
                 // scaleK from (k0 + k1 + k2 + ... + k_{i - 1}) / 64 + Gi, cumsum
                 // n在host侧已保证不会为0
-                scaleK *= (params_.bGroupAddrOffset / params_.n / Mc2QuantUtils::MXFP_DIVISOR_SIZE + groupIdx);
+                scaleK *= (params_.bGroupAddrOffset / params_.n / QuantUtils::MXFP_DIVISOR_SIZE + groupIdx);
                 params_.xScaleGroupAddrOffset = params_.m * scaleK;
                 params_.wScaleGroupAddrOffset = params_.n * scaleK;
             }
@@ -172,14 +172,14 @@ __aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n,
 // 兼容GMM和MM的更新
 template <bool isGmm> __aicore__ inline void QuantASWBlockSch::UpdateGroupParams()
 {
-    params_.mCnt = Mc2QuantUtils::CeilDiv(params_.m, tilingData_->baseM);
-    params_.nCnt = Mc2QuantUtils::CeilDiv(params_.n, tilingData_->baseN);
+    params_.mCnt = QuantUtils::CeilDiv(params_.m, tilingData_->baseM);
+    params_.nCnt = QuantUtils::CeilDiv(params_.n, tilingData_->baseN);
     params_.totalCnt = params_.mCnt * params_.nCnt;
     params_.mBaseTail = params_.m - (params_.mCnt - 1) * tilingData_->baseM;
     params_.nBaseTail = params_.n - (params_.nCnt - 1) * tilingData_->baseN;
-    params_.mCoreNum = Mc2QuantUtils::Min(WINDOW_LEN, params_.mCnt);
+    params_.mCoreNum = QuantUtils::Min(WINDOW_LEN, params_.mCnt);
     // 计算round数还是按照实际，使用核数按照startBlockIdx开始
-    params_.round = Mc2QuantUtils::CeilDiv(params_.totalCnt, tilingData_->usedCoreNum);
+    params_.round = QuantUtils::CeilDiv(params_.totalCnt, tilingData_->usedCoreNum);
     params_.mainRow = params_.mCnt / params_.mCoreNum - 1;
     params_.mTailCoreNum = params_.mCnt - params_.mCoreNum * params_.mainRow;
     if constexpr (isGmm) {
@@ -261,13 +261,13 @@ __aicore__ inline void QuantASWBlockSch::UpdateBlockParams(uint64_t roundIdx, bo
         uint64_t singleCoreMSplit = (params_.singleCoreM + params_.mTailTile - 1) / params_.mTailTile;
         uint64_t singleCoreNSplit = (params_.singleCoreN + params_.nTailTile - 1) / params_.nTailTile;
         if constexpr (aTrans) { // (k, m)
-            singleCoreMSplit = Mc2QuantUtils::Align(singleCoreMSplit, Mc2QuantUtils::INNER_AXIS_MIN_SPLIT_VAL);
+            singleCoreMSplit = QuantUtils::Align(singleCoreMSplit, QuantUtils::INNER_AXIS_MIN_SPLIT_VAL);
         }
         if constexpr (!bTrans) { // (k, n)
-            singleCoreNSplit = Mc2QuantUtils::Align(singleCoreNSplit, Mc2QuantUtils::INNER_AXIS_MIN_SPLIT_VAL);
+            singleCoreNSplit = QuantUtils::Align(singleCoreNSplit, QuantUtils::INNER_AXIS_MIN_SPLIT_VAL);
         } else {
             if constexpr (wFormat == CubeFormat::NZ) {
-                singleCoreNSplit = Mc2QuantUtils::Align(singleCoreNSplit, Mc2QuantUtils::WEIGHTNZ_N0_16);
+                singleCoreNSplit = QuantUtils::Align(singleCoreNSplit, QuantUtils::WEIGHTNZ_N0_16);
             }
         }
 
@@ -314,10 +314,10 @@ __aicore__ inline void QuantASWBlockSch::CalcGMOffset()
 
     if constexpr (wFormat == CubeFormat::NZ) {
         if constexpr (bTrans) {
-            offset_.offsetB = nOffset * Mc2QuantUtils::WEIGHTNZ_K0_32;
+            offset_.offsetB = nOffset * QuantUtils::WEIGHTNZ_K0_32;
         } else {
             offset_.offsetB =
-                nOffset * Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::WEIGHTNZ_K0_16) * Mc2QuantUtils::WEIGHTNZ_K0_16;
+                nOffset * QuantUtils::CeilDiv(params_.k, QuantUtils::WEIGHTNZ_K0_16) * QuantUtils::WEIGHTNZ_K0_16;
         }
     } else {
         if constexpr (bTrans) {
@@ -329,14 +329,14 @@ __aicore__ inline void QuantASWBlockSch::CalcGMOffset()
 
     offset_.offsetC = mOffset * params_.n + nOffset;
 
-    if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
-        uint64_t pertokenScaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
-        uint64_t scaleK = Mc2QuantUtils::MXFP_MULTI_BASE_SIZE;
+    if constexpr (QuantUtils::IsMxType<scaleType>()) {
+        uint64_t pertokenScaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
+        uint64_t scaleK = QuantUtils::MXFP_MULTI_BASE_SIZE;
         if constexpr (!aTrans) { // mx (m, ceil(k / 64), 2)
-            pertokenScaleK *= Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::MXFP_DIVISOR_SIZE);
+            pertokenScaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
         }
         if constexpr (bTrans) { // mx (n, ceil(k / 64), 2)
-            scaleK *= Mc2QuantUtils::CeilDiv(params_.k, Mc2QuantUtils::MXFP_DIVISOR_SIZE);
+            scaleK *= QuantUtils::CeilDiv(params_.k, QuantUtils::MXFP_DIVISOR_SIZE);
         }
         offset_.offsetPerTokenScale = mOffset * pertokenScaleK;
         offset_.offsetScale = nOffset * scaleK;
@@ -348,5 +348,5 @@ __aicore__ inline void QuantASWBlockSch::CalcGMOffset()
     offset_.offsetPerTokenScale += params_.xScaleGroupAddrOffset;
     offset_.offsetBias = nOffset;
 }
-} // namespace Mc2GroupedMatmul
+} // namespace GroupedMatmul
 #endif // MC2_GROUPED_MATMUL_QUANT_BLOCK_SCH_H

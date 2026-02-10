@@ -145,7 +145,7 @@
     __gm__ int32_t *(var) = (__gm__ int32_t *)((tiling) + (offset##var));
 #endif
 
-namespace MC2_GROUPED_MATMUL {
+namespace GROUPED_MATMUL {
 using namespace AscendC;
 
 constexpr uint32_t INT8_BITS = 8;                                    // a int8 number has 8 bits
@@ -199,19 +199,19 @@ template <class AT_, class BT_, class CT_, class BiasT_, const auto &MM_CFG = CF
 
 enum class ActiveType : std::uint8_t { INVALID_TYPE = 0, RELU, GELU_TANH, GELU_ERR_FUNC, FASTGELU, SILU };
 
-template <typename T> __aicore__ inline T GreatestCommonDivisor(T x, T b)
+template <typename T> __aicore__ inline T GreatestCommonDivisor(T a, T b)
 {
-    T c = x;
-    if (x < b) {
-        x = b;
+    T c = a;
+    if (a < b) {
+        a = b;
         b = c;
     }
     while (b != 0) {
-        c = x;
-        x = b;
+        c = a;
+        a = b;
         b = c % b;
     }
-    return x;
+    return a;
 }
 
 template <typename T> __aicore__ inline T LeastCommonMultiple(T a, T b)
@@ -361,6 +361,6 @@ __aicore__ static constexpr MatmulConfig GenGmmConf(bool isND2NZ)
         .isCO1Shared = false,
     };
 }
-} // namespace MC2_GROUPED_MATMUL
+} // namespace GROUPED_MATMUL
 
 #endif // MC2_GROUPED_MATMUL_UTILS_H

@@ -24,7 +24,7 @@
         bool bTrans>
 #define LOCAL_TEMPLATE_FUNC_PARAMS xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans
 
-namespace Mc2QuantUtils {
+namespace QuantUtils {
 constexpr uint32_t PER_BLOCK_SIZE = 128;
 constexpr int32_t MXFP_DIVISOR_SIZE = 64;
 constexpr int32_t MXFP_MULTI_BASE_SIZE = 2;
@@ -156,11 +156,11 @@ __aicore__ inline void InitOutputWithZero(AscendC::GlobalTensor<T> yInitGlobal, 
     uint32_t blockIdx = AscendC::GetBlockIdx() / AscendC::GetTaskRation();
     // 仿照InitOutput接口取值
     uint64_t initSize =
-        (Mc2QuantUtils::MAX_REPEAT_TIMES * AscendC::ONE_BLK_SIZE) / sizeof(T); // 能存放输出dtype的多少个元素
-    uint64_t perCoreSize = Mc2QuantUtils::CeilDiv(ySize, usedCoreNum);
-    perCoreSize = MC2_GROUPED_MATMUL::AlignUp<Mc2QuantUtils::UB_ALIGN_SIZE>(perCoreSize * sizeof(T)) / sizeof(T);
-    initSize = Mc2QuantUtils::Min(initSize, perCoreSize);
-    uint64_t realCoreNum = Mc2QuantUtils::Min(Mc2QuantUtils::CeilDiv(ySize, initSize), static_cast<uint64_t>(usedCoreNum));
+        (QuantUtils::MAX_REPEAT_TIMES * AscendC::ONE_BLK_SIZE) / sizeof(T); // 能存放输出dtype的多少个元素
+    uint64_t perCoreSize = QuantUtils::CeilDiv(ySize, usedCoreNum);
+    perCoreSize = GROUPED_MATMUL::AlignUp<QuantUtils::UB_ALIGN_SIZE>(perCoreSize * sizeof(T)) / sizeof(T);
+    initSize = QuantUtils::Min(initSize, perCoreSize);
+    uint64_t realCoreNum = QuantUtils::Min(QuantUtils::CeilDiv(ySize, initSize), static_cast<uint64_t>(usedCoreNum));
     if (blockIdx >= realCoreNum) { // 多余核数返回，每个核上最少32B
         return;
     }

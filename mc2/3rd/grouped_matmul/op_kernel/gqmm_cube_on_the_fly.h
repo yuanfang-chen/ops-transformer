@@ -21,13 +21,13 @@
 #include "grouped_matmul_tiling_data_apt.h"
 using GMMQuantParams = Mc2GroupedMatmulTilingData::GMMQuantParams;
 
-namespace Mc2GroupedMatmul {
+namespace AscendC {
 constexpr uint64_t DEQ_SCALE_MUL = 0xFFFFE000;
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-class Mc2GmmASWKernel {
+class GmmASWKernel {
 public:
-    __aicore__ inline Mc2GmmASWKernel() {}
+    __aicore__ inline GmmASWKernel() {}
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList,
         GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR workspace, const GMMQuantParams *__restrict gmmBaseParamsIn,
         const TCubeTiling *__restrict mmTilingDataIn, TILING_TYPE *gmmArrayAddrIn, TPipe *que);
@@ -73,26 +73,26 @@ protected:
     GM_ADDR groupListPtr_;
     GM_ADDR perTokenScalePtr_;
     GM_ADDR yTensorPtr_;
-    Mc2GroupedMatmul::QuantASWBlockSch block_;
+    GroupedMatmul::QuantASWBlockSch block_;
 
     // mxType定义
-    using aType = typename AscendC::Conditional<Mc2QuantUtils::IsMxType<scaleType>(),
+    using aType = typename AscendC::Conditional<QuantUtils::IsMxType<scaleType>(),
         matmul::MatmulTypeWithScale<AscendC::TPosition::GM, AscendC::TPosition::GM, CubeFormat::ND, xType, aTrans>,
         matmul::MatmulType<AscendC::TPosition::GM, CubeFormat::ND, xType, aTrans>>::type;
-    using bType = typename AscendC::Conditional<Mc2QuantUtils::IsMxType<scaleType>(),
+    using bType = typename AscendC::Conditional<QuantUtils::IsMxType<scaleType>(),
         matmul::MatmulTypeWithScale<AscendC::TPosition::GM, AscendC::TPosition::GM, CubeFormat::ND, wType, bTrans>,
         matmul::MatmulType<AscendC::TPosition::GM, wFormat, wType, bTrans>>::type;
     using cType = matmul::MatmulType<AscendC::TPosition::GM, CubeFormat::ND, yType>;
     using biasMatmulType = matmul::MatmulType<AscendC::TPosition::GM, CubeFormat::ND, biasType>;
-    using MmType = typename AscendC::Conditional<Mc2QuantUtils::IsMxType<scaleType>(),
-        matmul::MatmulImpl<aType, bType, cType, biasMatmulType, Mc2QuantUtils::MM_CFG_NO_PRELOAD_OPEN_UNIT_FLAG,
+    using MmType = typename AscendC::Conditional<QuantUtils::IsMxType<scaleType>(),
+        matmul::MatmulImpl<aType, bType, cType, biasMatmulType, QuantUtils::MM_CFG_NO_PRELOAD_OPEN_UNIT_FLAG,
         MatmulCallBackFunc<nullptr, nullptr, nullptr>, AscendC::Impl::Detail::MatmulWithScalePolicy>,
-        matmul::MatmulImpl<aType, bType, cType, biasMatmulType, Mc2QuantUtils::MM_CFG_NO_PRELOAD_OPEN_UNIT_FLAG>>::type;
+        matmul::MatmulImpl<aType, bType, cType, biasMatmulType, QuantUtils::MM_CFG_NO_PRELOAD_OPEN_UNIT_FLAG>>::type;
     MmType mm_;
 };
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     GM_ADDR scale, GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR workspace,
     const GMMQuantParams *__restrict gmmBaseParamsIn, const TCubeTiling *__restrict mmTilingDataIn,
     TILING_TYPE *gmmArrayAddrIn, TPipe *que)
@@ -109,7 +109,7 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Init(GM_ADDR
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndParams(GM_ADDR x, GM_ADDR weight,
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndParams(GM_ADDR x, GM_ADDR weight,
     GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y, TILING_TYPE *gmmArrayAddrIn)
 {
     groupNum_ = gmmQuantParams_->groupNum;
@@ -123,37 +123,37 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::InitAddrAndP
     groupListPtr_ = groupList;
     perTokenScalePtr_ = perTokenScale;
     yTensorPtr_ = y;
-    if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+    if constexpr (QuantUtils::IsMxType<scaleType>()) {
         scaleAGlobal_.SetGlobalBuffer((__gm__ fp8_e8m0_t *)perTokenScale);
     }
     if (groupList != nullptr) {
         groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupList);
     }
     mListGm_ = gmmArrayAddrIn;
-    kListGm_ = gmmArrayAddrIn + MC2_GROUPED_MATMUL::MKN_LIST_LEN;
-    nListGm_ = gmmArrayAddrIn + MC2_GROUPED_MATMUL::MKN_LIST_LEN * 2; // 2: mListGm_ + kListGm_
+    kListGm_ = gmmArrayAddrIn + GROUPED_MATMUL::MKN_LIST_LEN;
+    nListGm_ = gmmArrayAddrIn + GROUPED_MATMUL::MKN_LIST_LEN * 2; // 2: mListGm_ + kListGm_
 }
 
 // 更新每个group的global地址
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlobalAddr(uint32_t groupIdx)
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlobalAddr(uint32_t groupIdx)
 {
-    if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
-        mxScaleBGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<fp8_e8m0_t>(0, scaleTensorPtr_) +
+    if constexpr (QuantUtils::IsMxType<scaleType>()) {
+        mxScaleBGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<fp8_e8m0_t>(0, scaleTensorPtr_) +
             block_.params_.wScaleGroupAddrOffset);
     } else {
-        __gm__ scaleType *scaleB = MC2_GROUPED_MATMUL::GetTensorAddr<scaleType>(0, scaleTensorPtr_) + groupIdx;
-        if (gmmQuantParams_->aQuantMode == static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE) &&
+        __gm__ scaleType *scaleB = GROUPED_MATMUL::GetTensorAddr<scaleType>(0, scaleTensorPtr_) + groupIdx;
+        if (gmmQuantParams_->aQuantMode == static_cast<uint32_t>(QuantUtils::QuantMode::PERTENSOR_MODE) &&
             gmmQuantParams_->bQuantMode ==
-            static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE)) { // doubleScale, M_SPLIT
+            static_cast<uint32_t>(QuantUtils::QuantMode::PERTENSOR_MODE)) { // doubleScale, M_SPLIT
             float scaleBValue = *((__gm__ float *)scaleB);
             float scaleAValue = *((__gm__ float *)perTokenScalePtr_ + groupIdx);
             float deqScale = scaleBValue * scaleAValue;
             uint32_t uint32Scale = *(reinterpret_cast<uint32_t *>(&deqScale));
             scaleScalar_ = uint32Scale & DEQ_SCALE_MUL; // fixpipe只能取高19位
-        } else if (gmmQuantParams_->aQuantMode == static_cast<uint32_t>(Mc2QuantUtils::QuantMode::DEFAULT) &&
+        } else if (gmmQuantParams_->aQuantMode == static_cast<uint32_t>(QuantUtils::QuantMode::DEFAULT) &&
             gmmQuantParams_->bQuantMode ==
-            static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE)) { // pertensor, M_SPLIT
+            static_cast<uint32_t>(QuantUtils::QuantMode::PERTENSOR_MODE)) { // pertensor, M_SPLIT
             if constexpr (!IsSameType<scaleType, uint64_t>::value && !IsSameType<scaleType, int64_t>::value) {
                 uint32_t uint32Scale = 0;
                 if constexpr (IsSameType<scaleType, bfloat16_t>::value) {
@@ -168,36 +168,36 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::UpdateMMGlob
                 scaleScalar_ = *((__gm__ uint64_t *)scaleB);
             }
         } else if (gmmQuantParams_->bQuantMode ==
-            static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERCHANNEL_MODE)) { // perChannel, M_SPLIT
-            scaleBGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<uint64_t>(0, scaleTensorPtr_) +
+            static_cast<uint32_t>(QuantUtils::QuantMode::PERCHANNEL_MODE)) { // perChannel, M_SPLIT
+            scaleBGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<uint64_t>(0, scaleTensorPtr_) +
                 block_.params_.wScaleGroupAddrOffset);
         }
     }
-    xGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<xType>(0, xTensorPtr_) + block_.params_.aGroupAddrOffset);
-    wGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<wType>(0, weightTensorPtr_) +
+    xGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<xType>(0, xTensorPtr_) + block_.params_.aGroupAddrOffset);
+    wGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<wType>(0, weightTensorPtr_) +
         block_.params_.bGroupAddrOffset);
-    yGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<yType>(0, yTensorPtr_) + block_.params_.cGroupAddrOffset);
+    yGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<yType>(0, yTensorPtr_) + block_.params_.cGroupAddrOffset);
     if (gmmQuantParams_->hasBias) {
-        biasGlobal_.SetGlobalBuffer(MC2_GROUPED_MATMUL::GetTensorAddr<biasType>(0, biasTensorPtr_) +
+        biasGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<biasType>(0, biasTensorPtr_) +
             block_.params_.biasGroupAddrOffset);
     }
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMNK(uint32_t groupIdx, int32_t &mSize,
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMNK(uint32_t groupIdx, int32_t &mSize,
     int32_t &nSize, int32_t &kSize)
 {
     int32_t splitValue =
-        Mc2QuantUtils::GetSplitValueFromGroupList(groupIdx, preOffset_, groupType_, groupListType_, groupListGlobal_);
+        QuantUtils::GetSplitValueFromGroupList(groupIdx, preOffset_, groupType_, groupListType_, groupListGlobal_);
     switch (groupType_) {
-        case (Mc2QuantUtils::SPLIT_M): {
+        case (QuantUtils::SPLIT_M): {
             mSize = splitValue;
             uint32_t valueIdx = gmmQuantParams_->singleW == 1 ? 0 : groupIdx;
             kSize = kListGm_[valueIdx];
             nSize = nListGm_[valueIdx];
             break;
         }
-        case (Mc2QuantUtils::SPLIT_K): {
+        case (QuantUtils::SPLIT_K): {
             mSize = gmmQuantParams_->singleX == 1 ? mListGm_[0] : mListGm_[groupIdx];
             kSize = splitValue;
             nSize = gmmQuantParams_->singleW == 1 ? nListGm_[0] : nListGm_[groupIdx];
@@ -213,7 +213,7 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMNK(uint3
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::CalcTailTile(uint64_t mTail, uint64_t nTail)
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::CalcTailTile(uint64_t mTail, uint64_t nTail)
 {
     // 计算实际 base 块数
     uint64_t tailCnt = block_.GetEndBlockIdx() + 1;
@@ -224,20 +224,20 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::CalcTailTile
     }
 
     // 初始化最小 tile 大小
-    uint64_t mMin = Mc2QuantUtils::CUBE_BLOCK;
-    uint64_t nMin = Mc2QuantUtils::CUBE_BLOCK;
+    uint64_t mMin = QuantUtils::CUBE_BLOCK;
+    uint64_t nMin = QuantUtils::CUBE_BLOCK;
 
     // 根据矩阵是否转置调整最小 tile 大小
     if constexpr (aTrans) {
-        mMin = Mc2QuantUtils::INNER_AXIS_MIN_SPLIT_VAL;
+        mMin = QuantUtils::INNER_AXIS_MIN_SPLIT_VAL;
     }
     if constexpr (!bTrans) {
-        nMin = Mc2QuantUtils::INNER_AXIS_MIN_SPLIT_VAL;
+        nMin = QuantUtils::INNER_AXIS_MIN_SPLIT_VAL;
     }
 
     // 计算 mTile 和 nTile，尽可能让m,n方向切分数一致
-    uint64_t mTile = MC2_GROUPED_MATMUL::Min(Mc2QuantUtils::CeilDiv(mTail, mMin), remainTile);
-    uint64_t nTile = MC2_GROUPED_MATMUL::Min(Mc2QuantUtils::CeilDiv(nTail, nMin), remainTile);
+    uint64_t mTile = GROUPED_MATMUL::Min(QuantUtils::CeilDiv(mTail, mMin), remainTile);
+    uint64_t nTile = GROUPED_MATMUL::Min(QuantUtils::CeilDiv(nTail, nMin), remainTile);
     while (mTile * nTile > remainTile) {
         if (mTile >= nTile) {
             mTile -= 1;
@@ -250,21 +250,21 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::CalcTailTile
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline bool Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::IsLastGroupAndNeedSplit(uint32_t groupIdx)
+__aicore__ inline bool GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::IsLastGroupAndNeedSplit(uint32_t groupIdx)
 {
     // 2: 剩一半及以上核数时才考虑尾块切分
     return groupIdx == groupNum_ - 1 && (block_.GetEndBlockIdx() + 1) <= mmTilingData_->usedCoreNum / 2;
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline bool Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::IsLastGroupAndRound(uint32_t groupIdx,
+__aicore__ inline bool GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::IsLastGroupAndRound(uint32_t groupIdx,
     uint64_t roundIdx)
 {
     return groupIdx == groupNum_ - 1 && roundIdx == block_.params_.round - 1 && blockIdx_ <= block_.GetEndBlockIdx();
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
 {
     if ASCEND_IS_AIV {
         return;
@@ -311,18 +311,18 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::Process()
 }
 
 LOCAL_TEMPLATE_CLASS_PARAMS
-__aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMMParaAndCompute()
+__aicore__ inline void GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMMParaAndCompute()
 {
     if ASCEND_IS_AIV {
         return;
     }
     mm_.SetSingleShape(block_.params_.singleCoreM, block_.params_.singleCoreN, block_.params_.k);
-    if constexpr (Mc2QuantUtils::IsMxType<scaleType>()) {
+    if constexpr (QuantUtils::IsMxType<scaleType>()) {
         mm_.SetTensorScaleA(scaleAGlobal_[block_.offset_.offsetPerTokenScale], aTrans);
         mm_.SetTensorScaleB(mxScaleBGlobal_[block_.offset_.offsetScale], bTrans);
     } else {
         if (gmmQuantParams_->bQuantMode ==
-            static_cast<uint32_t>(Mc2QuantUtils::QuantMode::PERTENSOR_MODE)) { // perTensor && doubleScale
+            static_cast<uint32_t>(QuantUtils::QuantMode::PERTENSOR_MODE)) { // perTensor && doubleScale
             mm_.SetQuantScalar(scaleScalar_);
         } else {
             mm_.SetQuantVector(scaleBGlobal_[block_.offset_.offsetScale]);
@@ -336,5 +336,5 @@ __aicore__ inline void Mc2GmmASWKernel<LOCAL_TEMPLATE_FUNC_PARAMS>::SetMMParaAnd
     mm_.Iterate();
     mm_.GetTensorC(yGlobal_[block_.offset_.offsetC]);
 }
-} // Mc2GroupedMatmul
+}
 #endif // MC2_GQMM_CUBE_ON_THE_FLY_H
