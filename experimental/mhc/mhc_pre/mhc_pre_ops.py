@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in the project root for details.
+# MIT License
+#
+# Copyright (c) 2025
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 """mhc_pre operator: Reduce N streams to 1 via weighted sum.
 
 This module provides PyTorch interface to the AscendC mhc_pre kernel.
@@ -10,13 +29,13 @@ Usage:
     output = mhc_pre_ops.mhc_pre(input_tensor, h_pre_weights)
 """
 
-import torch
 import logging
+
+import torch
 import torch_npu
 
 logger = logging.getLogger(__name__)
 
-# Try to import C++ extension (built via setup.py)
 try:
     import mhc_pre_ext
     _USE_CPP_EXT = True
@@ -27,24 +46,24 @@ except ImportError:
 
 def mhc_pre(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
     """Reduce N streams to 1 via weighted sum.
-    
+
     Mathematical operation:
         out[b, s, d] = sum_n(x[b*N + n, s, d] * h_pre[n])
-    
+
     Equivalent einsum:
         x_4d = x.view(batch, num_streams, seq_len, dim)
         out = torch.einsum('bnsd,n->bsd', x_4d, h_pre)
-    
+
     Args:
         x: Input tensor [batch * num_streams, seq_len, dim]
         h_pre: Weight tensor [num_streams]
-        
+
     Returns:
         Output tensor [batch, seq_len, dim]
     """
     if not _USE_CPP_EXT:
         raise RuntimeError("mhc_pre_ext not available. Build with setup.py first.")
-    
+
     return mhc_pre_ext.forward(x.contiguous(), h_pre.contiguous())
 
 
@@ -63,11 +82,11 @@ def mhc_pre_einsum(x: torch.Tensor, h_pre: torch.Tensor) -> torch.Tensor:
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
     torch.npu.set_device(0)
-    
+
     batch, seq_len, dim, num_streams = 2, 16, 32, 4
     x = torch.randn(batch * num_streams, seq_len, dim, dtype=torch.float32).npu()
     h = torch.randn(num_streams, dtype=torch.float32).npu()
-    
+
     out_npu = mhc_pre(x, h)
     out_ref = mhc_pre_einsum(x, h)
 

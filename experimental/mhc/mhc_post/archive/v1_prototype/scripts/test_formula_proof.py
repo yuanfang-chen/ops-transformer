@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in the project root for details.
+# MIT License
+#
+# Copyright (c) 2025
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 """
 mhc_post 正确性证明
 
@@ -8,16 +27,18 @@ mhc_post 正确性证明
 每一步都验证数学等价性
 """
 
+import logging
 import numpy as np
+logger = logging.getLogger(__name__)
 
-print("="*70)
-print("mhc_post 算子正确性证明")
-print("="*70)
+logger.info("="*70)
+logger.info("mhc_post 算子正确性证明")
+logger.info("="*70)
 
 #############################################
 # Step 1: 论文公式
 #############################################
-print("""
+logger.info("""
 [Step 1] 论文公式 (mHC arXiv:2512.24880 Equation 3)
 
   x_{l+1} = H_l^{res} · x_l + H_l^{post}^T · F(H_l^{pre} · x_l, W_l)
@@ -41,9 +62,9 @@ mhc_post计算:
 #############################################
 # Step 2: 准备测试数据
 #############################################
-print("\n" + "-"*70)
-print("[Step 2] 准备测试数据")
-print("-"*70)
+logger.info("\n" + "-"*70)
+logger.info("[Step 2] 准备测试数据")
+logger.info("-"*70)
 
 batch, seq_len, dim, num_streams = 2, 3, 4, 3
 
@@ -52,21 +73,21 @@ branch_output = np.arange(batch * seq_len * dim, dtype=np.float32).reshape(batch
 h_post_raw = np.array([1.0, 2.0, 3.0], dtype=np.float32)
 h_post = np.exp(h_post_raw) / np.sum(np.exp(h_post_raw))  # softmax
 
-print(f"  batch={batch}, seq_len={seq_len}, dim={dim}, num_streams={num_streams}")
-print(f"\n  branch_output shape: {branch_output.shape}")
-print(f"  branch_output[0,0,:] = {branch_output[0,0,:]}")
-print(f"  branch_output[1,0,:] = {branch_output[1,0,:]}")
-print(f"\n  h_post (softmax): {h_post}")
-print(f"  h_post.sum() = {h_post.sum():.6f} (应为1.0)")
+logger.info(f"  batch={batch}, seq_len={seq_len}, dim={dim}, num_streams={num_streams}")
+logger.info(f"\n  branch_output shape: {branch_output.shape}")
+logger.info(f"  branch_output[0,0,:] = {branch_output[0,0,:]}")
+logger.info(f"  branch_output[1,0,:] = {branch_output[1,0,:]}")
+logger.info(f"\n  h_post (softmax): {h_post}")
+logger.info(f"  h_post.sum() = {h_post.sum():.6f} (应为1.0)")
 
 #############################################
 # Step 3: 方法1 - einsum实现 (PyTorch参考代码的等价numpy版)
 #############################################
-print("\n" + "-"*70)
-print("[Step 3] 方法1: einsum实现 (对应PyTorch参考代码)")
-print("-"*70)
+logger.info("\n" + "-"*70)
+logger.info("[Step 3] 方法1: einsum实现 (对应PyTorch参考代码)")
+logger.info("-"*70)
 
-print("""
+logger.info("""
   PyTorch参考代码 (hyper_connections_mhc.py):
   
     output = einsum(branch_output, beta, "b ... d, s -> b ... s d")
@@ -77,30 +98,30 @@ print("""
 
 # einsum: "b seq d, s -> b seq s d"
 tmp = np.einsum('bqd,s->bqsd', branch_output, h_post)
-print(f"  einsum后 shape: {tmp.shape}  # [batch, seq, streams, dim]")
+logger.info(f"  einsum后 shape: {tmp.shape}  # [batch, seq, streams, dim]")
 
 # rearrange: "b seq s d -> (b s) seq d"
 # 注意: 这里的语义是先batch再 stream，即 output[b*s + i]
 output_einsum = tmp.transpose(0, 2, 1, 3).reshape(batch * num_streams, seq_len, dim)
-print(f"  rearrange后 shape: {output_einsum.shape}  # [batch*streams, seq, dim]")
+logger.info(f"  rearrange后 shape: {output_einsum.shape}  # [batch*streams, seq, dim]")
 
-print(f"\n  验证几个值:")
+logger.info(f"\n  验证几个值:")
 for b in range(batch):
     for s in range(num_streams):
         idx = b * num_streams + s
         expected = branch_output[b, 0, 0] * h_post[s]
         actual = output_einsum[idx, 0, 0]
         match = "✓" if np.isclose(expected, actual) else "✗"
-        print(f"    output[{idx},0,0] = branch[{b},0,0] * h_post[{s}] = {branch_output[b,0,0]:.1f} * {h_post[s]:.4f} = {expected:.4f} | 实际: {actual:.4f} {match}")
+        logger.info(f"    output[{idx},0,0] = branch[{b},0,0] * h_post[{s}] = {branch_output[b,0,0]:.1f} * {h_post[s]:.4f} = {expected:.4f} | 实际: {actual:.4f} {match}")
 
 #############################################
 # Step 4: 方法2 - 循环实现 (CPU参考实现)
 #############################################
-print("\n" + "-"*70)
-print("[Step 4] 方法2: 循环实现 (CPU参考代码)")
-print("-"*70)
+logger.info("\n" + "-"*70)
+logger.info("[Step 4] 方法2: 循环实现 (CPU参考代码)")
+logger.info("-"*70)
 
-print("""
+logger.info("""
   CPU参考代码 (test_mhc_post.cpp 中的 mhc_post_cpu):
   
     for b in range(batch):
@@ -121,20 +142,20 @@ for b in range(batch):
             for d in range(dim):
                 output_loop[out_batch_idx, seq, d] = branch_output[b, seq, d] * weight
 
-print(f"  output_loop shape: {output_loop.shape}")
+logger.info(f"  output_loop shape: {output_loop.shape}")
 
 # 验证与einsum一致
 diff = np.max(np.abs(output_einsum - output_loop))
-print(f"\n  与einsum结果对比: max_diff = {diff:.2e} {"✓ 完全一致" if diff == 0 else "✗ 有差异"}")
+logger.info("\n  与einsum结果对比: max_diff = %.2e %s", diff, "✓ 完全一致" if diff == 0 else "✗ 有差异")
 
 #############################################
 # Step 5: 方法3 - 向量化实现 (NPU kernel的逻辑)
 #############################################
-print("\n" + "-"*70)
-print("[Step 5] 方法3: 向量化实现 (NPU kernel逻辑)")
-print("-"*70)
+logger.info("\n" + "-"*70)
+logger.info("[Step 5] 方法3: 向量化实现 (NPU kernel逻辑)")
+logger.info("-"*70)
 
-print("""
+logger.info("""
   NPU Kernel逻辑 (mhc_post_kernel.cpp):
   
     // 每个block处理一个(batch_idx, stream_idx)组合
@@ -162,22 +183,22 @@ for block_idx in range(batch * num_streams):
     # 向量乘法: 整个batch的数据乘以weight
     output_vectorized[block_idx] = branch_output[batch_idx] * weight
 
-print(f"  output_vectorized shape: {output_vectorized.shape}")
+logger.info(f"  output_vectorized shape: {output_vectorized.shape}")
 
 # 验证与前两种方法一致
 diff1 = np.max(np.abs(output_einsum - output_vectorized))
 diff2 = np.max(np.abs(output_loop - output_vectorized))
-print(f"\n  与einsum结果对比: max_diff = {diff1:.2e} {"✓" if diff1 == 0 else "✗"}")
-print(f"  与循环结果对比: max_diff = {diff2:.2e} {"✓" if diff2 == 0 else "✗"}")
+logger.info("\n  与einsum结果对比: max_diff = %.2e %s", diff1, "✓" if diff1 == 0 else "✗")
+logger.info("  与循环结果对比: max_diff = %.2e %s", diff2, "✓" if diff2 == 0 else "✗")
 
 #############################################
 # Step 6: 总结
 #############################################
-print("\n" + "="*70)
-print("[结论] 正确性证明")
-print("="*70)
+logger.info("\n" + "="*70)
+logger.info("[结论] 正确性证明")
+logger.info("="*70)
 
-print("""
+logger.info("""
   1. 论文公式:
      output[b*s+i, seq, d] = branch_output[b, seq, d] × h_post[i]
 

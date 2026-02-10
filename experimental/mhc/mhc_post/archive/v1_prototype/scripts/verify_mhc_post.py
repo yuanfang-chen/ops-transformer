@@ -1,6 +1,25 @@
 #!/usr/bin/env python3
-# Copyright (c) 2025. All rights reserved.
-# Licensed under the MIT License. See LICENSE file in the project root for details.
+# MIT License
+#
+# Copyright (c) 2025
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 """
 mhc_post 算子验证脚本
 
@@ -19,7 +38,9 @@ mhc_post 对应的是: H_l^{post}^T * branch_output
 即: output[b*num_streams + s, seq, d] = branch_output[b, seq, d] * h_post[s]
 """
 
+import logging
 import numpy as np
+logger = logging.getLogger(__name__)
 
 def softmax(x):
     """Softmax归一化，与论文中H_post的约束一致"""
@@ -52,9 +73,9 @@ def mhc_post_reference(branch_output, h_post):
 
 def verify_formula():
     """验证公式正确性"""
-    print("=" * 60)
-    print("mhc_post 公式验证")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("mhc_post 公式验证")
+    logger.info("=" * 60)
     
     # 小规模数据便于手工验证
     batch, seq_len, dim = 2, 2, 4
@@ -65,39 +86,39 @@ def verify_formula():
     h_post_raw = np.array([1.0, 2.0, 3.0], dtype=np.float32)
     h_post = softmax(h_post_raw)
     
-    print(f"\n输入参数:")
-    print(f"  batch={batch}, seq_len={seq_len}, dim={dim}, num_streams={num_streams}")
-    print(f"\nbranch_output shape: {branch_output.shape}")
-    print(f"branch_output[0,0,:] = {branch_output[0,0,:]}")
-    print(f"branch_output[1,0,:] = {branch_output[1,0,:]}")
-    print(f"\nh_post (softmax归一化): {h_post}")
-    print(f"h_post sum = {np.sum(h_post):.6f} (应为1.0)")
+    logger.info(f"\n输入参数:")
+    logger.info(f"  batch={batch}, seq_len={seq_len}, dim={dim}, num_streams={num_streams}")
+    logger.info(f"\nbranch_output shape: {branch_output.shape}")
+    logger.info(f"branch_output[0,0,:] = {branch_output[0,0,:]}")
+    logger.info(f"branch_output[1,0,:] = {branch_output[1,0,:]}")
+    logger.info(f"\nh_post (softmax归一化): {h_post}")
+    logger.info(f"h_post sum = {np.sum(h_post):.6f} (应为1.0)")
     
     # 计算参考结果
     output = mhc_post_reference(branch_output, h_post)
     
-    print(f"\n输出 shape: {output.shape}")
-    print(f"  期望: ({batch * num_streams}, {seq_len}, {dim})")
+    logger.info(f"\n输出 shape: {output.shape}")
+    logger.info(f"  期望: ({batch * num_streams}, {seq_len}, {dim})")
     
     # 手工验证几个点
-    print(f"\n手工验证:")
+    logger.info(f"\n手工验证:")
     for b in range(batch):
         for s in range(num_streams):
             out_idx = b * num_streams + s
             expected = branch_output[b, 0, 0] * h_post[s]
             actual = output[out_idx, 0, 0]
             match = "✓" if np.isclose(expected, actual) else "✗"
-            print(f"  output[{out_idx},0,0] = branch_output[{b},0,0] * h_post[{s}]")
-            print(f"    = {branch_output[b,0,0]:.4f} * {h_post[s]:.4f} = {expected:.4f}")
-            print(f"    实际值: {actual:.4f} {match}")
+            logger.info(f"  output[{out_idx},0,0] = branch_output[{b},0,0] * h_post[{s}]")
+            logger.info(f"    = {branch_output[b,0,0]:.4f} * {h_post[s]:.4f} = {expected:.4f}")
+            logger.info(f"    实际值: {actual:.4f} {match}")
     
     return True
 
 def compare_with_einsum():
     """与einsum实现对比验证"""
-    print("\n" + "=" * 60)
-    print("与 einsum 参考实现对比")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("与 einsum 参考实现对比")
+    logger.info("=" * 60)
     
     batch, seq_len, dim = 4, 8, 64
     num_streams = 4
@@ -116,16 +137,16 @@ def compare_with_einsum():
     
     # 对比
     max_diff = np.max(np.abs(output1 - output2))
-    print(f"\n最大差异: {max_diff:.2e}")
-    print(f"是否一致: {'✓ PASS' if max_diff < 1e-6 else '✗ FAIL'}")
+    logger.info(f"\n最大差异: {max_diff:.2e}")
+    logger.info(f"是否一致: {'✓ PASS' if max_diff < 1e-6 else '✗ FAIL'}")
     
     return max_diff < 1e-6
 
 def generate_test_vectors():
     """生成用于NPU算子验证的测试向量"""
-    print("\n" + "=" * 60)
-    print("生成NPU验证测试向量")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("生成NPU验证测试向量")
+    logger.info("=" * 60)
     
     # 使用与C++测试相同的参数
     batch, seq_len, dim = 2, 4, 64
@@ -137,38 +158,38 @@ def generate_test_vectors():
     h_post_raw = np.array([float(i + 1) for i in range(num_streams)], dtype=np.float32)
     h_post = softmax(h_post_raw)
     
-    print(f"\nh_post weights: {h_post}")
+    logger.info(f"\nh_post weights: {h_post}")
     
     # 计算期望输出
     expected_output = mhc_post_reference(branch_output, h_post)
     
     # 打印部分结果用于对比
-    print(f"\n期望输出 (前几个值):")
+    logger.info(f"\n期望输出 (前几个值):")
     for s in range(num_streams):
-        print(f"  stream {s}: output[{s},0,:4] = {expected_output[s, 0, :4]}")
+        logger.info(f"  stream {s}: output[{s},0,:4] = {expected_output[s, 0, :4]}")
     
     # 保存为二进制文件供C++读取
     branch_output.tofile('/root/tst/mhc_post/branch_output.bin')
     h_post.tofile('/root/tst/mhc_post/h_post.bin')
     expected_output.tofile('/root/tst/mhc_post/expected_output.bin')
     
-    print(f"\n测试向量已保存到:")
-    print(f"  branch_output.bin: {branch_output.shape}")
-    print(f"  h_post.bin: {h_post.shape}")
-    print(f"  expected_output.bin: {expected_output.shape}")
+    logger.info(f"\n测试向量已保存到:")
+    logger.info(f"  branch_output.bin: {branch_output.shape}")
+    logger.info(f"  h_post.bin: {h_post.shape}")
+    logger.info(f"  expected_output.bin: {expected_output.shape}")
     
     return h_post, expected_output
 
 if __name__ == '__main__':
-    print("\nmhc_post 算子原理验证\n")
-    print("论文: mHC: Manifold-Constrained Hyper-Connections (DeepSeek 2024.12.31)")
-    print("公式: output = H_post^T ⊗ branch_output")
-    print("      output[b*s+i, seq, d] = branch_output[b, seq, d] * h_post[i]")
+    logger.info("\nmhc_post 算子原理验证\n")
+    logger.info("论文: mHC: Manifold-Constrained Hyper-Connections (DeepSeek 2024.12.31)")
+    logger.info("公式: output = H_post^T ⊗ branch_output")
+    logger.info("      output[b*s+i, seq, d] = branch_output[b, seq, d] * h_post[i]")
     
     verify_formula()
     compare_with_einsum()
     generate_test_vectors()
     
-    print("\n" + "=" * 60)
-    print("验证完成")
-    print("=" * 60)
+    logger.info("\n" + "=" * 60)
+    logger.info("验证完成")
+    logger.info("=" * 60)
