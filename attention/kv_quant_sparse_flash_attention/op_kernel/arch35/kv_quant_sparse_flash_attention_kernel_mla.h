@@ -323,7 +323,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Process()
 }
 
 template <typename QSFAT>
-__aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
+__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
 {
     // uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
     // if (hasLoad == 0) {
@@ -331,12 +331,13 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
     // }
 
     // 从meta data解析分核信息
-    // uint32_t bN2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_START_INDEX, false));
-    // uint32_t gS1StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_START_INDEX, false));
-    // uint32_t s2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_START_INDEX, false));
-    // uint32_t bN2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_END_INDEX, false));
-    // uint32_t nextGs1Idx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_END_INDEX, false));
-    // uint32_t s2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_END_INDEX, false));
+    // 【TODO】
+    uint32_t bN2StartIdx = 0;
+    uint32_t gS1StartIdx = 0;
+    uint32_t s2StartIdx = 0;
+    uint32_t bN2EndIdx = 0;
+    uint32_t nextGs1Idx = 0;
+    uint32_t s2EndIdx = 0;
     uint32_t s2LoopLimit = 0;
 
     if (nextGs1Idx != 0) {
@@ -352,9 +353,9 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
         bool lastBN = (bnIdx == bN2EndIdx - 1);
         runParam.boIdx = bnIdx;
         runParam.n2oIdx = 0;
-        ComputeParamBatch<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, // 【YXC TODO】
+        ComputeParamBatch<QSFAT>(runParam, this->constInfo, // 【YXC TODO】
             this->cuSeqlensQAddr, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
-        ComputeS1LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
+        ComputeS1LoopInfo<QSFAT>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
 
         int64_t gS1LoopEnd = lastBN ? (runParam.gs1LoopEndIdx + PRELOAD_NUM) : runParam.gs1LoopEndIdx;
         for (int64_t gS1Index = runParam.gs1LoopStartIdx; gS1Index < gS1LoopEnd; gS1Index++) {
@@ -375,10 +376,10 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
             }
             if (notLastTwoLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
-                bool s1NoNeedCalc = ComputeParamS1<TEMPLATE_INTF_ARGS>(
+                bool s1NoNeedCalc = ComputeParamS1<QSFAT>(
                     runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr); // 【YXC TODO】
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<QSFAT>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
@@ -467,7 +468,15 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::SetRunInfo(
     InitUniqueRunInfo(runParam, runInfo);
 }
 
-template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeBmm1Tail(
+template <typename QSFAT>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitUniqueRunInfo(
+    const RunParamStr &runParam, RunInfo_arch35 &runInfo)
+{
+    InitTaskParamByRun<QSFAT>(runParam, runInfo);
+}
+
+template <typename QSFAT>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeBmm1Tail(
     RunInfo_arch35 &runInfo, RunParamStr &runParam)
 {
     // ------------------------S1 Base Related---------------------------
