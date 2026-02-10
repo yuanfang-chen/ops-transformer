@@ -199,7 +199,7 @@ aclnnStatus AclnnGroupedMatmul91095Checker<T>::CheckWeightNzSpecialParams() cons
     CHECK_COND(
         isInt8 || isMxFp8, ACLNN_ERR_PARAM_INVALID,
         "Weight FRACTAL_NZ is only supported in the following scenarios, scenario 1: the x dtype and weight dtype \
-should be int8, scenarios2: is mx quant mode with x dype and weight dtype is float8_e4m3fn, but x dtype is %s, \
+should be int8, scenarios2: the x dype and weight dtype should be float8_e4m3fn with mx quant, but x dtype is %s, \
 weight dtype is %s and scale dtype is %s.",
         op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString(),
         op::ToString(scaleDtype).GetString());

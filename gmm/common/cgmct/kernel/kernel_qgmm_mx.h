@@ -48,12 +48,12 @@ constexpr uint64_t IDX_N_TAIL_SPLIT_TILEIDX = 3UL;
 } // namespace
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-class QuantMmGroupedMx {
+class KernelQGmmMx {
 public:
-    __aicore__ inline QuantMmGroupedMx()
+    __aicore__ inline KernelQGmmMx()
     {
     }
-    __aicore__ inline ~QuantMmGroupedMx()
+    __aicore__ inline ~KernelQGmmMx()
     {
     }
 
@@ -135,7 +135,6 @@ private:
     __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx);
     __aicore__ inline void UpdateMMGlobalAddr();
     __aicore__ inline void Iterate(int64_t singleCoreM, int64_t singleCoreN);
-    __aicore__ inline void End();
 
 private:
     BlockMmad mmadOp_;
@@ -169,7 +168,7 @@ private:
 };
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Params &params)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(const Params &params)
 {
     Init(params);
     BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
@@ -184,7 +183,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(cons
         UpdateOffset(groupIdx);
         // Update input parameters M, N, K within the group
         SetMNK(groupIdx);
-        if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_N>(problemShape_) <= 0 || Get<MNK_K>(problemShape_) <= 0) {
+        if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_K>(problemShape_) <= 0) {
             continue;
         }
         if ASCEND_IS_AIC {
@@ -201,7 +200,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Run(cons
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const Params &params)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const Params &params)
 {
     xTensorPtr_ = params.mmadParams.aGmAddr;
     wTensorPtr_ = params.mmadParams.bGmAddr;
@@ -225,8 +224,6 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(con
                        static_cast<int64_t>(params.gmmParams.baseK)};
     int64_t scaleFactorA = static_cast<int64_t>(params.gmmParams.mxTypePara & 0xff);        // low 8B is scaleFactorA
     int64_t scaleFactorB = static_cast<int64_t>((params.gmmParams.mxTypePara >> 8) & 0xff); // 8B-16B is scaleFactorB
-    // TODO 分析下L1的scale的搬运逻辑是否需要不一致？
-
     int64_t kL1A = static_cast<int64_t>(params.gmmParams.stepKa) * static_cast<int64_t>(params.gmmParams.baseK);
     int64_t kL1B = static_cast<int64_t>(params.gmmParams.stepKb) * static_cast<int64_t>(params.gmmParams.baseK);
     int64_t scaleKL1 = AscendC::Std::min(scaleFactorA * kL1A, scaleFactorB * kL1B);
@@ -241,8 +238,8 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(con
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBalance(BlockSchedulerOp &bs, int64_t m,
-                                                                                     int64_t baseM)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBalance(BlockSchedulerOp &bs, int64_t m,
+                                                                                 int64_t baseM)
 {
     if constexpr (transA) {
         bs.UpdateBaseM(baseM);
@@ -256,7 +253,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::BaseMBal
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t groupIdx)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOffset(uint32_t groupIdx)
 {
     // baseOffset is 0 when groupIdx = 0
     if (groupIdx == 0) {
@@ -297,9 +294,9 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateOf
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::ProcessSingleGroup(const Params &params,
-                                                                                           BlockSchedulerOp &bs,
-                                                                                           uint32_t groupIdx)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::ProcessSingleGroup(const Params &params,
+                                                                                       BlockSchedulerOp &bs,
+                                                                                       uint32_t groupIdx)
 {
     CoordClass coord(Get<MNK_M>(problemShape_), Get<MNK_N>(problemShape_), Get<MNK_K>(problemShape_),
                      static_cast<int64_t>(curBaseM_), params.gmmParams.baseN, params.gmmParams.baseK);
@@ -317,8 +314,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::ProcessS
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Iterate(int64_t singleCoreM,
-                                                                                int64_t singleCoreN)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Iterate(int64_t singleCoreM, int64_t singleCoreN)
 {
     AscendC::Std::tuple<int64_t, int64_t, int64_t> blockShape{singleCoreM, singleCoreN,
                                                               static_cast<int64_t>(Get<MNK_K>(problemShape_))};
@@ -329,7 +325,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Iterate(
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::SetMNK(uint32_t groupIdx)
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::SetMNK(uint32_t groupIdx)
 {
     int32_t splitValue = GetSplitValueFromGroupList(groupIdx);
     if (groupType_ == GMM_SPLIT_M) {
@@ -340,7 +336,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::SetMNK(u
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMMGlobalAddr()
+__aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMMGlobalAddr()
 {
     // single MM
     aGlobal_.SetGlobalBuffer(GetTensorAddr<AType>(0, xTensorPtr_) + Get<IDX_A_OFFSET>(baseOffset_));
@@ -356,7 +352,7 @@ __aicore__ inline void QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMM
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
-__aicore__ inline int32_t QuantMmGroupedMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
+__aicore__ inline int32_t KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
 {
     int32_t splitValue = 0;
     if (likely(groupType_ != -1)) { // -1: no  need to split

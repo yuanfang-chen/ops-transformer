@@ -64,7 +64,7 @@ __aicore__ inline void GmmCgmctMxKernel(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     // 定义BlockEpilogue类型
     using BlockEpilogue = Block::BlockEpilogueEmpty;
     // 定义Kernel类型
-    using GmmKernel = Kernel::QuantMmGroupedMx<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler>;
+    using GmmKernel = Kernel::KernelQGmmMx<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler>;
     using Params = typename GmmKernel::Params;
     using GMMTiling = typename GmmKernel::GMMTiling;
     GMMTiling gmmParams{mmTilingDataIn->M,         mmTilingDataIn->N,          mmTilingDataIn->Ka,
@@ -72,7 +72,6 @@ __aicore__ inline void GmmCgmctMxKernel(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
                         mmTilingDataIn->stepM,     mmTilingDataIn->stepN,      mmTilingDataIn->stepKa,
                         mmTilingDataIn->stepKb,    mmTilingDataIn->mxTypePara, mmTilingDataIn->isBias,
                         gmmBaseParamsIn->groupNum, gmmBaseParamsIn->groupType, gmmBaseParamsIn->groupListType};
-    // G-B only support S-S-S
     Params params = {{1, 1, 1, 1},                                          // shape
                      {x, weight, scale, perTokenScale, y, bias, groupList}, // gm addr
                      gmmParams};

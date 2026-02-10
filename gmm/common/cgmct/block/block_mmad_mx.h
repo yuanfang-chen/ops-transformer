@@ -25,6 +25,23 @@ namespace Cgmct {
 namespace Gemm {
 namespace Block {
 using namespace AscendC;
+namespace {
+constexpr static uint64_t HALF_L0C_SIZE = AscendC::TOTAL_L0C_SIZE / DOUBLE_BUFFER_COUNT / sizeof(float);
+constexpr static uint64_t BLOCK_REDUCE_CUBE = 32UL;
+constexpr static uint64_t IDX_M_TILE_IDX = 0UL;
+constexpr static uint64_t IDX_N_TILE_IDX = 1UL;
+constexpr static uint64_t IDX_M_IDX = 0UL;
+constexpr static uint64_t IDX_N_IDX = 1UL;
+constexpr static uint64_t IDX_K_IDX = 2UL;
+constexpr static uint64_t SCALE_BUFFER_NUM = 2UL;
+constexpr static uint64_t EVEN_FACTOR = 2UL;
+constexpr static uint64_t B8_MIN_STEP = 2UL;
+constexpr static uint16_t INPUT_BUFFER_FLAG_0 = 0;
+constexpr static uint16_t INPUT_BUFFER_FLAG_1 = 1;
+constexpr static uint16_t INPUT_BUFFER_FLAG_2 = 2;
+constexpr static uint16_t INPUT_BUFFER_FLAG_3 = 3;
+constexpr static uint16_t SCALE_BUFFER_FLAG_0 = 4;
+constexpr static uint16_t SCALE_BUFFER_FLAG_1 = 5;
 
 struct TileL1L0Param {
     uint64_t curM = 0;
@@ -33,10 +50,12 @@ struct TileL1L0Param {
     uint64_t curAlignN = 0;
     uint64_t curGmAKL1 = 0;
     uint64_t curGmBKL1 = 0;
-    uint64_t curPadAKL1 = 0; // pad to 64 align
-    uint64_t curPadBKL1 = 0; // pad to 64 align
+    uint64_t curPadAKL1 = 0; // pad to 64 align for mx
+    uint64_t curPadBKL1 = 0; // pad to 64 align for mx
     uint64_t curKL0 = 0;
 };
+
+} // namespace
 
 template <class DispatchPolicy_, class L1TileShape_, class L0TileShape_, class AType_, class LayoutA_, class BType_,
           class LayoutB_, class CType_, class LayoutC_, class BiasType_, class LayoutBias_, class TileCopy_,
@@ -59,7 +78,6 @@ public:
     using CType = CType_;
     using LayoutA = LayoutA_;
     using LayoutB = LayoutB_;
-    using LayoutC = LayoutC_;
     using L1TileShape = L1TileShape_;
     using L0TileShape = L0TileShape_;
     using MxL0AType = typename GetL0DataType<AType, true>::Type;
@@ -68,47 +86,12 @@ public:
     using DispatchPolicy = DispatchPolicy_;
     using TupleShape = AscendC::Shape<int64_t, int64_t, int64_t>;
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t>;
-    static constexpr CubeFormat FormatB = TagToFormat<LayoutB>::format;
-    uint64_t m_;
-    uint64_t n_;
-    uint64_t k_;
-    uint64_t l1BufNum_{1};
-    uint64_t kAL1_{1};
-    uint64_t kBL1_{1};
-    uint64_t minKL1_{1};
-    uint64_t scaleKL1_{1};
-    uint64_t baseM_{16};
-    uint64_t baseN_{16};
-    uint64_t baseK_{16};
-    bool orderAL1BL1_{false};
-    bool isBias_{false};
     static constexpr bool transA = TagToTrans<LayoutA>::value;
     static constexpr bool transB = TagToTrans<LayoutB>::value;
+    static constexpr CubeFormat FormatB = TagToFormat<LayoutB>::format;
     constexpr static uint64_t HALF_L0_SIZE = L0A_SIZE / DOUBLE_BUFFER_COUNT / sizeof(AType);
-    constexpr static uint64_t HALF_L0C_SIZE = AscendC::TOTAL_L0C_SIZE / DOUBLE_BUFFER_COUNT / sizeof(float);
     constexpr static int32_t C0_SIZE = AscendC::AuxGetC0Size<AType>();
     constexpr static int32_t BIAS_C0 = AscendC::AuxGetC0Size<BiasType>();
-    constexpr static uint64_t BLOCK_REDUCE_CUBE = 32UL;
-    constexpr static uint64_t MXFP_GROUP_SIZE = 32UL;
-    constexpr static uint64_t MXFP_DIVISOR_SIZE = 64UL;
-    constexpr static uint64_t MXFP_MULTI_BASE_SIZE = 2;
-    constexpr static uint64_t IDX_M_TILE_IDX = 0UL;
-    constexpr static uint64_t IDX_N_TILE_IDX = 1UL;
-    constexpr static uint64_t IDX_M_IDX = 0UL;
-    constexpr static uint64_t IDX_N_IDX = 1UL;
-    constexpr static uint64_t IDX_K_IDX = 2UL;
-    constexpr static uint64_t SCALE_BUFFER_NUM = 2;
-    constexpr static uint64_t EVEN_FACTOR = 2UL;
-    constexpr static uint64_t B8_MIN_STEP = 2UL;
-    // Set unitflag state: 3 = final accumulation, 2 = non-final accumulation
-    constexpr static uint32_t FINAL_ACCUMULATION = 3;
-    constexpr static uint32_t NON_FINAL_ACCUMULATION = 2;
-    uint64_t aL1LoopCnt_{0};
-    uint64_t bL1LoopCnt_{0};
-    uint64_t scaleLoopCnt_{0};
-    uint64_t l0PingPong_{0};
-    uint64_t l0cPingPong_{0};
-    bool enableL0cPingPong_{false};
 
     struct Params {
         GM_ADDR aGmAddr{nullptr};
@@ -173,7 +156,8 @@ public:
         l1BufNum_ = l1Params.l1BufNum;
         enableL0cPingPong_ = dbL0C;
         bL1OneBuffer_ = baseN_ * Cgmct::Gemm::Align(kBL1_, MXFP_DIVISOR_SIZE);
-        auto mxScaleKL1 = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE) * MXFP_MULTI_BASE_SIZE;
+        mxScaleKL1B16_ = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE);
+        auto mxScaleKL1 = mxScaleKL1B16_ * MXFP_MULTI_BASE_SIZE;
         scaleBL1OneBuffer_ = baseN_ * mxScaleKL1;
         if (isBias_) {
             biasL1OneBuffer_ = baseN_ * sizeof(BiasType);
@@ -185,8 +169,7 @@ public:
             // 4 buffer: L1 space is : A0A2|B0B2|AScale0|BScale0|bias0|...|A1A3|B1B3|AScale1|BScale1|bias1|...
             uint64_t l1Offset = (AscendC::TOTAL_L1_SIZE >> 1) * (bufferId & 1);
             l1BufferAOffset_[bufferId] = l1Offset + aL1OneBuffer_ * (bufferId >> 1);
-            l1BufferBOffset_[bufferId] =
-                l1Offset + aL1OneBuffer_ * (l1BufNum_ >> 1) + bL1OneBuffer_ * (bufferId >> 1);
+            l1BufferBOffset_[bufferId] = l1Offset + aL1OneBuffer_ * (l1BufNum_ >> 1) + bL1OneBuffer_ * (bufferId >> 1);
         }
         for (int32_t bufferId = 0; bufferId < SCALE_BUFFER_NUM; bufferId++) {
             l1BufferScaleAOffset_[bufferId] = l1BufferBOffset_[bufferId] + bL1OneBuffer_ * (l1BufNum_ >> 1);
@@ -203,7 +186,7 @@ public:
     }
 
     __aicore__ inline void CopyInA1(const AscendC::GlobalTensor<AType> &aGlobal,
-                                    const AscendC::LocalTensor<AType> &al1Local, TileL1L0Param &tileL1L0Param)
+                                    const AscendC::LocalTensor<AType> &al1Local, const TileL1L0Param &tileL1L0Param)
     {
         AscendC::Nd2NzParams nd2nzParams;
         nd2nzParams.ndNum = 1;
@@ -221,7 +204,7 @@ public:
     }
 
     __aicore__ inline void CopyInB1(const AscendC::GlobalTensor<BType> &bGlobal,
-                                    const AscendC::LocalTensor<BType> &bl1Local, TileL1L0Param &tileL1L0Param)
+                                    const AscendC::LocalTensor<BType> &bl1Local, const TileL1L0Param &tileL1L0Param)
     {
         AscendC::Nd2NzParams nd2nzParams;
         nd2nzParams.ndNum = 1;
@@ -239,7 +222,8 @@ public:
     }
 
     __aicore__ inline void CopyInB1WeightNz(const AscendC::GlobalTensor<BType> &bGlobal,
-                                            const AscendC::LocalTensor<BType> &bl1Local, TileL1L0Param &tileL1L0Param)
+                                            const AscendC::LocalTensor<BType> &bl1Local,
+                                            const TileL1L0Param &tileL1L0Param)
     {
         AscendC::GlobalTensor<uint8_t> bGlobalUInt8;
         bGlobalUInt8.SetGlobalBuffer((__gm__ uint8_t *)bGlobal.GetPhyAddr());
@@ -263,7 +247,7 @@ public:
         AscendC::DataCopyPad(bl1LocalUint8, bGlobalUInt8, dataCopyParams, padParams);
     }
 
-    __aicore__ inline void InitA1(const AscendC::LocalTensor<AType> &al1Local, TileL1L0Param &tileL1L0Param)
+    __aicore__ inline void InitA1(const AscendC::LocalTensor<AType> &al1Local, const TileL1L0Param &tileL1L0Param)
     {
         AscendC::LocalTensor<half> al1LocalHalf = al1Local.template ReinterpretCast<half>();
         AscendC::InitConstValueParams<half> initConstValueParams;
@@ -294,7 +278,7 @@ public:
         AscendC::InitConstValue(al1LocalHalf[offset], initConstValueParams);
     }
 
-    __aicore__ inline void InitB1(const AscendC::LocalTensor<BType> &bl1Local, TileL1L0Param &tileL1L0Param)
+    __aicore__ inline void InitB1(const AscendC::LocalTensor<BType> &bl1Local, const TileL1L0Param &tileL1L0Param)
     {
         // Equivalent to curKL1 % MXFP_DIVISOR_SIZE
         AscendC::LocalTensor<half> bl1LocalHalf = bl1Local.template ReinterpretCast<half>();
@@ -323,9 +307,8 @@ public:
                 }
             }
             // when format of B is NZ, we reuse code for ND even though we initialize unnecessary extra space
-            uint64_t n1 = Cgmct::Gemm::CeilDiv(tileL1L0Param.curAlignN, C0_SIZE);
             offset = tileL1L0Param.curGmBKL1 * AscendC::BLOCK_CUBE;
-            initConstValueParams.repeatTimes = n1;
+            initConstValueParams.repeatTimes = Cgmct::Gemm::CeilDiv(tileL1L0Param.curAlignN, C0_SIZE);
             initConstValueParams.blockNum = tileL1L0Param.curPadBKL1 - tileL1L0Param.curGmBKL1;
             initConstValueParams.dstGap = tileL1L0Param.curGmBKL1;
             initConstValueParams.initValue = 0;
@@ -343,10 +326,10 @@ public:
     }
 
     __aicore__ inline void CopyInScaleA(const GlobalTensor<fp8_e8m0_t> &aScaleGlobal,
-                                        const LocalTensor<fp8_e8m0_t> &aScaleL1Local, uint64_t curML1, uint64_t curKL1,
+                                        const LocalTensor<fp8_e8m0_t> &aScaleL1Local, uint64_t curML1,
                                         uint64_t kL1Offset)
     {
-        uint64_t curScaleKL1 = curKL1;
+        uint64_t curScaleKL1 = scaleKL1_;
         if (kL1Offset + curScaleKL1 > k_) {
             curScaleKL1 = k_ - kL1Offset;
         }
@@ -366,7 +349,7 @@ public:
             dn2nzParams.nValue = dDim;
             dn2nzParams.srcDnMatrixStride = 0;
             dn2nzParams.srcDValue = Cgmct::Gemm::CeilDiv(k_, MXFP_DIVISOR_SIZE);
-            dn2nzParams.dstNzC0Stride = Cgmct::Gemm::CeilDiv(curKL1, MXFP_DIVISOR_SIZE);
+            dn2nzParams.dstNzC0Stride = mxScaleKL1B16_;
             dn2nzParams.dstNzNStride = 1;
             dn2nzParams.dstNzMatrixStride = 0;
             AscendC::DataCopy(aScaleL1LocalImpl, aScaleGlobalB16[offsetScaleAGM], dn2nzParams);
@@ -377,7 +360,7 @@ public:
             nd2nzParams.dValue = dDim;
             nd2nzParams.srcNdMatrixStride = 0;
             nd2nzParams.srcDValue = m_;
-            nd2nzParams.dstNzC0Stride = Cgmct::Gemm::CeilDiv(curKL1, MXFP_DIVISOR_SIZE);
+            nd2nzParams.dstNzC0Stride = mxScaleKL1B16_;
             nd2nzParams.dstNzNStride = 1;
             nd2nzParams.dstNzMatrixStride = 0;
             AscendC::DataCopy(aScaleL1LocalImpl, aScaleGlobalB16[offsetScaleAGM], nd2nzParams);
@@ -408,7 +391,7 @@ public:
             dn2nzParams.nValue = dDim;
             dn2nzParams.srcDnMatrixStride = 0;
             dn2nzParams.srcDValue = Cgmct::Gemm::CeilDiv(k_, MXFP_DIVISOR_SIZE);
-            dn2nzParams.dstNzC0Stride = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE);
+            dn2nzParams.dstNzC0Stride = mxScaleKL1B16_;
             dn2nzParams.dstNzNStride = 1;
             dn2nzParams.dstNzMatrixStride = 0;
             AscendC::DataCopy(bScaleL1LocalImpl, bScaleGlobalB16[offsetScaleBGM], dn2nzParams);
@@ -419,7 +402,7 @@ public:
             nd2nzParams.dValue = dDim;
             nd2nzParams.srcNdMatrixStride = 0;
             nd2nzParams.srcDValue = n_;
-            nd2nzParams.dstNzC0Stride = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE);
+            nd2nzParams.dstNzC0Stride = mxScaleKL1B16_;
             nd2nzParams.dstNzNStride = 1;
             nd2nzParams.dstNzMatrixStride = 0;
             AscendC::DataCopy(bScaleL1LocalImpl, bScaleGlobalB16[offsetScaleBGM], nd2nzParams);
@@ -442,8 +425,8 @@ public:
 
     __aicore__ inline void CopyInL0A(const AscendC::LocalTensor<MxL0AType> &l0aLocal,
                                      const AscendC::LocalTensor<AType> &al1Local,
-                                     const AscendC::LocalTensor<fp8_e8m0_t> &scaleAl1Local, uint64_t kL0L1Off,
-                                     TileL1L0Param &tileL1L0Param, uint64_t curScaleKL1)
+                                     const AscendC::LocalTensor<fp8_e8m0_t> &scaleAl1Local,
+                                     const TileL1L0Param &tileL1L0Param, uint64_t kL0L1Off)
     {
         AscendC::LoadData2DParamsV2 loadDataParams;
         AscendC::LoadData2DMxParams loadData2DMxParams;
@@ -474,7 +457,7 @@ public:
         loadData2DMxParams.yStartPosition = 0;
         loadData2DMxParams.xStep = m1;
         loadData2DMxParams.yStep = Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, MXFP_DIVISOR_SIZE);
-        loadData2DMxParams.srcStride = Cgmct::Gemm::CeilDiv(curScaleKL1, MXFP_DIVISOR_SIZE);
+        loadData2DMxParams.srcStride = mxScaleKL1B16_;
         loadData2DMxParams.dstStride = loadData2DMxParams.yStep;
         AscendC::LoadData(l0aLocal, al1Local, scaleAl1Local, loadDataParams, loadData2DMxParams);
         if constexpr (transA) {
@@ -484,7 +467,8 @@ public:
                 uint64_t loadTimes =
                     Cgmct::Gemm::CeilDiv(Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, AscendC::BLOCK_CUBE), B8_MIN_STEP);
                 for (uint64_t i = 1; i < loadTimes; i++) {
-                    loadDataParams.mStartPosition = B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
+                    loadDataParams.mStartPosition =
+                        B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
                     AscendC::LoadData(l0a[i * m1 * AscendC::BLOCK_CUBE * C0_SIZE], al1Local, loadDataParams);
                     PipeBarrier<PIPE_MTE1>();
                 }
@@ -494,8 +478,8 @@ public:
 
     __aicore__ inline void CopyInL0B(const AscendC::LocalTensor<MxL0BType> &l0bLocal,
                                      const AscendC::LocalTensor<BType> &bl1Local,
-                                     const AscendC::LocalTensor<fp8_e8m0_t> &scaleBl1Local, uint64_t kL0L1Off,
-                                     TileL1L0Param &tileL1L0Param)
+                                     const AscendC::LocalTensor<fp8_e8m0_t> &scaleBl1Local,
+                                     const TileL1L0Param &tileL1L0Param, uint64_t kL0L1Off)
     {
         AscendC::LoadData2DParamsV2 loadDataParams;
         AscendC::LoadData2DMxParams loadData2DMxParams;
@@ -526,7 +510,7 @@ public:
         loadData2DMxParams.yStartPosition = 0;
         loadData2DMxParams.xStep = n1;
         loadData2DMxParams.yStep = Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, MXFP_DIVISOR_SIZE);
-        loadData2DMxParams.srcStride = Cgmct::Gemm::CeilDiv(scaleKL1_, MXFP_DIVISOR_SIZE);
+        loadData2DMxParams.srcStride = mxScaleKL1B16_;
         loadData2DMxParams.dstStride = loadData2DMxParams.yStep;
         AscendC::LoadData(l0bLocal, bl1Local, scaleBl1Local, loadDataParams, loadData2DMxParams);
         if constexpr (!transB) {
@@ -536,7 +520,8 @@ public:
                 uint64_t loadTimes =
                     Cgmct::Gemm::CeilDiv(Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, AscendC::BLOCK_CUBE), B8_MIN_STEP);
                 for (uint64_t i = 1; i < loadTimes; i++) {
-                    loadDataParams.mStartPosition = B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
+                    loadDataParams.mStartPosition =
+                        B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
                     AscendC::LoadData(l0b[i * n1 * AscendC::BLOCK_CUBE * C0_SIZE], bl1Local, loadDataParams);
                     PipeBarrier<PIPE_MTE1>();
                 }
@@ -544,8 +529,8 @@ public:
         }
     }
 
-    __aicore__ inline void CopyOut(const AscendC::GlobalTensor<CType> &cGlobal, AscendC::LocalTensor<float> &c1Local,
-                                   uint64_t baseM, uint64_t baseN)
+    __aicore__ inline void CopyOut(const AscendC::GlobalTensor<CType> &cGlobal,
+                                   const AscendC::LocalTensor<float> &c1Local, uint64_t baseM, uint64_t baseN)
     {
         AscendC::DataCopyCO12DstParams intriParams;
         intriParams.nSize = baseN;
@@ -578,9 +563,8 @@ public:
         tileL1L0Param.curPadBKL1 = Cgmct::Gemm::CeilAlign(tileL1L0Param.curGmBKL1, MXFP_DIVISOR_SIZE);
     }
 
-    __aicore__ inline void UpdateKL0(TileL1L0Param &tileL1L0Param, uint64_t kL0Offset)
+    __aicore__ inline void UpdateKL0(TileL1L0Param &tileL1L0Param, uint64_t kL0Offset, uint64_t minPadKL1)
     {
-        uint64_t minPadKL1 = Cgmct::Gemm::Min(tileL1L0Param.curPadBKL1, tileL1L0Param.curPadAKL1);
         if (kL0Offset + baseK_ > minPadKL1) {
             tileL1L0Param.curKL0 = minPadKL1 - kL0Offset;
         } else {
@@ -602,27 +586,28 @@ public:
         }
     }
 
-    __aicore__ inline void CopyScalesInL1(AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
-                                          AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal, TileL1L0Param &tileL1L0Param,
-                                          uint64_t kL1Offset, uint64_t scaleL1BufId)
+    __aicore__ inline void CopyScalesInL1(const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                          const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                          const TileL1L0Param &tileL1L0Param, uint64_t kL1Offset, uint64_t scaleL1BufId)
     {
         if (kL1Offset % scaleKL1_ == 0) {
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(SCALE_BUFFER_FLAG_0 + (scaleL1BufId));
             CopyInScaleA(scaleAGlobal, scaleAL1Local_[l1BufferScaleAOffset_[scaleL1BufId]], tileL1L0Param.curM,
-                            scaleKL1_, kL1Offset);
+                         kL1Offset);
             CopyInScaleB(scaleBGlobal, scaleBL1Local_[l1BufferScaleBOffset_[scaleL1BufId]], tileL1L0Param.curN,
-                            kL1Offset);
+                         kL1Offset);
         }
     }
 
-    __aicore__ inline void CopyAInL1(AscendC::GlobalTensor<AType> aGlobal, TileL1L0Param tileL1L0Param,
-                                     uint64_t offsetA, uint64_t offsetAL1, uint64_t kL1Offset)
+    __aicore__ inline void CopyAInL1(const AscendC::GlobalTensor<AType> &aGlobal, const TileL1L0Param &tileL1L0Param,
+                                     uint64_t l1BufId, uint64_t kL1Offset)
     {
-        InitA1(aL1Local_[offsetAL1], tileL1L0Param);
-        CopyInA1(aGlobal[offsetA], aL1Local_[offsetAL1], tileL1L0Param);
+        InitA1(aL1Local_[l1BufferAOffset_[l1BufId]], tileL1L0Param);
+        uint64_t offsetA = transA ? kL1Offset * m_ : kL1Offset;
+        CopyInA1(aGlobal[offsetA], aL1Local_[l1BufferAOffset_[l1BufId]], tileL1L0Param);
     }
 
-    __aicore__ inline void CopyBInL1(AscendC::GlobalTensor<BType> bGlobal, TileL1L0Param tileL1L0Param,
+    __aicore__ inline void CopyBInL1(const AscendC::GlobalTensor<BType> &bGlobal, const TileL1L0Param &tileL1L0Param,
                                      uint64_t l1BufId, uint64_t kL1Offset)
     {
         InitB1(bL1Local_[l1BufferBOffset_[l1BufId]], tileL1L0Param);
@@ -640,24 +625,24 @@ public:
                                    uint64_t al1BufId, uint64_t bl1BufId, uint64_t scaleL1BufId, uint64_t l0cOffset,
                                    uint64_t kaL1Offset, uint64_t kbL1Offset)
     {
-        // uint64_t kL0Iter = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmBKL1, baseK_);
+        uint64_t minPadKL1 = Cgmct::Gemm::Min(tileL1L0Param.curPadBKL1, tileL1L0Param.curPadAKL1);
         for (uint64_t kL0Offset = kL1Offset; kL0Offset < AscendC::Std::min(kL1Offset + minKL1_, k_);
              kL0Offset += baseK_) {
-            UpdateKL0(tileL1L0Param, kL0Offset - kL1Offset);
+            UpdateKL0(tileL1L0Param, kL0Offset - kL1Offset, minPadKL1);
             uint64_t kL0L1Off = kL0Offset - kL1Offset;
             // Load data to L0 and open DB
             uint64_t l0Offset = HALF_L0_SIZE * (l0PingPong_ & 0x1);
             AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0PingPong_ & 0x1);
             uint64_t offsetScaleL1 = AscendC::BLOCK_CUBE * ((kL0Offset % scaleKL1_) / MXFP_GROUP_SIZE);
             CopyInL0A(l0aLocal_[l0Offset], aL1Local_[l1BufferAOffset_[al1BufId]],
-                      scaleAL1Local_[l1BufferScaleAOffset_[scaleL1BufId] + offsetScaleL1], kL0L1Off + kaL1Offset,
-                      tileL1L0Param, scaleKL1_);
+                      scaleAL1Local_[l1BufferScaleAOffset_[scaleL1BufId] + offsetScaleL1], tileL1L0Param,
+                      kL0L1Off + kaL1Offset);
             // copy bias to bt
             CopyInC2(biasL1Local_[l1BufferBiasOffset_[biasBufId_] / sizeof(BiasType)], biasBt_[baseN_ * biasBufId_],
                      Cgmct::Gemm::Align(mmadParams.n, AscendC::BLOCK_CUBE), NeedBias(kL0Offset));
             CopyInL0B(l0bLocal_[l0Offset], bL1Local_[l1BufferBOffset_[bl1BufId]],
-                      scaleBL1Local_[l1BufferScaleBOffset_[scaleL1BufId] + offsetScaleL1], kL0L1Off + kbL1Offset,
-                      tileL1L0Param);
+                      scaleBL1Local_[l1BufferScaleBOffset_[scaleL1BufId] + offsetScaleL1], tileL1L0Param,
+                      kL0L1Off + kbL1Offset);
             AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(l0PingPong_ & 0x1);
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(l0PingPong_ & 0x1);
             mmadParams.k = Cgmct::Gemm::CeilAlign(tileL1L0Param.curKL0, MXFP_DIVISOR_SIZE);
@@ -669,10 +654,11 @@ public:
         }
     }
     __aicore__ inline void IterBL1AL1(TileL1L0Param &tileL1L0Param, AscendC::MmadParams &mmadParams, uint64_t l0cOffset,
-                                      AscendC::GlobalTensor<AType> aGlobal, AscendC::GlobalTensor<BType> bGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleAGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleBGlobal,
-                                      AscendC::GlobalTensor<BiasType> biasGlobal)
+                                      const AscendC::GlobalTensor<AType> &aGlobal,
+                                      const AscendC::GlobalTensor<BType> &bGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                      const AscendC::GlobalTensor<BiasType> &biasGlobal)
     {
         for (uint64_t kOuter = 0; kOuter < k_; kOuter += kBL1_) {
             uint64_t scaleL1BufId = scaleLoopCnt_ & 1;
@@ -689,10 +675,8 @@ public:
             for (uint64_t kInner = kOuter; kInner < AscendC::Std::min(kOuter + kBL1_, k_); kInner += kAL1_) {
                 uint64_t aL1BufId = aL1LoopCnt_ & (l1BufNum_ - 1);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(INPUT_BUFFER_FLAG_2 + aL1BufId);
-                uint64_t offsetA = transA ? kInner * m_ : kInner;
-                uint64_t offsetAl1 = l1BufferAOffset_[aL1BufId];
                 UpdateKAL1(tileL1L0Param, kInner);
-                CopyAInL1(aGlobal, tileL1L0Param, offsetA, offsetAl1, kInner);
+                CopyAInL1(aGlobal, tileL1L0Param, aL1BufId, kInner);
                 AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(aL1BufId);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(aL1BufId);
                 Iterate(tileL1L0Param, mmadParams, kInner, aL1BufId, bL1BufId, scaleL1BufId, l0cOffset, 0,
@@ -711,21 +695,20 @@ public:
 
 
     __aicore__ inline void IterAL1BL1(TileL1L0Param &tileL1L0Param, AscendC::MmadParams &mmadParams, uint64_t l0cOffset,
-                                      AscendC::GlobalTensor<AType> aGlobal, AscendC::GlobalTensor<BType> bGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleAGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleBGlobal,
-                                      AscendC::GlobalTensor<BiasType> biasGlobal)
+                                      const AscendC::GlobalTensor<AType> &aGlobal,
+                                      const AscendC::GlobalTensor<BType> &bGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                      const AscendC::GlobalTensor<BiasType> &biasGlobal)
     {
         for (uint64_t kOuter = 0; kOuter < k_; kOuter += kAL1_) {
             uint64_t scaleL1BufId = scaleLoopCnt_ & 1;
             uint64_t aL1BufId = aL1LoopCnt_ & (l1BufNum_ - 1);
-            uint64_t offsetA = transA ? kOuter * m_ : kOuter;
-            uint64_t offsetAl1 = l1BufferAOffset_[aL1BufId];
             CopyScalesInL1(scaleAGlobal, scaleBGlobal, tileL1L0Param, kOuter, scaleL1BufId);
             AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(aL1BufId);
             biasBufId_ = scaleL1BufId;
             UpdateKAL1(tileL1L0Param, kOuter);
-            CopyAInL1(aGlobal, tileL1L0Param, offsetA, offsetAl1, kOuter);
+            CopyAInL1(aGlobal, tileL1L0Param, aL1BufId, kOuter);
             if (isBias_ && kOuter == 0) {
                 CopyInBias(biasGlobal, biasL1Local_[l1BufferBiasOffset_[biasBufId_] / sizeof(BiasType)],
                            tileL1L0Param.curN);
@@ -751,15 +734,15 @@ public:
         }
     }
 
-    __aicore__ inline void operator()(AscendC::GlobalTensor<AType> aGlobal, AscendC::GlobalTensor<BType> bGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleAGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleBGlobal,
-                                      AscendC::GlobalTensor<CType> cGlobal, BlockShape singleShape)
+    __aicore__ inline void operator()(const AscendC::GlobalTensor<AType> &aGlobal,
+                                      const AscendC::GlobalTensor<BType> &bGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                      const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
     {
         TileL1L0Param tileL1L0Param;
         tileL1L0Param.curM = Get<IDX_M_TILE_IDX>(singleShape);
         tileL1L0Param.curN = Get<IDX_N_TILE_IDX>(singleShape);
-        k_ = Get<IDX_K_IDX>(singleShape);
         GetAlignMN(tileL1L0Param);
         AscendC::MmadParams mmadParams;
         mmadParams.m = tileL1L0Param.curM;
@@ -781,16 +764,16 @@ public:
         }
     }
 
-    __aicore__ inline void operator()(AscendC::GlobalTensor<AType> aGlobal, AscendC::GlobalTensor<BType> bGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleAGlobal,
-                                      AscendC::GlobalTensor<fp8_e8m0_t> scaleBGlobal,
-                                      AscendC::GlobalTensor<BiasType> biasGlobal, AscendC::GlobalTensor<CType> cGlobal,
-                                      BlockShape singleShape)
+    __aicore__ inline void operator()(const AscendC::GlobalTensor<AType> &aGlobal,
+                                      const AscendC::GlobalTensor<BType> &bGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                      const AscendC::GlobalTensor<BiasType> &biasGlobal,
+                                      const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
     {
         TileL1L0Param tileL1L0Param;
         tileL1L0Param.curM = Get<IDX_M_TILE_IDX>(singleShape);
         tileL1L0Param.curN = Get<IDX_N_TILE_IDX>(singleShape);
-        k_ = Get<IDX_K_IDX>(singleShape);
         GetAlignMN(tileL1L0Param);
         AscendC::MmadParams mmadParams;
         mmadParams.m = tileL1L0Param.curM;
@@ -831,13 +814,6 @@ private:
     }
 
 private:
-    constexpr static uint16_t INPUT_BUFFER_FLAG_0 = 0;
-    constexpr static uint16_t INPUT_BUFFER_FLAG_1 = 1;
-    constexpr static uint16_t INPUT_BUFFER_FLAG_2 = 2;
-    constexpr static uint16_t INPUT_BUFFER_FLAG_3 = 3;
-    constexpr static uint16_t SCALE_BUFFER_FLAG_0 = 4;
-    constexpr static uint16_t SCALE_BUFFER_FLAG_1 = 5;
-    constexpr static int32_t BT_SIZE = 4096;
     uint16_t biasBufId_ = 0;
     uint64_t biasL1OneBuffer_ = 0UL;
     uint64_t aL1OneBuffer_ = 0UL;
@@ -849,10 +825,30 @@ private:
     uint64_t l1BufferScaleAOffset_[2] = {0UL}; // default 2 buffer
     uint64_t l1BufferScaleBOffset_[2] = {0UL}; // default 2 buffer
     uint64_t l1BufferBiasOffset_[2] = {0UL};   // default 2 buffer
+    uint64_t m_;
+    uint64_t n_;
+    uint64_t k_;
+    uint64_t l1BufNum_{1};
+    uint64_t kAL1_{1};
+    uint64_t kBL1_{1};
+    uint64_t minKL1_{1};
+    uint64_t scaleKL1_{1};
+    uint64_t mxScaleKL1B16_{1};
+    uint64_t baseM_{16};
+    uint64_t baseN_{16};
+    uint64_t baseK_{16};
+    uint64_t aL1LoopCnt_{0};
+    uint64_t bL1LoopCnt_{0};
+    uint64_t scaleLoopCnt_{0};
+    uint64_t l0PingPong_{0};
+    uint64_t l0cPingPong_{0};
+    bool orderAL1BL1_{false};
+    bool isBias_{false};
+    bool enableL0cPingPong_{false};
     AscendC::LocalTensor<MxL0AType> l0aLocal_{AscendC::TPosition::A2, 0, L0A_SIZE};
     AscendC::LocalTensor<MxL0BType> l0bLocal_{AscendC::TPosition::B2, 0, L0B_SIZE};
     AscendC::LocalTensor<float> c1Local_{AscendC::TPosition::CO1, 0, AscendC::TOTAL_L0C_SIZE};
-    AscendC::LocalTensor<float> biasBt_{AscendC::TPosition::C2, 0, BT_SIZE};
+    AscendC::LocalTensor<float> biasBt_{AscendC::TPosition::C2, 0, 4096}; // 4096B: BT_SIZE
     AscendC::LocalTensor<AType> aL1Local_{AscendC::TPosition::A1, 0, AscendC::TOTAL_L1_SIZE};
     AscendC::LocalTensor<BType> bL1Local_{AscendC::TPosition::A1, 0, AscendC::TOTAL_L1_SIZE};
     AscendC::LocalTensor<BiasType> biasL1Local_{AscendC::TPosition::A1, 0, AscendC::TOTAL_L1_SIZE / sizeof(BiasType)};
