@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "manifold_constrained_hyper_connection_pre.h"
+#include "mhc_pre.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_def.h"
@@ -20,14 +20,14 @@
 using namespace op;
 
 namespace l0op {
-OP_TYPE_REGISTER(ManifoldConstrainedHyperConnectionPre);
+OP_TYPE_REGISTER(MhcPre);
 
 const std::tuple<aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *>
-ManifoldConstrainedHyperConnectionPre(
+MhcPre(
     const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
     int64_t out_flag, double norm_eps, double hc_eps, aclOpExecutor *executor)
 {
-    L0_DFX(ManifoldConstrainedHyperConnectionPre, x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps);
+    L0_DFX(MhcPre, x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps);
 
     DataType outType = DataType::DT_FLOAT; // 输出类型
     Format format = Format::FORMAT_ND; // 输出分形
@@ -39,13 +39,13 @@ ManifoldConstrainedHyperConnectionPre(
     auto outMmRes = executor->AllocTensor(outType, format, format);
     auto outHpre = executor->AllocTensor(outType, format, format);
 
-    auto ret = INFER_SHAPE(ManifoldConstrainedHyperConnectionPre, OP_INPUT(x, phi, alpha, bias, gamma),
+    auto ret = INFER_SHAPE(MhcPre, OP_INPUT(x, phi, alpha, bias, gamma),
         OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre), OP_ATTR(out_flag, norm_eps, hc_eps));
-    OP_CHECK_INFERSHAPE(ret != ACLNN_SUCCESS, return std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), "ManifoldConstrainedHyperConnectionPre InferShape failed.");
-    auto ret1 = ADD_TO_LAUNCHER_LIST_AICORE(ManifoldConstrainedHyperConnectionPre, OP_INPUT(x, phi, alpha, bias, gamma),
+    OP_CHECK_INFERSHAPE(ret != ACLNN_SUCCESS, return std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), "MhcPre InferShape failed.");
+    auto ret1 = ADD_TO_LAUNCHER_LIST_AICORE(MhcPre, OP_INPUT(x, phi, alpha, bias, gamma),
         OP_OUTPUT(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre),  OP_ATTR(out_flag, norm_eps, hc_eps));
     OP_CHECK_ADD_TO_LAUNCHER_LIST_AICORE(ret1 != ACLNN_SUCCESS, return std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr),
-        "ManifoldConstrainedHyperConnectionPre ADD_TO_LAUNCHER_LIST_AICORE failed.");
+        "MhcPre ADD_TO_LAUNCHER_LIST_AICORE failed.");
         
     return std::tuple(outHin, outHpost, outHres, outInvRms, outMmRes, outHpre);
 }

@@ -22,7 +22,7 @@
 
 namespace optiling {
 
-BEGIN_TILING_DATA_DEF(ManifoldConstrainedHyperConnectionPreTilingData)
+BEGIN_TILING_DATA_DEF(MhcPreTilingData)
   TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, matmulTiling);
   TILING_DATA_FIELD_DEF(uint32_t, coreNum);
   TILING_DATA_FIELD_DEF(uint32_t, outFlag);
@@ -39,9 +39,9 @@ BEGIN_TILING_DATA_DEF(ManifoldConstrainedHyperConnectionPreTilingData)
   TILING_DATA_FIELD_DEF(float, scaleMean);
 END_TILING_DATA_DEF;
 
-REGISTER_TILING_DATA_CLASS(ManifoldConstrainedHyperConnectionPre, ManifoldConstrainedHyperConnectionPreTilingData);
+REGISTER_TILING_DATA_CLASS(MhcPre, MhcPreTilingData);
 
-struct ManifoldConstrainedHyperConnectionPreCompileInfo {
+struct MhcPreCompileInfo {
     uint64_t aicNum{0UL};
     uint64_t aivNum{0UL};
     uint64_t ubSize{0UL};
@@ -52,12 +52,12 @@ struct ManifoldConstrainedHyperConnectionPreCompileInfo {
     uint64_t l0BSize{0UL};
 };
 
-class ManifoldConstrainedHyperConnectionPreBaseTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class MhcPreBaseTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
  public:
-    explicit ManifoldConstrainedHyperConnectionPreBaseTiling(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context) {};
+    explicit MhcPreBaseTiling(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context) {};
 
-    ~ManifoldConstrainedHyperConnectionPreBaseTiling() override = default;
+    ~MhcPreBaseTiling() override = default;
 
 protected:
     bool IsCapable() override { 
@@ -86,7 +86,7 @@ protected:
 
 
 private:
-    ManifoldConstrainedHyperConnectionPreTilingData tilingData_;
+    MhcPreTilingData tilingData_;
     uint32_t blockDim_;     // AIC
     uint64_t totalLength_;
     uint64_t m_;

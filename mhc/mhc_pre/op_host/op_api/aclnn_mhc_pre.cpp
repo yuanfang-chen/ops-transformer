@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_manifold_constrained_hyper_connection_pre.h"
+#include "aclnn_mhc_pre.h"
 #include <dlfcn.h>
 #include <new>
 #include <memory>
@@ -20,7 +20,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
-#include "manifold_constrained_hyper_connection_pre.h"
+#include "mhc_pre.h"
 #include "aclnn_kernels/transdata.h"
 #include "aclnn_kernels/transpose.h"
 #include "aclnn_kernels/contiguous.h"
@@ -34,7 +34,7 @@ extern "C" {
 
 namespace {
 
-struct ManifoldConstrainedHyperConnectionParamsBase {
+struct MhcParamsBase {
     const aclTensor *x = nullptr;
     const aclTensor *phi = nullptr;
     const aclTensor *alpha = nullptr;
@@ -58,16 +58,16 @@ struct ManifoldConstrainedHyperConnectionParamsBase {
     const aclTensor *gamma_contiguous = nullptr;
 };
 
-class ManifoldConstrainedHyperConnectionBuilder {
+class MhcBuilder {
 public:
-    static ManifoldConstrainedHyperConnectionBuilder Create()
+    static MhcBuilder Create()
     {
-        ManifoldConstrainedHyperConnectionBuilder obj;
+        MhcBuilder obj;
 
         return obj;
     } 
 
-    ManifoldConstrainedHyperConnectionBuilder &SetInput(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma)
+    MhcBuilder &SetInput(const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma)
     {
         obj_.x = x;
         obj_.phi = phi;
@@ -77,7 +77,7 @@ public:
         return *this;
     }
 
-    ManifoldConstrainedHyperConnectionBuilder &SetAttr(int64_t out_flag, double norm_eps, double hc_eps)
+    MhcBuilder &SetAttr(int64_t out_flag, double norm_eps, double hc_eps)
     {
         obj_.out_flag = out_flag;
         obj_.norm_eps = norm_eps;
@@ -85,7 +85,7 @@ public:
         return *this;
     }
 
-    ManifoldConstrainedHyperConnectionBuilder &SetOutput(const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res)
+    MhcBuilder &SetOutput(const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res)
     {
         obj_.out_hin = out_hin;
         obj_.out_h_post = out_h_post;
@@ -93,7 +93,7 @@ public:
         return *this;
     }
 
-    ManifoldConstrainedHyperConnectionBuilder &SetOptionalOutput(const aclTensor *out_inv_rms, const aclTensor *out_mm_res,
+    MhcBuilder &SetOptionalOutput(const aclTensor *out_inv_rms, const aclTensor *out_mm_res,
         const aclTensor *out_h_pre)
     {
         obj_.out_inv_rms = out_inv_rms;
@@ -103,15 +103,15 @@ public:
         return *this;
     }
 
-    ManifoldConstrainedHyperConnectionParamsBase Build() const
+    MhcParamsBase Build() const
     {
         return obj_;
     }
 private:
-    ManifoldConstrainedHyperConnectionParamsBase obj_;
+    MhcParamsBase obj_;
 };
 
-bool CheckNotNull(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckNotNull(const MhcParamsBase &params)
 {
     if (params.x == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "x tensor is nullptr");
@@ -144,7 +144,7 @@ bool CheckNotNull(const ManifoldConstrainedHyperConnectionParamsBase &params)
     return true;
 }
 
-bool CheckEmptyTensor(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckEmptyTensor(const MhcParamsBase &params)
 {
     if (params.x->IsEmpty()) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x tensor is empty");
@@ -165,7 +165,7 @@ bool CheckEmptyTensor(const ManifoldConstrainedHyperConnectionParamsBase &params
     return true;
 }
 
-bool CheckInputOutDims(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckInputOutDims(const MhcParamsBase &params)
 {
     constexpr size_t DIM_NUM_1 = 1UL;
     constexpr size_t DIM_NUM_2 = 2UL;
@@ -212,7 +212,7 @@ bool CheckInputOutDims(const ManifoldConstrainedHyperConnectionParamsBase &param
     return true;
 }
 
-bool CheckInputOutShape(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckInputOutShape(const MhcParamsBase &params)
 {
     auto xShape = params.x->GetViewShape();
     auto phiShape = params.phi->GetViewShape();
@@ -281,7 +281,7 @@ bool CheckInputOutShape(const ManifoldConstrainedHyperConnectionParamsBase &para
     return true;
 }
 
-bool CheckDtypeValid_mhc(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckDtypeValid_mhc(const MhcParamsBase &params)
 {
     // x支持BF16或FP16
     const std::initializer_list<DataType> X_SUPPORT_DTYPE_LIST = {DataType::DT_BF16, DataType::DT_FLOAT16};
@@ -332,7 +332,7 @@ static bool IsPrivateFormat(ge::Format format)
     return false;
 }
 
-bool CheckFormat(const ManifoldConstrainedHyperConnectionParamsBase &params)
+bool CheckFormat(const MhcParamsBase &params)
 {
     // 检查所有输入tensor的format必须是ND格式
     if (IsPrivateFormat(params.x->GetViewFormat())) {
@@ -365,7 +365,7 @@ bool CheckFormat(const ManifoldConstrainedHyperConnectionParamsBase &params)
     return true;
 }
 
-aclnnStatus CheckParams(const ManifoldConstrainedHyperConnectionParamsBase &params)
+aclnnStatus CheckParams(const MhcParamsBase &params)
 {
     // 1. 检查参数是否为空指针、空tensor
     CHECK_RET(CheckNotNull(params), ACLNN_ERR_PARAM_NULLPTR);
@@ -386,7 +386,7 @@ aclnnStatus CheckParams(const ManifoldConstrainedHyperConnectionParamsBase &para
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus ConvertDataContiguous(ManifoldConstrainedHyperConnectionParamsBase &params, aclOpExecutor *executor)
+aclnnStatus ConvertDataContiguous(MhcParamsBase &params, aclOpExecutor *executor)
 {
     // 将输入tensor转换为连续格式
     params.x_contiguous = l0op::Contiguous(params.x, executor);
@@ -409,7 +409,7 @@ aclnnStatus ConvertDataContiguous(ManifoldConstrainedHyperConnectionParamsBase &
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus mHCPreCommonProcess(ManifoldConstrainedHyperConnectionParamsBase &params, aclOpExecutor *executor)
+static aclnnStatus mHCPreCommonProcess(MhcParamsBase &params, aclOpExecutor *executor)
 {
     auto ret = CheckParams(params);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
@@ -418,7 +418,7 @@ static aclnnStatus mHCPreCommonProcess(ManifoldConstrainedHyperConnectionParamsB
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     // 使用转换后的连续tensor
-    auto outParams = l0op::ManifoldConstrainedHyperConnectionPre(
+    auto outParams = l0op::MhcPre(
         params.x_contiguous, params.phi_contiguous, params.alpha_contiguous, params.bias_contiguous, params.gamma_contiguous,
         params.out_flag, params.norm_eps, params.hc_eps, executor);
     CHECK_RET(outParams != std::tuple(nullptr, nullptr, nullptr, nullptr, nullptr, nullptr), ACLNN_ERR_INNER_NULLPTR);
@@ -450,19 +450,19 @@ static aclnnStatus mHCPreCommonProcess(ManifoldConstrainedHyperConnectionParamsB
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize(
+aclnnStatus aclnnMhcPreGetWorkspaceSize(
     const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
     int64_t out_flag, double norm_eps, double hc_eps,
     const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
     const aclTensor *out_inv_rms, const aclTensor *out_mm_res, const aclTensor *out_h_pre,
     uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(aclnnManifoldConstrainedHyperConnectionPre, DFX_IN(x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps),
+    L2_DFX_PHASE_1(aclnnMhcPre, DFX_IN(x, phi, alpha, bias, gamma, out_flag, norm_eps, hc_eps),
         DFX_OUT(out_hin, out_h_post, out_h_res, out_inv_rms, out_mm_res, out_h_pre));
     auto uniqueExecutor = CREATE_EXECUTOR();
 
-    ManifoldConstrainedHyperConnectionParamsBase params =
-        ManifoldConstrainedHyperConnectionBuilder::Create()
+    MhcParamsBase params =
+        MhcBuilder::Create()
         .SetInput(x, phi, alpha, bias, gamma)
         .SetAttr(out_flag, norm_eps, hc_eps)
         .SetOutput(out_hin, out_h_post, out_h_res)
@@ -477,10 +477,10 @@ aclnnStatus aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnManifoldConstrainedHyperConnectionPre(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+aclnnStatus aclnnMhcPre(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
     aclrtStream stream)
 {
-    L2_DFX_PHASE_2(aclnnManifoldConstrainedHyperConnectionPre);
+    L2_DFX_PHASE_2(aclnnMhcPre);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 

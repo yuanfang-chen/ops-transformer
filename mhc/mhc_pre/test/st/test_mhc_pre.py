@@ -23,7 +23,7 @@ def verify_result(output, golden, tol = 1e-3):
     print("error ratio: %.6f, tolerance: %.6f" % (error_ratio, tol))
     return error_ratio <= 1e-4
 
-def manifold_constrained_hyper_connection_pre_golden_TND(
+def mhc_pre_golden_TND(
     x: torch.Tensor, phi: torch.Tensor, alpha: torch.Tensor, bias: torch.Tensor, gamma: torch.Tensor = None,
     norm_eps: float = 1e-6, hc_eps: float = 1e-6):
     T ,N, D = x.shape
@@ -77,7 +77,7 @@ def test_mhc_pre_case():
     gamma = torch.randn(n, D, dtype=torch.float32)
 
     out_doc = torch_npu.npu_mhc_pre(x.npu(), phi.npu(), alpha.npu(), bias.npu(), gamma=gamma.npu(), out_flag = 1)
-    out_golden = manifold_constrained_hyper_connection_pre_golden_TND(x, phi, alpha, bias, gamma=gamma)
+    out_golden = mhc_pre_golden_TND(x, phi, alpha, bias, gamma=gamma)
 
     names = ["h_in", "h_post", "h_comb_before", "inv_rms", "h_mix", "h_pre"]
     res = True
