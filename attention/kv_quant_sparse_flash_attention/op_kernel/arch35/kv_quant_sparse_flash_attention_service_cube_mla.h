@@ -20,10 +20,10 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
-#include "common/op_kernel/offset_calculator.h"
-#include "common/op_kernel/matmul.h"
-#include "common/op_kernel/FixpipeOut.h"
-#include "common/op_kernel/CopyInL1.h"
+#include "common/offset_calculator.h"
+#include "common/matmul.h"
+#include "common/FixpipeOut.h"
+#include "common/CopyInL1.h"
 #include "../kv_quant_sparse_flash_attention_common.h"
 
 #include "kv_quant_sparse_flash_attention_common_arch35.h"
@@ -128,7 +128,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::InitC
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo& constInfo)
+QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
 {
     if ASCEND_IS_AIC {
         InitGmTensor(actualSeqLengthsQ, constInfo);
@@ -156,7 +156,7 @@ QSFAMatmulService<QSFAT>::InitLocalBuffer()
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo& constInfo)
+QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
 {
     if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
         this->queryGm.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize,
