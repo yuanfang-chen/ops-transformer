@@ -51,16 +51,16 @@ namespace {
         QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
     };
 
-    enum QuantModeSuit {
-        QUANT_NONE = 0,          // 不量化
-        QUANT_TT = 1,     // pertensor
-        QUANT_KC = 2,    // perchannel
+    enum QuantModePair {
+        QUANT_PAIR_NONE = 0,          // 不量化
+        QUANT_PAIR_TT = 1,     // pertensor
+        QUANT_PAIR_KC = 2,    // perchannel
         // QUANT_PERTOKEN = 3,      // pertoken
         // QUANT_PERGROUP = 4,      // pergroup
         // QUANT_PERBLOCK = 5,      // perblock
         // QUANT_MX = 6,            // mx量化
         // QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
-        QUANT_ERROR = 2,
+        QUANT_PAIR_ERROR = 255,
     };
 }
 
@@ -382,7 +382,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
             return status;
         }
     }
-    localParams_.gmmQuantSuit = QUANT_TT;
+    localParams_.gmmQuantSuit = QUANT_PAIR_TT;
 
     if (localParams_.isGmmWeightTrans) {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
@@ -441,7 +441,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
             return status;
         }
     }
-    localParams_.mmQuantSuit = QUANT_TT;
+    localParams_.mmQuantSuit = QUANT_PAIR_TT;
 
     if (localParams_.isMmWeightTrans) {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim1,
@@ -685,7 +685,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
 {
     // 设置GMM切前信息
-    QuantGroupedMatmulAllToAllvAdapter gmmTile(*this, context_);
+    QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.GetPlatformInfo());
     // 当前为 epNums，每轮一专家

@@ -21,7 +21,8 @@ using namespace Mc2Log;
 using namespace AscendC;
 using namespace optiling;
 using namespace Mc2GroupedMatmulTiling;
-using namespace Mc2GroupedMatmul::GmmConstant;
+using namespace Mc2GroupedMatmulTiling::GmmConstant;
+using namespace Mc2GroupedMatmul;
 
 ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameters(const int32_t* sendCounts,
     uint64_t worldSize, uint64_t index, uint32_t epNums)
@@ -67,10 +68,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.kSize = params.H2;
     inputParams_.nSize = params.N2;
     // quantMode bit position: 1 << mode
-    inputParams_.aQuantMode = static_cast<uint8_t>(1U << params.mmXQuantMode);
-    inputParams_.bQuantMode = static_cast<uint8_t>(1U << params.mmWeightQuantMode);
+    inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.mmXQuantMode);
+    inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.mmWeightQuantMode);
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::NO_SPLIT;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::NO_SPLIT;
     // 非负递增为0，非负数列为1
     inputParams_.groupListType = 1;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
@@ -111,10 +112,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const Q
     // need set
     inputParams_.kernelType = 0UL;
     // quantMode bit position: 1 << mode
-    inputParams_.aQuantMode = static_cast<uint8_t>(1U << params.gmmXQuantMode);
-    inputParams_.bQuantMode = static_cast<uint8_t>(1U << params.gmmWeightQuantMode);
+    inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.gmmXQuantMode);
+    inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.gmmWeightQuantMode);
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::GmmConstant::SPLIT_M;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
     inputParams_.groupListType = 1;
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 0;

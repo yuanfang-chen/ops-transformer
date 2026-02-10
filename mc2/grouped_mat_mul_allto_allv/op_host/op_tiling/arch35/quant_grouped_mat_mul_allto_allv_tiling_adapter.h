@@ -21,30 +21,26 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/gmm_qbmm_tiling.h"
-#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_host_util.h"
-#include "../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_tiling.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/gmm_qbmm_tiling.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_host_util.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_tiling.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-#include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
+// #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 
 namespace optiling {
 // 引用3rd目录中的定义
-using Mc2GroupedMatmulTiling::GmmConstant;
+using namespace Mc2GroupedMatmulTiling::GmmConstant;
 using Mc2GroupedMatmulTiling::QuantMode;
-using Mc2GroupedMatmulTiling::GQmmBasicTiling;
-using Mc2GroupedMatmulTiling::GQmmInputInfo;
+// using Mc2GroupedMatmulTiling::GQmmBasicTiling;
+// using Mc2GroupedMatmulTiling::GQmmInputInfo;
 using Mc2GroupedMatmulTiling::GroupedQbmmTiling;
 
 namespace Mc2GroupedMatmul {
-
-} // namespace Mc2GroupedMatmul
-
 class QuantGroupedMatmulAllToAllvAdapter : public GroupedQbmmTiling {
 public:
-    explicit QuantGroupedMatmulAllToAllvAdapter(QuantGroupedMatmulAllToAllvTiling& tilingImpl,
-        gert::TilingContext *context) : GroupedQbmmTiling(context), tilingProcesser_(tilingImpl) {};
+    explicit QuantGroupedMatmulAllToAllvAdapter(gert::TilingContext *context) : GroupedQbmmTiling(context) {};
     
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
@@ -63,11 +59,10 @@ public:
     ge::graphStatus Process();
     ge::graphStatus SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params);
 
-    QuantGroupedMatmulAllToAllvTiling& tilingProcesser_;
-
 protected:
     // Reuse parent class DoOpTiling() and DoLibApiTiling()
 };
 
+} // namespace Mc2GroupedMatmul
 } // namespace optiling
 #endif

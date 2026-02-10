@@ -24,7 +24,7 @@
 using namespace Ops::Transformer::OpTiling;
 using namespace optiling::Mc2GroupedMatmulTiling;
 using namespace Mc2GroupedMatmulTilingData;
-using namespace Mc2GroupedMatmul;
+using namespace optiling::Mc2GroupedMatmul;
 using namespace optiling::Mc2GroupedMatmulTiling::GmmConstant;
 
 namespace optiling {
