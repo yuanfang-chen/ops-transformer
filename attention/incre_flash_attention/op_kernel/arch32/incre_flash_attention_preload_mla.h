@@ -1532,8 +1532,13 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
 
     if (softmaxLseFlag) {
         LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+        AscendC::printf("tkd lseSumUb\n");
+        AscendC::DumpTensor(lseSumUb, 1, 64);
+        AscendC::printf("tkd lseMaxUb\n");
+        AscendC::DumpTensor(lseMaxUb, 1, 64);
         ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
-
+        AscendC::printf("tkd softmaxlseUb\n");
+        AscendC::DumpTensor(softmaxlseUb, 1, 64);
         outputQue2.EnQue(softmaxlseUb);
         outputQue2.DeQue<T>();
 
@@ -2752,7 +2757,13 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
 {
     uint64_t dealRowCountAlign = dealRowCount * FP32_ONE_BLOCK_SIZE;
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+    AscendC::printf("tkd lseSumUb\n");
+    AscendC::DumpTensor(lseSumUb, 1, 64);
+    AscendC::printf("tkd lseMaxUb\n");
+    AscendC::DumpTensor(lseMaxUb, 1, 64);
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
+    AscendC::printf("tkd softmaxlseUb\n");
+    AscendC::DumpTensor(softmaxlseUb, 1, 64);
     uint64_t curS1Size = LAYOUT_T == LAYOUT::TND ? info.actS1Size : qSeqSize;
     DealSoftmaxLseInvalidRows(softmaxlseUb, lseMaxUb, dealRowCount, curS1Size, info.s1Idx * s1SizeSub);
 
