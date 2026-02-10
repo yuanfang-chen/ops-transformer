@@ -852,9 +852,9 @@ void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2av
     PrintGmmA2avWorkspaceInfo(outTilingData.workspaceInfo, opName_);
     PrintTaskTilingInfo(outTilingData.taskTilingInfo, localParams_, opName_);
     OP_LOGD(opName_, "------------- PrintGMMQuantTilingData -------------------");
-    PrintGMMQuantTilingData(outTilingData.gmmBaseTiling, opName_)
+    PrintGMMQuantTilingData(outTilingData.gmmBaseTiling, opName_);
     OP_LOGD(opName_, "------------- PrintGMMSharedQuantTilingData -------------");
-    PrintGMMQuantTilingData(outTilingData.sharedGmmTiling, opName_)
+    PrintGMMQuantTilingData(outTilingData.sharedGmmTiling, opName_);
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
