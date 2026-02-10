@@ -57,7 +57,7 @@ struct MoeDistributeDispatchV2TilingDataBase {
     MoeDistributeDispatchV2Info moeDistributeDispatchV2Info;
 };
 
-struct MoeDistributeDispatchV2TilingData::MoeDistributeDispatchV2TilingDataBase {
+struct MoeDistributeDispatchV2TilingData : MoeDistributeDispatchV2TilingDataBase {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling1;
     Mc2CcTiling mc2CcTiling2;
