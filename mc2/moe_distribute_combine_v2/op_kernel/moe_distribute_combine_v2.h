@@ -1051,7 +1051,14 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRms
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
-    LocalTensor<XType> yLocal = rowTmpFloatBuf_.Get<XType>();
+    TBuf<> rmsNormYBuf;
+    uint32_t maxSizeRowTmpFloatBuf = hFloatAlign32Size_;
+    if (isInputExpertMaskFlag_ || enableSpecialExpert_) {
+        uint32_t activeMaskAlignHalfSize = activeMaskAlignSize_ * sizeof(half);
+        maxSizeRowTmpFloatBuf = (activeMaskAlignHalfSize > hFloatAlign32Size_ ? activeMaskAlignHalfSize : hFloatAlign32Size_);
+    }
+    tpipe_->InitBuffer(rmsNormYBuf, maxSizeRowTmpFloatBuf);
+    LocalTensor<XType> yLocal = rmsNormYBuf.Get<XType>();
     Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
     PipeBarrier<PIPE_V>();
     Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
@@ -1354,6 +1361,11 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
     DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
     const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
+    LocalTensor<XType> gammaLocal;
+    if (HasAddRmsNorm) {
+        gammaLocal = gammaBuf_.Get<XType>();
+        DataCopyPad(gammaLocal, gammaGM_, expandXCopyParams, copyPadXTypeParams);
+    }
     TBuf<> tokenStatusBuf;
     tpipe_->InitBuffer(tokenStatusBuf, Ceil(tokenPerAivNum * sizeof(int32_t), UB_ALIGN) * UB_ALIGN);
     LocalTensor tokenStatusTensor = tokenStatusBuf.Get<int32_t>();
@@ -1406,10 +1418,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
             DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
             if constexpr (HasAddRmsNorm) {
                 SyncFunc<AscendC::HardEvent::MTE3_V>();
-                LocalTensor<XType> gammaLocal_ = gammaBuf_.Get<XType>();
-                DataCopyPad(gammaLocal_, gammaGM_, expandXCopyParams, copyPadXTypeParams);
-                SyncFunc<AscendC::HardEvent::MTE2_V>();
-                AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal_,
+                AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal,
                                     expandXCopyParams);
             }
         }
