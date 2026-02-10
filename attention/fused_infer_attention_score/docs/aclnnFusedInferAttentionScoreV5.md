@@ -1905,9 +1905,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td>-</td>
         </tr>
         <tr>
-            <td rowspan="9">全量化</td>
+            <td rowspan="10">全量化</td>
             <td>query</td>
-            <td>FLOAT8_E4M3FN</td>
+            <td>FLOAT8_E4M3FN；Q_N=[32,64,128]</td>
             <td>-</td>
         </tr>
         <tr>
@@ -1955,6 +1955,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td><ul><li>需与keyAntiquantScaleOptional, valueAntiquantScaleOptional同时存在</li>
                     <li>queryQuantMode仅支持per-token叠加per-head模式,queryQuantMode为3</li>
                     <li>shape与query相比仅少一个维度D，例如inputLayout=BSH/BSND时，dequantScaleQuery_shape为(B,S,N)</li></ul></td>
+        </tr>
+        <tr>
+            <td>inputLayout</td>
+            <td>支持BSH、BSND、BNSD、TND</td>
+            <td>-</td>
         </tr>
         <tr>
             <td colspan="3">不支持左padding、tensorlist、pse、prefix、伪量化</td>
