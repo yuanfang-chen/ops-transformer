@@ -1037,8 +1037,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         - 当query的d不等于512时：
           - 仅支持BNSD_BSND、BSH_BNSD、BSND_BNSD;
           - 支持prefill mla或gqa非量化场景，其中prefill mla场景需满足下述条件之一：
-            - query、key的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
-            - query、key的d等于192，queryRope和keyRope等于空。
+            - query、key、value的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
+            - query、key的d等于192，value的d等于128，queryRope和keyRope等于空。
           - gqa非量化场景仅支持D=64或D=128;
           - BSH_BNSD、BSND_BNSD场景下不支持左padding、tensorlist、pse、prefix;
           - 不支持伪量化。
@@ -1050,8 +1050,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         - 当query的d不等于512时：
           - 仅支持TND、NTD、NTD_TND;
           - 支持prefill mla或gqa非量化场景，其中prefill mla场景需满足下述条件之一：
-            - query、key的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
-            - query、key的d等于192，queryRope和keyRope等于空。
+            - query、key、value的d等于128，queryRope和keyRope不等于空，queryRope和keyRope的d为64;
+            - query、key的d等于192，value的d等于128，queryRope和keyRope等于空。
           - gqa非量化场景，NTD、NTD_TND仅支持D=64或D=128;
           - 不支持左padding、tensorlist、pseType=0、prefix、伪量化。
 - <a id="public"></a>通用场景
