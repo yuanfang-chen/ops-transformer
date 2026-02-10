@@ -37,7 +37,7 @@ class MoeDistributeDispatchA2Layered {
 public:
     constexpr static uint32_t STATE_OFFSET = 512; // 状态空间偏移地址
     constexpr static uint32_t STATUS_SIZE_LAYERED = 1024 * 1024; // 1M
-    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024;
+    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024UL;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B64_PER_BLOCK = UB_32B_ALIGN / sizeof(int64_t); // 4
@@ -62,7 +62,6 @@ public:
     constexpr static uint32_t WAIT_STATUS = 1;
     constexpr static uint32_t ARRIVAL_STATUS = 2;
     constexpr static uint32_t SKIP_STATUS = 3;
-    constexpr static uint32_t RDMA_DATA_SIZE = 100U * 1024U * 1024U;
     constexpr static uint32_t EXTRA_TOKEN_INFO_NUM = 4U; // 专家信息 权重信息 量化Scale 到达标志位
 
 template <typename T>
@@ -255,9 +254,9 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     totalSize_ = winContext_->winSize;
     serverNum = worldSize_ / SERVER_RANK_SIZE;
     uint64_t maxBs = globalBs_ / worldSize_;
-    uint64_t maxTokenStructLen = axisH_ * 2UL + 4UL * alignK_ * sizeof(uint32_t);
+    uint64_t maxTokenStructLen = axisH_ * sizeof(XType) + EXTRA_TOKEN_INFO_NUM * alignK_ * sizeof(uint32_t);
     serverSizeOnWin_ = RoundUp(maxBs * maxTokenStructLen, RDMA_BUFFER_ALIGN);
-    totalWinSize_ = serverSizeOnWin_ * serverNum * 2UL + STATUS_SIZE_LAYERED * 2UL;
+    totalWinSize_ = (serverSizeOnWin_ * serverNum + STATUS_SIZE_LAYERED) * 2UL;
     shareMemOffset_ = totalWinSize_;
     halfWinSize_ = totalWinSize_ / 2;
     WIN_SIZE = halfWinSize_ - STATUS_SIZE_LAYERED;
@@ -272,7 +271,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     innerTableFlagOffset_ = innerTableDataOffset_ + innerTableDataTotalSize_;
 
     uint64_t winSizeMin = moeExpertNum_ * axisBS_ * (axisH_ * sizeof(XType) + EXTRA_TOKEN_INFO_NUM * alignK_ * sizeof(uint32_t)) +
-        IPC_DATA_OFFSET + RDMA_DATA_SIZE; // 考虑负载极其不均衡时，HCCL BUFFSIZE需要开的大小
+        IPC_DATA_OFFSET + totalWinSize_; // 考虑负载极其不均衡时，HCCL BUFFSIZE需要开的大小
 
     //RDMA buffer init
     bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t*)(windowInGM_ + WIN_SIZE + worldSize_ * STATE_OFFSET));
