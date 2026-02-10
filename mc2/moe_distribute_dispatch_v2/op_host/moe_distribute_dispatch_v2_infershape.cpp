@@ -35,6 +35,7 @@ static constexpr size_t DIM_ONE = 1UL;
 static constexpr size_t DIM_TWO = 2UL;
 static constexpr int64_t NEG_ONE = -1;
 static constexpr int64_t RANK_NUM_PER_NODE = 8;
+static constexpr int64_t RANK_NUM_PER_A3NODE = 16;
 static constexpr int64_t ASSIST_INFO_NUM_PER_A = 128;
 static constexpr int64_t PER_GROUP_SIZE = 128;
 static constexpr int64_t MX_QUANT_SIZE = 32;
@@ -209,6 +210,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
         return ge::GRAPH_FAILED);
 
     int64_t a;
+    int64_t assistInfoNum;
     int64_t localExpertNum;
     int64_t localMoeExpertNum = *moeExpertNum / moeRankNum;
     int64_t globalBsReal = ((*globalBs == 0) ? (bs * *epWorldSize) : *globalBs);
@@ -258,7 +260,10 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
         Ops::Base::ToString(*dynamicScalesShape).c_str());
 
     assistInfoShape->SetDimNum(DIM_ONE);
-    assistInfoShape->SetDim(0U, a * ASSIST_INFO_NUM_PER_A);
+    if (expertScalesShape != nullptr) {
+        assistInfoNum = globalBsReal * 2 * k * (*epWorldSize) / RANK_NUM_PER_A3NODE;
+    }
+    assistInfoShape->SetDim(0U, std::max(assistInfoNum, a * ASSIST_INFO_NUM_PER_A));
     OP_LOGD(context->GetNodeName(), "assistInfoShape shape is :%s after infershape.",
         Ops::Base::ToString(*assistInfoShape).c_str());
 
@@ -277,8 +282,6 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     } else {
         if (*tpWorldSize == DIM_TWO)  {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum * (*tpWorldSize));
-        } else if (expertScalesShape != nullptr) {
-            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * 2 * k * (*epWorldSize) / RANK_NUM_PER_NODE);
         } else {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum);
         }

@@ -138,6 +138,7 @@ namespace {
     constexpr uint64_t ONE_DIM_SCALE_COL_NUM = 1;
     constexpr uint64_t MX_BLOCK_SIZE = 32U;
     constexpr uint64_t PERGROUP_BLOCK_SIZE = 128U;
+    constexpr uint64_t RANK_NUM_PER_A3NODE = 16U;
 
     // A2定义
     const char *K_INNER_DEBUG = "MoeDistributeDispatchV2 Tiling Debug";
@@ -1200,6 +1201,9 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     const gert::StorageShape *assistInfoStorageShape = context->GetOutputShape(OUTPUT_ASSIST_INFO_INDEX);
     const int64_t assistInfoDim0 = assistInfoStorageShape->GetStorageShape().GetDim(0);
     int64_t minAssistInfoDim0 = static_cast<int64_t>(A * ASSIST_NUM_PER_A);
+    int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
+
+    minAssistInfoDim0 = static_cast<int64_t>(std::max(minAssistInfoDim0, static_cast<int64_t>(globalBs) * 2 * static_cast<int64_t>(expertIdsDim1) * (epWorldSize) / RANK_NUM_PER_A3NODE));
     OP_TILING_CHECK(assistInfoDim0 < minAssistInfoDim0, OP_LOGE(nodeName, "assistInfoDim0 < minAssistInfoDim0,"
         " assistInfoDim0 is %ld, minAssistInfoDim0 is %ld.", assistInfoDim0, minAssistInfoDim0), return ge::GRAPH_FAILED);
 
@@ -1221,7 +1225,6 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     }
 
     // 校验epRecvCount和tpRecvCount的维度
-    int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
     const gert::StorageShape *epRecvCountStorageShape = context->GetOutputShape(OUTPUT_EP_RECV_COUNTS_INDEX);
     const gert::StorageShape *tpRecvCountStorageShape = context->GetOutputShape(OUTPUT_TP_RECV_COUNTS_INDEX);
     const int64_t epRecvCountDim0 = epRecvCountStorageShape->GetStorageShape().GetDim(0);
@@ -1343,14 +1346,14 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
         tokenNeedSizeDispatch = ((tokenActualLen + WIN_ADDR_ALIGN - 1UL) / WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     }
     uint64_t actualSize = isLayered ? (moeExpertNum * maxBs * (h * MAX_OUT_DTYPE_SIZE + (3 * (k + 7) / 8 * 8) *
-        sizeof(uint32_t) + 64) + 204 * MB_SIZE) : ((maxBs * tokenNeedSizeDispatch * epWorldSize * static_cast<uint64_t>(localMoeExpertNum))
+        sizeof(uint32_t) + 64) + 404 * MB_SIZE) : ((maxBs * tokenNeedSizeDispatch * epWorldSize * static_cast<uint64_t>(localMoeExpertNum))
         + (maxBs * tokenNeedSizeCombine * (k + static_cast<uint64_t>(sharedExpertNum)))) * DOUBLE_DATA_BUFFER;
     OP_TILING_CHECK((actualSize > maxWindowSizeEp),
         OP_LOGE(nodeName, "HCCL_BUFFSIZE_EP is too SMALL, maxBs = %lu, h = %lu, epWorldSize = %lu,"
             " localMoeExpertNum = %u, sharedExpertNum = %u, tokenNeedSizeDispatch = %lu, tokenNeedSizeCombine = %lu,"
             " k = %lu, NEEDED_HCCL_BUFFSIZE(((maxBs * tokenNeedSizeDispatch * ep_worldsize * localMoeExpertNum) +"
             " (maxBs * tokenNeedSizeCombine * (k + sharedExpertNum))) * 2) or NEEDED_HCCL_BUFFSIZE_HIERARCHY((moeExpertNum * maxBs * (h * MAX_OUT_DTYPE_SIZE + (3 * (k + 7) / 8 * 8) *"
-            "sizeof(uint32_t) + 64) + 204 * 1024 * 1024)) = %luMB,"
+            "sizeof(uint32_t) + 64) + 404 * 1024 * 1024)) = %luMB,"
             " HCCL_BUFFSIZE=%luMB.", maxBs, h, epWorldSize, localMoeExpertNum, sharedExpertNum,
             tokenNeedSizeDispatch, tokenNeedSizeCombine, k, actualSize / MB_SIZE + 1UL, hcclBufferSizeEp / MB_SIZE),
             return ge::GRAPH_FAILED);

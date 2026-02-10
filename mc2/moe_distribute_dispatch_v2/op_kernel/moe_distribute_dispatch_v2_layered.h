@@ -289,10 +289,6 @@ __aicore__ inline void MoeDistributeDispatchV2Layered<TemplateMC2TypeV2LayeredFu
     expertIdsCnt_ = axisBS_ * axisK_;
     serverNum_ = worldSize_ / SERVER_RANK_SIZE;
 
-    uint32_t tokenFlagSize = STATE_OFFSET * (worldSize_ + 1);
-    uint32_t innerTableFlagTotalSize = STATE_OFFSET * (serverNum_ + 1);
-    uint32_t innerTableDataTotalSize = STATUS_SPACE_SIZE - tokenFlagSize - innerTableFlagTotalSize;
-
     //Combine info offset init
     combineInnerCntOffset_ = 0UL;
     combineInnerCntIndexOffset_ = combineInnerCntOffset_ + globalBs_ * serverNum_ * sizeof(int16_t);
