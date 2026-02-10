@@ -206,6 +206,7 @@ struct RunInfo {
     uint32_t tndCoreStartKVSplitPos = 0;
     bool isBmm2Output = false;
     bool isValid = false;
+    int64_t inValidRowCount = 0;
 
     static constexpr uint32_t n2Idx = 0;
     uint64_t actS1Size = 1;

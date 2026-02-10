@@ -368,7 +368,7 @@ __aicore__ inline void SWAVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
             if (dealTempSize == 0) {
                 continue;
             }
-            SetInfInBlk(mmResUb, dealTempSize, columnCount, right, columnCount - 1);
+            SetInfInBlk(mmResUb[ubOffset], dealTempSize, columnCount, right, columnCount - 1);
             noMaskCmpSize += 1;
             ubOffset += dealTempSize * columnCount;
             gStartIdx = 0;
