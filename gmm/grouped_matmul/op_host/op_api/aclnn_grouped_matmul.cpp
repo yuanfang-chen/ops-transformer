@@ -2230,7 +2230,7 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
                "GroupedMatmul weight tensor should not be null");
     auto wShape = (*weight)[i]->GetViewShape();
     CHECK_COND(wShape.GetDimNum() >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
-               "GroupedMatmul weight dim num should larger than 2, but actual %d.", wShape.GetDimNum());
+               "GroupedMatmul weight dim num should be 2 or 3, but actual %d.", wShape.GetDimNum());
     zeroN = zeroN && (wShape.GetDim(wShape.GetDimNum() - 1) == 0);
   }
   // if all M or N is zero, do not need to check K
