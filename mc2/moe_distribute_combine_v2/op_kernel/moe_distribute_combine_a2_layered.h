@@ -390,7 +390,8 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     qp_info_ = (__gm__ HcclAiRMAInfo*)(((__gm__ HcclA2CombineOpParam*)contextGM)->aiRMAInfo);
 
     serverNum = worldSize_ / SERVER_RANK_SIZE;
-    rdmaDataSize_ = maxLocalBs * (axisH_ * 2 + RoundUp(axisK_, B32_PER_BLOCK) * sizeof(uint32_t) * 4);
+    uint64_t maxBs = globalBs / worldSize_;
+    rdmaDataSize_ = maxBs * (axisH_ * 2 + RoundUp(axisK_, B32_PER_BLOCK) * sizeof(uint32_t) * 4);
     rdmaDataSize_ = (serverNum * RoundUp(rdmaDataSize_, RDMA_BUFFER_ALIGN) + STATE_SPACE_SIZE) * 2;
     halfWinSize_ = rdmaDataSize_ / 2U;
 
