@@ -21,10 +21,13 @@
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 #include "../../common/op_kernel/offset_calculator.h"
-#include "../../common/matmul.h"
-#include "../../common/FixpipeOut.h"
-#include "../../common/CopyInL1.h"
+#include "../../common/op_kernel/matmul.h"
+#include "../../common/op_kernel/FixpipeOut.h"
+#include "../../common/op_kernel/CopyInL1.h"
+#include "../kv_quant_sparse_flash_attention_common.h"
+
 #include "kv_quant_sparse_flash_attention_common_arch35.h"
+#include "util_regbase.h"
 
 using namespace AscendC;
 using namespace AscendC::Impl::Detail;

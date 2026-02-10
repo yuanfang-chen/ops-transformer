@@ -24,31 +24,38 @@
 #include "../kv_quant_sparse_flash_attention_common.h"
 #include "kv_quant_sparse_flash_attention_service_cube_mla.h"
 #include "kv_quant_sparse_flash_attention_service_vector_mla.h"
+#include "kv_quant_sparse_flash_attention_common_arch35.h"
+#include "kv_quant_sparse_flash_attention_kvcache.h"
+#include "../../common/op_kernel/matmul.h"
+#include "../../common/op_kernel/FixpipeOut.h"
+#include "../../common/op_kernel/CopyInL1.h"
 
-using namespace matmul;
-using AscendC::CacheMode;
-using AscendC::CrossCoreSetFlag;
-using AscendC::CrossCoreWaitFlag;
+using matmul::MatmulType;
+using namespace AscendC;
+using namespace optiling;
+using namespace optiling::detail;
+using namespace AscendC::Impl::Detail;
+using namespace regbaseutil;
 
 // 由于S2循环前，RunInfo还没有赋值，使用Bngs1Param临时存放B、N、S1轴相关的信息；同时减少重复计算
-struct TempLoopInfo {
-    uint32_t bn2IdxInCurCore = 0;
-    uint32_t bIdx = 0U;
-    uint32_t n2Idx = 0U;
-    uint64_t s2BasicSizeTail = 0U; // S2方向循环的尾基本块大小
-    uint32_t s2LoopTimes = 0U; // S2方向循环的总次数，无论TND还是BXXD都是等于实际次数，不用减1
-    uint64_t curActualSeqLen = 0ULL;
-    uint64_t curActualSeqLenOri = 0ULL;
-    bool curActSeqLenIsZero = false;
-    int32_t nextTokensPerBatch = 0;
+// struct TempLoopInfo {
+//     uint32_t bn2IdxInCurCore = 0;
+//     uint32_t bIdx = 0U;
+//     uint32_t n2Idx = 0U;
+//     uint64_t s2BasicSizeTail = 0U; // S2方向循环的尾基本块大小
+//     uint32_t s2LoopTimes = 0U; // S2方向循环的总次数，无论TND还是BXXD都是等于实际次数，不用减1
+//     uint64_t curActualSeqLen = 0ULL;
+//     uint64_t curActualSeqLenOri = 0ULL;
+//     bool curActSeqLenIsZero = false;
+//     int32_t nextTokensPerBatch = 0;
 
-    uint64_t actS1Size = 1ULL; // TND场景下当前Batch循环处理的S1轴的大小，非TND场景下不要用这个字段
-    uint32_t tndCoreStartKVSplitPos;
-    bool tndIsS2SplitCore;
+//     uint64_t actS1Size = 1ULL; // TND场景下当前Batch循环处理的S1轴的大小，非TND场景下不要用这个字段
+//     uint32_t tndCoreStartKVSplitPos;
+//     bool tndIsS2SplitCore;
 
-    uint32_t gS1Idx = 0U;
-    uint64_t mBasicSizeTail = 0U; // gS1方向循环的尾基本块大小
-};
+//     uint32_t gS1Idx = 0U;
+//     uint64_t mBasicSizeTail = 0U; // gS1方向循环的尾基本块大小
+// };
 
 template <typename QSFAT> class KvQuantSparseFlashAttentionMla {
 public:
