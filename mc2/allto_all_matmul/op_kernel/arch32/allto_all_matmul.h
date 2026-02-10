@@ -16,7 +16,15 @@
 #ifndef ALL_TO_ALL_MATMUL_H
 #define ALL_TO_ALL_MATMUL_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_tiling/kernel_tiling.h"
 #include "allto_all_matmul_tiling.h"
 #include "allto_all_matmul_util.h"

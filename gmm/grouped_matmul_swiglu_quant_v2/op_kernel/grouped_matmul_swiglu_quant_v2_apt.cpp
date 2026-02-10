@@ -15,7 +15,15 @@
 
 #include "kernel_utils.h"
 #include "kernel_tiling/kernel_tiling.h"
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #if ORIG_DTYPE_X_SCALE == DT_FLOAT8_E8M0
     #include "arch35/grouped_matmul_swiglu_quant_v2_mxquant.h"

@@ -14,7 +14,15 @@
  */
 #define K_MAX_SHAPE_DIM 0
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "grouped_mat_mul_all_reduce_utils.h"
 #include "grouped_mat_mul_all_reduce.h"
 

@@ -15,7 +15,15 @@
 #ifndef ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 #define ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "allto_allv_gmm.h"
 #include "lib/matmul_intf.h"

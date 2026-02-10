@@ -16,7 +16,15 @@
 #ifndef FFN_TO_ATTENTION_H
 #define FFN_TO_ATTENTION_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_tiling/kernel_tiling.h"
 #include "ffn_to_attention_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")

@@ -16,7 +16,15 @@
 #ifndef WEIGHT_QUANT_BATCHMATMUL_V2_VF_H
 #define WEIGHT_QUANT_BATCHMATMUL_V2_VF_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 namespace MicroAPI = AscendC::MicroAPI;
 

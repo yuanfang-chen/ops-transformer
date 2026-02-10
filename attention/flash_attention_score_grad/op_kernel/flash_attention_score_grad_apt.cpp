@@ -19,7 +19,15 @@
 #define KFC_L1_RESERVER_SIZE 0 // only support Gm in and Gm out
 #endif
 
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 using namespace AscendC;
 
 #include "arch35/flash_attention_score_grad_entry_regbase.h"

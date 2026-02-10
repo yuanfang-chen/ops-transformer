@@ -13,7 +13,15 @@
  * \brief
  */
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "quant_reduce_scatter_tiling_data.h"
 #include "quant_reduce_scatter_tiling_key.h"
 #include "quant_reduce_scatter_mte.h"

@@ -13,8 +13,16 @@
  * \brief
  */
 
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #if (__NPU_ARCH__ == 5102)
 #ifdef NOT_DYNAMIC_COMPILE

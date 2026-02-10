@@ -15,7 +15,15 @@
 #ifndef MATMUL_ALL_REDUCE_310_GENERAL_H
 #define MATMUL_ALL_REDUCE_310_GENERAL_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #ifdef __CCE_KT_TEST__
 #include "rac_server_stub.h"

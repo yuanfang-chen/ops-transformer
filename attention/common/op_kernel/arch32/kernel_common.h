@@ -15,8 +15,16 @@
 #ifndef KERNEL_COMMON_H
 #define KERNEL_COMMON_H
 
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 using namespace AscendC;
 using AscendC::GlobalTensor;

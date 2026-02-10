@@ -17,7 +17,15 @@
 #define MATMUL_BLOCK_BLOCK_GROUPED_MATMUL_BUILDER_H
 
 #define ASCENDC_CUBE_ONLY
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "block_mmad_multi_block_bias.h"
 
 #include "../utils/common_utils.h"

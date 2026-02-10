@@ -15,7 +15,15 @@
 
 #ifndef EPILOGUE_BLOCK_EPILOGUE_EMPTY_H
 #define EPILOGUE_BLOCK_EPILOGUE_EMPTY_H
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "fusion/default_fusion_op.h"
 #include "../utils/common_utils.h"
 #include "../utils/device_utils.h"

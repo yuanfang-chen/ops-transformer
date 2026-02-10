@@ -17,7 +17,15 @@
 #define BLOCK_MX_MM_AIC_TO_AIV_BUILDER_H
 
 
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "../utils/common_utils.h"
 #include "../utils/layout_utils.h"

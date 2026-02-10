@@ -16,7 +16,15 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_A2_H
 #define MOE_DISTRIBUTE_DISPATCH_A2_H
 #include <climits>
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "utils/std/algorithm.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"

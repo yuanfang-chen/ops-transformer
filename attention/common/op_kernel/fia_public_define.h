@@ -15,8 +15,16 @@
 #ifndef FIA_PUBLIC_DEFINE_H
 #define FIA_PUBLIC_DEFINE_H
 
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
 

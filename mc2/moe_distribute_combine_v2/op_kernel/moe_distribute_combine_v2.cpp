@@ -12,7 +12,15 @@
  * \file moe_distribute_combine_v2.cpp
  * \brief
  */
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "moe_distribute_combine_v2_tiling_key.h"
 

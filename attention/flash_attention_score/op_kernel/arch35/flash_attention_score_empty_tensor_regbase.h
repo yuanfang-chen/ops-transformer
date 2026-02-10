@@ -16,7 +16,15 @@
 #ifndef FLASH_ATTENTION_SCORE_REGBASE_EMPTY_TENSOR_H
 #define FLASH_ATTENTION_SCORE_REGBASE_EMPTY_TENSOR_H
 
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_tiling/kernel_tiling.h"
 #include "flash_attention_score_template_tiling_key.h"
 #if __has_include("../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h")

@@ -13,7 +13,15 @@
  * \brief
  */
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "batch_mat_mul_reduce_scatter_allto_all.h"
 #include "batch_mat_mul_reduce_scatter_allto_all_shard_zero.h"
 #include "batch_mat_mul_reduce_scatter_allto_all_tiling_key.h"

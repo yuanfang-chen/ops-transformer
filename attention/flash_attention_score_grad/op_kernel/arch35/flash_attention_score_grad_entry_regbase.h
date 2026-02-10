@@ -23,7 +23,15 @@
 #include "flash_attention_score_grad_s1s2_bn2gs1s2_regbase.h"
 #include "flash_attention_score_grad_s1s2_bn2gs1s2_post_regbase.h"
 #include "flash_attention_score_grad_s1s2_bn2gs1s2_pre_regbase.h"
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "flash_attention_score_grad_block_vec.h"
 #include "flash_attention_score_grad_block_cube.h"

@@ -14,7 +14,15 @@
 #include "../iterator/tail_resplit_iterator.h"
 #include "../utils/device_utils.h"
 #include "../utils/math_utils.h"
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #define BLOCK_N 32
 #define BLOCK_M 1

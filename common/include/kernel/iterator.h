@@ -18,8 +18,16 @@
 
 #include "common_func.h"
 #include "hardware.h"
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "layout.h"
 #include "mem.h"
 

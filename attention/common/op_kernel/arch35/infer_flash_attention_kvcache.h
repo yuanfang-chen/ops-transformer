@@ -15,7 +15,15 @@
 #ifndef INFER_FLASH_ATTENTION_KVCACHE_H
 #define INFER_FLASH_ATTENTION_KVCACHE_H
 
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "infer_flash_attention_comm.h"
 #include "infer_flash_attention_sparse.h"

@@ -16,7 +16,15 @@
 #ifndef MATMUL_ALL_REDUCE_DYNAMIC_QUANT_PERTILE_H
 #define MATMUL_ALL_REDUCE_DYNAMIC_QUANT_PERTILE_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "matmul_all_reduce_dynamic_quant_pertile_utils.h"
 #include "../common.h"
 

@@ -16,7 +16,15 @@
 #ifndef MC2_ALLTOALL_ALLGATHER_BATCHMATMUL_H
 #define MC2_ALLTOALL_ALLGATHER_BATCHMATMUL_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "adv_api/activation/silu.h"
 #include "adv_api/activation/gelu.h"

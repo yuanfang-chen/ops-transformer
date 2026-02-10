@@ -15,7 +15,15 @@
 
 #define ENABLE_L2_CACHE
 #include "weight_quant_batch_matmul_v2_constant.h"
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #if !(defined(__NPU_ARCH__) && (__NPU_ARCH__ == 5102))
 #include "arch35/n_first/weight_quant_batch_matmul_v2_basic_block_controller.h"

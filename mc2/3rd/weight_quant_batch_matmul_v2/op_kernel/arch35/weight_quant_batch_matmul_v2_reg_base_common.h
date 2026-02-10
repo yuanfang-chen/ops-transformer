@@ -16,7 +16,15 @@
 #ifndef WEIGHT_QUANT_BATCHMATMUL_V2_REG_BASE_COMMON_H
 #define WEIGHT_QUANT_BATCHMATMUL_V2_REG_BASE_COMMON_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "tool_arch35.h"
 #include "../weight_quant_batch_matmul_v2_constant.h"

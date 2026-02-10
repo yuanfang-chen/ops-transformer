@@ -11,7 +11,15 @@
 #ifndef CATLASS_CATLASS_HPP
 #define CATLASS_CATLASS_HPP
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "detail/alignment.hpp"
 #include "detail/dependent_false.hpp"

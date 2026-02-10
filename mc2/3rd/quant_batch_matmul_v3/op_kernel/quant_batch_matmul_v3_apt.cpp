@@ -20,7 +20,15 @@
 #include "arch35/qbmm_mix_online_dynamic_al1_full_load.h"
 #include "arch35/qbmm_mix_perblock.h"
 #endif
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 // if run with ttk without bias, can't get DTYPE_BIAS macro
 #undef DTYPE_BIAS

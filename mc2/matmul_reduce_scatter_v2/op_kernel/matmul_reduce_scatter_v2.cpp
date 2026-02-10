@@ -15,7 +15,15 @@
 
 #include "matmul_reduce_scatter_v2_tiling_key.h"
 #include "lib/matmul_intf.h"
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "matmul_reduce_scatter_aiv_mode.h"
 #include "matmul_reduce_scatter_aiv_mode_smallM.h"
 #include "matmul_reduce_scatter_v2_aiv_mode_tiling.h"

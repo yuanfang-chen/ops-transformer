@@ -16,7 +16,15 @@
 #ifndef ALL_GATHER_MATMUL_V2_BASE_H
 #define ALL_GATHER_MATMUL_V2_BASE_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "common.h"
 #include "lib/hccl/hccl.h"

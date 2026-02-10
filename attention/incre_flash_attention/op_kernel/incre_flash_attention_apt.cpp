@@ -12,8 +12,16 @@
  * \file incre_flash_attention_apt.cpp
  * \brief
  */
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "arch35/incre_flash_attention_template_tiling_key.h"
 #include "arch35/incre_flash_attention_entry_regbase.h"
 #ifdef NOT_DYNAMIC_COMPILE

@@ -16,8 +16,16 @@
 #define PROMPT_FLASH_ATTENTION_BASE_H
 
 #include "kernel_tiling/kernel_tiling.h"
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/quantization/ascend_quant.h"
 #include "adv_api/activation/softmax.h"
 #include "adv_api/activation/softmaxflash.h"

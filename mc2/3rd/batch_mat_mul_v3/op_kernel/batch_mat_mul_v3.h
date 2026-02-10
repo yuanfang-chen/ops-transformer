@@ -19,7 +19,15 @@
 #include "batch_mat_mul_v3_com_base_block.h"
 #include "../../mat_mul_v3/op_kernel/mat_mul_unaligned_base_kernel.h"
 #include "../../mat_mul_v3/op_kernel/mat_mul_l1_full_load.h"
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 
 using namespace AscendC;

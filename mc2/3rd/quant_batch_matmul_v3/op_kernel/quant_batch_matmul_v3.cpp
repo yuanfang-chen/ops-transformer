@@ -26,7 +26,15 @@
 #include "quant_batch_matmul_v3_pertoken_opt.h"
 #endif
 #endif
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "quant_batch_matmul_v3_tiling_key.h"
 #include "quant_batch_matmul_v3_tiling_data.h"
 

@@ -15,7 +15,15 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_H
 #define MATMUL_ALL_REDUCE_QUANT_H
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #ifdef MC2_QUANT_BF16

@@ -16,7 +16,15 @@
 #define BATCH_MAT_MUL_V3_ITERBATCH_KERNEL_ADVANCED_H
 
 #include "batch_mat_mul_v3_iterbatch_block_advanced.h"
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 
 namespace Mc2BatchMatMulV3Advanced {

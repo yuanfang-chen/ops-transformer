@@ -17,7 +17,15 @@
 #define HPP_HPP
 
 
+#ifdef __has_include
+#if __has_include("basic_api/kernel_basic_intf.h")
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "../attn_infra/detail/alignment.hpp"
 #include "../attn_infra/detail/dependent_false.hpp"

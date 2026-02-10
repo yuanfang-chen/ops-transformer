@@ -19,7 +19,15 @@
 #include "basic_block_vf_mx.h"
 #include "basic_block_vf_nd.h"
 #include "basic_block_vf_nz.h"
+#ifdef __has_include
+#if __has_include("kernel_basic_intf.h")
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "tool.h"
 
 using AscendC::BLOCK_CUBE;

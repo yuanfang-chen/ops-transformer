@@ -18,8 +18,16 @@
 #include "simd.h"
 #include "iterator.h"
 #include "mma.h"
+#ifdef __has_include
+#if __has_include("kernel_vec_intf.h")
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#else
+#include "kernel_operator.h"
+#endif
 #include "unpad_flash_attention_common.h"
 
 #ifdef __CCE_KT_TEST__
