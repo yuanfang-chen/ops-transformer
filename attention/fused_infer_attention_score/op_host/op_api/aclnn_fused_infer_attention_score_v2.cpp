@@ -72,6 +72,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize(
     int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE("Interface aclnnFusedInferAttentionScore versions V1 to V4 are no longer supported on Ascend950.");
+        return ACLNN_ERR_RUNTIME_ERROR;
+    }
     OP_LOGD("start aclnnFusedInferAttentionScoreV2GetMaxWorkspaceSize");
     TensorPreProcess(tensorListKey, tensorListValue);
     PrefixTensorPreProcess(tensorKeySharedPrefixOptional, tensorValueSharedPrefixOptional);
@@ -151,6 +155,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetWorkspaceSize(
     int64_t antiquantMode, bool softmaxLseFlag, int64_t keyAntiquantMode, int64_t valueAntiquantMode,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE("Interface aclnnFusedInferAttentionScore versions V1 to V4 are no longer supported on Ascend950.");
+        return ACLNN_ERR_RUNTIME_ERROR;
+    }
     const aclTensorList *tensorListKey = key;
     const aclTensorList *tensorListValue = value;
     TensorPreProcess(tensorListKey, tensorListValue);
@@ -193,6 +201,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV2GetWorkspaceSize(
 aclnnStatus aclnnFusedInferAttentionScoreV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                             const aclrtStream stream)
 {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE("Interface aclnnFusedInferAttentionScore versions V1 to V4 are no longer supported on Ascend950.");
+        return ACLNN_ERR_RUNTIME_ERROR;
+    }
     return aclnnInnerFusedInferAttentionScore(workspace, workspaceSize, executor, stream);
 }
 
