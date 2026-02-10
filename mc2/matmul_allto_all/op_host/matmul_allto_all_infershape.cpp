@@ -39,6 +39,7 @@ constexpr uint64_t DIM_TWO = 2;
 constexpr uint64_t NUM_MINUS_ONE = -1;
 constexpr uint64_t X1_QUANT_MODE_NUM = 3;
 constexpr uint64_t X2_QUANT_MODE_NUM = 2;
+constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: MatmulAlltoAll InferShape Debug";
 const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
 
@@ -119,7 +120,7 @@ static ge::graphStatus InferShapeMatmulAlltoAll(gert::InferShapeContext* context
         return ge::GRAPH_FAILED);
     auto shape_out = context->GetOutputShape(INDEX_OUT);
     OPS_CHECK_NULL_WITH_CONTEXT(context, shape_out);
-    shape_out->SetDimNum(shape.output_dim);
+    shape_out->SetDimNum(OUTPUT_INFER_SHAPE);
     if (shape.m == NUM_MINUS_ONE) {
         shape_out->SetDim(0U, shape.m);
         shape_out->SetDim(1U, shape.n);
@@ -128,7 +129,7 @@ static ge::graphStatus InferShapeMatmulAlltoAll(gert::InferShapeContext* context
         uint64_t out_second_dim = CeilDiv(shape.n, shape.rankNum);
         shape_out->SetDim(0U, out_first_dim);
         shape_out->SetDim(1U, out_second_dim);
-        OP_LOGI(INNER_DEBUG, "Matmul allto all output shape after infer shape, dim: %zu m: %ld n: %ld.", shape.output_dim, out_first_dim, out_second_dim);
+        OP_LOGI(INNER_DEBUG, "Matmul allto all output shape after infer shape, dim: %zu m: %ld n: %ld.", OUTPUT_INFER_SHAPE, out_first_dim, out_second_dim);
     }
     return ge::GRAPH_SUCCESS;
 }
