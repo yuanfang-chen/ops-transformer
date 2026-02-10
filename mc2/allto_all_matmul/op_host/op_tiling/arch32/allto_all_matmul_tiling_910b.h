@@ -56,10 +56,15 @@ protected:
     ge::graphStatus CheckTensorDataType(AlltoAllMatmulInfo &info);
     ge::graphStatus CheckShapeInfo(AlltoAllMatmulInfo &info);
     ge::graphStatus DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
+    // basic和A4W4的tiling
     void DoTwoRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     void DoFourRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     void DoEightRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
+    // A16W8的tiling
+    AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTilingData &cocTilingData, AlltoAllMatmulInfo &info);
     void CalTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info);
+    void SetTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info);
+    void DecodeTilingData(int32_t code, CoCTiling &cocTilingData);
     int32_t GetValueFromMKNConditionMap(int32_t m, int32_t k, int32_t n, int32_t defaultValue, 
                                     std::map<int, std::vector<std::vector<int>>> conditionMap);
     ge::graphStatus SetHcclTiling(AlltoAllMatmulTilingData *tilingData);
