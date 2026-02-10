@@ -1532,10 +1532,15 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::ComputeScaleValue(LocalTensor<T> &lseS
 
     if (softmaxLseFlag) {
         LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
+
+        AscendC::printf("tkd dealRowCount %llu\n", dealRowCount);
+        AscendC::printf("====================================");
         AscendC::printf("tkd lseSumUb\n");
         AscendC::DumpTensor(lseSumUb, 1, 512);
+        AscendC::printf("====================================");
         AscendC::printf("tkd lseMaxUb\n");
         AscendC::DumpTensor(lseMaxUb, 1, 512);
+        AscendC::printf("====================================");
         ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
         AscendC::printf("tkd softmaxlseUb\n");
         AscendC::DumpTensor(softmaxlseUb, 1, 512);
@@ -2739,6 +2744,15 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 #ifdef IFA_SOFTMAX_WITHOUT_BRC
             LocalTensor<T> lseSumUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_2K);
             LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
+            AscendC::printf("tkd mSizeVector: %llu\n", mSizeVector);
+            AscendC::printf("tkd mSplitSize: %llu\n", mSplitSize);
+            AscendC::printf("====================================");
+            AscendC::printf("tkd sumTensor\n");
+            AscendC::DumpTensor(sumTensor, 1, 512);
+            AscendC::printf("====================================");
+            AscendC::printf("tkd maxTensor\n");
+            AscendC::DumpTensor(maxTensor, 1, 512);
+            AscendC::printf("====================================");
             Brcb(lseSumUb, sumTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM,
                  {1, BLOCK_ELEMENT_NUM});
             PipeBarrier<PIPE_V>();
@@ -2759,8 +2773,10 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::SoftmaxLseCopyO
     LocalTensor<T> softmaxlseUb = outputQue2.template AllocTensor<T>();
     AscendC::printf("tkd lseSumUb\n");
     AscendC::DumpTensor(lseSumUb, 1, 512);
+    AscendC::printf("====================================");
     AscendC::printf("tkd lseMaxUb\n");
     AscendC::DumpTensor(lseMaxUb, 1, 512);
+    AscendC::printf("====================================");
     ComputeSoftmaxLse(softmaxlseUb, lseSumUb, lseMaxUb, dealRowCountAlign);
     AscendC::printf("tkd softmaxlseUb\n");
     AscendC::DumpTensor(softmaxlseUb, 1, 512);
