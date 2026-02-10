@@ -202,7 +202,7 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckFeature() {
         }
     } else {
         if (cmpRatio_ != 1 && cmpRatio_ != 4 && cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("For Ascend 950, Compression ratio %d invalid! Must be 1/4/128.", cmpRatio_);
+            KERNEL_LOG_ERROR("For Ascend 950, compression ratio %d invalid! Must be 1/4/128.", cmpRatio_);
             return false;
         }
         if (sparseCount_ != 512) {
