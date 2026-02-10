@@ -44,6 +44,7 @@ __aicore__ inline void ExecMoeDistributeCombineV3(GM_ADDR mc2Context, GM_ADDR ex
     op.Process();
 }
 }
+
 template<bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t ArchTag>
 __global__ __aicore__ void moe_distribute_combine_v3(GM_ADDR mc2Context, GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine,
                                                     GM_ADDR epSendCount, GM_ADDR scales, GM_ADDR tpSendCount,
