@@ -1159,7 +1159,6 @@ template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline bool
 FlashAttentionScoreGradKernelBase<ChildClass, CubeBlockType, VecBlockType>::IsValidForDeter(FagRunInfo &runInfo, int64_t taskId, int64_t index)
 {
-   
     int64_t gDimTail = index % constInfo.s1oS2o;
     int64_t s2oDimIdx = gDimTail / constInfo.s1Outer;
     int64_t s1oDimIdx = gDimTail % constInfo.s1Outer;
