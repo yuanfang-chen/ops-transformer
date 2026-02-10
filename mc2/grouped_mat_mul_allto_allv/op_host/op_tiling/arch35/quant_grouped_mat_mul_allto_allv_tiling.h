@@ -130,7 +130,6 @@ private:
     ge::graphStatus CheckAndSetSendRecvCountsAttr();
     ge::graphStatus CheckLocalParams();
     ge::graphStatus CheckParamsRelationAndSetLocalParams();
-    ge::graphStatus CalTilingInferredInfo();
 };
 
 } // namespace MC2Tiling
