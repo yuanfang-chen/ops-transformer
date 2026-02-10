@@ -67,16 +67,16 @@ def test_mhc_pre_case():
     T=1024
     n=8
     D=5120
-    x = torch.randn(T, n, D, dtype=torch.bfloat16).npu()
-    phi = torch.randn(n * n + 2 * n, n * D, dtype=torch.float32).npu()
-    alpha = torch.tensor([1.0, 1.0, 1.0], dtype=torch.float32).npu()
+    x = torch.randn(T, n, D, dtype=torch.bfloat16)
+    phi = torch.randn(n * n + 2 * n, n * D, dtype=torch.float32)
+    alpha = torch.tensor([1.0, 1.0, 1.0], dtype=torch.float32)
     bias_pre = torch.full((n,), 0.01, dtype=torch.float32)
     bias_post = torch.full((n,), 0.01, dtype=torch.float32)
     bias_res = torch.full((n, n), 0.01, dtype=torch.float32)
-    bias = torch.cat([bias_pre, bias_post, bias_res.reshape(-1)], dim=0).npu()
-    gamma = torch.randn(n, D, dtype=torch.float32).npu()
+    bias = torch.cat([bias_pre, bias_post, bias_res.reshape(-1)], dim=0)
+    gamma = torch.randn(n, D, dtype=torch.float32)
 
-    out_doc = torch_npu.npu_manifold_constrained_hyper_connection_pre(x, phi, alpha, bias, gamma=gamma, out_flag = 1)
+    out_doc = torch_npu.npu_mhc_pre(x.npu(), phi.npu(), alpha.npu(), bias.npu(), gamma=gamma.npu(), out_flag = 1)
     out_golden = manifold_constrained_hyper_connection_pre_golden_TND(x, phi, alpha, bias, gamma=gamma)
 
     names = ["h_in", "h_post", "h_comb_before", "inv_rms", "h_mix", "h_pre"]
