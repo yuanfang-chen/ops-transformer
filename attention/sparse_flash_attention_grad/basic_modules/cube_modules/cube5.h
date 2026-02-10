@@ -61,7 +61,6 @@ CubeOp<T1>::cube5ProcessSparse(const int64_t pGmOffset, const int64_t dyGmOffset
             LocalTensor<float> l0cTensor = cL0TensorPingPong[ping_pong_flag_l0c_ & 1];
             
             int64_t currentOutGmOffset = mm5ResOutOffset + dIdx * perLoopDSize;
-            // l0a复用
             uint32_t l0a_ping_pong_flag = ping_pong_flag_l0a_;
             MmadInnerWithSync<T1>(l0cTensor, l1_p_tensor, current_l1_dy_tensor,
                     aL0TensorPingPong, bL0TensorPingPong,
