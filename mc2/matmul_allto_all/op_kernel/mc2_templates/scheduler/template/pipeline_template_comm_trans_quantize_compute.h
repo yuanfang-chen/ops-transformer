@@ -74,11 +74,11 @@ __aicore__ inline void
 MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
                                                ContextType>::Process(uint32_t taskCnt)
 {
-    commStage_->Prepare(taskCnt);
+    commStage_->PrepareAll(taskCnt);
     uint32_t index;
     for (index = 0; index < taskCnt; index++) {
         if ASCEND_IS_AIV {
-            commStage_->Process();
+            commStage_->Process(index);
             AscendC::SyncAll<true>();
 
             transStage_->Process(index);
