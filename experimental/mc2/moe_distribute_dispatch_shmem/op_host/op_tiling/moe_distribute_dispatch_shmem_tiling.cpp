@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "../../op_kernel/moe_distribute_dispatch_tiling.h"
+
 #include "../../op_kernel/moe_distribute_dispatch_shmem_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "mc2_log.h"
@@ -1268,7 +1268,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context,
   return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(
+static ge::graphStatus MoeDistributeDispatchTilingFuncImpl(
     gert::TilingContext *context) {
   const char *nodeName = context->GetNodeName();
   MoeDistributeDispatchShmemTilingData *tilingData =
@@ -1430,7 +1430,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(
 static ge::graphStatus MoeDistributeDispatchShmemTilingFunc(
     gert::TilingContext *context) {
   ge::graphStatus ret;
-  ret = MoeDistributeDispatchA3TilingFuncImpl(context);
+  ret = MoeDistributeDispatchTilingFuncImpl(context);
   return ret;
 }
 
