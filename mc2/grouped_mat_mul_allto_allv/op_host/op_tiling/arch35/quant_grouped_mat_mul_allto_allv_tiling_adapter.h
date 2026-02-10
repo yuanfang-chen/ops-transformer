@@ -44,9 +44,6 @@ public:
     
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 
-    ge::graphStatus SetSharedExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params);
-    ge::graphStatus SetGroupExpertInputParameters(const int32_t* sendCounts, uint64_t worldSize, uint64_t index,
-                                             uint32_t epNums);
     const Mc2GroupedMatmulTilingData::GMMQuantTilingData& GetGmmQuantTilingAdapterData() const { return tilingData_; }
     // Input validation methods - skipped (validated outside class)
     bool AnalyzeAttrs() override { return true; }
@@ -58,9 +55,9 @@ public:
     // void PrintMatmulParams();
     ge::graphStatus Process();
     ge::graphStatus SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params);
+    ge::graphStatus SetGroupExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params);
+    ge::graphStatus SetSharedExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params);
 
-protected:
-    // Reuse parent class DoOpTiling() and DoLibApiTiling()
 };
 
 } // namespace Mc2GroupedMatmul
