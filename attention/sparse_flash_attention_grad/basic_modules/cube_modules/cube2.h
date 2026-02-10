@@ -91,8 +91,8 @@ CubeOp<T1>::cube2ProcessDense(const int32_t blkCntOffset, const int32_t mmPingPo
     mmParam.dstStride = PER_LOOP_BLOCK_SIZE;
 
     uint32_t totalSel = selectedCntOffset * selectedBlockSize;
-    if (isLastBasicBlock) {
-        totalSel = totalSel - selectedBlockSize + lastBlockSize;
+    if (runInfo.isLastBasicBlock) {
+        totalSel = totalSel - selectedBlockSize + runInfo.lastBlockSize;
     }
     //切N，也就是切S2
     for (int32_t nIdx = blkCntOffset; nIdx < blkCntOffset + selectedCntOffset; nIdx+=blockOffset) {
