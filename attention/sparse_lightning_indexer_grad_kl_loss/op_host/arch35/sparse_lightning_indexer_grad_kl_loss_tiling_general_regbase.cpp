@@ -107,56 +107,61 @@ static auto CalcTailSize(T num1, T num2) -> T
     return mod != 0 ? mod : num2;
 }
 
+ge::graphStatus SparseLightningIndexerGradKLLossTilingBaseRegbase::CheckOutShape(gert::Shape &inputshape, const char *inputName, 
+                                                                    gert::Shape &outputshape)
+{
+    if (inputLayout[DIM_NUM_0] == 'T' && inputLayout[DIM_NUM_1] == 'N' && inputLayout[DIM_NUM_2] == 'D') {
+        if (inputshape.GetDim(DIM_NUM_0) != outputshape.GetDim(DIM_NUM_0) || inputshape.GetDim(DIM_NUM_1) != outputshape.GetDim(DIM_NUM_1) 
+            || inputshape.GetDim(DIM_NUM_2) != outputshape.GetDim(DIM_NUM_2)) {
+            OP_LOGE(context_, "SparseFlashAttentionGrad Input %s [%ld, %ld, %ld] is not equal to Output d_%s [%ld, %ld, %ld]", 
+                inputName, inputshape.GetDim(DIM_NUM_0), inputshape.GetDim(DIM_NUM_1), inputshape.GetDim(DIM_NUM_2),
+                inputName, outputshape.GetDim(DIM_NUM_0), outputshape.GetDim(DIM_NUM_1), outputshape.GetDim(DIM_NUM_2));
+            return ge::GRAPH_FAILED;
+        }
+    } else {
+        if (inputshape.GetDim(DIM_NUM_0) != outputshape.GetDim(DIM_NUM_0) || inputshape.GetDim(DIM_NUM_1) != outputshape.GetDim(DIM_NUM_1) 
+            || inputshape.GetDim(DIM_NUM_2) != outputshape.GetDim(DIM_NUM_2) || inputshape.GetDim(DIM_NUM_3) != outputshape.GetDim(DIM_NUM_3)){
+            OP_LOGE(context_, "SparseFlashAttentionGrad Input %s [%ld, %ld, %ld, %ld] is not equal to Output d_%s [%ld, %ld, %ld, %ld]", 
+                inputName, inputshape.GetDim(DIM_NUM_0), inputshape.GetDim(DIM_NUM_1), inputshape.GetDim(DIM_NUM_2), inputshape.GetDim(DIM_NUM_3),
+                inputName, outputshape.GetDim(DIM_NUM_0), outputshape.GetDim(DIM_NUM_1), outputshape.GetDim(DIM_NUM_2), outputshape.GetDim(DIM_NUM_3));
+            return ge::GRAPH_FAILED;
+        }    
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 // 比较维度数值与输入是否能够对应
 ge::graphStatus SparseLightningIndexerGradKLLossTilingBaseRegbase::CheckOutPut()
 {
-    auto queryIndexShape = context_->GetInputShape(QUERY_INDEX_INPUT_INDEX);
-    auto keyIndexShape = context_->GetInputShape(KEY_INDEX_INPUT_INDEX);
-    auto weightsShape = context_->GetInputShape(WEIGHT_INPUT_INDEX);
-    auto dQueryIndexShape = context_->GetOutputShape(D_QUERY_INDEX_OUTPUT_INDEX);
-    auto dkeyIndexShape = context_->GetOutputShape(D_KEY_INDEX_OUTPUT_INDEX);
-    auto dWeightsShape = context_->GetOutputShape(D_WEIGHTS_OUTPUT_INDEX);
+    auto queryIndexShape = context_->GetInputShape(QUERY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto keyIndexShape = context_->GetInputShape(KEY_INDEX_INPUT_INDEX)->GetStorageShape();
+    auto weightsShape = context_->GetInputShape(WEIGHT_INPUT_INDEX)->GetStorageShape();
+    auto dQueryIndexShape = context_->GetOutputShape(D_QUERY_INDEX_OUTPUT_INDEX)->GetStorageShape();
+    auto dkeyIndexShape = context_->GetOutputShape(D_KEY_INDEX_OUTPUT_INDEX)->GetStorageShape();
+    auto dWeightsShape = context_->GetOutputShape(D_WEIGHTS_OUTPUT_INDEX)->GetStorageShape();
+
+    auto status = CheckOutShape(queryIndexShape, "query_index", dQueryIndexShape);
+    if (status == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
+    status = CheckOutShape(keyIndexShape, "key_index", dkeyIndexShape);
+    if (status == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
 
     if (inputLayout[DIM_NUM_0] == 'B' && inputLayout[DIM_NUM_1] == 'S' && inputLayout[DIM_NUM_2] == 'N' && inputLayout[DIM_NUM_3] == 'D') {
-        if (dWeightsShape->GetStorageShape().GetDim(DIM_NUM_0) != weightsShape->GetStorageShape().GetDim(DIM_NUM_0) || dWeightsShape->GetStorageShape().GetDim(DIM_NUM_1) != weightsShape->GetStorageShape().GetDim(DIM_NUM_1)
-            || dWeightsShape->GetStorageShape().GetDim(DIM_NUM_2) != weightsShape->GetStorageShape().GetDim(DIM_NUM_2)) {
-                OP_LOGE(context_, "The input weights shape is [%ld, %ld, %ld], but d_weights got [%ld, %ld, %ld].", weightsShape->GetStorageShape().GetDim(DIM_NUM_0),
-                weightsShape->GetStorageShape().GetDim(DIM_NUM_1), weightsShape->GetStorageShape().GetDim(DIM_NUM_2), dWeightsShape->GetStorageShape().GetDim(DIM_NUM_0),
-                dWeightsShape->GetStorageShape().GetDim(DIM_NUM_1), dWeightsShape->GetStorageShape().GetDim(DIM_NUM_2));
-                return GRAPH_FAILED;
-        }
-        if (queryIndexShape->GetStorageShape().GetDim(DIM_NUM_0) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_0) || queryIndexShape->GetStorageShape().GetDim(DIM_NUM_1) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_1) || 
-            queryIndexShape->GetStorageShape().GetDim(DIM_NUM_2) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_2) || queryIndexShape->GetStorageShape().GetDim(DIM_NUM_3) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_3)) {
-                OP_LOGE(context_, "The input query_index shape is [%ld, %ld, %ld, %ld], but d_query_index got [%ld, %ld, %ld, %ld].", queryIndexShape->GetStorageShape().GetDim(DIM_NUM_0),
-                queryIndexShape->GetStorageShape().GetDim(DIM_NUM_1), queryIndexShape->GetStorageShape().GetDim(DIM_NUM_2), queryIndexShape->GetStorageShape().GetDim(DIM_NUM_3), 
-                dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_0), dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_1), dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_2), dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_3));
-                return GRAPH_FAILED;                
-        }
-        if (keyIndexShape->GetStorageShape().GetDim(DIM_NUM_0) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_0) || keyIndexShape->GetStorageShape().GetDim(DIM_NUM_1) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_1) || 
-            keyIndexShape->GetStorageShape().GetDim(DIM_NUM_2) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_2) || keyIndexShape->GetStorageShape().GetDim(DIM_NUM_3) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_3)) {
-                OP_LOGE(context_, "The input key_index shape is [%ld, %ld, %ld, %ld], but d_key_index got [%ld, %ld, %ld, %ld].", keyIndexShape->GetStorageShape().GetDim(DIM_NUM_0),
-                keyIndexShape->GetStorageShape().GetDim(DIM_NUM_1), keyIndexShape->GetStorageShape().GetDim(DIM_NUM_2), keyIndexShape->GetStorageShape().GetDim(DIM_NUM_3), 
-                dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_0), dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_1), dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_2), dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_3));
+        if (dWeightsShape.GetDim(DIM_NUM_0) != weightsShape.GetDim(DIM_NUM_0) || dWeightsShape.GetDim(DIM_NUM_1) != weightsShape.GetDim(DIM_NUM_1)
+            || dWeightsShape.GetDim(DIM_NUM_2) != weightsShape.GetDim(DIM_NUM_2)) {
+                OP_LOGE(context_, "The input weights shape is [%ld, %ld, %ld], but d_weights got [%ld, %ld, %ld].", weightsShape.GetDim(DIM_NUM_0),
+                weightsShape.GetDim(DIM_NUM_1), weightsShape.GetDim(DIM_NUM_2), dWeightsShape.GetDim(DIM_NUM_0),
+                dWeightsShape.GetDim(DIM_NUM_1), dWeightsShape.GetDim(DIM_NUM_2));
                 return GRAPH_FAILED;
         }
     } else if (inputLayout[DIM_NUM_0] == 'T' && inputLayout[DIM_NUM_1] == 'N' && inputLayout[DIM_NUM_2] == 'D'){
-        if (dWeightsShape->GetStorageShape().GetDim(DIM_NUM_0) != weightsShape->GetStorageShape().GetDim(DIM_NUM_0) || dWeightsShape->GetStorageShape().GetDim(DIM_NUM_1) != weightsShape->GetStorageShape().GetDim(DIM_NUM_1)) {
-                OP_LOGE(context_, "The input weights shape is [%ld, %ld], but d_weights got [%ld, %ld].", weightsShape->GetStorageShape().GetDim(DIM_NUM_0),
-                weightsShape->GetStorageShape().GetDim(DIM_NUM_1), dWeightsShape->GetStorageShape().GetDim(DIM_NUM_0), dWeightsShape->GetStorageShape().GetDim(DIM_NUM_1));
-                return GRAPH_FAILED;
-        }
-        if (queryIndexShape->GetStorageShape().GetDim(DIM_NUM_0) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_0) || queryIndexShape->GetStorageShape().GetDim(DIM_NUM_1) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_1) || 
-            queryIndexShape->GetStorageShape().GetDim(DIM_NUM_2) != dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_2)) {
-                OP_LOGE(context_, "The input query_index shape is [%ld, %ld, %ld], but d_query_index got [%ld, %ld, %ld].", queryIndexShape->GetStorageShape().GetDim(DIM_NUM_0),
-                queryIndexShape->GetStorageShape().GetDim(DIM_NUM_1), queryIndexShape->GetStorageShape().GetDim(DIM_NUM_2), 
-                dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_0), dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_1), dQueryIndexShape->GetStorageShape().GetDim(DIM_NUM_2));
-                return GRAPH_FAILED;           
-        }
-        if (keyIndexShape->GetStorageShape().GetDim(DIM_NUM_0) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_0) || keyIndexShape->GetStorageShape().GetDim(DIM_NUM_1) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_1) || 
-            keyIndexShape->GetStorageShape().GetDim(DIM_NUM_2) != dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_2)) {
-                OP_LOGE(context_, "The input key_index shape is [%ld, %ld, %ld], but d_key_index got [%ld, %ld, %ld].", keyIndexShape->GetStorageShape().GetDim(DIM_NUM_0),
-                keyIndexShape->GetStorageShape().GetDim(DIM_NUM_1), keyIndexShape->GetStorageShape().GetDim(DIM_NUM_2),  
-                dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_0), dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_1), dkeyIndexShape->GetStorageShape().GetDim(DIM_NUM_2));
+        if (dWeightsShape.GetDim(DIM_NUM_0) != weightsShape.GetDim(DIM_NUM_0) || dWeightsShape.GetDim(DIM_NUM_1) != weightsShape.GetDim(DIM_NUM_1)) {
+                OP_LOGE(context_, "The input weights shape is [%ld, %ld], but d_weights got [%ld, %ld].", weightsShape.GetDim(DIM_NUM_0),
+                weightsShape.GetDim(DIM_NUM_1), dWeightsShape.GetDim(DIM_NUM_0), dWeightsShape.GetDim(DIM_NUM_1));
                 return GRAPH_FAILED;
         }
     }
