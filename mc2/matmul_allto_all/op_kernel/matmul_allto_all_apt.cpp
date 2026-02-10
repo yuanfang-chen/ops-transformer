@@ -36,7 +36,8 @@ using namespace MatmulAlltoAllImpl;
         ComputationType matmulImplName(&pipe); \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);    \
         TransposeType transposeImplName(&pipe);    \
-        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 1, 0, MatmulAlltoAllTilingData, CommunicationType); \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
+            MatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
         CommunicationType commImplName(&tilingData);  \
         using SchedulerContextType = PipelineContext<ComputationContextType>;  \
         using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
@@ -72,13 +73,13 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     //注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
     REGISTER_TILING_DEFAULT(KcQuantMatmulAlltoAllTilingData);
     GET_TILING_DATA_WITH_STRUCT(KcQuantMatmulAlltoAllTilingData, tilingData, tilingGM);
-
     DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_QUANT(ComputationContextType);
     DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, DTYPE_X1, DTYPE_X2);
     ComputationType matmulImplName(&pipe);
     DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);
     TransposeType transposeImplName(&pipe);
-    DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 1, 0, KcQuantMatmulAlltoAllTilingData, CommunicationType);
+    DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
+        KcQuantMatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType);
     CommunicationType commImplName(&tilingData);
     using SchedulerContextType = PipelineContext<ComputationContextType>;
     using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;

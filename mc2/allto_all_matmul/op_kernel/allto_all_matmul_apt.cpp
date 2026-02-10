@@ -29,8 +29,8 @@ using namespace AlltoAllMatmulImpl;
 #ifndef ALLTO_ALL_MATMUL_APT_FP_IMPL
 #define ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe)                                                                 \
     do {                                                                                                               \
-        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllMatmulTilingData,        \
-                                          CommunicationType);                                                          \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,             \
+            AlltoAllMatmulTilingData, MC2AlltoAllPrimitives, 0, 1, CommunicationType);                                 \
         CommunicationType commImplName(&tilingData);                                                                   \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
         TransposeType transposeImplName(&pipe);                                                                        \
@@ -50,8 +50,8 @@ using namespace AlltoAllMatmulImpl;
 #ifndef ALLTO_ALL_KC_QUANT_MATMUL_IMPL
 #define ALLTO_ALL_KC_QUANT_MATMUL_IMPL(tilingData, pipe, MMDataTypeX1)                                                 \
     do {                                                                                                               \
-        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllKcQuantMatmulTilingData, \
-                                          CommunicationType);                                                          \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,             \
+            AlltoAllKcQuantMatmulTilingData, MC2AlltoAllPrimitives, 0, 1, CommunicationType);                          \
         CommunicationType commImplName(&tilingData);                                                                   \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
         TransposeType transposeImplName(&pipe);                                                                        \

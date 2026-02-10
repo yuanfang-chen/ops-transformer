@@ -61,7 +61,7 @@ __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType,
 template <typename ComputationType, typename TransposeType, typename CommunicationType, typename ContextType>
 __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::Process(uint32_t taskCnt)
 {
-    commStage_->Prepare(taskCnt);
+    commStage_->PrepareAll(taskCnt);
     uint32_t index;
     for (index = 0 ; index < taskCnt; index++) {
         computeStage_->Process(index);
@@ -71,7 +71,7 @@ __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType,
             transStage_->Process(index);
             //后续通信需要使用转置后的结果
             AscendC::SyncAll<true>();
-            commStage_->Process();
+            commStage_->Process(index);
         }
         AscendC::SyncAll<false>();
     }
