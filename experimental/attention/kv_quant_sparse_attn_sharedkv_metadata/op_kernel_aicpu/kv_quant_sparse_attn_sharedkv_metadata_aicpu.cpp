@@ -111,19 +111,9 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %d", oriMaskMode_);
         return false;
     }
-    // cmp_mask_mode 校验
-    if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
-        KERNEL_LOG_ERROR("cmp_mask_mode should be 3, but got %d", cmpMaskMode_);
-        return false;
-    }
     // ori_win_left 校验
     if (winLeft_ != 127) {
         KERNEL_LOG_ERROR("ori_win_left should only be 127, but got %ld", winLeft_);
-        return false;
-    }
-    // ori_win_right 校验
-    if (winRight_ != 0) {
-        KERNEL_LOG_ERROR("ori_win_right should only be 0, but got %ld", winRight_);
         return false;
     }
     // layout_q 校验
