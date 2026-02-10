@@ -758,7 +758,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
             return ge::GRAPH_FAILED);
         OP_TILING_CHECK(hcclTopoTypePtr == nullptr, OP_LOGE(nodeName, "hcclTopoTypePtr is null."),
             return ge::GRAPH_FAILED);
-        tilingData.moeDistributeDispatchV2Info.hcclBufferSize = static_cast<uint32_t>(hcclBufferSizePtr);
+        tilingData.moeDistributeDispatchV2Info.hcclBufferSize = static_cast<uint32_t>(*hcclBufferSizePtr);
     }
 
     // 判空
