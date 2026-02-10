@@ -11,6 +11,7 @@
 if (BUILD_OPEN_PROJECT)  # custom
     target_sources(op_host_aclnnInner PRIVATE
         moe_distribute_dispatch_v2_def.cpp
+        moe_distribute_dispatch_v2_extend_def.cpp
     )
     add_modules_sources(
         OP_API_INDEPENDENT ON 
@@ -20,6 +21,10 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
     set(MC2_OPT ON PARENT_SCOPE)
     set(moe_distribute_dispatch_v2_depends mc2/common mc2/3rd PARENT_SCOPE)
+
+    target_link_libraries(cust_opapi PRIVATE
+        ${ASCEND_CANN_PACKAGE_PATH}/lib64/libhcomm.so
+    )
 
     # --cce-auto-sync=off：指定CCE编译器是否自动执行线程间或模块间的同步操作
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
