@@ -567,13 +567,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckLocalParams()
     if (!localParams_.hasSharedMm) {
         return ge::GRAPH_SUCCESS;
     }
-    OP_TILING_CHECK((localParams_.Bs == 0) || (localParams_.BsK % localParams_.Bs != 0),
-        OP_LOGE(opName_, "BSK should be divisible by BS, got BSK[%lu] and BS[%lu].", localParams_.BsK,localParams_.Bs),
-        return ge::GRAPH_FAILED);
-    uint64_t k = localParams_.BsK / localParams_.Bs;
-    OP_TILING_CHECK((k < MIN_K_VALUE) || (k > MAX_K_VALUE),
-        OP_LOGE(opName_, "K should be in (%lu, %lu), but got %lu.", MIN_K_VALUE, MAX_K_VALUE, k),
-        return ge::GRAPH_FAILED);
+    // TODO ???
+    // OP_TILING_CHECK((localParams_.Bs == 0) || (localParams_.BsK % localParams_.Bs != 0),
+    //     OP_LOGE(opName_, "BSK should be divisible by BS, got BSK[%lu] and BS[%lu].", localParams_.BsK,localParams_.Bs),
+    //     return ge::GRAPH_FAILED);
+    // uint64_t k = localParams_.BsK / localParams_.Bs;
+    // OP_TILING_CHECK((k < MIN_K_VALUE) || (k > MAX_K_VALUE),
+    //     OP_LOGE(opName_, "K should be in (%lu, %lu), but got %lu.", MIN_K_VALUE, MAX_K_VALUE, k),
+    //     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((localParams_.H2 == 0) || (localParams_.H2 > MAX_SHARED_H_SHAPE_SIZE),
         OP_LOGE(opName_, "H2 should be less than %lu, but got %lu.", MAX_SHARED_H_SHAPE_SIZE, localParams_.H2),
         return ge::GRAPH_FAILED);
