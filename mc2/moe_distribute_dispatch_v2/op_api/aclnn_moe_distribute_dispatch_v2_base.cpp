@@ -301,7 +301,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
         std::string hcclTopoType;
-        ret =GetMc2Context(hcclHandle, mc2Context, hcclBuffSize, hcclTopoType);
+        ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
