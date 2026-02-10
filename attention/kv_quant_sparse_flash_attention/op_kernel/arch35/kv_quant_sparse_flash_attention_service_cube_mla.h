@@ -55,13 +55,14 @@ public:
     /* =================编译期常量的基本块信息================= */
     using T = float;
     using Q_T = typename QSFAT::queryType;
-    using LAYOUT_T = typename QSFAT::layout;
+    using KV_T = typename QSFAT::kvType;
+    using OUTPUT_T = typename QSFAT::outputType;
     static constexpr uint32_t s1BaseSize = 64;
     static constexpr uint32_t s2BaseSize = 128;
     static constexpr uint32_t dBaseSize = 512;
     static constexpr uint32_t dBaseMatmulSize = 128;
 
-    __aicore__ inline SCFABlockCube() {};
+    __aicore__ inline QSFAMatmulService() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
@@ -74,6 +75,12 @@ public:
         ConstInfo_arch35 &constInfo);
 
 private:
+    static constexpr bool isPa = QSFAT::pageAttention;
+    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    static constexpr bool isFd = QSFAT::flashDecode;
+    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo);
     __aicore__ inline void CalcS1Coord(RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
@@ -318,6 +325,6 @@ public:
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
         ConstInfo_arch35 &constInfo) {}
-}
+};
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
