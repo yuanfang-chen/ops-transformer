@@ -200,12 +200,6 @@ ge::graphStatus CompressorTiling::SetTemplateId()
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
         return ge::GRAPH_SUCCESS;
     }
-    // if (context_->seqUsed.desc != nullptr || context_->seqUsed.shape != nullptr) {
-    //     return ge::GRAPH_SUCCESS;
-    // }
-    // if (context_->layout == LayoutType::LAYOUT_BSH) {
-    //     return ge::GRAPH_SUCCESS;
-    // }
     // 设置高性能模板
     context_->templateId = TemplateId::PERF;
     return ge::GRAPH_SUCCESS;

@@ -169,7 +169,6 @@ private:
     TBuf<TPosition::VECCALC> apeBuf;
     // in queue
     TQue<QuePosition::VECIN, 1> inputQue1;
-    TQue<QuePosition::VECIN, 1> inputQue2;
     TBuf<TPosition::VECIN> normWeightBuf;
     // out queue
     TQue<QuePosition::VECOUT, 1> outputQue1;
@@ -230,19 +229,18 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::InitBuffers(TPipe *pipe)
     pipe->InitBuffer(tmpBuff1, BUFFER_SIZE_BYTE_32K);
     pipe->InitBuffer(tmpBuff2, BUFFER_SIZE_BYTE_64K);
     pipe->InitBuffer(outputQue1, 1, BUFFER_SIZE_BYTE_16K);
-    pipe->InitBuffer(inputQue2, 1, BUFFER_SIZE_BYTE_2K);
     pipe->InitBuffer(normWeightBuf, BUFFER_SIZE_BYTE_4K);
     pipe->InitBuffer(gatherOffsetBuf, BUFFER_SIZE_BYTE_2K);
     pipe->InitBuffer(apeBuf, BUFFER_SIZE_BYTE_32K);
     normWeightUb = normWeightBuf.Get<T>();
     apeUb = apeBuf.Get<T>();
-    LocalTensor<X_T> normweightInUb = inputQue2.AllocTensor<X_T>();
+    LocalTensor<X_T> normweightInUb = inputQue1.AllocTensor<X_T>();
     LocalTensor<int32_t> gatherOffsetUb = gatherOffsetBuf.Get<int32_t>();
     DataCopy(normweightInUb, normWeightGm_, constInfo_.headDim); // 获取normWeight，常驻
-    inputQue2.EnQue(normweightInUb);
-    inputQue2.DeQue<X_T>();
+    inputQue1.EnQue(normweightInUb);
+    inputQue1.DeQue<X_T>();
     Cast(normWeightUb, normweightInUb, RoundMode::CAST_NONE, constInfo_.headDim);
-    inputQue2.FreeTensor(normweightInUb);
+    inputQue1.FreeTensor(normweightInUb);
     if constexpr (COMP::rotaryMode == Compressor::ROTARY_MODE::INTERLEAVE) {
         SetGatherSrcOffset<float>(gatherOffsetUb, constInfo_.headDim);
     }
