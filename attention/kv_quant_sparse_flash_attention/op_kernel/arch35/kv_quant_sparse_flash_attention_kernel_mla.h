@@ -63,7 +63,6 @@ public:
     using T = float;
     using Q_T = typename QSFAT::queryType;
     using OUTPUT_T = typename QSFAT::outputType;
-    using LAYOUT_T = typename QSFAT::layout;
 
     __aicore__ inline KvQuantSparseFlashAttentionMla(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
@@ -77,10 +76,16 @@ public:
     __aicore__ inline void Process();
 
 private:
+    static constexpr bool isPa = QSFAT::pageAttention;
+    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    static constexpr bool isFd = QSFAT::flashDecode;
+    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+
     __aicore__ inline void ProcessMainLoop();
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
-    __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
+    __gm__ uint8_t *workspace, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling, TPipe *tPipe);
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
     __aicore__ inline void ComputeConstexpr();
@@ -92,7 +97,7 @@ private:
     __aicore__ inline void InitUniqueRunInfo(const RunParamStr &runParam, RunInfo_arch35 &runInfo);
     TPipe *pipe;
 
-    const KvQuantSparseAttnSharedkvTilingData *__restrict tilingData;
+    const KvQuantSparseFlashAttentionTilingDataMla *__restrict tilingData;
     static constexpr uint64_t SYNC_MODE = 4;
     static constexpr uint32_t PRELOAD_NUM = 2;
     /* 核间通道 */
@@ -183,7 +188,7 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
 template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitGlobalBuffer(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
-    __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
+    __gm__ uint8_t *workspace, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling, TPipe *tPipe)
 {
     if (actualSeqLengthsQ != nullptr) {
         cuSeqlensQAddr = (__gm__ int32_t *)actualSeqLengthsQ;
