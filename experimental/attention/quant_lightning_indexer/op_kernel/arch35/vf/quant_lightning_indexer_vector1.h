@@ -419,7 +419,7 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
         AscendC::MicroAPI::Mul(regW[0], regW[0], regQScale[0], maskAllB32);
         AscendC::MicroAPI::Mul(regW[1], regW[1], regQScale[1], maskAllB32);
         // 读写依赖，寄存器可以保序
-        AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(weight0, regW[0], maskAllB32);
+        // AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(weight0, regW[0], maskAllB32);
         AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(weight1, regW[1], maskAllB32);
         DuplicateZero(regSum0, maskAllB32);
         DuplicateZero(regSum1, maskAllB32);
@@ -432,8 +432,9 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
             MicroAPI::LoadAlign<float>(regQK0[1], qk0 + 128 * i + qkVLStride);
             MicroAPI::LoadAlign<float>(regQK1[0], qk1 + 128 * i);
             MicroAPI::LoadAlign<float>(regQK1[1], qk1 + 128 * i + qkVLStride);
+            // 交错使用对整体性能更好
+            BroadcastLane(regwBrc[0], regW[0], i);
             // Weight无bank冲突，用LoadAlign来提取weight标量
-            BroadcastLane(regwBrc[0], weight0, i);
             BroadcastLane(regwBrc[1], weight1, i);
             AscendC::MicroAPI::Relu(regQK0[0], regQK0[0], maskAllB32);
             AscendC::MicroAPI::Relu(regQK0[1], regQK0[1], maskAllB32);
@@ -471,7 +472,7 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
 
 // 计算S1=2
 // bfloat16 in uint16 out
-_aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,   // out    [2, S2Base]     [128   ]
+__aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,   // out    [2, S2Base]     [128   ]
                                               uint32_t outStride,
                                               const LocalTensor<bfloat16_t> &qk_,  // q*k^t  [2, G, S2Base]  [64 128]
                                               uint32_t qkVLStride,
