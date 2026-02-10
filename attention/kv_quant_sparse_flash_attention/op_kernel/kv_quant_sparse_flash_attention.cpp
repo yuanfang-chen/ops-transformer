@@ -22,6 +22,7 @@
 #endif
 
 using namespace AscendC;
+using namespace BaseApi;
 
 #define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                         \
     do {                                                                                          \

@@ -12,6 +12,8 @@
  * \file CopyInL1.h
  * \brief
  */
+#include "../kv_quant_sparse_flash_attention_common_arch35.h"
+
 #ifndef COPYINL1_H
 #define COPYINL1_H
 

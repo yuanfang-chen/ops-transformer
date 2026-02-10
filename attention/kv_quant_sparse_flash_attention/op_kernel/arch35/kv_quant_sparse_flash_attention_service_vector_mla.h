@@ -40,7 +40,6 @@ template <typename QSFAT> class QSFAVectorService {
 public:
     using T = float;
     using Q_T = typename QSFAT::queryType;
-    using LAYOUT_T = typename QSFAT::layout;
     using KV_T = typename QSFAT::kvType;
     using OUTPUT_T = typename QSFAT::outputType;
 
@@ -91,6 +90,10 @@ public:
         ConstInfo_arch35 &constInfo);
 
 private:
+    static constexpr bool isPa = QSFAT::pageAttention;
+    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    
     __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
     __aicore__ inline void ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
@@ -191,9 +194,8 @@ template <typename QSFAT> __aicore__ inline int64_t QSFAVectorService<QSFAT>::Ge
     }
     int64_t realkeyOffset = 0;
 
-    // [lz todo] 默认直接走pa，原本isPa是在模板中定义，现已废弃，直接设置为TRUE
-    // if constexpr (isPa) {
-    if constexpr (1) {
+    // [lz todo] 默认直接走pa
+    if constexpr (isPa) {
         int64_t blkTableIdx = s2Idx / blockSize;
         int64_t blkTableOffset = s2Idx % blockSize;
         realkeyOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
@@ -504,8 +506,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyI
     padParams.leftPadding = 0;
     padParams.rightPadding = combineDimAlign - combineDim;
     padParams.paddingValue = 0;
-    // if constexpr (isPa) {
-    if constexpr (1) {
+    if constexpr (isPa) {
         uint64_t blockTableBaseOffset = runInfo.boIdx * maxBlockNumPerBatch;
         uint64_t dstOffset = 0;
         uint32_t copyFinishElmenCnt = 0;
@@ -906,8 +907,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 
     // pageAttention, rope在C侧搬运时使用
-    // if constexpr (isPa) {
-    if constexpr (1) {
+    if constexpr (isPa) {
         sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
         sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
         sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
