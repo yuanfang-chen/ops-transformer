@@ -17,9 +17,8 @@
 
 #include <tiling/tiling_api.h>
 #include "register/tilingdata_base.h"
-// #include "../../../common/include/tiling_base/tiling_base.h"
-// #include "../../../common/include/err/ops_err.h"
 #include "tiling_base/tiling_base.h"
+#include "err/ops_err.h"
 
 namespace optiling {
 
@@ -53,10 +52,10 @@ struct ManifoldConstrainedHyperConnectionPreCompileInfo {
     uint64_t l0BSize{0UL};
 };
 
-class ManifoldConstrainedHyperConnectionPreBaseTiling : public Ops::NN::Optiling::TilingBaseClass {
+class ManifoldConstrainedHyperConnectionPreBaseTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
  public:
-    explicit ManifoldConstrainedHyperConnectionPreBaseTiling(gert::TilingContext* context) : Ops::NN::Optiling::TilingBaseClass(context) {};
+    explicit ManifoldConstrainedHyperConnectionPreBaseTiling(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context) {};
 
     ~ManifoldConstrainedHyperConnectionPreBaseTiling() override = default;
 

@@ -17,13 +17,11 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
-// #include "../../../common/include/err/ops_err.h"
-#include "log/log.h"
-#include "error_util.h"
+#include "err/ops_err.h"
 
 namespace optiling {
 
-using namespace Ops::NN::Optiling;
+using namespace Ops::Transformer::OpTiling;
 const constexpr int64_t BSND_DIM_NUM = 4;
 const constexpr int64_t TND_DIM_NUM = 3;
 const constexpr uint32_t X_INDEX = 0;
@@ -41,7 +39,7 @@ const constexpr int64_t INDEX_T_TND = 0;
 const constexpr int64_t INDEX_N_TND = 1;
 const constexpr int64_t INDEX_D_TND = 2;
 
-REGISTER_TILING_TEMPLATE("ManifoldConstrainedHyperConnectionPre", ManifoldConstrainedHyperConnectionPreBaseTiling, 1000);
+REGISTER_OPS_TILING_TEMPLATE(ManifoldConstrainedHyperConnectionPre, ManifoldConstrainedHyperConnectionPreBaseTiling, 1000);
 
 ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::GetInputShape()
 {
@@ -294,7 +292,7 @@ static ge::graphStatus TilingFunc4mHCPre(gert::TilingContext* context)
         OPS_REPORT_CUBE_INNER_ERR("[mHCPostTilingTilingFunc]", " context is null"),
         return ge::GRAPH_FAILED);
 
-    return Ops::NN::Optiling::TilingRegistry::GetInstance().DoTilingImpl(context);
+    return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
 
