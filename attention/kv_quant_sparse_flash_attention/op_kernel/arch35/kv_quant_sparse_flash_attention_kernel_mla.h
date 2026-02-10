@@ -56,7 +56,7 @@ using namespace regbaseutil;
 //     uint32_t gS1Idx = 0U;
 //     uint64_t mBasicSizeTail = 0U; // gS1方向循环的尾基本块大小
 // };
-
+namespace BaseApi {
 template <typename QSFAT> class KvQuantSparseFlashAttentionMla {
 public:
     // 中间计算数据类型为float，高精度模式
@@ -325,18 +325,18 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Process()
 template <typename QSFAT>
 __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
 {
-    uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
-    if (hasLoad == 0) {
-        return;
-    }
+    // uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
+    // if (hasLoad == 0) {
+    //     return;
+    // }
 
     // 从meta data解析分核信息
-    uint32_t bN2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_START_INDEX, false));
-    uint32_t gS1StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_START_INDEX, false));
-    uint32_t s2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_START_INDEX, false));
-    uint32_t bN2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_END_INDEX, false));
-    uint32_t nextGs1Idx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_END_INDEX, false));
-    uint32_t s2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_END_INDEX, false));
+    // uint32_t bN2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_START_INDEX, false));
+    // uint32_t gS1StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_START_INDEX, false));
+    // uint32_t s2StartIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_START_INDEX, false));
+    // uint32_t bN2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_BN2_END_INDEX, false));
+    // uint32_t nextGs1Idx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_M_END_INDEX, false));
+    // uint32_t s2EndIdx = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_S2_END_INDEX, false));
     uint32_t s2LoopLimit = 0;
 
     if (nextGs1Idx != 0) {
@@ -489,5 +489,6 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
         runInfo.s2RealSize = runInfo.s2EndIdx - curS2LoopCnt * runInfo.s2RealSize - runInfo.s2StartIdx;
         runInfo.s2AlignedSize = Align(runInfo.s2RealSize);
     }
+}
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_KERNEL_MLA_H
