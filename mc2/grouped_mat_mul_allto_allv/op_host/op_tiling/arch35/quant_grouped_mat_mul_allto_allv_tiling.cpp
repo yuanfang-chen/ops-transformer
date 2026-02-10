@@ -692,9 +692,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
     CalTilingInferredInfo();
-    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen + inferredInfo.commLen + inferredInfo.permuteLen;
-    localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
+    localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
     localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
+    localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
+    workSpaceSize_ = libApiWorkSpaceSize_ +
+        localTilingData_.workspaceInfo.wsGmmOutputSize +
+        localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
+        localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -775,34 +780,17 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-
-void PrintGMMQuantTilingData(const Mc2GroupedMatmulTilingData::GMMQuantTilingData &data, const char *opName_) const
+void PrintGmmA2avWorkspaceInfo(const GmmA2avWorkspaceInfo &workspaceInfo, const char *opName_)
 {
-    const auto &mm = data.mmTilingData;
-    const auto &quantParams = data.gmmQuantParams;
-    const auto &gmmArray = data.gmmArray;
-
     std::stringstream ss;
-    ss << "MM Tiling: M=" << mm.M << ", N=" << mm.N << ", K=" << mm.Ka << ", usedCoreNum=" << mm.usedCoreNum <<
-        ", baseM=" << mm.baseM << ", baseN=" << mm.baseN << ", baseK=" << mm.baseK << ", singleCoreM=" <<
-        mm.singleCoreM << ", singleCoreN=" << mm.singleCoreN << ", singleCoreK=" << mm.singleCoreK << ", dbL0C=" <<
-        mm.dbL0C << ", depthA1=" << mm.depthA1 << ", depthB1=" << mm.depthB1 << ", stepKa=" << mm.stepKa <<
-        ", stepKb=" << mm.stepKb << ", stepM=" << mm.stepM << ", stepN=" << mm.stepN << ", iterateOrder=" <<
-        mm.iterateOrder;
-
-    ss << "\nQuant Params: groupNum=" << quantParams.groupNum << ", activeType=" << quantParams.activeType <<
-        ", aQuantMode=" << quantParams.aQuantMode << ", bQuantMode=" << quantParams.bQuantMode << ", singleX=" <<
-        quantParams.singleX << ", singleW=" << quantParams.singleW << ", singleY=" << quantParams.singleY <<
-        ", groupType=" << quantParams.groupType << ", groupListType=" << quantParams.groupListType << ", hasBias=" <<
-        quantParams.hasBias << ", reserved=" << quantParams.reserved;
-
-    ss << "\nArray: mList[0]=" << gmmArray.mList[0] << ", kList[0]=" << gmmArray.kList[0] << ", nList[0]=" <<
-        gmmArray.nList[0];
-
-    OP_LOGI(opName_, "AlltoAllvGmmQuantTiling TilingParams:\n%s", ss.str().c_str());
+    ss << "workspaceInfo: ";
+    ss << "wsGmmOutputSize=" << workspaceInfo.wsGmmOutputSize <<", wsGmmComputeWorkspaceSize=" <<
+        workspaceInfo.wsGmmComputeWorkspaceSize << ", wsSharedGmmComputeWorkspaceSize=" <<
+        workspaceInfo.wsSharedGmmComputeWorkspaceSize;
+    OP_LOGI(opName_, "%s", ss.str().c_str());
 }
 
-void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo, const char *opName_) const
+void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo, const char *opName_)
 {
     std::stringstream ss;
     ss << "TaskTilingInfo: ";
@@ -832,16 +820,45 @@ void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo
     OP_LOGI(opName_, "%s", ss.str().c_str());
 }
 
+void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, const char *opName_)
+{
+    const auto &mm = data.mmTilingData;
+    const auto &quantParams = data.gmmQuantParams;
+    const auto &gmmArray = data.gmmArray;
+
+    std::stringstream ss;
+    ss << "MM Tiling: M=" << mm.M << ", N=" << mm.N << ", K=" << mm.Ka << ", usedCoreNum=" << mm.usedCoreNum <<
+        ", baseM=" << mm.baseM << ", baseN=" << mm.baseN << ", baseK=" << mm.baseK << ", singleCoreM=" <<
+        mm.singleCoreM << ", singleCoreN=" << mm.singleCoreN << ", singleCoreK=" << mm.singleCoreK << ", dbL0C=" <<
+        mm.dbL0C << ", depthA1=" << mm.depthA1 << ", depthB1=" << mm.depthB1 << ", stepKa=" << mm.stepKa <<
+        ", stepKb=" << mm.stepKb << ", stepM=" << mm.stepM << ", stepN=" << mm.stepN << ", iterateOrder=" <<
+        mm.iterateOrder;
+
+    ss << "\nQuant Params: groupNum=" << quantParams.groupNum << ", activeType=" << quantParams.activeType <<
+        ", aQuantMode=" << quantParams.aQuantMode << ", bQuantMode=" << quantParams.bQuantMode << ", singleX=" <<
+        quantParams.singleX << ", singleW=" << quantParams.singleW << ", singleY=" << quantParams.singleY <<
+        ", groupType=" << quantParams.groupType << ", groupListType=" << quantParams.groupListType << ", hasBias=" <<
+        quantParams.hasBias << ", reserved=" << quantParams.reserved;
+
+    ss << "\nArray: mList[0]=" << gmmArray.mList[0] << ", kList[0]=" << gmmArray.kList[0] << ", nList[0]=" <<
+        gmmArray.nList[0];
+
+    OP_LOGI(opName_, "QuantGmmA2AvTiling TilingParams:\n%s", ss.str().c_str());
+}
+
 void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData)
 {
-    return ;
-    // PrintCommonTilingInfo(outTilingData.taskTilingInfo);
-    // PrintSharedGmmTilingInfo(outTilingData.sharedGmmTiling);
-    // PrintGmmQTilingDataInfo(outTilingData.gmmBaseTiling);
+    PrintGmmA2avWorkspaceInfo(outTilingData.workspaceInfo, opName_);
+    PrintTaskTilingInfo(outTilingData.taskTilingInfo, opName_);
+    OP_LOGD(opName_, "------------- PrintGMMQuantTilingData -------------------");
+    PrintGMMQuantTilingData(outTilingData.gmmBaseTiling, opName_)
+    OP_LOGD(opName_, "------------- PrintGMMSharedQuantTilingData -------------");
+    PrintGMMQuantTilingData(outTilingData.sharedGmmTiling, opName_)
 }
 
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
 {
+    PrintQuantGmmA2avTilingData(localTilingData_);
     QuantGmmA2avTilingData *outTilingData = context_->GetTilingData<QuantGmmA2avTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "failed to get tiling data from context"),

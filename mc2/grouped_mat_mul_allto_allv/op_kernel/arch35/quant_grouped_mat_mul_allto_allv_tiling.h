@@ -25,7 +25,6 @@
 
 // 使用公共命名空间中的类型
 using MC2KernelTemplate::GMMQuantTilingData;
-using MC2KernelTemplate::GMMArray;
 using MC2KernelTemplate::TaskTilingInfo;
 
 /**
