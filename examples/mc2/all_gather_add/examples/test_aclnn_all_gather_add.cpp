@@ -60,8 +60,8 @@ int64_t GetShapeSize(const std::vector<int64_t> &shape)
 }
 
 // 本示例固定shape
-const std::vector<int64_t> aShape = {240, 256};
-const std::vector<int64_t> bShape = {240 * RANK_DIM, 256};
+const std::vector<int64_t> aShape = {30, 256};
+const std::vector<int64_t> bShape = {30 * RANK_DIM, 256};
 
 const long long aShapeSize = GetShapeSize(aShape);
 const long long bShapeSize = GetShapeSize(bShape);
