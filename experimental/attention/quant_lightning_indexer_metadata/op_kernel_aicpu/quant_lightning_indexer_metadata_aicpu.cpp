@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 #include <cstdio>
 #include <cmath>
@@ -141,14 +141,12 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
         }
     }
 
-    if (layoutQuery_ == "TND" && layoutKey_ == "TND" && actSeqLenQSize != actSeqLenKeySize) {
+    if (actSeqLenKeySize == 0 && actSeqLenQSize == 0 && batchSize_ == 0) {
+        KERNEL_LOG_ERROR("No valid batch size: actual_seq_lengths_query is None, actual_seq_lengths_key is None, batch_size is 0 !");
+        return false;
+    }
+    if (actSeqLenKeySize != 0 && actSeqLenQSize != 0 && actSeqLenQSize != actSeqLenKeySize) {
         KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to actual_seq_lengths_key size: %u !", actSeqLenQSize, actSeqLenKeySize);
-        return false;
-    } else if (layoutQuery_ == "TND" && actSeqLenQSize != batchSize_) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to batch_size: %u !", actSeqLenQSize, batchSize_);
-        return false;
-    } else if (layoutKey_ == "TND" && actSeqLenKeySize != batchSize_) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_key size: %u must equal to batch_size: %u !", actSeqLenKeySize, batchSize_);
         return false;
     }
 
@@ -205,6 +203,14 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         auto shape = actSeqLenQ_->GetTensorShape();
         const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
         if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
+            batchSize_ = shape->GetDimSize(0) - 1;
+        } else {
+            batchSize_ = shape->GetDimSize(0);
+        }
+    } else if(actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
+        auto shape = actSeqLenKey_->GetTensorShape();
+        const int32_t *s1Ptr = (int32_t*)actSeqLenKey_->GetData();
+        if (s1Ptr[0] == 0 && layoutKey_ == "TND") {
             batchSize_ = shape->GetDimSize(0) - 1;
         } else {
             batchSize_ = shape->GetDimSize(0);
@@ -269,7 +275,7 @@ void QuantLightningIndexerMetadataCpuKernel::CalcSplitInfo(SplitContext &splitCo
     SplitInfo &splitInfo = splitContext.splitInfo;
     for (uint32_t bIdx = 0; bIdx < batchSize_; bIdx++) {
         uint32_t s1Size = GetS1SeqSize(bIdx);
-        uint32_t s2Size = GetS2SeqSize(bIdx);
+        uint32_t s2Size = GetS2SeqSize(bIdx) / cmpRatio_;
         splitInfo.s1GBaseNum[bIdx] = (s1Size * groupSize_ + (mBaseSize_ - 1U)) / mBaseSize_;
         splitInfo.s1GTailSize[bIdx] = (s1Size * groupSize_) % mBaseSize_;
         splitInfo.s2BaseNum[bIdx] = (s2Size + s2BaseSize_ - 1U) / s2BaseSize_;

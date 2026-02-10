@@ -9,12 +9,12 @@
  */
 
 /*!
- * \file sparse_attn_sharedkv_template_tiling_key.h
+ * \file kv_quant_sparse_attn_sharedkv_template_tiling_key.h
  * \brief
  */
 
-#ifndef KVQUANT_SPARSE_ATTN_SHARED_TEMPLATE_TILING_KEY_H
-#define KVQUANT_SPARSE_ATTN_SHARED_TEMPLATE_TILING_KEY_H
+#ifndef KV_QUANT_SPARSE_ATTN_SHARED_TEMPLATE_TILING_KEY_H
+#define KV_QUANT_SPARSE_ATTN_SHARED_TEMPLATE_TILING_KEY_H
 
 #include "ascendc/host_api/tiling/template_argument.h"
 
@@ -63,4 +63,4 @@ ASCENDC_TPL_SEL(
     ),
 );
 
-#endif // TEMPLATE_TILING_KEY
+#endif // KV_QUANT_SPARSE_ATTN_SHARED_TEMPLATE_TILING_KEY_H

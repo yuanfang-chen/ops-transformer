@@ -1,12 +1,12 @@
 /**
- * Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file compressor_kernel_perf.h
@@ -437,7 +437,6 @@ __aicore__ inline BasicBlockInfo CompressorKernelPerf<COMP>::SkipOneBasicBlock(
             if ((leftSeqCnt == 0) || (leftFinishSeqCnt + leftSeqCnt > constInfo.mBaseSize)) {
                 break;
             }
-            // PRINTF("rightSeqCnt:%d leftSeqCnt:%d\n", rightSeqCnt, leftSeqCnt);
             rightFinishSeqCnt += rightSeqCnt;
             leftFinishSeqCnt += leftSeqCnt;
 
@@ -446,11 +445,7 @@ __aicore__ inline BasicBlockInfo CompressorKernelPerf<COMP>::SkipOneBasicBlock(
             UpdateBasicBlockInfo(basicBlockInfo, rightCmpBlockInfo, false);
 
             AcceptUpdate(rightCmpBlockInfo);
-            // PRINTF("Right cmpBlockInfo.bIdx:%d cmpBlockInfo.sIdx:%d cmpBlockInfo.bSeqUsed:%d cmpBlockInfo.bStartPos:%d\n",
-            //     rightCmpBlockInfo.bIdx, rightCmpBlockInfo.sIdx, rightCmpBlockInfo.bSeqUsed, rightCmpBlockInfo.bStartPos);
             AcceptUpdate(leftCmpBlockInfo);
-            // PRINTF("Left cmpBlockInfo.bIdx:%d cmpBlockInfo.sIdx:%d cmpBlockInfo.bSeqUsed:%d cmpBlockInfo.bStartPos:%d\n",
-            //     leftCmpBlockInfo.bIdx, leftCmpBlockInfo.sIdx, leftCmpBlockInfo.bSeqUsed, leftCmpBlockInfo.bStartPos);
         }
     } else {
         uint32_t rightFinishSeqCnt = 0;
@@ -500,15 +495,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcCurCoreStartIdx(
 template <typename COMP>
 __aicore__ inline void CompressorKernelPerf<COMP>::CalcSplitCoreInfo()
 {
-    // // 计算D的切分大小
-    // constInfo.dBaseSize = 64; // 默认按照64切分
-    // uint32_t maxEnableCoreNum = constInfo.tcBasicBlockNum * (constInfo.headDim / constInfo.dBaseSize);
-    // uint32_t minEnableCoreNum = 16;
-    // if (maxEnableCoreNum < minEnableCoreNum) {
-    //     // headDim=128时, dBaseSize=8; headDim=512时, dBaseSize=32
-    //     constInfo.dBaseSize = constInfo.headDim / minEnableCoreNum;
-    // }
-
     // D方向的基本块数量
     constInfo.dBasicBlockNum = constInfo.headDim / constInfo.dBaseSize;
     // 核的组数
@@ -533,8 +519,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcSplitCoreInfo()
     } else {
         constInfo.realDealBasicBlockNum = constInfo.tailBasicBlockNum;
     }
-    // PRINTF("constInfo.dBaseSize:%d dBasicBlockNum:%d coreGroupNum:%d dIdx:%d curGroupIdx:%d singleCoreDealTcBasicNum:%d tailGroupIdx:%d tailBasicBlockNum:%d realDealBasicBlockNum:%d\n",
-    //     constInfo.dBaseSize, constInfo.dBasicBlockNum, constInfo.coreGroupNum, constInfo.dIdx, constInfo.curGroupIdx, constInfo.singleCoreDealTcBasicNum, constInfo.tailGroupIdx, constInfo.tailBasicBlockNum, constInfo.realDealBasicBlockNum);
 }
 
 template <typename COMP>
@@ -683,7 +667,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::UpdateVec2Info(
         vec2Info.dealScSize = 0;
     }
     vec2Info.dealScSize += info.dealScSize;
-    // TODO 应该是加上上一轮的
     vec2Info.compressedId += info.dealScSize;
 }
 
@@ -699,7 +682,6 @@ __aicore__ inline void CompressorKernelPerf<COMP>::Process()
     CmpBlockInfo leftCmpBlockInfo(constInfo.bIdxOfLastTc, constInfo.sIdxOfLastTc, true);
     CmpBlockInfo rightCmpBlockInfo(0, 0, false);
     CalcCurCoreStartIdx(rightCmpBlockInfo, leftCmpBlockInfo);
-    // PRINTF("allCompressedTcNum_:%d curCompressedTcNum_:%d\n", allCompressedTcNum_, curCompressedTcNum_);
 
     RunInfo extraInfo[1];
     Vec2RunInfo vec2Info{};

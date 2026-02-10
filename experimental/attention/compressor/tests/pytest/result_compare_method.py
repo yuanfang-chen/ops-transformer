@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------------------------------------
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
 # This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 # CANN Open Software License Agreement Version 2.0 (the "License").
 # Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -121,7 +121,7 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if real_data.size == 0 and real_data.size == data_compe.size:
         print_log(
             'The npu_output is [],and it is same as bm_output, the result of data_compare is \"Pass\"')
-        return "Pass", 100.0, 0
+        return  100.0,"Pass"
     start = 0
     end = real_data.size - 1
     if end < start:
@@ -132,7 +132,7 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if real_data.size != data_compe.size:
         print_log(
             'Error,the size of npu output[%s] and benchmark[%s] is not equal.' % (real_data.size, data_compe.size))
-        return result, 0.0, max_error
+        return 0.0, result
     overflows_count = data_compe[np.isinf(data_compe)].size + data_compe[np.isnan(data_compe)].size
 
 
@@ -143,8 +143,8 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if data_type == 'bfloat16':
         diff_thd=0.005
         max_diff_hd=10.0
-        rtol=0.005
-        atol=0.0078125
+        rtol=0.0078125
+        atol=0.0001
         max_error_idx = 10000000
     else:
         diff_thd=0.005
@@ -233,3 +233,5 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if result == "Failed":
         display_error_output(real_data, data_compe,
                                 err_idx, err_diff[0:max_error_idx])
+    print(result)
+    return fulfill_percent, result

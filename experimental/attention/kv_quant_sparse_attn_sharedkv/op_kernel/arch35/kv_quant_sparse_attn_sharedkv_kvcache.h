@@ -52,7 +52,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
                 actualS2Size -= actualSeqKvlenAddr[sIdx - 1];
             }
         } else {
-            actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ? 
+            actualS2Size = (constInfo.actualSeqLenKVSize == actualSeqKVMin) ?
                 actualSeqKvlenAddr[0] : actualSeqKvlenAddr[sIdx];
         }
     }
@@ -76,7 +76,7 @@ __aicore__ inline void ComputeParamBatch(RunParamStr& runParam, const ConstInfo 
 }
 
 TEMPLATE_INTF
-__aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo, bool lastBN, 
+__aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo &constInfo, bool lastBN,
     int64_t nextGs1Idx, int64_t gS1StartIdx)
 {
     runParam.qSNumInOneBlock = constInfo.s1BaseSize / constInfo.gSize; // 不切G轴, 计算每个基本快可以拷贝多少行s
