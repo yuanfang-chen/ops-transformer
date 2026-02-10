@@ -1268,7 +1268,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context,
   return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(
+static ge::graphStatus MoeDistributeDispatchTilingFuncImpl(
     gert::TilingContext *context) {
   const char *nodeName = context->GetNodeName();
   MoeDistributeDispatchShmemTilingData *tilingData =
@@ -1430,7 +1430,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(
 static ge::graphStatus MoeDistributeDispatchShmemTilingFunc(
     gert::TilingContext *context) {
   ge::graphStatus ret;
-  ret = MoeDistributeDispatchA3TilingFuncImpl(context);
+  ret = MoeDistributeDispatchTilingFuncImpl(context);
   return ret;
 }
 
