@@ -54,7 +54,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 #if defined(__DAV_C310__)
 #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
     Mc2MoeContext * ptr = (Mc2MoeContext *)(mc2context);
-    ptritf("rankid %d",ptr->rankId);
+    AscendC::printf("rankid %d",ptr->rankId);
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         if constexpr (CommMode == TILINGKEY_TPL_CCU) {
             MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
