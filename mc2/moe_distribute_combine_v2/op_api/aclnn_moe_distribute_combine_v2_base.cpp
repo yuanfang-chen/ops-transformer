@@ -43,7 +43,6 @@ extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, 
 // VISIBILITY_EXPORT void NnopbaseSetUserHandle(void *executor, void *handle);
 // VISIBILITY_EXPORT void* NnopbaseGetUserHandle(void *executor);
 
-extern HcclResult HcclGetNetLayers(HcclComm comm, uint32_t **netLayers, uint32_t *netLayerNum);
 // host侧通信资源准备
 extern uint32_t AscCommResPrepare(const char *group, const std::string &opName, void *ascCommArgs,
                                   void **ascCommContext);
@@ -166,7 +165,7 @@ aclnnStatus GetNetAndTopo(const char *groupEp, int64_t epRankId, HcclComm &hcclH
     }
     uint32_t *netLayers = nullptr;
     netLayerNum = 0;
-    res = HcclGetNetLayers(hcclHandle, &netLayers, &netLayerNum);
+    res = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
     CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Net Layers Failed.");
     topoTypeOut = Mc2TopoType::MC2_TOPO_AIV_DPU;
     if (netLayerNum <= 1) { // 第一层: MTE/CCU
