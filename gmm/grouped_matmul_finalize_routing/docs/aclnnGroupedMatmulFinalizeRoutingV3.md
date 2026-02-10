@@ -460,7 +460,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
   - 在该场景中，biasOptional代表离线计算的辅助结果，值要求为$8 \times w \times scaleOptional$，并在第一维累加。
   - 该场景支持对称量化和非对称量化。在对称量化时，offsetOptional需要设置为空；在非对称量化时，offsetOptional代表离线计算的辅助结果，即为$antiquantOffsetOptional \times   scaleOptional$的结果。
   - 在该场景中，antiquantScaleOptional、antiquantOffsetOptional必须设置为空。
-- **MX全量化场景支持类型**（仅<term>Ascend 950PR/Ascend 950DT</term>支持）输入和输出支持以下数据类型组合：
+
+- <term>Ascend 950PR/Ascend 950DT</term>：仅支持MX全量化场景。
   
   | MX量化场景 | x1                        | x2                         | scaleOptional | biasOptional  | pertokenScaleOptional | groupListOptional | sharedInputOptional | logitOptional | rowIndexOptional | out     |
   | ---------- | ------------------------- | -------------------------- | ------------- | ------------- | --------------------- | ----------------- | ------------------- | ------------- | ---------------- | ------- |
@@ -785,7 +786,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     }
   ```
 
-<term>Ascend 950PR/Ascend 950DT</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
   ```cpp
   #include <iostream>
