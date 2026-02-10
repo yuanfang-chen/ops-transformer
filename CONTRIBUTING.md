@@ -98,7 +98,7 @@ Committer检视通过后，标注 `/lgtm`标签。Maintainer将在1天内进行�
 
 如果社区中他人遇到的问题您有合适的解决方法，欢迎您在Issue中发表评论交流，帮助他人解决问题和痛点，共同优化易用性。
 
-如果对应Issue需要进行代码修改，您可以在Issue评论框中输入`/assign`或`/assign @yourself`，将该Issue分配给您，跟踪协助解决问题。
+如果对应Issue需要进行代码修改，您可以在Issue评论框中输入“/assign”或“/assign @yourself”，将该Issue分配给您，跟踪协助解决问题。
 
 ## 附录
 
