@@ -62,13 +62,8 @@ public:
     // 中间计算数据类型为float，高精度模式
     using T = float;
     using Q_T = typename QSFAT::queryType;
-    using KV_T = typename QSFAT::kvType;
-    using OUT_T = typename QSFAT::outputType;
-    using Q_ROPE_T = Q_T;
-    using K_ROPE_T = typename QSFAT::kRopeType;
-    using UPDATE_T = T;
-    using MM1_OUT_T = T;
-    using MM2_OUT_T = T;
+    using OUTPUT_T = typename QSFAT::outputType;
+    using LAYOUT_T = typename QSFAT::layout;
 
     __aicore__ inline KvQuantSparseFlashAttentionMla(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
@@ -83,10 +78,9 @@ public:
 
 private:
     __aicore__ inline void ProcessMainLoop();
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-        __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-        __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
-        const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe);
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
+    __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
+    __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitMMResBuf();
     __aicore__ inline void ComputeConstexpr();
@@ -114,8 +108,8 @@ private:
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> l1RightBuffers;
     CVSharedParams sharedParams;
     /* GM信息 */
-    GlobalTensor<uint32_t> metadataGm;
-    __gm__ int32_t *cuSeqlensQAddr = nullptr;
+    // GlobalTensor<uint32_t> metadataGm;
+    __gm__ int32_t *cuSeqlensQAddr = nullptr; // 【YXC TODO】
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
     /* 核Index信息 */
@@ -181,30 +175,25 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
         }
     }
     this->ComputeConstexpr();
-    this->InitGlobalBuffer(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ, sequsedQ, sequsedKv, sinks,
+    this->InitGlobalBuffer(query, key, value, sparseIndices, blockTable, actualSeqLengthsQ, actualSeqLengths,
         workspace, tiling, tPipe); // gm设置
     this->InitLocalBuffer();
 }
 
 template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitGlobalBuffer(
-    __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-    __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ,
-    __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sequsedKv, __gm__ uint8_t *sinks, __gm__ uint8_t *workspace,
-    const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
+    __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices,
+    __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
+    __gm__ uint8_t *workspace, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling, TPipe *tPipe)
 {
-    if (cuSeqlensQ != nullptr) {
-        cuSeqlensQAddr = (__gm__ int32_t *)cuSeqlensQ;
+    if (actualSeqLengthsQ != nullptr) {
+        cuSeqlensQAddr = (__gm__ int32_t *)actualSeqLengthsQ;
     }
-    if (sequsedKv != nullptr) {
-        actualSeqKvlenAddr = (__gm__ int32_t *)sequsedKv;
-    }
-
-    if (sequsedQ != nullptr) {
-        actualSeqQlenAddr = (__gm__ int32_t *)sequsedQ;
+    if (actualSeqLengths != nullptr) {
+        actualSeqKvlenAddr = (__gm__ int32_t *)actualSeqLengths;
     }
 
-    vecBlock.InitGlobalBuffer(oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, sequsedQ, sinks);
-    cubeBlock.InitCubeInput(cuSeqlensQ, constInfo);
+    vecBlock.InitGlobalBuffer(key, value, sparseIndices, blockTable, actualSeqLengthsQ);
+    cubeBlock.InitCubeInput(actualSeqLengthsQ, constInfo);
 }
 
 
@@ -283,7 +272,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeConstexpr()
     constInfo.n2GS1Dv = constInfo.n2Size * constInfo.gS1Dv;
     constInfo.layoutType = sharedParams.layoutType;
 
-    if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
+    if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
         // (BS)ND
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
 
@@ -291,7 +280,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeConstexpr()
         if ASCEND_IS_AIV {
             constInfo.attentionOutStride = (constInfo.n2G - constInfo.gSize) * constInfo.dSizeV * sizeof(OUTPUT_T);
         }
-    } else if constexpr (LAYOUT_T == SAS_LAYOUT::BSND) {
+    } else if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
         // BSH/BSNGD
         constInfo.s1BaseN2GDv = constInfo.s1BaseSize * constInfo.n2GDv;
         constInfo.mm1Ka = constInfo.n2Size * constInfo.dSize;
@@ -358,7 +347,7 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
         bool lastBN = (bnIdx == bN2EndIdx - 1);
         runParam.boIdx = bnIdx;
         runParam.n2oIdx = 0;
-        ComputeParamBatch<TEMPLATE_INTF_ARGS>(runParam, this->constInfo,
+        ComputeParamBatch<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, // 【YXC TODO】
             this->cuSeqlensQAddr, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
         ComputeS1LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
 
@@ -382,7 +371,7 @@ __aicore__ inline uint32_t KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoo
             if (notLastTwoLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
                 bool s1NoNeedCalc = ComputeParamS1<TEMPLATE_INTF_ARGS>(
-                    runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr);
+                    runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr); // 【YXC TODO】
                 bool s2NoNeedCalc =
                     ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
