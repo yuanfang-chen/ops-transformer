@@ -10,6 +10,7 @@
 
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
+#include "opdev/platform.h"
 #include <tiling/platform/platform_ascendc.h>
 #include "aclnn_incre_flash_attention_v2.h"
 
@@ -36,7 +37,7 @@ aclnnStatus aclnnIncreFlashAttentionV2GetWorkspaceSize(
     const aclTensor *quantOffset2, int64_t numHeads, double scaleValue, char *inputLayout, int64_t numKeyValueHeads,
     const aclTensor *attentionOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
         return ACLNN_ERR_RUNTIME_ERROR;
     }
@@ -52,7 +53,7 @@ aclnnStatus aclnnIncreFlashAttentionV2GetWorkspaceSize(
 aclnnStatus aclnnIncreFlashAttentionV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                        const aclrtStream stream)
 {
-    if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
         return ACLNN_ERR_RUNTIME_ERROR;
     }
