@@ -315,7 +315,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
 
 template <typename QSFAT> class QSFAMatmulServiceDummy {
 public:
-    __aicore__ inline SCFABlockCubeDummy() {};
+    __aicore__ inline QSFAMatmulServiceDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
     __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo) {}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
