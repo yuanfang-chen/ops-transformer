@@ -54,6 +54,7 @@ constexpr int32_t CORE_NUM_FOUR = 4;
 constexpr int32_t CORE_NUM_EIGHT = 8;
 constexpr int32_t CORE_NUM_SIXTEEN = 16;
 
+// basic场景tiling默认值
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT = 16;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_PVALUE_DEFAULT = 14;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_M0_DEFAULT = 128;
@@ -67,6 +68,9 @@ constexpr int32_t ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT = 2;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_PVALUE_DEFAULT = 12;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_M0_DEFAULT = 128;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT = 2;
+
+// A16W8场景tiling默认值
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT = 7651;
 
 constexpr int32_t CONDITION_M_ST = 0;
 constexpr int32_t CONDITION_M_END = 1;
@@ -372,6 +376,27 @@ static std::map<int, std::vector<std::vector<int>>> g_alltoallmatmulEightRankFP1
         {77824, 2147483647, 4608, 2147483647, 6656, 9216}}},
     {12,
         {{36864, 2147483647, 2304, 4608, 6656, 2147483647}}}
+};
+
+// Tiling Code Encode Map
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 640}, {-1, 640, 640, 2147483647, 640, 1536},
+        {-1, 640, 2560, 2147483647, 1536, 2560}, {-1, 640, -1, 640, 4096, 2147483647},
+        {-1, 640, 640, 2147483647, 2560, 2147483647}, {640, 3584, 640, 13312, 2560, 2147483647},
+        {3584, 2147483647, 640, 13312, 8704, 2147483647}}},
+    {1507,
+        {{-1, 640, -1, 640, 640, 1536}, {-1, 640, -1, 2560, 1536, 2560},
+        {1536, 2147483647, 6144, 2147483647, -1, 1536}, {640, 2147483647, -1, 2147483647, 1536, 2560},
+        {-1, 640, -1, 640, 2560, 4096}, {640, 3584, 13312, 2147483647, 2560, 2147483647},
+        {3584, 4608, -1, 640, 6144, 2147483647}, {3584, 2147483647, 640, 13312, 2560, 8704},
+        {3584, 6144, 13312, 2147483647, 2560, 2147483647}}},
+    {3555,
+        {{640, 2147483647, -1, 6144, -1, 1536}, {640, 1536, 6144, 2147483647, -1, 1536},
+        {640, 3584, -1, 640, 2560, 2147483647}, {3584, 2147483647, -1, 640, 4608, 6144},
+        {4608, 2147483647, -1, 640, 6144, 2147483647}, {6144, 2147483647, 13312, 2147483647, 2560, 2147483647}}},
+    {7651,
+        {{3584, 2147483647, -1, 640, 2560, 4608}}}
 };
 
 bool AlltoAllMatmulTiling910b::IsCapable()
@@ -755,6 +780,34 @@ void AlltoAllMatmulTiling910b::CalTilingParam(CoCTiling &cocTilingData, const st
     }
 }
 
+void AlltoAllMatmulTiling910b::SetTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info)
+{
+    int32_t m = info.M;
+    int32_t k = info.K;
+    int32_t n = info.N;
+
+    for (auto &item : TilingParamMap) {
+        auto value = item.second.value;
+        auto conditionMap = item.second.conditionMap;
+        if (!conditionMap.empty()) {
+            *item.first = GetValueFromMKNConditionMap(m, k, n, value, conditionMap);
+        } else if (value != -1) {
+            *item.first = value;
+        }
+    }
+}
+
+void AlltoAllMatmulTiling910b::DecodeTilingData(int32_t code, CoCTiling &cocTilingData)
+{
+    cocTilingData.allToAllRecvCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.allToAllSendCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.pValue = (code & 15) + 1;
+    code >>= 4;
+    cocTilingData.m0 = (code + 1) * 128;
+}
+
 void TilingParamDeal(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info, int32_t ubSize)
 {
     uint32_t k = info.K;
@@ -830,17 +883,41 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     }
 }
 
+// A16W8 tiling
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTilingData &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, TilingValue> TilingParamMap = {
+        {&code,
+            {ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap}}
+    };
+    SetTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+    
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
+    // A16W4 tiling策略
+    if (info.rankSize == 2 && quantType == TILINGKEY_TPL_A16W4) {
+        AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
+        return ge::GRAPH_SUCCESS;
+    }
+    // basic、策略
     if (info.rankSize == 2) {  // 若2卡
         DoTwoRankTiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
     } else if (info.rankSize == 4) {  // 若4卡
         DoFourRankTiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
+    } else if (info.rankSize == 8) {
+        DoEightRankTiling(cocTilingData, info);  // 若8卡
+        return ge::GRAPH_SUCCESS;
     }
-    DoEightRankTiling(cocTilingData, info);  // 若8卡
-    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
