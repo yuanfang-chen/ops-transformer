@@ -192,7 +192,7 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
         actualSeqKvlenAddr = (__gm__ int32_t *)actualSeqLengths;
     }
 
-    vecBlock.InitGlobalBuffer(key, value, sparseIndices, blockTable, actualSeqLengthsQ);
+    vecBlock.InitGlobalBuffer(key, value, sparseIndices, blockTable);
     cubeBlock.InitCubeInput(actualSeqLengthsQ, constInfo);
 }
 

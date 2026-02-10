@@ -59,16 +59,16 @@ public:
     // ==================== Functions ======================
     __aicore__ inline QSFAVectorService() {};
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
-        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv)
+        CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths)
     {
         if ASCEND_IS_AIV {
             tPipe = pipe;
             tilingData = tiling;
-            if (cuSeqlensQ != nullptr) {
-                cuSeqlensQGm.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
+            if (actualSeqLengthsQ != nullptr) { // 【TODO 是否必传?】
+                cuSeqlensQGm.SetGlobalBuffer((__gm__ int32_t *)actualSeqLengthsQ);
             }
-            if (sequsedKv != nullptr) {
-                actualSeqLengthsKVGm.SetGlobalBuffer((__gm__ int32_t *)sequsedKv);
+            if (actualSeqLengths != nullptr) {
+                actualSeqLengthsKVGm.SetGlobalBuffer((__gm__ int32_t *)actualSeqLengths);
             }
             this->InitCubeVecSharedParams(sharedParams, aicIdx, subBlockIdx);
             this->GetExtremeValue(this->negativeFloatScalar);
@@ -128,14 +128,14 @@ private:
     const KvQuantSparseAttnSharedkvTilingData *__restrict tilingData;
 
     GlobalTensor<OUTPUT_T> attentionOutGm;
-    GlobalTensor<KV_T> oriKVGm;
-    GlobalTensor<KV_T> cmpKVGm;
+    // GlobalTensor<KV_T> oriKVGm;
+    // GlobalTensor<KV_T> cmpKVGm;
     GlobalTensor<KV_T> keyGm;
-    GlobalTensor<int32_t> cmpSparseIndicesGm;
-    GlobalTensor<int32_t> oriBlockTableGm;
-    GlobalTensor<int32_t> cmpBlockTableGm;
+    GlobalTensor<int32_t> SparseIndicesGm;
+    GlobalTensor<int32_t> BlockTableGm;
+    // GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> blockTableGm;
-    GlobalTensor<T> sinksGm;
+    // GlobalTensor<T> sinksGm;
     GlobalTensor<int32_t> cuSeqlensQGm;
     GlobalTensor<int32_t> actualSeqLengthsKVGm;
 
@@ -532,18 +532,18 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     outputL1.WaitCrossCore(); // 核间同步
-    bool isCmp = runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx;
-    if (isCmp) {
-        keyGm = cmpKVGm;
-        blockTableGm = cmpBlockTableGm;
-        blockSize = constInfo.cmpBlockSize;
-        maxBlockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
-    } else {
-        keyGm = oriKVGm;
-        blockTableGm = oriBlockTableGm;
-        blockSize = constInfo.oriBlockSize;
-        maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
-    }
+    // bool isCmp = runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx;
+    // if (isCmp) {
+    //     keyGm = cmpKVGm;
+    //     blockTableGm = cmpBlockTableGm;
+    //     blockSize = constInfo.cmpBlockSize;
+    //     maxBlockNumPerBatch = constInfo.cmpMaxBlockNumPerBatch;
+    // } else {
+    //     keyGm = oriKVGm;
+    //     blockTableGm = oriBlockTableGm;
+    blockSize = constInfo.oriBlockSize;
+    maxBlockNumPerBatch = constInfo.oriMaxBlockNumPerBatch;
+    // }
     // [lz todo] 只保留sparsekv
     // if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
     //     if (isCmp) {
@@ -796,11 +796,11 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Clean
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV,
-    __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks)
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value,
+    __gm__ uint8_t *SparseIndices, __gm__ uint8_t *blockTable)
 {
-    oriKVGm.SetGlobalBuffer((__gm__ KV_T *)(oriKV));
-    oriBlockTableGm.SetGlobalBuffer((__gm__ int32_t *)oriBlockTable);
+    keyGm.SetGlobalBuffer((__gm__ KV_T *)(key));
+    BlockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
 
     // [lz todo] 只保留qsfa，不区分其他模式
     // if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE) {
@@ -811,12 +811,12 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitG
     // if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
     //     cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
     // }
-    cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
+    cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)SparseIndices);
 
-    if (sinks != nullptr) {
-        sinksGm.SetGlobalBuffer((__gm__ T *)sinks);
-        this->isSinks = true;
-    }
+    // if (sinks != nullptr) {
+    //     sinksGm.SetGlobalBuffer((__gm__ T *)sinks);
+    //     this->isSinks = true;
+    // }
 }
 
 template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::SoftmaxInitBuffer()
