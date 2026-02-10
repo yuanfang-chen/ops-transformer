@@ -903,11 +903,11 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
     // A16W4 tiling策略
-    if (info.rankSize == 2 && quantType == TILINGKEY_TPL_A16W4) {
+    if (info.rankSize == 2 && quantType == TILINGKEY_TPL_A16W8) {
         AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
     }
-    // basic、策略
+    // basic、A4W4策略
     if (info.rankSize == 2) {  // 若2卡
         DoTwoRankTiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
