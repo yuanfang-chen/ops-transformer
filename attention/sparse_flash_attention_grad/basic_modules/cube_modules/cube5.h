@@ -22,7 +22,6 @@ CubeOp<T1>::cube5ProcessSparse(const int64_t pGmOffset, const int64_t dyGmOffset
 {
     uint32_t dLoopTimes = (dimDv + 127) / N_SPLIT_SIZE;
     uint32_t perLoopDSize = N_SPLIT_SIZE;
-    uint32_t tailLoopDSize = dimDv - (dLoopTimes - 1) * perLoopDSize;
     uint32_t blockOffset = M_SPLIT_SIZE / selectedBlockSize; // 128 / 1 = 128
 
     MMParam mmParam;
@@ -91,7 +90,6 @@ CubeOp<T1>::cube5ProcessDense(const int32_t blkCntOffset, const int32_t mmPingPo
 
     uint32_t dLoopTimes = (dimDv + 127) / N_SPLIT_SIZE;
     uint32_t perLoopDSize = N_SPLIT_SIZE;
-    uint32_t tailLoopDSize = dimDv - (dLoopTimes - 1) * perLoopDSize;
     uint32_t blockOffset = M_SPLIT_SIZE / selectedBlockSize; // 128 / 1 = 128
 
     MMParam mmParam;
