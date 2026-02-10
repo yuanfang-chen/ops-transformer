@@ -40,8 +40,8 @@ extern "C" {
 #endif
 
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
-// VISIBILITY_EXPORT void NnopbaseSetUserHandle(void *executor, void *handle);
-// VISIBILITY_EXPORT void* NnopbaseGetUserHandle(void *executor);
+extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
+extern "C" void* NnopbaseGetUserHandle(void *executor);
 
 // host侧通信资源准备
 extern uint32_t AscCommResPrepare(const char *group, const std::string &opName, void *ascCommArgs,
@@ -392,7 +392,7 @@ aclnnStatus aclnnMoeDistributeCombineBase(void *workspace, uint64_t workspaceSiz
     if (is950) {
         OP_LOGD("[aclnn-2] Enter to the 950");
         void *args = NnopbaseGetUserHandle(executor);
-        uint64_t handleVal = (*args);
+        uint64_t handleVal = reinterpret_cast<uint64_t>(args);
         if (handleVal == 0) {
             OP_LOGD("[aclnn-2] aclnnInnerMoeDistributeCombineV2Extend");
             return aclnnInnerMoeDistributeCombineV2Extend(workspace, workspaceSize, executor, stream);
