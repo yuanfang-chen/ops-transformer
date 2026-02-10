@@ -107,7 +107,7 @@ struct RunParamStr {  // 分核与切块需要使用到参数
     uint32_t testInfo; \
     int64_t Head
 
-struct RunInfo {
+struct RunInfo_arch35 {
     COMMON_RUN_INFO;
     // 推理新增
     // lse 输出offset
@@ -242,7 +242,7 @@ struct RunInfo {
     uint32_t cmpMaxBlockNumPerBatch
 
 
-struct ConstInfo{
+struct ConstInfo_arch35 {
     COMMON_CONST_INFO;
     INFER_CONST_INFO;
 };

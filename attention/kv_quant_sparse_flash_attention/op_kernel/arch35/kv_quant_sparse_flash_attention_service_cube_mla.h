@@ -63,30 +63,30 @@ public:
 
     __aicore__ inline SCFABlockCube() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query);
-    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
+    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo);
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &output,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
-        RunInfo &runInfo, ConstInfo &constInfo);
+        RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
 
     __aicore__ inline void IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers, 
-        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-        ConstInfo &constInfo);
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+        ConstInfo_arch35 &constInfo);
 
 private:
     __aicore__ inline void InitLocalBuffer();
-    __aicore__ inline void InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo);
-    __aicore__ inline void CalcS1Coord(RunInfo &runInfo, ConstInfo &constInfo);
+    __aicore__ inline void InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo);
+    __aicore__ inline void CalcS1Coord(RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
 
     __aicore__ inline void IterateBmm1SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
-        RunInfo &runInfo, ConstInfo &constInfo);
+        RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
 
     // --------------------Bmm2--------------------------
     __aicore__ inline void IterateBmm2SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
-        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-        ConstInfo &constInfo);
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+        ConstInfo_arch35 &constInfo);
     TPipe *tPipe;
     /* =====================GM变量==================== */
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
@@ -128,7 +128,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::InitC
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo)
+QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo)
 {
     if ASCEND_IS_AIC {
         InitGmTensor(cuSeqlensQ, constInfo);
@@ -156,7 +156,7 @@ QSFAMatmulService<QSFAT>::InitLocalBuffer()
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo)
+QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo)
 {
     if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
         this->queryGm.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize,
@@ -169,8 +169,8 @@ QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstIn
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::CalcS1Coord(RunInfo &runInfo,
-    ConstInfo &constInfo)
+template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::CalcS1Coord(RunInfo_arch35 &runInfo,
+    ConstInfo_arch35 &constInfo)
 {
     // 计算s1方向偏移
     coordInfo[runInfo.taskIdMod3].s1Coord = runInfo.s1oIdx * runInfo.qSNumInOneBlock;
@@ -178,8 +178,8 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::CalcS
 
 template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-    ConstInfo &constInfo)
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+    ConstInfo_arch35 &constInfo)
 {
     CalcS1Coord(runInfo, constInfo);
 
@@ -188,16 +188,16 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
 
 template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-    ConstInfo &constInfo)
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+    ConstInfo_arch35 &constInfo)
 {
     IterateBmm2SCFA(outputBuf, inputLeftBuffers, inputRightBuf, runInfo, constInfo);
 }
 
 template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm1SCFA(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-    ConstInfo &constInfo)
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+    ConstInfo_arch35 &constInfo)
 {
     Buffer<BufferType::L1> inputLeftBuf;
     // 左矩阵复用，S2的第一次循环加载左矩阵
@@ -262,8 +262,8 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
 
 template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm2SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
-    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-    ConstInfo &constInfo)
+    Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+    ConstInfo_arch35 &constInfo)
 {
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> inputLeftBuf = inputLeftBuffers.Get(); // P直接用无需搬运
     inputLeftBuf.WaitCrossCore();
@@ -310,14 +310,14 @@ template <typename QSFAT> class QSFAMatmulServiceDummy {
 public:
     __aicore__ inline SCFABlockCubeDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
-    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo& constInfo) {}
+    __aicore__ inline void InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo) {}
     __aicore__ inline void IterateBmm1(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf,
-        RunInfo &runInfo, ConstInfo &constInfo) {}
+        RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo) {}
     __aicore__ inline void IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
         BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
-        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo &runInfo,
-        ConstInfo &constInfo) {}
+        Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
+        ConstInfo_arch35 &constInfo) {}
 }
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H

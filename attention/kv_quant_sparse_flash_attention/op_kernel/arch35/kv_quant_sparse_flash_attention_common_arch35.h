@@ -16,7 +16,7 @@
 #define KV_QUANT_SPARSE_ATTN_AHSREDKV_COMMON_ARCH35_H
 #include <type_traits>
 #include "kernel_tiling/kernel_tiling.h"
-#include "../kv_quant_sparse_attn_sharedkv_common.h"
+#include "../kv_quant_sparse_flash_attention_common.h"
 
 constexpr uint64_t BLOCK_BYTE = 32;
 constexpr uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
