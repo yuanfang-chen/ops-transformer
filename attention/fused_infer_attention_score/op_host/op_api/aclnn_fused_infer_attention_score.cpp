@@ -8,6 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "opdev/op_log.h"
+#include "opdev/common_types.h"
 #include "aclnn_fused_infer_attention_score.h"
 #include "aclnn_fused_infer_attention_score_inner.h"
 

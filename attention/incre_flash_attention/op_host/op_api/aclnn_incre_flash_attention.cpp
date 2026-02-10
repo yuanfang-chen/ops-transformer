@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "opdev/op_log.h"
+#include "opdev/common_types.h"
+#include <tiling/platform/platform_ascendc.h>
 #include "aclnn_incre_flash_attention.h"
 
 #ifdef __cplusplus

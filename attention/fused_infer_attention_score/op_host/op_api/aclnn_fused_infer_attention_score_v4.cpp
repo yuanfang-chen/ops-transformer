@@ -9,7 +9,6 @@
  */
 
 #include "aclnn_fused_infer_attention_score_v4.h"
-
 #include "opdev/common_types.h"
 #include "opdev/make_op_executor.h"
 #include "opdev/op_def.h"
