@@ -21,79 +21,22 @@ using namespace AscendC;
 namespace MC2KernelTemplate {
 template <typename hcclDataType, bool commBeforeComputeFlag> class HcclA2avOp {
 public:
-    __aicore__ inline void Init(__gm__ void *hcclInitTiling, __gm__ void *a2avCcTiling,
+     __aicore__ inline void Init(const void *hcclInitTiling, uint64_t hcclCcTilingOffset,
         const TaskTilingInfo *taskTilingInfo, GM_ADDR sendBuffer, GM_ADDR recvBuffer)
     {
-        sendBuffer_ = sendBuffer;
-        recvBuffer_ = recvBuffer;
         taskTilingInfo_ = taskTilingInfo;
         GM_ADDR hcclContextGm = GetHcclContext<HCCL_GROUP_ID_0>();
-        hccl_.Init(hcclContextGm, hcclInitTiling);
-        hccl_.SetCcTiling(a2avCcTiling);
-        rankId_ = hccl_.GetRankId();
-        rankDim_ = hccl_.GetRankDim();
+        hccl_.InitV2(hcclContextGm, hcclInitTiling);
+        hccl_.SetCcTilingV2(hcclCcTilingOffset); 
+        rankId_ = hccl_.GetRankId();	 
+        rankDim_ = hccl_.GetRankDim();	 
         e_ = taskTilingInfo_->e;
         H1_ = taskTilingInfo_->H1;
         N1_ = taskTilingInfo_->N1;
-        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer_);
-        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer_);
+        sendGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)sendBuffer);
+        recvGlobalBuffer_.SetGlobalBuffer((__gm__ hcclDataType *)recvBuffer);
     }
 
-    // TODO 临时调试方法，为保证通路正常，后续改用Launch
-    __aicore__ inline void TempLaunch()
-    {
-        if ASCEND_IS_AIC {
-            return;
-        }
-        if ASCEND_IS_AIV {
-            if (GetBlockIdx() != 0) {
-                return;
-            }
-        }
-
-        if constexpr (AscendC::IsSameType<hcclDataType, bfloat16_t>::value) {
-            hcclDataType_ = HCCL_DATA_TYPE_BFP16;
-        } else if constexpr (AscendC::IsSameType<hcclDataType, hifloat8_t>::value) {
-            hcclDataType_ = HCCL_DATA_TYPE_HIF8;
-        } else {
-            hcclDataType_ = HCCL_DATA_TYPE_FP16;
-        }
-
-        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
-        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
-
-        for (uint32_t expertIdx = 0U; expertIdx < e_; expertIdx++) {
-            for (uint32_t i = 0U; i < rankDim_; i++) {
-                alltoAllvSendCnt[i] = static_cast<uint64_t>(sendCnt[i * e_ + expertIdx]) * H1_;
-                alltoAllvRecvCnt[i] = static_cast<uint64_t>(recvCnt[i * e_ + expertIdx]) * H1_;
-
-            }
-            alltoAllvSendOffset[0] = 0UL;
-            for (uint32_t j = 0U; j < expertIdx; j++) { // 0sendOffset
-                alltoAllvSendOffset[0U] += static_cast<uint64_t>(sendCnt[j]) * H1_;
-            }
-            for (uint32_t i = 1U; i < rankDim_; i++) {
-                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
-                for (uint32_t j = 0U; j < e_; j++) {
-                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1U) * e_ + j]) * H1_;
-                }
-            }
-            for (uint32_t i = 0U; i < rankDim_; i++) {
-                if ((expertIdx == 0U) && (i == 0U)) {
-                    alltoAllvRecvOffset[i] = 0UL;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
-                } else {
-                    alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
-                }
-            }
-            alltoAllvHandleId_[expertIdx] =
-                hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset,
-                hcclDataType_, (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
-        }
-    }
-
-    // 注意：未调试，可能出现通信问题
     __aicore__ inline void Launch(uint32_t startExpertIdx, uint32_t expertNum)
     {
         if ASCEND_IS_AIC {
@@ -231,8 +174,6 @@ private:
 
     GlobalTensor<hcclDataType> sendGlobalBuffer_;
     GlobalTensor<hcclDataType> recvGlobalBuffer_;
-    GM_ADDR sendBuffer_;
-    GM_ADDR recvBuffer_;
 
     HcclHandle alltoAllvHandleId_[MAX_HANDLE_ID_NUM] = {INVALID_HANDLE_ID};
     HcclDataType hcclDataType_ = HCCL_DATA_TYPE_FP16;
