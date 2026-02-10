@@ -16,7 +16,6 @@
 #define MOE_DISTRIBUTE_DISPATCH_SHMEM_H
 
 #include "check_winsize.h"
-#include "moe_distribute_base.h"
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_shmem_tiling.h"
