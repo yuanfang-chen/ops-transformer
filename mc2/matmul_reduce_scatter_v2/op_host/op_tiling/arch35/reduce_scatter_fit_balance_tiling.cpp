@@ -45,7 +45,7 @@ void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 void MMReduceScatterFitBalanceTiling::SetShortTileLen()
 {
     // Encourage split more if the comm and calc is balanced and the cost of cutLen is sufficiently high
-    bool isCalcCommBalance = ratioCalcComm_ < 2.0;
+    bool isCalcCommBalance = ratioCalcComm_ < CALC_COMM_RATIO;
     uint64_t cutLen = tilingM_.GetAlignLength() / TWO;
     double mmCost = matmulPerf_.MatmulTime(cutLen, 1);
     double commCost = commPerf_.CommTime(cutLen);

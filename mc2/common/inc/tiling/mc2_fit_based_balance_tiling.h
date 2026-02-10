@@ -21,6 +21,8 @@
 #include "matmul_performance_arch35.h"
 #include "hccl_formulaic_tiling.h"
 
+constexpr static double CALC_COMM_RATIO = 2.0;
+
 class Mc2FitBasedBalanceTiling {
 public:
     MatmulPerformanceArch35 matmulPerf_;
