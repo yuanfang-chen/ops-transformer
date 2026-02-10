@@ -153,7 +153,8 @@ private:
     TBuf<> dequantScaleBuff;
 
     T negativeFloatScalar;
-    bool isSinks = false;
+    // [lz todo] 删除sink相关内容
+    // bool isSinks = false;
     uint32_t maxBlockNumPerBatch;
     uint32_t blockSize;
 };
@@ -633,7 +634,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     LocalTensor<T> mmRes = bmm1ResBuf.template GetTensor<T>();
 
     // loopCount = 0 但传入sinks时走update分支，maxUb通过sinks初始化，sumUb初始化为1.0
-    if (runInfo.s2LoopCount == 0 && !isSinks) { //sink 丢失首token信息，sink会增加首token信息，维度是n1
+    if (runInfo.s2LoopCount == 0) { //sink 丢失首token信息，sink会增加首token信息，维度是n1
         if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, false, s1BaseSize, s2BaseSize, SCFaVectorApi::OriginNRange::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -648,13 +649,13 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
                 static_cast<T>(constInfo.softmaxScale), negativeFloatScalar);
         }
     } else {
-        if (runInfo.s2LoopCount == 0 && isSinks) {  
-            // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
-            int64_t sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
-            LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
-            DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);  //初始化maxUb
-            DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
-        }
+        // if (runInfo.s2LoopCount == 0 && isSinks) {  
+        //     // s1切1,vec0: 0 ~ halfMRealSize - 1, vec1: gSize - halfMRealSize ~ gSize
+        //     int64_t sinksOffset = GetBlockIdx() % 2 == 0 ? 0 : constInfo.gSize - runInfo.halfMRealSize;
+        //     LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
+        //     DataCopy(maxUb, sinksUb[sinksOffset], runInfo.halfMRealSize);  //初始化maxUb
+        //     DuplicateSumWithR0<T>(sumUb, R0, runInfo.halfMRealSize);
+        // }
         if (likely(runInfo.s2RealSize == 128)) { // s2RealSize等于128分档, VF内常量化减少if判断
             ProcessVec1Vf<T, Q_T, true, s1BaseSize, s2BaseSize, SCFaVectorApi::OriginNRange::EQ_128_SCFA>(
                 stage1CastTensor, mmRes, sumUb, maxUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize, runInfo.s2RealSize,
@@ -688,7 +689,10 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
 
     outputBuf.SetCrossCore();
     // ======================================================
-    if (runInfo.s2LoopCount != 0 || (runInfo.s2LoopCount == 0 && isSinks)) {
+    // if (runInfo.s2LoopCount != 0 || (runInfo.s2LoopCount == 0 && isSinks)) {
+    //     SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
+    // }
+    if (runInfo.s2LoopCount != 0) {
         SCFAUpdateExpSumAndExpMax<T>(sumUb, maxUb, expUb, sumUb, maxUb, apiTmpBuffer, runInfo.halfMRealSize);
     }
 }
@@ -870,9 +874,9 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitL
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[1]);
 
-    if (this->isSinks) {
-        InitSinksBuffer(constInfo);
-    }
+    // if (this->isSinks) {
+    //     InitSinksBuffer(constInfo);
+    // }
 }
 
 template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitCubeVecSharedParams(
