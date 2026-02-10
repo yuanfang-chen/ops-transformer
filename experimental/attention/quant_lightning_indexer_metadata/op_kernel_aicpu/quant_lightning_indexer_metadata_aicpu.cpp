@@ -196,17 +196,9 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckFeature() {
             KERNEL_LOG_ERROR("For Atlas A3, compression ratio %d invalid! Must be 1/2/4/8/16/32/64/128.", cmpRatio_);
             return false;
         }
-        if (sparseCount_ < 1 || sparseCount_ > 2048) {
-            KERNEL_LOG_ERROR("For Atlas A3, sparse_count should only be [1, 2048], but got %d", sparseCount_);
-            return false;
-        }
     } else {
         if (cmpRatio_ != 1 && cmpRatio_ != 4 && cmpRatio_ != 128) {
             KERNEL_LOG_ERROR("For Ascend 950, compression ratio %d invalid! Must be 1/4/128.", cmpRatio_);
-            return false;
-        }
-        if (sparseCount_ != 512) {
-            KERNEL_LOG_ERROR("For Ascend 950, sparse_count should only be 512, but got %d", sparseCount_);
             return false;
         }
     }
