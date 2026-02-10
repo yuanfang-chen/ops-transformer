@@ -51,8 +51,8 @@ public:
         h1_ = tilingData_->taskTilingInfo.H1;
         n1_ = tilingData_->taskTilingInfo.N1;
         bs_ = tilingData_->taskTilingInfo.BS;
-        bsk_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ + bsk_ * h1_ : workspaceGM_;
+        a_ = tilingData_->taskTilingInfo.A;
+        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ : workspaceGM_ + a_ * h1_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -129,7 +129,7 @@ private:
     uint64_t h1_;
     uint64_t n1_;
     uint64_t bs_;
-    uint64_t bsk_;
+    uint64_t a_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
 };
