@@ -30,6 +30,7 @@ std::tuple<int64_t, int64_t, int64_t, int64_t> KvRmsNormRopeCacheTilingBase::Get
     OP_CHECK_IF(
         shapePtr->GetStorageShape().GetDimNum() != DIM_SIZE, OP_LOGE(context, "Shape must be (B,N,S,D)."),
         return std::make_tuple(0, 0, 0, 0));
+    std::cout<<"LastDim is: "<<shapePtr->GetStorageShape().GetDim(SHAPE_IDX_D)<<std::endl;
     return std::make_tuple(
         shapePtr->GetStorageShape().GetDim(SHAPE_IDX_B), shapePtr->GetStorageShape().GetDim(SHAPE_IDX_N),
         shapePtr->GetStorageShape().GetDim(SHAPE_IDX_S), shapePtr->GetStorageShape().GetDim(SHAPE_IDX_D));
