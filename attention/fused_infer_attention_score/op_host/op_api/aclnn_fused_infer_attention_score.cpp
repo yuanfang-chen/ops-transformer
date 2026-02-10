@@ -10,6 +10,7 @@
 
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
+#include "opdev/platform.h"
 #include "aclnn_fused_infer_attention_score.h"
 #include "aclnn_fused_infer_attention_score_inner.h"
 
