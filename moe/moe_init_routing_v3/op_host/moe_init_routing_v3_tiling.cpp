@@ -17,7 +17,6 @@
 
 using Ops::Transformer::OpTiling::TilingBaseClass;
 
-
 namespace optiling {
 const static int64_t NUM_TWO = 2;
 const static int64_t NUM_THREE = 3;
