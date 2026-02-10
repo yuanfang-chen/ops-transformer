@@ -86,6 +86,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
     if (status != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    OP_TILING_CHECK((opName_ == nullptr),
+        OP_LOGE("quantGMMALLTOALLV", "The opName_ is null."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -674,25 +676,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetTilingCommonInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CalTilingInferredInfo()
-{
-    constexpr uint64_t alignAddrLen = 512;
-    auto yDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
-    auto yDType = yDesc->GetDataType();
-    auto yDtypeSize = mc2tiling::GetDataTypeSize(opName_, yDType);
-    inferredInfo.gmmResultLen = mc2tiling::AlignUp(
-        localParams_.A * localParams_.N1 * yDtypeSize, alignAddrLen);
-    
-    // inferredInfo.permuteLen = inferredInfo.gmmResultLen;
-    // commLen
-    // inferredInfo.mmResultLen = 0;
-    // inferredInfo.commLen = inferredInfo.gmmResultLen;
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
 {
-    CalTilingInferredInfo();
+    constexpr uint64_t alignAddrLen = 512;
+    auto yDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
+    inferredInfo.gmmResultLen = mc2tiling::AlignUp(
+        localParams_.A * localParams_.N1 * yDtypeSize, alignAddrLen);
     localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
     localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
@@ -847,6 +836,7 @@ void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2av
 ge::graphStatus QuantGroupedMatmulAllToAllvTiling::PostTiling()
 {
     PrintQuantGmmA2avTilingData(localTilingData_);
+    context_->SetBlockDim(localParams_.aicCoreNum);
     QuantGmmA2avTilingData *outTilingData = context_->GetTilingData<QuantGmmA2avTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "failed to get tiling data from context"),
@@ -880,10 +870,11 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetWorkspaceSize()
 
 uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 {
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(localParams_.isGmmWeightTrans, localParams_.isMmWeightTrans,
-        localParams_.gmmQuantSuit, localParams_.mmQuantSuit);
-    OP_LOGD(opName_, "GET_TPL_TILING_KEY: [%d,%d,%d,%d], TilingKey is [%lu].", localParams_.isGmmWeightTrans,
-        localParams_.isMmWeightTrans, localParams_.gmmQuantSuit, localParams_.mmQuantSuit, tilingKey);
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(localParams_.hasSharedMm, localParams_.isGmmWeightTrans,
+        localParams_.isMmWeightTrans, localParams_.gmmQuantSuit, localParams_.mmQuantSuit);
+    OP_LOGD(opName_, "GET_TPL_TILING_KEY: [%d,%d,%d,%d,%d], TilingKey is [%lu].", localParams_.hasSharedMm,
+        localParams_.isGmmWeightTrans, localParams_.isMmWeightTrans, localParams_.gmmQuantSuit,
+        localParams_.mmQuantSuit, tilingKey);
     return tilingKey;
 }
 
