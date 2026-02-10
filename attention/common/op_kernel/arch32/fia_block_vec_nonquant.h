@@ -20,9 +20,9 @@
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matrix/matmul/tiling.h"
-#include "../fia_public_define.h"
-#include "../memory_copy.h"
-#include "../post_quant.h"
+#include "fia_public_define.h"
+#include "memory_copy.h"
+#include "post_quant.h"
 
 using namespace AttentionCommon;
 using AscendC::CrossCoreSetFlag;

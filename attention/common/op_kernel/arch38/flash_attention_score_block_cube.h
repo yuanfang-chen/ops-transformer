@@ -15,7 +15,8 @@
 #ifndef FLASH_ATTENTION_SCORE_BLOCK_CUBE_H_
 #define FLASH_ATTENTION_SCORE_BLOCK_CUBE_H_
 #include "util_regbase.h"
-#include "../offset_calculator.h"
+#include "../memcopy/offset_calculator.h"
+#include "../memcopy/fa_gm_tensor.h"
 #include "../matmul.h"
 #include "../FixpipeOut.h"
 #include "../CopyInL1.h"

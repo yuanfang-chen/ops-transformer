@@ -21,10 +21,10 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
-#include "../fia_public_define.h"
+#include "fia_public_define.h"
 #include "../vector_common.h"
-#include "../memory_copy.h"
-#include "../post_quant.h"
+#include "memory_copy.h"
+#include "post_quant.h"
 
 using namespace AttentionCommon;
 struct TaskInfo {
