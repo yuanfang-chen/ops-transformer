@@ -36,6 +36,7 @@ using namespace regbaseutil;
 using namespace matmul;
 
 namespace BaseApi {
+
 template <typename QSFAT> class QSFAVectorService {
 public:
     using T = float;
@@ -78,7 +79,8 @@ public:
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo);
     // 初始化attentionOutGM
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo);
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *SparseIndices, __gm__ uint8_t *blockTable);
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices,
+        __gm__ uint8_t *blockTable);
     __aicore__ inline void InitOutputSingleCore(ConstInfo_arch35 &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
@@ -92,8 +94,10 @@ public:
 private:
     static constexpr bool isPa = QSFAT::pageAttention;
     static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    static constexpr bool isFd = QSFAT::flashDecode;
     static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
-    
+    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+
     __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
     __aicore__ inline void ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
@@ -161,6 +165,7 @@ private:
     uint32_t blockSize;
 };
 
+
 template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx,
     int64_t s2IdxInBase, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
@@ -193,8 +198,6 @@ template <typename QSFAT> __aicore__ inline int64_t QSFAVectorService<QSFAT>::Ge
         return -1;
     }
     int64_t realkeyOffset = 0;
-
-    // [lz todo] 默认直接走pa
     if constexpr (isPa) {
         int64_t blkTableIdx = s2Idx / blockSize;
         int64_t blkTableOffset = s2Idx % blockSize;
@@ -805,8 +808,8 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Clean
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value,
-    __gm__ uint8_t *SparseIndices, __gm__ uint8_t *blockTable)
+template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitGlobalBuffer(__gm__ uint8_t *key,
+__gm__ uint8_t *value, __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable)
 {
     keyGm.SetGlobalBuffer((__gm__ KV_T *)(key));
     blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
@@ -820,7 +823,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitG
     // if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
     //     cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
     // }
-    SparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)SparseIndices);
+    SparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)sparseIndices);
 
     // if (sinks != nullptr) {
     //     sinksGm.SetGlobalBuffer((__gm__ T *)sinks);
@@ -892,27 +895,27 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
     sharedParams.n2Size = 1;
     sharedParams.gSize = sparseAttnSharedkvBaseParams.nNumOfQInOneGroup; 
     sharedParams.s1Size = sparseAttnSharedkvBaseParams.qSeqSize;
-    sharedParams.s2Size = sparseAttnSharedkvBaseParams.kvSeqSize;
+    // sharedParams.s2Size = sparseAttnSharedkvBaseParams.kvSeqSize;
     sharedParams.sparseBlockCount = sparseAttnSharedkvBaseParams.sparseBlockCount;
-    sharedParams.cmpRatio = sparseAttnSharedkvBaseParams.cmpRatio;
-    sharedParams.oriMaskMode = sparseAttnSharedkvBaseParams.oriMaskMode;
-    sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.cmpMaskMode;
-    sharedParams.oriWinLeft = sparseAttnSharedkvBaseParams.oriWinLeft;
-    sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
+    // sharedParams.cmpRatio = sparseAttnSharedkvBaseParams.cmpRatio;
+    // sharedParams.oriMaskMode = sparseAttnSharedkvBaseParams.oriMaskMode;
+    // sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.cmpMaskMode;
+    // sharedParams.oriWinLeft = sparseAttnSharedkvBaseParams.oriWinLeft;
+    // sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
     sharedParams.layoutType = sparseAttnSharedkvBaseParams.outputLayout; 
-    sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
-    sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
-    sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
-    sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
-    sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
+    // sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
+    // sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
+    // sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
+    // sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
+    // sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 
     // pageAttention, rope在C侧搬运时使用
-    if constexpr (isPa) {
-        sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
-        sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
-        sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
-        sharedParams.cmpMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.cmpMaxBlockNumPerBatch;
-    }
+    // if constexpr (isPa) {
+        // sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
+        // sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
+        // sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
+        // sharedParams.cmpMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.cmpMaxBlockNumPerBatch;
+    // }
     
     // actQ->TND, actKV pa场景任意layout均有
     sharedParams.isActualSeqLengthsKVNull = 0U; // 均flase 
@@ -952,9 +955,10 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetEx
     negativeScalar = *((float *)&tmp1);
 }
 
-class SCFABlockVecDummy {
+
+class QSFAVectorServiceDummy {
 public:
-    __aicore__ inline SCFABlockVecDummy() {};
+    __aicore__ inline QSFAVectorServiceDummy() {};
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo) {}
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks) {}
