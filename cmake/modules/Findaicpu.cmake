@@ -18,6 +18,7 @@ include(FindPackageHandleStandardArgs)
 if(BUILD_WITH_INSTALLED_DEPENDENCY_CANN_PKG)
   set(AICPU_INC_DIRS
     ${ASCEND_DIR}/${SYSTEM_PREFIX}/include/experiment
+    ${ASCEND_DIR}/${SYSTEM_PREFIX}/include/experiment/cce
     ${ASCEND_DIR}/${SYSTEM_PREFIX}/include/experiment/msprof
     ${ASCEND_DIR}/${SYSTEM_PREFIX}/pkg_inc/aicpu_common/context
     ${ASCEND_DIR}/${SYSTEM_PREFIX}/pkg_inc/aicpu_common/context/common
@@ -44,6 +45,7 @@ else()
     ${TOP_DIR}/ops-base/pkg_inc/aicpu_common/context/common
     ${TOP_DIR}/ops-base/include/aicpu_common/context/common
     ${TOP_DIR}/open_source/eigen
+    ${TOP_DIR}/runtime/pkg_inc/aicpu_sched/common
   )
 endif()
 

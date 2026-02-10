@@ -175,6 +175,7 @@ if (BUILD_OPEN_PROJECT)
             -Wl,--whole-archive
             tiling_api
             -Wl,--no-whole-archive
+            acl_rt
             c_sec
     )
     set_target_properties(cust_opmaster PROPERTIES OUTPUT_NAME
@@ -265,6 +266,9 @@ foreach (OP_DIR ${OP_DIR_LIST})
         if(EXISTS "${OP_DIR}/op_graph/CMakeLists.txt")
             add_subdirectory(${OP_DIR}/op_graph)
         endif()
+        if(EXISTS "${OP_DIR}/op_kernel_aicpu/CMakeLists.txt")
+            add_subdirectory(${OP_DIR}/op_kernel_aicpu)
+        endif()
     else()
         add_subdirectory(${OP_DIR})
     endif()
@@ -284,15 +288,18 @@ if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
         add_subdirectory(tests/ut/framework_normal)
 endif()
 
-if("${ASCEND_OP_NAME}" STREQUAL "add_example")
-    add_subdirectory(examples)
-    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})
-endif()
-
-if("${ASCEND_OP_NAME}" STREQUAL "all_gather_add")
-    add_subdirectory(examples/mc2)
-    list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${ASCEND_OP_NAME})
-endif()
+# 编译examples目录下算子
+foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
+    set(EXAMPLES_DIR "${OPS_TRANSFORMER_DIR}/examples/${EXAMPLES_OP_NAME}")
+    set(EXAMPLES_MC2_DIR "${OPS_TRANSFORMER_DIR}/examples/mc2/${EXAMPLES_OP_NAME}")
+    if(IS_DIRECTORY ${EXAMPLES_DIR})
+        add_subdirectory(examples/${EXAMPLES_OP_NAME})
+        list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${EXAMPLES_OP_NAME})
+    elseif(IS_DIRECTORY ${EXAMPLES_MC2_DIR})
+        add_subdirectory(examples/mc2/${EXAMPLES_OP_NAME})
+        list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${EXAMPLES_OP_NAME})
+    endif()
+endforeach()
 
 list(APPEND OP_LIST ${COMPILED_OPS})
 list(APPEND OP_DIR_LIST ${COMPILED_OP_DIRS})
@@ -366,7 +373,46 @@ set(generate_exclude_proto_srcs)
 set(generate_proto_srcs)
 set(generate_proto_headers)
 
+function(add_parent_path_aclnn input_list output_list)
+    set(path_list "")
+    foreach(item ${input_list})
+        list(APPEND path_list "${base_aclnn_binary_dir}/${item}")
+    endforeach()
+    set(${output_list} "${path_list}" PARENT_SCOPE)
+endfunction()
+
+function(add_parent_path_aclnninner input_list output_list)
+    set(path_list "")
+    foreach(item ${input_list})
+        list(APPEND path_list "${base_aclnn_binary_dir}/inner/${item}")
+    endforeach()
+    set(${output_list} "${path_list}" PARENT_SCOPE)
+endfunction()
+
+function(filter_op_files op_name src_list aclnntype filtered_list)
+    if (${aclnntype} STREQUAL "aclnn")
+        foreach(file_path IN LISTS ${src_list})
+            string(REGEX MATCH "aclnn_${op_name}.*\\.cpp$" match_result1 "${file_path}")
+            string(REGEX MATCH "aclnn_${op_name}_v[0-9]+.*\\.cpp$" match_result2 "${file_path}")
+            if (match_result1 OR match_result2)
+                list(APPEND filtered_list "${file_path}")
+            endif()
+        endforeach()
+    else()
+        foreach(file_path IN LISTS ${src_list})
+            string(REGEX MATCH "aclnnInner_${op_name}.*\\.cpp$" match_result1 "${file_path}")
+            string(REGEX MATCH "aclnnInner_${op_name}_v[0-9]+.*\\.cpp$" match_result2 "${file_path}")
+            if (match_result1 OR match_result2)
+                list(APPEND filtered_list "${file_path}")
+            endif()
+        endforeach()
+    endif()
+    set(${filtered_list} PARENT_SCOPE)
+endfunction()
+
 if (base_aclnn_srcs)
+    add_parent_path_aclnn("${ACLNN_EXTRA_HEADERS}" PARENT_ACLNN_EXTRA_HEADERS)
+    list(APPEND generate_aclnn_headers ${PARENT_ACLNN_EXTRA_HEADERS})
     foreach (_src ${base_aclnn_srcs})
         string(REGEX MATCH "^${CMAKE_CURRENT_SOURCE_DIR}" is_match "${_src}")
         if (is_match)
@@ -375,6 +421,14 @@ if (base_aclnn_srcs)
             string(REGEX REPLACE "_def$" "" _op_name ${name_without_ext})
             list(APPEND generate_aclnn_srcs ${base_aclnn_binary_dir}/aclnn_${_op_name}.cpp)
             list(APPEND generate_aclnn_headers ${base_aclnn_binary_dir}/aclnn_${_op_name}.h)
+
+            set(filtered_list)
+            filter_op_files(${_op_name} ACLNN_EXTRA_SRCS "aclnn" filtered_list)
+            if (filtered_list)
+                add_parent_path_aclnn("${filtered_list}" PARENT_ACLNN_EXTRA_SRCS)
+                list(APPEND generate_aclnn_srcs ${PARENT_ACLNN_EXTRA_SRCS})
+            endif()
+
             list(APPEND generate_proto_srcs    ${generate_proto_dir}/${_op_name}_proto.cpp)
             list(APPEND generate_proto_headers ${generate_proto_dir}/${_op_name}_proto.h)
         endif ()
@@ -396,6 +450,14 @@ if (base_aclnn_inner_srcs)
             get_filename_component(name_without_ext ${_src} NAME_WE)
             string(REGEX REPLACE "_def$" "" _op_name ${name_without_ext})
             list(APPEND generate_aclnn_inner_srcs ${base_aclnn_binary_dir}/inner/aclnnInner_${_op_name}.cpp)
+
+            set(filtered_list)
+            filter_op_files(${_op_name} ACLNNINNER_EXTRA_SRCS "aclnnInner" filtered_list)
+            if (filtered_list)
+                add_parent_path_aclnninner("${filtered_list}" PARENT_ACLNNINNER_EXTRA_SRCS)
+                list(APPEND generate_aclnn_inner_srcs ${PARENT_ACLNNINNER_EXTRA_SRCS})
+            endif()
+
             list(APPEND generate_proto_srcs    ${generate_proto_dir}/inner/${_op_name}_proto.cpp)
             list(APPEND generate_proto_headers ${generate_proto_dir}/inner/${_op_name}_proto.h)
         endif ()
@@ -468,6 +530,91 @@ if (BUILD_OPEN_PROJECT)
         add_dependencies(ops_aclnn opbuild_gen_default opbuild_gen_inner)
     endif()
 
+    if(NOT ENABLE_BUILT_IN)
+        # op dir to be updated
+        set(FILTER_OP_DIR
+            "mc2"
+        )
+        set(update_proto_srcs)
+        
+        foreach(OP_DIR ${OP_DIR_LIST})
+            # filter op dir to be updated
+            set(need_update_proto FALSE)
+            foreach(filter_op_frag ${FILTER_OP_DIR})
+                if(${OP_DIR} MATCHES ".*${filter_op_frag}.*")
+                    set(need_update_proto TRUE)
+                    break()
+                endif()        
+            endforeach()
+            if(NOT need_update_proto)
+                message(STATUS "Skip proto update: ${OP_DIR}")
+                continue()
+            endif()
+
+            # copy updated proto cpps to autogen
+            file(GLOB OP_PROTO_HEADER ${OP_DIR}/op_graph/*_proto.h)
+            if(OP_PROTO_HEADER)
+                list(GET OP_PROTO_HEADER 0 proto_header)
+                message(STATUS "Update proto header path: ${proto_header}")
+                set(TARGET_PROTO_DIR ${generate_proto_dir}/updateproto/)
+                file(MAKE_DIRECTORY ${TARGET_PROTO_DIR})
+
+                get_filename_component(proto_header_filename ${proto_header} NAME)
+                string(REPLACE ".h" ".cpp" proto_cpp_filename ${proto_header_filename})
+                set(proto_cpp ${TARGET_PROTO_DIR}${proto_cpp_filename})
+                set_source_files_properties(${proto_cpp}
+                    PROPERTIES GENERATED TRUE
+                )
+
+                add_custom_command(
+                    OUTPUT ${proto_cpp}
+                    COMMAND ${CMAKE_COMMAND} -E copy ${proto_header} ${proto_cpp}
+                    DEPENDS ${proto_header}
+                    COMMENT "Copying update proto ${proto_header} to ${proto_cpp}"
+                )
+
+                # append updated proto cpps to list
+                list(APPEND update_proto_srcs ${proto_cpp})
+            endif()
+        endforeach()
+
+        # filter same src filename, remove those in generate_proto_srcs, then replace them with updated ones
+        set(generate_proto_srcs_filtered)
+        foreach(generate_proto_file ${generate_proto_srcs})
+            get_filename_component(origin_filename ${generate_proto_file} NAME)
+            set(need_replace FALSE)
+
+            foreach(update_proto_file ${update_proto_srcs})
+                get_filename_component(update_filename ${update_proto_file} NAME)
+                if("${origin_filename}" STREQUAL "${update_filename}")
+                    set(need_replace TRUE)
+                    break()
+                endif()
+            endforeach()
+            # use previous one when no same filename found
+            if(NOT need_replace)
+                list(APPEND generate_proto_srcs_filtered ${generate_proto_file})
+            endif()
+        endforeach()
+
+        # append updated srcs
+        list(APPEND generate_proto_srcs_filtered ${update_proto_srcs})
+        add_custom_target(
+            update_proto_target
+            DEPENDS ${update_proto_srcs}
+            COMMENT "Building update proto files"
+        )
+        add_custom_target(
+            generate_proto_filtered_target
+            DEPENDS ${generate_proto_srcs_filtered}
+            COMMENT "Filtering proto srcs from update files"
+        )
+        add_dependencies(generate_proto_filtered_target update_proto_target ops_transformer_proto_headers)
+        add_dependencies(cust_proto generate_proto_filtered_target)
+
+        set(generate_proto_srcs ${generate_proto_srcs_filtered})
+    endif()
+    
     set_source_files_properties(${generate_proto_srcs}
             PROPERTIES GENERATED TRUE
     )
@@ -692,6 +839,9 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
+install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
+)
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
 )

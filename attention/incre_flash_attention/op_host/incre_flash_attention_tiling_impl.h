@@ -35,6 +35,17 @@
 #endif
 namespace optiling {
 class IFATiling : public FiaTilingBase {
+struct ValidityConfigFD {
+    std::vector<int32_t> validBatchSizes;
+    std::vector<int32_t> validQSeqSizes;
+    int32_t numHeads;
+    int32_t numKvHeads;
+    int32_t headDim;
+    int32_t headDimV;
+    int32_t sparseMode;
+    int64_t expectedActualSeqLength; // -1 表示范围 [4096, 5120]
+}; 
+
 public:
     explicit IFATiling(gert::TilingContext *context) : FiaTilingBase(context) {};
     ~IFATiling() = default;
@@ -57,6 +68,11 @@ public:
         return !atbRunFlag_;
     }
     uint32_t GetAntiquantSeqLength() const;
+    bool CheckCommonConditions(const ValidityConfigFD& config) const;
+    bool CheckBatchAndQSeqSize(const std::vector<int32_t>& validBatchSizes, const std::vector<int32_t>& validQSeqSizes) const;
+    bool CheckHeadDimensions(int32_t numHeads, int32_t numKvHeads, int32_t headDim, int32_t headDimV) const;
+    bool CheckQuantizationFlags(int32_t sparseMode) const;
+    bool CheckActualSeqLengths(int64_t expectedActualSeqLength) const;
     bool IsBalanceSplitCore();
     void IsFdBalanceCase();
     bool IsValidFlag3B();

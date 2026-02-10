@@ -1,11 +1,17 @@
 # aclnnRopeWithSinCosCache
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/posembedding/rope_with_sin_cos_cache)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
 | :----------------------------------------------------------- | :------: |
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    √     |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √     |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
+| <term>Atlas 训练系列产品</term>                              |    ×     |
 
 
 ## 功能说明
@@ -14,7 +20,6 @@
 * 计算公式：
 
     1、**mrope模式**：positions的shape输入是[3, numTokens]：
-
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -64,7 +69,6 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
-
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -86,13 +90,20 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
-
     $$
     x1 = queryRot[..., ::2]
     $$
 
     $$
     x2 = queryRot[..., 1::2]
+    $$
+
+    $$
+    o1[i] = x1[i] * cos[i] - x2[i] * sin[i]
+    $$
+
+    $$
+    o2[i] = x2[i] * cos[i] + x1[i] * sin[i]
     $$
 
     $$
@@ -104,7 +115,6 @@
     $$
 
     2、**rope模式**：positions的shape输入是[numTokens]：
-
     $$
     cosSin[i] = cosSinCache[positions[i]]
     $$
@@ -122,7 +132,6 @@
     $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
-
     $$
     x1, x2 = torch.chunk(queryRot, 2, dim=-1)
     $$
@@ -144,13 +153,20 @@
     $$
 
     （2）rotate\_interleaved（GPT-J style）计算模式：
+    $$
+    x1 = queryRot[..., ::2]
+    $$
 
     $$
-    x1 = query\_rot[..., ::2]
+    x2 = queryRot[..., 1::2]
     $$
 
     $$
-    x2 = query\_rot[..., 1::2]
+    o1[i] = x1[i] * cos[i] - x2[i] * sin[i]
+    $$
+
+    $$
+    o2[i] = x2[i] * cos[i] + x1[i] * sin[i]
     $$
 
     $$
@@ -289,7 +305,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
         <td>输出</td>
         <td>query执行旋转位置编码后的结果。</td>
         <td><ul><li>数据类型同query。</li><li>要求是一个2D的Tensor，shape为(numTokens,  numQHeads*headSize)。</li></ul></td>
-        <td>FLOAT、FLOAT16、BFLOAT16</td>
+        <td>FLOAT32、FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
         <td>×</td>
@@ -299,7 +315,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
         <td>输出</td>
         <td>key执行旋转位置编码后的结果。</td>
         <td><ul><li>数据类型同key。</li><li>要求是一个2D的Tensor，shape为(numTokens,  numKHeads*headSize)。</li></ul></td>
-        <td>FLOAT、FLOAT16、BFLOAT16</td>
+        <td>FLOAT32、FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>2</td>
         <td>×</td>
@@ -406,16 +422,14 @@ aclnnStatus aclnnRopeWithSinCosCache(
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
-
 - 确定性计算：
-  - aclnnNormRopeConcatBackward默认确定性实现。
-
+  - aclnnRopeWithSinCosCache默认确定性实现。
 - queryIn、keyIn、cosSinCache只支持2维shape输入。
 - queryIn、keyIn、cosSinCache输入的数据类型需要保持一致。
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。
-- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足rotaryDim = mropeSection[0] + mropeSection[1] + mropeSection[2]。
+- rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足 mropeSection[0] + mropeSection[1] + mropeSection[2] = rotaryDim/2。
 - 输入tensor positions的取值应小于cosSinCache的0维maxSeqLen。
-- mrope模式下，mropeSection：取值限制为[16, 24, 24]，rotaryDim的取值为128。
+- mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]和[8, 12, 12]。
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
@@ -564,19 +578,19 @@ int main() {
                         &positions);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(queryInHostData, queryInShape, &queryInDeviceAddr,
-                      aclDataType::ACL_BF16, &queryIn);
+                      aclDataType::ACL_FLOAT, &queryIn);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(keyInHostData, keyInShape, &keyInDeviceAddr,
-                      aclDataType::ACL_BF16, &keyIn);
+                      aclDataType::ACL_FLOAT, &keyIn);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(cosSinCacheHostData, cosSinCacheShape, &cosSinCacheDeviceAddr,
-                      aclDataType::ACL_BF16, &cosSinCache);
+                      aclDataType::ACL_FLOAT, &cosSinCache);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 
-  ret = CreateAclTensor(queryOutHostData, queryOutShape, &queryOutDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(queryOutHostData, queryOutShape, &queryOutDeviceAddr, aclDataType::ACL_FLOAT,
                         &queryOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(keyOutHostData, keyOutShape, &keyOutDeviceAddr, aclDataType::ACL_BF16,
+  ret = CreateAclTensor(keyOutHostData, keyOutShape, &keyOutDeviceAddr, aclDataType::ACL_FLOAT,
                         &keyOut);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
 

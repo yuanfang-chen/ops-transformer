@@ -9,9 +9,9 @@
  */
 
 /*!
- * \file kernel_common.hpp
- * \brief
- */
+* \file kernel_common.hpp
+* \brief
+*/
 
 #ifndef KERNEL_COMMON
 #define KERNEL_COMMON
@@ -28,7 +28,8 @@
 #include "attn_infra/arch/resource.hpp"
 #include "attn_infra/epilogue/block/block_epilogue.hpp"
 #include "attn_infra/epilogue/dispatch_policy.hpp"
-#include "kernel_operator.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 
@@ -123,6 +124,11 @@ namespace KernelCommon {
     {
         uint32_t qSBlockTile = Q_TILE_CEIL;
         return qSBlockTile;
+    }
+    __aicore__ inline uint32_t GetKSBlockTile(uint32_t kvSeqlen)
+    {
+        uint32_t kSBlockTile = MAX_KV_STACK_LEN;
+        return kSBlockTile;
     }
 }
 #endif

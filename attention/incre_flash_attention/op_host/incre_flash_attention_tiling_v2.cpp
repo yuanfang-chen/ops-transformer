@@ -40,6 +40,7 @@ const int64_t tokenDefault = 2147483647;  // for token default value
 const int32_t sparseDefault = 0;
 constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
 constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
+constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
 
 ge::graphStatus PFAConvertContext(ContextParamsForPFATiling &contextKeyParams, gert::TilingContext *context)
 {
@@ -217,23 +218,17 @@ ge::graphStatus IFATilingV2::GetNpuInfo() {
 
   aicNum_ = ascendcPlatform.GetCoreNumAic();
   aivNum_ = ascendcPlatform.GetCoreNumAiv();
-  if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910_55) {
-    socVersion_ = IfaSocVersion::SOC_ASCEND_910_55;
-    coreNum_ = NUM24;  // default aiv num
-    aivNum_ = NUM24;
-    aicNum_ = NUM24;
-    OP_LOGD(ifaContext_->opName, "Platform is 910_55. Num of core obtained is %d.", coreNum_);
+  
+  socVersion_ = IfaSocVersion::SOC_ASCEND_950;
+  coreNum_ = ascendcPlatform.GetCoreNumAiv();  // default aiv num
+  if (NUM2 * aicNum_ <= aivNum_) {
+    aivNum_ = NUM2 * aicNum_;
   } else {
-    socVersion_ = IfaSocVersion::SOC_ASCEND_910_95;
-    coreNum_ = ascendcPlatform.GetCoreNumAiv();  // default aiv num
-    if (NUM2 * aicNum_ <= aivNum_) {
-      aivNum_ = NUM2 * aicNum_;
-    } else {
-      aivNum_ = aivNum_ / NUM2 * NUM2;
-      aicNum_ = aivNum_ / NUM2;
-    }
-    OP_LOGD(ifaContext_->opName, "Platform is 910_95. Num of core obtained is %d.", coreNum_);
+    aivNum_ = aivNum_ / NUM2 * NUM2;
+    aicNum_ = aivNum_ / NUM2;
   }
+  OP_LOGD(ifaContext_->opName, "Platform is Ascend 950. Num of core obtained is %d.", coreNum_);
+  
   OP_CHECK_IF(aicNum_ == 0 || aivNum_ == 0, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "Num of core obtained is 0."),
              return GRAPH_FAILED);
 
@@ -539,7 +534,7 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
                    (inputKvType_ == ge::DT_INT4) || (inputKvType_ == ge::DT_HIFLOAT8) ||
                    (inputKvType_ == ge::DT_FLOAT8_E4M3FN) ||
                    (inputKvType_ == ge::DT_FLOAT4_E2M1));
-  if (socVersion_ == IfaSocVersion::SOC_ASCEND_910_95 && antiQuantFlag_ && sOfQuery_ > 1) {
+  if (socVersion_ == IfaSocVersion::SOC_ASCEND_950 && antiQuantFlag_ && sOfQuery_ > 1) {
     isPFAFlag_ = true;
   }
   OP_CHECK_IF(sOfQuery_ != NUM1 && !isPFAFlag_,
@@ -548,18 +543,14 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
 
   const uint32_t *innerPrecisePtr = ifaContext_->innerPrecise;
   innerPrecise_ = innerPrecisePtr ? *innerPrecisePtr : IFA_HIGH_PERFORMANCE; // 910B默认高性能
-  if (isPFAFlag_) {
-    OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION) &&
-                (innerPrecise_ != HIGH_PERFORMANCE_ROW_INVALID) && (innerPrecise_ != HIGH_PRECISION_ROW_INVALID)),
-                OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1 or 2 or 3.", innerPrecise_),
-                return ge::GRAPH_FAILED); // pfa支持0-3，第0位：0-高精度，1-高性能；第1位：0-不开启行无效修正，1-开启行无效修正
-    isRowInvalid_ = (innerPrecise_ >> 1) & 1;
-    innerPrecise_ &= NUM1;
-  } else {
-    OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION)),
-                OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1.", innerPrecise_),
-                return ge::GRAPH_FAILED); // 当前只支持高精度0和高性能1
-  }
+
+  OP_CHECK_IF(((innerPrecise_ != IFA_HIGH_PERFORMANCE) && (innerPrecise_ != IFA_HIGH_PRECISION) &&
+              (innerPrecise_ != HIGH_PERFORMANCE_ROW_INVALID) && (innerPrecise_ != HIGH_PRECISION_ROW_INVALID)),
+              OP_LOGE(ifaContext_->opName, "Precision mode[%u] should be 0 or 1 or 2 or 3.", innerPrecise_),
+              return ge::GRAPH_FAILED); // pfa支持0-3，第0位：0-高精度，1-高性能；第1位：0-不开启行无效修正，1-开启行无效修正
+  isRowInvalid_ = (innerPrecise_ >> 1) & 1;
+  innerPrecise_ &= NUM1;
+
   OP_LOGD(ifaContext_->opName, "InnerPrecise is %u", innerPrecise_);
 
   if (!pageAttentionFlag_ && CheckQKOutShape() != ge::GRAPH_SUCCESS) {
@@ -576,9 +567,6 @@ ge::graphStatus IFATilingV2::ProcessBaseTensors() {
 }
 
 bool IFATilingV2::EnableC1V1() const {
-  if (socVersion_ == IfaSocVersion::SOC_ASCEND_910_55) {
-    return true;
-  }
   if (splitKVFlagLocal_) {
     return false;
   }
@@ -1156,13 +1144,11 @@ ge::graphStatus IFATilingV2::InitInOutMode() {
 }
 
 ge::graphStatus IFATilingV2::ProcessOptionalTensors() {
-  if ((ProcessActualSeqLen() != ge::GRAPH_SUCCESS) ||
-      (ProcessPseShift() != ge::GRAPH_SUCCESS) ||
+  if ((ProcessActualSeqLen() != ge::GRAPH_SUCCESS) || (ProcessPseShift() != ge::GRAPH_SUCCESS) ||
       (ProcessAttenMask() != ge::GRAPH_SUCCESS) || (ProcessAttenMaskSparsePFA() != ge::GRAPH_SUCCESS) ||
-      (ProcessQuant2() != ge::GRAPH_SUCCESS) ||
-      (ProcessAntiQuant() != ge::GRAPH_SUCCESS) || (ProcessBlockTable() != ge::GRAPH_SUCCESS) ||
-      (ProcessQPaddingSize() != ge::GRAPH_SUCCESS) || (ProcessKVPaddingSize() != ge::GRAPH_SUCCESS) ||
-      (ProcessPrefix() != ge::GRAPH_SUCCESS)) {
+      (ProcessQuant2() != ge::GRAPH_SUCCESS) || (ProcessAntiQuant() != ge::GRAPH_SUCCESS) ||
+      (ProcessBlockTable() != ge::GRAPH_SUCCESS) || (ProcessQPaddingSize() != ge::GRAPH_SUCCESS) ||
+      (ProcessKVPaddingSize() != ge::GRAPH_SUCCESS) || (ProcessPrefix() != ge::GRAPH_SUCCESS)) {
     return ge::GRAPH_FAILED;
   }
   SetfaRunFlag();   // 判断是否走伪量化新模板
@@ -1175,7 +1161,6 @@ ge::graphStatus IFATilingV2::ProcessOptionalTensors() {
     }
     qPaddingSizeFlag_ = false;
     needInit_ = needInitfaRun_;
-    isRowInvalid_ = (innerPrecise_ >> 1) & 1;
   }
   return ge::GRAPH_SUCCESS;
 }
@@ -1699,35 +1684,11 @@ bool IFATilingV2::CheckSparseMode(bool isDefaultSparseMode, bool enableMask) {
   bool isBandMode = false;
   SetSparseModeData(isBandMode, enableMask, isDefaultSparseMode);
 
-  OP_CHECK_IF((enableMask && (ifaContext_->sparseMode != nullptr) && (sparseMode_ == SPARSE_MODE_BAND) &&
-    (preToken_ < 0 && nextToken_ < 0)), OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-      "preTokens and nextTokens must not be negative in band mode, preTokens = %ld, nextTokens = %ld.",
-      preToken_, nextToken_),
-    return false); 
-
-  OP_CHECK_IF((preToken_ < 0) && (nextToken_ < 0),
-    OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-      "preTokens and nextTokens cannot neither be negative number, preTokens = %ld, nextTokens = %ld.",
-      preToken_, nextToken_),
-    return false);
-
   OP_CHECK_IF((nextToken_ * (-1)) > preToken_, OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
     "nexttoken line should be higher than pretoken line, preTokens = %ld, nextTokens = %ld.",
     preToken_, nextToken_),
   return false);
 
-  OP_CHECK_IF(isDefaultSparseMode && (nextToken_ < 0) && (nextToken_ * (-1)) >= static_cast<int32_t>(sOfQuery_),
-    OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-      "nextTokens absolute value should be smaller than length of q, nextTokens = %ld, length of q = %u.",
-      nextToken_, sOfQuery_),
-    return false);
-
-  OP_CHECK_IF(isDefaultSparseMode && (preToken_ < 0) && (preToken_ * (-1) >= static_cast<int32_t>(seqSize_)),
-    OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-      "preToken absolute value should be smaller than length of k and v "
-      "(length of k and v + length of prefix when enable prefix), "
-      "preTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = 0", preToken_, seqSize_), // 预留prefix
-    return false);
   OP_CHECK_IF((outputType_ == ge::DT_INT8 && isBandMode && ((preToken_ < 0) || nextToken_ < 0)),
     OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
       "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
@@ -1840,17 +1801,17 @@ bool IFATilingV2::CheckMaskShapeCrossSparse(const gert::Tensor* maskShape, bool 
   bool checkMask = false;
   std::string strMaskShape;
 
-  if (attenMaskDim == MASKDIM_SS) {
+  if (attenMaskDim == MASKDIM_BS_SS) {
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM1);
     strMaskShape = std::to_string(attenMaskQSize_) + ", " + std::to_string(attenMaskSize_);
-  } else if (attenMaskDim == MASKDIM_BSS) {
+  } else if (attenMaskDim == MASKDIM_1SS_BSS) {
     attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM1);
     attenMaskSize_ = maskShape->GetStorageShape().GetDim(NUM2); // 2: When the dim is 3, the second dimension is S2.
     strMaskShape = std::to_string(attenMaskBatch_) + ", " + std::to_string(attenMaskQSize_) + ", " + 
       std::to_string(attenMaskSize_);
-  } else if (attenMaskDim == MASKDIM_B1SS) {
+  } else if (attenMaskDim == MASKDIM_11SS_B1SS) {
     attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
     attenMaskN = maskShape->GetStorageShape().GetDim(NUM1);
     attenMaskQSize_ = maskShape->GetStorageShape().GetDim(NUM2); // 2: When the dim is 4, the second dimension is S1.
@@ -1892,19 +1853,28 @@ ge::graphStatus IFATilingV2::ProcessAttenMask() {
   if (isPFAFlag_) {
     return ge::GRAPH_SUCCESS;
   }
+
   auto maskShape = ifaContext_->attenMask.tensor;  // input shape = 4
   if (maskShape == nullptr) {
     attenMaskFlag_ = false;
-    OP_LOGD(ifaContext_->opName, "AttenMask tensor exists, but attenMask is null or attenMask shapeSize is 0.");
+    OP_LOGD(ifaContext_->opName, "AttenMask tensor exists, but attenMask is null.");
     return ge::GRAPH_SUCCESS;
   }
 
-  uint32_t batchSizeOfMask = maskShape->GetStorageShape().GetDim(NUM0);
+  size_t attenMaskDim = maskShape->GetStorageShape().GetDimNum();
+  attenMaskBatch_ = maskShape->GetStorageShape().GetDim(NUM0);
   ge::DataType attenMaskType = ifaContext_->attenMask.desc->GetDataType();
-  OP_CHECK_IF(batchSizeOfMask != batchSize_,
-    OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query.",
-              batchSizeOfMask, batchSize_),
-              return ge::GRAPH_FAILED);
+  if (attenMaskDim == MASKDIM_BS_SS) {
+    OP_CHECK_IF(attenMaskBatch_ != batchSize_,
+      OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query, "
+                "when mask is two-dimensional.", attenMaskBatch_, batchSize_),
+                return ge::GRAPH_FAILED);
+  } else {
+    OP_CHECK_IF(!(attenMaskBatch_ == batchSize_ || attenMaskBatch_ == 1),
+      OP_LOGE(ifaContext_->opName, "BatchSize[%u] of attenMask must be equal to batchSize[%u] of query or 1, "
+                "when mask is three-dimensional or four-dimensional.", attenMaskBatch_, batchSize_),
+                return ge::GRAPH_FAILED);
+  }
 
   OP_CHECK_IF((attenMaskType != ge::DT_BOOL && attenMaskType != ge::DT_INT8 && attenMaskType != ge::DT_UINT8),
     OP_LOGE(ifaContext_->opName, "Not support attenMask type %s, only support bool, int8 and uint8.", DataTypeToString(attenMaskType).c_str()),
@@ -2523,7 +2493,7 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
                                                const gert::CompileTimeTensorDesc * antiquantScaleDesc, const gert::CompileTimeTensorDesc * antiquantOffsetDesc) {
   // 3:per-token+pergroup
   OP_CHECK_IF(((antiquantMode != PER_CHANNEL_MODE) && (antiquantMode != PER_TOKEN_MODE) &&
-             (socVersion_ == IfaSocVersion::SOC_ASCEND_910_95 && antiquantMode != PER_TENSOR_HEAD_MODE &&
+             (socVersion_ == IfaSocVersion::SOC_ASCEND_950 && antiquantMode != PER_TENSOR_HEAD_MODE &&
               antiquantMode != PER_TOKEN_HEAD_MODE && antiquantMode != PER_TOKEN_PA_MODE &&
               antiquantMode != PER_TOKEN_HEAD_PA_MODE && antiquantMode != PER_TOKEN_GROUP_MODE)),
              OP_LOGE(ifaContext_->opName, "AntiquantMode value:%ld is invalid, it should be 0, 1, 2, 3, 4, 5 or 6.", antiquantMode),
@@ -2544,8 +2514,8 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
               inputKvType_ == ge::DT_FLOAT4_E2M1)),
               OP_LOGE(ifaContext_->opName, "When input key/value dataType is fp8/hifp8/fp4_e2m1, antiquantOffset is not supported."),
               return ge::GRAPH_FAILED);
-  OP_CHECK_IF(((antiquantMode == PER_TOKEN_PA_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
-            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 4 or 5, input key/value type should be int8, "
+  OP_CHECK_IF(((antiquantMode == PER_TENSOR_HEAD_MODE || antiquantMode == PER_TOKEN_PA_MODE || antiquantMode == PER_TOKEN_HEAD_PA_MODE) && inputKvType_ != ge::DT_INT8),
+            OP_LOGE(ifaContext_->opName, "When antiquantMode of key/value is 2, 4 or 5, input key/value type should be int8, "
                       "but now is %s.", DataTypeToString(inputKvType_).c_str()),
             return ge::GRAPH_FAILED);
   OP_CHECK_IF((antiquantMode == PER_TOKEN_GROUP_MODE && !(inputKvType_ == ge::DT_FLOAT4_E2M1)),
@@ -2595,6 +2565,16 @@ ge::graphStatus IFATilingV2::CheckAntiQuantParam(const int64_t antiquantMode, co
       OP_LOGE(ifaContext_->opName, "Datatype of antiquant scale and antiquant offset should be the same.");
       return ge::GRAPH_FAILED;
     }
+  }
+
+  gert::Shape keyAntiquantScaleTensorShape = antiquantScaleTensor->GetStorageShape();
+  gert::Shape expectedShape1 = gert::Shape({1});
+  if (antiquantMode == PER_CHANNEL_MODE) {
+    // per-tensor
+    OP_CHECK_IF((ShapeEqual(expectedShape1, keyAntiquantScaleTensorShape) && inputKvType_ != ge::DT_INT8),
+                OP_LOGE(ifaContext_->opName,
+                        "In per-tensor mode, the input key/value type should be int8, but now is %s.", DataTypeToString(inputKvType_).c_str()),
+                return ge::GRAPH_FAILED);
   }
   return ge::GRAPH_SUCCESS;
 }
@@ -2692,6 +2672,11 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
       return ge::GRAPH_FAILED;
     }
     if (kPerChnVPerTokFlag_) {
+      OP_CHECK_IF((inputKvType_ == ge::DT_INT8 && (inputQType_ == ge::DT_BF16 || outputType_ == ge::DT_BF16)),
+        OP_LOGE(ifaContext_->opName, "When key in per-channel scenario and value in pre-token scenario,"
+        "if inputKvType is Int8, inputQType and outputType only must be FP16, now inputQType is %s, outputType is %s.",
+                optiling::v2::GetPfaDataTypeStr(inputQType_).c_str(), optiling::v2::GetPfaDataTypeStr(outputType_).c_str()),
+          return ge::GRAPH_FAILED);
       if (CheckAntiQuantParam(valueAntiquantMode, valueAntiquantScaleTensor, valueAntiquantOffsetTensor,
                               valueAntiquantScaleDesc, valueAntiquantOffsetDesc) == ge::GRAPH_FAILED) {
         return ge::GRAPH_FAILED;
@@ -3110,8 +3095,10 @@ void IFATilingV2::FixParamWithRowInvalid(int64_t& actualSeqLength, int64_t actua
   int64_t& preTokensLeftUp, int64_t& nextTokensLeftUp) {
   // 若出现行无效，需要重新计算nexttokens，pretokens，actualseqlen，以便正确计算分核核数
   int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
+  nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
   int64_t preTokensError = (actualSeqLength > actualSeqLengthKV + preTokensLeftUp) ?
     (actualSeqLength - actualSeqLengthKV - preTokensLeftUp) : 0;
+  preTokensError = preTokensError > actualSeqLength ? actualSeqLength : preTokensError;
 
   // 若出现上方行无效，需要重新计算nexttokens，pretokens，actualseqlen
   nextTokensLeftUp += nextTokensError;
@@ -3123,6 +3110,14 @@ void IFATilingV2::FixParamWithRowInvalid(int64_t& actualSeqLength, int64_t actua
   if (nextTokensError != 0 || preTokensError != 0) {
     needInit_ = true;
   }
+}
+ 
+int64_t IFATilingV2::SumOfArithmeticSeries(int64_t an, int64_t d) const {
+  // 等差数列求和，an：等差数列第n项，d：等差数列公差
+  if (d == 0) {
+    return 0;
+  }
+  return (an > 0) ? (an % d + an) * (an / d + 1) / 2 : 0; // 2: 等差数列求和公式分母
 }
 
 int64_t IFATilingV2::GetCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqLength,
@@ -3140,32 +3135,48 @@ int64_t IFATilingV2::GetCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqL
     tolerance = InDivOut;
     smallSize = sOuter;
   }
+
+  // nextToken与上边右边构成的大三角形
   int64_t innerCutBlockNums = (blockSeqLengthKV - blockToken) / smallSize - tolerance;
+  blockNums += SumOfArithmeticSeries(innerCutBlockNums, tolerance);
+
+  // nextToken与上边左边构成的左侧三角形，需要减去
   int64_t innerCutBlockLeftNums = -blockToken / smallSize - tolerance;
-  int64_t innerCutBlockDownNums = (blockSeqLengthKV - blockSeqLength- blockToken) / smallSize - tolerance;
-  blockNums += (innerCutBlockNums > 0) ? (innerCutBlockNums % tolerance + innerCutBlockNums) *
-    (innerCutBlockNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
-  blockNums -= (innerCutBlockLeftNums > 0) ? (innerCutBlockLeftNums % tolerance + innerCutBlockLeftNums) *
-    (innerCutBlockLeftNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
-  blockNums -= (innerCutBlockDownNums > 0) ? (innerCutBlockDownNums % tolerance + innerCutBlockDownNums) *
-    (innerCutBlockDownNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
+  blockNums -= SumOfArithmeticSeries(innerCutBlockLeftNums, tolerance);
+
+  // nextToken与下边右边构成的下侧三角形，需要减去
+  int64_t innerCutBlockDownNums = (blockSeqLengthKV - blockSeqLength - blockToken) / smallSize - tolerance;
+  blockNums -= SumOfArithmeticSeries(innerCutBlockDownNums, tolerance);
+
+  // nextToken与下边左边构成的小三角形，是前两个三角形的重叠部分，需要加上
+  int64_t innerCutBlockLeftDownNums = (-blockToken - blockSeqLength) / smallSize - tolerance;
+  blockNums += SumOfArithmeticSeries(innerCutBlockLeftDownNums, tolerance);
   return blockNums;
 }
 
-int64_t IFATilingV2::GetCalcBlockNumsOneHead(int64_t outerBlockNums, int64_t innerBlockNums, int64_t preTokensLeftUp, int64_t nextTokensLeftUp) const {
-    if (!attenMaskFlag_) {
-      return innerBlockNums * outerBlockNums;
-    } else {
-      int64_t blockSeqLength = outerBlockNums * static_cast<int64_t>(sOuterSize_);
-      int64_t blockSeqLengthKV = innerBlockNums * static_cast<int64_t>(sInnerSize_);
-      int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
-      // Must meet this condition : pretoken + nexttoken > 0
-      toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize_),
-        static_cast<int64_t>(sOuterSize_), nextTokensLeftUp);
-      toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize_),
-        static_cast<int64_t>(sOuterSize_), blockSeqLengthKV - blockSeqLength + preTokensLeftUp);
-      return toCalcBlockNums;
-    }
+int64_t IFATilingV2::GetCalcBlockNumsOneHead(int64_t outerBlockNums, int64_t innerBlockNums, int64_t sInnerLoopTimesPrefix,
+  int64_t preTokensLeftUp, int64_t nextTokensLeftUp) const {
+  if (!attenMaskFlag_) {
+    return (innerBlockNums + sInnerLoopTimesPrefix) * outerBlockNums;
+  } else {
+    int64_t blockSeqLength = outerBlockNums * static_cast<int64_t>(sOuterSize_);
+    int64_t blockSeqLengthKV = innerBlockNums * static_cast<int64_t>(sInnerSize_);
+    int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
+    // 必须满足pretoken + nexttoken > 0，否则会减出小于0的块数，这里需要去除prefix影响
+    toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize_),
+      static_cast<int64_t>(sOuterSize_), nextTokensLeftUp - actualSharedPrefixLen_);
+    toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize_),
+      static_cast<int64_t>(sOuterSize_), blockSeqLengthKV - blockSeqLength + preTokensLeftUp + actualSharedPrefixLen_);
+
+    // prefix部分单独计算
+    int64_t blockSharedPrefix = sInnerLoopTimesPrefix * static_cast<int64_t>(sInnerSize_);
+    toCalcBlockNums += sInnerLoopTimesPrefix * outerBlockNums;
+    toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize_),
+      static_cast<int64_t>(sOuterSize_), nextTokensLeftUp);
+    toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize_),
+      static_cast<int64_t>(sOuterSize_), blockSharedPrefix - blockSeqLength + preTokensLeftUp);
+    return toCalcBlockNums;
+  }
 }
 
 int64_t IFATilingV2::GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd,
@@ -3184,8 +3195,8 @@ int64_t IFATilingV2::GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t s
   return sInnerBlockNums;
 }
 
-void IFATilingV2::ComputeSplitNBSeqfaRun(std::vector<int64_t> sOuterLoopTimes,
-  std::vector<int64_t> sInnerLoopTimes, double coreWightTarget, uint32_t& curCore, const size_t tilingElementArrayLen) {
+void IFATilingV2::ComputeSplitNBSeqfaRun(std::vector<int64_t> sOuterLoopTimes, std::vector<int64_t> sInnerLoopTimes,
+  int64_t sInnerLoopTimesPrefix, double coreWightTarget, uint32_t& curCore, const size_t tilingElementArrayLen) {
   int64_t SplitNumHeads = numHeads_;
   if (faRunGS_) {
     SplitNumHeads = numKvHeads_;
@@ -3211,11 +3222,23 @@ void IFATilingV2::ComputeSplitNBSeqfaRun(std::vector<int64_t> sOuterLoopTimes,
       int64_t innerBlockNums = sInnerLoopTimes[sIdx];
       for (uint32_t sOuterIndex = 0; sOuterIndex < outerBlockNums; sOuterIndex++) {
         int64_t dif = static_cast<int64_t>(coreWightTarget * double(curCore + 1)) - curWight;
-        int64_t sInnerIndexStart = -(preTokensLeftUp > 0 ? (preTokensLeftUp + static_cast<int64_t>(sInnerSize_) - 1) /
+        // 非prefix部分计算，去除prefix影响
+        int64_t preTokensNoPrefix = preTokensLeftUp + actualSharedPrefixLen_;
+        int64_t nextTokensNoPrefix = nextTokensLeftUp - actualSharedPrefixLen_;
+        int64_t sInnerIndexStart = -(preTokensNoPrefix > 0 ? (preTokensNoPrefix + static_cast<int64_t>(sInnerSize_) - 1) /
+          static_cast<int64_t>(sInnerSize_) : preTokensNoPrefix / static_cast<int64_t>(sInnerSize_));
+        int64_t sInnerIndexEnd = nextTokensNoPrefix > 0 ? (nextTokensNoPrefix + static_cast<int64_t>(sInnerSize_) - 1) /
+          static_cast<int64_t>(sInnerSize_) : nextTokensNoPrefix / static_cast<int64_t>(sInnerSize_);
+        
+        // prefix部分单独计算
+        int64_t sInnerIndexStartPrefix = -(preTokensLeftUp > 0 ? (preTokensLeftUp + static_cast<int64_t>(sInnerSize_) - 1) /
           static_cast<int64_t>(sInnerSize_) : preTokensLeftUp / static_cast<int64_t>(sInnerSize_));
-        int64_t sInnerIndexEnd = nextTokensLeftUp > 0 ? (nextTokensLeftUp + static_cast<int64_t>(sInnerSize_) - 1) /
+        int64_t sInnerIndexEndPrefix = nextTokensLeftUp > 0 ? (nextTokensLeftUp + static_cast<int64_t>(sInnerSize_) - 1) /
           static_cast<int64_t>(sInnerSize_) : nextTokensLeftUp / static_cast<int64_t>(sInnerSize_);
-        int64_t actualInnerBlockNums = GetActualInnerBlockNums(sInnerIndexStart, sInnerIndexEnd, innerBlockNums);
+ 
+        // 当前这一行有多少基本块需要计算
+        int64_t actualInnerBlockNums = GetActualInnerBlockNums(sInnerIndexStart, sInnerIndexEnd, innerBlockNums) +
+          GetActualInnerBlockNums(sInnerIndexStartPrefix, sInnerIndexEndPrefix, sInnerLoopTimesPrefix);
         if (actualInnerBlockNums - dif > dif && !(tmpCoreNidEnd == 0 && tmpCoreSidEnd == 0 && tmpCoreSposEnd == 0)) {
           curCore += 1;
           bnStartIdx[curCore] = sIdx * SplitNumHeads + headNum;
@@ -3249,6 +3272,7 @@ void IFATilingV2::FlashAttentionCubeSplitBNSeq()   //这里我们只用Cube视�
   std::vector<int64_t> sOuterLoopTimes(batchSize_, 0U);
   std::vector<int64_t> sInnerLoopTimes(batchSize_, 0U);
   int64_t multiSmaxsInnerLoopTimes = 0U;
+  int64_t sInnerLoopTimesPrefix = (actualSharedPrefixLen_ + static_cast<int64_t>(sInnerSize_) - 1) / static_cast<int64_t>(sInnerSize_);
   for (uint32_t bIdx = 0; bIdx < batchSize_; bIdx++) {
     int64_t actualSeqLengths = 0;
     int64_t actualSeqLengthsKV = 0;
@@ -3259,12 +3283,11 @@ void IFATilingV2::FlashAttentionCubeSplitBNSeq()   //这里我们只用Cube视�
     FixParamWithRowInvalid(actualSeqLengths, actualSeqLengthsKV + actualSharedPrefixLen_, preTokensLeftUp, nextTokensLeftUp);
 
     sOuterLoopTimes[bIdx] = (actualSeqLengths + static_cast<int64_t>(sOuterSize_) - 1) / static_cast<int64_t>(sOuterSize_);
-    sInnerLoopTimes[bIdx] =
-        (actualSeqLengthsKV + static_cast<int64_t>(sInnerSize_) - 1) / static_cast<int64_t>(sInnerSize_) +
-        (actualSharedPrefixLen_ + static_cast<int64_t>(sInnerSize_) - 1) / static_cast<int64_t>(sInnerSize_);
-    multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes[bIdx]);
+    sInnerLoopTimes[bIdx] = (actualSeqLengthsKV + static_cast<int64_t>(sInnerSize_) - 1) / static_cast<int64_t>(sInnerSize_);
+    multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes[bIdx] + sInnerLoopTimesPrefix);
 
-    totalBlockNumsOneHead += GetCalcBlockNumsOneHead(sOuterLoopTimes[bIdx], sInnerLoopTimes[bIdx], preTokensLeftUp, nextTokensLeftUp);
+    totalBlockNumsOneHead += GetCalcBlockNumsOneHead(sOuterLoopTimes[bIdx], sInnerLoopTimes[bIdx], sInnerLoopTimesPrefix,
+      preTokensLeftUp, nextTokensLeftUp);
   }
   double coreWightTarget = (double(totalBlockNumsOneHead * SplitNumHeads) / double(aicNum_));
 
@@ -3272,7 +3295,7 @@ void IFATilingV2::FlashAttentionCubeSplitBNSeq()   //这里我们只用Cube视�
   faRunTilingAdapter.multiCoreParamsRegbase.set_s1OuterSize(s1OuterSize);
   const size_t tilingElementArrayLen = (static_cast<size_t>(aicNum_) > 64UL) ? static_cast<size_t>(aicNum_) : 64UL;
   uint32_t curIndx = 0;
-  ComputeSplitNBSeqfaRun(sOuterLoopTimes, sInnerLoopTimes, coreWightTarget, curIndx, tilingElementArrayLen);
+  ComputeSplitNBSeqfaRun(sOuterLoopTimes, sInnerLoopTimes, sInnerLoopTimesPrefix, coreWightTarget, curIndx, tilingElementArrayLen);
   int64_t sinnerBlocknum = (sMax_ + sInnerSize_ - 1) / sInnerSize_;
   SetMultiCoreParamsRegbase((totalBlockNumsOneHead / sinnerBlocknum) * SplitNumHeads, static_cast<int64_t>((curIndx + 1)));
   if (needInit_) {
@@ -3357,7 +3380,7 @@ ge::graphStatus IFATilingV2::CalcInnerSize(uint32_t seqSize) {
    *            (2) 伪量化：vector比较重，尽量较少vector的循环次数,
    *                          因此，cube发小块，期望vector尽量被cube的mte2掩盖。sInnerSize=1024
    */
-  if (socVersion_ == IfaSocVersion::SOC_ASCEND_910_95 || socVersion_ == IfaSocVersion::SOC_ASCEND_910_55) {
+  if (socVersion_ == IfaSocVersion::SOC_ASCEND_950) {
     SetfaRunBaseSize();
     sInnerSize2_ = sInnerSize_;
   } else {
@@ -3483,7 +3506,7 @@ ge::graphStatus IFATilingV2::CalcWorkSpace() {
     workspaceSize_ += (tilingData_->splitKVParams.get_accumOutSize() +
                        tilingData_->splitKVParams.get_logSumExpSize() * 2) * blockTypeSize_;  // 2 : sMax 和 sSum
   }
-  if (socVersion_ == IfaSocVersion::SOC_ASCEND_910_95 ||socVersion_ == IfaSocVersion::SOC_ASCEND_910_55) {
+  if (socVersion_ == IfaSocVersion::SOC_ASCEND_950) {
     workspaceSize_ += NUM100 * NUM1024 * NUM1024; // 100*1024*1024: extra workspace for dump in david
   }
   if (pageAttentionFlag_) {
@@ -3853,7 +3876,7 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     }
     UpdatePerfMode();
     uint64_t baseOffset = IFA_TILINGKEYOFFSET;
-    if (socVersion_ != IfaSocVersion::SOC_ASCEND_910_95 && socVersion_ != IfaSocVersion::SOC_ASCEND_910_55) {
+    if (socVersion_ != IfaSocVersion::SOC_ASCEND_950) {
         baseOffset += (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
     }
     UpdateTilingKeyLayoutType();
@@ -4291,6 +4314,8 @@ ge::graphStatus IFATilingV2::DoOpTiling()
 
 ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContext)
 {
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     if (ifaContext.key.desc->GetDataType() == ge::DT_FLOAT16 || ifaContext.key.desc->GetDataType() == ge::DT_BF16) {
         auto platformInfoPtr = context_->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr,
@@ -4338,6 +4363,6 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
   return ge::GRAPH_FAILED;
 }
 
-REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATilingV2, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::ASCEND910_95}), 90);
+REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATilingV2, std::vector<int32_t>({(int32_t)NpuArch::DAV_3510}), 90);
 
 } // namespace optiling

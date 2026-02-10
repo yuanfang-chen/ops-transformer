@@ -32,6 +32,9 @@ add_library(${GRAPH_PLUGIN_NAME}_proto_headers INTERFACE)
 # global variables
 set(COMPILED_OPS CACHE STRING "Compiled Ops" FORCE)
 set(COMPILED_OP_DIRS CACHE STRING "Compiled Ops Dirs" FORCE)
+set(ACLNN_EXTRA_HEADERS "" CACHE STRING "Aclnn Extra Headers" FORCE)
+set(ACLNN_EXTRA_SRCS "" CACHE STRING "Aclnn Extra Sources" FORCE)
+set(ACLNNINNER_EXTRA_SRCS "" CACHE STRING "AclnnInner Extra Sources" FORCE)
 
 # src path
 get_filename_component(OPS_TRANSFORMER_CMAKE_DIR           "${OPS_TRANSFORMER_DIR}/cmake"                               REALPATH)
@@ -132,9 +135,10 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/asl/ops/cann/ops/utils/inc/error
     ${TOP_DIR}/ace/comop/inc/external
     ${TOP_DIR}/ace/npuruntime/inc/external
-    ${TOP_DIR}/ace/npuruntime/inc/nnopbase
+    ${TOP_DIR}/ops-base/include/nnopbase
+    ${TOP_DIR}/runtime/pkg_inc/aicpu_sched/common
     ${TOP_DIR}/asl/ops/cann/ops/mc2/communication_and_computation
-    ${TOP_DIR}/ace/npuruntime/acl/inc/external/acl/error_codes
+    ${TOP_DIR}/runtime/include/external/acl/error_codes
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling/runtime
     ${TOP_DIR}/asl/ops/cann/ops/built-in
     ${TOP_DIR}/ops-base/pkg_inc/op_common/op_host
@@ -270,6 +274,7 @@ set(AICPU_INCLUDE
   ${NNOPBASE_INCLUDE_DIRS}
   ${HCCL_EXTERNAL_INCLUDE}
   ${OPS_TRANSFORMER_DIR}/common/inc/common
+  ${OPS_TRANSFORMER_DIR}/common/include/kernel
   ${METADEF_INCLUDE_DIRS}
 )
 

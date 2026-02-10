@@ -504,7 +504,7 @@ public:
             .AutoContiguous();
         this->Input("learnable_sink")
             .ParamType(OPTIONAL)
-            .DataTypeList({ge::DT_BF16})
+            .DataTypeList({ge::DT_BF16, ge::DT_FLOAT16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("q_start_idx")
@@ -2047,7 +2047,7 @@ public:
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
             .ExtendCfgInfo("opFile.value", "fused_infer_attention_score_apt")
             .ExtendCfgInfo("jitCompile.flag", "static_false,dynamic_false");
-        this->AICore().AddConfig("ascend910_95", aicore_config_95);
+        this->AICore().AddConfig("ascend950", aicore_config_95);
     }
 };
 OP_ADD(FusedInferAttentionScore, optiling::FusedInferAttentionScoreCompileInfo);

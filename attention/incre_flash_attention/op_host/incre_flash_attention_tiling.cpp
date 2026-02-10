@@ -33,6 +33,14 @@ const int64_t tokenDefault = 2147483647; // 2147483647 for token default value
 const int32_t sparseDefault = 0;
 constexpr int64_t mFdBaseSizeMla = 8;
 constexpr uint32_t MAX_SPLIT_RATIO = 2;
+constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+constexpr uint32_t SEQ_LEN_MIN = 4096;
+constexpr uint32_t SEQ_LEN_MAX = 5120;
+constexpr uint32_t SEQ_LEN_MIN_V2 = 37000;
+constexpr uint32_t SEQ_LEN_MAX_V2 = 65536;
+constexpr uint32_t HEAD_DIM = 512;
+constexpr uint32_t HEAD_DIM_V = 512;
+constexpr uint32_t SPARSE_MODE = 3;
 
 uint64_t PFA_BENCHMARK_TILING_KEY = 1000000000000000000;
 
@@ -164,161 +172,113 @@ ge::graphStatus IFATiling::PreProcess()
     return ge::GRAPH_SUCCESS;
 }
 
-bool IFATiling::IsValidFlag3B() {
-    // 3B的限制条件：
-    // 判断B必须是1、2、4
-    if (batchSize_ != 1 && batchSize_ != 2 && batchSize_ != 4) {
+bool IFATiling::CheckCommonConditions(const ValidityConfigFD& config) const {
+    return CheckBatchAndQSeqSize(config.validBatchSizes, config.validQSeqSizes) &&
+           CheckHeadDimensions(config.numHeads, config.numKvHeads,
+                               config.headDim, config.headDimV) &&
+           CheckQuantizationFlags(config.sparseMode) &&
+           CheckActualSeqLengths(config.expectedActualSeqLength);
+}
+
+bool IFATiling::CheckBatchAndQSeqSize(const std::vector<int32_t>& validBatchSizes, const std::vector<int32_t>& validQSeqSizes) const {
+    if (std::find(validBatchSizes.begin(), validBatchSizes.end(), batchSize_) == validBatchSizes.end())
         return false;
-    }
-    // s1必须等于4
-    if (qSeqSize_ != 4) {
+
+    if (std::find(validQSeqSizes.begin(), validQSeqSizes.end(), qSeqSize_) == validQSeqSizes.end())
         return false;
-    }
-    // n1必须等于8
-    if (numHeads_ != 8) {
-        return false;
-    }
-    // n2必须等于1
-    if (numKvHeads_ != 1) {
-        return false;
-    }
-    // D维度必须为512
-    if (headDim_ != 512 || headDimV_ != 512) {
-        return false;
-    }
-    // 使能全量化标志位
-    if (quantFlag_ != true) {
-        return false;
-    }
-    // 使能了sparse=3
-    if (sparseMode_ != 3) {
-        return false;
-    }
-    // 使能PA NZ
-    if (inputKvLayout_ != IfaLayout::NZ || pageAttentionFlag_ != true) {
-        return false;
-    }
-    // s2范围在4k~5k之间
-    const int64_t *actualSeqKv = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
-    if (actualSeqKv != nullptr) {
-        for (uint32_t bIdx = 0U; bIdx < batchSize_; bIdx++) {
-            int64_t s2 = actualLenDims_== 1U? actualSeqKv[0] : actualSeqKv[bIdx];  // 线段长度
-            if (s2 < 4096 || s2 > 5120) {
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
-    // 新增三点：query_quant_mode/k_antiquantMode/v_antiquantMode
-    int64_t queryQuantMode = ifaContext_->queryQuantMode != nullptr ? *ifaContext_->queryQuantMode : 0;
-    int64_t keyAntiQuantMode = ifaContext_->keyAntiquantMode != nullptr ? *ifaContext_->keyAntiquantMode : 0;
-    int64_t valueAntiQuantMode = ifaContext_->valueAntiquantMode != nullptr ? *ifaContext_->valueAntiquantMode : 0;
-    if (queryQuantMode != DEQUANT_PER_TOKEN_HEAD_MODE || keyAntiQuantMode != DEQUANT_PER_CHANNEL_MODE || valueAntiQuantMode != DEQUANT_PER_CHANNEL_MODE) {
-        return false;
-    }
+
     return true;
+}
+
+bool IFATiling::CheckHeadDimensions(int32_t numHeads, int32_t numKvHeads, int32_t headDim, int32_t headDimV) const {
+    return (numHeads_ == numHeads &&
+            numKvHeads_ == numKvHeads &&
+            headDim_ == headDim &&
+            headDimV_ == headDimV);
+}
+
+bool IFATiling::CheckQuantizationFlags(int32_t sparseMode) const {
+    if (!quantFlag_)
+        return false;
+
+    if (sparseMode_ != sparseMode)
+        return false;
+
+    if (inputKvLayout_ != IfaLayout::NZ || !pageAttentionFlag_)
+        return false;
+
+    int64_t queryQuantMode = ifaContext_->queryQuantMode ? *ifaContext_->queryQuantMode : 0;
+    int64_t keyAntiQuantMode = ifaContext_->keyAntiquantMode ? *ifaContext_->keyAntiquantMode : 0;
+    int64_t valueAntiQuantMode = ifaContext_->valueAntiquantMode ? *ifaContext_->valueAntiquantMode : 0;
+
+    if (queryQuantMode != DEQUANT_PER_TOKEN_HEAD_MODE ||
+        keyAntiQuantMode != DEQUANT_PER_CHANNEL_MODE ||
+        valueAntiQuantMode != DEQUANT_PER_CHANNEL_MODE)
+        return false;
+
+    return true;
+}
+
+bool IFATiling::CheckActualSeqLengths(int64_t expectedActualSeqLength) const {
+    const int64_t* actualSeqKv = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
+    if (actualSeqKv == nullptr)
+        return false;
+
+    for (uint32_t bIdx = 0U; bIdx < batchSize_; ++bIdx) {
+        int64_t s2 = (actualLenDims_ == 1U) ? actualSeqKv[0] : actualSeqKv[bIdx];
+
+        if (expectedActualSeqLength >= 0) {
+            if (s2 < SEQ_LEN_MIN_V2 || s2 > SEQ_LEN_MAX_V2)
+                return false;
+        } else {
+            if (s2 < SEQ_LEN_MIN || s2 > SEQ_LEN_MAX)
+                return false;
+        }
+    }
+
+    return true;
+}
+
+bool IFATiling::IsValidFlag3B() {
+    ValidityConfigFD cfg{
+        .validBatchSizes = {1, 2, 4}, // 表示有效的BatchSize大小
+        .validQSeqSizes = {4}, // 表示有效的Qseq大小
+        .numHeads = 8,
+        .numKvHeads = 1,
+        .headDim = HEAD_DIM,
+        .headDimV = HEAD_DIM_V,
+        .sparseMode = SPARSE_MODE,
+        .expectedActualSeqLength = -1 // 表示 [4096, 5120]
+    };
+    return CheckCommonConditions(cfg);
 }
 
 bool IFATiling::IsValidFlag560B() {
-    // 560B的限制条件：
-    // 判断B必须是4
-    if (batchSize_ != 4) {
-        return false;
-    }
-    // s1必须等于2/3/4中的一种
-    if (!(qSeqSize_ == 2 || qSeqSize_ == 3 || qSeqSize_ == 4)) {
-        return false;
-    }
-    // n1必须等于64
-    if (numHeads_ != 64) {
-        return false;
-    }
-    // n2必须等于1
-    if (numKvHeads_ != 1) {
-        return false;
-    }
-    // D维度必须为512
-    if (headDim_ != 512 || headDimV_ != 512) {
-        return false;
-    }
-    // 使能全量化标志位
-    if (quantFlag_ != true) {
-        return false;
-    }
-    // 使能了sparse=3
-    if (sparseMode_ != 3) {
-        return false;
-    }
-    // 使能PA NZ
-    if (inputKvLayout_ != IfaLayout::NZ || pageAttentionFlag_ != true) {
-        return false;
-    }
-    // s2范围在4k~5k之间
-    const int64_t *actualSeqKv = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
-    if (actualSeqKv != nullptr) {
-        for (uint32_t bIdx = 0U; bIdx < batchSize_; bIdx++) {
-            int64_t s2 = actualLenDims_== 1U? actualSeqKv[0] : actualSeqKv[bIdx];  // 线段长度
-            if (s2 < 4096 || s2 > 5120) {
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
-    // 新增三点：query_quant_mode/k_antiquantMode/v_antiquantMode
-    int64_t queryQuantMode = ifaContext_->queryQuantMode != nullptr ? *ifaContext_->queryQuantMode : 0;
-    int64_t keyAntiQuantMode = ifaContext_->keyAntiquantMode != nullptr ? *ifaContext_->keyAntiquantMode : 0;
-    int64_t valueAntiQuantMode = ifaContext_->valueAntiquantMode != nullptr ? *ifaContext_->valueAntiquantMode : 0;
-    if (queryQuantMode != DEQUANT_PER_TOKEN_HEAD_MODE || keyAntiQuantMode != DEQUANT_PER_CHANNEL_MODE || valueAntiQuantMode != DEQUANT_PER_CHANNEL_MODE) {
-        return false;
-    }
-    return true;
+    ValidityConfigFD cfg{
+        .validBatchSizes = {4},
+        .validQSeqSizes = {2, 3, 4},
+        .numHeads = 64,
+        .numKvHeads = 1,
+        .headDim = HEAD_DIM,
+        .headDimV = HEAD_DIM_V,
+        .sparseMode = SPARSE_MODE,
+        .expectedActualSeqLength = -1
+    };
+    return CheckCommonConditions(cfg);
 }
 
 bool IFATiling::IsValidFlag() {
-    if (batchSize_ != 1) {
-        return false;
-    }
-    if (qSeqSize_ != 2) {
-        return false;
-    }
-    if (numHeads_ != 128) {
-        return false;
-    }
-    if (numKvHeads_ != 1) {
-        return false;
-    }
-    if (headDim_ != 512 || headDimV_ != 512) {
-        return false;
-    }
-    if (quantFlag_ != true) {
-        return false;
-    }
-    if (sparseMode_ != 3) {
-        return false;
-    }
-    if (inputKvLayout_ != IfaLayout::NZ || pageAttentionFlag_ != true) {
-        return false;
-    }
-    const int64_t *actualSeqKv = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
-    if (actualSeqKv != nullptr) {
-        for (uint32_t bIdx = 0U; bIdx < batchSize_; bIdx++) {
-            int64_t s2 = actualLenDims_== 1U? actualSeqKv[0] : actualSeqKv[bIdx];  // 线段长度
-            if (s2 != 55002) {
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
-    int64_t queryQuantMode = ifaContext_->queryQuantMode != nullptr ? *ifaContext_->queryQuantMode : 0;
-    int64_t keyAntiQuantMode = ifaContext_->keyAntiquantMode != nullptr ? *ifaContext_->keyAntiquantMode : 0;
-    int64_t valueAntiQuantMode = ifaContext_->valueAntiquantMode != nullptr ? *ifaContext_->valueAntiquantMode : 0;
-    if (queryQuantMode != DEQUANT_PER_TOKEN_HEAD_MODE || keyAntiQuantMode != DEQUANT_PER_CHANNEL_MODE || valueAntiQuantMode != DEQUANT_PER_CHANNEL_MODE) {
-        return false;
-    }
-    return true;
+    ValidityConfigFD cfg{
+        .validBatchSizes = {1},
+        .validQSeqSizes = {2},
+        .numHeads = 128,
+        .numKvHeads = 1,
+        .headDim = HEAD_DIM,
+        .headDimV = HEAD_DIM_V,
+        .sparseMode = SPARSE_MODE,
+        .expectedActualSeqLength = 1 // 1表示整网场景下s2范围：[37000,65536]
+    };
+    return CheckCommonConditions(cfg);
 }
 
 void IFATiling::IsFdBalanceCase() {
@@ -943,13 +903,13 @@ ge::graphStatus IFATiling::ProcessOptionalTensors()
 {
     if ((ProcessActualSeqLen() != ge::GRAPH_SUCCESS) ||
         (ProcessPseShift() != ge::GRAPH_SUCCESS) ||
-        (ProcessAttenMask() != ge::GRAPH_SUCCESS) ||
         (ProcessQuant1() != ge::GRAPH_SUCCESS) ||
         (ProcessQuant2() != ge::GRAPH_SUCCESS) ||
         (ProcessDequant1() != ge::GRAPH_SUCCESS) ||
         (ProcessDequant2() != ge::GRAPH_SUCCESS) ||
         (ProcessQuant() != ge::GRAPH_SUCCESS) ||
         (ProcessAntiQuant() != ge::GRAPH_SUCCESS) ||
+        (ProcessAttenMask() != ge::GRAPH_SUCCESS) ||
         (ProcessBlockTable() != ge::GRAPH_SUCCESS) ||
         (ProcessKVPaddingSize() != ge::GRAPH_SUCCESS) ||
         (ProcessMlaRope() != ge::GRAPH_SUCCESS) ||
@@ -3261,6 +3221,7 @@ void IFATiling::FillTilingBaseParamsMla()
     tilingDataMla_.baseParams.set_attenMaskFlag(attenMaskFlag_ ? 1 : 0);
     tilingDataMla_.baseParams.set_attenMaskSize(attenMaskSize_);
     tilingDataMla_.baseParams.set_outputLayout(static_cast<uint32_t>(outputLayout_));
+    tilingDataMla_.baseParams.set_softmaxLseFlag(softmaxLseFlag_ ? 1 : 0);
 }
 
 // for flash decode
@@ -4221,6 +4182,8 @@ ge::graphStatus IFATiling::DoSubOpTiling(IncreFlashAttentionContext& ifaContext)
         IncreFlashAttentionSetTilingData(*context_, ifaTilingData);
         return ge::GRAPH_SUCCESS;
     }
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     return ge::GRAPH_FAILED;
 }
 
@@ -4228,5 +4191,5 @@ IFA_EXTERN_C ge::graphStatus TilingIncreFlashAttention(gert::TilingContext *cont
 {
     return TilingIncreFlashAttentionAdapter(context);
 }
-REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATiling, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::ASCEND910B, (int32_t)platform_ascendc::SocVersion::ASCEND310P}), 90);
+REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATiling, std::vector<int32_t>({(int32_t)NpuArch::DAV_2201, (int32_t)NpuArch::DAV_2002}), 90);
 } // namespace optiling

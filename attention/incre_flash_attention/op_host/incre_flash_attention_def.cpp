@@ -302,6 +302,7 @@ public:
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn");
         this->AICore().AddConfig("ascend910b", aicore_config);
         this->AICore().AddConfig("ascend910_93", aicore_config);
+        this->AICore().AddConfig("mc62cm12a", aicore_config);
 
         OpAICoreConfig aicore_config_910d;
         aicore_config_910d.DynamicCompileStaticFlag(true)
@@ -313,7 +314,7 @@ public:
             .ExtendCfgInfo("opFile.value", "incre_flash_attention_apt")
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
             .ExtendCfgInfo("jitCompile.flag", "static_false,dynamic_false");
-        this->AICore().AddConfig("ascend910_95", aicore_config_910d);
+        this->AICore().AddConfig("ascend950", aicore_config_910d);
 
         OpAICoreConfig config_310p;
         config_310p.Input("query")

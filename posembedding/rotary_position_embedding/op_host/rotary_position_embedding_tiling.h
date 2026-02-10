@@ -21,6 +21,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_base.h"
+#include "tiling_base/tiling_util.h"
 #include "platform/platform_info.h"
 #include "util/math_util.h"
 namespace optiling {
@@ -269,7 +270,7 @@ protected:
     {
         return true;
     }
-    platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910_95;
+    platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
     int64_t b_{0};
     int64_t s_{0};
     int64_t n_{0};
