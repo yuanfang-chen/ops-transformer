@@ -33,7 +33,7 @@ static uint8_t* WrapTensorPtr(void* dataPtr)
 }
 
 // 公共 tiling 初始化函数，完全按照 gmm2.log 填充所有字段
-static void FillCommonTiling(GroupedMatmulTilingData::GMMQuantTilingData* td,
+static void FillCommonTiling(Mc2GroupedMatmulTilingData::GMMQuantTilingData* td,
                              uint32_t M, uint32_t K, uint32_t N)
 {
     memset(td, 0, sizeof(*td));
@@ -95,7 +95,7 @@ static void gmmASWKernelWrapper(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR
                                 GM_ADDR groupList, GM_ADDR perTokenScale, GM_ADDR y,
                                 GM_ADDR workspace, GM_ADDR tiling)
 {
-    auto* td = reinterpret_cast<GroupedMatmulTilingData::GMMQuantTilingData*>(tiling);
+    auto* td = reinterpret_cast<Mc2GroupedMatmulTilingData::GMMQuantTilingData*>(tiling);
     AscendC::TPipe tPipe;
     AscendC::GmmASWKernel<hifloat8_t, hifloat8_t, float, float, bfloat16_t,
                           CubeFormat::ND, false, true> op;
@@ -114,9 +114,9 @@ TEST_F(GmmAswKernelArch35Test, Case1)
     uint32_t NumBlocks = 36;
 
     // 1. Tiling
-    size_t tilingSize = sizeof(GroupedMatmulTilingData::GMMQuantTilingData);
+    size_t tilingSize = sizeof(Mc2GroupedMatmulTilingData::GMMQuantTilingData);
     uint8_t* tilingBuf = (uint8_t*)AscendC::GmAlloc(tilingSize);
-    auto* td = reinterpret_cast<GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
+    auto* td = reinterpret_cast<Mc2GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
     FillCommonTiling(td, M, K, N);
 
     // 2. 数据 buffer (实际数据)
@@ -188,9 +188,9 @@ TEST_F(GmmAswKernelArch35Test, Case2)
     uint32_t NumBlocks = 36;
 
     // 1. Tiling
-    size_t tilingSize = sizeof(GroupedMatmulTilingData::GMMQuantTilingData);
+    size_t tilingSize = sizeof(Mc2GroupedMatmulTilingData::GMMQuantTilingData);
     uint8_t* tilingBuf = (uint8_t*)AscendC::GmAlloc(tilingSize);
-    auto* td = reinterpret_cast<GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
+    auto* td = reinterpret_cast<Mc2GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
     FillCommonTiling(td, M, K, N);
 
     // 2. 数据 buffer
@@ -262,9 +262,9 @@ TEST_F(GmmAswKernelArch35Test, Case3)
     uint32_t NumBlocks = 36;
 
     // 1. Tiling
-    size_t tilingSize = sizeof(GroupedMatmulTilingData::GMMQuantTilingData);
+    size_t tilingSize = sizeof(Mc2GroupedMatmulTilingData::GMMQuantTilingData);
     uint8_t* tilingBuf = (uint8_t*)AscendC::GmAlloc(tilingSize);
-    auto* td = reinterpret_cast<GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
+    auto* td = reinterpret_cast<Mc2GroupedMatmulTilingData::GMMQuantTilingData*>(tilingBuf);
     FillCommonTiling(td, M, K, N);
 
     // 2. 数据 buffer

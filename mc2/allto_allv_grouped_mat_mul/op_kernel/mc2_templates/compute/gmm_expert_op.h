@@ -21,7 +21,7 @@
 //diff
 #include "../../../grouped_mat_mul_allto_allv/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 
-#include "../../3rd/grouped_matmul/op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_cube_on_the_fly.h"
+#include "../../3rd/gqmm_cube_on_the_fly.h"
 
 #if defined(CONST_TILING)
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
@@ -29,11 +29,10 @@
     const innerType *innerPtr##var = &(outerPtr##var->outerPtr##var);                                   \
     const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));
 #else
-#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, arrayType, outerMember, innerMember, arrayMenber, var, tiling) \
+#define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
     size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
-    size_t arrayOffset##var = (size_t)(&((arrayType *)0)->arrayMenber);                                 \
-    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var + arrayOffset##var);
+    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);
 #endif
 
 using namespace AscendC;
@@ -64,11 +63,11 @@ public:
      * @param tPipe           Pipe 指针
      */
     template <bool Shared = IS_SHARED_EXPERT, typename std::enable_if<!Shared, int>::type = 0>
-    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GmmTilingArray *gmmTilingArray, GM_ADDR tilingGM,
+    __aicore__ inline void Init(const TaskTilingInfo *taskTilingInfo, const GMMQuantTilingData *gmmBaseTiling, GM_ADDR tilingGM,
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
-        gmmTilingArray_ = gmmTilingArray;
+        gmmBaseTiling_ = gmmBaseTiling;
         sharedGmmTiling_ = nullptr;
         tPipe_ = tPipe;
         tilingGM_ = tilingGM;
@@ -88,7 +87,7 @@ public:
                                 TPipe *tPipe)
     {
         taskTilingInfo_ = taskTilingInfo;
-        gmmTilingArray_ = nullptr;
+        gmmBaseTiling_ = nullptr;
         sharedGmmTiling_ = sharedGmmTiling;
         tPipe_ = tPipe;
         tilingGM_ = tilingGM;
@@ -136,7 +135,7 @@ private:
     GmmKernelType gmmKernel_;
 
     const TaskTilingInfo *taskTilingInfo_ = nullptr;
-    const GmmTilingArray *gmmTilingArray_ = nullptr;      // 路由专家使用
+    const GMMQuantTilingData *gmmBaseTiling_ = nullptr;      // 路由专家使用
     const GMMQuantTilingData *sharedGmmTiling_ = nullptr; // 共享专家使用
     TPipe *tPipe_ = nullptr;
     uint32_t expertNum_ = 0;
@@ -170,7 +169,7 @@ private:
 
     /**
      * 内部：获取专家索引对应的 tiling 数据
-     * 根据 IS_SHARED_EXPERT 模板参数选择返回 sharedGmmTiling_ 或 gmmTilingArray_->array[expertIdx]
+     * 根据 IS_SHARED_EXPERT 模板参数选择返回 sharedGmmTiling_ 或 gmmBaseTiling_->array[expertIdx]
      */
     __aicore__ inline const GMMQuantTilingData *GetTilingData(uint32_t expertIdx) const
     {
@@ -179,7 +178,7 @@ private:
             return sharedGmmTiling_;
         } else {
             // 路由专家根据索引返回对应的 tiling
-            return &gmmTilingArray_->array;
+            return gmmBaseTiling_;
         }
     }
 
@@ -275,7 +274,7 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     // int64_t N = static_cast<int64_t>(this->taskTilingInfo_->N1);
 
     // 3. 获取本次循环对应的 tiling 数据
-    //    路由专家：从 gmmTilingArray_->array[startExpertIdx] 获取
+    //    路由专家：从 gmmBaseTiling_->array[startExpertIdx] 获取
     //    共享专家：使用 sharedGmmTiling_
     const GMMQuantTilingData *tilingData = this->GetTilingData(startExpertIdx);
 
@@ -286,10 +285,8 @@ GmmExpertOp<GmmKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>::ProcessExpert(uin
     // gmmArray 包含 mList, kList, nList
     // const int32_t *gmmArrayAddr = tilingData->gmmArray.mList;
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData,
-                GmmTilingArray,
                 GMMQuantTilingData,
-                gmmTiling,
-                array,
+                gmmBaseTiling,
                 gmmArray,
                 gmmArrayAddr_,
                 tilingGM_);
