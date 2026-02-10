@@ -17,9 +17,9 @@
 
 #include "util_regbase.h"
 #include "kv_quant_sparse_flash_attention_common_arch35.h"
-#include "../../common/op_kernel/buffers_policy.h"
-#include "../../common/op_kernel/buffer_manager.h"
-#include "../../common/op_kernel/buffer.h"
+#include "common/op_kernel/buffers_policy.h"
+#include "common/op_kernel/buffer_manager.h"
+#include "common/op_kernel/buffer.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
@@ -132,7 +132,7 @@ private:
     // GlobalTensor<KV_T> cmpKVGm;
     GlobalTensor<KV_T> keyGm;
     GlobalTensor<int32_t> SparseIndicesGm;
-    GlobalTensor<int32_t> BlockTableGm;
+    // GlobalTensor<int32_t> oriBlockTableGm;
     // GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> blockTableGm;
     // GlobalTensor<T> sinksGm;
@@ -175,13 +175,13 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetRe
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token0Idx = -1;
     } else {
-        token0Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
+        token0Idx = SparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
     topkKIdx += 1;
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token1Idx = -1;
     } else {
-        token1Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
+        token1Idx = SparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
 }
 
@@ -800,7 +800,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitG
     __gm__ uint8_t *SparseIndices, __gm__ uint8_t *blockTable)
 {
     keyGm.SetGlobalBuffer((__gm__ KV_T *)(key));
-    BlockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
+    blockTableGm.SetGlobalBuffer((__gm__ int32_t *)blockTable);
 
     // [lz todo] 只保留qsfa，不区分其他模式
     // if constexpr (TEMPLATE_MODE != SASTemplateMode::SWA_TEMPLATE_MODE) {
@@ -811,7 +811,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitG
     // if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) {
     //     cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)cmpSparseIndices);
     // }
-    cmpSparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)SparseIndices);
+    SparseIndicesGm.SetGlobalBuffer((__gm__ int32_t *)SparseIndices);
 
     // if (sinks != nullptr) {
     //     sinksGm.SetGlobalBuffer((__gm__ T *)sinks);

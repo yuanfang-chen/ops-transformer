@@ -26,9 +26,9 @@
 #include "kv_quant_sparse_flash_attention_service_vector_mla.h"
 #include "kv_quant_sparse_flash_attention_common_arch35.h"
 #include "kv_quant_sparse_flash_attention_kvcache.h"
-#include "../../common/op_kernel/matmul.h"
-#include "../../common/op_kernel/FixpipeOut.h"
-#include "../../common/op_kernel/CopyInL1.h"
+#include "common/op_kernel/matmul.h"
+#include "common/op_kernel/FixpipeOut.h"
+#include "common/op_kernel/CopyInL1.h"
 
 using matmul::MatmulType;
 using namespace AscendC;
