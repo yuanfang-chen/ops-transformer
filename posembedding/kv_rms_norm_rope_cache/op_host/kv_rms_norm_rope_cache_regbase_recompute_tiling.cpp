@@ -228,6 +228,8 @@ ge::graphStatus KvRmsNormRopeCacheRegbaseRecomputeTiling::DoOpTiling()
     }
 
     // N = 1
+    std::cout<<"dk_ is: "<<dk_<<std::endl;
+    std::cout<<"dv_ is: "<<dv_<<std::endl;
     int64_t bs = batchSize * seqLen * numHead;
     tilingData_.set_bs(bs);
     tilingData_.set_batchSize(batchSize);
