@@ -18,18 +18,21 @@
 #include "op_api_ut_common/op_api_ut.h"
 #include "opdev/platform.h"
 
-using namespace op;
 using namespace std;
 
 class l2_quant_allto_allv_grouped_mat_mul_test : public testing::Test {
  protected:
   static void SetUpTestCase()
   {
-    op::SetPlatformSocVersion(op::SocVersion::ASCEND950);
+    op::(NpuArch::DAV_3510);
 	cout << "l2_quant_allto_allv_grouped_mat_mul_test SetUp" << endl;
   }
 
-  static void TearDownTestCase() { cout << "l2_quant_allto_allv_grouped_mat_mul_test TearDown" << endl; }
+  static void TearDownTestCase()
+  {
+	op::SetPlatformSocVersion(op::SocVersion::ASCEND910B);
+	cout << "l2_quant_allto_allv_grouped_mat_mul_test TearDown" << endl;
+  }
 };
 
 struct QuantAlltoAllvGroupedMatmulAclnnTestParam {
@@ -102,7 +105,7 @@ struct QuantAlltoAllvGroupedMatmulAclnnTestParam {
 
 static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 	// hifloat8 正常用例
-    {"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_00",
+    {"AclnnAlltoAllvQuantGMM_hifloat8_normal_00",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -113,7 +116,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_SUCCESS},
 	
 	// 数据类型异常 10条
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_01",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_01",
 		{8192, 7168}, {4, 7168, 4096}, ACL_FLOAT, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -123,7 +126,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_02",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_02",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -133,7 +136,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_03",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_03",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT16, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -143,7 +146,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_04",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_04",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT16, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -153,7 +156,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_05",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_05",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_FLOAT, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -163,7 +166,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_06",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_06",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -173,7 +176,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_07",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_07",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -183,7 +186,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_08",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_08",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -193,7 +196,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_09",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_09",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -203,7 +206,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_dtype_10",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_dtype_10",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -214,7 +217,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
 	// 数据格式异常 10条
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_01",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_01",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -224,7 +227,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_02",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_02",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -234,7 +237,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_03",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_03",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -244,7 +247,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_04",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_04",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -254,7 +257,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_05",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_05",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_FRACTAL_Z, ACL_FORMAT_ND,
@@ -264,7 +267,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_06",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_06",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_FRACTAL_Z,
@@ -274,7 +277,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_07",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_07",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -284,7 +287,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_08",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_08",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -294,7 +297,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_09",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_09",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -304,7 +307,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_nd_10",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_nd_10",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -315,7 +318,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
 	// Quantmode异常:4条
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_quant_01",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_quant_mode_01",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -325,7 +328,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		0, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_quant_02",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_quant_mode_02",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -335,7 +338,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 0, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_quant_03",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_quant_mode_03",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -345,7 +348,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 0, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_quant_04",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_quant_mode_04",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -356,7 +359,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
 	// scale异常：4条
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_scale_01",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_scale_01",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -366,7 +369,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_scale_02",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_scale_02",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -375,7 +378,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 	 	{4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND,
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_scale_03",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_scale_03",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -385,7 +388,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_scale_04",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_scale_04",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -396,7 +399,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
 	// shape 异常
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_01",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_01",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -406,7 +409,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_02",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_02",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -416,7 +419,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_03",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_03",
 		{}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -426,7 +429,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_04",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_04",
 		{8192, 7168}, {}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -436,7 +439,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_05",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_05",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -446,7 +449,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_06",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_06",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -456,7 +459,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_07",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_07",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -466,7 +469,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_08",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_08",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -476,7 +479,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_09",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_09",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -486,7 +489,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_10",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_10",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{256, 7168}, {7168, 256}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -496,7 +499,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_11",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_11",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{8192, 7168}, {7168, 8192}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -506,7 +509,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_12",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_12",
 		{8192, 7168}, {33, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -516,7 +519,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_13",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_13",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{2}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -526,7 +529,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_14",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_14",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {2}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -536,7 +539,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_15",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_15",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -546,7 +549,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_16",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_16",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -556,7 +559,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_17",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_17",
 		{52428801, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -566,7 +569,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_18",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_18",
 		{8192, 65537}, {4, 65537, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -576,7 +579,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_19",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_19",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 12289}, {12289, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -586,7 +589,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		1, 1, 1, 1, 8, 4096, 2, 7168, 4,
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_20",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_20",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 65537}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -597,7 +600,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 	
 	// epworldsize error
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_shape_21",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_shape_21",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -608,7 +611,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
 	// 异常 sendCounts null
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_sendcount",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_sendcount",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -619,7 +622,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"test_allto_allv_grouped_mat_mul_ep_group", true, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
 	// recvCounts null
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_recvcount",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_recvcount",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -631,7 +634,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 
 	
 	// group ep null
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_ep_null",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_ep_null",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -642,7 +645,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
      	"", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
 	// group ep invalid
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_ep_invaild",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_ep_invaild",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -656,7 +659,7 @@ static QuantAlltoAllvGroupedMatmulAclnnTestParam quant_cases_params[] = {
 		"test_allto_allv_grouped_mat_mul_ep_group", false, false, false, false, false, ACLNN_ERR_PARAM_INVALID},
 
 
-	{"test_quant_allto_allv_grouped_mat_mul_test_hifloat8_permute",
+	{"AclnnAlltoAllvQuantGMM_hifloat8_no_permute",
 		{8192, 7168}, {4, 7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
 	 	{1}, {1}, ACL_FLOAT, ACL_FLOAT, ACL_FORMAT_ND, ACL_FORMAT_ND,
 		{4096, 7168}, {7168, 4096}, ACL_HIFLOAT8, ACL_HIFLOAT8, ACL_FORMAT_ND, ACL_FORMAT_ND,
@@ -720,7 +723,11 @@ static void TestQuantParamCase(const QuantAlltoAllvGroupedMatmulAclnnTestParam& 
                               sendCounts, recvCounts, transGmmWeight, transMmWeight, 0, permuteOutFlag),
                         OUTPUT(gmmY_, mmY_, nullptr));
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    EXPECT_EQ(aclRet, retStatus);
+    if (retStatus == ACLNN_SUCCESS) {
+        EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+    } else {
+        EXPECT_EQ(aclRet, retStatus);
+    }
     std::cout << "end case " <<  param.case_name << std::endl;
 }
 
