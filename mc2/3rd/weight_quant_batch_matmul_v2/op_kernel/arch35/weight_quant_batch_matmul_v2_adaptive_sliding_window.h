@@ -19,7 +19,7 @@
 #include "weight_quant_batch_matmul_v2_asw_block.h"
 #include "../weight_quant_batch_matmul_v2_common.h"
 #include "../weight_quant_batch_matmul_v2_constant.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../tool.h"
 

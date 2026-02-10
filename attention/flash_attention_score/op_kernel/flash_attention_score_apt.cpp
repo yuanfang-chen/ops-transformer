@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "arch35/flash_attention_score_empty_tensor_regbase.h"
 #include "arch35/flash_attention_score_template_tiling_key.h"
 #include "arch35/flash_attention_score_entry_regbase.h"

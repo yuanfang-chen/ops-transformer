@@ -14,7 +14,7 @@
  */
 #include <cstring>
 #include <lib/matmul_intf.h>
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "common.h"
 #include "./arch35/template_head.h"
 #include "./arch35/matmul_allto_all_tiling_key.h"

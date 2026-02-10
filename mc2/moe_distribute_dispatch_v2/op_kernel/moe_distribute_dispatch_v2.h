@@ -15,7 +15,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_V2_H
 #define MOE_DISTRIBUTE_DISPATCH_V2_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_v2_tiling.h"

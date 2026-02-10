@@ -15,7 +15,7 @@
 
 #ifndef UTILS_DEVICE_UTILS_H
 #define UTILS_DEVICE_UTILS_H
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 namespace Cgmct {
 namespace Gemm {
 

@@ -16,7 +16,7 @@
 #ifndef MC2_ALLTOALL_ALLGATHER_BATCHMATMUL_SHARD_H_H
 #define MC2_ALLTOALL_ALLGATHER_BATCHMATMUL_SHARD_H_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/hccl/hccl.h"
 #include "adv_api/activation/silu.h"
 #include "adv_api/activation/gelu.h"

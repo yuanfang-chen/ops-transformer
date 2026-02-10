@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_H
 #define MATMUL_ALL_REDUCE_QUANT_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #ifdef MC2_QUANT_BF16

@@ -16,7 +16,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_A2_H
 #define MOE_DISTRIBUTE_DISPATCH_A2_H
 #include <climits>
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "utils/std/algorithm.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "moe_distribute_dispatch_tiling.h"

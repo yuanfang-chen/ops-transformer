@@ -16,7 +16,7 @@
 #define WEIGHT_QUANT_BATCHMATMUL_V2_BASIC_BLOCK_VF_NZ_H
 
 #include "basic_block_config.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 
 namespace MicroAPI = AscendC::MicroAPI;
 using AscendC::BLOCK_CUBE;

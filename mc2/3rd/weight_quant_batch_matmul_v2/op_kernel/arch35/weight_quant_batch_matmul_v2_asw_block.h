@@ -15,7 +15,7 @@
 #ifndef WEIGHT_QUANT_BMMV2_ASW_BLOCK_H
 #define WEIGHT_QUANT_BMMV2_ASW_BLOCK_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../tool.h"
 

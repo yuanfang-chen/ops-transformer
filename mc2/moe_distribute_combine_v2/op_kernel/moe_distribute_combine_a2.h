@@ -13,7 +13,7 @@
  */
 #ifndef MOE_DISTRIBUTE_COMBINE_A2_H
 #define MOE_DISTRIBUTE_COMBINE_A2_H
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/reduce/sum.h"
 #include "utils/std/algorithm.h"
 #include "kernel_tiling/kernel_tiling.h"

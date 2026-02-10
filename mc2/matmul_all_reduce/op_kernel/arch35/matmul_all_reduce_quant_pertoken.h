@@ -16,7 +16,7 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTOKEN_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTOKEN_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 

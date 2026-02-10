@@ -18,7 +18,7 @@
 
 #include "../tool.h"
 #include "../weight_quant_batch_matmul_v2_constant.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "static_diag_constant.h"
 #include "weight_quant_batch_matmul_v2_fixpipe_stage1.h"

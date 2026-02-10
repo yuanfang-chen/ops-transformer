@@ -15,7 +15,7 @@
 #ifndef INFER_FLASH_ATTENTION_KVCACHE_H
 #define INFER_FLASH_ATTENTION_KVCACHE_H
 
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "../../../common/op_kernel/arch35/infer_flash_attention_comm.h"
 #include "infer_flash_attention_sparse.h"

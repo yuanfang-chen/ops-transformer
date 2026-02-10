@@ -15,8 +15,7 @@
 #ifndef VECTOR_COMMON_H
 #define VECTOR_COMMON_H
 
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
+#include "kernel_operator.h"
 
 using namespace AttentionCommon;
 using namespace AscendC;

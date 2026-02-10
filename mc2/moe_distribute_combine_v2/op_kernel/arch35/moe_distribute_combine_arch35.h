@@ -16,7 +16,7 @@
 #define MOE_DISTRIBUTE_COMBINE_A5_H
 
 #include "lib/hccl/hccl.h"
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_combine_v2_tiling.h"

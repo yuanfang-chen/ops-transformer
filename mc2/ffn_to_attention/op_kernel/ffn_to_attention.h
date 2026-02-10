@@ -16,7 +16,7 @@
 #ifndef FFN_TO_ATTENTION_H
 #define FFN_TO_ATTENTION_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "ffn_to_attention_tiling.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")

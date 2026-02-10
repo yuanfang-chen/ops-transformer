@@ -24,7 +24,7 @@
 #else
 #include "grouped_matmul_add.h"
 #endif
-#include "kernel_basic_intf.h"
+#include "kernel_operator.h"
 
 using namespace AscendC;
 using namespace matmul;

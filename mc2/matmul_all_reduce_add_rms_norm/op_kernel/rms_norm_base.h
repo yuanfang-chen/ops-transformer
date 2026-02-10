@@ -14,7 +14,7 @@
  */
 #ifndef RMS_NORM_BASE_H
 #define RMS_NORM_BASE_H
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "reduce_common.h"
 
 using namespace AscendC;

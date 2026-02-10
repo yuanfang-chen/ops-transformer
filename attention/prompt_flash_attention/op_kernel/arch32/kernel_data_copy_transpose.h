@@ -15,8 +15,7 @@
 #ifndef KERNEL_DATA_COPY_TRANSPOSE_H
 #define KERNEL_DATA_COPY_TRANSPOSE_H
 
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
+#include "kernel_operator.h"
 using namespace AscendC;
 
 enum class CopyTransposeType {

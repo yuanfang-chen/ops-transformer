@@ -15,7 +15,7 @@
 #ifndef MATMUL_ALL_REDUCE_BASE_H
 #define MATMUL_ALL_REDUCE_BASE_H
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "matmul_all_reduce_add_x3.h"

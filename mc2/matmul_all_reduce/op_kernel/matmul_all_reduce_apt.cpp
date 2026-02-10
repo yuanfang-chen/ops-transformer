@@ -13,7 +13,7 @@
  * \brief A5
  */
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "common.h"
 #include "./arch35/matmul_all_reduce_empty_tensor_k_general.h"

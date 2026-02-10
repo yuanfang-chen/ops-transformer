@@ -26,7 +26,7 @@
 #include "quant_batch_matmul_v3_pertoken_opt.h"
 #endif
 #endif
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "quant_batch_matmul_v3_tiling_key.h"
 #include "quant_batch_matmul_v3_tiling_data.h"
 
