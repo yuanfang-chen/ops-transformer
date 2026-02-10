@@ -23,11 +23,8 @@
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
 #include "hccl/hcom.h"
-// #include "hccl/hccl_comm.h"
 #include "hccl/hccl_rank_graph.h"
-// #include "hccl/hccl_res.h"
 #include "hccl/hccl.h"
-// #include "hccl/hccn_rping.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
