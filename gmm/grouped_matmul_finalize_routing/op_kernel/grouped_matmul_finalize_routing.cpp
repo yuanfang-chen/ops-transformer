@@ -208,7 +208,7 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }
-    #else if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
+    #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
     if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
         grouped_matmul_finalize_routing_pertoken_dequant<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz>(
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
