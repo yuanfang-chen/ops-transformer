@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -71,12 +71,12 @@ public:
     constexpr static uint32_t MAX_VAL_OFFSET = 0;
     constexpr static uint32_t MIN_VAL_OFFSET = 1;
     constexpr static uint32_t RES_VAL_OFFSET = 2;
+    constexpr static uint32_t DOUBLE_WIN_SPACE = 2;
     constexpr static float QUANT_MAX = 127.0f;
 
 template <typename T>
 inline __aicore__ T RoundUp(const T val, const T align) {
-    static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type");
-    if (align == 0 || val + align - 1 < val) {
+    if ((align == 0) || (val + align - 1 < val)) {
         return val;
     }
     return (val + align - 1) / align * align;
@@ -282,16 +282,12 @@ __aicore__ inline void MoeDistributeDispatchV2Layered<TemplateMC2TypeV2LayeredFu
     totalSize_ = winContext_->winSize;
     rdmaWinSize_ =  RDMA_DATA_SIZE; //100 MB for RDMA
     shareMemOffset_ = rdmaWinSize_;
-    halfWinSize_ = rdmaWinSize_ / 2;
+    halfWinSize_ = rdmaWinSize_ / DOUBLE_WIN_SPACE;
     dataSpaceSize_ = halfWinSize_ - STATUS_SPACE_SIZE;
     expertTokenNumsType_ = tilingData->moeDistributeDispatchV2Info.expertTokenNumsType;
 
     expertIdsCnt_ = axisBS_ * axisK_;
     serverNum_ = worldSize_ / SERVER_RANK_SIZE;
-
-    uint32_t tokenFlagSize = STATE_OFFSET * (worldSize_ + 1);
-    uint32_t innerTableFlagTotalSize = STATE_OFFSET * (serverNum_ + 1);
-    uint32_t innerTableDataTotalSize = STATUS_SPACE_SIZE - tokenFlagSize - innerTableFlagTotalSize;
 
     //Combine info offset init
     combineInnerCntOffset_ = 0UL;
