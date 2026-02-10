@@ -896,12 +896,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
                     .rowCount = static_cast<uint32_t>(subMSizeAlign)
                 };
                 GmCoord gmCoord {
-                    .bIdx = runInfo.boIdx,
-                    .n2Idx = runInfo.n2oIdx,
-                    .gS1Idx = runInfo.gS1Idx,
+                    .bIdx = static_cast<uint32_t>(runInfo.boIdx),
+                    .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
+                    .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                     .dIdx = 0,
-                    .gS1DealSize = runInfo.s1RealSize,
-                    .dDealSize = constInfo.dSize
+                    .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
+                    .dDealSize = static_cast<uint32_t>(constInfo.dSize)
                 };
                 copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
                 if constexpr (hasRope) {
@@ -1112,12 +1112,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
                 .rowCount = static_cast<uint32_t>(subMSizeAlign)
             };
             GmCoord gmCoord {
-                .bIdx = runInfo.boIdx,
-                .n2Idx = runInfo.n2oIdx,
-                .gS1Idx = runInfo.gS1Idx,
+                .bIdx = static_cast<uint32_t>(runInfo.boIdx),
+                .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
+                .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
                 .dIdx = 0,
-                .gS1DealSize = runInfo.s1RealSize,
-                .dDealSize = constInfo.dSize
+                .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
+                .dDealSize = static_cast<uint32_t>(constInfo.dSize)
             };
             copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
         } else {
@@ -1441,12 +1441,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
                         .rowCount = static_cast<uint32_t>(subMSizeAlign)
                     };
                     GmCoord gmCoord {
-                        .bIdx = runInfo.boIdx,
-                        .n2Idx = runInfo.n2oIdx,
-                        .gS1Idx = runInfo.gS1Idx,
-                        .dIdx = k * baseK,
-                        .gS1DealSize = runInfo.s1RealSize,
-                        .dDealSize = realK
+                        .bIdx = static_cast<uint32_t>(runInfo.boIdx),
+                        .n2Idx = static_cast<uint32_t>(runInfo.n2oIdx),
+                        .gS1Idx = static_cast<uint32_t>(runInfo.gS1Idx),
+                        .dIdx = static_cast<uint32_t>(k * baseK),
+                        .gS1DealSize = static_cast<uint32_t>(runInfo.s1RealSize),
+                        .dDealSize = static_cast<uint32_t>(realK)
                     };
                     copyQueryGmToL1(dstTensor, this->queryGm, gmCoord);
                     // gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
