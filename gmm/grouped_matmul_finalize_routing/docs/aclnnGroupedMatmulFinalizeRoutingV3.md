@@ -785,7 +785,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3(
     }
   ```
 
-<term>Ascend 950PR/Ascend 950DT</term>：
+- <term>Ascend 950PR/Ascend 950DT</term>：
 
   ```cpp
   #include <iostream>
