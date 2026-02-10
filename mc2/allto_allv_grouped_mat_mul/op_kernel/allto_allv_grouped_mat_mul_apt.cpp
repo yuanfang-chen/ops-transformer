@@ -64,7 +64,7 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     }
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
-    #elif (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
+    #if (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
         REGISTER_TILING_DEFAULT(AlltoAllvGmmTilingData);
         auto tiling = (__gm__ AlltoAllvGmmTilingData*)tilingGM;
         __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
@@ -125,5 +125,5 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
             mmxScaleGM, mmWeightScaleGM, gmmyGM, mmyOptionalGM, permuteOutOptionalGM, userWorkspace, tilingGM,
             gmmArrayAddr_, mmArrayAddr_, &pipe);
         a2avGmmScheduler.Process();
-#endif
+    #endif
 }
