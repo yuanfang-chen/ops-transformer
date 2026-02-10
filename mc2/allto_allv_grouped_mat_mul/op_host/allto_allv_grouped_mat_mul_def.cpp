@@ -115,7 +115,7 @@ public:
             .AutoContiguous();
 
         this->Input("gmm_x_scale")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataType({
                 ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
                 ge::DT_FLOAT, ge::DT_FLOAT,
@@ -131,7 +131,7 @@ public:
             .AutoContiguous();
 
         this->Input("gmm_weight_scale")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataType({
                 ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
                 ge::DT_FLOAT, ge::DT_FLOAT,
