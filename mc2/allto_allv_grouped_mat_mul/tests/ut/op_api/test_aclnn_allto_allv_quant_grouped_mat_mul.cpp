@@ -23,7 +23,7 @@ class l2_quant_allto_allv_grouped_mat_mul_test : public testing::Test {
  protected:
   static void SetUpTestCase()
   {
-    op::(NpuArch::DAV_3510);
+    op::SetPlatformNpuArch(NpuArch::DAV_3510);
 	cout << "l2_quant_allto_allv_grouped_mat_mul_test SetUp" << endl;
   }
 
@@ -78,11 +78,6 @@ struct QuantAlltoAllvGroupedMatmulAclnnTestParam {
     vector<int64_t> mmYOptional;
 	aclDataType mmYOptional_dtype;
 	aclFormat mmYOptional_format;
-
-	// permuteOut
-	// vector<int64_t> permuteOutOptional;
-	// aclDataType permuteOutOptional_dtype;
-	// aclFormat permuteOutOptional_format;
 
 	int64_t gmmX_quant_mode;
 	int64_t gmmWeight_quant_mode;
@@ -684,7 +679,6 @@ static void TestQuantParamCase(const QuantAlltoAllvGroupedMatmulAclnnTestParam& 
 	TensorDesc mmWeightScale_ = TensorDesc(param.mmWeightScale, param.mmWeightScale_dtype, param.mmWeightScale_format);
     TensorDesc gmmY_ = TensorDesc(param.gmmY, param.gmmY_dtype, param.gmmY_format);
 	TensorDesc mmY_ = TensorDesc(param.mmYOptional, param.mmYOptional_dtype, param.mmYOptional_format);
-	// TensorDesc permuteOut_ = TensorDesc(param.permuteOutOptional, param.permuteOutOptional_dtype, param.permuteOutOptional_format);
 
 	int64_t gmmX_quant_mode_ = param.gmmX_quant_mode;
 	int64_t gmmWeight_quant_mode_ = param.gmmWeight_quant_mode;
