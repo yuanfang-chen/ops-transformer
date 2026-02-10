@@ -13,6 +13,7 @@
 #warning "aclnn_incre_flash_attention.h is scheduled to be deprecated in December 2026, and will be replaced by the aclnn_incre_flash_attention_v4.h. We apologize for any inconvenience caused and appreciate your timely migration to the new interface. "
 
 #include "aclnn/aclnn_base.h"
+#include <tiling/platform/platform_ascendc.h>
 
 #ifdef __cplusplus
 extern "C" {

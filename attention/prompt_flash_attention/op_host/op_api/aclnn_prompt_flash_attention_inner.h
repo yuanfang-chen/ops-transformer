@@ -12,6 +12,7 @@
 #define ACLNN_API __attribute__((visibility("default")))
 
 #include "aclnn/aclnn_base.h"
+#include <tiling/platform/platform_ascendc.h>
 
 #ifdef __cplusplus
 extern "C" {
