@@ -34,7 +34,7 @@ aclnnStatus aclnnIncreFlashAttentionV2GetWorkspaceSize(
     const aclTensor *attentionOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        OP_LOGE("Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
+        OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
         return ACLNN_ERR_RUNTIME_ERROR;
     }
     (void) pseShift;
@@ -50,7 +50,7 @@ aclnnStatus aclnnIncreFlashAttentionV2(void *workspace, uint64_t workspaceSize, 
                                        const aclrtStream stream)
 {
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        OP_LOGE("Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
+        OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnIncreFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
         return ACLNN_ERR_RUNTIME_ERROR;
     }
     aclnnStatus ret = aclnnInnerIncreFlashAttention(workspace, workspaceSize, executor, stream);
