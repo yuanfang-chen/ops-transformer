@@ -36,13 +36,13 @@ using namespace regbaseutil;
 using namespace matmul;
 
 namespace BaseApi {
-TEMPLATES_DEF
 template <typename QSFAT> class QSFAVectorService {
 public:
     using T = float;
     using Q_T = typename QSFAT::queryType;
     using LAYOUT_T = typename QSFAT::layout;
     using KV_T = typename QSFAT::kvType;
+    using OUTPUT_T = typename QSFAT::outputType;
 
     // BUFFER的字节数
     static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
@@ -58,7 +58,7 @@ public:
 
     // ==================== Functions ======================
     __aicore__ inline QSFAVectorService() {};
-    __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
+    __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths)
     {
         if ASCEND_IS_AIV {
@@ -79,8 +79,7 @@ public:
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo);
     // 初始化attentionOutGM
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo);
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-        __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks);
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *SparseIndices, __gm__ uint8_t *blockTable);
     __aicore__ inline void InitOutputSingleCore(ConstInfo_arch35 &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
@@ -125,7 +124,7 @@ private:
     __aicore__ inline void InitSinksBuffer(ConstInfo_arch35 &constInfo);
 
     TPipe *tPipe;
-    const KvQuantSparseAttnSharedkvTilingData *__restrict tilingData;
+    const KvQuantSparseFlashAttentionTilingDataMla *__restrict tilingData;
 
     GlobalTensor<OUTPUT_T> attentionOutGm;
     // GlobalTensor<KV_T> oriKVGm;
@@ -159,7 +158,6 @@ private:
     uint32_t blockSize;
 };
 
-
 template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx,
     int64_t s2IdxInBase, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
@@ -192,7 +190,10 @@ template <typename QSFAT> __aicore__ inline int64_t QSFAVectorService<QSFAT>::Ge
         return -1;
     }
     int64_t realkeyOffset = 0;
-    if constexpr (isPa) {
+
+    // [lz todo] 默认直接走pa，原本isPa是在模板中定义，现已废弃，直接设置为TRUE
+    // if constexpr (isPa) {
+    if constexpr (1) {
         int64_t blkTableIdx = s2Idx / blockSize;
         int64_t blkTableOffset = s2Idx % blockSize;
         realkeyOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
@@ -503,7 +504,8 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyI
     padParams.leftPadding = 0;
     padParams.rightPadding = combineDimAlign - combineDim;
     padParams.paddingValue = 0;
-    if constexpr (isPa) {
+    // if constexpr (isPa) {
+    if constexpr (1) {
         uint64_t blockTableBaseOffset = runInfo.boIdx * maxBlockNumPerBatch;
         uint64_t dstOffset = 0;
         uint32_t copyFinishElmenCnt = 0;
@@ -739,7 +741,8 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
 }
 
-template <typename VEC2_RES_T, typename QSFAT>
+template <typename QSFAT>
+template <typename VEC2_RES_T>
 __aicore__ inline void QSFAVectorService<QSFAT>::Bmm2DataCopyOut (RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo,
     LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
@@ -760,7 +763,8 @@ __aicore__ inline void QSFAVectorService<QSFAT>::Bmm2DataCopyOut (RunInfo_arch35
     DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
 }
 
-template <typename VEC2_RES_, typename QSFAT>
+template <typename QSFAT>
+template <typename VEC2_RES_T>
 __aicore__ inline void QSFAVectorService<QSFAT>::CopyOutAttentionOut(
     RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
@@ -902,7 +906,8 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 
     // pageAttention, rope在C侧搬运时使用
-    if constexpr (isPa) {
+    // if constexpr (isPa) {
+    if constexpr (1) {
         sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
         sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
         sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
@@ -947,14 +952,13 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetEx
     negativeScalar = *((float *)&tmp1);
 }
 
-TEMPLATES_DEF
 class SCFABlockVecDummy {
 public:
     __aicore__ inline SCFABlockVecDummy() {};
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo) {}
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks) {}
-    __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseAttnSharedkvTilingData *__restrict tiling,
+    __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo) {}
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
