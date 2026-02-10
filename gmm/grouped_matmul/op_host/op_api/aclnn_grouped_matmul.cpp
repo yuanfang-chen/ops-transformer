@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 #include "aclnn_grouped_matmul.h"
 #include "aclnn_grouped_matmul_v2.h"
 #include "aclnn_grouped_matmul_v3.h"
@@ -41,6 +41,21 @@
 #include "grouped_matmul_no_quant_950_checker.h"
 
 using namespace op;
+
+#define DEPRECATED_API_WARN_ONCE(isHaveDeprecated, oldApiName, newApiName)               \
+    do {                                                                                 \
+        static bool isFirstWarn = true;                                                  \
+        if (isFirstWarn){                                                                \
+            if((isHaveDeprecated)){                                                      \
+                OP_LOGW("%s is deprecated, use %s instead", (oldApiName), (newApiName)); \
+            } else {                                                                     \
+                OP_LOGW("%s is scheduled to be deprecated in December 2026, "                                                                                    \
+                            "and will be replaced by the %s. "                                                                                                   \
+                            "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.", (oldApiName), (newApiName)); \
+            }                                                                            \
+            isFirstWarn = false;                                                         \
+        }                                                                                \
+    } while(0)
 
 #ifdef __cplusplus
 extern "C" {
@@ -169,6 +184,7 @@ namespace {
   {
     return ge::GetSizeByDataType(xDtype) != ge::GetSizeByDataType(weightDtype);
   }
+
 }
 
 namespace {
@@ -2418,6 +2434,7 @@ aclnnStatus aclnnGroupedMatmulV4GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *activationQuantOffsetOptional, int64_t splitItem, int64_t groupType, int64_t groupListType,
   int64_t actType, aclTensorList *out, aclTensorList *activationFeatureOutOptional,
   aclTensorList *dynQuantScaleOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor) {
+ 	DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV4GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, out) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2452,6 +2469,7 @@ aclnnStatus aclnnGroupedMatmulV3GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclTensor *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV3GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2481,6 +2499,7 @@ aclnnStatus aclnnGroupedMatmulV2GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV2GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2506,6 +2525,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, const aclTensorList *y, uint64_t *workspaceSize,
   aclOpExecutor **executor) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulGetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2543,6 +2563,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
 
 aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmul", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmul);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2551,6 +2572,7 @@ aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExe
 
 aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV2", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV2);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2559,6 +2581,7 @@ aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV3", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV3);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2567,6 +2590,7 @@ aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV4(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV4", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV4);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
