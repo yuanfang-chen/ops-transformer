@@ -46,7 +46,7 @@ template<typename ConstChosen>
 static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    MoeDistributeDispatchV2TilingData *tilingData = context->GetTilingData<MoeDistributeDispatchV2TilingData>();
+    MoeDistributeDispatchV2TilingDataBase *tilingData = context->GetTilingData<MoeDistributeDispatchV2TilingDataBase>();
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr."), return ge::GRAPH_FAILED);
     std::string groupEp = "";
     std::string groupTp = "";

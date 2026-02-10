@@ -180,7 +180,7 @@ const std::set<ge::DataType> NON_QUANT_DTYPE = {
     ge::DT_FLOAT16, ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2};
 
 namespace optiling {
-static void PrintTilingDataInfo(const char *nodeName, MoeDistributeDispatchV2TilingData &tilingData)
+static void PrintTilingDataInfo(const char *nodeName, MoeDistributeDispatchV2TilingDataBase &tilingData)
 {
     OP_LOGD(nodeName, "epWorldSize is %u.", tilingData.moeDistributeDispatchV2Info.epWorldSize);
     OP_LOGD(nodeName, "tpWorldSize is %u.", tilingData.moeDistributeDispatchV2Info.tpWorldSize);
@@ -729,7 +729,7 @@ static bool CheckTensorFormat(const gert::TilingContext *context, const char *no
 
 template<typename ConstChosen>
 static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetFullMeshV2)
+    MoeDistributeDispatchV2TilingDataBase &tilingData, std::string &groupEp, std::string &groupTp, bool &isSetFullMeshV2)
 {
     auto attrs = context->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "attrs is nullptr."), return ge::GRAPH_FAILED);
@@ -890,7 +890,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
 }
 
 static bool CheckSharedAttrs(const char *nodeName,
-    const MoeDistributeDispatchV2TilingData &tilingData)
+    const MoeDistributeDispatchV2TilingDataBase &tilingData)
 {
     uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum;
     uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
@@ -915,7 +915,7 @@ static bool CheckSharedAttrs(const char *nodeName,
 
 template<typename ConstChosen>
 static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *nodeName,
-    const MoeDistributeDispatchV2TilingData &tilingData, bool isSetFullMeshV2)
+    const MoeDistributeDispatchV2TilingDataBase &tilingData, bool isSetFullMeshV2)
 {
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
     // 获取bs
@@ -942,7 +942,7 @@ static bool CheckCommAlgAttrs(const gert::TilingContext *context, const char *no
 
 template<typename ConstChosen>
 static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetFullMeshV2)
+    MoeDistributeDispatchV2TilingDataBase &tilingData, uint32_t &localMoeExpertNum, bool isActiveMask, bool isSetFullMeshV2)
 {
     uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
     uint32_t tpWorldSize = tilingData.moeDistributeDispatchV2Info.tpWorldSize;
@@ -1001,7 +1001,7 @@ static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char
 
 template<typename ConstChosen>
 static ge::graphStatus CheckTwoDimScalesShape(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, const int64_t scalesDim0, const int64_t scalesDim1)
+    MoeDistributeDispatchV2TilingDataBase &tilingData, const int64_t scalesDim0, const int64_t scalesDim1)
 {
     uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
     uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum; 
@@ -1025,7 +1025,7 @@ static ge::graphStatus CheckTwoDimScalesShape(const gert::TilingContext *context
 
 template<typename ConstChosen>
 static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, const char *nodeName,
-    MoeDistributeDispatchV2TilingData &tilingData, const uint32_t quantMode, const bool isScales,
+    MoeDistributeDispatchV2TilingDataBase &tilingData, const uint32_t quantMode, const bool isScales,
     const bool isSharedExpert,const bool hasElasticInfo, const bool isPerformance, const int64_t localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
@@ -1245,7 +1245,7 @@ static ge::graphStatus TilingCheckMoeDistributeDispatch(gert::TilingContext *con
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData *tiling,
+static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistributeDispatchV2TilingDataBase *tiling,
     const std::string groupEp, const std::string groupTp, const uint32_t tpWorldSize)
 {
     const char *nodeName = context->GetNodeName();
@@ -1274,7 +1274,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistri
 }
 
 template<typename ConstChosen>
-static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
+static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingDataBase &tilingData,
     const char *nodeName, const bool isSetFullMeshV2, uint32_t &localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
