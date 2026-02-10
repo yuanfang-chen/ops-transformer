@@ -251,6 +251,7 @@ private:
     TBuf<> gammaBuf_;
     TBuf<TPosition::VECCALC> reduceFp32Buf_;
     TBuf<> xActMaskTBuf_;
+    TBuf<> rmsNormYBuf_;
     TBuf<> xActMaskCastTBuf_;
     TBuf<> tokenTargetTBuf_;
     TBuf<> validBsIndexTBuf_;
