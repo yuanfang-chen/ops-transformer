@@ -15,10 +15,9 @@
 #ifndef MOE_DISTRIBUTE_COMBINE_SHMEM_H
 #define MOE_DISTRIBUTE_COMBINE_SHMEM_H
 
-#include "check_winsize.h"
-#include "moe_distribute_base.h"
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
+#include "check_winsize.h"
 #include "moe_distribute_combine_shmem_tiling.h"
 #include "shmem_context_def.h"
 
