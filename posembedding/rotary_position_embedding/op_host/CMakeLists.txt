@@ -12,7 +12,7 @@ if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnInner PRIVATE
         rotary_position_embedding_def.cpp
     )
-    add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner)
+    add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner ACLNN_EXTRA_VERSION v2)
 endif()
 
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
@@ -25,13 +25,15 @@ if("${CONDITION_UNIT}" STREQUAL "ascend950")
     )
 endif()
 
-if (BUILD_OPS_RTY_KERNEL)
-    add_ops_compile_options(
-            OP_NAME RotaryPositionEmbedding
-            OPTIONS --cce-auto-sync=on
-                    -Wno-deprecated-declarations
-                    -Werror
-    )
-else()
-    add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner)
-endif()
+add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner ACLNN_EXTRA_VERSION v2)
+# if (BUILD_OPS_RTY_KERNEL)
+#     add_ops_compile_options(
+#             OP_NAME RotaryPositionEmbedding
+#             OPTIONS --cce-auto-sync=on
+#                     -Wno-deprecated-declarations
+#                     -Werror
+#     )
+#     add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner ACLNN_EXTRA_VERSION v2)
+# else()
+#     add_modules_sources(OPTYPE rotary_position_embedding ACLNNTYPE aclnn_inner ACLNN_EXTRA_VERSION v2)
+# endif()
