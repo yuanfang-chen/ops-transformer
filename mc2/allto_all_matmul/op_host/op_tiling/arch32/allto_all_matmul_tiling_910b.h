@@ -61,7 +61,7 @@ protected:
     void DoFourRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     void DoEightRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     // A16W8的tiling
-    AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTilingData &cocTilingData, AlltoAllMatmulInfo &info);
+    void AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info);
     void CalTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info);
     void SetTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info);
     void DecodeTilingData(int32_t code, CoCTiling &cocTilingData);

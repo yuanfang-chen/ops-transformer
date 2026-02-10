@@ -884,11 +884,11 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
 }
 
 // A16W8 tiling
-void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTilingData &cocTilingData, AlltoAllMatmulInfo &info)
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
     int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
     int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT;
-    std::map<int*, TilingValue> TilingParamMap = {
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
         {&code,
             {ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap}}
