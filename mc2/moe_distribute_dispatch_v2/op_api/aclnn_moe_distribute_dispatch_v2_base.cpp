@@ -208,14 +208,14 @@ void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
 
 
 
-aclnnStatus GetMc2Context(HcclComm hcclHandle,  const aclTensor* mc2Context, int64_t& hcclBuffSize,
+aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize,
                          std::string& hcclTopoType) 
 {
     OP_LOGD("PRINT inter to the GetMc2Context");
     Mc2MoeContext mc2_context;
     HcclResult ret;
     CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
-    std::string mc2Ctxtag = std::string(groupEp) + "moe_distribute_dispatch_v2"; // 最长255
+    std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
 
@@ -268,9 +268,10 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 {
     const static bool is910B = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B;
     const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
-    auto retParam = DispatchCheckParams(x, expertIds, groupEp, groupTp, quantMode, expandXOut, dynamicScalesOut,
+    aclnnStatus ret;
+    ret = DispatchCheckParams(x, expertIds, groupEp, groupTp, quantMode, expandXOut, dynamicScalesOut,
                                          assistInfoForCombineOut, expertTokenNumsOut, epRecvCountsOut, tpRecvCountsOut);
-    CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
@@ -285,7 +286,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     }
     int64_t ydtype = expandXOut->GetDataType();
 
-    auto res = GetCommMode(groupEp, hcclHandle, netLayerNum);
+    ret = GetCommMode(groupEp, hcclHandle, netLayerNum);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT commAlg:%s",commAlg);
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") != 0)) { //ccu暂时不支持新方案
@@ -300,7 +301,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
         std::string hcclTopoType;
-        auto ret =GetMc2Context(hcclHandle, mc2Context, hcclBuffSize, hcclTopoType);
+        ret =GetMc2Context(hcclHandle, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
