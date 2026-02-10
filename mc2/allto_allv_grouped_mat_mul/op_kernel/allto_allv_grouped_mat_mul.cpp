@@ -19,7 +19,9 @@
 #endif
 #include "allto_allv_grouped_mat_mul_tiling_key.h"
 #include "allto_allv_grouped_mat_mul_coarse_grained.h"
-#include "mc2_templates/mc2_templates.h"
+#if __CCE_AICORE__ == 310
+    #include "mc2_templates/mc2_templates.h"
+#endif
 
 using namespace AscendC;
 using namespace MC2KernelTemplate;
@@ -81,7 +83,7 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
     INVOKE_ALLTOALLV_GROUPED_MATMUL_OP_IMP(AlltoAllvGmmCoarseGrained, DTYPE_GMM_X, TILINGKEY_MM,
         TILINGKEY_GMM_WEIGHT_TRANSPOSE, TILINGKEY_MM_WEIGHT_TRANSPOSE);
 #endif
-#elif defined(ALLTO_ALLV_GMM_QUANT)
+#elif defined(ALLTO_ALLV_GMM_QUANT) && __CCE_AICORE__ == 310
     REGISTER_TILING_DEFAULT(QuantAlltoAllvGroupedMatmulTilingData);
     
     using ComputeOpType = QuantGroupedMatmul<
