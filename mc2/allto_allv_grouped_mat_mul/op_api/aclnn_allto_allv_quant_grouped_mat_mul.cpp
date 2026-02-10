@@ -67,8 +67,8 @@ static bool CheckNullStatus(const aclTensor *sendCountsTensorOptional, const acl
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "sendCountsTensorOptional and recvCountsTensorOptional should be empty.");
         return false;
     }
-    if ((!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr))) &&
-        (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr)))) {
+    if ((!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr) && (mmXScaleOptional != nullptr) && (mmWeightScaleOptional != nullptr))) &&
+        (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr) && (mmXScaleOptional == nullptr) && (mmWeightScaleOptional == nullptr)))) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID,
             "mmXOptional, mmWeightOptional and mmYOptional should all be null or all not be null, left: %u, right: %u, "
