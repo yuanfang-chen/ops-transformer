@@ -67,32 +67,65 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsCheck() {
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::CheckSingleParam() {
-    // 1. 基础输出校验
+    // 基础输出校验
     KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
     auto metaShape = metaData_->GetTensorShape();
     KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
     KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
-    // 2. 核心数校验
+    // 核心数校验
     if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
         KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
         return false;
     }
-    // 3. Layout 字符串校验
+    // batch_size 非负校验
+    if (batchSize_ < 0) {
+        KERNEL_LOG_ERROR("batch_size should not be negative, but got %d", batchSize_);
+        return false;
+    }
+    // max_seqlen_q 非负校验
+    if (maxSeqlenQ_ < 0) {
+        KERNEL_LOG_ERROR("max_seqlen_q should not be negative, but got %d", maxSeqlenQ_);
+        return false;
+    }
+    // max_seqlen_k 非负校验
+    if (maxSeqlenK_ < 0) {
+        KERNEL_LOG_ERROR("max_seqlen_k should not be negative, but got %d", maxSeqlenK_);
+        return false;
+    }
+    // num_heads_q 校验
+    if (numHeadsQ_ != 64) {
+        KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %d", numHeadsQ_);
+        return false;
+    }
+    // num_heads_k 校验
+    if (numHeadsK_ != 1) {
+        KERNEL_LOG_ERROR("num_heads_k should only be 1, but got %d", numHeadsK_);
+        return false;
+    }
+    // layout_query 校验
     if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
-        KERNEL_LOG_ERROR("For query, layout must be TND or BSND!");
+        KERNEL_LOG_ERROR("For layout_query, layout must be TND or BSND!");
         return false;
     }
+    // layout_key 校验
     if (layoutKey_ != "PA_BSND") {
-        KERNEL_LOG_ERROR("For key, layout must be PA_BSND!");
+        KERNEL_LOG_ERROR("For layout_key, layout must be PA_BSND!");
         return false;
     }
-    // 4. 数值与模式校验
-    if (layoutQuery_ == "BSND" && batchSize_ < 1) {
-        KERNEL_LOG_ERROR("batch_size should greater than 0 when layout_query is BSND !");
+    // sparse_mode 校验
+    if (sparseMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK) && 
+        sparseMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
+        KERNEL_LOG_ERROR("sparse_mode should be 0/3/4, but got %d", sparseMode_);
         return false;
     }
-    if (sparseMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
-        KERNEL_LOG_ERROR("sparse_mode should be 3, but got %u", sparseMode_);
+    // pre_tokens 校验
+    if (preToken_ != INT64_MAX) {
+        KERNEL_LOG_ERROR("pre_tokens should only be 2^63-1, but got %ld", preToken_);
+        return false;
+    }
+    // next_tokens 校验
+    if (nextToken_ != INT64_MAX) {
+        KERNEL_LOG_ERROR("next_tokens should only be 2^63-1, but got %ld", nextToken_);
         return false;
     }
     return true;
@@ -100,17 +133,17 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckSingleParam() {
 
 bool QuantLightningIndexerMetadataCpuKernel::CheckExistence() {
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // 2. Query 存在性逻辑
+    // Query 存在性逻辑
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_)) {
-            KERNEL_LOG_ERROR("For query TND, actual_seq_lengths_query must be provided!");
+            KERNEL_LOG_ERROR("For layout_query TND, actual_seq_lengths_query must be provided!");
             return false;
         }
     }
-    // 3. KV 存在性逻辑
+    // KV 存在性逻辑
     if (layoutKey_ == "TND") {
         if (isInvalid(actSeqLenKey_)) {
-            KERNEL_LOG_ERROR("For Key TND, actual_seq_lengths_key must be provided!");
+            KERNEL_LOG_ERROR("For layout_key TND, actual_seq_lengths_key must be provided!");
             return false;
         }
     }
@@ -155,22 +188,25 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
 
 bool QuantLightningIndexerMetadataCpuKernel::CheckFeature() {
     // 压缩率校验
-    if (cmpRatio_ < 1) {
-        KERNEL_LOG_ERROR("cmp_ratio must greater than 0 !");
-        return false;
-    }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     // 校验 2 的幂次方: 1, 2, 4, ..., 128
-    bool isPowTwo = (cmpRatio_ > 0) && ((cmpRatio_ & (cmpRatio_ - 1)) == 0);
-    
+    bool isPowTwo = ((cmpRatio_ & (cmpRatio_ - 1)) == 0);
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
         if (cmpRatio_ < 1 || cmpRatio_ > 128 || !isPowTwo) {
-            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be 1/2/4/8/16/32/64/128.", cmpRatio_);
+            KERNEL_LOG_ERROR("For Atlas A3, compression ratio %d invalid! Must be 1/2/4/8/16/32/64/128.", cmpRatio_);
+            return false;
+        }
+        if (sparseCount_ < 1 || sparseCount_ > 2048) {
+            KERNEL_LOG_ERROR("For Atlas A3, sparse_count should only be [1, 2048], but got %d", sparseCount_);
             return false;
         }
     } else {
         if (cmpRatio_ != 1 && cmpRatio_ != 4 && cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be 1/4/128.", cmpRatio_);
+            KERNEL_LOG_ERROR("For Ascend 950, Compression ratio %d invalid! Must be 1/4/128.", cmpRatio_);
+            return false;
+        }
+        if (sparseCount_ != 512) {
+            KERNEL_LOG_ERROR("For Ascend 950, sparse_count should only be 512, but got %d", sparseCount_);
             return false;
         }
     }
@@ -225,15 +261,13 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
     } else {
         s2BaseSize_ = 128U; // 其他情况
     }
-
-    gS1BaseSizeOfFd_ = 1U;
     return true;
 }
 
 uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
     if (actSeqLenQ_ == nullptr || actSeqLenQ_->GetData() == nullptr) {
-        return maxSeqlenQ_;
+        return static_cast<uint32_t>(maxSeqlenQ_);
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
