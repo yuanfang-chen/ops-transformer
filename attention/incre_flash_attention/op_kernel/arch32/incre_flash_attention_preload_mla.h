@@ -2719,6 +2719,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 #ifdef IFA_SOFTMAX_WITHOUT_BRC
                     LocalTensor<T> lseSumUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_2K);
                     LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
+                    AscendC::printf("tkd BALANCE"\n);
                     AscendC::printf("tkd mSizeVector: %llu\n", mSizeVector);
                     AscendC::printf("tkd mSplitSize: %llu\n", mSplitSize);
                     AscendC::printf("====================================\n");
