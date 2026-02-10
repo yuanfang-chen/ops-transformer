@@ -128,10 +128,10 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::InitC
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo)
+QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo& constInfo)
 {
     if ASCEND_IS_AIC {
-        InitGmTensor(cuSeqlensQ, constInfo);
+        InitGmTensor(actualSeqLengthsQ, constInfo);
     }
 }
 
@@ -156,14 +156,14 @@ QSFAMatmulService<QSFAT>::InitLocalBuffer()
 
 template <typename QSFAT>
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo)
+QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo& constInfo)
 {
     if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
         this->queryGm.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize,
             constInfo.s1Size, constInfo.dSize);
     } else {  // QSFA_LAYOUT::TND
         GlobalTensor<int32_t> actualSeqQLen;
-        actualSeqQLen.SetGlobalBuffer((__gm__ int32_t *)cuSeqlensQ);
+        actualSeqQLen.SetGlobalBuffer((__gm__ int32_t *)actualSeqLengthsQ);
         this->queryGm.offsetCalculator.Init(constInfo.n2Size, constInfo.gSize, constInfo.dSize,
             actualSeqQLen, constInfo.actualSeqLenSize);
     }
