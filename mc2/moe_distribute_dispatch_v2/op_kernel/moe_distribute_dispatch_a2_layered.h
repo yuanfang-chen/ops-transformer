@@ -37,7 +37,7 @@ class MoeDistributeDispatchA2Layered {
 public:
     constexpr static uint32_t STATE_OFFSET = 512; // 状态空间偏移地址
     constexpr static uint32_t STATUS_SIZE_LAYERED = 1024 * 1024; // 1M
-    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024;
+    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024UL;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B64_PER_BLOCK = UB_32B_ALIGN / sizeof(int64_t); // 4
