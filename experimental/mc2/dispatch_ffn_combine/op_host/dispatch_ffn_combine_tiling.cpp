@@ -161,9 +161,11 @@ static ge::graphStatus DispatchFFNCombineGetPlatformInfoAndSetTiling(gert::Tilin
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
     info.aivNum = aivNum;
     info.totalUbSize = ubSize;
+    info.isA2 = ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND910B;
 
     OP_LOGD(K_INNER_DEBUG, "aivNum=%d", info.aivNum);
     OP_LOGD(K_INNER_DEBUG, "ubSize=%lu", info.totalUbSize);
+    OP_LOGD(K_INNER_DEBUG, "isA2=%d", info.isA2);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -285,8 +287,15 @@ static ge::graphStatus DispatchFFNCombineTilingFuncImpl(gert::TilingContext *con
     // 5. communication
     auto attrs = context->GetAttrs();
     auto group = attrs->GetAttrPointer<char>(static_cast<int>(ATTR_GROUP_INDEX));
-    uint32_t opType = 8U;
-    std::string algConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
+    uint32_t opType = 0u;
+    std::string algConfig;
+    if (info.isA2) {
+        opType = 18u;
+        algConfig = "MultiPut=level0:fullmesh";
+    } else {
+        opType = 8U;
+        algConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
+    }
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, algConfig);
     mc2CcTilingConfig.GetTiling(tilingData->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling);
