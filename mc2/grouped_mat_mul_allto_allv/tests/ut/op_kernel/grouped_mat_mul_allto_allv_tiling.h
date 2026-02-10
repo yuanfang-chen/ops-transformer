@@ -23,8 +23,8 @@
 constexpr uint32_t MAX_EXPERT_SIZE = 512U; // 最大通信域专家的数量
 
 struct GmmAlltoAllvAicpuTiling {
-    uint16_t sendCnt[MAX_EXPERT_SIZE];
-    uint16_t recvCnt[MAX_EXPERT_SIZE];
+    int32_t sendCnt[MAX_EXPERT_SIZE];
+    int32_t recvCnt[MAX_EXPERT_SIZE];
 };
 
 struct GmmAlltoAllvCommonTilingInfo {
