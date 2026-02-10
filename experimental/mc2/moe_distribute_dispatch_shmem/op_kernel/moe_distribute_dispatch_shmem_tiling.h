@@ -16,6 +16,8 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_SHMEM_TILING_H
 #define MOE_DISTRIBUTE_DISPATCH_SHMEM_TILING_H
 
+#include "kernel_tiling/kernel_tiling.h"
+
 struct MoeDistributeDispatchShmemInfo {
     uint32_t epWorldSize;                // epWorldSize
     uint32_t tpWorldSize;                // tpWorldSize
