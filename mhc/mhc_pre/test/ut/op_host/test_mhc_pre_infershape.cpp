@@ -14,17 +14,17 @@
 #include "infer_shape_case_executor.h"
 #include "base/registry/op_impl_space_registry_v2.h"
 
-class ManifoldConstrainedHyperConnectionPreProto : public testing::Test
+class MhcPreProto : public testing::Test
 {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "ManifoldConstrainedHyperConnectionPreInferShape SetUp" << std::endl;
+        std::cout << "MhcPreInferShape SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "ManifoldConstrainedHyperConnectionPreInferShape TearDown" << std::endl;
+        std::cout << "MhcPreInferShape TearDown" << std::endl;
     }
 };
 
@@ -33,7 +33,7 @@ protected:
 * 输入：正常shape
 * 预期结果：成功
 */
-TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S1024_n4_D5120)
+TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S1024_n4_D5120)
 {
     uint32_t T = 1024;
     uint32_t n = 4;
@@ -41,7 +41,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
     uint32_t nD = n * D;  // 20480
 
     gert::InfershapeContextPara infershapeContextPara(
-        "ManifoldConstrainedHyperConnectionPre",
+        "MhcPre",
         {
             {{{T, n, D}, {T, n, D}}, ge::DT_FLOAT16, ge::FORMAT_ND},      // x
             {{{nD, nD}, {nD, nD}}, ge::DT_FLOAT, ge::FORMAT_ND},          // phi
@@ -81,7 +81,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
 * 输入：正常shape
 * 预期结果：成功
 */
-TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S2048_n4_D2560)
+TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S2048_n4_D2560)
 {
     uint32_t T = 2048;
     uint32_t n = 4;
@@ -89,7 +89,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
     uint32_t nD = n * D;  // 10240
 
     gert::InfershapeContextPara infershapeContextPara(
-        "ManifoldConstrainedHyperConnectionPre",
+        "MhcPre",
         {
             {{{T, n, D}, {T, n, D}}, ge::DT_FLOAT16, ge::FORMAT_ND},      // x
             {{{nD, nD}, {nD, nD}}, ge::DT_FLOAT, ge::FORMAT_ND},          // phi
@@ -129,7 +129,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
 * 输入：正常shape
 * 预期结果：成功
 */
-TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S4096_n4_D2560)
+TEST_F(MhcPreProto, Ut_Check_mHCPreProto_TND_B1_S4096_n4_D2560)
 {
     uint32_t T = 4096;
     uint32_t n = 4;
@@ -137,7 +137,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
     uint32_t nD = n * D;  // 10240
 
     gert::InfershapeContextPara infershapeContextPara(
-        "ManifoldConstrainedHyperConnectionPre",
+        "MhcPre",
         {
             {{{T, n, D}, {T, n, D}}, ge::DT_FLOAT16, ge::FORMAT_ND},      // x
             {{{nD, nD}, {nD, nD}}, ge::DT_FLOAT, ge::FORMAT_ND},          // phi
@@ -177,7 +177,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_TND_B1_S
 * 输入：BSND格式 [1, 1024, 4, 5120]
 * 预期结果：成功
 */
-TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_BSND_Normal)
+TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_Normal)
 {
     uint32_t B = 1;
     uint32_t S = 1024;
@@ -186,7 +186,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_BSND_Nor
     uint32_t nD = n * D;  // 20480
 
     gert::InfershapeContextPara infershapeContextPara(
-        "ManifoldConstrainedHyperConnectionPre",
+        "MhcPre",
         {
             {{{B, S, n, D}, {B, S, n, D}}, ge::DT_FLOAT16, ge::FORMAT_ND},  // x
             {{{nD, nD}, {nD, nD}}, ge::DT_FLOAT, ge::FORMAT_ND},            // phi
@@ -226,7 +226,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_BSND_Nor
 * 输入：BSND格式 [2, 512, 4, 2560]
 * 预期结果：成功
 */
-TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_BSND_DifferentBatch)
+TEST_F(MhcPreProto, Ut_Check_mHCPreProto_BSND_DifferentBatch)
 {
     uint32_t B = 2;
     uint32_t S = 512;
@@ -235,7 +235,7 @@ TEST_F(ManifoldConstrainedHyperConnectionPreProto, Ut_Check_mHCPreProto_BSND_Dif
     uint32_t nD = n * D;  // 10240
 
     gert::InfershapeContextPara infershapeContextPara(
-        "ManifoldConstrainedHyperConnectionPre",
+        "MhcPre",
         {
             {{{B, S, n, D}, {B, S, n, D}}, ge::DT_FLOAT16, ge::FORMAT_ND},  // x
             {{{nD, nD}, {nD, nD}}, ge::DT_FLOAT, ge::FORMAT_ND},            // phi

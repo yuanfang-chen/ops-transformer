@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "manifold_constrained_hyper_connection_pre_tiling.h"
+#include "mhc_pre_tiling.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
@@ -39,9 +39,9 @@ const constexpr int64_t INDEX_T_TND = 0;
 const constexpr int64_t INDEX_N_TND = 1;
 const constexpr int64_t INDEX_D_TND = 2;
 
-REGISTER_OPS_TILING_TEMPLATE(ManifoldConstrainedHyperConnectionPre, ManifoldConstrainedHyperConnectionPreBaseTiling, 1000);
+REGISTER_OPS_TILING_TEMPLATE(MhcPre, MhcPreBaseTiling, 1000);
 
-ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::GetInputShape()
+ge::graphStatus MhcPreBaseTiling::GetInputShape()
 {
     auto xTensor = context_->GetDynamicInputTensor(X_INDEX, 0);
     OP_CHECK_NULL_WITH_CONTEXT(context_, xTensor);
@@ -109,7 +109,7 @@ ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::GetInputShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::ParseInputAndAttr()
+ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
 {
     uint64_t ubSize, l1Size, l0CSize;
 
@@ -157,7 +157,7 @@ ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::ParseInputAndAt
 }
 
 
-void ManifoldConstrainedHyperConnectionPreBaseTiling::FillTilingData()
+void MhcPreBaseTiling::FillTilingData()
 {
     // 矩阵计算剩余部分
     tilingData_.matmulTiling.set_dbL0C(2);  // 2: 开启double buffer
@@ -196,7 +196,7 @@ void ManifoldConstrainedHyperConnectionPreBaseTiling::FillTilingData()
     tilingData_.set_scaleMean(scaleMean);
 }
 
-ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::TilingProcess()
+ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
     // 当前最大为128*128的matmul计算, 预留3倍空间适配最大矩阵
     size_t userWorkspaceSize = (2 * 192 * 256 +  2 * 192 * (8 * 8 + 2 * 8))* sizeof(float) * blockDim_;
@@ -223,7 +223,7 @@ ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::TilingProcess()
 }
 
 
-ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::DoOpTiling()
+ge::graphStatus MhcPreBaseTiling::DoOpTiling()
 {
     auto inputXDesc = context_->GetInputDesc(0);
     if (inputXDesc == nullptr) {
@@ -246,7 +246,7 @@ ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::DoOpTiling()
     return ge::GRAPH_SUCCESS;
 }
 
-void ManifoldConstrainedHyperConnectionPreBaseTiling::PrintTilingData()
+void MhcPreBaseTiling::PrintTilingData()
 {
     OP_LOGD(context_->GetNodeName(), "blockDim: [%d]", tilingData_.get_coreNum());
     OP_LOGD(context_->GetNodeName(), "totalLength: [%d]", tilingData_.get_totalLength());
@@ -262,12 +262,12 @@ void ManifoldConstrainedHyperConnectionPreBaseTiling::PrintTilingData()
     OP_LOGD(context_->GetNodeName(), "v1ChunkDSize: [%d]", tilingData_.get_v1ChunkDSize());
 }
 
-uint64_t ManifoldConstrainedHyperConnectionPreBaseTiling::GetTilingKey() const
+uint64_t MhcPreBaseTiling::GetTilingKey() const
 {
     return tilingKey_;
 }
 
-ge::graphStatus ManifoldConstrainedHyperConnectionPreBaseTiling::PostTiling()
+ge::graphStatus MhcPreBaseTiling::PostTiling()
 {
     OP_CHECK_IF(tilingData_.GetDataSize() % sizeof(uint64_t) != 0,
         OP_LOGE(context_->GetNodeName(), "tiling data size[%zu] is not aligned to 8", tilingData_.GetDataSize()),
@@ -306,7 +306,7 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext* context)
                 OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
                 return ge::GRAPH_FAILED);
 
-    auto compileInfoPtr = context->GetCompiledInfo<ManifoldConstrainedHyperConnectionPreCompileInfo>();
+    auto compileInfoPtr = context->GetCompiledInfo<MhcPreCompileInfo>();
     OP_CHECK_IF(compileInfoPtr == nullptr,
                 OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "compileInfoPtr is null"),
                 return ge::GRAPH_FAILED);
@@ -331,7 +331,7 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext* context)
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(ManifoldConstrainedHyperConnectionPre)
+IMPL_OP_OPTILING(MhcPre)
     .Tiling(TilingFunc4mHCPre)
-    .TilingParse<ManifoldConstrainedHyperConnectionPreCompileInfo>(TilingPrepare4mHCPre);
+    .TilingParse<MhcPreCompileInfo>(TilingPrepare4mHCPre);
 }

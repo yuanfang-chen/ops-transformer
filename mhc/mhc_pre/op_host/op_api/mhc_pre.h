@@ -16,7 +16,7 @@
 
 namespace l0op {
 const std::tuple<aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *, aclTensor *>
-ManifoldConstrainedHyperConnectionPre(
+MhcPre(
     const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
     int64_t out_flag, double norm_eps, double hc_eps,
     aclOpExecutor *executor);

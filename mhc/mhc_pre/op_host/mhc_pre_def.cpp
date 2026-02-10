@@ -15,9 +15,9 @@
 #include "register/op_def_registry.h"
 
 namespace ops {
-class ManifoldConstrainedHyperConnectionPre : public OpDef {
+class MhcPre : public OpDef {
 public:
-    explicit ManifoldConstrainedHyperConnectionPre(const char* name) : OpDef(name)
+    explicit MhcPre(const char* name) : OpDef(name)
     {
         this->Input("x")
             .ParamType(REQUIRED)
@@ -92,6 +92,6 @@ public:
     }
 };
 
-OP_ADD(ManifoldConstrainedHyperConnectionPre);
+OP_ADD(MhcPre);
 
 }

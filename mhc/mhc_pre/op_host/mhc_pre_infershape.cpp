@@ -53,7 +53,7 @@ const constexpr int64_t INDEX_D_TND = 2;
 
 static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
 {
-    OP_LOGD(context->GetNodeName(), "Begin to do InferShape ManifoldConstrainedHyperConnectionPre");
+    OP_LOGD(context->GetNodeName(), "Begin to do InferShape MhcPre");
     const gert::Shape *xShape = context->GetDynamicInputShape(X_INDEX, 0);
         OP_CHECK_NULL_WITH_CONTEXT(context, xShape);
     const gert::Shape *phiShape = context->GetDynamicInputShape(PHI_INDEX, 0);
@@ -141,7 +141,7 @@ static ge::graphStatus InferShape4mHCPre(InferShapeContext *context)
         outHpreShape->SetDim(1, numsResidual);
     }
 
-    OP_LOGD(context->GetNodeName(), "End to do InferShape ManifoldConstrainedHyperConnectionPre");
+    OP_LOGD(context->GetNodeName(), "End to do InferShape MhcPre");
     return GRAPH_SUCCESS;
 }
 
@@ -153,7 +153,7 @@ static graphStatus InferDataType4mHCPre(gert::InferDataTypeContext *context)
     return GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(ManifoldConstrainedHyperConnectionPre)
+IMPL_OP_INFERSHAPE(MhcPre)
     .InferShape(InferShape4mHCPre)
     .InferDataType(InferDataType4mHCPre);
 } // namespace ops

@@ -9,18 +9,18 @@
  */
 
 /*!
- * \file manifold_constrained_hyper_connection_pre.h
+ * \file mhc_pre.h
  * \brief
  */
 
-#ifndef __MANIFOLD_CONSTRAINED_HYPER_CONNECTION_PRE_KERNEL_H_
-#define __MANIFOLD_CONSTRAINED_HYPER_CONNECTION_PRE_KERNEL_H_
+#ifndef __mhc_pre_KERNEL_H_
+#define __mhc_pre_KERNEL_H_
 
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 
-namespace ManifoldConstrainedHyperConnectionPre {
+namespace MhcPre {
 
 using namespace matmul;
 using namespace AscendC;
@@ -40,7 +40,7 @@ struct InitParams {
     GM_ADDR h_pre;
     GM_ADDR workspace;
     TPipe *tPipeIn;
-    ManifoldConstrainedHyperConnectionPreTilingData *tilingData;
+    MhcPreTilingData *tilingData;
 };
 
 struct MatrixInfo {
@@ -97,9 +97,9 @@ using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
 
 template <class T, class P>
-class ManifoldConstrainedHyperConnectionPreKernel {
+class MhcPreKernel {
 public:
-    __aicore__ inline ManifoldConstrainedHyperConnectionPreKernel(MT &matmul) : mm(matmul) {}
+    __aicore__ inline MhcPreKernel(MT &matmul) : mm(matmul) {}
     __aicore__ inline void Init(InitParams initParams);
     __aicore__ inline void Process();
     __aicore__ inline void AICProcess();
@@ -182,7 +182,7 @@ private:
     MatrixInfo matrixInfo_;
     VectorOffsetParams vectorOffset_;
 
-    const ManifoldConstrainedHyperConnectionPreTilingData *tiling_;
+    const MhcPreTilingData *tiling_;
     
     // 运行时状态变量
     uint32_t chunTSize_ = 192;
@@ -200,7 +200,7 @@ private:
 };
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::Init(InitParams initParams)
+__aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
 {
     // 1. 绑定GlobalTensor
     xGm_.SetGlobalBuffer(reinterpret_cast<__gm__ T *>(initParams.x));
@@ -275,7 +275,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::Init(I
 
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::InitLocalBuffers()
+__aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
 {
     pipe_->InitBuffer(xInQueue_, 2, 20 * 1024); // 20KB
     pipe_->InitBuffer(outQueue_, 2, 20 * 1024); // 32KB
@@ -321,7 +321,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::InitLo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::Process()
+__aicore__ inline void MhcPreKernel<T, P>::Process()
 {
     // TODO: 实现核心计算逻辑
     // 根据tiling数据进行分块处理
@@ -357,7 +357,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::Proces
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1GetHSliceOffset()
+__aicore__ inline void MhcPreKernel<T, P>::AIV1GetHSliceOffset()
 {
     uint32_t offset1 = 0;
     uint32_t offset2 = 0;
@@ -381,7 +381,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Ge
 
 }
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AICProcess()
+__aicore__ inline void MhcPreKernel<T, P>::AICProcess()
 {
     uint64_t outOffset = 0;
     if (outFlag_) {
@@ -414,7 +414,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AICPro
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::VectorComputeOffset()
+__aicore__ inline void MhcPreKernel<T, P>::VectorComputeOffset()
 {
     uint64_t aliginSingleM = Ceil(curSingleM_ / 2, 8) * 8; // 32Byte对齐
     vectorOffset_.singleCoreM = aliginSingleM <  curSingleM_ ? aliginSingleM : curSingleM_;
@@ -429,7 +429,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::Vector
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::V0VectorComputeProcess(uint32_t curblock, uint32_t tBlockNum)
+__aicore__ inline void MhcPreKernel<T, P>::V0VectorComputeProcess(uint32_t curblock, uint32_t tBlockNum)
 {
     curSingleM_= chunTSize_;
     if (curblock == tBlockNum - 1) {
@@ -515,7 +515,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::V0Vect
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64_t tBlockNum)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64_t tBlockNum)
 {
     // TODO: 可以提出去
     curSingleM_= chunTSize_;
@@ -604,7 +604,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Pr
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset)
 {
     // TODO: 优化点：先对H slice，再运算。+
     uint64_t offset = globalOffsetM_ + offsetT;
@@ -654,7 +654,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Pr
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT)
 {
     uint64_t offset = globalOffsetM_ + offsetT;
     LocalTensor<P> hPreSigmoid = inputBuff_;
@@ -676,7 +676,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Pr
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t offsetD, uint64_t lenD)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t offsetD, uint64_t lenD)
 {
     uint64_t offset = globalOffsetM_ + offsetT;
     auto xCast = inputBuff_;
@@ -721,7 +721,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Pr
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
 {
 
     uint64_t offset = globalOffsetM_ + offsetT;
@@ -743,7 +743,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIV1Pr
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIVPreLoad()
+__aicore__ inline void MhcPreKernel<T, P>::AIVPreLoad()
 {
     invRmsUb_ = invRmsOutQueue_.AllocTensor<P>();
     AIV1GetHSliceOffset();
@@ -763,7 +763,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::AIVPre
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::BiasCopyIn()
+__aicore__ inline void MhcPreKernel<T, P>::BiasCopyIn()
 {
     LocalTensor<P> biasLocal = biasInQue_.AllocTensor<P>();
 
@@ -779,7 +779,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::BiasCo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
 {
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
@@ -796,7 +796,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd)
 {
     DataCopyExtParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(1);
@@ -814,7 +814,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::HMixCopyIn(uint64_t offset, uint64_t lenT)
+__aicore__ inline void MhcPreKernel<T, P>::HMixCopyIn(uint64_t offset, uint64_t lenT)
 {
     LocalTensor<P> hMixLocal = xInQueue_.AllocTensor<P>();
 
@@ -832,7 +832,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::HMixCo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM)
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM)
 {
     invRmsOutQueue_.EnQue<P>(invRmsUb_);
     invRmsUb_ = invRmsOutQueue_.DeQue<P>();
@@ -849,7 +849,7 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCo
 }
 
 template <class T, class P>
-__aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCopyOutToWorkSpace(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
 {
     outQueue_.EnQue<P>(xFp32Ub_);
     xFp32Ub_ = outQueue_.DeQue<P>();
@@ -864,6 +864,6 @@ __aicore__ inline void ManifoldConstrainedHyperConnectionPreKernel<T, P>::DataCo
     DataCopyPad(xFloatGm_[offset], xFp32Ub_, copyParams);
 }
 
-} // namespace ManifoldConstrainedHyperConnectionPre
+} // namespace MhcPre
 
-#endif // __MANIFOLD_CONSTRAINED_HYPER_CONNECTION_PRE_KERNEL_H_
+#endif // __mhc_pre_KERNEL_H_

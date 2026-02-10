@@ -19,9 +19,9 @@ extern "C" {
 #endif
 
 /**
- * @brief aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize 的第一段接口，根据具体的计算流程，计算workspace大小。
+ * @brief aclnnMhcPreGetWorkspaceSize 的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
- * 算子功能：ManifoldConstrainedHyperConnectionPre正向算子
+ * 算子功能：MhcPre正向算子
  * @param [in] x: 输入tensor，shape为[B,S,N,D]或[T,N,D]，数据类型支持：BF16/FP16。
  * @param [in] phi: 输入tensor，shape为[n^2+2n, nD]，数据类型支持：FP32。
  * @param [in] alpha: 输入tensor，shape为[3]，数据类型支持：FP32。
@@ -39,7 +39,7 @@ extern "C" {
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize(
+ACLNN_API aclnnStatus aclnnMhcPreGetWorkspaceSize(
     const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
     int64_t out_flag, double norm_eps, double hc_eps,
     const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
@@ -47,15 +47,15 @@ ACLNN_API aclnnStatus aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize
     uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
- * @brief aclnnManifoldConstrainedHyperConnectionPre 的第二段接口，执行算子计算。
+ * @brief aclnnMhcPre 的第二段接口，执行算子计算。
  * @domain aclnn_ops_infer
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
- * @param [in] workspaceSize: 在npu device侧申请的workspace大小，由第一段接口 aclnnManifoldConstrainedHyperConnectionPreGetWorkspaceSize 获取。
+ * @param [in] workspaceSize: 在npu device侧申请的workspace大小，由第一段接口 aclnnMhcPreGetWorkspaceSize 获取。
  * @param [in] executor: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码
  */
-ACLNN_API aclnnStatus aclnnManifoldConstrainedHyperConnectionPre(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+ACLNN_API aclnnStatus aclnnMhcPre(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                         aclrtStream stream);
 
 #ifdef __cplusplus
