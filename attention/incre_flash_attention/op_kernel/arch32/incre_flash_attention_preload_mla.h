@@ -2719,6 +2719,15 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
 #ifdef IFA_SOFTMAX_WITHOUT_BRC
                     LocalTensor<T> lseSumUb = tmpBuff1.Get<T>(BUFFER_SIZE_BYTE_2K);
                     LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
+                    AscendC::printf("tkd mSizeVector: %llu\n", mSizeVector);
+                    AscendC::printf("tkd mSplitSize: %llu\n", mSplitSize);
+                    AscendC::printf("====================================\n");
+                    AscendC::printf("tkd sumTensor\n");
+                    AscendC::DumpTensor(sumTensor, 1, 512);
+                    AscendC::printf("====================================\n");
+                    AscendC::printf("tkd maxTensor\n");
+                    AscendC::DumpTensor(maxTensor, 1, 512);
+                    AscendC::printf("====================================\n");
                     Brcb(lseSumUb, sumTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM,
                          {1, BLOCK_ELEMENT_NUM});
                     PipeBarrier<PIPE_V>();
@@ -2746,13 +2755,13 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::ProcessVec1Inne
             LocalTensor<T> lseMaxUb = tmpBuff1.GetWithOffset<T>(BUFFER_SIZE_BYTE_2K, BUFFER_SIZE_BYTE_2K);
             AscendC::printf("tkd mSizeVector: %llu\n", mSizeVector);
             AscendC::printf("tkd mSplitSize: %llu\n", mSplitSize);
-            AscendC::printf("====================================");
+            AscendC::printf("====================================\n");
             AscendC::printf("tkd sumTensor\n");
             AscendC::DumpTensor(sumTensor, 1, 512);
-            AscendC::printf("====================================");
+            AscendC::printf("====================================\n");
             AscendC::printf("tkd maxTensor\n");
             AscendC::DumpTensor(maxTensor, 1, 512);
-            AscendC::printf("====================================");
+            AscendC::printf("====================================\n");
             Brcb(lseSumUb, sumTensor, (mSizeVector + BLOCK_ELEMENT_NUM - 1) / BLOCK_ELEMENT_NUM,
                  {1, BLOCK_ELEMENT_NUM});
             PipeBarrier<PIPE_V>();
