@@ -17,6 +17,7 @@
 
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#include "adv_api/activation/softmax.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_operator_list_tensor_intf.h"
 #include "lib/matmul_intf.h"
