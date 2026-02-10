@@ -72,7 +72,6 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::Tiling
         OP_LOGE(context->GetNodeName(),
                 "In multi/multi/multi Scenario, tensorlist's length cannot exceed 128, but it is more than 128"),
         return false);
-    OP_CHECK_IF(numX_ == 0, OP_LOGE(context->GetNodeName(), "X must not be empty tensorlist. "), return false);
     if (groupType_ == GroupType::NO_SPLIT) {
         OP_CHECK_IF(
             numX_ != numWeight_,
@@ -431,8 +430,6 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context->GetNodeName(), "compileInfoPtr is nullptr."), return false);
     coreNum_ = compileInfoPtr->aicNum;
 
-    OP_CHECK_IF(!AnalyzeInput(context), OP_LOGE(context->GetNodeName(), "Invalid Input param"), return false);
-
     auto attr = context->GetAttrs();
     OP_CHECK_IF(attr == nullptr, OP_LOGE(context->GetNodeName(), "attr is nullptr."), return false);
     const bool *transposeWeightPtr = attr->GetAttrPointer<bool>(ATTR_TRANS_W_IDX);
@@ -450,6 +447,8 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     // 2: when x is multi-tensor, y is single-tensor; 3: when x is single-tensor, y is single-tensor
     isSingleY_ = (splitItem_ == 2 || splitItem_ == 3);
     GetNumOfInputs(context);
+    // 获取weight format和各参数类型
+    OP_CHECK_IF(!AnalyzeInput(context), OP_LOGE(context->GetNodeName(), "Invalid Input param"), return false);
 
     // 参数校验
     OP_CHECK_IF(coreNum_ <= 0, OP_LOGE(context->GetNodeName(), "Invalid coreNum[%u], expect greater than 0", coreNum_),
@@ -494,12 +493,14 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeInput(const gert::TilingContext
     }
     weightNzFlag_ = wFormat == ge::FORMAT_FRACTAL_NZ;
 
-    auto biasShape = context->GetDynamicInputShape(BIAS_IDX, 0);
-    hasBias_ = biasShape != nullptr;
+    hasBias_ = numBias_ > 0;
+    if (numBias_ == 1) {
+        auto biasShape = context->GetDynamicInputShape(BIAS_IDX, 0);
+        hasBias_ = biasShape->GetStorageShape().GetShapeSize() != 0;
+    }
     if (hasBias_) {
         auto biasDesc = context->GetDynamicInputDesc(BIAS_IDX, 0);
-        OP_CHECK_IF(biasDesc == nullptr, OP_LOGE(context->GetNodeName(), "biasDesc is nullptr."),
-                    return false);
+        OP_CHECK_IF(biasDesc == nullptr, OP_LOGE(context->GetNodeName(), "biasDesc is nullptr."), return false);
         biasDtype_ = biasDesc->GetDataType();
     }
 
@@ -508,8 +509,11 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeInput(const gert::TilingContext
                 return false);
     antiquantScaleDtype_ = antiquantScaleDesc->GetDataType();
 
-    auto antiquantOffsetShape = context->GetDynamicInputShape(ANTIQUANT_OFFSET_IDX, 0);
-    hasAntiquantOffset_ = antiquantOffsetShape != nullptr;
+    hasAntiquantOffset_ = numAntiquantOffset_ > 0;
+    if (numAntiquantOffset_ == 1) {
+        auto antiQuantOffsetShape = context->GetDynamicInputShape(ANTIQUANT_OFFSET_IDX, 0);
+        hasAntiquantOffset_ = antiQuantOffsetShape->GetStorageShape().GetShapeSize() != 0;
+    }
     if (hasAntiquantOffset_) {
         auto antiquantOffsetDesc = context->GetDynamicInputDesc(ANTIQUANT_OFFSET_IDX, 0);
         OP_CHECK_IF(antiquantOffsetDesc == nullptr, OP_LOGE(context->GetNodeName(), "antiquantOffsetDesc is nullptr."),
