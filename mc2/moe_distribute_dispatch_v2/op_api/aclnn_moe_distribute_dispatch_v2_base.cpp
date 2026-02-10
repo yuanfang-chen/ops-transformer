@@ -286,7 +286,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     ret = GetCommMode(groupEp, hcclHandle, netLayerNum);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT commAlg:%s",commAlg);
-    if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") != 0)) { //ccu暂时不支持新方案
+    if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
             x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
