@@ -117,11 +117,6 @@ static ge::graphStatus MoeDistributeDispatchKfcAndDpuTilingFuncImpl(gert::Tiling
     OP_TILING_CHECK(CheckTensorShape<ConstChosen>(context, nodeName, *tilingData, quantMode, isScales,
         isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum)) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check tensor shape failed."), return ge::GRAPH_FAILED);
-
-    // 校验win区大小
-    // OP_TILING_CHECK(CheckWinSize<ConstChosen>(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum) != ge::GRAPH_SUCCESS,
-    //     OP_LOGE(nodeName, "Tiling check window size failed."), return ge::GRAPH_FAILED);
-
     OP_TILING_CHECK(SetWorkSpace(context, nodeName) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Tiling set workspace failed."), return ge::GRAPH_FAILED);
     uint32_t tpWorldSize = tilingData->moeDistributeDispatchV2Info.tpWorldSize;
