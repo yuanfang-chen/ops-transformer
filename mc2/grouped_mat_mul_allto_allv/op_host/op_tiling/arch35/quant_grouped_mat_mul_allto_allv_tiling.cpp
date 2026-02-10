@@ -386,13 +386,21 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationGmm()
 
     if (localParams_.isGmmWeightTrans) {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim2,
-            OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !",
+            OP_LOGE(opName_, "gmmX shape K %lu not match gmmWeight shape K %lu !",
                 localParams_.H1, localParams_.gmmWeightDim2),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim1,
+            OP_LOGE(opName_, "gmmY shape N %lu not match gmmWeight shape N %lu !",
+                localParams_.N1, localParams_.gmmWeightDim1),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H1 != localParams_.gmmWeightDim1,
             OP_LOGE(opName_, "gmmX shape %lu not match gmmWeight shape %lu !",
                 localParams_.H1, localParams_.gmmWeightDim1),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N1 != localParams_.gmmWeightDim2,
+            OP_LOGE(opName_, "gmmY shape N %lu not match gmmWeight shape N %lu !",
+                localParams_.N1, localParams_.gmmWeightDim2),
             return ge::GRAPH_FAILED);
     }
 
@@ -448,10 +456,18 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsRelationMm()
             OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !",
                 localParams_.H2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim0,
+            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !",
+                localParams_.N2, localParams_.mmWeightDim0),
+            return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(localParams_.H2 != localParams_.mmWeightDim0,
             OP_LOGE(opName_, "mmX shape %lu not match mmWeight shape %lu !",
                 localParams_.H2, localParams_.mmWeightDim0),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(localParams_.N2 != localParams_.mmWeightDim1,
+            OP_LOGE(opName_, "mmY shape N %lu not match mmWeight shape N %lu !",
+                localParams_.N2, localParams_.mmWeightDim1),
             return ge::GRAPH_FAILED);
     }
 
@@ -687,7 +703,6 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     // 设置GMM切前信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.GetPlatformInfo());
     // 当前为 epNums，每轮一专家
     auto taskTilingInfoPtr = &localTilingData_.taskTilingInfo;
     auto expertNumPerLoop = taskTilingInfoPtr->mainLoopExpertNum;

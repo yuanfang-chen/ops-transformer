@@ -100,6 +100,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
 
 ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params)
 {
+    GetPlatformInfo();
     inputParams_.opName = params.opName;
     inputParams_.mSize = params.A;
     inputParams_.kSize = params.H1;
