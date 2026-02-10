@@ -790,7 +790,8 @@ void PrintGmmA2avWorkspaceInfo(const GmmA2avWorkspaceInfo &workspaceInfo, const 
     OP_LOGI(opName_, "%s", ss.str().c_str());
 }
 
-void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo, const char *opName_)
+void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo,
+    const QuantGmmAlltoAllvParamsInfo &localParams, const char *opName_)
 {
     std::stringstream ss;
     ss << "TaskTilingInfo: ";
@@ -800,7 +801,7 @@ void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo
     ss << ", mainLoopExpertNum=" << taskTilingInfo.mainLoopExpertNum << ", tailLoopExpertNum=" <<
         taskTilingInfo.tailLoopExpertNum << ", totalLoopCount=" << taskTilingInfo.totalLoopCount;
     ss << "\nSendCounts: ";
-    for (int i = 0; i < e_ * epWorldSize_; i++) {
+    for (int i = 0; i < localParams.ep * localParams.epWorldSize; i++) {
         if (taskTilingInfo.sendCnt[i] != 0) {
             if (i != 0) {
                 ss << " ,";
@@ -809,7 +810,7 @@ void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo
         }
     }
     ss << "\nRecvCounts: ";
-    for (int i = 0; i < e_ * epWorldSize_; i++) {
+    for (int i = 0; i < localParams.ep * localParams.epWorldSize; i++) {
         if (taskTilingInfo.recvCnt[i] != 0) {
             if (i != 0) {
                 ss << " ,";
@@ -849,7 +850,7 @@ void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, 
 void QuantGroupedMatmulAllToAllvTiling::PrintQuantGmmA2avTilingData(QuantGmmA2avTilingData &outTilingData)
 {
     PrintGmmA2avWorkspaceInfo(outTilingData.workspaceInfo, opName_);
-    PrintTaskTilingInfo(outTilingData.taskTilingInfo, opName_);
+    PrintTaskTilingInfo(outTilingData.taskTilingInfo, localParams_, opName_);
     OP_LOGD(opName_, "------------- PrintGMMQuantTilingData -------------------");
     PrintGMMQuantTilingData(outTilingData.gmmBaseTiling, opName_)
     OP_LOGD(opName_, "------------- PrintGMMSharedQuantTilingData -------------");
