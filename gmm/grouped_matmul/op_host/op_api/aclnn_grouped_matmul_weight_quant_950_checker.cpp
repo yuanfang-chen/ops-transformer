@@ -414,19 +414,6 @@ aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantShape(siz
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantShape(size_t idx) const
-{
-    if (gmmParams_.antiquantScaleOptional != nullptr) {
-        CHECK_RET(CheckTensorShape(gmmParams_.antiquantScaleOptional, idx, "antiquantScale") == ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
-    }
-
-    if (gmmParams_.antiquantOffsetOptional != nullptr) {
-        CHECK_RET(CheckTensorShape(gmmParams_.antiquantOffsetOptional, idx, "antiquantOffset") == ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
-    }
-}
-
 aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckQuantDtype() const
 {
     // check pertokenScaleDtype for MxA8W4
