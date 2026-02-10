@@ -131,9 +131,9 @@ public:
     __aicore__ inline
     void InvalidLineLSEProcess(
         uint32_t qNThisSubBlock, int32_t delStartRow, uint32_t qSBlockIdx, uint32_t inRowOffsetThisSubBlock,
-        uint32_t totalRowNum, int32_t delEndRow, uint32_t qSeqlen, uint32_t qNBlockSize, uint32_t qSThisSubBlock)
+        uint32_t totalRowNum, int32_t delEndRow, uint32_t qSeqlen, uint32_t qSThisSubBlock)
     {
-        uint32_t qNSubBlockStartOffset = qNBlockSize == 1U ? qSBlockIdx * VECTOR_SIZE + inRowOffsetThisSubBlock : qSBlockIdx * VECTOR_SIZE;
+        uint32_t qNSubBlockStartOffset = qNThisSubBlock == 0U ? qSBlockIdx * VECTOR_SIZE + inRowOffsetThisSubBlock : qSBlockIdx * VECTOR_SIZE;
         uint32_t qNSubBlockEnbdOffset = totalRowNum + qNSubBlockStartOffset;
         if (qNThisSubBlock == 0U && delStartRow != 0 && qNSubBlockEnbdOffset >= delStartRow) {
             uint32_t start = qNSubBlockStartOffset > delStartRow ? 0 : (delStartRow - qNSubBlockStartOffset);
@@ -267,7 +267,7 @@ public:
         uint32_t proTokenIdx, uint32_t proTokenNum, uint32_t epiTokenNum, uint32_t integralHeadNum,
         uint32_t rowOffsetCurLoop, int32_t delStartRow, int32_t delEndRow, uint32_t qSeqlen,
         uint32_t qSBlockIdx, uint32_t rowNum, uint32_t inRowOffsetThisSubBlock,
-        const SplitKVParams& splitParams, uint32_t qNBlockSize)
+        const SplitKVParams& splitParams, uint32_t curQNBlockTile)
     {
         uint32_t curRowNum = layoutInput.shape(0);
         uint32_t embedV = layoutInput.shape(1);
@@ -400,13 +400,11 @@ public:
                         AscendC::UnaryRepeatParams(1, 1, 4, 8));
                 }
             }
-            uint32_t rowStart = (qNBlockSize == 1U) ? qSBlockIdx * VECTOR_SIZE + rowOffsetCurLoop : qSBlockIdx * VECTOR_SIZE;
-            uint32_t innerGOUbOffset = 0;
-            uint32_t subBlockStart = (qNBlockSize == 1U) ? rowStart  : rowStart  + rowOffsetLoop;
-            subBlockStart  = (qNBlockSize == 1U) ? subBlockStart
-                                                : (subBlockStart >= qSThisSubBlock ? subBlockStart - qSThisSubBlock : subBlockStart);
+            uint32_t rowStart = qSBlockIdx * VECTOR_SIZE + rowOffsetCurLoop ;
+            uint32_t innerGOUbOffset = 0; 
+            uint32_t subBlockStart = (curQNBlockTile == 1U) ? rowStart  : (rowStart >= qSeqlen ? rowStart - rowStart / qSeqlen * qSeqlen : rowStart);
             if (delStartRow != 0) {
-                if (proTokenNum != 0U && subBlockStart + proTokenNum  >= delStartRow) {
+                if (proTokenNum != 0U && subBlockStart + proTokenNum >= delStartRow) {
                     uint32_t start = subBlockStart >= delStartRow ? 0 : delStartRow - subBlockStart;
                     uint32_t end = proTokenNum;
                     AscendC::PipeBarrier<PIPE_V>();
@@ -419,7 +417,7 @@ public:
                 }
                 if (subBlockStart + qSThisSubBlock >= delStartRow) {
                     for (uint32_t qN_idx = 0; qN_idx < integralHeadNum; qN_idx++) {
-                        uint32_t start = subBlockStart >= delStartRow ? subBlockStart : delStartRow - subBlockStart;
+                        uint32_t start = subBlockStart >= delStartRow ? 0 : delStartRow - subBlockStart;
                         uint32_t end = qSThisSubBlock;
                         AscendC::PipeBarrier<PIPE_V>();
                         AscendC::Duplicate<ElementOutput>(
@@ -431,7 +429,7 @@ public:
                     }
                 }
                 if (epiTokenNum != 0U && subBlockStart + epiTokenNum >= delStartRow) {
-                    uint32_t start = subBlockStart >= delStartRow ? subBlockStart : delStartRow - subBlockStart;
+                    uint32_t start = subBlockStart >= delStartRow ? 0 : delStartRow - subBlockStart;
                     uint32_t end = epiTokenNum;
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Duplicate<ElementOutput>(
@@ -441,12 +439,11 @@ public:
                     );
                 }
             }
-
             if (delEndRow != qSeqlen) {
                 if (proTokenNum != 0U && subBlockStart < delEndRow) {
-                    uint32_t start = qNBlockSize == 1U ? rowStart : 0;
+                    uint32_t start = curQNBlockTile == 1U ? rowStart : 0;
                     uint32_t end = (subBlockStart + proTokenNum >= delEndRow) ? 
-                                                    (qNBlockSize == 1U ? delEndRow : delEndRow - subBlockStart)
+                                                    (curQNBlockTile == 1U ? delEndRow : delEndRow - subBlockStart)
                                                             : subBlockStart + proTokenNum;
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Duplicate<ElementOutput>(
@@ -458,9 +455,9 @@ public:
                 }
                 if (subBlockStart < delEndRow) {
                     for (uint32_t qN_idx = 0; qN_idx < integralHeadNum; qN_idx++) {
-                        uint32_t start = qNBlockSize == 1U ? subBlockStart : proTokenNum;
+                        uint32_t start = curQNBlockTile == 1U ? subBlockStart : proTokenNum;
                         uint32_t end = (subBlockStart + qSThisSubBlock >= delEndRow) ? 
-                                            (qNBlockSize == 1U ? delEndRow : delEndRow - subBlockStart)
+                                            (curQNBlockTile == 1U ? delEndRow : delEndRow - subBlockStart)
                                                          : start + qSThisSubBlock;
                         AscendC::PipeBarrier<PIPE_V>();
                         AscendC::Duplicate<ElementOutput>(
@@ -472,8 +469,8 @@ public:
                     }
                 }
                 if (epiTokenNum != 0U && subBlockStart < delEndRow) {
-                    uint32_t start = qNBlockSize == 1U ? subBlockStart : proTokenNum + integralHeadNum * qSThisSubBlock + subBlockStart;
-                    uint32_t end = qNBlockSize == 1U ? (subBlockStart + epiTokenNum >= delEndRow ? delEndRow : subBlockStart + epiTokenNum) :
+                    uint32_t start = curQNBlockTile == 1U ? subBlockStart : proTokenNum + integralHeadNum * qSThisSubBlock + subBlockStart;
+                    uint32_t end = curQNBlockTile == 1U ? (subBlockStart + epiTokenNum >= delEndRow ? delEndRow : subBlockStart + epiTokenNum) :
                                             (epiTokenNum >= delEndRow ? start + delEndRow: start + epiTokenNum);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Duplicate<ElementOutput>(
@@ -528,7 +525,7 @@ public:
                         NpuArch::Detail::Alignment::CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
                         AscendC::BrcbRepeatParams(1, 8));
                     InvalidLineLSEProcess(qNThisSubBlock, delStartRow, qSBlockIdx,
-                            inRowOffsetThisSubBlock, totalRowNum, delEndRow, qSeqlen, qNBlockSize, qSThisSubBlock);
+                            inRowOffsetThisSubBlock, totalRowNum, delEndRow, qSeqlen, qSThisSubBlock);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
@@ -631,7 +628,7 @@ public:
         GemmCoord actualBlockShape,
         uint32_t qSBlockSize, uint32_t qNBlockSize,
         uint32_t isFirstStackTile, uint32_t isLastStackTile, uint32_t curStackTileMod,
-        int32_t delStartRow, int32_t delEndRow, uint32_t qSeqlen, uint32_t qSBlockIdx,
+        int32_t delStartRow, int32_t delEndRow, uint32_t qSeqlen, uint32_t qSBlockIdx, uint32_t curQNBlockTile,
         const SplitKVParams& splitParams = SplitKVParams())
     {
         uint32_t rowNum = actualBlockShape.m();
@@ -758,7 +755,7 @@ public:
                     rowNum,
                     inRowOffsetThisSubBlock,
                     blockParams,
-                    qNBlockSize);
+                    curQNBlockTile);
             }
         }
     }

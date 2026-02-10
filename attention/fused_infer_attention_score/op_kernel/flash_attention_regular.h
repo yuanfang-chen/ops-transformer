@@ -923,6 +923,7 @@ namespace SplitFuse {
                                 delEndRow,
                                 qSeqlen,
                                 qSBlockIdx,
+                                curQNBlockTile,
                                 splitParams);
                         } else {
                             epilogueRescaleO(
@@ -943,7 +944,8 @@ namespace SplitFuse {
                                 delStartRow,
                                 delEndRow,
                                 qSeqlen,
-                                qSBlockIdx);
+                                qSBlockIdx,
+                                curQNBlockTile);
                         }
 #endif
                     }
