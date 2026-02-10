@@ -420,7 +420,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
   - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
 * 参数说明中shape使用的变量BS必须整除rankSize。
-* BS和N的值不得超过2147483647（INT32_MAX）。
+* BS和N的值不得超过2147483647（INT32_MAX），BS的值不得小于2，N的值不得小于1。
 * 不支持空tensor。
 * <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>不支持x2为非连续tensor。
 * 传入的x1、x2、x2Scale和output不为空指针，且
