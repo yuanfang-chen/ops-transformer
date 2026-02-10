@@ -3493,8 +3493,8 @@ ge::graphStatus IFATiling::CalcBlockDim()
             }
         }
     }
-    ifaContext_->blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
-    OP_LOGI(ifaContext_->opName, "IFA block dim: %u aiv Num: %u aic Num: %u.", ifaContext_->blockDim, aivNum, aicNum);
+    ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
+    OP_LOGI(ifaContext_->opName, "IFA block dim: %u aiv Num: %u aic Num: %u.", ifaContext_->numBlocks, aivNum, aicNum);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -3561,10 +3561,10 @@ ge::graphStatus IFATiling::CalcSysPrefixWorkSpace()
 
 ge::graphStatus IFATiling::CalcSysPrefixBlockDim()
 {
-    uint32_t blockDim0 = ifaContext_->blockDim;
+    uint32_t numBlocks0 = ifaContext_->numBlocks;
     CalcBlockDim();
 
-    ifaContext_->blockDim = std::max(blockDim0, ifaContext_->blockDim);
+    ifaContext_->numBlocks = std::max(numBlocks0, ifaContext_->numBlocks);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -3819,7 +3819,7 @@ ge::graphStatus IfaStartSimpleTiling(T& tilingType, IncreFlashAttentionContext &
 {
     if (tilingType.RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
         context->SetTilingKey(ifaContext.tilingKey);
-        context->SetBlockDim(ifaContext.blockDim);
+        context->SetBlockDim(ifaContext.numBlocks);
         tilingType.IncreFlashAttentionSetTilingData(*context, ifaTilingData);
         return ge::GRAPH_SUCCESS;
     }
@@ -3852,7 +3852,7 @@ ge::graphStatus IFATiling::ProcessCheckAtbFormat()
     aicNum_ = ascendcPlatform.GetCoreNumAic();
     aivNum_ = ascendcPlatform.GetCoreNumAiv();
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
-    ifaContext_->blockDim = ascendcPlatform.CalcTschBlockDim(aivNum_, aicNum_, aivNum_);
+    ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum_, aicNum_, aivNum_);
     if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
         socVersion_ = IfaSocVersion::SOC_ASCEND_310P;
         coreNum_ = aicNum_;
@@ -4019,17 +4019,17 @@ ge::graphStatus IFATiling::AtbSplitBlock() const
     
     if (socVersion_ == IfaSocVersion::SOC_ASCEND_310P) {
         // A2A3切分BS1N1, 在kernel中判断
-        ifaContext_->blockDim = taskNum < ifaContext_->blockDim ? taskNum : ifaContext_->blockDim;
+        ifaContext_->numBlocks = taskNum < ifaContext_->numBlocks ? taskNum : ifaContext_->numBlocks;
     }
-    const uint32_t taskNumPerCore = taskNum / ifaContext_->blockDim;
-    const uint32_t tailTaskNum = taskNum % ifaContext_->blockDim;
+    const uint32_t taskNumPerCore = taskNum / ifaContext_->numBlocks;
+    const uint32_t tailTaskNum = taskNum % ifaContext_->numBlocks;
     uint32_t taskStart = 0U;
     uint32_t taskEnd = 0U;
     std::vector<uint32_t> startBlk(MAX_CORE_NUM, 0U);
     std::vector<uint32_t> endBlk(MAX_CORE_NUM, 0U);
     std::vector<uint32_t> startBatch(MAX_CORE_NUM, 0U);
     std::vector<uint32_t> endBatch(MAX_CORE_NUM, 0U);
-    for (uint32_t blockIdx = 0U; blockIdx < ifaContext_->blockDim; blockIdx++) {
+    for (uint32_t blockIdx = 0U; blockIdx < ifaContext_->numBlocks; blockIdx++) {
         taskStart = taskEnd;
         taskEnd = blockIdx < tailTaskNum ? taskEnd + taskNumPerCore + 1U : taskEnd + taskNumPerCore;
         startBlk[blockIdx] = taskStart;
@@ -4064,7 +4064,7 @@ uint32_t IFATiling::GetTotalWorkspaceSize() const {
         return static_cast<uint32_t>(libapiSize_);
     }
 
-    // 根据实际的blockDim减少下
+    // 根据实际的numBlocks减少下
     uint32_t usrWorkspaceSize = static_cast<uint32_t>(WS_REPEAT_NUM * aivNum_ * BLOCKSIZE_CALC_256 * static_cast<uint32_t>(headDim_) * NUM_BYTES_FLOAT16) + 
                                 static_cast<uint32_t>(WS_REPEAT_NUM * aivNum_ * WS_TMP_SIZE_PER_CORE * NUM_BYTES_FLOAT16);
     return usrWorkspaceSize + static_cast<uint32_t>(libapiSize_);
@@ -4149,7 +4149,7 @@ ge::graphStatus IFATiling::AtbTilingProcess()
     if (ifaContext_->workSpaces) {
         ifaContext_->workSpaces[0] = workspaceSize_;
     }
-    OP_LOGD(ifaContext_->opName, "IFA block dim:%u aivNum:%u aicNum:%u", ifaContext_->blockDim, aivNum_, aicNum_);
+    OP_LOGD(ifaContext_->opName, "IFA block dim:%u aivNum:%u aicNum:%u", ifaContext_->numBlocks, aivNum_, aicNum_);
     OP_LOGD(ifaContext_->opName, "batch Size is: %u", batchSize_);
 
     OP_LOGD(ifaContext_->opName, "headDim_:%d", headDim_);
@@ -4178,7 +4178,7 @@ ge::graphStatus IFATiling::DoSubOpTiling(IncreFlashAttentionContext& ifaContext)
     IncreFlashAttentionTilingDataV2 ifaTilingData;
     if (RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
         context_->SetTilingKey(ifaContext.tilingKey);
-        context_->SetBlockDim(ifaContext.blockDim);
+        context_->SetBlockDim(ifaContext.numBlocks);
         IncreFlashAttentionSetTilingData(*context_, ifaTilingData);
         return ge::GRAPH_SUCCESS;
     }

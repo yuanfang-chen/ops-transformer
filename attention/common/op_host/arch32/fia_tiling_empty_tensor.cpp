@@ -110,7 +110,7 @@ void FiaTilingEmptyTensor::CalcWorkspaceSize()
     workspaceSize_ = 16UL * 1024UL * 1024UL; // 16 * 1024 * 1024:min size required by workspace
 }
 
-void FiaTilingEmptyTensor::CalcBlockDim(uint32_t coreNum)
+void FiaTilingEmptyTensor::CalcNumBlocks(uint32_t coreNum)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(fiaInfo_->platformInfo);
     auto aicNum = coreNum;
