@@ -307,9 +307,7 @@ __aicore__ inline void QLIVector<QLIT>::GetKeyScale(const QLICommon::RunInfo &ru
 template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &info)
 {
-    //CV同步
-    CrossCoreWaitFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_CV_EVENT + info.loop % 2);   //V核等C核计算完mm1，mm1Res已搬运到UB
-    
+    auto pingpong = (info.loop % 2);
     auto s1BaseSizePerAIV = CeilDiv(s1BaseSize_, 2);
     int64_t curS1Idx = info.gS1Idx * s1BaseSize_;	 
     int64_t curS2Idx = info.s2Idx * s2BaseSize_;	 
@@ -318,73 +316,64 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
     int64_t curAivS1ProcNum = (blockId_ % 2 == 0) ? CeilDiv(curS1ProcNum, 2) : curS1ProcNum / 2; 
 
     if (curAivS1ProcNum == 0) {
+        CrossCoreWaitFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_CV_EVENT + info.loop % 2);   //V核等C核计算完mm1，mm1Res已搬运到UB
         CrossCoreSetFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_VC_EVENT + info.loop % 2);   //V核处理完，通知C核可以把mm1Res搬运到UB
         return;
     }
-    WaitFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + (info.loop % 2));
+    WaitFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + pingpong);
     //weightsGm --> weightUB_ 
     int64_t weightGmOffset = info.tensorWeightsOffset + curAivS1Idx * kHeadNum_ * gSize_;
     DataCopyPadExtParams<float> padWeightsParams{false, 0, 0, 0};
     DataCopyExtParams qwDataCopyExtParams;
-    qwDataCopyExtParams.blockCount = 1;
-    qwDataCopyExtParams.blockLen = curAivS1ProcNum * gSize_* sizeof(float);
+    qwDataCopyExtParams.blockCount = curAivS1ProcNum;
+    qwDataCopyExtParams.blockLen =  gSize_* sizeof(float);
     qwDataCopyExtParams.srcStride = 0;
-    qwDataCopyExtParams.dstStride = 0;
-    DataCopyPad(weightUB_[(info.loop % 2) * s1BaseSizePerAIV * gSize_], 
+    qwDataCopyExtParams.dstStride = (UB_BANK_DEPTH_STRIDE - UB_BANK_DEPTH) / 32;
+    DataCopyPad(weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))], 
                 weightsGm[weightGmOffset], qwDataCopyExtParams, padWeightsParams);
 
     //qScaleGm  -->  qScaleUB_
     DataCopyPadExtParams<float> padQScaleParams{false, 0, 0, 0};
-    DataCopyPad(qScaleUB_[(info.loop % 2) * s1BaseSizePerAIV * gSize_], 
+    DataCopyPad(qScaleUB_[pingpong * (UB_BANK_DEPTH / sizeof(float))],
                 qScaleGm[weightGmOffset], qwDataCopyExtParams, padQScaleParams);
 
     //kScaleGm  -->  kScaleUB_
     GetKeyScale(info, kScaleUB_, info.bIdx, curS2Idx, s2BaseSize_);
-    SetFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
-    WaitFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + (info.loop % 2));
-    WaitFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + (info.loop % 2));
+    SetFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + pingpong);
+    WaitFlag<HardEvent::MTE2_V>(VEC1_MTE2_V_EVENT + pingpong);
+    WaitFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + pingpong);
 
-    auto pingpong = (info.loop % 2);
-    auto outBase = vec1OutUB_[pingpong * s1BaseSizePerAIV * s2BaseSize_];
-    auto weightBase = weightUB_[pingpong * s1BaseSizePerAIV * gSize_];
+    //CV同步
+    CrossCoreWaitFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_CV_EVENT + info.loop % 2);   //V核等C核计算完mm1，mm1Res已搬运到UB
+
+    auto outBase = vec1OutUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
+    auto weightBase = weightUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
+    auto qScaleBase = qScaleUB_[pingpong * (UB_BANK_STRIDE / sizeof(float))];
     auto kScaleBase = kScaleUB_[pingpong * s2BaseSize_];
-    auto qScaleBase = qScaleUB_[pingpong * s1BaseSizePerAIV * gSize_];
 
-#if defined(QLI_ENABLE_UB_BANK_OPT) && (QLI_ENABLE_UB_BANK_OPT == 1)
-    static_assert(std::is_same_v<QK_T, float> && std::is_same_v<SCORE_T, uint16_t>);
-    auto qkBase = resMm1UB_[pingpong * s2BaseSize_ / 2];
-    auto qkVLstride = constInfo_.s2BaseSize  / 2 * constInfo_.mBaseSize; // S2_BASE_SIZE / 2 * M_BASE_SIZE
-    vector1::BatchMulWeightAndReduceSum(outBase, (uint32_t)s2BaseSize_,
-                                        qkBase, qkVLstride, (uint32_t)(gSize_ * s2BaseSize_), 
-                                        weightBase, (uint32_t)gSize_,
+    static_assert(std::is_same_v<SCORE_T, uint16_t>);
+    auto qkBase = resMm1UB_[pingpong * (UB_BANK_STRIDE / sizeof(QK_T))];
+    auto qkVLstride = (UB_BANK_DEPTH_STRIDE / sizeof(QK_T)) / 2 * constInfo_.mBaseSize;
+    vector1::BatchMulWeightAndReduceSum(outBase, UB_BANK_DEPTH_STRIDE / sizeof(QK_T),
+                                        qkBase, qkVLstride, (uint32_t)(gSize_ * UB_BANK_DEPTH_STRIDE / sizeof(QK_T)), 
+                                        weightBase, UB_BANK_DEPTH_STRIDE / sizeof(float),
                                         kScaleBase, (uint32_t)0,
-                                        qScaleBase, (uint32_t)gSize_,
+                                        qScaleBase, UB_BANK_DEPTH_STRIDE / sizeof(float),
                                         gSize_, curAivS1ProcNum);
-#else
-    auto qkBase = resMm1UB_[pingpong * CeilDiv(constInfo_.mBaseSize, 2) * s2BaseSize_];
-    for (int64_t s1IdxTmp = 0; s1IdxTmp < curAivS1ProcNum; s1IdxTmp++) {
-        vector1::MulWeightAndReduceSum(outBase[s1IdxTmp * s2BaseSize_], 
-                                       qkBase[s1IdxTmp * gSize_ * s2BaseSize_], 
-                                       weightBase[s1IdxTmp * gSize_], 
-                                       kScaleBase,
-                                       qScaleBase[s1IdxTmp * gSize_],
-                                       gSize_);
-    }
-#endif
-    SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + (info.loop % 2));
-    SetFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + (info.loop % 2));
-    WaitFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + (info.loop % 2));
+    SetFlag<HardEvent::V_MTE2>(VEC1_V_MTE2_EVENT + pingpong);
+    SetFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + pingpong);
+    WaitFlag<HardEvent::V_MTE3>(VEC1_V_MTE3_EVENT + pingpong);
     //outUB_ --->  scoreGm
     int64_t vec1OutGmOffset = blockId_ % 2 == 0 ? curS2Idx : 
                             s1BaseSizePerAIV * QLICommon::Align((uint64_t)constInfo_.kSeqSize, (uint64_t)s2BaseSize_) + curS2Idx;
     DataCopyExtParams copyOutParams;
     copyOutParams.blockCount = curAivS1ProcNum;
     copyOutParams.blockLen = s2BaseSize_ * sizeof(SCORE_T);
-    copyOutParams.srcStride = 0;
+    copyOutParams.srcStride = (UB_BANK_DEPTH_STRIDE - UB_BANK_DEPTH) / 32;
     copyOutParams.dstStride = (QLICommon::Align((uint64_t)constInfo_.kSeqSize, (uint64_t)s2BaseSize_) - s2BaseSize_) * sizeof(SCORE_T);
-    DataCopyPad(scoreGm[vec1OutGmOffset], vec1OutUB_[(info.loop % 2) * CeilDiv(s1BaseSize_, 2) * s2BaseSize_], copyOutParams);
-    SetFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + (info.loop % 2));
-    CrossCoreSetFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_VC_EVENT + info.loop % 2);   //V核处理完，通知C核可以把mm1Res搬运到UB
+    DataCopyPad(scoreGm[vec1OutGmOffset], outBase, copyOutParams);
+    SetFlag<HardEvent::MTE3_V>(VEC1_MTE3_V_EVENT + pingpong);
+    CrossCoreSetFlag<QLICommon::ConstInfo::QLI_SYNC_MODE4, PIPE_V>(QLICommon::ConstInfo::CROSS_VC_EVENT + pingpong);   //V核处理完，通知C核可以把mm1Res搬运到UB
 }
 
 template <typename QLIT>
