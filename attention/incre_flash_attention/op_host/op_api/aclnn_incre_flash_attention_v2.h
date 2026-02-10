@@ -12,6 +12,8 @@
 #define ACLNN_INCRE_FLASH_ATTENTION_V2_H_
 
 #include "aclnn/aclnn_base.h"
+#include <tiling/platform/platform_ascendc.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
