@@ -751,7 +751,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     auto zeroExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(ConstChosen::ATTR_ZERO_EXPERT_NUM_INDEX));
     auto copyExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(ConstChosen::ATTR_COPY_EXPERT_NUM_INDEX));
     auto constExpertNumPtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(ConstChosen::ATTR_CONST_EXPERT_NUM_INDEX));
-    if(std::is_same_v<ConstChosen, TilingExtendConst>) {
+    if constexpr (std::is_same_v<ConstChosen, TilingExtendConst>) {
         auto hcclBufferSizePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(ConstChosen::ATTR_HCCL_BUFF_SIZE));
         auto hcclTopoTypePtr = attrs->GetAttrPointer<int64_t>(static_cast<int>(ConstChosen::ATTR_HCCL_TOPO_TYPE));
         OP_TILING_CHECK(hcclBufferSizePtr == nullptr, OP_LOGE(nodeName, "hcclBufferSizePtr is null."),
