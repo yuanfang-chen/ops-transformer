@@ -179,3 +179,7 @@
 |    废弃接口   |   说明     |
 | --------------- | ----------------------- |
 |[aclnnGroupedMatMulAllReduce](../../mc2/grouped_mat_mul_all_reduce/docs/aclnnGroupedMatMulAllReduce.md)|此接口后续版本会废弃，请勿使用该接口。|
+|[aclnnGroupedMatmul](../../gmm/grouped_matmul/docs/aclnnGroupedMatmul.md)|此接口后续版本会废弃，请使用最新接口[aclnnGroupedMatmulV5](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV5.md)。 |
+|[aclnnGroupedMatmulV2](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV2.md)|此接口后续版本会废弃，请使用最新接口[aclnnGroupedMatmulV5](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV5.md)。 |
+|[aclnnGroupedMatmulV3](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV3.md)|此接口后续版本会废弃，请使用最新接口[aclnnGroupedMatmulV5](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV5.md)。 |
+|[aclnnGroupedMatmulV4](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV4.md)|此接口后续版本会废弃，请使用最新接口[aclnnGroupedMatmulV5](../../gmm/grouped_matmul/docs/aclnnGroupedMatmulV5.md)。 |
