@@ -25,7 +25,7 @@ using namespace regbaseutil;
 using namespace AscendC;
 using namespace AscendC::Impl::Detail;
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
     __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t * actualSeqKvlenAddr)
 {
@@ -34,7 +34,7 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     int32_t actualSeqMin = 1;
     int32_t actualSeqKVMin = 1;
     int32_t sIdx = runParam.boIdx;
-    if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+    if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
         // actual seq length first
         actualS1Size = (actualSeqQlenAddr == nullptr) ? (cuSeqlensQAddr[sIdx + 1] - cuSeqlensQAddr[sIdx]) :
             actualSeqQlenAddr[sIdx];
@@ -46,9 +46,9 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     if (constInfo.isActualLenDimsKVNull) {
         actualS2Size = constInfo.s2Size;
     } else {
-        if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+        if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
             actualS2Size = actualSeqKvlenAddr[sIdx];
-            if ((sIdx > 0) && (!isPa)) {
+            if ((sIdx > 0) && (!QSFAT::pageAttention)) {
                 actualS2Size -= actualSeqKvlenAddr[sIdx - 1];
             }
         } else {
@@ -68,14 +68,14 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     runParam.preTokensPerBatch = Min(runParam.preTokensPerBatch, runParam.actualS1Size);
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void ComputeParamBatch(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
     __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
 {
-    GetSingleCoreParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, cuSeqlensQAddr, actualSeqQlenAddr, actualSeqKvlenAddr);
+    GetSingleCoreParam<QSFAT>(runParam, constInfo, cuSeqlensQAddr, actualSeqQlenAddr, actualSeqKvlenAddr);
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo_arch35 &constInfo, bool lastBN,
     int64_t nextGs1Idx, int64_t gS1StartIdx)
 {
@@ -90,7 +90,7 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo_
 
     int32_t gs1LoopEndIdx = 0;
     // 【YXC TODO】
-    if constexpr (TEMPLATE_MODE == SASTemplateMode::SCFA_TEMPLATE_MODE) { 
+    if constexpr (1) { // tmplatemode先写死
         gs1LoopEndIdx = runParam.actualS1Size; // 对于SCFA, 不切G轴, 每次拷贝一行的topk，只算一行的qs
     } else { // SWA/CFA
         // 不需要取topk, 每次计算gSize行, 循环qs次
@@ -104,7 +104,7 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr& runParam, const ConstInfo_
     }
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
     uint32_t sOuterLoopIdx)
 {
@@ -141,20 +141,20 @@ __aicore__ inline void ComputeSouterParam(RunParamStr& runParam, const ConstInfo
     runParam.cubeSOuterOffset = cubeSOuterOffset;
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
     int32_t sIdx, __gm__ int32_t *cuSeqlensQAddr)
 {
     if ASCEND_IS_AIV {
         int64_t seqOffset = 0;
-        if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+        if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
             seqOffset = cuSeqlensQAddr[sIdx];
         } else {
             seqOffset = sIdx * constInfo.s1Size;
         }
 
         int64_t attentionOutSeqOffset = seqOffset * constInfo.n2GDv;
-        if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND || LAYOUT_T == QSFA_LAYOUT::TND) {
+        if constexpr (QSFAT::layout == QSFA_LAYOUT::BSND || QSFAT::layout == QSFA_LAYOUT::TND) {
             runParam.attentionOutOffset = attentionOutSeqOffset +
                 runParam.sOuterOffset * constInfo.n2GDv + runParam.n2oIdx * constInfo.gDv +
                 runParam.goIdx * constInfo.dSizeV;
@@ -165,7 +165,7 @@ __aicore__ inline void LoopSOuterOffsetInit(RunParamStr& runParam, const ConstIn
     }
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline bool ComputeParamS1(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
     uint32_t sOuterLoopIdx, __gm__ int32_t *cuSeqlensQAddr)
 {
@@ -175,16 +175,16 @@ __aicore__ inline bool ComputeParamS1(RunParamStr& runParam, const ConstInfo_arc
         }
     }
 
-    ComputeSouterParam<TEMPLATE_INTF_ARGS>(runParam, constInfo, sOuterLoopIdx);
+    ComputeSouterParam<QSFAT>(runParam, constInfo, sOuterLoopIdx);
 
-    LoopSOuterOffsetInit<TEMPLATE_INTF_ARGS>(runParam, constInfo, runParam.boIdx, cuSeqlensQAddr);
+    LoopSOuterOffsetInit<QSFAT>(runParam, constInfo, runParam.boIdx, cuSeqlensQAddr);
     return false;
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline bool ComputeLastBN(RunParamStr& runParam, __gm__ int32_t *cuSeqlensQAddr) 
 {
-    if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
+    if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
         // TND格式下 相邻Batch中当actualSeqQlen相等时则返回true
         if (runParam.boIdx > 0 && cuSeqlensQAddr[runParam.boIdx + 1] - cuSeqlensQAddr[runParam.boIdx] == 0) {
             return true;
@@ -193,7 +193,7 @@ __aicore__ inline bool ComputeLastBN(RunParamStr& runParam, __gm__ int32_t *cuSe
     return false;
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline int64_t ClipSInnerTokenCube(int64_t sInnerToken, int64_t minValue, int64_t maxValue)
 {
     sInnerToken = sInnerToken > minValue ? sInnerToken : minValue;
@@ -201,7 +201,7 @@ __aicore__ inline int64_t ClipSInnerTokenCube(int64_t sInnerToken, int64_t minVa
     return sInnerToken;
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo_arch35 &constInfo)
 {
     if (runParam.actualS2Size == 0) {
@@ -212,27 +212,27 @@ __aicore__ inline bool ComputeS2LoopInfo(RunParamStr& runParam, const ConstInfo_
     }
     uint32_t s2BaseSize = constInfo.s2BaseSize;
 
-    runParam.s2LineStartIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
+    runParam.s2LineStartIdx = ClipSInnerTokenCube<QSFAT>(runParam.cubeSOuterOffset - runParam.preTokensPerBatch,
         0, runParam.actualS2Size);
-    runParam.s2LineEndIdx = ClipSInnerTokenCube<TEMPLATE_INTF_ARGS>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
+    runParam.s2LineEndIdx = ClipSInnerTokenCube<QSFAT>(runParam.cubeSOuterOffset + runParam.nextTokensPerBatch +
         runParam.s1RealSize, 0, runParam.actualS2Size);
     runParam.oriKvLoopEndIdx = (runParam.s2LineEndIdx - runParam.s2LineStartIdx + s2BaseSize - 1) / s2BaseSize;
     // 【YXC TODO】
-    if constexpr (TEMPLATE_MODE == SASTemplateMode::SWA_TEMPLATE_MODE) {
-        runParam.cmpKvLoopEndIdx = 0;
-        runParam.s2CmpLineEndIdx = 0;
-    } else if constexpr (TEMPLATE_MODE == SASTemplateMode::CFA_TEMPLATE_MODE) {
-        runParam.s2CmpLineEndIdx = runParam.s2LineEndIdx / constInfo.cmpRatio;
-        runParam.cmpKvLoopEndIdx = (runParam.s2CmpLineEndIdx + s2BaseSize - 1) / s2BaseSize;
-    } else { // SCFA_TEMPLATE_MODE
+    // if constexpr (TEMPLATE_MODE == SASTemplateMode::SWA_TEMPLATE_MODE) { // tmplatemode先写死
+    //     runParam.cmpKvLoopEndIdx = 0;
+    //     runParam.s2CmpLineEndIdx = 0;
+    // } else if constexpr (TEMPLATE_MODE == SASTemplateMode::CFA_TEMPLATE_MODE) {
+    //     runParam.s2CmpLineEndIdx = runParam.s2LineEndIdx / constInfo.cmpRatio;
+    //     runParam.cmpKvLoopEndIdx = (runParam.s2CmpLineEndIdx + s2BaseSize - 1) / s2BaseSize;
+    // } else { // SCFA_TEMPLATE_MODE
         runParam.s2CmpLineEndIdx = Min(runParam.s2LineEndIdx / constInfo.cmpRatio, constInfo.sparseBlockCount); // 当前LI输出的block size只可能是1
         runParam.cmpKvLoopEndIdx = (runParam.s2CmpLineEndIdx + s2BaseSize - 1) / s2BaseSize;
-    }
+    // }
     runParam.s2LoopEndIdx = runParam.oriKvLoopEndIdx + runParam.cmpKvLoopEndIdx;
     return false;
 }
 
-TEMPLATE_INTF
+template <typename QSFAT>
 __aicore__ inline void InitTaskParamByRun(const RunParamStr& runParam, RunInfo_arch35 &runInfo)
 {
     runInfo.boIdx = runParam.boIdx;
