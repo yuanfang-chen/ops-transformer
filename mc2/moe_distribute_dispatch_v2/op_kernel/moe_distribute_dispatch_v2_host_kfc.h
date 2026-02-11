@@ -1414,8 +1414,8 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     uint32_t count = 0;
     while (true) {
         count++;
-        LOG_INFO("")
-        LogInfo(__LINE__, "[BATCHWRITE][WaitToken][true] index:", index);
+        
+        // LogInfo(__LINE__, "[BATCHWRITE][WaitToken][true] index:", index);
         if (count == 1000) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitToken] error count.");
             break;
@@ -1425,7 +1425,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             index = (index + 1) % tokenCnt; // 轮询查询每个有效的index
             continue;
         }
-
+        LOG_INFO("index", index);
         //LogInfo(__LINE__, "[BATCHWRITE][WaitToken] process:", index);
         uint32_t arriveCount = 0;
         CheckDataArriveWithFlag(index + startTokenIdx, serverId_, arriveCount);
