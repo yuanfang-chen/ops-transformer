@@ -1543,7 +1543,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </thead>
         <tbody>
             <tr>
-                <td rowspan="9">输入INT8，输出为INT8/FP8的场景</td>
+                <td rowspan="10">输入INT8，输出为INT8/FP8的场景</td>
                 <td>query</td>
                 <td>类型为INT8</td>
             </tr>
@@ -1580,7 +1580,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>类型为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)。</td>
             </tr>
             <tr>
-                <td rowspan="9">输入INT8，输出为FLOAT16的场景</td>
+                <td>inputLayout</td>
+                <td>仅支持BSH、BNSD、BSND、BNSD_BSND。</td>
+            </tr>
+            <tr>
+                <td rowspan="10">输入INT8，输出为FLOAT16的场景</td>
                 <td>query</td>
                 <td>类型为INT8。</td>
             </tr>
@@ -1614,6 +1618,10 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <tr>
                 <td>attentionOut</td>
                 <td>类型为FLOAT16。</td>
+            </tr>
+            <tr>
+                <td>inputLayout</td>
+                <td>仅支持BSH、BNSD、BSND、BNSD_BSND。</td>
             </tr>
             <tr>
                 <td rowspan="9">输入FLOAT16或BFLOAT16，输出为INT8/FP8的场景</td>
@@ -2008,7 +2016,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                     <ul>
                         <li>数据类型支持FLOAT8_E4M3FN、HIFLOAT8</li>
                         <li>D轴支持1-128</li>
-                        <li>不支持TND格式输入</li>
                     </ul>
                 </td>
             </tr>
@@ -2017,7 +2024,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>
                     <ul>
                         <li>数据类型固定为FLOAT32</li>
-                        <li>shape为(B, K_N, ceil(K_S,256),1)</li>
+                        <li>当inputLayout为NTD_TND时，shape为(K_N, floor(K_T,256)+B, ceil(D,256))，其他场景shape为(B, K_N, ceil(K_S,256),1)</li>
                     </ul>
                 </td>
             </tr>
@@ -2026,7 +2033,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>
                     <ul>
                         <li>数据类型固定为FLOAT32</li>
-                        <li>shape为(B, Q_N, ceil(Q_S,128),1)</li>
+                        <li>当inputLayout为NTD_TND时，shape为(Q_N, floor(Q_T,128)+B, ceil(D,256))，其他场景shape为(B, Q_N, ceil(K_S,128),1)</li>
                     </ul>
                 </td>
             </tr>
@@ -2040,6 +2047,12 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>queryQuantMode、keyAntiquantMode和valueAntiquantMode</td>
                 <td>
                     仅支持7
+                </td>
+            </tr>
+            <tr>
+                <td>inputLayout</td>
+                <td>
+                    支持BNSD、BSH、BSND、BNSD_BSND、NTD_TND
                 </td>
             </tr>
             <tr>
