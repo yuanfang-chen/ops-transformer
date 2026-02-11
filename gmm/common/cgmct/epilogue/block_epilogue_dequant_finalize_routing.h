@@ -316,8 +316,8 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::RegTensor<DataTypeX2Scale> scaleReg;
                 AscendC::MicroAPI::RegTensor<BiasDtype> biasReg;
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
-                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg,
-                    castBiasReg, castBiasOneReg, ;
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, addBiasOutReg,
+                    castBiasReg, castBiasOneReg;
                 AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<DataTypeIn>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
