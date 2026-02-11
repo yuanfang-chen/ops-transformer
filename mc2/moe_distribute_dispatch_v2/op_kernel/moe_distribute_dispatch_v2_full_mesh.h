@@ -84,7 +84,6 @@ private:
     __aicore__ inline void InitElasticInfo();
     __aicore__ inline void SetDataStatus();
     __aicore__ inline void SetTilingData(const MoeDistributeDispatchV2TilingData *tilingData);
-    __aicore__ inline void MaxSizeCal();
     __aicore__ inline void CalValidBSCnt(LocalTensor<bool> maskStrideTensor);
     __aicore__ inline void CalValidExpIdx(LocalTensor<bool> maskInputTensor);
     __aicore__ inline void GenerateGatherMaskTensor(uint32_t maskCnt);
@@ -326,6 +325,11 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
                     tilingData->moeDistributeDispatchV2Info.scalesTypeSize;
     scalesCount_ = tilingData->moeDistributeDispatchV2Info.scalesCount;
     axisMaxBS_ = globalBS_ / epWorldSizeOriginal_;
+    aivUsedCumSum_ = tilingData->moeDistributeDispatchV2Info.aivUsedCumSum;
+    aivUsedAllToAll_ = tilingData->moeDistributeDispatchV2Info.aivUsedAllToAll;
+    sharedUsedAivNum_ = tilingData->moeDistributeDispatchV2Info.sharedUsedAivNum;
+    moeUsedAivNum_ = tilingData->moeDistributeDispatchV2Info.moeUsedAivNum;
+    maxSize_ = tilingData->moeDistributeDispatchV2Info.maxSize;
 }
 
 template <TemplateMC2TypeFullmeshClass>
@@ -356,17 +360,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     rscvStatusNum_ = isShareExpertRankFlag_ ? epWorldSize_ : (epWorldSize_ * moeExpertNumPerRank_);
     totalExpertNum_ = sharedExpertRankNum_ + moeExpertNum_;
     statusCntAlign_ = Ceil(totalExpertNum_, 8) * 8;   // 8 = UB_ALIGN / sizeof(int32_t)
-    aivUsedCumSum_ = totalExpertNum_ / 32; // 单核处理32个专家cnt发送
-    aivUsedCumSum_ = (aivUsedCumSum_ == 0) ? 1 : aivUsedCumSum_;
-    aivUsedCumSum_ = (aivUsedCumSum_ >= (aivNum_ / 2)) ? (aivNum_ / 2) : aivUsedCumSum_;
-    aivUsedAllToAll_ = aivNum_ - aivUsedCumSum_;
-    if (sharedExpertRankNum_ != 0U) {
-        sharedUsedAivNum_ = (aivUsedAllToAll_ * sharedExpertNum_) / (axisK_ + sharedExpertNum_);
-        if (sharedUsedAivNum_ == 0) {
-            sharedUsedAivNum_ = 1;
-        }
-    }
-    moeUsedAivNum_ = aivUsedAllToAll_ - sharedUsedAivNum_; 
 }
 
 template <TemplateMC2TypeFullmeshClass>
@@ -380,18 +373,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     uint64_t hSizeAlignCombine = Ceil(axisH_ * sizeof(XType), WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN;
     winDataSizeOffset_ = dataState_ * (totalWinSize_ / BUFFER_NUM)
                          + axisMaxBS_ * (axisK_ + sharedExpertNum_) * hSizeAlignCombine;
-}
-
-template <TemplateMC2TypeFullmeshClass>
-__aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFunc>::MaxSizeCal()
-{
-    uint32_t hFp32Size = Ceil(axisH_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
-    uint32_t bsKAlign256 = Ceil(expertIdsCnt_ * sizeof(half), SIZE_ALIGN_256) * SIZE_ALIGN_256;
-    expertIdsSize_ = Ceil(expertIdsCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
-    uint32_t xActivateMaskSize = axisBS_ * (Ceil(axisK_ * sizeof(bool), UB_ALIGN) * UB_ALIGN) * sizeof(half);
-    maxSize_ = hFp32Size > expertIdsSize_ ? hFp32Size : expertIdsSize_;
-    maxSize_ = maxSize_ > xActivateMaskSize ? maxSize_ : xActivateMaskSize;
-    maxSize_ = maxSize_ > bsKAlign256 ? maxSize_ : bsKAlign256;
 }
 
 template <TemplateMC2TypeFullmeshClass>
@@ -432,7 +413,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     hCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(XType)), 0U, 0U, 0U};
     dataStateParams_ = {1U, sizeof(uint32_t), 0U, 0U};
     expandXCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(ExpandXOutType)), 0U, 0U, 0U};
-    MaxSizeCal();
+    expertIdsSize_ = Ceil(expertIdsCnt_ * sizeof(int32_t), UB_ALIGN) * UB_ALIGN;
 }
 
 template <TemplateMC2TypeFullmeshClass>
