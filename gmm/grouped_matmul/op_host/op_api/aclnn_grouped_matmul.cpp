@@ -1967,14 +1967,21 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
          (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(params.xDtype, weightDtype)))) {
         (*params.weight)[0]->SetStorageShape(nZShape);
     }
+    SetTransposedScaleTensorListContiguous(params, executorPtr);
+  }
+}
+
+static void SetTransposedScaleTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr)
+{
     if (params.scaleOptional != nullptr) {
-      std::vector<aclTensor *> scaleTensorList;
-      if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
-        gmm::CreateContiguousTensorListForMXTypeMScale(params.scaleOptional, scaleTensorList, executorPtr);
-        params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
-      } else if (isPerTileQuantMode) {
-        gmm::CreateContiguousTensorList(params.scaleOptional, scaleTensorList, executorPtr);
-        params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());}
+        std::vector<aclTensor *> scaleTensorList;
+        if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
+            gmm::CreateContiguousTensorListForMXTypeMScale(params.scaleOptional, scaleTensorList, executorPtr);
+            params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
+        } else if (isPerTileQuantMode) {
+            gmm::CreateContiguousTensorList(params.scaleOptional, scaleTensorList, executorPtr);
+            params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
+        }
     }
     // 伪量化场景antiquantscale为3维时，需要手动转置为正确shape
     if (((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
@@ -1989,8 +1996,8 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
         }
         params.antiquantScaleOptional = executorPtr->AllocTensorList(antiSTensorList.data(), antiSTensorList.size());
     }
-  }
 }
+
 
 static aclnnStatus ParamsDataContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr) {
   CHECK_COND(DataContiguous(params.x, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
