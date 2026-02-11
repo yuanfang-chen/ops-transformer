@@ -86,12 +86,12 @@ ge::graphStatus AlltoAllvGmmQuantTiling::DoOpTiling()
     if (CheckCommonShapeAttrsInfo() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
+    auto platformInfo = context_->GetPlatformInfo();
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     context_->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivCoreNum_, aicCoreNum_, aivCoreNum_));
     context_->SetTilingKey(GetTilingKey());
     OP_TILING_CHECK(SetHcclTiling() != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "set hccl tiling failed!"),
         return ge::GRAPH_FAILED);
-    auto platformInfo = context_->GetPlatformInfo();
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     OP_LOGD(context_->GetNodeName(), "end DoOpTiling.");
     return ge::GRAPH_SUCCESS;
 }

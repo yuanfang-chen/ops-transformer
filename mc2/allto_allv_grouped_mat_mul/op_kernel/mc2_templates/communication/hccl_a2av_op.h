@@ -68,11 +68,10 @@ public:
                 alltoAllvRecvCnt[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
             }
         }
-
-        if (commBeforeComputeFlag) {
-            LaunchCommBeforeCompute(startExpertIdx, expertNum, sendCnt, recvCnt);
+        if constexpr (commBeforeComputeFlag) {
+            LaunchCommBeforeCompute(startExpertIdx, expertNum);
         } else {
-            LaunchCommAfterCompute(startExpertIdx, expertNum, sendCnt, recvCnt);
+            LaunchCommAfterCompute(startExpertIdx, expertNum);
         }
     }
 
@@ -113,9 +112,10 @@ public:
     }
 
 private:
-
-    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum, const auto* sendCnt, const auto* recvCnt)
+    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum)
     {
+        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
+        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
         alltoAllvSendOffset[0] = 0UL;
         for (uint32_t j = 0U; j < startExpertIdx; j++) {
             alltoAllvSendOffset[0] += static_cast<uint64_t>(sendCnt[j]) * H1_;
@@ -136,14 +136,15 @@ private:
                 alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
             }
         }
-        
         alltoAllvHandleId_[startExpertIdx] =
         hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
             (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
-    __aicore__ inline void LaunchCommAfterCompute(uint32_t startExpertIdx, uint32_t expertNum, const auto* sendCnt, const auto* recvCnt)
+    __aicore__ inline void LaunchCommAfterCompute(uint32_t startExpertIdx, uint32_t expertNum)
     {
+        const auto *sendCnt = &taskTilingInfo_->sendCnt[0];
+        const auto *recvCnt = &taskTilingInfo_->recvCnt[0];
         uint64_t expertOffset = 0UL;
         for (uint64_t i = 0UL; i < startExpertIdx; i++) {
             for (uint64_t j = 0UL; j < rankDim_; j++) {
@@ -167,7 +168,6 @@ private:
                 alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[(i - 1) * e_ + j]) * N1_;
             }
         }
-        
         alltoAllvHandleId_[startExpertIdx] =
         hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
             (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
