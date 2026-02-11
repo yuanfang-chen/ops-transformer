@@ -77,7 +77,7 @@ using namespace MoeDispatchLog_NEW;
 #define LOG_INFO(...) this->logger.LogInfo(__LINE__,__VA_ARGS__)
 #define LOG_INIT(...) this->logger.Init(__VA_ARGS__)
 
-template <TemplateMC2TypeClass>
+template <TemplateDispatchKFCTypeClass>
 class MoeDistributeDispatchV2HostKfc {
 public:
     __aicore__ inline MoeDistributeDispatchV2HostKfc(){};
@@ -414,14 +414,14 @@ private:
     DataCopyExtParams hCommuCopyOutParams_;
     DataCopyParams doWindowCopyOutParams_;
 
-    MoeDistributeDispatchV2Quant<TemplateMC2TypeFunc> quantInst_;
+    MoeDistributeDispatchV2Quant<TemplateDispatchKFCTypeFunc> quantInst_;
 
     MoeDispatchLog_NEW::Log logger;
 };
 
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitRecieveTilingContext(
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitRecieveTilingContext(
     GM_ADDR expandXOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
     gmTemp = workspaceGM + 1UL * 1024 * 1024 * 1024;
@@ -477,7 +477,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     //LogInfo(__LINE__, "aivNum_: ",aivNum_);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitComputeInfo()
 {
     axisMaxBS_ = globalBS_ / epWorldSizeOriginal_;
@@ -534,8 +534,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 }
 
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitCommBetweenServerInfo()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitCommBetweenServerInfo()
 {
     //LogInfo(__LINE__, "start InitCommBetweenServerInfo");
     recStatusNumPerCore_ = rscvStatusNum_ / aivNum_; // 每个aiv需要处理的专家数
@@ -571,9 +571,9 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
 
 }
 
-template <TemplateMC2TypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
-MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitSetWindows(const MoeDistributeDispatchV2TilingData *tilingData)
+MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitSetWindows(const MoeDistributeDispatchV2TilingData *tilingData)
 {
     //LogInfo(__LINE__, "start InitSetWindows");
     PipeBarrier<PIPE_V>();
@@ -610,8 +610,8 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitSetWindows(const MoeDis
     //LogInfo(__LINE__, "end InitSetWindows");
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitExtraInfo()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitExtraInfo()
 { 
     //LogInfo(__LINE__, "start InitExtraInfo: ");
 
@@ -654,7 +654,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     LOG_INFO("hOutAlignUbSize_",hOutAlignUbSize_);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitMaskInfo()
 {
     //LogInfo(__LINE__, "start InitMaskInfo: ");
@@ -689,8 +689,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     //LogInfo(__LINE__, "end InitMaskInfo: ");
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitTemp()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitTemp()
 {
     if constexpr (QuantMode > UNQUANT) {
         LOG_INFO("[InitTemp]start init");
@@ -712,8 +712,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     LOG_INFO("[InitTemp] END int Temp");
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitDispatchBetweenServerInfo()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitDispatchBetweenServerInfo()
 {
     //LogInfo(__LINE__, "InitDispatchBetweenServerInfo start");
     tpipe_->InitBuffer(expertMaskInputBuf_, expertIdsCnt_ * sizeof(bool));
@@ -790,8 +790,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     //LogInfo(__LINE__, "InitDispatchBetweenServerInfo end");
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init(
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::Init(
     GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, GM_ADDR elasticInfo,
     GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut,
     GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandScalesOut, GM_ADDR workspaceGM, TPipe *pipe,
@@ -850,7 +850,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     //LogInfo(__LINE__, "Init end: ");
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum,
                                                                  uint32_t &startTokenId, uint32_t &endTokenId,
@@ -874,7 +874,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SplitToCore(uint32_
     endTokenId = startTokenId + sendTokenNum;
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::TokenActiveMaskCal()
 {
     // 搬运x_active_mask, 当前仅用于计算有效token总数
@@ -900,7 +900,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 }
 
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CalValidExpIdx()
 {
     uint32_t mask = expertIdsCnt_;
@@ -926,7 +926,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
                sendToMoeExpTokenCnt_); // 有效的专家的索引以及需要发送的有效专家总数
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CalValidBSCnt(LocalTensor<bool> maskStrideTensor)
 {
@@ -962,7 +962,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CalValidBSCnt(Local
     GatherMask(validBsIndexTensor_, bsIndexTensor, maskTensorInt32, true, mask, {1, 1, 0, 0}, activeMaskBsCnt_);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ExpertActiveMaskCal()
 {
     // 计算当前有效bs数量, stride搬入xActiveMask进行sum计算, 用于moe专家发送
@@ -981,9 +981,9 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncFunc<AscendC::HardEvent::V_S>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
-MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::FillQuadruple(LocalTensor<XType> &xOutTensor, uint32_t tokenIndex)
+MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillQuadruple(LocalTensor<XType> &xOutTensor, uint32_t tokenIndex)
 {
     SyncFunc<AscendC::HardEvent::MTE3_S>();
     LocalTensor<int32_t> xOutTint32 = xOutTensor.template ReinterpretCast<int32_t>();
@@ -1009,9 +1009,9 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::FillQuadruple(LocalTensor<X
     PipeBarrier<PIPE_ALL>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
-MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::CopyTokenToWinOut(LocalTensor<XType> &xOutTensor,
+MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(LocalTensor<XType> &xOutTensor,
                                                                        uint32_t dstServerId, uint32_t cnt)
 {
     GlobalTensor<XType> dataDstWinGMTensor;
@@ -1047,7 +1047,7 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::CopyTokenToWinOut(LocalTens
     // //LogInfo(__LINE__,tempTensor ,tpipe_,128);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SingleTokenProcess(uint32_t tokenIndex,
                                                                                                uint32_t dstServerId,
                                                                                                uint32_t cnt)
@@ -1063,7 +1063,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DispatchAndCountTokens(uint32_t startIndex,
                                                                                                    uint32_t endIndex,
                                                                                                    bool process)
@@ -1104,7 +1104,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
    ////LogInfo(__LINE__,serverCountTensor_ ,tpipe_,2);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SendToServer()
 {
     LOG_INFO("start SendToServer");
@@ -1145,7 +1145,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ExpertOffsetCal()
 {
     //LogInfo(__LINE__,"ExpertOffsetCal start");
@@ -1174,8 +1174,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     //LogInfo(__LINE__,"ExpertOffsetCal end");
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SetServerFlag()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SetServerFlag()
 {
     uint32_t totalSeverCnt = serverNum_;
     uint32_t startServerNum, endServerNum, sendServerNum;
@@ -1201,8 +1201,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SetS
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::DispatchBetweenServer()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DispatchBetweenServer()
 {
     activeMaskBsCnt_ = axisBS_;
     sendToMoeExpTokenCnt_ = axisBS_ * axisK_;
@@ -1230,7 +1230,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Disp
 }
 
 // 构建发往其他server的所有data报文
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ConstructDataAndFlagBatchWriteInfo(
     uint32_t beginServerId, uint32_t serverNum, uint32_t aivNum)
 {
@@ -1277,7 +1277,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitWindow(uint32_t aivNum)
 {
     //reset
@@ -1355,7 +1355,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitStatusFlag(uint32_t serverIdx,
                                                                                            uint32_t &tokenCnt)
 {
@@ -1402,7 +1402,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tokenCnt = cntUint32.GetValue(0);
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t tokenCnt, uint32_t serverIdx,
                                                                uint32_t startTokenIdx, TBuf<> &tBuf)
@@ -1471,7 +1471,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     }
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CheckDataArriveWithFlag(uint32_t beginIdx, uint32_t serverIdx,
                                                                              uint32_t &arriveCount)
@@ -1543,7 +1543,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CheckDataArriveWith
     ////LogInfo(__LINE__,"[BATCHWRITE][CheckDataArriveWithFlag] end");
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyInAndOut(
     LocalTensor<float> xOutFp32Tensor, LocalTensor<int32_t> xOutInt32Tensor, GM_ADDR wAddr, uint32_t index,
     uint32_t dstPosition, uint32_t arriveCount)
@@ -1576,7 +1576,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 
 // 0-31 server  32-63 recieve
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CommunicateBetweenServer(uint32_t beginServerId,
                                                                               uint32_t serverNum, uint32_t aivNum)
@@ -1602,7 +1602,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CommunicateBetweenS
     //LogInfo(__LINE__, "[BATCHWRITE][CommunicateBetweenServer] end");
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::resetMaxCnt(int32_t cntPosIndex,
                                                                                         int32_t curExpertCnt)
 {
@@ -1618,9 +1618,9 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     AscendC::SetAtomicNone();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
-MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::FillTriple(LocalTensor<ExpandXOutType> &xOutTensor,
+MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillTriple(LocalTensor<ExpandXOutType> &xOutTensor,
                                                                 uint32_t srcRankIndex, uint32_t tokenIndex,
                                                                 uint32_t k, float expertScale)
 {
@@ -1639,14 +1639,14 @@ MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::FillTriple(LocalTensor<Expa
     ////LogInfo(__LINE__, "[FillTriple] end");
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline bool MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::IsInSameServer(uint32_t targetRankId)
 {
     return targetRankId / serverRankSize_ == serverId_;
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::ProcessToken(
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::ProcessToken(
             GlobalTensor<ExpandXOutType>& outTokenGT, uint32_t tokenIndex, uint32_t topKIndex,
             DataCopyPadParams& padParams, DataCopyParams& scaleInParams, uint32_t expertIndex,
             LocalTensor<XType>& tokenData, uint32_t srcRankIndex, float expertScale)
@@ -1679,8 +1679,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Proc
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SendToExpert(uint32_t rcvCnt)
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SendToExpert(uint32_t rcvCnt)
 {
     //LogInfo(__LINE__, "[SendToExpert] start");
     // //LogInfo(__LINE__, "[SendToExpert] index: ",index, epRankId_);
@@ -1769,8 +1769,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Send
     PipeBarrier<PIPE_ALL>();
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::InitStatusTensor()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitStatusTensor()
 {
     tpipe_->Reset();
     tpipe_->InitBuffer(statusBuf_, statusBufCntAlign_ * UB_ALIGN);
@@ -1781,8 +1781,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Init
     Duplicate<int32_t>(statusTensor_, 0x3F800000, mask, statusBufCntAlign_ / 8, 1, 8); // 0x3F800000是float的1
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SetStatus()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SetStatus()
 {
     //LogInfo(__LINE__, "[SetStatus] start");
     InitStatusTensor();
@@ -1852,7 +1852,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::SetS
     //LogInfo(__LINE__, "[SetStatus] end");
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SyncCntOnCore(LocalTensor<float> &gatherMaskOutTensor,
                                                                    LocalTensor<uint32_t> &gatherTmpTensor,
@@ -1901,7 +1901,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::SyncCntOnCore(Local
     PipeBarrier<PIPE_ALL>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::BufferInit()
 {
     //LogInfo(__LINE__,"BufferInit start");
@@ -1921,7 +1921,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(xQueue_, BUFFER_NUM, hOutAlignUbSize_);    // 7k*2 + 32 + 12
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::TimeOutDetection()
 {
     uint32_t toRankId;
@@ -1935,7 +1935,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitDispatchClearStatus()
 {
     SyncFunc<AscendC::HardEvent::MTE3_S>();
@@ -1951,7 +1951,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitDispatch()
 {
     BufferInit();
@@ -2011,7 +2011,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     SyncAll<true>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::GetCumSum(LocalTensor<int32_t> &outLocal,
                                                                                       uint32_t totalCount)
 {
@@ -2054,7 +2054,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     outLocal.SetValue(0, recvCntSumOutTensor.ReinterpretCast<int32_t>().GetValue(0)); // 求一个累加和
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalTensor<int32_t> &outCountLocal)
 {
@@ -2118,7 +2118,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
     PipeBarrier<PIPE_MTE3>();
 }
 
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::LocalWindowCopy()
 {
     //LogInfo(__LINE__,"[LocalWindowCopy] start");
@@ -2139,7 +2139,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 }
 
 // 更新tokenNumsOut tensor
-template <TemplateDispatchKFCTypeClass>
+template <TemplateDispatchKFCTypeFunc>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::UpdateTokenNumsOut()
 {
     // 最后一个核做更新，Moe专家只有最后一个核有计算出所有 sendCountsGlobal
@@ -2189,8 +2189,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     }
 }
 
-template <TemplateMC2TypeClass>
-__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateMC2TypeFunc>::Process()
+template <TemplateDispatchKFCTypeFunc>
+__aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::Process()
 {   
     if ASCEND_IS_AIV {
         DispatchBetweenServer();
