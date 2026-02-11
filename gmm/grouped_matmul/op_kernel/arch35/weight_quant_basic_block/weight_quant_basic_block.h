@@ -16,9 +16,12 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_H
 
 #include "basic_block_config.h"
-#include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "tool.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "weight_quant_basic_block_base.h"
 #include "weight_quant_cube_compute.h"
 #include "weight_quant_vec_compute.h"
