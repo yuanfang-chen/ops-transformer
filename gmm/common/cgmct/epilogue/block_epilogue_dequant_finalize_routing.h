@@ -105,6 +105,9 @@ private:
         uint32_t curVecBaseM, uint64_t offsetM, uint64_t yOffset, LocalTensor<DataTypeOut> yLocal);
     __aicore__ inline void VFDoDequantWithX1X2Scale(
         LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, uint16_t mSize);
+    __aicore__ inline void VFDoDequantOnlyX2(
+        __ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+        uint16_t mSize, uint16_t nSize);
     __aicore__ inline void VFDoDequant(__ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut,
         __ubuf__ DataTypeX2Scale* x2Scale, __ubuf__ DataTypeX1Scale* x1Scale, uint16_t mSize, uint16_t nSize);
     __aicore__ inline void CopyX1ScaleFromGm2Ub(
@@ -193,7 +196,9 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     if ASCEND_IS_AIV {
         logitGlobal_.SetGlobalBuffer((__gm__ float *)params_->logitGmAddr + Get<LOGIT_INDEXS>(baseOffset));
         rowIndexGlobal_.SetGlobalBuffer((__gm__ int64_t *)params_->rowIndexGmAddr + Get<LOGIT_INDEXS>(baseOffset));
-        x1ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX1Scale*)params_->x1ScaleGmAddr + Get<X1SCALE_IDXS>(baseOffset));
+        if (params_->x1ScaleGmAddr != nullptr) {
+            x1ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX1Scale*)params_->x1ScaleGmAddr + Get<X1SCALE_IDXS>(baseOffset));
+        }
         x2ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX2Scale*)params_->x2ScaleGmAddr + Get<X2SCALE_IDXS>(baseOffset));
     }
 }
@@ -253,12 +258,66 @@ GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequantWithX1X2Scale(
     LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, uint16_t mSize)
 {
-    __ubuf__ DataTypeX1Scale* ptScaleUbAddr = (__ubuf__ DataTypeX1Scale*)x1ScaleUb.GetPhyAddr();
     __ubuf__ DataTypeOut* l0cOutUbAddr = (__ubuf__ DataTypeOut*)l0cOutUb_.GetPhyAddr();
-    VFDoDequant(l0cOutUbAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(), ptScaleUbAddr,
+    if (params_->x1ScaleGmAddr != nullptr) {
+        VFDoDequant(l0cOutUbAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
+            (__ubuf__ DataTypeX1Scale*)x1ScaleUb.GetPhyAddr(), mSize, singleN_);
+    } else {
+        VFDoDequantOnlyX2(l0cOutUbAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
                 mSize, singleN_);
+    }
 }
 
+GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
+__aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequantOnlyX2(
+    __ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+    uint16_t mSize, uint16_t nSize)
+{
+    uint32_t eleNumPerVf = AscendC::VECTOR_REG_WIDTH / sizeof(DataTypeIn);
+    uint32_t nSrcUbAligned = Align(nSize, static_cast<uint16_t>(UB_ALIGN_SIZE / sizeof(DataTypeIn)));
+    uint32_t nDstUbAligned = nSrcUbAligned;
+    uint16_t nLoopCnt = (nSize + eleNumPerVf - 1) / eleNumPerVf;
+    __VEC_SCOPE__
+    {
+        AscendC::MicroAPI::MaskReg maskN4B16 =
+            AscendC::MicroAPI::CreateMask<DataTypeX2Scale, AscendC::MicroAPI::MaskPattern::ALL>();
+        for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
+            uint32_t elementNum = nSize;
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
+                AscendC::MicroAPI::RegTensor<DataTypeIn> l0cOutReg;
+                AscendC::MicroAPI::RegTensor<DataTypeX2Scale> scaleReg;
+                AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg;
+                AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<float>(elementNum);
+                AscendC::MicroAPI::MaskReg maskNInt64 = AscendC::MicroAPI::UpdateMask<int64_t>(elementNum);
+                // copy input from ub to register, addr of ub should align to 32B
+                uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
+                AscendC::MicroAPI::DataCopy(l0cOutReg, l0cOut + l0cOutOffset);
+                if constexpr (IsSameType<DataTypeIn, int32_t>::value) {
+                    AscendC::MicroAPI::Cast<float, DataTypeIn, ctInt322Fp32ES>(l0cOutRegFloat, l0cOutReg, maskN);
+                } else {
+                    l0cOutRegFloat = l0cOutReg;
+                }
+                // l0c_out * x2Scale
+                AscendC::MicroAPI::DataCopy(scaleReg, x2Scale + vfBlockIdx * eleNumPerVf);
+                if constexpr (IsSameType<DataTypeX2Scale, bfloat16_t>::value) {
+                    AscendC::MicroAPI::Cast<float, DataTypeX2Scale, ctHalf2Fp32ZeroES>(castScaleReg, scaleReg, maskN);
+                    AscendC::MicroAPI::Cast<float, DataTypeX2Scale, ctHalf2Fp32OneES>(castScaleOneReg, scaleReg, maskN4B16);
+                    AscendC::MicroAPI::Interleave(castScaleReg, castScaleOneReg, castScaleReg, castScaleOneReg);
+                } else if constexpr (IsSameType<DataTypeX2Scale, float>::value) {
+                    castScaleReg = scaleReg;
+                } else if constexpr (IsSameType<DataTypeX2Scale, int64_t>::value) {
+                    AscendC::MicroAPI::Cast<float, DataTypeX2Scale, ctInt642Fp32S>(castScaleReg, scaleReg, maskNInt64);
+                }
+                AscendC::MicroAPI::Mul(mulScaleOutReg, l0cOutRegFloat, castScaleReg, maskN);
+                // copy out from register to ub
+                uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
+                AscendC::MicroAPI::DataCopy<float, AscendC::MicroAPI::StoreDist::DIST_NORM_B32>(
+                        dst + dstUbOffset, mulScaleOutReg, maskN);
+            }
+        }
+    }
+}
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequant(
@@ -282,7 +341,6 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
                 AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg;
                 AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<float>(elementNum);
-                AscendC::MicroAPI::MaskReg maskNInt64 = AscendC::MicroAPI::UpdateMask<int64_t>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
                 AscendC::MicroAPI::DataCopy(l0cOutReg, l0cOut + l0cOutOffset);
@@ -299,9 +357,6 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                     AscendC::MicroAPI::Interleave(castScaleReg, castScaleOneReg, castScaleReg, castScaleOneReg);
                 } else if constexpr (IsSameType<DataTypeX2Scale, float>::value) {
                     castScaleReg = scaleReg;
-                } else if constexpr (IsSameType<DataTypeX2Scale, int64_t>::value) {
-                    //TODO
-                    AscendC::MicroAPI::Cast<float, DataTypeX2Scale, ctInt642Fp32S>(castScaleReg, scaleReg, maskNInt64);
                 }
                 AscendC::MicroAPI::Mul(mulScaleOutReg, l0cOutRegFloat, castScaleReg, maskN);
                 // out * x1Scale
@@ -361,11 +416,13 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     auto x1ScaleUb = logitCrossPingPongID_ == 0 ? x1ScaleUbPing_ : x1ScaleUbPong_;
     CopyInLogit(singleMInVec, logitOffset, logitUb);
     CopyX2ScaleFromGm2Ub(x2ScaleUb, 0);
-    CopyX1ScaleFromGm2Ub(x1ScaleUb, singleMInVec * sizeof(DataTypeX1Scale), mOffset);
-    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_ );
-    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_ );
-    logitCrossPingPongID_ = (logitCrossPingPongID_ + 1) & 1;
+    if (params_->x1ScaleGmAddr != nullptr) {
+        CopyX1ScaleFromGm2Ub(x1ScaleUb, singleMInVec * sizeof(DataTypeX1Scale), mOffset);
+    }
+    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_);
+    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_);
     VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, singleMInVec);
+    logitCrossPingPongID_ = (logitCrossPingPongID_ + 1) & 1;
     uint32_t loopNumY = CeilDiv(singleMInVec, MAX_OUTPUT_M_UBS);
     AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
     AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(1);
