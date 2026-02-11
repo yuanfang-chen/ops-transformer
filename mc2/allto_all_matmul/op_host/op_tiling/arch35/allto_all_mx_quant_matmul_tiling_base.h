@@ -21,9 +21,9 @@
 #include "tiling/new_mc2_tiling_utils.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
-#include "../allto_all_matmul_tiling_base.h"
 #include "../../../op_kernel/arch35/allto_all_matmul_tiling_data.h"
 #include "../../../op_kernel/arch35/allto_all_matmul_tiling_key.h"
+#include "../allto_all_matmul_tiling_base.h"
 #include "quant_batch_matmul_v3/op_host/op_tiling/arch35/adaptive_sliding_window_tiling.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/matmul_allto_all_util_tiling.h"
 
@@ -78,8 +78,8 @@ public:
                                 DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& out, uint64_t& mm_mvalue_len);
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
-    const gert::Shape& GetScaleShape(const size_t index) override;
     const gert::StorageShape* GetPertokenShape(const size_t index) override;
+    const gert::Shape& GetScaleShape(const size_t index) override;
     const gert::StorageShape* GetBiasShape(const size_t index) override;
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus DoLibApiTiling() override;

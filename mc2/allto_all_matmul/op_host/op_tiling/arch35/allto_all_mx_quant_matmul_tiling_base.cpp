@@ -32,8 +32,8 @@ gert::StorageShape alltoallMxQuantStorageShape = gert::StorageShape();
  */
 bool AllToAllMxQuantMatmulTilingBase::IsCapable()
 {
-    int x1QuantMode = 0;
     int x2QuantMode = 0;
+    int x1QuantMode = 0;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     if (const int *ptr = attrs->GetAttrPointer<int>(ATTR_X1_QUANTMODE_INDEX)) {
         x1QuantMode = *ptr;
@@ -242,9 +242,9 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetMxDataTypeInfo(const gert::T
     contextInfo.args_.geBiasType = biasType;
     contextInfo.args_.geAType = aType;
     contextInfo.args_.geBType = bType;
+    contextInfo.args_.aType = mc2tiling::ConvertGeTypeToMmType(opName, aType);
     contextInfo.args_.cType = mc2tiling::ConvertGeTypeToMmType(opName, cType);
     contextInfo.args_.bType = mc2tiling::ConvertGeTypeToMmType(opName, bType);
-    contextInfo.args_.aType = mc2tiling::ConvertGeTypeToMmType(opName, aType);
     contextInfo.args_.biasType = mc2tiling::ConvertGeTypeToMmType(opName, biasType);
     return ge::GRAPH_SUCCESS;
 }
@@ -326,7 +326,7 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetHcclTiling()
             .withCommEngine(mc2tiling::A5_CCU_ENGINE)
             .build();
     if (!allToAllBuilder.isSuccess()) {
-        OP_LOGE(opName_, "Build hccl tiling config failed: %s", allToAllBuilder.errorMsg().c_str());
+        OP_LOGE(opName_, "allto all matmul build hccl tiling config failed: %s", allToAllBuilder.errorMsg().c_str());
         return ge::GRAPH_FAILED;
     }
     allToAllTilingConfig.GetTiling(localTilingData_.mc2InitTiling);
@@ -383,8 +383,8 @@ ge::graphStatus AlltoAllMxQuantMatmulHelper::GetShapeAttrsInfo()
     inputParams_.opName = tilingProcesser_.opName_;
     inputParams_.transA = false;
     inputParams_.transB = tilingArgs.isBTrans;
-    inputParams_.hasBias = tilingArgs.isBias;
     inputParams_.libApiWorkSpaceSize = tilingProcesser_.libApiWorkSpaceSize_;
+    inputParams_.hasBias = tilingArgs.isBias;
     inputParams_.aDtype = tilingArgs.geAType;
     inputParams_.bDtype = tilingArgs.geBType;
     int yDType = *context_->GetAttrs()->GetAttrPointer<uint64_t>(ATTR_Y_DTYPE_INDEX);
@@ -412,15 +412,14 @@ ge::graphStatus AlltoAllMxQuantMatmulHelper::GetShapeAttrsInfo()
 
 void AlltoAllMxQuantMatmulHelper::PrintTilingInputParam(Mc2QuantBatchMatmulInfo &quantMatmulInfo)
 {
-    OP_LOGD(tilingProcesser_.opName_, "mSize_ %ld kSize_ %ld nSize_ %ld libApiWorkSpaceSize %u", quantMatmulInfo.mSize,
+    OP_LOGD(tilingProcesser_.opName_, "mSize: %ld kSize: %ld nSize: %ld libApiWorkSpaceSize: %u", quantMatmulInfo.mSize,
             quantMatmulInfo.kSize, quantMatmulInfo.nSize, quantMatmulInfo.libApiWorkSpaceSize);
     OP_LOGD(tilingProcesser_.opName_,
-            "aDtype_ %d bDtype_ %d cDtype_ %d biasDtype_ %d outDtype %ld"
-            " scaleDtype %d",
+            "aDtype: %d bDtype: %d cDtype: %d biasDtype: %d outDtype: %ld"
+            " scaleDtype: %d",
             static_cast<int32_t>(quantMatmulInfo.aDtype), static_cast<int32_t>(quantMatmulInfo.bDtype),
             static_cast<int32_t>(quantMatmulInfo.cDtype), static_cast<int32_t>(quantMatmulInfo.biasDtype),
             quantMatmulInfo.outDtype, static_cast<int32_t>(quantMatmulInfo.scaleDtype));
-    OP_LOGD(tilingProcesser_.opName_, "Check isPertoken=%d.", static_cast<int32_t>(quantMatmulInfo.isPerChannel));
 }
 
 ge::graphStatus AlltoAllMxQuantMatmulHelper::DoLibApiTiling()
@@ -483,24 +482,24 @@ void AllToAllMxQuantMatmulTilingBase::PrintExtendMatmulTiling(const std::string 
     OP_LOGD(opName, "QuantBmmV3Params.batchA2=%u.", tiling.params.batchA2);
     OP_LOGD(opName, "QuantBmmV3Params.batchA3=%u.", tiling.params.batchA3);
     OP_LOGD(opName, "QuantBmmV3Params.batchA4=%u.", tiling.params.batchA4);
-    OP_LOGD(opName, "QuantBmmV3Params.batchB1=%u.", tiling.params.batchB1);
-    OP_LOGD(opName, "QuantBmmV3Params.batchB2=%u.", tiling.params.batchB2);
     OP_LOGD(opName, "QuantBmmV3Params.batchB3=%u.", tiling.params.batchB3);
     OP_LOGD(opName, "QuantBmmV3Params.batchB4=%u.", tiling.params.batchB4);
+    OP_LOGD(opName, "QuantBmmV3Params.batchB1=%u.", tiling.params.batchB1);
+    OP_LOGD(opName, "QuantBmmV3Params.batchB2=%u.", tiling.params.batchB2);
     OP_LOGD(opName, "QuantBmmV3Params.batchC1=%u.", tiling.params.batchC1);
     OP_LOGD(opName, "QuantBmmV3Params.batchC2=%u.", tiling.params.batchC2);
     OP_LOGD(opName, "QuantBmmV3Params.batchC3=%u.", tiling.params.batchC3);
     OP_LOGD(opName, "QuantBmmV3Params.batchC4=%u.", tiling.params.batchC4);
     OP_LOGD(opName, "QuantBmmV3Params.singleCoreBatch=%u.", tiling.params.singleCoreBatch);
-    OP_LOGD(opName, "QuantBmmV3Params.isPerTensor=%u.", tiling.params.isPerTensor);
     OP_LOGD(opName, "QuantBmmV3Params.isPertoken=%u.", tiling.params.isPertoken);
+    OP_LOGD(opName, "QuantBmmV3Params.isPerTensor=%u.", tiling.params.isPerTensor);
     OP_LOGD(opName, "QuantBmmV3Params.isDoubleScale=%u.", tiling.params.isDoubleScale);
     OP_LOGD(opName, "QuantBmmV3Params.biasThreeDim=%u.", tiling.params.biasThreeDim);
     OP_LOGD(opName, "QuantBmmV3Params.ubCalcM=%u.", tiling.params.ubCalcM);
     OP_LOGD(opName, "QuantBmmV3Params.ubCalcN=%u.", tiling.params.ubCalcN);
     OP_LOGD(opName, "QuantBmmV3Params.needUbBuffer=%u.", tiling.params.needUbBuffer);
-    OP_LOGD(opName, "QuantBmmV3Params.realSingleCoreM=%u.", tiling.params.realSingleCoreM);
     OP_LOGD(opName, "QuantBmmV3Params.realSingleCoreN=%u.", tiling.params.realSingleCoreN);
+    OP_LOGD(opName, "QuantBmmV3Params.realSingleCoreM=%u.", tiling.params.realSingleCoreM);
     OP_LOGD(opName, "QuantBmmV3Params.biasDtype=%u.", tiling.params.biasDtype);
     OP_LOGD(opName, "QuantBmmV3Params.ubSize=%u.", tiling.params.ubSize);
     OP_LOGD(opName, "QuantBmmV3Params.isMClash=%u.", tiling.params.isMClash);
@@ -535,8 +534,8 @@ void AllToAllMxQuantMatmulTilingBase::PrintAlltoAllMxQuantMatmulTilingInfo(const
     OP_LOGD(opName, "TilingInfo.rankM: %u", tilingInfo.rankM);
     OP_LOGD(opName, "TilingInfo.rankN: %u", tilingInfo.rankN);
     OP_LOGD(opName, "TilingInfo.rankK: %u", tilingInfo.rankK);
-    OP_LOGD(opName, "TilingInfo.biasLen: %u", tilingInfo.biasLen);
     OP_LOGD(opName, "TilingInfo.commLen: %u", tilingInfo.commLen);
+    OP_LOGD(opName, "TilingInfo.biasLen: %u", tilingInfo.biasLen);
     OP_LOGD(opName, "TilingInfo.permuteLen: %u", tilingInfo.permuteLen);
     OP_LOGD(opName, "TilingInfo.hcclDataType: %u", tilingInfo.hcclDataType);
 }
@@ -577,7 +576,7 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::PostTiling()
                     return ge::GRAPH_FAILED);
     errno_t ret = memcpy_s(outTilingData, tilingBufCap, &localTilingData_, sizeof(localTilingData_));
     if (ret != EOK) {
-        OP_LOGE(opName_, "AlltoAllMatmul postTiling: memcpy_s tiling data failed, ret=%d.", ret);
+        OP_LOGE(opName_, "AlltoAllMxQuantMatmul postTiling: memcpy_s tiling data failed, ret=%d.", ret);
         return ge::GRAPH_FAILED;
     }
     OP_LOGD(opName_, "Final tiling data size=%zu and context capacity size=%zu.",
@@ -600,11 +599,11 @@ void AllToAllMxQuantMatmulTilingBase::SetTilingInfo(AlltoAllMatmulTilingInfo &ti
     tilingInfo.tailM = inferredInfo.tailM;
     tilingInfo.tileCnt = inferredInfo.tileCnt;
     tilingInfo.tailCnt = inferredInfo.tailCnt;
+    tilingInfo.rankK = contextInfo.args_.orgKValue;
     tilingInfo.rankN = contextInfo.args_.nValue;
     tilingInfo.rankM = contextInfo.args_.orgMValue;
-    tilingInfo.rankK = contextInfo.args_.orgKValue;
-    tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.commLen = inferredInfo.commLen;
+    tilingInfo.biasLen = inferredInfo.biasLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.rankDim = contextInfo.args_.rankDim;
     tilingInfo.hcclDataType =
@@ -650,12 +649,12 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
  */
 void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
 {
-    constexpr uint64_t alignAddrLen = 512;
+    constexpr uint64_t alignAddrLength = 512;
     // AlltoAllMatmul先进行通信，需要有对应的空间先存放结果，假设x1(m,k),假设原始rank上X1的第0维为M，这里的m就是M/ranksize,
     // m已经在前面获取输入参数的时候进行过处理
     inferredInfo.commLen = mc2tiling::AlignUp(
-        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLen);
-    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，不需要申请这块
+        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLength);
+    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，就不需要申请这块空间
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
     }
