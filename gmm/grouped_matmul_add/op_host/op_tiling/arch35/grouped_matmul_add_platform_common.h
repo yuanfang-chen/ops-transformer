@@ -16,6 +16,7 @@
 #define __GROUPED_MATMUL_ADD_PLATFORM_COMMON_H__
 
 #include "tiling/platform/platform_ascendc.h"
+#include "tiling_base/tiling_base.h"
 #include "exe_graph/runtime/tiling_parse_context.h"
 #include "exe_graph/runtime/tiling_context.h"
 #include "platform/platform_infos_def.h"
