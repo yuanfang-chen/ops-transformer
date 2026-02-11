@@ -1726,8 +1726,9 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         
         //LogInfo(__LINE__, "[SendToExpert][moe] is same server",dstRankId);
         int32_t cntPosIndex = (shareRankNumInServer_ + dstExpertId - startMoeExpertId_) * serverNum_ + srcRankIndex % serverNum_;
-        LogInfo(__LINE__,"[cntPosIndex]",cntPosIndex);
         resetMaxCnt(cntPosIndex, curExpertCnt + 1);
+        LogInfo(__LINE__,"[cntPosIndex]",cntPosIndex);
+        LogInfo(__LINE__,"[curExpertCnt]",curExpertCnt);
 
         GM_ADDR rankGM = (__gm__ uint8_t *)(GetWindAddrByRankId(COMM_EP_IDX, dstRankId) +
                                             (expertPerSizeOnWin_ * (srcRankIndex * moeExpertNumPerRank_ +
