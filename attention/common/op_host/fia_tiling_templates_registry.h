@@ -21,6 +21,7 @@
 #include <exe_graph/runtime/tiling_context.h>
 #include "fia_tiling_base.h"
 #include "err/ops_err.h"
+#include "tiling_base/tiling_base.h"
 
 namespace optiling {
 

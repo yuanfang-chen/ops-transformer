@@ -17,6 +17,7 @@
 #include <vector>
 #include "log/log.h"
 #include "../fia_tiling_templates_registry.h"
+#include "tiling_base/tiling_base.h"
 
 using namespace ge;
 using namespace AscendC;

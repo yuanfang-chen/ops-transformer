@@ -21,6 +21,7 @@
 #include <exe_graph/runtime/tiling_context.h>
 #include <graph/utils/type_utils.h>
 #include <tiling/platform/platform_ascendc.h>
+#include "tiling_base/tiling_base.h"
 #include "err/ops_err.h"
 
 #ifdef ASCENDC_OP_TEST
