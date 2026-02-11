@@ -374,7 +374,7 @@ static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataType
     // 10 is quant_scale2's index, if not instantiated or illegal return ge::DT_UNDEFINED
     if (context->GetOptionalInputDataType(FIA_QUANT_SCALE2_INDEX) != ge::DT_UNDEFINED) {
         outputType = ge::DT_INT8;
-
+        
         auto attrs = context->GetAttrs();
         OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
         const int64_t *outTypePtr = attrs->GetInt(FIA_OUT_DTYPE_INDEX);

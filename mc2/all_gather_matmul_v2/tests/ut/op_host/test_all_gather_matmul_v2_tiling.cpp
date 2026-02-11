@@ -18,8 +18,14 @@ namespace {
 
 class AllGatherMatmulV2TilingTest : public testing::Test {
 protected:
-    static void SetUpTestCase() { std::cout << "AllGatherMatmulV2TilingTest SetUp" << std::endl; }
-    static void TearDownTestCase() { std::cout << "AllGatherMatmulV2TilingTest TearDown" << std::endl; }
+    static void SetUpTestCase()
+    {
+        std::cout << "AllGatherMatmulV2TilingTest SetUp" << std::endl;
+    }
+    static void TearDownTestCase()
+    {
+        std::cout << "AllGatherMatmulV2TilingTest TearDown" << std::endl;
+    }
 };
 
 TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32_rank8_david_ID000)
@@ -53,7 +59,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -93,7 +99,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -133,7 +139,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -173,7 +179,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -213,7 +219,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -253,7 +259,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -293,7 +299,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -333,7 +339,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -373,7 +379,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -413,7 +419,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_e4m3fn_fp32
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -449,7 +455,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_fp16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -485,7 +491,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -521,7 +527,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_5120_640_fp16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -561,7 +567,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_5120_640_fp16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -601,7 +607,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_696_518_1185_e4m3_fp32_ran
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -641,7 +647,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_696_518_1185_fp16_fp32_ran
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -681,7 +687,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_696_518_1185_fp16_fp32_ran
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -721,7 +727,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1952_4899_1173_e4m3_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -761,7 +767,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1952_4899_1173_e4m3_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -801,7 +807,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1952_4899_1173_e4m3_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -841,7 +847,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1952_4899_1173_e4m3_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -881,7 +887,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1184_6270_2662_e4m3_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -917,7 +923,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1776_4464_1591_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -953,7 +959,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1176_4472_1315_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -989,7 +995,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1104_5482_1029_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1025,7 +1031,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1104_4779_983_bf16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1061,7 +1067,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1872_5251_1579_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1097,7 +1103,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1720_4930_887_bf16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1133,7 +1139,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1744_4904_2022_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1169,7 +1175,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1592_4124_1797_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1205,7 +1211,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1232_6049_1065_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1241,7 +1247,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1520_6050_1463_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1277,7 +1283,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1280_4212_2151_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1313,7 +1319,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_2184_4110_856_bf16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1349,7 +1355,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1048_6808_1331_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1385,7 +1391,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1288_4188_1822_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1421,7 +1427,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_2160_4154_1155_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1457,7 +1463,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1056_7241_784_bf16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1493,7 +1499,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1416_4499_1788_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1529,7 +1535,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_2296_4329_1927_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1565,7 +1571,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1240_4856_1443_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1601,7 +1607,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1240_4856_1443_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1637,7 +1643,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1442_4155_2097_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1673,7 +1679,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1936_4948_1415_bf16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1709,7 +1715,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1672_4912_664_bf16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1745,7 +1751,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1376_4814_1394_fp16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1781,7 +1787,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1528_4227_798_fp16_fp32_ra
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1817,7 +1823,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1056_4275_2219_fp16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1853,7 +1859,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_1976_4724_1449_fp16_fp32_r
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}
@@ -1893,7 +1899,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_1001_6001_false_false
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 0
+        &compileInfo, "3510", 0
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 2}
@@ -1932,7 +1938,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_1001_6001_false_false
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 2}
@@ -1971,7 +1977,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_1001_6001_false_false
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 2}
@@ -2011,7 +2017,7 @@ TEST_F(AllGatherMatmulV2TilingTest, all_gather_matmul_4096_8192_1280_false_true_
             {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(ge::DT_FLOAT))}
         },
-        &compileInfo, "Ascend950", 32
+        &compileInfo, "3510", 32
     );
     Mc2Hcom::MockValues hcomTopologyMockValues{
         {"rankNum", 8}

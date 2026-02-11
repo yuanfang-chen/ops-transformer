@@ -48,6 +48,8 @@ ge::graphStatus FpMatmulAllToAllTilingBase::CheckOpInputInfo()
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
                         ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Attrs failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);              
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckNonQuantTensorDataType(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Dtype failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
@@ -110,7 +112,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
     auto ascendcPlatForm = platform_ascendc::PlatformAscendC(platformInfo);
 
     std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(socVersion_, priorities, opName_));
+    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_));
 
     Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion_, priorities};
 
