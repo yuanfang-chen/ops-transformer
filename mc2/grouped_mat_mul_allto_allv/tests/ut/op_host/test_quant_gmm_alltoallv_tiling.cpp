@@ -1187,22 +1187,6 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
     //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
     //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
     // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_permuteout_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_INT8, ge::FORMAT_ND, // permuteOut数据类型非法
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
 
     // // 数据格式非法异常
     // {
@@ -1359,40 +1343,6 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
     //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
     //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
     //     {1}, ge::DT_FLOAT, ge::FORMAT_FRACTAL_NZ, // mmWeightScale数据格式非法
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_permuteout_format_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_FRACTAL_NZ, // permuteOut数据格式非法
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-
-    // // 维度异常
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmx_not_2d",
-    //     {8192, 7168, 1}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmX维度不为2D
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
     //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
     //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
     //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
@@ -1743,24 +1693,6 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
     //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
     //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmY(8192)与mmX的第一维(4096)不匹配
     //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-
-    // // permuteOutFlag为true时permuteOut为空
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_permuteoutflag_true_permuteout_empty",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {}, ge::DT_FLOAT16, ge::FORMAT_ND, // permuteOut为空
     //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
     // },
 
@@ -2187,8 +2119,8 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmWeightOffset
             {mmXScaleStorageShape, param.mmXScaleDataType, param.mmXScaleFormat},
             {mmWeightScaleStorageShape, param.mmWeightScaleDataType, param.mmWeightScaleFormat},
-            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmXOffset
-            {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmWeightOffset
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // mmXOffset
+            {{}, ge::DT_INT64, ge::FORMAT_ND}, // mmWeightOffset
             {{}, ge::DT_INT64, ge::FORMAT_ND}  // commQunatScale
         },
         {
@@ -2202,7 +2134,6 @@ TEST_P(GroupedMatMulAlltoAllvTilingTest, test_grouped_quant_mat_mul_allto_allv_t
             {"recv_counts", Ops::Transformer::AnyValue::CreateFrom<vector<int64_t>>(param.recvCounts)},
             {"trans_gmm_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(param.trans_gmm_weight_flag)},
             {"trans_mm_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(param.trans_mm_weight_flag)},
-            {"permute_out_flag", Ops::Transformer::AnyValue::CreateFrom<bool>(param.permute_out_flag)},
             {"gmm_x_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.gmm_x_quant_mode)},
             {"gmm_weight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.gmm_weight_quant_mode)},
             {"mm_x_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mm_x_quant_mode)},
