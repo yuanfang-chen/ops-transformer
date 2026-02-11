@@ -35,12 +35,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const Q
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params)
+ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params, uint64_t gmmX)
 {
-    inputParams_.mSize = params.A;
+    inputParams_.mSize = gmmX;
     inputParams_.kSize = params.H1;
     inputParams_.nSize = params.N1;
-    inputParams_.groupNum = params.ep;
+    // inputParams_.groupNum = params.ep;
+    inputParams_.groupNum = 1;
     // quantMode bit position: 1 << mode
     inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.gmmXQuantMode);
     inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.gmmWeightQuantMode);
@@ -74,12 +75,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.mSize = params.Bs;
     inputParams_.kSize = params.H2;
     inputParams_.nSize = params.N2;
-    inputParams_.groupNum = 0;
+    // inputParams_.groupNum = 0;
+    inputParams_.groupNum = 1;
     // quantMode bit position: 1 << mode
     inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.mmXQuantMode);
     inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.mmWeightQuantMode);
     // 是否做切分
-    inputParams_.groupType = optiling::Mc2GroupedMatmul::NO_SPLIT;
+    // inputParams_.groupType = optiling::Mc2GroupedMatmul::NO_SPLIT;
+    inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
     // 非负递增为0，非负数列为1
     inputParams_.groupListType = 1;
     inputParams_.aDtype = params.mmXDtype;
