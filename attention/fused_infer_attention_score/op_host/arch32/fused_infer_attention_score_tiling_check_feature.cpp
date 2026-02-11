@@ -355,6 +355,30 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), QUERY_NAME.c_str(), LayoutToSerialString(qLayout_).c_str()),
             return ge::GRAPH_FAILED);
     }
+
+    const std::vector<std::string> noRopeLayoutSupportList = {
+        "BSH", "BSND", "BNSD", "TND", "NTD", "BNSD_BSND", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
+    };
+    const std::vector<std::string> ropeSplitLayoutSupportList = {
+        "BSH", "BSND", "BNSD", "TND", "BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "TND_NTD" 
+    };
+
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && vHeadDim_ == 512) {
+        OP_CHECK_IF(std::find(ropeSplitLayoutSupportList.begin(), ropeSplitLayoutSupportList.end(), layout) == ropeSplitLayoutSupportList.end(),
+        OP_LOGE(opName_, "In %s %s situation, when vHeadDim = 512, layout only supports BSH, BSND, BNSD, TND, BNSD_NBSD, BSND_NBSD, BSH_NBSD, TND_NTD, but got %s",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+        return ge::GRAPH_FAILED);
+
+        OP_CHECK_IF(n2Size_ != 1,
+        OP_LOGE(opName_, "In %s %s situation, when vHeadDim = 512, n2Size should be equals to 1.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str()),
+        return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF(std::find(noRopeLayoutSupportList.begin(), noRopeLayoutSupportList.end(), layout) == noRopeLayoutSupportList.end(),
+        OP_LOGE(opName_, "In %s %s situation, when vHeadDim != 512, layout only supports BSH, BSND, BNSD, TND, NTD, BNSD_BSND, BSH_BNSD, BSND_BNSD, NTD_TND, but got %s",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
+        return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -380,6 +404,16 @@ ge::graphStatus FiaTilingCheck::CheckFeatureAxisInfo() const
             return ge::GRAPH_FAILED);
     }
 
+    const std::vector<std::int32_t> ropeSplitgSizeSupportList = {
+        1, 2, 4, 8, 16, 32, 64, 128
+    };
+
+    if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && vHeadDim_ == 512) {
+        OP_CHECK_IF(std::find(ropeSplitgSizeSupportList.begin(), ropeSplitgSizeSupportList.end(), gSize_) == ropeSplitgSizeSupportList.end(),
+        OP_LOGE(opName_, "In %s %s situation, when vHeadDim = 512, layout only supports 1, 2, 4, 8, 16, 32, 64, 128, but got %u",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), gSize_),
+        return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -451,6 +485,30 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
         OP_CHECK_IF((vHeadDim_ % D_ALIGN_SIZE != 0) || (qkHeadDim_ % D_ALIGN_SIZE != 0),
         OP_LOGE(opName_, "In %s situation, when the dim of key&value is 5, headDim of query|key|value should be align to 16, but got keyHeadDim:%u, queryHeadDim and keyHeadDim:%u",
             QuantModeToSerialString(quantMode_).c_str(), vHeadDim_, qkHeadDim_),
+        return ge::GRAPH_FAILED);
+    }
+
+    if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
+        if (!fiaInfo_.isLegacyIfa) {
+            OP_CHECK_IF((!fiaInfo_.isOutQuantEnable && (vHeadDim_ % 16 != 0)),
+            OP_LOGE(opName_, "In %s %s situation, when Qs>1, headDim of query|key|value should be align to 16, but got keyHeadDim:%u, queryHeadDim and keyHeadDim:%u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
+            return ge::GRAPH_FAILED);
+
+            OP_CHECK_IF((fiaInfo_.isOutQuantEnable && (vHeadDim_ % 32 != 0)),
+            OP_LOGE(opName_, "In %s %s situation, when Qs>1 and enable postquant, headDim of query|key|value should be align to 32, but got keyHeadDim:%u, queryHeadDim and keyHeadDim:%u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
+    } else if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT) {
+        OP_CHECK_IF(!(vHeadDim_ == 512 && ropeHeadDim_ == 64) && !(vHeadDim_ == 128 && ropeHeadDim_ == 64),
+        OP_LOGE(opName_, "In %s %s situation, only valueHeadDim = 128/512 and ropeHeadDim = 64 are supported, but got valueHeadDim:%u, ropeHeadDim:%u.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, ropeHeadDim_),
+        return ge::GRAPH_FAILED);
+    } else if (fiaInfo_.ropeMode == RopeMode::ROPE_COMBINE) {
+        OP_CHECK_IF(!(vHeadDim_ == 128 && ropeHeadDim_ == 64),
+        OP_LOGE(opName_, "In %s %s situation, only valueHeadDim = 128 and ropeHeadDim = 64 are supported, but got valueHeadDim:%u, ropeHeadDim:%u.",
+            QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, ropeHeadDim_),
         return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
