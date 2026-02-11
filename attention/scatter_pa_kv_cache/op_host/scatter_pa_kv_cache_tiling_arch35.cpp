@@ -600,6 +600,7 @@ ge::graphStatus ScatterPaKvCacheTiling::PostTiling()
     GenTilingKey();
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
+    DumpTilingInfo();
     return ge::GRAPH_SUCCESS;
 }
 
