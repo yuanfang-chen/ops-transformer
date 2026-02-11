@@ -1436,7 +1436,9 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             CopyInAndOut(xOutFp32Tensor, xOutInt32Tensor, wAddr, index, dstPosition, arriveCount);
 
             SyncFunc<AscendC::HardEvent::MTE2_V>();
+            LOG_INFO("after CopyInAndOut");
             SendToExpert(index);
+            LOG_INFO("after SendToExpert");
 
             // // finish更新并clean
             finishNumTensor_(index) = 1;
@@ -1451,6 +1453,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             SyncFunc<AscendC::HardEvent::V_MTE3>();
             DataCopyPad(cleanGlobal[SPLIT_BLOCK_DATA_SIZE / sizeof(int32_t)], cleanBuf, cleanUpParams);
             finishNum++;
+            LOG_INFO("after if");
 
             PipeBarrier<PIPE_ALL>();
         } else {
