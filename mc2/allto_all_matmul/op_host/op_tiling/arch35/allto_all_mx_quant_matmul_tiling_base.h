@@ -52,6 +52,7 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus CheckMxQuantTensorDataType(const gert::TilingContext *context, const char *opName);
+    ge::graphStatus CheckX2Transpose(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema);
     ge::graphStatus CheckMxQuantShapeInfo(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema);
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters();
