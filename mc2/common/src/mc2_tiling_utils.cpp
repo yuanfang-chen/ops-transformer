@@ -244,6 +244,8 @@ bool CheckRankSize(const NpuArch npuArch, const uint32_t rankSize) {
   return false;
 }
 
+
+
 bool CheckDataTypeVaild(ge::DataType type,
                         std::initializer_list<ge::DataType> supportDtypeList) {
   return std::find(supportDtypeList.begin(), supportDtypeList.end(), type) !=
@@ -381,6 +383,75 @@ bool Mc2TilingUtils::CheckRankSize(NpuArch npuArch, uint32_t rankSize) {
   }
 
   return false;
+}
+
+bool Mc2TilingUtils::InferGroupSize(Mc2MatmulShapeInfo shapeInfo, std::tuple<int64_t, int64_t, int64_t> &groupMNK)
+{
+  auto x1 = shapeInfo.x1Shape;
+  auto x2 = shapeInfo.x2Shape;
+  auto x1Scale = shapeInfo.x1ScaleShape;
+  auto x2Scale = shapeInfo.x2ScaleShape;
+  uint64_t groupSizeK = static_cast<uint64_t>(shapeInfo.groupSize) & GROUP_MNK_BIT_SIZE;
+  uint64_t groupSizeN = (static_cast<uint64_t>(shapeInfo.groupSize) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
+  uint64_t groupSizeM = (static_cast<uint64_t>(shapeInfo.groupSize) >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
+  // calculate groupSizeM
+  if (groupSizeM == 0) {
+    // get M of x1
+    auto mValue = x1->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 2);
+    int64_t scaleMValue = 0;
+    if (shapeInfo.isMxfp) {
+      // x1Scale is 3 dims in mx scene, 2 dims in perblock scene 
+      scaleMValue = x1Scale->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 3);
+    } else {
+      scaleMValue = x1Scale->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 2);
+    }
+    OP_TILING_CHECK(scaleMValue == 0,
+                    OP_LOGE(shapeInfo.opName, "The m dimension of x1Scale is 0"),
+                    return false);
+    OP_TILING_CHECK((mValue % scaleMValue) != 0,
+                     OP_LOGE(shapeInfo.opName, "The groupSize in m dimension is 0 and the m dimension of x1 \
+    [%lu] is not divisible by m dimension of x1Scale [%lu]. the real groupSize in in m dimension can not be infered."),
+                     return false);
+    std::get<0>(groupMNK) = mValue / scaleMValue;
+  }
+
+  if (groupSizeN == 0) {
+    uint64_t nIdx = 1;
+    if (shapeInfo.isBTrans) {
+      nIdx = 0; // shape is[n, k] when x2 is transposed 
+    }
+    auto nValue = x2->GetStorageShape().GetDim(nIdx);
+    auto scaleNValue = x2->GetStorageShape().GetDim(nIdx);
+    OP_TILING_CHECK(scaleNValue == 0,
+                    OP_LOGE(shapeInfo.opName, "The n dimension of x2Scale is 0"),
+                    return false);
+    OP_TILING_CHECK((nValue % scaleNValue) != 0,
+                     OP_LOGE(shapeInfo.opName, "The groupSize in n dimension is 0 and the n dimension of x1 \
+    [%lu] is not divisible by n dimension of x1Scale [%lu]. the real groupSize in in n dimension can not be infered."),
+                     return false);
+    std::get<1>(groupMNK) = nValue / scaleNValue;
+  }
+
+  if (groupSizeK == 0) {
+    // get k of x1 according to x1shape
+    auto kValue = x1->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 1);
+    int64_t scaleKValue = 0;
+    if (shapeInfo.isMxfp) {
+      scaleKValue = x1Scale->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 2);
+    } else {
+      scaleKValue = x1Scale->GetStorageShape().GetDim(x1->GetStorageShape().GetDimNum() - 1);
+    }
+    OP_TILING_CHECK(scaleKValue == 0,
+                    OP_LOGE(shapeInfo.opName, "The k dimension of x1Scale is 0."),
+                    return false);
+    OP_TILING_CHECK((kValue % scaleKValue) != 0,
+                     OP_LOGE(shapeInfo.opName, "The groupSize in k dimension is 0 and the k dimension of x1 \
+    [%lu] is not divisible by k dimension of x1Scale [%lu]. the real groupSize in in k dimension can not be infered."),
+                     return false);
+    std::get<2>(groupMNK) = kValue / scaleKValue;
+  }
+
+  return true;
 }
 
 }  // namespace mc2tiling
