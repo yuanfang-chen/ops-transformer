@@ -29,14 +29,16 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
-extern "C" aclnnStatus aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX,
-    const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional, const aclTensor *recvCountsTensorOptional,
-    const aclTensor *mmXOptional, const aclTensor *mmWeightOptional, const aclTensor *gmmXScaleOptional,
-    const aclTensor *gmmWeightScaleOptional, const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
-    const char *group, int64_t epWorldSize, const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight,
-    bool transMmWeight, bool permuteOutFlag, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
-    int64_t mmWeightQuantMode, int64_t gmmXQuantDtype, int64_t mmXQuantDtype, const aclTensor *gmmYOut,
-    const aclTensor *mmYOutOptional, const aclTensor *permuteOutOutOptional, uint64_t *workspaceSize,
+extern "C" aclnnStatus aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
+    const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
+    const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
+    const aclTensor *gmmXScale, const aclTensor *gmmWeightScale, const aclTensor *gmmXOffsetOptional,
+    const aclTensor *gmmWeightOffsetOptional, const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
+    const aclTensor *mmXOffsetOptional, const aclTensor *mmWeightOffsetOptional, const char *group, int64_t epWorldSize,
+    const aclIntArray *sendCounts, const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight,
+    bool permuteOutFlag, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
+    int64_t mmWeightQuantMode, int64_t groupSize, int64_t yDtype, int64_t mmDtype, const aclTensor *gmmY,
+    const aclTensor *mmYOptional, const aclTensor *permuteOutOptional, uint64_t *workspaceSize,
     aclOpExecutor **executor);
 
 extern aclnnStatus aclnnInnerAlltoAllvGroupedMatMul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
@@ -100,10 +102,11 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX, c
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
     int64_t noQuantMode = 0;
     int64_t noQuantDtype = 0;
+    int64_t groupSize = 0;
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX, gmmWeight, sendCountsTensorOptional,
         recvCountsTensorOptional, mmXOptional, mmWeightOptional, nullptr, nullptr, nullptr, nullptr, group, epWorldSize,
         sendCounts, recvCounts, transGmmWeight, transMmWeight, permuteOutFlag, noQuantMode, noQuantMode, noQuantMode,
-        noQuantMode, noQuantDtype, noQuantDtype, gmmY, mmYOptional, permuteOutOptional, workspaceSize, executor);
+        noQuantMode, groupSize, noQuantDtype, noQuantDtype, gmmY, mmYOptional, permuteOutOptional, workspaceSize, executor);
     return ret;
 }
 
