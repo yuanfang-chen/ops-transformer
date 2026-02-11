@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
-#include "moe_distribute_combine_tiling_base.h"
+#include "../../../moe_distribute_combine_v2/op_host/op_tiling/moe_distribute_combine_tiling_base.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
@@ -34,10 +34,10 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
-#include "../../op_kernel/moe_distribute_combine_tiling.h"
-#include "arch35/moe_distribute_combine_tiling_arch35.h"
-#include "../../op_kernel/moe_distribute_combine_v2_tiling.h"
-#include "../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
+#include "../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_tiling.h"
+// #include "arch35/moe_distribute_combine_tiling_arch35.h"
+#include "../../../moe_distribute_combine_v2/op_kernel/moe_distribute_combine_v2_tiling.h"
+#include "../../op_kernel/moe_distribute_combine_v2_extend_tiling_key.h"
 #include "mc2_hcom_topo_info.h"
 
 using namespace Mc2Tiling;

@@ -14,7 +14,7 @@
  */
 #include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "moe_distribute_combine_v2_tiling_key_extend.h"
+#include "moe_distribute_combine_v2_extend_tiling_key.h"
 
 #ifdef __DAV_C310__
 #include "../moe_distribute_combine_v2/arch35/moe_distribute_combine_v2_host_kfc.h"
