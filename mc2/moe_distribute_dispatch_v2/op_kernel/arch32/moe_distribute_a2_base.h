@@ -20,11 +20,10 @@
 
 #if __has_include("../../common/inc/kernel/moe_distribute_base.h")
 #include "../../common/inc/kernel/moe_distribute_base.h"
-#include "../../common/inc/kernel/mc2_kernel_utils.h"
 #else
 #include "../../../common/inc/kernel/moe_distribute_base.h"
-#include "../../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
+namespace MoeDistributeA2Base {
 template <typename XType>
 class MoeDistributeA2AddrInfo {
 private:
@@ -76,12 +75,29 @@ private:
         }
         return (val + align - 1) / align * align;
     }
+    __aicore__ inline void initInnerAddr()
+    {
+        auto tokenFlagBytes = STATE_OFFSET * (worldSize_ + 1);
+        auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
+        auto innerTableDataTotalBytes = STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
+        innerTableSize_ = innerTableDataTotalBytes / serverNum_ / UB_32B_ALIGN * UB_32B_ALIGN;
+        rdmaInnerFlagAddrStart_ = rdmaFlagAddrStart_ + tokenFlagBytes;
+        rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableDataTotalBytes;
+    }
+    __aicore__ inline void initIpcFlagAddr()
+    {
+        ipcCombineSyncFlagAddrStart_ = ipcFlagAddrStart_[0];
+        ipcDispatchSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_FLAG_OFFSET;
+        ipcCombineMagicAddrStart_ = ipcFlagAddrStart_[0] + IPC_COMBINE_MAGIC_OFFSET;
+        ipcDispatchMagicAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_MAGIC_OFFSET;
+        ipcDispatchTokenCntAddrStart_ = ipcFlagAddrStart_[1];
+    }
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum)
     {
         // Get Hccl Buffer Size
         hcclContext_ = AscendC::GetHcclContext<AscendC::HCCL_GROUP_ID_0>();
-        auto winSize = (__gm__ HcclA2CombineOpParam *)hcclContext_->winSize;
+        auto winSize = ((__gm__ HcclA2CombineOpParam *)hcclContext_)->winSize;
         // Get BufferId
         bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t*)(GetWindowsOutAddr(rankId) + winSize - UB_32B_ALIGN));
         bufferId_ = bufferChosenGlobal_(0);
@@ -92,7 +108,7 @@ public:
         serverNum_ = worldSize / SERVER_RANK_SIZE;
         halfWorldSize_ = worldSize / 2U;
         uint64_t maxTokenStructBytes =
-            axisH * sizeof(XType) + EXTRA_TOKEN_INFO_NUM * RoundUp(axisK * sizeof(uint32_t), UB_32B_ALIGN);
+            axisH * sizeof(XType) + EXTRA_TOKEN_INFO_NUM * RoundUp(axisK, B32_PER_BLOCK) * sizeof(uint32_t);
         serverSizeOnRdmaData_ = RoundUp(maxBs * maxTokenStructBytes, RDMA_BUFFER_ALIGN);
         rankSizeOnIpcData_ = RoundUp(maxBs * maxTokenStructBytes, IPC_BUFF_ALIGN);
         // rdma addr
@@ -115,23 +131,6 @@ public:
             shareAddrs[i] = GetWindowsInAddr(targetRank);
         }
     }
-    __aicore__ inline void initInnerAddr()
-    {
-        auto tokenFlagBytes = STATE_OFFSET * (worldSize_ + 1);
-        auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
-        auto innerTableDataTotalBytes = STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
-        innerTableSize_ = innerTableDataTotalBytes / serverNum_ / UB_32B_ALIGN * UB_32B_ALIGN;
-        rdmaInnerFlagAddrStart_ = rdmaFlagAddrStart_ + tokenFlagBytes;
-        rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableDataTotalBytes;
-    }
-    __aicore__ inline void initIpcFlagAddr()
-    {
-        ipcCombineSyncFlagAddrStart_ = ipcFlagAddrStart_[0];
-        ipcDispatchSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_FLAG_OFFSET;
-        ipcCombineMagicAddrStart_ = ipcFlagAddrStart_[0] + IPC_COMBINE_MAGIC_OFFSET;
-        ipcDispatchMagicAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_MAGIC_OFFSET;
-        ipcDispatchTokenCntAddrStart_ = ipcFlagAddrStart_[1];
-    }
     __aicore__ inline void updateBufferId()
     {
         if (aivId_ == 0) {
@@ -145,6 +144,10 @@ public:
     __aicore__ inline GM_ADDR GetRdmaDataAddrIn(uint32_t targetRankId, uint32_t serverId) const
     {
         return GetWindowsInAddr(targetRankId) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
+    }
+    __aicore__ inline GM_ADDR GetRdmaFlagAddrOut() const
+    {
+        return GetWindowsOutAddr(curRankId_) + rdmaFlagAddrStart_;
     }
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForDispatch() const
     {
@@ -160,9 +163,9 @@ public:
     }
     __aicore__ inline GM_ADDR GetIpcMagicAddrForDispatch() const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_;
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
     }
-    __aicore__ inline GM_ADDR GetIpcTokenCntAddrForDispatch(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
+    __aicore__ inline GM_ADDR GetIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
     {
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchTokenCntAddrStart_ +
             targetExpId % (localMoeExpertNum_ * SERVER_RANK_SIZE) * EXP_TOKEN_COUNT_FLAG_CNT +
@@ -188,14 +191,11 @@ public:
     {
         return GetWindowsInAddr(targetRankId) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
     }
-    __aicore__ inline GM_ADDR GetInnerDataAddrOut(uint32_t targetRankId, uint32_t serverId) const
+    __aicore__ inline GM_ADDR GetInnerDataAddrOut(uint32_t serverId) const
     {
-        return GetWindowsOutAddr(targetRankId) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
+        return GetWindowsOutAddr(curRankId_) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
     }
-    __aicore__ inline GM_ADDR GetRdmaFlagAddrOut() const
-    {
-        return GetWindowsOutAddr(curRankId_) + rdmaFlagAddrStart_;
-    }
+
 
 private:
     AscendC::GlobalTensor<uint32_t> bufferChosenGlobal_;
@@ -223,5 +223,5 @@ private:
     GM_ADDR shareAddrs[8];
     __gm__ uint8_t *hcclContext_;
 };
-
+} // MoeDistributeA2Base
 #endif // MOE_DISTRIBUTE_A2_BASE_H
