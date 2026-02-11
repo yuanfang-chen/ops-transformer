@@ -1936,20 +1936,29 @@ TEST_F(MlaPrologV3, MlaPrologV3_tiling_test35) {
         {{{7168, 512 + 64}, {7168, 512 + 64}}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},//weight_dkv_kr 4
         {{{1536}, {1536}}, ge::DT_BF16, ge::FORMAT_ND},//rmsnorm_gamma_cq 5
         {{{512}, {512}}, ge::DT_BF16, ge::FORMAT_ND},//rmsnorm_gamma_ckv 6
-        {{{8,1,64}, {8,1,64}}, ge::DT_BF16, ge::FORMAT_ND},//rope_sin 7
-        {{{8,1,64}, {8,1,64}}, ge::DT_BF16, ge::FORMAT_ND},//rope_cos 8
+        {{{8,64}, {8,64}}, ge::DT_BF16, ge::FORMAT_ND},//rope_sin 7
+        {{{8,64}, {8,64}}, ge::DT_BF16, ge::FORMAT_ND},//rope_cos 8
         {{{1,16,1,656}, {1,16,1,656}}, ge::DT_INT8, ge::FORMAT_ND},//kv_cache 9
         {{{0}, {0}}, ge::DT_BF16, ge::FORMAT_ND},//kr_cache 10
-        {{{8,1}, {8,1}}, ge::DT_INT64, ge::FORMAT_ND},//cache_index 11
-        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_x 12
+        {{{8}, {8}}, ge::DT_INT64, ge::FORMAT_ND},//cache_index 11
+        {{{8,1}, {8,1}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_x 12
         {{{1,1536}, {1,1536}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_w_dq 13
         {{{1,24576}, {1,24576}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_w_uq_qr 14
         {{{1,576}, {1,576}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_w_dkv_kr 15
-        {{{1}, {1}}, ge::DT_FLOAT, ge::FORMAT_ND},//quant_scale_ckv 16
+        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},//quant_scale_ckv 16
         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},//quant_scale_ckr 17
         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},//smooth_scales_cq 18
         {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},//actual_seq_len 19
-        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},//k_nope_clip_alpha 20
+        {{{1}, {1}}, ge::DT_FLOAT, ge::FORMAT_ND},//k_nope_clip_alpha 20
+    },
+    {
+        {{{8,128,512}, {8,128,512}}, ge::DT_BF16, ge::FORMAT_ND},//query
+        {{{8,128,64}, {8,128,64}}, ge::DT_BF16, ge::FORMAT_ND},//query_rope
+        {{{1,16,1,656}, {1,16,1,656}}, ge::DT_INT8, ge::FORMAT_ND},//kv_cache
+        {{{0}, {0}}, ge::DT_BF16, ge::FORMAT_ND},//kr_cache
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_q_nope
+        {{{0}, {0}}, ge::DT_INT8, ge::FORMAT_ND},//query_norm
+        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},//dequant_scale_q_norm
     },
     {
         {"rmsnorm_epsilon_cq", Ops::Transformer::AnyValue::CreateFrom<float>(0.0022971812167027)},
@@ -4445,7 +4454,7 @@ TEST_F(MlaPrologV3, MlaPrologV3_tiling_test80) {
 }
 
 // 非量化场景正常case：qc_qr_scale = 0.4, kc_scale = 0.5
-TEST_F(MlaPrologV3, MlaPrologV3_tiling_test80) {
+TEST_F(MlaPrologV3, MlaPrologV3_tiling_test81) {
     optiling::MlaPrologCompileInfo compileInfo = {48};
     gert::TilingContextPara tilingContextPara("MlaPrologV3",
     {
