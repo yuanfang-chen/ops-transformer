@@ -722,10 +722,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(expertMaskInputBuf_, expertIdsCnt_ * sizeof(bool));
     totalUsedUB_ += expertIdsCnt_ * sizeof(bool);
     expertMaskInputTensor_ = expertMaskInputBuf_.Get<bool>();
-    LogInfo(__LINE__, "1");
 
     if constexpr (QuantMode > UNQUANT) {
-        LogInfo(__LINE__, "2");
         tpipe_->InitBuffer(receiveDataCastFloatBuf_, maxSize_); // max{28K, BS * K * 4B}
         totalUsedUB_ += maxSize_;
         floatLocalTemp_ = receiveDataCastFloatBuf_.Get<float>();
@@ -737,34 +735,25 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
             rowMaxTensor_ = rowMaxBuf_.Get<float>();
         }
         
-        LogInfo(__LINE__, "3");
         dstExpBuf_ = receiveDataCastFloatBuf_;  // 内存复用
         subExpBuf_ = smoothScalesBuf_;          // 内存复用
-        LogInfo(__LINE__, "4");
     } else {
-        LogInfo(__LINE__, "5");
         tpipe_->InitBuffer(dstExpBuf_, maxSize_);             // BS * K * 4 = 32K
         totalUsedUB_ += maxSize_;
         tpipe_->InitBuffer(subExpBuf_, maxSize_);             // BS * K * 4 = 32K
         totalUsedUB_ += maxSize_;
-        LogInfo(__LINE__, "6");
         // uint32_t tmpTotalUB = totalUsedUB_ + hOutAlignUbSize_ * BUFFER_NUM;
         // bufferNum_ = tmpTotalUB > MAX_UB_SIZE ? BUFFER_SINGLE : BUFFER_NUM;
         //tpipe_->InitBuffer(xQueue_, bufferNum_, hOutAlignUbSize_); // 7k*2 + 32 + 12
     }
-    LogInfo(__LINE__, "7");
     uint32_t tmpTotalUB = totalUsedUB_ + BUFFER_NUM * hAlignSize_ + hOutAlignUbSize_ * BUFFER_NUM;
     bufferNum_ = tmpTotalUB > MAX_UB_SIZE ? BUFFER_SINGLE : BUFFER_NUM;
     // tpipe_->InitBuffer(xInQueue_, bufferNum_, hAlignSize_); // 14K * 2
     // tpipe_->InitBuffer(xOutQueue_, bufferNum_, hOutAlignUbSize_); // 7K * 2 + 32 + 6
-    LogInfo(__LINE__, "8");
-
     dstExpIdTensor_ = dstExpBuf_.Get<int32_t>();
     subExpIdTensor_ = subExpBuf_.Get<int32_t>();
-    LogInfo(__LINE__, "9");
 
     quantInst_.SetQuantInitParams(floatLocalTemp_, smoothScalesTensor_, smoothScalesBuf_, dynamicScalesOutGMTensor_);
-    LogInfo(__LINE__, "10");
 
     uint32_t axisHCommu = hScaleIdxSize_ / sizeof(ExpandXOutType); // 有效搬运长度
     floatDataCopyParams_ = {1U, sizeof(float), 0U, 0U, 0U};
