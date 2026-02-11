@@ -157,32 +157,23 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantTensorDataType(cons
   * @return ge::graphStatus
   */ 
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema) 
-{ 
+{
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context, opName, ALLTOALL_MATMUL_INDEX_SCHEMA) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName, "Tiling common info check shape failed."), return ge::GRAPH_FAILED);
-    ge::graphStatus status;
     const gert::StorageShape *x1Shape = context->GetInputShape(INPUT_X1_INDEX);
     const gert::StorageShape *x2Shape = context->GetInputShape(INPUT_X2_INDEX);
     const gert::StorageShape *x1ScaleShape = context->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
     const gert::StorageShape *x2ScaleShape = context->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
-    OP_TILING_CHECK((x1Shape == nullptr),
-                    OP_LOGE(opName, "the input x1 shape is invalid"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x2Shape == nullptr),
-                    OP_LOGE(opName, "the input x2 shape is invalid"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x1ScaleShape == nullptr),
-                    OP_LOGE(opName, "the input x1Scale shape is invalid"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x2ScaleShape == nullptr),
-                    OP_LOGE(opName, "the input x2Scale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1ScaleShape == nullptr), OP_LOGE(opName, "the input x1Scale shape is invalid"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x2ScaleShape == nullptr), OP_LOGE(opName, "the input x2Scale shape is invalid"), return ge::GRAPH_FAILED);
     uint64_t x1Dim0 = x1Shape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x2Dim0 = x2Shape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x2Dim1 = x2Shape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x1ScaleDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
     uint64_t x2ScaleDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
-    OP_TILING_CHECK((x1ScaleDimNum != DIM_THREE),
-                    OP_LOGE(opName, "the kc quant input x1scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x1ScaleDimNum),
+    OP_TILING_CHECK((x1ScaleDimNum != DIM_THREE), OP_LOGE(opName, "the kc quant input x1scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x1ScaleDimNum),
                     return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x2ScaleDimNum != DIM_THREE),
-                    OP_LOGE(opName, "the kc quant input x2scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x2ScaleDimNum),
+    OP_TILING_CHECK((x2ScaleDimNum != DIM_THREE), OP_LOGE(opName, "the kc quant input x2scale dimNum should be %lu, but actual value is %lu.", DIM_THREE, x2ScaleDimNum),
                     return ge::GRAPH_FAILED);
     bool x2IsTransFlag = false;
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -200,35 +191,27 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckMxQuantShapeInfo(const ger
     uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x1ScaleDim1 = x1ScaleShape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x1ScaleDim2 = x1ScaleShape->GetStorageShape().GetDim(DIM_TWO);
-    OP_TILING_CHECK((x1ScaleDim0 != x1Dim0 / rankDim), 
-                    OP_LOGE(opName, "The x1scale dimNum0 should be %lu, but actual value is %lu.", x1Dim0 / rankDim, x1ScaleDim0),
-                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1ScaleDim0 != x1Dim0 / rankDim),
+                    OP_LOGE(opName, "The x1scale dimNum0 should be %lu, but actual value is %lu.", x1Dim0 / rankDim, x1ScaleDim0), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x1ScaleDim1 != kAxis / MX_SCALE_ALIGN),
-                    OP_LOGE(opName, "The x1scale dimNum1 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x1ScaleDim1),
-                    return ge::GRAPH_FAILED);
+                    OP_LOGE(opName, "The x1scale dimNum1 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x1ScaleDim1), return ge::GRAPH_FAILED);
     OP_TILING_CHECK((x1ScaleDim2 != DIM_TWO),
-                    OP_LOGE(opName, "The x1scale dimNum2 should be %lu, but actual value is %lu.", DIM_TWO, x1ScaleDim2),
-                    return ge::GRAPH_FAILED);
+                    OP_LOGE(opName, "The x1scale dimNum2 should be %lu, but actual value is %lu.", DIM_TWO, x1ScaleDim2), return ge::GRAPH_FAILED);
     uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x2ScaleDim1 = x2ScaleShape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x2ScaleDim2 = x2ScaleShape->GetStorageShape().GetDim(DIM_TWO);
     OP_TILING_CHECK((x2ScaleDim2 != DIM_TWO),
-                    OP_LOGE(opName, "The x2scale dimNum2 should be %lu, but actual value is %lu.", DIM_TWO, x2ScaleDim2),
-                    return ge::GRAPH_FAILED);
+                    OP_LOGE(opName, "The x2scale dimNum2 should be %lu, but actual value is %lu.", DIM_TWO, x2ScaleDim2), return ge::GRAPH_FAILED);
     if (x2IsTransFlag) {
-        OP_TILING_CHECK((x2ScaleDim0 != nAxis),
-                        OP_LOGE(opName, "The x2scale dimNum0 should be %lu, but actual value is %lu.", nAxis, x2ScaleDim0),
+        OP_TILING_CHECK((x2ScaleDim0 != nAxis), OP_LOGE(opName, "The x2scale dimNum0 should be %lu, but actual value is %lu.", nAxis, x2ScaleDim0),
                         return ge::GRAPH_FAILED);
         OP_TILING_CHECK((x2ScaleDim1 != kAxis / MX_SCALE_ALIGN),
-                        OP_LOGE(opName, "The x2scale dimNum1 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x2ScaleDim1),
-                        return ge::GRAPH_FAILED);
+                        OP_LOGE(opName, "The x2scale dimNum1 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x2ScaleDim1), return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK((x2ScaleDim0 != kAxis / MX_SCALE_ALIGN),
-                        OP_LOGE(opName, "The x2scale dimNum0 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x2ScaleDim0),
-                        return ge::GRAPH_FAILED);
+                        OP_LOGE(opName, "The x2scale dimNum0 should be %lu, but actual value is %lu.", kAxis / MX_SCALE_ALIGN, x2ScaleDim0), return ge::GRAPH_FAILED);
         OP_TILING_CHECK((x2ScaleDim1 != nAxis),
-                        OP_LOGE(opName, "The x2scale dimNum1 should be %lu, but actual value is %lu.", nAxis, x2ScaleDim1),
-                        return ge::GRAPH_FAILED);
+                        OP_LOGE(opName, "The x2scale dimNum1 should be %lu, but actual value is %lu.", nAxis, x2ScaleDim1), return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
 }
