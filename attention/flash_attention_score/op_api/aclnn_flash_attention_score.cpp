@@ -119,8 +119,8 @@ static void AnalysisAxisForBsh(const Shape &qShape, const Shape &kShape, const S
     shapeInfo.axes.n2 = kShape[2] / dSize;
     shapeInfo.axes.s1 = qShape[1];
     shapeInfo.axes.s2 = kShape[1];
-    shapeInfo.axes.dk = kShape[2] / shapeInfo.axes.n2;
-    shapeInfo.axes.dv = vShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dk = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : kShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dv = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : vShape[2] / shapeInfo.axes.n2;
 }
 
 static void AnalysisAxisForBsnd(const Shape &qShape, const Shape &kShape, const Shape &vShape, FaShapeInfo &shapeInfo)
@@ -159,8 +159,8 @@ static void AnalysisAxisForSbh(const Shape &qShape, const Shape &kShape, const S
     shapeInfo.axes.n2 = kShape[2] / dSize;
     shapeInfo.axes.s1 = qShape[0];
     shapeInfo.axes.s2 = kShape[0];
-    shapeInfo.axes.dk = kShape[2] / shapeInfo.axes.n2;
-    shapeInfo.axes.dv = vShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dk = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : kShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dv = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : vShape[2] / shapeInfo.axes.n2;
 }
 
 static void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, const Shape &vShape, FaShapeInfo &shapeInfo)
