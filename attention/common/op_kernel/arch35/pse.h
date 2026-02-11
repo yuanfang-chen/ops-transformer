@@ -18,7 +18,11 @@
 
 #include "kernel_basic_intf.h"
 #include "util_regbase.h"
-
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 namespace regbaseutil {
 constexpr static int64_t pseS1S2 = 0;
 constexpr static int64_t pse1S2 = 1;

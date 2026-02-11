@@ -23,7 +23,11 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 namespace AscendC {
 
 constexpr uint16_t MAX_TENSOR_LIST_SIZE = 128;

@@ -19,7 +19,11 @@
 #include "integral_constant.h"
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-namespace Cgmct {
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 namespace Gemm {
 constexpr int64_t MATRIX_INNER_DIM_LIMIT_SIZE = 65536LL;
 constexpr int32_t MATMUL_MNK_ALIGN = 16;

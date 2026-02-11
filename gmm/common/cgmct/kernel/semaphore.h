@@ -19,7 +19,11 @@
 #define ASCENDC_CUBE_ONLY
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../utils/common_utils.h"
 #include "../utils/tuple_utils.h"
 #include "../epilogue/block_epilogue_empty.h"

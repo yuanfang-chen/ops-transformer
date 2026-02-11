@@ -18,7 +18,11 @@
 
 #include "kernel_basic_intf.h"
 #include "../utils/common_utils.h"
-#include "../utils/layout_utils.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifs.h"
 #include "../utils/tuple_utils.h"
 #include "../utils/grouped_matmul_constant.h"
 

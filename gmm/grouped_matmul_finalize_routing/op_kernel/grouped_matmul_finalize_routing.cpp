@@ -25,7 +25,11 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "arch35/grouped_matmul_finalize_routing.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifl_finalize_routing.h"
 #include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
 #endif
 

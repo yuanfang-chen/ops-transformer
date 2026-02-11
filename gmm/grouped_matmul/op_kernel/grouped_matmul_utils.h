@@ -18,7 +18,11 @@
 #if ((defined(__CCE_AICORE__) && (__CCE_AICORE__ == 310)) && !(defined(__NPU_ARCH__) && __NPU_ARCH__ == 3113))
 #include "kernel_basic_intf.h"
 #else
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 #endif
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"

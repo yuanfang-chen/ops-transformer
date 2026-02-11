@@ -19,7 +19,11 @@
 #define ASCENDC_CUBE_ONLY
 #include "kernel_basic_intf.h"
 #include "block_mmad_multi_block_bias.h"
-
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../utils/common_utils.h"
 #include "../utils/layout_utils.h"
 #include "../utils/status_utils.h"
