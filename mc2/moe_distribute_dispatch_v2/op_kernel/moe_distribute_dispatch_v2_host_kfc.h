@@ -404,6 +404,7 @@ private:
     uint32_t hScaleIdxSize_{0};
     uint32_t expertScaleAlign_{0};
     uint32_t scaleInBytes_{0};
+    uint32_t scaleOutBytes_{0};
     uint32_t scalesCount_{0};
 
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
@@ -413,6 +414,7 @@ private:
     DataCopyExtParams expandXCopyParams_;
     DataCopyParams xCopyParams_;
     DataCopyExtParams hCommuCopyOutParams_;
+    DataCopyExtParams scaleOutParams_;
     DataCopyParams doWindowCopyOutParams_;
 
     MoeDistributeDispatchV2Quant<TemplateDispatchKFCTypeFunc> quantInst_;
@@ -618,7 +620,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 
     //量化使用
     hOutSize_ = axisH_ * sizeof(ExpandXOutType);
-    quantInst_.QuantInit(hAlignSize_, hOutSize_, scaleInBytes_, tokenQuantAlign_, hScaleIdxSize_, axisH_);
+    quantInst_.QuantInit(hAlignSize_, hOutSize_, scaleInBytes_, tokenQuantAlign_, hScaleIdxSize_, scaleOutBytes_, axisH_);
 
     hScaleIdxSize_ = Ceil(hScaleIdxSize_, UB_ALIGN) * UB_ALIGN; 
     expertScaleAlign_ = hScaleIdxSize_ / sizeof(uint32_t);
@@ -770,6 +772,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     hCommuCopyOutParams_ = {1U, static_cast<uint32_t>(axisHCommu * sizeof(ExpandXOutType)), 0U, 0U, 0U};
     doWindowCopyOutParams_ = {1U, static_cast<uint32_t>(axisHCommu * sizeof(ExpandXOutType)), 0U, 0U};
     expandXCopyParams_ = {1U, static_cast<uint32_t>(axisH_ * sizeof(ExpandXOutType)), 0U, 0U, 0U};
+    scaleOutParams_ = {1U, static_cast<uint16_t>(scaleOutBytes_), 0U, 0U, 0U};
 
     uint32_t serverBuferLength = serverNum_;
     uint32_t serverMapLength = serverNum_ * axisMaxBS_;
@@ -2100,8 +2103,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::DoWindowCopy(LocalT
                 DataCopyPad(expandScalesOutGMTensor_[(beginIdx + j)], xTmpTensorFloat[expertScaleAlign_],
                         dataCopyexpandScaleParams); //拷贝expert专家系数
             }
-            
-            quantInst_.CopyScalesToOut(beginIdx + j, xTmpTensor_);
+            quantInst_.CopyScalesToOut(beginIdx + j, scaleOutBytes_, xTmpTensor_, scaleOutParams_);
             // 拷贝数据
             expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType *)(expandXOutGM_) + (beginIdx + j) * axisH_,
                                              axisH_);
