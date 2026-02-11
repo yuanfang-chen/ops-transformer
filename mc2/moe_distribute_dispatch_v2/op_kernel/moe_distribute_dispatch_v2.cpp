@@ -132,6 +132,13 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                             expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                     op.Process();
                 }
+            } else if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
+                LogInfo(__LINE__, "KFC start 8 QUANT");
+                MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, true, false> op;
+                op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
+                        expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
+                op.Process();
+                LogInfo(__LINE__, "KFC end 8 QUANT");
             }
         } 
     }
