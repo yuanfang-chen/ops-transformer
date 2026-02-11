@@ -538,6 +538,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
 template <typename T, typename IndexDtype, int64_t InOutMode>
 __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode>::Process()
 {
+    printf("2&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&_not_fully_load");
     if (blockIdx_ >= tilingData_->usedCoreNum) {
         return;
     }
