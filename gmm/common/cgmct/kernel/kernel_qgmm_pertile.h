@@ -15,7 +15,11 @@
 
 #ifndef MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
 #define MATMUL_KERNEL_KERNEL_QGMM_PERTILE_H
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../utils/common_utils.h"
 #include "../utils/fill_utils.h"
 #include "../utils/grouped_matmul_constant.h"

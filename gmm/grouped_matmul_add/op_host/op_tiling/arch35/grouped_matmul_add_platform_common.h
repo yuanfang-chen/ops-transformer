@@ -20,6 +20,7 @@
 #include "exe_graph/runtime/tiling_context.h"
 #include "platform/platform_infos_def.h"
 #include "err/ops_err.h"
+#include "platform/soc_spec.h"
 namespace optiling {
 const std::initializer_list<platform_ascendc::SocVersion> AdvancedSocVersion = {
     platform_ascendc::SocVersion::ASCEND950};
