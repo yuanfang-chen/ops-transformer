@@ -2513,6 +2513,9 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::DealBmm1ResBaseBlock(const ExtraInfoMl
         inputQue1.DeQue<MM1_OUT_T>();
         LocalTensor<T> mm1ResFp32 = mm1ResInt32.template ReinterpretCast<T>();
         RowMuls(mmResUb, mm1ResFp32, dequantScale1Ub[startRow * BLOCK_ELEMENT_NUM], dealRowCount, columnCount, actualColumnCount);
+        AscendC::printf("tkd mmResUb\n");
+        AscendC::DumpTensor(mmResUb, 1, 1024);
+
         inputQue1.FreeTensor(mm1ResInt32);
     #else
         LocalTensor<MM1_OUT_T> mm1NopeRes = inputQue1.AllocTensor<MM1_OUT_T>();
