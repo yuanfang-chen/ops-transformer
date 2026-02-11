@@ -1871,6 +1871,12 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
     numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
+    if (isLayered) {
+        uint32_t serverNum = info.epWorldSize / RANK_NUM_PER_NODE_A2;
+        // 拉起远端IPC和机内reduce需要的核数:IPC_REDUCE_USED_CORE_NUM = 32U
+        OP_TILING_CHECK(numBlocks < 32, OP_LOGE(context->GetNodeName(), "AivNum %d is invalid, at least 32 AivCores are required.", numBlocks),
+            return ge::GRAPH_FAILED);
+    }
     context->SetBlockDim(numBlocks);
     uint32_t aicpuBlockDim = info.epWorldSize > RANK_NUM_PER_NODE_A2 ? mc2tiling::AICPU_NUM_BLOCKS_A2 : 1;
     context->SetAicpuBlockDim(aicpuBlockDim);

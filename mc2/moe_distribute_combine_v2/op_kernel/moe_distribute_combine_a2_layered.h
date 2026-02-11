@@ -712,11 +712,10 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     offsetIndex = 0U;
 
     // 计算offsetIndex,copyNum,dataOffset,scaleOffset
-    uint32_t listLen = 128 ; // maxLocalBs / coreNumPerServer;
+    tBuf_.
     uint32_t offsetIndexs[129];
     uint32_t copyNums[129];
     uint32_t dataOffsets[129];
-    uint32_t scaleOffsets[129];
     uint32_t totalCopyLen = 0;
     uint32_t processNum_ = 0;
     uint32_t tokenNum = 0;
