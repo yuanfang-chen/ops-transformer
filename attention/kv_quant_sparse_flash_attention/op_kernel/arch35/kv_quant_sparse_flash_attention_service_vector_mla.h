@@ -1064,7 +1064,6 @@ __aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec2Inner(const RunInfo 
     }
 }
 
-
 template <typename QSFAT>
 __aicore__ inline void QSFAVectorService<QSFAT>::GetConfusionTransposeTiling(
     int64_t numR, int64_t numC, const uint32_t stackBufferSize, const uint32_t typeSize,
