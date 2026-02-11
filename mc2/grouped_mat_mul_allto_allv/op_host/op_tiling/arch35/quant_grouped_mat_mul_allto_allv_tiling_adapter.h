@@ -49,7 +49,7 @@ public:
     bool AnalyzeAttrs() override { return true; }
     bool AnalyzeDtype() override { return true; }
     bool AnalyzeInputs() override { return true; }
-    void PrintQuantParams() override {}
+    // void PrintQuantParams() override {}
     void Reset() override {}
 
     // void PrintMatmulParams();
