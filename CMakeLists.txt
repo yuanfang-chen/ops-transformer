@@ -21,6 +21,7 @@ option(ENABLE_CCACHE              "Enable ccache capability"        ON)
 option(ENABLE_BUILT_IN            "Enable built-in package"         OFF)
 option(ENABLE_STATIC              "Enable Static"                   OFF)
 option(ENABLE_TILING_SINK         "Enable tiling sink"              ON)
+option(ENABLE_AICPU               "Enable aicpu"                    ON)
 option(ENABLE_EXPERIMENTAL        "Enable experimental module"      OFF)
 option(ENABLE_TEST                "Enable test"                     OFF)
 option(ENABLE_UT_EXEC             "Enable exec ut"                  OFF)
@@ -125,10 +126,6 @@ if (BUILD_OPEN_PROJECT)
         include(cmake/custom_build.cmake)
         message(STATUS "End building custom package.")
         include(cmake/opbuild.cmake)
-        merge_graph_headers(
-            TARGET merge_ops_proto ALL
-            OUT_DIR ${ASCEND_GRAPH_CONF_DST}
-        )
         if (ENABLE_OPS_HOST)
             gen_aclnn_with_opdef()
         endif()
@@ -147,7 +144,9 @@ if (BUILD_OPEN_PROJECT)
         else()
             message(STATUS "Start building custom package.")
             include(cmake/symbol.cmake)
-            gen_cust_aicpu_symbol()
+            if (ENABLE_AICPU)
+                gen_cust_aicpu_symbol()
+            endif()
         endif()
         return()
     endif()
@@ -598,8 +597,6 @@ if (BUILD_OPS_RTY_KERNEL)
     add_custom_target(ops_transformer_config ALL)
     add_dependencies(ops_transformer_kernel ops_transformer_config)
 
-    option(CI_MODE "CI compilation mode (continue on error)" OFF)
-    
     foreach (compute_unit ${ASCEND_COMPUTE_UNIT})
         add_bin_compile_target(
                 COMPUTE_UNIT
