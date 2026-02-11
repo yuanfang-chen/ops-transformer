@@ -71,6 +71,7 @@ constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT = 2;
 
 // A16W8场景tiling默认值
 constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT = 7651;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT = 24035;
 
 constexpr int32_t CONDITION_M_ST = 0;
 constexpr int32_t CONDITION_M_END = 1;
@@ -397,6 +398,17 @@ static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRa
         {3584, 2147483647, -1, 640, 4608, 6144}, {4608, 2147483647, -1, 640, 6144, 2147483647}}},
     {7651,
         {{32434, 2147483647, -1, 6144, -1, 1536}, {3584, 2147483647, -1, 640, 2560, 4608}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap = {
+    {483,
+        {{-1, 1536, -1, 2147483647, -1, 3584}, {-1, 2147483647, 192, 2147483647, 3584, 2147483647}}},
+    {24035,
+        {{1536, 2147483647, -1, 2147483647, -1, 640}}},
+    {1507,
+        {{1536, 2147483647, -1, 2147483647, 640, 3584}, {-1, 2147483647, 96, 192, 3584, 2147483647}}},
+    {7651,
+        {{-1, 2147483647, -1, 96, 3584, 2147483647}}}
 };
 
 bool AlltoAllMatmulTiling910b::IsCapable()
@@ -897,6 +909,22 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling
 
     DecodeTilingData(code, cocTilingData);
     
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap)}
+    };
+    SetTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
     TilingParamDeal(cocTilingData, info, ubSize);
 }
 
