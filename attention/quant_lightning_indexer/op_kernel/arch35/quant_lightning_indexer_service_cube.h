@@ -121,7 +121,7 @@ private:
     LocalTensor<K_T> l0b_;
 
     TBuf<TPosition::CO1> bufL0C_;
-    LocalTensor<int32_t> cL0_;
+    LocalTensor<float> cL0_;
 
     uint64_t keyL1BufIdx_ = 0;
     uint64_t qwL1Mte2BufIdx_ = 0;
@@ -157,7 +157,7 @@ __aicore__ inline void QLIMatmul<QLIT>::InitBuffers(TPipe *pipe)
     l0b_ = bufL0B_.Get<K_T>();
 
     pipe->InitBuffer(bufL0C_, 128 * 1024);
-    cL0_ = bufL0C_.Get<int32_t>();
+    cL0_ = bufL0C_.Get<float>();
 }
 
 template <typename QLIT>
@@ -551,8 +551,7 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeWs(uint64_t s1gL0RealSize, uint64
     mmadParams.k = constInfo_.gSize;
     mmadParams.cmatrixInitVal = true;
     mmadParams.cmatrixSource = false;
-    Mmad(cL0_.template ReinterpretCast<float>()[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET +
-                                                s1gOffset * S2_BASIC_BLOCK_L0],
+    Mmad(cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET + s1gOffset * S2_BASIC_BLOCK_L0],
             l0a_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
             l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
             mmadParams);
@@ -588,7 +587,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpSToL1(uint64_t s1gL0RealSize, uint64
     params.nSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);
     params.dstStride = S1G_BASIC_BLOCK_L0;
     params.srcStride = params.mSize;
-    params.quantPre = QuantMode_t::DEQF16;
+    params.quantPre = QuantMode_t::F322F16;
     params.reluPre = 1;
     params.channelSplit = 0;
     params.nz2ndEn = 0;
@@ -617,7 +616,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpResToGm(uint64_t s1L0RealCount, uint
                                  2048);
     AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * constInfo_.mBaseSize / constInfo_.gSize * constInfo_.s2BaseSize +
                                 s1GmOffset * intriParams.dstStride + s2GmOffset],
-                      cL0_.template ReinterpretCast<float>()[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET],
+                      cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET],
                       intriParams);
 }
 
