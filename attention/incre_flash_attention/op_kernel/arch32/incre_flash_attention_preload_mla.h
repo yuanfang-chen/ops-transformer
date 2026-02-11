@@ -2513,8 +2513,8 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::DealBmm1ResBaseBlock(const ExtraInfoMl
         inputQue1.DeQue<MM1_OUT_T>();
         LocalTensor<T> mm1ResFp32 = mm1ResInt32.template ReinterpretCast<T>();
         RowMuls(mmResUb, mm1ResFp32, dequantScale1Ub[startRow * BLOCK_ELEMENT_NUM], dealRowCount, columnCount, actualColumnCount);
-        AscendC::printf("tkd mmResUb\n");
-        AscendC::DumpTensor(mmResUb, 1, 1024);
+        AscendC::printf("tkd before mask mmResUb\n");
+        AscendC::DumpTensor(mmResUb, 1, 2048);
 
         inputQue1.FreeTensor(mm1ResInt32);
     #else
@@ -2571,6 +2571,9 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::DealBmm1ResBaseBlock(const ExtraInfoMl
 
     PipeBarrier<PIPE_V>();
     ElewiseCompute(info, mmResUb, tmpBuff2, startRow, dealRowCount, columnCount, actualColumnCount);
+
+    AscendC::printf("tkd after mask mmResUb\n");
+    AscendC::DumpTensor(mmResUb, 1, 2048);
 
     LocalTensor<T> tmpAFloorUb = tmpBuff2.Get<T>();
     LocalTensor<uint8_t> softmaxTmpUb = tmpAFloorUb.template ReinterpretCast<uint8_t>();
