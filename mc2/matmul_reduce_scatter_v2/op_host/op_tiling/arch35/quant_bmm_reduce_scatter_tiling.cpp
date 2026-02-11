@@ -43,9 +43,6 @@ constexpr uint64_t EVEN_ALIGN = 2;
 constexpr uint64_t PERTENSOR_SCALE_DIM = 1;
 constexpr uint64_t PERBLOCK_SCALE_DIM = 2;
 constexpr uint64_t MX_SCALE_DIM = 3;
-constexpr uint64_t GROUP_M_OFFSET = 32;
-constexpr uint64_t GROUP_N_OFFSET = 16;
-constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 
 constexpr int32_t IDX_K_LOW = 2;
 constexpr int32_t IDX_K_HIGH = 3;
@@ -116,26 +113,39 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckGroupSize() const
     auto groupSizePtr = attrsPtr->GetAttrPointer<uint64_t>(GROUPSIZE_INDEX);
     OP_TILING_CHECK(groupSizePtr == nullptr, CUBE_INNER_ERR_REPORT(opName_, "GroupSizePtr shouldn't be nullptr"),
                     return ge::GRAPH_FAILED);
-    uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
-    uint64_t groupSizeN = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
-    uint64_t groupSizeM = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
+    Mc2MatmulShapeInfo shapeInfo = {
+        context_->GetInputShape(X1_INDEX);
+        context_->GetInputShape(X2_INDEX);
+        context_->GetOptionalInputShape(X1SCALE_INDEX);
+        context_->GetOptionalInputShape(X2SCALE_INDEX);
+        *groupSizePtr,
+        false,
+        *context_->GetAttrs()->GetAttrPointer<bool>(TRANSPOSEB_INDEX)
+    }
+    std::tuple<uint64_t, uint64_t, uint64_t> groupSizeMNK(0, 0, 0);
     if (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) {
-        OP_TILING_CHECK(
-            (groupSizeM != MXFP8_SIZE_M) || (groupSizeN != MXFP8_SIZE_N) || (groupSizeK != MXFP8_SIZE_K),
+        shapeInfo.isMxfp = true;
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize in mx scene."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != MXFP_GROUPSIZE_SUPPORT_LIST
             CUBE_INNER_ERR_REPORT(opName_, "groupSizeM, groupSizeN should be 1, "
             "groupSizeK should be 32 in mxfp8 scene, "
             "but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld]",
-            groupSizeM, groupSizeN, groupSizeK), return ge::GRAPH_FAILED);
+            get<0>(groupSizeMNK), get<1>(groupSizeMNK), get<2>(groupSizeMNK)), return ge::GRAPH_FAILED);
     } else if (quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) {
         OP_TILING_CHECK(*groupSizePtr != 0,
             CUBE_INNER_ERR_REPORT(opName_, "GroupSize should be 0 in pertensor, actually %lu",
             *groupSizePtr), return ge::GRAPH_FAILED);
     } else if (quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) {
-        OP_TILING_CHECK(
-            (groupSizeM != PERBLOCK_SIZE) || (groupSizeN != PERBLOCK_SIZE) || (groupSizeK != PERBLOCK_SIZE),
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize in perblock scene."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != PERBLOCK_GROUPSIZE_SUPPORT_LIST,
             CUBE_INNER_ERR_REPORT(opName_, "groupSizeM, groupSizeN and groupSizeK should be 128 in perblock scene,"
             " but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld]",
-            groupSizeM, groupSizeN, groupSizeK), return ge::GRAPH_FAILED);
+            get<0>(groupSizeMNK), get<1>(groupSizeMNK), get<2>(groupSizeMNK)),
+            return ge::GRAPH_FAILED);
     } else {
         OP_LOGE(opName_, "Quant mode should be pertensor or perblock or mxfp!");
         return ge::GRAPH_FAILED;
