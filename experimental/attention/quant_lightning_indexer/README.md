@@ -35,8 +35,8 @@
 | metadata                    | 可选输入      | QuantLightningIndexerMetadata算子传入的分核信息，包含使用核数、分块大小以及每个核处理数据的起始点等内容，shape大小为[1024]，当前不支持传空 | INT32       | ND         |
 | query_quant_mode                 | 可选属性      | 用于标识输入`query`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0 | INT32          | -         |
 | key_quant_mode                 | 可选属性| 用于标识输入`key`的量化模式，当前支持Per-Token-Head量化模式，当前仅支持传入0 | INT32 | -         |
-| layout_query                 | 可选属性| 用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND" | String | -         |
-| layout_key      | 可选属性      | 用于标识输入`key`的数据排布格式，当前仅支持传入PA_BSND  | String          | -         |
+| layout_query                 | 可选属性| 用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND" | STRING | -         |
+| layout_key      | 可选属性      | 用于标识输入`key`的数据排布格式，当前仅支持传入PA_BSND  | STRING          | -         |
 | sparse_count  | 可选属性      | 代表topK阶段需要保留的block数量，Atlas A3 推理系列产品支持[1, 2048]，Ascend 950PR/Ascend 950DT支持512 | INT32          | -         |
 | sparse_mode | 可选属性      | 表示sparse的模式，支持0/3，数据类型支持`int32`。 sparse_mode为0时，代表defaultMask模式。sparse_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。 | INT32          | -         |
 | pre_tokens    | 可选属性      | 预留参数，表示attention需要和前几个Token计算关联，仅支持默认值2^63-1 | INT64          | -         |
@@ -58,7 +58,7 @@
 -   当`layout_query`为TND时，`actual_seq_lengths_query`必须传入，且以该入参元素的数量作为B值，该入参中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。不能出现负值。
 -   当`layout_key`为PA_BSND时，`actual_seq_lengths_key`该入参必须传入。
 -   PageAttention场景下，`block_table`必须为二维，第一维长度需要等于B，第二维长度不能小于maxBlockNumPerSeq(maxBlockNumPerSeq为每个batch中最大`actual_seq_lengths_key`对应的block数量)，支持block_size取值为16的整数倍，最大支持到1024。
--   query、key、weights、query_dequant_scale、key_dequant_scale数据排布格式支持从多种维度解读，其中B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。	 
+-   query、key、weights、query_dequant_scale、key_dequant_scale数据排布格式支持从多种维度解读，其中B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
 
 ## Atlas A3 推理系列产品 调用说明
 
@@ -110,20 +110,20 @@
                                     num_heads_q = n1,
                                     num_heads_k = n2,
                                     head_dim = d,
-                                    query_quant_mode = query_quant_mode, 
+                                    query_quant_mode = query_quant_mode,
                                     key_quant_mode = key_quant_mode,
-                                    batch_size = b, 
+                                    batch_size = b,
                                     max_seqlen_q = max_seqlen_q,
-                                    max_seqlen_k = max_seqlen_k,  
-                                    layout_query = layout_query, 
+                                    max_seqlen_k = max_seqlen_k,
+                                    layout_query = layout_query,
                                     layout_key = layout_key,
-                                    sparse_count = sparse_count, 
-                                    sparse_mode = sparse_mode, 
-                                    pre_tokens = (1<<63)-1, 
-                                    next_tokens = (1<<63)-1, 
+                                    sparse_count = sparse_count,
+                                    sparse_mode = sparse_mode,
+                                    pre_tokens = (1<<63)-1,
+                                    next_tokens = (1<<63)-1,
                                     cmp_ratio = cmp_ratio,
                                     device = 'npu:0')
-    
+
     sparse_indices, sparse_values = torch.ops.custom.npu_quant_lightning_indexer(query.npu(), key.npu(), weights.npu(), query_dequant_scale.npu(),
                                                     key_dequant_scale.npu(),
                                                     actual_seq_lengths_query=actual_seq_lengths_query.npu(),
@@ -184,7 +184,7 @@
                                 if act_seq_k is None else torch.tensor(act_seq_k).to(torch.int32).npu()
     max_seqlen_q = actual_seq_lengths_query.max().item()
     max_seqlen_k = actual_seq_lengths_key.max().item()
-    
+
     class QLINetwork(nn.Module):
         def __init__(self):
             super(QLINetwork, self).__init__()
@@ -193,7 +193,7 @@
                     batch_size, num_heads_q, num_heads_k, head_dim,
                     actual_seq_lengths_query=None, actual_seq_lengths_key=None,
                     block_table=None, layout_query='BSND', layout_key='BSND',
-                    sparse_count=512, sparse_mode=3, pre_tokens=(1<<63)-1, 
+                    sparse_count=512, sparse_mode=3, pre_tokens=(1<<63)-1,
                     next_tokens=(1<<63)-1, cmp_ratio=cmp_ratio, return_value=False):
             metadata = torch.ops.custom.npu_quant_lightning_indexer_metadata(
                                     actual_seq_lengths_query = actual_seq_lengths_query,
@@ -201,17 +201,17 @@
                                     num_heads_q = num_heads_q,
                                     num_heads_k = num_heads_k,
                                     head_dim = head_dim,
-                                    query_quant_mode = query_quant_mode, 
+                                    query_quant_mode = query_quant_mode,
                                     key_quant_mode = key_quant_mode,
-                                    batch_size = batch_size, 
+                                    batch_size = batch_size,
                                     max_seqlen_q = max_seqlen_q,
-                                    max_seqlen_k = max_seqlen_k,  
-                                    layout_query = layout_query, 
+                                    max_seqlen_k = max_seqlen_k,
+                                    layout_query = layout_query,
                                     layout_key = layout_key,
-                                    sparse_count = sparse_count, 
-                                    sparse_mode = sparse_mode, 
-                                    pre_tokens = (1<<63)-1, 
-                                    next_tokens = (1<<63)-1, 
+                                    sparse_count = sparse_count,
+                                    sparse_mode = sparse_mode,
+                                    pre_tokens = (1<<63)-1,
+                                    next_tokens = (1<<63)-1,
                                     cmp_ratio = cmp_ratio,
                                     device = 'npu:0')
 
@@ -228,8 +228,8 @@
                                                         next_tokens=next_tokens, cmp_ratio=cmp_ratio,
                                                         return_value=return_value)
             return sparse_indices
-    
-    
+
+
     config = CompilerConfig()
     npu_backend = torchair.get_npu_backend(compiler_config=config)
     torch._dynamo.reset()
@@ -244,5 +244,5 @@
                         pre_tokens=pre_tokens, next_tokens=next_tokens,
                         cmp_ratio=cmp_ratio, return_value=False)
     ```
-   
+
 更多使用示例见[pytest示例](./tests/pytest/README.md)。

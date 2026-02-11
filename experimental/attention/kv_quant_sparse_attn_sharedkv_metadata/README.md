@@ -16,8 +16,8 @@
 ## 参数说明
 | 参数名           |输入/输出/属性|    描述    | 数据类型    |数据格式|
 |-------------|------------|------|-----|-----|
-|num_heads_q|属性|公式中的$Q$的多头数，目前仅支持64。|INT32|-|
-|num_heads_kv|属性|公式中的$\tilde{K}$和$\tilde{V}$的多头数，目前仅支持1。|INT32|-|
+|num_heads_q|属性|query对应的多头数，目前仅支持64。|INT32|-|
+|num_heads_kv|属性|key和value对应的多头数，目前仅支持1。|INT32|-|
 |head_dim|属性|注意力头的维度，目前仅支持512。|INT32|-|
 |kv_quant_mode|属性|kv nope的量化模式，仅支持1，表示K、V nope为per_tile量化，量化后的KV数据类型为FLOAT8_E4M3FN。|INT32|-|。
 |cu_seqlens_q|可选输入|表示不同Batch中q的有效token数，维度为B+1。|INT32|ND|
@@ -37,11 +37,11 @@
 |cmp_mask_mode|可选属性|表示q和cmp_kv计算的mask模式，仅支持输入默认值3，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。|INT32|-|
 |ori_win_left|可选属性|表示q和ori_kv计算中q对过去token计算的数量，仅支持默认值127。|INT32|-|
 |ori_win_right|可选属性|表示q和ori_kv计算中q对未来token计算的数量，仅支持默认值0。|INT32|-|
-|layout_q|可选属性|用于标识输入q的数据排布格式，支持BSND和TND，默认值为BSND。|String|-|
-|layout_kv|可选属性|用于标识输入ori_kv和cmp_kv的数据排布格式，仅支持传入默认值PA_ND（PageAttention）。|String|-|
+|layout_q|可选属性|用于标识输入q的数据排布格式，支持BSND和TND，默认值为BSND。|STRING|-|
+|layout_kv|可选属性|用于标识输入ori_kv和cmp_kv的数据排布格式，仅支持传入默认值PA_ND（PageAttention）。|STRING|-|
 |has_ori_kv|可选属性|用于标识是否含有ori_kv。|BOOL|-|
 |has_cmp_kv|可选属性|用于标识是否含有cmp_kv。|BOOL|-|
-|device|可选属性|用于获取设备信息，当输入tensor均没有传入时，此字段必填|String|-|
+|device|可选属性|用于获取设备信息，当输入tensor均没有传入时，此字段必填|STRING|-|
 |metadata|输出|包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引的列表，shape固定为1024。|INT32|-|
 
 ## 约束说明

@@ -183,7 +183,6 @@ struct RunInfo {
     /* dq 或者attentionOut的Stride */ \
     int64_t attentionOutStride; \
     uint32_t aivIdx; \
-    uint8_t layoutType; \
     uint8_t subBlockIdx;\
 
 #define INFER_CONST_INFO \

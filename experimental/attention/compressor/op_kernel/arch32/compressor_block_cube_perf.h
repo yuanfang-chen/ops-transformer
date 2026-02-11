@@ -358,25 +358,6 @@ __aicore__ inline void CompressorBlockCubePerf<COMP>::CopyOutMm1Res(const RunInf
     } else {
         Fixpipe(curMm1ResGm[gmOffset], cL0Tensor, fixParams);
     }
-
-    // kv和score不拼起来，搬运俩个矩阵，待打开
-    // uint32_t nDealSize = constInfo_.dBaseSize; // 2: wkv和wgate各搬运dBaseSize行, dBaseSize需保证8的倍数
-    // FixpipeParamsV220 fixParams;
-    // fixParams.mSize = mDealSize;
-    // fixParams.nSize = nDealSize;
-    // fixParams.srcStride = (mDealSize + 15) / 16 * 16;   // 需要16对齐
-    // fixParams.dstStride = nDealSize;
-    // fixParams.ndNum = 2;
-    // fixParams.srcNdStride = constInfo_.dBaseSize;
-    // fixParams.dstNdStride = nDealSize * mDealSize;
-
-    // uint64_t gmOffset = mStart * constInfo_.dBaseSize * 2;
-
-    // if constexpr (COMP::coff == COFF::OVERLAP) {
-    //     Fixpipe((coffId == 0) ? preMm1ResGm[gmOffset] : curMm1ResGm[gmOffset], cL0Tensor, fixParams);
-    // } else {
-    //     Fixpipe(curMm1ResGm[gmOffset], cL0Tensor, fixParams);
-    // }
 }
 
 
@@ -467,8 +448,6 @@ __aicore__ inline void CompressorBlockCubePerf<COMP>::ComputeMm1(const RunInfo &
         }
     }
 
-    // DumpTensorForDim2(preMm1ResGm, 1, 128 * 2 * constInfo_.dBaseSize);
-    // DumpTensorForDim2(curMm1ResGm, 2, 128 * 2 * constInfo_.dBaseSize);
 }
 
 } // namespace Compressor

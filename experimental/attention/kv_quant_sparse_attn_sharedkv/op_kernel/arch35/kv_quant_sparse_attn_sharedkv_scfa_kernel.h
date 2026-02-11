@@ -245,7 +245,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
     constInfo.n2GDv = constInfo.n2Size * constInfo.gDv;
     constInfo.s2BaseN2Dv = constInfo.s2BaseSize * constInfo.n2Dv;
     constInfo.n2GS1Dv = constInfo.n2Size * constInfo.gS1Dv;
-    constInfo.layoutType = sharedParams.layoutType;
 
     if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
         // (BS)ND

@@ -25,12 +25,8 @@ using namespace AscendC;
 
 enum class SAS_LAYOUT {
     BSND = 0,
-    TND = 1
-};
-
-enum class SAS_KV_LAYOUT {
-    TND = 0,
-    PA_ND = 1
+    TND = 1,
+    PA_ND = 2
 };
 
 enum class SASTemplateMode {
