@@ -1413,7 +1413,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     uint32_t count = 0;
     while (true) {
         count++;
-        if (count == 1000) {
+        if (count == 100000) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitToken] error count.");
             break;
         }
