@@ -497,6 +497,7 @@ function build_example()
             fi
             ./test_aclnn_${EXAMPLE_NAME}
             run_result=$?
+            echo ">>>>>>>>>>>>>>>>> run_result ${run_result} >>>>>>>>>>>>>>>>"
             if [ $run_result -ne 0 ]; then
                 echo "run test_aclnn_${EXAMPLE_NAME}, execute samples failed"
                 return $run_result
