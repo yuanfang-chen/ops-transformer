@@ -1372,8 +1372,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         LocalTensor<uint32_t> flagVal = statusFlagLocal.ReinterpretCast<uint32_t>();
 
-        LogInfo(__LINE__, "[BATCHWRITE][WaitStatusFlag] statusFlagLocal:");
-        LogInfo(__LINE__, statusFlagLocal, tpipe_, 9);
+        // LogInfo(__LINE__, "[BATCHWRITE][WaitStatusFlag] statusFlagLocal:");
+        // LogInfo(__LINE__, statusFlagLocal, tpipe_, 9);
 
         if (flagVal.GetValue(0) == 1) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitStatusFlag] flag Get.");
@@ -1418,7 +1418,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             LogInfo(__LINE__, "[BATCHWRITE][WaitToken] error count.");
             break;
         }
-        LogInfo(__LINE__, finishNumTensor_, tpipe_, 32);
+        // LogInfo(__LINE__, finishNumTensor_, tpipe_, 32);
         if (finishNumTensor_(index) == 1) {
             index = (index + 1) % tokenCnt; // 轮询查询每个有效的index
             continue;
