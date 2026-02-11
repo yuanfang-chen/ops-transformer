@@ -145,7 +145,7 @@ protected:
     TQue<QuePosition::VECIN, 1> xRotatedInQueue_;
     TQue<QuePosition::VECIN, 1> xInQueue_;
     TQue<QuePosition::VECIN, 1> cosSinInQueue_;
-    TQue<QuePosition::VECIN, 1> outQueue_;
+    TQue<QuePosition::VECOUT, 1> outQueue_;
     TBuf<TPosition::VECCALC> tmpBuff;
 
     LocalTensor<float> xUbFloat;
@@ -398,7 +398,6 @@ __aicore__ inline void RotateMatrixAll<inType, outType, MT>::VectorComputePre(ui
     xInQueue_.EnQue<inType>(xLocal);
     xLocal = xInQueue_.DeQue<inType>();
 
-    PipeBarrier<PIPE_ALL>();
     uint32_t computeLen = curVecBaseM * Ceil(mmConfig_.curSingleN_, align32Byte) * align32Byte;
     if constexpr (std::is_same_v<inType, float>) {
         // cos *x
