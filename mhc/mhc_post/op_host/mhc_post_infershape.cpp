@@ -10,30 +10,44 @@
 
 /*!
  * \file mhc_post_infershape.cpp
- * \brief
+ * \brief MhcPost infershape implementation
  */
 
-#include "mhc_post_infershape.h"
-#include "graph/operator_reg.h"
-#include "common/util/error_manager/error_manager.h"
+#include "log/log.h"
+#include "register/op_impl_registry.h"
+#include "util/math_util.h"
+#include "util/shape_util.h"
 
-namespace ge {
-IMPLEMT_INFERFUNC(MhcPost, MhcPostInferShape) {
+using namespace ge;
+
+namespace ops {
+
+static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
+{
+    const gert::Shape* x_shape = context->GetInputShape(0);
+    OP_CHECK_NULL_WITH_CONTEXT(context, x_shape);
+
     // Output shape is same as input x
-    TensorDesc outputTensorDesc = op.GetOutputDescByName("y");
-    TensorDesc xTensorDesc = op.GetInputDescByName("x");
+    gert::Shape* y_shape = context->GetOutputShape(0);
+    OP_CHECK_NULL_WITH_CONTEXT(context, y_shape);
 
-    DataType xDtype = xTensorDesc.GetDataType();
-    Format xFormat = xTensorDesc.GetFormat();
-    Shape xShape = xTensorDesc.GetShape();
+    y_shape->SetDimNum(x_shape->GetDimNum());
+    for (size_t i = 0; i < x_shape->GetDimNum(); ++i) {
+        y_shape->SetDim(i, x_shape->GetDim(i));
+    }
 
-    outputTensorDesc.SetDataType(xDtype);
-    outputTensorDesc.SetFormat(xFormat);
-    outputTensorDesc.SetShape(xShape);
-
-    (void)op.UpdateOutputDesc("y", outputTensorDesc);
     return GRAPH_SUCCESS;
 }
 
-INFER_FUNC_REG(MhcPost, MhcPostInferShape);
+static ge::graphStatus InferDataTypeForMhcPost(gert::InferDataTypeContext* context)
+{
+    // Output dtype is same as x
+    context->SetOutputDataType(0, context->GetInputDataType(0));
+    return GRAPH_SUCCESS;
 }
+
+IMPL_OP_INFERSHAPE(MhcPost)
+    .InferShape(InferShapeForMhcPost)
+    .InferDataType(InferDataTypeForMhcPost);
+
+} // namespace ops

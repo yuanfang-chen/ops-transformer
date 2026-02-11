@@ -16,42 +16,45 @@
 #ifndef MHC_POST_TILING_H
 #define MHC_POST_TILING_H
 
-#include "graph/tensor.h"
-#include "kernel_tiling/kernel_tiling.h"
-#include "tiling_data_base.h"
+#include "register/op_def_registry.h"
+#include "register/tilingdata_base.h"
+#include "tiling/platform/platform_ascendc.h"
+#include "tiling/tiling_api.h"
+#include "log/log.h"
 
 namespace optiling {
-struct MhcPostTilingData {
-    uint32_t m;      // M dimension of x: [batch, ..., M]
-    uint32_t k;      // K dimension of h_res: [M, K]
-    uint32_t totalLength;  // Total elements in input tensor x (for element-wise operations)
-    uint32_t coreNum;      // Number of AI cores to use
-    uint32_t singleCoreLength; // Elements per core for element-wise operations
-    bool needMatmul;   // Whether matrix multiplication is needed
+
+constexpr int64_t FLOAT_DATA_SIZE = 4;
+constexpr int64_t BLOCK_NUM_FP16 = 16;
+constexpr int64_t BLOCK_NUM_BF16 = 16;
+constexpr int64_t BLOCK_NUM_FP32 = 8;
+constexpr int64_t MIN_BUFFER_NUM = 2;
+constexpr int64_t ALIGN_256 = 256;
+
+// Tiling keys for different data types
+constexpr int64_t TILING_KEY_FP16 = 1;
+constexpr int64_t TILING_KEY_BF16 = 2;
+
+struct MhcPostTilingParams {
+    int64_t totalLength = 0;      // Total elements in x
+    int64_t coreNum = 0;          // Number of cores
+    int64_t singleCoreLength = 0; // Elements per core
+    int64_t tileLength = 0;       // Tile length for each iteration
+    int64_t maxCoreMemery = 0;   // Max UB size
 };
 
-class MhcPostTiling : public TilingData<MhcPostTilingData> {
-public:
-    MhcPostTiling() = default;
-    ~MhcPostTiling() = default;
+ge::graphStatus TilingComputeForMhcPost(gert::TilingContext* context, MhcPostTilingParams& param);
 
-    void set_m(uint32_t m) { data_.m = m; }
-    void set_k(uint32_t k) { data_.k = k; }
-    void set_totalLength(uint32_t totalLength) { data_.totalLength = totalLength; }
-    void set_coreNum(uint32_t coreNum) { data_.coreNum = coreNum; }
-    void set_singleCoreLength(uint32_t singleCoreLength) { data_.singleCoreLength = singleCoreLength; }
-    void set_needMatmul(bool needMatmul) { data_.needMatmul = needMatmul; }
+BEGIN_TILING_DATA_DEF(MhcPostTilingData)
+TILING_DATA_FIELD_DEF(int64_t, total_length);
+TILING_DATA_FIELD_DEF(int64_t, core_num);
+TILING_DATA_FIELD_DEF(int64_t, single_core_length);
+END_TILING_DATA_DEF
 
-    uint32_t get_m() const { return data_.m; }
-    uint32_t get_k() const { return data_.k; }
-    uint32_t get_totalLength() const { return data_.totalLength; }
-    uint32_t get_coreNum() const { return data_.coreNum; }
-    uint32_t get_singleCoreLength() const { return data_.singleCoreLength; }
-    bool get_needMatmul() const { return data_.needMatmul; }
+REGISTER_TILING_DATA_CLASS(MhcPost, MhcPostTilingData)
 
-    MhcPostTilingData &get_data() { return data_; }
-    const MhcPostTilingData &get_data() const { return data_; }
+struct MhcPostCompileInfo {
 };
+
 } // namespace optiling
-
 #endif // MHC_POST_TILING_H
