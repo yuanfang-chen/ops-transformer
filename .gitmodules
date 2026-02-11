@@ -1,0 +1,4 @@
+[submodule "third_party/catlass"]
+	path = third_party/catlass
+	url = https://gitcode.com/cann/catlass
+	branch = v1.3.1-notla
