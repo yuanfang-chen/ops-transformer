@@ -3,15 +3,14 @@
 
 ## 产品支持情况
 
-|产品      | 是否支持 |
-|:----------------------------|:-----------:|
-|<term>昇腾950 AI处理器</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品 </term>|      √     |
-|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
-|<term>Atlas 推理系列产品</term>|      ×     |
-|<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
+|产品             |  是否支持  |
+|:-------------------------|:----------:|
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
+|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
+|  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
+|  <term>Atlas 推理系列产品</term>    |     ×    |
+|  <term>Atlas 训练系列产品</term>    |     ×    |
 
 ## 功能说明
 
@@ -32,7 +31,6 @@ $$
 $$
 
 maxIndex，sumIndex作为输出传递给算子DenseLightningIndexerGradKlLoss作为输入计算Softmax使用。
-
 
 ## 函数原型
 
@@ -91,7 +89,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
     </tr></thead>
     <tbody>
      <tr>
-      <td>queryIndex</td>
+      <td>queryIndex（aclTensor*）</td>
       <td>输入</td>
       <td>lightingIndexer结构的输入queryIndex。</td>
       <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S1: 支持泛化，不能为Matmul的M轴。</li><li>Nidx1: 64、32、16、8。</li><li>D: 128。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -101,7 +99,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>×</td>
      </tr>
      <tr>
-      <td>keyIndex</td>
+      <td>keyIndex（aclTensor*）</td>
       <td>输入</td>
       <td>lightingIndexer结构的输入keyIndex。</td>
       <td><ul><li>B: 支持泛化且与queryIndex的B保持一致。</li> <li>S2: 支持泛化。</li><li>Nidx2: 1。</li><li>D: 128。</li><li>T2: 多个Batch的S2累加。</li></ul></td>
@@ -111,7 +109,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>×</td>
      </tr>
      <tr>
-      <td>weights</td>
+      <td>weight（aclTensor*）</td>
       <td>输入</td>
       <td>权重</td>
       <td><ul><li>B: 支持泛化且与queryIndex的B保持一致。</li><li>S1: 支持泛化且与queryIndex的S1保持一致。</li><li>Nidx1: 64、32、16、8。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -121,7 +119,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>×</td>
      </tr>
      <tr>
-      <td>actualSeqLengthsQuery</td>
+      <td>actualSeqLengthsQueryOptional（aclIntArray*）</td>
       <td>输入</td>
       <td>每个Batch中，Query的有效token数</td>
       <td><ul><li>值依赖。</li><li>长度与B保持一致。</li><li>TND格式下最后一个元素为累加和，累加和与T1保持一致。</li></ul></td>
@@ -131,7 +129,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>-</td>
      </tr>
      <tr>
-      <td>actualSeqLengthsKey</td>
+      <td>actualSeqLengthsKeyOptional（aclIntArray*）</td>
       <td>输入</td>
       <td>每个Batch中，Key的有效token数</td>
       <td><ul><li>值依赖。</li><li>长度与B保持一致。</li><li>TND格式下最后一个元素为累加和，累加和与T2保持一致。</li></ul></td>
@@ -140,7 +138,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>(B,)</td>
       <td>-</td>
      </tr>
-      <td>layout</td>
+      <td>layoutOptional（char*）</td>
       <td>输入</td>
       <td>layout格式</td>
       <td><ul><li>仅支持BSND和TND格式。</li></ul></td><td>STRING</td>
@@ -149,37 +147,37 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>-</td>
      </tr>
      <tr>
-      <td>sparseMode</td>
+      <td>sparseMode（int64_t）</td>
       <td>输入</td>
       <td>sparse的模式</td>
       <td><ul><li>表示sparse的模式。sparse不同模式的详细说明请参见<a href="#约束说明">约束说明</a>。</li><li>仅支持模式3。</li></ul></td>
-      <td>INT64</td>
+      <td>-</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
      </tr>
      <tr>
-       <td>preTokens</td>
+       <td>preTokens（int64_t）</td>
        <td>输入</td>
        <td>用于稀疏计算，表示Attention需要和前几个token计算关联</td>
        <td><ul><li>和Attention中的preTokens定义相同，在sparseMode = 0和4的时候生效，仅支持2^63-1</a>。</li></ul></td>
-       <td>INT64</td>
+       <td>-</td>
        <td>-</td>
        <td>-</td>
        <td>-</td>
       </tr>
      <tr>
-       <td>nextTokens</td>
+       <td>nextTokens（int64_t）</td>
        <td>输入</td>
        <td>用于稀疏计算，表示Attention需要和后几个token计算关联</td>
        <td><ul><li>和Attention中的nextTokens定义相同，在sparseMode = 0和4的时候生效，仅支持2^63-1</a>。</li></ul></td>
-       <td>INT64</td>
+       <td>-</td>
        <td>-</td>
        <td>-</td>
        <td>-</td>
      </tr>
      <tr>
-      <td>softmaxMaxOut</td>
+      <td>softmaxMaxOut（aclTensor*）</td>
       <td>输出</td>
       <td>softmax计算使用的max值</td>
       <td><ul><li>B: 支持泛化与queryIndex的B保持一致。</li><li>Nidx2: 与keyIndex的Nidx2保持一致。</li><li>S1:支持泛化，且与queryIndex的S1保持一致。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -189,7 +187,7 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>×</td>
      </tr>
      <tr>
-      <td>softmaxSumOut</td>
+      <td>softmaxSumOut（aclTensor*）</td>
       <td>输出</td>
       <td>softmax计算使用的sum值</td>
       <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>Nidx2: 与keyIndex的Nidx2保持一致。</li><li>S1:支持泛化，且与queryIndex的S1保持一致。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -198,6 +196,26 @@ aclnnStatus aclnnDenseLightningIndexerSoftmaxLse(
       <td>(B,Nidx2,S1);(Nidx2,T1)</td>
       <td>×</td>
      </tr>
+     <tr> 
+      <td>workspaceSize（uint64_t*）</td>
+      <td>输出</td>
+      <td>返回需要在Device侧申请的workspace大小。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+      <tr>
+      <td>executor（aclOpExecutor**）</td>
+      <td>输出</td>
+      <td>返回op执行器，包含了算子计算流程。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
      </tbody>
     </table>
 
