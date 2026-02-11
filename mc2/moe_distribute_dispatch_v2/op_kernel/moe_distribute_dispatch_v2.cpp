@@ -134,7 +134,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                 }
             } else if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
                 LogInfo(__LINE__, "KFC start 8 QUANT");
-                MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, true, false> op;
+                MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
                 op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
