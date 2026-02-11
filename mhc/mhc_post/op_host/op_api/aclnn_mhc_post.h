@@ -25,24 +25,25 @@ extern "C" {
 /**
  * @brief aclnnMhcPostGetWorkspaceSize的第一段接口，计算workspace大小。
  * 功能描述：该算子实现Manifold-Constraint Hyper-Connection的Post部分，处理残差连接的后处理操作。
- * 计算公式：y = x + alpha * h_res + beta * h_out + gamma * h_post
+ * 计算公式：y = (H_res)^T * x + h_out * h_post
  * @domain aclnn_ops_infer
- * @param [in] x：必选参数，Device侧的aclTensor，输入张量x，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据格式支持ND。
- * @param [in] h_res：必选参数，Device侧的aclTensor，残差连接h_res，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据格式支持ND。
- * @param [in] h_out：必选参数，Device侧的aclTensor，输出状态h_out，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据格式支持ND。
- * @param [in] h_post：必选参数，Device侧的aclTensor，后处理h_post，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据格式支持ND。
- * @param [in] alpha：可选参数，Host侧的float，h_res的权重系数，默认值1.0。
- * @param [in] beta：可选参数，Host侧的float，h_out的权重系数，默认值1.0。
- * @param [in] gamma：可选参数，Host侧的float，h_post的权重系数，默认值1.0。
- * @param [out] y：输出Tensor，计算结果y，数据类型支持FLOAT16、FLOAT、BFLOAT16，数据格式支持ND，输出形状与x一致。
+ * @param [in] x：必选参数，Device侧的aclTensor，输入张量x，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND。
+ *                     shape为[batch, ..., M]，最后维度M需与h_res的第一维度匹配。
+ * @param [in] h_res：必选参数，Device侧的aclTensor，残差连接矩阵h_res，数据类型支持FLOAT32，数据格式支持ND。
+ *                      shape为[M, K]或[M]，当为[M, K]时进行矩阵转置乘法。
+ * @param [in] h_out：必选参数，Device侧的aclTensor，输出状态h_out（mhc_pre的输出），数据类型支持FLOAT16、BFLOAT16，
+ *                      数据格式支持ND，shape与x相同。
+ * @param [in] h_post：必选参数，Device侧的aclTensor，后处理h_post，数据类型支持FLOAT32，数据格式支持ND，
+ *                      shape与x相同或广播为标量。
+ * @param [out] y：输出Tensor，计算结果y，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND，输出形状与x一致。
  * @param [out] workspaceSize：返回用户需要在Device侧申请的workspace大小。
  * @param [out] executor：返回op执行器，包含了算子计算流程。
  * @return      aclnnStatus: 返回状态码
  */
 __attribute__((visibility("default"))) aclnnStatus
 aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                              const aclTensor *h_post, float alpha, float beta, float gamma,
-                              const aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor);
+                              const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                              aclOpExecutor **executor);
 
 /**
  * @brief aclnnMhcPost的第二段接口，用于执行计算。

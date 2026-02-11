@@ -22,9 +22,12 @@
 
 namespace optiling {
 struct MhcPostTilingData {
-    uint32_t totalLength;      // Total elements in input tensor
-    uint32_t coreNum;          // Number of AI cores to use
-    uint32_t singleCoreLength; // Elements per core
+    uint32_t m;      // M dimension of x: [batch, ..., M]
+    uint32_t k;      // K dimension of h_res: [M, K]
+    uint32_t totalLength;  // Total elements in input tensor x (for element-wise operations)
+    uint32_t coreNum;      // Number of AI cores to use
+    uint32_t singleCoreLength; // Elements per core for element-wise operations
+    bool needMatmul;   // Whether matrix multiplication is needed
 };
 
 class MhcPostTiling : public TilingData<MhcPostTilingData> {
@@ -32,13 +35,19 @@ public:
     MhcPostTiling() = default;
     ~MhcPostTiling() = default;
 
+    void set_m(uint32_t m) { data_.m = m; }
+    void set_k(uint32_t k) { data_.k = k; }
     void set_totalLength(uint32_t totalLength) { data_.totalLength = totalLength; }
     void set_coreNum(uint32_t coreNum) { data_.coreNum = coreNum; }
     void set_singleCoreLength(uint32_t singleCoreLength) { data_.singleCoreLength = singleCoreLength; }
+    void set_needMatmul(bool needMatmul) { data_.needMatmul = needMatmul; }
 
+    uint32_t get_m() const { return data_.m; }
+    uint32_t get_k() const { return data_.k; }
     uint32_t get_totalLength() const { return data_.totalLength; }
     uint32_t get_coreNum() const { return data_.coreNum; }
     uint32_t get_singleCoreLength() const { return data_.singleCoreLength; }
+    bool get_needMatmul() const { return data_.needMatmul; }
 
     MhcPostTilingData &get_data() { return data_; }
     const MhcPostTilingData &get_data() const { return data_; }
