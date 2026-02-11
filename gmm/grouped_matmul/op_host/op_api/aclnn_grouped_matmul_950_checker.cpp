@@ -83,6 +83,9 @@ bool AclnnGroupedMatmulDAV3510Checker<T>::LastTwoDimValueIsOne(const aclTensor *
 template <typename T>
 bool AclnnGroupedMatmulDAV3510Checker<T>::CheckTensorListSizeForEachInput() const
 {
+    if (gmmParams_.scaleOptional == nullptr && GetInputTensor(gmmParams_.y)->GetDataType() == DataType::DT_INT32) {
+        return true;
+    }
     if (GetInputTensorSize(gmmParams_.scaleOptional) != GetInputTensorSize(gmmParams_.x)) {
         return false;
     }
@@ -742,6 +745,9 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantParams() const
 {
     CHECK_RET(CheckInt8QuantDtype() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckNonMxQuantTransposeStatus() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+    if (GetInputTensor(gmmParams_.y)->GetDataType() == DataType::DT_INT32) {
+        return ACLNN_SUCCESS;
+    }
     CHECK_RET(CheckNonPerGroupQuantDim() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckNonPerGroupQuantShape() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
@@ -992,7 +998,10 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGroupedMatmulDAV3510() con
         }
         CHECK_RET(CheckGeneralQuantShape() == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
-        DataType scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
+        DataType scaleDtype = DataType::DT_UINT64;
+        if (gmmParams_.scaleOptional != nullptr) {
+            scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
+        }
         if (xDtype == DataType::DT_INT8 && weightDtype == DataType::DT_INT8) {
             CHECK_COND(gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,
                        "In int8 quant case only supports groupType 0 (split M), but actual groupType is %ld",
