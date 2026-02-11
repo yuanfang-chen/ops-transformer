@@ -12,12 +12,13 @@
  * \file grouped_matmul_finalize_routing.cpp
  * \brief
  */
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
-#include "grouped_matmul_finalize_routing.h"
-#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_pre.h"
-#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd.h"
-#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_l1_opt.h"
-#endif
+
+// #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+// #include "grouped_matmul_finalize_routing.h"
+// #include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_pre.h"
+// #include "grouped_matmul_finalize_routing_antiquant_a8w4_msd.h"
+// #include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_l1_opt.h"
+// #endif
 
 
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
@@ -25,6 +26,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
+#include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
 #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
     #include "arch35/grouped_matmul_finalize_routing.h"
 #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
