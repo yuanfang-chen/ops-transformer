@@ -68,55 +68,12 @@ public:
                 alltoAllvRecvCnt[i] += static_cast<uint64_t>(recvCnt[expertIdx + i * e_]) * axis;
             }
         }
-        if constexpr (commBeforeComputeFlag) {
-            alltoAllvSendOffset[0] = 0UL;
-            for (uint32_t j = 0U; j < startExpertIdx; j++) {
-                alltoAllvSendOffset[0] += static_cast<uint64_t>(sendCnt[j]) * H1_;
-            }
-            for (uint32_t i = 1U; i < rankDim_; i++) {
-                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
-                for (uint32_t j = 0U; j < e_; j++) {
-                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * H1_;
-                }
-            }
 
-            for (uint32_t i = 0U; i < rankDim_; i++) {
-                if ((startExpertIdx == 0U) && (i == 0U)) {
-                    alltoAllvRecvOffset[i] = 0UL;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
-                } else {
-                    alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
-                    alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
-                }
-            }
+        if (commBeforeComputeFlag) {
+            LaunchCommBeforeCompute(startExpertIdx, expertNum, sendCnt, recvCnt);
         } else {
-            uint64_t expertOffset = 0UL;
-            for (uint64_t i = 0UL; i < startExpertIdx; i++) {
-                for (uint64_t j = 0UL; j < rankDim_; j++) {
-                    expertOffset += static_cast<uint64_t>(sendCnt[i + j * e_]);
-                }
-            }
-            alltoAllvSendOffset[0] = expertOffset * N1_;
-            for (uint64_t i = 1UL; i < rankDim_; i++) {
-                alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1];
-                for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
-                    alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1) * e_]) * N1_;
-                }
-            }
-            alltoAllvRecvOffset[0] = 0UL;
-            for (uint64_t i = 0UL; i < startExpertIdx; i++) {
-                alltoAllvRecvOffset[0] += static_cast<uint64_t>(recvCnt[i]) * N1_;
-            }
-            for (uint64_t i = 1UL; i < rankDim_; i++) {
-                alltoAllvRecvOffset[i] = alltoAllvRecvOffset[i - 1];
-                for (uint64_t j = 0UL; j < e_; j++) {
-                    alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[(i - 1) * e_ + j]) * N1_;
-                }
-            }
+            LaunchCommAfterCompute(startExpertIdx, expertNum, sendCnt, recvCnt);
         }
-        alltoAllvHandleId_[startExpertIdx] =
-        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
-            (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
     }
 
     __aicore__ inline void Wait(uint32_t startExpertIdx)
@@ -156,6 +113,66 @@ public:
     }
 
 private:
+
+    __aicore__ inline void LaunchCommBeforeCompute(uint32_t startExpertIdx, uint32_t expertNum, const auto* sendCnt, const auto* recvCnt)
+    {
+        alltoAllvSendOffset[0] = 0UL;
+        for (uint32_t j = 0U; j < startExpertIdx; j++) {
+            alltoAllvSendOffset[0] += static_cast<uint64_t>(sendCnt[j]) * H1_;
+        }
+        for (uint32_t i = 1U; i < rankDim_; i++) {
+            alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1U];
+            for (uint32_t j = 0U; j < e_; j++) {
+                alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[startExpertIdx + (i - 1U) * e_ + j]) * H1_;
+            }
+        }
+
+        for (uint32_t i = 0U; i < rankDim_; i++) {
+            if ((startExpertIdx == 0U) && (i == 0U)) {
+                alltoAllvRecvOffset[i] = 0UL;
+                alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[0];
+            } else {
+                alltoAllvRecvOffset[i] = alltoAllvRecvOffsetLastSum;
+                alltoAllvRecvOffsetLastSum += alltoAllvRecvCnt[i];
+            }
+        }
+        
+        alltoAllvHandleId_[startExpertIdx] =
+        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+            (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+    }
+
+    __aicore__ inline void LaunchCommAfterCompute(uint32_t startExpertIdx, uint32_t expertNum, const auto* sendCnt, const auto* recvCnt)
+    {
+        uint64_t expertOffset = 0UL;
+        for (uint64_t i = 0UL; i < startExpertIdx; i++) {
+            for (uint64_t j = 0UL; j < rankDim_; j++) {
+                expertOffset += static_cast<uint64_t>(sendCnt[i + j * e_]);
+            }
+        }
+        alltoAllvSendOffset[0] = expertOffset * N1_;
+        for (uint64_t i = 1UL; i < rankDim_; i++) {
+            alltoAllvSendOffset[i] = alltoAllvSendOffset[i - 1];
+            for (uint64_t expertIdx = startExpertIdx; expertIdx < startExpertIdx + expertNum; expertIdx++) {
+                alltoAllvSendOffset[i] += static_cast<uint64_t>(sendCnt[expertIdx + (i - 1) * e_]) * N1_;
+            }
+        }
+        alltoAllvRecvOffset[0] = 0UL;
+        for (uint64_t i = 0UL; i < startExpertIdx; i++) {
+            alltoAllvRecvOffset[0] += static_cast<uint64_t>(recvCnt[i]) * N1_;
+        }
+        for (uint64_t i = 1UL; i < rankDim_; i++) {
+            alltoAllvRecvOffset[i] = alltoAllvRecvOffset[i - 1];
+            for (uint64_t j = 0UL; j < e_; j++) {
+                alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[(i - 1) * e_ + j]) * N1_;
+            }
+        }
+        
+        alltoAllvHandleId_[startExpertIdx] =
+        hccl_.AlltoAllV<true>((__gm__ uint8_t *)sendGlobalBuffer_.GetPhyAddr(), alltoAllvSendCnt, alltoAllvSendOffset, hcclDataType_,
+            (__gm__ uint8_t *)recvGlobalBuffer_.GetPhyAddr(), alltoAllvRecvCnt, alltoAllvRecvOffset, hcclDataType_);
+    }
+
 #if defined(__DAV_C310__)
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;
 #else

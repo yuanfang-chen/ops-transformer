@@ -1930,7 +1930,7 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {"mm_x_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
         },
         &compileInfo,
-        "Ascend950",
+        "3510",
         coreNum,
         ubSize,
         tilingDataSize
