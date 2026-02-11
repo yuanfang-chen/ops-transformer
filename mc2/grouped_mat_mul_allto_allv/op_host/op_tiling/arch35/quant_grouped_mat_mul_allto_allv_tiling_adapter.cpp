@@ -43,8 +43,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameter
     // inputParams_.groupNum = params.ep;
     inputParams_.groupNum = 1;
     // quantMode bit position: 1 << mode
-    inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.gmmXQuantMode);
-    inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.gmmWeightQuantMode);
+    inputParams_.aQuantMode = static_cast<QuantMode>(1U << (params.gmmXQuantMode - 1));
+    inputParams_.bQuantMode = static_cast<QuantMode>(1U << (params.gmmWeightQuantMode - 1));
     // 是否做切分
     inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
     inputParams_.groupListType = 1;
@@ -78,8 +78,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     // inputParams_.groupNum = 0;
     inputParams_.groupNum = 1;
     // quantMode bit position: 1 << mode
-    inputParams_.aQuantMode = static_cast<QuantMode>(1U << params.mmXQuantMode);
-    inputParams_.bQuantMode = static_cast<QuantMode>(1U << params.mmWeightQuantMode);
+    inputParams_.aQuantMode = static_cast<QuantMode>(1U << (params.mmXQuantMode - 1));
+    inputParams_.bQuantMode = static_cast<QuantMode>(1U << (params.mmWeightQuantMode - 1));
     // 是否做切分
     // inputParams_.groupType = optiling::Mc2GroupedMatmul::NO_SPLIT;
     inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;

@@ -683,14 +683,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
     auto yDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
     inferredInfo.gmmResultLen = mc2tiling::AlignUp(
         localParams_.A * localParams_.N1 * yDtypeSize, alignAddrLen);
-    // localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
+    localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
     localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen +
         localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
         localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
     
-    localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
+    // localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
 
     return ge::GRAPH_SUCCESS;
 }
