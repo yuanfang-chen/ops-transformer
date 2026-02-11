@@ -425,20 +425,21 @@ function ci_print_compile_failed_ops_info()
         done <<< "$success_files"
     fi
 
-    if [[ ${#failed_ops_map[@]} -gt 0 ]]; then
-        echo "All CI compile failed ops:"
-        for op_name in "${!failed_ops_map[@]}"; do
-            local bin_list="${failed_ops_map[$op_name]}"
-            echo "ops name: $op_name, failed bin: $bin_list"
-        done
-    fi
-
     if [[ ${#success_ops_map[@]} -gt 0 ]]; then
         echo "All CI compile success ops:"
         for op_name in "${!success_ops_map[@]}"; do
             local bin_list="${success_ops_map[$op_name]}"
             echo "ops name: $op_name, success bin: $bin_list"
         done
+    fi
+    if [[ ${#failed_ops_map[@]} -gt 0 ]]; then
+        echo "All CI compile failed ops:"
+        for op_name in "${!failed_ops_map[@]}"; do
+            local bin_list="${failed_ops_map[$op_name]}"
+            echo "ops name: $op_name, failed bin: $bin_list"
+        done
+        echo "[ERROR] build failed!"
+        exit 1
     fi
 }
 
@@ -455,11 +456,10 @@ function build()
         set +e
         cmake --build . --target ${target} ${JOB_NUM} ${option}
         set -e
-        ci_print_compile_failed_ops_info
     else
         cmake --build . --target ${target} ${JOB_NUM} ${option}
-        if [ $? -ne 0 ]; then echo "[ERROR] build failed!" && exit 1; fi
     fi
+    ci_print_compile_failed_ops_info
 }
 
 ARCH_INFO=$(uname -m)

@@ -364,7 +364,7 @@ fi
             check_result += f"""
 if [ $? -ne 0 ]; then
     echo "{self.op_intf} {bin_file}" >> failed_ops.log
-    exit 0 # CI
+    exit 1
 else
     echo "${{res}}"
     echo "{self.op_intf} {bin_file}" >> success_ops.log
