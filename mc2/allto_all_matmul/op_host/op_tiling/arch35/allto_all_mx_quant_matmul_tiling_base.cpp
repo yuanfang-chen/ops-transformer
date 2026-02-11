@@ -311,18 +311,18 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetHcclTiling()
                     VECTOR_INNER_ERR_REPORT_TILING(opName_, "Cannot find HcclDataType according to ge datatype = %d.",
                                                    static_cast<int32_t>(contextInfo.args_.geCType)),
                     return ge::GRAPH_FAILED;);
-    Mc2CcTilingConfigBuilder allToAllBuilder =
+    Mc2CcTilingConfigBuilder allToAllMatmulBuilder =
         Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
                                          Mc2CcTilingConfigBuilder::AlgConfigType::ALL_TO_ALL);
     // reducetype接口附带的数据类型优先于调用通信接口传入的数据类型，因此这里需要设置
     AscendC::Mc2CcTilingConfig allToAllTilingConfig =
-        allToAllBuilder
+        allToAllMatmulBuilder
             .withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geAType,
                             contextInfo.args_.geAType)
             .withCommEngine(mc2tiling::A5_CCU_ENGINE)
             .build();
-    if (!allToAllBuilder.isSuccess()) {
-        OP_LOGE(opName_, "allto all matmul build hccl tiling config failed: %s", allToAllBuilder.errorMsg().c_str());
+    if (!allToAllMatmulBuilder.isSuccess()) {
+        OP_LOGE(opName_, "allto all matmul build hccl tiling config failed: %s", allToAllMatmulBuilder.errorMsg().c_str());
         return ge::GRAPH_FAILED;
     }
     allToAllTilingConfig.GetTiling(localTilingData_.mc2InitTiling);
@@ -498,19 +498,19 @@ void AllToAllMxQuantMatmulTilingBase::PrintExtendMatmulTiling(const std::string 
     OP_LOGD(opName, "QuantBmmV3Params.realSingleCoreM=%u.", tiling.params.realSingleCoreM);
     OP_LOGD(opName, "QuantBmmV3Params.biasDtype=%u.", tiling.params.biasDtype);
     OP_LOGD(opName, "QuantBmmV3Params.ubSize=%u.", tiling.params.ubSize);
-    OP_LOGD(opName, "QuantBmmV3Params.isMClash=%u.", tiling.params.isMClash);
-    OP_LOGD(opName, "QuantBmmV3Params.isNClash=%u.", tiling.params.isNClash);
     OP_LOGD(opName, "QuantBmmV3Params.groupSizeM=%u.", tiling.params.groupSizeM);
     OP_LOGD(opName, "QuantBmmV3Params.groupSizeK=%u.", tiling.params.groupSizeK);
     OP_LOGD(opName, "QuantBmmV3Params.groupSizeN=%u.", tiling.params.groupSizeN);
+    OP_LOGD(opName, "QuantBmmV3Params.isMClash=%u.", tiling.params.isMClash);
+    OP_LOGD(opName, "QuantBmmV3Params.isNClash=%u.", tiling.params.isNClash);
     OP_LOGD(opName, "TileL2cacheTiling.mTileCntL2=%u.", tiling.tileL2cacheTiling.mTileCntL2);
     OP_LOGD(opName, "TileL2cacheTiling.nTileCntL2=%u.", tiling.tileL2cacheTiling.nTileCntL2);
     OP_LOGD(opName, "TileL2cacheTiling.mTileBlock=%u.", tiling.tileL2cacheTiling.mTileBlock);
     OP_LOGD(opName, "TileL2cacheTiling.nTileBlock=%u.", tiling.tileL2cacheTiling.nTileBlock);
     OP_LOGD(opName, "TileL2cacheTiling.calOrder=%u.", tiling.tileL2cacheTiling.calOrder);
     OP_LOGD(opName, "TileL2cacheTiling.isBasicTiling=%u.", tiling.tileL2cacheTiling.isBasicTiling);
-    OP_LOGD(opName, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.mTailTile);
     OP_LOGD(opName, "AdaptiveSlidingWin.nTailTile=%u.", tiling.adaptiveSlidingWin.nTailTile);
+    OP_LOGD(opName, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.mTailTile);
 }
 
 /**
@@ -522,11 +522,11 @@ void AllToAllMxQuantMatmulTilingBase::PrintExtendMatmulTiling(const std::string 
 void AllToAllMxQuantMatmulTilingBase::PrintAlltoAllMxQuantMatmulTilingInfo(const std::string &opName,
                                                                            AlltoAllMatmulTilingInfo &tilingInfo)
 {
-    OP_LOGD(opName, "TilingInfo.rankDim: %u", tilingInfo.rankDim);
-    OP_LOGD(opName, "TilingInfo.tileCnt: %u", tilingInfo.tileCnt);
-    OP_LOGD(opName, "TilingInfo.tileM: %u", tilingInfo.tileM);
     OP_LOGD(opName, "TilingInfo.tailCnt: %u", tilingInfo.tailCnt);
     OP_LOGD(opName, "TilingInfo.tailM: %u", tilingInfo.tailM);
+    OP_LOGD(opName, "TilingInfo.tileCnt: %u", tilingInfo.tileCnt);
+    OP_LOGD(opName, "TilingInfo.tileM: %u", tilingInfo.tileM);
+    OP_LOGD(opName, "TilingInfo.rankDim: %u", tilingInfo.rankDim);
     OP_LOGD(opName, "TilingInfo.rankM: %u", tilingInfo.rankM);
     OP_LOGD(opName, "TilingInfo.rankN: %u", tilingInfo.rankN);
     OP_LOGD(opName, "TilingInfo.rankK: %u", tilingInfo.rankK);
@@ -564,10 +564,10 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::PostTiling()
     SetTilingInfo(localTilingData_.alltoAllQuantMatmulTilingInfo);
     AlltoAllQuantMatmulTilingData *outTilingData = context_->GetTilingData<AlltoAllQuantMatmulTilingData>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
-    OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Failed to get tiling data from context"),
+    OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Fail to get tiling data from context"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((tilingBufCap < sizeof(localTilingData_)),
-                    OP_LOGE(opName_, "TilingBuffer capacity too small, capacity = %zu, need = %zu.", tilingBufCap,
+                    OP_LOGE(opName_, "TilingBuffer capacity is too small, capacity = %zu, need = %zu.", tilingBufCap,
                             sizeof(localTilingData_)),
                     return ge::GRAPH_FAILED);
     errno_t ret = memcpy_s(outTilingData, tilingBufCap, &localTilingData_, sizeof(localTilingData_));
