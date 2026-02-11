@@ -624,49 +624,6 @@ static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV
     return true;
 }
 
-// static ge::graphStatus TilingCheckMoeDistributeCombine(gert::TilingContext *context, const char *nodeName,
-//     const bool isActiveMask, const bool hasElasticInfo, const bool isPerformance, uint32_t tpWorldSize)
-// {
-//     // 检查参数shape信息
-//     OP_TILING_CHECK(!CheckTensorDim(context, nodeName, isActiveMask, hasElasticInfo, isPerformance, tpWorldSize),
-//                     OP_LOGE(nodeName, "param shape is invalid"), return ge::GRAPH_FAILED);
-//     // 检查参数dataType信息
-//     OP_TILING_CHECK(!CheckTensorDataType(context, nodeName, isActiveMask, hasElasticInfo, isPerformance,
-//     tpWorldSize),
-//                     OP_LOGE(nodeName, "param dataType is invalid"), return ge::GRAPH_FAILED);
-//     // 检查参数format信息
-//     OP_TILING_CHECK(!CheckTensorFormat(context, nodeName, isActiveMask, hasElasticInfo, isPerformance, tpWorldSize),
-//                     OP_LOGE(nodeName, "param Format is invalid"), return ge::GRAPH_FAILED);
-//     return ge::GRAPH_SUCCESS;
-// }
-
-// static ge::graphStatus SetWorkspace(gert::TilingContext *context, const char *nodeName)
-// {
-//     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
-//     uint64_t aivNum = ascendcPlatform.GetCoreNumAiv();
-//     size_t *workspace = context->GetWorkspaceSizes(1);
-//     OP_TILING_CHECK(workspace == nullptr, VECTOR_INNER_ERR_REPORT_TILING(nodeName, "get workspace failed"),
-//         return ge::GRAPH_FAILED);
-//     workspace[0] = SYSTEM_NEED_WORKSPACE + aivNum * MASK_CALC_NEED_WORKSPACE + 4*1024*1024*1024;
-//     OP_LOGD(nodeName, "workspace[0] size is %ld", workspace[0]);
-//     return ge::GRAPH_SUCCESS;
-// }
-
-// static uint64_t CalTilingKey(const uint32_t tpWorldSize, uint32_t commQuantMode)
-// {
-//     bool tp = false;
-//     uint32_t quantMode = TILINGKEY_NO_QUANT;
-//     uint32_t layeredMode = TILINGKEY_TPL_MTE;  // A2
-//     if (tpWorldSize == MAX_TP_WORLD_SIZE) {
-//         tp = true;
-//     }
-//     if (commQuantMode == INT8_COMM_QUANT) {
-//         quantMode = TILINGKEY_INT8_QUANT;
-//     }
-//     uint64_t tilingKey = GET_TPL_TILING_KEY(tp, quantMode, layeredMode, TILINGKEY_TPL_A3);
-//     return tilingKey;
-// }
-
 static ge::graphStatus SetHCommCfg(const gert::TilingContext *context, MoeDistributeCombineV2TilingData *tiling,
                                    const std::string groupEp, const std::string groupTp, const uint32_t tpWorldSize)
 {
