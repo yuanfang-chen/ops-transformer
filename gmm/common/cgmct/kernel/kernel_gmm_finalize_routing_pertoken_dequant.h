@@ -357,9 +357,9 @@ public:
             epilogueDequantOp_.Init(params.epilogueParams);
         }
         uint32_t groupNum = params.gmmParams.groupNum;
-        if constexpr (FormatB == CubeFormat::ZN) {
+        if constexpr (formatB == CubeFormat::ZN) {
  	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN);
- 	    } else if (FormatB == CubeFormat::NZ) {
+ 	    } else if (formatB == CubeFormat::NZ) {
  	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN_INT8);
  	    }
         for (uint32_t groupIdx = 0; groupIdx < groupNum; groupIdx++) {
