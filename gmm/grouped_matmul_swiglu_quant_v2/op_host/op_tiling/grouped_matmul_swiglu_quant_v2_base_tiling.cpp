@@ -207,7 +207,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
     }
     const auto tuningConfigPtr = attr->GetAttrPointer<gert::ContinuousVector>(6);
     tuningConfig_ = tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > 1? 
-                    (reinterpret_cast<const int64_t*)(tuningConfigPtr->GetData())[0] : 0;
+                    (reinterpret_cast<const int64_t*>(tuningConfigPtr->GetData()))[0] : 0;
 
     if (isA4W4_) {
         n_ = wScaleTensor->GetStorageShape().GetDim(wScaleDimNum - DIM_1);
@@ -227,9 +227,8 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
         }
     }
 
-    isWeightTrans = *attr->GetAttrPointer<int64_t>(4);
+    isWeightTrans_ = *attr->GetAttrPointer<int64_t>(4);
 
-    auto wScaleDimNum = wScaleTensor->GetStorageShape().GetDimNum();
     if (dequantMode == 1) { // perGroup量化模式：单tensor场景[E, KGroupCount, N]，多tensor场景[KGroupCount, N]
         quantGroupNum_ = wScaleTensor->GetStorageShape().GetDim(wScaleDimNum - DIM_2);
     } else { // perChannel量化模式
@@ -291,7 +290,7 @@ bool GroupedMatmulSwigluQuantV2BaseTiling::TryFullLoadA(int32_t baseM, int64_t b
     // 暂时只支持A4W4
     float sizeofweightDtype = 0.5f;
     float sizeofxDtype = 0.5f;
-    auto matBl1Size = static_cast<int32_t>(tilingData.mmTilingData.get_depthB1() * baseN * baseK * sizeofweightDtype);
+    auto matBl1Size = static_cast<int32_t>(tilingData_.mmTilingData.get_depthB1() * baseN * baseK * sizeofweightDtype);
     auto remainL1Size = l1Size - matBl1Size - 8 * baseN;
     int32_t newDepthA1 = CeilDiv(k_, baseK);
     if (static_cast<int32_t>(newDepthA1 * baseM * baseK * sizeofxDtype) < static_cast<int32_t>(remainL1Size)) {
@@ -303,13 +302,13 @@ bool GroupedMatmulSwigluQuantV2BaseTiling::TryFullLoadA(int32_t baseM, int64_t b
 }
 
 
-ge::graphStatus GMMTiling::DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum,
+ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DynamicTilingSingleN(gert::TilingContext *context, const uint32_t &aicNum,
                                                 int64_t baseM, int64_t baseN, int64_t baseK)
 {
     //get info
     auto platformInfoPtr = context->GetPlatformInfo();
     OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr)
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
     uint64_t l1Size = 0;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size);
     tilingData_.gmmSwigluQuantV2BaseParams.set_singleN(0);
@@ -321,7 +320,7 @@ ge::graphStatus GMMTiling::DynamicTilingSingleN(gert::TilingContext *context, co
     if (bestSingleN == baseN_) { // 没找到更优的singleN
         return ge::GRAPH_SUCCESS;
     }
-    tilingData.gmmBaseParams.set_singleN(bestSingleN);
+    tilingData_.gmmBaseParams.set_singleN(bestSingleN);
     // 先不改看看baseM能否全载左矩阵
     if (TryFullLoadA(baseM, baseN, baseK, l1Size)) {
         return ge::GRAPH_SUCCESS;
@@ -332,7 +331,7 @@ ge::graphStatus GMMTiling::DynamicTilingSingleN(gert::TilingContext *context, co
     newBaseM += MIN_BASE_M;
     // 再看看能否全载左矩阵
     if (newBaseM < baseM && TryFullLoadA(newBaseM, baseN, baseK, l1Size)) {
-        tilingData.mmTilingData.set_baseM(newBaseM);
+        tilingData_.mmTilingData.set_baseM(newBaseM);
         return ge::GRAPH_SUCCESS;
     }
     return ge::GRAPH_SUCCESS;
