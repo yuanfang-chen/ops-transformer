@@ -58,9 +58,9 @@ static constexpr AscendC::MicroAPI::CastTrait ctHalf2Fp32OneES = {
 using namespace AscendC;
 
 #define GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS                                                                  \
-    template <typename DataTypeOut_, typename DataTypeIn_, typename DataTypeX2Scale_, typename DataTypeX1Scale_>
+    template <typename DataTypeOut_, typename DataTypeIn_, typename DataTypeX2Scale_, typename DataTypeX1Scale_, typename DataTypeBias_>
 #define GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS                                                                   \
-    DataTypeOut_, DataTypeIn_, DataTypeX2Scale_, DataTypeX1Scale_
+    DataTypeOut_, DataTypeIn_, DataTypeX2Scale_, DataTypeX1Scale_, DataTypeBias_
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 class BlockEpilogueDequantFinalizeRouting {
@@ -85,6 +85,7 @@ public:
     using DataTypeIn = DataTypeIn_;
     using DataTypeX1Scale = DataTypeX1Scale_;
     using DataTypeX2Scale = DataTypeX2Scale_;
+    using BiasDtype = DataTypeBias_;
     // shape
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>; // blk_m, blk_n, blk_k, _
     using BlockCoord = AscendC::Coord<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t>; // y, _, _, _, logit, rowIndex
@@ -104,32 +105,38 @@ private:
     __aicore__ inline void VectorAtomicProcess(uint32_t curBaseN,
         uint32_t curVecBaseM, uint64_t offsetM, uint64_t yOffset, LocalTensor<DataTypeOut> yLocal);
     __aicore__ inline void VFDoDequantWithX1X2Scale(
-        LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, uint16_t mSize);
+        LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, LocalTensor<BiasDtype> biasUb, uint16_t mSize);
     __aicore__ inline void VFDoDequantOnlyX2(
-        __ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+        __ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+        __ubuf__ BiasDtype* bias, uint16_t mSize, uint16_t nSize);
+    __aicore__ inline void VFDoDequant(__ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut,
+        __ubuf__ DataTypeX2Scale* x2Scale, __ubuf__ DataTypeX1Scale* x1Scale, __ubuf__ BiasDtype* bias,
         uint16_t mSize, uint16_t nSize);
-    __aicore__ inline void VFDoDequant(__ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut,
-        __ubuf__ DataTypeX2Scale* x2Scale, __ubuf__ DataTypeX1Scale* x1Scale, uint16_t mSize, uint16_t nSize);
     __aicore__ inline void CopyX1ScaleFromGm2Ub(
         LocalTensor<DataTypeX1Scale>& dst, uint64_t blockLen, uint64_t offset);
     __aicore__ inline void CopyX2ScaleFromGm2Ub(
         LocalTensor<DataTypeX2Scale>& dst, uint64_t offset);
+    __aicore__ inline void CopyBiasFromGm2Ub(LocalTensor<BiasDtype>& dst);
 
     // GM ADDR
     AscendC::GlobalTensor<float> logitGlobal_;
     AscendC::GlobalTensor<int64_t> rowIndexGlobal_;
     AscendC::GlobalTensor<DataTypeX1Scale> x1ScaleGlobal_;
     AscendC::GlobalTensor<DataTypeX2Scale> x2ScaleGlobal_;
+    AscendC::GlobalTensor<BiasDtype> biasGlobal_;
     AscendC::GlobalTensor<DataTypeOut> yGlobal_;
 
     // UB ADDR
     AscendC::LocalTensor<DataTypeOut> l0cOutUb_{AscendC::TPosition::VECIN, 0, MAX_SINGLE_MNS};
+    AscendC::LocalTensor<float> l0cOutUbFloat_{AscendC::TPosition::VECIN, 0, MAX_SINGLE_MNS};
     AscendC::LocalTensor<float> logitUbPing_;
     AscendC::LocalTensor<float> logitUbPong_;
     AscendC::LocalTensor<DataTypeX2Scale> x2ScaleUbPing_;
     AscendC::LocalTensor<DataTypeX2Scale> x2ScaleUbPong_;
     AscendC::LocalTensor<DataTypeX1Scale> x1ScaleUbPing_;
     AscendC::LocalTensor<DataTypeX1Scale> x1ScaleUbPong_;
+    AscendC::LocalTensor<BiasDtype> biasUbPing_;
+    AscendC::LocalTensor<BiasDtype> biasUbPong_;
     AscendC::LocalTensor<DataTypeOut> outUbPing_;
     AscendC::LocalTensor<DataTypeOut> outUbPong_;
 
@@ -169,10 +176,14 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     uint32_t afterX1ScalePing = afterX2ScalePong  + BLOCKS_BYTES * sizeof(DataTypeX1Scale);
     x1ScaleUbPong_ = AscendC::LocalTensor<DataTypeX1Scale>(AscendC::TPosition::VECIN, afterX1ScalePing, BLOCKS_BYTES);
     uint32_t afterX1ScalePong = afterX1ScalePing  + BLOCKS_BYTES * sizeof(DataTypeX1Scale);
+    biasUbPing_ = AscendC::LocalTensor<BiasDtype>(AscendC::TPosition::VECIN, afterX1ScalePong, BLOCKS_BYTES);
+    uint32_t afterBiasPing = afterX1ScalePong  + BLOCKS_BYTES * sizeof(BiasDtype);
+    biasUbPong_ = AscendC::LocalTensor<BiasDtype>(AscendC::TPosition::VECIN, afterBiasPing, BLOCKS_BYTES);
+    uint32_t afterBiasPong = afterBiasPing  + BLOCKS_BYTES * sizeof(BiasDtype);
     outUbPing_ = AscendC::LocalTensor<DataTypeOut>(AscendC::TPosition::VECOUT,
-        afterX1ScalePong, HALF_DB_MAX_SINGLE_MNS);
+        afterBiasPong, HALF_DB_MAX_SINGLE_MNS);
     outUbPong_ = AscendC::LocalTensor<DataTypeOut>(AscendC::TPosition::VECOUT,
-        afterX1ScalePong + HALF_DB_MAX_SINGLE_MNS * sizeof(DataTypeOut), HALF_DB_MAX_SINGLE_MNS);
+        afterBiasPong + HALF_DB_MAX_SINGLE_MNS * sizeof(DataTypeOut), HALF_DB_MAX_SINGLE_MNS);
 }
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
@@ -200,6 +211,9 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
             x1ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX1Scale*)params_->x1ScaleGmAddr + Get<X1SCALE_IDXS>(baseOffset));
         }
         x2ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX2Scale*)params_->x2ScaleGmAddr + Get<X2SCALE_IDXS>(baseOffset));
+        if (params_->biasGmAddr != nullptr) {
+            biasGlobal_.SetGlobalBuffer((__gm__ BiasDtype*)params_->biasGmAddr + Get<BIAS_IDXS>(baseOffset_));
+        }
     }
 }
 
@@ -256,22 +270,34 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequantWithX1X2Scale(
-    LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, uint16_t mSize)
+    LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, LocalTensor<BiasDtype> biasUb, uint16_t mSize)
 {
-    __ubuf__ DataTypeOut* l0cOutUbAddr = (__ubuf__ DataTypeOut*)l0cOutUb_.GetPhyAddr();
+    __ubuf__ DataTypeIn* l0cOutUbAddr = (__ubuf__ DataTypeIn*)l0cOutUb_.GetPhyAddr();
+    __ubuf__ float *l0cOutUbFloatAddr = (__ubuf__ float *)l0cOutUbFloat_.GetPhyAddr();
     if (params_->x1ScaleGmAddr != nullptr) {
-        VFDoDequant(l0cOutUbAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
-            (__ubuf__ DataTypeX1Scale*)x1ScaleUb.GetPhyAddr(), mSize, singleN_);
+        if (params_->biasGmAddr != nullptr) {
+            VFDoDequant<true>(l0cOutUbFloatAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
+                (__ubuf__ DataTypeX1Scale*)x1ScaleUb.GetPhyAddr(), (__ubuf__ BiasDtype*)biasUb.GetPhyAddr(), mSize, singleN_);
+        } else {
+            VFDoDequant<false>(l0cOutUbFloatAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
+                (__ubuf__ DataTypeX1Scale*)x1ScaleUb.GetPhyAddr(), nullptr, mSize, singleN_);
+        }
     } else {
-        VFDoDequantOnlyX2(l0cOutUbAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
-                mSize, singleN_);
+        if (params_->biasGmAddr != nullptr) {
+            VFDoDequantOnlyX2<true>(l0cOutUbFloatAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
+                (__ubuf__ BiasDtype*)biasUb.GetPhyAddr(), mSize, singleN_);
+        } else {
+            VFDoDequantOnlyX2<false>(l0cOutUbFloatAddr, l0cOutUbAddr, (__ubuf__ DataTypeX2Scale*)x2ScaleUb.GetPhyAddr(),
+                nullptr, mSize, singleN_);
+        }
     }
 }
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
+template <bool isBiasEpilogue>
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequantOnlyX2(
-    __ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
-    uint16_t mSize, uint16_t nSize)
+    __ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+    __ubuf__ BiasDtype* bias, uint16_t mSize, uint16_t nSize)
 {
     uint32_t eleNumPerVf = AscendC::VECTOR_REG_WIDTH / sizeof(DataTypeIn);
     uint32_t nSrcUbAligned = Align(nSize, static_cast<uint16_t>(UB_ALIGN_SIZE / sizeof(DataTypeIn)));
@@ -286,10 +312,10 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
                 AscendC::MicroAPI::RegTensor<DataTypeIn> l0cOutReg;
                 AscendC::MicroAPI::RegTensor<DataTypeX2Scale> scaleReg;
+                AscendC::MicroAPI::RegTensor<BiasDtype> biasReg;
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
-                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg;
-                AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<float>(elementNum);
-                AscendC::MicroAPI::MaskReg maskNInt64 = AscendC::MicroAPI::UpdateMask<int64_t>(elementNum);
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg;
+                AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<DataTypeIn>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
                 AscendC::MicroAPI::DataCopy(l0cOutReg, l0cOut + l0cOutOffset);
@@ -306,23 +332,36 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                     AscendC::MicroAPI::Interleave(castScaleReg, castScaleOneReg, castScaleReg, castScaleOneReg);
                 } else if constexpr (IsSameType<DataTypeX2Scale, float>::value) {
                     castScaleReg = scaleReg;
-                } else if constexpr (IsSameType<DataTypeX2Scale, int64_t>::value) {
-                    AscendC::MicroAPI::Cast<float, DataTypeX2Scale, ctInt642Fp32S>(castScaleReg, scaleReg, maskNInt64);
                 }
                 AscendC::MicroAPI::Mul(mulScaleOutReg, l0cOutRegFloat, castScaleReg, maskN);
+                if constexpr (isBiasEpilogue) {
+                    AscendC::MicroAPI::DataCopy(biasReg, bias + vfBlockIdx * eleNumPerVf);
+                    // cast bias from bf16/fp16 to float
+                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value>::value) {
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32Zero>(castBiasReg, biasReg, maskN);
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32One>(castBiasOneReg, biasReg, maskN4B16);
+                        AscendC::MicroAPI::Interleave(castBiasReg, castBiasOneReg, castBiasReg, castBiasOneReg);
+                    } else {
+                        castBiasReg = biasReg;
+                    }
+                    AscendC::MicroAPI::Add(addBiasOutReg, mulPtScaleOutReg, castBiasReg, maskN);
+                } else {
+                    addBiasOutReg = mulPtScaleOutReg;
+                }
                 // copy out from register to ub
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
                 AscendC::MicroAPI::DataCopy<float, AscendC::MicroAPI::StoreDist::DIST_NORM_B32>(
-                        dst + dstUbOffset, mulScaleOutReg, maskN);
+                        dst + dstUbOffset, addBiasOutReg, maskN);
             }
         }
     }
 }
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
+template <bool isBiasEpilogue>
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::VFDoDequant(
-    __ubuf__ DataTypeOut* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
-    __ubuf__ DataTypeX1Scale* x1Scale, uint16_t mSize, uint16_t nSize)
+    __ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
+    __ubuf__ DataTypeX1Scale* x1Scale, __ubuf__ BiasDtype* bias, uint16_t mSize, uint16_t nSize)
 {
     uint32_t eleNumPerVf = AscendC::VECTOR_REG_WIDTH / sizeof(DataTypeIn);
     uint32_t nSrcUbAligned = Align(nSize, static_cast<uint16_t>(UB_ALIGN_SIZE / sizeof(DataTypeIn)));
@@ -338,9 +377,10 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::RegTensor<DataTypeIn> l0cOutReg;
                 AscendC::MicroAPI::RegTensor<DataTypeX2Scale> scaleReg;
                 AscendC::MicroAPI::RegTensor<DataTypeX1Scale> perTokenScaleReg;
+                AscendC::MicroAPI::RegTensor<BiasDtype> biasReg;
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
-                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg;
-                AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<float>(elementNum);
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg;
+                AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<DataTypeIn>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
                 AscendC::MicroAPI::DataCopy(l0cOutReg, l0cOut + l0cOutOffset);
@@ -363,10 +403,24 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::DataCopy<DataTypeX1Scale, AscendC::MicroAPI::LoadDist::DIST_BRC_B32>(
                     perTokenScaleReg, x1Scale + mIdx);
                 AscendC::MicroAPI::Mul(mulPtScaleOutReg, mulScaleOutReg, perTokenScaleReg, maskN);
+                if constexpr (isBiasEpilogue) {
+                    AscendC::MicroAPI::DataCopy(biasReg, bias + vfBlockIdx * eleNumPerVf);
+                    // cast bias from bf16/fp16 to float
+                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value>::value) {
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32Zero>(castBiasReg, biasReg, maskN);
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32One>(castBiasOneReg, biasReg, maskN4B16);
+                        AscendC::MicroAPI::Interleave(castBiasReg, castBiasOneReg, castBiasReg, castBiasOneReg);
+                    } else {
+                        castBiasReg = biasReg;
+                    }
+                    AscendC::MicroAPI::Add(addBiasOutReg, mulPtScaleOutReg, castBiasReg, maskN);
+                } else {
+                    addBiasOutReg = mulPtScaleOutReg;
+                }
                 // copy out from register to ub
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
                 AscendC::MicroAPI::DataCopy<float, AscendC::MicroAPI::StoreDist::DIST_NORM_B32>(
-                        dst + dstUbOffset, mulPtScaleOutReg, maskN);
+                        dst + dstUbOffset, addBiasOutReg, maskN);
             }
         }
     }
@@ -393,6 +447,16 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
 }
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
+__aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::CopyBiasFromGm2Ub(
+    LocalTensor<BiasDtype>& dst)
+{
+    DataCopyParams bias2UbParams{1, 0, 0, 0};
+    DataCopyPadParams padParams;
+    bias2UbParams.blockLen = singleN_ * sizeof(BiasDtype);
+    AscendC::DataCopyPad(dst, biasGlobal_[Get<BIAS_IDXS>(blockCoord_)], bias2UbParams, padParams);
+}
+
+GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS>::operator()(
     const BlockShape& blockShape, const BlockCoord& blockCoord)
 {
@@ -414,14 +478,18 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     auto logitUb = logitCrossPingPongID_ == 0 ? logitUbPing_ : logitUbPong_;
     auto x2ScaleUb = logitCrossPingPongID_ == 0 ? x2ScaleUbPing_ : x2ScaleUbPong_;
     auto x1ScaleUb = logitCrossPingPongID_ == 0 ? x1ScaleUbPing_ : x1ScaleUbPong_;
+    auto biasUb = logitCrossPingPongID_ == 0 ? biasUbPing_ : biasUbPong_;
     CopyInLogit(singleMInVec, logitOffset, logitUb);
     CopyX2ScaleFromGm2Ub(x2ScaleUb, 0);
     if (params_->x1ScaleGmAddr != nullptr) {
         CopyX1ScaleFromGm2Ub(x1ScaleUb, singleMInVec * sizeof(DataTypeX1Scale), mOffset);
     }
+    if (params_->x1ScaleGmAddr != nullptr) {
+        CopyBiasFromGm2Ub(biasUb);
+    }
     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_);
     AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_);
-    VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, singleMInVec);
+    VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, biasUb, singleMInVec);
     logitCrossPingPongID_ = (logitCrossPingPongID_ + 1) & 1;
     uint32_t loopNumY = CeilDiv(singleMInVec, MAX_OUTPUT_M_UBS);
     AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
