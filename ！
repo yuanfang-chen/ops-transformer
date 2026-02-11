@@ -1,0 +1,13 @@
+fix codecheck
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# Date:      Wed Feb 11 14:45:59 2026 +0800
+#
+# On branch MxScaleSupport3d
+# Your branch is up to date with 'origin/MxScaleSupport3d'.
+#
+# Changes to be committed:
+#	modified:   gmm/grouped_matmul/op_host/op_api/aclnn_grouped_matmul.cpp
+#
