@@ -620,7 +620,7 @@ static op::Shape SwapLastSecondAndThirdDimValue(const op::Shape& tensorShape)
     op::Shape swapedShape = tensorShape;
     int64_t dimNum = tensorShape.GetDimNum();
     int64_t lastSecondDim = tensorShape.GetDim(dimNum - 2);
-    // dimNum - 2, 这里1指的是取倒数第二维的dim值。dimNum - 3, 这里3指的是取倒数第三维的dim值
+    // dimNum - 2, 这里2指的是取倒数第二维的dim值。dimNum - 3, 这里3指的是取倒数第三维的dim值
     swapedShape.SetDim(dimNum - 2, tensorShape.GetDim(dimNum - 3));
     // dimNum - 3, 这里3指的是取倒数第三维的dim值
     swapedShape.SetDim(dimNum - 3, lastSecondDim);
@@ -1252,8 +1252,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV2(void *workspace, uint64_t worksp
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, aclTensor *x2, const aclTensor *scaleOptional,
-                                                 const aclTensor *groupListOptional,
+static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, const aclTensor *x2,
+                                                 const aclTensor *scaleOptional, const aclTensor *groupListOptional,
                                                  const aclTensor *pertokenScaleOptional, const aclTensor *logitOptional,
                                                  const aclTensor *rowIndexOptional,
                                                  const aclTensor *antiquantScaleOptional,

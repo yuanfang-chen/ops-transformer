@@ -125,7 +125,8 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context,const char* op_name, CheckXandWParams& params)
+static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context, [[maybe_unused]] const char *op_name,
+                                           CheckXandWParams &params)
 {
     params.m = params.shape_x1->GetDim(xIndex);
     params.k = params.shape_x1->GetDim(wIndex);
@@ -243,7 +244,8 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& bsdp, const char* op_name, CheckXandWParams& xAndWParams)
+static ge::graphStatus SetupOutputForMX(InferShapeContext *context, [[maybe_unused]] const int &bsdp,
+                                        const char *op_name, CheckXandWParams &xAndWParams)
 {
     auto attrs = context->GetAttrs();
     auto shape_out = context->GetOutputShape(0);
@@ -409,7 +411,7 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
     return ge::GRAPH_FAILED;
 }
 
-static bool IsSupportMX(gert::InferDataTypeContext *context){
+static bool IsSupportMX(const gert::InferDataTypeContext *context){
     if (CheckType(context->GetInputDataType(xIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         CheckType(context->GetInputDataType(wIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT8_E8M0 &&
