@@ -90,7 +90,8 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
         CubeFormat::ND, 
         TILINGKEY_GMM_WEIGHT_TRANSPOSE, 
         TILINGKEY_MM_WEIGHT_TRANSPOSE,
-        false>;  // isLocal=false
+        false,  // isLocal=false
+        true>;  // opType=true
 
     using LocalComputeOpType = QuantGroupedMatmul<
         QuantAlltoAllvGroupedMatmulTilingData, 
@@ -102,7 +103,8 @@ __global__ __aicore__ void allto_allv_grouped_mat_mul(GM_ADDR gmmxGM, GM_ADDR gm
         CubeFormat::ND, 
         TILINGKEY_GMM_WEIGHT_TRANSPOSE, 
         TILINGKEY_MM_WEIGHT_TRANSPOSE,
-        true>;  // isLocal=true
+        true,   // isLocal=true
+        true>;  // opType=true
 
     A2avGmmScheduler<HcclA2avOp<DTYPE_GMM_WEIGHT, true>,
         ComputeOpType, LocalComputeOpType, QuantAlltoAllvGroupedMatmulTilingData, 

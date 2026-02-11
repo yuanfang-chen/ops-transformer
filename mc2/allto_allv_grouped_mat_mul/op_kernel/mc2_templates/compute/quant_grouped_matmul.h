@@ -10,12 +10,12 @@ namespace MC2KernelTemplate {
 constexpr uint64_t GROUP_LIST_INDEX = 0;
 
 template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
-    CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal>
+    CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal,  bool opType>
 class QuantGroupedMatmul {
 public:
     __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR weightScaleGM, GM_ADDR yGM,
         GM_ADDR workspaceGM, const TilingDataType *tilingData, const GmmTilingDataType *gmmTilingData,
-        TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe)
+        TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe, bool opType)
     {
         if ASCEND_IS_AIV {
             return ;
@@ -46,10 +46,10 @@ public:
         xScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)xScaleGM);
         wScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)weightScaleGM);
 
-        const auto *recvCnt = &tilingData_->taskTilingInfo.recvCnt[0];
+        const auto *opCnt = opType ? &tilingData_->taskTilingInfo.recvCnt[0] : &tilingData_->taskTilingInfo.sendCnt[0];
         for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
             for (uint32_t i = 0U; i < epWorldSize_; i++) {
-                expertTokenNum_[e] += static_cast<uint64_t>(recvCnt[e + i * expertNumInOneRank_]);
+                expertTokenNum_[e] += static_cast<uint64_t>(opCnt[e + i * expertNumInOneRank_]);
             }
         }
     }
