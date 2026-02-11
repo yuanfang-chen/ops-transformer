@@ -50,6 +50,7 @@ operator_group_4:
   - fused_infer_attention_score,10-9
   - mhc_post
   - moe_token_permute_with_routing_map
+  - mhc_post
 operator_group_5:
   - flash_attention_score,3-0
 operator_group_6:
