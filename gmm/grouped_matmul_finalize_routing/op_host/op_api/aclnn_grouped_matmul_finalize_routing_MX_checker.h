@@ -17,8 +17,6 @@
 #include "aclnn_quant_grouped_matmul_finalize_routing_util.h"
 #include "util/math_util.h"
 
-using namespace GmmFinalizeRouting;
-
 namespace GmmFinalizeRouting {
 
 constexpr size_t ZERO_DIM = 0UL;
