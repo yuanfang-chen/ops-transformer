@@ -27,9 +27,9 @@
 #include "lib/matmul_intf.h"
 #include "grouped_matmul_finalize_routing_tiling_key.h"
 #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
-    #include "arch35/grouped_matmul_finalize_routing.h"
+    #include "grouped_matmul_finalize_routing.h"
 #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
-    #include "arch35/grouped_matmul_finalize_routing_pertoken_dequant.h"
+    #include "grouped_matmul_finalize_routing_pertoken_dequant.h"
 #endif
 #endif
 
