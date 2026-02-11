@@ -37,11 +37,6 @@ constexpr uint64_t QUANT_MODE_FP8 = 2;
 constexpr uint32_t ALIGN_DATA_SIZE = 32;
 constexpr uint64_t CCU_ALLTOALL_MAX_DATACNT = 200 * 1024 * 1024;
 
-static const std::initializer_list<std::tuple<int, int, int>> MXFP_GROUPSIZE_SUPPORT_LIST = {
-    std::make_tuple(0, 0, 32), std::make_tuple(1, 1, 32)};
-static const std::initializer_list<std::tuple<int, int, int>> PERBLOCK_GROUPSIZE_SUPPORT_LIST = {
-    std::make_tuple(128, 128, 128)};
-
 namespace {
 const gert::Shape defaultShape = gert::Shape();
 gert::StorageShape defaultStorageShape = gert::StorageShape();
@@ -631,9 +626,21 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::CheckQuantGroupSize()
     uint64_t groupSizeN = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
     uint64_t groupSizeM = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
     std::tuple<uint64_t, uint64_t, uint64_t> groupSizeMNK(groupSizeM, groupSizeN, groupSizeK);
+    struct Mc2MatmulShapeInfo shapeInfo = {
+        opName_,
+        context_->x1_shape,
+        context_->x2_shape,
+        context_->pertoken_scale_shape,
+        context_->dequant_scale_shape,
+        false,
+        args_.isBTrans
+    };
+
     if (isPerBlock_) {
-        OP_TILING_CHECK(
-            !(CheckGroupSizeVaild(groupSizeMNK, PERBLOCK_GROUPSIZE_SUPPORT_LIST)),
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != PERBLOCK_GROUPSIZE_SUPPORT_LIST,
             CUBE_INNER_ERR_REPORT(
                 opName_,
                 "GroupSizeM, groupSizeN and groupSizeK should be 128 in perblock scene,"
@@ -641,8 +648,11 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::CheckQuantGroupSize()
                 groupSizeM, groupSizeN, groupSizeK),
             return ge::GRAPH_FAILED);
     } else if ((scenario_ == AllReduceScenario::MXFP4) || (scenario_ == AllReduceScenario::MXFP8)) {
-        OP_TILING_CHECK(
-            !(CheckGroupSizeVaild(groupSizeMNK, MXFP_GROUPSIZE_SUPPORT_LIST)),
+        shapeInfo.isMxfp = true;
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != MXFP_GROUPSIZE_SUPPORT_LIST,
             CUBE_INNER_ERR_REPORT(
                 opName_,
                 "GroupSizeM, groupSizeN and groupSizeK should be surported in mxfp scene,"

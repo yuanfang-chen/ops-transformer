@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <tuple>
 
 #include "exe_graph/runtime/tiling_context.h"
 #include "formulaic_tiling_datatype.h"
@@ -92,6 +93,21 @@ struct HcclAicpuOpParam {
   uint8_t res[RES_LEN];
 };
 
+struct Mc2MatmulShapeInfo {
+    const char* opName{nullptr};
+    const gert::StorageShape *x1Shape{nullptr};
+    const gert::StorageShape *x2Shape{nullptr};
+    const gert::StorageShape *x1ScaleShape{nullptr};
+    const gert::StorageShape *x1ScaleShape{nullptr};
+    bool isMxfp{false};
+    bool isBTrans{false};
+};
+
+static const std::initializer_list<std::tuple<int, int, int>> MXFP_GROUPSIZE_SUPPORT_LIST = {
+    std::make_tuple(1, 1, 32)};
+static const std::initializer_list<std::tuple<int, int, int>> PERBLOCK_GROUPSIZE_SUPPORT_LIST = {
+    std::make_tuple(128, 128, 128)};
+
 struct KFCMsgBody {
   // Rank* aiv * MsgSize * sizeof(消息)
   HcclAicpuOpParam msgSndArea[mc2tiling::AC_MAX_AIV][mc2tiling::AC_MSG_CNT];
@@ -160,7 +176,7 @@ class Mc2TilingUtils {
   static bool CheckRankSize(NpuArch npuArch, uint32_t rankSize);
   static HcclDataType ConvertGeTypeToHcclType(const std::string &opName,
                                               ge::DataType type);
-
+  static bool InferGroupSize(Mc2MatmulShapeInfo shapeInfo, std::tuple<uint64_t, uint64_t, uint64_t> &groupMNK);
   template <typename T>
   static uint64_t GetTilingKey(T &tilingData, bool isFullMeshHost = false) {
     uint8_t commAlg =
@@ -248,6 +264,7 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
     }
     return ge::GRAPH_SUCCESS;
 }
+
 }  // namespace mc2tiling
 
 #endif
