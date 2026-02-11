@@ -15,13 +15,6 @@
 #ifndef __ALLTO_ALLV_GMM_UTILS_H__
 #define __ALLTO_ALLV_GMM_UTILS_H__
 
-#if defined(ORIG_DTYPE_GMM_X) && defined(DT_BFLOAT16) && defined(DT_FLOAT16) && \
-    (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
-#define ALLTO_ALLV_GMM_NO_QUANT
-#else
-#define ALLTO_ALLV_GMM_QUANT
-#endif
-
 #include "kernel_tiling/kernel_tiling.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
@@ -65,5 +58,5 @@ template <typename T> __aicore__ inline T LeastCommonMultiple(T a, T b)
 }
 } // namespace ALLTO_ALLV_GMM
 
-#endif \
+#endif
     // __ALLTO_ALLV_GMM_UTILS_H__
