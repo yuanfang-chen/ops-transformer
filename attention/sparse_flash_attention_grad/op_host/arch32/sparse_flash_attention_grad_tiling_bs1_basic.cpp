@@ -57,7 +57,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetPlatformInfo()
         auto compileInfoPtr = reinterpret_cast<const SparseFlashAttentionGradCompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_VECTOR_INNER_ERR(opName, "compile_info is null."),
                    return ge::GRAPH_FAILED);
-        aicoreParams_.blockDim = compileInfoPtr->aivNum;
+        aicoreParams_.numBlocks = compileInfoPtr->aivNum;
         aicoreParams_.aicNum = compileInfoPtr->aicNum;
         aicoreParams_.ubSize = compileInfoPtr->ubSize;
         aicoreParams_.l1Size = compileInfoPtr->l1Size;
@@ -68,7 +68,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetPlatformInfo()
             compileInfoPtr->l2CacheSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-        aicoreParams_.blockDim = ascendcPlatform.GetCoreNumAiv();
+        aicoreParams_.numBlocks = ascendcPlatform.GetCoreNumAiv();
         aicoreParams_.aicNum = ascendcPlatform.GetCoreNumAic();
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, aicoreParams_.ubSize);
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, aicoreParams_.l1Size);
@@ -78,9 +78,9 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetPlatformInfo()
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, aicoreParams_.l0cSize);
     }
 
-    OP_CHECK_IF((aicoreParams_.blockDim == 0) || (aicoreParams_.aicNum == 0),
+    OP_CHECK_IF((aicoreParams_.numBlocks == 0) || (aicoreParams_.aicNum == 0),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "num of coreNum(aivNum) is %lu, num of aicNum is %lu.",
-                                           aicoreParams_.blockDim, aicoreParams_.aicNum),
+                                           aicoreParams_.numBlocks, aicoreParams_.aicNum),
                return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(aicoreParams_.ubSize <= 0 || l2CacheSize <= 0,
@@ -102,7 +102,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::DoOpTiling()
 
     // Init
     tmpData.singleM = tilingData.opInfo.get_G();
-    tmpData.singleN = 512;
+    tmpData.singleN = 128; // PER_LOOP_BLOCK_SIZE
 
     // setTilingData
     tilingData.splitCoreParams.set_singleM(tmpData.singleM);
@@ -145,15 +145,15 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::DoLibApiTiling()
 ge::graphStatus SparseFlashAttentionGradBasicTiling::GetWorkspaceSize()
 {
     int64_t currentUseCoreNum = tilingData.opInfo.get_usedCoreNum();
-    int64_t launchBlockDims = aicoreParams_.blockDim;
+    int64_t launchBlockDims = aicoreParams_.numBlocks;
     int64_t inputDtypeSize = tmpData.queryType == ge::DT_FLOAT ? B32 : B16;
     int64_t selectedS2 = tmpData.singleN;
 
     // Tiling传递的内存大小、起始地址，统一为字节数，单位为B
-    auto blockdim = CalcTschBlockDim(launchBlockDims, aicoreParams_.aicNum, aicoreParams_.blockDim);
+    auto blockdim = CalcTschBlockDim(launchBlockDims, aicoreParams_.aicNum, aicoreParams_.numBlocks);
     OP_CHECK_IF(blockdim == 0,
                OPS_REPORT_VECTOR_INNER_ERR(opName, "blockdim is 0, aicNum is %lu, aivNum is %lu.",
-                                           aicoreParams_.aicNum, aicoreParams_.blockDim),
+                                           aicoreParams_.aicNum, aicoreParams_.numBlocks),
                return ge::GRAPH_FAILED);
     context_->SetBlockDim(blockdim);
 
@@ -179,7 +179,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     workspaces[0] = sysLen;
     workspaces[0] += (selectedKWorkspaceLen + selectedVWorkspaceLen) * currentUseCoreNum;
-    workspaces[0] += mm12WorkspaceLen * 2 * currentUseCoreNum;
+    workspaces[0] += mm12WorkspaceLen * 4 * currentUseCoreNum;
     workspaces[0] += dqWorkspaceLen + dkWorkspaceLen + dvWorkspaceLen;
 
     int64_t dAlign = (tilingData.opInfo.get_D() + tilingData.opInfo.get_ropeD() + 15) / 16 * 16;
@@ -192,7 +192,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetWorkspaceSize()
     tilingData.opInfo.set_selectedVWorkspaceLen(selectedVWorkspaceLen);
 
     int64_t workspaceOffsets = (selectedKWorkspaceLen + selectedVWorkspaceLen) * currentUseCoreNum;
-    workspaceOffsets += mm12WorkspaceLen * 2 * currentUseCoreNum;
+    workspaceOffsets += mm12WorkspaceLen * 4 * currentUseCoreNum;
     tilingData.postTilingData.set_dqWorkSpaceOffset(workspaceOffsets);
     workspaceOffsets = workspaceOffsets + tilingData.opInfo.get_dqWorkspaceLen();
     tilingData.postTilingData.set_dkWorkSpaceOffset(workspaceOffsets);
@@ -260,7 +260,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::DoBlockTiling()
     tilingData.opInfo.set_formerCoreNum(aicNum - remainCoreNum);
     tilingData.opInfo.set_formerCoreProcessNNum(formerCoreProcessNNums);
     tilingData.opInfo.set_remainCoreProcessNNum(static_cast<uint32_t>(formerCoreProcessNNums - 1));
-    tilingData.opInfo.set_castUsedCoreNum(aicoreParams_.blockDim);
+    tilingData.opInfo.set_castUsedCoreNum(aicoreParams_.numBlocks);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -507,7 +507,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
         *context_->GetAttrs()->GetAttrPointer<float>(static_cast<size_t>(AttrIndex::SCALE_VALUE)));
     tilingData.opInfo.set_selectedBlockCount(selected_block_count);
     tilingData.opInfo.set_selectedBlockSize(selected_block_size);
-    bool deterministic =  *context_->GetAttrs()->GetAttrPointer<bool>(static_cast<size_t>(AttrIndex::DETERMINISTIC));
+    bool deterministic =  (context_->GetDeterministic() == 1);
     tilingData.opInfo.set_deterministic(deterministic);
 
     tmpData.d = tilingData.opInfo.get_D();
@@ -538,8 +538,7 @@ ge::graphStatus SparseFlashAttentionGradBasicTiling::GetBaseShapeInfo()
     return ge::GRAPH_SUCCESS;
 }
 
-
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(SparseFlashAttentionGrad, SparseFlashAttentionGradBasicTiling, std::vector<int32_t>({static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910B), static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND910_93)}), 1);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(SparseFlashAttentionGrad, SparseFlashAttentionGradBasicTiling, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201)}), 1);
 
 } // namespace sfag
 } // namespace optiling

@@ -18,6 +18,7 @@
 #include <sstream>
 #include <exe_graph/runtime/tiling_context.h>
 #include <graph/utils/type_utils.h>
+#include "platform/soc_spec.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "log/log.h"
 
@@ -33,7 +34,7 @@ namespace OpTiling {
 
 struct AiCoreParams {
     uint64_t ubSize = 0;
-    uint64_t blockDim = 0;
+    uint64_t numBlocks = 0;
     uint64_t aicNum = 0;
     uint64_t l1Size = 0;
     uint64_t l0aSize = 0;
@@ -246,7 +247,7 @@ protected:
 protected:
     gert::TilingContext* context_ = nullptr;
     std::unique_ptr<platform_ascendc::PlatformAscendC> ascendcPlatform_{nullptr};
-    uint32_t blockDim_{0};
+    uint32_t numBlocks_{0};
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};
     AiCoreParams aicoreParams_;

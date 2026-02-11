@@ -77,16 +77,21 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 └── requirements.txt               # 本项目需要的第三方依赖包
 ```
 
-## 📝相关信息
+## 💬相关信息
 
 - [贡献指南](CONTRIBUTING.md)
 - [安全声明](SECURITY.md)
 - [许可证](LICENSE)
+- [所属SIG](https://gitcode.com/cann/community/tree/master/CANN/sigs/ops-transformer)
 
 ## 🤝联系我们
 
 本项目功能和文档正在持续更新和完善中，建议您关注最新版本。
 
-- **问题反馈**：通过GitCode[【Issues】](https://gitcode.com/cann/ops-transformer/issues)提交问题
-- **社区互动**：通过GitCode[【讨论】](https://gitcode.com/cann/ops-transformer/discussions)参与交流
-- **技术专栏**：通过GitCode[【Wiki】](https://gitcode.com/cann/ops-transformer/wiki)获取技术文章，如系列化教程、优秀实践等
+- **问题反馈**：通过GitCode[【Issues】](https://gitcode.com/cann/ops-transformer/issues)提交问题。
+- **社区互动**：通过GitCode[【讨论】](https://gitcode.com/cann/ops-transformer/discussions)参与交流。
+- **技术专栏**：通过GitCode[【Wiki】](https://gitcode.com/cann/ops-transformer/wiki)获取技术文章，如系列化教程、优秀实践等。
+
+    |技术专题|样例|
+    |----|----|
+    |算子性能优化实践|[FA算子性能优化实践和效果分析](https://gitcode.com/cann/ops-transformer/wiki/FA%E7%AE%97%E5%AD%90%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5%E5%92%8C%E6%95%88%E6%9E%9C%E5%88%86%E6%9E%90.md)|

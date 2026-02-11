@@ -455,11 +455,11 @@ aclnnStatus aclnnMoeDistributeDispatchV3(
         - commAlg为"hierarchy"或HCCL_INTRA_PCIE_ENABLE=1且HCCL_INTRA_ROCE_ENABLE=0时，scalesOptional 需传nullptr。
         - xActiveMaskOptional 依commAlg取值，"fullmesh"要求为1D Tensor，shape为(Bs, )；true需排在false前（例：{true, false, true}非法）；"hierarchy"当前版本不支持，传空指针即可。
         - expertScalesOptional 要求为2D Tensor，shape为(Bs, K)。
-        - epWorldSize 依commAlg取值，"fullmesh"支持16、32、64、128、192、256、384；"hierarchy"支持16、32、64。
-        - moeExpertNum 取值范围(0, 512]，还需满足moeExpertNum / (epWorldSize - sharedExpertRankNum) <= 24。
+        - epWorldSize 依commAlg取值，"fullmesh"支持2、3、4、5、6、7、8、16、32、64、128、192、256、384；"hierarchy"支持16、32、64。
+        - moeExpertNum 取值范围(0, 512]。
         - groupTp 当前版本不支持，传空字符即可。
         - tpWorldSize、tpRankId、expertShardType、sharedExpertNum、sharedExpertRankNum 当前版本不支持，传0即可。
-        - epRecvCountsOut 的shape为(moeExpertNum + 2globalBsK*serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
+        - epRecvCountsOut 的shape为(moeExpertNum + 2 * globalBs * K * serverNum,)（前moeExpertNum个为接收token数，剩余为通信前reduce相关信息）。
         - 当前不支持TP域通信。
         - expandScalesOut 要求为1D Tensor，shape为(A,)。
         - quantMode 支持0（非量化）、2（动态量化）。
