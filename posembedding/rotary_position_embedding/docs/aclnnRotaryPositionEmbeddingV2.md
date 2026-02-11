@@ -76,6 +76,7 @@
      $$rotate = diag(rotate1, rotate2, rotate3) = \begin{pmatrix}rotate1&0&0\\0&rotate2&0\\0&0&rotate3\\\end{pmatrix}$$
      其中rotate1、rotate2、rotate3分别为x1、x2、x3的旋转编码矩阵，单个旋转矩阵构建参考调用示例。
 
+   
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用“aclnnRotaryPositionEmbeddingV2GetWorkspaceSize”接口获取入参并根据流程计算所需workspace大小，再调用“aclnnRotaryPositionEmbeddingV2”接口执行计算。
@@ -212,9 +213,10 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
 
   - 参数mode约束：
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品 </term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
+    - <term>Ascend 950PR/Ascend 950DT</term>：2=quarter，3=interleave-half。
     
   - 参数rotate当前支持BFLOAT16、FLOAT16、FLOAT32类型。
-
+  
 - **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

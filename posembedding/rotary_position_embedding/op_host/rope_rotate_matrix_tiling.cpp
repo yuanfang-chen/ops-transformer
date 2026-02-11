@@ -487,8 +487,8 @@ ge::graphStatus RopeRotateMatrixTilingClass::DoOpTiling()
     context_->GetRawTilingData()->SetDataSize(rotateTiling.tiling.GetDataSize());
     
     size_t usrWorkspaceSize = rotateTiling.coreNum * BASE_M * BASE_N * CV_PARALL_NUM * BYTE_PER_DATA_4;
-    
-    size_t sysWorkspaceSize = 16 * 1024 * 1024;
+    auto ascendcPlatform = platform_ascendc:: PlatformAscendC(context->GetPlatformInfo());
+    uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
     size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = usrWorkspaceSize + sysWorkspaceSize;
 
