@@ -262,6 +262,8 @@ ge::graphStatus ScatterPaKvCacheTiling::TemplateNormal()
 
 ge::graphStatus ScatterPaKvCacheTiling::TemplateRope()
 {
+    OP_LOGD(context_, "1&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&_tiling");
+    printf("2&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&_tiling");
     if (inOutMode_ == SINGLE_IN_OUT &&
         (inputDtype_ == ge::DT_HIFLOAT8 || inputDtype_ == ge::DT_FLOAT8_E5M2 || inputDtype_ == ge::DT_FLOAT8_E4M3FN ||
          inputDtype_ == ge::DT_FLOAT4_E2M1 || inputDtype_ == ge::DT_FLOAT4_E1M2)) {
