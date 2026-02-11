@@ -40,34 +40,13 @@ namespace l0op {
     {
         L0_DFX(ChunkGatedDeltaRule, query, key, value, beta, initialState, actualSeqLengths, gOptional, scaleValue);
 
-        // 校验函数：校验gOptional 是否为空，为空时按全 0 赋值
-        const aclTensor *gOptionalTensor = gOptional;
-        if (gOptionalTensor == nullptr) {
-            auto valueShape = value->GetViewShape();
-            const int64_t tDim = valueShape.GetDim(0);
-            const int64_t nvDim = valueShape.GetDim(1);
-            const int64_t gShape[2] = {tDim, nvDim};
-            const aclTensor *dims = executor->ConvertToTensor(gShape, 2, DataType::DT_INT64);
-            aclIntArray *shapeArray = executor->AllocIntArray(gShape, 2);
-
-            const aclScalar *zeroScalar = executor->AllocScalar(0);
-            const aclTensor *zeroTensor = executor->ConvertToTensor(zeroScalar, DataType::DT_FLOAT);
-            gOptionalTensor = l0op::Fill(dims, zeroTensor, shapeArray, executor);
-
-            if (gOptionalTensor == nullptr) {
-                OP_LOGE(ACLNN_ERR_INNER_NULLPTR,
-                    "gOptional is nullptr, but ChunkGatedDeltaRule create zero tensor gOptional failed.");
-                return {nullptr, nullptr};
-            }
-        }
-
         DataType outType = value->GetDataType();
         Format format = Format::FORMAT_ND;
         auto out = executor->AllocTensor(outType, format, format);
         auto finalState = executor->AllocTensor(outType, format, format);
 
         auto ret = INFER_SHAPE(ChunkGatedDeltaRule, 
-            OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptionalTensor),
+            OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional),
             OP_OUTPUT(out, finalState), 
             OP_ATTR(scaleValue));
         if (ret != ACLNN_SUCCESS) {
@@ -76,7 +55,7 @@ namespace l0op {
         }
  
         ret = ADD_TO_LAUNCHER_LIST_AICORE(ChunkGatedDeltaRule,
-            OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptionalTensor),
+            OP_INPUT(query, key, value, beta, initialState, actualSeqLengths, gOptional),
             OP_OUTPUT(out, finalState), 
             OP_ATTR(scaleValue));
         if (ret != ACLNN_SUCCESS) {
