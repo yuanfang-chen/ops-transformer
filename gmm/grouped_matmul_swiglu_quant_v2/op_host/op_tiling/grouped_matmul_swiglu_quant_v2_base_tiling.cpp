@@ -250,8 +250,8 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
 int32_t GroupedMatmulSwigluQuantV2BaseTiling::FindBestSingleN(const uint32_t &aicNum, int64_t baseM, int64_t baseN) const
 {
     uint64_t quantGroupNum = quantGroupNum_;
-    if (n_ < baseN_ || tuningConfig_ <= 0 || !(quantGroupNum == 1)) {
-        return baseN_;
+    if (n_ < baseN || tuningConfig_ <= 0 || !(quantGroupNum == 1)) {
+        return baseN;
     }
     int32_t mDim = CeilDiv(tuningConfig_, baseM);
     int32_t nDim = CeilDiv(n_, baseN);
@@ -268,7 +268,7 @@ int32_t GroupedMatmulSwigluQuantV2BaseTiling::FindBestSingleN(const uint32_t &ai
     for (uint32_t i = 1; i <= aicNum; ++i) {
         if (isNz_) {
             bestSingleN = CeilDiv(static_cast<int32_t>(n_), i);
-            if (bestSingleN != n_ && bestSingleN % baseN_ != 0) {
+            if (bestSingleN != n_ && bestSingleN % baseN != 0) {
                 continue;
             }
         } else {
@@ -282,7 +282,7 @@ int32_t GroupedMatmulSwigluQuantV2BaseTiling::FindBestSingleN(const uint32_t &ai
             return bestSingleN;
         }
     }
-    return baseN_;
+    return baseN;
 }
 
 bool GroupedMatmulSwigluQuantV2BaseTiling::TryFullLoadA(int32_t baseM, int64_t baseN, int64_t baseK, uint64_t l1Size)
@@ -317,10 +317,10 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DynamicTilingSingleN(gert:
         return ge::GRAPH_SUCCESS;
     }
     int32_t bestSingleN = FindBestSingleN(aicNum, baseM, baseN);
-    if (bestSingleN == baseN_) { // 没找到更优的singleN
+    if (bestSingleN == baseN) { // 没找到更优的singleN
         return ge::GRAPH_SUCCESS;
     }
-    tilingData_.gmmBaseParams.set_singleN(bestSingleN);
+    tilingData_.gmmSwigluQuantV2BaseParams.set_singleN(bestSingleN);
     // 先不改看看baseM能否全载左矩阵
     if (TryFullLoadA(baseM, baseN, baseK, l1Size)) {
         return ge::GRAPH_SUCCESS;
@@ -476,7 +476,7 @@ void GroupedMatmulSwigluQuantV2BaseTiling::SetTilingKeyAndScheMode()
         context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     } else if (isA4W4_ && isWeightTrans_) {
         tilingKey_ = A4W4_WEIGHT_TRANS_TILING_KEY_MODE;
-        context->SetScheduleMode(BATCH_MODE_SCHEDULE);
+        context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
     } else if (isSplitWorkSpace_) {
         tilingKey_ = SPLITWORKSPACE_TILING_KEY_MODE;
         context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
