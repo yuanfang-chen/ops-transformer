@@ -1936,6 +1936,34 @@ static bool IsPerTileQuantMode(gmm::GroupedMatmulParams &params)
     return false;
 }
 
+static void SetTransposedScaleTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr)
+{
+    bool isPerTileQuantMode = IsPerTileQuantMode(params);
+    if (params.scaleOptional != nullptr) {
+        std::vector<aclTensor *> scaleTensorList;
+        if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
+            gmm::CreateContiguousTensorListForMXTypeMScale(params.scaleOptional, scaleTensorList, executorPtr);
+            params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
+        } else if (isPerTileQuantMode) {
+            gmm::CreateContiguousTensorList(params.scaleOptional, scaleTensorList, executorPtr);
+            params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
+        }
+    }
+    // 伪量化场景antiquantscale为3维或4维时，需要手动转置为正确shape
+    if (((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
+         (*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 4) &&
+        op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        params.apiVersion == gmm::GMMApiVersion::WeightNz) {
+        std::vector<aclTensor *> antiSTensorList;
+        if ((*params.antiquantScaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) { // Mx场景处理
+            gmm::CreateContiguousTensorListForMXTypeMScale(params.antiquantScaleOptional, antiSTensorList, executorPtr);
+        } else {
+            gmm::CreateContiguousTensorList(params.antiquantScaleOptional, antiSTensorList, executorPtr);
+        }
+        params.antiquantScaleOptional = executorPtr->AllocTensorList(antiSTensorList.data(), antiSTensorList.size());
+    }
+}
+
 static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr)
 {
   bool isPerTileQuantMode = IsPerTileQuantMode(params);
@@ -1965,28 +1993,7 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
          (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(params.xDtype, weightDtype)))) {
         (*params.weight)[0]->SetStorageShape(nZShape);
     }
-    if (params.scaleOptional != nullptr) {
-      std::vector<aclTensor *> scaleTensorList;
-      if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
-        gmm::CreateContiguousTensorListForMXTypeMScale(params.scaleOptional, scaleTensorList, executorPtr);
-        params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
-      } else if (isPerTileQuantMode) {
-        gmm::CreateContiguousTensorList(params.scaleOptional, scaleTensorList, executorPtr);
-        params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());}
-    }
-    // 伪量化场景antiquantscale为3维时，需要手动转置为正确shape
-    if (((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
-         (*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 4) &&
-        op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
-        params.apiVersion == gmm::GMMApiVersion::WeightNz) {
-        std::vector<aclTensor *> antiSTensorList;
-        if ((*params.antiquantScaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) { // Mx场景处理
-            gmm::CreateContiguousTensorListForMXTypeMScale(params.antiquantScaleOptional, antiSTensorList, executorPtr);
-        } else {
-            gmm::CreateContiguousTensorList(params.antiquantScaleOptional, antiSTensorList, executorPtr);
-        }
-        params.antiquantScaleOptional = executorPtr->AllocTensorList(antiSTensorList.data(), antiSTensorList.size());
-    }
+    SetTransposedScaleTensorListContiguous(params, executorPtr);
   }
 }
 

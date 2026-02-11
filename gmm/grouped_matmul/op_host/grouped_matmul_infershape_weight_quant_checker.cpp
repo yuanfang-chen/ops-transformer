@@ -574,9 +574,8 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckGroupSize(const gert::Infe
     // 2含义: (g, k/groupSize, n)的k轴索引，此处groupNum是K轴上量化分组的groupNum，与groupNum_含义不同
     int64_t groupNum;
     if (IsMxA8W4NZ(xDtype_, weightDtype_)) {
-        // antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
-        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 2) * 2 :
-                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - 3) * 2;
+        // antiquantScaleShape: (g,n,k/64,2)
+        groupNum = antiquantScaleShape->GetDim(antiquantScaleDimNum - 2) * 2;
     } else {
         groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 1) :
                                               antiquantScaleShape->GetDim(antiquantScaleDimNum - 2);
