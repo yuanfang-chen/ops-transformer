@@ -1083,7 +1083,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
         OP_LOGE(opName_, "q_head_num(%u) must be divisible by kv_head_num(%u)", n1Size_, n2Size_),
         return ge::GRAPH_FAILED);
 
-    if (isSocVersionA5_) {
+    if (isA5_) {
         std::vector<uint32_t> gSizeSupportList = {1, 2, 4, 8, 16, 32, 48, 64, 128};
         OP_CHECK_IF(std::find(gSizeSupportList.begin(), gSizeSupportList.end(), gSize_) == gSizeSupportList.end(),
             OP_LOGE(opName_, "group num should be in 1, 2, 4, 8, 16, 32, 48, 64, 128, but got %u", gSize_),
@@ -1127,7 +1127,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantDtype() const
             QSFADataTypeToSerialString(inputQType_).c_str()),
         return ge::GRAPH_FAILED);
     
-    if (isSocVersionA5_) {
+    if (isA5_) {
         OP_CHECK_IF(inputKvType_ != ge::DT_FLOAT8_E4M3FN && inputKvType_ != ge::DT_HIFLOAT8,
             OP_LOGE(opName_, "key and value dtype only support %s and %s, but got %s",
                 QSFADataTypeToSerialString(ge::DT_FLOAT8_E4M3FN).c_str(), QSFADataTypeToSerialString(ge::DT_HIFLOAT8).c_str(),
@@ -1239,7 +1239,7 @@ void QSFATilingCheck::Init()
     platformInfo_ = sfaaInfo_.platformInfo;
     opParamInfo_ = sfaaInfo_.opParamInfo;
     socVersion_ = sfaaInfo_.socVersion;
-    isSocVersionA5_ = sfaaInfo_.isSocVersionA5;
+    isA5_ = sfaaInfo_.isA5;
 
     bSize_ = sfaaInfo_.bSize;
     n1Size_ = sfaaInfo_.n1Size;
@@ -1422,7 +1422,7 @@ ge::graphStatus QSFAInfoParser::GetNpuInfo()
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "num of core obtained is 0."), return GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
-    isSocVersionA5_ = (socVersion_ == platform_ascendc::SocVersion::ASCEND950);
+    isA5_ = (socVersion_ == platform_ascendc::SocVersion::ASCEND950);
     if (socVersion_ != platform_ascendc::SocVersion::ASCEND910B && socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
         return GRAPH_FAILED;
@@ -1749,7 +1749,7 @@ void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
     sfaaInfo.platformInfo = platformInfo_;
     sfaaInfo.opParamInfo = opParamInfo_;
     sfaaInfo.socVersion = socVersion_;
-    sfaaInfo.isSocVersionA5 = isSocVersionA5_;
+    sfaaInfo.isA5 = isA5_;
 
     sfaaInfo.bSize = bSize_;
     sfaaInfo.n1Size = n1Size_;
