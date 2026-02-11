@@ -17,7 +17,11 @@
 #define EPILOGUE_BLOCK_EPILOGUE_EMPTY_H
 #include "kernel_basic_intf.h"
 #include "fusion/default_fusion_op.h"
-#include "../utils/common_utils.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifs.h"
 #include "../utils/device_utils.h"
 #include "../utils/status_utils.h"
 

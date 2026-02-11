@@ -17,7 +17,11 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#if ORIG_DTYPE_X_SCALE == DT_FLOAT8_E8M0
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifLOAT8_E8M0
     #include "arch35/grouped_matmul_swiglu_quant_v2_mxquant.h"
 #elif ORIG_DTYPE_X_SCALE == DT_FLOAT
     #include "arch35/grouped_matmul_swiglu_quant_v2_pertoken_quant.h"

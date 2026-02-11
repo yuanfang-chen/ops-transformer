@@ -15,7 +15,11 @@
 #ifndef BATCH_MAT_MUL_REDUCE_SCATTER_ALLTO_ALL_SHARD_ZERO_H
 #define BATCH_MAT_MUL_REDUCE_SCATTER_ALLTO_ALL_SHARD_ZERO_H
 
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "lib/matmul_intf.h"
 

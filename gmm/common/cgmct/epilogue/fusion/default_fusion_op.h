@@ -17,7 +17,11 @@
 #define EPILOGUE_FUSION_DEFAULT_FUSION_OP_H
 #include "kernel_basic_intf.h"
 #include "../../utils/common_utils.h"
-#include "../../utils/device_utils.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endiftils.h"
 
 namespace Cgmct {
 namespace Gemm {

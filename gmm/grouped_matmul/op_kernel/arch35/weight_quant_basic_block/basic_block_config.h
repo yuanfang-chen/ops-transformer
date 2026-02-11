@@ -17,7 +17,11 @@
 
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "tool.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
 

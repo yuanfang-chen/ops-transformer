@@ -18,7 +18,11 @@
 
 #include "kernel_basic_intf.h"
 #include "common.h"
-
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 namespace commondef {
 constexpr uint32_t NUM_TWO = 2;

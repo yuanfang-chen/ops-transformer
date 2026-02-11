@@ -15,8 +15,12 @@
 #ifndef ARRAY_H
 #define ARRAY_H
 
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 template <typename T, uint32_t N, uint64_t Stride=0>
 class Array {

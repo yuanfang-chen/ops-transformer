@@ -17,7 +17,11 @@
 
 #include "kernel_basic_intf.h"
 #include "kernel_operator_list_tensor_intf.h"
-#include "infer_flash_attention_comm.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifn_comm.h"
 #include "infer_flash_attention_sparse.h"
 
 using namespace matmul;

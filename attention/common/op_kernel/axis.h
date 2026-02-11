@@ -16,8 +16,12 @@
 #define AXIS_H
 
 #include <type_traits>
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 
 struct AxisSlices;

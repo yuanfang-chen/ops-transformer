@@ -17,7 +17,11 @@
 #define EPILOGUE_BLOCK_EPILOGUE_PERTILE_H
 #include "kernel_basic_intf.h"
 #include "../utils/common_utils.h"
-#include "../utils/grouped_matmul_constant.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifmul_constant.h"
 #include "../utils/layout_utils.h"
 #include "../utils/tensor_utils.h"
 

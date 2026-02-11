@@ -13,7 +13,11 @@
  * \brief
  */
 
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "distribute_barrier_tiling.h"
 #include "distribute_barrier.h"
 

@@ -17,7 +17,11 @@
 #define UTILS_DEVICE_UTILS_H
 #include "kernel_basic_intf.h"
 namespace Cgmct {
-namespace Gemm {
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 template <AscendC::HardEvent event>
 __aicore__ inline void TPipeSetWaitFlag()

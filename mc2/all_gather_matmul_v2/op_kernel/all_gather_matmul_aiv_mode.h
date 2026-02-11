@@ -15,7 +15,11 @@
 
 #pragma once
 
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "gather_moe_distribute_base.h"

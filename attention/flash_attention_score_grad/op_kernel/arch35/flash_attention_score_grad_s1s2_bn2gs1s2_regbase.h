@@ -18,7 +18,11 @@
 #include <algorithm>
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "matmul_modules/fag_custom_matmul_policy.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifustom_matmul_policy.h"
 #include "vector_api/cast_softmax_grad.h"
 #include "vector_api/dropout.h"
 #include "vector_api/pse_atten_mask_muls_simple_softmax.h"

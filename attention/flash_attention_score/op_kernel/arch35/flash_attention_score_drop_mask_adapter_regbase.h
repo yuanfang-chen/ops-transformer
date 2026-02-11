@@ -18,7 +18,11 @@
 
 #include "kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
-
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 class FlashAttentionScoreDropMaskAdapterRegbase {
 public:
     __aicore__ inline FlashAttentionScoreDropMaskAdapterRegbase()

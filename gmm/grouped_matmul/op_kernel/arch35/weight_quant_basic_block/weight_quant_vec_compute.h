@@ -21,7 +21,11 @@
 #include "basic_block_vf_nz.h"
 #include "kernel_basic_intf.h"
 #include "tool.h"
-
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 using AscendC::BLOCK_CUBE;
 using AscendC::CacheMode;
 using AscendC::DataCopyParams;

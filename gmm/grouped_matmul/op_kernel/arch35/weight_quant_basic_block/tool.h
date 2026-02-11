@@ -18,7 +18,11 @@
 #include "kernel_log.h"
 #include "kernel_basic_intf.h"
 #include "kernel_utils.h"
-
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
 using AscendC::DataCopyExtParams;

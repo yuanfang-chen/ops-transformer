@@ -17,7 +17,11 @@
 
 #include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #define LOCAL_TEMPLATE_CLASS_PARAMS                                                                              \
     template <class xType, class wType, class biasType, class scaleType, class yType, CubeFormat wFormat,        \
               bool aTrans, bool bTrans>

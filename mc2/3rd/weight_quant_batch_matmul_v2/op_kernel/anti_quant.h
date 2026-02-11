@@ -17,7 +17,11 @@
 #define ANTIQUANT_H
 
 #include "kernel_log.h"
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_utils.h"
 
 using AscendC::Adds;

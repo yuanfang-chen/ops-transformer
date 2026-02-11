@@ -16,7 +16,11 @@
 #define UTILS_INTEGRAL_CONSTANT_H
 #include "kernel_basic_intf.h"
 
-namespace AscendC {
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 namespace Std {
 template <typename...>
 struct always_false : public false_type {};

@@ -15,7 +15,11 @@
 #ifndef RAC_SERVET_H
 #define RAC_SERVET_H
 
+#if ASC_DEVKIT_VERSION_NUM >= 90000000
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../common.h"
 
 namespace AscendC {
