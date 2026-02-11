@@ -88,7 +88,7 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
     N1表示第一个matmul的输出通道数。
     K2表示第二个matmul的输入通道数。
     N2表示第二个matmul的输出通道数，对应transform中的H。
-    <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
+    <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
 
 - **参数说明：**
   - x（aclTensor\*，计算输入）：必选参数，Device侧的aclTensor，公式中的输入x，[数据格式](../../../docs/zh/context/数据格式.md)支持ND。
@@ -177,7 +177,7 @@ y = FFN(x, weight1, weight2, tokens, bias1, bias2, activateType)  # 具体参数
 - 确定性计算：
   - aclnnFFNV3默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 所有场景下需满足K1=N2, K1<65536, K2<65536, M轴在32Byte对齐后小于INT32的最大值。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
   - 含BFLOAT16数据类型的场景仅支持Atlas 800I A2推理产品。
   - 有专家时，专家数据的总数需要与x的M保持一致。
   - 激活层为geglu/swiglu/reglu时，仅支持无专家分组时的FLOAT16高性能场景（FLOAT16场景指类型为aclTensor的必选参数数据类型都为FLOAT16的场景），且N1=2\*K2。

@@ -83,7 +83,7 @@ aclnnStatus aclnnFFNV2(
     N1表示第一个matmul的输出通道数。
     K2表示第二个matmul的输入通道数。
     N2表示第二个matmul的输出通道数，对应transform中的H。
-    <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
+    <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：E表示有专家场景的专家数；G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数。
 
 - **参数说明**
 
@@ -227,7 +227,7 @@ aclnnStatus aclnnFFNV2(
 - 确定性计算：
   - aclnnFFNV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 所有场景下需满足K1=N2, K1<65536, K2<65536, M轴在32Byte对齐后小于INT32的最大值。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+- <term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>：
   - 有专家时，专家数据的总数需要与x的M保持一致。
   - 激活层为geglu/swiglu/reglu时，仅支持无专家分组时的FLOAT16高性能场景（FLOAT16场景指类型为aclTensor的必选参数数据类型都为FLOAT16的场景），且N1=2\*K2。
   - 激活层为gelu/fastgelu/relu/silu时，支持有专家或无专家分组的FLOAT16高精度及高性能场景、BFLOAT16场景、量化场景及伪量化场景，且N1=K2。
