@@ -23,6 +23,7 @@
 #include "arch35/moe_v3_gather_mxfp8_quant.h"
 #include "arch35/moe_v3_gather_hifi8_pertensor_quant.h"
 #include "arch35/moe_v3_gather_hifi8_pertoken_quant.h"
+#include "arch35/moe_v3_common.h"
 
 /*
  * 非量化
@@ -87,7 +88,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         return;
     }
 
-#if (__NPU_ARCH__ == 3101)
+#if (__NPU_ARCH__ == NPU_ARCH_950)
     int64_t oriOverflowMode = GetCtrlSpr<OVERFLOW_MODE_CTRL, OVERFLOW_MODE_CTRL>();
 #endif
 
@@ -214,7 +215,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
         }
     }
 
-#if (__NPU_ARCH__ == 3101)
+#if (__NPU_ARCH__ == NPU_ARCH_950)
     SetCtrlSpr<OVERFLOW_MODE_CTRL, OVERFLOW_MODE_CTRL>(oriOverflowMode);
 #endif
 }

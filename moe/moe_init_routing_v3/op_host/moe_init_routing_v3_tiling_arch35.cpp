@@ -33,6 +33,7 @@ const static int64_t SORT_API_MAX_ELEM = 32 * 255LL; // AscendC::Sort全排序�
 const static int64_t MRG_SORT_API_MAX_ELEM = 1024LL;
 const static int64_t MX_QUANT_BLOCK_SIZE = 32LL;
 
+const static int64_t NUM_ONE = 1LL;
 const static int64_t NUM_TWO = 2LL;
 const static int64_t NUM_THREE = 3LL;
 const static int64_t NUM_FOUR = 4LL;
@@ -417,7 +418,11 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::GetWorkspaceSize()
     int64_t quantTempWorkspaceSize = aivCoreNum_ * cols_ * (int64_t)sizeof(float);
     workspaceSize_ += sortWorkspaceSize + coreSyncWorkspaceSize + scatterWorkspaceSize +
                       expertTokensCountWorkspaceSize + expertTokenTotalCountWorkspace;
-    if (quantMode_ >= QUANT_MODE_DYNAMIC && quantMode_ != QUANT_MODE_HIF8_PERTENSOR) { // HIF8_PERTENSOR_QUANT模板不需要使用额外内存
+    static const std::unordered_set<int> quantWorkspaceQuantModeSet = {QUANT_MODE_DYNAMIC,
+                                                                       QUANT_MODE_MXFP8_E5M2,
+                                                                       QUANT_MODE_MXFP8_E4M3FN,
+                                                                       QUANT_MODE_HIF8_PERTENSOR};    
+    if (quantWorkspaceQuantModeSet.count(quantMode_) == 1) {
         // DYNAMIC_QUANT、MXFP8_E5M2_QUANT、MXFP8_E4M3FN_QUANT、HIF8_PERTOKEN_QUANT
         workspaceSize_ += quantTempWorkspaceSize;
     }
@@ -668,6 +673,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
         expectedRankScale = RANK_TWO;
         expectedDim0 = expertEnd_ - expertStart_;
         expectedDim1 = xShape_.GetDim(1);
+    } else if (quantMode_ == QUANT_MODE_HIF8_PERTENSOR) {
+        expectedRankScale = RANK_ONE;
+        expectedDim0 = NUM_ONE;
     }
     if (expectedRankScale != -1) {
         auto rankScale = static_cast<int64_t>(scaleShape_.GetDimNum());
@@ -817,6 +825,10 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
         expectedRank = RANK_TWO;
         expectedDim0 = totalLength_;
         expectedDim1 = Ops::Base::CeilAlign<int64_t>(Ops::Base::CeilDiv<int64_t>(cols_, MX_QUANT_BLOCK_SIZE), 2LL);
+    } else if ((quantMode_ == QUANT_MODE_HIF8_PERTOKEN)) {
+        expectedRank = RANK_TWO;
+        expectedDim0 = totalLength_;
+        expectedDim1 = NUM_ONE;
     }
     auto rank = static_cast<int64_t>(expandedScaleShape_.GetDimNum());
     if (expectedRank != -1) {

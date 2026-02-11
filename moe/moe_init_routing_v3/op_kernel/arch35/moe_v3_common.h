@@ -21,6 +21,8 @@
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
 
+#define NPU_ARCH_950 3101
+
 constexpr int64_t SIMT_THREAD_NUM = 2048;
 constexpr int8_t OVERFLOW_MODE_CTRL = 60;
 
