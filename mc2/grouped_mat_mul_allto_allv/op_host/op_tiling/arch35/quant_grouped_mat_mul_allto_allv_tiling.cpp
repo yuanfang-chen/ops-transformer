@@ -703,7 +703,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     // GMM 第一个矩阵块
     uint64_t gmmX_epSize = 0;
     for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
-        size += localTilingData_.taskTilingInfo.sendCnt[i];
+        gmmX_epSize += localTilingData_.taskTilingInfo.sendCnt[i];
     }
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, gmmX_epSize));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
