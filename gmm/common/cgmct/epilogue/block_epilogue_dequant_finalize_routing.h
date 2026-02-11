@@ -106,9 +106,11 @@ private:
         uint32_t curVecBaseM, uint64_t offsetM, uint64_t yOffset, LocalTensor<DataTypeOut> yLocal);
     __aicore__ inline void VFDoDequantWithX1X2Scale(
         LocalTensor<DataTypeX2Scale> x2ScaleUb, LocalTensor<DataTypeX1Scale> x1ScaleUb, LocalTensor<BiasDtype> biasUb, uint16_t mSize);
+    template <bool isBiasEpilogue>
     __aicore__ inline void VFDoDequantOnlyX2(
         __ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut, __ubuf__ DataTypeX2Scale* x2Scale,
         __ubuf__ BiasDtype* bias, uint16_t mSize, uint16_t nSize);
+    template <bool isBiasEpilogue>
     __aicore__ inline void VFDoDequant(__ubuf__ float* dst, __ubuf__ DataTypeIn* l0cOut,
         __ubuf__ DataTypeX2Scale* x2Scale, __ubuf__ DataTypeX1Scale* x1Scale, __ubuf__ BiasDtype* bias,
         uint16_t mSize, uint16_t nSize);
@@ -314,7 +316,8 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::RegTensor<DataTypeX2Scale> scaleReg;
                 AscendC::MicroAPI::RegTensor<BiasDtype> biasReg;
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
-                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg;
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg,
+                    castBiasReg, castBiasOneReg, ;
                 AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<DataTypeIn>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
@@ -337,16 +340,16 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 if constexpr (isBiasEpilogue) {
                     AscendC::MicroAPI::DataCopy(biasReg, bias + vfBlockIdx * eleNumPerVf);
                     // cast bias from bf16/fp16 to float
-                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value>::value) {
-                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32Zero>(castBiasReg, biasReg, maskN);
-                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32One>(castBiasOneReg, biasReg, maskN4B16);
+                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value) {
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32ZeroES>(castBiasReg, biasReg, maskN);
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32OneES>(castBiasOneReg, biasReg, maskN4B16);
                         AscendC::MicroAPI::Interleave(castBiasReg, castBiasOneReg, castBiasReg, castBiasOneReg);
                     } else {
                         castBiasReg = biasReg;
                     }
-                    AscendC::MicroAPI::Add(addBiasOutReg, mulPtScaleOutReg, castBiasReg, maskN);
+                    AscendC::MicroAPI::Add(addBiasOutReg, mulScaleOutReg, castBiasReg, maskN);
                 } else {
-                    addBiasOutReg = mulPtScaleOutReg;
+                    addBiasOutReg = mulScaleOutReg;
                 }
                 // copy out from register to ub
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
@@ -379,7 +382,8 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 AscendC::MicroAPI::RegTensor<DataTypeX1Scale> perTokenScaleReg;
                 AscendC::MicroAPI::RegTensor<BiasDtype> biasReg;
                 AscendC::MicroAPI::RegTensor<float> l0cOutRegFloat;
-                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg;
+                AscendC::MicroAPI::RegTensor<float> castScaleReg, castScaleOneReg, mulScaleOutReg, mulPtScaleOutReg, addBiasOutReg,
+                    castBiasReg, castBiasOneReg;
                 AscendC::MicroAPI::MaskReg maskN = AscendC::MicroAPI::UpdateMask<DataTypeIn>(elementNum);
                 // copy input from ub to register, addr of ub should align to 32B
                 uint32_t l0cOutOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
@@ -406,9 +410,9 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
                 if constexpr (isBiasEpilogue) {
                     AscendC::MicroAPI::DataCopy(biasReg, bias + vfBlockIdx * eleNumPerVf);
                     // cast bias from bf16/fp16 to float
-                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value>::value) {
-                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32Zero>(castBiasReg, biasReg, maskN);
-                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32One>(castBiasOneReg, biasReg, maskN4B16);
+                    if constexpr (IsSameType<BiasDtype, bfloat16_t>::value) {
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32ZeroES>(castBiasReg, biasReg, maskN);
+                        AscendC::MicroAPI::Cast<float, BiasDtype, ctHalf2Fp32OneES>(castBiasOneReg, biasReg, maskN4B16);
                         AscendC::MicroAPI::Interleave(castBiasReg, castBiasOneReg, castBiasReg, castBiasOneReg);
                     } else {
                         castBiasReg = biasReg;
