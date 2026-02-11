@@ -39,6 +39,7 @@ constexpr uint64_t DIM_TWO = 2;
 constexpr uint64_t X1_QUANT_NUM = 7;
 constexpr uint64_t X2_QUANT_NUM = 2;
 constexpr uint64_t NUM_MINUS_ONE = -1;
+constexpr uint64_t NUM_MINUS_TWO = -2;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: AlltoAllMatmul InferShape Debug";
 const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
@@ -66,8 +67,16 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
     OPS_CHECK_NULL_WITH_CONTEXT(context, x2_shape);
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    auto* alltoAllAxesPtr = attrs->GetAttrPointer<gert::ContinuousVector>(INDEX_ATTR_ALLTO_ALL_AXES);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, alltoAllAxesPtr);//空、
+    const auto alltoAllAxesPtr = attrs->GetAttrPointer<gert::ContinuousVector>(INDEX_ATTR_ALLTO_ALL_AXES);
+    if (alltoAllAxesPtr != nullptr) {
+        OPS_CHECK((alltoAllAxesPtr->GetSize() != DIM_TWO), CUBE_INNER_ERR_REPORT(INNER_DEBUG,
+                  "the size of alltoAllAxes should be %ld, but the actual value is %ld.", DIM_TWO, alltoAllAxesPtr->GetSize()),
+                  return ge::GRAPH_FAILED);
+        const auto alltoAllAxes = static_cast<const int64_t*>(alltoAllAxesPtr->GetData());
+        OPS_CHECK((alltoAllAxes[0] != NUM_MINUS_TWO || alltoAllAxes[1] != NUM_MINUS_ONE), CUBE_INNER_ERR_REPORT(INNER_DEBUG,
+                  "the value of alltoAllAxes should be [-2, -1], but the actual value is [%ld, %ld].", alltoAllAxes[0], alltoAllAxes[1]),
+                  return ge::GRAPH_FAILED);
+    }
 
     const bool* isTransX1 = attrs->GetAttrPointer<bool>(INDEX_ATTR_TRANS_X1);
     OPS_CHECK(
