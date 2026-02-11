@@ -199,9 +199,10 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
                 ConvertContainerToString(supportedHeSize).c_str(), baseShapeInfo_.heSize),
             return ge::GRAPH_FAILED);
     }
-    OP_CHECK_IF(baseShapeInfo_.hcqSize != HCQ_SIZE,
-        OP_LOGE(context_.opName, "Hcq allows only %u, got %u.",
-            HCQ_SIZE, baseShapeInfo_.hcqSize),
+    const std::set<uint32_t> supportedHcqSize {1536U, 2048U};
+    OP_CHECK_IF(supportedHcqSize.find(baseShapeInfo_.hcqSize) == supportedHcqSize.end(),
+        OP_LOGE(context_.opName, "Hcq allows only %s, got %u.",
+            ConvertContainerToString(supportedHcqSize).c_str(), baseShapeInfo_.hcqSize),
         return ge::GRAPH_FAILED);
     const std::set<uint32_t> supportedNSize {1, 2, 4, 8, 16, 32, 64, 128};
     OP_CHECK_IF((supportedNSize.find(baseShapeInfo_.nSize) == supportedNSize.end()),
@@ -212,9 +213,10 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
         OP_LOGE(context_.opName, "Hckv allows only %u, got %u.",
             HCKV_SIZE, baseShapeInfo_.hckvSize),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(baseShapeInfo_.dSize != D_SIZE,
-        OP_LOGE(context_.opName, "D allows only %u, got %u.",
-            D_SIZE, baseShapeInfo_.dSize),
+    const std::set<uint32_t> supportedDSize {128U, 192U};
+    OP_CHECK_IF(supportedDSize.find(baseShapeInfo_.dSize) == supportedDSize.end(),
+        OP_LOGE(context_.opName, "D allows only %s, got %u.",
+            ConvertContainerToString(supportedDSize).c_str(), baseShapeInfo_.dSize),
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(baseShapeInfo_.drSize != DR_SIZE,
         OP_LOGE(context_.opName, "Dr allows only %u, got %u.",
