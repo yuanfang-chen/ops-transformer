@@ -27,20 +27,12 @@ constexpr uint64_t HCOMM_CNT = 2;
 constexpr uint64_t INT8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP8_WORKSPACE_CNT = 3;
 constexpr uint64_t PERTILE_FP32_WORKSPACE_CNT = 2;
-constexpr uint64_t GROUP_M_OFFSET = 32;
-constexpr uint64_t GROUP_N_OFFSET = 16;
-constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 constexpr uint64_t GROUP_MAX_BIT_SIZE = 0xFFFFFFFFFFFF;
 constexpr uint64_t PERTILE_TILELEN = 128;
 constexpr uint64_t DOUBLE_BUFFER = 2;
 constexpr uint64_t QUANT_MODE_FP8 = 2;
 constexpr uint32_t ALIGN_DATA_SIZE = 32;
 constexpr uint64_t CCU_ALLTOALL_MAX_DATACNT = 200 * 1024 * 1024;
-
-static const std::initializer_list<std::tuple<int, int, int>> MXFP_GROUPSIZE_SUPPORT_LIST = {
-    std::make_tuple(0, 0, 32), std::make_tuple(1, 1, 32)};
-static const std::initializer_list<std::tuple<int, int, int>> PERBLOCK_GROUPSIZE_SUPPORT_LIST = {
-    std::make_tuple(128, 128, 128)};
 
 namespace {
 const gert::Shape defaultShape = gert::Shape();
@@ -614,40 +606,45 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::CheckCommQuantScale()
     return ge::GRAPH_SUCCESS;
 }
 
-bool CheckGroupSizeVaild(
-    std::tuple<int, int, int> groupSizeMNK, std::initializer_list<std::tuple<int, int, int>> supportGroupSizeList)
-{
-    return std::find(supportGroupSizeList.begin(), supportGroupSizeList.end(), groupSizeMNK) !=
-           supportGroupSizeList.end();
-}
-
 ge::graphStatus QuantMatmulAllReduceTilingA5::CheckQuantGroupSize()
 {
     OP_TILING_CHECK(
         mmrCtxInfo_.groupSizePtr == nullptr, VECTOR_INNER_ERR_REPORT_TILING(opName_, "The groupSize is nullptr."),
         return false);
-    auto groupSizePtr = mmrCtxInfo_.groupSizePtr;
-    uint64_t groupSizeK = static_cast<uint64_t>(*groupSizePtr) & GROUP_MNK_BIT_SIZE;
-    uint64_t groupSizeN = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
-    uint64_t groupSizeM = (static_cast<uint64_t>(*groupSizePtr) >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
-    std::tuple<uint64_t, uint64_t, uint64_t> groupSizeMNK(groupSizeM, groupSizeN, groupSizeK);
+    std::tuple<int64_t, int64_t, int64_t> groupSizeMNK(0, 0, 0);
+    mc2tiling::Mc2MatmulShapeInfo shapeInfo = {
+        mmrCtxInfo_.x1_shape,
+        mmrCtxInfo_.x2_shape,
+        mmrCtxInfo_.pertoken_scale_shape,
+        mmrCtxInfo_.dequant_scale_shape,
+        *mmrCtxInfo_.groupSizePtr,
+        false,
+        args_.isBTrans,
+        opName_
+    };
+
     if (isPerBlock_) {
-        OP_TILING_CHECK(
-            !(CheckGroupSizeVaild(groupSizeMNK, PERBLOCK_GROUPSIZE_SUPPORT_LIST)),
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != mc2tiling::PERBLOCK_GROUPSIZE_SUPPORT_LIST,
             CUBE_INNER_ERR_REPORT(
                 opName_,
                 "GroupSizeM, groupSizeN and groupSizeK should be 128 in perblock scene,"
-                " but actual is [groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu].",
-                groupSizeM, groupSizeN, groupSizeK),
+                " but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld].",
+                std::get<0>(groupSizeMNK), std::get<1>(groupSizeMNK), std::get<2>(groupSizeMNK)),
             return ge::GRAPH_FAILED);
     } else if ((scenario_ == AllReduceScenario::MXFP4) || (scenario_ == AllReduceScenario::MXFP8)) {
-        OP_TILING_CHECK(
-            !(CheckGroupSizeVaild(groupSizeMNK, MXFP_GROUPSIZE_SUPPORT_LIST)),
+        shapeInfo.isMxfp = true;
+        OP_TILING_CHECK(mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeMNK),
+            CUBE_INNER_ERR_REPORT(opName_, "Failed to execute inferGroupSize."),
+            return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(groupSizeMNK != mc2tiling::MXFP_GROUPSIZE_SUPPORT_LIST,
             CUBE_INNER_ERR_REPORT(
                 opName_,
                 "GroupSizeM, groupSizeN and groupSizeK should be surported in mxfp scene,"
-                " but actual is [groupSizeM = %lu, groupSizeN = %lu, groupSizeK = %lu].",
-                groupSizeM, groupSizeN, groupSizeK),
+                " but actual is [groupSizeM = %ld, groupSizeN = %ld, groupSizeK = %ld].",
+                std::get<0>(groupSizeMNK), std::get<1>(groupSizeMNK), std::get<2>(groupSizeMNK)),
             return ge::GRAPH_FAILED);
     }
 
