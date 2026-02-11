@@ -343,20 +343,25 @@ public:
         }
         InitParamsAndTensor(params);
         BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
-        SyncAll();
-        if ASCEND_IS_AIV
-        {
-            AscendC::CrossCoreSetFlag<SYNC_AIC_AIV_MODES, PIPE_MTE3>(AIV_SYNC_AIC_FLAGS);
-        }
-        if ASCEND_IS_AIC
-        {
-            WaitForVector();
-        }
+        SyncAll<false>();
+        // if ASCEND_IS_AIV
+        // {
+        //     AscendC::CrossCoreSetFlag<SYNC_AIC_AIV_MODES, PIPE_MTE3>(AIV_SYNC_AIC_FLAGS);
+        // }
+        // if ASCEND_IS_AIC
+        // {
+        //     WaitForVector();
+        // }
         if ASCEND_IS_AIV
         {
             epilogueDequantOp_.Init(params.epilogueParams);
         }
         uint32_t groupNum = params.gmmParams.groupNum;
+        if constexpr (FormatB == CubeFormat::ZN) {
+ 	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN);
+ 	    } else if (FormatB == CubeFormat::NZ) {
+ 	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN_INT8);
+ 	    }
         for (uint32_t groupIdx = 0; groupIdx < groupNum; groupIdx++) {
             if (!UpdateGroupParams(params, groupIdx)) {
                 continue;
