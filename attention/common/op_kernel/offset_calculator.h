@@ -15,9 +15,11 @@
 #ifndef OFFSET_CALCULATOR_H
 #define OFFSET_CALCULATOR_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
-
-using namespace AscendC;
+#else
+#include "kernel_operator.h"
+#endif
 using AscendC::GlobalTensor;
 
 // ----------------------------------------------GmLayout--------------------------------

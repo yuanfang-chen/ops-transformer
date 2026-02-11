@@ -16,9 +16,12 @@
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_VF_MX_H
 
 #include "basic_block_config.h"
-#include "kernel_basic_intf.h"
 
-namespace MicroAPI = AscendC::MicroAPI;
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifMicroAPI;
 using AscendC::BLOCK_CUBE;
 using AscendC::VECTOR_REG_WIDTH;
 using AscendC::MicroAPI::AddrReg;

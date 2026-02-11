@@ -16,9 +16,12 @@
 #ifndef UTILS_FILL_UTILS_H
 #define UTILS_FILL_UTILS_H
 #include "common_utils.h"
-#include "kernel_basic_intf.h"
 
-namespace Cgmct {
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 namespace Gemm {
 
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101 || __NPU_ARCH__ == 3102)

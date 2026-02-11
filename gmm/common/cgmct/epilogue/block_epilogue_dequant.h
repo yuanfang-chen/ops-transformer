@@ -16,9 +16,12 @@
 #ifndef EPILOGUE_BLOCK_EPILOGUE_DEQUANT_H
 #define EPILOGUE_BLOCK_EPILOGUE_DEQUANT_H
 #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
-#include "kernel_basic_intf.h"
 #include "../utils/common_utils.h"
-#include "../utils/device_utils.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifs.h"
 #include "../utils/status_utils.h"
 #include "../utils/tensor_utils.h"
 #include "../tile/tile_copy_policy.h"

@@ -15,9 +15,12 @@
 #ifndef GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
 #define GROUPED_MATMUL_WEIGHT_QUANT_BASIC_BLOCK_CONFIG_H
 
-#include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "tool.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 namespace WeightQuantBatchMatmulV2::Arch35 {
 
