@@ -218,6 +218,7 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                 expertTokenNumsOut, epSendCountsOut, workspaceGM, &pipe, tilingGM);
         op.Process();
     }
+    if constexpr ((ArchTag == TILINGKEY_TPL_A2) && (CommMode == TILINGKEY_TPL_MTE) && (ScaleMode == true)) {
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchA2TilingData, tilingData, tilingGM);
         MoeDistributeDispatchA2<DTYPE_X, DTYPE_EXPAND_X, false, true, true> op;
         op.Init(x, expertIds, scales, xActiveMask, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
