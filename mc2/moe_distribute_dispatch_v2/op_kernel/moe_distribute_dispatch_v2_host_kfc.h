@@ -1426,7 +1426,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
         LOG_INFO("[BATCHWRITE][WaitToken][true] index:", index);
 
         //LogInfo(__LINE__, "[BATCHWRITE][WaitToken] process:", index);
-        uint32_t arrisveCount = 0;
+        uint32_t arriveCount = 0;
         CheckDataArriveWithFlag(index + startTokenIdx, serverId_, arriveCount);
         //LogInfo(__LINE__, "[BATCHWRITE][WaitToken] arriveCount:", arriveCount);
         if (arriveCount == 1) {
