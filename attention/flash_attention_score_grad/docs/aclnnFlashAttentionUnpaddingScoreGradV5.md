@@ -5,15 +5,17 @@
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。增加`sinkInOptional`可选输入。
+  - Ascend 950PR/Ascend 950DT产品暂不支持sinkInOptional参数。
 
 - 计算公式：
 
@@ -127,7 +129,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
     <col style="width: 198px">
     <col style="width: 120px">
@@ -524,7 +526,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
   </table>
 
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -560,7 +562,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV5
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
   <col style="width: 121px">
@@ -596,7 +598,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

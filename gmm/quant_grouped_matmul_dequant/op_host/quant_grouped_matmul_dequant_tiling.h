@@ -50,6 +50,7 @@ constexpr float GMM_GEMV_THRESHOLD_C1 = -7.916f;
 constexpr float GMM_GEMV_THRESHOLD_C2 = 22.07f;
 constexpr int32_t GMM_GMEV_THRESHOLD_MIN = 7;
 constexpr int32_t GMM_GMEV_THRESHOLD_MAX = 20;
+constexpr uint32_t BATCH_MODE = 1;
 
 enum class QuantMatmulDequantTilingKey : uint64_t {
   GEMV = 10000001,

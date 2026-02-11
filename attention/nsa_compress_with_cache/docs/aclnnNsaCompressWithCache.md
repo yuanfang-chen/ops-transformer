@@ -4,8 +4,12 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
@@ -241,19 +245,19 @@ aclnnStatus aclnnNsaCompressWithCache(
       </tr>
     </tbody>
   </table>
+
 - **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
   
   第一段接口完成入参校验，出现以下场景时报错：
   
-  <table style="undefined;table-layout: fixed; width: 1030px">
-  <colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
+  <table style="undefined;table-layout: fixed; width: 1153px"><colgroup>
+  <col style="width: 302px">
+  <col style="width: 119px">
+  <col style="width: 732px">
   </colgroup>
-    <table><thead>
+  <thead>
     <tr>
       <th>返回值</th>
       <th>错误码</th>
@@ -282,7 +286,7 @@ aclnnStatus aclnnNsaCompressWithCache(
       <td>activeNum、expertNum、expertCapacity的值小于0。</td>
     </tr>
     <tr>
-      <td>compress_block_size、compress_stride 、不是16的整数倍，或者compress_block_size<compress_stride。</td>
+      <td>compress_block_size、compress_stride 、不是16的整数倍，或者compress_block_size</td>
     </tr>
     <tr>
       <td>seq_lens_type!=1或者layout取值不是BSH、SBH、BSND、BNSD、TND中的一个。</td>
@@ -296,11 +300,16 @@ aclnnStatus aclnnNsaCompressWithCache(
   </tbody>
   </table>
 
-## aclnnNsaCompressAttentionInfer
+## aclnnNsaCompressWithCache
 
 - **参数说明**
   
-  <table><thead>
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
+  </colgroup>
+  <thead>
     <tr>
       <th>参数名</th>
       <th>输入/输出</th>
@@ -329,6 +338,7 @@ aclnnStatus aclnnNsaCompressWithCache(
     </tr>
   </tbody>
   </table>
+  
 - **返回值**
   
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。

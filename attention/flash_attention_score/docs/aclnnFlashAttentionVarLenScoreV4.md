@@ -1,18 +1,22 @@
 # aclnnFlashAttentionVarLenScoreV4
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。**与[aclnnFlashAttentionVarLenScore](./aclnnFlashAttentionVarLenScore.md)接口的区别是：在输入排布为TND的场景下，原FlashAttentionVarLenScore接口中的softmax相关输出的数据排布为 NTD，FlashAttentionVarLenScoreV4 接口支持传入字符串参数 softmaxOutLayout，用于控制 softmax 相关输出的数据排布是否与输入保持一致（即采用 TND 排布）。**
+
+  - Ascend 950PR/Ascend 950DT产品暂不支持softmaxOutLayout参数。
 
 - 计算公式：
   
@@ -66,7 +70,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
 
 ## aclnnFlashAttentionVarLenScoreV4GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -343,7 +347,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -381,7 +385,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
 
 ## aclnnFlashAttentionVarLenScoreV4
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
@@ -419,7 +423,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4(
   </table>
 
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

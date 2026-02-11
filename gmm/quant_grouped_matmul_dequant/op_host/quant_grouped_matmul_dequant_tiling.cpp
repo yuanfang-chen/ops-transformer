@@ -572,6 +572,7 @@ ge::graphStatus QuantGroupedMatmulDequantTiling::runTiling(gert::TilingContext* 
 
 ge::graphStatus TilingForQuantGroupedMatmulDequant(gert::TilingContext* context) {
   QuantGroupedMatmulDequantTiling tiling_handle;
+  context->SetScheduleMode(BATCH_MODE);
   return tiling_handle.runTiling(context, true);
 }
 

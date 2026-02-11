@@ -2,23 +2,22 @@
 
 ## 产品支持情况
 
-| 产品                                           | 是否支持 |
-|:---------------------------------------------|:----:|
+|产品      | 是否支持 |
+|:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 ## 功能说明
 
--
-接口功能：训练场景下计算注意力的反向输出，即[aclnnFlashAttentionScoreV3](../../flash_attention_score/docs/aclnnFlashAttentionScoreV3.md)
-的反向计算。该接口相较于[aclnnFlashAttentionScoreGradV2](./aclnnFlashAttentionScoreGradV2.md)
-接口，新增sinkInOptional参数和dsinkOut输出：
+- 接口功能：训练场景下计算注意力的反向输出，即[aclnnFlashAttentionScoreV3](../../flash_attention_score/docs/aclnnFlashAttentionScoreV3.md)的反向计算。**该接口相较于[aclnnFlashAttentionScoreGradV2](./aclnnFlashAttentionScoreGradV2.md)接口，新增sinkInOptional参数和dsinkOut输出**：
 
-    - psetype=1时，与[aclnnFlashAttentionScoreGrad](./aclnnFlashAttentionScoreGrad.md)实现相同。
-    - psetype=其他取值时，需要先mul再add。
+  - Ascend 950PR/Ascend 950DT产品暂不支持sinkInOptional参数和dsinkOut输出。
+  - psetype=1时，与[aclnnFlashAttentionScoreGrad](./aclnnFlashAttentionScoreGrad.md)实现相同。
+  - psetype=其他取值时，需要先mul再add。
 
 $$
 Y=Dropout(Softmax(Mask(\frac{QK^T}{\sqrt{d}}+pse),atten\_mask),keep\_prob)V
@@ -121,7 +120,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
 
 ## aclnnFlashAttentionScoreGradV3GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
     <col style="width: 198px">
     <col style="width: 120px">
@@ -468,7 +467,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
     </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -504,7 +503,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
 
 ## aclnnFlashAttentionScoreGradV3
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
   <col style="width: 121px">
@@ -540,7 +539,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

@@ -1,18 +1,23 @@
 # aclnnFlashAttentionVarLenScoreV5
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
 * 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。对标竞品适配gptoss模型支持sink功能。**跟[aclnnFlashAttentionVarLenScoreV3](./aclnnFlashAttentionVarLenScoreV3.md)接口的区别是：增加`sinkInOptional`可选输入,保留了[aclnnFlashAttentionVarLenScoreV4](./aclnnFlashAttentionVarLenScoreV4.md)的`softmaxOutLayout`可选输入。**
+
+  - Ascend 950PR/Ascend 950DT产品暂不支持sinkInOptional与softmaxOutLayout参数。
+
 * 计算公式：
   注意力的正向计算公式如下：
 
@@ -85,7 +90,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -422,7 +427,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
     </tbody>
   </table>
   
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -465,7 +470,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
@@ -503,7 +508,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
   </table>
 
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

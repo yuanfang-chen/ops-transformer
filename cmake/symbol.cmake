@@ -36,6 +36,8 @@ function(gen_ophost_symbol)
             rt2_registry_static
             -Wl,--no-whole-archive
             tiling_api
+            runtime
+            acl_rt
             -Wl,-Bsymbolic
     )
 
@@ -54,7 +56,15 @@ function(gen_opgraph_symbol)
   add_library(${OPGRAPH_NAME} SHARED
     $<$<TARGET_EXISTS:${GRAPH_PLUGIN_NAME}_obj>:$<TARGET_OBJECTS:${GRAPH_PLUGIN_NAME}_obj>>
   )
+  merge_graph_headers(TARGET merge_ops_proto ALL OUT_DIR ${ASCEND_GRAPH_CONF_DST})
+  add_dependencies(${OPGRAPH_NAME} merge_ops_proto)
 
+  target_sources(
+    ${OPGRAPH_NAME}
+    PRIVATE
+    ${ASCEND_GRAPH_CONF_DST}/ops_proto_transformer.cpp
+  )
+  
   target_link_libraries(
     ${OPGRAPH_NAME}
     PRIVATE $<BUILD_INTERFACE:intf_pub_cxx17>
@@ -227,7 +237,7 @@ function(gen_cust_aicpu_kernel_symbol)
   endif()
 
   set(ARM_CXX_COMPILER ${ASCEND_DIR}/toolkit/toolchain/hcc/bin/aarch64-target-linux-gnu-g++)
-  set(ARM_SO_OUTPUT ${CMAKE_BINARY_DIR}/libcust_aicpu_kernels.so)
+  set(ARM_SO_OUTPUT ${CMAKE_BINARY_DIR}/libtransformer_aicpu_kernels.so)
 
   set(ALL_OBJECTS "")
   foreach(tgt IN LISTS AICPU_CUST_OBJ_TARGETS)
@@ -326,5 +336,10 @@ function(gen_cust_symbol)
 
   gen_cust_aicpu_json_symbol()
 
+  gen_cust_aicpu_kernel_symbol()
+endfunction()
+
+function(gen_cust_aicpu_symbol)
+  gen_cust_aicpu_json_symbol()
   gen_cust_aicpu_kernel_symbol()
 endfunction()

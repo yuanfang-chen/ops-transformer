@@ -16,6 +16,8 @@
 #define MC2_QUANT_BATCH_MATMUL_V3_PERTOKEN_H
 
 #include "quant_batch_matmul_v3_base.h"
+#include "adv_api/pad/broadcast.h"
+#include "adv_api/quantization/ascend_dequant.h"
 
 namespace AscendC {
 
