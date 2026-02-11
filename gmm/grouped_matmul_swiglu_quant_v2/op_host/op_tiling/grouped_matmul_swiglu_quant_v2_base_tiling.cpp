@@ -307,13 +307,13 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::DynamicTilingSingleN(gert:
 {
     //get info
     auto platformInfoPtr = context->GetPlatformInfo();
-    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfo);
+    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfoPtr);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
     uint64_t l1Size = 0;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size);
     tilingData_.gmmSwigluQuantV2BaseParams.set_singleN(0);
   
-    if (n_ < baseN || tuningConfig_ <= 0 || wFormat_ == matmul_tiling::CubeFormat::ND || !isA4W4_) {
+    if (n_ < baseN || tuningConfig_ <= 0 || !isA4W4_) {
         return ge::GRAPH_SUCCESS;
     }
     int32_t bestSingleN = FindBestSingleN(aicNum, baseM, baseN);
