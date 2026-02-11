@@ -439,7 +439,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 
     LogInfo(__LINE__, "START bufferChosenGlobal_");
 
-    // 检查hcclwinsize是否越界
+    // 检查hcclwinsize是否越界 
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
     //CheckWindowSize(totalWinSizeEp_, GetWinSize(winContext_[COMM_EP_IDX]), tpipe_, expandXOut);
