@@ -25,7 +25,7 @@
 
 -   **计算公式**：
 
-    1.将输入shape为[numRows, k]的expertIdx展平为一行做排序，得出排序后的结果sortedExpertIdx和对应的序号sortedRowIdx，其中numRows为token个数，k为专家个数：
+    1.将输入shape为[NUM_ROWS, K]的expertIdx展平为一行做排序，其中NUM_ROWS为输入token个数，K为token选择的专家个数，得出排序后的结果sortedExpertIdx和对应的序号sortedRowIdx：
     
     $$
     sortedExpertIdx, sortedRowIdx=keyValueSort(\text{flatten}(expertIdx))
@@ -82,7 +82,7 @@
   6.根据quantResult得出expandedXOut：
 
     $$
-    expandedXOut[i]=quantResult[sortedRowIdx[i]\%k]
+    expandedXOut[i]=quantResult[sortedRowIdx[i]\KK]
     $$
 
 ## 函数原型
