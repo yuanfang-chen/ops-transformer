@@ -239,7 +239,7 @@ struct QSFATilingInfo {
 
     // Base Param
     platform_ascendc::SocVersion socVersion = platform_ascendc::SocVersion::ASCEND910B;
-    bool isSocVersionA5 = false;
+    bool isA5 = false;
     uint32_t bSize = 0;
     uint32_t n1Size = 0;
     uint32_t n2Size = 0;
@@ -499,7 +499,7 @@ private:
     uint32_t aicNum_ = 0;
     uint32_t aivNum_ = 0;
     platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
-    bool isSocVersionA5_ = false;
+    bool isA5_ = false;
     uint64_t l2CacheSize_ = 0;
 
     ge::DataType inputQType_ = ge::DT_FLOAT16;
@@ -597,7 +597,7 @@ public:
     uint32_t blockSize_ = 0;
 
     platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
-    bool isSocVersionA5_ = false;
+    bool isA5_ = false;
 
     ge::DataType inputQType_ = ge::DT_FLOAT16;
     ge::DataType inputKvType_ = ge::DT_FLOAT16;
