@@ -129,7 +129,7 @@ private:
     AscendC::GlobalTensor<DataTypeOut> yGlobal_;
 
     // UB ADDR
-    AscendC::LocalTensor<DataTypeOut> l0cOutUb_{AscendC::TPosition::VECIN, 0, MAX_SINGLE_MNS};
+    AscendC::LocalTensor<DataTypeIn> l0cOutUb_{AscendC::TPosition::VECIN, 0, MAX_SINGLE_MNS};
     AscendC::LocalTensor<float> l0cOutUbFloat_{AscendC::TPosition::VECIN, 0, MAX_SINGLE_MNS};
     AscendC::LocalTensor<float> logitUbPing_;
     AscendC::LocalTensor<float> logitUbPong_;
@@ -248,7 +248,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     uint32_t offsetRe, uint32_t offsetLogit, uint16_t repeatTimesLogit,uint16_t repeatTimesRe, __ubuf__ DataTypeOut* outUbAddr,
     LocalTensor<float> logitUb)
 {
-    __ubuf__ DataTypeOut* l0cOutUbAddr = (__ubuf__ DataTypeOut*)l0cOutUb_.GetPhyAddr();
+    __ubuf__ float* l0cOutUbAddr = (__ubuf__ float*)l0cOutUbFloat_.GetPhyAddr();
     __ubuf__ DataTypeOut* logitUbAddr = (__ubuf__ DataTypeOut*)logitUb.GetPhyAddr();
     l0cOutUbAddr += offsetRe;
     logitUbAddr += offsetLogit;
