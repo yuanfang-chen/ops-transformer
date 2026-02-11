@@ -69,7 +69,7 @@ extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize( // Innn
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
     bool transGmmWeight, bool transMmWeight,
     int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-    int64_t commQuantMode, int64_t groupSize, int64_t gmmYDtype, int64_t mmYDtype, int64_t commQuantDtypeOptional,
+    int64_t commQuantMode, int64_t groupSize, int64_t commQuantDtypeOptional,
     const aclTensor* yOut, const aclTensor* mmYOptional, uint64_t* workspaceSize,
     aclOpExecutor** executor
 );
@@ -493,12 +493,9 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
     int64_t commQuantMode, int64_t commQuantDtypeOptional, 
     // 规避cc文件编译问题
-    // int64_t groupSize,
-
+    int64_t groupSize,
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
     bool transGmmWeight, bool transMmWeight, 
-    // 规避cc文件编译问题
-    // int64_t gmmYDtype, int64_t mmYDtype,
     const aclTensor* y, const aclTensor* mmYOptional,
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
@@ -516,9 +513,9 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
     char* str_group = const_cast<char*>(group);
     // 规避cc文件编译问题
-    int64_t groupSize = 0;
-    int64_t gmmYDtype = 28;
-    int64_t mmYDtype = 28;
+    // int64_t groupSize = 0;
+    // int64_t gmmYDtype = 28;
+    // int64_t mmYDtype = 28;
 
     aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
             gmmX, gmmWeight,
@@ -531,7 +528,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
             mmXOffsetOptional, mmWeightOffsetOptional, commQuantScaleOptional,
             str_group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight,
             gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, commQuantMode,
-            groupSize, gmmYDtype, mmYDtype, commQuantDtypeOptional,
+            groupSize, commQuantDtypeOptional,
             y, mmYOptional, workspaceSize, executor);
     return ret;
 }
