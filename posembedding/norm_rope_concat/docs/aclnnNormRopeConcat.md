@@ -32,7 +32,6 @@
     transposedHiddenState = \text{Transpose}(concatedHiddenState, (0, 2, 1, 3)) \\
     hiddenState = \text{RoPE}(concatedHiddenState, ropeSin, ropeCos)
     $$
-
 - 说明：
     1. 输入输出布局如下：输入`query`的shape为`(B, S, N, D)`，输出`hiddenState`的shape为`(B, N, S, D)`，其中
     B为batch，S为sequenceLen，N为headNum，D为headDim。

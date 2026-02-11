@@ -3698,7 +3698,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
 
     s2VecSize = dbParam.s2CvExtend > VEC_S2_LEN ? VEC_S2_LEN : dbParam.s2CvExtend;
     s2VecLoop = s2VecSize == 0 ? 0 : CeilDiv(dbParam.s2CvExtend, s2VecSize);
-   if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
+    if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
         if (dbParam.s2CvExtend < VEC_S2_LEN * 2) {
             s2VecSize = AlignUp(CeilDiv(dbParam.s2CvExtend, 2), C0_SIZE);
             s2VecLoop = 2;
@@ -3708,7 +3708,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
             s2VecLoop = 1;
         }
     }
-    uint32_t s2AlignFactor = BLOCK_SIZE / 2;   // float32 also align to 16.
+    uint32_t s2AlignFactor = BLOCK_SIZE / 2; // float32 also align to 16.
     if constexpr (IS_DROP == ENABLE || IS_ATTEN_MASK == ENABLE) {
         // last dim 32B align
         s2AlignFactor = BLOCK_SIZE / sizeof(uint8_t);
@@ -3752,7 +3752,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
     // SoftmaxGradFront
     ///////////////////////////////////////////////////////////////
     sfmgOffset = 0;
-    if constexpr(INPUT_LAYOUT == TND) {
+    if constexpr (INPUT_LAYOUT == TND) {
         if (dbParam.bIdx > 0) {
             sfmgOffset = n2 * g * ((__gm__ int64_t *)actual_seq_qlen_addr)[dbParam.bIdx - 1] * 8;
         }
@@ -3792,7 +3792,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeV
         // for compute dropout mask
         dropMaskInfo.firstAxis = s1ExtendSubGraph;
 
-        
+
         event_t mte2WaitMte3A = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         event_t mte2WaitMte3B = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE3_MTE2>());
         SubGrapA(loopCnt, curS1Idx, curS2Idx, dbParam, mte2WaitMte3A);
