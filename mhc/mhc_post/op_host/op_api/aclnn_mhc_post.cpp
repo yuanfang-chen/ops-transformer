@@ -40,18 +40,12 @@ extern "C" {
 
 static const int64_t DIM_LIMIT_UPPER = 8;
 static const int64_t DIM_LIMIT_LOWER = 1;
-static const float DEFAULT_ALPHA = 1.0;
-static const float DEFAULT_BETA = 1.0;
-static const float DEFAULT_GAMMA = 1.0;
 
 struct MhcPostParams {
     const aclTensor *x = nullptr;
     const aclTensor *h_res = nullptr;
     const aclTensor *h_out = nullptr;
     const aclTensor *h_post = nullptr;
-    float alpha = DEFAULT_ALPHA;
-    float beta = DEFAULT_BETA;
-    float gamma = DEFAULT_GAMMA;
     const aclTensor *y = nullptr;
 };
 
@@ -66,39 +60,59 @@ static aclnnStatus CheckNotNull(const aclTensor *x, const aclTensor *h_res, cons
     return ACLNN_SUCCESS;
 }
 
+static aclnnStatus CheckDtype(const MhcPostParams &params)
+{
+    // x: FP16 or BF16
+    const std::initializer_list<op::DataType> xSupportList = {
+        op::DataType::DT_FLOAT16, op::DataType::DT_BF16
+    };
+    OP_CHECK_DTYPE_NOT_SUPPORT(params.x, xSupportList, return ACLNN_ERR_PARAM_INVALID);
+
+    // h_res: FP32 only
+    OP_CHECK_DTYPE_NOT_MATCH(params.h_res, op::DataType::DT_FLOAT, return ACLNN_ERR_PARAM_INVALID);
+
+    // h_out: must be same as x
+    OP_CHECK_DTYPE_NOT_SAME(params.x, params.h_out, return ACLNN_ERR_PARAM_INVALID);
+
+    // h_post: FP32 only
+    OP_CHECK_DTYPE_NOT_MATCH(params.h_post, op::DataType::DT_FLOAT, return ACLNN_ERR_PARAM_INVALID);
+
+    // y: must be same as x
+    OP_CHECK_DTYPE_NOT_SAME(params.x, params.y, return ACLNN_ERR_PARAM_INVALID);
+
+    return ACLNN_SUCCESS;
+}
+
 static aclnnStatus CheckShape(const MhcPostParams &params)
 {
     auto xDimNum = params.x->GetViewShape().GetDimNum();
     CHECK_COND(xDimNum >= DIM_LIMIT_LOWER && xDimNum <= DIM_LIMIT_UPPER, ACLNN_ERR_PARAM_INVALID,
                "x dim should within 1 ~ 8, but x dim is %zu", xDimNum);
 
-    // Check all inputs have same shape
-    auto hResDimNum = params.h_res->GetViewShape().GetDimNum();
-    CHECK_COND(hResDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
-               "h_res dim should be same as x dim, but h_res dim is %zu, x dim is %zu", hResDimNum, xDimNum);
-
+    // h_out must have same shape as x
     auto hOutDimNum = params.h_out->GetViewShape().GetDimNum();
     CHECK_COND(hOutDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
                "h_out dim should be same as x dim, but h_out dim is %zu, x dim is %zu", hOutDimNum, xDimNum);
 
-    auto hPostDimNum = params.h_post->GetViewShape().GetDimNum();
-    CHECK_COND(hPostDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
-               "h_post dim should be same as x dim, but h_post dim is %zu, x dim is %zu", hPostDimNum, xDimNum);
-
-    // Check each dimension is the same
     for (size_t i = 0; i < xDimNum; ++i) {
         auto xDimValue = params.x->GetViewShape().GetDim(i);
-        auto hResDimValue = params.h_res->GetViewShape().GetDim(i);
-        CHECK_COND(xDimValue == hResDimValue, ACLNN_ERR_PARAM_INVALID,
-                   "x dim[%zu] %ld is not equal to h_res dim[%zu] %ld", i, xDimValue, i, hResDimValue);
-
         auto hOutDimValue = params.h_out->GetViewShape().GetDim(i);
         CHECK_COND(xDimValue == hOutDimValue, ACLNN_ERR_PARAM_INVALID,
                    "x dim[%zu] %ld is not equal to h_out dim[%zu] %ld", i, xDimValue, i, hOutDimValue);
+    }
 
-        auto hPostDimValue = params.h_post->GetViewShape().GetDim(i);
-        CHECK_COND(xDimValue == hPostDimValue, ACLNN_ERR_PARAM_INVALID,
-                   "x dim[%zu] %ld is not equal to h_post dim[%zu] %ld", i, xDimValue, i, hPostDimValue);
+    // h_post must be broadcastable with x (same shape or scalar)
+    auto hPostDimNum = params.h_post->GetViewShape().GetDimNum();
+    if (hPostDimNum > 1) {
+        CHECK_COND(hPostDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
+                   "h_post dim should be 1 (scalar) or same as x dim, but h_post dim is %zu, x dim is %zu",
+                   hPostDimNum, xDimNum);
+        for (size_t i = 0; i < hPostDimNum; ++i) {
+            auto xDimValue = params.x->GetViewShape().GetDim(i);
+            auto hPostDimValue = params.h_post->GetViewShape().GetDim(i);
+            CHECK_COND(xDimValue == hPostDimValue, ACLNN_ERR_PARAM_INVALID,
+                       "x dim[%zu] %ld is not equal to h_post dim[%zu] %ld", i, xDimValue, i, hPostDimValue);
+        }
     }
 
     // Check output shape
@@ -112,21 +126,6 @@ static aclnnStatus CheckShape(const MhcPostParams &params)
         CHECK_COND(xDimValue == yDimValue, ACLNN_ERR_PARAM_INVALID,
                    "x dim[%zu] %ld is not equal to y dim[%zu] %ld", i, xDimValue, i, yDimValue);
     }
-
-    return ACLNN_SUCCESS;
-}
-
-static aclnnStatus CheckDtype(const MhcPostParams &params)
-{
-    const std::initializer_list<op::DataType> supportList = {
-        op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT, op::DataType::DT_BF16
-    };
-
-    OP_CHECK_DTYPE_NOT_SUPPORT(params.x, supportList, return ACLNN_ERR_PARAM_INVALID);
-    OP_CHECK_DTYPE_NOT_SAME(params.x, params.h_res, return ACLNN_ERR_PARAM_INVALID);
-    OP_CHECK_DTYPE_NOT_SAME(params.x, params.h_out, return ACLNN_ERR_PARAM_INVALID);
-    OP_CHECK_DTYPE_NOT_SAME(params.x, params.h_post, return ACLNN_ERR_PARAM_INVALID);
-    OP_CHECK_DTYPE_NOT_SAME(params.x, params.y, return ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
@@ -157,13 +156,13 @@ static aclnnStatus CheckParam(const MhcPostParams &params)
 }
 
 aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                          const aclTensor *h_post, float alpha, float beta, float gamma,
-                                          const aclTensor *y, uint64_t *workspaceSize, aclOpExecutor **executor)
+                                          const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                                          aclOpExecutor **executor)
 {
     CHECK_COND(CheckNotNull(x, h_res, h_out, h_post, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
                "one of required inputs for aclnnMhcPostGetWorkspaceSize is nullptr.");
 
-    MhcPostParams params{x, h_res, h_out, h_post, alpha, beta, gamma, y};
+    MhcPostParams params{x, h_res, h_out, h_post, y};
 
     aclnnStatus ret = CheckParam(params);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
@@ -182,8 +181,7 @@ aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     L2_DFX_PHASE_1(aclnnMhcPost,
-                   DFX_IN(params.x, params.h_res, params.h_out, params.h_post, params.alpha,
-                          params.beta, params.gamma),
+                   DFX_IN(params.x, params.h_res, params.h_out, params.h_post),
                    DFX_OUT(params.y));
 
     // Call l0 interface
