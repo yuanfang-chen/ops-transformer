@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025-2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,82 +9,213 @@
  */
 
 /*!
- * \file grouped_matmul_finalize_routing_pertoken_dequant.h
+ * \file grouped_matmul_finalize_routing.cpp
  * \brief
  */
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+#include "grouped_matmul_finalize_routing.h"
+#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_pre.h"
+#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd.h"
+#include "grouped_matmul_finalize_routing_antiquant_a8w4_msd_l1_opt.h"
+#endif
 
-#ifndef GROUPED_MATMUL_FINALIZE_ROUTING_PERTOKEN_DEQUANT_H
-#define GROUPED_MATMUL_FINALIZE_ROUTING_PERTOKEN_DEQUANT_H
 
-#include "cgmct/kernel/kernel_gmm_finalize_routing_pertoken_dequant.h"
-#include "cgmct/block/block_mmad_builder.h"
-#include "cgmct/block/block_scheduler_gmm_aswt_with_tail_split.h"
-#include "grouped_matmul_finalize_routing_tiling_data.h"
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+#include "kernel_utils.h"
+#include "kernel_tiling/kernel_tiling.h"
+#include "kernel_basic_intf.h"
+#include "lib/matmul_intf.h"
+#include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
+#if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
+    #include "arch35/grouped_matmul_finalize_routing.h"
+#elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
+    #include "arch35/grouped_matmul_finalize_routing_pertoken_dequant.h"
+#endif
+#endif
 
-using namespace Cgmct::Gemm;
-using namespace Cgmct::Gemm::Kernel;
 
-template <typename layoutA, typename layoutB>
-__aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR x, GM_ADDR w, GM_ADDR w_scale, GM_ADDR bias,
-                                                       GM_ADDR x_scale, GM_ADDR group_list, GM_ADDR share_input,
-                                                       GM_ADDR logit, GM_ADDR row_index, GM_ADDR offset, GM_ADDR y,
-                                                       GM_ADDR workspaceGM, GM_ADDR tilingGM)
+namespace GroupedMatmulFinalizeRouting {
+constexpr MatmulConfig A8W4_GMM_CFG_MDL = GetNormalConfig();
+
+#if defined(FORMAT_W) && defined(FORMAT_FRACTAL_NZ) && (FORMAT_W == FORMAT_FRACTAL_NZ)
+constexpr CubeFormat wFormat = CubeFormat::NZ;
+#else
+constexpr CubeFormat wFormat = CubeFormat::ND;
+#endif
+} // namespace GroupedMatmulFinalizeRouting
+
+using namespace AscendC;
+using namespace matmul;
+using namespace GroupedMatmulFinalizeRouting;
+
+#define GMMFR_A8W8_IMPL(RowIndexDtype, scaleType, groupListType, sharedInputIsNone)                                    \
+    do {                                                                                                               \
+        TPipe pipe;                                                                                                    \
+        MT mm;                                                                                                         \
+        if ASCEND_IS_AIC {                                                                                             \
+            mm.SetSubBlockIdx(0);                                                                                      \
+            mm.Init(&tilingData.matmulTiling, &pipe);                                                                  \
+        }                                                                                                              \
+        using param =                                                                                                  \
+            Param<true, RowIndexDtype, GroupMatmulFRTilingData, scaleType, groupListType, sharedInputIsNone>;          \
+        QuantGroupMatmul<param> op(mm);                                                                                \
+        op.Init(initParams, &tilingData, &pipe);                                                                       \
+        op.Process();                                                                                                  \
+    } while (0)
+
+#define GMMFR_A8W4_IMPL(groupListType, sharedInputIsNone)                                                              \
+    do {                                                                                                               \
+        TPipe pipe;                                                                                                    \
+        if ASCEND_IS_AIV {                                                                                             \
+            using param = ParamW4A8Pre<groupListType>;                                                                 \
+            GMMA8W4PreProcess<param> op1;                                                                              \
+            MMPreInitParams preInitParams{x, x, group_list, workspaceGM};                                              \
+            op1.Init(preInitParams, tilingData, &pipe);                                                                \
+            op1.Process();                                                                                             \
+            pipe.Reset();                                                                                              \
+            pipe.Destroy();                                                                                            \
+            pipe.Init();                                                                                               \
+        }                                                                                                              \
+        using aT = MatmulType<TPosition::GM, CubeFormat::ND, int4b_t, false>;                                          \
+        using bT = MatmulType<TPosition::GM, wFormat, int4b_t, false>;                                                 \
+        using biasT = MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;                                       \
+        using cT = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;                                             \
+        using matmulType = MMImplType<aT, bT, cT, biasT, GroupedMatmulFinalizeRouting::A8W4_GMM_CFG_MDL,               \
+                                      groupListType, sharedInputIsNone>;                                               \
+        matmulType::MT mm;                                                                                             \
+        if ASCEND_IS_AIC {                                                                                             \
+            mm.SetSubBlockIdx(0);                                                                                      \
+            mm.Init(&tilingData.matmulTiling, &pipe);                                                                  \
+        }                                                                                                              \
+        GMMA8W4MSDCompute<matmulType> op(mm);                                                                          \
+        op.Init(initParams, &tilingData, &pipe);                                                                       \
+        op.Process();                                                                                                  \
+    } while (0)
+
+#define GMMFR_A8W4_L1_OPT_IMPL(groupListType, sharedInputIsNone)                                                       \
+    do {                                                                                                               \
+        TPipe pipe;                                                                                                    \
+        if ASCEND_IS_AIV {                                                                                             \
+            using param = ParamW4A8Pre<groupListType>;                                                                 \
+            GMMA8W4PreProcess<param> op1;                                                                              \
+            MMPreInitParams preInitParams{x, x, group_list, user};                                                     \
+            op1.Init(preInitParams, tilingData, &pipe);                                                                \
+            op1.Process();                                                                                             \
+            pipe.Reset();                                                                                              \
+            pipe.Destroy();                                                                                            \
+            pipe.Init();                                                                                               \
+        }                                                                                                              \
+        using bT = MatmulType<TPosition::GM, wFormat, int4b_t, false>;                                                 \
+        using biasT = MatmulType<TPosition::GM, CubeFormat::ND, int32_t, false>;                                       \
+        using cT = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;                                             \
+        using aT = MatmulType<TPosition::TSCM, CubeFormat::NZ, int4b_t, false>;                                        \
+        using matmulType = MMImplType<aT, bT, cT, biasT, GroupedMatmulFinalizeRouting::A8W4_GMM_CFG_MDL,               \
+                                      groupListType, sharedInputIsNone>;                                               \
+        matmulType::MT mm;                                                                                             \
+        if ASCEND_IS_AIC {                                                                                             \
+            mm.SetSubBlockIdx(0);                                                                                      \
+            mm.Init(&tilingData.matmulTiling, &pipe);                                                                  \
+        }                                                                                                              \
+        GMMA8W4MSDL1OptCompute<matmulType> op(mm);                                                                     \
+        op.Init(initParams, &tilingData, &pipe);                                                                       \
+        op.Process();                                                                                                  \
+    } while (0)
+
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
+extern "C" __global__ __aicore__ void grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bias,
+                                                                      GM_ADDR pertoken_scale, GM_ADDR group_list,
+                                                                      GM_ADDR share_input, GM_ADDR logit,
+                                                                      GM_ADDR row_index, GM_ADDR offset, GM_ADDR y,
+                                                                      GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
+    __gm__ uint8_t *user = GetUserWorkspace(workspaceGM);
+    MMInitParams initParams{x,      w,     bias,      group_list,  scale, pertoken_scale,
+                            offset, logit, row_index, share_input, y,     workspaceGM};
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    if (TILING_KEY_IS(10000000000000000001UL)) {
+        GMMFR_A8W8_IMPL(int64_t, float, false, false);
+    } else if (TILING_KEY_IS(10000000000000000011UL)) {
+        GMMFR_A8W8_IMPL(int32_t, float, false, false);
+    } else if (TILING_KEY_IS(10000000000000000101UL)) {
+        GMMFR_A8W8_IMPL(int64_t, bfloat16_t, false, false);
+    } else if (TILING_KEY_IS(10000000000000000111UL)) {
+        GMMFR_A8W8_IMPL(int32_t, bfloat16_t, false, false);
+    } else if (TILING_KEY_IS(11000000000000000011UL)) {
+        GMMFR_A8W4_IMPL(false, false);
+    } else if (TILING_KEY_IS(11000000000000000111UL)) {
+        GMMFR_A8W4_L1_OPT_IMPL(false, false);
+    } else if (TILING_KEY_IS(10000000000000001001UL)) {
+        GMMFR_A8W8_IMPL(int64_t, float, true, false);
+    } else if (TILING_KEY_IS(10000000000000001011UL)) {
+        GMMFR_A8W8_IMPL(int32_t, float, true, false);
+    } else if (TILING_KEY_IS(10000000000000001101UL)) {
+        GMMFR_A8W8_IMPL(int64_t, bfloat16_t, true, false);
+    } else if (TILING_KEY_IS(10000000000000001111UL)) {
+        GMMFR_A8W8_IMPL(int32_t, bfloat16_t, true, false);
+    } else if (TILING_KEY_IS(11000000000000001011UL)) {
+        GMMFR_A8W4_IMPL(true, false);
+    } else if (TILING_KEY_IS(11000000000000001111UL)) {
+        GMMFR_A8W4_L1_OPT_IMPL(true, false);
+    } else if (TILING_KEY_IS(10000000000000010001UL)) {
+        GMMFR_A8W8_IMPL(int64_t, float, false, true);
+    } else if (TILING_KEY_IS(10000000000000010011UL)) {
+        GMMFR_A8W8_IMPL(int32_t, float, false, true);
+    } else if (TILING_KEY_IS(10000000000000010101UL)) {
+        GMMFR_A8W8_IMPL(int64_t, bfloat16_t, false, true);
+    } else if (TILING_KEY_IS(10000000000000010111UL)) {
+        GMMFR_A8W8_IMPL(int32_t, bfloat16_t, false, true);
+    } else if (TILING_KEY_IS(11000000000000010011UL)) {
+        GMMFR_A8W4_IMPL(false, true);
+    } else if (TILING_KEY_IS(11000000000000010111UL)) {
+        GMMFR_A8W4_L1_OPT_IMPL(false, true);
+    } else if (TILING_KEY_IS(10000000000000011001UL)) {
+        GMMFR_A8W8_IMPL(int64_t, float, true, true);
+    } else if (TILING_KEY_IS(10000000000000011011UL)) {
+        GMMFR_A8W8_IMPL(int32_t, float, true, true);
+    } else if (TILING_KEY_IS(10000000000000011101UL)) {
+        GMMFR_A8W8_IMPL(int64_t, bfloat16_t, true, true);
+    } else if (TILING_KEY_IS(10000000000000011111UL)) {
+        GMMFR_A8W8_IMPL(int32_t, bfloat16_t, true, true);
+    } else if (TILING_KEY_IS(11000000000000011011UL)) {
+        GMMFR_A8W4_IMPL(true, true);
+    } else if (TILING_KEY_IS(11000000000000011111UL)) {
+        GMMFR_A8W4_L1_OPT_IMPL(true, true);
+    }
+}
+#endif
 
-    auto gmmFinalizeRoutingQuantParams_ = tilingData.gmmFinalizeRoutingDataParams;
-    auto matmulTiling_ = tilingData.matmulTiling;
-
-    using L1TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
-    using L0TileShape = AscendC::Shape<Cgmct::Gemm::_0, Cgmct::Gemm::_0, Cgmct::Gemm::_0>;
-
-    using AType = DTYPE_X;
-    using BType = DTYPE_W;
-    using CType = DTYPE_Y;
-    using LayoutA = layoutA;
-    using LayoutB = layoutB;
-    using LayoutC = layout::RowMajorAlign;
-    using weightscaleType = DTYPE_SCALE;
-    using BiasType = DTYPE_BIAS; 
-    using LayoutBias = layout::RowMajor;
-    using C1Type = std::conditional_t<std::is_same_v<AType, int8_t>, int32_t, float>; // matmul output dtype
-    using xscaleType = float;
-
-    using ProblemShape = Cgmct::Gemm::MatmulShape;
-    using BlockScheduler = Cgmct::Gemm::GroupedMatmulAswtWithTailSplitScheduler;
-    using BlockMmadBuilder =
-        Block::BlockMmadBuilder<AType, LayoutA, BType, LayoutB, C1Type, LayoutC, BiasType, LayoutBias, L1TileShape,
-                                L0TileShape, BlockScheduler, MatmulMultiBlock<>,
-                                Tile::TileCopy<Arch::DAV3510, Tile::CopyInAndCopyOutSplitMWithParams>>;
-
-    using BlockPrologue = Cgmct::Gemm::Block::BlockPrologueFinalizeRouting<CType, BiasType>;
-
-    using BlockEpilogueDequant = Cgmct::Gemm::Block::BlockEpilogueDequantFinalizeRouting<CType, C1Type, weightscaleType, xscaleType, BiasType>;
-
-    using GmmKernel = Cgmct::Gemm::Kernel::KernelGmmFinalizeRoutingPertokenDequant<ProblemShape, BlockMmadBuilder, BlockPrologue,
-                                                                    BlockEpilogueDequant, BlockScheduler>;
-    using Params = typename GmmKernel::Params;
-    using GMMTiling = typename GmmKernel::GMMTiling;
-
-    GMMTiling gmmParams{gmmFinalizeRoutingQuantParams_.groupNum,
-                        gmmFinalizeRoutingQuantParams_.groupListType,
-                        matmulTiling_.baseM,
-                        matmulTiling_.baseN,
-                        matmulTiling_.baseK,
-                        gmmFinalizeRoutingQuantParams_.hasBias};
-
-    gmmParams.matmulTiling = &matmulTiling_;
-    Params params = {
-        {1, 1, 1, 1}, // problem shape
-        {x, w, y, bias, group_list}, // BlockMmadParams
-        {share_input, y, gmmFinalizeRoutingQuantParams_.sharedInputOffset,
-         gmmFinalizeRoutingQuantParams_.sharedInputLen, matmulTiling_.N, gmmFinalizeRoutingQuantParams_.batch,
-         gmmFinalizeRoutingQuantParams_.residualScale}, // prologue params
-        {y, w_scale, x_scale, bias, logit, row_index, matmulTiling_.baseM,
-         matmulTiling_.baseN}, // epilogue params
-        gmmParams};
-    GmmKernel gmm;
-    gmm(params);
+#if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
+template <int ATRANS, int BTRANS>
+__global__ __aicore__ void
+grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bias, GM_ADDR pertoken_scale,
+                                GM_ADDR group_list, GM_ADDR share_input, GM_ADDR logit, GM_ADDR row_index,
+                                GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
+{
+    TPipe pipe;
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+    #if ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT8_E8M0
+    if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
+        grouped_matmul_finalize_routing<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor>(
+            x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
+            tilingGM);
+    }
+    if constexpr (ATRANS == 0 && BTRANS == 1) { // transX = false, transW = true
+        grouped_matmul_finalize_routing<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::ColumnMajor>(
+            x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
+            tilingGM);
+    }
+    #elif ORIG_DTYPE_PERTOKEN_SCALE == DT_FLOAT
+    if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
+        grouped_matmul_finalize_routing_pertoken_dequant<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz>(
+            x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
+            tilingGM);
+    }
+    if constexpr (ATRANS == 0 && BTRANS == 1) { // transX = false, transW = true
+        grouped_matmul_finalize_routing_pertoken_dequant<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Zn>(
+            x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
+            tilingGM);
+    }
+    #endif
 }
 #endif
