@@ -1414,7 +1414,6 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     uint32_t count = 0;
     while (true) {
         count++;
-        LogInfo(__LINE__, "[BATCHWRITE][WaitToken][true] index:", index);
         if (count == 1000) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitToken] error count.");
             break;
@@ -1424,18 +1423,21 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             index = (index + 1) % tokenCnt; // 轮询查询每个有效的index
             continue;
         }
+        LOG_INFO("[BATCHWRITE][WaitToken][true] index:", index);
 
         //LogInfo(__LINE__, "[BATCHWRITE][WaitToken] process:", index);
-        uint32_t arriveCount = 0;
+        uint32_t arrisveCount = 0;
         CheckDataArriveWithFlag(index + startTokenIdx, serverId_, arriveCount);
         //LogInfo(__LINE__, "[BATCHWRITE][WaitToken] arriveCount:", arriveCount);
         if (arriveCount == 1) {
             uint32_t dstPosition = index;
             GM_ADDR wAddr = GetReceiveAddrBetweenServer(COMM_EP_IDX, serverIdx) + SERVER_STATE_ALIGN;
             CopyInAndOut(xOutFp32Tensor, xOutInt32Tensor, wAddr, index, dstPosition, arriveCount);
+            LOG_INFO("after CopyInAndOut");
 
             SyncFunc<AscendC::HardEvent::MTE2_V>();
             SendToExpert(index);
+            LOG_INFO("after SendToExpert");
 
             // // finish更新并clean
             finishNumTensor_(index) = 1;
@@ -1450,6 +1452,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             SyncFunc<AscendC::HardEvent::V_MTE3>();
             DataCopyPad(cleanGlobal[SPLIT_BLOCK_DATA_SIZE / sizeof(int32_t)], cleanBuf, cleanUpParams);
             finishNum++;
+            LOG_INFO("after if");
 
             PipeBarrier<PIPE_ALL>();
         } else {
