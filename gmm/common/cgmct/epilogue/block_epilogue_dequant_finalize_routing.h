@@ -212,7 +212,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
         }
         x2ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX2Scale*)params_->x2ScaleGmAddr + Get<X2SCALE_IDXS>(baseOffset));
         if (params_->biasGmAddr != nullptr) {
-            biasGlobal_.SetGlobalBuffer((__gm__ BiasDtype*)params_->biasGmAddr + Get<BIAS_IDXS>(baseOffset_));
+            biasGlobal_.SetGlobalBuffer((__gm__ BiasDtype*)params_->biasGmAddr + Get<BIAS_IDXS>(baseOffset));
         }
     }
 }
