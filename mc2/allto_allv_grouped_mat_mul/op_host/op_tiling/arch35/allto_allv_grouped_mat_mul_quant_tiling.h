@@ -39,8 +39,8 @@ protected:
     bool IsCapable() override;
     ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus GetShapeAttrsInfo() override;
-    ge::graphStatus DoOpTiling() override;
     ge::graphStatus DoLibApiTiling() override;
+    ge::graphStatus DoOpTiling() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus GetWorkspaceSize() override;
     ge::graphStatus PostTiling() override;

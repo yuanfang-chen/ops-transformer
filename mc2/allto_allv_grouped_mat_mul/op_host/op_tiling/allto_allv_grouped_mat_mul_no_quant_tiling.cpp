@@ -16,6 +16,11 @@
 #include <string>
 #include <numeric>
 #include <climits>
+#include "allto_allv_grouped_mat_mul_tiling_base.h"
+#include "register/op_impl_registry.h"
+#include "tiling_base/tiling_templates_registry.h"
+#include "context_util.h"
+#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 #include "tiling/matmul_formulaic_tiling.h"
 #include "tiling/hccl_formulaic_tiling.h"
 #include "mc2_hcom_topo_info.h"
@@ -23,11 +28,6 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "allto_allv_grouped_mat_mul_tiling_base.h"
-#include "register/op_impl_registry.h"
-#include "tiling_base/tiling_templates_registry.h"
-#include "context_util.h"
-#include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 
 using namespace ge;
 using namespace AscendC;
