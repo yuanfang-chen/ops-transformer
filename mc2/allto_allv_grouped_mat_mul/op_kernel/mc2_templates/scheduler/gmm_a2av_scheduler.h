@@ -32,11 +32,20 @@ public:
     __aicore__ inline void Process()
     {
         uint32_t expertNumInOneRank = taskTilingInfo_->e;
-        for (uint32_t e = 0U; e < expertNumInOneRank; e++) {
-            computeOp_.ProcessExpert(e, 1); // 每次专家数量设置为1进行调试
+        //quant_grouped_matmul.h
+        for (uint32_t expertIdx = 0U; expertIdx < expertNumInOneRank; expertIdx++) {
+            computeOp_.Process(expertIdx); // 每次专家数量设置为1进行调试
             SyncAll<false>();
-            hcclOp_.Launch(e, 1);   // 每次专家数量设置为1进行调试
+            hcclOp_.Launch(expertIdx, 1);   // 每次专家数量设置为1进行调试
         }
+         SyncAll<false>();
+
+        // gmm_expert.h
+        // for (uint32_t e = 0U; e < expertNumInOneRank; e++) {
+        //     computeOp_.ProcessExpert(e, 1); // 每次专家数量设置为1进行调试
+        //     SyncAll<false>();
+        //     hcclOp_.Launch(e, 1);   // 每次专家数量设置为1进行调试
+        // }
         hcclOp_.WaitAll(expertNumInOneRank);
         End();
     }
