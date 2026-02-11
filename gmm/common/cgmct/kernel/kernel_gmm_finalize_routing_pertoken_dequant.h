@@ -215,14 +215,10 @@ public:
         if ASCEND_IS_AIC {
             aGlobal_.SetGlobalBuffer((__gm__ AType*)params.mmadParams.aGmAddr + Get<IDX_A_OFFSETS>(baseOffset_));
             bGlobal_.SetGlobalBuffer((__gm__ BType*)params.mmadParams.bGmAddr + Get<IDX_B_OFFSETS>(baseOffset_));
-            if (params.gmmParams.hasBias == 1)
-            {
-                biasGlobal_.SetGlobalBuffer((__gm__ BiasType*)params.mmadParams.biasGmAddr + Get<IDX_BIAS_OFFSETS>(baseOffset_));
-            }
         }
         if ASCEND_IS_AIV {
             AscendC::Coord<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> vecBaseOffset{
-                0L, 0L, Get<IDX_X2SCALE_OFFSETS>(baseOffset_),
+                0L, Get<IDX_BIAS_OFFSETS>(baseOffset_), Get<IDX_X2SCALE_OFFSETS>(baseOffset_),
                 Get<IDX_X1SCALE_OFFSETS>(baseOffset_), Get<IDX_LOGIT_OFFSETS>(baseOffset_), Get<IDX_LOGIT_OFFSETS>(baseOffset_)};
             epilogueDequantOp_.UpdateGlobalAddr(vecBaseOffset);
         }
@@ -303,14 +299,8 @@ public:
                 }
                 AscendC::Std::tuple<int32_t, int32_t, int32_t> mmSingleShape{Get<MNK_M>(singleShape),
                                                                              Get<MNK_N>(singleShape), k};
-                if (params.gmmParams.hasBias == 1 && !IsSameType<CType, int32_t>::value)
-                {
-                    mmadOp_(aGlobal_[Get<IDX_A_OFFSETS>(blockOffset_)], bGlobal_[Get<IDX_B_OFFSETS>(blockOffset_)],
-                            biasGlobal_[Get<IDX_BIAS_OFFSETS>(blockOffset_)], l0cOutUb_, mmSingleShape, transA, transB);
-                } else {
-                    mmadOp_(aGlobal_[Get<IDX_A_OFFSETS>(blockOffset_)], bGlobal_[Get<IDX_B_OFFSETS>(blockOffset_)],
-                            l0cOutUb_, mmSingleShape, transA, transB);
-                }
+                mmadOp_(aGlobal_[Get<IDX_A_OFFSETS>(blockOffset_)], bGlobal_[Get<IDX_B_OFFSETS>(blockOffset_)],
+                        l0cOutUb_, mmSingleShape, transA, transB);
                 NotifyVector();
             }
             isVecSetSyncCom_ = true;
@@ -321,7 +311,8 @@ public:
                 int64_t mOffset = y / n;
                 int64_t nOffset = y - mOffset * n;
                 AscendC::Std::tuple<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t> epilogueOffset{
-                    nOffset, 0, Get<IDX_X2SCALE_OFFSETS>(blockOffset_), Get<IDX_X1SCALE_OFFSETS>(blockOffset_), mOffset, mOffset};
+                    nOffset, Get<IDX_BIAS_OFFSETS>(blockOffset_), Get<IDX_X2SCALE_OFFSETS>(blockOffset_),
+                    Get<IDX_X1SCALE_OFFSETS>(blockOffset_), mOffset, mOffset};
                 WaitForCube();
                 epilogueDequantOp_(epilogueShape, epilogueOffset);
                 NotifyCube();
