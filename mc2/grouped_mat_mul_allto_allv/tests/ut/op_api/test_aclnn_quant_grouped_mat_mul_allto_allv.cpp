@@ -1060,7 +1060,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_sendRecvCounts_partial_z
     EXPECT_EQ(aclRet, ACLNN_SUCCESS);
 }
 
-// commQuantMode=1（API 层不校验，透传给 Inner/tiling 层）→ 实测确认
+// commQuantMode=1 → PARAM_INVALID（API 层新增校验，仅支持 0）
 TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_commQuantMode_nonzero)
 {
     TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
@@ -1097,9 +1097,7 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_commQuantMode_nonzero)
                         recvCounts, false, false),
                         OUTPUT(y_, mmY_));
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
-    // commQuantMode 在 API 层不校验，透传给 Inner 层，CheckParams 应通过
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
-    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
 }
 
 // TT 量化正常路径：gmmXQM=1, gmmWQM=1, 提供 scale → 实测确认
@@ -1142,6 +1140,332 @@ TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_tt_quant_normal)
                         OUTPUT(y_, mmY_));
     aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
     // TT 量化正常路径，CheckParams 应通过
+    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
+    EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
+}
+
+// ============================================================================
+// Group 7: CheckNotEmptyTensor 边界用例（源码修复后补充）
+// ============================================================================
+
+// gmmX dim1=0 → PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmX_empty_dim1)
+{
+    TensorDesc gmmX_({4096, 0}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// gmmWeight dim1=0 → PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmWeight_empty_dim1)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 0, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// gmmWeight dim2=0 → PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmWeight_empty_dim2)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 0}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// y dim0=0 → PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_y_empty_dim0)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({0, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// y dim1=0 → PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_y_empty_dim1)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 0}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// mm optional 维度不一致（部分为零部分非零）→ PARAM_INVALID
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_mm_empty_inconsistent)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({1024, 0}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({7168, 1024}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({1024, 1024}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// commQuantMode=1 → PARAM_INVALID（新增校验专用用例）
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_commQuantMode_reject)
+{
+    TensorDesc gmmX_({4096, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 1,           // commQuantMode=1
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    EXPECT_EQ(aclRet, ACLNN_ERR_PARAM_INVALID);
+}
+
+// gmmX dim0=0（MoE token=0 场景）→ SUCCESS（修改后放行）
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, test_gmmX_dim0_zero)
+{
+    TensorDesc gmmX_({0, 7168}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc gmmWeight_({4, 7168, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmX_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmWeight_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc y_({4096, 4096}, ACL_FLOAT16, ACL_FORMAT_ND);
+    TensorDesc mmY_({}, ACL_FLOAT16, ACL_FORMAT_ND);
+
+    constexpr int64_t epWorldSize = 8;
+    constexpr int64_t e = 4;
+    constexpr int64_t BS = 4096;
+    constexpr int64_t K = 2;
+    std::vector<int64_t> sendCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    std::vector<int64_t> recvCountsList(epWorldSize * e, BS * K / (epWorldSize * e));
+    aclIntArray *sendCounts = aclCreateIntArray(sendCountsList.data(), sendCountsList.size());
+    aclIntArray *recvCounts = aclCreateIntArray(recvCountsList.data(), recvCountsList.size());
+    uint64_t workspace_size = 0;
+    aclOpExecutor *executor = nullptr;
+
+    auto ut = OP_API_UT(aclnnQuantGroupedMatMulAlltoAllv,
+                        INPUT(gmmX_, gmmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        mmX_, mmWeight_,
+                        nullptr, nullptr,
+                        nullptr, nullptr,
+                        nullptr,
+                        0, 0, 0, 0, 0,
+                        -1, 0,
+                        "test_grouped_mat_mul_allto_allv_ep_group",
+                        epWorldSize, sendCounts,
+                        recvCounts, false, false),
+                        OUTPUT(y_, mmY_));
+    aclnnStatus aclRet = ut.TestGetWorkspaceSizeWithNNopbaseInner(&workspace_size, executor);
+    // gmmX dim0=0 is now allowed (MoE token=0 scenario), should pass CheckParams
     EXPECT_NE(aclRet, ACLNN_ERR_PARAM_INVALID);
     EXPECT_NE(aclRet, ACLNN_ERR_PARAM_NULLPTR);
 }
