@@ -786,7 +786,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
             }
         } else if (sendToMoeExpTokenCnt_ > 0) { // 当前处理卡为moe专家卡
             int32_t curMoeExpertId = curExpertId - sharedExpertRankNum_;
-            SyncFunc<AscendC::HardEvent::S_V>();
             CalTokenSendExpertCnt(curMoeExpertId, maskCnt, curExpertCnt);
         }
         statusTensor_.SetValue(cntPosIndex, curExpertCnt);
@@ -1113,11 +1112,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     BufferInit();
     WaitDispatch();
     CalRecvAndSetFlag();
-    if (aivId_ == lastCore_) {
-        UpdateTokenNumsOut();
-    }
-    // localWindowCopy中包含reset操作，需确保前面操作完成
-    PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeFullmeshClass>
@@ -1556,7 +1550,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     }
 
     Duplicate<int32_t>(validExpertIdsTensor_, -1, int32_t(expertIdsBufSize_ / sizeof(int32_t)));
-
     // 拷贝bs*k个专家id 到local  补齐到32 字节对齐  bs*k = 3*3 = 9 expertIdsAlignCnt= 16 补7个 填充-1
     if (isExpertMaskFlag_ || (zeroComputeExpertNum_ != 0)) {
         LocalTensor<int32_t> tmpExpertIdsTensor = subExpBuf_.Get<int32_t>();
@@ -1594,6 +1587,9 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         // localWindowCopy中包含reset操作，需确保前面操作完成
         PipeBarrier<PIPE_ALL>();
         LocalWindowCopy();      // 本卡上专家数据连续化，输出expandX/scales/expandIdx
+        if (aivId_ == lastCore_) {
+            UpdateTokenNumsOut();
+        }
     }
 }
 
