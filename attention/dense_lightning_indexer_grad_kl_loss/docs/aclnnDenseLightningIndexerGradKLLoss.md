@@ -2,14 +2,14 @@
 
 ## 产品支持情况
 
-|产品      | 是否支持 |
-|:----------------------------|:-----------:|
-|<term>Atlas A3 训练系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品 </term>|      √     |
-|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
-|<term>Atlas 推理系列产品</term>|      ×     |
-|<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
+|产品             |  是否支持  |
+|:-------------------------|:----------:|
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
+|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     √    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     √    |
+|  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
+|  <term>Atlas 推理系列产品</term>    |     ×    |
+|  <term>Atlas 训练系列产品</term>    |     ×    |
 
 ## 功能说明
 
@@ -143,7 +143,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
       </tr></thead>
       <tbody>
       <tr>
-       <td>query</td>
+       <td>query（aclTensor*）</td>
        <td>输入</td>
        <td>attention结构的输入Q</td>
        <td><ul><li>B: 支持泛化。</li><li>S1: 支持泛化。</li><li>N1: 支持128、64、32。</li><li>D: 128。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -153,7 +153,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>key</td>
+       <td>key（aclTensor*）</td>
        <td>输入</td>
        <td>attention结构的输入K</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S2: 支持泛化。</li><li>N2: 等于N1。</li><li>D: 128。</li><li>T2: 多个Batch的S2累加。</li></ul></td>
@@ -163,7 +163,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>queryIndex</td>
+       <td>queryIndex（aclTensor*）</td>
        <td>输入</td>
        <td>lightingIndexer结构的输入queryIndex。</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S1: 支持泛化。</li><li>Nidx1: 64、32、16、8。</li><li>D: 128。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -173,7 +173,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>keyIndex</td>
+       <td>keyIndex（aclTensor*）</td>
        <td>输入</td>
        <td>lightingIndexer结构的输入keyIndex。</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li> <li>S2: 支持泛化。</li><li>Nidx2: 1。</li><li>D: 128。</li><li>T2: 多个Batch的S2累加。</li></ul>
@@ -184,7 +184,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>weights</td>
+       <td>weights（aclTensor*）</td>
        <td>输入</td>
        <td>权重</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>Nidx1: 64、32、16、8。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -194,7 +194,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>softmaxMax</td>与query的B保持一致
+       <td>softmaxMax（aclTensor*）</td>
        <td>输入</td>
        <td>Device侧的aclTensor，注意力正向计算的中间输出</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>N2: 等于N1。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>G: N1/N2。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -204,7 +204,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>softmaxSum</td>
+       <td>softmaxSum（aclTensor*）</td>
        <td>输入</td>
        <td>Device侧的aclTensor，注意力正向计算的中间输出</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>N2: 等于N1。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>G: N1/N2。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -214,7 +214,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>softmaxMaxIndex</td>与query的B保持一致
+       <td>softmaxMaxIndex（aclTensor*）</td>
        <td>输入</td>
        <td>Device侧的aclTensor，注意力正向计算的中间输出</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>Nidx2: 1。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -224,7 +224,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>×</td>
       </tr>
       <tr>
-       <td>softmaxSumIndex</td>
+       <td>softmaxSumIndex（aclTensor*）</td>
        <td>输入</td>
        <td>Device侧的aclTensor，注意力正向计算的中间输出</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>Nidx2: 1。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -234,7 +234,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>queryRope</td>
+       <td>queryRope（aclTensor*）</td>
        <td>输入</td>
        <td>MLA rope部分：Query位置编码的输出。</td>
        <td><ul><li>与query的layout维度保持一致。</li><li>B: 支持泛化与query的B保持一致。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>N1: 128、64、32。</li><li>Dr: 64。</li><li>T1: 多个Batch的S1累加。</li></ul>
@@ -245,7 +245,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>keyRope</td>
+       <td>keyRope（aclTensor*）</td>
        <td>输入</td>
        <td>MLA rope部分：Key位置编码的输出</<td>
        <td><ul><li>与key的layout维度保持一致。</li><li>B: 支持泛化与query的B保持一致。</li><li>S2: 支持泛化且与key的S1保持一致。</li><li>N2: 等于N1。</li><li>Dr: 64。</li><li>T2: 多个Batch的S2累加。</li></ul></td>
@@ -255,7 +255,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>actualSeqLengthsQuery</td>
+       <td>actualSeqLengthsQuery（aclIntArray*）</td>
        <td>输入</td>
        <td>每个Batch中，Query的有效token数</td>
        <td><ul><li>值依赖。</li><li>长度与B保持一致。</li><li>累加和与T1保持一致。</li></ul></td>
@@ -265,7 +265,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>actualSeqLengthsKey</td>
+       <td>actualSeqLengthsKey（aclIntArray*）</td>
        <td>输入</td>
        <td>每个Batch中，Key的有效token数</td>
        <td><ul><li>值依赖。</li><li>长度与B保持一致。</li><li>累加和T2保持一致。</li></ul></td>
@@ -275,7 +275,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>scaleValue</td>
+       <td>scaleValue（double）</td>
        <td>输入</td>
        <td>缩放系数</td>
        <td><ul><li>建议值：公式中d开根号的倒数。</li></ul></td>
@@ -284,7 +284,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
        <td>-</td>
       <tr>
-       <td>layout</td>
+       <td>layout（char）</td>
        <td>输入</td>
        <td>layout格式</td>
        <td>仅支持BSND和TND格式。</td>
@@ -294,7 +294,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>sparseMode</td>
+       <td>sparseMode（int64_t）</td>
        <td>输入</td>
        <td>sparse的模式</td>
        <td><ul><li>表示sparse的模式。sparse不同模式的详细说明请参见<a href="#约束说明">约束说明</a>。</li><li>仅支持模式3。</li></ul></td>
@@ -304,7 +304,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>preTokens</td>
+       <td>preTokens（int64_t）</td>
        <td>输入</td>
        <td>用于稀疏计算，表示Attention需要和前几个token计算关联</td>
        <td><ul><li>和Attention中的preTokens定义相同，在sparseMode = 0和4的时候生效，默认值2^63-1</a>。</li></ul></td>
@@ -314,7 +314,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>nextTokens</td>
+       <td>nextTokens（int64_t）</td>
        <td>输入</td>
        <td>用于稀疏计算，表示Attention需要和后几个token计算关联</td>
        <td><ul><li>和Attention中的nextTokens定义相同，在sparseMode = 0和4的时候生效，默认值2^63-1</a>。</li></ul></td>
@@ -324,7 +324,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>-</td>
       </tr>
       <tr>
-       <td>dQueryIndex</td>
+       <td>dQueryIndex（aclTensor*）</td>
        <td>输出</td>
        <td>QueryIndex的梯度</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>S1:支持泛化，且与query的S1保持一致。</li><li>Nidx1: 64、32、16、8。</li><li>D: 128。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -334,7 +334,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>dKeyIndex</td>
+       <td>dKeyIndex（aclTensor*）</td>
        <td>输出</td>
        <td>KeyIndex的梯度</td>
        <td><ul><li>B: 支持泛化与query的B保持一致。</li><li>S2: 支持泛化，且与key的S2保持一致。</li><li>Nidx2: 1。</li><li>D: 128。</li><li>T2: 多个Batch的S2累加。</li></ul></td>
@@ -344,7 +344,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>dWeights</td>
+       <td>dWeights（aclTensor*）</td>
        <td>输出</td>
        <td>Weights的梯度</td>
        <td><ul><li>B: 支持泛化。</li><li>S1: 支持泛化，不能为Matmul的M轴。</li><li>Nidx1: 64、32、16、8。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
@@ -354,7 +354,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>√</td>
       </tr>
       <tr>
-       <td>loss</td>
+       <td>loss（aclTensor*）</td>
        <td>输出</td>
        <td>损失函数值</td>
        <td>-</ul></td>
@@ -363,6 +363,27 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>(1,)</td>
        <td>-</td>
       </tr>
+     </tr>
+      <tr> 
+      <td>workspaceSize（uint64_t*）</td>
+      <td>输出</td>
+      <td>返回需要在Device侧申请的workspace大小。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+      <tr>
+      <td>executor（aclOpExecutor*）</td>
+      <td>输出</td>
+      <td>返回op执行器，包含了算子计算流程。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
       </tbody>
   </table>
 
