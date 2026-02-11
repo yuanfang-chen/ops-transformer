@@ -776,9 +776,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitOutputSingleCore(ConstIn
     uint64_t totalOutputSize = 0;
 
     // n2 = 1, n1 = gn2 = gSize
-    if (constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::BSND)) {
+    if (LAYOUT_T == SAS_LAYOUT::BSND) {
         totalOutputSize = constInfo.bSize * constInfo.gSize * constInfo.s1Size * constInfo.dSizeV;
-    } else if(constInfo.layoutType == static_cast<uint8_t>(SAS_LAYOUT::TND)) {
+    } else if(LAYOUT_T == SAS_LAYOUT::TND) {
         totalOutputSize = constInfo.s1Size * constInfo.gSize * constInfo.dSizeV;
     }
 
@@ -901,7 +901,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.cmpMaskMode;
     sharedParams.oriWinLeft = sparseAttnSharedkvBaseParams.oriWinLeft;
     sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
-    sharedParams.layoutType = sparseAttnSharedkvBaseParams.outputLayout; 
     sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
     sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
     sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 

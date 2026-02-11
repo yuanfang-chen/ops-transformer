@@ -613,7 +613,6 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_ropeHeadDim(tilingInfo->ropeHeadDim);
     tilingData_.baseParams.set_softmaxScale(tilingInfo->softmaxScale);
     tilingData_.baseParams.set_cmpRatio(tilingInfo->cmpRatio);
-    tilingData_.baseParams.set_outputLayout(static_cast<uint32_t>(tilingInfo->outLayout));
     tilingData_.baseParams.set_oriMaskMode(tilingInfo->oriMaskMode);
     tilingData_.baseParams.set_cmpMaskMode(tilingInfo->cmpMaskMode);
     tilingData_.baseParams.set_oriWinLeft(tilingInfo->oriWinLeft);
