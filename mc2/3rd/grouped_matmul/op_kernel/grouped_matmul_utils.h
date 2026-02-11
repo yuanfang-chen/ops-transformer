@@ -199,19 +199,19 @@ template <class AT_, class BT_, class CT_, class BiasT_, const auto &MM_CFG = CF
 
 enum class ActiveType : std::uint8_t { INVALID_TYPE = 0, RELU, GELU_TANH, GELU_ERR_FUNC, FASTGELU, SILU };
 
-template <typename T> __aicore__ inline T GreatestCommonDivisor(T a, T b)
+template <typename T> __aicore__ inline T GreatestCommonDivisor(T x, T b)
 {
-    T c = a;
-    if (a < b) {
-        a = b;
+    T c = x;
+    if (x < b) {
+        x = b;
         b = c;
     }
     while (b != 0) {
-        c = a;
-        a = b;
+        c = x;
+        x = b;
         b = c % b;
     }
-    return a;
+    return x;
 }
 
 template <typename T> __aicore__ inline T LeastCommonMultiple(T a, T b)
