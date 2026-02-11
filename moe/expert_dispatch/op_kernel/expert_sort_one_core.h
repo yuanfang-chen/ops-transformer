@@ -131,7 +131,7 @@ __aicore__ inline void ExpertSortOneCore::Init(GM_ADDR expertId, GM_ADDR expende
     expendedRowIdxGm.SetGlobalBuffer((__gm__ int32_t*)expendedRowIdx, this->tileLength);
     if (GetBlockIdx() == 0) {
         expertCountTempGm.SetGlobalBuffer((__gm__ int32_t*)workspace +
-                                          Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2);
+                                          Align(tilingData->n * tilingData->k, sizeof(int32_t)) * 2, tilingData->actualExpertNum);
         InitGlobalMemory(expertCountTempGm, tilingData->actualExpertNum, 0);
         SetWaitFlag<HardEvent::MTE3_MTE2>(HardEvent::MTE3_MTE2);
     }

@@ -89,7 +89,7 @@ __aicore__ inline void ExpertTokensCount::Init(GM_ADDR expertTokensCount, GM_ADD
     pipe_->InitBuffer(sortedExpertIdInQueue_, 1, AlignBytes(curCoreElements_, sizeof(int32_t)));
     // 学员补充： 剩余 GM/UB 初始化
     expertTokensCountGm_.SetGlobalBuffer((__gm__ int32_t*)expertTokensCount, actualExpertNum_);
-    expertTotalCountGm_.SetGlobalBuffer((__gm__ int32_t*)expertTotalCount, actualExpertNum_);
+    expertTotalCountGm_.SetGlobalBuffer((__gm__ int32_t*)expertTotalCount, 1);
 
     pipe_->InitBuffer(expertIdCountOutQueue_, 1, AlignBytes(actualExpertNum_, sizeof(int32_t)));
     pipe_->InitBuffer(expertIdCountInQueue_, 1, AlignBytes(actualExpertNum_, sizeof(int32_t)));
@@ -162,7 +162,7 @@ __aicore__ inline void ExpertTokensCount::Compute()
 __aicore__ inline void ExpertTokensCount::CopyOut()
 {
     LocalTensor<int32_t> expertCountOutLocal = expertIdCountOutQueue_.DeQue<int32_t>();
-    DataCopyExtParams copyParams{static_cast<uint16_t>(1), static_cast<uint32_t>((actualExpertNum_) * sizeof(int32_t)),
+    DataCopyExtParams copyParams{static_cast<uint16_t>(1), static_cast<uint32_t>(actualExpertNum_ * sizeof(int32_t)),
                                  0, 0, 0};
     // copyOut同时计算最终直方图
     SetAtomicAdd<int32_t>();
@@ -191,9 +191,9 @@ __aicore__ inline void ExpertTokensCount::expertCountCompute()
     LocalTensor<float> expertTotalCountLocalFP32 = expertTotalCountLocal.ReinterpretCast<float>();
     LocalTensor<float> expertCountTempInLocalFP32 = expertCountInLocal.ReinterpretCast<float>();
     Cast(expertCountTempInLocalFP32, expertCountInLocal, AscendC::RoundMode::CAST_RINT, actualExpertNum_);
-    Cast(expertTotalCountLocalFP32, expertTotalCountLocal, AscendC::RoundMode::CAST_RINT, actualExpertNum_);
+    Cast(expertTotalCountLocalFP32, expertTotalCountLocal, AscendC::RoundMode::CAST_RINT, 1);
     ReduceSum(expertTotalCountLocalFP32, expertCountTempInLocalFP32, expertCountTempInLocalFP32, actualExpertNum_);
-    Cast(expertTotalCountLocal, expertTotalCountLocalFP32, AscendC::RoundMode::CAST_RINT, actualExpertNum_);
+    Cast(expertTotalCountLocal, expertTotalCountLocalFP32, AscendC::RoundMode::CAST_RINT, 1);
     expertTotalCountQueue_.EnQue<int32_t>(expertTotalCountLocal);
     expertIdCountInQueue_.FreeTensor(expertCountInLocal);
     // 补充结束

@@ -94,6 +94,37 @@ InitTilingData(uint8_t* tiling, ExpertSortOutComputeTilingData* const_data)
 #endif
 
 #pragma pack(1)
+struct ExpertTokensCountTilingData {
+    int64_t needCoreNum = 0;
+    int64_t perCoreElements = 0;
+    int64_t lastCoreElements = 0;
+    int64_t perCoreLoops = 0;
+    int64_t perCorePerLoopElements = 0;
+    int64_t perCoreLastLoopElements = 0;
+    int64_t lastCoreLoops = 0;
+
+    int64_t lastCorePerLoopElements = 0;
+    int64_t lastCoreLastLoopElements = 0;
+};
+#pragma pack()
+
+#ifdef __NPU_TILING__
+inline[aicore] void InitTilingData(const __gm__ uint8_t* tiling, ExpertTokensCountTilingData* const_data)
+{
+    const __gm__ uint32_t* src = (const __gm__ uint32_t*)tiling;
+    uint32_t* dst = (uint32_t*)const_data;
+    for (auto i = 0; i < sizeof(ExpertTokensCountTilingData) / 4; i++) {
+        *(dst + i) = *(src + i);
+    }
+}
+#else
+inline void InitTilingData(uint8_t* tiling, ExpertTokensCountTilingData* const_data)
+{
+    memcpy(const_data, tiling, sizeof(ExpertTokensCountTilingData));
+}
+#endif
+
+#pragma pack(1)
 struct ExpertGatherOutComputeTilingData {
     int64_t needCoreNum = 0;
     int64_t perCoreIndicesElements = 0;
@@ -123,37 +154,6 @@ inline[aicore] void InitTilingData(const __gm__ uint8_t* tiling, ExpertGatherOut
 inline void InitTilingData(uint8_t* tiling, ExpertGatherOutComputeTilingData* const_data)
 {
     memcpy(const_data, tiling, sizeof(ExpertGatherOutComputeTilingData));
-}
-#endif
-
-#pragma pack(1)
-struct ExpertTokensCountTilingData {
-    int64_t needCoreNum = 0;
-    int64_t perCoreElements = 0;
-    int64_t lastCoreElements = 0;
-    int64_t perCoreLoops = 0;
-    int64_t perCorePerLoopElements = 0;
-    int64_t perCoreLastLoopElements = 0;
-    int64_t lastCoreLoops = 0;
-
-    int64_t lastCorePerLoopElements = 0;
-    int64_t lastCoreLastLoopElements = 0;
-};
-#pragma pack()
-
-#ifdef __NPU_TILING__
-inline[aicore] void InitTilingData(const __gm__ uint8_t* tiling, ExpertTokensCountTilingData* const_data)
-{
-    const __gm__ uint32_t* src = (const __gm__ uint32_t*)tiling;
-    uint32_t* dst = (uint32_t*)const_data;
-    for (auto i = 0; i < sizeof(ExpertTokensCountTilingData) / 4; i++) {
-        *(dst + i) = *(src + i);
-    }
-}
-#else
-inline void InitTilingData(uint8_t* tiling, ExpertTokensCountTilingData* const_data)
-{
-    memcpy(const_data, tiling, sizeof(ExpertTokensCountTilingData));
 }
 #endif
 
