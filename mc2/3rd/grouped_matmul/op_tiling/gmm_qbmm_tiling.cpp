@@ -1036,6 +1036,9 @@ uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSiz
     if (depthInit > 1UL && perDepthSize > DB_SIZE * MTE2_MIN_LOAD_SIZE_V120) {
         return depthInit;
     }
+    if (perDepthSize == 0) {
+        perDepthSize = 1;
+    }
     uint64_t depthScale = leftSize / perDepthSize;
     if (depthInit > 1UL) {
         uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
@@ -1045,6 +1048,9 @@ uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSiz
         }
         if ((depthScale * baseKSize) % GmmConstant::BASIC_BLOCK_SIZE_512 != 0 &&
             (depthScale * baseKSize) >= GmmConstant::BASIC_BLOCK_SIZE_256) {
+            if (baseKSize == 0) {
+                baseKSize = 1;
+            }
             depthScale = GmmConstant::BASIC_BLOCK_SIZE_256 / baseKSize;
         }
         depthScale = std::max(depthScale, static_cast<uint64_t>(1));
@@ -1105,8 +1111,14 @@ void GroupedQbmmTiling::CalScaleFactors()
 
     // 计算scaleFactorA, scaleFactorB
     // 来自K轴的约束
+    if (baseScaleASize == 0) {
+        baseScaleASize = 1;
+    }
     uint32_t scaleFactorAMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
+    if (baseScaleBSize == 0) {
+        baseScaleBSize = 1;
+    }
     uint32_t scaleFactorBMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
     uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
