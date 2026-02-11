@@ -418,8 +418,7 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
         AscendC::MicroAPI::LoadAlign<float>(regQScale[1], qScale1);
         AscendC::MicroAPI::Mul(regW[0], regW[0], regQScale[0], maskAllB32);
         AscendC::MicroAPI::Mul(regW[1], regW[1], regQScale[1], maskAllB32);
-        // 读写依赖，寄存器可以保序
-        // AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(weight0, regW[0], maskAllB32);
+        // regW[0]与weight1混合使用
         AscendC::MicroAPI::StoreAlign<float, AscendC::MicroAPI::StoreDist::DIST_NORM>(weight1, regW[1], maskAllB32);
         AscendC::MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
         DuplicateZero(regSum0, maskAllB32);
@@ -433,7 +432,7 @@ __aicore__ inline void MulWeightAndReduceSum2(const LocalTensor<uint16_t> &out_,
             MicroAPI::LoadAlign<float>(regQK0[1], qk0 + 128 * i + qkVLStride);
             MicroAPI::LoadAlign<float>(regQK1[0], qk1 + 128 * i);
             MicroAPI::LoadAlign<float>(regQK1[1], qk1 + 128 * i + qkVLStride);
-            // 交错使用对整体性能更好
+            // 混合使用对整体性能更好
             BroadcastLane(regwBrc[0], regW[0], i);
             // Weight无bank冲突，用LoadAlign来提取weight标量
             BroadcastLane(regwBrc[1], weight1, i);
@@ -594,6 +593,10 @@ __aicore__ inline void BatchMulWeightAndReduceSum(const LocalTensor<SCORE_T> &ou
                                                   const int gSize,                     // G 64
                                                   const int batch)
 {
+    // 暂只支持这两种情况, 后续改成循环
+    if (batch != 2 && batch != 1) {
+        return;
+    }
     if (batch == 2) {
         MulWeightAndReduceSum2(out_, outStride,
                                qk_, qkVLStride, qkStride,
