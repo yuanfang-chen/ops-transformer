@@ -895,27 +895,27 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
     sharedParams.n2Size = 1;
     sharedParams.gSize = sparseAttnSharedkvBaseParams.nNumOfQInOneGroup; 
     sharedParams.s1Size = sparseAttnSharedkvBaseParams.qSeqSize;
-    // sharedParams.s2Size = sparseAttnSharedkvBaseParams.kvSeqSize;
+    sharedParams.s2Size = sparseAttnSharedkvBaseParams.seqSize;
     sharedParams.sparseBlockCount = sparseAttnSharedkvBaseParams.sparseBlockCount;
-    // sharedParams.cmpRatio = sparseAttnSharedkvBaseParams.cmpRatio;
-    // sharedParams.oriMaskMode = sparseAttnSharedkvBaseParams.oriMaskMode;
-    // sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.cmpMaskMode;
-    // sharedParams.oriWinLeft = sparseAttnSharedkvBaseParams.oriWinLeft;
-    // sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
+    sharedParams.cmpRatio = 1; // 走spaese， 但不压缩
+    sharedParams.oriMaskMode = sparseAttnSharedkvBaseParams.sparseMode;
+    sharedParams.cmpMaskMode = sparseAttnSharedkvBaseParams.sparseMode;
+    sharedParams.oriWinLeft = -1;
+    sharedParams.oriWinRight = 0;
     sharedParams.layoutType = sparseAttnSharedkvBaseParams.outputLayout; 
-    // sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
-    // sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
-    // sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
-    // sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
-    // sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
+    // sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize; // 无用
+    sharedParams.dSizeRope = 64; // 拷贝KV用
+    sharedParams.softmaxScale = 0.04419417; 
+    sharedParams.dSize = 512;
+    sharedParams.dSizeVInput = 640; // 拷贝用
 
     // pageAttention, rope在C侧搬运时使用
-    // if constexpr (isPa) {
-        // sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.paOriBlockSize;
+    if constexpr (isPa) {
+        sharedParams.oriBlockSize = sparseAttnSharedkvBaseParams.blockSize;
         // sharedParams.cmpBlockSize = sparseAttnSharedkvBaseParams.paCmpBlockSize;
-        // sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.oriMaxBlockNumPerBatch; 
+        sharedParams.oriMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.maxBlockNumPerBatch; 
         // sharedParams.cmpMaxBlockNumPerBatch = sparseAttnSharedkvBaseParams.cmpMaxBlockNumPerBatch;
-    // }
+    }
     
     // actQ->TND, actKV pa场景任意layout均有
     sharedParams.isActualSeqLengthsKVNull = 0U; // 均flase 
@@ -925,7 +925,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
         int64_t s2Size = actualSeqLengthsKVGm.GetValue(bIdx);
         int64_t s1Size;
         if constexpr (LAYOUT_T == QSFA_LAYOUT::TND) {
-            s1Size = cuSeqlensQGm.GetValue(bIdx + 1) - cuSeqlensQGm.GetValue(bIdx);
+            s1Size = bIdx == 0 ? cuSeqlensQGm.GetValue(bIdx) : cuSeqlensQGm.GetValue(bIdx) - cuSeqlensQGm.GetValue(bIdx - 1);
         } else {
             s1Size = sharedParams.s1Size;
         }
