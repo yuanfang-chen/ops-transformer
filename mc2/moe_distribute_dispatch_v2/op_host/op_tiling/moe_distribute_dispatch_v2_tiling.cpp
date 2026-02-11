@@ -1758,9 +1758,19 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 GetPlatformInfoAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
 
-    uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
+
+    // 分层算法需校验AIV核数
+    if (isLayered) {
+        uint32_t serverNum = info.epWorldSize / RANK_NUM_PER_NODE_A2;
+        uint32_t maxLocalMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2 / ( RANK_NUM_PER_NODE_A2 * MIN_EP_WORLD_SIZE); // 512 / 16 = 32
+        OP_TILING_CHECK(aivNum < 2 * serverNum + 1 || aivNum < maxLocalMoeExpertNum,
+            OP_LOGE(context->GetNodeName(), "aivNum is invalid."),
+            return ge::GRAPH_FAILED);
+    }
+
+    uint32_t numBlocks = 1U;
     numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     context->SetBlockDim(numBlocks);
     uint32_t aicpuBlockDim = info.epWorldSize > RANK_NUM_PER_NODE_A2 ? mc2tiling::AICPU_NUM_BLOCKS_A2 : 1;
