@@ -497,7 +497,7 @@ protected:
             tensorS4->SetStorageShape(storageShape);
         }
         if (transposeTensor) {
-            auto strideSize = newStride.Size();
+            auto strideSize = newStride.size();
             // 转置场景，B32承载B4时Strides缩小了8倍，需要调整回来
             newStride[strideSize - 1] *= INT4_PER_INT32;
             for(int64_t batchDim = strideSize - 3; batchDim >= 0; batchDim--) {
