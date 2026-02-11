@@ -550,7 +550,6 @@ ge::graphStatus ScatterPaKvCacheTiling::DoOpTiling()
 
 uint64_t ScatterPaKvCacheTiling::GetTilingKey() const
 {
-    DumpTilingInfo();
     return tilingKey_;
 }
 
@@ -600,7 +599,44 @@ ge::graphStatus ScatterPaKvCacheTiling::PostTiling()
     GenTilingKey();
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
-    DumpTilingInfo();
+    std::ostringstream info;
+    info << "totalCoreNum: " << totalCoreNum_ << std::endl;
+    info << "usedCoreNum: " << usedCoreNum_ << std::endl;
+    info << "blockFactor: " << blockFactor_ << std::endl;
+    info << "tailBlockFactor: " << tailBlockFactor_ << std::endl;
+    info << "kHandleNumPerCore: " << kHandleNumPerCore_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "vHandleNumPerCore: " << vHandleNumPerCore_ << std::endl;
+    }
+    info << "kLoopNum: " << kLoopNum_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "vLoopNum: " << vLoopNum_ << std::endl;
+    }
+    info << "kHandleNumPerLoop: " << kHandleNumPerLoop_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "vHandleNumPerLoop: " << vHandleNumPerLoop_ << std::endl;
+    }
+    info << "kTailHandleNum: " << kTailHandleNum_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "vTailHandleNum: " << vTailHandleNum_ << std::endl;
+    }
+    info << "keyStride0: " << keyStride0_ << std::endl;
+    info << "keyStride1: " << keyStride1_ << std::endl;
+    info << "keyStride2: " << keyStride2_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "valueStride0: " << valueStride0_ << std::endl;
+        info << "valueStride1: " << valueStride1_ << std::endl;
+        info << "valueStride2: " << valueStride2_ << std::endl;
+    }
+    info << "kHeadSize: " << kHeadSize_ << std::endl;
+    if (inOutMode_ == DUAL_IN_OUT) {
+        info << "vHeadSize: " << vHeadSize_ << std::endl;
+    }
+    info << "seqLen: " << seqLen_ << std::endl;
+    info << "numBlocks: " << numBlocks_ << std::endl;
+    info << "blockSize: " << blockSize_ << std::endl;
+    info << "tilingKey: " << tilingKey_ << std::endl;
+    OP_LOGI(context_, "%s", info.str().c_str());
     return ge::GRAPH_SUCCESS;
 }
 
