@@ -104,6 +104,13 @@ namespace {
     constexpr uint32_t TP_WORLD_SIZE_TWO = 2;
     constexpr uint32_t VERSION_2 = 2;
     constexpr uint32_t HCOMMCNT_2 = 2;
+    constexpr uint32_t SIZE_OF_UNQUANT = 2;
+    constexpr uint32_t SIZE_OF_HALF = 2;
+    constexpr uint32_t SIZE_ALIGN_256 = 256;
+    constexpr uint32_t SPLIT_BLOCK_DATA_SIZE = 480U;
+    constexpr uint32_t SPLIT_BLOCK_SIZE = 512UL;
+    constexpr uint32_t ELASTIC_INFO_OFFSET = 4U;
+    constexpr uint32_t BUFFER_NUM = 2;
     constexpr int64_t MOE_EXPERT_MAX_NUM = 1024;
     constexpr int64_t LOCAL_EXPERT_MAX_SIZE = 2048;
     constexpr int64_t K_MAX = 16;
@@ -1315,6 +1322,135 @@ static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistr
     return ge::GRAPH_SUCCESS;
 }
 
+static uint32_t ceil(uint32_t dividend, uint32_t divisor)
+{
+    return ((dividend + divisor - 1 ) / divisor) * divisor;
+}
+
+static uint32_t sendToMoeExpertUsedBuffer(uint32_t expertIdsBufSize)
+{
+    uint32_t UbforMoe = 0;
+    uint32_t moeExpertNum = tilingData.moeDistributeDispatchV2Info.moeExpertNum;
+    uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
+    uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    uint32_t aivNum = ascendcPlatform.GetCoreNumAiv();
+    uint32_t totalExpertNum = sharedExpertRankNum + moeExpertNum;
+    uint32_t aivUsedCumSum = totalExpertNum / 32; // 单核处理32个专家cnt发送
+    aivUsedCumSum = (aivUsedCumSum == 0) ? 1 : aivUsedCumSum;
+    aivUsedCumSum = (aivUsedCumSum >= (aivNum / 2)) ? (aivNum / 2) : aivUsedCumSum;
+    tilingData.moeDistributeDispatchV2Info.aivUsedCumSum = aivUsedCumSum;
+    uint32_t aivUsedAllToAll = aivNum - aivUsedCumSum;
+    tilingData.moeDistributeDispatchV2Info.aivUsedAllToAll = aivUsedAllToAll;
+    uint32_t sharedUsedAivNum = 0;
+    if (sharedExpertRankNum != 0U) {
+        sharedUsedAivNum = (aivUsedAllToAll * sharedExpertNum) / (kSize + sharedExpertNum);
+        if (sharedUsedAivNum == 0) {
+            sharedUsedAivNum = 1;
+        }
+    }
+    tilingData.moeDistributeDispatchV2Info.sharedUsedAivNum = sharedUsedAivNum;
+    uint32_t moeUsedAivNum = aivUsedAllToAll - sharedUsedAivNum; 
+    tilingData.moeDistributeDispatchV2Info.moeUsedAivNum = moeUsedAivNum;
+    uint32_t maskSizePerExpert = ceil((expertIdsBufSize / sizeof(int32_t)) / 8, UB_ALIGN); // 8 is 1byte->8bit
+    uint32_t expertMaskBufSize = maskSizePerExpert * ceil(moeExpertNum, moeUsedAivNum) / moeUsedAivNum;
+    UbforMoe = UbforMoe + expertMaskBufSize; // expertMaskBuf
+    UbforMoe = UbforMoe + ceil(moeExpertNum * sizeof(int32_t), UB_ALIGN); // tokenNumToExpertBuf
+    return UbforMoe;
+}
+
+static uint32_t allToAllBasicUsedBuffer(uint32_t quantMode, uint32_t &expertIdsBufSize, uint32_t hSize,
+    uint32_t expertIdsCnt, uint32_t &hOutSizeAlign)
+{
+    uint32_t UbforMoe = 0;
+    uint32_t sizeofX = 2U;
+    uint32_t hAlignSize = ceil(hSize * sizeofX, UB_ALIGN);
+    UbforMoe = UbforMoe + hAlignSize * BUFFER_NUM; //inQueue
+
+    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+    bool isScales = (scalesStorageShape != nullptr);
+    uint32_t hOutSize = (quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) ? hSize * SIZE_OF_UNQUANT : hSize;
+    hOutSizeAlign = ceil(hOutSize, UB_ALIGN);
+    if ((quantMode == static_cast<uint32_t>(QuantModeA5::NON_QUANT)) && isScales) {
+        uint32_t scaleInBytes = tilingData.moeDistributeDispatchV2Info.scalesCol *
+                    tilingData.moeDistributeDispatchV2Info.scalesTypeSize;
+        hOutSizeAlign += scaleInBytes;
+    } else if (quantMode == static_cast<uint32_t>(QuantModeA5::PERTOKEN_DYNAMIC_QUANT)) {
+        hOutSizeAlign += sizeof(float);
+    }
+    uint32_t hScaleSizeAlign = ceil(hOutSizeAlign, UB_ALIGN);
+    uint32_t tokenQuantAlign = hScaleSizeAlign / sizeof(int32_t);
+    hOutSizeAlign = tokenQuantAlign * sizeof(int32_t) + UB_ALIGN;
+    uint32_t blockCntPerToken = ceil(hOutSizeAlign, SPLIT_BLOCK_DATA_SIZE) / SPLIT_BLOCK_DATA_SIZE;
+    uint32_t hCommuSize = blockCntPerToken * SPLIT_BLOCK_SIZE;
+    UbforMoe = UbforMoe + hCommuSize * BUFFER_NUM; // outBuf
+
+    expertIdsBufSize = ceil(expertIdsCnt * sizeof(int32_t), SIZE_ALIGN_256);
+    UbforMoe = UbforMoe + expertIdsBufSize; //expertIdsBuf_
+    return UbforMoe;
+}
+
+static ge::graphStatus CheckUBSize(const gert::TilingContext *context, MoeDistributeDispatchV2TilingData &tilingData,
+    const char *nodeName)
+{
+    uint32_t ubSize = UB_ALIGN; // init
+
+    uint32_t epWorldSize = tilingData.moeDistributeDispatchV2Info.epWorldSize;
+    if (tilingData.moeDistributeDispatchV2Info.hasElasticInfo) {
+        uint32_t elasticInfoSize = (ELASTIC_INFO_OFFSET + RANK_LIST_NUM * epWorldSize) * sizeof(int32_t);
+        uint32_t elasticInfoSizeAlign = ceil(elasticInfoSize, UB_ALIGN);
+        ubSize = ubSize + elasticInfoSizeAlign; // elasticInfoBuf_
+    }
+
+    uint32_t quantMode = tilingData.moeDistributeDispatchV2Info.quantMode;
+    uint32_t hSize = tilingData.moeDistributeDispatchV2Info.h;
+    uint32_t bsSize = tilingData.moeDistributeDispatchV2Info.bs;
+    uint32_t kSize = tilingData.moeDistributeDispatchV2Info.k;
+    uint32_t expertIdsCnt = bsSize * kSize;
+    uint32_t expertIdsBufSize = 0;
+    uint32_t hOutSizeAlign = 0;
+    ubSize = ubSize + allToAllBasicUsedBuffer(quantMode, expertIdsBufSize, hSize, expertIdsCnt);
+
+    const gert::StorageShape *xActiveMaskStorageShape = context->GetOptionalInputShape(X_ACTIVE_MASK_INDEX);
+    bool isActiveMask = (xActiveMaskStorageShape != nullptr);
+    bool needMaskCalFlag = (isActiveMask || tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum != 0);
+    if (needMaskCalFlag) {
+        ubSize = ubSize + expertIdsBufSize; //gatherMaskTBuf_
+    }
+
+    uint32_t hFp32Size = ceil(hSize * sizeof(float), UB_ALIGN);
+    uint32_t bsKAlign256 = ceil(expertIdsCnt * SIZE_OF_HALF, SIZE_ALIGN_256);
+    uint32_t expertIdsSize = ceil(expertIdsCnt * sizeof(int32_t), UB_ALIGN);
+    uint32_t xActivateMaskSize = bsSize * ceil(kSize * sizeof(bool), UB_ALIGN) * SIZE_OF_HALF;
+    uint32_t maxSize = hFp32Size > expertIdsSize ? hFp32Size : expertIdsSize;
+    maxSize = maxSize > xActivateMaskSize ? maxSize : xActivateMaskSize;
+    maxSize = maxSize > bsKAlign256 ? maxSize : bsKAlign256;
+    tilingData.moeDistributeDispatchV2Info.maxSize = maxSize;
+    if (quantMode > static_cast<uint32_t>(QuantModeA5::NON_QUANT)) {
+        uint32_t hOutAlignUbSize = ceil(hOutSizeAlign, UB_ALIGN);
+        ubSize = ubSize + hOutAlignUbSize;
+        ubSize = ubSize + 2 * maxSize; //receiveDataCastFloatBuf smoothScalesBuf
+    } else if (needMaskCalFlag) {
+        ubSize = ubSize + 2 * maxSize;
+    }
+
+    if (tilingData.moeDistributeDispatchV2Info.isExpertMask || (tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum != 0)) {
+        uint32_t axisBSAlign = ceil(bsSize * sizeof(int32_t), UB_ALIGN);
+        ubSize = ubSize +  axisBSAlign; //validBsIndexTBuf_
+        uint32_t validBufferSize = expertIdsSize > xActivateMaskSize ? expertIdsSize : xActivateMaskSize;
+        ubSize = ubSize + validBufferSize;  //validExpertIndexBuf_
+    }
+
+    ubSize = ubSize + sendToMoeExpertUsedBuffer(expertIdsBufSize);
+    uint64_t ubRealSize = 0;
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubRealSize);
+    if (ubSize > ubRealSize) {
+        OP_LOGE(nodeName, "fullmesh V2 used UB buffersize is %u > max UB buffersize %u", ubSize, ubRealSize);
+        return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 static ge::graphStatus SetWorkSpace(gert::TilingContext *context, const char *nodeName)
 {
     size_t *workSpaces = context->GetWorkspaceSizes(1);
@@ -1400,6 +1536,12 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
     OP_TILING_CHECK(CheckTensorShape(context, nodeName, *tilingData, quantMode, isScales,
         isSharedExpert, hasElasticInfo, isPerformance, static_cast<int64_t>(localMoeExpertNum)) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "Check tensor shape failed."), return ge::GRAPH_FAILED);
+
+    // 校验UB大小
+    if (isSetFullMeshV2) {
+        OP_TILING_CHECK(CheckUBSize(context, *tilingData, nodeName) != ge::GRAPH_SUCCESS,
+            OP_LOGE(nodeName, "Tiling check UB size failed."), return ge::GRAPH_FAILED);
+    }
 
     // 校验win区大小
     OP_TILING_CHECK(CheckWinSize(context, *tilingData, nodeName, isSetFullMeshV2, localMoeExpertNum) != ge::GRAPH_SUCCESS,
