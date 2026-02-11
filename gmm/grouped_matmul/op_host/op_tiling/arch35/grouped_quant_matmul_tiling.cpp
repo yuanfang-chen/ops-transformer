@@ -166,24 +166,44 @@ the dtype of output is FLOAT16, actual is %s.",
 
 bool GroupedQbmmTiling::CheckDtypeForWeightNz(bool isPertokenScaleNull) const
 {
-    OP_CHECK_IF(inputParams_.aDtype != ge::DT_INT8 || inputParams_.bDtype != ge::DT_INT8,
-                OP_LOGE(context_->GetNodeName(),
-                        "When the weight is in Nz format, the dtype of x/weight should be INT8, actual is %s, %s.",
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
-                return false);
+    bool isA8W8Int = inputParams_.aDtype == ge::DT_INT8 && inputParams_.bDtype == ge::DT_INT8;
+    bool isA8W8Fp = inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN && inputParams_.bDtype == ge::DT_FLOAT8_E4M3FN;
+    OP_CHECK_IF(
+        !(isA8W8Int || isA8W8Fp),
+        OP_LOGE(
+            context_->GetNodeName(),
+            "When the weight is in Nz format, the dtype of x/weight should be INT8 or FLOAT8_E4M3FN, actual is %s, %s.",
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+        return false);
     if (!isPertokenScaleNull) {
-        OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format and the pertokenScale should be FLOAT, actual is %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
-                    return false);
-        OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_BF16 && inputParams_.scaleDtype != ge::DT_FLOAT,
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format and the pertokenScale is FLOAT, the dtype of scale \
-should be in {BF16, FLOAT}, actual is %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
-                    return false);
+        if (isA8W8Int) {
+            OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
+                        OP_LOGE(context_->GetNodeName(), "When the weight is Nz format and x/weight's dtype are INT8, \
+the dtype of pertokenScale should be FLOAT, actual is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
+                        return false);
+            OP_CHECK_IF(
+                inputParams_.scaleDtype != ge::DT_BF16 && inputParams_.scaleDtype != ge::DT_FLOAT,
+                OP_LOGE(context_->GetNodeName(),
+                        "When the weight is Nz format, x/weight's dtype are INT8 and the pertokenScale is FLOAT, \
+the dtype of scale should be in {BF16, FLOAT}, actual is %s.",
+                        ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
+                return false);
+        } else if (isA8W8Fp) {
+            OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
+                        OP_LOGE(context_->GetNodeName(),
+                                "When the weight is Nz format and x/weight's dtype are FLOAT8_E4M3, \
+the dtype of pertokenScale should be FLOAT8_E8M0, actual is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
+                        return false);
+            OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0,
+                        OP_LOGE(context_->GetNodeName(),
+                                "When the weight is Nz format, x/weight's dtype are FLOAT8_E4M3, the dtype of scale \
+should be FLOAT8_E8M0, actual is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
+                        return false);
+        }
     } else {
         static const std::vector<ge::DataType> legalScaleDtypes = {ge::DT_UINT64, ge::DT_INT64, ge::DT_FLOAT,
                                                                    ge::DT_BF16};
@@ -1106,8 +1126,8 @@ void GroupedQbmmTiling::CalScaleFactors()
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
     uint32_t scaleFactorBMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
-    uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
-    uint32_t scaleFactorB = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKb * basicTiling_.baseK));
+    uint32_t scaleFactorA = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKa * basicTiling_.baseK));
+    uint32_t scaleFactorB = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKb * basicTiling_.baseK));
     basicTiling_.scaleFactorA = std::max(SCALER_FACTOR_MIN, scaleFactorA);
     basicTiling_.scaleFactorB = std::max(SCALER_FACTOR_MIN, scaleFactorB);
     basicTiling_.scaleFactorA = std::min(scaleFactorAMax, basicTiling_.scaleFactorA);
