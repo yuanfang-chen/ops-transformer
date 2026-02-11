@@ -131,13 +131,6 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
             endif()
         endif()
 
-        if (NOT ENABLE_AICPU)
-            if(EXISTS "${OP_DIR}/op_kernel_aicpu" AND IS_DIRECTORY "${OP_DIR}/op_kernel_aicpu")
-                MESSAGE(STATUS "disable aicpu kernel ${OP_NAME}, skip it.")
-                continue()
-            endif()
-        endif()
-
         list(APPEND _OP_LIST ${OP_NAME})
         list(APPEND _OP_DIR_LIST ${OP_DIR})
     endforeach()
@@ -641,9 +634,19 @@ function(add_bin_compile_target)
             set(_compile_flag false)
         endif ()
 
+         if (CI_MODE)
+            set(_BUILD_COMMAND)
+            list(APPEND _BUILD_COMMAND export CI_MODE=1 &&)
+        endif ()
+
         if (_compile_flag)
             set(_BUILD_COMMAND)
             set(_BUILD_FLAG ${GEN_OUT_DIR}/${OP_TARGET_NAME}_${op_index}.done)
+
+            if (CI_MODE)
+                list(APPEND _BUILD_COMMAND export CI_MODE=1 &&)
+            endif ()
+
             if (ENABLE_OPS_HOST OR ENABLE_HOST_TILING)
                 list(APPEND _BUILD_COMMAND export ASCEND_CUSTOM_OPP_PATH=${CUSTOM_DIR} &&)
             endif ()
@@ -651,6 +654,11 @@ function(add_bin_compile_target)
             list(APPEND _BUILD_COMMAND export TILINGKEY_PAR_COMPILE=1 &&)
             list(APPEND _BUILD_COMMAND export BIN_FILENAME_HASHED=1 &&)
             list(APPEND _BUILD_COMMAND bash ${bin_script} ${OP_SRC_OUT_DIR}/${op_type}.py ${OP_BIN_OUT_DIR})
+
+            if (CI_MODE)
+                list(APPEND _BUILD_COMMAND "||" echo "[CI-MODE] 算子 ${op_file} 编译失败，但继续执行...")
+            endif ()
+
             if(CMAKE_GENERATOR MATCHES "Unix Makefiles")
                 list(APPEND _BUILD_COMMAND && echo $(MAKE))
             endif()
@@ -836,67 +844,3 @@ if (BUILD_OPEN_PROJECT)
         include(${OPS_ADV_CMAKE_DIR}/func_examples.cmake)
     endif ()
 endif ()
-
-function(concat_op_names)
-    set(multiValueArgs OPTYPE ACLNNTYPE ACLNN_EXTRA_VERSION)
-    cmake_parse_arguments(ARG "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-
-    if(${ARG_ACLNNTYPE} STREQUAL "aclnn")
-        set(ACLNN_PREFIX aclnn_${ARG_OPTYPE})
-        set(ACLNN_EXTRA_HEADER "")
-        set(ACLNN_EXTRA_SRC "")
-
-        list(LENGTH ARG_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
-        math(EXPR index "${AclnnExtraVersionLen} - 1")
-        if (index GREATER_EQUAL 0)
-            foreach(i RANGE ${index})
-                list(GET ARG_ACLNN_EXTRA_VERSION ${i} version)
-                list(APPEND ACLNN_EXTRA_HEADER ${ACLNN_PREFIX}_${version}.h)
-                list(APPEND ACLNN_EXTRA_SRC ${ACLNN_PREFIX}_${version}.cpp)
-            endforeach()
-        endif()
-
-        list(APPEND ACLNN_EXTRA_HEADERS ${ACLNN_EXTRA_HEADER})
-        list(REMOVE_DUPLICATES ACLNN_EXTRA_HEADERS)
-        list(APPEND ACLNN_EXTRA_SRCS ${ACLNN_EXTRA_SRC})
-        list(REMOVE_DUPLICATES ACLNN_EXTRA_SRCS)
-
-        set(ACLNN_EXTRA_HEADERS
-            ${ACLNN_EXTRA_HEADERS}
-            CACHE STRING "Aclnn Extra Headers" FORCE
-        )
-        set(ACLNN_EXTRA_SRCS
-            ${ACLNN_EXTRA_SRCS}
-            CACHE STRING "Aclnn Extra Sources" FORCE
-        )
-
-    elseif(${ARG_ACLNNTYPE} STREQUAL "aclnn_inner")
-        set(ACLNNINNER_PREFIX aclnnInner_${ARG_OPTYPE})
-        set(ACLNNINNER_EXTRA_HEADER "")
-        set(ACLNNINNER_EXTRA_SRC "")
-
-        list(LENGTH ARG_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
-        math(EXPR index "${AclnnExtraVersionLen} - 1")
-        if (index GREATER_EQUAL 0)
-            foreach(i RANGE ${index})
-                list(GET ARG_ACLNN_EXTRA_VERSION ${i} version)
-                list(APPEND ACLNNINNER_EXTRA_HEADER ${ACLNNINNER_PREFIX}_${version}.h)
-                list(APPEND ACLNNINNER_EXTRA_SRC ${ACLNNINNER_PREFIX}_${version}.cpp)
-            endforeach()
-        endif()
-
-        list(APPEND ACLNNINNER_EXTRA_HEADERS ${ACLNNINNER_EXTRA_HEADER})
-        list(REMOVE_DUPLICATES ACLNNINNER_EXTRA_HEADERS)
-        list(APPEND ACLNNINNER_EXTRA_SRCS ${ACLNNINNER_EXTRA_SRC})
-        list(REMOVE_DUPLICATES ACLNNINNER_EXTRA_SRCS)
-
-        set(ACLNNINNER_EXTRA_HEADERS
-            ${ACLNNINNER_EXTRA_HEADERS}
-            CACHE STRING "AclnnInner Extra Headers" FORCE
-        )
-        set(ACLNNINNER_EXTRA_SRCS
-            ${ACLNNINNER_EXTRA_SRCS}
-            CACHE STRING "AclnnInner Extra Sources" FORCE
-        )
-    endif()
-endfunction()

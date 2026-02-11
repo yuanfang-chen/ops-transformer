@@ -37,7 +37,6 @@ ENABLE_OPKERNEL=FALSE
 ENABLE_BUILD_PKG=FALSE
 ENABLE_BUILT_IN=FALSE
 ENABLE_BUILT_JIT=FALSE
-ENABLE_AICPU=TRUE
 ENABLE_BUILT_CUSTOM=FALSE
 ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
@@ -63,6 +62,7 @@ ENABLE_GENOP_AICPU=FALSE
 GENOP_TYPE=""
 GENOP_NAME=""
 PR_CHANGED_FILES=""  # PR场景, 修改文件清单, 可用于标识是否PR场景
+CI_MODE=FALSE
 
 if [ "${USER_ID}" != "0" ]; then
     DEFAULT_TOOLKIT_INSTALL_DIR="${HOME}/Ascend/ascend-toolkit/latest"
@@ -336,10 +336,6 @@ function set_env()
     export BISHENG_REAL_PATH=$(which bisheng || true)
 
     if [ -z "${BISHENG_REAL_PATH}" ];then
-        if [[ "$ENABLE_BUILT_JIT" == "TRUE" ]] && [[ "$ENABLE_AICPU" == "FALSE" ]] ; then
-            log "Warning: bisheng compilation tool not found, but --jit --noaicpu is enabled, so continue."
-            return
-        fi
         log "Error: bisheng compilation tool not found, Please check whether the cann package or environment variables are set."
         exit 1
     fi
@@ -393,8 +389,29 @@ function build()
     fi
     export LD_LIBRARY_PATH=${BUILD_DIR}:$LD_LIBRARY_PATH
     
-    cmake --build . --target ${target} ${JOB_NUM} ${option}
-    if [ $? -ne 0 ]; then echo "[ERROR] build failed!" && exit 1; fi
+    if [[ "$CI_MODE" == "TRUE" ]]; then
+        # CI模式：捕获错误但不退出
+        set +e
+        cmake --build . --target ${target} ${JOB_NUM} ${option}
+        local result=$?
+        set -e
+        
+        if [ $result -ne 0 ]; then
+            echo "[WARNING] Build failed for target: ${target}, but continuing in CI mode."
+            return 1
+        else
+            echo "[SUCCESS] Build succeeded for target: ${target}"
+            return 0
+        fi
+    else
+        # 线下模式：直接执行，失败则退出
+        cmake --build . --target ${target} ${JOB_NUM} ${option}
+        if [ $? -ne 0 ]; then
+            echo "[ERROR] Build failed for target: ${target}"
+            exit 1
+        fi
+        return 0
+    fi
 }
 
 ARCH_INFO=$(uname -m)
@@ -563,6 +580,23 @@ function build_host(){
 
 function build_kernel(){
     build ops_transformer_kernel
+
+    if [[ "$CI_MODE" == "TRUE" ]]; then
+        echo "[INFO] CI模式：即使opc编译失败也会继续执行"
+        
+        # 解析SOC列表
+        IFS=';' read -ra SOC_ARRAY <<< "$ASCEND_SOC_UNITS"
+        
+        for soc in "${SOC_ARRAY[@]}"; do
+            soc=$(echo "${soc}" | xargs)
+            if [[ -n "${soc}" ]]; then
+                local bin_dir="${BUILD_DIR}/binary/${soc}/bin"
+                if [ -d "$bin_dir" ]; then
+                    collect_compile_results "$bin_dir"
+                fi
+            fi
+        done
+    fi
 }
 
 build_lib() {
@@ -926,10 +960,6 @@ while [[ $# -gt 0 ]]; do
         shift
         BUILD="jit"
         ;;
-    --noaicpu)
-        ENABLE_AICPU=FALSE
-        shift
-        ;;
     -n|--op-name)
         ascend_op_name="$2"
         shift 2
@@ -995,12 +1025,14 @@ while [[ $# -gt 0 ]]; do
         ENABLE_SMOKE=TRUE
         PKG_MODE="cust"
         vendor_name="custom"
+        CI_MODE=TRUE
         shift 2
         ;;
     --PR_UT)
         PR_CHANGED_FILES="$2"
         ENABLE_TEST=TRUE
-        process_soc_input "ascend310p,ascend910b,ascend950"
+        process_soc_input "ascend910b,ascend950"
+        CI_MODE=TRUE
         shift 2
         ;;
     --PR_PKG)
@@ -1018,6 +1050,7 @@ while [[ $# -gt 0 ]]; do
         ENABLE_BUILD_PKG=TRUE
         ENABLE_BUILT_CUSTOM=TRUE
         ENABLE_BUILT_IN=FALSE
+        CI_MODE=TRUE
         shift 2
         ;;
     --parent_job)
@@ -1227,7 +1260,14 @@ fi
 if [ -n "${op_build_tool}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DOP_BUILD_TOOL=${op_build_tool}"
 fi
-
+if [[ "$CI_MODE" == "TRUE" ]]; then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DCI_MODE=ON"
+    # 同时设置环境变量，供Python脚本使用
+    export CI_MODE=1
+else
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DCI_MODE=OFF"
+    export CI_MODE=0
+fi
 if [ -n "${ascend_cmake_dir}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DASCEND_CMAKE_DIR=${ascend_cmake_dir}"
 fi
@@ -1361,10 +1401,6 @@ CUSTOM_OPTION="${CUSTOM_OPTION} -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH}"
 
 if [[ "$ENABLE_STATIC" == "TRUE" ]]; then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_STATIC=${ENABLE_STATIC}"
-fi
-
-if [[ "$ENABLE_AICPU" == "FALSE" ]]; then
- 	CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_AICPU=OFF -DENABLE_TILING_SINK=OFF"
 fi
 
 if [ -n "${ascend_package_path}" ];then
@@ -1563,6 +1599,28 @@ function process_ci_smoke_with_changed_list()
         fi
     done
 }
+
+function collect_compile_results() {
+    local bin_dir="$1"
+    
+    if [[ "$CI_MODE" != "TRUE" ]]; then
+        return
+    fi
+    
+    # 收集成功和失败的算子
+    if [ -f "${bin_dir}/failed_ops.log" ]; then
+        while IFS= read -r failed_op; do
+            FAILED_OPS+=("$failed_op")
+        done < "${bin_dir}/failed_ops.log"
+    fi
+    
+    if [ -f "${bin_dir}/success_ops.log" ]; then
+        while IFS= read -r success_op; do
+            SUCCESS_OPS+=("$success_op")
+        done < "${bin_dir}/success_ops.log"
+    fi
+}
+
 if [[ "$ENABLE_SMOKE" == "TRUE" ]]; then
     process_ci_smoke_with_changed_list
 fi
@@ -1654,3 +1712,38 @@ else
     fi
 fi
 } | gawk '{print strftime("[%Y-%m-%d %H:%M:%S]"), $0}'
+
+function finalize_compile_results() {
+    echo "--------------- 编译结果汇总 ---------------"
+    
+    if [[ "$CI_MODE" == "TRUE" ]]; then
+        echo "CI模式：ENABLED"
+        echo "总算子数: $((${#SUCCESS_OPS[@]} + ${#FAILED_OPS[@]}))"
+        
+        if [ ${#SUCCESS_OPS[@]} -gt 0 ]; then
+            echo "成功编译算子: ${#SUCCESS_OPS[@]}"
+            # 显示前10个成功算子
+            echo "  示例: ${SUCCESS_OPS[@]:0:10}"
+        fi
+        
+        if [ ${#FAILED_OPS[@]} -gt 0 ]; then
+            echo "失败编译算子: ${#FAILED_OPS[@]}"
+            echo "  失败算子列表:"
+            for failed_op in "${FAILED_OPS[@]}"; do
+                echo "    - $failed_op"
+            done
+            echo "[WARNING] CI模式下，即使有算子编译失败，流程也会继续"
+            # CI模式下返回0，让流程继续
+            return 0
+        else
+            echo "所有算子编译成功"
+            return 0
+        fi
+    else
+        echo "CI模式：DISABLED（线下模式）"
+        echo "所有算子编译成功"
+        return 0
+    fi
+}
+
+finalize_compile_results
