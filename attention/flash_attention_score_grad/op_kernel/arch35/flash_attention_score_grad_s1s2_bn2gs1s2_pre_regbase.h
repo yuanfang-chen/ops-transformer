@@ -14,9 +14,12 @@
  */
 #ifndef FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
 #define FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
-#include "kernel_basic_intf.h"
 
-using namespace AscendC;
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 #define FAG_PRE_CLASS_TEMPLATE                                                                                             \
     template <typename T1, typename T2, const uint8_t DETER_SPARSE_TYPE = 0, const uint32_t IS_TND = 0, const uint8_t SPLIT_AXIS = 0, const uint32_t IS_TND_SWIZZLE = 0>

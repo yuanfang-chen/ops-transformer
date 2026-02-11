@@ -19,9 +19,12 @@
 
 #define ASCENDC_CUBE_ONLY
 #include "../utils/host_utils.h"
-#include "kernel_basic_intf.h"
 
-#include "../utils/common_utils.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endifs.h"
 #include "../utils/layout_utils.h"
 #include "../utils/status_utils.h"
 #include "../utils/tuple_utils.h"

@@ -17,9 +17,12 @@
 
 #include "basic_block_config.h"
 #include "custom_policy/wqbmm_custom_policy.h"
-#include "kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "tool.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 #include "basic_api/weight_quant_basic_api_v1.h"
 

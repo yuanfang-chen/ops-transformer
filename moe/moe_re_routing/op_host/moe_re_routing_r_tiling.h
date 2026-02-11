@@ -31,6 +31,9 @@ protected:
     ge::graphStatus PostTiling() override;
     bool IsCapable() override
     {
+        auto platformInfoPtr = context->GetPlatformInfo();
+        auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+        ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510
         return socVersion_ == platform_ascendc::SocVersion::ASCEND950;
     }
 
