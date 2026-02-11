@@ -1373,7 +1373,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         LocalTensor<uint32_t> flagVal = statusFlagLocal.ReinterpretCast<uint32_t>();
 
         // LogInfo(__LINE__, "[BATCHWRITE][WaitStatusFlag] statusFlagLocal:");
-        // LogInfo(__LINE__, statusFlagLocal, tpipe_, 9);
 
         if (flagVal.GetValue(0) == 1) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitStatusFlag] flag Get.");
