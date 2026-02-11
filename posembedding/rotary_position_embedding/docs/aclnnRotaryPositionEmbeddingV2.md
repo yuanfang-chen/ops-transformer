@@ -212,7 +212,7 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2(
   </table>
 
   - 参数mode约束：
-    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品 </term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：0=half，1=interleave。V2接口不同mode参数约束和V1接口相同，开发者可以根据mode在调用示例的辅助矩阵rotate生成中选择合适的rotate生成方式。
     - <term>Ascend 950PR/Ascend 950DT</term>：2=quarter，3=interleave-half。
     
   - 参数rotate当前支持BFLOAT16、FLOAT16、FLOAT32类型。
