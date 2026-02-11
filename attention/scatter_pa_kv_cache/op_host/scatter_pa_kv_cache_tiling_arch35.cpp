@@ -550,6 +550,7 @@ ge::graphStatus ScatterPaKvCacheTiling::DoOpTiling()
 
 uint64_t ScatterPaKvCacheTiling::GetTilingKey() const
 {
+    DumpTilingInfo();
     return tilingKey_;
 }
 
