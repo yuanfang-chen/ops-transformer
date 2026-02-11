@@ -33,6 +33,8 @@ static const size_t INDEX_ATTR_RECV_COUNTS = 3;
 static const size_t INDEX_ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
 static const size_t INDEX_ATTR_TRANS_MM_WEIGHT_INDEX = 5;
 static const size_t INDEX_ATTR_PERMUTE_OUT_FLAG_INDEX = 6;
+static const size_t INDEX_ATTR_Y_DTYPE_INDEX = 12;
+static const size_t INDEX_ATTR_MM_DTYPE_INDEX = 13;
 
 static constexpr size_t DIM_NUM_0 = 0;
 static constexpr size_t DIM_NUM_1 = 1;
@@ -240,8 +242,19 @@ static ge::graphStatus InferShapeAlltoAllvGroupedMatMul(gert::InferShapeContext*
 static ge::graphStatus InferDataTypeAlltoAllvGroupedMatMul(gert::InferDataTypeContext* context)
 {
     auto dType = context->GetInputDataType(INDEX_IN_GMM_X);
-    context->SetOutputDataType(INDEX_OUT_GMM_Y, dType);
-    context->SetOutputDataType(INDEX_OUT_MM_Y, dType);
+    auto* attrs = context->GetAttrs();
+    auto* yDtypePtr = attrs->GetAttrPointer<bool>(INDEX_ATTR_Y_DTYPE_INDEX);
+    auto* mmDtypePtr = attrs->GetAttrPointer<bool>(INDEX_ATTR_MM_DTYPE_INDEX);
+    if (yDtypePtr != nullptr) {
+        context->SetOutputDataType(INDEX_OUT_GMM_Y, static_cast<ge::DataType>(*yDtypePtr));
+    } else {
+        context->SetOutputDataType(INDEX_OUT_GMM_Y, dType);
+    }
+    if (mmDtypePtr != nullptr) {
+        context->SetOutputDataType(INDEX_OUT_MM_Y, static_cast<ge::DataType>(*mmDtypePtr));
+    } else {
+        context->SetOutputDataType(INDEX_OUT_MM_Y, dType);
+    }
     context->SetOutputDataType(INDEX_PERMUTE_OUT, dType);
     return ge::GRAPH_SUCCESS;
 }

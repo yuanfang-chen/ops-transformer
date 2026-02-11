@@ -564,8 +564,8 @@ extern "C" aclnnStatus InnerAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     int64_t mmWeightQuantMode, int64_t groupSize, const aclTensor *gmmY, const aclTensor *mmYOptional,
     const aclTensor *permuteOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    int64_t yDtype = gmmY->GetDataType(); // yDtype根据实际output的类型赋值，图模式需要该参数
-    int64_t mmDtype = mmYOptional->GetDataType();
+    int64_t yDtype = gmmY->GetDataType();
+    int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
 
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, gmmXScale,
