@@ -24,7 +24,7 @@
 using namespace op;
 
 namespace {
-enum NnopbaseHcclServerType : uint32_t{
+enum class NnopbaseHcclServerType : uint32_t{
     NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
     NNOPBASE_HCCL_SERVER_TYPE_MTE,
     NNOPBASE_HCCL_SERVER_TYPE_CCU,
@@ -71,36 +71,39 @@ extern "C" aclnnStatus aclnnInnerQbmmReduceScatterAddRmsNormCastGetWorkspaceSize
     uint64_t* workspaceSize, aclOpExecutor** executor);
 
 extern "C" aclnnStatus aclnnInnerQbmmReduceScatterAddRmsNormCast(
-    void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
+    void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, const aclrtStream stream);
 
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
 extern "C" aclnnStatus aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* y, 
     const aclTensor* gamma, const aclTensor* scale, const aclTensor* bias, const aclTensor* pertokenScale, 
-    const char* group, bool transposeX2, float epsilon, 
+    const char* group, int64_t rankSize, bool transposeX2, int64_t dtype, float epsilon, 
     aclTensor* y1, aclTensor* y2, aclTensor* x, uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize start");
-    // TODO: Complete the code for checking params
     aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, bias, pertokenScale, y1, y2, x);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    uint64_t rankSize = 0;
-    uint64_t dtype = static_cast<uint64_t>(y1->GetDataType());
+    OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize Inner start");
     aclnnStatus ret = aclnnInnerQbmmReduceScatterAddRmsNormCastGetWorkspaceSize(
         x1, x2, y, gamma, scale, bias, pertokenScale, group, rankSize, 
         transposeX2, dtype, epsilon, y1, y2, x, workspaceSize, executor);
+    OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize Inner end");
     return ret;
 }
-extern "C" aclnnStatus aclnnQbmmReduceScatterAddRmsNormCast(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
+
+extern "C" aclnnStatus aclnnQbmmReduceScatterAddRmsNormCast(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, const aclrtStream stream)
 {
+    OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCast start");
     if (NnopbaseSetHcclServerType) {
-        NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
     }
+    OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCast Inner start");
     aclnnStatus ret = aclnnInnerQbmmReduceScatterAddRmsNormCast(workspace, workspaceSize, executor, stream);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "This is an error in launch aicore");
         return ACLNN_ERR_INNER;
     }
-    return ret;
+    OP_LOGD("aclnnQbmmReduceScatterAddRmsNormCast Inner End");
+    return ACLNN_SUCCESS;
 }

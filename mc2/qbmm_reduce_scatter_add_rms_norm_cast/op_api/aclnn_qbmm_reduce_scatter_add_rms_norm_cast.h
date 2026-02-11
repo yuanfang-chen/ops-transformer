@@ -13,6 +13,7 @@
 #include <string>
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
+#include "hccl/hccl_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,10 +40,9 @@ extern "C" {
 ACLNN_API aclnnStatus aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize(const aclTensor* x1, const aclTensor* x2, const aclTensor* y,
                                                                            const aclTensor* gamma, const aclTensor* scale, const aclTensor* bias, 
                                                                            const aclTensor* pertokenScale, 
-                                                                           const char* group, bool transposeX2, float epsilon,
+                                                                           const char* group, int64_t rankSize, bool transposeX2, int64_t dtype, float epsilon,
                                                                            aclTensor* y1, aclTensor* y2, aclTensor* x, 
                                                                            uint64_t* workspaceSize, aclOpExecutor** executor);
-// TODO: 少了属性attr，需要和调用这个接口的上层pta对齐一下
 /**
  * @brief aclnnQbmmReduceScatterAddRmsNormCast的第二段接口，用于执行计算。
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
@@ -52,7 +52,7 @@ ACLNN_API aclnnStatus aclnnQbmmReduceScatterAddRmsNormCastGetWorkspaceSize(const
  * @return aclnnStatus: 返回状态码
  */
 ACLNN_API aclnnStatus aclnnQbmmReduceScatterAddRmsNormCast(void* workspace, uint64_t workspaceSize,
-                                                           aclOpExecutor* executor, aclrtStream stream);
+                                                           aclOpExecutor* executor, const aclrtStream stream);
 #ifdef __cplusplus
 }
 #endif

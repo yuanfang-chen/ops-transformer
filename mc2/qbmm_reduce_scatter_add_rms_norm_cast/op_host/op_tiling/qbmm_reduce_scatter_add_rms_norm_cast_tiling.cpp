@@ -16,28 +16,29 @@
 #include <register/op_def_registry.h>
 #include "tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
-#include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_key.h"
+// #include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_key.h"
 #include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_data.h"
 using namespace AscendC;
 using namespace ge;
 namespace MC2Tiling {
 constexpr size_t GROUP_INDEX = 0;
 constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
-constexpr uint32_t AIV_TYPE = 2;
+constexpr uint32_t AIV_TYPE = 3;
+constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
 
 using namespace AscendC;
 using namespace ge;
 
-/**
- * @brief 打印tilingData
- * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
- * @param tilingData: 框架根据context的opName匹配tiling模板，计算产生的tilingData
- * @return
- */
-static void PrintTilingDataInfo(gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData &tilingData)
-{
+// /**
+//  * @brief 打印tilingData
+//  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+//  * @param tilingData: 框架根据context的opName匹配tiling模板，计算产生的tilingData
+//  * @return
+//  */
+// static void PrintTilingDataInfo(gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData &tilingData)
+// {
 
-}
+// }
 
 /**
  * @brief 设置hcomm参数
@@ -50,7 +51,6 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, QbmmReduc
 {
     const char *nodeName = context->GetNodeName();
     OP_LOGD(nodeName, "group is %s in qbmm_reduce_scatter_add_rms_norm_cast.", group.c_str());
-    // TODO:待完善
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, OP_TYPE_ALL_TO_ALL,
                                                  "AlltoAll=level0:fullmesh;level1:pairwise");
     // MTE方式必要适配
@@ -59,6 +59,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, QbmmReduc
         OP_LOGE(nodeName, "mc2CcTilingConfig mc2InitTiling GetTiling failed"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(tilingData->mc2CcTiling) != 0,
         OP_LOGE(nodeName, "mc2CcTilingConfig mc2CcTiling GetTiling failed"), return ge::GRAPH_FAILED);
+    OP_LOGD("QbmmReduceScatterAddRmsNormCast set HCCL success.");
     return ge::GRAPH_SUCCESS;
 }
 
@@ -88,9 +89,16 @@ static void SetTilingKey(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     // 设置tilingKey模板参数
-    const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_COMM);
-    context->SetTilingKey(tilingKey);
-    OP_LOGD(nodeName, "tilingKey is [%lu] in qbmm_reduce_scatter_add_rms_norm_cast.", tilingKey);
+    context->SetTilingKey(0);
+}
+
+static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
+{
+    const char *nodeName = context->GetNodeName();
+    size_t *workSpaces = context->GetWorkspaceSizes(1);
+    OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName, "workSpaces is nullptr."), return ge::GRAPH_FAILED);
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE;
+    return ge::GRAPH_SUCCESS;
 }
 
 /**
@@ -100,6 +108,7 @@ static void SetTilingKey(gert::TilingContext *context)
  */
 static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingContext *context)
 {
+    OP_LOGD("QbmmReduceScatterAddRmsNormCast tiling start.");
     OP_TILING_CHECK(context == nullptr,
                     OP_LOGE("qbmm_reduce_scatter_add_rms_norm_cast", "failed to get tiling context in qbmm_reduce_scatter_add_rms_norm_cast."),
                     return ge::GRAPH_FAILED);
@@ -117,9 +126,11 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     group = std::string(groupPtr);
     OP_TILING_CHECK(SetHcommCfg(context, tilingData, group) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
+    SetWorkSpace(context);
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
-    PrintTilingDataInfo(context, *tilingData);
+    // PrintTilingDataInfo(context, *tilingData);
+    OP_LOGD("QbmmReduceScatterAddRmsNormCast tiling end.");
     return ge::GRAPH_SUCCESS;
 }
 
