@@ -14,31 +14,26 @@
  */
 #include "basic_api/kernel_basic_intf.h"
 #include "lib/matmul_intf.h"
-#include "moe_distribute_combine_v2_tiling_key.h"
+#include "moe_distribute_combine_v2_tiling_key_extend.h"
 
 #ifdef __DAV_C310__
-#include "arch35/moe_distribute_combine_arch35.h"
-#include "arch35/moe_distribute_combine_v2_host_kfc.h"
-#else
-#include "moe_distribute_combine_a2.h"
-#include "moe_distribute_combine_a2_layered.h"
-#include "moe_distribute_combine_a2_layered_aicpu.h"
+#include "../moe_distribute_combine_v2/arch35/moe_distribute_combine_v2_host_kfc.h"
 #endif // __DAV_C310__
-#include "moe_distribute_combine_v2_tiling.h"
-#include "moe_distribute_combine_v2.h"
+
+#include "../moe_distribute_combine_v2/moe_distribute_combine_v2_tiling.h"
+
 
 #ifndef __DAV_C310__
 using namespace MoeDistributeCombineV2A5Impl;
 #endif // __DAV_C310__
 
-using namespace MoeDistributeCombineV2Impl;
 using namespace Mc2Tiling;
 using namespace AscendC;
 
 template <bool HasTp, uint8_t QuantMode, uint8_t LayeredMode, uint8_t ArchTag>
 __global__ __aicore__ void
 moe_distribute_combine_v2_extend(GM_ADDR expandX, GM_ADDR expertIds, GM_ADDR assistInfoForCombine, GM_ADDR epSendCount,
-                                 GM_ADDR scales, GM_ADDR tpSendCount, GM_ADDR xActiveMask, GM_ADDR activationScale,
+                                 GM_ADDR scales, GM_ADDR mc2_context, GM_ADDR tpSendCount, GM_ADDR xActiveMask, GM_ADDR activationScale,
                                  GM_ADDR weightScale, GM_ADDR groupList, GM_ADDR expandScales, GM_ADDR sharedExpertX,
                                  GM_ADDR elasticInfo, GM_ADDR oriX, GM_ADDR constExpertAlpha1,
                                  GM_ADDR constExpertAlpha2, GM_ADDR constExpertV, GM_ADDR performanceInfo, GM_ADDR XOut,
