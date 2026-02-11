@@ -88,7 +88,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
     }
     OP_TILING_CHECK((opName_ == nullptr),
         OP_LOGE("quantGMMALLTOALLV", "The opName_ is null."), return ge::GRAPH_FAILED);
-
+    
+    localParams_.opName = opName_;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -682,13 +683,14 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::SetGmmA2avWorkspaceInfo()
     auto yDtypeSize = mc2tiling::GetDataTypeSize(opName_, localParams_.gmmYDtype);
     inferredInfo.gmmResultLen = mc2tiling::AlignUp(
         localParams_.A * localParams_.N1 * yDtypeSize, alignAddrLen);
-    localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
+    // localTilingData_.workspaceInfo.wsGmmOutputSize = inferredInfo.gmmResultLen;
     localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize = 1 * 1024 * 1024;
     localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize = 1 * 1024 * 1024;
-    workSpaceSize_ = libApiWorkSpaceSize_ +
-        localTilingData_.workspaceInfo.wsGmmOutputSize +
+    workSpaceSize_ = libApiWorkSpaceSize_ + inferredInfo.gmmResultLen +
         localTilingData_.workspaceInfo.wsGmmComputeWorkspaceSize +
         localTilingData_.workspaceInfo.wsSharedGmmComputeWorkspaceSize;
+    
+    localTilingData_.workspaceInfo.wsGmmOutputSize = workSpaceSize_;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -698,8 +700,12 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     // 设置公共信息
     QuantGroupedMatmulAllToAllvAdapter gmmTile(context_);
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
-    // GMM
-    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_));
+    // GMM 第一个矩阵块
+    uint64_t gmmX_epSize = 0;
+    for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
+        size += localTilingData_.taskTilingInfo.sendCnt[i];
+    }
+    GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, gmmX_epSize));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());
     localTilingData_.gmmBaseTiling = gmmTile.GetGmmQuantTilingAdapterData();
 
@@ -763,7 +769,7 @@ void PrintGmmA2avWorkspaceInfo(const GmmA2avWorkspaceInfo &workspaceInfo, const 
     ss << "wsGmmOutputSize=" << workspaceInfo.wsGmmOutputSize <<", wsGmmComputeWorkspaceSize=" <<
         workspaceInfo.wsGmmComputeWorkspaceSize << ", wsSharedGmmComputeWorkspaceSize=" <<
         workspaceInfo.wsSharedGmmComputeWorkspaceSize;
-    OP_LOGI(opName_, "%s", ss.str().c_str());
+    OP_LOGD(opName_, "%s", ss.str().c_str());
 }
 
 void PrintTaskTilingInfo(const MC2KernelTemplate::TaskTilingInfo &taskTilingInfo,
@@ -812,10 +818,13 @@ void PrintGMMQuantTilingData(const MC2KernelTemplate::GMMQuantTilingData &data, 
         mm.iterateOrder;
 
     ss << "\nQuant Params: groupNum=" << quantParams.groupNum << ", activeType=" << quantParams.activeType <<
-        ", aQuantMode=" << quantParams.aQuantMode << ", bQuantMode=" << quantParams.bQuantMode << ", singleX=" <<
-        quantParams.singleX << ", singleW=" << quantParams.singleW << ", singleY=" << quantParams.singleY <<
-        ", groupType=" << quantParams.groupType << ", groupListType=" << quantParams.groupListType << ", hasBias=" <<
-        quantParams.hasBias << ", reserved=" << quantParams.reserved;
+        ", aQuantMode=" << quantParams.aQuantMode << ", bQuantMode=" << quantParams.bQuantMode <<
+        ", singleX=" << static_cast<int32_t>(quantParams.singleX) <<
+        ", singleW=" << static_cast<int32_t>(quantParams.singleW) <<
+        ", singleY=" << static_cast<int32_t>(quantParams.singleY) <<
+        ", groupType=" << static_cast<int32_t>(quantParams.groupType) <<
+        ", groupListType=" << static_cast<uint32_t>(quantParams.groupListType) <<
+        ", hasBias=" << static_cast<int32_t>(quantParams.hasBias) << ", reserved=" << quantParams.reserved;
 
     ss << "\nArray: mList[0]=" << gmmArray.mList[0] << ", kList[0]=" << gmmArray.kList[0] << ", nList[0]=" <<
         gmmArray.nList[0];

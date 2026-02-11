@@ -189,7 +189,7 @@ protected:
     virtual bool AnalyzeAttrs();
     virtual bool AnalyzeDtype();
     virtual bool AnalyzeInputs();
-    virtual void PrintQuantParams();
+    void PrintQuantParams();
     bool IsMicroScaling() const;
     bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     GQmmBasicTiling basicTiling_;
