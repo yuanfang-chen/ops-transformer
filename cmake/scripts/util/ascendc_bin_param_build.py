@@ -356,6 +356,8 @@ class BinParamBuilder(opdesc_parser.OpDesc):
 if [ $? -ne 0 ]; then
     on_failure 
     exit 1
+else
+    remove_pid
 fi
 """
         if ci_mode_flag:
@@ -404,7 +406,6 @@ grep -q \"None of the given tiling keys are in the supported list\"; then\n"
 
         ci_mode = os.environ.get('CI_MODE', 'FALSE')
         ci_mode_flag = (ci_mode == 'TRUE' or ci_mode.lower() == 'true')
-        print(f"[ERROR] LBH: {ci_mode_flag=}")
 
         build_cmd_var = "#!/bin/bash\n"
         build_cmd_var += f'echo "[{self.soc}] Generating {bin_file} ..."\n'
@@ -418,7 +419,6 @@ add_pid() {
     (
         flock 9
         echo $$ >> "$PID_FILE"
-        cat "LBH pid: "$PID_FILE
     ) 9>"${PID_FILE}.lock"
 }
 
@@ -437,7 +437,6 @@ check_stop() {
 }
 
 on_failure() {
-    # 
     touch "$STOP_FILE"
     
     # PIDPID
@@ -451,13 +450,8 @@ on_failure() {
     ) 9>"${PID_FILE}.lock"
 }
 
-# 
 check_stop
-
-# PID
 add_pid
-
-# 
 check_stop
 """
 

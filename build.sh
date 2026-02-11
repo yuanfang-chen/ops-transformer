@@ -449,7 +449,6 @@ function build()
         local option="--verbose"
     fi
     export LD_LIBRARY_PATH=${BUILD_DIR}:$LD_LIBRARY_PATH
-    echo "LBH TEST build 000"
     echo "$CI_MODE"
     if [[ "$CI_MODE" == "TRUE" ]]; then
         export CI_MODE=TRUE
