@@ -1038,7 +1038,7 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         1, 1, 1, 1, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode
         false, false, // gmmTrans mmTrans
         2, 2, 0, // worldSize epWorldSize graphType
-        ge::GRAPH_SUCCESS, 258 // expectedStatus expectTilingKey
+        ge::GRAPH_SUCCESS, 137 // expectedStatus expectTilingKey
     },
 
     // // 异常测试用例
