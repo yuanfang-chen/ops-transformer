@@ -1095,10 +1095,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
             tokenSendMap_.SetValue(pos, 1);
             uint32_t CntValue = serverCountTensor_.GetValue(dstServerId);
             serverCountTensor_.SetValue(dstServerId, CntValue + 1); // 当前server已经收到多少Token
-            LogInfo(__LINE__,"[DispatchAndCountTokens]index ",index);
-            LogInfo(__LINE__,"[DispatchAndCountTokens]expertIndex ",expertIndex);
-            LogInfo(__LINE__,"[DispatchAndCountTokens]CntValue ",CntValue);
-            LogInfo(__LINE__,"[DispatchAndCountTokens]dstServerId ",dstServerId);
+            // LogInfo(__LINE__,"[DispatchAndCountTokens]index ",index);
+            // LogInfo(__LINE__,"[DispatchAndCountTokens]expertIndex ",expertIndex);
+            // LogInfo(__LINE__,"[DispatchAndCountTokens]CntValue ",CntValue);
+            // LogInfo(__LINE__,"[DispatchAndCountTokens]dstServerId ",dstServerId);
             if (process) {
                 SingleTokenProcess(tokenIndex, dstServerId, CntValue); // 将数据写入对应的发送区
             }
