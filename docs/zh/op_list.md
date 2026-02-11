@@ -426,6 +426,16 @@
   </tr>
   <tr>
     <td>mc2</td>
+    <td><a href="../../mc2/allto_all_matmul/README.md">allto_all_matmul</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>AI Core</td>
+    <td>完成AlltoAll通信与MatMul计算融合。</td>
+  </tr>
+  <tr>
+    <td>mc2</td>
     <td><a href="../../mc2/allto_allv_grouped_mat_mul/README.md">allto_allv_grouped_mat_mul</a></td>
     <td>✓</td>
     <td>✓</td>
@@ -923,6 +933,16 @@
     <td>✓</td>
     <td>AI Core</td>
     <td>针对单输入 x 进行旋转位置编码。</td>
+  </tr>
+  <tr>
+    <td>posembedding</td>
+    <td><a href="../../posembedding/qkv_rms_norm_rope_cache/README.md">qkv_rms_norm_rope_cache</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>输入qkv融合张量，通过SplitVD拆分q、k、v张量，执行RmsNorm、ApplyRotaryPosEmb、Quant、Scatter融合操作，输出q_out、k_cache、v_cache、q_out_before_quant(可选)、k_out_before_quant(可选)、v_out_before_quant(可选)。</td>
   </tr>
   <tr>
     <td>posembedding</td>

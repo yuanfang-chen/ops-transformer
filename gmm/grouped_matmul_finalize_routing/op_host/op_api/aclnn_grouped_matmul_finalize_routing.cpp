@@ -516,7 +516,7 @@ static inline bool CheckTuningConfig(const GroupedMatmulParams &params)
 static aclnnStatus CheckParams(GroupedMatmulParams &params)
 {
     if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRouting91095Checker checker;
+        GmmFinalizeRouting::AclnnGroupedMatmulFinalizeRoutingDAV3510Checker checker;
         aclnnStatus status = checker.CheckParams(params);
         CHECK_RET(status == ACLNN_SUCCESS, status);
     } else {
@@ -1353,7 +1353,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV3GetWorkspaceSize(const aclTensor 
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                 "aclnnGroupedMatmulFinalizeRoutingV3 weightNd: Invalid dtype combination."
                 "Expected: x1 and x2 both in [FLOAT8_E5M2, FLOAT8_E4M3FN, "
-                "FLOAT4_E1M2 or FLOAT4_E2M1] for mx."
+                "FLOAT4_E2M1] for mx."
                 "But got x1=%s, x2=%s",
                 op::ToString(x1->GetDataType()).GetString(), op::ToString(tmpWeightV3->GetDataType()).GetString());
         return ACLNN_ERR_PARAM_INVALID;
