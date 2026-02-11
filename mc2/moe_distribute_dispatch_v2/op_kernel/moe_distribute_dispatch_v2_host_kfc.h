@@ -75,7 +75,7 @@ using namespace MoeDistributeV2Base;
 using namespace MoeDispatchLog;
 
 using namespace MoeDispatchLog_NEW;
-#define LOG_INFO(...) this->logger.LogInfo(__LINE__,__VA_ARGS__)
+#define LOG_INFO(...) this->logger.LogInfo(__func__,__LINE__,__VA_ARGS__)
 #define LOG_INIT(...) this->logger.Init(__VA_ARGS__)
 
 template <TemplateDispatchKFCTypeClass>
@@ -1414,6 +1414,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
     uint32_t count = 0;
     while (true) {
         count++;
+        LOG_INFO("")
         LogInfo(__LINE__, "[BATCHWRITE][WaitToken][true] index:", index);
         if (count == 1000) {
             LogInfo(__LINE__, "[BATCHWRITE][WaitToken] error count.");
