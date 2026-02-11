@@ -641,6 +641,7 @@ void ScatterPaKvCacheTiling::DumpTilingInfo()
     info << "numBlocks: " << numBlocks_ << std::endl;
     info << "blockSize: " << blockSize_ << std::endl;
     info << "tilingKey: " << tilingKey_ << std::endl;
+    OP_LOGI(context_, "%s", info.str().c_str());
 }
 
 ge::graphStatus Tiling4ScatterPaKvCache(gert::TilingContext *context_)
