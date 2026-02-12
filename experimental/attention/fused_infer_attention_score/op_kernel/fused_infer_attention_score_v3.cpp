@@ -33,6 +33,8 @@
 #endif
 #endif // FIA_ENABLE_MLA
 
+
+
 using namespace AscendC;
 
 #define INVOKE_FIA_OP_GENERAL_IMPL(templateClass, CubeBlockType, VecBlockType, FdBlockType, ...)                       \
