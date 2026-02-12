@@ -23,7 +23,7 @@ if (BUILD_OPEN_PROJECT)  # custom
 
     # --cce-auto-sync: 指定CCE编译器是否自动执行线程间或模块间的同步操作
     set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-    if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    if("${CONDITION_UNIT}" STREQUAL "ascend910_93" or "ascend910_95" or "ascend950")
         add_ops_compile_options(
             OP_NAME AddRmsNormDynamicQuantAllGatherQbmm
             OPTIONS --cce-auto-sync=off

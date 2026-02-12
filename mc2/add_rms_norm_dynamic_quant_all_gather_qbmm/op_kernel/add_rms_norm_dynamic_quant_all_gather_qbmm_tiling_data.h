@@ -35,8 +35,8 @@ struct AddRmsNormDynamicQuantV2TilingData {
 };
 
 struct AllGatherTilingData {
-    uint64_t bs;
-    uint64_t hiddenSize;
+    uint64_t M;
+    uint64_t K;
     uint64_t scaleHiddenSize;
     uint64_t aivNum;
     uint64_t totalWinSize;   // Win区总大小，即HCCL_BUFFER_SIZE
