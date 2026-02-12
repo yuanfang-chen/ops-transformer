@@ -19,16 +19,15 @@
 #include "tiling/moe_tiling_base.h"
 #include "../../op_kernel/moe_distribute_combine_setup_tiling.h"
 
-namespace optiling {
-class MoeDistributeCombineSetupTilingBase : public MoeTilingBase
-{
+namespace MC2Tiling {
+
+class MoeDistributeCombineSetupTilingBase : public optiling::MoeTilingBase {
 public:
-    explicit MoeDistributeCombineSetupTilingBase(gert::TilingContext* context)
-        : MoeTilingBase(context), nodeName_(context->GetNodeName()){};
+    explicit MoeDistributeCombineSetupTilingBase(gert::TilingContext *context)
+        : optiling::MoeTilingBase(context), nodeName_(context->GetNodeName()) {};
 
 protected:
-    enum TensorType
-    {
+    enum TensorType {
         INPUT = 0,
         OUTPUT = 1,
         OPTIONINPUT = 2
@@ -69,10 +68,12 @@ protected:
     virtual ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k);
     virtual void SetHcommCfg();
 
-    const char* socTilingName_;
+    const char *socTilingName_ = nullptr;
     std::string nodeName_;
-    MoeDistributeCombineSetupTilingData* tilingData_ = nullptr;
+    MoeDistributeCombineSetupTilingData *tilingData_ = nullptr;
     std::string groupEp_;
 };
-} // namespace optiling
-#endif
+
+} // namespace MC2Tiling
+
+#endif // MOE_DISTRIBUTE_COMBINE_SETUP_TILING_BASE_H_

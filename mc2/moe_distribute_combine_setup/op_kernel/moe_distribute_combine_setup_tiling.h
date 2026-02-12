@@ -12,11 +12,11 @@
  * \file moe_distribute_combine_setup_tiling.h
  * \brief
  */
-#ifndef MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H
-#define MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H
+#ifndef MOE_DISTRIBUTE_COMBINE_SETUP_TILING_H
+#define MOE_DISTRIBUTE_COMBINE_SETUP_TILING_H
 
-#include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
+// #include <cstdint>
+// #include "kernel_tiling/kernel_tiling.h"
 
 // a3
 struct MoeDistributeCombineSetupInfo {
@@ -54,4 +54,4 @@ struct BatchWriteItem {
     uint32_t dstAddrHigh;
     uint32_t res2[4];
 };
-#endif //__MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H__
+#endif // MOE_DISTRIBUTE_COMBINE_SETUP_TILING_H

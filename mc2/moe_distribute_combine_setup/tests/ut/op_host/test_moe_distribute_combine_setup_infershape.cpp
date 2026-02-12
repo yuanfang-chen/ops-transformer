@@ -9,18 +9,6 @@
  */
 
 /*!
- * \file test_aclnn_moe_distribute_combine_teardown.cpp
- * \brief aclnn测试样例
+ * \file test_moe_distribute_combine_setup_infershape.cpp
+ * \brief infershape ut
  */
-#include <thread>
-#include <iostream>
-#include <string>
-#include <cstring>
-#include <vector>
-#include <acl/acl.h>
-#include <hccl/hccl.h>
-
-int main(int argc, char *argv[])
-{
-   return 0;
-}

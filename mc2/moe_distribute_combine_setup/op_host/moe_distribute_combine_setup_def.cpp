@@ -10,16 +10,16 @@
 
 /*!
  * \file moe_distribute_combine_setup_def.cpp
- * \brief
+ * \brief 算子信息库定义
  */
 
-#include "register/op_def_registry.h"
+#include <register/op_def_registry.h>
 
 namespace ops {
-class MoeDistributeCombineSetup : public OpDef
-{
+
+class MoeDistributeCombineSetup : public OpDef {
 public:
-    explicit MoeDistributeCombineSetup(const char* name) : OpDef(name)
+    explicit MoeDistributeCombineSetup(const char *name) : OpDef(name)
     {
         this->Input("expand_x")
             .ParamType(REQUIRED)

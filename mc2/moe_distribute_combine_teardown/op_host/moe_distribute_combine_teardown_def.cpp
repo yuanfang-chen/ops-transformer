@@ -13,7 +13,7 @@
  * \brief 算子信息库定义
  */
 
-#include "register/op_def_registry.h"
+#include <register/op_def_registry.h>
 
 namespace ops {
 
@@ -65,6 +65,7 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_BF16, ge::DT_FLOAT16})
             .FormatList({ge::FORMAT_ND});
+
         this->Attr("group_ep").AttrType(REQUIRED).String();
         this->Attr("ep_world_size").AttrType(REQUIRED).Int();
         this->Attr("ep_rank_id").AttrType(REQUIRED).Int();

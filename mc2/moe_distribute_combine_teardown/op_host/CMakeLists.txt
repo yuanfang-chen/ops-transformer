@@ -31,5 +31,5 @@ if (BUILD_OPEN_PROJECT)  # custom
     endif()
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE moe_distribute_combine_teardown moe_distribute_combine_teardown ACLNNTYPE aclnn aclnn_inner) 
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE) 
+    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
 endif()
