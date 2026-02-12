@@ -624,7 +624,13 @@ class GeneralizedPrologV3:
 
         out3_shape = kv_cache.shape
         if cache_mode == "BSND":
-            kv_cache = kv_cache.transpose(2, 1)
+            expected = (B, S2, N2, Dtile)
+            if tuple(out3_shape) != expected:
+                raise ValueError(f"BSND kv_cache shape should be {expected}, got {tuple(out3_shape)}")
+        elif cache_mode == "TND":
+            expected = (B * S2, N2, Dtile)
+            if tuple(out3_shape) != expected:
+                raise ValueError(f"TND kv_cache shape should be {expected}, got {tuple(out3_shape)}")
         if kv_quant_mode == 0:
             kv_cache = kv_cache.to(torch.bfloat16)
             norm2_res_scatter = norm2_res.to(torch.bfloat16)
@@ -669,7 +675,13 @@ class GeneralizedPrologV3:
             kr_cache = copy.deepcopy(kr_cache)
             out4_shape = kr_cache.shape
             if cache_mode == "BSND":
-                kr_cache = kr_cache.transpose(2, 1)
+                expected = (B, S2, N2, Dr)
+                if tuple(out4_shape) != expected:
+                    raise ValueError(f"BSND kr_cache shape should be {expected}, got {tuple(out4_shape)}")
+            elif cache_mode == "TND":
+                expected = (B * S2, N2, Dr)
+                if tuple(out4_shape) != expected:
+                    raise ValueError(f"TND kr_cache shape should be {expected}, got {tuple(out4_shape)}")
             if weight_quant_mode == 1 and kv_quant_mode == 2:
                 rotary2_scatter = rotary2_res
             else:
