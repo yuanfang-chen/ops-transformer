@@ -1032,14 +1032,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
                                                                                                uint32_t cnt)
 {
     LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>();
-    //DataCopyPadExtParams<XType> copyPadExtParams{false, 0U, 0U, 0U};
     DataCopyPadParams copyPadExtParams{true, 0U, 0U, 0U};
     DataCopyPad(sendTokenTensor, xGMTensor_[tokenIndex * axisH_], xCopyParams_, copyPadExtParams);
-    //同步
-    // SyncFunc<AscendC::HardEvent::MTE2_V>();
     FillQuadruple(sendTokenTensor, tokenIndex);
     CopyTokenToWinOut(sendTokenTensor, dstServerId, cnt);
-    
 }
 
 template <TemplateDispatchKFCTypeClass>
