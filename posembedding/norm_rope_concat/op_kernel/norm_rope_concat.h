@@ -102,6 +102,30 @@ __aicore__ inline void NormOperationForward<isTraining>::DoSum(const LocalTensor
     }
 }
 
+__simd_vf__ inline void DoSumVf(LocalTensor<float> &out, LocalTensor<float> &in, uin32_t heads) {
+    RegTensor<float> inRegTensor;
+    RegTensor<float> bufRegTensor;
+
+    __ubuf__ float* inBuf = (__ubuf__ float*)in.GetPhyAddr();
+    __ubuf__ float* outBuf = (__ubuf__ float*)out.GetPhyAddr();
+
+    uint32_t oneRepeatSize = AscendC::GetVecLen() / sizeof(float);
+    uint32_t repeatTimes = CeilDiv(this->normDim_, oneRepeatSize);
+    for (uint32_t i = 0; i < heads; ++i) {
+        uint32_t len = this->normDim_;
+        MaskReg maskReg0 = CreateMask<float, MaskPattern::ALL>();
+        Duplicate(bufRegTensor, 0.f, maskReg0);
+        for (uint32_t j = 0; j < repeatTimes; ++j) {
+            MakReg maskReg1 = UpdateMask<float>(len);
+            LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_NORM>(
+                inRegTensor, inBuf, oneRepeatSize);
+            ADD(bufRegTensor, inRegTensor, bufRegTensor, maskReg1);
+        }
+        ReduceSum(bufRegTensor, bufRegTensor, maskReg0);
+        StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_NORMAL>(outBuf + i, bufRegTensor, 1);
+    }
+}
+
 template <bool isTraining>
 __aicore__ inline void NormOperationForward<isTraining>::DoMulAdd(const LocalTensor<float> &x, uint32_t heads)
 {
@@ -198,6 +222,59 @@ __aicore__ inline void NormOperationForward<isTraining>::CopyIn(int64_t inOffset
     inQue_.EnQue(buf);
 }
 
+/*
+brief compute sqrt(sum(x - E(x))^2 / scale + eps)
+*/
+__simd_vf__ inline void ComputeRstdVF(LocalTensor<float> &x, LocalTensor<float> &sumX, LocalTensor<float> &reducedX, uint32_t heads)
+{
+    RegTensor<float> xRegTensor;
+    RegTensor<float> sumRegTensor;
+    RegTensor<float> temp0RegTensor;
+    RegTensor<float> bufRegTensor;
+    RegTensor<float> reducedRegTensor;
+
+    __ubuf__ float* xBuf = (__ubuf__ float*)x.GetPhyAddr();
+    __ubuf__ float* sumXBuf = (__ubuf__ float*)sumX.GetPhyAddr();
+    __ubuf__ float* reducedXBuf = (__ubuf__ float*)reducedX.GetPhyAddr();
+    uint32_t oneRepeatSize = AscendC::GetVecLen() / sizeof(float);
+    uint32_t repeatTimes = CeilDiv(this->normDim_, oneRepeatSize);
+
+    for (uint32_t i = 0; i < heads; ++i) {
+        uint32_t len = this->normDim_;
+        Duplicate(bufRegTensor, 0.f, maskReg0);
+        for (uint32_t j = 0; j < repeatTimes; ++j) {
+            MaskReg maskReg1 = updateMask<float>(len);
+            LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_NORM>(
+                sumRegTensor, sumXBuf, oneRepeatSize);
+            LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_NORM>(
+                sumRegTensor, sumXBuf, oneRepeatSize);
+            // x - E(x)
+            Axpy(xRegTensor, sumRegTensor, -this->scale_, maskReg1);
+            // (x- E(x))^2
+            Mul(temp0Tensor, xRegTensor, xRegTensor, maskReg1);
+            // sum((x- E(x))^2)
+            Add(bufRegTensor, temp0Tensor, bufRegTensor, maskReg1);
+            StoreAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::StoreDist::DIST_NORM>(
+                xBuf, temp0Tensor, oneRepeatSize, maskReg1);
+        }
+        // 每行累加后搬出bufRegTensor第一个数
+        ReduceSum(bufRegTensor, bufRegTensor, maskReg0);
+        StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(reduceXBuf, bufRegTensor, 1);
+    }
+
+    LocalMemBar<MemType::VEC_STORE, MemType::VEC_LOAD>();
+    uint32_t reducedRepeatTimes = CeilDiv(this->normDim_, oneRepeatSize);
+    for (uint32_t i = 0; i < reducedRepeatTimes; ++i) {
+        LoadAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::LoadDist::DIST_NORM>(
+            reducedRegTensor, reducedXBuf, oneRepeatSize);
+        Muls(reducedRegTensor, reducedRegTensor, this->scale_, maskReg);
+        Adds(reducedRegTensor, reducedRegTensor, this->eps_, maskReg);
+        Sqrt(reducedRegTensor, reducedRegTensor, maskReg);
+        StoreAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE, MicroAPI::StoreDist::DIST_NORM>(
+            reducedXBuf, reducedRegTensor, oneRepeatSize, maskReg1);
+    }
+}
+
 template <bool isTraining>
 template <NormType normType>
 __aicore__ inline void NormOperationForward<isTraining>::DoLayerNorm(const LocalTensor<float> &x, uint32_t heads)
@@ -207,7 +284,11 @@ __aicore__ inline void NormOperationForward<isTraining>::DoLayerNorm(const Local
     LocalTensor<float> tmp0 = reducedX[this->alignedNormNum_];
     LocalTensor<float> tmp1 = x[this->normNum_ * this->alignedNormDim_];
     uint32_t brcdShape[2] = {heads, this->alignedNormDim_};
-    DoSum(reducedX, x, tmp0, heads);
+    #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+        DoSumVF(reducedX, x, heads);
+    #else
+        DoSum(reducedX, x, tmp0, heads);
+    #endif
     PipeBarrier<PIPE_V>();
     if constexpr (isTraining) {
         LocalTensor<float> mean = meanQue_.AllocTensor<float>();
@@ -220,21 +301,25 @@ __aicore__ inline void NormOperationForward<isTraining>::DoLayerNorm(const Local
     LocalTensor<uint8_t> shareBuf = tmp1.ReinterpretCast<uint8_t>();
     BroadCast<float, 2, 1>(tmp0, reducedX, brcdShape, srcShape, shareBuf);
     PipeBarrier<PIPE_V>();
-    // x - E(x)
-    Axpy(x, tmp0, -this->scale_, size);
-    PipeBarrier<PIPE_V>();
-    // (x-E(x))^2
-    Mul(tmp1, x, x, size);
-    PipeBarrier<PIPE_V>();
-    // sum(x-E(x))^2
-    DoSum(reducedX, tmp1, tmp0, heads);
-    PipeBarrier<PIPE_V>();
-    Muls(reducedX, reducedX, this->scale_, this->alignedNormNum_);
-    PipeBarrier<PIPE_V>();
-    Adds(reducedX, reducedX, this->eps_, this->alignedNormNum_);
-    PipeBarrier<PIPE_V>();
-    Sqrt(reducedX, reducedX, this->alignedNormNum_);
-    PipeBarrier<PIPE_V>();
+    #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3101)
+        ComputeRstdVF(x, tmp0, reducedX, heads);
+    #else
+        // x - E(x)
+        Axpy(x, tmp0, -this->scale_, size);
+        PipeBarrier<PIPE_V>();
+        // (x-E(x))^2
+        Mul(tmp1, x, x, size);
+        PipeBarrier<PIPE_V>();
+        // sum(x-E(x))^2
+        DoSum(reducedX, tmp1, tmp0, heads);
+        PipeBarrier<PIPE_V>();
+        Muls(reducedX, reducedX, this->scale_, this->alignedNormNum_);
+        PipeBarrier<PIPE_V>();
+        Adds(reducedX, reducedX, this->eps_, this->alignedNormNum_);
+        PipeBarrier<PIPE_V>();
+        Sqrt(reducedX, reducedX, this->alignedNormNum_);
+        PipeBarrier<PIPE_V>();
+    #endif
     if constexpr (isTraining) {
         LocalTensor<float> rstd = rstdQue_.AllocTensor<float>();
         Duplicate(rstd, 1.f, this->alignedNormNum_);
