@@ -18,6 +18,7 @@
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "err/ops_err.h"
+#include "tiling_base/tiling_base.h"
 
 using namespace optiling::grouped_matmul_finalize_routing;
 
