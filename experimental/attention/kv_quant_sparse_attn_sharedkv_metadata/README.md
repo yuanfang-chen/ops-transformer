@@ -41,10 +41,11 @@
 |layout_kv|可选属性|用于标识输入ori_kv和cmp_kv的数据排布格式，仅支持传入默认值PA_ND（PageAttention）。|STRING|-|
 |has_ori_kv|可选属性|用于标识是否含有ori_kv。|BOOL|-|
 |has_cmp_kv|可选属性|用于标识是否含有cmp_kv。|BOOL|-|
-|device|可选属性|用于获取设备信息，当输入tensor均没有传入时，此字段必填|STRING|-|
+|device|可选属性|用于获取设备信息。|STRING|-|
 |metadata|输出|包含每个AIcore的Attention计算任务的起止点的Batch、Head、以及 Q 和 K 的分块的索引的列表，shape固定为1024。|INT32|-|
 
 ## 约束说明
 
 -   该接口支持推理场景下使用。
 -   该接口支持aclgraph模式。
+-   Tensor不能全传None。
