@@ -1502,7 +1502,8 @@ bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& con
     }
 
     if (isDefaultSparseMode || (sparseMode != nullptr && *sparseMode == SPARSE_MODE_ALL_MASK)) {
-        checkMask = (attenMaskS1 >= sQ) && (attenMaskS2 >= sK) && (attenMaskBatch == 1 || attenMaskBatch == batchSize);
+        checkMask = (attenMaskS1 >= sQ) && (attenMaskS2 >= sK) &&
+            (attenMaskBatch == 1 || attenMaskBatch == batchSize) && (attenMaskN == 1);
     } else if ((sparseMode != nullptr) && ((*sparseMode == SPARSE_MODE_LEFT_UP) ||
         (*sparseMode == SPARSE_MODE_RIGHT_DOWN) || (*sparseMode == SPARSE_MODE_BAND))) {
         checkMask = (attenMaskBatch == 1) && (attenMaskN == 1) &&
