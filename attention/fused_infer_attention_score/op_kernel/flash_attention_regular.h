@@ -112,7 +112,7 @@ namespace SplitFuse {
             preToken = fATilingData->preToken;
             nextToken = fATilingData->nextToken;
 
-            uint64_t Lsesize = 0;
+            uint64_t Lsesize = 0U;
             uint64_t Losize = 0;
             if constexpr (IS_FD) {
                 Lsesize = fATilingData->splitLseTotalSize;
