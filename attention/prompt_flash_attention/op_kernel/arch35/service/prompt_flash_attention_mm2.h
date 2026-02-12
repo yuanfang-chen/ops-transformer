@@ -113,9 +113,16 @@ __aicore__ inline void PromptFlashAttentionNormalMM2<PFAT, mmType>::IterateAll(
     if constexpr (PFAT::isBmm2Concat) { // SAMEB concat模式
         // 这里的dSize是原始的D大小，不是对齐之后的；singleM设置-1，按照mm常量化模板的原始配置计算
         mm.SetTail(-1, constParam.vHeadSize, taskParam.singleProcessSInnerBmmTail);
+        printf("[yxh]--------------setTail1\n");
+        printf("[yxh]--------------constParam.vHeadSize: %d\n", constParam.vHeadSize);
+        printf("[yxh]--------------staskParam.singleProcessSInnerBmmTail: %d\n", taskParam.singleProcessSInnerBmmTail);
     } else {
         mm.SetTail(taskParam.singleProcessSOuterSize,
             constParam.vHeadSize, taskParam.singleProcessSInnerBmmTail);
+        printf("[yxh]--------------setTail2\n");
+        printf("[yxh]--------------taskParam.singleProcessSOuterSize: %d\n", taskParam.singleProcessSOuterSize);
+        printf("[yxh]--------------constParam.vHeadSize: %d\n", constParam.vHeadSize);
+        printf("[yxh]--------------staskParam.singleProcessSInnerBmmTail: %d\n", taskParam.singleProcessSInnerBmmTail);
     }
 
     // david只有高精度 if constexpr (PFAT::calcMode == RunMode::HighPrecision || IsSameType<T, bfloat16_t>::value) {
