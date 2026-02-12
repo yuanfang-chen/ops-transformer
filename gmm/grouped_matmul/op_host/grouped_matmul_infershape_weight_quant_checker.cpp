@@ -452,7 +452,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckPertokenScaleForA8W4(const
                 "PerTokenScale shape should be (m, k/%ld, 2) when xDtype-weightDtype is fp8_e4m3-fp4_e2m1, which is "
                 "(%ld, %ld, 2), but the actual shape is (%ld, %ld, %ld).",
                 MX_GROUP_SIZE * 2, xMDim_, weightKDim_ / MX_GROUP_SIZE / 2, tensorShape->GetDim(0),
-                tensorShape->GetDim(1), tensorShape, tensorShape->GetDim(2)),
+                tensorShape->GetDim(1), tensorShape->GetDim(2)),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
@@ -465,7 +465,7 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeForTensorList(const g
 {
     // 校验单单单场景antiquantScale/antiquantOffset/bias/scale的shape
     // A16MxF4/S8S4校验antiquant params的Shape为(g, k/groupSize, n)/(g, n, k/groupsize)，维度数为3
-    // MxA8W4校验antiquant params的Shape为（g, k / groupSize / 2, 2）
+    // MxA8W4校验antiquant params的Shape为（g, n, k / groupSize / 2, 2）
     // 其他场景及参数校验shape为(g, n)
     auto tensorShape = context->GetDynamicInputShape(gmm_index, 0);
     if (IsNonEmpty(tensorShape)) {
@@ -491,11 +491,12 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckShapeForTensorList(const g
                     return ge::GRAPH_FAILED);
 
         size_t tensorNDimIdx = tensorDimNum - 1;
-        if ((expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_PER_GROUP_SINGLE && gmmAttrs.transposeWeight)) {
+        if (expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_PER_GROUP_SINGLE && gmmAttrs.transposeWeight) {
             // per_group量化weight转置时antiquant params同步转置，shape为(g, n, k/groupsize)，n轴的索引为-2
             tensorNDimIdx = tensorDimNum - 2;
-        } else if(expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_MX) {
-            tensorNDimIdx = gmmAttrs.transposeWeight ? tensorDimNum - 3 : tensorDimNum - 2; // 区分动态图与静态图
+        } else if (expectedDimNum == ANTIQUANT_PARAM_DIM_NUM_MX) {
+            tensorNDimIdx =
+                gmmAttrs.transposeWeight ? tensorDimNum - 3 : tensorDimNum - 2; // 静态图做两次inferShape，对应两个分支
         }
 
         OP_CHECK_IF(tensorShape->GetDim(tensorNDimIdx) != weightNDim_,
@@ -574,8 +575,9 @@ ge::graphStatus GroupedMatmulWeightQuantChecker::CheckGroupSize(const gert::Infe
     // 2含义: (g, k/groupSize, n)的k轴索引，此处groupNum是K轴上量化分组的groupNum，与groupNum_含义不同
     int64_t groupNum;
     if (IsMxA8W4NZ(xDtype_, weightDtype_)) {
-        // antiquantScaleShape: (g,n,k/64,2)
-        groupNum = antiquantScaleShape->GetDim(antiquantScaleDimNum - 2) * 2;
+        // antiquantScaleShape: (g,n,k/64,2) (g, k/64, n, 2) 静态图两次infershape，两个分支
+        groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 2) * 2 :
+                                              antiquantScaleShape->GetDim(antiquantScaleDimNum - 3) * 2;
     } else {
         groupNum = gmmAttrs.transposeWeight ? antiquantScaleShape->GetDim(antiquantScaleDimNum - 1) :
                                               antiquantScaleShape->GetDim(antiquantScaleDimNum - 2);

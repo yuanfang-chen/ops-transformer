@@ -212,14 +212,26 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorDimSingleXSingleWeightSingl
     OP_CHECK_IF(!CheckTensorDimEqualTarget(context, WEIGHT_IDX, idx, targetWeightDim, "weight"),
                 OP_LOGE(context->GetNodeName(), "Invalid weight dimension. "), return false);
 
-    if (!IsA16W4ND()) {
+    if (!IsA16W4ND() && !IsMxA8W4()) {
         return true;
     }
-
-    OP_CHECK_IF(!CheckTensorDimEqualTarget(context, ANTIQUANT_SCALE_IDX, idx, 2, "antiquantScale"),
-                OP_LOGE(context->GetNodeName(), "When x-weight is bf16/fp16-int4/int32 and grouptype is 0, the "
-                                                "dimension of antiquantScale does not match the expected value."),
-                return false);
+    if (IsA16W4ND()) {
+        OP_CHECK_IF(!CheckTensorDimEqualTarget(context, ANTIQUANT_SCALE_IDX, idx, 2, "antiquantScale"),
+                    OP_LOGE(context->GetNodeName(), "When x-weight is bf16/fp16-int4/int32 and grouptype is 0, the "
+                                                    "dimension of antiquantScale does not match the expected value."),
+                    return false);
+        if (hasBias_) {
+            OP_CHECK_IF(!CheckTensorDimEqualTarget(context, BIAS_IDX, idx, 2, "bias"),
+                        OP_LOGE(context->GetNodeName(), "When x-weight is bf16/fp16-int4/int32 and grouptype is 0, "
+                                                        "the dimension of bias does not match the expected value."),
+                        return false);
+        }
+    } else {
+        OP_CHECK_IF(!CheckTensorDimEqualTarget(context, ANTIQUANT_SCALE_IDX, idx, 4, "antiquantScale"),
+                    OP_LOGE(context->GetNodeName(), "When x-weight is float8_e8m0-float4_e2m1 and grouptype is 0, the "
+                                                    "dimension of antiquantScale does not match the expected value."),
+                    return false);
+    }
     if (hasBias_) {
         OP_CHECK_IF(!CheckTensorDimEqualTarget(context, BIAS_IDX, idx, 2, "bias"),
                     OP_LOGE(context->GetNodeName(), "When x-weight is bf16/fp16-int4/int32 and grouptype is 0, "
@@ -271,7 +283,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorDim(const gert::TilingConte
 bool GroupedWeightQuantBatchMatmulTiling::CheckTensorShape(const gert::TilingContext *context, uint32_t attrIdx,
                                                            size_t idx, const std::string &tensorType) const
 {
-    if (!IsA16W4ND()) {
+    if (!IsA16W4ND() && !IsMxA8W4()) {
         return true;
     }
     // 校验bias、antiquantScale和antiquantOffset的shape
@@ -292,8 +304,10 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorShape(const gert::TilingCon
                     return false);
     }
     // 校验bias、antiquantScale和antiquantOffset的N轴
-    int64_t weightNDimValue = wShape.GetDim(wDimNum - (transB_ ? 2 : 1));
-    int64_t tensorNDimValue = tensorShape.GetDim(tensorDimNum - 1);
+    int64_t weightNDimValue =
+        IsA16W4ND() ? wShape.GetDim(wDimNum - (transB_ ? 2 : 1)) : wShape.GetDim(wDimNum - 3) * 16L; // MXA8W4 NZ
+    int64_t tensorNDimValue = (IsMxA8W4() && attrIdx == ANTIQUANT_SCALE_IDX) ? tensorShape.GetDim(tensorDimNum - 3) :
+                                                                               tensorShape.GetDim(tensorDimNum - 1);
     OP_CHECK_IF(weightNDimValue != tensorNDimValue,
                 OP_LOGE(context->GetNodeName(),
                         "NDim of %s should be equal to NDim of weight, but actual is %ld and %ld.",
@@ -464,8 +478,6 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!CheckEmptyTensor(context), OP_LOGE(context->GetNodeName(), "CheckEmptyTensor failed."), return false);
     OP_CHECK_IF(!CheckAntiQuantDtype(context), OP_LOGE(context->GetNodeName(), "CheckAntiQuantDtype failed."),
                 return false);
-    OP_CHECK_IF(!CheckAntiQuantScale(context), OP_LOGE(context->GetNodeName(),"CheckAntiQuantScale failed."),return false);
-    OP_CHECK_IF(!CheckPerTokenScale(context), OP_LOGE(context->GetNodeName(),"CheckPerTokenScale failed."),return false);
     OP_CHECK_IF(!CheckBiasDtype(context), OP_LOGE(context->GetNodeName(), "CheckBiasDtype failed."), return false);
     OP_CHECK_IF(!CheckGroupList(context), OP_LOGE(context->GetNodeName(), "CheckGroupList failed."), return false);
     OP_CHECK_IF(!CheckEveryTensor(context), OP_LOGE(context->GetNodeName(), "CheckEveryTensor failed."), return false);
@@ -474,7 +486,8 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!SetShapeList(context), OP_LOGE(context->GetNodeName(), "SetShapeList failed."), return false);
     OP_CHECK_IF(!SetAntiquantGroupSize(context), OP_LOGE(context->GetNodeName(), "Unable to get antiquant groupSize"),
                 return false);
-
+    // OP_CHECK_IF(!CheckAntiQuantScale(context), OP_LOGE(context->GetNodeName(),"CheckAntiQuantScale failed."),return false);
+    OP_CHECK_IF(!CheckPerTokenScale(context), OP_LOGE(context->GetNodeName(),"CheckPerTokenScale failed."),return false);
     PrintInputParam(context);
     return true;
 }
@@ -795,10 +808,10 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckAntiQuantScale(const gert::Tiling
 {
     if (IsMxA8W4()) {
         // 检查antiquantScale维度是否正确
-        auto antiquantScaleTensor = context->GetDynamicInputTensor(ANTIQUANT_SCALE_IDX, 0);
-        OP_CHECK_IF(antiquantScaleTensor == nullptr,
-                    OP_LOGE(context->GetNodeName(), "antiquantScaleTensor is nullptr."), return false);
-        gert::Shape antiquantScaleShape = antiquantScaleTensor->GetStorageShape();
+        auto antiquantScaleShapePtr = context->GetDynamicInputShape(ANTIQUANT_SCALE_IDX, 0);
+        OP_CHECK_IF(antiquantScaleShapePtr == nullptr,
+                    OP_LOGE(context->GetNodeName(), "antiquantScaleShape is nullptr."), return false);
+        auto antiquantScaleShape = antiquantScaleShapePtr->GetStorageShape();
         int64_t antiquantScaleDimNum = antiquantScaleShape.GetDimNum();
         OP_CHECK_IF(antiquantScaleDimNum != 4, OP_LOGE(context->GetNodeName(), "antiquantScaleDimNum should be 4."),
                     return false);
