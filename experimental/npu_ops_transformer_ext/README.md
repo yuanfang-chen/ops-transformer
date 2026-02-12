@@ -131,11 +131,7 @@ NpuOpsTransformerExt 是一个轻量级，高性能的算子开发工程模板�
         mykernel<<<blockDim, nullptr, stream>>>(x, y, num_element);
     }
 
-    torch::Tensor my_ops_npu(torch::Tensor x, torch::Tensor y) {
-        // 您的算子wrapper接口，用于向pytorch注册自定义接口
-        AT_DISPATCH_FLOATING_TYPES_AND2(
-            at::kHalf, at::kBFloat16, x.scalar_type(), "my_ops_npu", [&] { my_ops_api(stream, x, y); });
-    }
+vscode-remote://remotedev-ssh%2B7b22686f7374223a223130302e3130322e36332e313732222c2275736572223a22726f6f74227d/home/w00548400/wcj/ops_workspace/zj_pull_69/torch_ops_extension
 
     // PyTorch提供的宏，用于在特定后端注册算子
     TORCH_LIBRARY_IMPL(npu_ops_transformer_ext, PrivateUse1, m)

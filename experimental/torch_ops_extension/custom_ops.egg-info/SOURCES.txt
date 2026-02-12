@@ -1,0 +1,11 @@
+setup.py
+/home/w00938451/data/ZJ/ops-transformer/experimental/torch_ops_extension/custom_ops/csrc/npu_incre_flash_attention.cpp
+/home/w00938451/data/ZJ/ops-transformer/experimental/torch_ops_extension/custom_ops/csrc/ops_common.cpp
+/home/w00938451/data/ZJ/ops-transformer/experimental/torch_ops_extension/custom_ops/csrc/ops_def_registration.cpp
+custom_ops/__init__.py
+custom_ops.egg-info/PKG-INFO
+custom_ops.egg-info/SOURCES.txt
+custom_ops.egg-info/dependency_links.txt
+custom_ops.egg-info/top_level.txt
+custom_ops/converter/__init__.py
+custom_ops/converter/npu_incre_flash_attention.py
