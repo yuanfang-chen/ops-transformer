@@ -20,6 +20,4 @@ if (BUILD_OPEN_PROJECT)
     )
 endif()
 
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE rope_quant_kvcache ACLNNTYPE aclnn)
-endif()
+add_modules_sources(OPTYPE rope_quant_kvcache ACLNNTYPE aclnn_exclude)
