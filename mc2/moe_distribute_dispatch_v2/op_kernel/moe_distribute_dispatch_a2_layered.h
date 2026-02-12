@@ -1098,6 +1098,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
             }
 
             uint32_t localExpIdx = targetExpId % (localMoeExpertNum_ * SERVER_RANK_SIZE);
+            uint32_t targetTokenIdx = (uint32_t)(tokenNumPerExp(localExpIdx * EXP_TOKEN_COUNT_FLAG_CNT));
             tokenNumPerExp(localExpIdx * EXP_TOKEN_COUNT_FLAG_CNT) += 1;
             if (justExpInfo) {
                 continue;
@@ -1105,7 +1106,6 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
 
             //本卡需要发送
             uint32_t targetRankId = GetExpRank(targetExpId);
-            uint32_t targetTokenIdx = (uint32_t)(tokenNumPerExp(localExpIdx * EXP_TOKEN_COUNT_FLAG_CNT));
             targetTokenIpcGt.SetGlobalBuffer((__gm__ uint8_t*)(addrInfo_.GetIpcDataAddrIn(targetRankId, targetExpId % localMoeExpertNum_, fromRankId)));
             PipeBarrier<PIPE_ALL>();
             DataCopy(targetTokenIpcGt[tokenStructLen_ * targetTokenIdx], localUB_U8, tokenStructLen_);
