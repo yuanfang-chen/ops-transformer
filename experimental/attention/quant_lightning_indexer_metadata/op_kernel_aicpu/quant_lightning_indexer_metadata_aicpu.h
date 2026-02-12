@@ -212,6 +212,8 @@ public:
 
 private:
     bool Prepare(CpuKernelContext &ctx);
+    int32_t GetQueryBatchSize();
+    int32_t GetKvBatchSize();
     bool CheckSingleParam();
     bool CheckExistence();
     bool CheckConsistency();
