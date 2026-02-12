@@ -1175,7 +1175,5 @@ uint64_t Mc2GroupedQbmmTiling::GetShapeWithDataType(uint64_t shapeSize, ge::Data
         return shapeSize / static_cast<uint64_t>(ge::GetSizeByDataType(dtype));
     }
 }
-
-REGISTER_OPS_TILING_TEMPLATE(Mc2GroupedMatmul, Mc2GroupedQbmmTiling, 0);
 } // namespace Mc2GroupedMatmulTiling
 } // namespace optiling
