@@ -25,17 +25,20 @@ extern "C" {
 /**
  * @brief aclnnMhcPostGetWorkspaceSize的第一段接口，计算workspace大小。
  * 功能描述：该算子实现Manifold-Constraint Hyper-Connection的Post部分，处理残差连接的后处理操作。
- * 计算公式：y = (H_res)^T * x + h_out * h_post
+ * 计算公式：x_{l+1} = (H_{l}^{res})^{T} * x_l + h_{l}^{out} * H_{t}^{post}
+ *          其中：(H_{l}^{res})^{T} * x_l 表示对x_l使用转置后的h_res矩阵进行矩阵乘法变换
+ *                h_{l}^{out} * H_{t}^{post} 表示逐元素相乘后广播到所有维度
  * @domain aclnn_ops_infer
- * @param [in] x：必选参数，Device侧的aclTensor，输入张量x，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND。
- *                     shape为[batch, ..., M]，最后维度M需与h_res的第一维度匹配。
+ * @param [in] x：必选参数，Device侧的aclTensor，输入张量x_l，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND。
+ *                   shape支持3D格式[T, n, D]或4D格式[B, S, n, D]。
  * @param [in] h_res：必选参数，Device侧的aclTensor，残差连接矩阵h_res，数据类型支持FLOAT32，数据格式支持ND。
- *                      shape为[M, K]或[M]，当为[M, K]时进行矩阵转置乘法。
- * @param [in] h_out：必选参数，Device侧的aclTensor，输出状态h_out（mhc_pre的输出），数据类型支持FLOAT16、BFLOAT16，
- *                      数据格式支持ND，shape与x相同。
- * @param [in] h_post：必选参数，Device侧的aclTensor，后处理h_post，数据类型支持FLOAT32，数据格式支持ND，
- *                      shape与x相同或广播为标量。
- * @param [out] y：输出Tensor，计算结果y，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND，输出形状与x一致。
+ *                    shape支持3D格式[T, n, n]或4D格式[B, S, n, n]。
+ * @param [in] h_out：必选参数，Device侧的aclTensor，输出状态h_out，数据类型支持FLOAT16、BFLOAT16，
+ *                    数据格式支持ND，shape支持3D格式[T, D]或4D格式[B, S, D]。
+ * @param [in] h_post：必选参数，Device侧的aclTensor，后处理矩阵h_post，数据类型支持FLOAT32，数据格式支持ND，
+ *                     shape支持3D格式[T, n]或4D格式[B, S, n]。
+ * @param [out] y：输出Tensor，计算结果x_{l+1}，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND，
+ *                 shape与输入x一致（[T, n, D]或[B, S, n, D]）。
  * @param [out] workspaceSize：返回用户需要在Device侧申请的workspace大小。
  * @param [out] executor：返回op执行器，包含了算子计算流程。
  * @return      aclnnStatus: 返回状态码

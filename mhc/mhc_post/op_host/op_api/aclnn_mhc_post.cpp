@@ -14,6 +14,7 @@
  */
 
 #include "aclnn_mhc_post.h"
+#include "mhc_post.h"
 
 #include <dlfcn.h>
 #include <new>
@@ -38,8 +39,8 @@ using namespace op;
 extern "C" {
 #endif
 
-static const int64_t DIM_LIMIT_UPPER = 8;
-static const int64_t DIM_LIMIT_LOWER = 1;
+static const int64_t DIM_NUM_3 = 3;
+static const int64_t DIM_NUM_4 = 4;
 
 struct MhcPostParams {
     const aclTensor *x = nullptr;
@@ -83,48 +84,150 @@ static aclnnStatus CheckDtype(const MhcPostParams &params)
     return ACLNN_SUCCESS;
 }
 
+static bool IsTNDFormat(size_t dimNum)
+{
+    return dimNum == DIM_NUM_3;
+}
+
+static bool IsBSNDFormat(size_t dimNum)
+{
+    return dimNum == DIM_NUM_4;
+}
+
+static aclnnStatus CheckShape3D(const MhcPostParams &params)
+{
+    // x shape: [T, n, D]
+    auto xDim0 = params.x->GetViewShape().GetDim(0);
+    auto xDim1 = params.x->GetViewShape().GetDim(1);
+    auto xDim2 = params.x->GetViewShape().GetDim(2);
+
+    // h_res shape: [T, n, n]
+    auto hResDim0 = params.h_res->GetViewShape().GetDim(0);
+    auto hResDim1 = params.h_res->GetViewShape().GetDim(1);
+    auto hResDim2 = params.h_res->GetViewShape().GetDim(2);
+    CHECK_COND(hResDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[0] %ld is not equal to x dim[0] %ld", hResDim0, xDim0);
+    CHECK_COND(hResDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[1] %ld is not equal to x dim[1] %ld", hResDim1, xDim1);
+    CHECK_COND(hResDim2 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[2] %ld must equal h_res dim[1] %ld (n x n matrix)", hResDim2, hResDim1);
+
+    // h_out shape: [T, D]
+    auto hOutDimNum = params.h_out->GetViewShape().GetDimNum();
+    auto hOutDim0 = params.h_out->GetViewShape().GetDim(0);
+    auto hOutDim1 = params.h_out->GetViewShape().GetDim(1);
+    CHECK_COND(hOutDimNum == 2, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim num should be 2 for 3D format, but got %zu", hOutDimNum);
+    CHECK_COND(hOutDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim[0] %ld is not equal to x dim[0] %ld", hOutDim0, xDim0);
+    CHECK_COND(hOutDim1 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim[1] %ld is not equal to x dim[2] %ld", hOutDim1, xDim2);
+
+    // h_post shape: [T, n]
+    auto hPostDimNum = params.h_post->GetViewShape().GetDimNum();
+    auto hPostDim0 = params.h_post->GetViewShape().GetDim(0);
+    auto hPostDim1 = params.h_post->GetViewShape().GetDim(1);
+    CHECK_COND(hPostDimNum == 2, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim num should be 2 for 3D format, but got %zu", hPostDimNum);
+    CHECK_COND(hPostDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim[0] %ld is not equal to x dim[0] %ld", hPostDim0, xDim0);
+    CHECK_COND(hPostDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim[1] %ld is not equal to x dim[1] %ld", hPostDim1, xDim1);
+
+    // y shape: [T, n, D]
+    auto yDim0 = params.y->GetViewShape().GetDim(0);
+    auto yDim1 = params.y->GetViewShape().GetDim(1);
+    auto yDim2 = params.y->GetViewShape().GetDim(2);
+    CHECK_COND(yDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "y dim[0] %ld is not equal to x dim[0] %ld", yDim0, xDim0);
+    CHECK_COND(yDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "y dim[1] %ld is not equal to x dim[1] %ld", yDim1, xDim1);
+    CHECK_COND(yDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "y dim[2] %ld is not equal to x dim[2] %ld", yDim2, xDim2);
+
+    return ACLNN_SUCCESS;
+}
+
+static aclnnStatus CheckShape4D(const MhcPostParams &params)
+{
+    // x shape: [B, S, n, D]
+    auto xDim0 = params.x->GetViewShape().GetDim(0);
+    auto xDim1 = params.x->GetViewShape().GetDim(1);
+    auto xDim2 = params.x->GetViewShape().GetDim(2);
+    auto xDim3 = params.x->GetViewShape().GetDim(3);
+
+    // h_res shape: [B, S, n, n]
+    auto hResDimNum = params.h_res->GetViewShape().GetDimNum();
+    auto hResDim0 = params.h_res->GetViewShape().GetDim(0);
+    auto hResDim1 = params.h_res->GetViewShape().GetDim(1);
+    auto hResDim2 = params.h_res->GetViewShape().GetDim(2);
+    auto hResDim3 = params.h_res->GetViewShape().GetDim(3);
+    CHECK_COND(hResDimNum == DIM_NUM_4, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim num should be 4 for 4D format, but got %zu", hResDimNum);
+    CHECK_COND(hResDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[0] %ld is not equal to x dim[0] %ld", hResDim0, xDim0);
+    CHECK_COND(hResDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[1] %ld is not equal to x dim[1] %ld", hResDim1, xDim1);
+    CHECK_COND(hResDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[2] %ld is not equal to x dim[2] %ld", hResDim2, xDim2);
+    CHECK_COND(hResDim3 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "h_res dim[3] %ld must equal h_res dim[2] %ld (n x n matrix)", hResDim3, hResDim2);
+
+    // h_out shape: [B, S, D]
+    auto hOutDimNum = params.h_out->GetViewShape().GetDimNum();
+    auto hOutDim0 = params.h_out->GetViewShape().GetDim(0);
+    auto hOutDim1 = params.h_out->GetViewShape().GetDim(1);
+    auto hOutDim2 = params.h_out->GetViewShape().GetDim(2);
+    CHECK_COND(hOutDimNum == 3, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim num should be 3 for 4D format, but got %zu", hOutDimNum);
+    CHECK_COND(hOutDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim[0] %ld is not equal to x dim[0] %ld", hOutDim0, xDim0);
+    CHECK_COND(hOutDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim[1] %ld is not equal to x dim[1] %ld", hOutDim1, xDim1);
+    CHECK_COND(hOutDim2 == xDim3, ACLNN_ERR_PARAM_INVALID,
+               "h_out dim[2] %ld is not equal to x dim[3] %ld", hOutDim2, xDim3);
+
+    // h_post shape: [B, S, n]
+    auto hPostDimNum = params.h_post->GetViewShape().GetDimNum();
+    auto hPostDim0 = params.h_post->GetViewShape().GetDim(0);
+    auto hPostDim1 = params.h_post->GetViewShape().GetDim(1);
+    auto hPostDim2 = params.h_post->GetViewShape().GetDim(2);
+    CHECK_COND(hPostDimNum == 3, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim num should be 3 for 4D format, but got %zu", hPostDimNum);
+    CHECK_COND(hPostDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim[0] %ld is not equal to x dim[0] %ld", hPostDim0, xDim0);
+    CHECK_COND(hPostDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim[1] %ld is not equal to x dim[1] %ld", hPostDim1, xDim1);
+    CHECK_COND(hPostDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "h_post dim[2] %ld is not equal to x dim[2] %ld", hPostDim2, xDim2);
+
+    // y shape: [B, S, n, D]
+    auto yDim0 = params.y->GetViewShape().GetDim(0);
+    auto yDim1 = params.y->GetViewShape().GetDim(1);
+    auto yDim2 = params.y->GetViewShape().GetDim(2);
+    auto yDim3 = params.y->GetViewShape().GetDim(3);
+    CHECK_COND(yDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "y dim[0] %ld is not equal to x dim[0] %ld", yDim0, xDim0);
+    CHECK_COND(yDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "y dim[1] %ld is not equal to x dim[1] %ld", yDim1, xDim1);
+    CHECK_COND(yDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "y dim[2] %ld is not equal to x dim[2] %ld", yDim2, xDim2);
+    CHECK_COND(yDim3 == xDim3, ACLNN_ERR_PARAM_INVALID,
+               "y dim[3] %ld is not equal to x dim[3] %ld", yDim3, xDim3);
+
+    return ACLNN_SUCCESS;
+}
+
 static aclnnStatus CheckShape(const MhcPostParams &params)
 {
     auto xDimNum = params.x->GetViewShape().GetDimNum();
-    CHECK_COND(xDimNum >= DIM_LIMIT_LOWER && xDimNum <= DIM_LIMIT_UPPER, ACLNN_ERR_PARAM_INVALID,
-               "x dim should within 1 ~ 8, but x dim is %zu", xDimNum);
+    CHECK_COND(IsTNDFormat(xDimNum) || IsBSNDFormat(xDimNum), ACLNN_ERR_PARAM_INVALID,
+               "x dim should be 3 (TND format) or 4 (BSND format), but got %zu", xDimNum);
 
-    // h_out must have same shape as x
-    auto hOutDimNum = params.h_out->GetViewShape().GetDimNum();
-    CHECK_COND(hOutDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
-               "h_out dim should be same as x dim, but h_out dim is %zu, x dim is %zu", hOutDimNum, xDimNum);
-
-    for (size_t i = 0; i < xDimNum; ++i) {
-        auto xDimValue = params.x->GetViewShape().GetDim(i);
-        auto hOutDimValue = params.h_out->GetViewShape().GetDim(i);
-        CHECK_COND(xDimValue == hOutDimValue, ACLNN_ERR_PARAM_INVALID,
-                   "x dim[%zu] %ld is not equal to h_out dim[%zu] %ld", i, xDimValue, i, hOutDimValue);
-    }
-
-    // h_post must be broadcastable with x (same shape or scalar)
-    auto hPostDimNum = params.h_post->GetViewShape().GetDimNum();
-    if (hPostDimNum > 1) {
-        CHECK_COND(hPostDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
-                   "h_post dim should be 1 (scalar) or same as x dim, but h_post dim is %zu, x dim is %zu",
-                   hPostDimNum, xDimNum);
-        for (size_t i = 0; i < hPostDimNum; ++i) {
-            auto xDimValue = params.x->GetViewShape().GetDim(i);
-            auto hPostDimValue = params.h_post->GetViewShape().GetDim(i);
-            CHECK_COND(xDimValue == hPostDimValue, ACLNN_ERR_PARAM_INVALID,
-                       "x dim[%zu] %ld is not equal to h_post dim[%zu] %ld", i, xDimValue, i, hPostDimValue);
-        }
-    }
-
-    // Check output shape
-    auto yDimNum = params.y->GetViewShape().GetDimNum();
-    CHECK_COND(yDimNum == xDimNum, ACLNN_ERR_PARAM_INVALID,
-               "y dim should be same as x dim, but y dim is %zu, x dim is %zu", yDimNum, xDimNum);
-
-    for (size_t i = 0; i < xDimNum; ++i) {
-        auto xDimValue = params.x->GetViewShape().GetDim(i);
-        auto yDimValue = params.y->GetViewShape().GetDim(i);
-        CHECK_COND(xDimValue == yDimValue, ACLNN_ERR_PARAM_INVALID,
-                   "x dim[%zu] %ld is not equal to y dim[%zu] %ld", i, xDimValue, i, yDimValue);
+    if (IsTNDFormat(xDimNum)) {
+        CHECK_COND(CheckShape3D(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "invalid shape for 3D format");
+    } else {
+        CHECK_COND(CheckShape4D(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "invalid shape for 4D format");
     }
 
     return ACLNN_SUCCESS;
@@ -152,6 +255,17 @@ static aclnnStatus CheckParam(const MhcPostParams &params)
     CHECK_COND(CheckDtype(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "invalid dtype.");
     CHECK_COND(CheckShape(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "invalid shape.");
 
+    return ACLNN_SUCCESS;
+}
+
+static aclnnStatus InputsContiguousAndTransFormat(const aclTensor *tensor, const aclTensor *&reformatedTensor,
+                                                  const std::string &tensorName, aclOpExecutor *executor)
+{
+    if (tensor == nullptr) {
+        return ACLNN_SUCCESS;
+    }
+    reformatedTensor = l0op::Contiguous(tensor, executor);
+    CHECK_COND(reformatedTensor != nullptr, ACLNN_ERR_INNER_NULLPTR, "%s Contiguous failed.", tensorName.c_str());
     return ACLNN_SUCCESS;
 }
 
@@ -184,10 +298,30 @@ aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_
                    DFX_IN(params.x, params.h_res, params.h_out, params.h_post),
                    DFX_OUT(params.y));
 
-    // Call l0 interface
-    // Note: The actual L0 implementation will be added later
-    // For now, create a placeholder implementation
-    // TODO: Implement actual L0 kernel call
+    // Convert input tensors to contiguous
+    const aclTensor *reformatedX = nullptr;
+    const aclTensor *reformatedHRes = nullptr;
+    const aclTensor *reformatedHOut = nullptr;
+    const aclTensor *reformatedHPost = nullptr;
+
+    ret = InputsContiguousAndTransFormat(x, reformatedX, "x", uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    ret = InputsContiguousAndTransFormat(h_res, reformatedHRes, "h_res", uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    ret = InputsContiguousAndTransFormat(h_out, reformatedHOut, "h_out", uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    ret = InputsContiguousAndTransFormat(h_post, reformatedHPost, "h_post", uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
+    // Call l0 interface: MhcPost kernel
+    // Formula: x_{l+1} = (H_{l}^{res})^{T} * x_l + h_{l}^{out} * H_{t}^{post}
+    const aclTensor *mhcPostResult = l0op::MhcPost(reformatedX, reformatedHRes, reformatedHOut,
+                                                     reformatedHPost, uniqueExecutor.get());
+    CHECK_RET(mhcPostResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // Convert output tensor to contiguous tensor and copy to output
+    auto viewCopyResult = l0op::ViewCopy(mhcPostResult, y, uniqueExecutor.get());
+    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // Get workspace size
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
