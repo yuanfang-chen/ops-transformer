@@ -196,17 +196,20 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency()
 bool QuantLightningIndexerMetadataCpuKernel::CheckFeature()
 {
     // 压缩率校验
+    if (cmpRatio_ < 1 || cmpRatio_ > 128) {
+        KERNEL_LOG_ERROR("cmp_ratio should be [1, 128], but got %d", cmpRatio_);
+        return false;
+    }
     ValidSocVersion validSocVersion = ProcessSocVersion();
-    // 校验 2 的幂次方: 1, 2, 4, ..., 128
-    bool isPowTwo = ((cmpRatio_ & (cmpRatio_ - 1)) == 0);
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
-        if (cmpRatio_ < 1 || cmpRatio_ > 128 || !isPowTwo) {
-            KERNEL_LOG_ERROR("For Atlas A3, compression ratio %d invalid! Must be 1/2/4/8/16/32/64/128.", cmpRatio_);
+        // 校验 2 的幂次方: 1, 2, 4, ..., 128
+        if ((cmpRatio_ & (cmpRatio_ - 1)) != 0) {
+            KERNEL_LOG_ERROR("For Atlas A3, cmp_ratio should be 1/2/4/8/16/32/64/128, but got %d", cmpRatio_);
             return false;
         }
     } else {
         if (cmpRatio_ != 1 && cmpRatio_ != 4 && cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("For Ascend 950, compression ratio %d invalid! Must be 1/4/128.", cmpRatio_);
+            KERNEL_LOG_ERROR("For Ascend950, cmp_ratio should be 1/4/128, but got %d", cmpRatio_);
             return false;
         }
     }
@@ -215,9 +218,9 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckFeature()
 
 ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion()
 {
-    const std::string ascend910D = "Ascend910_95";
-    if (socVersion_.find(ascend910D) != std::string::npos) {
-        return ValidSocVersion::ASCEND910D;
+    const std::string ascend950 = "Ascend910_95";
+    if (socVersion_.find(ascend950) != std::string::npos) {
+        return ValidSocVersion::ASCEND950;
     } else {
         return ValidSocVersion::ASCEND910B;
     }
@@ -241,7 +244,7 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit()
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B){
         s2BaseSize_ = 2048U; // 仅用于A3
-    } else if (validSocVersion == ValidSocVersion::ASCEND910D){
+    } else if (validSocVersion == ValidSocVersion::ASCEND950){
         s2BaseSize_ = 128U; // 仅用于A5
     } else {
         s2BaseSize_ = 128U; // 其他情况
