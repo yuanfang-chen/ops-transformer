@@ -274,8 +274,7 @@ static bool CheckEmptyTensor(const aclTensor *gmmX, const aclTensor *gmmWeight, 
 }
 
 static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, const aclTensor *gmmXScale,
-                            const aclTensor *gmmWeightScale, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-                            const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional) {
+                            const aclTensor *gmmWeightScale) {
     if (static_cast<QuantModeType>(gmmXQuantMode) == QuantModeType::NO_QUANT) {
         if ((gmmXScale != nullptr)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXScale should be empty.");
@@ -297,30 +296,6 @@ static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, c
     if (static_cast<QuantModeType>(gmmWeightQuantMode) == QuantModeType::PERTENSOR_QUANT) {
         if ((gmmWeightScale == nullptr)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeightScale not be null.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmXQuantMode) == QuantModeType::NO_QUANT) {
-        if ((mmXScaleOptional != nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXScaleOptional should be empty.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmXQuantMode) == QuantModeType::PERTENSOR_QUANT) {
-        if ((mmXScaleOptional == nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXScaleOptional not be null.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmWeightQuantMode) == QuantModeType::NO_QUANT) {
-        if ((mmWeightScaleOptional != nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional should be empty.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmWeightQuantMode) == QuantModeType::PERTENSOR_QUANT) {
-        if ((mmWeightScaleOptional == nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional not be null.");
             return false;
         }
     }
@@ -639,9 +614,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
                                mmXScaleOptional, mmWeightScaleOptional, gmmY, mmYOptional, permuteOutOptional),
               ACLNN_ERR_PARAM_INVALID);
     // 8.检查Quant
-    CHECK_RET(CheckQuantValid(gmmXQuantMode, gmmWeightQuantMode, gmmXScale, gmmWeightScale, mmXQuantMode,
-                              mmWeightQuantMode, mmXScaleOptional, mmWeightScaleOptional),
-              ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckQuantValid(gmmXQuantMode, gmmWeightQuantMode, gmmXScale, gmmWeightScale), ACLNN_ERR_PARAM_INVALID);
     // 9.检查shape
     CHECK_RET(CheckGmmShape(gmmX, gmmWeight, gmmXScale, gmmWeightScale, gmmY, epWorldSize), ACLNN_ERR_PARAM_INVALID);
 
