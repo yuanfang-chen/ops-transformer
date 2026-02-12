@@ -157,27 +157,24 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckExistence() {
 }
 
 bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
-    uint32_t actSeqLenQSize = 0;
-    if (layoutQuery_ == "TND" && actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+    uint32_t queryBatchSize = batchSize_;
+    if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
         auto shape = actSeqLenQ_->GetTensorShape();
-        actSeqLenQSize = shape->GetDimSize(0);
+        queryBatchSize = shape->GetDimSize(0);
     }
-    
-    uint32_t actSeqLenKeySize = 0;
-    if (layoutKey_ == "TND" && actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
-        auto shape = actSeqLenKey_->GetTensorShape();
-        actSeqLenKeySize = shape->GetDimSize(0);
+    int32_t kvBatchSize = actSeqLenKey_->GetTensorShape()->GetDimSize(0);
+    if (layoutQuery_ == "TND") {
+        if (queryBatchSize != kvBatchSize) {
+            KERNEL_LOG_ERROR("For layoutQuery_ TND, the dim of q tensor should consist with kv tensor");
+            return false;
+        }
     }
-
-    if (actSeqLenKeySize == 0 && actSeqLenQSize == 0 && batchSize_ == 0) {
-        KERNEL_LOG_ERROR("No valid batch size: actual_seq_lengths_query is None, actual_seq_lengths_key is None, batch_size is 0 !");
-        return false;
+    if (layoutQuery_ == "BSND") {
+        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
+            KERNEL_LOG_ERROR("For layoutQuery_ BSND, batch_size should consist with the dim of q tensor or kv tensor");
+            return false;
+        }
     }
-    if (actSeqLenKeySize != 0 && actSeqLenQSize != 0 && actSeqLenQSize != actSeqLenKeySize) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to actual_seq_lengths_key size: %u !", actSeqLenQSize, actSeqLenKeySize);
-        return false;
-    }
-
     return true;
 }
 
