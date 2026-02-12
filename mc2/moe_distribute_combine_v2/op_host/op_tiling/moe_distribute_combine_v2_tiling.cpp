@@ -966,7 +966,10 @@ static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCo
     const gert::StorageShape *assistInfoStorageShape = context->GetInputShape(ASSIST_INFO_INDEX);
     int64_t assistInfoDim0 = assistInfoStorageShape->GetStorageShape().GetDim(0);
     int64_t minAssistInfoDim0 = static_cast<int64_t>(A * ASSIST_NUM_PER_A);
-    OP_TILING_CHECK(assistInfoDim0 < minAssistInfoDim0, OP_LOGE(nodeName, "assistInfoForCombine's dim0 <"
+    if (isLayered) {
+        minAssistInfoDim0 = std::max(minAssistInfoDim0, static_cast<int64_t>(globalBs * 2 * expertIdsDim1 * ((epWorldSize) / RANK_NUM_PER_NODE_A2)));
+    }
+    OP_TILING_CHECK(assistInfoDim0 < minAssistInfoDim0, OP_LOGE(nodeName, "assistInfoForCombine's dim0 should be greater than"
         " minAssistInfoDim0, assistInfoForCombine's dim0 is %ld, minAssistInfoDim0 is %ld.", assistInfoDim0,
         minAssistInfoDim0), return false);
     
