@@ -1,0 +1,15 @@
+case_name,soc,expect_result,x1_shape,x1_dtype,x1_format,x2_shape,x2_dtype,x2_format,bias_shape,bias_dtype,bias_format,x1_scale_shape,x1_scale_dtype,x1_scale_format,x2_scale_shape,x2_scale_dtype,x2_scale_format,quant_scale_shape,quant_scale_dtype,quant_scale_format,output_shape,output_dtype,output_format,amaxOut_shape,amaxOut_dtype,amaxOut_format,gather_out_shape,gather_out_dtype,gather_out_format,group,comm_mode,block_size,gather_index,comm_turn,stream_mode,group_size
+FirstApi1,Ascend950,SUCCESS,256 256,FLOAT16,ND,256 256,FLOAT16,ND,256,FLOAT16,ND,,,,,,,,,,1024 256,FLOAT16,ND,,,,1024 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+FirstApi2,Ascend950,SUCCESS,0 32,FLOAT16,ND,32 16,FLOAT16,ND,32,FLOAT16,ND,,,,,,,,,,0 16,FLOAT16,ND,,,,0 16,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+GatherOutFalse,Ascend950,SUCCESS,16 256,FLOAT16,ND,256 16,FLOAT16,ND,256,FLOAT16,ND,,,,,,,,,,16 16,FLOAT16,ND,,,,0,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+FirstApi4,Ascend950,SUCCESS,1 256,FLOAT16,ND,256 1,FLOAT16,ND,256,FLOAT16,ND,,,,,,,,,,1 1,FLOAT16,ND,,,,1 1,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+FirstApi5,Ascend950,SUCCESS,8 256,FLOAT16,ND,256 1,FLOAT16,ND,256,FLOAT16,ND,,,,,,,,,,8 1,FLOAT16,ND,,,,8 1,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+FirstApi6,Ascend950,SUCCESS,8 256,FLOAT16,ND,256 1,FLOAT16,ND,256,FLOAT16,ND,1,FLOAT,ND,1,FLOAT,ND,,,,8 1,FLOAT16,ND,,,,8 1,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckHif8BaisInvaild,Ascend950,PARAM_INVALID,8 1,FLOAT16,ND,1 1,FLOAT16,ND,1,FLOAT16,ND,1,FLOAT,ND,1,FLOAT,ND,,,,8 1,FLOAT16,ND,,,,8 1,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckScale,Ascend950,SUCCESS,8 256,FLOAT8_E5M2,ND,256 1,FLOAT8_E5M2,ND,256,FLOAT,ND,1,FLOAT,ND,1,FLOAT,ND,1,FLOAT,ND,8 1,FLOAT16,ND,,,,8 1,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckAmaxout,Ascend950,SUCCESS,1 256,FLOAT8_E4M3FN,ND,256 1,FLOAT8_E4M3FN,ND,1,FLOAT,ND,1,FLOAT,ND,1,FLOAT,ND,,,,1 1,FLOAT16,ND,1,FLOAT,ND,1 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckX1scaleNot,Ascend950,PARAM_INVALID,1 256,FLOAT8_E4M3FN,ND,256 1,FLOAT8_E4M3FN,ND,1,FLOAT,ND,,,,1,FLOAT,ND,,,,1 256,FLOAT16,ND,1,FLOAT,ND,1 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckX2scaleNot,Ascend950,PARAM_INVALID,1 256,FLOAT8_E4M3FN,ND,256 1,FLOAT8_E4M3FN,ND,1,FLOAT,ND,1,FLOAT,ND,,,,,,,1 256,FLOAT16,ND,1,FLOAT,ND,1 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckX2scaleNotScalar,Ascend950,PARAM_INVALID,1 256,FLOAT8_E4M3FN,ND,256 1,FLOAT8_E4M3FN,ND,1,FLOAT,ND,1,FLOAT,ND,10,FLOAT,ND,,,,1 256,FLOAT16,ND,1,FLOAT,ND,1 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+CheckQuantscaleNotScalar,Ascend950,PARAM_INVALID,1 256,FLOAT8_E4M3FN,ND,256 1,FLOAT8_E4M3FN,ND,1,FLOAT,ND,1,FLOAT,ND,1,FLOAT,ND,10,FLOAT,ND,1 256,FLOAT16,ND,1,FLOAT,ND,1 256,FLOAT16,ND,test_all_gather_group,aicpu,0,0,8,1,0
+TransPerblock,Ascend950,SUCCESS,256 256,FLOAT8_E4M3FN,ND,256 256,FLOAT8_E4M3FN,ND,,,,2 2,FLOAT,ND,2 2,FLOAT,ND,,,,256 256,FLOAT,ND,,,,256 256,FLOAT,ND,test_all_gather_group,aicpu,0,0,8,1,0
