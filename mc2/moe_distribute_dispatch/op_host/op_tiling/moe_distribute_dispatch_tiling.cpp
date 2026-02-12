@@ -674,7 +674,8 @@ static ge::graphStatus MoeDistributeDispatchA2CheckAttrAndSetTiling(gert::Tiling
 }
 
 static ge::graphStatus MoeDistributeDispatchA2CheckShapeAndSetTiling(gert::TilingContext *context,
-                                                                     MoeDistributeDispatchA2Info &info)
+                                                                     MoeDistributeDispatchA2Info &info,
+                                                                     bool isLayered)
 {
     const char *nodeName = context->GetNodeName();
     OP_LOGI(nodeName, "MoeDistributeDispatchA2 MoeDistributeDispatchA2CheckShapeAndSetTiling.");
@@ -714,6 +715,10 @@ static ge::graphStatus MoeDistributeDispatchA2CheckShapeAndSetTiling(gert::Tilin
     info.bs = bs;
     info.k = k;
     info.h = h;
+    if (isLayered) {
+        info.maxBsNum = MAX_BATCH_SIZE_A2;
+        OP_LOGD(K_INNER_DEBUG, "maxBsNum is %u", info.maxBsNum);
+    }
 
     OP_LOGD(K_INNER_DEBUG, "batchSize is %u", info.bs);
     OP_LOGD(K_INNER_DEBUG, "k is %u", info.k);
@@ -790,7 +795,7 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     OP_LOGI(nodeName, "MoeDistributeDispatchA2 get tilingData info.");
 
     bool isLayered = MoeDistributeDispatchA2IsLayered();
-    OP_TILING_CHECK(MoeDistributeDispatchA2CheckShapeAndSetTiling(context, info) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(MoeDistributeDispatchA2CheckShapeAndSetTiling(context, info, isLayered) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(context->GetNodeName(), "MoeDistributeDispatchA2 CheckShapeAndSetTiling Failed"),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MoeDistributeDispatchA2CheckAttrAndSetTiling(context, info, isLayered) != ge::GRAPH_SUCCESS,

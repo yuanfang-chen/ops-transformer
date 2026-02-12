@@ -42,6 +42,7 @@ struct MoeDistributeDispatchA2Info {
     uint32_t expertTokenNumsType;        // expert token nums type, support 0: cumsum mode, 1: count mode
     int32_t zeroComputeExpertNum;        // sum of zero、copy and const expert nums
     uint32_t maxMoeExpertNum;            // maxMoeExpertNum
+    uint32_t maxBsNum;                   // maxBsNum
 };
 
 struct MoeDistributeDispatchA2TilingData {

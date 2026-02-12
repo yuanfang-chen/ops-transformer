@@ -1633,6 +1633,10 @@ static ge::graphStatus MoeDistributeDispatchA2CheckShapeAndSetTiling(const gert:
     info.bs = bs;
     info.k = k;
     info.h = h;
+    if (isLayered) {
+        info.maxBsNum = maxBatchSizeA2;
+        OP_LOGD(K_INNER_DEBUG, "maxBsNum is %u", info.maxBsNum);
+    }
 
     OP_LOGD(K_INNER_DEBUG, "isTokenMask is %d", static_cast<int32_t>(info.isTokenMask));
     OP_LOGD(K_INNER_DEBUG, "isExpertMask is %d", static_cast<int32_t>(info.isExpertMask));
