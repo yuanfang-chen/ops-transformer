@@ -57,6 +57,7 @@ __aicore__ inline void PromptFlashAttentionZeroOutPut<T>::Process() {
         } else {
             InitOutput<half>(attentionOutGm[tmp_block_idx * initParams.singleCoreSize], singleInitOutputSize, 0);
         }
+        SyncAll();  // 硬同步要求所有核都进行同步防止存在数据依赖问题
     }
 
     int64_t coreNum = GetBlockNum() * GetTaskRation();
@@ -68,6 +69,7 @@ __aicore__ inline void PromptFlashAttentionZeroOutPut<T>::Process() {
         if (singleCoreLseSize > 0) {
             InitOutput<float>(softmaxLseGm[tmp_block_idx * (initParams.totalSoftMaxLseOutputSize / coreNum)], 
                 singleCoreLseSize, 3e+99); // 3e+99:set the value of invalid batch to inf
+                SyncAll();  // 硬同步要求所有核都进行同步防止存在数据依赖问题
         }
     }
 }
