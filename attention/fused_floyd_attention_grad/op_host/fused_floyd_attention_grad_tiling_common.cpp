@@ -92,8 +92,20 @@ ge::graphStatus CheckInputShapeValid(gert::TilingContext *context, int64_t b, in
 {
     auto isShapeInValid = (b == 0 || n == 0 || s1 == 0 || s2 == 0 || s3 == 0 || d == 0);
     OP_CHECK_IF(isShapeInValid,
-              OP_LOGE(context, "input shape error, got 0 in bhmnkd(%ld,%ld,%ld,%ld,%ld,%ld)", b, n, s1, s2, s3, d),
-              return ge::GRAPH_FAILED);
+                OP_LOGE(context, "input shape error, got 0 in bhmnkd(%ld,%ld,%ld,%ld,%ld,%ld)", b, n, s1, s2, s3, d),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF((s1 % ALIGNED_NUM_16 != 0 || s2 % ALIGNED_NUM_128 != 0),
+                OP_LOGE(context, "The third dimension of the query only supports 16-byte alignment, and the fourth "
+                                 "dimension only supports 128-byte alignment"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(s3 % ALIGNED_NUM_128 != 0,
+                OP_LOGE(context, "The fourth dimension of the key1 only supports 128-byte alignment"),
+                return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF((d != 32 && d != 64 && d != 128), OP_LOGE(context, "Headdim only supports 32/64/128."),
+                return ge::GRAPH_FAILED);
 
     auto ret = CheckSoftmaxMaxAndSumShape(context, b, n, s1, s2, SOFTMAX_MAX);
     if (ret != ge::GRAPH_SUCCESS) {
