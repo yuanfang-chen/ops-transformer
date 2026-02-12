@@ -84,7 +84,7 @@ static aclnnStatus CheckShape(gmm_add_advanced::GroupedMatmulAddParams params)
 
     CHECK_COND(aKDim == bKDim, ACLNN_ERR_PARAM_INVALID,
                "The kDim of x/weight should be equal, but the actual is %ld/%ld.", aKDim, bKDim);
-    if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950) {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         auto groupNum = params.groupList->GetViewShape().GetDim(0);
         auto yDimNum = params.yRef->GetViewShape().GetDimNum();
         CHECK_COND(yDimNum == 3, ACLNN_ERR_PARAM_INVALID, // 950 y tensor need 3 dim
