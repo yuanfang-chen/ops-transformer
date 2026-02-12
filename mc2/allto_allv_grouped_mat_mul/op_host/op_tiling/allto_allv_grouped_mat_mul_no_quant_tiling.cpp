@@ -181,6 +181,7 @@ ge::graphStatus AlltoAllvGmmNoQuantTiling::PostTiling()
     tilingData->commonTilingInfo.aicCoreNum = aicCoreNum_;
     tilingData->commonTilingInfo.aivCoreNum = aivCoreNum_;
     tilingData->commonTilingInfo.commOut = 0;
+    tilingData->commonTilingInfo.isNeedMM = hasSharedExpertFlag_;
     // set sendCnt
     errno_t ret = memcpy_s(&(tilingData->aicpuTiling.sendCnt), EXPERT_MAX_VALUE * sizeof(int64_t),
         sendCountsPtr_->GetData(), sendCountsPtr_->GetSize() * sizeof(int64_t));
