@@ -38,7 +38,7 @@ public:
     __aicore__ inline VectorCompute() {};
     __aicore__ inline void InitBuffer(TPipe *tPipe);
     __aicore__ inline void CastToFloat(LocalTensor<XType> &xTensor, LocalTensor<ScalesType> &scaleTensor);
-    __aicore__ inline void DequantReduceSum(LocalTensor<XType> &xTensor, LocalTensor<ScalesType> &scaleTensor, LocalTensor<float> &sumTensor);
+    __aicore__ inline void DequantAndCopyBack(LocalTensor<XType> &xTensor, LocalTensor<ScalesType> &scaleTensor, LocalTensor<float> &sumTensor);
     __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock);
 private:
     uint32_t xNumPerBlock_{0};
@@ -173,15 +173,15 @@ __aicore__ inline void VectorCompute<TemplateType>::CastToFloat(
  * 
  * @param xTensor 量化后的输入张量
  * @param scaleTensor 缩放因子张量
- * @param sumTensor 归约求和张量，结果累加到此张量
+ * @param xGlobalTensor 输入张量win区地址
  * 
  * @note 函数内部包含多次流水线同步（PipeBarrier<PIPE_V>）确保计算顺序
  */
 template <TemplateTypeClass>
-__aicore__ inline void VectorCompute<TemplateType>::DequantReduceSum(
+__aicore__ inline void VectorCompute<TemplateType>::DequantAndCopyBack(
     LocalTensor<XType> &xTensor,
     LocalTensor<ScalesType> &scaleTensor,
-    LocalTensor<float> &sumTensor)
+    GlobalTensor<XType> &xGlobalTensor)
 {
     // Cast成float计算
     CastToFloat(xTensor, scaleTensor);
@@ -189,9 +189,8 @@ __aicore__ inline void VectorCompute<TemplateType>::DequantReduceSum(
     // 反量化
     Mul(xCastTemp_, xCastTemp_, scaleCalTensor_, xNumPerBlock_);
     PipeBarrier<PIPE_V>();
-    // TODO: 修改，不要累加，改为搬运至win区
-    // 累加
-    Add(sumTensor, sumTensor, xCastTemp_, xNumPerBlock_);
+    // 搬运至win区
+    DataCopy(xGlobalTensor, xCastTemp_, xNumPerBlock_);
     PipeBarrier<PIPE_V>();
 }
 } // VectorComputeImpl
