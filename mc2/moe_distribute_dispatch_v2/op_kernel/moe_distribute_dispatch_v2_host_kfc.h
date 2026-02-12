@@ -75,7 +75,7 @@ using namespace MoeDistributeV2Base;
 using namespace MoeDispatchLog;
 
 using namespace MoeDispatchLog_NEW;
-#define LOG_INFO(...) this->logger.LogInfo(__FUNCTION__,__LINE__,__VA_ARGS__)
+#define LOG_INFO(...) this->logger.LogInfo(__FUNCTION__, __LINE__, __VA_ARGS__)
 #define LOG_INIT(...) this->logger.Init(__VA_ARGS__)
 
 template <TemplateDispatchKFCTypeClass>
@@ -193,7 +193,7 @@ private:
         return GetBaseWindAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + winDataSizeOffset;
     }
 
-    __aicore__ inline GM_ADDR (uint8_t ctxIdx, const int32_t rankId)
+    __aicore__ inline GM_ADDR GetWindStateAddrByRankId(uint8_t ctxIdx, const int32_t rankId)
     {
         uint32_t curRankId = ((ctxIdx == COMM_EP_IDX) ? epRankIdOriginal_ : tpRankId_);
         return GetBaseWindStateAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + dataState_ * WIN_STATE_OFFSET;
