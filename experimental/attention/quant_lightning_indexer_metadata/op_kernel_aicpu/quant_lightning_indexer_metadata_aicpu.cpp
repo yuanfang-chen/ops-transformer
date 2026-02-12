@@ -185,17 +185,10 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency()
 {
     int32_t queryBatchSize = GetQueryBatchSize();
     int32_t kvBatchSize = GetKvBatchSize();
-    if (layoutQuery_ == "TND") {
-        if (queryBatchSize != kvBatchSize) {
-            KERNEL_LOG_ERROR("For layoutQuery_ TND, the dim of q tensor should consist with kv tensor");
-            return false;
-        }
-    }
-    if (layoutQuery_ == "BSND") {
-        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
-            KERNEL_LOG_ERROR("For layoutQuery_ BSND, batch_size should consist with the dim of q tensor or kv tensor");
-            return false;
-        }
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("batch_size, the dim of actual_seq_lengths_query and the dim of actual_seq_lengths_key 
+                          should be equal.");
+        return false;
     }
     return true;
 }
