@@ -7,7 +7,8 @@ pytest/
 - testcases.py                    # 泛化测试用例入参配置
 - check_valid_param.py            # 入参检查及精度对比
 - prologv3_no_quant_pa_bsnd.py       # CPU侧算子逻辑实现获取golden，npu算子直调
-- pytest.ini                      # 创建ci单算子和graph图模式的测试标记
+- prologv3_generalized.py         # 全量化/全cache_mode泛化CPU参考实现与NPU调用
+- pytest.ini                      # 创建ci、graph、fuzz测试标记
 
 ## 功能说明
 
@@ -18,8 +19,8 @@ pytest/
 
 ### 当前实现范围
 
-✅**已实现**：基础MlaPrologV3非量化PA_BSND场景
-❌**未实现**：MlaPrologV3 部分量化、全量化、mxfp8量化场景
+✅**已实现**：MlaPrologV3泛化场景（含无量化/部分量化/全量化）及多cache_mode验证  
+⚠️**运行时限制**：mxfp8量化依赖Ascend 950 + float8运行时支持，不满足时会自动跳过
 
 ### 参数限制
 
@@ -77,3 +78,11 @@ python3 -m pytest -rA -s test.py -v -m ci
 python3 -m pytest -rA -s test.py -v -m graph
 ```
 
+随机模糊测试（默认关闭）
+```bash
+MLA_PROLOG_V3_ENABLE_FUZZ=1 python3 -m pytest -rA -s test.py -v -m fuzz
+```
+
+可选环境变量：
+- `MLA_PROLOG_V3_FUZZ_CASES`：随机用例数，默认 `20`
+- `MLA_PROLOG_V3_FUZZ_SEED`：随机种子，默认 `3`

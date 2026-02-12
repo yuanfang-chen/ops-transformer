@@ -43,3 +43,32 @@ TEST_PARAMS = {
 }
 
 ENABLED_PARAMS = [TEST_PARAMS["generalized_all_modes"]]
+
+
+# Fuzz parameter pool. test.py samples random valid cases from this space.
+FUZZ_PARAM_SPACE = {
+    "batch_size": [1, 2, 4, 8, 16],
+    "He": [7168],
+    "Hcq": [1536],
+    "Hckv": [512],
+    "q_head_num": [8, 16, 32, 64],
+    "kv_head_num": [1],
+    "head_dim": [128],
+    "rope_head_dim": [64],
+    "q_seq": [1, 2, 4, 8, 16],
+    "kv_seq": [16, 32, 64, 128, 256, 512],
+    "block_size": [16, 128],
+    "input_layout": ["BSH"],
+    "cache_mode": ["PA_BSND", "PA_NZ", "PA_BLK_BSND", "PA_BLK_NZ", "BSND", "TND"],
+    "cq_epsilon": [0.0005, 0.001],
+    "ckv_epsilon": [0.0005, 0.001],
+    "dtype": [torch.bfloat16],
+    "weight_quant_mode": [0, 1, 2, 3],
+    "kv_quant_mode": [0, 1, 2, 3],
+    "query_quant_mode": [0, 1],
+    "ckvkr_repo_mode": [0, 1],
+    "quant_scale_repo_mode": [0, 1],
+    "tile_size": [128],
+    "qc_qr_scale": [1.0],
+    "kc_scale": [1.0],
+}
