@@ -15,7 +15,11 @@
 
 #ifndef MOE_DISTRIBUTE_A2_BASE_H
 #define MOE_DISTRIBUTE_A2_BASE_H
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_tiling/kernel_tiling.h"
 
 #if __has_include("../../common/inc/kernel/moe_distribute_base.h")
@@ -24,19 +28,20 @@
 #include "../../../common/inc/kernel/moe_distribute_base.h"
 #endif
 namespace MoeDistributeA2Base {
+
 template <typename XType>
 class MoeDistributeA2AddrInfo {
 private:
     constexpr static uint32_t BUFFER_NUM = 2U;    // 多buf
-    constexpr static uint32_t STATE_OFFSET = 512; // 状态空间偏移地址
-    constexpr static uint32_t STATUS_SIZE_LAYERED = 1024 * 1024; // 1M
+    constexpr static uint64_t STATE_OFFSET = 512UL; // 状态空间偏移地址
+    constexpr static uint64_t STATUS_SIZE_LAYERED = 1024 * 1024UL; // 1M
     constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024UL;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B32_PER_BLOCK = UB_32B_ALIGN / sizeof(int32_t); // 8
     constexpr static uint32_t EXTRA_TOKEN_INFO_NUM = 4U; // 专家信息 权重信息 量化Scale 到达标志位
-    constexpr static uint64_t IPC_DISPATCH_MAGIC_OFFSET = 2 * 1024 * 1024 - 128 * 32UL;
-    constexpr static uint64_t IPC_COMBINE_MAGIC_OFFSET = 2U * 1024U * 1024U - 32U * 32UL;
+    constexpr static uint64_t IPC_DISPATCH_MAGIC_OFFSET = 2 * 1024 * 1024UL - 256 * 32UL;
+    constexpr static uint64_t IPC_COMBINE_MAGIC_OFFSET = 2 * 1024 * 1024UL - 128 * 32UL;
     constexpr static uint64_t IPC_DISPATCH_FLAG_OFFSET = 1 * 1024 * 1024UL;
     constexpr static uint64_t IPC_NON_DATA_BYTES = 4 * 1024 * 1024UL;
     constexpr static uint64_t IPC_BUFF_ALIGN = 512UL;
@@ -78,7 +83,7 @@ private:
 
     __aicore__ inline void initInnerAddr()
     {
-        auto tokenFlagBytes = STATE_OFFSET * (worldSize_ + 1);
+        auto tokenFlagBytes = STATE_OFFSET * (serverNum_ + 1);
         auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
         auto innerTableDataTotalBytes = STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
         innerTableSize_ = innerTableDataTotalBytes / serverNum_ / UB_32B_ALIGN * UB_32B_ALIGN;
@@ -94,6 +99,17 @@ private:
         ipcDispatchMagicAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_MAGIC_OFFSET;
         ipcDispatchTokenCntAddrStart_ = ipcFlagAddrStart_[1];
     }
+
+    __aicore__ inline GM_ADDR GetIpcMagicAddrForDispatch() const
+    {
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcMagicAddrForCombine() const
+    {
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcCombineMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
+    }
+
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum)
     {
@@ -134,11 +150,9 @@ public:
         }
     }
 
-    __aicore__ inline void updateBufferId()
+    __aicore__ inline void UpdateBufferId()
     {
-        if (aivId_ == 0) {
-            bufferChosenGlobal_(0) = bufferId_ ^ 1;
-        }
+        bufferChosenGlobal_(0) = bufferId_ ^ 1;
     }
 
     __aicore__ inline GM_ADDR GetRdmaFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
@@ -161,6 +175,23 @@ public:
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] + (localMoeExpertId * halfWorldSize_ + (fromRankId % halfWorldSize_)) * rankSizeOnIpcData_;
     }
 
+    __aicore__ inline uint64_t GetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal, bool isDispatch)
+    {
+        AscendC::GlobalTensor<uint64_t> magicGt;
+        if (isDispatch) {
+            magicGt.SetGlobalBuffer((__gm__ uint64_t*)(GetIpcMagicAddrForDispatch()));
+        } else {
+            magicGt.SetGlobalBuffer((__gm__ uint64_t*)(GetIpcMagicAddrForCombine()));
+        }
+        AscendC::DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
+        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
+        tempLocal(0) += 1UL;
+        AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
+        AscendC::DataCopy(magicGt, tempLocal, UB_32B_ALIGN / sizeof(uint64_t));
+        AscendC::PipeBarrier<PIPE_ALL>();
+        return tempLocal(0);
+    }
+
     // Combine专用
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
     {
@@ -172,11 +203,6 @@ public:
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcCombineSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
     }
 
-    __aicore__ inline GM_ADDR GetIpcMagicAddrForCombine() const
-    {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcCombineMagicAddrStart_;
-    }
-
     // Dispatch专用
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForDispatch() const
     {
@@ -186,11 +212,6 @@ public:
     __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForDispatch(uint32_t targetRankId, uint32_t fromRankId) const
     {
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
-    }
-
-    __aicore__ inline GM_ADDR GetIpcMagicAddrForDispatch() const
-    {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
     }
 
     __aicore__ inline GM_ADDR GetIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
@@ -213,7 +234,6 @@ public:
     {
         return GetWindowsOutAddr(curRankId_) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
     }
-
 
 private:
     AscendC::GlobalTensor<uint32_t> bufferChosenGlobal_;
