@@ -58,6 +58,7 @@ __aicore__ inline void PromptFlashAttentionZeroOutPut<T>::Process() {
             InitOutput<half>(attentionOutGm[tmp_block_idx * initParams.singleCoreSize], singleInitOutputSize, 0);
         }
     }
+    SyncAll();  // 硬同步要求所有核都进行同步防止存在数据依赖问题
 
     int64_t coreNum = GetBlockNum() * GetTaskRation();
     if (coreNum != 0 && tmp_block_idx < coreNum) {
