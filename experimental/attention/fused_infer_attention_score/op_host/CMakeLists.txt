@@ -37,7 +37,7 @@ else()
                 -Werror
                 -mllvm -cce-vf-remove-membar=false
                 -mllvm -cce-aicore-hoist-movemask=false
-                --op_relocatable_kernel_binary=true
+                # --op_relocatable_kernel_binary=true
     )
 endif()
 
