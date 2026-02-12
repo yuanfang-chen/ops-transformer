@@ -196,7 +196,11 @@ def scatter_pa_blk_bsnd(cache, input_, index, seq_len, B):
         S1 = int(seq_len)
         assert input_.shape[0] == B * S1
         pages_per_b = math.ceil(S1 / blk_size)
-        assert index.ndim == 1 and index.shape[0] == B * pages_per_b
+        if index.ndim == 2:
+            assert index.shape[0] == B and index.shape[1] == pages_per_b
+            index = index.reshape(-1)
+        else:
+            assert index.ndim == 1 and index.shape[0] == B * pages_per_b
         seq_list = np.full((B,), S1, dtype=np.int64)
         start_list = np.arange(B, dtype=np.int64) * S1
     else:
@@ -328,7 +332,6 @@ class GeneralizedPrologV3:
         Hcq = self.Hcq
         BlockSize = self.block_size
         T = B * S1
-        block_num = math.ceil(B * S2 / BlockSize)
 
         weight_quant_mode = self.weight_quant_mode
         kv_quant_mode = self.kv_quant_mode
@@ -385,11 +388,18 @@ class GeneralizedPrologV3:
         if k_nope_clip_alpha is not None:
             k_nope_clip_alpha = k_nope_clip_alpha.cpu()
 
-        # Reshape to 2D: (B, S1, ...) -> (T, ...)
+        # token_x can be BS-fused (T, He) or non-fused (B, S1, He)
+        t_flag = token_x.ndim == 2
+        if t_flag:
+            T = token_x.shape[0]
         token_x = token_x.reshape(T, He)
         sin = sin.reshape(T, Dr)
         cos = cos.reshape(T, Dr)
-        index_table = index_table.reshape(-1) if index_table.numel() > 0 else index_table
+        if cache_mode in ("PA_BLK_NZ", "PA_BLK_BSND"):
+            # Keep original index rank for block modes.
+            index_table = index_table
+        else:
+            index_table = index_table.reshape(-1) if index_table.numel() > 0 else index_table
 
         print("[INFO]========================================")
         print("[INFO]>>>>>>>>  Start to calculate  >>>>>>>>>>")
@@ -487,7 +497,7 @@ class GeneralizedPrologV3:
             out_deqq_shape_shape = [T, N1, 1]  # per_token_head
             out1 = out1.to(torch.bfloat16).to(torch.float32)
             out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
-        out1 = out1.reshape(B, S1, N1, Hckv)
+        out1 = out1 if t_flag else out1.reshape(B, S1, N1, Hckv)
         print(f"[INFO]matmul3 end. {COLOR_YELLOW}out1:{out1.shape}|{out1.dtype}{YELLOW_RESET}")
 
         # -------------------------------------------------------------------------------------
@@ -500,7 +510,7 @@ class GeneralizedPrologV3:
         if enable_quant_output:
             out2 = out2.to(torch.bfloat16).to(torch.float32)
             out2 = dequant(out2, deq_scale_q_nope, quant_scale_ckv)
-        out2 = out2.reshape(B, S1, N1, Dr)
+        out2 = out2 if t_flag else out2.reshape(B, S1, N1, Dr)
         print(f"[INFO]rotary1 end. {COLOR_YELLOW}out2:{tuple(out2.shape)}|{out2.dtype}{YELLOW_RESET}")
 
         # -------------------------------------------------------------------------------
@@ -543,13 +553,19 @@ class GeneralizedPrologV3:
         Dtile = Hckv
         # rmsnorm2 post-processing: kv cache quantization
         if kv_quant_mode in (1, 2):
-            norm2_res = quant(norm2_res, quant_scale_ckv)
+            if weight_quant_mode == 3:
+                norm2_res_np = quant_ckv_per_tensor(norm2_res.numpy(), quant_scale_ckv.numpy())
+                norm2_res = torch.from_numpy(np.asarray(norm2_res_np, dtype=np.float32))
+            else:
+                norm2_res = quant(norm2_res, quant_scale_ckv)
             print(f"[INFO]quant1 end. norm2_res dtype={norm2_res.dtype}")
         elif kv_quant_mode == 3:
             tile_size = self.tile_size
             norm2_res = norm2_res.reshape(T, Hckv // tile_size, tile_size)
             eps = 1e-8
             amax = torch.max(torch.abs(norm2_res), dim=-1, keepdim=True)[0]
+            if k_nope_clip_alpha is None:
+                k_nope_clip_alpha = torch.ones((1,), dtype=torch.float32)
             amax = torch.clamp(amax, min=eps) * k_nope_clip_alpha
             clip_res = torch.clamp(norm2_res, min=-amax, max=amax)
             norm2_res, deq_scale_ckv = dynamic_quant_ckv_with_amax(clip_res, amax)
@@ -599,13 +615,15 @@ class GeneralizedPrologV3:
         if kv_cache.numel() == 0:
             out3 = kv_cache
             out4 = copy.deepcopy(kr_cache)
-            outputs = [out1.to(torch.bfloat16), out2.to(torch.bfloat16), out3, out4]
+            out1_ret = out1.to(torch.bfloat16) if not enable_quant_output else out1
+            out2_ret = out2.to(torch.bfloat16) if not enable_quant_output else out2
+            outputs = [out1_ret, out2_ret, out3, out4]
             if enable_quant_output:
                 outputs.append(deq_scale_q_nope)
             return outputs
 
         out3_shape = kv_cache.shape
-        if not pa_flag:
+        if cache_mode == "BSND":
             kv_cache = kv_cache.transpose(2, 1)
         if kv_quant_mode == 0:
             kv_cache = kv_cache.to(torch.bfloat16)
@@ -617,7 +635,7 @@ class GeneralizedPrologV3:
               f" kv_cache:{tuple(kv_cache.shape)}|{kv_cache.dtype}")
 
         if cache_mode == "PA_BLK_NZ":
-            kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res_scatter, index_table, S1, kv_scatter_size)
+            kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res_scatter, index_table, S1, B, kv_scatter_size)
         elif cache_mode == "PA_BLK_BSND":
             kv_cache = scatter_pa_blk_bsnd(kv_cache, norm2_res_scatter, index_table, S1, B)
         elif cache_mode == "PA_NZ":
@@ -628,8 +646,13 @@ class GeneralizedPrologV3:
             for i in range(T):
                 for j in range(N2):
                     kv_cache[index_table.reshape(T)[i], j, :] = norm2_res_scatter[i, :]
+        elif cache_mode == "TND":
+            kv_cache = kv_cache.reshape(-1, N2, Dtile)
+            for i in range(T):
+                for j in range(N2):
+                    kv_cache[i, j, :] = norm2_res_scatter[i, :]
         else:
-            # BSND or TND
+            # BSND
             kv_cache = kv_cache.reshape(B * S2, N2, Dtile)
             for i in range(T):
                 for j in range(N2):
@@ -645,7 +668,7 @@ class GeneralizedPrologV3:
         else:
             kr_cache = copy.deepcopy(kr_cache)
             out4_shape = kr_cache.shape
-            if not pa_flag:
+            if cache_mode == "BSND":
                 kr_cache = kr_cache.transpose(2, 1)
             if weight_quant_mode == 1 and kv_quant_mode == 2:
                 rotary2_scatter = rotary2_res
@@ -657,7 +680,7 @@ class GeneralizedPrologV3:
                   f" kr_cache:{tuple(kr_cache.shape)}|{kr_cache.dtype}")
 
             if cache_mode == "PA_BLK_NZ":
-                kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_scatter, index_table, S1, kr_scatter_size)
+                kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_scatter, index_table, S1, B, kr_scatter_size)
             elif cache_mode == "PA_BLK_BSND":
                 kr_cache = scatter_pa_blk_bsnd(kr_cache, rotary2_scatter, index_table, S1, B)
             elif cache_mode == "PA_NZ":
@@ -668,8 +691,13 @@ class GeneralizedPrologV3:
                 for i in range(T):
                     for j in range(N2):
                         kr_cache[index_table.reshape(T)[i], j, :] = rotary2_scatter[i, :]
+            elif cache_mode == "TND":
+                kr_cache = kr_cache.reshape(-1, N2, Dr)
+                for i in range(T):
+                    for j in range(N2):
+                        kr_cache[i, j, :] = rotary2_scatter[i, :]
             else:
-                # BSND or TND
+                # BSND
                 kr_cache = kr_cache.reshape(B * S2, N2, Dr)
                 for i in range(T):
                     for j in range(N2):
@@ -689,3 +717,329 @@ class GeneralizedPrologV3:
             outputs.append(deq_scale_q_nope)
         return outputs
 
+
+def _get_mxfp8_e8m0_dtype():
+    for name in ("float8_e8m0fnu", "float8_e8m0fnuz", "float8_e8m0"):
+        if hasattr(torch, name):
+            return getattr(torch, name)
+    return None
+
+
+def _get_device_name():
+    try:
+        if hasattr(torch_npu.npu, "current_device"):
+            dev_id = torch_npu.npu.current_device()
+        else:
+            dev_id = 0
+        if hasattr(torch_npu.npu, "get_device_name"):
+            return str(torch_npu.npu.get_device_name(dev_id))
+    except Exception:
+        return ""
+    return ""
+
+
+def is_mxfp8_runtime_supported():
+    if not hasattr(torch, "float8_e4m3fn"):
+        return False
+    if _get_mxfp8_e8m0_dtype() is None:
+        return False
+    try:
+        import ml_dtypes  # noqa: F401
+    except Exception:
+        return False
+    device_name = _get_device_name().lower()
+    return "950" in device_name
+
+
+def validate_quant_cache_combo(cache_mode,
+                               weight_quant_mode,
+                               kv_quant_mode,
+                               query_quant_mode,
+                               ckvkr_repo_mode,
+                               quant_scale_repo_mode):
+    if weight_quant_mode == 0 and kv_quant_mode != 0:
+        return False, "weight_quant_mode=0 only supports kv_quant_mode=0"
+    if weight_quant_mode == 1 and kv_quant_mode not in (0, 2, 3):
+        return False, "weight_quant_mode=1 only supports kv_quant_mode in {0,2,3}"
+    if weight_quant_mode in (2, 3) and kv_quant_mode not in (0, 1, 3):
+        return False, "weight_quant_mode in {2,3} only supports kv_quant_mode in {0,1,3}"
+
+    if weight_quant_mode == 3 and not is_mxfp8_runtime_supported():
+        return False, "mxfp8 full quant needs float8 support on Ascend 950"
+
+    if kv_quant_mode == 3:
+        if cache_mode in ("PA_NZ", "PA_BLK_BSND", "PA_BLK_NZ"):
+            return False, f"cache_mode={cache_mode} does not support per-tile kv quant"
+        if ckvkr_repo_mode != 1 or quant_scale_repo_mode != 1:
+            return False, "per-tile kv quant requires ckvkr_repo_mode=1 and quant_scale_repo_mode=1"
+    else:
+        if ckvkr_repo_mode != 0 or quant_scale_repo_mode != 0:
+            return False, "non per-tile kv quant requires ckvkr_repo_mode=0 and quant_scale_repo_mode=0"
+
+    expect_query_quant = int(weight_quant_mode in (2, 3) and kv_quant_mode == 1)
+    if query_quant_mode != expect_query_quant:
+        return False, f"query_quant_mode should be {expect_query_quant} for this quant scenario"
+
+    return True, ""
+
+
+def _rand_tensor(shape, dtype, generator):
+    if dtype == torch.int8:
+        return torch.randint(-128, 128, shape, dtype=torch.int8, generator=generator)
+    if dtype in tuple(getattr(torch, n) for n in ("float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
+                      if hasattr(torch, n)):
+        return (torch.rand(shape, dtype=torch.float32, generator=generator) * 2 - 1).to(dtype)
+    return torch.rand(shape, dtype=torch.float32, generator=generator).to(dtype)
+
+
+def _rand_scale(shape, generator, min_val=0.01, max_val=1.0):
+    return torch.rand(shape, dtype=torch.float32, generator=generator) * (max_val - min_val) + min_val
+
+
+def _build_cache_index(cache_mode, B, S1, S2, block_size, block_num, t_flag, generator):
+    if cache_mode in ("BSND", "TND"):
+        return torch.empty((0,), dtype=torch.int64), None
+
+    T = B * S1
+    if cache_mode in ("PA_BSND", "PA_NZ"):
+        max_index = block_num * block_size
+        index = torch.randperm(max_index, generator=generator).to(torch.int64)[:T]
+        if t_flag:
+            return index, None
+        return index.reshape(B, S1), None
+
+    pages_per_b = math.ceil(S1 / block_size)
+    total_pages = B * pages_per_b
+    page_ids = torch.randperm(block_num, generator=generator).to(torch.int64)
+    if page_ids.numel() < total_pages:
+        repeat_times = math.ceil(total_pages / page_ids.numel())
+        page_ids = page_ids.repeat(repeat_times)
+    page_ids = page_ids[:total_pages]
+
+    if t_flag:
+        actual_seq_len = torch.arange(1, B + 1, dtype=torch.int32) * S1
+        return page_ids, actual_seq_len
+    return page_ids.reshape(B, pages_per_b), None
+
+
+def _cache_shape(cache_mode, B, S2, N2, last_dim, block_size):
+    if cache_mode.startswith("PA"):
+        block_num = math.ceil(B * S2 / block_size)
+        return (block_num, block_size, N2, last_dim)
+    if cache_mode == "BSND":
+        return (B, S2, N2, last_dim)
+    return (B * S2, N2, last_dim)  # TND
+
+
+def test_prologv3_generalized(params):
+    batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
+    q_seq, kv_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
+    weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
+    quant_scale_repo_mode, tile_size, qc_qr_scale, kc_scale = params
+
+    is_valid, reason = validate_quant_cache_combo(cache_mode,
+                                                  weight_quant_mode,
+                                                  kv_quant_mode,
+                                                  query_quant_mode,
+                                                  ckvkr_repo_mode,
+                                                  quant_scale_repo_mode)
+    if not is_valid:
+        pytest.skip(f"skip invalid quant/cache combo: {reason}")
+
+    seed = 3
+    set_seed(seed)
+    generator = torch.Generator().manual_seed(seed)
+
+    B = batch_size
+    S1 = q_seq
+    S2 = kv_seq
+    N1 = q_head_num
+    N2 = kv_head_num
+    D = head_dim
+    Dr = rope_head_dim
+    T = B * S1
+    t_flag = cache_mode == "TND"
+    fp8_e8m0_dtype = _get_mxfp8_e8m0_dtype()
+
+    # Dtypes by scenario
+    if weight_quant_mode == 0:
+        token_dtype = torch.bfloat16
+        w_dq_dtype = torch.bfloat16
+        w_uq_qr_dtype = torch.bfloat16
+        w_dkv_kr_dtype = torch.bfloat16
+    elif weight_quant_mode == 1:
+        token_dtype = torch.bfloat16
+        w_dq_dtype = torch.bfloat16
+        w_uq_qr_dtype = torch.int8
+        w_dkv_kr_dtype = torch.bfloat16
+    elif weight_quant_mode == 2:
+        token_dtype = torch.int8
+        w_dq_dtype = torch.int8
+        w_uq_qr_dtype = torch.int8
+        w_dkv_kr_dtype = torch.int8
+    else:
+        token_dtype = torch.float8_e4m3fn
+        w_dq_dtype = torch.float8_e4m3fn
+        w_uq_qr_dtype = torch.float8_e4m3fn
+        w_dkv_kr_dtype = torch.float8_e4m3fn
+
+    if kv_quant_mode == 0:
+        kv_cache_dtype = torch.bfloat16
+    elif kv_quant_mode == 1:
+        kv_cache_dtype = torch.float8_e4m3fn if weight_quant_mode == 3 else torch.int8
+    elif kv_quant_mode == 2:
+        kv_cache_dtype = torch.int8
+    else:
+        kv_cache_dtype = torch.float8_e4m3fn if weight_quant_mode == 3 else torch.int8
+
+    if ckvkr_repo_mode == 1:
+        kr_cache_dtype = None
+    elif weight_quant_mode == 1 and kv_quant_mode == 2:
+        kr_cache_dtype = torch.int8
+    else:
+        kr_cache_dtype = torch.bfloat16
+
+    token_shape = (T, He) if t_flag else (B, S1, He)
+    rope_shape = (T, Dr) if t_flag else (B, S1, Dr)
+
+    Dtile = Hckv
+    if kv_quant_mode == 3:
+        if ckvkr_repo_mode == 1:
+            Dtile += Dr * 2
+        if quant_scale_repo_mode == 1:
+            Dtile += Hckv // tile_size * 4
+
+    block_num = math.ceil(B * S2 / block_size)
+    cache_index, actual_seq_len = _build_cache_index(cache_mode, B, S1, S2, block_size, block_num, t_flag, generator)
+
+    kv_cache_shape = _cache_shape(cache_mode, B, S2, N2, Dtile, block_size)
+    if ckvkr_repo_mode == 1:
+        kr_cache_shape = (0,)
+    else:
+        kr_cache_shape = _cache_shape(cache_mode, B, S2, N2, Dr, block_size)
+
+    token_x = _rand_tensor(token_shape, token_dtype, generator).npu()
+    w_dq = _rand_tensor((He, Hcq), w_dq_dtype, generator).npu()
+    w_uq_qr = _rand_tensor((Hcq, N1 * (D + Dr)), w_uq_qr_dtype, generator).npu()
+    w_uk = _rand_tensor((N1, D, Hckv), torch.bfloat16, generator).npu()
+    w_dkv_kr = _rand_tensor((He, Hckv + Dr), w_dkv_kr_dtype, generator).npu()
+    rmsnorm_gamma_cq = _rand_tensor((Hcq,), torch.bfloat16, generator).npu()
+    rmsnorm_gamma_ckv = _rand_tensor((Hckv,), torch.bfloat16, generator).npu()
+    rope_sin = _rand_tensor(rope_shape, torch.bfloat16, generator).npu()
+    rope_cos = _rand_tensor(rope_shape, torch.bfloat16, generator).npu()
+
+    kv_cache = _rand_tensor(kv_cache_shape, kv_cache_dtype, generator).npu()
+    if kr_cache_dtype is None:
+        kr_cache = torch.empty(kr_cache_shape, dtype=torch.bfloat16).npu()
+    else:
+        kr_cache = _rand_tensor(kr_cache_shape, kr_cache_dtype, generator).npu()
+    cache_index = cache_index.npu()
+    if actual_seq_len is not None:
+        actual_seq_len = actual_seq_len.npu()
+
+    deq_scale_x = None
+    deq_scale_w_dq = None
+    deq_scale_w_uq_qr = None
+    deq_scale_w_dkv_kr = None
+    quant_scale_ckv = None
+    quant_scale_ckr = None
+    smooth_scale_cq = None
+    k_nope_clip_alpha = None
+
+    if weight_quant_mode == 1:
+        deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
+        smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+    elif weight_quant_mode == 2:
+        deq_scale_x = _rand_scale((T, 1), generator).npu()
+        deq_scale_w_dq = _rand_scale((1, Hcq), generator).npu()
+        deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
+        deq_scale_w_dkv_kr = _rand_scale((1, Hckv + Dr), generator).npu()
+        smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+    elif weight_quant_mode == 3:
+        if fp8_e8m0_dtype is None:
+            pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
+        deq_scale_x = torch.ones((T, He // 32), dtype=fp8_e8m0_dtype).npu()
+        deq_scale_w_dq = torch.ones((Hcq, He // 32), dtype=fp8_e8m0_dtype).npu()
+        deq_scale_w_uq_qr = torch.ones((N1 * (D + Dr), Hcq // 32), dtype=fp8_e8m0_dtype).npu()
+        deq_scale_w_dkv_kr = torch.ones((Hckv + Dr, He // 32), dtype=fp8_e8m0_dtype).npu()
+
+    if kv_quant_mode == 1:
+        quant_scale_ckv = _rand_scale((1,), generator).npu()
+    elif kv_quant_mode == 2:
+        quant_scale_ckv = _rand_scale((1, Hckv), generator).npu()
+        quant_scale_ckr = _rand_scale((1, Dr), generator).npu()
+    elif kv_quant_mode == 3:
+        k_nope_clip_alpha = _rand_scale((1,), generator, min_val=0.9, max_val=1.1).npu()
+
+    # CPU reference
+    forward_inputs = {
+        "token_x": token_x,
+        "w_dq": w_dq,
+        "w_uq_qr": w_uq_qr,
+        "w_uk": w_uk,
+        "w_dkv_kr": w_dkv_kr,
+        "gamma_cq": rmsnorm_gamma_cq,
+        "gamma_ckv": rmsnorm_gamma_ckv,
+        "sin": rope_sin,
+        "cos": rope_cos,
+        "index_table": cache_index,
+        "kv_cache": kv_cache,
+        "kr_cache": kr_cache,
+        "deq_scale_x": deq_scale_x,
+        "deq_scale_w_dq": deq_scale_w_dq,
+        "deq_scale_w_uqqr": deq_scale_w_uq_qr,
+        "deq_scale_w_dkvkr": deq_scale_w_dkv_kr,
+        "quant_scale_ckv": quant_scale_ckv,
+        "quant_scale_ckr": quant_scale_ckr,
+        "smooth_scale_cq": smooth_scale_cq,
+        "actual_seq_len": actual_seq_len,
+        "k_nope_clip_alpha": k_nope_clip_alpha,
+    }
+    expect = GeneralizedPrologV3(params).forward(forward_inputs)
+
+    # NPU call
+    w_dq_cast = torch_npu.npu_format_cast(w_dq.contiguous(), 29)
+    w_uq_qr_cast = torch_npu.npu_format_cast(w_uq_qr.contiguous(), 29)
+    w_dkv_kr_cast = torch_npu.npu_format_cast(w_dkv_kr.contiguous(), 29)
+
+    op_kwargs = {
+        "rmsnorm_epsilon_cq": cq_epsilon,
+        "rmsnorm_epsilon_ckv": ckv_epsilon,
+        "cache_mode": cache_mode,
+        "weight_quant_mode": weight_quant_mode,
+        "kv_cache_quant_mode": kv_quant_mode,
+        "query_quant_mode": query_quant_mode,
+        "ckvkr_repo_mode": ckvkr_repo_mode,
+        "quant_scale_repo_mode": quant_scale_repo_mode,
+        "tile_size": tile_size,
+        "qc_qr_scale": qc_qr_scale,
+        "kc_scale": kc_scale
+    }
+    if cache_mode.startswith("PA"):
+        op_kwargs["cache_index"] = cache_index
+    if deq_scale_x is not None:
+        op_kwargs["dequant_scale_x"] = deq_scale_x
+    if deq_scale_w_dq is not None:
+        op_kwargs["dequant_scale_w_dq"] = deq_scale_w_dq
+    if deq_scale_w_uq_qr is not None:
+        op_kwargs["dequant_scale_w_uq_qr"] = deq_scale_w_uq_qr
+    if deq_scale_w_dkv_kr is not None:
+        op_kwargs["dequant_scale_w_dkv_kr"] = deq_scale_w_dkv_kr
+    if quant_scale_ckv is not None:
+        op_kwargs["quant_scale_ckv"] = quant_scale_ckv
+    if quant_scale_ckr is not None:
+        op_kwargs["quant_scale_ckr"] = quant_scale_ckr
+    if smooth_scale_cq is not None:
+        op_kwargs["smooth_scales_cq"] = smooth_scale_cq
+    if actual_seq_len is not None:
+        op_kwargs["actual_seq_len"] = actual_seq_len
+    if k_nope_clip_alpha is not None:
+        op_kwargs["k_nope_clip_alpha"] = k_nope_clip_alpha
+
+    result = torch_npu.npu_mla_prolog_v3(
+        token_x, w_dq_cast, w_uq_qr_cast,
+        w_uk, w_dkv_kr_cast, rmsnorm_gamma_cq, rmsnorm_gamma_ckv,
+        rope_sin, rope_cos, kv_cache, kr_cache, **op_kwargs
+    )
+    torch.npu.synchronize()
+    return expect, result
