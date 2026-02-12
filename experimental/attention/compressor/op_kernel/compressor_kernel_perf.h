@@ -40,6 +40,7 @@ struct CmpBlockInfo {
     uint32_t bIdx = 0U;
     uint32_t sIdx = 0U;
     uint32_t bSeqUsed = 0U;
+    uint32_t bSeqLength = 0U;
     uint32_t bStartPos = 0U;
     bool needReset = false;
     bool isFirst = true;
@@ -258,27 +259,27 @@ __aicore__ inline void CompressorKernelPerf<COMP>::SetBaseSize()
     uint32_t mSize = 0;
     uint32_t minMBaseSize = 0;
     bool sameSeqUsed = true;
-    uint32_t firstBatchSeqUsed = tools_.GetSeqUsed(0);
+    uint32_t firstBatchSeqLength = tools_.GetSeqLength(0);
     for (uint32_t i = 0; i < constInfo.batchSize; i++) {
-        uint32_t bSeqUsed = tools_.GetSeqUsed(i);
+        uint32_t bSeqLength = tools_.GetSeqLength(i);
         uint32_t bStartPos = tools_.GetStartPos(i);
         // 获取m大小
-        mSize += bSeqUsed;
+        mSize += bSeqLength;
         // 获取是否等长
-        if (sameSeqUsed && (bSeqUsed != firstBatchSeqUsed)) {
+        if (sameSeqUsed && (bSeqLength != firstBatchSeqLength)) {
             sameSeqUsed = false;
         }
         // 获取m轴最小切分大小
         if (minMBaseSize != constInfo.cmpRatio) {
             uint32_t startCmpIdx = bStartPos / constInfo.cmpRatio;
-            uint32_t endCmpIdx = (bStartPos + bSeqUsed) / constInfo.cmpRatio;
+            uint32_t endCmpIdx = (bStartPos + bSeqLength) / constInfo.cmpRatio;
             if (startCmpIdx == endCmpIdx) {
-                if (bSeqUsed > minMBaseSize) {
-                    minMBaseSize = bSeqUsed;
+                if (bSeqLength > minMBaseSize) {
+                    minMBaseSize = bSeqLength;
                 }
             } else if (startCmpIdx + 1 == endCmpIdx) {
                 uint32_t startCmpValidSeqCnt = constInfo.cmpRatio - (bStartPos % constInfo.cmpRatio);
-                uint32_t endCmpValidSeqCnt = (bStartPos + bSeqUsed) % constInfo.cmpRatio;
+                uint32_t endCmpValidSeqCnt = (bStartPos + bSeqLength) % constInfo.cmpRatio;
                 if (startCmpValidSeqCnt > minMBaseSize) {
                     minMBaseSize = startCmpValidSeqCnt;
                 }
@@ -313,7 +314,7 @@ __aicore__ inline void CompressorKernelPerf<COMP>::SetBaseSize()
             constInfo.dBaseSize = constInfo.headDim / dBaseBlockNum;
             // 开启全核
             uint32_t coreGroupNum = aiCoreNum / dBaseBlockNum;
-            uint32_t newMBaseSize = (constInfo.batchSize + coreGroupNum - 1) / coreGroupNum * firstBatchSeqUsed;
+            uint32_t newMBaseSize = (constInfo.batchSize + coreGroupNum - 1) / coreGroupNum * firstBatchSeqLength;
             if (newMBaseSize > minMBaseSize && newMBaseSize < constInfo.mBaseSize) {
                 constInfo.mBaseSize = newMBaseSize;
             }
@@ -326,21 +327,21 @@ __aicore__ inline uint32_t CompressorKernelPerf<COMP>::CalcSIdxOfLastTc()
 {
     // 在Init中已确保倒数第一个batch的bSeqUsed不会是0
     uint32_t cmpRatio = constInfo.cmpRatio;
-    uint32_t bSeqUsed = tools_.GetSeqUsed(constInfo.batchSize - 1);
+    uint32_t bSeqLength = tools_.GetSeqLength(constInfo.batchSize - 1);
     uint32_t bStartPos = tools_.GetStartPos(constInfo.batchSize - 1);
 
     // 1.先假设start_pos不再尾块、并且尾块未填满
-    uint32_t lastSeqCnt = (bStartPos + bSeqUsed) % cmpRatio;
+    uint32_t lastSeqCnt = (bStartPos + bSeqLength) % cmpRatio;
     // 2.处理结束点正好填满cmp block的情况
     if (lastSeqCnt == 0) {
         lastSeqCnt = cmpRatio;
     }
     // 3.处理start_pos在最后一个压缩块的情况
-    if (bSeqUsed < lastSeqCnt) {
-        lastSeqCnt = bSeqUsed;
+    if (bSeqLength < lastSeqCnt) {
+        lastSeqCnt = bSeqLength;
     }
 
-    return (bSeqUsed - lastSeqCnt);
+    return (bSeqLength - lastSeqCnt);
 }
 
 template <typename COMP>
@@ -349,7 +350,7 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcCmpBlockInfo(CmpBlockInfo
     uint32_t cmpRatio = constInfo.cmpRatio;
     // 计算压缩块信息
     cmpBlockInfo.headSeqCnt = (cmpBlockInfo.bStartPos + cmpBlockInfo.sIdx) % cmpRatio;
-    cmpBlockInfo.validSeqCnt = cmpBlockInfo.bSeqUsed - cmpBlockInfo.sIdx;
+    cmpBlockInfo.validSeqCnt = cmpBlockInfo.bSeqLength - cmpBlockInfo.sIdx;
     if (cmpBlockInfo.headSeqCnt + cmpBlockInfo.validSeqCnt > cmpRatio) {
         cmpBlockInfo.validSeqCnt = cmpRatio - cmpBlockInfo.headSeqCnt;
         cmpBlockInfo.tailSeqCnt = 0;
@@ -357,14 +358,20 @@ __aicore__ inline void CompressorKernelPerf<COMP>::CalcCmpBlockInfo(CmpBlockInfo
         cmpBlockInfo.tailSeqCnt = cmpRatio - (cmpBlockInfo.headSeqCnt + cmpBlockInfo.validSeqCnt);
     }
     cmpBlockInfo.isCompress = (cmpBlockInfo.tailSeqCnt == 0);
+    // 计算有效的需要压缩的块
+    uint32_t  usedValidSeqCnt = cmpBlockInfo.bSeqUsed - cmpBlockInfo.sIdx;
+    if (cmpBlockInfo.sIdx >= cmpBlockInfo.bSeqUsed || usedValidSeqCnt < cmpBlockInfo.validSeqCnt) {
+        cmpBlockInfo.isCompress = false;
+    }
 }
 
 template <typename COMP>
 __aicore__ inline void CompressorKernelPerf<COMP>::SkipInvalidBatch(CmpBlockInfo &cmpBlockInfo, uint32_t maxBatchSize)
 {
     for (; cmpBlockInfo.bIdx < maxBatchSize; ++cmpBlockInfo.bIdx) {
+        cmpBlockInfo.bSeqLength = tools_.GetSeqLength(cmpBlockInfo.bIdx);
         cmpBlockInfo.bSeqUsed = tools_.GetSeqUsed(cmpBlockInfo.bIdx);
-        if (cmpBlockInfo.bSeqUsed > 0) {
+        if (cmpBlockInfo.bSeqLength > 0) {
             break;
         }
     }
@@ -394,7 +401,7 @@ __aicore__ inline void CompressorKernelPerf<COMP>::AcceptUpdate(CmpBlockInfo &cm
 {
     // 更新sIdx和bIdx、以及与bIdx相关的bStartPos和bSeqUsed
     cmpBlockInfo.sIdx += cmpBlockInfo.validSeqCnt;
-    if (cmpBlockInfo.sIdx == cmpBlockInfo.bSeqUsed) {
+    if (cmpBlockInfo.sIdx == cmpBlockInfo.bSeqLength) {
         cmpBlockInfo.sIdx = 0;
         cmpBlockInfo.bIdx++;
         if (cmpBlockInfo.needReset && cmpBlockInfo.bIdx == constInfo.batchSize) {
@@ -414,7 +421,7 @@ __aicore__ inline void CompressorKernelPerf<COMP>::UpdateBasicBlockInfo(BasicBlo
     } else {
         basicBlockInfo.dealSeqCnt += cmpBlockInfo.validSeqCnt;
         basicBlockInfo.dealTcNum++;
-        if (cmpBlockInfo.tailSeqCnt == 0) {
+        if (cmpBlockInfo.isCompress) {
             basicBlockInfo.compressedTcNum++;
         }
     }
@@ -661,8 +668,16 @@ __aicore__ inline void CompressorKernelPerf<COMP>::UpdateVec2Info(
         vec2Info.bStart = info.bStart;
         vec2Info.sStart = info.sStart;
         // 将sStart转成bCompressedId
-        uint32_t startPos = tools_.GetStartPos(info.bStart);
-        vec2Info.bCompressedId = (startPos + info.sStart) / constInfo.cmpRatio - startPos / constInfo.cmpRatio;
+        uint32_t bSeqUsed = tools_.GetSeqUsed(vec2Info.bStart);
+        // 如果sStart超出SeqUsed范围，需要跳batch
+        while (vec2Info.sStart >= bSeqUsed && vec2Info.bStart < constInfo.batchSize - 1) {
+            vec2Info.bStart++;
+            vec2Info.sStart = 0;
+            bSeqUsed = tools_.GetSeqUsed(vec2Info.bStart);
+        }
+        
+        uint32_t startPos = tools_.GetStartPos(vec2Info.bStart);
+        vec2Info.bCompressedId = (startPos + vec2Info.sStart) / constInfo.cmpRatio - startPos / constInfo.cmpRatio;
 
         vec2Info.dealScSize = 0;
     }
