@@ -54,6 +54,9 @@ ACLNN_API aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     int64_t commQuantMode, int64_t groupListType, const char* commAlg, 
     int64_t zeroExpertNum, int64_t copyExpertNum, int64_t constExpertNum,
     aclTensor* xOut, uint64_t* workspaceSize, aclOpExecutor** executor);
+    
+ACLNN_API aclnnStatus aclnnMoeDistributeCombineBase(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                  aclrtStream stream);
 #ifdef __cplusplus
 }
 #endif
