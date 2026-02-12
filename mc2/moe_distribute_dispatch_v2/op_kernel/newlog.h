@@ -88,10 +88,18 @@ __aicore__ inline void Log::Init(TPipe * tpipe,int32_t rankId) {
 
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, const GM_ADDR addr){ //测试
     const __gm__ void * addrtemp = static_cast<const __gm__ void*>(addr);
+    char function[256] = func;
+    size_t funcLen = strlen(func);
+    size_t copyLen = strncpy_s(function, 256, func, funcLen);
+    function[funcLen] = '\0';
     printf("[rankId: %d][aivId: %d][function: %s][line: %d]", rankId_, aivId_, func, line);
     printf("%s: %p\n", msg, addrtemp);
 }
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg){
+    char function[256] = func;
+    size_t funcLen = strlen(func);
+    size_t copyLen = strncpy_s(function, 256, func, funcLen);
+    function[funcLen] = '\0';
     printf("[rankId: %d][aivId: %d][function: %s][line: %d] %s\n", rankId_, aivId_, func, line, msg);
 }
 
