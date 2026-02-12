@@ -140,7 +140,7 @@ ge::graphStatus MhcPostTilingBase::GetPlatformInfo()
     }
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    aicoreParams_.blockDim = ascendcPlatform.GetCoreNumAiv();
+    aicoreParams_.numBlocks = ascendcPlatform.GetCoreNumAiv();
     uint64_t ubSizePlatForm;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSizePlatForm);
     aicoreParams_.ubSize = ubSizePlatForm;
@@ -489,7 +489,7 @@ ge::graphStatus MhcPostTilingBase::CheckParam()
 void MhcPostTilingBase::ComputeTiling()
 {
     // Core Partitioning - handle remainder properly
-    uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.blockDim);
+    uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.numBlocks);
     usedCores_ = (totalItems_ < coreNum) ? totalItems_ : coreNum;
     itemsPerCore_ = totalItems_ / usedCores_;
     remainderItems_ = totalItems_ % usedCores_;
