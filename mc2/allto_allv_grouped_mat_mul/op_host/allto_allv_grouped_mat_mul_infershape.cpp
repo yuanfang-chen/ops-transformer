@@ -15,6 +15,7 @@
 #include "mc2_log.h"
 #include "platform/platform_info.h"
 #include "register/op_impl_registry.h"
+#include "graph/utils/type_utils.h"
 
 using namespace ge;
 
@@ -243,18 +244,15 @@ static ge::graphStatus InferDataTypeAlltoAllvGroupedMatMul(gert::InferDataTypeCo
 {
     auto dType = context->GetInputDataType(INDEX_IN_GMM_X);
     auto* attrs = context->GetAttrs();
-    auto* yDtypePtr = attrs->GetAttrPointer<bool>(INDEX_ATTR_Y_DTYPE_INDEX);
-    auto* mmDtypePtr = attrs->GetAttrPointer<bool>(INDEX_ATTR_MM_DTYPE_INDEX);
-    if (yDtypePtr != nullptr) {
-        context->SetOutputDataType(INDEX_OUT_GMM_Y, static_cast<ge::DataType>(*yDtypePtr));
-    } else {
-        context->SetOutputDataType(INDEX_OUT_GMM_Y, dType);
-    }
-    if (mmDtypePtr != nullptr) {
-        context->SetOutputDataType(INDEX_OUT_MM_Y, static_cast<ge::DataType>(*mmDtypePtr));
-    } else {
-        context->SetOutputDataType(INDEX_OUT_MM_Y, dType);
-    }
+    auto* yDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_Y_DTYPE_INDEX);
+    auto* mmDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_MM_DTYPE_INDEX);
+    ge::DataType yDataType = yDtypePtr == nullptr ? dType : static_cast<ge::DataType>(*yDtypePtr);
+    ge::DataType mmDataType = mmDtypePtr == nullptr ? dType : static_cast<ge::DataType>(*mmDtypePtr);
+    
+    context->SetOutputDataType(INDEX_OUT_MM_Y, mmDataType);
+    OP_LOGD(context->GetNodeName(), "infershape mmY data type: %s.", TypeUtils::DataTypeToAscendString(mmDataType).GetString());
+    context->SetOutputDataType(INDEX_OUT_GMM_Y, yDataType);
+    OP_LOGD(context->GetNodeName(), "infershape gmmY data type: %s.", TypeUtils::DataTypeToAscendString(yDataType).GetString());
     context->SetOutputDataType(INDEX_PERMUTE_OUT, dType);
     return ge::GRAPH_SUCCESS;
 }
