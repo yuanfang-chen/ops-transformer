@@ -21,6 +21,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "err/ops_err.h"
 #include "../../op_kernel/grouped_matmul_tiling_key.h"
+#include "tiling_base/tiling_base.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace ge;
 using namespace AscendC;
