@@ -32,8 +32,6 @@ using namespace optiling;
 using namespace mc2_matmul_v3_advanced;
 constexpr size_t X1_QUANTMODE_VALUES = 6;
 constexpr size_t X2_QUANTMODE_VALUES = 6;
-// constexpr size_t DIM_ZERO = 0;
-// constexpr size_t DIM_ONE = 1;
 constexpr size_t DIM_TWO = 2;
 constexpr size_t DIM_THREE = 3;
 constexpr uint64_t MX_SCALE_ALIGN = 64;
