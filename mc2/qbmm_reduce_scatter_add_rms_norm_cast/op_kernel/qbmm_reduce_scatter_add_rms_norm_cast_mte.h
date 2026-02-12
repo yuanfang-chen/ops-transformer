@@ -29,34 +29,22 @@
 namespace QbmmReduceScatterAddRmsNormCastImpl {
 
 using namespace AscendC;
-#define TemplateTypeClass typename X1Type, typename X2Type, typename Y1Type
-#define TemplateType X1Type, X2Type, Y1Type
 
-template<TemplateTypeClass>
 class QbmmReduceScatterAddRmsNormCastMte {
 public:
     __aicore__ inline QbmmReduceScatterAddRmsNormCastMte() {};
-    __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, 
-                                GM_ADDR scale, GM_ADDR bias,  GM_ADDR perTokenScale,
-                                GM_ADDR y1, GM_ADDR y2, GM_ADDR x, TPipe *tPipe, 
-                                const QbmmReduceScatterAddRmsNormCastTilingData *tilingData);
+    __aicore__ inline void Init();
     __aicore__ inline void Process();
 };
 
-template <TemplateTypeClass>
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateType>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, 
-                                                                 GM_ADDR scale, GM_ADDR bias,  GM_ADDR perTokenScale,
-                                                                 GM_ADDR y1, GM_ADDR y2, GM_ADDR x, TPipe *tPipe, 
-                                                                 const QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init()
 {
-    AscendC::printf("OK");
+    PRINTF("kernel init doing.");
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateType>::Process()
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
 {
-    AscendC::printf("OK");
-    return;
+    PRINTF("kernel process doing.");
 }
 } // QbmmReduceScatterAddRmsNormCastImpl
 #endif  // QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_MTE_H
