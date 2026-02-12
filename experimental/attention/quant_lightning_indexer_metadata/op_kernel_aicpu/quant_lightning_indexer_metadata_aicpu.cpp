@@ -244,7 +244,7 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit()
         attentionMode_ = 1;
     }
     groupSize_ = numHeadsQ_ / numHeadsK_;
-    batchSize_ = GetQueryBatchSize()
+    batchSize_ = GetQueryBatchSize();
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B){
         s2BaseSize_ = 2048U; // 仅用于A3
