@@ -659,12 +659,6 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputExpertIdx()
 ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputScale()
 {
     OP_LOGD(context_, "Entered MoeInitRoutingV3Arch35TilingClass::CheckInputScale()");
-    
-    if (quantMode_ == QUANT_MODE_HIF8_CAST && isInputScale_ != 0) {
-        OP_LOGE(context_, "The rank of input scale should be empty under quant_mode %ld, current is %ld",
-                quantMode_, static_cast<int64_t>(scaleShape_.GetDimNum()));
-        return ge::GRAPH_FAILED;
-    }
 
     if (isInputScale_ == 0) {
         return ge::GRAPH_SUCCESS;
