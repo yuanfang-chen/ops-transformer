@@ -186,8 +186,7 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency()
     int32_t queryBatchSize = GetQueryBatchSize();
     int32_t kvBatchSize = GetKvBatchSize();
     if (queryBatchSize != kvBatchSize) {
-        KERNEL_LOG_ERROR("batch_size, the dim of actual_seq_lengths_query and the dim of actual_seq_lengths_key 
-                          should be equal.");
+        KERNEL_LOG_ERROR("batch_size, the dim of actual_seq_lengths_query and the dim of actual_seq_lengths_key should be equal.");
         return false;
     }
     return true;
