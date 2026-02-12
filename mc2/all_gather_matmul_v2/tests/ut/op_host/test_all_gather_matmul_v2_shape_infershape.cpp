@@ -9,41 +9,40 @@
  */
 
 #include <gtest/gtest.h>
-#include "../all_gather_matmul_v2_host_ut_param.h"
-#include "mc2_tiling_case_executor.h"
+#include "all_gather_matmul_v2_host_ut_param.h"
+#include "mc2_infer_shape_case_executor.h"
 
 namespace AllGatherMatmulV2UT {
 
-class AllGatherMatmulV2Arch35TilingTest : public testing::TestWithParam<AllGatherMatmulV2TilingUtParam> {
+class AllGatherMatmulV2InferShapeTest : public testing::TestWithParam<AllGatherMatmulV2InferShapeUtParam> {
 protected:
     static void SetUpTestCase()
     {
-        std::cout << "AllGatherMatmulV2 Arch35TilingTest SetUp" << std::endl;
+        std::cout << "AllGatherMatmulV2 InferShapeTest SetUp" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout << "AllGatherMatmulV2 Arch35TilingTest TearDown" << std::endl;
+        std::cout << "AllGatherMatmulV2 InferShapeTest TearDown" << std::endl;
     }
 };
 
-TEST_P(AllGatherMatmulV2Arch35TilingTest, param)
+TEST_P(AllGatherMatmulV2InferShapeTest, param)
 {
     auto param = GetParam();
-    struct AllGatherMatmulV2CompileInfo {} compileInfo;
-    gert::TilingContextPara tilingContextPara(
+    std::vector<gert::InfershapeContextPara::TensorDescription> inputTensorDesc;
+    if (param.inputInstance[0] == 1) inputTensorDesc.emplace_back(param.x1);
+    if (param.inputInstance[1] == 1) inputTensorDesc.emplace_back(param.x2);
+    if (param.inputInstance[2] == 1) inputTensorDesc.emplace_back(param.bias);
+    if (param.inputInstance[3] == 1) inputTensorDesc.emplace_back(param.x1Scale);
+    if (param.inputInstance[4] == 1) inputTensorDesc.emplace_back(param.x2Scale);
+    if (param.inputInstance[5] == 1) inputTensorDesc.emplace_back(param.quantScale);
+    gert::InfershapeContextPara inferShapeContextPara(
         "AllGatherMatmulV2",
-        {
-            param.x1,
-            param.x2,
-            param.bias,
-            param.x1Scale,
-            param.x2Scale,
-            param.quantScale
-        },
+        inputTensorDesc,
         {
             param.y,
-            param.gatherOut,
+            param.gatherOut
             param.amaxOut
         },
         {
@@ -55,25 +54,24 @@ TEST_P(AllGatherMatmulV2Arch35TilingTest, param)
             {"rank_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.rank_size)},
             {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.block_size)},
             {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.group_size)},
-            {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.y_dtype)},
-            {"is_gather_out", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_gather_out)}
+            {"is_gather_out", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_gather_out)},
+            {"is_amax_out", Ops::Transformer::AnyValue::CreateFrom<bool>(param.is_amax_out)},
+            {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(static_cast<int>(param.y_dtype))},
+            {"comm_mode", Ops::Transformer::AnyValue::CreateFrom<std::string>(param.comm_mode)}
         },
-        param.inputInstance, param.outputInstance,
-        &compileInfo,
-        param.soc, param.coreNum, param.ubsize
+        param.inputInstance, param.outputInstance
     );
     Mc2Hcom::MockValues hcomTopologyMockValues {
         {"rankNum", param.rank_size}
     };
-    Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, param.expectResult, param.expectTilingKey,
-        param.expectTilingDataHash, {}, MC2_TILING_DATA_RESERVED_LEN, true);
+    Mc2ExecuteTestCase(inferShapeContextPara, hcomTopologyMockValues, param.expectResult, param.expectOutputShape);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     AllGatherMatmulV2,
-    AllGatherMatmulV2Arch35TilingTest,
-    testing::ValuesIn(GetCasesFromCsv<AllGatherMatmulV2TilingUtParam>(ReplaceFileExtension2Csv(__FILE__))),
-    PrintCaseInfoString<AllGatherMatmulV2TilingUtParam>
+    AllGatherMatmulV2InferShapeTest,
+    testing::ValuesIn(GetCasesFromCsv<AllGatherMatmulV2InferShapeUtParam>(ReplaceFileExtension2Csv(__FILE__))),
+    PrintCaseInfoString<AllGatherMatmulV2InferShapeUtParam>
 );
 
 } // namespace AllGatherMatmulV2UT

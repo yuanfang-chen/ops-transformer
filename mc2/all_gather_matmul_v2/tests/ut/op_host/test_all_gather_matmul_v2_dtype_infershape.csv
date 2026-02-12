@@ -1,0 +1,4 @@
+case_name,expectResult,x1_dtype,x2_dtype,bias_dtype,x1_scale_dtype,x2_scale_dtype,quant_scale_dtype,group,is_trans_a,is_trans_b,gather_index,comm_turn,rank_size,block_size,group_size,is_gather_out,is_amax_out,y_dtype,expect_y_dtype,expect_gather_out_dtype,expect_amax_out_dtype
+YDtypeEqualX1DtypeFp16,SUCCESS,FLOAT16,,,,,,,,,,,,,,,,,FLOAT16,FLOAT16,
+YDtypeEqualX1DtypeBf16,SUCCESS,BF16,,,,,,,,,,,,,,,,,BF16,BF16,
+AttrYDtype,SUCCESS,FLOAT8_E5M2,,,,,,hcclCom,0,0,0,0,0,0,0,1,0,DT_FLOAT,DT_FLOAT,FLOAT8_E5M2,
