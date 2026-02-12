@@ -1184,7 +1184,7 @@ __aicore__ inline void MlaPrologVecS1CubS2<MLAPT>::MatmulQnSyncDynamicQuantAndMu
         if constexpr (MLAPT::enableDequantOpt) {
             CrossCoreWaitFlag(FINISH_VEC_DEQUANT_QC_SPLIT_N);
         }
-        if unlikely (mmQnParam_.baseK < mmQnParam_.k) {
+        if (unlikely(mmQnParam_.baseK < mmQnParam_.k)) {
             uint32_t nInput = baseParams_->headSizeCkv;
             uint32_t nL1SplitSize = mmQnParam_.baseN;
             uint32_t nL1loops = CeilDivT(nInput, nL1SplitSize);
