@@ -1,5 +1,7 @@
 # aclnnScatterPaKvCache
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/scatter_pa_kv_cache)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
@@ -170,10 +172,10 @@ aclnnStatus aclnnScatterPaKvCache(
       <td class="tg-0pky">keyCacheRef(aclTensor*)</td>
       <td class="tg-0pky">输入/输出</td>
       <td class="tg-0pky">需要更新的key cache，当前layer的key cache。</td>
-      <td class="tg-0pky">仅支持4维，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">仅支持4维，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布。</td>
       <td class="tg-0pky">与key保持一致</td>
-      <td class="tg-0pky">ND、FRACTAL_NZ</td>
-      <td class="tg-0pky">4</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">4-5</td>
       <td class="tg-0pky">x</td>
     </tr>
     <tr>
@@ -200,10 +202,10 @@ aclnnStatus aclnnScatterPaKvCache(
       <td class="tg-0pky">valueCacheRef(aclTensor*）</td>
       <td class="tg-0pky">输入/输出</td>
       <td class="tg-0pky">需要更新的value cache，当前layer的value cache。</td>
-      <td class="tg-0pky">支持0维或4维，非0维下shape与keyCacheRef一致，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">支持0维或4维，非0维下shape与keyCacheRef一致，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布。</td>
       <td class="tg-0pky">与key保持一致</td>
-      <td class="tg-0pky">ND、FRACTAL_NZ</td>
-      <td class="tg-0pky">4</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">4-5</td>
       <td class="tg-0pky">x</td>
     </tr>
     <tr>
@@ -240,7 +242,7 @@ aclnnStatus aclnnScatterPaKvCache(
       <td class="tg-0pky">cacheMode(char*)</td>
       <td class="tg-0pky">输入</td>
       <td class="tg-0pky">表示keyCacheRef和valueCacheRef的内存排布格式。</td>
-      <td class="tg-0pky">当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布。</td>
       <td class="tg-0pky">-</td>
       <td class="tg-0pky">-</td>
       <td class="tg-0pky">-</td>

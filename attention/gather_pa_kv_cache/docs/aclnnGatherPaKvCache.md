@@ -1,5 +1,7 @@
 # aclnnGatherPaKvCache
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/gather_pa_kv_cache)
+
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
@@ -152,7 +154,7 @@ aclnnStatus aclnnGatherPaKvCache(
     </tr>
     <tr>
       <td class="tg-0pky">seqOffsetOptional(aclTensor*)</td>
-      <td class="tg-0pky">可选输入</td>
+      <td class="tg-0pky">输入</td>
       <td class="tg-0pky">如果传入，表示在从blockTables获取blockId时存在首偏移（偏移量为`seqOffsetOptional[i] / block_size`，`i`表示某一个batch）；不传入表示不需要偏移。</td>
       <td class="tg-0pky">shape为[batch]。</td>
       <td class="tg-0pky">与blockTables保持一致</td>
