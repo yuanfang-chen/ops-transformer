@@ -22,6 +22,94 @@
 #include "tiling/mc2_tiling_utils.h"
 
 namespace optiling {
+constexpr uint32_t DATA_SIZE_L0C = 4;
+constexpr uint64_t CUBE_BLOCK = 16;
+constexpr uint64_t CUBE_REDUCE_BLOCK = 32;
+constexpr uint32_t BASIC_BLOCK_SIZE_512 = 512;
+constexpr uint32_t BASIC_BLOCK_SIZE_256 = 256;
+constexpr uint32_t BASIC_BLOCK_SIZE_128 = 128;
+constexpr uint32_t PERTENSOR_MODE = 1;
+constexpr uint32_t SINGLE_GROUP_NUM = 1;
+constexpr uint32_t GMM_ACT_TYPE_NONE = 0;
+constexpr uint64_t DB_SIZE = 2UL;
+
+constexpr uint32_t GMM_X_INDEX = 0;
+constexpr uint32_t GMM_WEIGHT_INDEX = 1;
+constexpr uint32_t SEND_COUNTS_TENSOR_OPTIONAL_INDEX = 2;
+constexpr uint32_t RECV_COUNTS_TENSOR_OPTIONAL_INDEX = 3;
+constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
+constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
+constexpr uint32_t GMM_X_SCALE_OPTIONAL_INDEX = 6;
+constexpr uint32_t GMM_WEIGHT_SCALE_OPTIONAL_INDEX = 7;
+constexpr uint32_t GMM_X_OFFSET_OPTIONAL_INDEX = 8;
+constexpr uint32_t GMM_WEIGHT_OFFSET_OPTIONAL_INDEX = 9;
+constexpr uint32_t MM_X_SCALE_OPTIONAL_INDEX = 10;
+constexpr uint32_t MM_WEIGHT_SCALE_OPTIONAL_INDEX = 11;
+constexpr uint32_t MM_X_OFFSET_OPTIONAL_INDEX = 12;
+constexpr uint32_t MM_WEIGHT_OFFSET_OPTIONAL_INDEX = 13;
+constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 14;
+
+constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0;
+constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
+
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
+constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
+constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
+
+constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
+constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
+constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 6;
+constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 7;
+constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 8;
+constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 9;
+constexpr uint32_t ATTR_COMM_QUANT_MODE_INDEX = 10;
+constexpr uint32_t ATTR_GROUP_SIZE_OPTIONAL_INDEX = 11;
+constexpr uint32_t ATTR_GMM_Y_DTYPE_INDEX = 12;
+constexpr uint32_t ATTR_MM_Y_DTYPE_INDEX = 13;
+constexpr uint32_t ATTR_COMM_QUANT_DTYPE_INDEX = 14;
+
+constexpr uint32_t DIM_ZERO = 0;
+constexpr uint32_t DIM_ONE = 1;
+constexpr uint32_t DIM_TWO = 2;
+constexpr uint32_t DIM_THREE = 3;
+
+
+constexpr uint32_t HCCL_CMD_ALLGATHER = 6U;
+constexpr uint32_t HCCL_CMD_ALLTOALLV = 8;
+
+constexpr uint32_t INDEX_TWO = 2U;
+
+constexpr int64_t NUM_ZERO = 0;
+constexpr int64_t NUM_TWO = 2;
+constexpr int64_t NUM_FOUR = 4;
+constexpr int64_t NUM_EIGHT = 8;
+
+constexpr int64_t BEST_L1_PARTA = 256 * 1024;
+constexpr int64_t BEST_L1_PARTB = 128 * 1024;
+constexpr int64_t BEST_BASEN = 256;
+constexpr uint32_t UB_DIVIDE_NUM = 2;
+constexpr uint32_t UB_CALSIZE_PER_BLOCK = 16 * 1024;
+constexpr uint64_t DOUBLE_BUFFER_L0A_L0B = 2;
+constexpr uint64_t DOUBLE_BUFFER_STEPKA_STEPKB = 2;
+constexpr uint32_t SYS_WORKSPACE_SIZE = 16U * 1024U * 1024U;
+constexpr uint32_t MAX_TURN_NUM = 24;
+constexpr int32_t MAX_BASE_K = 128;
+constexpr uint64_t COMM_TILE = 8; // 每卡数据分配几次计算
+constexpr uint64_t MAX_EXPERT_NUM = 256;
+constexpr int64_t MAX_EXPERT_NUM_PER_RANK = 32;
+constexpr int64_t MAX_DIM_VALUE = 65536;
+constexpr uint64_t MAX_H1_VALUE = 65536;
+constexpr uint64_t MAX_N1_VALUE = 65536;
+constexpr uint64_t MAX_N2_VALUE = 65536;
+constexpr uint64_t MIN_K_VALUE = 2;
+constexpr uint64_t MAX_K_VALUE = 8; // ???  8?
+constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
+constexpr int64_t MAX_BSK_VALUE = 52428800;
+constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);         // 2M / sizeof(gmmX)
+
+inline const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
+inline const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
 
 class GmmAlltoAllvTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass
 {
@@ -29,11 +117,14 @@ public:
     explicit GmmAlltoAllvTilingBase(gert::TilingContext* context) : Ops::Transformer::OpTiling::TilingBaseClass(context){};
 
 protected:
-    ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus GetShapeAttrsInfo() override;
+    ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus DoLibApiTiling() override;
     ge::graphStatus GetWorkspaceSize() override;
+    uint64_t GetTilingKey() const override;
     ge::graphStatus PostTiling() override;
+    const char *opName_{nullptr};
+    platform_ascendc::SocVersion socVersion_;
 
     NpuArch npuArch_;
 };
