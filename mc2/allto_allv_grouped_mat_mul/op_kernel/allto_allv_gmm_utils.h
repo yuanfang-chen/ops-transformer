@@ -61,5 +61,5 @@ template <typename T> __aicore__ inline T LeastCommonMultiple(T a, T b)
 }
 } // namespace ALLTO_ALLV_GMM
 
-#endif \
+#endif
     // __ALLTO_ALLV_GMM_UTILS_H__

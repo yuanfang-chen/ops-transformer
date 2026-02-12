@@ -567,11 +567,11 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         ge::GRAPH_FAILED, 0
     },
     
-    // AlltoAllvGroupedMatmulTilingTestDim2 (2D gmmWeight)
+    // AlltoAllvGroupedMatmulTilingTestDim4 (2D gmmWeight)
     {
-        "AlltoAllvGroupedMatmulTilingTestDim2",
+        "AlltoAllvGroupedMatmulTilingTestDim4",
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        {7168, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // 2D shape
+        {4, 4, 7168, 4096}, ge::DT_FLOAT16, ge::FORMAT_NCHW, // 4D shape
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
         {}, ge::DT_FLOAT, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
@@ -704,7 +704,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
          128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128},
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        {4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // 1D shape
+        {4096, 3, 3}, ge::DT_FLOAT16, ge::FORMAT_NCL, // 3D shape
         false, false, false, false,
         false, false, true, true,
         8, 8, 0,
@@ -1114,7 +1114,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
     {
         "alltoallvgmm_hif8_quant_exception_gmmweight_not_3d",
         {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-        {4, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmWeight维度不为3D
+        {4, 7168, 4, 4}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmWeight维度不为3D
         {1}, ge::DT_FLOAT, ge::FORMAT_ND,
         {1}, ge::DT_FLOAT, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
@@ -1899,7 +1899,7 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // send_counts_tensor
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // recv_counts_tensor
             {mmXStorageShape, param.mmXDataType, param.mmXFormat},
-            {mmWeightStorageShape,param.mmWeightDataType, param.mmWeightFormat},
+            {mmWeightStorageShape, param.mmWeightDataType, param.mmWeightFormat},
             {gmmXScaleStorageShape, param.gmmXScaleDataType, param.gmmXScaleFormat},
             {gmmWeightScaleStorageShape, param.gmmWeightScaleDataType, param.gmmWeightScaleFormat},
             {{}, ge::DT_INT64, ge::FORMAT_ND}, // gmmXOffset
@@ -1926,11 +1926,12 @@ TEST_P(AlltoAllvGroupedMatMulTilingTest, test_allto_allv_grouped_quant_mat_mul_t
             {"gmm_weight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.gmm_weight_quant_mode)},
             {"mm_x_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mm_x_quant_mode)},
             {"mm_weight_quant_mode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.mm_weight_quant_mode)},
-            {"gmm_x_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-            {"mm_x_quant_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+            {"groupSize", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"y_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+            {"mm_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
         &compileInfo,
-        "Ascend950",
+        "3510",
         coreNum,
         ubSize,
         tilingDataSize

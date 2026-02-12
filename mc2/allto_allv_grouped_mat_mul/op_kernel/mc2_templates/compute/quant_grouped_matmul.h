@@ -1,12 +1,12 @@
 /* *
- * Copyright (c) 2026 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+  */
 
 /* !
  * \file quant_grouped_matmul.h
@@ -17,7 +17,12 @@
 #define MC2_QUANT_GROUPED_MATMUL_H
 
 #include "kernel_operator.h"
-#include "../../3rd/gqmm_cube_on_the_fly.h"
+
+#if __has_include("../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h")
+#include "../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h"
+#else
+#include "../../../../3rd/grouped_matmul/op_kernel/gqmm_cube_on_the_fly.h"
+#endif
 
 using namespace AscendC;
 
@@ -51,8 +56,8 @@ public:
         h1_ = tilingData_->taskTilingInfo.H1;
         n1_ = tilingData_->taskTilingInfo.N1;
         bs_ = tilingData_->taskTilingInfo.BS;
-        bsk_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ + bsk_ * h1_ : workspaceGM_;
+        a_ = tilingData_->taskTilingInfo.A;
+        groupListGm_ = tilingData_->isPermuteOut ? workspaceGM_ : workspaceGM_ + a_ * h1_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -82,7 +87,7 @@ public:
         AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
         this->UpdateAddr(expertIdx);
-        GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
+        Mc2GroupedMatmul::Mc2GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
         tPipe_->Reset();
         gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
             &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
@@ -129,7 +134,7 @@ private:
     uint64_t h1_;
     uint64_t n1_;
     uint64_t bs_;
-    uint64_t bsk_;
+    uint64_t a_;
     const GmmTilingDataType *gmmTilingData_;
     TILING_TYPE *gmmArrayAddrIn_;
 };

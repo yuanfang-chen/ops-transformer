@@ -141,7 +141,8 @@ bool FiaTilingNonQuantMla::IsCapable()
     }
 
     // 支持的sparse_mode值
-    if ((fiaInfo_->sparseMode != SPARSE_MODE_NO_MASK) && (fiaInfo_->sparseMode != SPARSE_MODE_RIGHT_DOWN) && (fiaInfo_->sparseMode != SPARSE_MODE_BAND)) {
+    if ((fiaInfo_->sparseMode != SPARSE_MODE_NO_MASK) && (fiaInfo_->sparseMode != SPARSE_MODE_RIGHT_DOWN) &&
+        (fiaInfo_->sparseMode != SPARSE_MODE_BAND)) {
         return false;
     }
 
@@ -170,7 +171,8 @@ void FiaTilingNonQuantMla::GenTilingKey()
     uint8_t cvRatioVal = (cvRatio_ == 1) ? 1 : 0; // CV1:1场景为1，其他场景为0
 
     const std::map<TilingKeyLayout, uint8_t> kvLayoutMap = {
-        {TilingKeyLayout::BNSD, 0U}, {TilingKeyLayout::BSH_BSND, 1U}, {TilingKeyLayout::NZ, 2U}, {TilingKeyLayout::TND, 3U}
+        {TilingKeyLayout::BNSD, 0U}, {TilingKeyLayout::BSH_BSND, 1U}, {TilingKeyLayout::NZ, 2U},
+        {TilingKeyLayout::TND, 3U}
     };
 
     const std::map<TilingKeyLayout, uint8_t> qLayoutMap = {
@@ -241,7 +243,7 @@ void FiaTilingNonQuantMla::InitParams()
 {
     perfMode_ = FiaTemplateId::HIGH_PERFORMANCE_MLA;
     coreNum_ = aicNum_;
-    blockDim_ = aicNum_; // Tiling下沉首次Tiling也会校验blockDim_是否为0，为避免拦截报错，将blockDim_设置为aicNum_，实际不生效
+    numBlocks_ = aicNum_; // Tiling下沉首次Tiling也会校验numBlocks_是否为0，为避免拦截报错，将numBlocks_设置为aicNum_，实际不生效
 
     headDimAlign_ = Align(fiaInfo_->qkHeadDim, BYTE_BLOCK); // 元素个数按照基本块大小对齐
     ZeroTensorProcess();
@@ -331,7 +333,8 @@ void FiaTilingNonQuantMla::CreateSplitInput(BaseInfo &baseInfo, SplitParam &spli
     baseInfo.actualLenKvDims = fiaInfo_->actualLenDims;
     baseInfo.preToken = fiaInfo_->preToken;
     baseInfo.nextToken = fiaInfo_->nextToken;
-    baseInfo.isS1G = fiaInfo_->inputLayout == TilingKeyLayout::TND || fiaInfo_->inputLayout == TilingKeyLayout::BSH_BSND; // 使用枚举映射
+    baseInfo.isS1G = fiaInfo_->inputLayout == TilingKeyLayout::TND ||
+        fiaInfo_->inputLayout == TilingKeyLayout::BSH_BSND; // 使用枚举映射
     baseInfo.sparseMode = fiaInfo_->sparseMode;
     baseInfo.attenMaskFlag = fiaInfo_->attenMaskFlag;
 
@@ -548,14 +551,14 @@ void FiaTilingNonQuantMla::CalcMaxWorkspaceSize()
     workspaceSize_ += CalcFlashDecodeWorkspace(aicNum_);
 }
 
-void FiaTilingNonQuantMla::CalcBlockDim(uint32_t coreNum)
+void FiaTilingNonQuantMla::CalcNumBlocks(uint32_t coreNum)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(fiaInfo_->platformInfo);
     auto aicNum = coreNum;
     auto aivNum = aicNum * cvRatio_;
 
-    blockDim_ = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
-    OP_LOGI(fiaInfo_->opName, "FIA block dim: %u aiv Num: %u aic Num: %u.", blockDim_, aivNum, aicNum);
+    numBlocks_ = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
+    OP_LOGI(fiaInfo_->opName, "FIA block dim: %u aiv Num: %u aic Num: %u.", numBlocks_, aivNum, aicNum);
 }
 
 void FiaTilingNonQuantMla::CalcScheduleMode()
@@ -576,13 +579,13 @@ ge::graphStatus FiaTilingNonQuantMla::DoOpTiling()
     } else {
         Split();
         FillTiling();
-        CalcBlockDim(usedCoreNum_);
+        CalcNumBlocks(usedCoreNum_);
         CalcScheduleMode();
         CalcWorkspaceSize();
         GenTilingKey();
     }
 
-    if ((SetBlockDim(blockDim_) != ge::GRAPH_SUCCESS) ||
+    if ((SetNumBlocks(numBlocks_) != ge::GRAPH_SUCCESS) ||
         (SetTilingKey(tilingKey_) != ge::GRAPH_SUCCESS) ||
         (SetWorkspaceSize(workspaceSize_) != ge::GRAPH_SUCCESS) ||
         (SetTilingData(tilingData_) != ge::GRAPH_SUCCESS) ||
