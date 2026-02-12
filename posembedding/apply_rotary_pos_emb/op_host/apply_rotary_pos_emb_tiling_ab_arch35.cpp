@@ -64,7 +64,8 @@ ge::graphStatus ApplyRotaryPosEmbTilingAB::DoOpTiling()
         OP_LOGE(context_->GetNodeName(), "dSplitCoef_ can't be 0 or typeSize can't be 0.");
         return ge::GRAPH_FAILED;
     }
-    dAlign_ = Ops::Base::CeilAlign(d_ / dSplitCoef_, blockSize_ / typeSize) * dSplitCoef_;
+
+    dAlign_ = Ops::Base::CeilAlign(reald_ / dSplitCoef_, blockSize_ / typeSize) * dSplitCoef_;
     blockFactor_ = Ops::Base::CeilDiv(bs, int64_t(aicoreParams_.numBlocks));
     blockNum_ = Ops::Base::CeilDiv(bs, blockFactor_);
     blockTail_ = bs - (blockNum_ - 1) * blockFactor_;
