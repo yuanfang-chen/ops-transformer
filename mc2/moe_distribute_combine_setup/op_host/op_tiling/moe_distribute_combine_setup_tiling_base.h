@@ -61,12 +61,12 @@ protected:
     void SetTilingKey();
     void SetPlatformInfo();
     void PrintTilingDataInfo();
-    virtual ge::graphStatus CheckEpWorldSize();
-    virtual ge::graphStatus CheckMoeExpertNum();
-    virtual ge::graphStatus CheckSharedExpertAttr();
+    virtual ge::graphStatus CheckEpWorldSize() = 0;
+    virtual ge::graphStatus CheckMoeExpertNum() = 0;
+    virtual ge::graphStatus CheckSharedExpertAttr() = 0;
     virtual ge::graphStatus CheckMoeExpertNumPerRank();
-    virtual ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k);
-    virtual void SetHcommCfg();
+    virtual ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k) = 0;
+    virtual void SetHcommCfg() = 0;
 
     const char *socTilingName_ = nullptr;
     std::string nodeName_;

@@ -40,8 +40,8 @@ protected:
     ge::graphStatus MoeDistributeCombineTeardownTilingFuncImpl();
     ge::graphStatus CheckAttrs();
     ge::graphStatus CheckAttrsNullptr();
-    virtual ge::graphStatus CheckAttrsWithoutRelation();
-    virtual ge::graphStatus CheckAttrsComplex();
+    virtual ge::graphStatus CheckAttrsWithoutRelation() = 0;
+    virtual ge::graphStatus CheckAttrsComplex() = 0;
     ge::graphStatus CheckOneTensorDim(std::string name, TensorType tensortype, uint32_t index, uint32_t dims);
     ge::graphStatus CheckInputTensorDim();
     ge::graphStatus CheckOptionalInputTensorDim();
@@ -56,7 +56,7 @@ protected:
     ge::graphStatus CheckTensorDataTypeSecondPart();
     virtual ge::graphStatus SetWorkspace();
     ge::graphStatus CheckHcclBuffsize();
-    virtual ge::graphStatus SetHcommCfg();
+    virtual ge::graphStatus SetHcommCfg() = 0;
 
     void SetAttrToTilingData();
     void SetDimsToTilingData();
