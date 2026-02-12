@@ -43,6 +43,8 @@ __aicore__ inline constexpr GmFormat GetQueryGmFormat() {
     }
 }
 
+// test
+
 template <LayOutTypeEnum LAYOUT>
 __aicore__ inline constexpr GmFormat GetKVGmFormat() {
     if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BSH) {
