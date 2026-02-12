@@ -102,6 +102,13 @@ def check_result(expect, result):
             return list(outputs)
         raise TypeError(f"unsupported output container type: {type(outputs)}")
 
+    def _to_compare_groups(payload):
+        if isinstance(payload, dict):
+            outputs = _to_output_list(payload.get("outputs", []))
+            inplace = _to_output_list(payload.get("inplace", []))
+            return outputs, inplace
+        return _to_output_list(payload), []
+
     def _is_float8_dtype(dtype):
         return "float8" in str(dtype)
 
@@ -123,63 +130,67 @@ def check_result(expect, result):
         # FP32/FP64 path.
         return 0.001, 0.001
 
-    expect_list = _to_output_list(expect)
-    result_list = _to_output_list(result)
-
-    compare_num = min(len(expect_list), len(result_list))
-    if len(expect_list) != len(result_list):
-        logger.info(
-            f"output count mismatch: expect={len(expect_list)}, result={len(result_list)}; "
-            f"compare first {compare_num} outputs by kernel return count"
-        )
-
-    for i in range(compare_num):
-        result_cpu = result_list[i].cpu()
-        expect_cpu = expect_list[i]
-
-        if result_cpu.shape != expect_cpu.shape:
+    def _compare_tensor_group(expect_group, result_group, group_name):
+        if len(expect_group) != len(result_group):
             raise AssertionError(
-                f"output[{i}] shape mismatch, expect={tuple(expect_cpu.shape)}, result={tuple(result_cpu.shape)}"
+                f"{group_name} count mismatch, expect={len(expect_group)}, result={len(result_group)}"
             )
 
-        if result_cpu.numel() == 0 and expect_cpu.numel() == 0:
-            logger.info(f"output[{i}] is empty tensor, skip compare")
-            continue
+        for i in range(len(expect_group)):
+            expect_cpu = expect_group[i].cpu()
+            result_cpu = result_group[i].cpu()
 
-        rtol, atol = _dtype_tolerance(expect_cpu.dtype, result_cpu.dtype)
+            if result_cpu.shape != expect_cpu.shape:
+                raise AssertionError(
+                    f"{group_name}[{i}] shape mismatch, expect={tuple(expect_cpu.shape)}, "
+                    f"result={tuple(result_cpu.shape)}"
+                )
 
-        # Discrete outputs: strict equality.
-        if rtol == 0.0 and atol == 0.0:
-            result_i64 = result_cpu.to(torch.int64).reshape(-1)
-            expect_i64 = expect_cpu.to(torch.int64).reshape(-1)
-            diff = result_i64 - expect_i64
-            mismatch_mask = diff != 0
+            if result_cpu.numel() == 0 and expect_cpu.numel() == 0:
+                logger.info(f"{group_name}[{i}] is empty tensor, skip compare")
+                continue
+
+            rtol, atol = _dtype_tolerance(expect_cpu.dtype, result_cpu.dtype)
+
+            # Discrete outputs: strict equality.
+            if rtol == 0.0 and atol == 0.0:
+                result_i64 = result_cpu.to(torch.int64).reshape(-1)
+                expect_i64 = expect_cpu.to(torch.int64).reshape(-1)
+                diff = result_i64 - expect_i64
+                mismatch_mask = diff != 0
+                mismatch_idx = torch.nonzero(mismatch_mask).reshape(-1)
+                if mismatch_idx.numel() > 0:
+                    logger.info(f"{group_name}[{i}] mismatch index(sample): {mismatch_idx[:20]}")
+                    logger.info(f"{group_name}[{i}] mismatch diff(sample): {diff[mismatch_mask][:20]}")
+                pass_num = torch.sum(~mismatch_mask)
+                total_num = diff.numel()
+                accuracy = pass_num / total_num
+                logger.info(
+                    f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}"
+                )
+                assert torch.equal(result_i64, expect_i64), f"{group_name}[{i}] integer compare failed"
+                continue
+
+            result_fp32 = result_cpu.to(torch.float32).reshape(-1)
+            expect_fp32 = expect_cpu.to(torch.float32).reshape(-1)
+            abs_diff = torch.abs(result_fp32 - expect_fp32)
+            allowed = atol + rtol * torch.abs(expect_fp32)
+            mismatch_mask = abs_diff > allowed
             mismatch_idx = torch.nonzero(mismatch_mask).reshape(-1)
             if mismatch_idx.numel() > 0:
-                logger.info(f"output[{i}] mismatch index(sample): {mismatch_idx[:20]}")
-                logger.info(f"output[{i}] mismatch diff(sample): {diff[mismatch_mask][:20]}")
+                logger.info(f"{group_name}[{i}] mismatch index(sample): {mismatch_idx[:20]}")
+                logger.info(f"{group_name}[{i}] mismatch abs diff(sample): {abs_diff[mismatch_mask][:20]}")
             pass_num = torch.sum(~mismatch_mask)
-            total_num = diff.numel()
+            total_num = abs_diff.numel()
             accuracy = pass_num / total_num
-            logger.info(f"output[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}")
-            assert torch.equal(result_i64, expect_i64), f"output[{i}] integer compare failed"
-            continue
+            logger.info(
+                f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}, "
+                f"rtol={rtol}, atol={atol}"
+            )
+            assert torch.allclose(result_fp32, expect_fp32, rtol=rtol, atol=atol, equal_nan=True), \
+                f"{group_name}[{i}] float compare failed"
 
-        result_fp32 = result_cpu.to(torch.float32).reshape(-1)
-        expect_fp32 = expect_cpu.to(torch.float32).reshape(-1)
-        abs_diff = torch.abs(result_fp32 - expect_fp32)
-        allowed = atol + rtol * torch.abs(expect_fp32)
-        mismatch_mask = abs_diff > allowed
-        mismatch_idx = torch.nonzero(mismatch_mask).reshape(-1)
-        if mismatch_idx.numel() > 0:
-            logger.info(f"output[{i}] mismatch index(sample): {mismatch_idx[:20]}")
-            logger.info(f"output[{i}] mismatch abs diff(sample): {abs_diff[mismatch_mask][:20]}")
-        pass_num = torch.sum(~mismatch_mask)
-        total_num = abs_diff.numel()
-        accuracy = pass_num / total_num
-        logger.info(
-            f"output[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}, "
-            f"rtol={rtol}, atol={atol}"
-        )
-        assert torch.allclose(result_fp32, expect_fp32, rtol=rtol, atol=atol, equal_nan=True), \
-            f"output[{i}] float compare failed"
+    expect_outputs, expect_inplace = _to_compare_groups(expect)
+    result_outputs, result_inplace = _to_compare_groups(result)
+    _compare_tensor_group(expect_outputs, result_outputs, "output")
+    _compare_tensor_group(expect_inplace, result_inplace, "inplace")

@@ -345,6 +345,18 @@ class GeneralizedPrologV3:
         enable_quant_output = (query_quant_mode == 1 and weight_quant_mode in (2, 3))
         deq_scale_q_nope = None
 
+        def _build_expected_kernel_outputs(query, query_rope, deq_scale_q_nope_tensor):
+            query_ret = query.to(torch.bfloat16) if not enable_quant_output else query
+            query_rope_ret = query_rope.to(torch.bfloat16) if not enable_quant_output else query_rope
+            if deq_scale_q_nope_tensor is None:
+                deq_scale_q_nope_ret = torch.empty((0,), dtype=torch.float32)
+            else:
+                deq_scale_q_nope_ret = deq_scale_q_nope_tensor.to(torch.float32)
+            # query_norm_flag is not enabled in this pytest harness.
+            query_norm_ret = torch.empty((0,), dtype=torch.float32)
+            deq_scale_q_norm_ret = torch.empty((0,), dtype=torch.float32)
+            return [query_ret, query_rope_ret, deq_scale_q_nope_ret, query_norm_ret, deq_scale_q_norm_ret]
+
         # Unpack base tensors (all moved to CPU)
         token_x = inputs['token_x'].cpu()
         w_dq = inputs['w_dq'].cpu()
@@ -615,12 +627,10 @@ class GeneralizedPrologV3:
         if kv_cache.numel() == 0:
             out3 = kv_cache
             out4 = copy.deepcopy(kr_cache)
-            out1_ret = out1.to(torch.bfloat16) if not enable_quant_output else out1
-            out2_ret = out2.to(torch.bfloat16) if not enable_quant_output else out2
-            outputs = [out1_ret, out2_ret, out3, out4]
-            if enable_quant_output:
-                outputs.append(deq_scale_q_nope)
-            return outputs
+            return {
+                "outputs": _build_expected_kernel_outputs(out1, out2, deq_scale_q_nope),
+                "inplace": [out3, out4]
+            }
 
         out3_shape = kv_cache.shape
         if cache_mode == "BSND":
@@ -721,13 +731,10 @@ class GeneralizedPrologV3:
         print("[INFO]>>>>>>>>   Calculate success  >>>>>>>>>>")
         print("[INFO]========================================")
 
-        # Build return list
-        out1_ret = out1.to(torch.bfloat16) if not enable_quant_output else out1
-        out2_ret = out2.to(torch.bfloat16) if not enable_quant_output else out2
-        outputs = [out1_ret, out2_ret, out3, out4]
-        if enable_quant_output:
-            outputs.append(deq_scale_q_nope)
-        return outputs
+        return {
+            "outputs": _build_expected_kernel_outputs(out1, out2, deq_scale_q_nope),
+            "inplace": [out3, out4]
+        }
 
 
 def _get_mxfp8_e8m0_dtype():
@@ -1054,4 +1061,33 @@ def test_prologv3_generalized(params):
         rope_sin, rope_cos, kv_cache, kr_cache, **op_kwargs
     )
     torch.npu.synchronize()
-    return expect, result
+
+    if isinstance(result, torch.Tensor):
+        kernel_outputs = [result]
+    elif isinstance(result, (list, tuple)):
+        kernel_outputs = list(result)
+    else:
+        raise RuntimeError(f"unsupported npu_mla_prolog_v3 output type: {type(result)}")
+
+    # torch_npu wrapper returns only functional outputs in normal path; tolerate full-op tuple as fallback.
+    if len(kernel_outputs) == 5:
+        kernel_outputs_aligned = kernel_outputs
+    elif len(kernel_outputs) >= 7:
+        kernel_outputs_aligned = [
+            kernel_outputs[0],  # query
+            kernel_outputs[1],  # query_rope
+            kernel_outputs[4],  # dequant_scale_q_nope
+            kernel_outputs[5],  # query_norm
+            kernel_outputs[6],  # dequant_scale_q_norm
+        ]
+    else:
+        raise RuntimeError(
+            f"unexpected npu_mla_prolog_v3 output count: {len(kernel_outputs)} (expect 5 or >=7)"
+        )
+
+    result_aligned = {
+        "outputs": kernel_outputs_aligned,
+        # kv_cache/kr_cache are in-place outputs.
+        "inplace": [kv_cache, kr_cache]
+    }
+    return expect, result_aligned
