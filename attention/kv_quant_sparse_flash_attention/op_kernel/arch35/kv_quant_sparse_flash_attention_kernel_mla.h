@@ -225,7 +225,6 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
     constInfo.syncC1V1 = SYNC_C1_V1_FLAG;
     constInfo.syncV1C2 = SYNC_V1_C2_FLAG;
     constInfo.syncC2V2 = SYNC_C2_V2_FLAG;
-    // constInfo.syncC2V1 = SYNC_C2_V1_FLAG;
     constInfo.syncV1NupdateC2 = SYNC_V1_NUPDATE_C2_FLAG;
 }
 
@@ -761,7 +760,6 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeMm2(const R
         CrossCoreWaitFlag(constInfo.syncV1C2);
         matmulService.ComputeMm2(info, mSplitInfo);
         CrossCoreSetFlag<ConstInfo::QSFA_SYNC_MODE2, PIPE_FIX>(constInfo.syncC2V2);
-        // CrossCoreSetFlag<ConstInfo::QSFA_SYNC_MODE2, PIPE_FIX>(constInfo.syncC2V1);
     }
 }
 
