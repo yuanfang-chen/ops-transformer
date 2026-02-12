@@ -70,5 +70,6 @@ __aicore__ inline void PromptFlashAttentionZeroOutPut<T>::Process() {
                 singleCoreLseSize, 3e+99); // 3e+99:set the value of invalid batch to inf
         }
     }
+    SyncAll();  // 硬同步要求所有核都进行同步防止存在数据依赖问题
 }
 #endif  // PROMPT_FLASH_ATTENTION_ZERO_OUTPUT_H
