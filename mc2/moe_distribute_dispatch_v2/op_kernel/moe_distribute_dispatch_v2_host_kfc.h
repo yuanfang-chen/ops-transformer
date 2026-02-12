@@ -976,7 +976,6 @@ template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillQuadruple(LocalTensor<XType> &xOutTensor, uint32_t tokenIndex)
 {
-    //SyncFunc<AscendC::HardEvent::MTE3_S>();
     LocalTensor<int32_t> xOutTint32 = xOutTensor.template ReinterpretCast<int32_t>();
     LocalTensor<float> xoutTfloat32 = xOutTensor.template ReinterpretCast<float>();
     xOutTint32(sendXTypeElemAlign_) = epRankId_;      // 源rankId
@@ -997,8 +996,6 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillQuadruple(Local
     }
     DataCopyPadExtParams<float> expertScalePadParams{false, 0U, 0U, 0U};
     DataCopyPad(xoutTfloat32[moeExpertScalesAlign_], expertScalesGMTensor_[tokenIndex * axisK_], copyParams, expertScalePadParams);
-    //SyncFunc<AscendC::HardEvent::MTE2_V>();
-    // PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1014,15 +1011,11 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
                                                            SERVER_STATE_ALIGN + cnt * sendTokenLengthAlign_));
     uint64_t mask[1] = {0x0101010101010101};
     uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
-    //LogInfo(__LINE__,"repeatTime",repeatTime);
 
     LocalTensor<uint32_t> flagTensor = flagBuf_.Get<uint32_t>();
     Duplicate<uint32_t>(flagTensor, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
-    //PipeBarrier<PIPE_ALL>();
-    ////LogInfo(__LINE__,flagTensor ,tpipe_,8);
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-    //PipeBarrier<PIPE_V>();
 
     DataCopyExtParams dataCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), SPLIT_BLOCK_DATA_SIZE, 0U,
                                            UB_ALIGN, 0U};
@@ -1033,11 +1026,6 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
     DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor, flagCopyOutParams);
     //SyncFunc<AscendC::HardEvent::V_MTE3>();
     PipeBarrier<PIPE_ALL>();
-    // TBuf<> tempbuf;
-    // tpipe_->InitBuffer(tempbuf, sendTokenLengthAlign_);
-    // LocalTensor<uint32_t> tempTensor = tempbuf.Get<uint32_t>();
-    // DataCopy(tempTensor, flagDstWinGMTensor, sendTokenLengthAlign_ / sizeof(uint32_t)); // copy expertid
-    // //LogInfo(__LINE__,tempTensor ,tpipe_,128);
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1181,17 +1169,18 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(tempbuf, UB_ALIGN);
     LocalTensor<uint32_t> outTensor = tempbuf.Get<uint32_t>();
     outTensor(0) = 1;
-    PipeBarrier<PIPE_ALL>();
+    // PipeBarrier<PIPE_ALL>();
+    SyncFunc<AscendC::HardEvent::V_MTE3>();
     uint32_t flagOffset = SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t); // 前面的状态区的最后32B的第一个元素是flag位为1
     for (uint32_t index = startServerNum; index < endServerNum; index++) {
         dstStateGMTensor.SetGlobalBuffer((__gm__ uint32_t *)GetSendAddrBetweenServer(COMM_EP_IDX, index));
         DataCopy(dstStateGMTensor[flagOffset],outTensor,UB_ALIGN/sizeof(uint32_t));
     }
-    PipeBarrier<PIPE_ALL>();
-    for (uint32_t index = 0; index < serverNum_; index++) {
-        dstStateGMTensor.SetGlobalBuffer((__gm__ uint32_t *)GetSendAddrBetweenServer(COMM_EP_IDX, index));
-        //LogInfo(__LINE__,"SetServerFlag: " ,dstStateGMTensor(flagOffset));
-    }
+    // PipeBarrier<PIPE_ALL>();
+    // for (uint32_t index = 0; index < serverNum_; index++) {
+    //     dstStateGMTensor.SetGlobalBuffer((__gm__ uint32_t *)GetSendAddrBetweenServer(COMM_EP_IDX, index));
+    //     //LogInfo(__LINE__,"SetServerFlag: " ,dstStateGMTensor(flagOffset));
+    // }
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1453,7 +1442,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitToken(uint32_t 
             finishNum++;
             LOG_INFO("after if");
 
-            PipeBarrier<PIPE_ALL>();
+            // PipeBarrier<PIPE_ALL>();
         } else {
             index = (index + 1) % tokenCnt;
         }
@@ -1620,7 +1609,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::FillTriple(LocalTen
                                                                 uint32_t k, float expertScale)
 {
     ////LogInfo(__LINE__, "[FillTriple] start");
-    SyncFunc<AscendC::HardEvent::MTE3_S>();
+    // SyncFunc<AscendC::HardEvent::MTE3_S>();
     LocalTensor<int32_t> xOutTint32 = xOutTensor.template ReinterpretCast<int32_t>();
     LocalTensor<float> xOutTfloat = xOutTensor.template ReinterpretCast<float>();
     xOutTint32(tokenQuantAlign_) = srcRankIndex;
@@ -1684,7 +1673,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     DataCopyParams scaleInParams = {1U, static_cast<uint16_t>(scaleInBytes_), 0U, 0U};
 
     DataCopy(tokenData_, recvTmpTensor_, hAlignSize_ / sizeof(XType));
-    PipeBarrier<PIPE_ALL>();
+    // PipeBarrier<PIPE_ALL>();
     
     LocalTensor<uint32_t> xInTensor = recvTmpTensor_.template ReinterpretCast<uint32_t>();
     LocalTensor<float> xInToFloatTensor = recvTmpTensor_.template ReinterpretCast<float>();
@@ -1728,7 +1717,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         dstWinGMTensor.SetGlobalBuffer((__gm__ ExpandXOutType *)rankGM);
         ProcessToken(dstWinGMTensor, tokenIndex, topKIndex,
                     padParams, scaleInParams, dstExpertId + sharedExpertNum_, tokenData_, srcRankIndex, expertScale);
-        PipeBarrier<PIPE_ALL>();
+        // PipeBarrier<PIPE_ALL>();
     }
 
     // //LogInfo(__LINE__, "[SendToExpert] do share");
@@ -1759,10 +1748,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         dstWinGMTensor.SetGlobalBuffer((__gm__ ExpandXOutType *)rankGM);
         ProcessToken(dstWinGMTensor, tokenIndex, axisK_ + shareIndex,
                     padParams, scaleInParams, shareIndex, tokenData_, srcRankIndex, expertScale);
-        PipeBarrier<PIPE_ALL>();
+        //PipeBarrier<PIPE_ALL>();
     }
     //LogInfo(__LINE__, "[SendToExpert] end");
-    PipeBarrier<PIPE_ALL>();
+    // PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateDispatchKFCTypeClass>
