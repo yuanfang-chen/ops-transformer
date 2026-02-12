@@ -18,7 +18,7 @@
 #include "aclnn_allto_allv_grouped_mat_mul.h"
 #include "allto_allv_grouped_mat_mul_checker.h"
 
-namespace allto_allv_grouped_mat_mul_checker {
+namespace Mc2AlltoAllvGMMChecker {
 
 using namespace op;
 
