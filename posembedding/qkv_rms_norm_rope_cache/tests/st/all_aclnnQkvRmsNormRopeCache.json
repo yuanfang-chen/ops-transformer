@@ -35072,7 +35072,7 @@
                 "name": "kCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     4,
@@ -35091,7 +35091,7 @@
                 "name": "vCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     4,
@@ -35423,7 +35423,7 @@
                 "name": "kCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     4,
@@ -35442,7 +35442,7 @@
                 "name": "vCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     4,
@@ -35780,7 +35780,7 @@
                 "name": "kCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     16,
@@ -35799,7 +35799,7 @@
                 "name": "vCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     16,
@@ -36131,7 +36131,7 @@
                 "name": "kCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     16,
@@ -36150,7 +36150,7 @@
                 "name": "vCache",
                 "type": "tensor",
                 "required": true,
-                "dtype": "fp16",
+                "dtype": "int8",
                 "shape": [
                     11898,
                     16,
