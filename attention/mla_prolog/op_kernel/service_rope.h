@@ -16,6 +16,8 @@
 #ifndef SERVICE_ROPE_H
 #define SERVICE_ROPE_H
 
+#include "mla_prolog_comm.h"
+
 namespace MlaProlog {
 /**
  * @brief RotaryPosEmb, 同时做row行的RotaryPosEmb，每一行的元素为col
@@ -28,7 +30,7 @@ namespace MlaProlog {
  * @param col 待处理的列数  col <= 512 / sizeof(C)
  * @param sinCosRepStride 行与行之间sin/cos系数的偏移，单位为元素个数。
  */
-template <typename C>
+template <typename C, ROPE_MODE ropeMode = ROPE_MODE::INTERLEAVE_HALF>
 __aicore__ inline void RotaryPosEmb(const LocalTensor<C> &outputLocal, const LocalTensor<C> &inputLocal, const LocalTensor<C> &cosLocal,
                                     const LocalTensor<C> &sinLocal, const LocalTensor<uint8_t> &shareTmpUb, uint64_t row, uint64_t col,
                                     uint8_t sinCosRepStride) {
@@ -42,12 +44,24 @@ __aicore__ inline void RotaryPosEmb(const LocalTensor<C> &outputLocal, const Loc
         0,   // src0RepeatStride
         0    // src1RepeatStride
     };
-    // 取奇数索引元素
-    GatherMask(reArrLocal, inputLocal, 1, true,
-               col * row, gatherMaskParams, rsvdCnt);
-    // 取偶数索引元素
-    GatherMask(reArrLocal[cnt >> 1], inputLocal, 2, true,
-               col * row, gatherMaskParams, rsvdCnt);
+    if (ropeMode == ROPE_MODE::INTERLEAVE_HALF) {
+        // 取奇数索引元素
+        GatherMask(reArrLocal, inputLocal, 1, true,
+                   col * row, gatherMaskParams, rsvdCnt);
+        // 取偶数索引元素
+        GatherMask(reArrLocal[cnt >> 1], inputLocal, 2, true,
+                   col * row, gatherMaskParams, rsvdCnt);
+    } else {
+        uint32_t colHalf = col >> 1;
+        DataCopy(reArrLocal, inputLocal[colHalf], 
+                 {static_cast<uint16_t>(row), static_cast<uint16_t>(CeilDivT(colHalf, FP32_BLOCK_ELEMENT_NUM)),
+                 static_cast<uint16_t>(CeilDivT(static_cast<uint32_t>(col) - colHalf, FP32_BLOCK_ELEMENT_NUM)),
+                 static_cast<uint16_t>(CeilDivT(colHalf, FP32_BLOCK_ELEMENT_NUM))});
+        DataCopy(reArrLocal[colHalf], inputLocal, 
+                 {static_cast<uint16_t>(row), static_cast<uint16_t>(CeilDivT(colHalf, FP32_BLOCK_ELEMENT_NUM)),
+                 static_cast<uint16_t>(CeilDivT(static_cast<uint32_t>(col) - colHalf, FP32_BLOCK_ELEMENT_NUM)),
+                 static_cast<uint16_t>(CeilDivT(colHalf, FP32_BLOCK_ELEMENT_NUM))});
+    }
     AscendC::PipeBarrier<PIPE_V>();
     uint8_t blockNumPerRow = col / (ALIGN_BLOCK_SIZE / sizeof(C));
     uint8_t blockNumPerRowHalf = blockNumPerRow >> 1;
