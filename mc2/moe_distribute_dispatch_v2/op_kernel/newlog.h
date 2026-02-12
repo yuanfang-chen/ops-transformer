@@ -96,7 +96,7 @@ __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, con
 }
 
 template<typename T>
-__aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg,   const T num){
+__aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg,   const T num) {
     printf("[rankId: %d][aivId: %d][function: %s][line: %d] %s: ", rankId_, aivId_, func, line, msg);
     print_value(num);
     printf("\n");
