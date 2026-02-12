@@ -55,6 +55,8 @@ constexpr uint32_t ATTEN_MASK_COMPRESS_LIMIT = 2048;
 constexpr uint32_t BOOL_BLOCK_NUMS = 32;
 constexpr uint32_t DROPOUT4BIT_LEN = 16;
 constexpr uint64_t SUPPORT_DIM_NUM = 5;
+constexpr uint32_t ALIGNED_NUM_16 = 16;
+constexpr uint32_t ALIGNED_NUM_128 = 128;
 const int64_t UB_BASIC_LIMIT_SIZE = 8 * 1024;
 const int64_t SAB_TND_SIZE = 1024;
 
