@@ -24,6 +24,7 @@ constexpr uint32_t AICPU_OP_NOTIFY_MAX_NUM = 2;
 constexpr uint32_t AICPU_MAX_RANK_NUM = 128 * 1024;
 constexpr uint32_t TIME_CYCLE = 50; // 系统cycle数转换成时间的基准单位，固定为50
 
+
 struct HcclSignalInfo {
     uint64_t resId; // 在代表event时为eventid，notify时为notifyid
     uint64_t addr;

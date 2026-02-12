@@ -35,6 +35,8 @@
 
 using namespace AscendC;
 
+
+
 #define INVOKE_FIA_OP_GENERAL_IMPL(templateClass, CubeBlockType, VecBlockType, FdBlockType, ...)                       \
     do {                                                                                                               \
         using CubeBlockTypeT = CubeBlockType<FIAType<__VA_ARGS__>>;                                                    \
