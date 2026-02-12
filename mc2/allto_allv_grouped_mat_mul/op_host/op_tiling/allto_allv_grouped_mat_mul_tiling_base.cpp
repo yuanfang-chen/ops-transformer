@@ -455,6 +455,9 @@ ge::graphStatus AlltoAllvGmmTilingBase::GetMmWeightShapeInfo()
     if (context_->GetOptionalInputShape(MM_WEIGHT_INDEX) != nullptr) {
         n2_ = transMmWeight_ ? context_->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(DIM_ZERO) :
                                context_->GetOptionalInputShape(MM_WEIGHT_INDEX)->GetStorageShape().GetDim(DIM_ONE);
+    } else {
+        OP_TILING_CHECK(transMmWeight_ == true,
+            OP_LOGE(context_->GetNodeName(), "The transMmWeight should be false when mmWeight is null!"), return ge::GRAPH_FAILED);
     }
     OP_LOGD(context_->GetNodeName(), "end GetMmWeightShapeInfo.");
     return ge::GRAPH_SUCCESS;
