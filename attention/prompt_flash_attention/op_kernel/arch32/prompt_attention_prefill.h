@@ -27,6 +27,7 @@
 #include "unpad_flash_attention_common.h"
 
 #ifdef __CCE_KT_TEST__
+#undef __aicore__
 #define __aicore__
 #endif
 
