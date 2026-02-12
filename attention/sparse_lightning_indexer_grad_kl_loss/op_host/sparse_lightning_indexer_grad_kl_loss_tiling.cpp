@@ -22,6 +22,7 @@
 #include "platform/platform_info.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "sparse_lightning_indexer_grad_kl_loss_tiling_common.h"
+#include "tiling/mc2_tiling_utils.h"
 
 using std::map;
 using std::string;
@@ -48,7 +49,7 @@ ge::graphStatus TilingSparseLightningIndexerGradKLLoss(gert::TilingContext *cont
 {
     auto platformInfoPtr = context->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND950) {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         OP_LOGW(context, "Current soc version is ASCEND950.");
     } else {
         OP_LOGW(context, "Current soc version is not ASCEND950.");
