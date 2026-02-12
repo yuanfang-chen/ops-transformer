@@ -100,12 +100,21 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX, c
     auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
     int64_t noQuantMode = 0;
-    int64_t noQuantDtype = 0;
+    int64_t yDtype = gmmY->GetDataType();
+    int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
     int64_t groupSize = 0;
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX, gmmWeight, sendCountsTensorOptional,
-        recvCountsTensorOptional, mmXOptional, mmWeightOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, nullptr, group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight, permuteOutFlag,
-        noQuantMode, noQuantMode, noQuantMode, noQuantMode, groupSize, noQuantDtype, noQuantDtype, gmmY, mmYOptional,
+        recvCountsTensorOptional, mmXOptional, mmWeightOptional, 
+        nullptr, // gmmXScale
+        nullptr,  // gmmWeightScale
+        nullptr, // gmmXOffset
+        nullptr, // gmmWeightOffset
+        nullptr, // mmxScale
+        nullptr, // mmWeightScale
+        nullptr, // mmxOffset
+        nullptr, // mmWeightOffset
+        group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight, permuteOutFlag,
+        noQuantMode, noQuantMode, noQuantMode, noQuantMode, groupSize, yDtype, mmDtype, gmmY, mmYOptional,
         permuteOutOptional, workspaceSize, executor);
     return ret;
 }
@@ -114,7 +123,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMul(void *workspace, uint64_t workspaceSize,
     aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
-        if (op::GetCurrentPlatformInfo().GetSocVersion() == op::SocVersion::ASCEND950) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
