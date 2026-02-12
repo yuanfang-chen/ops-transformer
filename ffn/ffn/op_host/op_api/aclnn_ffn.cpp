@@ -717,6 +717,7 @@ static aclnnStatus CheckOptionalParams(FFNParams &ffnParams)
 static aclnnStatus CheckFormat(const FFNParams &ffnParams)
 {
     bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
+    bool is950 = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND950;
     op::Format xFormat = ffnParams.x->GetStorageFormat();
     op::Format weight1Format = ffnParams.weight1->GetStorageFormat();
     op::Format weight2Format = ffnParams.weight2->GetStorageFormat();

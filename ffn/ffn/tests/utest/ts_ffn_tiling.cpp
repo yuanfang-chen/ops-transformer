@@ -28,6 +28,13 @@ TEST_P(Ts_FFN_WithParam_Ascend910B3, Tc_Tiling_FFN)
     ASSERT_EQ(case_->Run(), case_->mOpInfo.mExp.mSuccess);
 }
 
+// Test for SocVersion::ASCEND950
+TEST_P(Ts_FFN_WithParam_Ascend950, Tc_Tiling_FFN)
+{
+    ASSERT_TRUE(case_->Init());
+    ASSERT_EQ(case_->Run(), case_->mOpInfo.mExp.mSuccess);
+}
+
 const auto Tc_FFN_Tiling310P_Case = ::testing::Values(FFNCase(
     "FFN_Moe_Case0", true, "",                                /* CaseName, Enable, DebugInfo */
     OpInfo(ControlInfo(true, false), ExpectInfo(true, 0, 7)), /* ExpectSuccess, ExpectTilingKey, ExpectTilingBlockDim */

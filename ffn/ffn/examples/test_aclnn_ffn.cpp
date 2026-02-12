@@ -13,6 +13,8 @@
 #include "acl/acl.h"
 #include "aclnnop/aclnn_ffn_v3.h"
 
+// Test for SocVersion::ASCEND950 support
+
 #define CHECK_RET(cond, return_expr) \
   do {                               \
     if (!(cond)) {                   \

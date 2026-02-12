@@ -162,6 +162,7 @@ public:
 
         this->AICore().AddConfig("ascend910b", aicoreConfig);
         this->AICore().AddConfig("ascend910_93", aicoreConfig);
+        this->AICore().AddConfig("ascend950", aicoreConfig);
         aicoreConfig.Input("x")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16})
@@ -242,6 +243,16 @@ public:
         OpAICoreConfig config_kirin = GetKirinCoreConfig();
         this->AICore().AddConfig("kirinx90", config_kirin);
         this->AICore().AddConfig("kirin9030", config_kirin);
+
+        // Add support for SocVersion::ASCEND950
+        OpAICoreConfig config_950;
+        config_950.DynamicCompileStaticFlag(true)
+            .DynamicFormatFlag(true)
+            .DynamicRankSupportFlag(true)
+            .DynamicShapeSupportFlag(true)
+            .NeedCheckSupportFlag(false)
+            .PrecisionReduceFlag(true);
+        this->AICore().AddConfig("ascend950", config_950);
     }
 
 private:
