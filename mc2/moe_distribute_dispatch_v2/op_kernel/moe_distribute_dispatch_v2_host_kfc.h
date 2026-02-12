@@ -520,7 +520,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     moeUsedAivNum_ = aivNum_ - sharedUsedAivNum_;
     dealRankPerCore_ = (recvWinBlockNum_ + aivNum_ - 1) / aivNum_;
     stateOffset_ = STATE_OFFSET;
-    // PipeBarrier<PIPE_ALL>();
     if (isShareExpertRankFlag_) { // 当前卡是共享专家卡
         rscvStatusNum_ = epWorldSize_;
     } else { // 当前卡是moe专家卡
@@ -579,7 +578,7 @@ __aicore__ inline void
 MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitSetWindows(const MoeDistributeDispatchV2TilingData *tilingData)
 {
     LogInfo(__LINE__, "start InitSetWindows");
-    PipeBarrier<PIPE_V>();
+    // PipeBarrier<PIPE_V>();
 #if defined(ASCENDC_OOM) && ASCENDC_OOM == 1
     for (int tempepRankId = 0; tempepRankId < epWorldSize_; tempepRankId++) {
         OOMCheckAddrRange<ExpandXOutType>((__gm__ ExpandXOutType *)(GetWindAddrByRankId(COMM_EP_IDX, tempepRankId)),
