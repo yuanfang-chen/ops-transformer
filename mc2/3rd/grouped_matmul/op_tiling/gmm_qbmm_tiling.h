@@ -18,6 +18,7 @@
 #include "grouped_matmul_tiling.h"
 #include "../../../op_kernel/3rd/grouped_matmul_tiling_data_apt.h"
 #include "tiling_base/tiling_base.h"
+
 namespace optiling {
 namespace Mc2GroupedMatmulTiling {
 namespace GmmConstant {
@@ -149,13 +150,13 @@ struct GQmmInputInfo {
     bool isSingleY = false;
 };
 
-class GroupedQbmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class Mc2GroupedQbmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit GroupedQbmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
+    explicit Mc2GroupedQbmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
     {
         Reset();
     }
-    ~GroupedQbmmTiling() override = default;
+    ~Mc2GroupedQbmmTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
     {
