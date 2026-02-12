@@ -236,7 +236,7 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
-    <td>ep通信域size：Ascend 950PR/Ascend 950DT支持2、4、8、16、32、64。</td>
+    <td>ep通信域size：Ascend 950PR/Ascend 950DT支持2、4、8、16、32、64、128、256。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
@@ -285,14 +285,14 @@ aclnnStatus aclnnQuantAlltoAllvGroupedMatMul(
     <tr>
     <td>gmmY</td>
     <td>输出</td>
-    <td>最终的计算结果，数据类型与输入gmmX保持一致，支持2维，shape为(A, N1)。</td>
+    <td>最终的计算结果，支持2维，shape为(A, N1)。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     </tr>
     <tr>
     <td>mmYOptional</td>
     <td>输出</td>
-    <td>共享专家MatMul的输出，数据类型与mmXOptional保持一致，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
+    <td>共享专家MatMul的输出，数据类型与gmmY保持一致，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     </tr>
