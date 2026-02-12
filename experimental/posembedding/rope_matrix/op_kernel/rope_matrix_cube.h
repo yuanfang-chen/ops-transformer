@@ -25,6 +25,8 @@ __aicore__ inline uint32_t Ceiling(uint32_t a, uint32_t b)
     return (a + b - 1) / b;
 }
 
+
+
 template <typename A_T, typename B_T, typename C_T>
 class MatmulBatchKernel {
 public:
