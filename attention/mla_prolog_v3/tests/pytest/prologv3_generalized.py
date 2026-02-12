@@ -10,6 +10,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+import os
 import torch
 import torch_npu
 import check_valid_param
@@ -23,6 +24,18 @@ COLOR_YELLOW = "\033[33m"
 YELLOW_RESET = "\033[0m"
 COLOR_GREEN = "\033[32m"
 GREEN_RESET = "\033[0m"
+
+
+def _info_log_enabled():
+    return os.getenv("MLA_PROLOG_V3_CPU_INFO_LOG", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+INFO_LOG_ENABLED = _info_log_enabled()
+
+
+def info_log(message):
+    if INFO_LOG_ENABLED:
+        print(message)
 
 
 # ===================== Helper Functions =====================
@@ -414,9 +427,9 @@ class GeneralizedPrologV3:
         else:
             index_table = index_table.reshape(-1) if index_table.numel() > 0 else index_table
 
-        print("[INFO]========================================")
-        print("[INFO]>>>>>>>>  Start to calculate  >>>>>>>>>>")
-        print("[INFO]========================================")
+        info_log("[INFO]========================================")
+        info_log("[INFO]>>>>>>>>  Start to calculate  >>>>>>>>>>")
+        info_log("[INFO]========================================")
 
         # -------------------------------------------------------------------
         # matmul1 : token_x(B*S1,He) * w_dq(He,Hcq) -> matmul1_res(B*S1,Hcq)
@@ -428,8 +441,8 @@ class GeneralizedPrologV3:
             w_dq = w_dq.to(torch.int32)
             matmul1_dtype = torch.int32
 
-        print(f"[INFO]matmul1 start. token_x:{tuple(token_x.shape)}|{token_x.dtype}"
-              f" w_dq:{tuple(w_dq.shape)}|{w_dq.dtype}")
+        info_log(f"[INFO]matmul1 start. token_x:{tuple(token_x.shape)}|{token_x.dtype}"
+                 f" w_dq:{tuple(w_dq.shape)}|{w_dq.dtype}")
         token_x_new = token_x_new.to(torch.float32)
         w_dq = w_dq.to(torch.float32)
         matmul1_res = torch.matmul(token_x_new, w_dq).to(matmul1_dtype)
@@ -441,10 +454,10 @@ class GeneralizedPrologV3:
                 matmul1_res[t_index, :] = matmul1_res[t_index, :] * deq_scale_x[t_index, 0]
             for h_index in range(Hcq):
                 matmul1_res[:, h_index] = matmul1_res[:, h_index] * deq_scale_w_dq[0, h_index]
-            print(f"[INFO]deq1 end. matmul1_res dtype={matmul1_res.dtype}")
+            info_log(f"[INFO]deq1 end. matmul1_res dtype={matmul1_res.dtype}")
         else:
             matmul1_res = matmul1_res.to(torch.bfloat16).to(torch.float32)
-        print(f"[INFO]matmul1 end. matmul1_res:{tuple(matmul1_res.shape)}|{matmul1_res.dtype}")
+        info_log(f"[INFO]matmul1 end. matmul1_res:{tuple(matmul1_res.shape)}|{matmul1_res.dtype}")
 
         # ----------------------------------------------------------------------
         # rmsnorm1 : matmul1_res(B*S1,Hcq) * gamma_cq(Hcq) -> norm1_res(B*S1,Hcq)
@@ -453,7 +466,7 @@ class GeneralizedPrologV3:
         norm1_res = matmul1_res / torch.sqrt(torch.mean(matmul1_res ** 2, dim=-1, keepdim=True) + ep1)
         norm1_res *= gamma_cq
         norm1_res *= qc_qr_scale
-        print(f"[INFO]rmsnorm1 end. norm1_res:{tuple(norm1_res.shape)}|{norm1_res.dtype}")
+        info_log(f"[INFO]rmsnorm1 end. norm1_res:{tuple(norm1_res.shape)}|{norm1_res.dtype}")
 
         # ----------------------------------------------------------------------------------
         # matmul2 : norm1_res(B*S1,Hcq) * w_uq_qr(Hcq,N*(D+Dr)) -> matmul2_res(B*S1,N,(D+Dr))
@@ -464,7 +477,7 @@ class GeneralizedPrologV3:
             w_uq_qr = w_uq_qr.to(torch.int32)
             matmul2_dtype = torch.int32
             norm1_res, deq_scale_qcqr = dynamic_quant(norm1_res, smooth_scale_cq)
-            print(f"[INFO]dynamic_quant end. norm1_res dtype={norm1_res.dtype}")
+            info_log(f"[INFO]dynamic_quant end. norm1_res dtype={norm1_res.dtype}")
         else:
             norm1_res = norm1_res.to(torch.bfloat16).to(torch.float32)
 
@@ -479,18 +492,18 @@ class GeneralizedPrologV3:
                 matmul2_res[t_index, :] = matmul2_res[t_index, :] * deq_scale_qcqr[t_index]
             for nddr_index in range(matmul2_res.shape[1]):
                 matmul2_res[:, nddr_index] = matmul2_res[:, nddr_index] * deq_scale_w_uqqr[0, nddr_index]
-            print(f"[INFO]deq2 end. matmul2_res dtype={matmul2_res.dtype}")
+            info_log(f"[INFO]deq2 end. matmul2_res dtype={matmul2_res.dtype}")
         else:
             matmul2_res = matmul2_res.to(torch.bfloat16).to(torch.float32)
         matmul2_res = matmul2_res.reshape(T, N1, D + Dr)
-        print(f"[INFO]matmul2 end. matmul2_res:{tuple(matmul2_res.shape)}|{matmul2_res.dtype}")
+        info_log(f"[INFO]matmul2 end. matmul2_res:{tuple(matmul2_res.shape)}|{matmul2_res.dtype}")
 
         # -------------------------------------------------------------------------------------
         # splitD1 : matmul2_res -> splitd1_res1(B*S1,N,D) & splitd1_res2(B*S1,N,Dr)
         # -------------------------------------------------------------------------------------
         splitd1_res1 = matmul2_res[:, :, :D]
         splitd1_res2 = matmul2_res[:, :, D:]
-        print(f"[INFO]splitD1 end. res1:{tuple(splitd1_res1.shape)} res2:{tuple(splitd1_res2.shape)}")
+        info_log(f"[INFO]splitD1 end. res1:{tuple(splitd1_res1.shape)} res2:{tuple(splitd1_res2.shape)}")
 
         # -------------------------------------------------------------------------
         # matmul3 : splitd1_res1(B*S1,N,D) * w_uk(N,D,Hckv) -> out1(B,S1,N,Hckv)
@@ -511,7 +524,7 @@ class GeneralizedPrologV3:
             out1 = out1.to(torch.bfloat16).to(torch.float32)
             out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
         out1 = out1 if t_flag else out1.reshape(B, S1, N1, Hckv)
-        print(f"[INFO]matmul3 end. {COLOR_YELLOW}out1:{out1.shape}|{out1.dtype}{YELLOW_RESET}")
+        info_log(f"[INFO]matmul3 end. {COLOR_YELLOW}out1:{out1.shape}|{out1.dtype}{YELLOW_RESET}")
 
         # -------------------------------------------------------------------------------------
         # rotary1 : splitd1_res2(B*S1,N,Dr) * cos/sin -> out2(B,S1,N,Dr)
@@ -524,7 +537,7 @@ class GeneralizedPrologV3:
             out2 = out2.to(torch.bfloat16).to(torch.float32)
             out2 = dequant(out2, deq_scale_q_nope, quant_scale_ckv)
         out2 = out2 if t_flag else out2.reshape(B, S1, N1, Dr)
-        print(f"[INFO]rotary1 end. {COLOR_YELLOW}out2:{tuple(out2.shape)}|{out2.dtype}{YELLOW_RESET}")
+        info_log(f"[INFO]rotary1 end. {COLOR_YELLOW}out2:{tuple(out2.shape)}|{out2.dtype}{YELLOW_RESET}")
 
         # -------------------------------------------------------------------------------
         # matmul4 : token_x(B*S1,He) * w_dkv_kr(He,Hckv+Dr) -> matmul4_res(B*S1,Hckv+Dr)
@@ -543,17 +556,17 @@ class GeneralizedPrologV3:
                 matmul4_res[t_index, :] = matmul4_res[t_index, :] * deq_scale_x[t_index, 0]
             for h_index in range(Hckv + Dr):
                 matmul4_res[:, h_index] = matmul4_res[:, h_index] * deq_scale_w_dkvkr[0, h_index]
-            print(f"[INFO]deq3 end. matmul4_res dtype={matmul4_res.dtype}")
+            info_log(f"[INFO]deq3 end. matmul4_res dtype={matmul4_res.dtype}")
         else:
             matmul4_res = matmul4_res.to(torch.bfloat16).to(torch.float32)
-        print(f"[INFO]matmul4 end. matmul4_res:{tuple(matmul4_res.shape)}|{matmul4_res.dtype}")
+        info_log(f"[INFO]matmul4 end. matmul4_res:{tuple(matmul4_res.shape)}|{matmul4_res.dtype}")
 
         # -------------------------------------------------------------------------------------
         # splitD2 : matmul4_res -> splitd2_res1(B*S1,Hckv) & splitd2_res2(B*S1,Dr)
         # -------------------------------------------------------------------------------------
         splitd2_res1 = matmul4_res[:, :Hckv]
         splitd2_res2 = matmul4_res[:, Hckv:]
-        print(f"[INFO]splitD2 end. res1:{tuple(splitd2_res1.shape)} res2:{tuple(splitd2_res2.shape)}")
+        info_log(f"[INFO]splitD2 end. res1:{tuple(splitd2_res1.shape)} res2:{tuple(splitd2_res2.shape)}")
 
         # ----------------------------------------------------------------------------
         # rmsnorm2 : splitd2_res1(B*S1,Hckv) * gamma_ckv(Hckv) -> norm2_res(B*S1,Hckv)
@@ -561,7 +574,7 @@ class GeneralizedPrologV3:
         ep2 = float(ckv_epsilon)
         norm2_res = splitd2_res1 / torch.sqrt(torch.mean(splitd2_res1 ** 2, dim=-1, keepdim=True) + ep2)
         norm2_res *= gamma_ckv
-        print(f"[INFO]rmsnorm2 end. norm2_res:{tuple(norm2_res.shape)}|{norm2_res.dtype}")
+        info_log(f"[INFO]rmsnorm2 end. norm2_res:{tuple(norm2_res.shape)}|{norm2_res.dtype}")
 
         Dtile = Hckv
         # rmsnorm2 post-processing: kv cache quantization
@@ -571,7 +584,7 @@ class GeneralizedPrologV3:
                 norm2_res = torch.from_numpy(np.asarray(norm2_res_np, dtype=np.float32))
             else:
                 norm2_res = quant(norm2_res, quant_scale_ckv)
-            print(f"[INFO]quant1 end. norm2_res dtype={norm2_res.dtype}")
+            info_log(f"[INFO]quant1 end. norm2_res dtype={norm2_res.dtype}")
         elif kv_quant_mode == 3:
             tile_size = self.tile_size
             norm2_res = norm2_res.reshape(T, Hckv // tile_size, tile_size)
@@ -604,11 +617,11 @@ class GeneralizedPrologV3:
         sin_flat = sin.reshape(T, Dr)
         k = splitd2_res2.reshape(T, 1, int(Dr / 2), 2).transpose(3, 2).reshape(T, Dr)
         rotary2_res = (k * cos_flat) + (rotate_half(k) * sin_flat)
-        print(f"[INFO]rotary2 end. rotary2_res:{tuple(rotary2_res.shape)}|{rotary2_res.dtype}")
+        info_log(f"[INFO]rotary2 end. rotary2_res:{tuple(rotary2_res.shape)}|{rotary2_res.dtype}")
         # rotary2 post-processing: quantize if weight_quant_mode==1 and kv_quant_mode==2
         if weight_quant_mode == 1 and kv_quant_mode == 2:
             rotary2_res = quant(rotary2_res, quant_scale_ckr)
-            print(f"[INFO]quant2 end. rotary2_res dtype={rotary2_res.dtype}")
+            info_log(f"[INFO]quant2 end. rotary2_res dtype={rotary2_res.dtype}")
 
         # Determine scatter dtype info
         pa_flag = cache_mode.startswith("PA")
@@ -648,8 +661,8 @@ class GeneralizedPrologV3:
         else:
             norm2_res_scatter = norm2_res
 
-        print(f"[INFO]scatter1 start. norm2_res:{tuple(norm2_res_scatter.shape)}|{norm2_res_scatter.dtype}"
-              f" kv_cache:{tuple(kv_cache.shape)}|{kv_cache.dtype}")
+        info_log(f"[INFO]scatter1 start. norm2_res:{tuple(norm2_res_scatter.shape)}|{norm2_res_scatter.dtype}"
+                 f" kv_cache:{tuple(kv_cache.shape)}|{kv_cache.dtype}")
 
         if cache_mode == "PA_BLK_NZ":
             kv_cache = scatter_pa_blk_nz(kv_cache, norm2_res_scatter, index_table, S1, B, kv_scatter_size)
@@ -675,7 +688,7 @@ class GeneralizedPrologV3:
                 for j in range(N2):
                     kv_cache[i, j, :] = norm2_res_scatter[i, :]
         out3 = kv_cache.reshape(out3_shape)
-        print(f"[INFO]scatter1 end. {COLOR_YELLOW}out3:{tuple(out3.shape)}|{out3.dtype}{YELLOW_RESET}")
+        info_log(f"[INFO]scatter1 end. {COLOR_YELLOW}out3:{tuple(out3.shape)}|{out3.dtype}{YELLOW_RESET}")
 
         # ----------------------------------------------------------------------------------------------
         # scatter2 : rotary2_res(B*S1,Dr) -> kr_cache
@@ -699,8 +712,8 @@ class GeneralizedPrologV3:
                 kr_cache = kr_cache.to(torch.bfloat16)
                 rotary2_scatter = rotary2_res.to(torch.bfloat16)
 
-            print(f"[INFO]scatter2 start. rotary2:{tuple(rotary2_scatter.shape)}|{rotary2_scatter.dtype}"
-                  f" kr_cache:{tuple(kr_cache.shape)}|{kr_cache.dtype}")
+            info_log(f"[INFO]scatter2 start. rotary2:{tuple(rotary2_scatter.shape)}|{rotary2_scatter.dtype}"
+                     f" kr_cache:{tuple(kr_cache.shape)}|{kr_cache.dtype}")
 
             if cache_mode == "PA_BLK_NZ":
                 kr_cache = scatter_pa_blk_nz(kr_cache, rotary2_scatter, index_table, S1, B, kr_scatter_size)
@@ -726,11 +739,11 @@ class GeneralizedPrologV3:
                     for j in range(N2):
                         kr_cache[i, j, :] = rotary2_scatter[i, :]
             out4 = kr_cache.reshape(out4_shape)
-            print(f"[INFO]scatter2 end. {COLOR_YELLOW}out4:{tuple(out4.shape)}|{out4.dtype}{YELLOW_RESET}")
+            info_log(f"[INFO]scatter2 end. {COLOR_YELLOW}out4:{tuple(out4.shape)}|{out4.dtype}{YELLOW_RESET}")
 
-        print("[INFO]========================================")
-        print("[INFO]>>>>>>>>   Calculate success  >>>>>>>>>>")
-        print("[INFO]========================================")
+        info_log("[INFO]========================================")
+        info_log("[INFO]>>>>>>>>   Calculate success  >>>>>>>>>>")
+        info_log("[INFO]========================================")
 
         return {
             "outputs": _build_expected_kernel_outputs(out1, out2, deq_scale_q_nope),

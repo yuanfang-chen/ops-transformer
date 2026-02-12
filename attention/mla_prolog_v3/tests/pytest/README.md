@@ -3,19 +3,21 @@
 ## 文件结构
 
 pytest/
-- test.py                      # pytest泛化测试用例运行主程序
-- testcases.py                    # 泛化测试用例入参配置
-- check_valid_param.py            # 入参检查及精度对比
-- prologv3_no_quant_pa_bsnd.py       # CPU侧算子逻辑实现获取golden，npu算子直调
-- prologv3_generalized.py         # 全量化/全cache_mode泛化CPU参考实现与NPU调用
-- pytest.ini                      # 创建ci、graph、fuzz测试标记
+- `test.py`                         # pytest泛化测试入口（CI + Fuzz）
+- `testcases.py`                    # 测试参数空间配置
+- `check_valid_param.py`            # 入参与结果校验
+- `prologv3_generalized.py`         # CPU参考实现与NPU调用封装
+- `prologv3_no_quant_pa_bsnd.py`    # 历史参考脚本（非泛化主路径）
+- `pytest.ini`                      # pytest marker定义
 
 ## 功能说明
 
 基于pytest测试框架，实现MlaPrologV3算子的功能验证：
-- **CPU侧**：复现算子功能用以生成golden数据
-- **NPU侧**：通过torch_npu进行算子直调获取实际数据， 通过torchair入图暂不支持
-- **精度对比**：进行CPU与NPU结果的精度对比验证算子功能
+- CPU侧：复现算子逻辑，生成参考结果
+- NPU侧：通过 `torch_npu.npu_mla_prolog_v3` 直调算子
+- 对比方式：同时校验
+- `outputs`：`query`、`query_rope`、`dequant_scale_q_nope`、`query_norm`、`dequant_scale_q_norm`
+- `inplace`：`kv_cache`、`kr_cache` 原地更新结果
 
 ### 当前实现范围
 
@@ -27,6 +29,7 @@ pytest/
 - **数据格式**：BF16
 - **B**：Batch表示输入样本批量大小，取值范围为1~65536。
 - **S**：Seq-Length表示输入样本序列长度，取值范围为1~16。
+- **S2说明**：当前pytest实现中 `S2` 跟随 `S1`，即 `S2 = S1`。`kv_seq` 已从参数化中移除。
 - **He**：Head-Size表示隐藏层的大小，取值为7168。
 - **Hcq**：q低秩矩阵维度，取值为1536。
 - **N**：Head-Num表示多头数，取值范围为8、16、32、64、128。
@@ -47,6 +50,12 @@ pytest/
 - **qc_qr_scale**: Query的尺度矫正系数，默认值为1.0。
 - **kc_scale**: Key的尺度矫正系数，默认值为1.0。
 
+### 精度规则
+
+- `int8` 输出：允许逐元素绝对误差 `<= 1`
+- 其他整型/布尔输出：严格相等
+- 浮点输出：按dtype使用对应 `rtol/atol`
+
 ## 环境配置
 
 ### 前置要求
@@ -63,17 +72,17 @@ pytest/
 在pytest文件夹路径下执行：
 
 ### 运行方式：运行泛化测试用例
-单算子直调+图模式
+默认运行
 ```bash
 python3 -m pytest -rA -s test.py
 ```
 
-单算子直调
+CI用例
 ```bash
 python3 -m pytest -rA -s test.py -v -m ci
 ```
 
-图模式
+图模式（若有对应用例）
 ```bash
 python3 -m pytest -rA -s test.py -v -m graph
 ```
@@ -86,3 +95,4 @@ MLA_PROLOG_V3_ENABLE_FUZZ=1 python3 -m pytest -rA -s test.py -v -m fuzz
 可选环境变量：
 - `MLA_PROLOG_V3_FUZZ_CASES`：随机用例数，默认 `20`
 - `MLA_PROLOG_V3_FUZZ_SEED`：随机种子，默认 `3`
+- `MLA_PROLOG_V3_CPU_INFO_LOG`：CPU参考实现INFO日志开关，默认 `0`（关闭），`1` 为开启
