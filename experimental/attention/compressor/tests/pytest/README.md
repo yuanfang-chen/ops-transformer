@@ -32,15 +32,17 @@
 - compressor_golden.py                      # cpu侧算子golden实现
 - result_compare_method.py                  # cpu golden与npu输出精度对比
 - pytest.ini                                # 创建ci单算子和graph图模式的测试标记
-单用例测试
+
+单用例测试:
 - test_compressor_single.py                 # 测试单用例运行主程序
 - compressor_operator_single.py             # CPU侧算子逻辑实现获取golden与npu算子直调
 - test_compressor_paramset.py               # 单用例入参配置
-批量用例测试
+
+批量用例测试:
 - test_compressor_batch.py                  # 用例批量测试主程序并生成excel文件保存结果
 - ./batch/compressor_pt_loadprocess.py      # 读取pt文件并调用算子获取npu输出
 - ./batch/compressor_pt_save.py             # 读取excel表格批量生成用例pt文件
- 
+
 
 ## 使用方法
 在pytest文件夹路径下执行：

@@ -65,5 +65,5 @@ kv_quant_sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm
 
     SAS_OP_IMPL(BaseApi::KvQuantSparseAttnSharedkvScfa, KvQuantSparseAttnSharedkvTilingData, bfloat16_t,
         fp8_e4m3fn_t, float, bfloat16_t, FLASH_DECODE, true, static_cast<SAS_LAYOUT>(LAYOUT_T),
-        static_cast<SAS_KV_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE));
+        static_cast<SAS_LAYOUT>(KV_LAYOUT_T), static_cast<SASTemplateMode>(TEMPLATE_MODE));
 }

@@ -158,25 +158,15 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckExistence() {
 
 bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
     uint32_t actSeqLenQSize = 0;
-    if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+    if (layoutQuery_ == "TND" && actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
         auto shape = actSeqLenQ_->GetTensorShape();
-        const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
-        if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
-            actSeqLenQSize = shape->GetDimSize(0) - 1;
-        } else {
-            actSeqLenQSize = shape->GetDimSize(0);
-        }
+        actSeqLenQSize = shape->GetDimSize(0);
     }
     
     uint32_t actSeqLenKeySize = 0;
-    if (actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
+    if (layoutKey_ == "TND" && actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
         auto shape = actSeqLenKey_->GetTensorShape();
-        const int32_t *s1Ptr = (int32_t*)actSeqLenKey_->GetData();
-        if (s1Ptr[0] == 0 && layoutKey_ == "TND") {
-            actSeqLenKeySize = shape->GetDimSize(0) - 1;
-        } else {
-            actSeqLenKeySize = shape->GetDimSize(0);
-        }
+        actSeqLenKeySize = shape->GetDimSize(0);
     }
 
     if (actSeqLenKeySize == 0 && actSeqLenQSize == 0 && batchSize_ == 0) {
@@ -232,22 +222,12 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         attentionMode_ = 1;
     }
     groupSize_ = numHeadsQ_ / numHeadsK_;
-    if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+    if (layoutQuery_ == "TND" && actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
         auto shape = actSeqLenQ_->GetTensorShape();
-        const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
-        if (s1Ptr[0] == 0 && layoutQuery_ == "TND") {
-            batchSize_ = shape->GetDimSize(0) - 1;
-        } else {
-            batchSize_ = shape->GetDimSize(0);
-        }
-    } else if(actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
+        batchSize_ = shape->GetDimSize(0);
+    } else if(layoutKey_ == "TND" && actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
         auto shape = actSeqLenKey_->GetTensorShape();
-        const int32_t *s1Ptr = (int32_t*)actSeqLenKey_->GetData();
-        if (s1Ptr[0] == 0 && layoutKey_ == "TND") {
-            batchSize_ = shape->GetDimSize(0) - 1;
-        } else {
-            batchSize_ = shape->GetDimSize(0);
-        }
+        batchSize_ = shape->GetDimSize(0);
     }
     
     ValidSocVersion validSocVersion = ProcessSocVersion();
