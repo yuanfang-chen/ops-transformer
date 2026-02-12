@@ -307,7 +307,10 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeConstexpr()
 template <typename QSFAT>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitUniqueConstInfo()
 {
-    this->constInfo.actualSeqLenSize = this->sharedParams.bSize + 1;
+    //[lz todo] qsfa中应该是 bsize
+    // this->constInfo.actualSeqLenSize = this->sharedParams.bSize + 1;
+    this->constInfo.actualSeqLenSize = this->sharedParams.bSize;
+    // this->constInfo.actualSeqLenSize = this->sharedParams.bSize + 1;
     this->constInfo.actualSeqLenKVSize = this->sharedParams.bSize;
     this->constInfo.isActualLenDimsKVNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsKVNull);
 }

@@ -36,8 +36,15 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
     int32_t sIdx = runParam.boIdx;
     if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
         // actual seq length first
-        actualS1Size = (actualSeqQlenAddr == nullptr) ? (cuSeqlensQAddr[sIdx + 1] - cuSeqlensQAddr[sIdx]) :
-            actualSeqQlenAddr[sIdx];
+        // [lz todo] 计算actualSeqLen
+        if (actualSeqQlenAddr == nullptr) {
+            actualS1Size = (sIdx == 0) ? actualSeqQlenAddr[0] :
+                actualSeqQlenAddr[sIdx] - actualSeqQlenAddr[sIdx - 1];
+        } else {
+            actualS1Size = actualSeqQlenAddr[sIdx];
+        }
+        // actualS1Size = (actualSeqQlenAddr == nullptr) ? (cuSeqlensQAddr[sIdx + 1] - cuSeqlensQAddr[sIdx]) :
+            // actualSeqQlenAddr[sIdx];
     } else {
         actualS1Size = (actualSeqQlenAddr == nullptr) ? constInfo.s1Size :
             actualSeqQlenAddr[sIdx];
@@ -185,8 +192,9 @@ template <typename QSFAT>
 __aicore__ inline bool ComputeLastBN(RunParamStr& runParam, __gm__ int32_t *cuSeqlensQAddr) 
 {
     if constexpr (QSFAT::layout == QSFA_LAYOUT::TND) {
+        // [lz todo]
         // TND格式下 相邻Batch中当actualSeqQlen相等时则返回true
-        if (runParam.boIdx > 0 && cuSeqlensQAddr[runParam.boIdx + 1] - cuSeqlensQAddr[runParam.boIdx] == 0) {
+        if (runParam.boIdx > 0 && ((runParam.boIdx == 0 && cuSeqlensQAddr[runParam.boIdx] == 0) || (cuSeqlensQAddr[runParam.boIdx] - cuSeqlensQAddr[runParam.boIdx - 1] == 0))) {
             return true;
         }
     }
