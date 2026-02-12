@@ -16,9 +16,8 @@
 #include "aclnn_mhc_post.h"
 #include "mhc_post.h"
 
-#include <dlfcn.h>
-#include <new>
-
+#include "aclnn_kernels/contiguous.h"
+#include "external/aclnn_kernels/aclnn_platform.h"
 #include "aclnn/aclnn_base.h"
 #include "acl/acl.h"
 #include "aclnn_kernels/common/op_error_check.h"
