@@ -710,7 +710,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
 {
     // 处理非连续Tensor，目前支持转置的gmmWeight涉及该处理
     CHECK_RET(CheckGmmWeightValid(gmmWeight), ACLNN_ERR_PARAM_NULLPTR);	// 先检查gmmWeight是否合法，避免非法操作
-    bool notContiguous = IsTransposeLastTwoDims(gmmWeight);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致gmmWeight非连续
+    bool notContiguous = IsTransposeLastTwoDims(gmmWeight);    // notContiguous标识gmmWeight是否是非连续的，通常在pytorch经过.t()会导致gmmWeight非连续
     auto transposeGmmWeight = gmmWeight;    // 复制一个gmmWeight
     if (notContiguous && transGmmWeight) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmWeight not contiguous, and set gmmWeight transpose, it is error!");
