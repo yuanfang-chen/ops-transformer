@@ -1018,7 +1018,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
                                                                  SERVER_STATE_ALIGN + cnt * sendTokenLengthAlign_));
     flagDstWinGMTensor.SetGlobalBuffer((__gm__ uint32_t *)(GetSendAddrBetweenServer(COMM_EP_IDX, dstServerId) +
                                                            SERVER_STATE_ALIGN + cnt * sendTokenLengthAlign_));
-    SyncFunc<AscendC::HardEvent::V_MTE3>();
+    // SyncFunc<AscendC::HardEvent::V_MTE3>();
     SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
 
     DataCopyExtParams dataCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), SPLIT_BLOCK_DATA_SIZE, 0U,
@@ -1035,7 +1035,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
                                                                                                uint32_t dstServerId,
                                                                                                uint32_t cnt)
 {
-    LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>(); 
+    LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>();
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     DataCopyPadParams copyPadExtParams{true, 0U, 0U, 0U};
     DataCopyPad(sendTokenTensor, xGMTensor_[tokenIndex * axisH_], xCopyParams_, copyPadExtParams);
