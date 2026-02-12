@@ -1936,12 +1936,13 @@ static bool IsPerTileQuantMode(gmm::GroupedMatmulParams &params)
     return false;
 }
 
-static void SetTransposedScaleTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr)
+static void SetTransposedScaleTensorListContiguous(gmm::GroupedMatmulParams &params, aclOpExecutor *executorPtr,
+                                                   bool &isPerTileQuantMode)
 {
-    bool isPerTileQuantMode = IsPerTileQuantMode(params);
     if (params.scaleOptional != nullptr) {
         std::vector<aclTensor *> scaleTensorList;
-        if ((*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
+        if ((*params.scaleOptional)[0] != nullptr &&
+            (*params.scaleOptional)[0]->GetDataType() == DataType::DT_FLOAT8_E8M0) {
             gmm::CreateContiguousTensorListForMXTypeMScale(params.scaleOptional, scaleTensorList, executorPtr);
             params.scaleOptional = executorPtr->AllocTensorList(scaleTensorList.data(), scaleTensorList.size());
         } else if (isPerTileQuantMode) {
@@ -1950,7 +1951,8 @@ static void SetTransposedScaleTensorListContiguous(gmm::GroupedMatmulParams &par
         }
     }
     // 伪量化场景antiquantscale为3维或4维时，需要手动转置为正确shape
-    if (((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
+    if ((*params.antiquantScaleOptional)[0] != nullptr &&
+        ((*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 3 ||
          (*params.antiquantScaleOptional)[0]->GetViewShape().GetDimNum() == 4) &&
         op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
         params.apiVersion == gmm::GMMApiVersion::WeightNz) {
@@ -1993,7 +1995,7 @@ static void SetTransposedTensorListContiguous(gmm::GroupedMatmulParams &params, 
          (params.apiVersion == gmm::GMMApiVersion::WeightNz && IsWeightQuant(params.xDtype, weightDtype)))) {
         (*params.weight)[0]->SetStorageShape(nZShape);
     }
-    SetTransposedScaleTensorListContiguous(params, executorPtr);
+    SetTransposedScaleTensorListContiguous(params, executorPtr, isPerTileQuantMode);
   }
 }
 
