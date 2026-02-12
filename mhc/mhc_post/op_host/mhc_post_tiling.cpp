@@ -51,13 +51,13 @@ inline int64_t CeilDiv(int64_t a, int64_t b)
 // Align value up to the nearest multiple of align
 inline uint32_t AlignUp(uint32_t value, uint32_t align)
 {
-    return ((value + align - 1) / align) * align;
+    return (align == 0) ? 0 : ((value + align - 1) / align) * align;
 }
 
 // Align value down to the nearest multiple of align
 inline uint32_t AlignDown(uint32_t value, uint32_t align)
 {
-    return (value / align) * align;
+    return (align == 0) ? 0 : (value / align) * align;
 }
 
 // Input indices - 按照OpDef定义的顺序

@@ -22,9 +22,8 @@ using namespace AscendC;
 using namespace MhcPost;
 
 template <uint16_t isNAligned, uint16_t isNNAligned, uint16_t isDAligned>
-__global__ __aicore__ void mhc_post(
-    GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_ADDR hPost,
-    GM_ADDR output, GM_ADDR workspace, GM_ADDR tiling)
+__global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_ADDR hPost, GM_ADDR output,
+                                    GM_ADDR workspace, GM_ADDR tiling)
 {
     if (g_coreType == AIC) {
         return;
