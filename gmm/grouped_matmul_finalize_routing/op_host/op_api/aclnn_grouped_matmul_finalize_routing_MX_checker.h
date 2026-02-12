@@ -330,14 +330,16 @@ public:
         }
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.logit, LOGIT_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.out, OUT_TYPE_SUPPORT_LIST, return false);
-        if (gmmParams_.x1->GetDataType() == gmmParams_.x2->GetDataType() ||
-            (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8) !=
-             CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8))) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
-                    op::ToString(gmmParams_.x1->GetDataType()).GetString(),
-                    op::ToString(gmmParams_.x2->GetDataType()).GetString());
-            return false;
+        if (gmmParams_.x1->GetDataType() != gmmParams_.x2->GetDataType()) {
+            bool xIsFP8 = CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8);
+            bool wIsFP8 = CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8);
+            if (!xIsFP8 || !wIsFP8) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                        "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
+                        op::ToString(gmmParams_.x1->GetDataType()).GetString(),
+                        op::ToString(gmmParams_.x2->GetDataType()).GetString());
+                return false;
+            }
         }
         return true;
     }
