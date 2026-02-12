@@ -202,7 +202,7 @@ __aicore__ inline void PromptFlashAttentionNormalMM2<PFAT, mmType>::IterateAll(
         }
     }
 
-    mm.template IterateAll<false>(bmm2ResUb, false, false, true);
+    mm.template IterateAll<false>(bmm2ResUb, 0);
 }
 
 template <typename PFAT, typename mmType>
