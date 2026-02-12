@@ -129,10 +129,7 @@ static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context,cons
 {
     params.m = params.shape_x1->GetDim(xIndex);
     params.k = params.shape_x1->GetDim(wIndex);
-
-    auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
-
-    params.n = params.weightTrans ? shape_scale->GetDim(DIM_ONE) : shape_scale->GetDim(DIM_TWO);
+    params.n = params.shape_x2->GetDim(2);
     params.e = params.shape_x2->GetDim(xIndex);
     return ge::GRAPH_SUCCESS;
 }
@@ -256,11 +253,7 @@ static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& b
         shape_out->SetDim(0, *output_bs);
     }
     auto x2_dim = xAndWParams.shape_x2->GetDimNum();
-    auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
-
-    shape_out->SetDim(DIM_ONE, xAndWParams.weightTrans ?
-                             shape_scale->GetDim(DIM_ONE) :
-                             shape_scale->GetDim(DIM_TWO)); // 如果非转置，n为最后一维，如果转置，n为倒数第二维。
+    shape_out->SetDim(1, xAndWParams.shape_x2->GetDim(x2_dim - 1));
     OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(DIM_ZERO), shape_out->GetDim(DIM_ONE));
     return ge::GRAPH_SUCCESS;
 }
@@ -300,7 +293,7 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
     // MX量化模式涉及图模式交付不走校验逻辑
     auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
     OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "scale is not given."), return ge::GRAPH_FAILED);
-    if (shape_scale->GetDimNum() == fourDimNum) {
+    if (shape_scale->GetDimNum() == threeDimNum) {
         OP_CHECK_IF(SetXAndWShapesForMX(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
         OP_CHECK_IF(SetupOutputForMX(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                     return ge::GRAPH_FAILED, );
@@ -422,7 +415,9 @@ static bool IsSupportMX(gert::InferDataTypeContext *context){
     return false;
 }
 static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferDataTypeContext *context)
-{
+{   
+    context->SetOutputDataType(0, ge::DT_FLOAT);
+    return ge::GRAPH_SUCCESS;
     bool supportDataTypeMX = IsSupportMX(context);
     
     bool supportDataTypeW8A8 = context->GetInputDataType(xIndex) == ge::DT_INT8 && 
