@@ -250,7 +250,6 @@ private:
     uint32_t endId_;
     uint32_t sendNum_;
     uint32_t statusCntAlign_;
-    uint32_t lastCore_{0};
     uint32_t dataState_{0};
     uint32_t tBufRealSize_{0};
     uint64_t winDataSizeOffset_{0};
@@ -360,7 +359,6 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     }
     moeExpertRankNum_ = epWorldSize_ - sharedExpertRankNum_;
     moeExpertNumPerRank_ = moeExpertNum_ / moeExpertRankNum_;
-    lastCore_ = aivNum_ - 1;
     expertIdsCnt_ = axisBS_ * axisK_;
     hOutSize_ = axisH_ * sizeof(ExpandXOutType);
     quantInst_.QuantInit(hAlignSize_, hOutSize_, scaleInBytes_, 
@@ -1122,7 +1120,8 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     BufferInit();
     WaitDispatch();
     CalRecvAndSetFlag();
-    if (aivId_ == lastCore_) {
+    // 使用newAivId为0的核进行计算
+    if (aivId_ == aivUsedAllToAll_) {
         SetExpertTokenNums();
     }
 }
