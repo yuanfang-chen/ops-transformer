@@ -170,7 +170,7 @@ public:
         }
         if (qNThisSubBlock != 0U && delEndRow != qSeqlen && qNSubBlockStartOffset < delEndRow) {
             uint32_t start = 0;
-            uint32_t end = qNSubBlockStartOffset + totalRowNum >= delEndRow ? (delEndRow - qNSubBlockStartOffset) : totalRowNum;
+            uint32_t end = qNSubBlockEnbdOffset >= delEndRow ? (delEndRow - qNSubBlockStartOffset) : totalRowNum;
             for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                 AscendC::PipeBarrier<PIPE_V>();
                 AscendC::Duplicate(
