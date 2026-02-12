@@ -1025,7 +1025,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
                                            SPLIT_BLOCK_DATA_SIZE, 0U};
     DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor, flagCopyOutParams);
     //SyncFunc<AscendC::HardEvent::V_MTE3>();
-    PipeBarrier<PIPE_ALL>();
+    //PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1035,6 +1035,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 {
     LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>();
     //DataCopyPadExtParams<XType> copyPadExtParams{false, 0U, 0U, 0U};
+    SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     DataCopyPadParams copyPadExtParams{true, 0U, 0U, 0U};
     DataCopyPad(sendTokenTensor, xGMTensor_[tokenIndex * axisH_], xCopyParams_, copyPadExtParams);
     //同步
