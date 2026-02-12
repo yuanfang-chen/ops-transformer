@@ -34,14 +34,12 @@ private:
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B32_PER_BLOCK = UB_32B_ALIGN / sizeof(int32_t); // 8
-    constexpr static uint32_t B64_PER_BLOCK = UB_32B_ALIGN / sizeof(int64_t); // 4
     constexpr static uint32_t EXTRA_TOKEN_INFO_NUM = 4U; // 专家信息 权重信息 量化Scale 到达标志位
     constexpr static uint64_t IPC_DISPATCH_MAGIC_OFFSET = 2 * 1024 * 1024 - 128 * 32UL;
     constexpr static uint64_t IPC_COMBINE_MAGIC_OFFSET = 2U * 1024U * 1024U - 32U * 32UL;
     constexpr static uint64_t IPC_DISPATCH_FLAG_OFFSET = 1 * 1024 * 1024UL;
     constexpr static uint64_t IPC_NON_DATA_BYTES = 4 * 1024 * 1024UL;
     constexpr static uint64_t IPC_BUFF_ALIGN = 512UL;
-    constexpr static uint32_t EXP_TOKEN_COUNT_FLAG_CNT = UB_32B_ALIGN / sizeof(int32_t); // 8
 
     __aicore__ inline GM_ADDR GetWindowsInAddr(uint32_t rankId) const
     {
@@ -55,6 +53,7 @@ private:
             }
         }
     }
+
     __aicore__ inline GM_ADDR GetWindowsOutAddr(uint32_t rankId) const
     {
         if (((__gm__ HcclA2CombineOpParam *)hcclContext_)->multiFlag == 0U) {
@@ -67,6 +66,7 @@ private:
             }
         }
     }
+
     template <typename T>
     inline __aicore__ T RoundUp(const T val, const T align) {
         static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type");
@@ -75,6 +75,7 @@ private:
         }
         return (val + align - 1) / align * align;
     }
+
     __aicore__ inline void initInnerAddr()
     {
         auto tokenFlagBytes = STATE_OFFSET * (worldSize_ + 1);
@@ -82,8 +83,9 @@ private:
         auto innerTableDataTotalBytes = STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
         innerTableSize_ = innerTableDataTotalBytes / serverNum_ / UB_32B_ALIGN * UB_32B_ALIGN;
         rdmaInnerFlagAddrStart_ = rdmaFlagAddrStart_ + tokenFlagBytes;
-        rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableDataTotalBytes;
+        rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableFlagTotalBytes;
     }
+
     __aicore__ inline void initIpcFlagAddr()
     {
         ipcCombineSyncFlagAddrStart_ = ipcFlagAddrStart_[0];
@@ -95,6 +97,7 @@ private:
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum)
     {
+        curRankId_ = rankId;
         // Get Hccl Buffer Size
         hcclContext_ = AscendC::GetHcclContext<AscendC::HCCL_GROUP_ID_0>();
         auto winSize = ((__gm__ HcclA2CombineOpParam *)hcclContext_)->winSize;
@@ -103,7 +106,6 @@ public:
         bufferId_ = bufferChosenGlobal_(0);
         aivId_ = AscendC::GetBlockIdx();
         localMoeExpertNum_ = moeExpertNum / worldSize;
-        curRankId_ = rankId;
         worldSize_ = worldSize;
         serverNum_ = worldSize / SERVER_RANK_SIZE;
         halfWorldSize_ = worldSize / 2U;
@@ -131,66 +133,84 @@ public:
             shareAddrs[i] = GetWindowsInAddr(targetRank);
         }
     }
+
     __aicore__ inline void updateBufferId()
     {
         if (aivId_ == 0) {
             bufferChosenGlobal_(0) = bufferId_ ^ 1;
         }
     }
+
     __aicore__ inline GM_ADDR GetRdmaFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
     {
         return GetWindowsInAddr(targetRankId) + rdmaFlagAddrStart_ + serverId * STATE_OFFSET;
     }
+
     __aicore__ inline GM_ADDR GetRdmaDataAddrIn(uint32_t targetRankId, uint32_t serverId) const
     {
         return GetWindowsInAddr(targetRankId) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
     }
+
+
     __aicore__ inline GM_ADDR GetRdmaFlagAddrOut() const
     {
         return GetWindowsOutAddr(curRankId_) + rdmaFlagAddrStart_;
     }
-    __aicore__ inline GM_ADDR GetRdmaDataAddrOutForDispatch() const
-    {
-        return GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_;
-    }
-    __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
-    {
-        return GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
-    }
-    __aicore__ inline GM_ADDR GetIpcMagicAddrForCombine() const
-    {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcCombineMagicAddrStart_;
-    }
-    __aicore__ inline GM_ADDR GetIpcMagicAddrForDispatch() const
-    {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
-    }
-    __aicore__ inline GM_ADDR GetIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
-    {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchTokenCntAddrStart_ +
-            targetExpId % (localMoeExpertNum_ * SERVER_RANK_SIZE) * EXP_TOKEN_COUNT_FLAG_CNT +
-            fromRankId * EXP_TOKEN_COUNT_FLAG_CNT;
-    }
-    __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForCombine(uint32_t targetRankId, uint32_t fromRankId) const
-    {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcCombineSyncFlagAddrStart_ + fromRankId % SERVER_RANK_SIZE * B64_PER_BLOCK;
-    }
-    __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForDispatch(uint32_t targetRankId, uint32_t fromRankId) const
-    {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchSyncFlagAddrStart_ + fromRankId % SERVER_RANK_SIZE * B64_PER_BLOCK;
-    }
+
     __aicore__ inline GM_ADDR GetIpcDataAddrIn(uint32_t targetRankId, uint32_t localMoeExpertId, uint32_t fromRankId) const
     {
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] + (localMoeExpertId * halfWorldSize_ + fromRankId % halfWorldSize_) * rankSizeOnIpcData_;
     }
+
+    // Combine专用
+    __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
+    {
+        return GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForCombine(uint32_t targetRankId, uint32_t fromRankId) const
+    {
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcCombineSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcMagicAddrForCombine() const
+    {
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcCombineMagicAddrStart_;
+    }
+
+
+    // Dispatch专用
+    __aicore__ inline GM_ADDR GetRdmaDataAddrOutForDispatch() const
+    {
+        return GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForDispatch(uint32_t targetRankId, uint32_t fromRankId) const
+    {
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcMagicAddrForDispatch() const
+    {
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcDispatchMagicAddrStart_ + aivId_ * UB_32B_ALIGN;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
+    {
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchTokenCntAddrStart_ +
+            ((targetExpId % localMoeExpertNum_) * worldSize_ + fromRankId) * UB_32B_ALIGN;
+    }
+
     __aicore__ inline GM_ADDR GetInnerFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
     {
         return GetWindowsInAddr(targetRankId) + rdmaInnerFlagAddrStart_ + serverId * STATE_OFFSET;
     }
+
     __aicore__ inline GM_ADDR GetInnerDataAddrIn(uint32_t targetRankId, uint32_t serverId) const
     {
         return GetWindowsInAddr(targetRankId) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
     }
+
     __aicore__ inline GM_ADDR GetInnerDataAddrOut(uint32_t serverId) const
     {
         return GetWindowsOutAddr(curRankId_) + rdmaInnerDataAddrStart_ + serverId * innerTableSize_;
