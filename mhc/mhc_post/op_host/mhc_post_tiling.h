@@ -13,48 +13,36 @@
  * \brief MhcPost tiling header
  */
 
-#ifndef MHC_POST_TILING_H
-#define MHC_POST_TILING_H
+#pragma once
 
-#include "register/op_def_registry.h"
-#include "register/tilingdata_base.h"
-#include "tiling/platform/platform_ascendc.h"
-#include "tiling/tiling_api.h"
-#include "log/log.h"
+#include <cstdint>
+#include <register/tilingdata_base.h>
+#include <tiling/tiling_api.h>
 
 namespace optiling {
 
-constexpr int64_t FLOAT_DATA_SIZE = 4;
-constexpr int64_t BLOCK_NUM_FP16 = 16;
-constexpr int64_t BLOCK_NUM_BF16 = 16;
-constexpr int64_t BLOCK_NUM_FP32 = 8;
-constexpr int64_t MIN_BUFFER_NUM = 2;
-constexpr int64_t ALIGN_256 = 256;
-
-// Tiling keys for different data types
-constexpr int64_t TILING_KEY_FP16 = 1;
-constexpr int64_t TILING_KEY_BF16 = 2;
-
-struct MhcPostTilingParams {
-    int64_t totalLength = 0;      // Total elements in x
-    int64_t coreNum = 0;          // Number of cores
-    int64_t singleCoreLength = 0; // Elements per core
-    int64_t tileLength = 0;       // Tile length for each iteration
-    int64_t maxCoreMemery = 0;   // Max UB size
-};
-
-ge::graphStatus TilingComputeForMhcPost(gert::TilingContext* context, MhcPostTilingParams& param);
-
 BEGIN_TILING_DATA_DEF(MhcPostTilingData)
-TILING_DATA_FIELD_DEF(int64_t, total_length);
-TILING_DATA_FIELD_DEF(int64_t, core_num);
-TILING_DATA_FIELD_DEF(int64_t, single_core_length);
-END_TILING_DATA_DEF
-
+TILING_DATA_FIELD_DEF(uint32_t, totalItems);
+TILING_DATA_FIELD_DEF(uint32_t, itemsPerCore);
+TILING_DATA_FIELD_DEF(uint32_t, remainderItems);
+TILING_DATA_FIELD_DEF(uint32_t, usedCores);
+TILING_DATA_FIELD_DEF(uint32_t, S);
+TILING_DATA_FIELD_DEF(uint32_t, n);
+TILING_DATA_FIELD_DEF(uint32_t, D);
+TILING_DATA_FIELD_DEF(uint32_t, tileD);
+TILING_DATA_FIELD_DEF(uint32_t, nTilesD);
+TILING_DATA_FIELD_DEF(uint32_t, alignedD);
+TILING_DATA_FIELD_DEF(uint32_t, lastTileD);
+TILING_DATA_FIELD_DEF(uint32_t, alignedN);      // n aligned to 8 for float32 vector ops
+TILING_DATA_FIELD_DEF(uint32_t, alignedNN);     // n*n aligned to 8 for float32 vector ops
+TILING_DATA_FIELD_DEF(uint32_t, isNAligned);    // n == 8 (32 bytes for DataCopy)
+TILING_DATA_FIELD_DEF(uint32_t, isNNAligned);   // (n*n) % 8 == 0
+TILING_DATA_FIELD_DEF(uint32_t, isDAligned);    // D % 16 == 0 && nTilesD == 1
+END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(MhcPost, MhcPostTilingData)
 
 struct MhcPostCompileInfo {
+    uint32_t aicNum;
+    uint32_t aivNum;
 };
-
 } // namespace optiling
-#endif // MHC_POST_TILING_H
