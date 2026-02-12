@@ -729,16 +729,15 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     if (CheckMmWeightValid(mmWeightOptional)) // 先检查mmWeightOptional是否合法，避免非法操作
     {
         bool notContiguous = IsTransposeLastTwoDims(mmWeightOptional); // notContiguous标识mmWeightOptional是否是非连续的
-        auto transMmWeightOptional = mmWeightOptional; // 复制一个mmWeightOptional
+        auto transMmWeightOptional = mmWeightOptional;
         if (notContiguous && transMmWeight) { // 当非连续和转置同时生效时，判断为错误用法，直接报错
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                     "mmWeightOptional not contiguous, and set mmWeightOptional transpose, it is error!");
             return ACLNN_ERR_PARAM_INVALID;
         }
-        if (notContiguous &&
-            GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) { // 只有当非连续时，才会涉及到转连续等情况
+        if (notContiguous && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             transMmWeight = !transMmWeight;
-            // 把非连续x2转成连续
+            // 把非连续mmWeightOptional转成连续
             transMmWeightOptional = TransMmWeightOptionalTensor(mmWeightOptional);
             CHECK_RET(transMmWeightOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
             OP_LOGD("mmWeightOptional is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After "
@@ -748,8 +747,8 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
         }
     }
     aclnnStatus ret_param = CheckParams(
-        gmmX, gmmWeight, gmmXScale, gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional,
-        sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
+        gmmX, transposeGmmWeight, gmmXScale, gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional,
+        sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, transMmWeightOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, gmmXQuantMode, gmmWeightQuantMode,
         mmXQuantMode, mmWeightQuantMode, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
