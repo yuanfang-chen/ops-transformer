@@ -296,7 +296,7 @@ int main()
     aclrtFree(logitDeviceAddr);
     aclrtFree(rowIndexDeviceAddr);
     aclrtFree(outDeviceAddr);
-    #aclDestroyIntArray(tuningConfig);
+    //aclDestroyIntArray(tuningConfig);
 
     if (workspaceSize > 0) {
         aclrtFree(workspaceAddr);
