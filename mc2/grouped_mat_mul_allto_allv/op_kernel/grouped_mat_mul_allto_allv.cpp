@@ -147,7 +147,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 
     // hccl
     HcclOpType hcclOp;
-    hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, gmmyGM, userWorkspace);
+    hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, userWorkspace, gmmyGM);
 
     // gmm
     // GmmExpertOpType computeOp;
@@ -158,7 +158,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData, gmmBaseTiling, gmmArray, gmmArrayAddr_, tilingGM);
     ComputeOpType computeOp;
     auto tilingData_ = static_cast<const QuantGmmA2avTilingData*>(&tilingData);
-    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, userWorkspace, tilingData_,
+    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, userWorkspace, userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize, tilingData_,
         &tilingData_->gmmBaseTiling, gmmArrayAddr_, &pipe, false);
 
     // sharemm
