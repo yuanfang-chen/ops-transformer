@@ -23,7 +23,8 @@ using namespace optiling;
 
 namespace aicpu {
 uint32_t
-SparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx){
+SparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx)
+{
     bool success = Prepare(ctx);
     if (!success) {
         return KERNEL_STATUS_PARAM_INVALID;
@@ -33,8 +34,8 @@ SparseAttnSharedkvMetadataCpuKernel::Compute(CpuKernelContext &ctx){
     return success ? KERNEL_STATUS_OK : KERNEL_STATUS_PARAM_INVALID;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
-    CpuKernelContext &ctx){
+bool SparseAttnSharedkvMetadataCpuKernel::Prepare(CpuKernelContext &ctx)
+{
     // input
     actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
     actSeqLenOriKv_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenOriKv));
@@ -73,7 +74,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::Prepare(
     return (ParamsCheck() && ParamsInit());
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
+bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
+{
     // metadata 输出占位校验
     KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
     auto metaShape = metaData_->GetTensorShape();
@@ -127,7 +129,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
     return true;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
+bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
+{
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
     // cu_seqlens_q 存在性校验
     if (layoutQuery_ == "TND") {
@@ -186,7 +189,8 @@ int32_t SparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
     return batchSize_;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
+bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency()
+{
     int32_t queryBatchSize = GetQueryBatchSize();
     int32_t kvBatchSize = GetKvBatchSize();
     if (layoutQuery_ == "TND") {
@@ -204,7 +208,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     return true;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
+bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature()
+{
     // 压缩率校验
     if (hasCmpKv_) { 
         // cmp_topk 校验
@@ -227,7 +232,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
     return true;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck() {
+bool SparseAttnSharedkvMetadataCpuKernel::ParamsCheck()
+{
     return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature());
 }
 
@@ -330,8 +336,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &splitConte
     return;
 }
 
-int64_t SparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
-    uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(sparseMode_);
     if (mode == SparseMode::BAND) {
@@ -340,8 +345,7 @@ int64_t SparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
     return preToken_;
 }
 
-int64_t SparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
-    uint32_t s1Size, uint32_t s2Size)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size)
 {
     auto mode = static_cast<SparseMode>(sparseMode_);
     switch (mode) {
@@ -358,8 +362,7 @@ int64_t SparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
     }
 }
 
-int64_t SparseAttnSharedkvMetadataCpuKernel::WinCalcCost(
-    uint32_t basicM, uint32_t basicS2)
+int64_t SparseAttnSharedkvMetadataCpuKernel::WinCalcCost(uint32_t basicM, uint32_t basicS2)
 {
     uint32_t winAlignCoefM = 16U;
     uint32_t winAlignCoefS2 = 64U;
@@ -368,8 +371,7 @@ int64_t SparseAttnSharedkvMetadataCpuKernel::WinCalcCost(
     return static_cast<int64_t>(6U * winAlignBasicM + 10U * winAlignBasicS2);                 // 6：M轴系数，10：S2轴系数
 }
 
-int64_t SparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(
-    uint32_t basicM, uint32_t basicS2)
+int64_t SparseAttnSharedkvMetadataCpuKernel::CmpCalcCost(uint32_t basicM, uint32_t basicS2)
 {
     uint32_t cmpAlignCoefM = 16U;
     uint32_t cmpAlignCoefS2 = 64U;
@@ -446,8 +448,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
     batchCache.nextTokenLeftUp = CalcNextTokenLeftUp(batchCache.s1Size, batchCache.s2Size);
 }
 
-void SparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(S1GCache &s1GCache, 
-                                                            const SplitInfo &splitInfo)
+void SparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo)
 {
     // 处理win部分block信息
     if (s1GCache.winS2Start >= s1GCache.winS2End) {
@@ -479,8 +480,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcWinS1GCache(S1GCache &s1GCache,
     }
 }
 
-void SparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(S1GCache &s1GCache, 
-                                                            const SplitInfo &splitInfo)
+void SparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(S1GCache &s1GCache, const SplitInfo &splitInfo)
 {
     // 处理cmp部分block信息
     if (s1GCache.cmpS2Start >= s1GCache.cmpS2End) {
@@ -512,8 +512,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcCmpS1GCache(S1GCache &s1GCache,
 }
 
 void SparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range<int64_t> &oriS2TokenRange, 
-                                                                            const BatchCache &batchCache, 
-                                                                            S1GCache &s1GCache)
+    const BatchCache &batchCache, S1GCache &s1GCache)
 {
     int64_t oriS2FirstToken = oriS2TokenRange.first;
     int64_t oriS2LastToken = oriS2TokenRange.second;
@@ -836,7 +835,8 @@ void SparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &split
     }
 }
 
-void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext) {
+void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitContext, AssignContext &assignContext)
+{
     if (assignContext.isFinished) {
         return;
     }
@@ -856,7 +856,7 @@ void SparseAttnSharedkvMetadataCpuKernel::ForceAssign(const SplitContext &splitC
 }
 
 void SparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext &splitContext, 
-                                                                    AssignContext &assignContext, SplitResult &result)
+    AssignContext &assignContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
     
@@ -951,9 +951,9 @@ void SparseAttnSharedkvMetadataCpuKernel::SplitFD(SplitResult &splitRes)
     splitRes.fdRes.fdUsedVecNum = curCoreIndex;
 }
 
-bool SparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes) {
+bool SparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
+{
     SplitContext splitContext(batchSize_);
-
     // 1、划分基本块，统计信息
     CalcSplitInfo(splitContext);
     // 全空case
@@ -965,7 +965,6 @@ bool SparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
         return true;
     }
     CalcCostInfo(splitContext);
-
     // 2、获取每个核的分配方案
     splitRes.maxCost = INT64_MAX;
     splitRes.usedCoreNum = 1U;
@@ -978,6 +977,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
     splitRes.usedCoreNum = std::max(splitRes.usedCoreNum, 1U);  // 至少使用1个core
     return true;
 }
+
 bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
     optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
     // FA Metadata Generate
