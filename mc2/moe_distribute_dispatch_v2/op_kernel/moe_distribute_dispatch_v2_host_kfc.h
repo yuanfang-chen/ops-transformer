@@ -520,7 +520,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     moeUsedAivNum_ = aivNum_ - sharedUsedAivNum_;
     dealRankPerCore_ = (recvWinBlockNum_ + aivNum_ - 1) / aivNum_;
     stateOffset_ = STATE_OFFSET;
-    PipeBarrier<PIPE_ALL>();
+    // PipeBarrier<PIPE_ALL>();
     if (isShareExpertRankFlag_) { // 当前卡是共享专家卡
         rscvStatusNum_ = epWorldSize_;
     } else { // 当前卡是moe专家卡
