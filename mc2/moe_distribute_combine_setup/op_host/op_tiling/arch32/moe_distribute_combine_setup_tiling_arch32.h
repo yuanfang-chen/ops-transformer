@@ -18,11 +18,10 @@
 
 #include "../moe_distribute_combine_setup_tiling_base.h"
 
-namespace optiling {
-class MoeDistributeCombineSetupTilingA3 : public MoeDistributeCombineSetupTilingBase
-{
+namespace MC2Tiling {
+class MoeDistributeCombineSetupTilingA3 : public MoeDistributeCombineSetupTilingBase {
 public:
-    explicit MoeDistributeCombineSetupTilingA3(gert::TilingContext* context)
+    explicit MoeDistributeCombineSetupTilingA3(gert::TilingContext *context)
         : MoeDistributeCombineSetupTilingBase(context)
     {
         socTilingName_ = "MoeDistributeCombineSetupA3";
@@ -35,5 +34,5 @@ private:
     ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k) override;
     void SetHcommCfg() override;
 };
-} // namespace optiling
+} // namespace MC2Tiling
 #endif // MOE_DISTRIBUTE_COMBINE_SETUP_TILING_ARCH32_H_

@@ -37,7 +37,7 @@ constexpr int64_t MAX_K = 16;
 constexpr uint32_t OP_TYPE_BATCH_WRITE = 18U;
 } // namespace
 
-namespace optiling {
+namespace MC2Tiling {
 ge::graphStatus MoeDistributeCombineSetupTilingA3::CheckEpWorldSize()
 {
     auto attrs = context_->GetAttrs();
@@ -129,4 +129,4 @@ void MoeDistributeCombineSetupTilingA3::SetHcommCfg()
     mc2CcTilingConfig.GetTiling(tilingData_->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tilingData_->mc2CcTiling);
 }
-} // namespace optiling
+} // namespace MC2Tiling

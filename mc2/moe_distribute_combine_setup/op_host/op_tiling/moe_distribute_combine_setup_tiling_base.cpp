@@ -76,7 +76,7 @@ constexpr int64_t MIN_AVAILABLE_BUFF_SIZE = 2;
 constexpr int64_t HCCL_BUFFER_SIZE = 44;
 } // namespace
 
-namespace optiling {
+namespace MC2Tiling {
 void MoeDistributeCombineSetupTilingBase::PrintTilingDataInfo()
 {
     const MoeDistributeCombineSetupInfo &info = tilingData_->moeDistributeCombineSetupInfo;
@@ -675,4 +675,4 @@ uint64_t MoeDistributeCombineSetupTilingBase::GetTilingKey() const
     OP_LOGD(nodeName_, "%s get tiling key %lu", this->socTilingName_, tilingKey);
     return tilingKey;
 }
-} // namespace optiling
+} // namespace MC2Tiling
