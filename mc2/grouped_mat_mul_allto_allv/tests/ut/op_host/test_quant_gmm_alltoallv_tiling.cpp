@@ -1041,152 +1041,143 @@ static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAll
         ge::GRAPH_SUCCESS, 137 // expectedStatus expectTilingKey
     },
 
-    // // 异常测试用例
-    // // 数据类型非法异常
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmx_datatype_invalid",
-    //     {8192, 7168}, ge::DT_INT8, ge::FORMAT_ND, // gmmX数据类型非法
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmweight_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_INT8, ge::FORMAT_ND, // gmmWeight数据类型非法
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmy_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_INT8, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmY数据类型非法
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmxscale_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_INT8, ge::FORMAT_ND, // gmmXScale数据类型非法
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_gmmweightscale_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_INT8, ge::FORMAT_ND, // gmmWeightScale数据类型非法
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_mmx_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_INT8, ge::FORMAT_ND, // mmX数据类型非法
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_mmweight_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_INT8, ge::FORMAT_ND, // mmWeight数据类型非法
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_mmxscale_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_INT8, ge::FORMAT_ND, // mmXScale数据类型非法
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
-    // {
-    //     "gmmalltoallv_hif8_quant_exception_mmweightscale_datatype_invalid",
-    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
-    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND,
-    //     {1}, ge::DT_INT8, ge::FORMAT_ND, // mmWeightScale数据类型非法
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
-    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
-    //     {8192,7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-    //     1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_FAILED, 0
-    // },
+    // 异常测试用例
+    // 数据类型非法异常
+    {
+        "gmmalltoallv_hif8_quant_exception_gmmx_datatype_invalid",
+        {8192, 7168}, ge::DT_INT8, ge::FORMAT_ND, // gmmX数据类型非法
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_gmmweight_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_INT8, ge::FORMAT_ND, // gmmWeight数据类型非法
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_gmmy_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_INT8, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmY数据类型非法
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_gmmxscale_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_INT8, ge::FORMAT_ND, // gmmXScale数据类型非法
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_gmmweightscale_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_INT8, ge::FORMAT_ND, // gmmWeightScale数据类型非法
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_mmx_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_INT8, ge::FORMAT_ND, // mmX数据类型非法
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_mmweight_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_INT8, ge::FORMAT_ND, // mmWeight数据类型非法
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_mmxscale_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_INT8, ge::FORMAT_ND, // mmXScale数据类型非法
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
+    {
+        "gmmalltoallv_hif8_quant_exception_mmweightscale_datatype_invalid",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_INT8, ge::FORMAT_ND, // mmWeightScale数据类型非法
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        1, 1, 1, 1, false, false, 2, 2, 0, ge::GRAPH_FAILED, 0
+    },
 
     // // 数据格式非法异常
     // {
