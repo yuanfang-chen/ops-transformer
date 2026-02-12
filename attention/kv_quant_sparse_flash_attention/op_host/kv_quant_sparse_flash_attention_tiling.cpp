@@ -1422,7 +1422,7 @@ ge::graphStatus QSFAInfoParser::GetNpuInfo()
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "num of core obtained is 0."), return GRAPH_FAILED);
 
     socVersion_ = ascendcPlatform.GetSocVersion();
-    isA5_ = (socVersion_ == platform_ascendc::SocVersion::ASCEND950);
+    isA5_ = (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510);
     if (socVersion_ != platform_ascendc::SocVersion::ASCEND910B && socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
         return GRAPH_FAILED;
