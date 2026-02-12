@@ -86,7 +86,7 @@ __aicore__ inline void Log::Init(TPipe * tpipe,int32_t rankId) {
     rankId_ =rankId;
 }
 
-__aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, const GM_ADDR addr){
+__aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, const GM_ADDR addr){ //测试
     const __gm__ void * addrtemp = static_cast<const __gm__ void*>(addr);
     printf("[rankId: %d][aivId: %d][function: %s][line: %d]", rankId_, aivId_, func, line);
     printf("%s: %p\n", msg, addrtemp);
