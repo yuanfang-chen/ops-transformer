@@ -64,7 +64,7 @@
 
 每个算子分为[两段式接口](common/两段式接口.md)，必须先调用“aclnnScatterPaCacheGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnScatterPaCache”接口执行计算。
 
-```c++
+```Cpp
 aclnnStatus aclnnScatterPaCacheGetWorkspaceSize(
   const aclTensor *key, 
   const aclTensor *keyCacheRef, 
@@ -77,7 +77,7 @@ aclnnStatus aclnnScatterPaCacheGetWorkspaceSize(
   aclOpExecutor  **executor)
 ```
 
-```c++
+```Cpp
 aclnnStatus aclnnScatterPaCache(
   void          *workspace, 
   uint64_t       workspaceSize, 
@@ -89,17 +89,170 @@ aclnnStatus aclnnScatterPaCache(
 
 - **参数说明：**
 
-  | 参数名 | 输入/输出<div style="width: 70px"> | 描述 | 使用说明 | 数据类型 | 数据格式<div style="width: 70px"> | 维度(shape)<div style="width: 80px"> | 非连续tensor <div style="width: 90px">|
-  |------|------|------|------|------|------|------|------|
-  | <term>key</term>  |  输入 | 待更新的key值，公式中的key。 |<ul><li>支持空tensor。</li><li>HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT4_E2M1、FLOAT4_E1M2仅支持key是3维的场景。</li><li>shape满足[batch * seq_len, num_head, k_head_size]或[batch, seq_len, num_head, k_head_size]，FLOAT4_E2M1、FLOAT4_E1M2情况下，k_head_size必须是偶数。</li><ul> | FLOAT16、FLOAT、BFLOAT16、INT8、UINT8、INT16、UINT16、INT32、UINT32、HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT4_E2M1、FLOAT4_E1M2 | ND | 3-4 | × |
-  | keyCacheRef |    输入输出   | 需要更新的keyCache，公式中的keyCache。 | <ul><li>支持空tensor。</li><li>当key是3维时，shape满足[num_blocks, block_size, num_head, k_head_size]，当key是4维时，shape满足[num_blocks, block_size, 1, k_head_size]。</li><ul> | 与key一致。 | ND | 4 | × |
-  | slotMapping | 输入 | key的每个token在cache中的存储偏移，公式中的slotMapping。 | <ul><li>支持空tensor。</li><li>当key是3维时，shape满足[batch * seq_len]，当key是4维时，shape满足[batch, num_head]。</li><li>值范围为[0, num_blocks * block_size-1]，且元素值不能重复，重复时不保证正确性。</li><ul> | INT32、INT64 | ND | 1-2 | × |
-  | compressLensOptional | 输入 | 压缩量，公式中的compressLens。 | <ul><li>支持空tensor。</li><li>当key是4维且compressSeqOffsetOptional不为空指针时，shape满足[batch, num_head]，当key是4维且compressSeqOffsetOptional为空指针时，shape满足[batch * num_head]。</li><li>场景一传空指针。</li><ul> | 与slotMapping一致。 | ND | 1-2 | × |
-  | compressSeqOffsetOptional | 输入 | 每个batch中每个head的压缩起点，公式中的compressSeqOffset。| <ul><li>支持空tensor。</li><li>shape满足[batch * num_head]。</li><li>场景一和场景三传空指针。</li><ul> | 与slotMapping一致。 | ND | 1 | × |
-  | seqLensOptional | 输入 | 每个batch的实际seqLens，公式中的seqLens。 | <ul><li>支持空tensor。</li><li>shape满足[batch]。</li><li>场景一传空指针。</li><ul> | 与slotMapping一致。 | ND | 1 | × |
-  | cacheMode | 输入 | keyCacheRef的内存排布格式。 | <ul><li>预留参数，当前数据格式只支持ND，该参数不生效。</li><ul> | - | - | - | - |
-  | workspaceSize | 输出 | 返回需要在Device侧申请的workspace大小。 | - | - | - | - | - |
-  | executor | 输出 | 返回op执行器，包含了算子计算流程。 | - | - | - | - | - |
+  </style>
+  <table class="tg" style="undefined;table-layout: fixed; width: 1548px"><colgroup>
+  <col style="width: 265px">
+  <col style="width: 86px">
+  <col style="width: 269px">
+  <col style="width: 462px">
+  <col style="width: 172px">
+  <col style="width: 111px">
+  <col style="width: 87px">
+  <col style="width: 96px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th class="tg-0pky">参数名</th>
+      <th class="tg-0pky">输入/输出</th>
+      <th class="tg-0pky">描述</th>
+      <th class="tg-0pky">使用说明</th>
+      <th class="tg-0pky">数据类型</th>
+      <th class="tg-0pky">数据格式</th>
+      <th class="tg-0pky">维度(shape)</th>
+      <th class="tg-0pky">非连续Tensor</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td class="tg-0pky">key(aclTensor*)</td>
+      <td class="tg-0pky">输入</td>
+      <td class="tg-0pky">待更新的key值，当前step多个token的key。</td>
+      <td class="tg-0pky"></td>
+      <td class="tg-0pky">FLOAT16、FLOAT、BFLOAT16、INT8、UINT8、INT16、UINT16、INT32、UINT32、HIFLOAT8、FLOAT8_E5M2、FLOAT8_E4M3FN</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">3-4</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">keyCacheRef(aclTensor*)</td>
+      <td class="tg-0pky">输入/输出</td>
+      <td class="tg-0pky">需要更新的key cache，当前layer的key cache。</td>
+      <td class="tg-0pky">仅支持4维，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">与key保持一致</td>
+      <td class="tg-0pky">ND、FRACTAL_NZ</td>
+      <td class="tg-0pky">4</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">slotMapping(aclTensor*)</td>
+      <td class="tg-0pky">输入</td>
+      <td class="tg-0pky">每个token key或value在cache中的存储偏移。</td>
+      <td class="tg-0pky"></td>
+      <td class="tg-0pky">INT32、INT64</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">1</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">value(aclTensor*)</td>
+      <td class="tg-0pky">输入</td>
+      <td class="tg-0pky">待更新的value值，当前step多个token的value。</td>
+      <td class="tg-0pky">支持0维、3维或4维，非0维下shape与key一致</td>
+      <td class="tg-0pky">与key保持一致</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">0、3、4</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">valueCacheRef(aclTensor*）</td>
+      <td class="tg-0pky">输入/输出</td>
+      <td class="tg-0pky">需要更新的value cache，当前layer的value cache。</td>
+      <td class="tg-0pky">支持0维或4维，非0维下shape与keyCacheRef一致，当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">与key保持一致</td>
+      <td class="tg-0pky">ND、FRACTAL_NZ</td>
+      <td class="tg-0pky">4</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">compressLensOptional(aclTensor*)</td>
+      <td class="tg-0pky">可选输入</td>
+      <td class="tg-0pky">压缩量。</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">与slotMapping保持一致</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">1</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">compressSeqOffsetOptional(aclTensor*)</td>
+      <td class="tg-0pky">可选输入</td>
+      <td class="tg-0pky">每个batch每个head的压缩起点。</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">与slotMapping保持一致</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">1</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">seqLensOptional(aclTensor*)</td>
+      <td class="tg-0pky">可选输入</td>
+      <td class="tg-0pky">每个batch的实际seqLens。</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">与slotMapping保持一致</td>
+      <td class="tg-0pky">ND</td>
+      <td class="tg-0pky">1</td>
+      <td class="tg-0pky">x</td>
+    </tr>
+    <tr>
+      <td class="tg-0pky">cacheMode(char*)</td>
+      <td class="tg-0pky">输入</td>
+      <td class="tg-0pky">表示keyCacheRef和valueCacheRef的内存排布格式。</td>
+      <td class="tg-0pky">当传空指针或"Norm"时，仅支持ND内存排布格式。当传"PA_NZ"时，仅支持FRACTAL_NZ内存排布格式。</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">-</td>
+      <td class="tg-0pky">-</td>
+    </tr>
+    <tr>
+      <td class="tg-0lax">scatterMode(char*)</td>
+      <td class="tg-0lax">输入</td>
+      <td class="tg-0lax">表示更新的key和value的状态。</td>
+      <td class="tg-0lax">当传空指针或"None"时，表示更新的key和value是非压缩状态且连续。<br>当传"Alibi"时，表示更新key和value是基于Alibi结构的压缩状态。<br>当传"Rope"时，表示更新key和value是基于Rope结构的压缩状态。<br>当传"Omni"时，表示更新key和value是基于Omni结构的压缩状态。<br>当传"Nct"时，表示更新的key和value是非压缩状态但非连续。</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+    </tr>
+    <tr>
+      <td class="tg-0lax">strides(aclIntArray *)</td>
+      <td class="tg-0lax">输入</td>
+      <td class="tg-0lax">key和value在非连续状态下的步长。</td>
+      <td class="tg-0lax">数组长度为2。其值应该大于0。仅当scatterMode为"Nct"时生效，分别表示strideK和strideV。</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+    </tr>
+    <tr>
+      <td class="tg-0lax">offsets(aclIntArray *)</td>
+      <td class="tg-0lax">输入</td>
+      <td class="tg-0lax">key和value在非连续状态下的偏移。</td>
+      <td class="tg-0lax">数组长度为2。其值应该大于0。仅当scatterMode为"Nct"时生效，分别表示offsetK和offsetV。</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+    </tr>
+    <tr>
+      <td class="tg-0lax">workspaceSize(uint64_t*)</td>
+      <td class="tg-0lax">输出</td>
+      <td class="tg-0lax">返回需要在Device侧申请的workspace大小。</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+    </tr>
+    <tr>
+      <td class="tg-0lax">executor(aclOpExecutor**）</td>
+      <td class="tg-0lax">输出</td>
+      <td class="tg-0lax">返回op执行器，包含了算子计算流程。</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+      <td class="tg-0lax">-</td>
+    </tr>
+  </tbody></table>
 
 - **返回值：**
 
