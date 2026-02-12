@@ -329,7 +329,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckSetPlatformInfo()
                 return ge::GRAPH_FAILED);
     tilingDataPtr_->coreNum = aivCoreNum_;
     // check availUbSize
-    availUbSize_ = totalUbSize_ - SIMT_DCACHE_SIZE;
+    availUbSize_ = totalUbSize_;
     OP_CHECK_IF(
         totalUbSize_ <= 0 || availUbSize_ <= 0,
         OP_LOGE(context_,
