@@ -12,19 +12,11 @@
  * \file causal_conv1d_update_tiling.h
  * \brief
  */
-#ifndef ASCEND_OPS_ATTENTION_UPDATE_TILING_H
-#define ASCEND_OPS_ATTENTION_UPDATE_TILING_H
-#include "log/log.h"
-#include "platform/platform_info.h"
-#include "register/op_impl_registry.h"
-#include "tiling_base/tiling_templates_registry.h"
-#include "util/math_util.h"
-#include "util/platform_util.h"
-#include "util/shape_util.h"
+
 
 
 namespace optiling {
 
 
 } // namespace optiling
-#endif // ASCEND_OPS_ATTENTION_UPDATE_TILING_H
+
