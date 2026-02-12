@@ -1757,6 +1757,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::InitStatusTensor()
 {
+    PipeBarrier<PIPE_ALL>();
+    SyncAll<true>();
     tpipe_->Reset();
     tpipe_->InitBuffer(statusBuf_, statusBufCntAlign_ * UB_ALIGN);
     statusTensor_ = statusBuf_.Get<int32_t>();                  // 保存发送数据量及flag，同时用于计算windows中的偏移
@@ -1764,6 +1766,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     uint64_t mask[2] = {0x101010101010101, 0}; // 一次性操作256字节，也是64个int32_t，每8个数将首个设置为0x3F800000
     PipeBarrier<PIPE_V>();
     Duplicate<int32_t>(statusTensor_, 0x3F800000, mask, statusBufCntAlign_ / 8, 1, 8); // 0x3F800000是float的1
+    PipeBarrier<PIPE_V>();
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1771,8 +1774,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 {
     //LogInfo(__LINE__, "[SetStatus] start");
     InitStatusTensor();
-    PipeBarrier<PIPE_ALL>();
-    SyncAll<true>();
     // 专家编号均为server内编号, 卡号均为全局卡号
     SplitToCore(expertNumInServer_, aivNum_, startExpertId_, endExpertId_, sendExpertNum_);
     //LogInfo(__LINE__, "[SetStatus] startExpertId_", startExpertId_);
@@ -1802,8 +1803,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     //LogInfo(__LINE__,"EPRANKID",epRankId_);
     //LogInfo(__LINE__, "[SetStatus][set statusTensor_] statusTensor_");
     //LogInfo(__LINE__,statusTensor_, tpipe_, 8);
-    PipeBarrier<PIPE_ALL>();
-
+    //PipeBarrier<PIPE_ALL>();
+    SyncFunc<AscendC::HardEvent::S_MTE3>();
     ////LogInfo(__LINE__, "[SetStatus][set rankGMTensor] =================");
     GlobalTensor<int32_t> rankGMTensor;
     for (uint32_t expertIndex = startExpertId_; expertIndex < endExpertId_; ++expertIndex) {
@@ -1824,7 +1825,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
                 (__gm__ uint8_t *)(GetWindStateAddrByRankId(COMM_EP_IDX, dstRankId) + offset); // 计算地址偏移
             rankGMTensor.SetGlobalBuffer((__gm__ int32_t *)rankGM);
             // 按32对齐拷贝，8是32字节包含的元素个数, 本卡数据需要去掉起始index偏移
-            LocalTensor<int32_t> statusTensor_temp = statusTensor_[((expertIndex - startExpertId_) * serverNum_ + srcServerId) * 8];
+            // LocalTensor<int32_t> statusTensor_temp = statusTensor_[((expertIndex - startExpertId_) * serverNum_ + srcServerId) * 8];
             //LogInfo(__LINE__,"EPRANKID",epRankId_);
             //LogInfo(__LINE__,"[SetStatus][flag]",statusTensor_temp(0));
             //LogInfo(__LINE__,"[SetStatus][cnt]",statusTensor_temp(1));
@@ -1833,7 +1834,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         }
     }
     SyncFunc<AscendC::HardEvent::MTE3_S>();
-    PipeBarrier<PIPE_ALL>();
+    //PipeBarrier<PIPE_ALL>();
     //LogInfo(__LINE__, "[SetStatus] end");
 }
 
@@ -2180,7 +2181,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         DispatchBetweenServer();
         CommunicateBetweenServer(0, serverNum_, aivNum_);
         WaitWindow(aivNum_);
-        SyncAll<true>();
         SetStatus();
         WaitDispatch();
         LocalWindowCopy();
