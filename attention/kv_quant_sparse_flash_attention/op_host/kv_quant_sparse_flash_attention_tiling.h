@@ -238,7 +238,7 @@ struct QSFATilingInfo {
     QSFAParaInfo opParamInfo;
 
     // Base Param
-    platform_ascendc::SocVersion socVersion = platform_ascendc::SocVersion::ASCEND910B;
+    NpuArch npuArch = NpuArch::DAV_2201;
     bool isA5 = false;
     uint32_t bSize = 0;
     uint32_t n1Size = 0;
@@ -498,7 +498,7 @@ private:
 
     uint32_t aicNum_ = 0;
     uint32_t aivNum_ = 0;
-    platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
+    NpuArch npuArch_ = NpuArch::DAV_2201;
     bool isA5_ = false;
     uint64_t l2CacheSize_ = 0;
 
@@ -596,7 +596,7 @@ public:
     uint32_t maxBlockNumPerBatch_ = 0;
     uint32_t blockSize_ = 0;
 
-    platform_ascendc::SocVersion socVersion_ = platform_ascendc::SocVersion::ASCEND910B;
+    NpuArch npuArch_ = NpuArch::DAV_2201;
     bool isA5_ = false;
 
     ge::DataType inputQType_ = ge::DT_FLOAT16;

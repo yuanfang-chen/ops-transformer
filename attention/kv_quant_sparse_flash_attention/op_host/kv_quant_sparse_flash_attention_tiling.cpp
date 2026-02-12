@@ -386,7 +386,7 @@ void QSFAMlaTiling::NormalCalcFDWorkSpace(const uint32_t actCoreNum)
         accumOutSize = FDParamNums * headDimAlign_;
         logSumExpSize = 2 * FDParamNums * (BYTE_BLOCK / sfaaInfo_->blockTypeSize); // log和sum的存储空间一致，共需要2份内存
         workspaceSize_ += (accumOutSize + logSumExpSize) * sfaaInfo_->blockTypeSize;
-        if (sfaaInfo_->socVersion == platform_ascendc::SocVersion::ASCEND310P) {
+        if (sfaaInfo_->npuArch == NpuArch::DAV_2002) { // 310P
             workspaceSize_ += static_cast<size_t>(actCoreNum) * 32; // 每个核SyncAll软同步需要32Byte记录状态
         }
     }
@@ -1238,7 +1238,7 @@ void QSFATilingCheck::Init()
     opName_ = sfaaInfo_.opName;
     platformInfo_ = sfaaInfo_.platformInfo;
     opParamInfo_ = sfaaInfo_.opParamInfo;
-    socVersion_ = sfaaInfo_.socVersion;
+    npuArch_ = sfaaInfo_.npuArch;
     isA5_ = sfaaInfo_.isA5;
 
     bSize_ = sfaaInfo_.bSize;
@@ -1421,10 +1421,10 @@ ge::graphStatus QSFAInfoParser::GetNpuInfo()
     OP_CHECK_IF(aicNum == 0 || aivNum == 0,
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "num of core obtained is 0."), return GRAPH_FAILED);
 
-    socVersion_ = ascendcPlatform.GetSocVersion();
-    isA5_ = (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510);
-    if (socVersion_ != platform_ascendc::SocVersion::ASCEND910B && socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
-        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
+    npuArch_ = ascendcPlatform.GetCurNpuArch();
+    isA5_ = (npuArch_ == NpuArch::DAV_3510);
+    if (npuArch_ != NpuArch::DAV_2201 && npuArch_ != NpuArch::DAV_3510) {
+        OPS_REPORT_VECTOR_INNER_ERR(opName_, "Npu Arch Version[%d] is not support.", static_cast<int32_t>(npuArch_));
         return GRAPH_FAILED;
     }
 
@@ -1748,7 +1748,7 @@ void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
     sfaaInfo.opName = opName_;
     sfaaInfo.platformInfo = platformInfo_;
     sfaaInfo.opParamInfo = opParamInfo_;
-    sfaaInfo.socVersion = socVersion_;
+    sfaaInfo.npuArch = npuArch_;
     sfaaInfo.isA5 = isA5_;
 
     sfaaInfo.bSize = bSize_;
