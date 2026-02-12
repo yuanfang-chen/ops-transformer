@@ -744,11 +744,13 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
                     "processing, transMmWeightOptional dim0 is %ld, and dim1 is %ld.",
                     mmWeightOptional->GetViewShape().GetDim(0), mmWeightOptional->GetViewShape().GetDim(1),
                     transMmWeightOptional->GetViewShape().GetDim(0), transMmWeightOptional->GetViewShape().GetDim(1));
+        auto mmWeightOptional = transMmWeightOptional;
         }
+        
     }
     aclnnStatus ret_param = CheckParams(
         gmmX, transposeGmmWeight, gmmXScale, gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional,
-        sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, transMmWeightOptional, mmXScaleOptional,
+        sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, gmmXQuantMode, gmmWeightQuantMode,
         mmXQuantMode, mmWeightQuantMode, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
@@ -756,7 +758,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
 
     aclnnStatus ret = InnerAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
-        gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, gmmXScale,
+        gmmX, transposeGmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, gmmXScale,
         gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional, mmXScaleOptional, mmWeightScaleOptional,
         mmXOffsetOptional, mmWeightOffsetOptional, group, epWorldSize, sendCounts, recvCounts, transGmmWeight,
         transMmWeight, permuteOutFlag, gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, groupSize,
