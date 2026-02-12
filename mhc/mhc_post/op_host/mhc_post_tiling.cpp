@@ -128,7 +128,7 @@ private:
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
 
-    MhcPostTilingData tilingData_;
+    MhcPostTilingData* tilingData_ = context_->GetTilingData<MhcPostTilingData>();;
 };
 
 ge::graphStatus MhcPostTilingBase::GetPlatformInfo()
@@ -556,39 +556,25 @@ void MhcPostTilingBase::ComputeTiling()
         lastTileD = tileD_;
     }
 
-    // Calculate fast path flags
-    // For n: n=4 (16 bytes) and n=8 (32 bytes) are 8-aligned for float32
-    // n=6 (24 bytes) is not 8-aligned
-    uint32_t isNAligned = (n_ % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
-    // For n*n: 16 (n=4) and 64 (n=8) are 8-aligned, 36 (n=6) is not
-    uint32_t isNNAligned = ((n_ * n_) % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
-    // D is aligned if D % 16 == 0 and single tile
-    uint32_t isDAligned = ((D_ % BF16_FP16_ALIGN_SIZE == 0) && (nTilesD_ == 1)) ? 1 : 0;
-
     // Set tiling data
-    tilingData_.set_totalItems(totalItems_);
-    tilingData_.set_itemsPerCore(itemsPerCore_);
-    tilingData_.set_remainderItems(remainderItems_);
-    tilingData_.set_usedCores(usedCores_);
-    tilingData_.set_S(S_);
-    tilingData_.set_n(n_);
-    tilingData_.set_D(D_);
-    tilingData_.set_tileD(tileD_);
-    tilingData_.set_nTilesD(nTilesD_);
-    tilingData_.set_alignedD(alignedD);
-    tilingData_.set_lastTileD(lastTileD);
-    tilingData_.set_alignedN(alignedN);
-    tilingData_.set_alignedNN(alignedNN);
-    tilingData_.set_isNAligned(isNAligned);
-    tilingData_.set_isNNAligned(isNNAligned);
-    tilingData_.set_isDAligned(isDAligned);
+    tilingData_->totalItems = totalItems_;
+    tilingData_->itemsPerCore = itemsPerCore_;
+    tilingData_->remainderItems = remainderItems_;
+    tilingData_->usedCores = usedCores_;
+    tilingData_->S = S_;
+    tilingData_->n = n_;
+    tilingData_->D = D_;
+    tilingData_->tileD = tileD_;
+    tilingData_->nTilesD = nTilesD_;
+    tilingData_->alignedD = alignedD;
+    tilingData_->lastTileD = lastTileD;
+    tilingData_->alignedN = alignedN;
+    tilingData_->alignedNN = alignedNN;
 
     OP_LOGI(context_,
         "Tiling: n=%u, D=%u, alignedD=%u, tileD=%u, lastTileD=%u, nTilesD=%u",
         n_, D_, alignedD, tileD_, lastTileD, nTilesD_);
-    OP_LOGI(context_,
-        "Tiling: alignedN=%u, alignedNN=%u, isNAligned=%u, isNNAligned=%u, isDAligned=%u",
-        alignedN, alignedNN, isNAligned, isNNAligned, isDAligned);
+    OP_LOGI(context_, "Tiling: alignedN=%u, alignedNN=%u", alignedN, alignedNN);
     OP_LOGI(context_,
         "Tiling: usedCores=%u, itemsPerCore=%u, remainderItems=%u, UB=%u, bytesPerTileD=%u",
         usedCores_, itemsPerCore_, remainderItems_, UB_SIZE, bytesPerTileD);
@@ -633,14 +619,23 @@ ge::graphStatus MhcPostTilingBase::PostTiling()
     context_->SetBlockDim(usedCores_);
     size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = workspaceSize_;
-    tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
     return ge::GRAPH_SUCCESS;
 }
 
 uint64_t MhcPostTilingBase::GetTilingKey() const
 {
-    return TILING_KEY_GENERALIZED;
+    // Calculate fast path flags
+    // For n: n=4 (16 bytes) and n=8 (32 bytes) are 8-aligned for float32
+    // n=6 (24 bytes) is not 8-aligned
+    uint16_t isNAligned = (n_ % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
+    // For n*n: 16 (n=4) and 64 (n=8) are 8-aligned, 36 (n=6) is not
+    uint16_t isNNAligned = ((n_ * n_) % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
+    // D is aligned if D % 16 == 0 and single tile
+    uint16_t isDAligned = ((D_ % BF16_FP16_ALIGN_SIZE == 0) && (nTilesD_ == 1)) ? 1 : 0;
+    OP_LOGI(context_,
+        "Tiling:isNAligned=%u, isNNAligned=%u, isDAligned=%u", isNAligned, isNNAligned, isDAligned);
+
+    return GET_TPL_TILING_KEY(isNAligned, isNNAligned, isDAligned);
 }
 
 void MhcPostTilingBase::Reset()
