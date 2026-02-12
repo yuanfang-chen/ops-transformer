@@ -209,6 +209,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
         return ge::GRAPH_FAILED);
 
     int64_t a;
+    int64_t assist_info_shape = 0;
     int64_t localExpertNum;
     int64_t localMoeExpertNum = *moeExpertNum / moeRankNum;
     int64_t globalBsReal = ((*globalBs == 0) ? (bs * *epWorldSize) : *globalBs);
@@ -258,7 +259,10 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
         Ops::Base::ToString(*dynamicScalesShape).c_str());
 
     assistInfoShape->SetDimNum(DIM_ONE);
-    assistInfoShape->SetDim(0U, a * ASSIST_INFO_NUM_PER_A);
+    if (expertScalesShape != nullptr) {
+        assist_info_shape =  std::max(static_cast<int64_t>(globalBsReal * 2 * k * ((*epWorldSize) / RANK_NUM_PER_NODE)), a * ASSIST_INFO_NUM_PER_A);
+    }
+    assistInfoShape->SetDim(0U, assist_info_shape);
     OP_LOGD(context->GetNodeName(), "assistInfoShape shape is :%s after infershape.",
         Ops::Base::ToString(*assistInfoShape).c_str());
 
