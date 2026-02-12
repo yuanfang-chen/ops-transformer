@@ -728,7 +728,7 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
     // 处理非连续Tensor，目前支持转置的mmWeightOptional涉及该处理
     if (CheckMmWeightValid(mmWeightOptional)) // 先检查mmWeightOptional是否合法，避免非法操作
     {
-        bool notContiguous = IsTransposeLastTwoDims(mmWeightOptional); // notContiguous标识mmWeightOptional是否是非连续的，通常在pytorch经过.t()会导致x2非连续
+        bool notContiguous = IsTransposeLastTwoDims(mmWeightOptional); // notContiguous标识mmWeightOptional是否是非连续的
         auto transMmWeightOptional = mmWeightOptional; // 复制一个mmWeightOptional
         if (notContiguous && transMmWeight) { // 当非连续和转置同时生效时，判断为错误用法，直接报错
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,

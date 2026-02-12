@@ -84,7 +84,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     CHECK_RET(CheckNullStatus(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
         mmWeightOptional, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional),
         ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(allto_allv_grouped_mat_mul_checker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(Mc2AlltoAllvGMMChecker::CheckGroup(group), ACLNN_ERR_PARAM_INVALID);
     return ACLNN_SUCCESS;
 }
 
@@ -97,7 +97,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX, c
     auto ret_param = CheckParams(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
         mmWeightOptional, group, epWorldSize, permuteOutFlag, gmmY, mmYOptional, permuteOutOptional);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
-    auto ret_send_and_recv = allto_allv_grouped_mat_mul_checker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
+    auto ret_send_and_recv = Mc2AlltoAllvGMMChecker::CheckSendAndRecv(sendCounts, recvCounts, gmmX, gmmY);
     CHECK_RET(ret_send_and_recv == ACLNN_SUCCESS, ret_send_and_recv);
     int64_t noQuantMode = 0;
     int64_t yDtype = gmmY->GetDataType();
