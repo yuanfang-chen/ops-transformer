@@ -121,7 +121,7 @@ public:
         auto rowindexDimNumber = gmmParams_.rowIndex->GetViewShape().GetDimNum();
         auto outDimNumber = gmmParams_.out->GetViewShape().GetDimNum();
         size_t xscaleExpectDim = quantMode_ == QuantMode::MX ?  THERE_DIM:ONE_DIM;
-        size_t weightscaleExpectDim = quantMode_ == QuantMode::MX ?  FOUR_DIM:TWO_DIM;
+        size_t weightscaleExpectDim = quantMode_ == QuantMode::MX ?  FOUR_DIM:THERE_DIM;
         CHECK_COND(xDimNumber == TWO_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of x should be equal 2, current dim is %lu.", xDimNumber);
         CHECK_COND(wDimNumber == THERE_DIM, ACLNN_ERR_PARAM_INVALID,
@@ -169,7 +169,8 @@ public:
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape weightScaleExpectShape =
-            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} : op::Shape{e, n};
+            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} :
+                                          op::Shape{e, 1, n};
         op::Shape weightTransExpectShape = {e, n, k};
         op::Shape weightScaleTransExpectShape = {e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
         op::Shape grouplistExpectShape = {e};
