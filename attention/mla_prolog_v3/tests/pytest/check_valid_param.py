@@ -62,6 +62,19 @@ def log_discontinuous_error_mode_once():
     if _DISCONTINUOUS_MODE_LOGGED:
         return
     enabled, max_ratio, max_count = get_discontinuous_error_cfg()
+    logger.info(
+        "[INFO]check mode switch: strict continuous check(default) -> "
+        "export MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR=0"
+    )
+    logger.info(
+        "[INFO]check mode switch: allow discontinuous mismatch -> "
+        "export MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR=1"
+    )
+    logger.info(
+        "[INFO]discontinuous thresholds(optional): "
+        "export MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_RATIO=0.001 "
+        "MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_COUNT=0"
+    )
     if enabled:
         count_desc = str(max_count) if max_count > 0 else "disabled"
         logger.info(

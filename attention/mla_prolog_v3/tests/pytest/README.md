@@ -56,6 +56,17 @@ pytest/
 - 其他整型/布尔输出：严格相等
 - 浮点输出：按dtype使用对应 `rtol/atol`
 
+### 连续/非连续误差检查模式
+
+- 默认模式：连续严格检查（不允许不连续误差点）
+- 开启非连续误差容忍：允许少量离散点误差，阈值由比例和数量共同控制
+- 测试开始时会打印当前模式和开启方式
+
+开关与阈值环境变量：
+- `MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR`：`0`/`1`，默认 `0`
+- `MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_RATIO`：允许误差点占比上限，默认 `0.001`
+- `MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_COUNT`：允许误差点个数上限，默认 `0`（表示仅按比例约束）
+
 ## 环境配置
 
 ### 前置要求
@@ -92,7 +103,23 @@ python3 -m pytest -rA -s test.py -v -m graph
 MLA_PROLOG_V3_ENABLE_FUZZ=1 python3 -m pytest -rA -s test.py -v -m fuzz
 ```
 
+开启非连续误差容忍模式（示例）
+```bash
+MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR=1 \
+MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_RATIO=0.001 \
+MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_COUNT=0 \
+python3 -m pytest -rA -s test.py -v -m ci
+```
+
+使用默认连续严格检查（示例）
+```bash
+MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR=0 python3 -m pytest -rA -s test.py -v -m ci
+```
+
 可选环境变量：
 - `MLA_PROLOG_V3_FUZZ_CASES`：随机用例数，默认 `20`
 - `MLA_PROLOG_V3_FUZZ_SEED`：随机种子，默认 `3`
 - `MLA_PROLOG_V3_CPU_INFO_LOG`：CPU参考实现INFO日志开关，默认 `0`（关闭），`1` 为开启
+- `MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR`：比较检查模式开关，默认 `0`（连续严格检查）
+- `MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_RATIO`：非连续误差比例阈值，默认 `0.001`
+- `MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_COUNT`：非连续误差数量阈值，默认 `0`（仅比例生效）
