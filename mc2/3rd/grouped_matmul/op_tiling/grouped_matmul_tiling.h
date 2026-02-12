@@ -23,6 +23,7 @@
 #include "tiling/tiling_api.h"
 
 namespace optiling {
+namespace Mc2GroupedMatmul {
 BEGIN_TILING_DATA_DEF(GMMBaseParams)
 TILING_DATA_FIELD_DEF(uint32_t, groupNum);
 TILING_DATA_FIELD_DEF(uint32_t, coreNum);
@@ -94,7 +95,7 @@ TILING_DATA_FIELD_DEF_STRUCT(TCubeTiling, mmTilingData);
 TILING_DATA_FIELD_DEF_STRUCT(A8W4HPTiling, hpTilingData);
 END_TILING_DATA_DEF;
 
-REGISTER_TILING_DATA_CLASS(GroupedMatmul, GMMTilingData)
+REGISTER_TILING_DATA_CLASS(Mc2GroupedMatmul, GMMTilingData)
 
 struct GMMCompileInfo {
     uint32_t aicNum;
@@ -229,6 +230,7 @@ private:
     matmul_tiling::CubeFormat wFormat_;
     int32_t nzFactor_; // for weight nz format
 };
+} // namespace Mc2GroupedMatmul
 } // namespace optiling
 
 #endif // MC2_GROUPED_MATMUL_TILING_H

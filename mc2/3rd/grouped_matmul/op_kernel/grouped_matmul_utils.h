@@ -145,7 +145,7 @@
     __gm__ int32_t *(var) = (__gm__ int32_t *)((tiling) + (offset##var));
 #endif
 
-namespace GROUPED_MATMUL {
+namespace MC2_GROUPED_MATMUL {
 using namespace AscendC;
 
 constexpr uint32_t INT8_BITS = 8;                                    // a int8 number has 8 bits
@@ -361,6 +361,6 @@ __aicore__ static constexpr MatmulConfig GenGmmConf(bool isND2NZ)
         .isCO1Shared = false,
     };
 }
-} // namespace GROUPED_MATMUL
+} // namespace MC2_GROUPED_MATMUL
 
 #endif // MC2_GROUPED_MATMUL_UTILS_H
