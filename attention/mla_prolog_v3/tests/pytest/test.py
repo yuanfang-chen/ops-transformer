@@ -88,6 +88,7 @@ def _to_test_data(param_combinations):
 
 def _run_single_case(param_combinations):
     torch_npu.npu.set_device(0)
+    check_valid_param.log_discontinuous_error_mode_once()
     test_data = _to_test_data(param_combinations)
     check_valid_param.validate_config(test_data)
     expect, result = prologv3_generalized.test_prologv3_generalized(test_data)

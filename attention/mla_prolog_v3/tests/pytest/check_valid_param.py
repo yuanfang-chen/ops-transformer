@@ -11,12 +11,66 @@
 # -----------------------------------------------------------------------------------------------------------
 
 import math
+import os
 import random
 import logging
 import torch
 
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
+_DISCONTINUOUS_MODE_LOGGED = False
+
+
+def _env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_float(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError:
+        return default
+
+
+def _env_int(name, default):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        return default
+
+
+def get_discontinuous_error_cfg():
+    enabled = _env_bool("MLA_PROLOG_V3_ENABLE_DISCONTINUOUS_ERROR", False)
+    max_ratio = _env_float("MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_RATIO", 0.001)
+    max_ratio = min(max(max_ratio, 0.0), 1.0)
+    max_count = _env_int("MLA_PROLOG_V3_DISCONTINUOUS_ERROR_MAX_COUNT", 0)
+    max_count = max(0, max_count)
+    return enabled, max_ratio, max_count
+
+
+def log_discontinuous_error_mode_once():
+    global _DISCONTINUOUS_MODE_LOGGED
+    if _DISCONTINUOUS_MODE_LOGGED:
+        return
+    enabled, max_ratio, max_count = get_discontinuous_error_cfg()
+    if enabled:
+        count_desc = str(max_count) if max_count > 0 else "disabled"
+        logger.info(
+            "[INFO]discontinuous error mode: ON "
+            f"(max_ratio={max_ratio}, max_count={count_desc})"
+        )
+    else:
+        logger.info("[INFO]discontinuous error mode: OFF")
+    _DISCONTINUOUS_MODE_LOGGED = True
 
 
 def validate_config(params):
@@ -95,6 +149,8 @@ def create_random_block_table(batch_size, act_seq_len_kv, block_size):
 
 
 def check_result(expect, result):
+    discontinuous_mode_enabled, discontinuous_max_ratio, discontinuous_max_count = get_discontinuous_error_cfg()
+
     def _to_output_list(outputs):
         if isinstance(outputs, torch.Tensor):
             return [outputs]
@@ -129,6 +185,22 @@ def check_result(expect, result):
             return 0.05, 0.05
         # FP32/FP64 path.
         return 0.001, 0.001
+
+    def _assert_mismatch_policy(group_name, index, mismatch_mask, total_num):
+        mismatch_num = int(torch.sum(mismatch_mask).item())
+        mismatch_ratio = float(mismatch_num / total_num) if total_num > 0 else 0.0
+        if not discontinuous_mode_enabled:
+            assert mismatch_num == 0, \
+                f"{group_name}[{index}] compare failed, mismatch_num={mismatch_num}, total_num={total_num}"
+            return
+
+        within_ratio = mismatch_ratio <= discontinuous_max_ratio
+        within_count = (discontinuous_max_count == 0) or (mismatch_num <= discontinuous_max_count)
+        assert within_ratio and within_count, (
+            f"{group_name}[{index}] compare failed under discontinuous mode, "
+            f"mismatch_num={mismatch_num}, total_num={total_num}, mismatch_ratio={mismatch_ratio}, "
+            f"max_ratio={discontinuous_max_ratio}, max_count={discontinuous_max_count}"
+        )
 
     def _compare_tensor_group(expect_group, result_group, group_name):
         if len(expect_group) != len(result_group):
@@ -169,7 +241,7 @@ def check_result(expect, result):
                     f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, "
                     f"accuracy: {accuracy}, int8_abs_tol=1"
                 )
-                assert torch.all(abs_diff <= 1), f"{group_name}[{i}] int8 compare failed (|diff| > 1)"
+                _assert_mismatch_policy(group_name, i, mismatch_mask, total_num)
                 continue
 
             rtol, atol = _dtype_tolerance(expect_cpu.dtype, result_cpu.dtype)
@@ -190,7 +262,7 @@ def check_result(expect, result):
                 logger.info(
                     f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}"
                 )
-                assert torch.equal(result_i64, expect_i64), f"{group_name}[{i}] integer compare failed"
+                _assert_mismatch_policy(group_name, i, mismatch_mask, total_num)
                 continue
 
             result_fp32 = result_cpu.to(torch.float32).reshape(-1)
@@ -209,8 +281,7 @@ def check_result(expect, result):
                 f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, accuracy: {accuracy}, "
                 f"rtol={rtol}, atol={atol}"
             )
-            assert torch.allclose(result_fp32, expect_fp32, rtol=rtol, atol=atol, equal_nan=True), \
-                f"{group_name}[{i}] float compare failed"
+            _assert_mismatch_policy(group_name, i, mismatch_mask, total_num)
 
     expect_outputs, expect_inplace = _to_compare_groups(expect)
     result_outputs, result_inplace = _to_compare_groups(result)
