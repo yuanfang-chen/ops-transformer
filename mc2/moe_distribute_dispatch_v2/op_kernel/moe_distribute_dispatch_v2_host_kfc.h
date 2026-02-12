@@ -265,6 +265,7 @@ private:
     LocalTensor<uint32_t> finishNumTensor_;
     LocalTensor<uint32_t> expertOffsetCntTensor_;
     LocalTensor<bool> expertMaskInputTensor_;
+    LocalTensor<uint32_t> flagTensor_;
 
     TBuf<> expertIdsBuf_;
     TBuf<> statusBuf_;
@@ -774,6 +775,14 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<uint32_t>();
     tpipe_->InitBuffer(xSendBuf_,sendTokenLength_);
     tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
+    
+    uint64_t mask[1] = {0x0101010101010101};
+    uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
+
+    flagTensor_ = flagBuf_.Get<uint32_t>();
+    Duplicate<uint32_t>(flagTensor_, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
+
+
     //LogInfo(__LINE__, "axisHCommu",axisHCommu);
     //LogInfo(__LINE__, "serverBuferLength",serverBuferLength);
     //LogInfo(__LINE__, "serverMapLength",serverMapLength);
@@ -1009,11 +1018,6 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
                                                                  SERVER_STATE_ALIGN + cnt * sendTokenLengthAlign_));
     flagDstWinGMTensor.SetGlobalBuffer((__gm__ uint32_t *)(GetSendAddrBetweenServer(COMM_EP_IDX, dstServerId) +
                                                            SERVER_STATE_ALIGN + cnt * sendTokenLengthAlign_));
-    uint64_t mask[1] = {0x0101010101010101};
-    uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
-
-    LocalTensor<uint32_t> flagTensor = flagBuf_.Get<uint32_t>();
-    Duplicate<uint32_t>(flagTensor, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
 
@@ -1023,9 +1027,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
 
     DataCopyExtParams flagCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), UB_ALIGN, 0U,
                                            SPLIT_BLOCK_DATA_SIZE, 0U};
-    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor, flagCopyOutParams);
-    //SyncFunc<AscendC::HardEvent::V_MTE3>();
-    //PipeBarrier<PIPE_ALL>();
+    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor_, flagCopyOutParams);
 }
 
 template <TemplateDispatchKFCTypeClass>
@@ -1033,13 +1035,10 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
                                                                                                uint32_t dstServerId,
                                                                                                uint32_t cnt)
 {
-    LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>();
-    //DataCopyPadExtParams<XType> copyPadExtParams{false, 0U, 0U, 0U};
+    LocalTensor<XType> sendTokenTensor = xSendBuf_.Get<XType>(); 
     SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
     DataCopyPadParams copyPadExtParams{true, 0U, 0U, 0U};
     DataCopyPad(sendTokenTensor, xGMTensor_[tokenIndex * axisH_], xCopyParams_, copyPadExtParams);
-    //同步
-    // SyncFunc<AscendC::HardEvent::MTE2_V>();
     FillQuadruple(sendTokenTensor, tokenIndex);
     CopyTokenToWinOut(sendTokenTensor, dstServerId, cnt);
     
@@ -1073,17 +1072,11 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
             tokenSendMap_.SetValue(pos, 1);
             uint32_t CntValue = serverCountTensor_.GetValue(dstServerId);
             serverCountTensor_.SetValue(dstServerId, CntValue + 1); // 当前server已经收到多少Token
-            // //LogInfo(__LINE__,"[DispatchAndCountTokens]index ",index);
-            // //LogInfo(__LINE__,"[DispatchAndCountTokens]expertIndex ",expertIndex);
-            // //LogInfo(__LINE__,"[DispatchAndCountTokens]CntValue ",CntValue);
-            // //LogInfo(__LINE__,"[DispatchAndCountTokens]dstServerId ",dstServerId);
             if (process) {
                 SingleTokenProcess(tokenIndex, dstServerId, CntValue); // 将数据写入对应的发送区
             }
         }
     }
-   ////LogInfo(__LINE__,tokenSendMap_ ,tpipe_,2);
-   ////LogInfo(__LINE__,serverCountTensor_ ,tpipe_,2);
 }
 
 template <TemplateDispatchKFCTypeClass>
