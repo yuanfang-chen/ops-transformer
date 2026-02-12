@@ -137,7 +137,6 @@ protected:
     GlobalTensor<T> valueGm;
     GlobalTensor<U> attenMaskGm;
     GlobalTensor<O> attentionOutGm;
-    GlobalTensor<O> attentionSingleCoreOutGm;
     GlobalTensor<int64_t> actualSeqLengthsGm;
     GlobalTensor<int64_t> actualSeqLengthsKVGm;
     GlobalTensor<softmaxType> workspaceGm;
@@ -302,7 +301,7 @@ protected:
 
     __aicore__ inline void GetSingleCoreParam(int sIdx);
 
-    __aicore__ inline void InitOutputSingleCore(__gm__ uint8_t* attentionOut);
+    __aicore__ inline void InitOutputSingleCore();
 
     __aicore__ inline void Bmm1Compute(LocalTensor<mmInputType>& a1Local, LocalTensor<mmInputType>& b1Local, int32_t singleM, int32_t singleN, int32_t singleK);
 };
@@ -419,7 +418,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::Init(__gm__ u
     }
 
     if (tilingData->promptAttentionInitOutputParams.needInit == 1) {
-        InitOutputSingleCore(attentionOut);
+        InitOutputSingleCore();
     }
 
     if constexpr (PFAT::layout == PFALayoutNZ::BSH) {
@@ -439,30 +438,29 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::InitMsd(__gm_
 }
 
 template<typename PFAT>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::InitOutputSingleCore(__gm__ uint8_t* attentionOut)
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::InitOutputSingleCore()
 {
     auto &initParams = tilingData->promptAttentionInitOutputParams;
     uint32_t tailSize = initParams.totalOutputSize - tmp_block_idx * initParams.singleCoreSize;
     uint32_t singleInitOutputSize = tailSize < initParams.singleCoreSize ? tailSize : initParams.singleCoreSize;
-    attentionSingleCoreOutGm.SetGlobalBuffer(((__gm__ O*)attentionOut) + (tmp_block_idx * initParams.singleCoreSize));
-    InitGlobalMemory<O>(attentionSingleCoreOutGm, singleInitOutputSize, 0);
+    InitOutput<O>(attentionOutGm[tmp_block_idx * initParams.singleCoreSize], singleInitOutputSize, 0);
     SyncAll();
 }
 
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, bool, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, bool, int8_t>>::InitOutputSingleCore() {}
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, bool, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, bool, int8_t>>::InitOutputSingleCore() {}
 
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, half, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, half, int8_t>>::InitOutputSingleCore() {}
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, half, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, half, int8_t>>::InitOutputSingleCore() {}
 
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, float, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BNSD, int8_t, float, int8_t>>::InitOutputSingleCore() {}
 template<>
-__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, float, int8_t>>::InitOutputSingleCore(__gm__ uint8_t* attentionOut) {}
+__aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFATypeNZ<PFALayoutNZ::BSH, int8_t, float, int8_t>>::InitOutputSingleCore() {}
 
 template<typename PFAT>
 __aicore__ inline void PromptFlashAttentionS1s2Bns1X310Base<PFAT>::initOffset() {
