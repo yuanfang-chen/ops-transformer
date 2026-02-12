@@ -335,22 +335,27 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     if (fagShape.inputLayoutStr == "BSH" || fagShape.inputLayoutStr == "SBH") {
         fagShape.h1Dim = queryShape.GetDim(2); // 2:h1
         fagShape.h2Dim = keyShape.GetDim(2);    // 2:h2
+        auto h3Dim = valueShape.GetDim(2);    // 3:h3，h of v
         if (headNum == 0) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The headNum is zero.");
             return ACLNN_ERR_PARAM_INVALID;
         }
         fagShape.dDim = fagShape.h1Dim / headNum; // q Head-dim
         if (fagShape.dDim == 0) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dimension of D is zero.");
-            return ACLNN_ERR_PARAM_INVALID;
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = headNum;
+            fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = fagShape.h2Dim;
+            fagShape.dvDim = h3Dim;
+        } else {
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
+            fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = fagShape.n2Dim == 0 ? fagShape.dDim : keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
+            fagShape.dvDim = fagShape.n2Dim == 0 ? 0 : valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
         }
-
-        fagShape.n1Dim = headNum;
-        fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
-        fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
-        fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
-        fagShape.dkDim = keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
-        fagShape.dvDim = valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
     } else if (fagShape.inputLayoutStr == "TND") {
         fagShape.dDim = queryShape.GetDim(2);  // 2:d
         fagShape.n1Dim = queryShape.GetDim(1); // 1:n1
@@ -366,8 +371,19 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    if (fagShape.dDim != fagShape.dkDim) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same, but got qD=%ld kD=%ld", fagShape.dDim, fagShape.dkDim);
+    if (fagShape.dDim != fagShape.dkDim && queryShape.GetDimNum() == DIM_NUM_3) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "qD and kD should be same, q shape = [%ld, %ld, %ld], k shape = [%ld, %ld, %ld].",
+            queryShape.GetDim(0), queryShape.GetDim(1), queryShape.GetDim(DIM_NUM_2),
+            keyShape.GetDim(0), keyShape.GetDim(1), keyShape.GetDim(DIM_NUM_2));
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+
+    if (fagShape.dDim != fagShape.dkDim && queryShape.GetDimNum() == DIM_NUM_4) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "qD and kD should be same, q shape = [%ld, %ld, %ld, %ld], k shape = [%ld, %ld, %ld, %ld].",
+            queryShape.GetDim(0), queryShape.GetDim(1), queryShape.GetDim(DIM_NUM_2), queryShape.GetDim(DIM_NUM_3),
+            keyShape.GetDim(0), keyShape.GetDim(1), keyShape.GetDim(DIM_NUM_2), keyShape.GetDim(DIM_NUM_3));
         return ACLNN_ERR_PARAM_INVALID;
     }
 
