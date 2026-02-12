@@ -513,7 +513,7 @@ __aicore__ inline void QSFAMatmulService<QSFAT>::LoadDataMm2A(LocalTensor<K_ROPE
     loadData2DParamsA.srcStride = ((mSize + 15) >> 4 << 4) >> 4; 
     loadData2DParamsA.dstStride = loadData2DParamsA.mStep;
 
-    LoadData(aL0Tensor, aL1Tensor, loadData2DParamsA);
+    LoadData(aL0Tensor, srcTensor, loadData2DParamsA);
 }
 
 template <typename QSFAT>
