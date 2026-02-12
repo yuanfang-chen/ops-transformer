@@ -86,42 +86,32 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
     }
     // batch_size 非负校验
     if (batchSize_ < 0) {
-        KERNEL_LOG_ERROR("batch_size should not be negative, but got %ld", batchSize_);
+        KERNEL_LOG_ERROR("batch_size should not be negative, but got %d", batchSize_);
         return false;
     }
     // max_seqlen_q 非负校验
     if (querySeqSize_ < 0) {
-        KERNEL_LOG_ERROR("max_seqlen_q should not be negative, but got %ld", querySeqSize_);
+        KERNEL_LOG_ERROR("max_seqlen_q should not be negative, but got %d", querySeqSize_);
         return false;
     }
     // num_heads_q 校验
     if (queryHeadNum_ != 64) {
-        KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %ld", queryHeadNum_);
+        KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %d", queryHeadNum_);
         return false;
     }
     // num_heads_kv 校验
     if (kvHeadNum_ != 1) {
-        KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %ld", kvHeadNum_);
+        KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %d", kvHeadNum_);
         return false;
     }
     // ori_mask_mode 校验
     if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
-        KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %ld", oriMaskMode_);
-        return false;
-    }
-    // cmp_mask_mode 校验
-    if (cmpMaskMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
-        KERNEL_LOG_ERROR("cmp_mask_mode should be 3, but got %ld", cmpMaskMode_);
+        KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %d", oriMaskMode_);
         return false;
     }
     // ori_win_left 校验
     if (winLeft_ != 127) {
-        KERNEL_LOG_ERROR("ori_win_left should only be 127, but got %lld", winLeft_);
-        return false;
-    }
-    // ori_win_right 校验
-    if (winRight_ != 0) {
-        KERNEL_LOG_ERROR("ori_win_right should only be 0, but got %ld", winRight_);
+        KERNEL_LOG_ERROR("ori_win_left should only be 127, but got %ld", winLeft_);
         return false;
     }
     // layout_q 校验
@@ -219,17 +209,17 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature() {
     if (hasCmpKv_) { 
         // cmp_topk 校验
  	    if (cmpTopK_ != 0 && cmpTopK_ != 512 ) {
- 	    KERNEL_LOG_ERROR("cmp_topk should be 0 or 512, but got %ld", cmpTopK_);
+ 	    KERNEL_LOG_ERROR("cmp_topk should be 0 or 512, but got %d", cmpTopK_);
         return false;
         }
         if (cmpTopK_ == 0) {// CFA 
             if (cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("In CFA, cmpRatio_ should only be 128, but got %ld", cmpRatio_);
+            KERNEL_LOG_ERROR("In CFA, cmpRatio_ should only be 128, but got %d", cmpRatio_);
             return false;
             }
         } else {//SCFA
             if (cmpRatio_ != 4) {
-            KERNEL_LOG_ERROR("In SCFA, cmpRatio_ should only be 4, but got %ld", cmpRatio_);
+            KERNEL_LOG_ERROR("In SCFA, cmpRatio_ should only be 4, but got %d", cmpRatio_);
             return false;
             }
         }
