@@ -209,6 +209,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
                     </ul>
                 </li>
                 <li>sparseMode = 2、3、4时，attenMaskOptional的shape输入支持(2048, 2048)或(1,2048,2048)或(1,1,2048,2048)</li>
+                <li>上述Q_S为query的shape中的S，KV_S为key和value的shape中的S；如果输入attenMask shape中的Q_S、KV_S非32B对齐，可以向上取到对齐的Q_S、KV_S。</li>
             </ul>
             </td>
             <td>×</td>
