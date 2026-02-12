@@ -248,7 +248,6 @@ protected:
     bool SetCustomParam(gert::TilingContext *context);
     bool IsA16W4ND() const;
     bool IsMxA8W4() const;
-    bool CheckAntiQuantScale(const gert::TilingContext *context) const;
     bool CheckPerTokenScale(const gert::TilingContext* context) const;
     bool CheckUnsupportDataFlow(const gert::TilingContext *context) const;
     bool CheckAntiQuantDtype(const gert::TilingContext *context) const;
