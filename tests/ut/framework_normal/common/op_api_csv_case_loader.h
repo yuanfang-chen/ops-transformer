@@ -120,6 +120,9 @@ inline TensorDesc GetTensorACL(const csv_map& csvMap, const std::string& shapeKe
     if (shapeStr.empty()) {
         return {{}, dtype, format};
     }
+    if (shapeStr == "nullptr") {
+        return nullptr;
+    }
     return {GetShapeArr(shapeStr), dtype, format};
 }
 
