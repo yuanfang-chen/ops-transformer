@@ -158,7 +158,7 @@ public:
 
     __aicore__ inline GM_ADDR GetIpcDataAddrIn(uint32_t targetRankId, uint32_t localMoeExpertId, uint32_t fromRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] + (localMoeExpertId * halfWorldSize_ + fromRankId % halfWorldSize_) * rankSizeOnIpcData_;
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] + (localMoeExpertId * halfWorldSize_ + (fromRankId % halfWorldSize_)) * rankSizeOnIpcData_;
     }
 
     // Combine专用
