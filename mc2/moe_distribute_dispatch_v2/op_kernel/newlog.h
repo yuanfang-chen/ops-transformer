@@ -88,16 +88,16 @@ __aicore__ inline void Log::Init(TPipe * tpipe,int32_t rankId) {
 
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, const GM_ADDR addr){
     const __gm__ void * addrtemp = static_cast<const __gm__ void*>(addr);
-    printf("[rankId: %d][aivId: %d][line: %d]", rankId_, aivId_, line);
+    printf("[rankId: %d][aivId: %d][function: %s][line: %d]", rankId_, aivId_, func, line);
     printf("%s: %p\n", msg, addrtemp);
 }
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg){
-    printf("[rankId: %d][aivId: %d][line: %d]%s\n", rankId_, aivId_, line, msg);
+    printf("[rankId: %d][aivId: %d][function: %s][line: %d] %s\n", rankId_, aivId_, func, line, msg);
 }
 
 template<typename T>
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg,   const T num){
-    printf("[rankId: %d][aivId: %d][line: %d]%s: ", rankId_, aivId_, line, msg);
+    printf("[rankId: %d][aivId: %d][function: %s][line: %d] %s: ", rankId_, aivId_, func, line, msg);
     print_value(num);
     printf("\n");
 }
@@ -245,7 +245,7 @@ __aicore__ inline void Log::PrintValue(const LocalTensor<T>& tensor, const uint3
 
 template <typename T,size_t N>
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, LocalTensor<T>& tensor,const uint32_t (&shape)[N]) {//按指定shap打
-    printf("[rankId: %d][aivId: %d][line: %d]", rankId_, aivId_, line);
+    printf("[rankId: %d][aivId: %d][function: %s][line: %d]", rankId_, aivId_, func, line);
     printf("%s\n", msg);
     if(tensor.GetSize() == 0){
         printf("tensor is empty\n");
@@ -368,7 +368,7 @@ __aicore__  inline void Log::PrintValue(const GlobalTensor<T>& tensor, const uin
 
 template <typename T,size_t N>
 __aicore__ inline void Log::LogInfo(const  char * func, const uint32_t line, const __gm__ char *msg, GlobalTensor<T>& tensor,const uint32_t (&shape)[N]) {//按指定shap打
-    printf("[rankId: %d][aivId: %d][line: %d]", rankId_, aivId_, line);
+    printf("[rankId: %d][aivId: %d][function: %s][line: %d]", rankId_, aivId_, func, line);
     printf("%s\n", msg);
     bool cast = !is_decimal_integer_v<T> && !is_unsigned_integer_v<T> && !is_fp_point_v<T>;
     if (cast) {
