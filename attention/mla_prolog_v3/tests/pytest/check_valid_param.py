@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def validate_config(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
-            q_seq, kv_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
+            q_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
             weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
             quant_scale_repo_mode, tile_size, qc_qr_scale, kc_scale = params
     # 校验

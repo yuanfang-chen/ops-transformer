@@ -309,7 +309,7 @@ def set_seed(seed):
 class GeneralizedPrologV3:
     def __init__(self, params):
         self.batch_size, self.He, self.Hcq, self.Hckv, self.q_head_num, self.kv_head_num, \
-        self.head_dim, self.rope_head_dim, self.q_seq, self.kv_seq, self.block_size, \
+        self.head_dim, self.rope_head_dim, self.q_seq, self.block_size, \
         self.input_layout, self.cache_mode, self.cq_epsilon, self.ckv_epsilon, self.dtype, \
         self.weight_quant_mode, self.kv_quant_mode, self.query_quant_mode, \
         self.ckvkr_repo_mode, self.quant_scale_repo_mode, self.tile_size, \
@@ -322,7 +322,8 @@ class GeneralizedPrologV3:
         """
         B = self.batch_size
         S1 = self.q_seq
-        S2 = self.kv_seq
+        # kv_seq is not effective for this kernel path; cache sequence follows query sequence.
+        S2 = S1
         D = self.head_dim
         Dr = self.rope_head_dim
         N1 = self.q_head_num
@@ -852,7 +853,7 @@ def _cache_shape(cache_mode, B, S2, N2, last_dim, block_size):
 
 def test_prologv3_generalized(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
-    q_seq, kv_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
+    q_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
     weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
     quant_scale_repo_mode, tile_size, qc_qr_scale, kc_scale = params
 
@@ -871,7 +872,7 @@ def test_prologv3_generalized(params):
 
     B = batch_size
     S1 = q_seq
-    S2 = kv_seq
+    S2 = S1
     N1 = q_head_num
     N2 = kv_head_num
     D = head_dim

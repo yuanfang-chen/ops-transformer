@@ -22,7 +22,7 @@ from testcases import ENABLED_PARAMS, FUZZ_PARAM_SPACE
 
 PARAM_NAMES = [
     "batch_size", "He", "Hcq", "Hckv", "q_head_num",
-    "kv_head_num", "head_dim", "rope_head_dim", "q_seq", "kv_seq",
+    "kv_head_num", "head_dim", "rope_head_dim", "q_seq",
     "block_size", "input_layout", "cache_mode", "cq_epsilon", "ckv_epsilon", "dtype",
     "weight_quant_mode", "kv_quant_mode", "query_quant_mode",
     "ckvkr_repo_mode", "quant_scale_repo_mode", "tile_size",
@@ -32,6 +32,7 @@ PARAM_NAMES = [
 
 def _build_param_combinations():
     combinations = []
+    seen = set()
     for params in ENABLED_PARAMS:
         values = [params[name] for name in PARAM_NAMES]
         for combo in itertools.product(*values):
@@ -44,8 +45,13 @@ def _build_param_combinations():
                 param_dict["ckvkr_repo_mode"],
                 param_dict["quant_scale_repo_mode"],
             )
-            if valid:
-                combinations.append(param_dict)
+            if not valid:
+                continue
+            key = tuple(param_dict[name] for name in PARAM_NAMES)
+            if key in seen:
+                continue
+            seen.add(key)
+            combinations.append(param_dict)
     return combinations
 
 
@@ -63,7 +69,6 @@ def _to_test_data(param_combinations):
         param_combinations["head_dim"],
         param_combinations["rope_head_dim"],
         param_combinations["q_seq"],
-        param_combinations["kv_seq"],
         param_combinations["block_size"],
         param_combinations["input_layout"],
         param_combinations["cache_mode"],
