@@ -147,7 +147,12 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckExistence() {
             return false;
         }
     }
-
+    if (layoutKey_ == "TND") {
+        if (isInvalid(actSeqLenKey_)) {
+            KERNEL_LOG_ERROR("For layout_key TND, actual_seq_lengths_key must be provided!");
+            return false;
+        }
+    }
     return true;
 }
 
