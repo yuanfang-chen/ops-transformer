@@ -15,7 +15,7 @@
 #include "aclnn_util.h"
 #include "hccl/hccl_types.h"
 
-namespace allto_allv_grouped_mat_mul_checker {
+namespace Mc2AlltoAllvGMMChecker {
 
 aclnnStatus CheckSendAndRecv(const aclIntArray *sendCounts, const aclIntArray *recvCounts, const aclTensor *gmmX, const aclTensor *gmmY);
 
