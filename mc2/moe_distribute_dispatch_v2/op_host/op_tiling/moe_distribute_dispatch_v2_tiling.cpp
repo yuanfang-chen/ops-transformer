@@ -1764,7 +1764,7 @@ static ge::graphStatus MoeDistributeDispatchA2TilingFuncImpl(gert::TilingContext
     numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
     if (isLayered) {
         uint32_t serverNum = info.epWorldSize / RANK_NUM_PER_NODE_A2;
-        uint32_t maxLocalMoeExpertNum = MAX_MOE_EXPERT_NUMS_A2 / (RANK_NUM_PER_NODE_A2 * MIN_EP_WORLD_SIZE);
+        uint32_t maxLocalMoeExpertNum = tilingData->moeDistributeDispatchInfo.maxMoeExpertNum / (RANK_NUM_PER_NODE_A2 * MIN_EP_WORLD_SIZE);
         OP_TILING_CHECK(numBlocks < 2 * serverNum + 1 || numBlocks < maxLocalMoeExpertNum,
             OP_LOGE(context->GetNodeName(), "AivNum %d is invalid, with serverNum is %d and maxLocalMoeExpertNum is %d, at least %d AivCores are required.",
             numBlocks, serverNum, maxLocalMoeExpertNum, std::max(2 * serverNum + 1, maxLocalMoeExpertNum)),
