@@ -630,11 +630,13 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckFormat()
     OP_TILING_CHECK(gmmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
         OP_LOGE(context_->GetNodeName(), "gmmY storage format should be ND."),
         return ge::GRAPH_FAILED);
-    auto mmYDesc = context_->GetOutputDesc(OUTPUT_MM_Y_INDEX);
-    if (mmYDesc != nullptr) {
-        OP_TILING_CHECK(mmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-            OP_LOGE(context_->GetNodeName(), "mmY storage format should be ND."),
-            return ge::GRAPH_FAILED);
+    if (hasSharedExpertFlag_) {
+        auto mmYDesc = context_->GetOutputDesc(OUTPUT_MM_Y_INDEX);
+        if (mmYDesc != nullptr) {
+            OP_TILING_CHECK(mmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
+                OP_LOGE(context_->GetNodeName(), "mmY storage format should be ND."),
+                return ge::GRAPH_FAILED);
+        }
     }
     auto permuteOutDesc = context_->GetOutputDesc(OUTPUT_PERMUTE_OUT_INDEX);
     if (permuteOutDesc != nullptr) {
