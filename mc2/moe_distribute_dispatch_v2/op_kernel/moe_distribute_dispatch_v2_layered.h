@@ -28,7 +28,7 @@
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
 
-namespace MoeDistributeDispatchV2LayeredImpl {
+namespace Mc2Kernel {
 #define TemplateMC2TypeV2LayeredClass typename XType, typename ExpandXOutType, bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist
 #define TemplateMC2TypeV2LayeredFunc XType, ExpandXOutType, StaticQuant, DynamicQuant, IsSmoothScaleExist
 
