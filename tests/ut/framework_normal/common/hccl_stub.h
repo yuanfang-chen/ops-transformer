@@ -12,8 +12,6 @@
 #define LIB_HCCL_HCCL_H
 
 #include <cstdint>
-
-#define __aicore__
 #define __gm__
 
 #define GM_ADDR uint8_t*
