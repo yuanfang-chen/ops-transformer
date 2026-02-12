@@ -16,6 +16,7 @@
 #include <register/op_def_registry.h>
 #include "tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
+#include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_check.h"
 // #include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_key.h"
 #include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_data.h"
 using namespace AscendC;
@@ -39,6 +40,19 @@ using namespace ge;
 // {
 
 // }
+
+static ge::graphStatus CheckSocVersion(const gert::TilingContext *context)
+{
+    const char *nodeName = context->GetNodeName();
+    // 校验socVersion
+    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(nodeName, "platformInfoPtr is null."), return ge::GRAPH_FAILED);
+    platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+    platform_ascendc::SocVersion socVersion = ascendcPlatform.GetSocVersion();
+    OP_TILING_CHECK(socVersion != platform_ascendc::SocVersion::ASCEND910_93,
+        OP_LOGE(nodeName, "SocVersion needed to be 910_93."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
 /**
  * @brief 设置hcomm参数
@@ -108,6 +122,7 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
  */
 static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingContext *context)
 {
+    // 1. tiling参数校验
     OP_LOGD("QbmmReduceScatterAddRmsNormCast tiling start.");
     OP_TILING_CHECK(context == nullptr,
                     OP_LOGE("qbmm_reduce_scatter_add_rms_norm_cast", "failed to get tiling context in qbmm_reduce_scatter_add_rms_norm_cast."),
@@ -120,6 +135,18 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     QbmmReduceScatterAddRmsNormCastTilingData *tilingData = context->GetTilingData<QbmmReduceScatterAddRmsNormCastTilingData>();
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr in qbmm_reduce_scatter_add_rms_norm_cast."),
                     return ge::GRAPH_FAILED);
+
+    // 校验socVersion与Attr属性
+    OP_TILING_CHECK(CheckSocVersion(context) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "socVersion is invalid."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(TilingCheckQbmmReduceScatterAddRmsNormCast::CheckAttrs(context) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "Attrs are invalied."), return ge::GRAPH_FAILED);
+
+    // 校验输入输出tensor的dim/dtype/format
+    OP_TILING_CHECK(TilingCheckQbmmReduceScatterAddRmsNormCast::TilingCheckQbmmReduceScatterAddRmsNormCast(context, params) !=
+        ge::GRAPH_SUCCESS, OP_LOGE(nodeName, "Tiling check param failed."), return ge::GRAPH_FAILED);
+    
+    // 2. tiling参数设置
     // 获取group以便ranksize设置与通信设置
     std::string group = "";
     const char *groupPtr = context->GetAttrs()->GetAttrPointer<char>(GROUP_INDEX);
