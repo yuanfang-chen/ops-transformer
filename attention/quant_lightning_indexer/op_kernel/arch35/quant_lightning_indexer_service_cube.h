@@ -411,36 +411,17 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::LoadSToL0b(uint64_t s1gL1RealSize, uint64_t s2L0RealSize, uint64_t sL1BufIdx,
                                                    int64_t mStartPt)
 {
-    LoadData3DParamsV2<half> loadData3DParams;
-    // SetFmatrixParams
-    loadData3DParams.l1H = S1G_BASIC_BLOCK_L0 / BLOCK_CUBE;              // Hin=M1=8
-    loadData3DParams.l1W = BLOCK_CUBE;                                   // Win=M0
-    loadData3DParams.channelSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // Cin=K
-
-    loadData3DParams.padList[0] = 0;
-    loadData3DParams.padList[1] = 0;
-    loadData3DParams.padList[2] = 0;
-    loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
-
-    // SetLoadToA0Params
-    loadData3DParams.mExtension = constInfo_.gSize;                     // M height维度目的
-    loadData3DParams.kExtension = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // K   width维度目的
-    loadData3DParams.kStartPt = 0;
-    loadData3DParams.strideW = 1;
-    loadData3DParams.strideH = 1;
-    loadData3DParams.filterW = 1;
-    loadData3DParams.filterSizeW = (1 >> 8) & 255;
-    loadData3DParams.filterH = 1;
-    loadData3DParams.filterSizeH = (1 >> 8) & 255;
-    loadData3DParams.dilationFilterW = 1;
-    loadData3DParams.dilationFilterH = 1;
-    loadData3DParams.enTranspose = 1;
-    loadData3DParams.fMatrixCtrl = 0;
-
-    loadData3DParams.mStartPt = mStartPt;
-    LoadData<half, LOAD3DV2_CONFIG>(
-        l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
-        sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData3DParams);
+    LoadData2DParamsV2 loadData2DParamsV2;
+    loadData2DParamsV2.mStartPosition = CeilDiv(mStartPt, BLOCK_CUBE);
+    loadData2DParamsV2.kStartPosition = 0;
+    loadData2DParamsV2.mStep = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
+    loadData2DParamsV2.kStep = CeilDiv(s2L0RealSize, BLOCK_CUBE);
+    loadData2DParamsV2.srcStride = CeilDiv(S1G_BASIC_BLOCK_L0, BLOCK_CUBE);
+    loadData2DParamsV2.dstStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
+    loadData2DParamsV2.ifTranspose = true;
+    
+    LoadData(l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
+             sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData2DParamsV2);
 }
 
 // s1,g,1(16), 2,64,16
