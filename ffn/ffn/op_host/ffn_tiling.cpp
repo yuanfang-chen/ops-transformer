@@ -589,6 +589,8 @@ ge::graphStatus FFNTiling::CheckAndGetBasicInfo(gert::TilingContext *context, co
 {
     const uint32_t coreNum = compileInfoPtr->coreNum;
     is310P = compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND310P;
+    // Support for SocVersion::ASCEND950
+    bool is950 = compileInfoPtr->socVersion == platform_ascendc::SocVersion::ASCEND950;
 
     OP_CHECK_IF(
         (coreNum == 0 || compileInfoPtr->ubSize == 0 || compileInfoPtr->l1Size == 0 || compileInfoPtr->l0CSize == 0 ||
