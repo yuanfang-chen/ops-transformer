@@ -876,8 +876,8 @@ posembedding:
       - posembedding/rope_with_sin_cos_cache
     options:
       - rope_with_sin_cos_cache
-    test:
-      examples: False
+    test: 
+      examples: True
 
   rotary_position_embedding:
     module: True
