@@ -124,9 +124,9 @@ public:
         ipcFlagAddrStart_[0] = winSize / 2UL - IPC_NON_DATA_BYTES / 2UL;
         ipcFlagAddrStart_[1] = winSize - IPC_NON_DATA_BYTES / 2UL;
         ipcDataAddrStart_[0] =
-            (ipcFlagAddrStart_[0] - rankSizeOnIpcData_ * moeExpertNum) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+            (ipcFlagAddrStart_[0] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         ipcDataAddrStart_[1] =
-            (ipcFlagAddrStart_[1] - rankSizeOnIpcData_ * moeExpertNum) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+            (ipcFlagAddrStart_[1] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         initIpcFlagAddr();
         for (int i = 0; i < SERVER_RANK_SIZE; i++) {
             uint32_t targetRank = curRankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i;
@@ -150,7 +150,6 @@ public:
     {
         return GetWindowsInAddr(targetRankId) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
     }
-
 
     __aicore__ inline GM_ADDR GetRdmaFlagAddrOut() const
     {
@@ -177,7 +176,6 @@ public:
     {
         return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcCombineMagicAddrStart_;
     }
-
 
     // Dispatch专用
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForDispatch() const
