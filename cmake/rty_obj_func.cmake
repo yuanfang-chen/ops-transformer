@@ -85,6 +85,7 @@ function(add_opapi_modules)
       PRIVATE
       ${OPAPI_INCLUDE}
     )
+    message(STATUS "====== OPAPI_INCLUDE IS : ${OPAPI_INCLUDE}")
     target_compile_options(${OPHOST_NAME}_opapi_obj
       PRIVATE
       -Dgoogle=ascend_private
@@ -248,8 +249,15 @@ macro(add_modules_sources)
     set(OP_API_SRC_DIR "${SOURCE_DIR}/op_api")
   endif()
 
+  list(LENGTH MODULE_OPTYPE OpTypeLen)
+  list(LENGTH MODULE_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
+  if((AclnnExtraVersionLen GREATER 1) AND (OpTypeLen GREATER 1))
+    message(FATAL_ERROR "There should be only 1 optype if there are more than 1 aclnn extra versions!")
+  endif()
+
   # opapi 默认全部编译
   file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
+  message(STATUS "====== add_modules_sources OPAPI_SRCS IS : ${OPAPI_SRCS}")
   if (OPAPI_SRCS)
     add_opapi_modules()
     target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRCS})
@@ -312,6 +320,9 @@ macro(add_modules_sources)
         if (OPDEF_SRCS)
           target_sources(${OPHOST_NAME}_opdef_${AclnnType}_obj INTERFACE ${OPDEF_SRCS})
         endif()
+        if(AclnnExtraVersionLen GREATER 0)
+          concat_op_names(OPTYPE ${OpType} ACLNNTYPE ${AclnnType} ACLNN_EXTRA_VERSION ${MODULE_ACLNN_EXTRA_VERSION})
+        endif()
       elseif(${AclnnType} STREQUAL "no_need_aclnn")
         message(STATUS "aicpu or host aicpu no need aclnn.")
       else()
@@ -354,6 +365,7 @@ macro(add_modules_sources_with_soc)
 
   # opapi 默认全部编译
   file(GLOB OPAPI_SRCS ${OP_API_SRC_DIR}/*.cpp)
+  message(STATUS "====== add_modules_sources_with_soc OPAPI_SRCS IS : ${OPAPI_SRCS}")
   if (OPAPI_SRCS)
     add_opapi_modules()
     target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRCS})
@@ -448,6 +460,7 @@ macro(add_mc2_modules_sources)
 
   # opapi 默认全部编译
   file(GLOB OPAPI_SRCS ${SOURCE_DIR}/../op_api/*.cpp)
+  message(STATUS "====== add_mc2_modules_sources OPAPI_SRCS IS : ${OPAPI_SRCS}")
   if (OPAPI_SRCS)
     add_opapi_modules()
     target_sources(${OPHOST_NAME}_opapi_obj PRIVATE ${OPAPI_SRCS})
