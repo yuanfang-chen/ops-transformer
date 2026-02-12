@@ -3448,7 +3448,7 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
                 preTokensLeftUp = SPARSE_MODE_INT_MAX;
                 nextTokensLeftUp = SPARSE_MODE_INT_MAX;
             }
-        } else if(){
+        } else if(enableIFA){
             preTokensLeftUp = baseParams->get_preTokens() * gSize;
             nextTokensLeftUp = baseParams->get_nextTokens() * gSize;
         }else {
