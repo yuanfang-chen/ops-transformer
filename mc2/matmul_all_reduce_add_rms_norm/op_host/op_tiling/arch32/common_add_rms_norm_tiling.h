@@ -22,7 +22,7 @@
 #include "tiling/tiling_api.h"
 #include "util/math_util.h"
 #include "mc2_log.h"
-#include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
+#include "../../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 
 namespace optiling {
 constexpr uint32_t SYS_WORKSPACE_SIZE = 16 * 1024 * 1024; // 16M
