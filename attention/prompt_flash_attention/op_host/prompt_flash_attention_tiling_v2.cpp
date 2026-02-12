@@ -2119,9 +2119,10 @@ bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& 
 
     auto batchOfQuery = actSeqLen->GetShapeSize();
     auto batchOfKey = actSeqLenKV->GetShapeSize();
-    OP_CHECK_IF(batchOfQuery != batchOfKey,
+    OP_CHECK_IF(!enablePA && (batchOfQuery != batchOfKey),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND/NTD, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
+            "When layout is TND/NTD and page attention is not enable, "
+            "the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
             "batch size of actualSequenceLengthQ = %ld, batch size of actualSequenceLengthKV = %ld",
             batchOfQuery, batchOfKey),
         return false);

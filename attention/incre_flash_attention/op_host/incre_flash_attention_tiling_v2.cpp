@@ -1914,9 +1914,10 @@ ge::graphStatus IFATilingV2::CheckActualSeqLens()
         OP_LOGE(ifaContext_->opName, "TND actualLenDims_ is 0!");
         return ge::GRAPH_FAILED;
     }
-    if (actualLenQDims_ != actualLenDims_) {
-        OP_LOGE(ifaContext_->opName, "When layout is TND, the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
-          actualLenQDims_, actualLenDims_);
+    if (!pageAttentionFlag_ && (actualLenQDims_ != actualLenDims_)) {
+        OP_LOGE(ifaContext_->opName, "When layout is TND and page attention is not enable, "
+                "the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
+                actualLenQDims_, actualLenDims_);
         return ge::GRAPH_FAILED;
     }
     int64_t lastActSeq = 0;
