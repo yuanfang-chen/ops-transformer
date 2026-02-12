@@ -135,6 +135,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
+    rankSize_ = 4; // 修改
 
     axisM_ = tilingData->M;
     axisKa_ = tilingData->Ka;
@@ -191,15 +192,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 {
     LocalTensor<X1Type> copyInLocalTensor = inQueue_.AllocTensor<X1Type>();
     LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
-    // LocalTensor<X1Type> x1Tensor = x1inQueue_.AllocTensor<X1Type>();
-    // LocalTensor<X1Type> residualTensor = residualinQueue_.AllocTensor<X1Type>();
-    // LocalTensor<X1Type> yTensor = yinQueue_.AllocTensor<X1Type>();
+
     DataCopyEx(copyInLocalTensor[0], x1GMTensor_[gmOffset], axisKa_, rowCount, ubAligned_);
     DataCopyEx(copyInLocalTensor[elementCount], residualGMTensor_[gmOffset], axisKa_, rowCount, ubAligned_);
     DataCopyEx(copyInLocalTensor[elementCount * 2], yGMTensor_[gmOffset], axisKa_, rowCount, ubAligned_);
-    // DataCopyEx(x1Tensor, x1GMTensor_[gmOffset], axisKa_, rowCount)
-    // DataCopyEx(residualTensor, residualGMTensor_[gmOffset], axisKa_, rowCount)
-    // DataCopyEx(yTensor, yGMTensor_[gmOffset], axisKa_, rowCount)
     inQueue_.EnQue(copyInLocalTensor);
     copyInLocalTensor = inQueue_.DeQue<X1Type>();
     LocalTensor<X1Type> x1LocalTensor = copyInLocalTensor[0];
@@ -235,6 +231,15 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
     Mul(yLocalTensorFp32, xLocalTensorFp32, xLocalTensorFp32, elementCount); // yLocalFp32 <- x ** 2
     PipeBarrier<PIPE_V>();
+
+    for (int32_t rid = 0; rid < rowCount; ++rid) {
+        int32_t roundOffset = rid * numLastDimAligned_;
+        float squareSumTemp = ReduceSumHalfInterval(yLocalTensorFp32[roundOffset], axisKa_); // aveLocalTemp <-- E(x**2)
+        float rstdLocalTemp = 1 / sqrt(squareSumTemp * aveNum_ + eps_);
+        SyncFunc<AscendC::HardEvent::V_S>();
+        Muls(xLocalTensorFp32[roundOffset], xLocalTensorFp32[roundOffset], rstdLocalTemp, axisKa_); // xLocalFp32 <- x * rstd
+    }
+
     // reduce#1 for mean
     for (int32_t rid = 0; rid < rowCount; ++rid) {
         auto roundOffset = rid * numLastDimAligned_;
@@ -248,7 +253,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
     for (int32_t rid = 0; rid < rowCount; ++rid) {
         auto roundOffset = rid * numLastDimAligned_;
-        Mul(xLocalTensorFp32[roundOffset], xLocalTensorFp32[roundOffset], yLocalFp32, axisKa_); // xLocalFp32 <- x * rstd * gamma
+        Mul(xLocalTensorFp32[roundOffset], xLocalTensorFp32[roundOffset], yLocalTensorFp32, axisKa_); // xLocalFp32 <- x * rstd * gamma
     }
     PipeBarrier<PIPE_V>();
 
@@ -282,63 +287,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     RoundFloat2Int8(x1OutLocalTensor, yLocalTensorFp32, elementCount);
     x1OutQueue_.EnQue(x1OutLocalTensor);
     x1OutLocalTensor = x1OutQueue_.DeQue<int8_t>();
-    DataCopyEx(x1WinGMTensor[gmOffset], x1OutLocalTensor, axisKa_, rowCount);
-    DataCopyEx(scaleWinGMTensor[gmOffsetScale], scaleLocalTensor_, rowCount);
+    DataCopyEx(x1WinGMTensor_[gmOffset], x1OutLocalTensor, axisKa_, rowCount);
+    DataCopyEx(scaleWinGMTensor_[gmOffsetScale], scaleLocalTensor_, rowCount);
     x1OutQueue_.FreeTensor(x1OutLocalTensor);
-
-    LocalTensor<T> x1x2LocalIn = inRowsQue.template AllocTensor<T>();
-    DataCopyEx(x1x2LocalIn[0], this->x2Gm[gmOffset], this->numLastDim, rowCount, ubAligned_);
-    DataCopyEx(x1x2LocalIn[elementCount], this->x1Gm[gmOffset], this->numLastDim, rowCount, ubAligned_);
-    inRowsQue.EnQue(x1x2LocalIn);
-    LocalTensor<float> xLocalFp32 = xBufFp32.Get<float>();
-    LocalTensor<float> yLocalFp32 = yBufFp32.Get<float>();
- 
-    LocalTensor<T> x1x2Local = inRowsQue.template DeQue<T>();
-    auto x1Local = x1x2Local[elementCount];
-    auto x2Local = x1x2Local[0];
-    // never have fp32 input here. All fp16/bf16 should cast to fp32 before Add
-    Cast(xLocalFp32, x1Local, RoundMode::CAST_NONE, elementCount);
-    Cast(yLocalFp32, x2Local, RoundMode::CAST_NONE, elementCount);
-    inRowsQue.FreeTensor(x1x2Local);
-    PipeBarrier<PIPE_V>();
-    Add(xLocalFp32, xLocalFp32, yLocalFp32, elementCount);
-    PipeBarrier<PIPE_V>();
-    LocalTensor<float> xLocalFp32 = xBufFp32.Get<float>();
-    event_t eventIDVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-    SetFlag<HardEvent::V_MTE3>(eventIDVToMTE3);
-    WaitFlag<HardEvent::V_MTE3>(eventIDVToMTE3);
-    DataCopyExtParams copyParams;
-    copyParams.blockCount = rowCount;
-    copyParams.blockLen = this->numLastDim * sizeof(float);
-    copyParams.srcStride = this->ubAlignedY3;
-    copyParams.dstStride = 0;
-    DataCopyPad(this->y3Gm[gmOffset], xLocalFp32, copyParams);
-    eventIDMTE3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
-    SetFlag<HardEvent::MTE3_V>(eventIDMTE3ToV);
-
-    LocalTensor<T> xOut = outRowsQue.template AllocTensor<T>();
-    if constexpr (is_same<T, half>::value) {
-        Cast(xOut, xLocalFp32, RoundMode::CAST_NONE, elementCount);
-    } else { // BF16
-        Cast(xOut, xLocalFp32, RoundMode::CAST_RINT, elementCount);
-    }
-    PipeBarrier<PIPE_V>();
-    outRowsQue.EnQue(xOut);
-    LocalTensor<T> x = outRowsQue.template DeQue<T>();
-    DataCopyEx(this->y4Gm[gmOffset], x, this->numLastDim, rowCount, ubAligned_);
-    outRowsQue.FreeTensor(x);
-    PipeBarrier<PIPE_ALL>();
-    LocalTensor<float> yLocal = xBufFp32.Get<float>();
-    LocalTensor<T> yOut = yBufFp32.Get<T>();
-    PipeBarrier<PIPE_ALL>();
-    if constexpr (is_same<T, half>::value) {
-        Cast(yOut, yLocal, RoundMode::CAST_NONE, elementCount);
-    } else { // BF16
-        Cast(yOut, yLocal, RoundMode::CAST_RINT, elementCount);
-    }
-    PipeBarrier<PIPE_ALL>();
-    DataCopyEx(this->xGm[gmOffset], yOut, this->numLastDim, rowCount, ubAligned_);
-    PipeBarrier<PIPE_ALL>();
 }
 
 template<TemplateMC2TypeClass>
@@ -352,30 +303,19 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     int32_t gmOffset = 0;
     int32_t gmOffsetScale = 0;
     int32_t elementCount = numLastDimAligned_ * rowStep_;
+    uint64_t winOffset = Ceil(rankSize_ * axisM_ * axisKa_ * sizeof(int8_t), WIN_ALIGN) * WIN_ALIGN;
+    GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn);
+    GM_ADDR x1WinGM = (__gm__ uint8_t*)(selfRankAddr + rankId_ * axisM_ * axisKa_ * sizeof(int8_t));
+    GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
 
     for (int32_t rowIdx = 0; rowIdx < rowMoveCnt - 1; ++rowIdx) {
         Add2RmsNormDynamicQuantCompute(gmOffset, gmOffsetScale, rowStep_, elementCount)
-        CopyInX1X2(gmOffset, rowStep_, elementCount);
-        AddX1X2(gmOffset, elementCount);
-        CopyOutX(gmOffset_, rowStep, elementCount);
-        ComputeRmsNorm(rowStep, elementCount, gammaLocal);
-        CopyOutRmsNormAndCast(gmOffset, rowStep, elementCount);
-        ComputeDynamicQuant(rowStep, elementCount);
-        CopyOut(gmOffset, gmOffsetScale, rowStep);
         gmOffset += rowStep * numLastDim;
         gmOffsetScale += rowStep;
     }
-    {
-        elementCount = numLastDimAligned * rowTail_;
-        int32_t rowIdx = rowMoveCnt - 1;
-        CopyInX1X2(gmOffset, rowTail_, elementCount);
-        AddX1X2(gmOffset, elementCount);
-        CopyOutX(gmOffset, rowTail_, elementCount);
-        ComputeRmsNorm(rowTail_, elementCount, gammaLocal);
-        CopyOutRmsNormAndCast(gmOffset, rowTail_, elementCount);
-        ComputeDynamicQuant(rowTail_, elementCount);
-        CopyOut(gmOffset, gmOffsetScale, rowTail_);
-    }
+
+    // tail
+    Add2RmsNormDynamicQuantCompute(gmOffset, gmOffsetScale, rowTail_, elementCount)
 }
 
 template<TemplateMC2TypeClass>
