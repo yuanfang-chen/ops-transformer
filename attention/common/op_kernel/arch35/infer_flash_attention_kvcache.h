@@ -86,9 +86,9 @@ __aicore__ inline int64_t CalculateActualS1Size(RunParamStr<isInfer>& runParam,
             actualS1Size = constInfo.gS1;
             runParam.actualSeqLengthOfMlaPerBatch = constInfo.s1Size;
         }
-        if (constInfo.isGqa) {
-            actualS1Size = constInfo.gS1;
-        }
+        // if (constInfo.isGqa) {
+        //     actualS1Size = constInfo.gS1;
+        // }
         return actualS1Size;
     }
     
