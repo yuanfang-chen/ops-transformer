@@ -532,7 +532,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupSize(size_t i
     // 2含义: (g,k,n)的k轴索引
     int64_t kSize = weightShape.GetDim(weightShape.GetDimNum() - 2);
     // 2含义: (g,k/groupSize,n)的k轴索引
-    int64_t groupNum = IsMxA8W4NZ() ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) :
+    int64_t groupNum = IsMxA8W4NZ() ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) * 2:
                                       antiquantScaleShape.GetDim(antiquantScaleDimNum - 2);
     CHECK_COND(groupNum > 0, ACLNN_ERR_PARAM_INVALID,
                "GroupNum must be greater than 0, but the actual groupNum is [%ld].", groupNum);
@@ -542,7 +542,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupSize(size_t i
     groupSize = kSize / groupNum;
     if (IsMxA8W4NZ()) {
         // 2：MxA8W4NZ的antiquantScaleViewShape: (g, k / groupSIze / 2, n, 2)
-        groupSize = kSize / groupNum / 2;
+        groupSize = kSize / groupNum;
     }
     // 当前伪量化仅支持groupsize为32整数倍
     if (IsS8S4NZ()) {

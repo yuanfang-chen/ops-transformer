@@ -215,7 +215,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTensorDimSingleXSingleWeightSingl
     if (!IsA16W4ND()) {
         return true;
     }
-
+    
     OP_CHECK_IF(!CheckTensorDimEqualTarget(context, ANTIQUANT_SCALE_IDX, idx, 2, "antiquantScale"),
                 OP_LOGE(context->GetNodeName(), "When x-weight is bf16/fp16-int4/int32 and grouptype is 0, the "
                                                 "dimension of antiquantScale does not match the expected value."),
@@ -464,8 +464,6 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!CheckEmptyTensor(context), OP_LOGE(context->GetNodeName(), "CheckEmptyTensor failed."), return false);
     OP_CHECK_IF(!CheckAntiQuantDtype(context), OP_LOGE(context->GetNodeName(), "CheckAntiQuantDtype failed."),
                 return false);
-    OP_CHECK_IF(!CheckAntiQuantScale(context), OP_LOGE(context->GetNodeName(),"CheckAntiQuantScale failed."),return false);
-    OP_CHECK_IF(!CheckPerTokenScale(context), OP_LOGE(context->GetNodeName(),"CheckPerTokenScale failed."),return false);
     OP_CHECK_IF(!CheckBiasDtype(context), OP_LOGE(context->GetNodeName(), "CheckBiasDtype failed."), return false);
     OP_CHECK_IF(!CheckGroupList(context), OP_LOGE(context->GetNodeName(), "CheckGroupList failed."), return false);
     OP_CHECK_IF(!CheckEveryTensor(context), OP_LOGE(context->GetNodeName(), "CheckEveryTensor failed."), return false);
@@ -474,7 +472,8 @@ bool GroupedWeightQuantBatchMatmulTiling::AnalyzeAttr(const gert::TilingContext 
     OP_CHECK_IF(!SetShapeList(context), OP_LOGE(context->GetNodeName(), "SetShapeList failed."), return false);
     OP_CHECK_IF(!SetAntiquantGroupSize(context), OP_LOGE(context->GetNodeName(), "Unable to get antiquant groupSize"),
                 return false);
-
+    OP_CHECK_IF(!CheckAntiQuantScale(context), OP_LOGE(context->GetNodeName(),"CheckAntiQuantScale failed."),return false);
+    OP_CHECK_IF(!CheckPerTokenScale(context), OP_LOGE(context->GetNodeName(),"CheckPerTokenScale failed."),return false);
     PrintInputParam(context);
     return true;
 }
@@ -795,10 +794,10 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckAntiQuantScale(const gert::Tiling
 {
     if (IsMxA8W4()) {
         // 检查antiquantScale维度是否正确
-        auto antiquantScaleTensor = context->GetDynamicInputTensor(ANTIQUANT_SCALE_IDX, 0);
-        OP_CHECK_IF(antiquantScaleTensor == nullptr,
-                    OP_LOGE(context->GetNodeName(), "antiquantScaleTensor is nullptr."), return false);
-        gert::Shape antiquantScaleShape = antiquantScaleTensor->GetStorageShape();
+        auto antiquantScaleShapePtr = context->GetDynamicInputShape(ANTIQUANT_SCALE_IDX, 0);
+        OP_CHECK_IF(antiquantScaleShapePtr == nullptr,
+                    OP_LOGE(context->GetNodeName(), "antiquantScaleShape is nullptr."), return false);
+        auto antiquantScaleShape = antiquantScaleShapePtr->GetStorageShape();
         int64_t antiquantScaleDimNum = antiquantScaleShape.GetDimNum();
         OP_CHECK_IF(antiquantScaleDimNum != 4, OP_LOGE(context->GetNodeName(), "antiquantScaleDimNum should be 4."),
                     return false);
