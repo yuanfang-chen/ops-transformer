@@ -306,21 +306,9 @@ static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, c
             return false;
         }
     }
-    if (static_cast<QuantModeType>(mmXQuantMode) == QuantModeType::PERTENSOR_QUANT) {
-        if ((mmXScaleOptional == nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXScaleOptional not be null.");
-            return false;
-        }
-    }
     if (static_cast<QuantModeType>(mmWeightQuantMode) == QuantModeType::NO_QUANT) {
         if ((mmWeightScaleOptional != nullptr)) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional should be empty.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmWeightQuantMode) == QuantModeType::PERTENSOR_QUANT) {
-        if ((mmWeightScaleOptional == nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional not be null.");
             return false;
         }
     }
@@ -355,25 +343,9 @@ static bool CheckGmmShape(const aclTensor *gmmX, const aclTensor *gmmWeight, con
                 gmmWeight->GetViewShape().GetDim(0) < ZERO, gmmWeight->GetViewShape().GetDim(0) > MAX_E_SIZE);
         return false;
     }
-    if (gmmWeight->GetViewShape().GetDim(1) != gmmX->GetViewShape().GetDim(1)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the second dimension of gmmWeight does not match.");
-        return false;
-    }
-    if ((gmmWeight->GetViewShape().GetDim(2) < ZERO) || (gmmWeight->GetViewShape().GetDim(2) > MAX_N_LEN)) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of the third dimension of gmmWeight does not match, left is %u, right is %u.",
-                gmmWeight->GetViewShape().GetDim(2) < ZERO, gmmWeight->GetViewShape().GetDim(2) > MAX_N_LEN);
-        return false;
-    }
     if ((gmmXScale->GetViewShape().GetDim(0) != 1) || (gmmWeightScale->GetViewShape().GetDim(0) != 1)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gmmXScale or gmmWeightScale do not match, gmmXScale mismatch is %u, gmmWeightScale mismatch is %u.",
                 gmmXScale->GetViewShape().GetDim(0) != 1, gmmWeightScale->GetViewShape().GetDim(0) != 1);
-        return false;
-    }
-    if ((gmmY->GetViewShape().GetDim(0) != gmmX->GetViewShape().GetDim(0)) ||
-        (gmmY->GetViewShape().GetDim(1) != gmmWeight->GetViewShape().GetDim(2))) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of gmmY does not match, left is %u, right is %u.",
-                gmmY->GetViewShape().GetDim(0) != gmmX->GetViewShape().GetDim(0),
-                gmmY->GetViewShape().GetDim(1) != gmmWeight->GetViewShape().GetDim(2));
         return false;
     }
     if (!(is_power_of_two(epWorldSize))) {
@@ -500,10 +472,8 @@ static bool CheckGmmWeightValid(const aclTensor *gmmWeight) {
     return true;
 }
 
-
 static bool CheckMmWeightValid(const aclTensor *mmWeightOptional) {
     if (mmWeightOptional == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "In AlltoAllvQuantGroupedMatmul, input mmWeightOptional is null.");
         return false;
     }
     OP_CHECK_WRONG_DIMENSION(mmWeightOptional, TWO_DIMS, return false);
@@ -745,7 +715,6 @@ extern "C" aclnnStatus aclnnAlltoAllvQuantGroupedMatMulGetWorkspaceSize(
                     transMmWeightOptional->GetViewShape().GetDim(0), transMmWeightOptional->GetViewShape().GetDim(1));
         auto mmWeightOptional = transMmWeightOptional;
         }
-        
     }
     aclnnStatus ret_param = CheckParams(
         gmmX, transposeGmmWeight, gmmXScale, gmmWeightScale, gmmXOffsetOptional, gmmWeightOffsetOptional,
