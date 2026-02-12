@@ -645,8 +645,8 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::ReadState(const LocalTen
         float SOFTMAX_MIN_NUM = static_cast<float>(-1.0/0.0);
         bool isFirst = sliceInfo.bStartPos + sliceInfo.sIdx < constInfo_.cmpRatio;
         if (isFirst) {
-                    // 无历史数据
-                    // dDealSize必须为64
+            // 无历史数据
+            // dDealSize必须为64
             Duplicate(kvLocal, FLOAT_ZERO, dDealSize, constInfo_.cmpRatio, 1, coff * dDealSize / REPEAT_STRIDE_NUM);
             Duplicate(scoreLocal, SOFTMAX_MIN_NUM, dDealSize, constInfo_.cmpRatio, 1, coff * dDealSize / REPEAT_STRIDE_NUM);
         }
@@ -759,7 +759,7 @@ __aicore__ inline void CompressorBlockVectorPerf<COMP>::DealVec1BaseBlock(const 
     PipeBarrier<PIPE_V>();
     inputQue1.FreeTensor(scoreUb);
 
-    AddApeToScore(scoreLocal, apeUb, needDealTcSize, dDealSize); // VEC,pengchen
+    AddApeToScore(scoreLocal, apeUb, needDealTcSize, dDealSize);
 
     LocalTensor<T> kvUb = inputQue1.AllocTensor<T>();
     FromWokrSpaceToUb(kvUb, originSliceInfo, statisticInfo, dStartIdx, dDealSize);
