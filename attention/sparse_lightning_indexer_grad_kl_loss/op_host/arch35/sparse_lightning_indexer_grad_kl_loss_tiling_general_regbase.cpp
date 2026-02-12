@@ -335,6 +335,9 @@ bool SparseLightningIndexerGradKLLossTilingBaseRegbase::AnalyzeDimLayout(const g
                     "Query s1Size(%ld), t1Size(%ld) and the sum of seqQLen(%ld) must be small than Key s2Size(%ld), t2Size(%ld) and seqkLen(%ld), respectively.",
                     s1Size, t1Size, accumS1, s2Size, t2Size, accumS2),
                 return false);
+            OP_CHECK_IF( t1Size < SIZE_1 || t2Size < SIZE_1,
+                OP_LOGE(opName, "Inputshape t1Size(%ld) and t2Size(%ld) should be large than 0.", t1Size, t2Size),
+                return false);
             maxS1Val = *std::max_element(actualSeqLenData.begin(), actualSeqLenData.end());
             maxS2Val = *std::max_element(actualSeqLenKData.begin(), actualSeqLenKData.end());
             s1Size = maxS1Val;
