@@ -29,7 +29,7 @@
 |max_seqlen_q|可选属性|表示所有Batch中q的最大有效token数。|INT32|-|
 |max_seqlen_kv|可选属性|表示所有Batch中ori_kv的最大有效token数。|INT32|-|
 |ori_topk|可选属性|预留参数，当前不生效，表示通过QLI算法从ori_kv中筛选出的关键稀疏token的个数。|INT32|-|
-|cmp_topk|可选属性|表示通过QLI算法从cmp_kv中筛选出的关键稀疏token的个数。|INT32|-|
+|cmp_topk|可选属性|表示通过QLI算法从cmp_kv中筛选出的关键稀疏token的个数，目前仅支持512。|INT32|-|
 |tile_size|可选属性|表示量化粒度，必须能被rope_head_dim整除，默认值为None，当前仅支持64。|INT32|-|
 |rope_head_dim|可选属性|默认值为0，当前仅支持64。|INT32|-|
 |cmp_ratio|可选属性|表示对ori_kv的压缩率，数据范围支持4/128，默认值为None。|INT32|-|
