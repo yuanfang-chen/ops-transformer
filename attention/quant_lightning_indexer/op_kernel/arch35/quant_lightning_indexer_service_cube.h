@@ -392,37 +392,6 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gL1Offset, uint64_t s1gL1RealSize,
                                                        uint64_t s1gL0RealSize)
 {
-    // LoadData3DParamsV2<Q_T> loadData3DParams;
-    // // SetFmatrixParams
-    // loadData3DParams.l1H = CeilDiv(s1gL1RealSize, BLOCK_CUBE);  // Hin=M1=8
-    // loadData3DParams.l1W = BLOCK_CUBE;                          // Win=M0
-    // loadData3DParams.channelSize = constInfo_.headDim;          // Cin=K
-
-    // loadData3DParams.padList[0] = 0;
-    // loadData3DParams.padList[1] = 0;
-    // loadData3DParams.padList[2] = 0;
-    // loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
-
-    // // SetLoadToA0Params
-    // loadData3DParams.mExtension = CeilAlign(s1gL0RealSize, BLOCK_CUBE);  // M height维度目的
-    // loadData3DParams.kExtension = constInfo_.headDim;                    // K   width维度目的
-    // loadData3DParams.mStartPt = s1gL1Offset;
-    // loadData3DParams.kStartPt = 0;
-    // loadData3DParams.strideW = 1;
-    // loadData3DParams.strideH = 1;
-    // loadData3DParams.filterW = 1;
-    // loadData3DParams.filterSizeW = (1 >> 8) & 255;
-    // loadData3DParams.filterH = 1;
-    // loadData3DParams.filterSizeH = (1 >> 8) & 255;
-    // loadData3DParams.dilationFilterW = 1;
-    // loadData3DParams.dilationFilterH = 1;
-    // loadData3DParams.enTranspose = 0;
-    // loadData3DParams.fMatrixCtrl = 0;
-
-    // LoadData<Q_T, LOAD3DV2_CONFIG>(l0a_[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_S8_16K],
-    //                                queryL1_[(qwL1Mte2BufIdx_ % DOUBLE_BUF_NUM) * QUERY_BUFFER_OFFSET],
-    //                                loadData3DParams);
-
     LoadData2DParamsV2 loadData2DParamsA;
     loadData2DParamsA.mStartPosition = CeilDiv(s1gL1Offset, BLOCK_CUBE);
     loadData2DParamsA.kStartPosition = 0;
@@ -442,90 +411,57 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::LoadSToL0b(uint64_t s1gL1RealSize, uint64_t s2L0RealSize, uint64_t sL1BufIdx,
                                                    int64_t mStartPt)
 {
-    // LoadData3DParamsV2<half> loadData3DParams;
-    // // SetFmatrixParams
-    // loadData3DParams.l1H = S1G_BASIC_BLOCK_L0 / BLOCK_CUBE;              // Hin=M1=8
-    // loadData3DParams.l1W = BLOCK_CUBE;                                   // Win=M0
-    // loadData3DParams.channelSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // Cin=K
+    LoadData3DParamsV2<half> loadData3DParams;
+    // SetFmatrixParams
+    loadData3DParams.l1H = S1G_BASIC_BLOCK_L0 / BLOCK_CUBE;              // Hin=M1=8
+    loadData3DParams.l1W = BLOCK_CUBE;                                   // Win=M0
+    loadData3DParams.channelSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // Cin=K
 
-    // loadData3DParams.padList[0] = 0;
-    // loadData3DParams.padList[1] = 0;
-    // loadData3DParams.padList[2] = 0;
-    // loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
+    loadData3DParams.padList[0] = 0;
+    loadData3DParams.padList[1] = 0;
+    loadData3DParams.padList[2] = 0;
+    loadData3DParams.padList[3] = 255;  // 尾部数据不影响滑窗的结果
 
-    // // SetLoadToA0Params
-    // loadData3DParams.mExtension = constInfo_.gSize;                     // M height维度目的
-    // loadData3DParams.kExtension = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // K   width维度目的
-    // loadData3DParams.kStartPt = 0;
-    // loadData3DParams.strideW = 1;
-    // loadData3DParams.strideH = 1;
-    // loadData3DParams.filterW = 1;
-    // loadData3DParams.filterSizeW = (1 >> 8) & 255;
-    // loadData3DParams.filterH = 1;
-    // loadData3DParams.filterSizeH = (1 >> 8) & 255;
-    // loadData3DParams.dilationFilterW = 1;
-    // loadData3DParams.dilationFilterH = 1;
-    // loadData3DParams.enTranspose = 1;
-    // loadData3DParams.fMatrixCtrl = 0;
+    // SetLoadToA0Params
+    loadData3DParams.mExtension = constInfo_.gSize;                     // M height维度目的
+    loadData3DParams.kExtension = CeilAlign(s2L0RealSize, BLOCK_CUBE);  // K   width维度目的
+    loadData3DParams.kStartPt = 0;
+    loadData3DParams.strideW = 1;
+    loadData3DParams.strideH = 1;
+    loadData3DParams.filterW = 1;
+    loadData3DParams.filterSizeW = (1 >> 8) & 255;
+    loadData3DParams.filterH = 1;
+    loadData3DParams.filterSizeH = (1 >> 8) & 255;
+    loadData3DParams.dilationFilterW = 1;
+    loadData3DParams.dilationFilterH = 1;
+    loadData3DParams.enTranspose = 1;
+    loadData3DParams.fMatrixCtrl = 0;
 
-    // loadData3DParams.mStartPt = mStartPt;
-    // LoadData<half, LOAD3DV2_CONFIG>(
-    //     l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
-    //     sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData3DParams);
-
-    LoadData2DParamsV2 loadData2DParamsV2;
-    loadData2DParamsV2.mStartPosition = CeilDiv(mStartPt, BLOCK_CUBE);
-    loadData2DParamsV2.kStartPosition = 0;
-    loadData2DParamsV2.mStep = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
-    loadData2DParamsV2.kStep = CeilDiv(s2L0RealSize, BLOCK_CUBE);
-    loadData2DParamsV2.srcStride = CeilDiv(s1gL1RealSize, BLOCK_CUBE);
-    loadData2DParamsV2.dstStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
-    loadData2DParamsV2.ifTranspose = true;
-    
-    LoadData(l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
-             sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData2DParamsV2);
+    loadData3DParams.mStartPt = mStartPt;
+    LoadData<half, LOAD3DV2_CONFIG>(
+        l0b_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
+        sL1_[(sL1BufIdx % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET], loadData3DParams);
 }
 
 // s1,g,1(16), 2,64,16
 template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::LoadWeightToL0a(uint64_t s1gL1Offset)
 {
-    // LoadData2DParams loadData2DParams;
-    // loadData2DParams.startIndex = 0;
-    // loadData2DParams.repeatTimes = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
-    // loadData2DParams.srcStride = 1;
-    // loadData2DParams.dstGap = 0;
-    // loadData2DParams.ifTranspose = true;
-    // LoadData(l0a_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
-    //          weightL1_[(qwL1Mte2BufIdx_ % DOUBLE_BUF_NUM) * WEIGHT_BUFFER_OFFSET + s1gL1Offset* BLOCK_CUBE],
-    //          loadData2DParams);
-    LoadData2DParamsV2 loadData2DParamsV2;
-    loadData2DParamsV2.mStartPosition = 0;
-    loadData2DParamsV2.kStartPosition = 0;
-    loadData2DParamsV2.mStep = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
-    loadData2DParamsV2.kStep = 1;
-    loadData2DParamsV2.srcStride = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
-    loadData2DParamsV2.dstStride = 1;
-    loadData2DParamsV2.ifTranspose = true;
-    
+    LoadData2DParams loadData2DParams;
+    loadData2DParams.startIndex = 0;
+    loadData2DParams.repeatTimes = CeilDiv(constInfo_.gSize, BLOCK_CUBE);
+    loadData2DParams.srcStride = 1;
+    loadData2DParams.dstGap = 0;
+    loadData2DParams.ifTranspose = true;
     LoadData(l0a_.template ReinterpretCast<half>()[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_FP16_16K],
              weightL1_[(qwL1Mte2BufIdx_ % DOUBLE_BUF_NUM) * WEIGHT_BUFFER_OFFSET + s1gL1Offset* BLOCK_CUBE],
-             loadData2DParamsV2);
+             loadData2DParams);
 }
 
 // s2, d -> 128,128
 template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::LoadKeyToL0b(uint64_t s2L0RealSize)
 {
-    // LoadData2DParams loadData2DParams;
-    // loadData2DParams.startIndex = 0;
-    // loadData2DParams.repeatTimes = CeilDiv(s2L0RealSize, BLOCK_CUBE) * CeilDiv(constInfo_.headDim, S8_BLOCK_CUBE);
-    // loadData2DParams.srcStride = 1;
-    // loadData2DParams.dstGap = 0;
-    // loadData2DParams.ifTranspose = false;
-    // LoadData(l0b_[(l0BufIdx_ % L0AB_BUF_NUM) * L0AB_BUFFER_OFFSET_S8_16K],
-    //          keyL1_[(keyL1BufIdx_ % DOUBLE_BUF_NUM) * KEY_BUFFER_OFFSET], loadData2DParams);
-
     LoadData2DParamsV2 loadData2DParamsV2;
     loadData2DParamsV2.mStartPosition = 0;
     loadData2DParamsV2.kStartPosition = 0;
@@ -591,7 +527,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpSToL1(uint64_t s1gL0RealSize, uint64
     params.reluPre = 1;
     params.channelSplit = 0;
     params.nz2ndEn = 0;
-    SetFixpipePreQuantFlag(0x7f800000);
+    SetFixpipePreQuantFlag(0x3a800000);
     DataCopy(sL1_[(sL1BufIdx_ % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET],
              cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET], params);
 }
