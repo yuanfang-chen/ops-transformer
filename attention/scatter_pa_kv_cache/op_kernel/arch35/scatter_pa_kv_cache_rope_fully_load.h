@@ -178,30 +178,44 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::ReduceMeanKey(int64_t i
     LocalTensor<U> tmpLocal = tmpBuf_.Get<U>();
     LocalTensor<U> divideLocal = divideBuf_.Get<U>();
     LocalTensor<U> castLocal = castBuf_.Get<U>();
+    PipeBarrier<PIPE_ALL>();
     Duplicate(tmpLocal, static_cast<U>(0), headSize_);
+    PipeBarrier<PIPE_ALL>();
     Duplicate(divideLocal, static_cast<U>(endIdx - startIdx), headSize_);
+    PipeBarrier<PIPE_ALL>();
     CopyInKey(iter, endIdx, startIdx, curBlockFactor);
+    PipeBarrier<PIPE_ALL>();
     event_t eventIdMTE2ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
     SetFlag<HardEvent::MTE2_V>(eventIdMTE2ToV);
     WaitFlag<HardEvent::MTE2_V>(eventIdMTE2ToV);
     LocalTensor<T> inputKeyLocal = inputKeyQueue_.DeQue<T>();
+    PipeBarrier<PIPE_ALL>();
     for (int64_t i = startIdx; i < endIdx; ++i) {
+        PipeBarrier<PIPE_ALL>();
         if constexpr (isNeedCast_ || isIntger8or16_) {
+            PipeBarrier<PIPE_ALL>();
             Cast(castLocal, inputKeyLocal[(i - startIdx) * RoundUp(tilingData_->kHeadSize)], RoundMode::CAST_NONE,
                  tilingData_->kHeadSize);
+            PipeBarrier<PIPE_ALL>();
             Add(tmpLocal, tmpLocal, castLocal, tilingData_->kHeadSize);
         } else {
             Add(tmpLocal, tmpLocal, inputKeyLocal[(i - startIdx) * RoundUp(tilingData_->kHeadSize)],
                 tilingData_->kHeadSize);
         }
+        PipeBarrier<PIPE_ALL>();
     }
+    PipeBarrier<PIPE_ALL>();
     Div(tmpLocal, tmpLocal, divideLocal, tilingData_->kHeadSize);
+    // PipeBarrier<PIPE_ALL>();
     event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
     SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
     WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
     DataCopyExtParams outKeyCacheParams{1, static_cast<uint32_t>(tilingData_->kHeadSize * sizeof(T)), 0, 0, 0};
+    // PipeBarrier<PIPE_ALL>();
     LocalTensor<IndexDtype> slotMappingLocal = slotMappingBuf_.Get<IndexDtype>();
+    // PipeBarrier<PIPE_ALL>();
     int64_t kStartIdx = slotMappingLocal.GetValue(iter) + count_;
+    // PipeBarrier<PIPE_ALL>();
     if (kStartIdx < tilingData_->numBlocks * tilingData_->blockSize) {
         if constexpr (isNeedCast_) {
             if constexpr (IsSameType<T, hifloat8_t>::value) {
@@ -209,17 +223,24 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::ReduceMeanKey(int64_t i
             } else {
                 Cast(inputKeyLocal, tmpLocal, RoundMode::CAST_RINT, tilingData_->kHeadSize);
             }
+            // PipeBarrier<PIPE_ALL>();
             DataCopyPad(outputKeyCacheGm_[kStartIdx * tilingData_->kHeadSize], inputKeyLocal, outKeyCacheParams);
+            // PipeBarrier<PIPE_ALL>();
         } else if constexpr (isIntger8or16_) {
+            // PipeBarrier<PIPE_ALL>();
             CastToOrigin<U>(inputKeyLocal, tmpLocal, tilingData_->kHeadSize);
+            // PipeBarrier<PIPE_ALL>();
             event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
             SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
             WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
+            // PipeBarrier<PIPE_ALL>();
             DataCopyPad(outputKeyCacheGm_[kStartIdx * tilingData_->kHeadSize], inputKeyLocal, outKeyCacheParams);
         } else {
             DataCopyPad(outputKeyCacheGm_[kStartIdx * tilingData_->kHeadSize], tmpLocal, outKeyCacheParams);
         }
+        // PipeBarrier<PIPE_ALL>();
     }
+    // PipeBarrier<PIPE_ALL>();
     event_t eventIdMTE3ToV = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_V));
     SetFlag<HardEvent::MTE3_V>(eventIdMTE3ToV);
     WaitFlag<HardEvent::MTE3_V>(eventIdMTE3ToV);
@@ -477,7 +498,6 @@ __aicore__ inline void ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::
     event_t eventIdMTE2ToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_S));
     SetFlag<HardEvent::MTE2_S>(eventIdMTE2ToS);
     WaitFlag<HardEvent::MTE2_S>(eventIdMTE2ToS);
-
     for (int64_t i = 0; i < curBlockFactor; i++) {
         // step1: update KvCache
         count_ = 0;
