@@ -115,7 +115,7 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckSingleParam() {
     // sparse_mode 校验
     if (sparseMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK) && 
         sparseMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
-        KERNEL_LOG_ERROR("sparse_mode should be 0/3/4, but got %d", sparseMode_);
+        KERNEL_LOG_ERROR("sparse_mode should be 0/3, but got %d", sparseMode_);
         return false;
     }
     // pre_tokens 校验
