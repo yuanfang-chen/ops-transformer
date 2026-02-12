@@ -189,11 +189,13 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::ReduceMeanKey(int64_t i
         if constexpr (isNeedCast_ || isIntger8or16_) {
             Cast(castLocal, inputKeyLocal[(i - startIdx) * RoundUp(tilingData_->kHeadSize)], RoundMode::CAST_NONE,
                  tilingData_->kHeadSize);
+            PipeBarrier<PIPE_ALL>();
             Add(tmpLocal, tmpLocal, castLocal, tilingData_->kHeadSize);
         } else {
             Add(tmpLocal, tmpLocal, inputKeyLocal[(i - startIdx) * RoundUp(tilingData_->kHeadSize)],
                 tilingData_->kHeadSize);
         }
+        PipeBarrier<PIPE_ALL>();
     }
     Div(tmpLocal, tmpLocal, divideLocal, tilingData_->kHeadSize);
     event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));

@@ -290,13 +290,14 @@ ge::graphStatus ScatterPaKvCacheTiling::TemplateRope()
         std::max(alignKHead, alignVHead) * floatFactor * DIM1 +    // reduce Buf for inputKeyLocal or inputValueLocal
         std::max(alignKHead, alignVHead) * floatFactor * DIM1 +    // divide Buf
         std::max(alignKHead, alignVHead) * floatFactor * DIM1;     // cast Buf
-    // if (ubThreshold <= maxHandleNumPerLoop) {
-    //     // tail dim can fully load
-    //     isFullyLoad_ = FULLY_LOAD;
-    //     OP_LOGD(context_, "tail dim can fully load.");
-    //     return ge::GRAPH_SUCCESS;
-    // }
-    // can not fully load
+    if (ubThreshold <= maxHandleNumPerLoop) {
+        // tail dim can fully load
+        isFullyLoad_ = FULLY_LOAD;
+        OP_LOGD(context_, "tail dim can fully load.1");
+        OP_LOGI(context_, "tail dim can fully load.2");
+        return ge::GRAPH_SUCCESS;
+    }
+    can not fully load
     OP_LOGD(context_, "tail dim can not fully load.1");
     OP_LOGI(context_, "tail dim can not fully load.2");
     isFullyLoad_ = NOT_FULLY_LOAD;
