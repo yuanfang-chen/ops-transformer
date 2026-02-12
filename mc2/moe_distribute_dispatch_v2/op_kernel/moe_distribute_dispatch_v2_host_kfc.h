@@ -265,6 +265,7 @@ private:
     LocalTensor<uint32_t> finishNumTensor_;
     LocalTensor<uint32_t> expertOffsetCntTensor_;
     LocalTensor<bool> expertMaskInputTensor_;
+    LocalTensor<uint32_t> flagTensor_;
 
     TBuf<> expertIdsBuf_;
     TBuf<> statusBuf_;
@@ -777,8 +778,8 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 
     uint64_t mask[1] = {0x0101010101010101};
     uint8_t repeatTime = static_cast<uint8_t>(Ceil(blockCntPerToken_ * UB_ALIGN, 256));
-    LocalTensor<uint32_t> flagTensor = flagBuf_.Get<uint32_t>();
-    Duplicate<uint32_t>(flagTensor, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
+    LocalTensor<uint32_t> flagTensor_ = flagBuf_.Get<uint32_t>();
+    Duplicate<uint32_t>(flagTensor_, uint32_t(1), mask, repeatTime,uint16_t(1), uint8_t(8));
 
     //LogInfo(__LINE__, "axisHCommu",axisHCommu);
     //LogInfo(__LINE__, "serverBuferLength",serverBuferLength);
@@ -1023,7 +1024,7 @@ MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::CopyTokenToWinOut(L
 
     DataCopyExtParams flagCopyOutParams = {static_cast<uint16_t>(blockCntPerToken_), UB_ALIGN, 0U,
                                            SPLIT_BLOCK_DATA_SIZE, 0U};
-    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor, flagCopyOutParams);
+    DataCopyPad(flagDstWinGMTensor[SPLIT_BLOCK_DATA_SIZE / sizeof(uint32_t)], flagTensor_, flagCopyOutParams);
 }
 
 template <TemplateDispatchKFCTypeClass>
