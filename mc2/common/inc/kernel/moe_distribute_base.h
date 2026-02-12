@@ -19,6 +19,7 @@
 #include "basic_api/kernel_basic_intf.h"
 #include "adv_api/hccl/hccl.h"
 #include "moe_distribute_comm_ctx.h"
+#include <chrono>
 
 constexpr uint32_t LOCAL_NOTIFY_MAX_NUM = 64;
 constexpr uint32_t CUR_LOCAL_STREAM_MAX_NUM = 40U;
@@ -237,6 +238,13 @@ struct HcclOpResParam {
 
     MemDetails1 userMemRes[768];  // 下标为rank id
     uint32_t userMemType = 0;
+
+    HcclStreamParam aicpuOrderStreamParam; // 按序下发的stream
+    uint64_t aicpuOrderNotifyAddr;
+    uint64_t aicpuOrderNotifySize;
+
+    uint64_t sizeofAiRMAInfo = 0; //用于内存校验
+    uint64_t aiRMAInfo = 0; //HcclAiRMAInfo* 单个结构体指针
 };
 
 // Transport 内存类型
