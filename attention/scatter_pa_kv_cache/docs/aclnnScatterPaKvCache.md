@@ -393,7 +393,6 @@ aclnnStatus aclnnScatterPaKvCache(
 
 - 确定性计算：
     - aclnnScatterPaKvCache默认确定性实现。
-    - 除了key和value，输入参数不支持非连续；
     - key、value、keyCacheRef、valueCacheRef的数据类型必须一致；
     - slotMapping、compressLensOptional、compressSeqOffsetOptional、seqLensOptional的数据类型必须一致；
     - slotMapping的值范围[0,num_blocks*block_size-1]，且slotMapping内的元素值保证不重复，重复时不保证正确性；
