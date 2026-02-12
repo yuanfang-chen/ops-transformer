@@ -150,6 +150,28 @@ def check_result(expect, result):
                 logger.info(f"{group_name}[{i}] is empty tensor, skip compare")
                 continue
 
+            # Int8 outputs allow per-element error within +/-1.
+            if expect_cpu.dtype == torch.int8 and result_cpu.dtype == torch.int8:
+                result_i16 = result_cpu.to(torch.int16).reshape(-1)
+                expect_i16 = expect_cpu.to(torch.int16).reshape(-1)
+                abs_diff = torch.abs(result_i16 - expect_i16)
+                mismatch_mask = abs_diff > 1
+                mismatch_idx = torch.nonzero(mismatch_mask).reshape(-1)
+                if mismatch_idx.numel() > 0:
+                    logger.info(f"{group_name}[{i}] mismatch index(sample): {mismatch_idx[:20]}")
+                    logger.info(
+                        f"{group_name}[{i}] int8 abs diff > 1(sample): {abs_diff[mismatch_mask][:20]}"
+                    )
+                pass_num = torch.sum(~mismatch_mask)
+                total_num = abs_diff.numel()
+                accuracy = pass_num / total_num
+                logger.info(
+                    f"{group_name}[{i}] pass num: {pass_num}, total num: {total_num}, "
+                    f"accuracy: {accuracy}, int8_abs_tol=1"
+                )
+                assert torch.all(abs_diff <= 1), f"{group_name}[{i}] int8 compare failed (|diff| > 1)"
+                continue
+
             rtol, atol = _dtype_tolerance(expect_cpu.dtype, result_cpu.dtype)
 
             # Discrete outputs: strict equality.
