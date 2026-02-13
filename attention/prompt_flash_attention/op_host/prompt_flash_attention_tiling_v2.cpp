@@ -2896,7 +2896,7 @@ bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATil
             "PFAMLA is not supported in per-block quant scenario!"),
         return false);
     OP_CHECK_IF(enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "PFARope is not supported in per-block quant scenario!"),
+            "Rope is not supported in per-block quant scenario!"),
         return false);
     OP_CHECK_IF(enableMask, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "mask is not supported in per-block quant scenario!"),
