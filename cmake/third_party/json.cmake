@@ -43,7 +43,7 @@ if(json_FOUND AND NOT FORCE_REBUILD_CANN_3RD)
     set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
     add_library(json INTERFACE IMPORTED)
     # 添加缺失的目标属性
-    set_target_properties(json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${JSON_INCLUDE_DIR})
+    # set_target_properties(json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${JSON_INCLUDE_DIR})
 else()
     set(REQ_URL "https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip")
     set(JSON_ARCHIVE ${JSON_DOWNLOAD_PATH}/include.zip)
