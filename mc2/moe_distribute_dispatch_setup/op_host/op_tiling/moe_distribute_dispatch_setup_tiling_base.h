@@ -66,6 +66,8 @@ protected:
     const ge::graphStatus CheckHcclBuffSize();
     ge::graphStatus SetWorkspace();
     void SetPlatformInfo();
+
+    virtual void test_symbol();
 };
 } // namespace optiling
 #endif
