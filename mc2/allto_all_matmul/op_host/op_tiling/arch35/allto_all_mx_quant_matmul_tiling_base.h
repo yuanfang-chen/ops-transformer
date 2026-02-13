@@ -65,7 +65,7 @@ protected:
     
 private:
     AlltoAllQuantMatmulTilingData localTilingData_;
-    uint64_t mm_mvalue_len = 0;
+    uint64_t mmMvalueLen_ = 0;
     void PrintAlltoAllMxQuantMatmulTilingInfo(const std::string &opName, AlltoAllMatmulTilingInfo &tilingInfo);
     void PrintMxQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
     void PrintExtendMatmulTiling(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
@@ -74,7 +74,7 @@ private:
 class AlltoAllMxQuantMatmulHelper : public Mc2AdaptiveSlidingWindowTiling {
 public:
     AlltoAllMxQuantMatmulHelper(AllToAllMxQuantMatmulTilingBase& allToAllMxQuantMatmulTilingBase,
-                                DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& out, uint64_t& mm_mvalue_len);
+                                DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& out, uint64_t& mmMvalueLen_);
     const gert::Shape GetX1Shape(const size_t index) override;
     const gert::Shape GetX2Shape(const size_t index) override;
     const gert::StorageShape* GetPertokenShape(const size_t index) override;
@@ -86,7 +86,7 @@ public:
     ge::graphStatus PostTiling() override;
 
 private:
-    uint64_t mm_len = 0;
+    uint64_t mmLen_ = 0;
     AllToAllMxQuantMatmulTilingBase& tilingProcesser_;
 };
 } // namespace MC2Tiling
