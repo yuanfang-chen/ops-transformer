@@ -66,10 +66,14 @@ protected:
     ge::graphStatus CheckPerBlockScaleInput();
     ge::graphStatus CheckMXFPScaleInput();
     ge::graphStatus CheckPerTensorScaleInput();
+    ge::graphStatus CheckPerTokenScaleInput();
+    ge::graphStatus CheckPerChannelScaleInput();
     ge::graphStatus CheckBiasInput();
     ge::graphStatus SetQuantScene();
     mc2tiling::Mc2QuantMode GetQuantScene();
     ge::graphStatus CheckScaleInvShape();
+    ge::graphStatus CheckScaleValidInt8();
+    ge::graphStatus CheckScaleValid();
     ge::graphStatus CheckInputValid();
     ge::graphStatus CheckX1Input();
     ge::graphStatus CheckInput() override;

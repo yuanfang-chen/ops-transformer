@@ -76,7 +76,7 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
 // 根据API定义，需要列出所能支持的所有dtype
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {
   op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
-  op::DataType::DT_HIFLOAT8
+  op::DataType::DT_HIFLOAT8, op::DataType::INT8
 };
 
 static const std::initializer_list<op::DataType> BIAS_DTYPE_SUPPORT_LIST = {
@@ -147,6 +147,10 @@ static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclT
   OP_CHECK_DTYPE_NOT_SUPPORT(x2, DTYPE_SUPPORT_LIST, return false);
   OP_CHECK_DTYPE_NOT_SUPPORT(output, OUT_DTYPE_SUPPORT_LIST, return false);
   if (bias != nullptr) {
+    // 当前版本，输入为INT8时，bias需为nullptr
+    if((x1->GetDataType() == op::DataType::INT8) && (x2->GetDataType() == op::DataType::INT8)){
+      OP_LOGE(ACLNN_ERR_PARAM_INVALID, "input is int8, bias should not be nullptr.");
+    }
     OP_CHECK_DTYPE_NOT_SUPPORT(bias, BIAS_DTYPE_SUPPORT_LIST, return false);
   }
 
