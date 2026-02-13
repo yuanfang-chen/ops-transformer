@@ -139,7 +139,7 @@ public:
     void DivideAndConquerGetSum(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
                                 uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
     {
-        for (uint32_t i = 0; i < loopCount, i += columnStrideIndex) {
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
             uint32_t src0Start = i * HALF_VECTOR_SIZE;
             uint32_t src1Start = (i + columnStrideIndex / 2) * HALF_VECTOR_SIZE;
             AscendC::Add<half, false>(
@@ -180,7 +180,6 @@ public:
             rowsumUb,
             srcUb,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            AscendC::printf("tkd AscendC::MASK_PLACEHOLDER: %u\n", AscendC::MASK_PLACEHOLDER);
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
@@ -287,7 +286,7 @@ public:
     void DivideAndConquerGetMax(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
                                 uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
     {
-        for (uint32_t i = 0; i < loopCount, i += columnStrideIndex) {
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
             uint32_t src0Start = i * HALF_VECTOR_SIZE;
             uint32_t src1Start = (i + columnStrideIndex / 2) * HALF_VECTOR_SIZE;
             AscendC::Max<half, false>(
@@ -328,7 +327,6 @@ public:
             rowmaxUb,
             srcUb,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            AscendC::printf("tkd AscendC::MASK_PLACEHOLDER: %u\n", AscendC::MASK_PLACEHOLDER);
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
