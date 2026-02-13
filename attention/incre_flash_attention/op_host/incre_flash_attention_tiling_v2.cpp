@@ -2394,6 +2394,7 @@ ge::graphStatus IFATilingV2::CheckKVAntiQuantParaShapeLegal(const int64_t antiqu
       return CheckKVAntiQuantPerChannel(inputParaShape);
     }
   } else if (antiquantMode == PER_TOKEN_GROUP_MODE) {
+    //antiquantParaSeqSize_ = inputParaShape.GetDim(NUM3);
     OP_CHECK_IF(((inputParaShape.GetDimNum() != NUM5)),
       OP_LOGE(ifaContext_->opName, "The dimension[%lu] of antiquant is illegal, it should be 5 when per_token_group mode.",
                 inputParaShape.GetDimNum()),
