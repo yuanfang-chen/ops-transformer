@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file kc_quant_matmul_allto_all_tiling_base.h
+ * \file mx_quant_matmul_allto_all_tiling_base.h
  * \brief
  */
 #ifndef MX_QUANT_MATMUL_ALLTO_ALL_TILING_BASE_H
@@ -89,7 +89,7 @@ public:
     void PrintTilingInputParam(Mc2QuantBatchMatmulInfo& quantMatmulInfo);
 
 private:
-    uint64_t mm_len = 0;
+    uint64_t mmLen_ = 0;
     MxQuantMatmulAllToAllTilingBase& tilingProcesser_;
 };
 } // namespace MC2Tiling
