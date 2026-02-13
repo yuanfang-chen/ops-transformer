@@ -22,9 +22,6 @@
 #include "opdev/platform.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_moe_distribute_dispatch_v2_base.h"
-#include "hccl/hcom.h"
-#include "hccl/hccl_rank_graph.h"
-#include "hccl/hccl.h"
 using namespace Ops::Transformer;
 using namespace op;
 using namespace Mc2Context;
