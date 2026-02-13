@@ -58,9 +58,11 @@ public:
 private:
     __aicore__ inline void InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
     __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
-    __aicore__ inline void MatmulProcess();
-    __aicore__ inline void Add2RmsNormDynamicQuantCompute(int32_t gmOffset, int32_t rowIdx, int32_t startRowId, int32_t elementCount);
+    __aicore__ inline void Add2RmsNormCompute(int32_t gmOffset, int32_t elementCount);
+    __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
+    __aicore__ inline void DynamicQuant(int32_t rowIdx);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
+    __aicore__ inline void MatmulProcess();
     
     TPipe *tpipe_{nullptr};
     AllGatherMte<X1Type, float, int8_t> allGatherMte_;  // allGather 相关实现
@@ -168,7 +170,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
-    // rankSize_ = 4; // 修改
 
     axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
     axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
@@ -198,19 +199,33 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     endId = startId + sendNum;
 }
 
-// template<TemplateMC2TypeClass>
-// __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::ComputeDynamicQuant()
-// {
-    
-// }
+template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DynamicQuant(int32_t rowIdx)
+{
+    // smooth
+    Mul(yLocalTensorFp32_, xLocalTensorFp32_, smoothScaleTensor_, axisKa_); // y * smooth
+    PipeBarrier<PIPE_V>();
+ 
+    // scale
+    float maxTemp;
+    float scaleTemp;
+    Abs(xLocalTensorFp32_, yLocalTensorFp32_, axisKa_); // xLocalTensorFp32_ <-- |y * smooth|
+    PipeBarrier<PIPE_V>();
+    ReduceMaxInplace(xLocalTensorFp32_, axisKa_);
+    SyncFunc<AscendC::HardEvent::V_S>();
+    maxTemp = xLocalTensorFp32_.GetValue(0); // Reduce
+    scaleTemp = float(127.0) / maxTemp;
+    dynamicScaleLocalTensor_.SetValue(rowIdx, 1 / scaleTemp);
+    SyncFunc<AscendC::HardEvent::S_V>();
+    Muls(yLocalTensorFp32_, yLocalTensorFp32_, scaleTemp, axisKa_);
+    PipeBarrier<PIPE_V>();
+}
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Add2RmsNormDynamicQuantCompute(
-    int32_t gmOffset, int32_t rowIdx, int32_t startRowId, int32_t elementCount)
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Add2RmsNormCompute(int32_t gmOffset, int32_t elementCount)
 {
+    // Copy In
     LocalTensor<X1Type> copyInLocalTensor = inQueue_.AllocTensor<X1Type>();
-    LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
-
     DataCopyEx(copyInLocalTensor[0], x1GMTensor_[gmOffset], axisKa_);
     DataCopyEx(copyInLocalTensor[elementCount], residualGMTensor_[gmOffset], axisKa_);
     DataCopyEx(copyInLocalTensor[elementCount * 2], yGMTensor_[gmOffset], axisKa_);
@@ -243,13 +258,17 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     SyncFunc<AscendC::HardEvent::V_S>();
     Muls(xLocalTensorFp32_, xLocalTensorFp32_, rstdLocalTemp, axisKa_); // xLocalTensorFp32_ <- x * rstd
     PipeBarrier<PIPE_V>();
-    if (rowIdx == startRowId) {
-        SyncFunc<AscendC::HardEvent::MTE2_V>();
-    }
+}
+
+template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::GammaWeightAndCopyOut(int32_t gmOffset)
+{
+    // Gamma Weight
     Mul(xLocalTensorFp32_, xLocalTensorFp32_, gammaTensor_, axisKa_); // xLocalTensorFp32_ <- x * rstd * gamma
     PipeBarrier<PIPE_V>();
 
     // CopyOut z
+    LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
     if constexpr (is_same<X1Type, half>::value) {
         Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
     } else { // BF16
@@ -259,24 +278,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
     DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
     zOutQueue_.FreeTensor<X1Type>(zOutLocalTensor);
-
-    // DynamicQuant smooth
-    Mul(yLocalTensorFp32_, xLocalTensorFp32_, smoothScaleTensor_, axisKa_); // y * smooth
-    PipeBarrier<PIPE_V>();
- 
-    // scale
-    float maxTemp;
-    float scaleTemp;
-    Abs(xLocalTensorFp32_, yLocalTensorFp32_, axisKa_); // xLocalTensorFp32_ <-- |y * smooth|
-    PipeBarrier<PIPE_V>();
-    ReduceMaxInplace(xLocalTensorFp32_, axisKa_);
-    SyncFunc<AscendC::HardEvent::V_S>();
-    maxTemp = xLocalTensorFp32_.GetValue(0); // Reduce
-    scaleTemp = float(127.0) / maxTemp;
-    dynamicScaleLocalTensor_.SetValue(rowIdx, 1 / scaleTemp);
-    SyncFunc<AscendC::HardEvent::S_V>();
-    Muls(yLocalTensorFp32_, yLocalTensorFp32_, scaleTemp, axisKa_);
-    PipeBarrier<PIPE_V>();
 }
 
 template<TemplateMC2TypeClass>
@@ -300,8 +301,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     int32_t gmOffset = 0;
     int32_t elementCount = axisKaAlignSize_ / sizeof(X1Type);
     for (int32_t rowIdx = startRowId; rowIdx < endRowId; ++rowIdx) {
-        Add2RmsNormDynamicQuantCompute(gmOffset, rowIdx, startRowId, elementCount);
-        // copy out 到win区?  修改
+        Add2RmsNormCompute(gmOffset, elementCount);
+        if (rowIdx == startRowId) {
+            SyncFunc<AscendC::HardEvent::MTE2_V>(); // wait gammaTensor_ and smoothScaleTensor_
+        }
+        GammaWeightAndCopyOut(gmOffset);
+        DynamicQuant(rowIdx);
+        // copy out 到本卡win区?  TODO
         x1OutLocalTensor_ = x1OutQueue_.AllocTensor<int8_t>();
         RoundFloat2Int8(x1OutLocalTensor_, yLocalTensorFp32_, axisKa_);
         x1OutQueue_.EnQue(x1OutLocalTensor_);
@@ -310,6 +316,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         x1OutQueue_.FreeTensor(x1OutLocalTensor_);
         gmOffset += axisKa_;
     }
+    SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopyEx(scaleWinGMTensor_[startRowId], dynamicScaleLocalTensor_, rowNum); //修改
 }
 
