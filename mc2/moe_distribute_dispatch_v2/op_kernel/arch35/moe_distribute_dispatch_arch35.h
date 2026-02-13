@@ -413,7 +413,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
     LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, int32_t expertIndex)
 {
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
-    DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
+    DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(int)), 0U, 0U};
     DataCopyPadParams scalesPadParams = {false, 0, 0, 0};
     if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
         if (scalesCount_ == 1) {
@@ -461,7 +461,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
     }
     Cast(tokenF32LT_, inLocal, RoundMode::CAST_NONE, axisH_);
     if constexpr (IsSmoothScaleExist) {
-        DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
+        DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(int)), 0U, 0U};
         DataCopyPadParams scalesPadParams = {true, 0, 0, 0};
         DataCopyPad(scalesLT_, scalesGT_[expertIndex * axisH_], scalesInParams, scalesPadParams);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
@@ -499,7 +499,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
     if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value ||
         Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
         if constexpr (IsSmoothScaleExist) {
-            DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(float)), 0U, 0U};
+            DataCopyParams scalesInParams = {1U, static_cast<uint16_t>(axisH_ * sizeof(int)), 0U, 0U};
             DataCopyPadParams scalesPadParams = {true, 0, 0, 0};
             DataCopyPad(scalesLT_, scalesGT_[expertIndex * axisH_], scalesInParams, scalesPadParams);
             SyncFunc<AscendC::HardEvent::MTE2_V>();
@@ -1112,6 +1112,9 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
                 tokenGatherQue_.EnQue(tok);
                 tok = tokenGatherQue_.DeQue<ExpandXOutType>();
                 DataCopyPad(expandXOutGT_[outPreCount * axisH_], tok, tokenOutParams);
+                for (uint32_t h = 0; h < axisH_; ++h) {
+                    expandXOutGT_(outPreCount * axisH_ + h) = expandXOutGT_(outPreCount * axisH_ + h) * 1.5f;
+                }
                 CopyScalesToOut(outPreCount, tok, sharedExpertRankNum > 0 ? (expertId + 1) : expertId);
                 tokenGatherQue_.FreeTensor(tok);
                 outPreCount += 1;
