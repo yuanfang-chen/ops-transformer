@@ -172,211 +172,146 @@ def compressor_output_single(data_case):
     kv_state_datarange = [float(x.strip()) for x in kv_state_datarange.split(',')]
     score_state_datarange = [float(x.strip()) for x in score_state_datarange.split(',')]
 
-    if Seq_len == 0 or  batch_size == 0:
-        if Seq_len == 0:
-            if layout_x == "TH":
-                T = batch_size * Seq_len
-                cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
-            else:
-                cu_seqlens = None
-
-            seqused = torch.zeros((batch_size), dtype=torch.int32)
-            if start_pos is not None:
-                start_pos = torch.tensor(start_pos).to(torch.int32)
-            else:
-                start_pos = [0] * batch_size
-            S_max = max(start_pos) + Seq_len
-            block_table = torch.zeros(size=(batch_size, 0), dtype=torch.int32)
-            block_num = 0
-            for i in range(batch_size):
-                block_num += math.ceil((int(start_pos[i])) / block_size)
-            shuffled_indices = torch.randperm(batch_size)
-            index = torch.arange(0, batch_size, 1, dtype=torch.int32)
-            index = index[shuffled_indices]
-            for i in range(batch_size):
-                block_table[i] = index[i]
-
-        if batch_size == 0:
-            if layout_x == "TH":
-                if cu_seqlens is not None:
-                    cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
-                else:
-                    T = batch_size * Seq_len
-                    cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
-            else:
-                cu_seqlens = None
-            start_pos = None
-            seqused = None
-            S_max = Seq_len
-            max_block_num_per_batch = (S_max + cmp_ratio + block_size - 1) // block_size
-            block_table = torch.zeros(size=(batch_size, max_block_num_per_batch), dtype=torch.int32)
-            block_num = 0
-            shuffled_indices = torch.randperm(max_block_num_per_batch)
-            index = torch.arange(0, max_block_num_per_batch, 1, dtype=torch.int32)
-            index = index[shuffled_indices]
-            for i in range(batch_size):
-                block_table[i] = index[i]
-
-        kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (block_num, block_size, coff * head_dim))).to(torch.float32)
-        score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (block_num, block_size, coff * head_dim))).to(torch.float32)
-        
-        # other input
-        if layout_x == "TH":
-            x_shape = (0, hidden_size)
-            rope_sin_shape = (min(x_shape[0], x_shape[0] // cmp_ratio + batch_size), rope_head_dim)
-            rope_cos_shape = rope_sin_shape
-        else:
-            x_shape = (batch_size, Seq_len, hidden_size)
-            rope_sin_shape = (batch_size, (Seq_len + cmp_ratio - 1) // cmp_ratio, rope_head_dim)
-            rope_cos_shape = rope_sin_shape
-
-        x = torch.tensor(np.random.uniform(x_datarange[0], x_datarange[1], x_shape)).to(data_type)
-        wkv = torch.tensor(np.random.uniform(wkv_datarange[0], wkv_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
-        wgate = torch.tensor(np.random.uniform(wgate_datarange[0], wgate_datarange[1], (coff * head_dim, hidden_size))).to(data_type)
-        ape = torch.tensor(np.random.uniform(ape_datarange[0], ape_datarange[1], (cmp_ratio, coff * head_dim))).to(torch.float32)
-        norm_weight = torch.tensor(np.random.uniform(norm_weight_datarange[0], norm_weight_datarange[1], (head_dim))).to(data_type)
-        rope_sin = torch.tensor(np.random.uniform(-1, 1, rope_sin_shape)).to(data_type)
-        rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type)
-        ### ======================== gen input data finish =============================
-        ### ======================== execute cpu start =================================
-        cpu_kv_state = kv_state.clone()
-        cpu_score_state = score_state.clone()
-
-        test_operator = Generalized_operator()
-        cpu_kv_state = kv_state.clone()
-        cpu_score_state = score_state.clone()
-
-        test_operator = Generalized_operator()
-        cpu_result, kv_mask_result = test_operator.forward( x,
-                                            wkv,
-                                            wgate,
-                                            cpu_kv_state,
-                                            cpu_score_state,
-                                            ape,
-                                            norm_weight, 
-                                            rope_sin,
-                                            rope_cos,
-                                            block_table = block_table,
-                                            cu_seqlens = cu_seqlens,
-                                            seqused = seqused,
-                                            start_pos = start_pos,
-                                            rope_head_dim = rope_head_dim,
-                                            cmp_ratio = cmp_ratio,
-                                            coff = coff,
-                                            norm_eps = norm_eps,
-                                            rotary_mode = rotary_mode)
-        update_kv = cpu_kv_state != kv_state
-        update_score = cpu_score_state != score_state
-        output_tensors = {
-            "params":params,
-            "cpu_result": cpu_result,
-            "kv_mask_result": kv_mask_result,
-            "update_kv":update_kv,
-            "update_score":update_score,
-            "cpu_kv_state":cpu_kv_state,
-            "cpu_score_state":cpu_score_state,
-            "x":x,
-            "wkv":wkv,
-            "wgate":wgate,
-            "kv_state":kv_state,
-            "score_state":score_state,
-            "ape":ape,
-            "norm_weight":norm_weight, 
-            "rope_sin":rope_sin,
-            "rope_cos":rope_cos,
-            "block_table":block_table,
-            "cu_seqlens":cu_seqlens,
-            "seqused":seqused,
-            "start_pos":start_pos,
-            "rope_head_dim":rope_head_dim,
-            "cmp_ratio":cmp_ratio,
-            "coff":coff,
-            "norm_eps":norm_eps,
-            "rotary_mode":rotary_mode
-        }
-        return  casename, output_tensors
-
     S_max = 0
-    if layout_x == "TH":
-        if cu_seqlens is not None:
-            cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
-        else:
-            T = batch_size * Seq_len
-            cu_seqlens = torch.arange(0, T + 1, Seq_len, dtype=torch.int32)
-        
-        if seqused is not None:
-            S_max = max(seqused)
-            seqused = torch.tensor(seqused).to(torch.int32)
-        else:
-            for i in range(1, batch_size + 1):
-                if S_max < cu_seqlens[i] - cu_seqlens[i - 1]:
-                    S_max = cu_seqlens[i] - cu_seqlens[i - 1] 
+    save_state_seqlens = None
+    bs_combine_flag = False
+    if seqused is not None:
+        seqused = torch.tensor(seqused).to(torch.int32)
+    if start_pos is not None:
+        start_pos = torch.tensor(start_pos).to(torch.int32)
+    else:
+        start_pos = torch.full((batch_size,), start_p, dtype=torch.int32)
 
-        if start_pos is not None:
-            start_pos = torch.tensor(start_pos).to(torch.int32)
+    if layout_x == "TH":
+        bs_combine_flag = True
+        if cu_seqlens is None:
+            T = batch_size * Seq_len
+            if T !=0:
+                cu_seqlens = torch.arange(0, T + 1, Seq_len, dtype=torch.int32)
+            else:
+                cu_seqlens = torch.zeros((batch_size+1), dtype=torch.int32)
         else:
-            start_pos = [0] * batch_size
-        S_max = max(start_pos) + Seq_len
+            cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
+        for i in range(batch_size):
+            if start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] > S_max:
+                S_max = start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] 
     else:
         cu_seqlens = None
-        if start_pos == None:
-            start_pos = [0] * batch_size
-        else:
-            start_pos = torch.tensor(start_pos).to(torch.int32)
         S_max = max(start_pos) + Seq_len
-
+ # ======================== set input params finish ========================
+    if bs_combine_flag:
+        # cu_seqlens = [0, 1] # (batch_size+1,), None时表示非BSh，否则为Th
+        if cu_seqlens is None:
+            print(f"Error: layout of x is [T, hidden_size], cu_seqlens is required!!!")
+            return
+        old_S = Seq_len
         if seqused is not None:
-            seqused = torch.tensor(seqused).to(torch.int32)
-
-    ### ======================== check input params start ========================
-    print(f"params = {params}")
-
-    actseqs = []
-    if seqused is not None:
-        actseqs = seqused
+            Seq_len = max(seqused)
+        else:
+            Seq_len = 0
+            for i in range(batch_size):
+                if (cu_seqlens[i + 1] - cu_seqlens[i]) > Seq_len:
+                    Seq_len = cu_seqlens[i + 1] - cu_seqlens[i]
+        print(f"Warning: layout of x is [T, hidden_size], Seq_len={old_S}, it is modified to Seq_len={Seq_len}!!!")
     else:
         if cu_seqlens is not None:
-            for i in range(len(cu_seqlens) - 1):
-                diff = (cu_seqlens[i + 1] - cu_seqlens[i]).item()
-                actseqs.append(diff)
-        else:
-            actseqs = [Seq_len] * batch_size
+            print(f"Warning: layout of x is [batch_size, Seq_len, hidden_size], but cu_seqlens is not None, it is modified to None!!!")
+        cu_seqlens = None
+    exist_start_pos = True
+    if start_pos is None:
+        exist_start_pos = False
+        start_pos = [0] * batch_size
+    # ======================== set input params finish ========================
+    # ======================== check input params start ========================
+    if start_pos is not None:
+        if len(start_pos) != batch_size:
+            print(f"Error: the len of start_pos is {len(start_pos)}, it should be batch_size({batch_size})")
+            return
+    if seqused is not None:
+        if len(seqused) != batch_size:
+            print(f"Error: the len of seqused is {len(seqused)}, it should be batch_size({batch_size})")
+            return
+    if cu_seqlens is not None:
+        if len(cu_seqlens) != (batch_size + 1):
+            print(f"Error: the len of cu_seqlens is {len(cu_seqlens)}, it should be equal to batch_size({batch_size}) + 1")
+            return
+    if head_dim < rope_head_dim:
+        print(f"Error: head_dim >= rope_head_dim, but head_dim is {head_dim}, rope_head_dim is {rope_head_dim}")
+        return
+    if bs_combine_flag:
+        for i in range(batch_size):
+            if start_pos[i] + (cu_seqlens[i + 1] - cu_seqlens[i]) > S_max:
+                print(f"Error: for batch {i} when shape of x is (T, hidden_size), start_pos[{i}] + (cu_seqlens[{i + 1}] - cu_seqlens[{i}]) > S_max, "
+                    f"start_pos[{i}]={start_pos[i]}, cu_seqlens[{i + 1}]={cu_seqlens[i + 1]}, cu_seqlens[{i}]={cu_seqlens[i]}, S_max={S_max}")
+                return
+            if seqused is not None:
+                if seqused[i] > (cu_seqlens[i + 1] - cu_seqlens[i]):
+                    print(f"Error: for batch {i} when shape of x is (T, hidden_size), seqused[{i}] > (cu_seqlens[{i + 1}] - cu_seqlens[{i}]), "
+                        f"seqused[{i}]={seqused[i]}, cu_seqlens[{i + 1}]={cu_seqlens[i + 1]}, cu_seqlens[{i}]={cu_seqlens[i]}")
+                    return
+    else:
+        for i in range(batch_size):
+            if start_pos[i] + Seq_len > S_max:
+                print(f"Error: for batch {i} when shape of x is (batch_size, Seq_len, hidden_size), start_pos[{i}] + Seq_len > S_max, start_pos[{i}]={start_pos[i]}, Seq_len={Seq_len}, S_max={S_max}")
+                return
+            if seqused is not None:
+                if seqused[i] > Seq_len:
+                    print(f"Error: for batch {i} when shape of x is (batch_size, Seq_len, hidden_size), seqused[{i}] > Seq_len, seqused[{i}]={seqused[i]}, Seq_len={Seq_len}")
+                    return
+    if save_state_seqlens is not None:
+        if len(save_state_seqlens) != batch_size:
+            print(f"Error: the len of save_state_seqlens is {len(save_state_seqlens)}, it should be equal to batch_size({batch_size})")
+            return
+        for i in range(batch_size):
+            b_seqused = get_seq_used_by_batch(i, Seq_len, seqused, cu_seqlens)
+            if b_seqused < save_state_seqlens[i]:
+                print(f"Error: for batch {i}, b_seqused < save_state_seqlens[{i}], b_seqused={b_seqused}, save_state_seqlens[{i}]={save_state_seqlens[i]}")
+                return
 
-    max_block_num_per_batch = (S_max + cmp_ratio + block_size - 1) // block_size
-    block_num = 0
-    for i in range(batch_size):
-        block_num += math.ceil((int(actseqs[i]) + int(start_pos[i])) / block_size)
-    block_num = block_num - 1
-    shuffled_indices = torch.randperm(block_num)
-    index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
-    index = index[shuffled_indices]
-    index_id = 0
+    # ======================== check input params finish ========================
+    # ======================== gen input data start =============================
+    # page state
+    max_block_num_per_batch = (S_max + block_size - 1) // block_size
+    block_num = batch_size * max_block_num_per_batch
+    next_block_id = 1
+    print(f"max_block_num_per_batch: {max_block_num_per_batch}")
     block_table = torch.zeros(size=(batch_size, max_block_num_per_batch), dtype=torch.int32)
     for i in range(batch_size):
+        # 需要读取state的范围
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
-        if start_pos[i] % cmp_ratio == 0: #如果start_pos[i]正好被整除，这个batch的本次需要处理的第一个r的数据都通过x传入了，不需要从state中取，不需要预留空间
+        if start_pos[i] % cmp_ratio == 0:
             cur_end = start_pos[i]
+        cur_end = min(cur_end, start_pos[i] + Seq_len)
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
         for j in range(cur_start_block_id, cur_end_block_id + 1):
-            if index_id < block_num:
-                block_table[i][j] = index[index_id]
-                index_id += 1
+            block_table[i][j] = next_block_id
+            next_block_id = next_block_id + 1
+        # 需要写入state的范围
         end_pos = get_seq_used_by_batch(i, Seq_len, seqused, cu_seqlens)
-        next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
-        next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio 
-        if (start_pos[i] + end_pos) % cmp_ratio == 0:
-            next_end = start_pos[i] + end_pos       #如果start_pos[i] + end_pos正好被整除，下一个r的数据一个都没有给，所以不需要给下一个r预留空间
+        if save_state_seqlens is not None:
+            next_start = start_pos[i] + end_pos - save_state_seqlens[i]
+            next_end = start_pos[i] + end_pos
+        else:
+            next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
+            next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
+            if (start_pos[i] + end_pos) % cmp_ratio == 0:
+                next_end = start_pos[i] + end_pos
+        next_end = min(next_end, start_pos[i] + end_pos)
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
-            if block_table[i][j] == 0 and index_id < block_num:
-                block_table[i][j] = index[index_id]
-                index_id += 1
-    kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (block_num + 1, block_size, coff * head_dim))).to(torch.float32)
-
+            if block_table[i][j] == 0:
+                block_table[i][j] = next_block_id
+                next_block_id = next_block_id + 1
+    if batch_size==0:
+        kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (0, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (0, block_size, coff * head_dim))).to(torch.float32)
+    else:
+        kv_state = torch.tensor(np.random.uniform(kv_state_datarange[0], kv_state_datarange[1], (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(score_state_datarange[0], score_state_datarange[1], (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+    
     # other input
     if layout_x == "TH":
         x_shape = (cu_seqlens[-1], hidden_size)

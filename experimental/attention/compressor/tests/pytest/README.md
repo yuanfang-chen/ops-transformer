@@ -29,8 +29,7 @@
 ## 文件结构
 #### pytest文件结构说明
 - test_run.sh                               # 执行脚本
-- compressor_golden.py                      # cpu侧算子golden实现
-- result_compare_method.py                  # cpu golden与npu输出精度对比
+- compressor_golden.py                      # cpu侧算子golden实现以及cpu golden与npu结果精度对比
 - pytest.ini                                # 创建ci单算子和graph图模式的测试标记
 
 单用例测试:
