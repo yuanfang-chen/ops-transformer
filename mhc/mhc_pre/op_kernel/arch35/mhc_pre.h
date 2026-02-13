@@ -94,7 +94,7 @@ static constexpr uint64_t SYNC_C2V1 = 0x3;    // Cube→Vector同步标志1
 // 其他常量
 static constexpr uint32_t parallNum_ = 2;     // 并行数量
 
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
+using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>; // TPosition::TSCM
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
 using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
@@ -111,7 +111,7 @@ public:
     __aicore__ inline void V0Process(uint32_t curblock, uint32_t tblockNum);
     __aicore__ inline void DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM);
-    __aicore__ inline void DataCopyOutToWorkSpace(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
+    __aicore__ inline void DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd);
     __aicore__ inline void AIVPreLoad();
     __aicore__ inline void HMixCopyIn(uint64_t offset, uint64_t lenT);
@@ -122,8 +122,8 @@ public:
     __aicore__ inline void BiasCopyIn();
     __aicore__ inline void AIV1GetHSliceOffset();
     __aicore__ inline void AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t offsetD, uint64_t lenD);
-    template <bool hasGamma_, bool isFirstND>
-    __aicore__ inline void VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize);
+    template <bool hasGamma, bool isFirstND>
+    __aicore__ inline void VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize);
 
 private:
     MT &mm;
@@ -314,7 +314,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
     buffOffset += V0_BASE_T * ND_LENGTH * sizeof(P);
     sumFp32Ub_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T), buffOffset);
     buffOffset += V0_BASE_T * sizeof(P);
-    aL1_ = tmpBuff_.GetWithOffset<P>(uint32_t(), buffOffset);
+    aL1_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T * ND_LENGTH), buffOffset);
     
     // V1
     buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
@@ -328,7 +328,6 @@ __aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
     buffOffset += V1_BASE_T * N_ * sizeof(P);
     hResBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
-
 }
 
 template <class T, class P>
@@ -411,9 +410,13 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess()
 
         uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % parallNum_) * coreNum_);
 
+        // uint64_t computeLen = mnConfig_.curSingleCoreM * mnConfig_.curSingleCoreK;
+        // LocalTensor<P> aL1 = LocalTensor<P>(TPosition::TSCM, 0, computeLen * sizeof(P));
+        // DataCopy(aL1, aL1_, computeLen);
+
         mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK, mnConfig_.k);                       // MNK
         mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK); // SingleCoreMNK
-        mm.SetTensorA(xFloatGm_[xOffset]);
+        mm.SetTensorA(xFloatGm_[xOffset]); // TODO
         mm.SetTensorB(phiGm_[offsetNd], true);
         mm.IterateAll(mmResGm_[outOffset], offsetNd == 0 ? 0 : 1);
         mm.End();
@@ -440,10 +443,10 @@ __aicore__ inline void MhcPreKernel<T, P>::VectorComputeOffset()
 }
 
 template <class T, class P>
-template <bool hasGamma_, bool isFirstND>
-__aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize)
+template <bool hasGamma, bool isFirstND>
+__aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize)
 {
-    uint32_t eleNumPerVf = MhcPreUtils::GetVRegSize() / sizeof(T);
+    uint32_t eleNumPerVf = MhcPreUtils::GetVRegSize() / sizeof(P);
     // 计算两种数据类型经32B对齐后的Size
     uint32_t nSrcUbAligned =
         MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(T)));
@@ -451,43 +454,51 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
     uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf);
     __VEC_SCOPE__
     {
-        // 初始化mask
-        MicroAPI::MaskReg maskN4B16 = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
+        MicroAPI::MaskReg mask = MicroAPI::CreateMask<P>();
         for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
-            uint32_t elementNum = nSize;
+            uint32_t elementNum = nSize; // 每次update会减去VL_T
+            MicroAPI::RegTensor<P> sumReg;
+            // if constexpr (isFirstND) {
+            //     MicroAPI::Duplicate(sumReg, 0);
+            // } else {
+            //     // 非对齐32B
+            //     MicroAPI::DataCopy(sumReg, invRmsDst + mIdx);
+            // }
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
                 MicroAPI::RegTensor<T> xInReg;
                 MicroAPI::RegTensor<P> gammaReg;
                 MicroAPI::RegTensor<P> xFp32Reg, xMulReg, xSquaReg;
-                // 更新mask，因为只处理elementNum个元素
-                MicroAPI::MaskReg maskN = MicroAPI::UpdateMask<T>(elementNum);
+                MicroAPI::RegTensor<P> tmpSumReg;
+                
                 // 从UB搬运到Register，地址需要32B对齐，从GM搬运时保证
                 uint32_t xInOffset = mIdx * nSrcUbAligned + vfBlockIdx * eleNumPerVf;
-                MicroAPI::DataCopy(xInReg, xIn + xInOffset);
+                // TODO: DataCopy换成LoadAlign和StoreAlign
+                MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xIn + xInOffset);
                 // cast b16 -> fp32
-                MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, maskN);
+                MicroAPI::MaskReg maskN4B32 = MicroAPI::UpdateMask<P>(elementNum);
+                MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, maskN4B32);
                 // castX * gamma
                 // regbase内判断都用constexpr
-                if constexpr (hasGamma_) { 
-                    MicroAPI::DataCopy(gammaReg, gamma + vfBlockIdx * eleNumPerVf);
-                    MicroAPI::Mul(xMulReg, gammaReg, xFp32Reg, maskN);
+                if constexpr (hasGamma) { 
+                    MicroAPI::LoadAlign(gammaReg, gamma + vfBlockIdx * eleNumPerVf);
+                    MicroAPI::Mul(xMulReg, gammaReg, xFp32Reg, maskN4B32);
                 } else {
                     xMulReg = xFp32Reg;
                 }
-                // copy out x
+                // copy out x, 对齐搬出，这里可能要和Cube适配。
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
-                MicroAPI::DataCopy<P, MicroAPI::StoreDist::DIST_NORM_B32>(xDst + dstUbOffset, xMulReg, maskN);
+                MicroAPI::StoreAlign(xDst + dstUbOffset, xMulReg, maskN4B32);
 
-                // xFp32 * xFp32
-                MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN);
+                // // xFp32 * xFp32
+                // MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN4B32);
 
-                // reducesum
-                // if constexpr (isFirstND) {
-
-                // } else {
-
-                // }
+                // // reducesum, 累加到sumReg第一个元素上
+                // MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, xSquaReg, maskN4B32);
+                // MicroAPI::Add(sumReg, sumReg, tmpSumReg, maskN4B32);
             }
+            
+            // // 搬出地址不32B对齐
+            // MicroAPI::DataCopy<P, MicroAPI::StoreDist::DIST_NORM_B32>(invRmsDst + mIdx, sumReg, maskN4B32);
         }
     }
 }
@@ -503,6 +514,7 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
     VectorComputeOffset();
 
     uint32_t computeLen = V0_BASE_T * ND_LENGTH;
+    // FIX: 超过ND_LENGTH时会卡死
     for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
         uint32_t curNdLen = ND_LENGTH;
         if (offsetNd + ND_LENGTH >= matrixInfo_.nD) {
@@ -525,6 +537,9 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
             xLocal_ = xInQueue_.DeQue<T>();
 
+            uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
+            LocalTensor<P> aL1Ub = aL1_[aL1Offset];
+
             if (hasGamma_) {
                 // copy gamma
                 gammaUb_ = gammaInQueue_.AllocTensor<P>();
@@ -532,55 +547,28 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
                 gammaUb_ = gammaInQueue_.DeQue<P>();
 
                 if (offsetNd == 0) {
-                    VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1_.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                    VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
                 } else {
-                    VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1_.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+                    VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
                 }
+                PipeBarrier<PIPE_V>();
+                gammaInQueue_.FreeTensor(gammaUb_);
             } else {
                 if (offsetNd == 0) {
-                    VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1_.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                    VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
                 } else {
-                    VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1_.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+                    VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
                 }
             }
-            
 
-            // // bf16转fp32
-            // xFp32Ub_ = outQueue_.AllocTensor<P>();
-            // Cast(xFp32Ub_, xLocal_, AscendC::RoundMode::CAST_NONE, computeLen);
-            // // xFp32Ub_ * xFp32Ub_
-            // PipeBarrier<PIPE_V>();
-            // Mul(mulFp32Ub_, xFp32Ub_, xFp32Ub_, computeLen);
+            // TODO: DEBUG FOR C0
+            PipeBarrier<PIPE_V>();
+            DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
 
-            // if (hasGamma_) {
-            //     
-
-            //     uint32_t broadCastDst[2] = {curMLen, curNdLen};
-            //     uint32_t broadCastSrc[2] = {1, curNdLen};
-            //     Broadcast<P, 2, 0>(gammaXFp32Ub_, gammaUb_, broadCastDst, broadCastSrc);
-            //     PipeBarrier<PIPE_V>();
-            //     Mul(xFp32Ub_, xFp32Ub_, gammaXFp32Ub_, computeLen);
-            //     gammaInQueue_.FreeTensor(gammaUb_);
-            // }
-
-            // PipeBarrier<PIPE_V>();
-            // DataCopyOutToWorkSpace(curMLen, curNdLen, offsetM, offsetNd);
-            // PipeBarrier<PIPE_V>();
-
-
-            
-
-            // uint32_t srcShape[2] = {curMLen, Ceil(curNdLen, 16) * 16};
-            // if (offsetNd == 0) {
-            //     ReduceSum<float, AscendC::Pattern::Reduce::AR, true>(invRmsUb, mulFp32Ub_, srcShape, true);
-            // } else {
-            //     ReduceSum<float, AscendC::Pattern::Reduce::AR, true>(sumFp32Ub_, mulFp32Ub_, srcShape, true);
-            //     PipeBarrier<PIPE_V>();
-            //     Add(invRmsUb, invRmsUb, sumFp32Ub_, curMLen);
-            // }
             xInQueue_.FreeTensor(xLocal_);
             // outQueue_.FreeTensor(xFp32Ub_);
         }
+        
         CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C);
         vectorCount_++;
     }
@@ -936,10 +924,10 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen,
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd)
 {
-    outQueue_.EnQue<P>(xFp32Ub_);
-    xFp32Ub_ = outQueue_.DeQue<P>();
+    // outQueue_.EnQue<P>(xFp32Ub_);
+    // xFp32Ub_ = outQueue_.DeQue<P>();
 
     DataCopyParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
@@ -948,7 +936,7 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(uint32_t curML
     copyParams.dstStride = uint32_t(0);
 
     uint64_t offset = chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % parallNum_) * coreNum_) + offsetM * curNdLen;
-    DataCopyPad(xFloatGm_[offset], xFp32Ub_, copyParams);
+    DataCopyPad(xFloatGm_[offset], x, copyParams);
 }
 
 } // namespace MhcPre
