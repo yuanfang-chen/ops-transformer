@@ -32,11 +32,12 @@ __global__ __aicore__ void qbmm_reduce_scatter_add_rms_norm_cast(GM_ADDR x1, GM_
     GET_TILING_DATA_WITH_STRUCT(QbmmReduceScatterAddRmsNormCastTilingData, tilingData, tilingGM);
     TPipe pipe;
     if (TILING_KEY_IS(0)) {
-        QbmmReduceScatterAddRmsNormCastMte op;
-        PRINTF("kernel init start");
-        op.Init();
-        PRINTF("kernel process start");
+        const QbmmReduceScatterAddRmsNormCastTilingData *qBmmReduceScatterAddRmsNormCastTilingData = &tilingData;                               \
+        const TCubeTiling *mmTiling = &(qBmmReduceScatterAddRmsNormCastTilingData->matmulTiling);
+        QbmmReduceScatterAddRmsNormCastMte <DTYPE_X1, DTYPE_Y, DTYPE_SCALE, false> op;
+        REGIST_MATMUL_OBJ(&pipe, GetSysWorkSpacePtr(), op.mm, mmTiling);
+        op.Init(x, x2, y, gamma, scale,  bias, perTokenScale, y1, 
+                y2, x, &pipe, workspaceGM, &tilingData);
         op.Process();
-        PRINTF("kernel end");
     }
 }

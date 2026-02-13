@@ -21,6 +21,14 @@
 struct QbmmReduceScatterAddRmsNormCastTilingInfo {
     // 待补充
     uint64_t aivNum;
+    int32_t M;
+    int32_t N;
+    uint64_t ubCalcN;
+    uint64_t ubCalcM;
+    uint64_t needUbBuffer;
+    int32_t tpWorldSize;
+    TCubeTiling matmulTiling;
+    // addRmsNormCast 相关
 };
 
 // tiling struct待完善...

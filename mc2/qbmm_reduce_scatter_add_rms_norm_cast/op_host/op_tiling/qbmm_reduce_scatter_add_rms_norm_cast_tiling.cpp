@@ -22,10 +22,16 @@
 using namespace AscendC;
 using namespace ge;
 namespace MC2Tiling {
+
+using AscendC::BLOCK_CUBE;    // uint32_t 16
+using AscendC::ONE_BLK_SIZE;  // uint32_t 32
+
 constexpr size_t GROUP_INDEX = 0;
+constexpr size_t RANK_SIZE_INDEX = 1;
 constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
 constexpr uint32_t AIV_TYPE = 3;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
+constexpr uint64_t UB_EXTRE_BYTE = 8;
 
 using namespace AscendC;
 using namespace ge;
@@ -150,7 +156,9 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     // 获取group以便ranksize设置与通信设置
     std::string group = "";
     const char *groupPtr = context->GetAttrs()->GetAttrPointer<char>(GROUP_INDEX);
+    tilingData->tpWorldSize = context->GetAttrs()->GetAttr<int32_t>(RANK_SIZE_INDEX);
     group = std::string(groupPtr);
+    SetTCubeTiling(context, tilingData);
     OP_TILING_CHECK(SetHcommCfg(context, tilingData, group) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
     SetWorkSpace(context);
@@ -158,6 +166,69 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     SetTilingKey(context);
     // PrintTilingDataInfo(context, *tilingData);
     OP_LOGD("QbmmReduceScatterAddRmsNormCast tiling end.");
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus QbmmReduceScatterAddRmsNormCastCheckTiling::SetTCubeTiling(const gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
+{
+
+    matmul_tiling::PlatformInfo platformInfo;
+    InitPlatformInfo(&compileInfo_, platformInfo);
+    matmul_tiling::MultiCoreMatmulTiling mm(platformInfo);
+    mm.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, false);
+    mm.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, false);
+    mm.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_BF16);
+    mm.SetBias(false);
+    int32_t baseM = tilingData->M / tilingData->tpWorldSize * 2; // 63 * 2
+    int32_t baseN = 128; // 128
+    int32_t baseK = 256; // int8 可以baseM * baseK < 64K
+    mm.SetOrgShape(tilingData.M, tilingData.N, tilingData.K);
+    mm.SetShape(baseM, baseN, inputParams_.kSize);
+    mm.SetFixSplit(baseM, baseN, baseK);
+    if (mm.GetTiling(tilingData->matmulTiling) ==-1) {
+        return false;
+    }
+}
+
+ge::graphStatus QuantBatchMatmulV3Tiling::CalcUbTiling(uint32_t baseN, uint32_t baseM, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
+{
+    uint64_t ubSize = aicoreParams_.ubSize;
+    uint64_t needUbSize = 0;
+    uint32_t ubCalcN = baseN;
+    // src(int32) + scale(fp32/bf16) + pertoken(fp32) + out(fp16/bf16) + veccalc, in and out need double buffer
+    // int16_t reprersent bf16, input src + output dst + veccalc dequant api
+    uint64_t ubCalc = (NUM_DB * (sizeof(int32_t) + sizeof(int16_t)) + UB_EXTRE_BYTE) * ubCalcN;
+    // input: scale perchannel
+    ubCalc += NUM_DB * ge::GetSizeByDataType(inputParams_.scaleDtype)* ubCalcN;
+    // veccalc: dequant api dst fp32
+    ubCalc += sizeof(float) * ubCalcN;
+    // veccalc: BroadCast需要的临时空间，最小为256b，最大为align(ubM, 8) * 32b, 按照baseM先算
+    // baseM不会超过2048，不需要乘法溢出校验
+    needUbSize += baseM * ONE_BLK_SIZE;
+    // input: pertokenScale fp32
+    ubCalc += NUM_DB * sizeof(float);
+    // 7: to comfirm that pertokenScale 32B(8, fp32) aligned, up to 7, eg: 1->8
+    needUbSize += NUM_DB * sizeof(float) * 7;
+    // veccalc: mul(* pertokenScale) fp32 m * n, res of broadcast
+    ubCalc += sizeof(float) * ubCalcN;
+    if (inputParams_.biasDtype != ge::DT_INT32) {
+    // veccalc: fp32 out muls fp32 bias
+    ubCalc += sizeof(float) * ubCalcN;
+    // input: bias bf16/fp16/fp32, veccalc: bias fp32
+    needUbSize += NUM_DB * ge::GetSizeByDataType(inputParams_.biasDtype) * ubCalcN + sizeof(float) * ubCalcN;
+    OP_TILING_CHECK(needUbSize >= ubSize,
+                    CUBE_INNER_ERR_REPORT(inputParams_.opName,
+                                          "there is no proper ub tiling when m(%lu) n(%lu) baseM(%u) baseN(%u)",
+                                          inputParams_.mSize, inputParams_.nSize, baseM, baseN),
+                    return ge::GRAPH_FAILED);
+    ubSize -= needUbSize;
+    uint32_t ubCalcM = std::min(std::min(ubSize / ubCalc, static_cast<uint64_t>(baseM)), inputParams_.mSize);
+    OP_TILING_CHECK(ubCalcM == 0,
+                    CUBE_INNER_ERR_REPORT(inputParams_.opName, "failed to calc ubCalcM(0) with ubCalcN(%u)", ubCalcN),
+                    return ge::GRAPH_FAILED);
+    tilingData->ubCalcN = ubCalcN;
+    tilingData->ubCalcM = ubCalcM;
+    tilingData->needUbBuffer = ubCalcN * ubCalcM * UB_EXTRE_BYTE;
     return ge::GRAPH_SUCCESS;
 }
 
