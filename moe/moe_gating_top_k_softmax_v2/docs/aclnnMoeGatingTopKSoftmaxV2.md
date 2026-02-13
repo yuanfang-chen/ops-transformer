@@ -150,21 +150,21 @@ aclnnStatus aclnnMoeGatingTopKSoftmaxV2(
     <td>x</td>
   </tr>
   <tr>
-    <td>softmaxResultOutOptional</td>
+    <td>expertIdxOut</td>
     <td>输出</td>
-    <td>计算过程中Softmax的结果。</td>
-    <td>shape要求与x一致。</td>
-    <td>FLOAT32</td>
+    <td>公式中的expertIdxOut，topK的值的索引结果，即对应的专家序号。</td>
+    <td>shape要求与yOut一致。</td>
+    <td>INT32</td>
     <td>ND</td>
     <td>2-3</td>
     <td>x</td>
   </tr>
   <tr>
-    <td>rowIdxOut</td>
+    <td>softmaxResultOutOptional</td>
     <td>输出</td>
-    <td>公式中的scales。</td>
-    <td>hape要求与yOut一致。</td>
-    <td>INT32</td>
+    <td>计算过程中Softmax的结果。</td>
+    <td>shape要求与x一致。</td>
+    <td>FLOAT32</td>
     <td>ND</td>
     <td>2-3</td>
     <td>x</td>
@@ -248,7 +248,7 @@ aclnnStatus aclnnMoeGatingTopKSoftmaxV2(
     </tr>
   </tbody></table>
 
-## aclnnMoeGatingTopKSoftmax
+## aclnnMoeGatingTopKSoftmaxV2
 
 - **参数说明：**
   <table>
@@ -257,7 +257,7 @@ aclnnStatus aclnnMoeGatingTopKSoftmaxV2(
     </thead>
     <tbody>
       <tr><td>workspace</td><td>输入</td><td>在Device侧申请的workspace内存地址。</td></tr>
-      <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnInplaceAddGetWorkspaceSize获取。</td></tr>
+      <tr><td>workspaceSize</td><td>输入</td><td>在Device侧申请的workspace大小，由第一段接口aclnnMoeGatingTopKSoftmaxV2GetWorkspaceSize获取。</td></tr>
       <tr><td>executor</td><td>输入</td><td> op执行器，包含了算子计算流程。 </td></tr>
       <tr><td>stream</td><td>输入</td><td> 指定执行任务的Stream。 </td></tr>
     </tbody>
@@ -361,7 +361,7 @@ int main() {
   std::vector<float> inputHostData = {0.1, 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1, 11.1};
   std::vector<float> outHostData = {0.1, 1.1, 2.1, 3.1, 4.1, 5.1};
   std::vector<int32_t> expertIdOutHostData = {1, 1, 1, 1, 1, 1};
-  std::vector<int32_t> softmaxResultOutOptionalHostData = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  std::vector<float> softmaxResultOutOptionalHostData = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
   // 创建expandedPermutedRows aclTensor
   ret = CreateAclTensor(inputHostData, inputShape, &inputAddr, aclDataType::ACL_FLOAT, &input);
@@ -387,7 +387,7 @@ int main() {
   void* workspaceAddr = nullptr;
   if (workspaceSize > 0) {
     ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret;);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
   }
   // 调用aclnnMoeGatingTopKSoftmaxV2第二段接口
   ret = aclnnMoeGatingTopKSoftmaxV2(workspaceAddr, workspaceSize, executor, stream);

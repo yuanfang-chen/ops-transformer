@@ -1,6 +1,6 @@
 # aclnnFusedInferAttentionScoreV3
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/fused_infer_attention_score)
+**该接口后续版本会废弃，请使用最新接口[aclnnFusedInferAttentionScoreV5](./aclnnFusedInferAttentionScoreV5.md)。
 
 ## 产品支持情况
 
@@ -750,7 +750,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
   - 输入为INT8，输出为FLOAT16的场景：入参deqScale1、quantScale1、deqScale2需要同时存在，若存在入参quantOffset2 或 quantScale2（即不为nullptr），则报错并返回。
   - 输入为FLOAT16或BFLOAT16，输出为INT8的场景：入参quantScale2需存在，quantOffset2可选，不传时默认为0，若存在入参deqScale1 或 quantScale1 或 deqScale2（即不为nullptr），则报错并返回。
   - 入参 quantScale2 和 quantOffset2 支持 per-tensor/per-channel 两种格式和 FLOAT32/BFLOAT16 两种数据类型。若传入 quantOffset2 ，需保证其类型和shape信息与 quantScale2 一致。当输入为BFLOAT16时，同时支持 FLOAT32和BFLOAT16 ，否则仅支持 FLOAT32 。per-channel 格式，当输出layout为BSH时，要求 quantScale2 所有维度的乘积等于H；其他layout要求乘积等于N*D。（建议输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]）。
-
+  - inputLayout仅支持BSH、BNSD、BSND、BNSD_BSND。
 - <a id="AntiQuant"></a>伪量化参数 antiquantScale和antiquantOffset约束：
 
   - 仅支持kv_dtype为int8的伪量化场景。
@@ -826,13 +826,15 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
         - sparse：支持sparse=0，sparse为3且传入mask，sparse为4且传入mask；
         - key&value支持ND输入。
         - inputLayout：BSH、BSND、BNSD、TND。
-        - 支持actualSeqLengths、actualSeqLengthsKv参数; 当配置Q_S大于1（即MTP）且key&value的normal部分复用同一份数据场景下，仅inputLayout为TND时支持配置actualSeqLengths参数，其他layout不支持。
+        - 支持actualSeqLengths、actualSeqLengthsKv参数, 当配置Q_S大于1（即MTP）且key&value的normal部分复用同一份数据场景下，仅inputLayout为TND时支持配置actualSeqLengths参数，其他layout不支持;
+        - 不支持pse。
       - 当query的d等于128时：
         - queryRope配置时要求queryRope的shape中b、n、s与query一致，d为64；
         - keyRope配置时要求keyRope的shape中b、n、s与key一致，d为64；
         - inputLayout：BSH、BSND、BNSD、BNSD_BSND、TND；
         - 不支持page attention、prefix、伪量化、全量化、后量化；
-        - 当kv为tensorlist时，keyRope的shape中b需要与tensorlist长度保持一致，n、s需要与tensorlist中每个tensor的n、s相等，d为64。
+        - 当kv为tensorlist时，keyRope的shape中b需要与tensorlist长度保持一致，n、s需要与tensorlist中每个tensor的n、s相等，d为64;
+        - 不支持pse。
 
 - numKeyValueHeads使用限制：需要满足numHeads整除numKeyValueHead。在BSND、BNSD、BNSD_BSND、TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。
   - <term>Ascend 950PR/Ascend 950DT</term>：
@@ -1198,7 +1200,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - per-tensor模式：两个参数的shape均为(1)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。
       - per-token模式：两个参数的shape可支持(1, B, S)，( B, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
       - per-tensor叠加per-head模式：两个参数的shape均为(N)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。
-      - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)，(N, 1, D)，(N, D)，(H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
+      - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)，(N, 1, D)，(N, D)，(H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。当key、value数据类型为INT8时，query和输出只支持FLOAT16。
       - per-token-group模式：antiquantScale的shape为(1, B, N, S, D/32), 数据类型固定为FLOAT8_E8M0，不支持带antiquantOffset。当key、value数据类型为FLOAT4_E2M1时支持。
       - per-token叠加per-head模式：两个参数的shape均为(B, N, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
       - per-token模式使用page attention管理scale/offset模式：两个参数的shape均为(blocknum, blocksize)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。
@@ -1279,7 +1281,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
       - per-tensor模式：两个参数的shape均为(1)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
       - per-token模式：两个参数的shape可支持(1, B, S)，( B, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
        - per-tensor叠加per-head模式：两个参数的shape均为(N)，数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。
-      - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
+      - key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。当key、value数据类型为INT8时，query和输出只支持FLOAT16。
       - per-token-group模式：antiquantScale的shape为(1, B, N, S, D/32), 数据类型固定为FLOAT8_E8M0，不支持带antiquantOffset。当key、value数据类型为FLOAT4_E2M1时支持。
       - per-token叠加per-head模式：两个参数的shape均为(B, N, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。
       - per-token模式使用page attention管理scale/offset模式：两个参数的shape均为(blocknum, blocksize)，数据类型固定为FLOAT32，当key、value数据类型为INT8时支持。

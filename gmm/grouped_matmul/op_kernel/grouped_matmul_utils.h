@@ -16,7 +16,11 @@
 #define ASCENDC_GROUPED_MATMUL_UTILS_H
 
 #if ((defined(__CCE_AICORE__) && (__CCE_AICORE__ == 310)) && !(defined(__NPU_ARCH__) && __NPU_ARCH__ == 3113))
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #else
 #include "kernel_operator.h"
 #endif
@@ -29,14 +33,12 @@
       #define DTYPE_L0C_LOCAL float
   #endif
   #if defined(ORIG_DTYPE_X) && defined(ORIG_DTYPE_WEIGHT) && defined(DT_FLOAT8_E5M2) && defined(DT_FLOAT8_E4M3FN) && \
-      defined(DT_HIFLOAT8) && defined(DT_INT8) && defined(DT_FLOAT4_E2M1) && defined(DT_FLOAT4_E1M2) && \
-      defined(DT_INT4) && \
+      defined(DT_HIFLOAT8) && defined(DT_INT8) && defined(DT_FLOAT4_E2M1) && defined(DT_INT4) && \
       ((ORIG_DTYPE_X == DT_INT8 && ORIG_DTYPE_WEIGHT == DT_INT8) || \
        (ORIG_DTYPE_X == DT_HIFLOAT8 && ORIG_DTYPE_WEIGHT == DT_HIFLOAT8) || \
        ((ORIG_DTYPE_X == DT_FLOAT8_E5M2 || ORIG_DTYPE_X == DT_FLOAT8_E4M3FN) && \
         (ORIG_DTYPE_WEIGHT == DT_FLOAT8_E5M2 || ORIG_DTYPE_WEIGHT == DT_FLOAT8_E4M3FN)) || \
-       ((ORIG_DTYPE_X == DT_FLOAT4_E2M1 || ORIG_DTYPE_X == DT_FLOAT4_E1M2) && \
-        (ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1 || ORIG_DTYPE_WEIGHT == DT_FLOAT4_E1M2)) || \
+       (ORIG_DTYPE_X == DT_FLOAT4_E2M1 && ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1) || \
        (ORIG_DTYPE_X == DT_INT4 && ORIG_DTYPE_WEIGHT == DT_INT4))
     #define V310_GMM_QUANT
     #if defined(ORIG_DTYPE_SCALE) && defined(DT_FLOAT8_E8M0) && ORIG_DTYPE_SCALE == DT_FLOAT8_E8M0
@@ -57,7 +59,7 @@
     #if ((ORIG_DTYPE_X == DT_FLOAT16 || ORIG_DTYPE_X == DT_BF16) &&                                                    \
          (ORIG_DTYPE_WEIGHT == DT_FLOAT8_E5M2 || ORIG_DTYPE_WEIGHT == DT_FLOAT8_E4M3FN ||                              \
           ORIG_DTYPE_WEIGHT == DT_HIFLOAT8 || ORIG_DTYPE_WEIGHT == DT_INT8 || ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1 ||   \
-          ORIG_DTYPE_WEIGHT == DT_FLOAT4_E1M2 || ORIG_DTYPE_WEIGHT == DT_FLOAT || ORIG_DTYPE_WEIGHT == DT_INT32 ||     \
+          ORIG_DTYPE_WEIGHT == DT_FLOAT || ORIG_DTYPE_WEIGHT == DT_INT32 ||     \
           ORIG_DTYPE_WEIGHT == DT_INT4)) ||                                                                            \
         (ORIG_DTYPE_X == DT_INT8 && (ORIG_DTYPE_WEIGHT == DT_INT4 || ORIG_DTYPE_WEIGHT == DT_INT32)) ||                \
         (ORIG_DTYPE_X == DT_FLOAT8_E4M3FN && (ORIG_DTYPE_WEIGHT == DT_FLOAT4_E2M1 || ORIG_DTYPE_WEIGHT == DT_FLOAT))

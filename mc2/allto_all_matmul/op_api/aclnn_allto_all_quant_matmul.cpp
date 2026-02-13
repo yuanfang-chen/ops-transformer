@@ -122,7 +122,7 @@ static bool CheckAlltoAllAxes(const aclIntArray* alltoAllAxesOptional)
     uint64_t alltoallAxesSize = 0U;  // alltoallAxes的大小
     aclGetIntArraySize(alltoAllAxesOptional, &alltoallAxesSize);
     if (alltoallAxesSize != TWO_DIMS) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dimension of alltoAllAxesOptional should be 2U, but it is: %zu.", alltoallAxesSize);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dimension of alltoAllAxesOptional should equal to 2, but it is %zu now.", alltoallAxesSize);
         return false;
     }
     int64_t data1 = (*alltoAllAxesOptional)[0];
@@ -160,7 +160,7 @@ static bool CheckGroupLength(const char *group)
     auto len = strnlen(group, MAX_GROUP_LEN);
     if ((len >= MAX_GROUP_LEN) || (len == ZERO)) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "Required group name length in range (0, 128), but it is %zu.", len);
+                "Required group name length in range (0, 128).");
         return false;
     }
     return true;
@@ -303,12 +303,15 @@ static const std::initializer_list<op::DataType> OUTPUT_DTYPE_SUPPORT_LIST = {
     op::DataType::DT_FLOAT16, op::DataType::DT_BF16
 };
 
-// 校验所有输入的参数类型是否正确(A2)
-static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional, const aclTensor* x1ScaleOptional,
-                                const aclTensor* x2Scale, const aclTensor* output, const aclTensor* alltoAllOutOptional) {
+// 校验所有输入的参数类型是否正确
+static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* biasOptional, int64_t x1QuantMode,
+    const aclTensor* x1ScaleOptional, const aclTensor* x2Scale, const aclTensor* output, const aclTensor* alltoAllOutOptional) {
     OP_CHECK_DTYPE_NOT_SUPPORT(x1, X1_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2, X2_DTYPE_SUPPORT_LIST, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, SCALE_DTYPE_SUPPORT_LIST, return false);
+    if (x1QuantMode == static_cast<int64_t>(QuantModeType::DYN_PERTOKEN_QUANT) && x1ScaleOptional != nullptr) {
+        OP_CHECK_DTYPE_NOT_SAME(x1ScaleOptional, x1, return false);
+    }
     OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_SUPPORT_LIST, return false);
     if (x1ScaleOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SUPPORT(x1ScaleOptional, SCALE_DTYPE_SUPPORT_LIST, return false);
@@ -378,6 +381,10 @@ static bool CheckDtypesValid(const aclTensor *x1, const aclTensor *x2, const acl
     // 目前只有PerToken动态量化+PerChannel静态量化场景，后续场景直接在这里补充判断
     if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::DYN_PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
         isAllDtypesValid = CheckAllDtypesValidA5(x1, x2, biasOptional, x1ScaleOptional, x2Scale, x1QuantDtype, output, alltoAllOutOptional);
+    } else {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "The input x1QuantMode %ld and x2QuantMode %ld do not match any currently supported quantization mode scenarios.",
+                x1QuantMode, x2QuantMode);
     }
     return isAllDtypesValid;
 }
@@ -393,7 +400,7 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据芯片型号和api定义校验
     if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B) {
-        CHECK_RET(CheckAllDtypesValid(x1, x2, biasOptional, x1ScaleOptional, x2Scale, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
+            CHECK_RET(CheckAllDtypesValid(x1, x2, biasOptional, x1QuantMode, x1ScaleOptional, x2Scale, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
     } else if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         CHECK_RET(CheckDtypesValid(x1, x2, biasOptional, x1ScaleOptional, x2Scale, x1QuantMode, x2QuantMode,
             x1QuantDtype, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);

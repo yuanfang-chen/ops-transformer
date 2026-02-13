@@ -97,6 +97,11 @@ ge::graphStatus QuantMatmulAllReduceTiling310General::PostTiling()
     }
 
     context_->SetBlockDim(args_.aicCoreNum);
+
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动
+    uint32_t batch_mode = 1U;
+    ret = context_->SetScheduleMode(batch_mode);
+    GE_ASSERT_GRAPH_SUCCESS(ret); 
     return ge::GRAPH_SUCCESS;
 }
 
@@ -138,5 +143,6 @@ ge::graphStatus QuantMatmulAllReduceTiling310General::DoQuantTiling()
 }
 
 //注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce,QuantMatmulAllReduceTiling310General,static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P),1);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAllReduce, QuantMatmulAllReduceTiling310General, \
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND310P), 1);
 } // namespace optiling
