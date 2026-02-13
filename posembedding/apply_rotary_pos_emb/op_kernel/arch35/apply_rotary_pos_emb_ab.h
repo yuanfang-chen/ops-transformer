@@ -80,8 +80,8 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::Init(
     pipe_->InitBuffer(sinInQueue_, DB_FLAG, ubFactorBS_ * bufferSize);
     pipe_->InitBuffer(outQueue_, DB_FLAG, bufferSize * ubFactorBS_ * tilingData_->ubFactorN);
     if (GetBlockIdx() == 0) {
-        printf("realDim=%d, D=%d, dAlign_=%d\n", tilingData_->realDim, tilingData_->D, tilingData_->dAlign);
-        printf("ApplyRotaryPosEmbAB Init END");
+        // printf("realDim=%d, D=%d, dAlign_=%d\n", tilingData_->realDim, tilingData_->D, tilingData_->dAlign);
+        // printf("ApplyRotaryPosEmbAB Init END");
     }
 }
 
@@ -207,7 +207,7 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
     DataCopyPad(outGm[qkGmOffset], outBuffer, qkOutParams);
     if (GetBlockIdx() == 0) {
         for (int j = 0; j < 64; j++) {
-            printf("outBuffer[%d] = %f", j, outBuffer.GetValue(j));
+            // printf("outBuffer[%d] = %f", j, outBuffer.GetValue(j));
         }
     }
     outQueue_.FreeTensor(outBuffer);

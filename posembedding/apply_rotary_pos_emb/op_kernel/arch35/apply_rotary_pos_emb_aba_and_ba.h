@@ -148,8 +148,8 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::InitAllBuffer
         this->pipe_->InitBuffer(this->sinInQueue_, DOUBLE_BUFFER, ubFactorB_ * ubFactorS_ * dAlign_ * sizeof(T));
     }
     if (GetBlockIdx() == 0) {
-        printf("realDim=%ld, D=%ld, dAlign_=%ld\n", tilingData_->realDim, tilingData_->D, dAlign_);
-        printf("ApplyRotaryPosEmbABAAndBA Init END");
+        // printf("realDim=%ld, D=%ld, dAlign_=%ld\n", tilingData_->realDim, tilingData_->D, dAlign_);
+        // printf("ApplyRotaryPosEmbABAAndBA Init END");
     }
 }
 
@@ -337,7 +337,7 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyOutQOrK(
     ResetLoopModePara(DataCopyMVType::UB_TO_OUT);
     if (GetBlockIdx() == 0) {
         for (int j = 0; j < tilingData_->realDim * sizeof(T) / dSplitCoef_; j++) {
-            printf("source[%d] = %f", j, source.GetValue(j));
+            // printf("source[%d] = %f", j, source.GetValue(j));
         }
     }
     this->qOutQueue_.FreeTensor(source);
