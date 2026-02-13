@@ -48,26 +48,6 @@ __aicore__ inline uint64_t BlockAlignMod(uint64_t a, uint32_t b)
     uint64_t c = a % b;
     return c ? c : b;
 }
-
-static constexpr AscendC::MicroAPI::CastTrait castTrait = {AscendC::MicroAPI::RegLayout::ZERO,
-    AscendC::MicroAPI::SatMode::NO_SAT, AscendC::MicroAPI::MaskMergeMode::ZEROING, AscendC::RoundMode::CAST_NONE};
-
-// fp8_e8m0_t数据类型到bf16_t数据类型转换
-static __aicore__ inline void CastVf(__local_mem__ bfloat16_t* dstPtr, __local_mem__ fp8_e8m0_t* srcPtr, uint32_t count)
-{
-    AscendC::MicroAPI::RegTensor<fp8_e8m0_t> srcReg;
-    AscendC::MicroAPI::RegTensor<fp8_e8m0_t> srcZeroReg;
-    AscendC::MicroAPI::RegTensor<fp8_e8m0_t> dstReg0;
-    AscendC::MicroAPI::RegTensor<fp8_e8m0_t> dstReg1;
-    AscendC::MicroAPI::RegTensor<bfloat16_t> bf16DstReg;
-    AscendC::MicroAPI::MaskReg maskReg;
-    maskReg = AscendC::MicroAPI::UpdateMask<bfloat16_t>(count);
-    AscendC::MicroAPI::DataCopy(srcReg, srcPtr);
-    AscendC::MicroAPI::Interleave(dstReg0, dstReg1, srcReg, srcZeroReg);
-    AscendC::MicroAPI::Cast<bfloat16_t, fp8_e8m0_t, castTrait>(bf16DstReg, dstReg0, maskReg);
-    AscendC::MicroAPI::DataCopy(dstPtr, bf16DstReg, maskReg);
-}
-
 }  // namespace AscendC
 
 #endif  // ALL_GATHER_MTE_UTILS_H

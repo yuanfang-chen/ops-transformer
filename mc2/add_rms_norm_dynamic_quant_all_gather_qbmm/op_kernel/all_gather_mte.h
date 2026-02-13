@@ -22,7 +22,7 @@
 #include "adv_api/pad/broadcast.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
-#include "all_gather_mte_base.h"
+#include "all_gather_mte_comm.h"
 #include "all_gather_mte_utils.h"
 #include "all_gather_mte_vec_comp.h"
 
@@ -58,8 +58,10 @@ private:
     MTECommunication<AllGatherTemplateType> mteComm_; // MTE 通信相关实现
     VectorCompute<AllGatherTemplateType> vecComp_; // vector 计算相关实现
 
-    GlobalTensor<XType> remoteWinXTensor_;
+    GlobalTensor<int8_t> remoteWinXTensor_;
     GlobalTensor<ScalesType> remoteWinScaleTensor_;
+    GlobalTensor<int8_t> localWinXTensor_;
+    GlobalTensor<ScalesType> localWinScaleTensor_;
 
     TQue<QuePosition::VECIN, 1> xInQueue_, scaleInQue; // 用于读数据和反量化求和的通算并行
     TBuf<> sumBuf_; // 用于Reduce_sum 求和
@@ -90,7 +92,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
     vecComp_.SetBlockSize(X_PRE_BLOCK_NUM);  
 
     // 公共MTE搬运参数计算
-    mteComm_.InitParams();
+    mteComm_.InitParams(xSize_);
 
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
@@ -118,22 +120,20 @@ template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlockDequant(
     uint64_t curXOffset, uint64_t curScaleOffset)
 {
-    /* 读取 x 从 Win -> UB */
-    LocalTensor<XType> xTmpTensor = xInQueue_.AllocTensor<XType>();
+    /* 读取 x 从 远端Win -> UB -> 本端Win */
+    LocalTensor<int8_t> xTmpTensor = xInQueue_.AllocTensor<int8_t>();
     DataCopy(xTmpTensor, remoteWinXTensor_[curXOffset], X_PRE_BLOCK_NUM);
     xInQueue_.EnQue(xTmpTensor);
-    xTmpTensor = xInQueue_.DeQue<XType>();
+    xTmpTensor = xInQueue_.DeQue<int8_t>();
+    DataCopy(localWinXTensor_[curXOffset], xTmpTensor, X_PRE_BLOCK_NUM);
+    xInQueue_.FreeTensor(xTmpTensor);
 
-    /* 读取 scale 从 Win -> UB */
+    /* 读取 scale 从 远端Win -> UB -> 本端Win */
     LocalTensor<ScalesType> scaleTmpTensor = scaleInQue.AllocTensor<ScalesType>();
     DataCopy(scaleTmpTensor, remoteWinScaleTensor_[curScaleOffset], mteComm_.scaleNumsPerBlcok_);
     scaleInQue.EnQue(scaleTmpTensor);
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
-
-    /* 反量化计算与写回win区 */
-    vecComp_.DequantAndCopyBack(
-        xTmpTensor, scaleTmpTensor, remoteWinXTensor_[curXOffset]); 
-    xInQueue_.FreeTensor(xTmpTensor);
+    DataCopy(localWinScaleTensor_[curScaleOffset], scaleTmpTensor, mteComm_.scaleNumsPerBlcok_);
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
@@ -153,13 +153,18 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather()
             // 获取对端Win区中数据区相关的地址
             GM_ADDR remoteDataGm = mteComm_.GetWinDataAddrGm(remoteRankId) + remoteRankId * xSize_;
             GM_ADDR remoteScaleGm = remoteDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
-
-            remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteDataGm);
+            remoteWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)remoteDataGm);
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
+            
+            // 本端对应rank win区数据地址
+            uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
+            GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId * xSize_;
+            GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
+            localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
+            localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
 
-            // 读取对端对应地址的 x 和 scale数据，进行反量化和求和
-            //（如果需要反量化，则搬回win区地址需要修改，XOffset和GM地址都需要修改，原空间不够）
-            // ReadDataBlockDequant(curXOffset, curScaleOffset);
+            // 读取对端对应地址的 x 和 scale数据
+            ReadDataBlockDequant(curXOffset, curScaleOffset);
         }
     }
 }
