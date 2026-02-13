@@ -78,10 +78,9 @@ else()
             UPDATE_COMMAND ""
     )
 
-    # 添加本地归档文件存在时的处理
-    if(NOT EXISTS ${JSON_INSTALL_PATH}/include)
-        file(MAKE_DIRECTORY "${JSON_INSTALL_PATH}/include")
-    endif()
+    ExternalProject_Get_Property(third_party_json SOURCE_DIR)
+    ExternalProject_Get_Property(third_party_json BINARY_DIR)
+    set(JSON_INCLUDE_DIR ${SOURCE_DIR}/include)
 
     set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
     add_library(json INTERFACE)
