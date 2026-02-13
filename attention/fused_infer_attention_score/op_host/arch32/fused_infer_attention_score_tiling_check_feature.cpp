@@ -362,6 +362,9 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
     const std::vector<std::string> ropeSplitLayoutSupportList = {
         "BSH", "BSND", "BNSD", "TND", "BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "TND_NTD" 
     };
+    const std::vector<std::string> restrictedLayoutSupportList = {
+        "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND", "BNSD_BSND"
+    };
 
     if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && vHeadDim_ == 512) {
         OP_CHECK_IF(std::find(ropeSplitLayoutSupportList.begin(), ropeSplitLayoutSupportList.end(), layout) == ropeSplitLayoutSupportList.end(),
@@ -373,6 +376,13 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         OP_LOGE(opName_, "In %s %s situation, when vHeadDim = 512, n2Size should be equals to 1.",
             QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str()),
         return ge::GRAPH_FAILED);
+    } else if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
+        if (std::find(restrictedLayoutSupportList.begin(), restrictedLayoutSupportList.end(), layout) == restrictedLayoutSupportList.end()) {
+            OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128,
+            OP_LOGE(opName_, "In %s %s situation, when input layout is NTD、BSH_BNSD、BSND_BNSD、NTD_TND or BNSD_BSND,only headDim = 64/128 are supported, but got valueHeadDim:%u",
+                QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
+            return ge::GRAPH_FAILED);
+        }
     } else {
         OP_CHECK_IF(std::find(noRopeLayoutSupportList.begin(), noRopeLayoutSupportList.end(), layout) == noRopeLayoutSupportList.end(),
         OP_LOGE(opName_, "In %s %s situation, when vHeadDim != 512, layout only supports BSH, BSND, BNSD, TND, NTD, BNSD_BSND, BSH_BNSD, BSND_BNSD, NTD_TND, but got %s",
