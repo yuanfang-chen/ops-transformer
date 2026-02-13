@@ -136,6 +136,58 @@ public:
     }
 
     __aicore__ inline
+    void DivideAndConquerGetSum(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
+                                uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        for (uint32_t i = 0; i < loopCount, i += columnStrideIndex) {
+            uint32_t src0Start = i * HALF_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * HALF_VECTOR_SIZE;
+            AscendC::Add<half, false>(
+                srcUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
+
+    __aicore__ inline
+    void RowsumSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
+                            const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+                            uint32_t numElemsAligned)
+    {
+        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
+        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环次数处理。
+        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
+        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
+        uint32_t columnStrideIndex = 2;
+        uint8_t dataBlockStride = 1;
+        // 1024个元素，以128为单位分治求和。
+        for (; columnStrideIndex < loopCount; columnStrideIndex *= 2) {
+            DivideAndConquerGetSum(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+
+        //每行分别规约求和。
+        AscendC::WholeReduceSum<half, false>(
+            rowsumUb,
+            srcUb,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+    }
+
+    __aicore__ inline
     void RowsumSPECTILE512(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
         const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
@@ -227,6 +279,59 @@ public:
                 rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
                 numElemsAligned / BLOCK_SIZE);
         }
+        AscendC::PipeBarrier<PIPE_V>();
+    }
+
+    __aicore__ inline
+    void DivideAndConquerGetMax(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
+                                uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        for (uint32_t i = 0; i < loopCount, i += columnStrideIndex) {
+            uint32_t src0Start = i * HALF_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * HALF_VECTOR_SIZE;
+            AscendC::Max<half, false>(
+                srcUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
+
+    __aicore__ inline
+    void RowmaxSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
+                            const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+                            uint32_t numElemsAligned)
+    {
+        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
+        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环次数处理。
+        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
+        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
+        uint32_t columnStrideIndex = 2;
+        uint8_t dataBlockStride = 1;
+        // 1024个元素，以128为单位分治求最大值。
+        for (; columnStrideIndex < loopCount; columnStrideIndex *= 2) {
+            DivideAndConquerGetMax(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+
+        //每行分别规约求最大值。
+        AscendC::WholeReduceMax<half, false>(
+            rowmaxUb,
+            srcUb,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow,
+            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
     }
 
@@ -428,13 +533,25 @@ public:
     void CalcLocalRowMax(uint32_t sUbOffset, uint32_t rowNumCurLoopRound, uint32_t columnNum, uint32_t columnNumRound,
         uint32_t rowOffset)
     {
-        RowmaxTAILTILE(
-            computeUbTensor,
-            lmUbTensor[rowOffset],
-            tvUbTensor,
-            rowNumCurLoopRound,
-            columnNum,
-            columnNumRound);
+        if (columnNum == 1024U) {
+            AscendC::printf("tkd rowmax 1024\n");
+            RowmaxSPECTILE1024(
+                computeUbTensor,
+                llUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else {   
+            AscendC::printf("tkd rowmax tail\n");     
+            RowmaxTAILTILE(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        }
     }
 
     __aicore__ inline
@@ -534,7 +651,16 @@ public:
         uint32_t rowOffset)
     {
         // *** ll = rowsum(ls32)
-        if (columnNum == 512U) {
+        if (columnNum == 1024U) {
+            AscendC::printf("tkd rowsum 1024\n");
+            RowsumSPECTILE1024(computeUbTensor,
+                llUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512U) {
+            AscendC::printf("tkd rowsum 512\n");
             RowsumSPECTILE512(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -542,6 +668,7 @@ public:
                 columnNum,
                 columnNumRound);
         } else {
+            AscendC::printf("tkd rowsum tail\n");
             RowsumTAILTILE(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
