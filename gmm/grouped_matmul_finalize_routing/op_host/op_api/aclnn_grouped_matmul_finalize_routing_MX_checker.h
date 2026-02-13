@@ -36,7 +36,7 @@ const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_MX = {op::DataT
 const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_FP4 = {op::DataType::DT_FLOAT4_E2M1};
 const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_FP8 = {op::DataType::DT_FLOAT4_E2M1};
 static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
-static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
+static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
 static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
@@ -48,6 +48,7 @@ const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN = {Dat
 static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_BF16, op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_INT64, op::DataType::DT_INT32};
 enum class QuantMode {
     PERTOEKN = 0, // pertoken 量化
     MX = 2        // MX量化
@@ -172,7 +173,9 @@ public:
             quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} :
                                           op::Shape{e, 1, n};
         op::Shape weightTransExpectShape = {e, n, k};
-        op::Shape weightScaleTransExpectShape = {e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR};
+        op::Shape weightScaleTransExpectShape =
+            quantMode_ == QuantMode::MX ? {e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} :
+                                          op::Shape{e, 1, n};
         op::Shape grouplistExpectShape = {e};
         op::Shape logitExpectShape = {m};
         op::Shape rowindexExpectShape = {m};
@@ -288,7 +291,7 @@ public:
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, X_WEIGHT_TYPE_SUPPORT_LIST_MX, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, X_WEIGHT_TYPE_SUPPORT_LIST_MX, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, SCALE_TYPE_SUPPORT_LIST_MX, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST_MX, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX, return false);
         if (gmmParams_.bias != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, BIAS_TYPE_SUPPORT_LIST_MX, return false);
@@ -317,7 +320,7 @@ public:
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, SCALE_TYPE_SUPPORT_LIST_PERTOKEN, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN,
                                        return false);
