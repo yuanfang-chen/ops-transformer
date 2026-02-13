@@ -267,7 +267,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910) {
-        uint32_t MBaseBlockLen = 256U;
+        uint32_t MBaseBlockLen = 128U;
         uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
         if (isSCFA) {
             s1BlockLen = 1U;
@@ -321,23 +321,12 @@ uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
     return kvSeqSize_;
 }
 
-uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS1ValidSeqSize(uint32_t bIdx)
-{
-    uint32_t s1Size = GetS1SeqSize(bIdx);
-    uint32_t s2Size = GetS2SeqSize(bIdx);
-    if (s1Size > s2Size){
-        return s2Size;
-     } else {
-        return s1Size;
-     }
-}
-
 void SparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &splitContext)
 {
     // 计算每个batch的切分，统计是否为空batch，记录最后有效batch（每个batch的每个N2切分是一样的）
     SplitInfo &splitInfo = splitContext.splitInfo;
     for (uint32_t bIdx = 0; bIdx < batchSize_; bIdx++) {
-        uint32_t s1Size = GetS1ValidSeqSize(bIdx);
+        uint32_t s1Size = GetS1SeqSize(bIdx);
         uint32_t s2Size = GetS2SeqSize(bIdx);
         splitInfo.s1GBaseNum[bIdx] = (s1Size * groupSize_ + (mBaseSize_ - 1U)) / mBaseSize_;
         splitInfo.s1GTailSize[bIdx] = (s1Size * groupSize_) % mBaseSize_;
@@ -460,7 +449,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBatchCache(
     const SplitInfo &splitInfo = splitContext.splitInfo;
 
     batchCache.bIdx = bIdx;
-    batchCache.s1Size = GetS1ValidSeqSize(bIdx);
+    batchCache.s1Size = GetS1SeqSize(bIdx);
     batchCache.s2Size = GetS2SeqSize(bIdx);
     batchCache.preTokenLeftUp = CalcPreTokenLeftUp(batchCache.s1Size, batchCache.s2Size);
     batchCache.nextTokenLeftUp = CalcNextTokenLeftUp(batchCache.s1Size, batchCache.s2Size);
@@ -627,7 +616,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBatchCost(
     costInfo.bN2BlockOfEachBatch[bIdx] = 0U;
     costInfo.bN2LastBlockCostOfEachBatch[bIdx] = 0U;
 
-    if (GetS1ValidSeqSize(bIdx) == 0U || GetS2SeqSize(bIdx) == 0U) {
+    if (GetS1SeqSize(bIdx) == 0U || GetS2SeqSize(bIdx) == 0U) {
         return;
     }
 
@@ -793,7 +782,7 @@ void SparseAttnSharedkvMetadataCpuKernel::RecordFDInfo(const SplitContext &split
     // 需要规约的行是上一个核的切分点所在位置
     uint32_t splitBIdx = result.bN2End[assignContext.curCoreIdx - 1U] / kvHeadNum_;
     uint32_t splitS1GIdx = result.gS1End[assignContext.curCoreIdx - 1U];
-    uint32_t s1Size = GetS1ValidSeqSize(splitBIdx);
+    uint32_t s1Size = GetS1SeqSize(splitBIdx);
 
     // 计算归约数据的FD均衡划分信息
     uint32_t curFdS1gSize = (splitS1GIdx == splitInfo.s1GBaseNum[splitBIdx] - 1U) ?
