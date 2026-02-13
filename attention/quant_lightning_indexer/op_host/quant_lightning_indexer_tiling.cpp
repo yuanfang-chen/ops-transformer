@@ -444,10 +444,17 @@ ge::graphStatus QLIInfoParser::GetGSize()
         return ge::GRAPH_FAILED;
     }
     gSize_ = n1Size_ / n2Size_;
-    OP_CHECK_IF(gSize_ != G_SIZE_LIMIT,
+    if ((socVersion_ == platform_ascendc::SocVersion::ASCEND910B) ||
+        (socVersion_ == platform_ascendc::SocVersion::ASCEND910_93)) {
+        OP_CHECK_IF(gSize_ != G_SIZE_LIMIT,
                OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must equal 64.", n1Size_, n2Size_),
                return ge::GRAPH_FAILED);
-
+    } else if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+        OP_CHECK_IF(gSize_ != G_SIZE_LIMIT_950 && gSize_ != G_SIZE_LIMIT,
+               OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must equal 64 or 24.", n1Size_, n2Size_),
+               return ge::GRAPH_FAILED);
+    }
+    
     return ge::GRAPH_SUCCESS;
 }
 
