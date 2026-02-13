@@ -233,7 +233,7 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
         const int32_t *s2Ptr = (int32_t*)actSeqLenKey_->GetData();
         if (layoutKey_ == "TND") {
             s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
-            static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
+                static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
         } else {
             s2Size = static_cast<uint32_t>(s2Ptr[bIdx]);
         }
