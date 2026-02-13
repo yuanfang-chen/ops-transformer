@@ -293,10 +293,13 @@ ge::graphStatus ScatterPaKvCacheTiling::TemplateRope()
     if (ubThreshold <= maxHandleNumPerLoop) {
         // tail dim can fully load
         isFullyLoad_ = FULLY_LOAD;
-        OP_LOGD(context_, "tail dim can fully load.");
+        OP_LOGD(context_, "tail dim can fully load.1");
+        OP_LOGI(context_, "tail dim can fully load.2");
         return ge::GRAPH_SUCCESS;
     }
     // can not fully load
+    OP_LOGD(context_, "tail dim can not fully load.1");
+    OP_LOGI(context_, "tail dim can not fully load.2");
     isFullyLoad_ = NOT_FULLY_LOAD;
 
     kHandleNumPerLoop_ = MAX_HANLDE_BYTE_SIZE_PER_LOOP / dtypeByteSize_;
