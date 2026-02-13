@@ -217,12 +217,8 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
-        if (s1Ptr[0] == 0) {
-             return static_cast<uint32_t>(s1Ptr[bIdx + 1U] - s1Ptr[bIdx]);
-        } else {
             return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
                 static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
-        }
     } else {
         return static_cast<uint32_t>(s1Ptr[bIdx]);
     }
@@ -236,12 +232,8 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS2SeqSize(uint32_t bIdx)
     } else {
         const int32_t *s2Ptr = (int32_t*)actSeqLenKey_->GetData();
         if (layoutKey_ == "TND") {
-            if (s2Ptr[0] == 0) {
-                s2Size = static_cast<uint32_t>(s2Ptr[bIdx + 1U] - s2Ptr[bIdx]);
-            } else {
-                s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
-                static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
-            }
+            s2Size = (bIdx == 0) ? static_cast<uint32_t>(s2Ptr[bIdx]) :
+            static_cast<uint32_t>(s2Ptr[bIdx] - s2Ptr[bIdx - 1U]);
         } else {
             s2Size = static_cast<uint32_t>(s2Ptr[bIdx]);
         }
