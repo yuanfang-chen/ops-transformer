@@ -92,6 +92,7 @@ TILING_DATA_FIELD_DEF(int64_t, ubFactorKN);
 TILING_DATA_FIELD_DEF(int64_t, ubTailFactorKN);
 TILING_DATA_FIELD_DEF(int64_t, rotaryMode);
 TILING_DATA_FIELD_DEF(int64_t, realDim); // 旋转编码的实际Dim长度
+TILING_DATA_FIELD_DEF(bool, isPartialRope);
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(ApplyRotaryPosEmb_20010, ApplyRotaryPosEmbRegbaseTilingData)
@@ -116,6 +117,7 @@ TILING_DATA_FIELD_DEF(int64_t, ubFactorN);     // UB切分的整块大小
 TILING_DATA_FIELD_DEF(int64_t, ubTailN);       // UB切分的尾块大小
 TILING_DATA_FIELD_DEF(int64_t, rotaryMode);
 TILING_DATA_FIELD_DEF(int64_t, realDim);
+TILING_DATA_FIELD_DEF(bool, isPartialRope);
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(ApplyRotaryPosEmb_20030, ApplyRotaryPosEmbRegbaseABTilingData)
