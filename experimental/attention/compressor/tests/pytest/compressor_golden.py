@@ -242,7 +242,6 @@ def check_result(expect, result, data_type, pct_thd = 0.005):
     if result == "Failed":
         display_error_output(real_data, data_compe,
                                 err_idx, err_diff[0:max_error_idx])
-    print(result)
     return fulfill_percent, result
 
 def get_seq_used_by_batch(batch_idx, S, seqused, cu_seqlens):
@@ -732,25 +731,15 @@ def run_compressor_eager(B, S_max, head_dim, coff, cmp_ratio, bs_combine_flag, S
     check_succeed = True
     data_type = str(npu_out.dtype)
     print("--------------------------------------------------------------check result-------------------------------------------------------------")
-    if check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data} check result failed")
-        check_succeed = False
+    check_result(cpu_out[cmp_kv_mask].to(torch.float32), npu_out.cpu()[cmp_kv_mask].to(torch.float32), data_type)
     print("--------------------------------------------------------------check kv state update-------------------------------------------------------------")
-    if check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data} check kv state update failed")
-        check_succeed = False
+    check_result(cpu_kv_state[update_kv].to(torch.float32), kv_state.cpu()[update_kv].to(torch.float32), data_type)
     print("--------------------------------------------------------------check score state update-------------------------------------------------------------")
-    if check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32), data_type) == False:
-        print(f"test_data = {test_data} check score state update failed")
-        check_succeed = False
+    check_result(cpu_score_state[update_score].to(torch.float32), score_state.cpu()[update_score].to(torch.float32), data_type)
     print("--------------------------------------------------------------check kv state origin-------------------------------------------------------------")
-    if check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), data_type, 0.0) == False:
-        print(f"test_data = {test_data} check kv state origin failed")
-        check_succeed = False
+    check_result(cpu_kv_state[~update_kv].to(torch.float32), kv_state.cpu()[~update_kv].to(torch.float32), data_type, 0.0)
     print("--------------------------------------------------------------check score state origin-------------------------------------------------------------")
-    if check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), data_type, 0.0) == False:
-        print(f"test_data = {test_data} check score state origin failed")
-        check_succeed = False
+    check_result(cpu_score_state[~update_score].to(torch.float32), score_state.cpu()[~update_score].to(torch.float32), data_type, 0.0)
 
 
 if __name__ == "__main__":

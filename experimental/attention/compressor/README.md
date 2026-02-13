@@ -184,57 +184,78 @@
     cu_seqlens = [0, 1]
     # ------------- 
     B = 1
-    S_max = 16384
+    S = 1
+    S_max = 0
     block_size = 128
     start_pos = [8191] * B # (B,)
+    start_p=8191
     seqused = None # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
 
     # BS是否合轴
     bs_combine_flag = True
     update_flag = 1
 
+    if seqused is not None:
+        seqused = torch.tensor(seqused).to(torch.int32)
+    if start_pos is not None:
+        start_pos = torch.tensor(start_pos).to(torch.int32)
+    else:
+        start_pos = torch.full((B,), start_p, dtype=torch.int32)
+
     if bs_combine_flag:
-        if seqused is not None:
-            S = max(seqused)
+        if cu_seqlens is None:
+            T = B * S
+            if T !=0:
+                cu_seqlens = torch.arange(0, T + 1, S, dtype=torch.int32)
+            else:
+                cu_seqlens = torch.zeros((B+1), dtype=torch.int32)
         else:
-            S = 0
-            for i in range(B):
-                if (cu_seqlens[i + 1] - cu_seqlens[i]) > S:
-                    S = cu_seqlens[i + 1] - cu_seqlens[i]
+            cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
+        for i in range(B):
+            if start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] > S_max:
+                S_max = start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] 
     else:
         cu_seqlens = None
-        S = 16384 # 作为x的shape[1]
+        S_max = max(start_pos) + S
     ### ======================== gen input data start =============================
     # page state
     max_block_num_per_batch = (S_max + block_size - 1) // block_size
     block_num = B * max_block_num_per_batch
-    shuffled_indices = torch.randperm(block_num)
-    index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
-    index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-    kv_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
-    score_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    next_block_id = 1
+    print(f"max_block_num_per_batch: {max_block_num_per_batch}")
+    block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
     for i in range(B):
+        # 需要读取state的范围
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
         if start_pos[i] % cmp_ratio == 0:
             cur_end = start_pos[i]
+        cur_end = min(cur_end, start_pos[i] + S)
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
         for j in range(cur_start_block_id, cur_end_block_id + 1):
-            kv_block_table[i][j] = index[i][j]
-            score_block_table[i][j] = index[i][j]
+            block_table[i][j] = next_block_id
+            next_block_id = next_block_id + 1
+        # 需要写入state的范围
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
         next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
         next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
         if (start_pos[i] + end_pos) % cmp_ratio == 0:
             next_end = start_pos[i] + end_pos
+        next_end = min(next_end, start_pos[i] + end_pos)
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
-            kv_block_table[i][j] = index[i][j]
-            score_block_table[i][j] = index[i][j]
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(kv_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(score_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+            if block_table[i][j] == 0:
+                block_table[i][j] = next_block_id
+                next_block_id = next_block_id + 1
+
+    if B==0:
+        kv_state = torch.tensor(np.random.uniform(-10, 10, (0, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(-10, 10, (0, block_size, coff * head_dim))).to(torch.float32)
+    else:
+        kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if bs_combine_flag:
@@ -255,8 +276,7 @@
     rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type).npu()
     kv_state = kv_state.npu()
     score_state = score_state.npu()
-    kv_block_table = kv_block_table.npu()
-    score_block_table = score_block_table.npu()
+    block_table = block_table.npu()
     start_pos = torch.tensor(start_pos).to(torch.int32).npu()
     if cu_seqlens is not None:
         cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32).npu()
@@ -274,8 +294,8 @@
             norm_weight, 
             rope_sin,
             rope_cos,
-            kv_block_table = kv_block_table,
-            score_block_table = score_block_table,
+            kv_block_table = block_table,
+            score_block_table = block_table,
             cu_seqlens = cu_seqlens,
             seqused = seqused,
             start_pos = start_pos,
@@ -318,57 +338,78 @@
     cu_seqlens = [0, 1]
     # ------------- 
     B = 1
-    S_max = 16384
+    S = 1
+    S_max = 0
     block_size = 128
     start_pos = [8191] * B # (B,)
+    start_p=8191
     seqused = None # (B,), None时cu_seqlens的数据全部参与计算，否则按传参实际值计算
 
     # BS是否合轴
     bs_combine_flag = True
     update_flag = 1
 
+    if seqused is not None:
+        seqused = torch.tensor(seqused).to(torch.int32)
+    if start_pos is not None:
+        start_pos = torch.tensor(start_pos).to(torch.int32)
+    else:
+        start_pos = torch.full((B,), start_p, dtype=torch.int32)
+
     if bs_combine_flag:
-        if seqused is not None:
-            S = max(seqused)
+        if cu_seqlens is None:
+            T = B * S
+            if T !=0:
+                cu_seqlens = torch.arange(0, T + 1, S, dtype=torch.int32)
+            else:
+                cu_seqlens = torch.zeros((B+1), dtype=torch.int32)
         else:
-            S = 0
-            for i in range(B):
-                if (cu_seqlens[i + 1] - cu_seqlens[i]) > S:
-                    S = cu_seqlens[i + 1] - cu_seqlens[i]
+            cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32)
+        for i in range(B):
+            if start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] > S_max:
+                S_max = start_pos[i] + cu_seqlens[i + 1] - cu_seqlens[i] 
     else:
         cu_seqlens = None
-        S = 16384 # 作为x的shape[1]
+        S_max = max(start_pos) + S
     ### ======================== gen input data start =============================
     # page state
     max_block_num_per_batch = (S_max + block_size - 1) // block_size
     block_num = B * max_block_num_per_batch
-    shuffled_indices = torch.randperm(block_num)
-    index = torch.arange(1, block_num + 1, 1, dtype=torch.int32)
-    index = index[shuffled_indices].reshape(B, max_block_num_per_batch)
-    kv_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
-    score_block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
+    next_block_id = 1
+    print(f"max_block_num_per_batch: {max_block_num_per_batch}")
+    block_table = torch.zeros(size=(B, max_block_num_per_batch), dtype=torch.int32)
     for i in range(B):
+        # 需要读取state的范围
         cur_start = start_pos[i] // cmp_ratio * cmp_ratio - cmp_ratio
         cur_end = start_pos[i] // cmp_ratio * cmp_ratio + cmp_ratio
         if start_pos[i] % cmp_ratio == 0:
             cur_end = start_pos[i]
+        cur_end = min(cur_end, start_pos[i] + S)
         cur_start_block_id = (cur_start // block_size) if cur_start >= 0 else 0
         cur_end_block_id = (cur_end - 1) // block_size
         for j in range(cur_start_block_id, cur_end_block_id + 1):
-            kv_block_table[i][j] = index[i][j]
-            score_block_table[i][j] = index[i][j]
+            block_table[i][j] = next_block_id
+            next_block_id = next_block_id + 1
+        # 需要写入state的范围
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
         next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
         next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
         if (start_pos[i] + end_pos) % cmp_ratio == 0:
             next_end = start_pos[i] + end_pos
+        next_end = min(next_end, start_pos[i] + end_pos)
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
         for j in range(next_start_block_id, next_end_block_id + 1):
-            kv_block_table[i][j] = index[i][j]
-            score_block_table[i][j] = index[i][j]
-    kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(kv_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
-    score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(score_block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+            if block_table[i][j] == 0:
+                block_table[i][j] = next_block_id
+                next_block_id = next_block_id + 1
+
+    if B==0:
+        kv_state = torch.tensor(np.random.uniform(-10, 10, (0, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(-10, 10, (0, block_size, coff * head_dim))).to(torch.float32)
+    else:
+        kv_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
+        score_state = torch.tensor(np.random.uniform(-10, 10, (torch.max(block_table) + 1, block_size, coff * head_dim))).to(torch.float32)
 
     # other input
     if bs_combine_flag:
@@ -389,8 +430,7 @@
     rope_cos = torch.tensor(np.random.uniform(-1, 1, rope_cos_shape)).to(data_type).npu()
     kv_state = kv_state.npu()
     score_state = score_state.npu()
-    kv_block_table = kv_block_table.npu()
-    score_block_table = score_block_table.npu()
+    block_table = block_table.npu()
     start_pos = torch.tensor(start_pos).to(torch.int32).npu()
     if cu_seqlens is not None:
         cu_seqlens = torch.tensor(cu_seqlens).to(torch.int32).npu()
@@ -444,8 +484,8 @@
                     norm_weight, 
                     rope_sin,
                     rope_cos,
-                    kv_block_table = kv_block_table,
-                    score_block_table = score_block_table,
+                    kv_block_table = block_table,
+                    score_block_table = block_table,
                     cu_seqlens = cu_seqlens,
                     seqused = seqused,
                     start_pos = start_pos,
