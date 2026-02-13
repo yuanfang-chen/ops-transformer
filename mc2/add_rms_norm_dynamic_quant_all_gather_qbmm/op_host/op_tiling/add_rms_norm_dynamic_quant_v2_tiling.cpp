@@ -58,7 +58,7 @@ bool CheckOptionalShapeExistingV2(const gert::StorageShape* smoothShape)
 }
 
 void AddRmsNormDynamicQuantV2TilingHelper::SetTilingData(
-    AddRmsNormDynamicQuantV2TilingData* tiling)
+    AddRmsNormDynamicQuantAllGatherTilingData* tiling)
 {
     context_->SetBlockDim(this->useCore_);
     tiling->useCore = this->useCore_;

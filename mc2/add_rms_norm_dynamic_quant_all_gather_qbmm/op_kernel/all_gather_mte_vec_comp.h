@@ -29,10 +29,10 @@ constexpr static uint32_t PER_GROUP_SIZE = 128U;    // PT量化时，128个x数�
 constexpr static uint32_t MX_SIZE = 32U;            // MX量化时，32个x数据共有一个scale
 constexpr static uint32_t TWO_DIMS = 2U;            // 用于scale反量化时boardcast的数组维度
 
-#define TemplateTypeClass typename XType, typename ScalesType, typename OutputType
-#define TemplateType XType, ScalesType, OutputType
+#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType
+#define AllGatherTemplateType XType, ScalesType, OutputType
 
-template<TemplateTypeClass>
+template<AllGatherTemplateTypeClass>
 class VectorCompute {
 public:
     __aicore__ inline VectorCompute() {};
@@ -55,8 +55,8 @@ private:
     TBuf<> brcbBuf_;
 };
 
-template <TemplateTypeClass>
-__aicore__ inline void VectorCompute<TemplateType>::InitBuffer(TPipe *tPipe)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void VectorCompute<AllGatherTemplateType>::InitBuffer(TPipe *tPipe)
 {
     tPipe->InitBuffer(brcbBuf_, xNumPerBlock_ * sizeof(float)); // 用于scale BroadCast，1024 * 4 = 4k
     tPipe->InitBuffer(xCastBuf_, xNumPerBlock_ * sizeof(float)); // 用于x Cast 成 fp32, 1024 * 4 = 4k
@@ -77,8 +77,8 @@ __aicore__ inline void VectorCompute<TemplateType>::InitBuffer(TPipe *tPipe)
  * 
  * @param elementsPerBlock 每个数据块包含的x元素数量
  */
-template <TemplateTypeClass>
-__aicore__ inline void VectorCompute<TemplateType>::SetBlockSize(uint32_t elementsPerBlock)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void VectorCompute<AllGatherTemplateType>::SetBlockSize(uint32_t elementsPerBlock)
 {
     xNumPerBlock_ = elementsPerBlock;
 }
@@ -95,15 +95,15 @@ __aicore__ inline void VectorCompute<TemplateType>::SetBlockSize(uint32_t elemen
  * - 对于fp8_e8m0缩放因子：fp8_e8m0 → bfloat16 → float32 → MX量化将scale广播成32
  * - 对于其他缩放因子：直接转换为float32 → PT量化将scale广播成128
  * 
- * @tparam TemplateType 模板类型，用于支持不同的数据类型
+ * @tparam AllGatherTemplateType 模板类型，用于支持不同的数据类型
  * 
  * @param xTensor 量化输入数据张量
  * @param scaleTensor 量化缩放系数张量
  * 
  * @note 针对fp8_e8m0缩放因子使用微指令（VF_CALL<CastVf>）进行转换
  */
-template <TemplateTypeClass>
-__aicore__ inline void VectorCompute<TemplateType>::CastToFloat(
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void VectorCompute<AllGatherTemplateType>::CastToFloat(
     LocalTensor<XType> &xTensor,
     LocalTensor<ScalesType> &scaleTensor)
 {
@@ -177,8 +177,8 @@ __aicore__ inline void VectorCompute<TemplateType>::CastToFloat(
  * 
  * @note 函数内部包含多次流水线同步（PipeBarrier<PIPE_V>）确保计算顺序
  */
-template <TemplateTypeClass>
-__aicore__ inline void VectorCompute<TemplateType>::DequantAndCopyBack(
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void VectorCompute<AllGatherTemplateType>::DequantAndCopyBack(
     LocalTensor<XType> &xTensor,
     LocalTensor<ScalesType> &scaleTensor,
     GlobalTensor<XType> &xGlobalTensor)

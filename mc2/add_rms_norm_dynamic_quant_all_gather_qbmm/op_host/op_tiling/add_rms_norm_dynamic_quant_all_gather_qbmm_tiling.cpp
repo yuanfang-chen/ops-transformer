@@ -47,7 +47,7 @@ static ge::graphStatus GetAddRmsNormDynamicQuantAllGatherQbmm(
     bool status = instanceNormV3TilingHelper.DoTiling();
     OP_CHECK_IF(!status, OP_LOGE(context, "DoTiling Failed, return Failed."), return ge::GRAPH_FAILED);
 
-    instanceNormV3TilingHelper.SetTilingData(&tilingData.addRmsNormDynamicQuantV2TilingData);
+    instanceNormV3TilingHelper.SetTilingData(&tilingData.addRmsNormDynamicQuantAllGatherTilingData);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -103,7 +103,7 @@ static void SetTilingData(gert::TilingContext *context, AddRmsNormDynamicQuantAl
     // set corenum
     uint32_t aivNum = 24;
     context->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivNum, aivNum, aivNum));
-    tilingData.allGatherTilingData.aivNum = aivNum;
+    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum = aivNum;
 }
 
 /**
@@ -165,7 +165,7 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
 }
 
 struct AddRmsNormDynamicQuantAllGatherQbmmCompileInfo {};
- 
+
 ge::graphStatus TilingParseForAddRmsNormDynamicQuantAllGatherQbmm(gert::TilingParseContext *context)
 {
     (void)context;

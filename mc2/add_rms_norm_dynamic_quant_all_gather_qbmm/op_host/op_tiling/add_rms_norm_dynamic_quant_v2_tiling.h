@@ -52,7 +52,7 @@ public:
 
     ~AddRmsNormDynamicQuantV2TilingHelper() = default;
     bool DoTiling();
-    void SetTilingData(AddRmsNormDynamicQuantV2TilingData* tiling);
+    void SetTilingData(AddRmsNormDynamicQuantAllGatherTilingData* tiling);
 
 private:
     bool GetBaseInfo();
