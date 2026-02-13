@@ -96,7 +96,7 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorFormat(const gert::T
     return true;
 }
 
-bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDim(const gert::TilingContext *context)
+bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(const gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     const char *nodeName = context->GetNodeName();
     const gert::StorageShape *x1Shape = context->GetInputShape(X1_INDEX);
@@ -185,6 +185,9 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDim(const gert::Tili
     OP_TILING_CHECK((yValueOne != (x1ValueOne/TP_NUMBER)),
         OP_LOGE(nodeName, "yDim0 should be equal to x1Dim0/tp_num, but current yDim0/x1Dim0/tp_num are %lu/%lu/%lu)",
                 yValueOne, x1ValueOne, TP_NUMBER), return false);
+    tilingData->M = x1ValueOne;
+    tilingData->K = x1ValueTwo;
+    tilingData->N = x2ValueTwo;
     return true;
 }
 
@@ -252,7 +255,7 @@ ge::graphStatus QbmmReduceScatterAddRmsNormCastCheckTiling::TilingCheckQbmmReduc
         OP_LOGE(nodeName, "params format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!CheckTensorDataType(context),
         OP_LOGE(nodeName, "params dtype is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckTensorDim(context),
+    OP_TILING_CHECK(!CheckTensorDimAndSetTiling(context),
         OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
