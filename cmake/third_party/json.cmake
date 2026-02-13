@@ -79,9 +79,10 @@ else()
     )
 
     # 添加本地归档文件存在时的处理
-    if(NOT EXISTS ${JSON_INSTALL_PATH}/include)
-        file(MAKE_DIRECTORY "${JSON_INSTALL_PATH}/include")
-    endif()
+    message("===========================JSON_INSTALL_PATH at ${JSON_INSTALL_PATH}")
+    # if(NOT EXISTS ${JSON_INSTALL_PATH}/include)
+    #     file(MAKE_DIRECTORY "${JSON_INSTALL_PATH}/include")
+    # endif()
 
     set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
     add_library(json INTERFACE)
