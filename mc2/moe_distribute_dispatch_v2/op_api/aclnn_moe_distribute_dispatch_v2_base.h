@@ -17,7 +17,7 @@
 #define ACLNN_MOE_DISTRIBUTE_DISPATCH_V2_BASE_
 
 #include <string>
-
+#include "mc2_moe_context.h"
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
 #include "common/op_host/op_api/matmul_util.h"
@@ -25,6 +25,7 @@
 #include "hccl/hccl_rank_graph.h"
 #include "hccl/hccl.h"
 
+using namespace Mc2Context;
 #ifdef __cplusplus
 extern "C" {
 #endif

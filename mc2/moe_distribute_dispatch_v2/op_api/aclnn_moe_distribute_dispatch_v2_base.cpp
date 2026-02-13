@@ -14,7 +14,6 @@
  */
 
 #include <algorithm>
-#include "mc2_moe_context.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/op_log.h"
