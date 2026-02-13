@@ -1142,8 +1142,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
         expertOffsetCntTensor_(index) = exprtOffset;
         expertOffsetTemp(expertId) = exprtOffset + 1;
     }
-    ////LogInfo(__LINE__,expertIdsTensor_ ,tpipe_,1);
-    ////LogInfo(__LINE__,expertOffsetCntTensor_ ,tpipe_,1);
     //LogInfo(__LINE__,"ExpertOffsetCal end");
 }
 
@@ -1248,12 +1246,6 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
 template <TemplateDispatchKFCTypeClass>
 __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFunc>::WaitWindow(uint32_t aivNum)
 {
-    //reset
-    //初始还。
-    // 确定当前核处理哪个Server
-    // aivNum个核处理serverNum_个Server数据
-
-
     //LogInfo(__LINE__, "[BATCHWRITE][WaitWindow] enter WaitWindow.");
 
     uint32_t startServerId, endServerId, serverCnt;

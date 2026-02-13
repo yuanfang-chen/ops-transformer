@@ -49,7 +49,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v2(
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
 //printf("kernel.cpp start");
-LogInfo(__LINE__, "kernel.cpp start");
+//LogInfo(__LINE__, "kernel.cpp start");
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 #if defined(__DAV_C310__)
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
@@ -80,12 +80,12 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                 op.Process();
             }
         } else if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
-            LogInfo(__LINE__, "KFC start 16 UNQUANT");
+            //LogInfo(__LINE__, "KFC start 16 UNQUANT");
             MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
             op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
             op.Process();
-            LogInfo(__LINE__, "KFC end 16 UNQUANT");
+            //LogInfo(__LINE__, "KFC end 16 UNQUANT");
         }
     } 
 #elif ((ORIG_DTYPE_X == DT_FLOAT8_E5M2) && (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E5M2)) ||   \
@@ -103,12 +103,12 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
             op.Process();
         } else if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
-            LogInfo(__LINE__, "KFC start 8 UNQUANT");
+            //LogInfo(__LINE__, "KFC start 8 UNQUANT");
             MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, true, false> op;
             op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
             op.Process();
-            LogInfo(__LINE__, "KFC end 8 UNQUANT");
+            //LogInfo(__LINE__, "KFC end 8 UNQUANT");
         }
     } 
 #elif ((ORIG_DTYPE_EXPAND_X == DT_INT8) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT8_E5M2) || \
@@ -133,12 +133,12 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
                     op.Process();
                 }
             } else if constexpr (CommMode == TILINGKEY_TPL_HOST_KFC){
-                LogInfo(__LINE__, "KFC start 8 QUANT");
+                //LogInfo(__LINE__, "KFC start 8 QUANT");
                 MoeDistributeDispatchV2HostKfc<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
                 op.Init(x,expertIds, scales, xActiveMask, expertScales, elasticInfo, expandXOut, dynamicScalesOut, assistInfoOut,
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
-                LogInfo(__LINE__, "KFC end 8 QUANT");
+                //LogInfo(__LINE__, "KFC end 8 QUANT");
             }
         } 
     }
