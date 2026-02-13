@@ -503,7 +503,7 @@ __aicore__ inline void QSFAMatmulService<QSFAT>::LoadDataMm2A(LocalTensor<K_ROPE
                                                               uint32_t kSplitSize, uint32_t mSize, uint32_t kSize)
 {
     LocalTensor<K_ROPE_T> srcTensor = aL1Tensor[mSize * 128 * idx]; // mSize * baseK 128
-    LoadData2DParamsV2 loadData2DParamsA; // 基础API LoadData的参数结构体
+    LoadData2DParamsV2 loadData2DParamsA; 
     loadData2DParamsA.mStartPosition = 0; // 以M*K矩阵为例，源矩阵M轴方向的起始位置，单位为16 element
     loadData2DParamsA.kStartPosition = 0; // 以M*K矩阵为例，源矩阵K轴方向的起始位置，单位为32B
     loadData2DParamsA.ifTranspose = false; // 是否启用转置功能，对每个分型矩阵进行转置
