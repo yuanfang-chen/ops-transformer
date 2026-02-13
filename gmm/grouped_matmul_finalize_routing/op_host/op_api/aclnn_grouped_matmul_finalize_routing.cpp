@@ -1029,19 +1029,23 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     int64_t sharedInputOffset, bool transposeX1, bool transposeX2, int64_t groupListType,
     const aclIntArray *tuningConfigOptional, aclTensor *out, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    OP_LOGI("zzz testlog 1032");
     L2_DFX_PHASE_1(aclnnGroupedMatmulFinalizeRoutingWeightNzV2,
         DFX_IN(x1, x2, scale, bias, pertokenScaleOptional, groupList, sharedInput,
         logit, rowIndex, dtype, sharedInputWeight, sharedInputOffset, transposeX1, transposeX2,
         groupListType),
         DFX_OUT(out));
+    OP_LOGI("zzz testlog 1038");
     (void) antiquantScaleOptional;
     (void) antiquantOffsetOptional;
     auto viewShape = x2->GetViewShape();
-
+    OP_LOGI("zzz testlog 1040");        
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
+    OP_LOGI("zzz testlog 1044");
     if(op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510){
+        OP_LOGI("zzz testlog 1047");
         auto storageShape = x2->GetStorageShape();
         if (tmpWeight->GetDataType() == DataType::DT_INT32) {
             tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
@@ -1090,7 +1094,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
     }
-    
+    OP_LOGI("zzz testlog 1096");
     GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, tmpWeight, out)
         .SetScale(scale)
         .SetBias(bias)
@@ -1103,8 +1107,11 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         .SetNumbers(sharedInputWeight, sharedInputOffset, groupListType)
         .SetTranspose(transposeX1, transposeX2)
         .Build();
+    OP_LOGI("zzz testlog 1106");
     auto ret = aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProcess(params, uniqueExecutor.get());
+    OP_LOGI("zzz testlog 1111");
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    OP_LOGI("zzz testlog 1113");
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;
