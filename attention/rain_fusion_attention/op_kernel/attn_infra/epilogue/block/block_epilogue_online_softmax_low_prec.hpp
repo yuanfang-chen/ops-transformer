@@ -170,7 +170,7 @@ public:
         uint32_t columnStrideIndex = 2;
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求和。
-        for (; columnStrideIndex < loopCount; columnStrideIndex *= 2) {
+        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             DivideAndConquerGetSum(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
@@ -180,6 +180,7 @@ public:
             rowsumUb,
             srcUb,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            AscendC::printf("tkd AscendC::MASK_PLACEHOLDER: %u\n", AscendC::MASK_PLACEHOLDER);
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
@@ -317,7 +318,7 @@ public:
         uint32_t columnStrideIndex = 2;
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求最大值。
-        for (; columnStrideIndex < loopCount; columnStrideIndex *= 2) {
+        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             DivideAndConquerGetMax(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
@@ -327,6 +328,7 @@ public:
             rowmaxUb,
             srcUb,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            AscendC::printf("tkd AscendC::MASK_PLACEHOLDER: %u\n", AscendC::MASK_PLACEHOLDER);
             numRowsRound,
             dataBlockStride,
             dataBlockStride,
