@@ -77,6 +77,7 @@ private:
     int64_t ubTailFactorKN_ = 0; // 最后一次循环处理多少KN
     int64_t ubSize_ = 0;
     uint64_t tilingKey_ = 0;
+    bool isPartialRope_ = false;
 
     void SplitCore();
     ge::graphStatus SplitUb();
@@ -88,6 +89,7 @@ ge::graphStatus ApplyRotaryPosEmbTilingBAB::DoOpTiling()
 {
     ubSize_ = aicoreParams_.ubSize;
     coreNum_ = aicoreParams_.numBlocks;
+    isPartialRope_ = (reald_ != d_);
     ge::graphStatus status = SplitUb();
     if (status != ge::GRAPH_SUCCESS) {
         OP_LOGE(context_->GetNodeName(), "SplitUb Failed.");
@@ -188,14 +190,16 @@ void ApplyRotaryPosEmbTilingBAB::PrintTilingData()
             "blockFactorB_ is %ld, blockNumS %ld, blockFactorS is %ld, ubLoopNumS is %ld,"
             "ubFactorS is %ld, ubTailFactorS %ld, ubLoopNumB is %ld, ubFactorB is %ld,"
             "ubTailFactorB is %ld, ubLoopNumQN is %ld, ubFactorQN is %ld, ubTailFactorQN is %ld,"
-            "ubLoopNumKN is %ld, ubFactorKN is %ld, ubTailFactorKN is %ld, tilingKey is %lu, realDim is %ld",
+            "ubLoopNumKN is %ld, ubFactorKN is %ld, ubTailFactorKN is %ld, tilingKey is %lu, realDim is %ld,"
+            "isPartialRope is %d",
             usedCoreNum_, tilingData_.get_B(), tilingData_.get_S(), tilingData_.get_D(), tilingData_.get_QN(),
             tilingData_.get_KN(), tilingData_.get_blockNumB(), tilingData_.get_blockFactorB(),
             tilingData_.get_blockNumS(), tilingData_.get_blockFactorS(), tilingData_.get_ubLoopNumS(),
             tilingData_.get_ubFactorS(), tilingData_.get_ubTailFactorS(), tilingData_.get_ubLoopNumB(),
             tilingData_.get_ubFactorB(), tilingData_.get_ubTailFactorB(), tilingData_.get_ubLoopNumQN(),
             tilingData_.get_ubFactorQN(), tilingData_.get_ubTailFactorQN(), tilingData_.get_ubLoopNumKN(),
-            tilingData_.get_ubFactorKN(), tilingData_.get_ubTailFactorKN(), tilingKey_, tilingData_.get_realDim());
+            tilingData_.get_ubFactorKN(), tilingData_.get_ubTailFactorKN(), tilingKey_, tilingData_.get_realDim(),
+            tilingData_.get_isPartialRope());
     return;
 }
 
@@ -225,6 +229,7 @@ ge::graphStatus ApplyRotaryPosEmbTilingBAB::PostTiling()
     tilingData_.set_ubTailFactorKN(ubTailFactorKN_);
     tilingData_.set_rotaryMode(static_cast<int64_t>(rotaryMode_));
     tilingData_.set_realDim(reald_);
+    tilingData_.set_isPartialRope(isPartialRope_);
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
     context_->SetBlockDim(usedCoreNum_);
