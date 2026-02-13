@@ -130,21 +130,38 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
-{
-    auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // cu_seqlens_q 存在性校验
-    if (layoutQuery_ == "TND") {
-        if (isInvalid(actSeqLenQ_)) {
-            KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
-            return false;
-        }
-    }
-    // 2. seqused_kv 存在性校验
-    if (isInvalid(seqUsedKv_)) {
-        KERNEL_LOG_ERROR("seqused_kv must be provided!");
-        return false;
-    }
-    return true;
+{	 
+    auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };	 
+    // 1. Query 存在性逻辑	 
+    if (layoutQuery_ == "TND") {	 
+        if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {	 
+            KERNEL_LOG_ERROR("For query TND, actSeqLenQ or seqUsedQ must be provided!");	 
+            return false; 
+        } 
+    } else if (layoutQuery_ == "BSND") { 
+        if (querySeqSize_ == 0 && isInvalid(seqUsedQ_)) { 
+            KERNEL_LOG_ERROR("For query BSND, querySeqSize or seqUsedQ must be provided!"); 
+            return false;	 
+        }	 
+    }	 
+    // 2. KV 存在性逻辑	 
+    if (layoutKv_ == "TND") {	 
+        if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {	 
+            KERNEL_LOG_ERROR("For KV TND, actSeqLenOriKv or seqUsedKv must be provided!");	 
+            return false; 
+        } 
+    } else if (layoutKv_ == "PA_ND") { 
+        if (isInvalid(seqUsedKv_)) { 
+            KERNEL_LOG_ERROR("For KV PA_ND, seqUsedKv must be provided!"); 
+            return false; 
+        } 
+    } else if (layoutKv_ == "BSND") { 
+        if (kvSeqSize_ == 0 && isInvalid(seqUsedKv_)) { 
+            KERNEL_LOG_ERROR("For KV BSND, KvSeqSize or seqUsedKv must be provided!"); 
+            return false; 
+        } 
+    }	 
+    return true;	 
 }
 
 int32_t SparseAttnSharedkvMetadataCpuKernel::GetQueryBatchSize()
@@ -193,17 +210,10 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckConsistency()
 {
     int32_t queryBatchSize = GetQueryBatchSize();
     int32_t kvBatchSize = GetKvBatchSize();
-    if (layoutQuery_ == "TND") {
-        if (queryBatchSize != kvBatchSize) {
-            KERNEL_LOG_ERROR("For TND, the dim of q tensor should consist with kv tensor");
-            return false;
-        }
-    }
-    if (layoutQuery_ == "BSND") {
-        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
-            KERNEL_LOG_ERROR("For BSND, batch_size should consist with the dim of q tensor or kv tensor");
-            return false;
-        }
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("The batch_size obtained from q Tensor should be the same as "
+                            "that obtained from kv tensor, but got %d and %d", queryBatchSize, kvBatchSize);
+        return false;
     }
     return true;
 }
