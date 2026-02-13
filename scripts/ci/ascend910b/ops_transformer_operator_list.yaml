@@ -92,10 +92,12 @@ operator_group_8:
   - matmul_allto_all
   - allto_all_matmul
   - moe_distribute_combine
-  - moe_distribute_combine_v2
+  
   - moe_distribute_dispatch
-  - moe_distribute_dispatch_v2
+  
 operator_group_9:
+  - moe_distribute_combine_v2 # 从group8挪到group 9 
+  - moe_distribute_dispatch_v2 #
   - dequant_rope_quant_kvcache
   - interleave_rope
   - rope_with_sin_cos_cache
