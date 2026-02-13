@@ -46,8 +46,8 @@ class MTECommunication {
 public:
     __aicore__ inline MTECommunication() {};
     __aicore__ inline void InitHcclContext();
-    __aicore__ inline void InitParams();
-    __aicore__ inline void InitGMTensor(GM_ADDR output, uint64_t alignedXSize, uint64_t alignedScaleSize);
+    __aicore__ inline void InitParams(uint64_t xSize);
+    __aicore__ inline void InitGMTensor(uint64_t alignedXSize, uint64_t alignedScaleSize);
     __aicore__ inline void InitBuffer(TPipe *tPipe);
     __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum);
     __aicore__ inline void WriteStatusToWin();
@@ -94,7 +94,7 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitHcclContext(
 }
 
 template <AllGatherTemplateTypeClass>
-__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams()
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint64_t xSize)
 {
     aivId_ = GetBlockIdx(); // 获取当前核Id
     scaleNumsPerBlcok_ = SCALE_BLCOK_BYTES / sizeof(ScalesType); // 一块scale固定32B, 计算包含多少个数据

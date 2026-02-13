@@ -14,7 +14,7 @@
  */
 
 #include "basic_api/kernel_basic_intf.h"
-// #include "add_rms_norm_dynamic_quant_all_gather_qbmm_kernel.h"
+#include "add_rms_norm_dynamic_quant_all_gather_qbmm.h"
 // #include "add_rms_norm_dynamic_quant_v2_normal_kernel.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 
@@ -36,12 +36,15 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR smooth_scale,
     GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    // TPipe pipe;
+    TPipe pipe;
     REGISTER_TILING_DEFAULT(AddRmsNormDynamicQuantAllGatherQbmmTilingData);
     GET_TILING_DATA_WITH_STRUCT(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingData, tilingGM);
     // GET_TILING_DATA(tilingData, tiling);
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
     if (TILING_KEY_IS(1)) {
+        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, false, false> op;
+        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, workspaceGM, &pipe, &tilingData);
+        op.Process();
         AscendC::PRINTF("kernel TILING_KEY_IS(1) !!!");
     }
     // if (TILING_KEY_IS(0)) {
