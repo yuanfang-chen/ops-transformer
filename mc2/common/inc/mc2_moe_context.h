@@ -1,5 +1,6 @@
 #ifndef MC2_MOE_CONTEXT_H
 #define MC2_MOE_CONTEXT_H
+#include <stdint.h>
 
 namespace Mc2Kernel {
 constexpr uint32_t HCCL_HOST_KFC_MAX_RANK_NUM = 1024; //AIV
