@@ -18,7 +18,7 @@
 
 #include "kernel_tiling/kernel_tiling.h"
 
-struct AddRmsNormDynamicQuantV2TilingData {
+struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint64_t useCore = 0;
     uint64_t numFirstDim = 0;
     uint64_t numLastDim = 0;
@@ -30,24 +30,20 @@ struct AddRmsNormDynamicQuantV2TilingData {
     uint64_t lastDimSliceLen = 0;
     uint64_t lastDimSliceLenTail = 0;
     uint32_t smoothNum = 0;
-    float epsilon = 0;
-    float avgFactor = 0;
-};
-
-struct AllGatherTilingData {
-    uint64_t M;
-    uint64_t K;
-    uint64_t scaleHiddenSize;
-    uint64_t aivNum;
-    uint64_t totalWinSize;   // Win区总大小，即HCCL_BUFFER_SIZE
+    float epsilon = 1e-6;
+    float avgFactor = 1.0 / (float)5120.0;
+    uint32_t M = 252;
+    uint32_t Ka = 5120;
+    uint32_t N = 0;
+    uint32_t aivNum = 24;
+    uint32_t worldSize = 4;
 };
 
 // tiling struct待完善
 struct AddRmsNormDynamicQuantAllGatherQbmmTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
-    AddRmsNormDynamicQuantV2TilingData addRmsNormDynamicQuantV2TilingData;
-    AllGatherTilingData allGatherTilingData;
+    AddRmsNormDynamicQuantAllGatherTilingData addRmsNormDynamicQuantAllGatherTilingData;
     TCubeTiling matmulTiling;
 };
 

@@ -35,27 +35,28 @@ using namespace AscendC;
 // 之后可修改成从tiling侧获取数据切块大小
 constexpr static uint32_t X_PRE_BLOCK_NUM = 1024U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
 
-template<TemplateTypeClass>
+template<AllGatherTemplateTypeClass>
 class AllGatherMte {
 public:
     __aicore__ inline AllGatherMte() {};
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR scales, GM_ADDR output,
-                                TPipe *pipe, const AllGatherTilingData *tilingData);
+    __aicore__ inline void Init(TPipe *tPipe, uint32_t M, uint32_t Ka, uint32_t aivNum);
     __aicore__ inline void Process();
-private:
-    __aicore__ inline void ClearSumTensor();
-    __aicore__ inline void ReadDataBlockDequant(uint64_t curXOffset, uint64_t curScaleOffset);
+
+    __aicore__ inline void SetRemoteFlag();
+    __aicore__ inline void WaitRemoteFlag();
     __aicore__ inline void ExecuteAllGather();
+
+private:
+    __aicore__ inline void ReadDataBlockDequant(uint64_t curXOffset, uint64_t curScaleOffset);
 
     uint64_t xSize_{0}; // 单卡上数据大小
     uint64_t xNums_{0}; // 单卡上数据个数
     uint64_t scaleSize_{0}; // 单卡上scale大小
-    uint64_t totalWinSize_{0};
     uint64_t tailXNums_{0};
     uint32_t totalBlockNums_{0};
 
-    MTECommunication<TemplateType> mteComm_; // MTE 通信相关实现
-    VectorCompute<TemplateType> vecComp_; // vector 计算相关实现
+    MTECommunication<AllGatherTemplateType> mteComm_; // MTE 通信相关实现
+    VectorCompute<AllGatherTemplateType> vecComp_; // vector 计算相关实现
 
     GlobalTensor<XType> remoteWinXTensor_;
     GlobalTensor<ScalesType> remoteWinScaleTensor_;
@@ -64,30 +65,28 @@ private:
     TBuf<> sumBuf_; // 用于Reduce_sum 求和
 };
 
-template <TemplateTypeClass>
-__aicore__ inline void AllGatherMte<TemplateType>::Init(GM_ADDR x, GM_ADDR scales,
-    GM_ADDR output, TPipe *tPipe, const AllGatherTilingData *tilingData)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, uint32_t M, uint32_t Ka, uint32_t aivNum)
 {
     // 初始化HcclContext
     mteComm_.InitHcclContext();
 
     /* all_gather 自己的数据 */
-    totalWinSize_ = tilingData->totalWinSize;
-    xNums_ = tilingData->M * tilingData->K; // 总的x数据个数， M * h
+    xNums_ = M * Ka; // 总的x数据个数， M * h
     xSize_ = xNums_ * sizeof(XType); // 总的x数据量，B
-    scaleSize_ = tilingData->M * sizeof(ScalesType);
+    scaleSize_ = M * sizeof(ScalesType);
     tailXNums_ = BlockAlignMod(xNums_, X_PRE_BLOCK_NUM); // 计算最后一个数据块的大小
     totalBlockNums_ = CeilDiv(xSize_, X_BLOCK_BYTES); // 按每次搬运x的数据量分块，得到的总块数
-    mteComm_.round_ = totalBlockNums_ / tilingData->aivNum; // 计算总的数据分核搬运需要的轮次数
-    mteComm_.tailBlockNums_ = totalBlockNums_ % tilingData->aivNum; // 搬运的尾块数
-    mteComm_.ComputeTailAivId(tilingData->aivNum); // 计算最后一个核的id
+    mteComm_.round_ = totalBlockNums_ / aivNum; // 计算总的数据分核搬运需要的轮次数
+    mteComm_.tailBlockNums_ = totalBlockNums_ % aivNum; // 搬运的尾块数
+    mteComm_.ComputeTailAivId(aivNum); // 计算最后一个核的id
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
     tPipe->InitBuffer(scaleInQue, BUFFER_NUM, UB_ALIGN_BYTES); // 每次拷贝 32B scale；4 * 8
     tPipe->InitBuffer(sumBuf_, X_PRE_BLOCK_NUM * sizeof(float)); // 用于Reduce_sum 求和，1024 * 4 = 4k
 
     // 设置切块大小
-    mteComm_.SetBlockSize(X_PRE_BLOCK_NUM, tilingData->aivNum, tailXNums_);
+    mteComm_.SetBlockSize(X_PRE_BLOCK_NUM, aivNum, tailXNums_);
     vecComp_.SetBlockSize(X_PRE_BLOCK_NUM);  
 
     // 公共MTE搬运参数计算
@@ -98,11 +97,25 @@ __aicore__ inline void AllGatherMte<TemplateType>::Init(GM_ADDR x, GM_ADDR scale
     vecComp_.InitBuffer(tPipe);
 
     // 初始化GM上的Tensor，包括Win区
-    mteComm_.InitGMTensor(x, scales, output, xSize_, scaleSize_, totalWinSize_);
+    mteComm_.InitGMTensor(xSize_, scaleSize_);
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void AllGatherMte<TemplateType>::ReadDataBlockDequant(
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::SetRemoteFlag()
+{
+    // 写入状态到状态区
+    mteComm_.WriteStatusToWin();
+}
+
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::WaitRemoteFlag()
+{
+    // 读状态位，软同步
+    mteComm_.ReadStatus(); 
+}
+
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlockDequant(
     uint64_t curXOffset, uint64_t curScaleOffset)
 {
     /* 读取 x 从 Win -> UB */
@@ -124,12 +137,9 @@ __aicore__ inline void AllGatherMte<TemplateType>::ReadDataBlockDequant(
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void AllGatherMte<TemplateType>::ExecuteAllGather()
-{   
-    // TODO: 修改，最后搬运到 win 区
-    // 读状态位，软同步
-    mteComm_.ReadStatus(); 
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather()
+{
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
         uint64_t curXOffset = mteComm_.xOffset_ + curBlock * X_PRE_BLOCK_NUM;
@@ -142,7 +152,7 @@ __aicore__ inline void AllGatherMte<TemplateType>::ExecuteAllGather()
 
             // 获取对端Win区中数据区相关的地址
             GM_ADDR remoteDataGm = mteComm_.GetWinDataAddrGm(remoteRankId) + remoteRankId * xSize_;
-            GM_ADDR remoteScaleGm = remoteDataGm + mteComm.hcclContext_->rankSize * xSize_ + remoteRankId * scaleSize_;
+            GM_ADDR remoteScaleGm = remoteDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
 
             remoteWinXTensor_.SetGlobalBuffer((__gm__ XType*)remoteDataGm);
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
@@ -154,17 +164,13 @@ __aicore__ inline void AllGatherMte<TemplateType>::ExecuteAllGather()
     }
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void AllGatherMte<TemplateType>::Process()
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::Process()
 {
     // 纯AIV过程
     if ASCEND_IS_AIC {
         return;
     }
-
-    // 这一步不需要，ARN_DQ 之后已经在本地 win 区了
-    // 一次性拷贝完所有数据到本地卡win区
-    // mteComm_.template CopyDataToWin();
     // 写入状态到状态区
     mteComm_.WriteStatusToWin();
     // 执行AllGather过程：等待状态区同步，读取数据

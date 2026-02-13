@@ -18,6 +18,7 @@
 
 #include "adv_api/hccl/hccl.h"
 #include "adv_api/reduce/sum.h"
+#include "all_gather_mte_utils.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
 #include "../common/inc/kernel/mc2_kernel_utils.h"
@@ -35,22 +36,20 @@ constexpr uint32_t FLOAT_UB_ALIGN_NUM = 8U;         // float格式下32B对齐�
 constexpr uint32_t BUFFER_NUM = 2U;                 // 用于double buffer
 constexpr static uint32_t SCALE_BLCOK_BYTES = 32U;  // 一个scale数据块固定32B，搬运要求32B对齐
 constexpr static uint32_t X_BLOCK_BYTES = 1024U;    // 当前一个x数据块固定1024B = 128 * 8(PT) = 32 * 32(MX)，为穿刺取值
-constexpr static uint64_t WIN_ADDR_ALIGN = 512UL; // 每个核的标志位间512B对齐
+constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // 每个核的标志位间512B对齐，win区数据部分也512B对齐
 
-#define TemplateTypeClass typename XType, typename ScalesType, typename OutputType
-#define TemplateType XType, ScalesType, OutputType
+#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType
+#define AllGatherTemplateType XType, ScalesType, OutputType
 
-template<TemplateTypeClass>
+template<AllGatherTemplateTypeClass>
 class MTECommunication {
 public:
     __aicore__ inline MTECommunication() {};
     __aicore__ inline void InitHcclContext();
     __aicore__ inline void InitParams();
-    __aicore__ inline void InitGMTensor(
-        GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t alignedXSize, uint64_t alignedScaleSize, uint64_t dataSpaceGmSize);
+    __aicore__ inline void InitGMTensor(GM_ADDR output, uint64_t alignedXSize, uint64_t alignedScaleSize);
     __aicore__ inline void InitBuffer(TPipe *tPipe);
     __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum);
-    __aicore__ inline void CopyDataToWin();
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
     __aicore__ inline void CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count);
@@ -68,22 +67,16 @@ public:
     uint64_t xOffset_{0};  
     uint64_t scaleOffset_{0};
     uint64_t lastAivId_{0};
-private:
+    uint64_t winDataSize_{0};
 
+private:    
     uint32_t xNumPerBlock_{0};
     uint64_t tailXNums_{0};
 
-    __aicore__ inline void CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset, uint32_t count);
-
-    GlobalTensor<XType> xGMTensor_;
-    GlobalTensor<ScalesType> scalesGMTensor_;
     GlobalTensor<XType> localWinXGMTensor_;
     GlobalTensor<ScalesType> localWinScaleGMTensor_;
     GlobalTensor<OutputType> outputTensor_;
-    GlobalTensor<uint32_t> selfWinFlagGMTensor_;
 
-    LocalTensor<XType> xTmpTensor_;
-    LocalTensor<ScalesType> scaleTmpTensor_;
     LocalTensor<float> stateResetTensor_;
     LocalTensor<OutputType> xOutTensor_;
 
@@ -94,14 +87,14 @@ private:
     TBuf<> stateResetBuf_;
 };
 
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::InitHcclContext()
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitHcclContext()
 {
     hcclContext_ = (__gm__ HcclOpResParam*)GetHcclContext<HCCL_GROUP_ID_0>();
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::InitParams()
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams()
 {
     aivId_ = GetBlockIdx(); // 获取当前核Id
     scaleNumsPerBlcok_ = SCALE_BLCOK_BYTES / sizeof(ScalesType); // 一块scale固定32B, 计算包含多少个数据
@@ -109,16 +102,14 @@ __aicore__ inline void MTECommunication<TemplateType>::InitParams()
     uint64_t blockIdx = aivId_ * round_ + (aivId_ < tailBlockNums_ ? aivId_ : tailBlockNums_); // 计算当前核分派到的首个数据块序列号
     xOffset_ = blockIdx * xNumPerBlock_; // 块数 * 一块有多少数据，得到要搬第几个x数据
     scaleOffset_ = blockIdx * scaleNumsPerBlcok_; // 计算要搬第几个 scale
+    winDataSize_ = CeilAlign(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::InitGMTensor(
-    GM_ADDR x, GM_ADDR scales, GM_ADDR output, uint64_t xSize, uint64_t scaleSize, uint64_t winSpaceGmSize)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitGMTensor(uint64_t xSize, uint64_t scaleSize)
 {
     // 入参相关数据的GMTensor
-    xGMTensor_.SetGlobalBuffer((__gm__ XType*)x);
-    scalesGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)scales);
-    outputTensor_.SetGlobalBuffer((__gm__ OutputType*)output);
+    // outputTensor_.SetGlobalBuffer((__gm__ OutputType*)output);
 
     // 获取本卡地址写数据
     // 通过rankId获取本地数据区地址对应卡的数据区域
@@ -127,13 +118,13 @@ __aicore__ inline void MTECommunication<TemplateType>::InitGMTensor(
     // |  data  |  data  |  ...   | scales | scales |  ...   |
     // +--------+--------+--------+--------+--------+--------+
     GM_ADDR localDataGm = GetWinDataAddrGm(hcclContext_->localUsrRankId) + hcclContext_->localUsrRankId * xSize;
-    GM_ADDR localScaleGm = localDataGm + hcclContext_->rankSize * xSize + hcclContext_->localUsrRankId * scaleSize;
+    GM_ADDR localScaleGm = localDataGm + winDataSize_ + hcclContext_->localUsrRankId * scaleSize;
     localWinXGMTensor_.SetGlobalBuffer((__gm__ XType*)localDataGm);
     localWinScaleGMTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm); // sclae数据跟在x后
 }
 
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::InitBuffer(TPipe *tPipe)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitBuffer(TPipe *tPipe)
 {
     tPipe->InitBuffer(xQueue_, BUFFER_NUM, X_BLOCK_BYTES);    
     tPipe->InitBuffer(scaleQueue_, BUFFER_NUM, UB_ALIGN_BYTES);     
@@ -153,8 +144,8 @@ __aicore__ inline void MTECommunication<TemplateType>::InitBuffer(TPipe *tPipe)
  * @param aivNum AIV核的总数，用于数据分发和负载均衡
  * @param lastBlockNum 最后一个核处理的尾部数据块元素数量
  */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum)
 {
     xNumPerBlock_ = elementsPerBlock;
     aivNum_ = aivNum;
@@ -169,8 +160,8 @@ __aicore__ inline void MTECommunication<TemplateType>::SetBlockSize(uint32_t ele
  * @note 当数据量较小时，此时计算仅仅只有一轮（round_ == 0），此时处理尾块的aiv并非最后一个，
  *       需根据当前数据块数量计算。
  */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::ComputeTailAivId(uint64_t totalAivCount)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::ComputeTailAivId(uint64_t totalAivCount)
 {
     if (round_ == 0) {
         // 小数据量时，如果只有一轮搬运，负责尾块的aiv由此时计算的总块数决定
@@ -182,59 +173,6 @@ __aicore__ inline void MTECommunication<TemplateType>::ComputeTailAivId(uint64_t
 }
 
 /**
- * @brief 复制数据块从GM到Win区
- * 
- * 复制流程：
- * 1. 量化数据（x）复制：GM → UB（队列分配缓冲区） → Win区
- * 2. 缩放因子（scale）复制：GM → UB（队列分配缓冲区） → Win区
- * 
- * @param curXOffset 量化数据x在全局内存(GM)中的偏移量
- * @param curScaleOffset 缩放因子scale在全局内存(GM)中的偏移量
- * @param count 当前x数据块dataCopy的元素数量
- */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::CopyDataBlock(uint64_t curXOffset, uint64_t curScaleOffset, uint32_t count)
-{
-    // 先拷贝data数据， 再拷贝scales
-    /* x 从 GM -> UB -> Win */
-    xTmpTensor_ = xQueue_.AllocTensor<XType>();
-    DataCopy(xTmpTensor_, xGMTensor_[curXOffset], count);
-    xQueue_.EnQue(xTmpTensor_);
-    xTmpTensor_ = xQueue_.DeQue<XType>();
-    DataCopy(localWinXGMTensor_[curXOffset], xTmpTensor_, count);
-    xQueue_.FreeTensor<XType>(xTmpTensor_);
-
-    /* scale 从 GM -> UB -> Win */
-    scaleTmpTensor_ = scaleQueue_.AllocTensor<ScalesType>();
-    DataCopy(scaleTmpTensor_, scalesGMTensor_[curScaleOffset], scaleNumsPerBlcok_);
-    scaleQueue_.EnQue(scaleTmpTensor_);
-    scaleTmpTensor_ = scaleQueue_.DeQue<ScalesType>();
-    DataCopy(localWinScaleGMTensor_[curScaleOffset], scaleTmpTensor_, scaleNumsPerBlcok_);
-    scaleQueue_.FreeTensor<ScalesType>(scaleTmpTensor_);
-}
-
-/**
- * @brief 将数据复制到Win区
- * 
- * 该函数根据通信模式将数据从全局内存GM全部复制到本卡Win区，数据全局复制，每个核直接将数据复制到Win区
- */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::CopyDataToWin()
-{
-    // 遍历每个核需要搬运的数据块
-    for (uint64_t curBlock = 0; curBlock < assignedBlockNums_; ++curBlock) {
-        uint64_t curXOffset = xOffset_ + curBlock * xNumPerBlock_; // 计算现在搬第几个x
-        uint32_t copyBlockNum = xNumPerBlock_;
-        if ((aivId_ ==  lastAivId_) && (curBlock == assignedBlockNums_ - 1)) {
-            copyBlockNum = tailXNums_; // 检测是否为最后的尾块搬运
-        }
-        // allgather直接搬运
-        CopyDataBlock(curXOffset, curScaleOffset, copyBlockNum);
-    }
-    PipeBarrier<PIPE_ALL>();
-}
-
-/**
  * @brief 向Win区状态区写入本核完成数据搬运状态
  * 
  * 该函数负责将当前AI Core（核）的数据搬运完成状态写入到所有Rank的状态Win区中，
@@ -242,8 +180,8 @@ __aicore__ inline void MTECommunication<TemplateType>::CopyDataToWin()
  * 每个核需要向所有Rank（包括本机和其他设备）的状态窗口写入标识，
  * 确保所有设备都能感知到当前核的完成状态。
  */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::WriteStatusToWin()
 {
     uint32_t coreOffset = aivId_ * hcclContext_->rankSize; // Win区大小为 aivNum * rankSize, 此处计算核偏移
     // 遍历每一张卡，给每一张卡都要写入状态
@@ -271,8 +209,8 @@ __aicore__ inline void MTECommunication<TemplateType>::WriteStatusToWin()
  * 都已完成状态设置。这种软同步机制确保所有Rank上当前核（AI Core）所需的数据都已
  * 准备就绪，从而避免跨设备数据不一致性问题。
  */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::ReadStatus()
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
 {
     GM_ADDR stateGM = GetWinStatusAddrGm(hcclContext_->localUsrRankId); // 获取本卡的状态区用于读取
     GlobalTensor<float> selfStatusWinTensor;
@@ -304,8 +242,8 @@ __aicore__ inline void MTECommunication<TemplateType>::ReadStatus()
  * @param sourceTensor 本地UB上计算结果Tensor，包含计算完成的数据。
  * @param count 当前每次处理数据块的元素数量
  */
-template <TemplateTypeClass>
-__aicore__ inline void MTECommunication<TemplateType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count)
 {
     // 将计算好的数据拷贝到输出tensor，如果是非float数据类型需要先转换成目标数据类型
     xOutTensor_ = xOutQueue_.AllocTensor<OutputType>();
@@ -321,8 +259,8 @@ __aicore__ inline void MTECommunication<TemplateType>::CopyResultToOutput(uint64
 }
 
 // 获取对应rank的Win区数据区的地址
-template <TemplateTypeClass>
-__aicore__ inline GM_ADDR MTECommunication<TemplateType>::GetWinDataAddrGm(uint32_t rankId)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinDataAddrGm(uint32_t rankId)
 {
     if (rankId == hcclContext_->localUsrRankId) {
         return (GM_ADDR)(hcclContext_->localWindowsIn);
@@ -331,8 +269,8 @@ __aicore__ inline GM_ADDR MTECommunication<TemplateType>::GetWinDataAddrGm(uint3
 }
 
 // 获取对应rank的Win区状态区的地址
-template <TemplateTypeClass>
-__aicore__ inline GM_ADDR MTECommunication<TemplateType>::GetWinStatusAddrGm(uint32_t rankId)
+template <AllGatherTemplateTypeClass>
+__aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinStatusAddrGm(uint32_t rankId)
 {
     if (rankId == hcclContext_->localUsrRankId) {
         return (GM_ADDR)(hcclContext_->localWindowsExp);
