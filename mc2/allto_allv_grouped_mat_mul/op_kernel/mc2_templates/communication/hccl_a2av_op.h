@@ -169,7 +169,7 @@ private:
         for (uint64_t i = 1UL; i < rankDim_; i++) {
             alltoAllvRecvOffset[i] = alltoAllvRecvOffset[i - 1];
             for (uint64_t j = 0UL; j < e_; j++) {
-                alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[(i - 1) * e_ + j]) * N1_;
+                alltoAllvRecvOffset[i] += static_cast<uint64_t>(recvCnt[startExpertIdx + (i - 1) * e_ + j]) * N1_;
             }
         }
         alltoAllvHandleId_[startExpertIdx] =
