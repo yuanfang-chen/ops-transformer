@@ -16,9 +16,6 @@
 #ifndef HPP_HPP
 #define HPP_HPP
 
-
-#include "basic_api/kernel_basic_intf.h"
-
 #if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
 #else
