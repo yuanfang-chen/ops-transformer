@@ -36,7 +36,7 @@ protected:
     }
 };
 
-TEST_F(MatmulAllReduceAclnnInputNullPtrTest, aclnnMatmulAllReduce)
+TEST_F(MatmulAllReduceAclnnInputNullPtrTest, aclnnMatmulAllReduce_)
 {
     TensorDesc x1 = TensorDesc({16, 32}, ACL_FLOAT16, ACL_FORMAT_ND);
     TensorDesc x2 = TensorDesc({32, 16}, ACL_FLOAT16, ACL_FORMAT_ND);
