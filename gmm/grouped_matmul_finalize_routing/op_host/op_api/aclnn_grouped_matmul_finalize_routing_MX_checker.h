@@ -39,7 +39,7 @@ static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_MX = {o
 static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_FLOAT8_E8M0};
-static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST = {op::DataType::DT_INT64};
+static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST_MX = {op::DataType::DT_INT64};
 static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST = {op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> LOGIT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
@@ -48,6 +48,7 @@ const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN = {Dat
 static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_BF16, op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT, op::DataType::DT_BF16};
+static const std::initializer_list<op::DataType> GROUP_LIST_TYPE_SUPPORT_LIST_PERTOEKN = {op::DataType::DT_INT64, op::DataType::DT_INT32};
 enum class QuantMode {
     PERTOEKN = 0, // pertoken 量化
     MX = 2        // MX量化
@@ -293,7 +294,7 @@ public:
         if (gmmParams_.bias != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, BIAS_TYPE_SUPPORT_LIST_MX, return false);
         }
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST_MX, return false);
         if (gmmParams_.shareInput != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.shareInput, SHARED_INPUT_TYPE_SUPPORT_LIST, return false);
         }
@@ -325,7 +326,7 @@ public:
         if (gmmParams_.bias != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.bias, BIAS_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         }
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.groupList, GROUP_LIST_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         if (gmmParams_.shareInput != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.shareInput, SHARED_INPUT_TYPE_SUPPORT_LIST, return false);
         }
