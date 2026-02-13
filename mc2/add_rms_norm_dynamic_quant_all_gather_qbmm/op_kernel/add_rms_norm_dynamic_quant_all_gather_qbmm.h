@@ -22,9 +22,7 @@
 #include "adv_api/pad/broadcast.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
-#include "utils.h"
-#include "mte_comm.h"
-#include "vec_comp.h"
+#include "all_gather_mte.h"
 #include "add_rms_norm_dynamic_quant_v2_helper.h"
 #if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
 #include "../common/inc/kernel/mc2_kernel_utils.h"
@@ -63,6 +61,7 @@ private:
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
     
     TPipe *tpipe_{nullptr};
+    AllGatherMte<AllGatherTemplateType> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -149,6 +148,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
     scaleWinGMTensor_.SetGlobalBuffer((__gm__ float*)dynamicScaleWinGM);
+
+    allGatherMte_.Init(tPipe_, axisM_, axisKa_, aivNum_);
 }
 
 template<TemplateMC2TypeClass>
@@ -304,20 +305,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::SetRemoteFlag()
-{
-    
-
-}
-
-template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::WaitRemoteFlag()
-{
-    
-
-}
-
-template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
 {
     
@@ -331,6 +318,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         Add2RmsNormDynamicQuantProcess();
         SyncAll<true>();
         PipeBarrier<PIPE_MTE3>();
+        allGatherMte_.SetRemoteFlag();
+        allGatherMte_.WaitRemoteFlag();
+        allGatherMte_.ExecuteAllGather();
     }
     
     if ASCEND_IS_AIC {
