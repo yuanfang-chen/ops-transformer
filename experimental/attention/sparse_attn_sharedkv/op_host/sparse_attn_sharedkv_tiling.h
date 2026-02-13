@@ -538,7 +538,7 @@ private:
     uint32_t usedCoreNum_ = 0;
     
     uint32_t headDimAlign_ = 0;
-    uint32_t mBaseSize_ = 0;
+    uint32_t mBaseSize_ = 64;
 };
 
 }

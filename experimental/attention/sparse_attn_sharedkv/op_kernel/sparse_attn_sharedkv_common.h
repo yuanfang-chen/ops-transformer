@@ -206,7 +206,6 @@ struct RunInfo {
     uint32_t tndCoreStartKVSplitPos = 0;
     bool isBmm2Output = false;
     bool isValid = false;
-    int64_t inValidRowCount = 0;
 
     static constexpr uint32_t n2Idx = 0;
     uint64_t actS1Size = 1;
@@ -225,8 +224,6 @@ struct RunInfo {
     int64_t cmpS2IdLimit = 0;
     int32_t v0S2DealSize = 0;
     int32_t v0S2Start = 0;
-    uint32_t oriDealSize = 0;
-    int32_t cmpMaskRight = 0;
 };
 
 struct ConstInfo {
