@@ -124,10 +124,6 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
                 OP_LOGE(context_->GetNodeName(), "Bias from tensor is not nullptr, but bias from desc is nullptr."),
                 return false);
     inputParams_.biasDtype = inputParams_.hasBias ? biasDesc->GetDataType() : ge::DT_BF16;
-    // OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
-    //             OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
-    //                     ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
-    //             return false);
 
     OP_CHECK_IF(!CheckDtype(), OP_LOGE(context_->GetNodeName(), "Required input check failed."), return false);
 
@@ -140,8 +136,17 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
     OP_CHECK_IF(!CheckOptional(LOGIT_INDEX, "LogitIndex", ge::DT_FLOAT),
                 OP_LOGE(context_->GetNodeName(), "LogitIndex check failed."), return false);
 
-    OP_CHECK_IF(!CheckOptional(ROW_INDEX_INDEX, "RowIndex", ge::DT_INT64),
-                OP_LOGE(context_->GetNodeName(), "RowIndex check failed."), return false);
+    if (IsMicroScaling()) {
+        OP_CHECK_IF(!CheckOptional(ROW_INDEX_INDEX, "RowIndex", ge::DT_INT64),
+                    OP_LOGE(context_->GetNodeName(), "RowIndex check failed."), return false);
+    } else if (context_->GetOptionalInputDesc(ROW_INDEX_INDEX) != nullptr) {
+        auto rowIndexDtype = context_->GetOptionalInputDesc(ROW_INDEX_INDEX)->GetDataType();
+        OP_CHECK_IF(!(rowIndexDtype == ge::DT_INT64 || rowIndexDtype == ge::DT_INT32),
+                    OP_LOGE(context_->GetNodeName(), "RowIndex dtype should be DT_INT64/DT_INT32,but now is %s ",
+                            ge::TypeUtils::DataTypeToSerialString(rowIndexDtype).c_str()),
+                    return false);
+    }
+
     return true;
 }
 
@@ -154,9 +159,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
     }
     auto realDtype = optionalDesc->GetDataType();
     OP_CHECK_IF(realDtype != targetDtype,
-                OP_LOGE(context_->GetNodeName(), "%s dtype should be %s,but now is %s ", paramName,
-                        ge::TypeUtils::DataTypeToSerialString(targetDtype).c_str(),
-                        ge::TypeUtils::DataTypeToSerialString(realDtype).c_str()),
+                
                 return false);
     return true;
 }
@@ -174,25 +177,30 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
 {
-//     bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
-//     bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
-//     if (a8w8 || a4w4) {
-//         OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
-//                         inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
-//                     OP_LOGE(context_->GetNodeName(),
-//                             "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1 inputs, \
-// the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
-//                             ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
-//                             ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
-//                     return false);
-//     } else {
-//         OP_LOGE(context_->GetNodeName(), "Quant case with x dtype %s and weight dtype %s is not supported.",
-//                 ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
-//                 ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
-//         return false;
-//     }
+    bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
+    bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
+    if (a8w8 || a4w4) {
+        OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
+                        inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
+                    OP_LOGE(context_->GetNodeName(),
+                            "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1 inputs, \
+the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
+                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
+                            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
+                    return false);
+    } else {
+        OP_LOGE(context_->GetNodeName(), "Quant case with x dtype %s and weight dtype %s is not supported.",
+                ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+                ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
+        return false;
+    }
 
     if (IsMicroScaling()) {
+
+        OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
+                OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
+                        ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+                return false);
 
     } else {
         OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
@@ -340,11 +348,16 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::SetQuantModeForGMMFinalizeRouting(
         inputParams_.bQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
         inputParams_.aQuantMode = optiling::QuantMode::MX_PERGROUP_MODE;
         return true;
-    } else {
-        inputParams_.aQuantMode = optiling::QuantMode::PERTOKEN_MODE;
-        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
-        return true;
     }
+
+    inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
+    if (context_->GetOptionalInputShape(PERTOKEN_SCALE_INDEX) != nullptr) {
+        inputParams_.aQuantMode = optiling::QuantMode::PERTOKEN_MODE;
+    } else {
+        inputParams_.aQuantMode = optiling::QuantMode::DEFAULT;
+    }
+
+    return true;
 }
 
 ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
