@@ -34,10 +34,11 @@ namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
 // TODO
 #define TemplateMC2TypeClass typename X1Type, bool IsScaleExist, bool IsSmoothScaleExist
-#define TemplateMC2TypeFunc X1Type, IsScaleExist, IsSmoothScaleExist, 
+#define TemplateMC2TypeFunc X1Type, IsScaleExist, IsSmoothScaleExist
 // using namespace QuantMTECommImpl;
 // using namespace VectorComputeImpl;
 using namespace AscendC;
+using namespace AllGatherImpl;
 
 // 之后可修改成从tiling侧获取数据切块大小
 constexpr static uint32_t X_PRE_BLOCK_NUM = 1024U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
@@ -56,12 +57,13 @@ public:
     __aicore__ inline void Process();
 private:
     __aicore__ inline void InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
-    __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t startId, uint32_t endId, uint32_t sendNum);
+    __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
+    __aicore__ inline void MatmulProcess();
     __aicore__ inline void Add2RmsNormDynamicQuantCompute(int32_t gmOffset, int32_t rowIdx, int32_t startRowId, int32_t elementCount);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
     
     TPipe *tpipe_{nullptr};
-    AllGatherMte<AllGatherTemplateType> allGatherMte_;  // allGather 相关实现
+    AllGatherMte<X1Type, float, int8_t> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -70,6 +72,8 @@ private:
     GlobalTensor<float> scaleGMTensor_; // 类型确定
     GlobalTensor<float> smoothScaleGMTensor_;
     GlobalTensor<int32_t> biasGMTensor_; // 类型确定
+    GlobalTensor<int8_t> x1WinGMTensor_; // 类型确定
+    GlobalTensor<float> scaleWinGMTensor_; // 类型确定
     
     LocalTensor<X1Type> x1Tensor_;
     LocalTensor<int8_t> x2Tensor_;
@@ -100,8 +104,8 @@ private:
     uint32_t axisN_{0};
     uint32_t aivNum_{0};
     uint32_t rankSize_{0};
-    uint32_t eps_{0};
-    uint32_t aveNum_{0};
+    float eps_{0};
+    float aveNum_{0};
     uint64_t axisKaAlignSize_{0};
     uint64_t axisKaAlignFloatSize_{0};
     uint64_t axisKaAlignInt8Size_{0};
@@ -121,13 +125,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
     x1GMTensor_.SetGlobalBuffer((__gm__ X1Type*)x1);
     x2GMTensor_.SetGlobalBuffer((__gm__ int8_t*)x2);
-    residualGMTensor_.SetGlobalBuffer((__gm__ int32_t*)residual);
-    yGMTensor_.SetGlobalBuffer((__gm__ int32_t*)y);
-    gammaGMTensor_.SetGlobalBuffer((__gm__ int32_t*)gamma);
+    residualGMTensor_.SetGlobalBuffer((__gm__ X1Type*)residual);
+    yGMTensor_.SetGlobalBuffer((__gm__ X1Type*)y);
+    gammaGMTensor_.SetGlobalBuffer((__gm__ float*)gamma);
     // 可选输入
-    scaleGMTensor_.SetGlobalBuffer((__gm__ int32_t*)scale);
-    smoothScaleGMTensor_.SetGlobalBuffer((__gm__ int32_t*)smoothScale);
-    biasGMTensor_.SetGlobalBuffer((__gm__ bool*)bias);
+    scaleGMTensor_.SetGlobalBuffer((__gm__ float*)scale);
+    smoothScaleGMTensor_.SetGlobalBuffer((__gm__ float*)smoothScale);
+    biasGMTensor_.SetGlobalBuffer((__gm__ int32_t*)bias);
 
     // tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
@@ -224,14 +228,14 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
 
     // CopyOut z
-    if constexpr (is_same<X1Type, half>::value) {
-        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
-    } else { // BF16
-        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
-    }
-    zOutQueue_.EnQue(zOutLocalTensor);
-    zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
-    DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
+    // if constexpr (is_same<X1Type, half>::value) {
+    //     Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
+    // } else { // BF16
+    //     Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+    // }
+    // zOutQueue_.EnQue(zOutLocalTensor);
+    // zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
+    // DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
     zOutQueue_.FreeTensor<X1Type>(zOutLocalTensor);
 
     // RMS Norm
@@ -326,7 +330,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     if ASCEND_IS_AIC {
         MatmulProcess();
     }
-
+    AscendC::PRINTF("[Kernel] Over!!!");
 }
 } // AddRmsNormDynamicQuantAllGatherQbmmImpl
 #endif  // ADD_RMS_NORM_DYNAMIC_ALL_GATHER_QBMM_H

@@ -38,7 +38,6 @@ public:
     __aicore__ inline VectorCompute() {};
     __aicore__ inline void InitBuffer(TPipe *tPipe);
     __aicore__ inline void CastToFloat(LocalTensor<XType> &xTensor, LocalTensor<ScalesType> &scaleTensor);
-    __aicore__ inline void DequantAndCopyBack(LocalTensor<XType> &xTensor, LocalTensor<ScalesType> &scaleTensor, LocalTensor<float> &sumTensor);
     __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock);
 private:
     uint32_t xNumPerBlock_{0};
@@ -100,7 +99,6 @@ __aicore__ inline void VectorCompute<AllGatherTemplateType>::SetBlockSize(uint32
  * @param xTensor 量化输入数据张量
  * @param scaleTensor 量化缩放系数张量
  * 
- * @note 针对fp8_e8m0缩放因子使用微指令（VF_CALL<CastVf>）进行转换
  */
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void VectorCompute<AllGatherTemplateType>::CastToFloat(
@@ -136,62 +134,11 @@ __aicore__ inline void VectorCompute<AllGatherTemplateType>::CastToFloat(
         PipeBarrier<PIPE_V>();
     }
 
-    if constexpr (AscendC::IsSameType<ScalesType, fp8_e8m0_t>::value) {
-        // fp8_e8m0 -> bf16 -> fp32
-        // 当前Cast接口不支持fp8_e8m0_t类型转换只能使用微指令实现
-        tempBf16Scale_ = tempBf16ScaleBuf_.Get<bfloat16_t>();
-        Duplicate<bfloat16_t>(tempBf16Scale_, (bfloat16_t)0.0, MX_SIZE);
-        PipeBarrier<PIPE_V>();
-        __local_mem__ fp8_e8m0_t* srcPtr = (__local_mem__ fp8_e8m0_t*)scaleTensor.GetPhyAddr();
-        __local_mem__ bfloat16_t* tempBf16ScalePtr = (__local_mem__ bfloat16_t*)tempBf16Scale_.GetPhyAddr();
-        // 当前Cast接口不支持fp8_e8m0_t类型转换只能使用微指令实现
-        VF_CALL<CastVf>(tempBf16ScalePtr, srcPtr, MX_SIZE);
-        PipeBarrier<PIPE_V>();
-        Cast(castLocalScale, tempBf16Scale_, RoundMode::CAST_NONE, MX_SIZE);
-        PipeBarrier<PIPE_V>();
-        // MX量化将scale广播成32
-        const uint32_t broadcastDst[TWO_DIMS]{MX_SCALE_TRANS_NUM, MX_SIZE};
-        const uint32_t broadcastSrc[TWO_DIMS]{MX_SCALE_TRANS_NUM, 1};
-        BroadCast<float, TWO_DIMS, 1>(scaleCalTensor_, castLocalScale, broadcastDst, broadcastSrc);
-    } else {
-        castLocalScale = scaleTensor.template ReinterpretCast<float>();
-        // PT量化将scale广播成128
-        const uint32_t broadcastDst[TWO_DIMS]{PT_SCALE_TRANS_NUM, PER_GROUP_SIZE};
-        const uint32_t broadcastSrc[TWO_DIMS]{PT_SCALE_TRANS_NUM, 1};
-        BroadCast<float, TWO_DIMS, 1>(scaleCalTensor_, castLocalScale, broadcastDst, broadcastSrc);
-    }
-}
-
-/**
- * TODO: 更改方法，不作规约，直接存回win区
- * @brief 向量反量化与归约求和计算
- *
- * 该函数执行以下操作序列：
- * 1. 将量化数据x和缩放因子scale都转换为浮点数float
- * 2. 反量化（乘以缩放因子）
- * 3. 将反量化结果累加到求和张量中
- * 
- * @param xTensor 量化后的输入张量
- * @param scaleTensor 缩放因子张量
- * @param xGlobalTensor 输入张量win区地址
- * 
- * @note 函数内部包含多次流水线同步（PipeBarrier<PIPE_V>）确保计算顺序
- */
-template <AllGatherTemplateTypeClass>
-__aicore__ inline void VectorCompute<AllGatherTemplateType>::DequantAndCopyBack(
-    LocalTensor<XType> &xTensor,
-    LocalTensor<ScalesType> &scaleTensor,
-    GlobalTensor<XType> &xGlobalTensor)
-{
-    // Cast成float计算
-    CastToFloat(xTensor, scaleTensor);
-    PipeBarrier<PIPE_V>();
-    // 反量化
-    Mul(xCastTemp_, xCastTemp_, scaleCalTensor_, xNumPerBlock_);
-    PipeBarrier<PIPE_V>();
-    // 搬运至win区
-    DataCopy(xGlobalTensor, xCastTemp_, xNumPerBlock_);
-    PipeBarrier<PIPE_V>();
+    castLocalScale = scaleTensor.template ReinterpretCast<float>();
+    // PT量化将scale广播成128
+    const uint32_t broadcastDst[TWO_DIMS]{PT_SCALE_TRANS_NUM, PER_GROUP_SIZE};
+    const uint32_t broadcastSrc[TWO_DIMS]{PT_SCALE_TRANS_NUM, 1};
+    BroadCast<float, TWO_DIMS, 1>(scaleCalTensor_, castLocalScale, broadcastDst, broadcastSrc);
 }
 } // VectorComputeImpl
 #endif  // ALL_GATHER_MTE_VEC_COMP_H

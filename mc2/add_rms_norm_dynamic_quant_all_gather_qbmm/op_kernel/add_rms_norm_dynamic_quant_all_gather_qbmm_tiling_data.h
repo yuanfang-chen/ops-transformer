@@ -36,7 +36,7 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t Ka = 5120;
     uint32_t N = 0;
     uint32_t aivNum = 24;
-    uint32_t worldSize = 4;
+    uint32_t rankSize = 4;
 };
 
 // tiling struct待完善
