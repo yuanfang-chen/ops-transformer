@@ -31,7 +31,6 @@
 #include "tiling/tiling_api.h"
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
-#include "mc2_exception_dump.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "../../op_kernel/moe_distribute_combine_tiling.h"
@@ -40,8 +39,14 @@
 #include "../../op_kernel/moe_distribute_combine_v2_tiling_key.h"
 #include "mc2_hcom_topo_info.h"
 
-using namespace Mc2Tiling;
+#ifdef MC2_EXCEPTION_HANDLER
+#include "mc2_exception_dump.h"
+#endif
+#ifdef MC2_EXCEPTION_HANDLER
 using namespace Mc2Exception;
+#endif
+
+using namespace Mc2Tiling;
 using namespace AscendC;
 using namespace ge;
 
@@ -129,6 +134,7 @@ namespace {
     constexpr uint32_t MAX_HIDDEN_SIZE_A2 = 7168;
     constexpr uint32_t LAYERED_MAX_HIDDEN_SIZE_A2 = 10240;
     constexpr uint32_t MAX_BATCH_SIZE_A2 = 256;
+    constexpr uint32_t LAYERED_MAX_BATCH_SIZE_A2 = 512;
     constexpr uint32_t RANK_NUM_PER_NODE_A2 = 8;
     constexpr uint32_t BLOCK_SIZE_A2 = 32;
     constexpr uint32_t MAX_K_VALUE_A2 = 16;
@@ -1588,7 +1594,8 @@ static ge::graphStatus MoeDistributeCombineA2CheckShapeAndSetTiling(const gert::
     OP_TILING_CHECK(expertIdStorageShape->GetStorageShape().GetDimNum() != TWO_DIMS,
         OP_LOGE(K_INNER_DEBUG, "expertIdshape is invalid"), return GRAPH_FAILED);
     uint32_t bs = expertIdStorageShape->GetStorageShape().GetDim(0);
-    OP_TILING_CHECK(bs == 0 || bs > MAX_BATCH_SIZE_A2,
+    uint32_t maxBatchSizeA2 = isLayered ? LAYERED_MAX_BATCH_SIZE_A2 : MAX_BATCH_SIZE_A2;
+    OP_TILING_CHECK(bs == 0 || bs > maxBatchSizeA2,
         OP_LOGE(K_INNER_DEBUG, "batchsize is invalid."), return GRAPH_FAILED);
 
     uint32_t k = expertIdStorageShape->GetStorageShape().GetDim(1);
@@ -1839,6 +1846,10 @@ static ge::graphStatus MoeDistributeCombineA2TilingFuncImpl(gert::TilingContext*
 {
     const char *nodeName = context->GetNodeName();
     OP_LOGI(nodeName, "Enter MoeDistributeCombineA2 tiling func.");
+    // 涉及SyncAll，设置batch mode模式，所有核同时启动 
+    uint32_t batch_mode = 1U; 
+    auto ret = context->SetScheduleMode(batch_mode); 
+    GE_ASSERT_GRAPH_SUCCESS(ret);
 
     // tilingData
     MoeDistributeCombineA2TilingData *tilingData = context->GetTilingData<MoeDistributeCombineA2TilingData>();
@@ -2000,6 +2011,7 @@ IMPL_OP_OPTILING(MoeDistributeCombineV2)
     .Tiling(MoeDistributeCombineV2TilingFunc)
     .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV2);
 
+#ifdef MC2_EXCEPTION_HANDLER
 // Register exception func
 inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
@@ -2008,4 +2020,6 @@ inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args,
 
 IMPL_OP(MoeDistributeCombineV2)
     .ExceptionDumpParseFunc(MoeDistributeCombineV2ExceptionImplWrapper);
+#endif
+
 } // namespace optiling

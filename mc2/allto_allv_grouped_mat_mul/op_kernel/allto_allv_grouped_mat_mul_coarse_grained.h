@@ -15,7 +15,11 @@
 #ifndef ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 #define ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "allto_allv_gmm.h"
 #include "lib/matmul_intf.h"
@@ -252,7 +256,9 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
         tokenNum[0] = gmmTokennum[e];
 
         if ASCEND_IS_AIC {
-            gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, e);
+            if (tokenNum[0] != 0) {
+                gmmOp.Process(this->rankId_, axisH1_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, e);
+            }
         }
     }
 }

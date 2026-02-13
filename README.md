@@ -40,10 +40,10 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 
 这些文档提供了多样化的场景介绍和更全面的操作指导，方便您应用于各种AI业务场景。
 
-1. [环境部署](docs/zh/context/quick_install.md)：搭建基础环境的指南，提供了多种场景下第三方依赖和软件包安装方法等。
-2. [算子调用](docs/zh/invocation/quick_op_invocation.md)：编译部署并调用算子的指南，提供了多种编译算子包以及运行算子的方法（包括执行算子样例和UT）等。
-3. [算子开发](docs/zh/develop/aicore_develop_guide.md)：基于本项目工程开发新算子的指南，提供了创建算子工程、实现Tiling和Kernel核心交付件等指导。
-4. [算子调试调优](docs/zh/debug/op_debug_prof.md)：提供了常见的算子调试和调优方法，如DumpTensor、msProf、Simulator等。
+1. [环境部署](docs/zh/context/quick_install.md)：搭建**基础环境**的指南，提供了多种场景下第三方依赖和软件包安装方法等。
+2. [算子调用](docs/zh/invocation/quick_op_invocation.md)：算子**源码编译和执行**指南，提供了不同场景下算子包编译（包括联网/未联网等）和算子运行的方法（包括执行算子样例和UT）等。
+3. [算子开发](docs/zh/develop/aicore_develop_guide.md)：基于本项目工程**开发新算子**的指南，提供了创建算子工程、实现Tiling和Kernel核心交付件等指导。
+4. [算子调试调优](docs/zh/debug/op_debug_prof.md)：提供了常见的**算子调试和调优**方法，如DumpTensor、msProf、Simulator等。
 
 除了上述指南，还提供了其他文档介绍，例如算子调用方式和流程、算子基本概念等，全量文档介绍请访问[docs](docs/README.md)。
 
@@ -88,6 +88,10 @@ ops-transformer是[CANN](https://hiascend.com/software/cann) （Compute Architec
 
 本项目功能和文档正在持续更新和完善中，建议您关注最新版本。
 
-- **问题反馈**：通过GitCode[【Issues】](https://gitcode.com/cann/ops-transformer/issues)提交问题
-- **社区互动**：通过GitCode[【讨论】](https://gitcode.com/cann/ops-transformer/discussions)参与交流
-- **技术专栏**：通过GitCode[【Wiki】](https://gitcode.com/cann/ops-transformer/wiki)获取技术文章，如系列化教程、优秀实践等
+- **问题反馈**：通过GitCode[【Issues】](https://gitcode.com/cann/ops-transformer/issues)提交问题。
+- **社区互动**：通过GitCode[【讨论】](https://gitcode.com/cann/ops-transformer/discussions)参与交流。
+- **技术专栏**：通过GitCode[【Wiki】](https://gitcode.com/cann/ops-transformer/wiki)获取技术文章，如系列化教程、优秀实践等。
+
+    |技术专题|样例|
+    |----|----|
+    |算子性能优化实践|[FA算子性能优化实践和效果分析](https://gitcode.com/cann/ops-transformer/wiki/FA%E7%AE%97%E5%AD%90%E6%80%A7%E8%83%BD%E4%BC%98%E5%8C%96%E5%AE%9E%E8%B7%B5%E5%92%8C%E6%95%88%E6%9E%9C%E5%88%86%E6%9E%90.md)|

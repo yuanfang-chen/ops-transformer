@@ -19,7 +19,11 @@
 #include "flash_attention_score_block_vec_train.h"
 #include "flash_attention_score_block_vec_infer.h"
 #include "flash_attention_score_common_regbase.h"
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "attenmask.h"
 
 // 线上编包
@@ -127,6 +131,8 @@ public:
     uint64_t s1OuterSizeAcc;
     uint64_t s1SizeAcc;
     uint64_t s2SizeAcc;
+    uint64_t s1ScaleNumAcc;
+    uint64_t s2ScaleNumAcc;
 
     // prefix
     int64_t actualKVPrefixLen = 0;
@@ -306,7 +312,7 @@ template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, VecBlockType>::InitMMResBuf()
 {
     constexpr uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
-    constexpr uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T); // DYX TODO: CV数量之比暂时定义为宏，后续应根据硬件版本定义为相应常量
+    constexpr uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
     constexpr uint32_t mm2LeftSize = s1BaseSize * s2BaseSize * sizeof(INPUT_T);
     l1BufferManager.Init(pipe, 524288); // 512 * 1024
     // 保存p结果的L1内存必须放在第一个L1 policy上，保证和vec申请的地址相同
@@ -609,6 +615,8 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     }
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
         runInfo.boIdx = runParam.boIdx;
+        runInfo.s1ScaleNumAcc = s1ScaleNumAcc;
+        runInfo.s2ScaleNumAcc = s2ScaleNumAcc;
         runInfo.s1SizeAcc = s1SizeAcc;
         runInfo.s2SizeAcc = s2SizeAcc;
     } else {
