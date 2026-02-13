@@ -58,9 +58,10 @@ static constexpr AscendC::MicroAPI::CastTrait ctHalf2Fp32OneES = {
 using namespace AscendC;
 
 #define GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS                                                                  \
-    template <typename DataTypeOut_, typename DataTypeIn_, typename DataTypeX2Scale_, typename DataTypeX1Scale_, typename DataTypeBias_>
+    template <typename DataTypeOut_, typename DataTypeIn_, typename DataTypeX2Scale_, typename DataTypeX1Scale_, \
+        typename DataTypeBias_, typename DataTypeRowIndex_>
 #define GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_FUNC_LOCAL_PARAMS                                                                   \
-    DataTypeOut_, DataTypeIn_, DataTypeX2Scale_, DataTypeX1Scale_, DataTypeBias_
+    DataTypeOut_, DataTypeIn_, DataTypeX2Scale_, DataTypeX1Scale_, DataTypeBias_, DataTypeRowIndex_
 
 GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_CLASS_LOCAL_PARAMS
 class BlockEpilogueDequantFinalizeRouting {
@@ -86,6 +87,7 @@ public:
     using DataTypeX1Scale = DataTypeX1Scale_;
     using DataTypeX2Scale = DataTypeX2Scale_;
     using BiasDtype = DataTypeBias_;
+    using DataTypeRowIndex = DataTypeRowIndex_;
     // shape
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>; // blk_m, blk_n, blk_k, _
     using BlockCoord = AscendC::Coord<int64_t, int64_t, int64_t, int64_t, int64_t, int64_t>; // y, _, _, _, logit, rowIndex
@@ -122,7 +124,7 @@ private:
 
     // GM ADDR
     AscendC::GlobalTensor<float> logitGlobal_;
-    AscendC::GlobalTensor<int64_t> rowIndexGlobal_;
+    AscendC::GlobalTensor<DataTypeRowIndex> rowIndexGlobal_;
     AscendC::GlobalTensor<DataTypeX1Scale> x1ScaleGlobal_;
     AscendC::GlobalTensor<DataTypeX2Scale> x2ScaleGlobal_;
     AscendC::GlobalTensor<BiasDtype> biasGlobal_;
@@ -208,7 +210,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
 {
     if ASCEND_IS_AIV {
         logitGlobal_.SetGlobalBuffer((__gm__ float *)params_->logitGmAddr + Get<LOGIT_INDEXS>(baseOffset));
-        rowIndexGlobal_.SetGlobalBuffer((__gm__ int64_t *)params_->rowIndexGmAddr + Get<LOGIT_INDEXS>(baseOffset));
+        rowIndexGlobal_.SetGlobalBuffer((__gm__ DataTypeRowIndex *)params_->rowIndexGmAddr + Get<LOGIT_INDEXS>(baseOffset));
         if (params_->x1ScaleGmAddr != nullptr) {
             x1ScaleGlobal_.SetGlobalBuffer((__gm__ DataTypeX1Scale*)params_->x1ScaleGmAddr + Get<X1SCALE_IDXS>(baseOffset));
         }
