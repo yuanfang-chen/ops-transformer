@@ -10,11 +10,11 @@
 
 causal_conv1d_fn算子本质：
 
-对连续3个token进行一维卷积操作。
+对连续k个token进行一维卷积操作。
 
 causal_conv1d_fn计算公式：
 
-输入(x)和输出(y)的shape是(S,dim)，(weight)的shape是(K=3,dim)，i分别表示S轴的索引，那么输出将被表示为：
+输入(x)和输出(y)的shape是(S,dim)，(weight)的shape是(K=k,dim)，i分别表示S轴的索引，那么输出将被表示为：
 
 $y[i] = \sum_{k=0}^{K-1}w[k]\cdot  x[i+k]$ .
 
@@ -44,7 +44,7 @@ routingMap，normOut，gradProbs和gradLogits的数据类型必须一致。
 | 参数名          | 输入/输出 | 描述                                                                                                            | 使用说明       | 数据类型                                   | 数据格式 | 维度(shape)                                                                                                           | 非连续Tensor |
 | --------------- | --------- | --------------------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------ | -------- | --------------------------------------------------------------------------------------------------------------------- | ------------ |
 | x               | 输入      | 输入序列，采用 CuSeqLen 布局。                                                                                  | 不支持空Tensor | FLOAT16、BFLOAT16                          | ND       | 2维[cu_seq_len, dim]<br />cu_seq_len 为所有变长序列拼接后的总长度，<br />范围是[1, 65536]<br />dim为特征维度,保证为16的倍数，范围是 [64, 16384]。 | √           |
-| weight          | 输入      | 因果1维卷积核                                                                                                   | 不支持空Tensor | FLOAT16、BFLOAT16<br />数据类型与输入一致  | ND       | 2维[K, dim]<br /> K是卷积核宽度，K = 3<br />dim为特征维度,与x的dim保持一致，范围是 [64, 16384]。                                              | √           |
+| weight          | 输入      | 因果1维卷积核                                                                                                   | 不支持空Tensor | FLOAT16、BFLOAT16<br />数据类型与输入一致  | ND       | 2维[K, dim]<br /> K是卷积核宽度，K = k(k<=6>)<br />dim为特征维度,与x的dim保持一致，范围是 [64, 16384]。                                              | √           |
 | seqStartIndices | 输入      | 序列起始位置索引<br /> 记录各序列在拼接张量 x 中的起始位置：<br />seqStartIndices[i] 表示第 i个序列的起始偏移。 | 不支持空Tensor | INT64                                      | ND       | 1维[batch+1,]<br /> batch 范围[1, 256 ]                                                                               | √           |
 | cacheIndices    | 输入      | 缓存索引，<br /> 指定每个序列对应的缓存状态在 cacheState 中的索引                                               | 不支持空Tensor | INT64                                      | ND       | 1维[batch,]                                                                                                           | √           |
 | cacheState      | 输入/输出 | 缓存状态张量，存储各序列的历史卷积状态<br />各序列计算完成后原地更新                                            | 不支持空Tensor | FLOAT16、BFLOAT16<br /> 数据类型与输入一致 | ND       | 3维[-1, K-1, dim]<br /> 第0维的大小不固定，且大于batch个数                                                                             | √           |
@@ -140,7 +140,7 @@ OP_ADD(CausalConv1dFn);
 通过核间切分后，每个核切分得到的shape为（BS.i, dim），即每个核处理的shape大小为（BS.i, dim）
 将每个核处理的数据看作一个二维的数据块，有BS.i行，dim列。BS.i是切核后，每个核处理的BS轴的具体大小。
 由于dim存在：
-1、无法全载的情况（dim=16384，且算卷积的话需要至少一次性载入三个sequence）。
+1、无法全载的情况（dim=16384，且算卷积的话需要至少一次性载入k个sequence）。
 2、每个sequence之间并不连续，sequence和sequence之间的搬运本身就是跳搬。
 3、如果以dim全载优先的话，会导致重复搬运的数据变多。
 因此，核内切分遵从以下基本规则：
@@ -211,7 +211,7 @@ cacheQueue和xQueue使用TQueBind分配buffer（既能VECIN又能VECOUT）。
 
 |  UB                  |  块大小（Byte）               |  BUF_NUM  |  数据类型   |
 | ---------------------- | ----------------------------| ----------| ------------|
-|  weightInQueue      |  3 * sizeof(bf16) * 256        |  1        |  FP16/BF16  |
+|  weightInQueue      |  k * sizeof(bf16) * 256        |  1        |  FP16/BF16  |
 |  cacheQueue         |  2 * sizeof(bf16) * 256        |  1        |  FP16/BF16  |
 |  startLocInQueue    |  64 * sizeof(int64)            |  1        |  INT64  |
 |  indicesInQueue     |  64 * sizeof(int64)            |  1        |  INT64  |
