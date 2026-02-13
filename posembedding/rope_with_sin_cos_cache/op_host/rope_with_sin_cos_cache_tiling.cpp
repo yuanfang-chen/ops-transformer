@@ -58,6 +58,7 @@ struct TilingParams {
     uint64_t mrope_section0 = 0;
     uint64_t mrope_section1 = 0;
     uint64_t mrope_section2 = 0;
+    uint64_t mrope_section3 = 0;
     uint64_t q_leading_dimension = 0;
     uint64_t k_leading_dimension = 0;
     uint64_t isNeoxStyle = 0;
@@ -119,6 +120,7 @@ static void SetTiling(TilingParams& params, RopeWithSinCosCacheTilingData& tilin
     tiling.set_mrope_section0(params.mrope_section0);
     tiling.set_mrope_section1(params.mrope_section1);
     tiling.set_mrope_section2(params.mrope_section2);
+    tiling.set_mrope_section3(params.mrope_section3);
     tiling.set_q_leading_dimension(params.q_leading_dimension);
     tiling.set_k_leading_dimension(params.k_leading_dimension);
     tiling.set_isNeoxStyle(params.isNeoxStyle);
@@ -342,6 +344,8 @@ static ge::graphStatus TilingRopeWithSinCosCache(gert::TilingContext* context)
         params.mrope_section0 = attrMRopeSectionData[0];
         params.mrope_section1 = attrMRopeSectionData[1];
         params.mrope_section2 = attrMRopeSectionData[2];
+        //TODO 这里需要有一个维度的判断
+        params.mrope_section3 = attrMRopeSectionData[3];
     }
 
     const uint64_t* attrQStride = attrs->GetAttrPointer<uint64_t>(4);
