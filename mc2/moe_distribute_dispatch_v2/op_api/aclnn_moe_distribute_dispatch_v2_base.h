@@ -46,6 +46,12 @@ ACLNN_API aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* e
                                           aclTensor* expandX, aclTensor* dynamicScales, aclTensor* assistInfoForCombine,
                                           aclTensor* expertTokensNums, aclTensor* epRecvCounts, aclTensor* tpRecvCounts);
 
+ACLNN_API aclnnStatus GetCommMode(const char* groupEp, HcclComm* hcclHandle, uint32_t& netLayerNum);
+
+ACLNN_API aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void * ctx, Mc2MoeContext*  mc2_context);
+
+
+
 ACLNN_API aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* x, const aclTensor* expertIds, const aclTensor* scalesOptional,
     const aclTensor* xActiveMaskOptional, const aclTensor* expertScalesOptional,
