@@ -536,7 +536,7 @@ public:
         uint32_t rowOffset)
     {
         if (columnNum == 1024U) {
-            AscendC::printf("tkd rowmax 1024\n");
+            AscendC::printf("tkd low prec rowmax 1024\n");
             RowmaxSPECTILE1024(
                 computeUbTensor,
                 llUbTensor[rowOffset],
@@ -545,7 +545,7 @@ public:
                 columnNum,
                 columnNumRound);
         } else {   
-            AscendC::printf("tkd rowmax tail\n");     
+            AscendC::printf("tkd low prec rowmax tail\n");     
             RowmaxTAILTILE(
                 computeUbTensor,
                 lmUbTensor[rowOffset],
@@ -654,7 +654,7 @@ public:
     {
         // *** ll = rowsum(ls32)
         if (columnNum == 1024U) {
-            AscendC::printf("tkd rowsum 1024\n");
+            AscendC::printf("tkd low prec rowsum 1024\n");
             RowsumSPECTILE1024(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -662,7 +662,7 @@ public:
                 columnNum,
                 columnNumRound);
         } else if (columnNum == 512U) {
-            AscendC::printf("tkd rowsum 512\n");
+            AscendC::printf("tkd low prec rowsum 512\n");
             RowsumSPECTILE512(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -670,7 +670,7 @@ public:
                 columnNum,
                 columnNumRound);
         } else {
-            AscendC::printf("tkd rowsum tail\n");
+            AscendC::printf("tkd low prec rowsum tail\n");
             RowsumTAILTILE(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
