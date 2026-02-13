@@ -194,7 +194,6 @@
     # BS是否合轴
     bs_combine_flag = True
     update_flag = 1
-    save_state_seqlens = None
 
     if seqused is not None:
         seqused = torch.tensor(seqused).to(torch.int32)
@@ -239,14 +238,10 @@
             next_block_id = next_block_id + 1
         # 需要写入state的范围
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
-        if save_state_seqlens is not None:
-            next_start = start_pos[i] + end_pos - save_state_seqlens[i]
+        next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
+        next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
+        if (start_pos[i] + end_pos) % cmp_ratio == 0:
             next_end = start_pos[i] + end_pos
-        else:
-            next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
-            next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
-            if (start_pos[i] + end_pos) % cmp_ratio == 0:
-                next_end = start_pos[i] + end_pos
         next_end = min(next_end, start_pos[i] + end_pos)
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
@@ -353,7 +348,6 @@
     # BS是否合轴
     bs_combine_flag = True
     update_flag = 1
-    save_state_seqlens = None
 
     if seqused is not None:
         seqused = torch.tensor(seqused).to(torch.int32)
@@ -398,14 +392,10 @@
             next_block_id = next_block_id + 1
         # 需要写入state的范围
         end_pos = get_seq_used_by_batch(i, S, seqused, cu_seqlens)
-        if save_state_seqlens is not None:
-            next_start = start_pos[i] + end_pos - save_state_seqlens[i]
+        next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
+        next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
+        if (start_pos[i] + end_pos) % cmp_ratio == 0:
             next_end = start_pos[i] + end_pos
-        else:
-            next_start = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio - cmp_ratio
-            next_end = (start_pos[i] + end_pos) // cmp_ratio * cmp_ratio + cmp_ratio
-            if (start_pos[i] + end_pos) % cmp_ratio == 0:
-                next_end = start_pos[i] + end_pos
         next_end = min(next_end, start_pos[i] + end_pos)
         next_start_block_id = (next_start // block_size) if next_start >= 0 else 0
         next_end_block_id = (next_end - 1) // block_size
