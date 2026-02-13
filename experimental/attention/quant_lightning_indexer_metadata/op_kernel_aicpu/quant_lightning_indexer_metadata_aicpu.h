@@ -43,7 +43,7 @@ enum class SparseMode : uint8_t {
 
 enum class ValidSocVersion {
     ASCEND910B = 0,
-    ASCEND910D,
+    ASCEND950,
     RESERVED_VERSION = 99999
 };
 
@@ -212,6 +212,8 @@ public:
 
 private:
     bool Prepare(CpuKernelContext &ctx);
+    int32_t GetQueryBatchSize();
+    int32_t GetKvBatchSize();
     bool CheckSingleParam();
     bool CheckExistence();
     bool CheckConsistency();
@@ -272,24 +274,19 @@ private:
     int32_t cmpRatio_ = 4; //新增,LIQ压缩率
     uint32_t aicCoreNum_ = 24U;
     uint32_t aivCoreNum_ = 48U;
-    uint32_t batchSize_ = 0;
-    uint32_t maxSeqlenQ_ = 0;
-    uint32_t maxSeqlenK_ = 0;
-    uint32_t numHeadsQ_ = 0;
-    uint32_t numHeadsK_ = 0;
-    uint32_t headDim_ = 0;
-    uint32_t topKSize_ = 0;
-    uint32_t queryQuantMode_ = 0;
-    uint32_t keyQuantMode_ = 0;
-    uint32_t sparseCount_ = 0;
-    uint32_t sparseBlockSize_ = 0;
-    uint32_t sparseBlockCount_ = 0; // new
+    int32_t batchSize_ = 0;
+    int32_t maxSeqlenQ_ = 0;
+    int32_t maxSeqlenK_ = 0;
+    int32_t numHeadsQ_ = 0;
+    int32_t numHeadsK_ = 0;
+    int32_t headDim_ = 0;
+    int32_t queryQuantMode_ = 0;
+    int32_t keyQuantMode_ = 0;
+    int32_t sparseCount_ = 0;
     std::string layoutQuery_ = "BSND";
     std::string layoutKey_ = "BSND";
-    uint32_t sparseMode_ = 0;
+    int32_t sparseMode_ = 0;
     uint32_t attentionMode_ = 0;
-    uint32_t ropeHeadDim_ = 0;
-    uint32_t sparseSharedSize_ = 0;
 
     // SplitParams
     uint32_t coreNum_ = 24U; // new
@@ -298,7 +295,6 @@ private:
     uint32_t groupSize_ = 0;
     uint32_t mBaseSize_ = 256;
     uint32_t s2BaseSize_ = 0;
-    uint32_t gS1BaseSizeOfFd_ = 0;
     bool isS1G_ = true;
 
 private:
