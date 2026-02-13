@@ -50,6 +50,7 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
     using LayoutBias = layout::RowMajor;
     using C1Type = std::conditional_t<std::is_same_v<AType, int8_t>, int32_t, float>; // matmul output dtype
     using xscaleType = float;
+    using rowIndexType = DTYPE_ROW_INDEX;
 
     using ProblemShape = Cgmct::Gemm::MatmulShape;
     using BlockScheduler = Cgmct::Gemm::GroupedMatmulAswtWithTailSplitScheduler;
@@ -60,7 +61,8 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
 
     using BlockPrologue = Cgmct::Gemm::Block::BlockPrologueFinalizeRouting<CType, BiasType>;
 
-    using BlockEpilogueDequant = Cgmct::Gemm::Block::BlockEpilogueDequantFinalizeRouting<CType, C1Type, weightscaleType, xscaleType, BiasType>;
+    using BlockEpilogueDequant = Cgmct::Gemm::Block::BlockEpilogueDequantFinalizeRouting<CType, C1Type, weightscaleType, xscaleType,
+        BiasType, rowIndexType>;
 
     using GmmKernel = Cgmct::Gemm::Kernel::KernelGmmFinalizeRoutingPertokenDequant<ProblemShape, BlockMmadBuilder, BlockPrologue,
                                                                     BlockEpilogueDequant, BlockScheduler>;
