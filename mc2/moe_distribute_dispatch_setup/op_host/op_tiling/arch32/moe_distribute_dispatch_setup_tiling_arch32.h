@@ -31,8 +31,8 @@ private:
     ge::graphStatus DoOpTiling() override final;
     bool IsCapable() override final;
 
-    ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl() override;
-    void SetHcommCfg() override;
+    ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl();
+    void SetHcommCfg();
 };
 } // namespace optiling
 #endif // MOE_DISTRIBUTE_DISPATCH_SETUP_TILING_ARCH32_H_

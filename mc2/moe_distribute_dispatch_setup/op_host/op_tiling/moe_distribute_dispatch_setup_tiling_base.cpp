@@ -761,10 +761,4 @@ void MoeDistributeDispatchSetupTilingBase::SetPlatformInfo()
     tilingData_->moeDistributeDispatchSetupInfo.sdmaUsedStreamPerCore = sdmaUsedStreamPerCore;
 }
 
-void SetHcommCfg() {};
-
-ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl() 
-{
-    return ge::GRAPH_FAILED;
-}
 } // namespace optiling

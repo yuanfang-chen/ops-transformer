@@ -66,9 +66,6 @@ protected:
     const ge::graphStatus CheckHcclBuffSize();
     ge::graphStatus SetWorkspace();
     void SetPlatformInfo();
-    
-    virtual void SetHcommCfg();
-    virtual ge::graphStatus MoeDistributeDispatchSetupTilingFuncImpl();
 };
 } // namespace optiling
 #endif
