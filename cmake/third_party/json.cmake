@@ -42,8 +42,6 @@ if(json_FOUND AND NOT FORCE_REBUILD_CANN_3RD)
     message("json found in ${JSON_INSTALL_PATH}, and not force rebuild cann third_party")
     set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
     add_library(json INTERFACE IMPORTED)
-    # 添加缺失的目标属性
-    set_target_properties(json PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${JSON_INCLUDE_DIR})
 else()
     set(REQ_URL "https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip")
     set(JSON_ARCHIVE ${JSON_DOWNLOAD_PATH}/include.zip)
@@ -78,12 +76,10 @@ else()
             UPDATE_COMMAND ""
     )
 
-    # 添加本地归档文件存在时的处理
-    if(NOT EXISTS ${JSON_INSTALL_PATH}/include)
-        file(MAKE_DIRECTORY "${JSON_INSTALL_PATH}/include")
-    endif()
+    ExternalProject_Get_Property(third_party_json SOURCE_DIR)
+    ExternalProject_Get_Property(third_party_json BINARY_DIR)
+    set(JSON_INCLUDE_DIR ${SOURCE_DIR}/include)
 
-    set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
     add_library(json INTERFACE)
     target_include_directories(json INTERFACE ${JSON_INCLUDE_DIR})
     add_dependencies(json third_party_json)
