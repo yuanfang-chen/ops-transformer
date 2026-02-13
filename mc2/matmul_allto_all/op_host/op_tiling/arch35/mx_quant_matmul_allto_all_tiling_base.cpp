@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -42,8 +42,8 @@ gert::StorageShape mxQuantStorageShape = gert::StorageShape();
  */
 bool MxQuantMatmulAllToAllTilingBase::IsCapable()
 {
-    int x1QuantMode = 0;
-    int x2QuantMode = 0;
+    int32_t x1QuantMode = 0;
+    int32_t x2QuantMode = 0;
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     if (const int *ptr = attrs->GetAttrPointer<int>(ATTR_X1_QUANTMODE_INDEX)) {
         x1QuantMode = *ptr;
@@ -92,7 +92,7 @@ ge::graphStatus MxQuantMatmulAllToAllTilingBase::CheckX2Transpose(const gert::Ti
 {
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
     const bool *isTransX2 = attrs->GetAttrPointer<bool>(indexSchema.x2Transpose);
-    OP_TILING_CHECK((*isTransX2 != true), OP_LOGE(opName, "the mx quant input x2Transpose must be true, but actual is false."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(!(*isTransX2), OP_LOGE(opName, "the mx quant input x2Transpose must be true, but actual is false."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -498,7 +498,7 @@ ge::graphStatus MxQuantMatmulAllToAllTilingBase::SetMxDataTypeInfo(const gert::T
 ge::graphStatus MxQuantMatmulAllToAllTilingBase::SetHcclTiling()
 {
     OP_TILING_CHECK(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geCType) ==
-                        mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
+                    mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
                     VECTOR_INNER_ERR_REPORT_TILING(opName_, "Cannot find HcclDataType according to ge datatype = %d.",
                                                    static_cast<int32_t>(contextInfo.args_.geCType)), return ge::GRAPH_FAILED;);
     Mc2CcTilingConfigBuilder matmulAllToAllBuilder =
@@ -547,7 +547,7 @@ const gert::Shape MxQuantMatmulAlltoAllHelper::GetX1Shape(const size_t index)
 {
     (void)index;
     return gert::Shape(
-        {static_cast<int64_t>(mm_len), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue)});
+        {static_cast<int64_t>(mmLen_), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue)});
 }
 const gert::Shape MxQuantMatmulAlltoAllHelper::GetX2Shape(const size_t index)
 {
@@ -575,11 +575,7 @@ const gert::StorageShape* MxQuantMatmulAlltoAllHelper::GetOffsetShape(const size
 const gert::StorageShape* MxQuantMatmulAlltoAllHelper::GetPertokenShape(const size_t index)
 {
     (void)index;
-    mxQuantStorageShape = gert::StorageShape(
-        {static_cast<int64_t>(mm_len), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue / MX_SCALE_OFFSET ), 
-            static_cast<int64_t>(EVEN_ALIGN)},
-        {static_cast<int64_t>(mm_len), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue / MX_SCALE_OFFSET ),
-            static_cast<int64_t>(EVEN_ALIGN)});
+    mxQuantStorageShape = gert::StorageShape({static_cast<int64_t>(mmLen_)},{static_cast<int64_t>(mmLen_)});
     return &mxQuantStorageShape;
 }
 
@@ -614,18 +610,11 @@ ge::graphStatus MxQuantMatmulAlltoAllHelper::GetShapeAttrsInfo()
     inputParams_.outDtype = static_cast<int64_t>(yDType);
     inputParams_.cDtype = static_cast<ge::DataType>(yDType);
     OP_LOGD(tilingProcesser_.opName_, "yDType is %ld", inputParams_.outDtype);
-    uint64_t GROUP_SIZE_K = 32;
+    uint64_t GROUP_SIZE_K = 64;
     inputParams_.biasDtype = tilingArgs.isBias ? tilingArgs.geBiasType : ge::DT_INT32;
-    if (inputParams_.isPerChannel) {
-        inputParams_.groupSizeM = 1;
-        inputParams_.groupSizeN = 1;
-    }else if((scaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) && 
-            (perTokenScaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0)) {
-        inputParams_.isPerTensor = true;
-        inputParams_.isDoubleScale = true;        
-        inputParams_.groupSizeM = 1;
+    if((scaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) && 
+        (perTokenScaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0)) {
         inputParams_.groupSizeK = GROUP_SIZE_K;
-        inputParams_.groupSizeN = 1;
     }
     GE_ASSERT_TRUE(AnalyzeInputs());
     PrintTilingInputParam(inputParams_);
@@ -673,7 +662,7 @@ ge::graphStatus MxQuantMatmulAlltoAllHelper::PostTiling()
 MxQuantMatmulAlltoAllHelper::MxQuantMatmulAlltoAllHelper(MxQuantMatmulAllToAllTilingBase& mxQuantMatmulAllToAllTilingBase, 
                                                      DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& data, uint64_t& mmMvalueLen)
     : Mc2AdaptiveSlidingWindowTiling(mxQuantMatmulAllToAllTilingBase.context_, &data), tilingProcesser_(mxQuantMatmulAllToAllTilingBase),
-    mm_len(mmMvalueLen)
+    mmLen_(mmMvalueLen)
 {
 }
 
