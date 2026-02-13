@@ -103,19 +103,26 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 }
 
 
-aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
+aclnnStatus GetCommMode(const char* groupEp, HcclComm* hcclHandle, uint32_t& netLayerNum)
 {
     OP_LOGD("PRINT GetCommMode start");
+    if (hcclHandle == nullptr) {
+        OP_LOGD("PRINT HcclComm* hcclHandle is nullptr");
+    }
     HcclResult ret;
     uint32_t* netLayers = nullptr;
-    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    ret = HcomGetCommHandleByGroup(groupEp, hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Ep Handle failed.");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcomGetCommHandleByGroup success");
 
-    ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+    if (hcclHandle == nullptr) {
+        OP_LOGD("PRINT HcomGetCommHandleByGroup failed");
+    }
+
+    ret = HcclRankGraphGetLayers(*hcclHandle, &netLayers, &netLayerNum);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
         return ACLNN_ERR_INNER;
@@ -273,7 +280,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
     const aclTensor* mc2Context = nullptr;
-    HcclComm hcclHandle;
+    HcclComm* hcclHandle = nullptr;
     uint32_t netLayerNum;
     aclnnStatus getWorkspaceSizesRes;
     if (is910B) {
@@ -298,7 +305,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
         std::string hcclTopoType;
-        ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
+        ret =GetMc2Context(*hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
