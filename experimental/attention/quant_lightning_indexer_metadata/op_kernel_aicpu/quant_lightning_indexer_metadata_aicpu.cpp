@@ -18,7 +18,8 @@ using namespace optiling;
 
 namespace aicpu {
 uint32_t
-QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
+QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx)
+{
     bool success = Prepare(ctx);
     if (!success) {
         return KERNEL_STATUS_PARAM_INVALID;
@@ -28,7 +29,8 @@ QuantLightningIndexerMetadataCpuKernel::Compute(CpuKernelContext &ctx) {
     return success ? KERNEL_STATUS_OK : KERNEL_STATUS_PARAM_INVALID;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
+bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx)
+{
     // input
     actSeqLenQ_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenQ));
     actSeqLenKey_ = ctx.Input(static_cast<uint32_t>(ParamId::actSeqLenKV));
@@ -62,115 +64,162 @@ bool QuantLightningIndexerMetadataCpuKernel::Prepare(CpuKernelContext &ctx) {
     return (ParamsCheck() && ParamsInit());
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::ParamsCheck() {
+bool QuantLightningIndexerMetadataCpuKernel::ParamsCheck()
+{
     return (CheckSingleParam() && CheckExistence() && CheckConsistency() && CheckFeature()); 
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::CheckSingleParam() {
-    // 1. 基础输出校验
+bool QuantLightningIndexerMetadataCpuKernel::CheckSingleParam()
+{
+    // 基础输出校验
     KERNEL_CHECK_NULLPTR(metaData_, false, "metadata is null");
     auto metaShape = metaData_->GetTensorShape();
     KERNEL_CHECK_NULLPTR(metaShape, false, "shape of metadata is null");
     KERNEL_CHECK_NULLPTR(metaData_->GetData(), false, "data of metadata is null");
-    // 2. 核心数校验
+    // 核心数校验
     if (aicCoreNum_ == 0 || aivCoreNum_ == 0 || (aivCoreNum_ % aicCoreNum_ != 0)) {
         KERNEL_LOG_ERROR("Core num invalid: aic:%u, aiv:%u", aicCoreNum_, aivCoreNum_);
         return false;
     }
-    // 3. Layout 字符串校验
+    // batch_size 非负校验
+    if (batchSize_ < 0) {
+        KERNEL_LOG_ERROR("batch_size should not be negative, but got %d", batchSize_);
+        return false;
+    }
+    // max_seqlen_q 非负校验
+    if (maxSeqlenQ_ < 0) {
+        KERNEL_LOG_ERROR("max_seqlen_q should not be negative, but got %d", maxSeqlenQ_);
+        return false;
+    }
+    // max_seqlen_k 非负校验
+    if (maxSeqlenK_ < 0) {
+        KERNEL_LOG_ERROR("max_seqlen_k should not be negative, but got %d", maxSeqlenK_);
+        return false;
+    }
+    // num_heads_q 校验
+    if (numHeadsQ_ != 64) {
+        KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %d", numHeadsQ_);
+        return false;
+    }
+    // num_heads_k 校验
+    if (numHeadsK_ != 1) {
+        KERNEL_LOG_ERROR("num_heads_k should only be 1, but got %d", numHeadsK_);
+        return false;
+    }
+    // layout_query 校验
     if (layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
-        KERNEL_LOG_ERROR("For query, layout must be TND or BSND!");
+        KERNEL_LOG_ERROR("For layout_query, layout must be TND or BSND!");
         return false;
     }
+    // layout_key 校验
     if (layoutKey_ != "PA_BSND") {
-        KERNEL_LOG_ERROR("For key, layout must be PA_BSND!");
+        KERNEL_LOG_ERROR("For layout_key, layout must be PA_BSND!");
         return false;
     }
-    // 4. 数值与模式校验
-    if (layoutQuery_ == "BSND" && batchSize_ < 1) {
-        KERNEL_LOG_ERROR("batch_size should greater than 0 when layout_query is BSND !");
+    // sparse_mode 校验
+    if (sparseMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK) && 
+        sparseMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
+        KERNEL_LOG_ERROR("sparse_mode should be 0/3, but got %d", sparseMode_);
         return false;
     }
-    if (sparseMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
-        KERNEL_LOG_ERROR("sparse_mode should be 3, but got %u", sparseMode_);
+    // pre_tokens 校验
+    if (preToken_ != INT64_MAX) {
+        KERNEL_LOG_ERROR("pre_tokens should only be 2^63-1, but got %ld", preToken_);
+        return false;
+    }
+    // next_tokens 校验
+    if (nextToken_ != INT64_MAX) {
+        KERNEL_LOG_ERROR("next_tokens should only be 2^63-1, but got %ld", nextToken_);
         return false;
     }
     return true;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::CheckExistence() {
+bool QuantLightningIndexerMetadataCpuKernel::CheckExistence()
+{
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // 2. Query 存在性逻辑
+    // Query 存在性逻辑
     if (layoutQuery_ == "TND") {
         if (isInvalid(actSeqLenQ_)) {
-            KERNEL_LOG_ERROR("For query TND, actual_seq_lengths_query must be provided!");
+            KERNEL_LOG_ERROR("For layout_query TND, actual_seq_lengths_query must be provided!");
             return false;
         }
     }
-    // 3. KV 存在性逻辑
+    // KV 存在性逻辑
+    if (layoutKey_ == "PA_BSND") {
+        if (isInvalid(actSeqLenKey_)) {
+            KERNEL_LOG_ERROR("For layout_key PA_BSND, actual_seq_lengths_key must be provided!");
+            return false;
+        }
+    }
     if (layoutKey_ == "TND") {
         if (isInvalid(actSeqLenKey_)) {
-            KERNEL_LOG_ERROR("For Key TND, actual_seq_lengths_key must be provided!");
+            KERNEL_LOG_ERROR("For layout_key TND, actual_seq_lengths_key must be provided!");
             return false;
         }
     }
-
     return true;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency() {
-    uint32_t actSeqLenQSize = 0;
-    if (layoutQuery_ == "TND" && actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
-        auto shape = actSeqLenQ_->GetTensorShape();
-        actSeqLenQSize = shape->GetDimSize(0);
+int32_t QuantLightningIndexerMetadataCpuKernel::GetQueryBatchSize()
+{
+    if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+        if (actSeqLenQ_->GetTensorShape() != nullptr) {
+            return actSeqLenQ_->GetTensorShape()->GetDimSize(0);
+        }
     }
-    
-    uint32_t actSeqLenKeySize = 0;
-    if (layoutKey_ == "TND" && actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
-        auto shape = actSeqLenKey_->GetTensorShape();
-        actSeqLenKeySize = shape->GetDimSize(0);
-    }
+    return batchSize_;
+}
 
-    if (actSeqLenKeySize == 0 && actSeqLenQSize == 0 && batchSize_ == 0) {
-        KERNEL_LOG_ERROR("No valid batch size: actual_seq_lengths_query is None, actual_seq_lengths_key is None, batch_size is 0 !");
+int32_t QuantLightningIndexerMetadataCpuKernel::GetKvBatchSize()
+{
+    if (actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
+        if (actSeqLenKey_->GetTensorShape() != nullptr) {
+            return actSeqLenKey_->GetTensorShape()->GetDimSize(0);
+        }
+    }
+    return batchSize_;
+}
+
+bool QuantLightningIndexerMetadataCpuKernel::CheckConsistency()
+{
+    int32_t queryBatchSize = GetQueryBatchSize();
+    int32_t kvBatchSize = GetKvBatchSize();
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("batch_size, the dim of actual_seq_lengths_query and the dim of actual_seq_lengths_key should be equal.");
         return false;
     }
-    if (actSeqLenKeySize != 0 && actSeqLenQSize != 0 && actSeqLenQSize != actSeqLenKeySize) {
-        KERNEL_LOG_ERROR("actual_seq_lengths_query size: %u must equal to actual_seq_lengths_key size: %u !", actSeqLenQSize, actSeqLenKeySize);
-        return false;
-    }
-
     return true;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::CheckFeature() {
+bool QuantLightningIndexerMetadataCpuKernel::CheckFeature()
+{
     // 压缩率校验
-    if (cmpRatio_ < 1) {
-        KERNEL_LOG_ERROR("cmp_ratio must greater than 0 !");
+    if (cmpRatio_ < 1 || cmpRatio_ > 128) {
+        KERNEL_LOG_ERROR("cmp_ratio should be [1, 128], but got %d", cmpRatio_);
         return false;
     }
     ValidSocVersion validSocVersion = ProcessSocVersion();
-    // 校验 2 的幂次方: 1, 2, 4, ..., 128
-    bool isPowTwo = (cmpRatio_ > 0) && ((cmpRatio_ & (cmpRatio_ - 1)) == 0);
-    
     if (validSocVersion == ValidSocVersion::ASCEND910B) {
-        if (cmpRatio_ < 1 || cmpRatio_ > 128 || !isPowTwo) {
-            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be 1/2/4/8/16/32/64/128.", cmpRatio_);
+        // 校验 2 的幂次方: 1, 2, 4, ..., 128
+        if ((cmpRatio_ & (cmpRatio_ - 1)) != 0) {
+            KERNEL_LOG_ERROR("For Atlas A3, cmp_ratio should be 1/2/4/8/16/32/64/128, but got %d", cmpRatio_);
             return false;
         }
     } else {
         if (cmpRatio_ != 1 && cmpRatio_ != 4 && cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("Compression ratio %u invalid! Must be 1/4/128.", cmpRatio_);
+            KERNEL_LOG_ERROR("For Ascend950, cmp_ratio should be 1/4/128, but got %d", cmpRatio_);
             return false;
         }
     }
     return true;
 }
 
-ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion() {
-    const std::string ascend910D = "Ascend910_95";
-    if (socVersion_.find(ascend910D) != std::string::npos) {
-        return ValidSocVersion::ASCEND910D;
+ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion()
+{
+    const std::string ascend950 = "Ascend910_95";
+    if (socVersion_.find(ascend950) != std::string::npos) {
+        return ValidSocVersion::ASCEND950;
     } else {
         return ValidSocVersion::ASCEND910B;
     }
@@ -178,7 +227,8 @@ ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion() {
     return ValidSocVersion::RESERVED_VERSION;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
+bool QuantLightningIndexerMetadataCpuKernel::ParamsInit()
+{
     auto mode = static_cast<SparseMode>(sparseMode_);
     if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
         attentionMode_ = 1;
@@ -189,31 +239,22 @@ bool QuantLightningIndexerMetadataCpuKernel::ParamsInit() {
         attentionMode_ = 1;
     }
     groupSize_ = numHeadsQ_ / numHeadsK_;
-    if (layoutQuery_ == "TND" && actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
-        auto shape = actSeqLenQ_->GetTensorShape();
-        batchSize_ = shape->GetDimSize(0);
-    } else if(layoutKey_ == "TND" && actSeqLenKey_ != nullptr && actSeqLenKey_->GetData() != nullptr) {
-        auto shape = actSeqLenKey_->GetTensorShape();
-        batchSize_ = shape->GetDimSize(0);
-    }
-    
+    batchSize_ = GetQueryBatchSize();
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910B){
         s2BaseSize_ = 2048U; // 仅用于A3
-    } else if (validSocVersion == ValidSocVersion::ASCEND910D){
+    } else if (validSocVersion == ValidSocVersion::ASCEND950){
         s2BaseSize_ = 128U; // 仅用于A5
     } else {
         s2BaseSize_ = 128U; // 其他情况
     }
-
-    gS1BaseSizeOfFd_ = 1U;
     return true;
 }
 
 uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
 {
     if (actSeqLenQ_ == nullptr || actSeqLenQ_->GetData() == nullptr) {
-        return maxSeqlenQ_;
+        return static_cast<uint32_t>(maxSeqlenQ_);
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
@@ -779,7 +820,8 @@ void QuantLightningIndexerMetadataCpuKernel::SplitFD(SplitResult &splitRes)
     splitRes.fdRes.fdUsedVecNum = curCoreIndex;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes) {
+bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
+{
     SplitContext splitContext(batchSize_);
     // 1、划分基本块，统计信息
     CalcSplitInfo(splitContext);
@@ -804,7 +846,8 @@ bool QuantLightningIndexerMetadataCpuKernel::BalanceSchedule(SplitResult &splitR
     return true;
 }
 
-bool QuantLightningIndexerMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
+bool QuantLightningIndexerMetadataCpuKernel::GenMetaData(SplitResult &splitRes)
+{
     optiling::detail::QliMetaData* metaDataPtr = (optiling::detail::QliMetaData*)metaData_->GetData();
     // LI Metadata Generate
     for (size_t i = 0; i < aicCoreNum_; ++i) {
