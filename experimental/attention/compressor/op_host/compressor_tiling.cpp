@@ -259,7 +259,7 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
             context_->ropeCos.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->kvBlockTable.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->scoreBlockTable.shape->GetStorageShape().GetShapeSize() == 0) {
-            OP_LOGI(context_->opName, "Only input tensor x dim S or T supports to be 0");
+            OP_LOGE(context_->opName, "Only input tensor x dim B or S or T supports to be 0");
             return ge::GRAPH_FAILED;
         }
         context_->templateId = TemplateId::NORMAL;
@@ -415,19 +415,28 @@ ge::graphStatus CompressorTiling::CheckAttrValueSupport(const T *attrValue,
 }
 
 template <typename T>
+std::string to_string(const T &value) {
+    if (std::is_same_v<T, bool>) {
+        return value ? "true" : "false";
+    } else {
+        return std::to_string(value);
+    }
+}
+
+template <typename T>
 void CompressorTiling::LogErrorNumberSupport(const std::vector<T> &expectNumberList,
     const T &actualValue, const std::string &name, const std::string subName) const
 {
     std::ostringstream oss;
     for (size_t i = 0; i < expectNumberList.size(); ++i) {
-        oss << std::to_string(expectNumberList[i]);
+        oss << to_string(expectNumberList[i]);
         if (i < expectNumberList.size() - 1) {
             oss << ", ";
         }
     }
 
     OP_LOGE(context_->opName, "%s %s only supports %s, but got %s",
-              name.c_str(), subName.c_str(), oss.str().c_str(), std::to_string(actualValue).c_str());
+              name.c_str(), subName.c_str(), oss.str().c_str(), to_string(actualValue).c_str());
 }
 
 std::string LayoutTypeToStr(LayoutType layout) {
