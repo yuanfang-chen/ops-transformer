@@ -15,7 +15,12 @@
 #ifndef VECTOR_COMMON_H
 #define VECTOR_COMMON_H
 
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 
 using namespace AttentionCommon;
 using namespace AscendC;
@@ -31,6 +36,8 @@ constexpr uint32_t FP32_BLOCK_ELEMENT_NUM = BYTE_BLOCK / sizeof(float);
 constexpr uint32_t FP32_REPEAT_ELEMENT_NUM = REPEAT_BLOCK_BYTE / sizeof(float);
 // repeat stride不能超过256
 constexpr uint32_t REPEATE_STRIDE_UP_BOUND = 256;
+// 最大repeat次数
+constexpr uint32_t MAX_REPEAT_TIMES = 255;
 constexpr int64_t HALF_NUM = 2;
 constexpr int64_t STRIDE_LENGTH = 8;
 constexpr int64_t MAX_VALID_LENGTH = 1024;
@@ -108,6 +115,21 @@ __aicore__ inline void VecMulMat(LocalTensor<float> dstUb, LocalTensor<float> sr
             Mul(dstUb[offset], src0Ub, src1Ub[offset], actualColumnCount);
             offset += columnCount;
         }
+    }
+}
+
+__aicore__ inline void VecMulMatForBigRowCount(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
+                                 uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
+{
+    // vec add by row
+    // dstUb[i, j] = src0Ub[j] + src1Ub[i, j],
+    // src0Ub:[1, columnCount] src1Ub:[dealRowCount, columnCount] dstUb:[dealRowCount, columnCount]
+    uint32_t repeatTimes = MAX_REPEAT_TIMES;
+    for (uint32_t i = 0; i < dealRowCount; i += MAX_REPEAT_TIMES) {
+        if (i + MAX_REPEAT_TIMES > dealRowCount) {
+            repeatTimes = dealRowCount - i;
+        }
+        VecMulMat(dstUb[i * columnCount], src0Ub, src1Ub[i * columnCount], repeatTimes, columnCount, actualColumnCount);
     }
 }
 
@@ -223,6 +245,21 @@ __aicore__ inline void VecAddMat(LocalTensor<float> dstUb, LocalTensor<float> sr
             Add(dstUb[offset], src0Ub, src1Ub[offset], actualColumnCount);
             offset += columnCount;
         }
+    }
+}
+
+__aicore__ inline void VecAddMatForBigRowCount(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
+                                 uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
+{
+    // vec add by row
+    // dstUb[i, j] = src0Ub[j] + src1Ub[i, j],
+    // src0Ub:[1, columnCount] src1Ub:[dealRowCount, columnCount] dstUb:[dealRowCount, columnCount]
+    uint32_t repeatTimes = MAX_REPEAT_TIMES;
+    for (uint32_t i = 0; i < dealRowCount; i += MAX_REPEAT_TIMES) {
+        if (i + MAX_REPEAT_TIMES > dealRowCount) {
+            repeatTimes = dealRowCount - i;
+        }
+        VecAddMat(dstUb[i * columnCount], src0Ub, src1Ub[i * columnCount], repeatTimes, columnCount, actualColumnCount);
     }
 }
 
@@ -639,7 +676,7 @@ __aicore__ inline void ComputeSoftMaxLse(LocalTensor<T> &softmaxlseUb, LocalTens
                                         uint32_t dealRowCount)
 {
     uint32_t blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
-    if (std::is_same<T, half>::value) {
+    if constexpr (std::is_same<T, half>::value) {
         blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM * 2;
     }
     uint64_t dealRowCountAlign = dealRowCount * fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
@@ -796,7 +833,7 @@ struct MaskInfo {
 
     // for bss & bs
     uint32_t batchIdx;
-    uint32_t batchOffset;
+    uint32_t attenMaskBatchStride;
     uint32_t attenMaskStride;
 
     LAYOUT_Q layout;
@@ -810,7 +847,7 @@ struct MaskInfo {
 
 __aicore__ inline uint64_t ComputeAttenMaskOffsetNoCompress(MaskInfo &info, uint32_t s1StartIdx)
 {
-    uint64_t bOffset = static_cast<uint64_t>(info.batchIdx) * static_cast<uint64_t>(info.batchOffset);
+    uint64_t bOffset = static_cast<uint64_t>(info.batchIdx) * static_cast<uint64_t>(info.attenMaskBatchStride);
     uint64_t s1Offset = (info.s1LeftPaddingSize + s1StartIdx % info.s1Size) * info.attenMaskStride;
     uint64_t s2Offset = info.s2LeftPaddingSize + info.s2StartIdx;
     return bOffset + s1Offset + s2Offset;
@@ -1048,7 +1085,7 @@ __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTe
 }
 
 template <typename T, typename M, typename U>
-__aicore__ inline void AttentionmaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
+__aicore__ inline void AttentionMaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     uint32_t dealRowCount = info.gs1dealNum;
     uint32_t columnCount = Align(info.s2dealNum, 32U);

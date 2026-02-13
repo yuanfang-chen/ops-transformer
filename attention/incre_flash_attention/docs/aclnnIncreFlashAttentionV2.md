@@ -1,14 +1,18 @@
 # aclnnIncreFlashAttentionV2
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/incre_flash_attention)
+**该接口后续版本会废弃，请使用最新接口[aclnnIncreFlashAttentionV4](./aclnnIncreFlashAttentionV4.md)。
 
 ## 产品支持情况
 
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | -------- |
-| <term>Ascend 950PR/Ascend 950DT AI处理器</term>                             | √        |
+| <term>Ascend 950PR/Ascend 950DT</term>                             | √        |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     | ×        |
-| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     | √        |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> | √        |
+| <term>Atlas 200I/500 A2 推理产品</term>                      | ×        |
+| <term>Atlas 推理系列加速卡产品</term>                        | √        |
+| <term>Atlas 训练系列产品</term>                              | ×        |
+
 
 ##  功能说明
 
@@ -303,13 +307,12 @@ aclnnStatus aclnnIncreFlashAttentionV2(
 
   第一段接口完成入参校验，出现以下场景时报错：
 
-  <div style="overflow-x: auto;">
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 180px">
-  <col style="width: 600px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 280px">
+  <col style="width: 119px">
+  <col style="width: 751px">
   </colgroup>
-  <table><thead>
+  <thead>
     <tr>
       <th>返回值</th>
       <th>错误码</th>
@@ -333,19 +336,17 @@ aclnnStatus aclnnIncreFlashAttentionV2(
     </tr>
   </tbody>
   </table>
-  </div>
 
 ## aclnnIncreFlashAttentionV2
 
 - **参数说明**
 
-  <div style="overflow-x: auto; margin-top: -10px;">
-  <table style="undefined;table-layout: fixed; width: 1030px"><colgroup>
-  <col style="width: 250px">
-  <col style="width: 130px">
-  <col style="width: 650px">
+  <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
+  <col style="width: 168px">
+  <col style="width: 128px">
+  <col style="width: 854px">
   </colgroup>
-  <table><thead>
+  <thead>
     <tr>
       <th>参数名</th>
       <th>输入/输出</th>
@@ -374,7 +375,6 @@ aclnnStatus aclnnIncreFlashAttentionV2(
     </tr>
   </tbody>
   </table>
-  </div>
 
 - **返回值**
   
@@ -384,7 +384,7 @@ aclnnStatus aclnnIncreFlashAttentionV2(
 
 - 确定性计算：
   - aclnnIncreFlashAttentionV2默认确定性实现。
-- <term>Atlas A2 训练系列产品/Atlas A2 推理产品</term>、<term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：
   - 支持B轴小于等于65536，N轴小于等于256，D轴小于等于512。
   - query数据类型支持FLOAT16、BFLOAT16，attentionOut、key和value数据类型支持FLOAT16、BFLOAT16。
   - dequantScale1、dequantScale2数据类型支持UINT64、FLOAT32。

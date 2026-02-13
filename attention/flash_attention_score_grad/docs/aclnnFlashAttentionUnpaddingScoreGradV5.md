@@ -1,18 +1,21 @@
 # aclnnFlashAttentionUnpaddingScoreGradV5
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
 - 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。增加`sinkInOptional`可选输入。
+  - Ascend 950PR/Ascend 950DT产品暂不支持sinkInOptional参数。
 
 - 计算公式：
   
@@ -126,7 +129,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
     <col style="width: 198px">
     <col style="width: 120px">
@@ -154,7 +157,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的Q。</td>
         <td>数据类型与keyIn/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -174,7 +177,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的K。</td>
         <td>数据类型与query/value一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -194,7 +197,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的V。</td>
         <td>数据类型与query/keyIn一致。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -204,7 +207,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输入</td>
         <td>公式中的dY。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -214,7 +217,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>可选输入</td>
         <td>公式中的pse。</td>
         <td>数据类型与query的数据类型一致,该参数需要与pseType配套使用。</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[B,N,1024,Skv]、[1,N,1024,Skv]、[B,N]、[N]</td>
         <td>√</td>
@@ -232,11 +235,31 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
       <tr>
         <td>paddingMaskOptional</td>
         <td>输入</td>
-        <td>预留参数。</td>
+        <td>预留参数，暂未使用。</td>
         <td>调用时需传空。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>qStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
+        <td>-</td>
+      </tr>
+      <tr>
+        <td>kvStartIdxOptional</td>
+        <td>输入</td>
+        <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
+        <td>-</td>
+        <td>INT64</td>
+        <td>ND</td>
+        <td>0、1</td>
         <td>-</td>
       </tr>
       <tr>
@@ -273,7 +296,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>softmaxInOptional</td>
         <td>输入</td>
         <td>正向softmax的中间输出。</td>
-        <td>暂未使用。</td>
+        <td>预留参数，暂未使用。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -393,7 +416,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>innerPrecise</td>
         <td>输入</td>
         <td>内部计算精度控制。</td>
-        <td>暂未使用。</td>
+        <td>保留参数，暂未使用。</td>
         <td>INT32</td>
         <td>-</td>
         <td>-</td>
@@ -434,7 +457,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dQ，Query梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -444,7 +467,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dK，Key梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -454,7 +477,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>输出</td>
         <td>公式中的dV，Value梯度。</td>
         <td>-</td>
-        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
         <td>[TND]</td>
         <td>√</td>
@@ -463,7 +486,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
         <td>dpseOut</td>
         <td>输出</td>
         <td>d(pse)梯度。</td>
-        <td>暂未使用。</td>
+        <td>预留参数，暂未使用。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -503,7 +526,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
   </table>
 
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -539,7 +562,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV5
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
   <col style="width: 121px">
@@ -575,7 +598,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

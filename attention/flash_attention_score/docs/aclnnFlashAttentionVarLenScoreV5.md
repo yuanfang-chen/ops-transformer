@@ -1,18 +1,23 @@
 # aclnnFlashAttentionVarLenScoreV5
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
 * 接口功能：训练场景下，使用FlashAttention算法实现self-attention（自注意力）的计算。对标竞品适配gptoss模型支持sink功能。**跟[aclnnFlashAttentionVarLenScoreV3](./aclnnFlashAttentionVarLenScoreV3.md)接口的区别是：增加`sinkInOptional`可选输入,保留了[aclnnFlashAttentionVarLenScoreV4](./aclnnFlashAttentionVarLenScoreV4.md)的`softmaxOutLayout`可选输入。**
+
+  - Ascend 950PR/Ascend 950DT产品暂不支持sinkInOptional与softmaxOutLayout参数。
+
 * 计算公式：
   注意力的正向计算公式如下：
 
@@ -85,7 +90,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1452px"><colgroup>
     <col style="width: 174px">
@@ -180,6 +185,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>√</td>
       </tr>
       <tr>
+        <td>paddingMaskOptional</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attenMaskOptional</td>
         <td>可选输入</td>
         <td>公式中的atten_mask。</td>
@@ -242,7 +257,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
       <tr>
         <td>kvStartIdxOptional</td>
         <td>可选输入</td>
-        <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+        <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
         <td>-</td>
         <td>INT64</td>
         <td>ND</td>
@@ -313,7 +328,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>innerPrecise</td>
         <td>可选输入</td>
         <td>用于提升精度。</td>
-        <td>暂未使用。</td>
+        <td>默认配置为0即可。</td>
         <td>INT64</td>
         <td>-</td>
         <td>-</td>
@@ -370,6 +385,16 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
         <td>√</td>
       </tr>
       <tr>
+        <td>softmaxOutOut</td>
+        <td>输入</td>
+        <td>预留参数，暂未使用。</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      </tr>
+      <tr>
         <td>attentionOutOut</td>
         <td>输出</td>
         <td>计算公式的最终输出。</td>
@@ -402,7 +427,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
     </tbody>
   </table>
   
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -445,7 +470,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
 
 ## aclnnFlashAttentionVarLenScoreV5
 
-- **参数说明：**
+- **参数说明**
   
   <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
   <col style="width: 153px">
@@ -483,7 +508,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
   </table>
 
 
--   **返回值：**
+-   **返回值**
 
     返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -509,6 +534,7 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5(
   - 每个batch相同时，shape为1NHSkv(H=1024)。
   - 如果pseType为2或3的时候，数据类型需为FLOAT32, 对应shape支持范围是[B,N]或[N]。
   - 如果不使能该参数，realShiftOptional需要传入nullptr，pseType需要传入1。
+- innerPrecise：当前0、1为保留配置值，2为使能无效行计算，其功能是避免在计算过程中存在整行mask进而导致精度有损失，但是该配置会导致性能下降。 如果算子可判断出存在无效行场景，会自动使能无效行计算，例如sparseMode为3，Sq > Skv场景。
 - sparseMode的约束如下: 
   - 当所有的attenMaskOptional的shape小于2048且相同的时候，建议使用default模式，来减少内存使用量。
   - 配置为1、2、3、5、6时，用户配置的preTokens、nextTokens不会生效。

@@ -34,7 +34,7 @@ protected:
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_0)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -81,17 +81,17 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_0)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1206124801;
     // int64_t expectTilingKey = 4294967295;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "");
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_1)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -138,10 +138,10 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_1)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, "");
 }
 
 // #endif
@@ -149,7 +149,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_1)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_2)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -196,16 +196,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_2)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 266600448;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_3)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -252,16 +252,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_3)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_4)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -275,7 +275,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_4)
          // 3:pse_shift
          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
          // 4:atten_mask
-         {{{1,2048}, {1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
+         {{{1,1,2048}, {1,1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
          // 5:actual_seq_lengths
          {{{2048}, {2048}}, ge::DT_INT64, ge::FORMAT_ND},
          // 6:dequant_scale1
@@ -308,16 +308,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_4)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_5)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -331,7 +331,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_5)
          // 3:pse_shift
          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
          // 4:atten_mask
-         {{{1,2048}, {1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
+         {{{1,1,2048}, {1,1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
          // 5:actual_seq_lengths
          {{{2048}, {2048}}, ge::DT_INT64, ge::FORMAT_ND},
          // 6:dequant_scale1
@@ -364,16 +364,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_5)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322177;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_6)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -420,7 +420,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_6)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322177;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -429,7 +429,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_6)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_7)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -443,7 +443,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_7)
          // 3:pse_shift
          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
          // 4:atten_mask
-         {{{1,2048}, {1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
+         {{{1,1,2048}, {1,1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
          // 5:actual_seq_lengths
          {{{2048}, {2048}}, ge::DT_INT64, ge::FORMAT_ND},
          // 6:dequant_scale1
@@ -477,16 +477,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_7)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_8)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -534,7 +534,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_8)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -543,7 +543,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_8)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_9)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -591,7 +591,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_9)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -600,7 +600,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_9)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_10)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -647,16 +647,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_10)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_11)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -703,7 +703,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_11)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -712,7 +712,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_11)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_12)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -759,7 +759,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_12)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -768,7 +768,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_12)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_13)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -815,7 +815,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_13)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -825,7 +825,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_13)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_14)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -872,7 +872,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_14)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -882,7 +882,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_14)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_15)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -929,16 +929,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_15)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_16)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -985,7 +985,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_16)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -994,7 +994,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_16)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_17)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1041,7 +1041,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_17)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -1050,7 +1050,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_17)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_18)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1097,16 +1097,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_18)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_19)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1153,9 +1153,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_19)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2364417;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1163,7 +1163,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_19)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_20)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1210,9 +1210,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_20)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1220,7 +1220,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_20)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_21)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1267,9 +1267,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_21)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1277,7 +1277,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_21)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_22)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1324,9 +1324,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_22)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1334,7 +1334,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_22)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_23)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1381,9 +1381,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_23)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1391,7 +1391,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_23)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_24)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1438,9 +1438,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_24)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1448,7 +1448,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_24)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_25)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1495,9 +1495,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_25)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1505,7 +1505,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_25)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_26)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1552,9 +1552,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_26)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1562,7 +1562,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_26)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_27)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1609,9 +1609,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_27)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1619,7 +1619,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_27)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_28)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1666,9 +1666,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_28)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1612975360;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -1676,7 +1676,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_28)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_29)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1723,7 +1723,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_29)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1206124801;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -1733,7 +1733,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_29)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_30)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1780,7 +1780,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_30)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -1790,7 +1790,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_30)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_31)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1837,7 +1837,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_31)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -1847,7 +1847,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_31)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_32)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1894,7 +1894,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_32)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -1903,7 +1903,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_32)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_33)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -1950,7 +1950,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_33)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -1959,7 +1959,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_33)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_34)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2007,7 +2007,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_34)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -2017,7 +2017,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_34)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_35)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2065,7 +2065,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_35)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1747193088;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -2074,7 +2074,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_35)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_36)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2121,7 +2121,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_36)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
     // int64_t expectTilingKey = 4294967295;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey, "");
@@ -2131,7 +2131,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_36)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_37)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2178,9 +2178,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_37)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 2362625;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2188,7 +2188,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_37)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_38)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2235,9 +2235,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_38)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
-        // ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+        // ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
 // #endif
@@ -2245,7 +2245,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_38)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_39)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2292,7 +2292,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_39)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -2301,7 +2301,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_39)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_40)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2348,7 +2348,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_40)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
          {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580353;
     ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
 }
@@ -2357,7 +2357,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_40)
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_41)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2371,7 +2371,7 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_41)
          // 3:pse_shift
          {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
          // 4:atten_mask
-         {{{1,2048}, {1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
+         {{{1,1,2048}, {1,1,2048}}, ge::DT_BOOL, ge::FORMAT_ND},
          // 5:actual_seq_lengths
          {{{2048}, {2048}}, ge::DT_INT64, ge::FORMAT_ND},
          // 6:dequant_scale1
@@ -2404,16 +2404,16 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_41)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 1210322176;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 
 TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_42)
 {
     optiling::PromptFlashAttentionCompileInfo compileInfo = {
-        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND910_95};
+        64, 32, 65536, 65536, 65536, 1048576, 32768, 33554432, platform_ascendc::SocVersion::ASCEND950};
     
     gert::TilingContextPara tilingContextPara(
         "IncreFlashAttention",
@@ -2460,9 +2460,9 @@ TEST_F(IncreFlashAttentionTiling, IncreFlashAttention_tiling_42)
          {"block_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(128)}
         //  {"inner_precise", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)}
          },
-                &compileInfo,"Ascend910_95",64,262144,16384);
+                &compileInfo,"Ascend950",64,262144,16384);
     int64_t expectTilingKey = 136580352;
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey);
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey);
 }
 // #endif
 

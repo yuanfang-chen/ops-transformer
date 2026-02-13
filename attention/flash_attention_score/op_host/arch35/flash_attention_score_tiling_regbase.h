@@ -20,6 +20,7 @@
 #include "../../op_kernel/arch35/flash_attention_score_template_tiling_key.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
 #include "err/ops_err.h"
+#include "platform/soc_spec.h"
 
 using namespace Ops::Transformer::OpTiling;
 namespace optiling {
@@ -409,6 +410,7 @@ protected:
     uint32_t aivNum;
     uint32_t aicNum;
     platform_ascendc::SocVersion socVersion;
+    NpuArch npuArch = NpuArch::DAV_RESV;
 
     matmul_tiling::DataType bmmDtype = matmul_tiling::DataType::DT_FLOAT;
     matmul_tiling::DataType bmm1OutDtype = matmul_tiling::DataType::DT_FLOAT;

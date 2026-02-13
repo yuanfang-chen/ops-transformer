@@ -15,8 +15,12 @@
 #ifndef GROUPED_MAT_MUL_ALLTO_ALLV_H
 #define GROUPED_MAT_MUL_ALLTO_ALLV_H
 
+#if ASC_DEVKIT_MAJOR >= 9
+#include "basic_api/kernel_basic_intf.h"
+#else
 #include "kernel_operator.h"
-#include "kernel_operator_intf.h"
+#endif
+#include "adv_api/hccl/hccl.h"
 #include "lib/matmul_intf.h"
 #if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
 #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
@@ -187,7 +191,7 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::ShareMatMulCompute()
             GMMCompute<sharedmmType> computeOp2(sharedmm);
             computeOp2.Init(mmxGM_, mmweightGM_, mmyGM_);
             GMMProcess<decltype(computeOp2)> mmOp(computeOp2);
-            mmOp.Init(tilingData_->sharedExpMatmulTiling.baseM, tilingData_->sharedExpMatmulTiling.baseN, 24);
+            mmOp.Init(tilingData_->sharedExpMatmulTiling.baseM, tilingData_->sharedExpMatmulTiling.baseN, tilingData_->commonTilingInfo.aicCoreNum);
 
             uint64_t mmInOffset[1] = {0};
             uint64_t mmOutOffset[1] = {0};
@@ -207,7 +211,7 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::GmmProcessAlltoallv()
     GMMCompute<gmmType> computeOp(gmm);
     computeOp.Init(gmmxGM_, gmmweightGM_, gmmOutGM_);
     GMMProcess<decltype(computeOp)> gmmOp(computeOp);
-    gmmOp.Init(tilingData_->matmulTiling.baseM, tilingData_->matmulTiling.baseN, 24);
+    gmmOp.Init(tilingData_->matmulTiling.baseM, tilingData_->matmulTiling.baseN, tilingData_->commonTilingInfo.aicCoreNum);
     auto* sendCnt = &tilingData_->aicpuTilingInfo.sendCnt[0];
 
     uint64_t mmInOffset[2] = {0};
@@ -236,7 +240,9 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::GmmProcessAlltoallv()
         mmWeightOffset[0] = i * axisH_ * axisN1_;
         tokenNum[0] = gmmTokennum[i];
         if ASCEND_IS_AIC {
-            gmmOp.Process(this->rankId_, axisH_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, i);
+            if (tokenNum[0] != 0) {
+                gmmOp.Process(this->rankId_, axisH_, axisN1_, mmInOffset, mmOutOffset, tokenNum, processNum, i);
+            }
         }
         SyncAll<false>();
         if ASCEND_IS_AIV {

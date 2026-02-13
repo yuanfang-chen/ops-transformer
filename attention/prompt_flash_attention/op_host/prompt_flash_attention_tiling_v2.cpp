@@ -60,9 +60,9 @@ constexpr uint32_t INPUT_QKV_SHAPE_MIN_DIMS = 3;
 constexpr uint32_t INPUT_QKV_SHAPE_MAX_DIMS = 5;
 constexpr uint32_t BYTE_BLOCK = 32; // The block size of datacopy, which moves data at the block granularity.
 
-constexpr uint32_t MASKDIM_2 = 2;
-constexpr uint32_t MASKDIM_3 = 3;
-constexpr uint32_t MASKDIM_4 = 4;
+constexpr uint32_t MASKDIM_SS = 2;
+constexpr uint32_t MASKDIM_1SS_BSS = 3;
+constexpr uint32_t MASKDIM_11SS_B1SS = 4;
 constexpr uint32_t PSESHIFTDIM_4 = 4;
 
 constexpr uint32_t KV_CACHE_DIM_NUMS_5 = 5;
@@ -86,6 +86,8 @@ constexpr uint32_t SPARSE_OPTIMIZE_ATTENTION_SIZE = 2048;
 // The current requirement is a multiple of 128, and to prevent cross block handling, the mm base is also set to 128.
 constexpr int32_t BLOCK_SIZE_BASE = 128;
 constexpr int32_t BLOCK_SIZE_MAX = 512;
+constexpr int32_t BLOCK_SIZE_BASE_FOR_NO_QUANT = 16;
+constexpr int32_t BLOCK_SIZE_MAX_FOR_NO_QUANT = 1024;
 
 constexpr uint32_t SOUTER_FACTOR_SUB = 32;
 constexpr uint32_t SOUTER_FACTOR_DEFAULT = 64;
@@ -104,6 +106,8 @@ constexpr uint32_t NLIMIT = 256;      // n <= 256
 constexpr uint32_t SLIMIT = 20971520; // s, kvs <= 20MB
 constexpr uint32_t DLIMIT = 512;      // D <= 512
 constexpr uint32_t HLIMIT = 65535;    // warning: H <= 65536
+constexpr uint32_t GLIMIT_64 = 64;
+constexpr uint32_t GLIMIT_128 = 128;
 
 constexpr uint32_t MLA_QKD_SIZE = 192;
 constexpr uint32_t MLA_VD_SIZE = 128; // typical scene for PFA MLA, can be deleted after subsequent generalization.
@@ -118,6 +122,10 @@ constexpr int64_t PSE_TYPE_2_TILING_V2 = 2;
 constexpr int64_t PSE_TYPE_3_TILING_V2 = 3;
 constexpr uint32_t QUERY_SHAPE_DIM_D_128_TILING_V2 = 128;
 constexpr int32_t ROPE_DIMENSION_SIZE_TILING_V2 = 64;
+constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
+constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
+
+constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
 
 const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
     {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
@@ -190,6 +198,7 @@ enum class LayoutType : uint8_t {
     LAYOUT_SBH = 2,
     LAYOUT_BNSD = 3,
     LAYOUT_TND = 4,
+    LAYOUT_NTD = 5,
 };
 
 enum class PfaSparseEnum : uint8_t {
@@ -257,25 +266,46 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionInitOutputSplit(int64_t t
     initParams->set_totalOutputSize(totalSize);
 }
 
-bool PromptFlashAttentionTilingV2::CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams) const
-{
-    return (contextKeyParams.keyInputShape->GetStorageShape().GetShapeSize() == 0) ||
-        (contextKeyParams.valueInputShape->GetStorageShape().GetShapeSize() == 0) ||
-        (contextKeyParams.outputShape->GetStorageShape().GetShapeSize() == 0) || (contextKeyParams.emptyTensor == 1U);
+ge::graphStatus PromptFlashAttentionTilingV2::CheckEmptyTensor(ContextParamsForPFATiling& contextKeyParams) {
+    OP_CHECK_IF((contextKeyParams.queryInputShape->GetStorageShape().GetShapeSize() == 0 &&
+        contextKeyParams.outputShape->GetStorageShape().GetShapeSize() != 0) ||
+        (contextKeyParams.queryInputShape->GetStorageShape().GetShapeSize() != 0 &&
+        contextKeyParams.outputShape->GetStorageShape().GetShapeSize() == 0),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "query shape size is %llu byte, but attention Out shape size is %llu byte, they cannot be empty while the other is not",
+            contextKeyParams.queryInputShape->GetStorageShape().GetShapeSize(), contextKeyParams.outputShape->GetStorageShape().GetShapeSize()),
+        return ge::GRAPH_FAILED);
+    if (contextKeyParams.queryInputShape->GetStorageShape().GetShapeSize() == 0 &&
+        contextKeyParams.outputShape->GetStorageShape().GetShapeSize() == 0) {
+            emptyTensor = true;
+            return ge::GRAPH_SUCCESS;
+    }
+    if (enableTensorList) {
+        emptyTensor = (contextKeyParams.emptyTensor == 1U);
+    } else {
+        emptyTensor = ((contextKeyParams.keyInputShape->GetStorageShape().GetShapeSize() == 0) &&
+        (contextKeyParams.valueInputShape->GetStorageShape().GetShapeSize() == 0)) ||
+        (contextKeyParams.emptyTensor == 1U);
+    }
+    return ge::GRAPH_SUCCESS;
 }
 
 void PromptFlashAttentionTilingV2::SetEmptyTensor(ContextParamsForPFATiling& contextKeyParams,
-    uint32_t& blockDimToBeSet, PromptFlashAttentionTilingData& tilingData) {
+    uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData) {
+    faRunFlag_ = true;
     quantMode = NoQuantMode;
-    emptyTensor = true;
     PromptFlashAttentionInitOutputSplit(contextKeyParams.outputShape->GetStorageShape().GetShapeSize(), tilingData);
+    tilingData.promptAttentionInitOutputParams.set_totalSoftMaxLseOutputSize(0);
+    if (contextKeyParams.isSoftMaxLseEnable) {
+        PromptFlashAttentionInitSoftmaxLseOutputSplit(contextKeyParams.lseoutputShape->GetStorageShape().GetShapeSize(),
+            tilingData);
+    }
     tilingData.promptAttentionInitOutputParams.set_needInit(1);
     auto platformInfoPtr = context_->GetPlatformInfo();
         OP_CHECK_IF(platformInfoPtr == nullptr,
             OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null!"),
             return);
             auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    blockDimToBeSet = ascendcPlatform.CalcTschBlockDim(coreNum, aicNum, coreNum);
+    numBlocksToBeSet = ascendcPlatform.CalcTschBlockDim(coreNum, aicNum, coreNum);
 
     size_t* workspace = contextKeyParams.workspaceSize;
     const size_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
@@ -321,19 +351,39 @@ bool PromptFlashAttentionTilingV2::SetInputLayout(const char* layout) {
     }
 
     std::string layoutStr(layout);
-    if (layoutStr == "" || layoutStr == "BSH") {
+    if (layoutStr == "" || layoutStr == "BSH" || layoutStr == "BSH_NBSD" || layoutStr == "BSH_BNSD") {
         inputLayout = InputLayout::BSH;
-    } else if (layoutStr == "TND") {
+    } else if (layoutStr == "TND" || layoutStr == "TND_NTD") {
         inputLayout = InputLayout::TND;
-    } else if (layoutStr == "BSND") {
+    } else if (layoutStr == "NTD" || layoutStr == "NTD_TND") {
+        inputLayout = InputLayout::NTD;
+    } else if (layoutStr == "BSND" || layoutStr == "BSND_NBSD" || layoutStr == "BSND_BNSD") {
         inputLayout = InputLayout::BSND;
-    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND") { // Reuse BNSD process for BNSD_BSND
+    } else if (layoutStr == "BNSD" || layoutStr == "BNSD_BSND" || layoutStr == "BNSD_NBSD") {
         inputLayout = InputLayout::BNSD;
     } else {
         return false;
     }
 
     return true;
+}
+
+// 0 不转置; 1 BNSD_BSND; 2 BSND_BNSD; 3 BSH_BNSD; 4 BNSD_NBSD; 5 BSND_NBSD; 6 BSH_NBSD; 7 NTD_TND; 8 TND_NTD
+uint32_t GetTransposeLayout(const std::string &layout) {
+    const std::map<std::string, uint32_t> transposeLayoutMp = {
+        {"BNSD_BSND", 1},
+        {"BSND_BNSD", 2},
+        {"BSH_BNSD", 3},
+        {"BNSD_NBSD", 4},
+        {"BSND_NBSD", 5},
+        {"BSH_NBSD", 6},
+        {"NTD_TND", 7},
+        {"TND_NTD", 8}
+    };
+    if (transposeLayoutMp.find(layout) != transposeLayoutMp.end()) {
+        return transposeLayoutMp.at(layout);
+    }
+    return 0;
 }
 
 int64_t GetMaxSeq(const gert::Tensor* actualSeqLength) {
@@ -371,22 +421,30 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
             h = n * d;
         }
     } else if ((inputLayout == InputLayout::BNSD)) {
+        if (isKVHasPrefix && inputName == "keysharedprefix") {
+            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
+            n = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV N 
+            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV Sequence length
+            d = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(3); // 3 for Prefix KV D dim
+            h = n * d;
+            return true;
+        }
         b = shape->GetStorageShape().GetDim(0);
         n = shape->GetStorageShape().GetDim(1);
         s = shape->GetStorageShape().GetDim(2); // 2 for Sequence length
-        if (isKVHasPrefix && inputName == "keysharedprefix") {
-            b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
-            s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV Sequence length
-        }
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
     } else if ((inputLayout == InputLayout::BSH)) {
-        b = shape->GetStorageShape().GetDim(0);
-        s = shape->GetStorageShape().GetDim(1);
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
             s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+            h = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV H
+            n = n > 0 ? n : static_cast<int64_t>(*contextKeyParams.headsNumber);
+            d = n > 0 ? h / n : 0;
+            return true;
         }
+        b = shape->GetStorageShape().GetDim(0);
+        s = shape->GetStorageShape().GetDim(1);
         h = shape->GetStorageShape().GetDim(2); // 2 for H dim
         if (inputName == "query") {
             n = static_cast<int64_t>(*contextKeyParams.headsNumber);
@@ -396,30 +454,32 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
         }
         d = n > 0 ? h / n : 0;
     } else if ((inputLayout == InputLayout::BSND)) {
-        b = shape->GetStorageShape().GetDim(0);
-        s = shape->GetStorageShape().GetDim(1);
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             b = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(0); // 0 for Prefix KV batch
             s = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(1); // 1 for Prefix KV Sequence length
+            n = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(2); // 2 for Prefix KV N
+            d = contextKeyParams.keySharedPrefix->GetStorageShape().GetDim(3); // 3 for Prefix KV D dim
+            h = n * d;
+            return true;
         }
+        b = shape->GetStorageShape().GetDim(0);
+        s = shape->GetStorageShape().GetDim(1);
         n = shape->GetStorageShape().GetDim(2); // 2 for head dim
         d = shape->GetStorageShape().GetDim(3); // 3 for D dim
         h = n * d;
-    } else if ((inputLayout == InputLayout::TND)) {
+    } else if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD)) {
         if (isKVHasPrefix && inputName == "keysharedprefix") {
             return false;
         }
         if (isMaxWorkspace) {
             b = 1;
-            s = shape->GetStorageShape().GetDim(0);
+            s = inputLayout == InputLayout::TND ? shape->GetStorageShape().GetDim(0) : shape->GetStorageShape().GetDim(1);
         } else {
             b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
             s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
         }
-        b = static_cast<int64_t>(contextKeyParams.actualSequenceLengthQ->GetShapeSize());
-        s = (inputName == "query") ? GetMaxSeq(contextKeyParams.actualSequenceLengthQ) : GetMaxSeq(contextKeyParams.actualSequenceLengthKV);
-        t = shape->GetStorageShape().GetDim(0);
-        n = shape->GetStorageShape().GetDim(1);
+        t = inputLayout == InputLayout::TND ? shape->GetStorageShape().GetDim(0) : shape->GetStorageShape().GetDim(1);
+        n = inputLayout == InputLayout::TND ? shape->GetStorageShape().GetDim(1) : shape->GetStorageShape().GetDim(0);
         d = shape->GetStorageShape().GetDim(2); // 2 for D dim
         h = n * d;
     } else {
@@ -431,10 +491,10 @@ bool PromptFlashAttentionTilingV2::SetShape(ContextParamsForPFATiling& contextKe
 bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& shapeInfo, const gert::StorageShape* shape, const std::string& sName) const {
     std::string layoutStr(contextKeyParams.layout);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 3 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 4 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
 
@@ -449,8 +509,8 @@ bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& c
     }
     OP_CHECK_IF((b > BLIMIT || b <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "batch size of %s should be less than or equal to %u and > 0, but batch size = %ld.", sName.c_str(), BLIMIT, b), return false);
-    OP_CHECK_IF((s <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        "seq size of %s should > 0, but sequence size = %ld.", sName.c_str(), s), return false);
+    OP_CHECK_IF((s < 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "seq size of %s should >= 0, but sequence size = %ld.", sName.c_str(), s), return false);
     if (s > SLIMIT) {
         OP_LOGW(contextKeyParams.opName, "sequence size of %s should <= 20M, but seq = %ld.", sName.c_str(), s);
     }
@@ -458,12 +518,7 @@ bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& c
         OP_CHECK_IF((d > DLIMIT || d <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "d size of %s should be less than or equal to %u and > 0, but d = %ld, and layout is BSH, d = h / headsNumber.",
             sName.c_str(), DLIMIT, d), return false);
-        OP_CHECK_IF((n > NLIMIT || n <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "n size of %s should be less than or equal to %u and > 0, but n = %ld, and layout is BSH, n = headsNumber.",
-            sName.c_str(), NLIMIT, n), return false);
     } else {
-        OP_CHECK_IF((n > NLIMIT || n <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "n size of %s should be less than or equal to %u and > 0, but n = %ld.", sName.c_str(), NLIMIT, n), return false);
         OP_CHECK_IF((d > DLIMIT || d <= 0), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "d size of %s should be less than or equal to %u and > 0, but d = %ld.", sName.c_str(), DLIMIT, d), return false);
     }
@@ -487,10 +542,10 @@ bool PromptFlashAttentionTilingV2::GetAndCheckShape(ContextParamsForPFATiling& c
 bool PromptFlashAttentionTilingV2::GetAndCheckRopeShape(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& shapeInfo,
     PFAShapeInfo& ropeShapeInfo, const gert::StorageShape* shape, const std::string& sName, const std::string& rName) const {
     std::string layoutStr(contextKeyParams.layout);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 3) && (inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 3 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
-    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND),
+    OP_CHECK_IF((shape->GetStorageShape().GetDimNum() != 4) && (inputLayout != InputLayout::BSH && inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "dim num of %s should = 4 when inputLayout is %s,"
             "but dim num is %zu.", sName.c_str(), layoutStr.c_str(), shape->GetStorageShape().GetDimNum()), return false);
 
@@ -547,6 +602,56 @@ bool PromptFlashAttentionTilingV2::GetAndCheckRopeShape(ContextParamsForPFATilin
     return true;
 }
 
+void PromptFlashAttentionTilingV2::GetQueryDimAndOutDim(const gert::StorageShape* queryShape, const gert::StorageShape* outShape,
+    const std::string &layoutStr, int64_t &tmpqueryDim, int64_t &outDim, uint32_t i) const {
+    if (layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD") {
+        if (i == 1) { // BNSD_BSND：query:N, output:S; BSND_BNSD：query:S, output:N
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 2) { // BNSD_BSND：query:S, output:N; BSND_BNSD：query:N, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else if (layoutStr == "BSH_BNSD") {
+        if (i == 2) { // BSH_BNSD：query:H, output:ND
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else if (layoutStr == "BSND_NBSD") {
+        if (i == 1) { // BSND_NBSD：query:S, output:B
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 2) { // BSND_NBSD：query:N, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 2);
+        }
+    } else if (layoutStr == "BNSD_NBSD") {
+        if (i == 1) { // BNSD_NBSD：query:N, output:B
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        } else if (i == 2) { // BNSD_NBSD：query:S, output:S
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i);
+        }
+    } else if (layoutStr == "BSH_NBSD") {
+        if (i == 2) { // BSH_NBSD：query:H, output:ND
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 2);
+        }
+    } else if (layoutStr == "NTD_TND" || layoutStr == "TND_NTD") {
+        if (i == 0) { // query:N/T, output:T/N
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i + 1);
+        } else if (i == 1) { // 2 for current queryDimNum; Q:T/N, Output:N/T
+            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+            outDim = outShape->GetStorageShape().GetDim(i - 1);
+        }
+    } else {
+        tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
+        outDim = outShape->GetStorageShape().GetDim(i);
+    }
+}
+
 bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* queryShape, const gert::StorageShape* outShape) const {
     const size_t queryDimNum = queryShape->GetStorageShape().GetDimNum();
@@ -554,8 +659,8 @@ bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextP
     int64_t tmpqueryDim = 0;
     int64_t outDim = 0;
     std::string layoutStr(contextKeyParams.layout);
-
-    OP_CHECK_IF(queryDimNum != outDimNum,
+    bool isLayoutShapeSupport = layoutStr == "BSH_BNSD" || layoutStr == "BSH_NBSD";
+ 	OP_CHECK_IF(queryDimNum != outDimNum && !isLayoutShapeSupport,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor query shape dimNum(%zu) must be consistent with tensor output shape dimNum(%zu)!",
             queryDimNum, outDimNum),
@@ -570,19 +675,13 @@ bool PromptFlashAttentionTilingV2::CheckQueryOutParamsConsistency(const ContextP
         if ((i == queryDimNum - 1) && enablePFAMLA) {
             continue;
         }
-        if (layoutStr == "BNSD_BSND") {
-            if (i == 1) { // query:N, output:S
-                tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-                outDim = outShape->GetStorageShape().GetDim(i + 1);
-            } else if (i == 2) { // 2 for current queryDimNum; Q:N, Output:S
-                tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-                outDim = outShape->GetStorageShape().GetDim(i - 1);
-            }
-        } else {
-            tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-            outDim = outShape->GetStorageShape().GetDim(i);
-        }
-        OP_CHECK_IF(tmpqueryDim != outDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        GetQueryDimAndOutDim(queryShape, outShape, layoutStr, tmpqueryDim, outDim, i);
+        OP_CHECK_IF(!isQKVDDifferent && (tmpqueryDim != outDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "tensor query shape (%ld) do not equal to tensor output shape(%ld) in dim %u for %s.",
+            tmpqueryDim, outDim, i, layoutStr.c_str()),
+            return false);
+
+        OP_CHECK_IF(isQKVDDifferent && (i != queryDimNum - 1) && (tmpqueryDim != outDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor query shape (%ld) do not equal to tensor output shape(%ld) in dim %u for %s.",
             tmpqueryDim, outDim, i, layoutStr.c_str()),
             return false);
@@ -631,7 +730,11 @@ bool PromptFlashAttentionTilingV2::CheckKeyValueParamsConsistency(ContextParamsF
         }
         int64_t tmpKeyDim = keyShape->GetStorageShape().GetDim(i);
         int64_t tmpValueDim = valueShape->GetStorageShape().GetDim(i);
-        OP_CHECK_IF(tmpKeyDim != tmpValueDim, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        
+        OP_CHECK_IF(!isQKVDDifferent && (tmpKeyDim != tmpValueDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "tensor key shape(%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
+            return false);
+        OP_CHECK_IF(isQKVDDifferent && (i != keyDimNum - 1) && (tmpKeyDim != tmpValueDim), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "tensor key shape(%ld) do not equal to tensor value shape(%ld) in dim %u.", tmpKeyDim, tmpValueDim, i),
             return false);
     }
@@ -655,7 +758,8 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     const size_t queryDim = queryShape->GetStorageShape().GetDimNum();
     const size_t keyDim = keyShape->GetStorageShape().GetDimNum();
     const size_t valueDim = valueShape->GetStorageShape().GetDimNum();
-    const size_t nIdx = (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) ? 1U : 2U; // BNSD/TND: 1; BSND:2
+    const size_t nIdx = (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) ? 1U : // BNSD/TND: 1
+        (inputLayout == InputLayout::BSND) ? 2U : 0U; //  BSND:2; NTD:0
 
     if (((inputLayout == InputLayout::BNSD) || (inputLayout == InputLayout::BSND)) && (!enablePA)) {
         if ((queryDim == 4) && (keyDim == 4) && (valueDim == 4)) { // dim num: 4
@@ -677,11 +781,18 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
                 queryDim, keyDim, valueDim);
             return false;
         }
+    } else if ((inputLayout == InputLayout::NTD) && (!enablePA)) {
+        if ((queryDim == 3) && (keyDim == 3) && (valueDim == 3)) { // dim num: 3
+            queryShapeHeadNum = queryShape->GetStorageShape().GetDim(nIdx);
+            keyShapeHeadNum = keyShape->GetStorageShape().GetDim(nIdx);
+            valueShapeHeadNum = valueShape->GetStorageShape().GetDim(nIdx);
+        } else {
+            OP_LOGE(contextKeyParams.opName, "input dim of q(%zu), k(%zu), v(%zu) must be 3 for NTD format!",
+                queryDim, keyDim, valueDim);
+            return false;
+        }
     }
 
-    OP_CHECK_IF(nQ > 256U, // The maximum limit for head is 256.
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "numHeads(%u) should not be more than 256!", nQ),
-        return false);
     OP_CHECK_IF(queryShapeHeadNum != nQ,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "numHeads(%u) in query shape must be equal to numHeads(%u) in attr!", queryShapeHeadNum, nQ),
@@ -697,13 +808,10 @@ bool PromptFlashAttentionTilingV2::CheckInputDimAndHeadNum(ContextParamsForPFATi
     if (enableIFAMLA || enableIFA) {
         gSize = nQ / nKV;
     }
-    if ((nQ / nKV) > pfaMergeGLimit) {
-        enablePFAMerge = false;
-    }
     return true;
 }
 
-bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams,
+bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo,
     PromptFlashAttentionTilingData& tilingData) {
     const int32_t nQ = *contextKeyParams.headsNumber;
     const int32_t nKV = *contextKeyParams.numKeyValueHeads;
@@ -727,9 +835,29 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
         OP_LOGE(contextKeyParams.opName, "numHeads(%d) must be divisible by numKeyValueHeads(%d)!", nQ, nKV);
         return false;
     }
-    if ((!enablePFAMLA && !enableIFAMLA) && (nQ / nKV > 64)) { // G cannot be greater than 64.
-        OP_LOGE(contextKeyParams.opName, "numHeads / numKeyValueHeads = %d, cannot be larger than 64.", nQ / nKV);
-        return false;
+
+    if (enableKVAntiquant || enablePerblockQuant || enablePertensorQuant) {	 
+        if (nQ > NLIMIT) {
+            OP_LOGE(contextKeyParams.opName, "the numheads of input query cannot be larger than 256, but numheads = %d", nQ);	 
+             return false;
+        }
+        if (nQ / nKV > GLIMIT_64) { // G cannot be greater than 64.	 
+            OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
+            return false; 
+        } 
+          
+     } else if (enableIFAMLA || enablePFAMLA || enableIFAMLAFullQuant) { 
+        if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > GLIMIT_128)) { // G cannot be greater than 128. 
+            OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
+            return false; 
+        } 
+     } else { 
+        if ((nQ / nKV > GLIMIT_64 || nQ > NLIMIT) && CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)) {
+            OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) "
+                "connot be larger than %d or the numHeads cannot be larger than %d, but numHeads = %d, numKeyValueHeads = %d.",
+                GLIMIT_64, NLIMIT, nQ, nKV); 
+            return false; 
+        } 
     }
 
     if (enableIFAMLA || enableIFA) {
@@ -787,10 +915,15 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantShape(const ContextParamsForPFA
 
     uint64_t quantScale2ShapeSizePerChannel = static_cast<uint64_t>(queryShapeInfo.n) * static_cast<uint64_t>(valueShapeInfo.d);
     if (quantScale2Dim == 1) {
-        OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
-            return false);
+        if (static_cast<uint64_t>(quantScale2ShapeSize) == quantScale2ShapeSizePerChannel) {
+            // per-channel quant scale/offset shape is [H].
+            return true;
+        } else {
+            OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != 1U),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "for post quant per-tensor, quant scale/offset only support [1], now is [%d]", quantScale2ShapeSize),
+                return false);
+        }
     } else {
         OP_CHECK_IF((static_cast<uint64_t>(quantScale2ShapeSize) != quantScale2ShapeSizePerChannel),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -811,6 +944,10 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
             "inputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
         return false);
+    OP_CHECK_IF((inputLayout == InputLayout::TND),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "TND is not supported in per-tensor quant scenario."),
+        return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "deqScale1, quantScale1 or deqScale2 is nullptr in per-tensor quant scenario."),
@@ -820,6 +957,24 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
                 (deqScale2Shape != nullptr && deqScale2Shape->GetStorageShape().GetShapeSize() == 0),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "deqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."),
+        return false);
+    const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
+    const gert::StorageShape* valueShape = contextKeyParams.valueInputShape;
+    const size_t dIdx = (inputLayout == InputLayout::TND || inputLayout == InputLayout::BSH) ? 2U : 3U; // TND/BSH:2; BSND/BNSD/BNSD_BSND:3
+    uint64_t keyShapeD = keyShape->GetStorageShape().GetDim(dIdx);
+    uint64_t valueShapeD = valueShape->GetStorageShape().GetDim(dIdx);
+    if (inputLayout == InputLayout::BSH) {
+        int32_t nKV = *contextKeyParams.numKeyValueHeads;
+        if (nKV == 0) {
+            nKV = *contextKeyParams.headsNumber;
+        }
+        keyShapeD = static_cast<uint64_t>(keyShapeD / nKV);
+        valueShapeD = static_cast<uint64_t>(valueShapeD / nKV);
+    }
+    OP_CHECK_IF(keyShapeD != valueShapeD,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "The D size of keyInputShape and valueInputShape must be equal in per-tensor quant scenario, but now keyShapeD is %lu, valueShapeD is %lu.",
+            keyShapeD, valueShapeD),
         return false);
     return true;           
 }                                       
@@ -832,9 +987,16 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
     const gert::StorageShape* dequantScaleQueryShape = contextKeyParams.dequantScaleQueryShape;
     const gert::StorageShape* keyAntiquantScaleShape = contextKeyParams.KeyAntiquantScaleShape;
     const gert::StorageShape* valueAntiquantScaleshape = contextKeyParams.valueAntiquantScaleShape;
+    OP_CHECK_IF((dequantScaleQueryShape == nullptr) || (keyAntiquantScaleShape == nullptr) || (valueAntiquantScaleshape == nullptr),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "dequantScaleQuery, keyAntiquantScale or valueAntiquantScale is nullptr in per-block quant scenario."),
+        return false);
     const size_t dequeryDim = dequantScaleQueryShape->GetStorageShape().GetDimNum();
     const size_t dekeyDim = keyAntiquantScaleShape->GetStorageShape().GetDimNum();
     const size_t devalueDim = valueAntiquantScaleshape->GetStorageShape().GetDimNum();
+    constexpr uint32_t fp8QBlockSize = 128U; // 128 is SOuterSize
+    constexpr uint32_t fp8KVBlockSize = 256U; // 256 is SInnerSize
+    std::string layoutStr(contextKeyParams.layout);
     // When PA and tensorlist are enable, they may affect the shape parsing of query, key and value,
     OP_CHECK_IF(enablePA, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "PA is not supported in per-block quant scenario!"),
@@ -863,46 +1025,86 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "now query d = %u, key d = %u, value d = %u.",
             queryShapeInfo.d, keyShapeInfo.d, valueShapeInfo.d),
         return false);
-    OP_CHECK_IF((dequantScaleQueryShape == nullptr) || (keyAntiquantScaleShape == nullptr) || (valueAntiquantScaleshape == nullptr),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "dequantScaleQuery, keyAntiquantScale or valueAntiquantScale is nullptr in per-block quant scenario."),
-        return false); 
-    OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "dequantscale's dim must be 4 in per-block quant scenario," 
-            "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
-            dequeryDim, dekeyDim, devalueDim),
-        return false);
-    OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
-                (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
-                (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, 128U)) ||   // 2 is the dim of dequantscale along s1, 128 is SOuterSize.
-                (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 1U),  // 3 is the dim of dequantscale along d.
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "dequantScaleQueryShape must be [%u, %u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u, %u].",
-            queryShapeInfo.b, queryShapeInfo.n, CeilDivision(queryShapeInfo.s, 128U), 1,
-            dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
-            dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
-        return false); 
-    OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
-                (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
-                (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, 256U)) || //  2 is the dim of dequantscale along s2, 256 is SInnerSize.
-                (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "keyAntiquantScaleShape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
-            keyShapeInfo.b, keyShapeInfo.n, CeilDivision(keyShapeInfo.s, 256U), 1,
-            keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
-            keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3)),
-        return false);
-    OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
-                (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
-                (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, 256U)) || // 2 is the dim of dequantscale along s2, 256 is SInnerSize.
-                (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "valueAntiquantScaleshape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
-            valueShapeInfo.b, valueShapeInfo.n, CeilDivision(valueShapeInfo.s, 256U), 1,
-            valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
-            valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3)),
-        return false); 
+    if (inputLayout == InputLayout::NTD) {
+        OP_CHECK_IF((dequeryDim != 3) || (dekeyDim != 3) || (devalueDim != 3),   // 3 is the number of dimensions of the dequant scale.
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is %s, dequantscale's dim must be 3 in per-block quant scenario," 
+                "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                layoutStr.c_str(), dequeryDim, dekeyDim, devalueDim),
+            return false);
+        if (isMaxWorkspace) return true;
+        OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.n) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is %s, dequantScaleQueryShape must be [%u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u].",
+                layoutStr.c_str(), queryShapeInfo.n, queryShapeInfo.t / fp8QBlockSize + queryShapeInfo.b, CeilDivision(queryShapeInfo.d, fp8KVBlockSize),
+                dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                dequantScaleQueryShape->GetStorageShape().GetDim(2)),
+            return false); 
+        OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.n) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.t / fp8KVBlockSize + keyShapeInfo.b) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is %s, keyAntiquantScaleShape must be [%u, %u, %u] in per-block quant scenario, now is [%u, %u, %u].",
+                layoutStr.c_str(), keyShapeInfo.n, keyShapeInfo.t / fp8KVBlockSize + keyShapeInfo.b, CeilDivision(keyShapeInfo.d, fp8KVBlockSize),
+                keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                keyAntiquantScaleShape->GetStorageShape().GetDim(2)),
+            return false);
+        OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.n) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.t / fp8KVBlockSize + valueShapeInfo.b) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.d, fp8KVBlockSize)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is %s, valueAntiquantScaleshape must be [%u, %u, %u] in per-block quant scenario, now is [%u, %u, %u].",
+                layoutStr.c_str(), valueShapeInfo.n, valueShapeInfo.t / fp8KVBlockSize + valueShapeInfo.b, CeilDivision(valueShapeInfo.d, fp8KVBlockSize),
+                valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                valueAntiquantScaleshape->GetStorageShape().GetDim(2)),
+            return false);
+        OP_CHECK_IF((innerPrecise == MSD_HIGH_PERFORMANCE_EXPEND_NUM) || (innerPrecise == MSD_HIGH_PRECISION_EXPEND_NUM),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "innerPrecise [%d] is currently not supported.(Value 2 or 3 is not supported).", innerPrecise), return false);
+        if (enablePseShift) {
+            OP_CHECK_IF(*contextKeyParams.pseType == 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "Pse is not supported in per-block quant scenario!"), return false);
+        }
+    } else {
+        OP_CHECK_IF((dequeryDim != 4) || (dekeyDim != 4) || (devalueDim != 4),   // 4 is the number of dimensions of the dequant scale.
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "dequantscale's dim must be 4 in per-block quant scenario," 
+                "now dequantScaleQuery's dim is %zu, keyAntiquantScale's dim is %zu, valueAntiquantScale's dim is %zu.",
+                dequeryDim, dekeyDim, devalueDim),
+            return false);
+        OP_CHECK_IF((dequantScaleQueryShape->GetStorageShape().GetDim(0) != queryShapeInfo.b) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(1) != queryShapeInfo.n) ||
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(2) != CeilDivision(queryShapeInfo.s, fp8QBlockSize)) ||   // 2 is the dim of dequantscale along s1.
+                    (dequantScaleQueryShape->GetStorageShape().GetDim(3) != 1U),  // 3 is the dim of dequantscale along d.
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "dequantScaleQueryShape must be [%u, %u, %u, %u] in per-block quant scenario, now is  [%u, %u, %u, %u].",
+                queryShapeInfo.b, queryShapeInfo.n, CeilDivision(queryShapeInfo.s, fp8QBlockSize), 1,
+                dequantScaleQueryShape->GetStorageShape().GetDim(0), dequantScaleQueryShape->GetStorageShape().GetDim(1),
+                dequantScaleQueryShape->GetStorageShape().GetDim(2), dequantScaleQueryShape->GetStorageShape().GetDim(3)),
+            return false); 
+        OP_CHECK_IF((keyAntiquantScaleShape->GetStorageShape().GetDim(0) != keyShapeInfo.b) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(1) != keyShapeInfo.n) ||
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(2) != CeilDivision(keyShapeInfo.s, fp8KVBlockSize)) || //  2 is the dim of dequantscale along s2.
+                    (keyAntiquantScaleShape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "keyAntiquantScaleShape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
+                keyShapeInfo.b, keyShapeInfo.n, CeilDivision(keyShapeInfo.s, fp8KVBlockSize), 1,
+                keyAntiquantScaleShape->GetStorageShape().GetDim(0), keyAntiquantScaleShape->GetStorageShape().GetDim(1),
+                keyAntiquantScaleShape->GetStorageShape().GetDim(2), keyAntiquantScaleShape->GetStorageShape().GetDim(3)),
+            return false);
+        OP_CHECK_IF((valueAntiquantScaleshape->GetStorageShape().GetDim(0) != valueShapeInfo.b) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(1) != valueShapeInfo.n) ||
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(2) != CeilDivision(valueShapeInfo.s, fp8KVBlockSize)) || // 2 is the dim of dequantscale along s2.
+                    (valueAntiquantScaleshape->GetStorageShape().GetDim(3) != 1U), // 3 is the dim of dequantscale along d.
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "valueAntiquantScaleshape must be [%u, %u, %u, %u] in per-block quant scenario, now is [%u, %u, %u, %u].",
+                valueShapeInfo.b, valueShapeInfo.n, CeilDivision(valueShapeInfo.s, fp8KVBlockSize), 1,
+                valueAntiquantScaleshape->GetStorageShape().GetDim(0), valueAntiquantScaleshape->GetStorageShape().GetDim(1),
+                valueAntiquantScaleshape->GetStorageShape().GetDim(2), valueAntiquantScaleshape->GetStorageShape().GetDim(3)),
+            return false); 
+    }
     return true; 
 }
 
@@ -924,7 +1126,6 @@ bool PromptFlashAttentionTilingV2::CheckPostQuantParams(const ContextParamsForPF
                "invalid output type [%s], only support int8, fp8_e4m3fn_t, hifloat8_t",
                GetPfaDataTypeStr(outputType).c_str()),
                return false);
-
     // Basic verification: quantScale2 must be inputted and not an empty tensor
     OP_CHECK_IF(quantScale2Shape == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "quant_scale2_shape is nullptr in post quant scenario."),
@@ -1012,6 +1213,13 @@ bool PromptFlashAttentionTilingV2::CheckKeyValuePrefixConsistency(ContextParamsF
                 "but key_shared_prefix[%u]:%ld, value_shared_prefix[%u]:%ld!", i, tmpPrefixKeyDim, i, tmpPrefixValueDim),
             return false);
     }
+    auto keySharedPrefixDataType = contextKeyParams.keySharedPrefixDataType;
+    auto valueSharedPrefixDataType = contextKeyParams.valueSharedPrefixDataType;
+    OP_CHECK_IF((keySharedPrefixDataType != valueSharedPrefixDataType), 
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When system prefix is used, dataType of keySharedPrefixDataType(%s) and dataType of valueSharedPrefixDataType(%s) must be same.",
+            GetPfaDataTypeStr(keySharedPrefixDataType).c_str(), GetPfaDataTypeStr(valueSharedPrefixDataType).c_str()),
+        return false);
     return true;
 }
 
@@ -1093,23 +1301,24 @@ bool PromptFlashAttentionTilingV2::CheckPAKeyValueShape(ContextParamsForPFATilin
         uint32_t inputTypeIndex = std::distance(allowedDtypes.begin(), inputTypeCheck);
         dataTypeSizeValue = dataTypeSizeArray[inputTypeIndex];
     }
-
-    if (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND) {
-        OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_4) && (keyDim != KV_CACHE_DIM_NUMS_5)), 
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, // dim num: 3/4
-            "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable.",
-                layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
-                blockNumValid, queryShapeInfo.n / headNumRatio, *blockSize, (queryShapeInfo.h / queryShapeInfo.n), 
-                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
-            return false);
-    } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
-        OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_5)), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable."
-            " now key and value shape [%ld, %ld, %ld, %ld].",
-                layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
-                blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue, 
-                keyDim1, keyDim2, keyDim3, keyDim4),
-            return false);
+    if (enableIFAMLAFullQuant) {
+        if (inputLayout == InputLayout::BNSD || inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
+            OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_4) && (keyDim != KV_CACHE_DIM_NUMS_5)), 
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, // dim num: 3/4
+                "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable.",
+                    layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
+                    blockNumValid, queryShapeInfo.n / headNumRatio, *blockSize, (queryShapeInfo.h / queryShapeInfo.n), 
+                    blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
+                return false);
+        } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
+            OP_CHECK_IF(((keyDim != KV_CACHE_DIM_NUMS_3) && (keyDim != KV_CACHE_DIM_NUMS_5)), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "the layout of query is %s, key and value layout should be [>=%ld, %d, %u] or [>=%ld, %u, %u, %d, %d] when PA enable."
+                " now key and value shape [%ld, %ld, %ld, %ld].",
+                    layoutStr.c_str(), blockNumValid, *blockSize, queryShapeInfo.h / headNumRatio, 
+                    blockNumValid, queryShapeInfo.n / headNumRatio, (queryShapeInfo.h / queryShapeInfo.n) * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue, 
+                    keyDim1, keyDim2, keyDim3, keyDim4),
+                return false);
+        }
     }
     return true;
 }
@@ -1131,7 +1340,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
     if (keyDim == 3) {    // dim num: 3
         paLayoutType = 1; // If it is three-dimensional, paLayoutType = 1
         OP_CHECK_IF(
-            ((dim1 < blockNumValid) || (tempBlockSize != *blockSize) || (tempH * headNumRatio != shapeInfo.h)), 
+            ((tempBlockSize != *blockSize) || (tempH * headNumRatio != shapeInfo.h)), 
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld] is wrong, which should be [>=%ld, %d, %u] when PA BnBsH enable", sName.c_str(),
                 dim1, dim2, dim3, blockNumValid, *blockSize, shapeInfo.h / headNumRatio),
             return false);
@@ -1146,7 +1355,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
         tempBlockSize = dim3;
         tempD = dim4;
         paLayoutType = 0; // If it is four-dimensional, paLayoutType = 0
-        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) ||
+        OP_CHECK_IF(((tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) ||
             (tempD != (shapeInfo.h / shapeInfo.n))), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld, %ld] is wrong, which should be [>=%ld, %u, %d, %u] when PA BnNBsD enable!",
                 sName.c_str(), dim1, dim2, dim3, dim4, blockNumValid, shapeInfo.n / headNumRatio, *blockSize,
                 (shapeInfo.h / shapeInfo.n)),
@@ -1174,7 +1383,7 @@ bool PromptFlashAttentionTilingV2::CheckPACacheShape(ContextParamsForPFATiling& 
             dataTypeSizeValue = BFLOAT16SIZE;
         }
 
-        OP_CHECK_IF(((dim1 < blockNumValid) || (tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSizeValue)), 
+        OP_CHECK_IF(((tempN * headNumRatio != shapeInfo.n) || (tempBlockSize != *blockSize) || (tempD1 * tempD0 != shapeInfo.d) || tempD0 != (BYTE_BLOCK / dataTypeSizeValue)), 
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "the shape of %s [%ld, %ld, %ld, %ld, %ld] is wrong, which should be [>=%ld, %u, %u, %d, %d] when PA NZ enable!",
                 sName.c_str(), dim1, dim2, dim3, dim4, dim5, blockNumValid, shapeInfo.n / headNumRatio, shapeInfo.d * dataTypeSizeValue / BYTE_BLOCK, *blockSize, BYTE_BLOCK / dataTypeSizeValue),
             return false);
@@ -1258,29 +1467,29 @@ bool PromptFlashAttentionTilingV2::CheckBlockTableShape(ContextParamsForPFATilin
 }
 
 bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& contextKeyParams, const int32_t* sparseMode,
-    int64_t& attenMaskBatch, int64_t& attenMaskS1, int64_t& attenMaskS2, bool& checkMask, const uint32_t sQ,
-    const uint32_t sK, const uint32_t batchSize, std::string& strMaskShape) {
+    int64_t& attenMaskBatch, int64_t& attenMaskS1, int64_t& attenMaskS2, bool& checkMask, const uint32_t sQ, const uint32_t sK,
+    const uint32_t batchSize, std::string& strMaskShape) {
+    int64_t attenMaskN = 1U;
     const gert::StorageShape* attenMaskShape = contextKeyParams.attentionMaskShape;
     size_t attenMaskDim = attenMaskShape->GetStorageShape().GetDimNum();
-    int64_t attenMaskN = 1U;
-    if (attenMaskDim == MASKDIM_2) {
-        if (enableIFAMask) {
-            attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
-            attenMaskS1 = 1;
-            attenMaskS2 = attenMaskShape->GetStorageShape().GetDim(1);
-            strMaskShape = std::to_string(attenMaskBatch) + ", " + std::to_string(attenMaskS2);
+    if (attenMaskDim == MASKDIM_SS) {
+        if (isDefaultSparseMode || (sparseMode != nullptr && *sparseMode == SPARSE_MODE_ALL_MASK)) { // sparse 0、1时不支持二维mask
+            OP_LOGE(contextKeyParams.opName, "The current dimension of the mask is 2. "
+                "When sparseMode is 0 or 1, the mask dimension only supports 3 and 4. "
+                "Please use 3D mask \[B,QS,KVS\]\/\[1,QS,KVS\] or 4D mask \[B,1,QS,KVS\]\/\[1,1,QS,KVS\].");
+            return false;
         } else {
             attenMaskS1 = attenMaskShape->GetStorageShape().GetDim(0);
             attenMaskS2 = attenMaskShape->GetStorageShape().GetDim(1);
             strMaskShape = std::to_string(attenMaskS1) + ", " + std::to_string(attenMaskS2);
         }
-    } else if (attenMaskDim == MASKDIM_3) {
+    } else if (attenMaskDim == MASKDIM_1SS_BSS) {
         attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
         attenMaskS1 = attenMaskShape->GetStorageShape().GetDim(1);
         attenMaskS2 = attenMaskShape->GetStorageShape().GetDim(2); // 2: When the dim is 3, the second dimension is S2.
         strMaskShape = std::to_string(attenMaskBatch) + ", " + std::to_string(attenMaskS1) + ", " + 
             std::to_string(attenMaskS2);
-    } else if (attenMaskDim == MASKDIM_4) {
+    } else if (attenMaskDim == MASKDIM_11SS_B1SS) {
         attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
         attenMaskN = attenMaskShape->GetStorageShape().GetDim(1);
         attenMaskS1 = attenMaskShape->GetStorageShape().GetDim(2); // 2: When the dim is 4, the second dimension is S1.
@@ -1292,9 +1501,7 @@ bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& con
         return false;
     }
 
-    if (enableIFAMask) {
-        checkMask = (attenMaskBatch == batchSize) && (attenMaskS1 == 1) && (attenMaskS2 >= S2);
-    } else if (isDefaultSparseMode || (sparseMode != nullptr && *sparseMode == SPARSE_MODE_ALL_MASK)) {
+    if (isDefaultSparseMode || (sparseMode != nullptr && *sparseMode == SPARSE_MODE_ALL_MASK)) {
         checkMask = (attenMaskS1 >= sQ) && (attenMaskS2 >= sK) && (attenMaskBatch == 1 || attenMaskBatch == batchSize);
     } else if ((sparseMode != nullptr) && ((*sparseMode == SPARSE_MODE_LEFT_UP) ||
         (*sparseMode == SPARSE_MODE_RIGHT_DOWN) || (*sparseMode == SPARSE_MODE_BAND))) {
@@ -1305,18 +1512,8 @@ bool PromptFlashAttentionTilingV2::CheckMaskShape(ContextParamsForPFATiling& con
 }
 
 void PromptFlashAttentionTilingV2::SetSparseModeData(ContextParamsForPFATiling& contextKeyParams,
-    const gert::StorageShape* attenMaskShape, PromptFlashAttentionTilingData& tilingData,
-    const int32_t* sparseMode, const int64_t* preTokens, const int64_t* nextTokens) {
-    size_t attenMaskBatch = 1;
-    if ((attenMaskShape != nullptr) && (attenMaskShape->GetStorageShape().GetDimNum() != MASKDIM_2)) {
-        // 2: target dimension of attenMask
-        attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0);
-    }
-    if ((attenMaskShape != nullptr) && enableIFAMask && (attenMaskShape->GetStorageShape().GetDimNum() == MASKDIM_2)) {
-        attenMaskBatch = attenMaskShape->GetStorageShape().GetDim(0); // IFA mask shape (B,S2)
-    }
-    tilingData.promptAttentionSingleCoreParams.set_attenMaskBatch(attenMaskBatch);
-
+    const gert::StorageShape* attenMaskShape, const int32_t* sparseMode, const int64_t* preTokens,
+    const int64_t* nextTokens) {
     if (*preTokens > SPARSE_MODE_INT_MAX) {
         sparsePreTokens = SPARSE_MODE_INT_MAX;
     } else if (*preTokens < -(SPARSE_MODE_INT_MAX)) {
@@ -1345,11 +1542,6 @@ void PromptFlashAttentionTilingV2::SetSparseModeData(ContextParamsForPFATiling& 
         } else if (*sparseMode == SPARSE_MODE_BAND) {
             isBandMode = true;
         }
-        if (enableIFA && !enableIFAMLA) {
-            sparseModeVal = SPARSE_MODE_NO_MASK;
-            sparsePreTokens = SPARSE_MODE_INT_MAX;
-            sparseNextTokens = SPARSE_MODE_INT_MAX;
-        }
         sparseModeVal = *sparseMode;
         OP_LOGI(contextKeyParams.opName, "sparseMode is %d.", sparseModeVal);
     }
@@ -1370,7 +1562,8 @@ void PromptFlashAttentionTilingV2::SetSparseModeData(ContextParamsForPFATiling& 
 }
 
 bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFATiling& contextKeyParams,
-    const int32_t* sparseMode, uint32_t sQ, const uint32_t sK, const uint32_t batchSize) {
+    PromptFlashAttentionTilingData& tilingData, const int32_t* sparseMode, uint32_t sQ, const uint32_t sK,
+    const uint32_t batchSize) {
     if (isMaxWorkspace || !enableMask) {
         return true;
     }
@@ -1382,33 +1575,27 @@ bool PromptFlashAttentionTilingV2::CheckMaskShapeCrossSparse(ContextParamsForPFA
     int64_t attenMaskS2 = 0;
     bool checkMask = 0;
     std::string strMaskShape;
-    if (!CheckMaskShape(contextKeyParams, sparseMode, attenMaskBatch, attenMaskS1, attenMaskS2, checkMask, sQ, sK, batchSize, strMaskShape)) {
+    if (!CheckMaskShape(contextKeyParams, sparseMode, attenMaskBatch, attenMaskS1, attenMaskS2,
+        checkMask, sQ, sK, batchSize, strMaskShape)) {
         return false;
     }
-    if (enableIFAMask) {
+    
+    if (isDefaultSparseMode || ((sparseMode != nullptr) && (*sparseMode == SPARSE_MODE_ALL_MASK))) {
         OP_CHECK_IF(!checkMask,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "attenMask batch(%ld) must be %u, attenMask Q_S(%ld) must be 1,"
+                "attenMask batch(%ld) must be 1 or %u, attenMask Q_S(%ld) must be larger than or equal to sQ(%u),"
                 "attenMask KV_S(%ld) must be larger than or equal to sK(%u), please check",
-                attenMaskBatch, batchSize, attenMaskS1, attenMaskS2, sK),
+                attenMaskBatch, batchSize, attenMaskS1, sQ, attenMaskS2, sK),
             return false);
-    } else {
-        if (isDefaultSparseMode || ((sparseMode != nullptr) && (*sparseMode == SPARSE_MODE_ALL_MASK))) {
-            OP_CHECK_IF(!checkMask,
-                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                    "attenMask batch(%ld) must be 1 or %u, attenMask Q_S(%ld) must be larger than or equal to sQ(%u),"
-                    "attenMask KV_S(%ld) must be larger than or equal to sK(%u), please check",
-                    attenMaskBatch, batchSize, attenMaskS1, sQ, attenMaskS2, sK),
-                return false);
-        }
-        if ((sparseMode != nullptr) && ((*sparseMode == SPARSE_MODE_LEFT_UP) ||
-            (*sparseMode == SPARSE_MODE_RIGHT_DOWN) || (*sparseMode == SPARSE_MODE_BAND)) && !checkMask) {
-            OP_LOGE(contextKeyParams.opName,
-                "attenMask shape must be (2048, 2048) or (1, 2048, 2048) or (1, 1, 2048, 2048) when sparse mode = %d, but now it's (%s).",
-                    *sparseMode, strMaskShape.c_str());
-            return false;
-        }
     }
+    if ((sparseMode != nullptr) && ((*sparseMode == SPARSE_MODE_LEFT_UP) ||
+        (*sparseMode == SPARSE_MODE_RIGHT_DOWN) || (*sparseMode == SPARSE_MODE_BAND)) && !checkMask) {
+        OP_LOGE(contextKeyParams.opName,
+            "attenMask shape must be (2048, 2048) or (1, 2048, 2048) or (1, 1, 2048, 2048) when sparse mode = %d, but now it's (%s).",
+                *sparseMode, strMaskShape.c_str());
+        return false;
+    }
+    tilingData.promptAttentionSingleCoreParams.set_attenMaskBatch(attenMaskBatch);
     attenMaskShapeType = attenMaskBatch > 1 ? 1 : 2; // 1 for multi-batch and 2 for 1 batch, same as fa
     return true;
 }
@@ -1426,12 +1613,17 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
         return false;
     }
+    if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
+        return false;
+    }
 
     // 隔离高阶特性
     std::string layoutStr(contextKeyParams.layout);
+    bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
+        layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD";
     bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
         enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
-        enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || layoutStr == "BNSD_BSND";
+        enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || isTransposeLayout || enableLearnSink;
 
     return !hasCrossoverAttr;
 }
@@ -1449,7 +1641,7 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     // check layout
     OP_CHECK_IF((!SetInputLayout(contextKeyParams.layout)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
-            "Invalid input layout:%s. Currently only TND/BSH/BNSD/BSND/BSND_BNSD layout are supported.", 
+            "Invalid input layout:%s. Currently only TND/NTD/BSH/BNSD/BSND/BSND_BNSD/BNSD_BSND/BSH_BNSD/BSND_NBSD/BNSD_NBSD/BSH_NBSD layout are supported.",
             contextKeyParams.layout),
         return false);
 
@@ -1458,8 +1650,13 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check query shape failed."),
         return false);
     if (queryShapeInfo.s == 1) {
-        enableIFAMask = true;
-        if (!enableAlibiPse && !enablePerblockQuant) {
+        if (inputLayout != InputLayout::NTD) {
+ 	  	    enableIFAMask = true;
+ 	  	}
+        std::string layoutStr(contextKeyParams.layout);
+        bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
+            layoutStr == "NTD" || layoutStr == "NTD_TND";
+        if (!enableAlibiPse && !enablePerblockQuant && !isTransposeLayout) {
             enableIFA = true;
         }
     }
@@ -1485,11 +1682,26 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
         enablePFAMLA = true;
         enablePFAMerge = false;
     }
+
+    if(queryShapeInfo.d != valueShapeInfo.d && !enablePFAMLA){
+        isQKVDDifferent = true;
+    }
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.inputDataType != ge::DT_FLOAT16 && contextKeyParams.inputDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query data type must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (outputType != ge::DT_FLOAT16 && outputType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Output data type must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (queryShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (valueShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
     // check query and output consistency
     OP_CHECK_IF((!CheckQueryOutParamsConsistency(contextKeyParams, queryShape, outShape)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query and output consistency check failed."),
         return false);
-
     return true;
 }
 
@@ -1513,6 +1725,18 @@ bool PromptFlashAttentionTilingV2::CheckKV(ContextParamsForPFATiling& contextKey
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get and check value shape failed."),
         return false);
 
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.kDataType != ge::DT_FLOAT16 && contextKeyParams.kDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key type must must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (contextKeyParams.vDataType != ge::DT_FLOAT16 && contextKeyParams.vDataType != ge::DT_BF16),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value type must must be float16 or bf16 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (keyShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(isQKVDDifferent && (valueShapeInfo.d > 128),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Value headdim must smaller than 128 when query and key headdim is not equal to value headdim."),
+        return false);
     // check key and value consistency
     OP_CHECK_IF((!CheckKeyValueParamsConsistency(contextKeyParams, keyShape, valueShape)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Key and value consistency check failed."),
@@ -1524,7 +1748,7 @@ bool PromptFlashAttentionTilingV2::CheckKV(ContextParamsForPFATiling& contextKey
 bool PromptFlashAttentionTilingV2::CheckQueryAndKey(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, PFAShapeInfo& keyShapeInfo, PromptFlashAttentionTilingData& tilingData) {
     // check numhead ratio
-    if (!SetAndCheckHeadNumRatio(contextKeyParams, tilingData)) {
+    if (!SetAndCheckHeadNumRatio(contextKeyParams, queryShapeInfo, tilingData)) {
         return false;
     }
 
@@ -1547,11 +1771,19 @@ bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contex
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
             "in range of [1, %u] when enable ifa mla", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
         return false);
-    static const std::set<uint32_t> supportNumHeadInIfaMla = {32U, 64U, 128U}; // ifa mla场景qN支持范围
-    OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
-            "{32, 64, 128} when enable ifa mla", queryShapeInfo.n),
-        return false);
+    if (enableIFAMLAFullQuant) {
+        static const std::set<uint32_t> supportNumHeadInIfaMla = {32U, 64U, 128U}; // ifa mla场景qN支持范围
+        OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
+                "{32, 64, 128} when enable ifa mla fullquant", queryShapeInfo.n),
+            return false);
+    } else {
+        static const std::set<uint32_t> supportNumHeadInIfaMla = {1U, 2U, 4U, 8U, 16U, 32U, 64U, 128U}; // ifa mla场景qN支持范围
+        OP_CHECK_IF((supportNumHeadInIfaMla.find(queryShapeInfo.n) == supportNumHeadInIfaMla.end()),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's heads num is %u, it should be in range of "
+                "{1, 2, 4, 8, 16, 32, 64, 128} when enable ifa mla", queryShapeInfo.n),
+            return false);
+    }
     const int32_t nKV = *contextKeyParams.numKeyValueHeads; // ifa mla场景不支持g = 1, 因此在nKV用默认值0, nQ替代也属于异常场景
     OP_CHECK_IF((nKV != 1U),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input key/value's heads num is %u, it should be 1 when enable "
@@ -1593,6 +1825,27 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
     }
     OP_LOGI(contextKeyParams.opName, "enableIFAMLA is %d, enablePA is %d, enableMask is %d, faRunFlag_ is %d", 
                 enableIFAMLA, enablePA, enableMask, faRunFlag_);
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckLayout(ContextParamsForPFATiling& contextKeyParams) {
+    if (contextKeyParams.layout == nullptr) {
+        return false;
+    }
+    std::string layoutStr(contextKeyParams.layout);
+    const std::vector<std::string> unsupportedLayoutList = {"NTD", "BSND_BNSD", "BSH_BNSD", "BNSD_BSND", "NTD_TND"};
+    const std::vector<std::string> unsupportedLayoutList2 = {"BNSD_NBSD", "BSH_NBSD", "BSND_NBSD", "TND_NTD"};
+    if (enableIFAMLA) {
+        OP_CHECK_IF(std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), layoutStr) != unsupportedLayoutList.end(),
+            OP_LOGE(contextKeyParams.opName, "When decode mla scenario is applied, layout does not support NTD, BSND_BNSD, BSH_BNSD, "
+            "BNSD_BSND, NTD_TND, but got %s", layoutStr.c_str()),
+            return false);
+    } else if (!enablePertensorQuant && !enablePerblockQuant) {
+        OP_CHECK_IF(std::find(unsupportedLayoutList2.begin(), unsupportedLayoutList2.end(), layoutStr) != unsupportedLayoutList2.end(),
+            OP_LOGE(contextKeyParams.opName, "When prefill mla or gqa scenario is applied, layout does not support BNSD_NBSD, BSH_NBSD, "
+            "BSND_NBSD, TND_NTD, but got %s", layoutStr.c_str()),
+            return false);
+    }
     return true;
 }
 
@@ -1750,7 +2003,7 @@ bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& 
             "When MLAFullQuant enables, dataType of dequantScaleQuery(%s), KeyAntiquantScale(%s) and valueAntiquantScale(%s) must be float32.",
             GetPfaDataTypeStr(contextKeyParams.dequantScaleQueryType).c_str(), GetPfaDataTypeStr(contextKeyParams.KeyAntiquantScaleType).c_str(),
             GetPfaDataTypeStr(contextKeyParams.valueAntiquantScaleType).c_str()), return false);
-    OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) && !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
+    OP_CHECK_IF((!CheckQScaleShape4MLAFullQuant(contextKeyParams) || !CheckKVScaleShape4MLAFullQuant(contextKeyParams)),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "When MLAFullQuant enables, check dequantScaleQuery, keyAntiQuantScale or valueAntiquantScale shape failed."), return false);
     // 全量化暂不支持 keyAntiquantOffset, valueAntiquantOffset, quantScale1, dequantScale1, dequantScale2
@@ -1778,13 +2031,18 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         actualSharedPrefixLen = 0;
         return true;
     }
-    // The prefix does not support TND, tensorlist, pfa mla, ifa mla or left padding
+    std::string layoutStr(contextKeyParams.layout);
     OP_CHECK_IF(
-        (inputLayout == InputLayout::TND),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND is used, system prefix is not supported!"),
+        (layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when %s is used, system prefix is not supported!",
+        layoutStr.c_str()), return false);
+    // The prefix does not support TND, tensorlist, pfa mla, ifa mla, left padding and alibi
+    OP_CHECK_IF(
+        (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "when TND/NTD is used, system prefix is not supported!"),
         return false);
-    OP_CHECK_IF(enableTensorList, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "when tensorlist is used, system prefix is not supported!"),
+    OP_CHECK_IF(enableTensorList && (queryShapeInfo.s > 1), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when tensorlist is used and q_s is greater than 1, system prefix is not supported!"),
         return false);
     OP_CHECK_IF(enableIFAMLA || enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when system prefix is used, rope is not supported!"),
@@ -1799,7 +2057,14 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "when system prefix is used, query and key/value should not both be int8!"),
         return false);
-
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When pseType = 2/3, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePostQuant && (outputType == ge::DT_FLOAT8_E4M3FN || outputType == ge::DT_HIFLOAT8),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "when system prefix is used, invalid output type [%s], only support int8.",
+            GetPfaDataTypeStr(outputType).c_str()),
+        return false);
     // get prefix shape
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
 
@@ -1826,24 +2091,24 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
 }
 
 bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const {
-    if (inputLayout != InputLayout::TND) {
+    if (inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD) {
         return true;
     }
 
     const gert::Tensor* actSeqLen = contextKeyParams.actualSequenceLengthQ;
     const gert::Tensor* actSeqLenKV = contextKeyParams.actualSequenceLengthKV;
     OP_CHECK_IF(actSeqLen == nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthQ can not be nullptr"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD, actualSequenceLengthQ can not be nullptr"),
         return false);
     OP_CHECK_IF(actSeqLenKV == nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND, actualSequenceLengthKV can not be nullptr"),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is TND/NTD, actualSequenceLengthKV can not be nullptr"),
         return false);
 
     auto batchOfQuery = actSeqLen->GetShapeSize();
     auto batchOfKey = actSeqLenKV->GetShapeSize();
     OP_CHECK_IF(batchOfQuery != batchOfKey,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
+            "When layout is TND/NTD, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
             "batch size of actualSequenceLengthQ = %ld, batch size of actualSequenceLengthKV = %ld",
             batchOfQuery, batchOfKey),
         return false);
@@ -1880,17 +2145,34 @@ bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& 
 
     const gert::StorageShape* queryShape = contextKeyParams.queryInputShape;
     const gert::StorageShape* keyShape = contextKeyParams.keyInputShape;
-    OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(0),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
-            actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(0)),
-        return false);
-    if (!enablePA) {
-        OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(0),
+    if (inputLayout == InputLayout::TND) {
+        OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(0),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "When layout is TND, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
-                actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(0)),
+            "When layout is TND, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
+                actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(0)),
             return false);
+    } else {
+        OP_CHECK_IF(actSeqLen->GetData<int64_t>()[batchSize - 1] != queryShape->GetStorageShape().GetDim(1),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When layout is NTD, the last element of Actual_seq_lengths(%ld) must be equal to T(%ld)",
+                actSeqLen->GetData<int64_t>()[batchSize - 1], queryShape->GetStorageShape().GetDim(1)),
+            return false);       
+    }
+
+    if (!enablePA) {
+        if (inputLayout == InputLayout::TND) {
+            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(0),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is TND, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
+                    actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(0)),
+                return false);
+        } else {
+            OP_CHECK_IF(actSeqLenKV->GetData<int64_t>()[batchSize - 1] != keyShape->GetStorageShape().GetDim(1),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "When layout is NTD, the last element of Actual_seq_lengths_kv(%ld) must be equal to T(%ld)",
+                    actSeqLenKV->GetData<int64_t>()[batchSize - 1], keyShape->GetStorageShape().GetDim(1)),
+                return false);
+        }
     }
 
     return true;
@@ -1906,9 +2188,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
 
     std::string layoutStr(contextKeyParams.layout);
     if (enableActSeqLen) {   // check the length of actual_seq_lengthsQ, whether is 1 or batch size
-        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND),
+        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND && inputLayout != InputLayout::NTD),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND scenarios, only supported when layout is TND!", layoutStr.c_str()),
+                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND/NTD scenarios, only supported when layout is TND!", layoutStr.c_str()),
             return false);
         OP_CHECK_IF((actSeqLenDims < queryShapeInfo.b) && (actSeqLenDims > actSeqLenDimsQMin),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1918,7 +2200,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
         uint32_t actSeqLengthSize = std::min(static_cast<uint32_t>(actSeqLenDims), queryShapeInfo.b);
         for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLengthSize; ++i) {
             int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
-            if (inputLayout == InputLayout::TND && i >= 1) {
+            if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) && i >= 1) {
                 actSeqTmp -= actSeqLen->GetData<int64_t>()[i - 1];
             }
             OP_CHECK_IF(actSeqTmp < 0 || actSeqTmp > queryShapeInfo.s, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
@@ -1929,6 +2211,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                 enablePFAMerge = false;
             }
         }
+        t1Size = actSeqLen->GetData<int64_t>()[actSeqLengthSize - 1];
     }
 
     if (enableActSeqLenKV) { // check the length of actual_seq_lengthsKV,whether is 1 or batch size
@@ -1942,7 +2225,7 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
         uint32_t actSeqLengthKVSize = std::min(static_cast<uint32_t>(actSeqLenKVDims), queryShapeInfo.b);
         for (uint32_t i = LOOP_BEGIN_NUM; i < actSeqLengthKVSize; ++i) {
             int64_t actSeqKVTmp = static_cast<int64_t>(actSeqLenKV->GetData<int64_t>()[i]);
-            if (inputLayout == InputLayout::TND && !enablePA && i >= 1) {
+            if ((inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) && !enablePA && i >= 1) {
                 actSeqKVTmp -= static_cast<int64_t>(actSeqLenKV->GetData<int64_t>()[i - 1]);
             }
             if (!enableTensorList && !enablePA) {
@@ -1964,12 +2247,16 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
                     return false);
             }
         }
+        t2Size = actSeqLenKV->GetData<int64_t>()[actSeqLengthKVSize - 1];
     }
     return true;
 }
 
 bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, PFAShapeInfo& queryRopeShapeInfo, PromptFlashAttentionTilingData& tilingData) {
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support PA when query and key headdim is not equal to value headdim."),
+        return false);
     // The interception that is mutually exclusive with the left padding has been implemented in FIA.
     OP_CHECK_IF(enableTensorList,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "not support tensorlist when blockTable is not null"),
@@ -2003,18 +2290,34 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     // Tiling sinking scene, workspace needs to be calculated, at this time, blockTableDim2 * blockSize is used as S2.
     blockTableDim2 = static_cast<int32_t>(blockTableShape->GetStorageShape().GetDim(1));
     // PFA PA blockSize % 128 == 0
-    OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE != 0 || *blockSize < BLOCK_SIZE_BASE || *blockSize > BLOCK_SIZE_MAX)),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
-            *blockSize, BLOCK_SIZE_BASE, BLOCK_SIZE_BASE, BLOCK_SIZE_MAX),
-        return false);
+    if (enableIFAMLAFullQuant) {
+        OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE != 0 || *blockSize < BLOCK_SIZE_BASE || *blockSize > BLOCK_SIZE_MAX)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
+                *blockSize, BLOCK_SIZE_BASE, BLOCK_SIZE_BASE, BLOCK_SIZE_MAX),
+            return false);
+    } else {
+        OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant",
+                *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT),
+            return false);
+    }
     // IFA PA blockSize % 16 == 0
     ifaBlockSizeBase /= static_cast<int32_t>(dataTypeSize);
-    OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % ifaBlockSizeBase != 0 || *blockSize < ifaBlockSizeBase || *blockSize > BLOCK_SIZE_MAX)),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
-            *blockSize, ifaBlockSizeBase, ifaBlockSizeBase, BLOCK_SIZE_MAX),
-        return false);
+    if (enableIFAMLAFullQuant) {
+        OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % ifaBlockSizeBase != 0 || *blockSize < ifaBlockSizeBase || *blockSize > BLOCK_SIZE_MAX)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
+                *blockSize, ifaBlockSizeBase, ifaBlockSizeBase, BLOCK_SIZE_MAX),
+            return false);
+    } else {
+        OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant",
+                *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT),
+            return false);
+    }
 
     if (isMaxWorkspace) {
         S2 = blockTableDim2 * (*blockSize);
@@ -2031,6 +2334,12 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
 bool PromptFlashAttentionTilingV2::CheckPseShiftTypeAndShape(ContextParamsForPFATiling& contextKeyParams,
     uint32_t b, uint32_t n, uint32_t s1, uint32_t s2) {
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support pse shift when query and key headdim is not equal to value headdim."),
+        return false);   
+    OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "MLA do not support pseShift."),
+        return false);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShiftShape, "pseShift")) {
         return false;
     }
@@ -2196,40 +2505,19 @@ bool PromptFlashAttentionTilingV2::CheckSparseMode(ContextParamsForPFATiling& co
             return false);
     }
     const gert::StorageShape* attenMaskShape = contextKeyParams.attentionMaskShape;
-    SetSparseModeData(contextKeyParams, attenMaskShape, tilingData, sparseMode, preTokens, nextTokens);
-
-    OP_CHECK_IF(((attenMaskShape != nullptr) && (sparseMode != nullptr) && (*sparseMode == SPARSE_MODE_BAND) &&
-        (*preTokens < 0 && *nextTokens < 0)), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "preTokens and nextTokens must not be negative in band mode, preTokens = %ld, nextTokens = %ld.",
-            *preTokens, *nextTokens),
-        return false);
-
-    OP_CHECK_IF((sparsePreTokens < 0) && (sparseNextTokens < 0),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "preTokens and nextokens cannot neither be negative number, preTokens = %ld, nextTokens = %ld.",
-            sparsePreTokens, sparseNextTokens),
-        return false);
+    SetSparseModeData(contextKeyParams, attenMaskShape, sparseMode, preTokens, nextTokens);
 
     OP_CHECK_IF((sparseNextTokens * (-1)) > sparsePreTokens, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "nexttoken line should be higher than pretoken line, preTokens = %ld, nextTokens = %ld.",
         sparsePreTokens, sparseNextTokens),
-		return false);
-
-    OP_CHECK_IF(isDefaultSparseMode && (sparseNextTokens < 0) && (sparseNextTokens * (-1)) >= static_cast<int32_t>(qS),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "nextTokens absolute value should be smaller than length of q, nextTokens = %ld, length of q = %u.",
-            sparseNextTokens, qS),
-        return false);
-
-    OP_CHECK_IF(isDefaultSparseMode && (sparsePreTokens < 0) && (sparsePreTokens * (-1) >=
-        (static_cast<int32_t>(S2) + static_cast<int32_t>(actualSharedPrefixLen))),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "preToken absolute value should be smaller than length of k and v "
-            "(length of k and v + length of prefix when enable prefix), "
-            "preTokens = %ld, seqLengthKV = %u, actualSharedPrefixLen = %ld", sparsePreTokens, S2, actualSharedPrefixLen),
         return false);
 
     SetSparseType(qS);
+    OP_CHECK_IF((isQKVDDifferent && sparseModeVal != 0 && sparseModeVal != 2 && sparseModeVal != 3) ,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Not support sparse mode %d when query and key headdim is not equal to value headdim.",
+        sparseModeVal),
+        return false);
     return true;
 }
 
@@ -2261,21 +2549,31 @@ bool PromptFlashAttentionTilingV2::CheckMaskCrossIFAMLA(ContextParamsForPFATilin
     if (sparseMode == nullptr) {
         return true;
     }
-    if (queryS == 1U) {
-        OP_CHECK_IF(!((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask)),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Only support sparse 0 without mask when ifa mla and query's sequence length is 1, "
-                "input sparse mode is %d and there has%smask",
-                *sparseMode, enableMask ? " " : " no "),
-            return false);
+    if (enableIFAMLAFullQuant) {
+        if (queryS == 1U) {
+            OP_CHECK_IF(!((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask)),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "Only support sparse 0 without mask when ifa mla fullquant and query's sequence length is 1, "
+                    "input sparse mode is %d and there has%smask",
+                    *sparseMode, enableMask ? " " : " no "),
+                return false);
+        } else {
+            OP_CHECK_IF(!(((*sparseMode == SPARSE_MODE_RIGHT_DOWN) && (enableMask)) || ((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask))),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                    "Only support sparse 3 with mask, or sparse 0 without mask when ifa mla fullquant and query's sequence length is > 1, "
+                    "input sparse mode is %d and there has%smask",
+                    *sparseMode, enableMask ? " " : " no "),
+                return false);
+        }
     } else {
-        OP_CHECK_IF(!(((*sparseMode == SPARSE_MODE_RIGHT_DOWN) && (enableMask)) || ((*sparseMode == SPARSE_MODE_NO_MASK) && (!enableMask))),
+        OP_CHECK_IF(!(((*sparseMode == SPARSE_MODE_RIGHT_DOWN) && (enableMask)) || (*sparseMode == SPARSE_MODE_NO_MASK) || ((*sparseMode == SPARSE_MODE_BAND) && (enableMask))),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "Only support sparse 3 with mask, or sparse 0 without mask when ifa mla and query's sequence length is > 1, "
+                "Only support sparse 3 with mask, sparse 4 with mask, or sparse 0 when ifa mla, "
                 "input sparse mode is %d and there has%smask",
                 *sparseMode, enableMask ? " " : " no "),
             return false);
     }
+    
     return true;
 }
 
@@ -2300,12 +2598,12 @@ bool PromptFlashAttentionTilingV2::CheckMaskCrossover(ContextParamsForPFATiling&
             return false);
     }
     // FP16 mask type does not support invalid line correction.
-    OP_CHECK_IF((maskDataType == ge::DT_FLOAT16 && tilingData.promptAttentionBaseParams.get_isRowInvalid()),
+    OP_CHECK_IF((contextKeyParams.attentionMask != nullptr && maskDataType == ge::DT_FLOAT16 && tilingData.promptAttentionBaseParams.get_isRowInvalid()),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "maskType[%s] should not be float16 when innerPrecise = 2 or 3",
             GetPfaDataTypeStr(maskDataType).c_str()),
         return false);
-    if (!CheckMaskShapeCrossSparse(contextKeyParams, sparseMode, queryShapeInfo.s, S2 + actualSharedPrefixLen,
+    if (!CheckMaskShapeCrossSparse(contextKeyParams, tilingData, sparseMode, queryShapeInfo.s, S2 + actualSharedPrefixLen,
         queryShapeInfo.b)) {
         return false;
     }
@@ -2318,6 +2616,13 @@ bool PromptFlashAttentionTilingV2::CheckMaskCrossover(ContextParamsForPFATiling&
 bool PromptFlashAttentionTilingV2::CheckTNDLayoutCrossover(ContextParamsForPFATiling& contextKeyParams) {
     if (inputLayout != InputLayout::TND) {
         return true;
+    }
+
+    std::string layoutStr(contextKeyParams.layout);
+    if (enableIFAMLA && layoutStr == "TND_NTD") { // Decode MLA
+        OP_CHECK_IF(enablePostQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In Decode MLA scenario, when layout is TND_NTD, post quant is not supported!"),
+            return false);
     }
 
     OP_CHECK_IF(enableLeftPadding,
@@ -2335,6 +2640,113 @@ bool PromptFlashAttentionTilingV2::CheckTNDLayoutCrossover(ContextParamsForPFATi
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckNTDLayoutCrossover(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo) {
+    if (inputLayout != InputLayout::NTD) {
+        return true;
+    }
+
+    if (enablePFAMLA || enablePFARope) { // Prefill MLA
+ 	    OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+ 	        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is NTD, full quant is not supported!"),
+ 	        return false);
+ 	}
+
+    std::string layoutStr(contextKeyParams.layout);
+    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !(enablePerblockQuant && layoutStr == "NTD_TND")) { // GQA
+        OP_CHECK_IF((CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is NTD, d size of query must be 64 or 128, but got d = %d.",
+            queryShapeInfo.d), return false);
+    }
+
+    OP_CHECK_IF(enableLeftPadding,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!", layoutStr.c_str()),
+        return false);
+    
+    OP_CHECK_IF(enableTensorList,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, tensorlist is not supported!", layoutStr.c_str()),
+        return false);
+
+    OP_CHECK_IF(enablePseShift,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!", layoutStr.c_str()),
+        return false);
+
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsForPFATiling& contextKeyParams,
+    PFAShapeInfo& queryShapeInfo) {
+    std::string layoutStr(contextKeyParams.layout);
+    if (layoutStr != "BSH_BNSD" && layoutStr != "BSND_BNSD" && layoutStr != "BNSD_BSND") {
+        return true;
+    }
+    if (enablePFAMLA || enablePFARope) { // Prefill MLA
+        OP_CHECK_IF(enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
+            layoutStr.c_str()), return false);
+    }
+    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+        OP_CHECK_IF((CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+            layoutStr.c_str(), queryShapeInfo.d), return false);
+    }
+    if (layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD") {
+        OP_CHECK_IF(enableLeftPadding,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!",
+            layoutStr.c_str()), return false);
+        
+        OP_CHECK_IF(enableTensorList,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, tensorlist is not supported!",
+            layoutStr.c_str()), return false);
+
+        OP_CHECK_IF(enablePseShift,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!",
+            layoutStr.c_str()), return false);
+    }
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &contextKeyParams,
+                                                  PFAShapeInfo &queryShapeInfo, PFAShapeInfo &valueShapeInfo,
+                                                  PromptFlashAttentionTilingData &tilingData)
+{
+    if (!enableLearnSink) {
+        return true;
+    }
+
+    OP_CHECK_IF(contextKeyParams.learnableSink->GetStorageShape().GetDim(0) != queryShapeInfo.n, 
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When learnable sink is used, shape of learnable sink(%ld) must be same with query's N(%ld).", 
+            contextKeyParams.learnableSink->GetStorageShape().GetDim(0), queryShapeInfo.n),
+        return false);
+    OP_CHECK_IF(contextKeyParams.learnableSinkDataType != ge::DT_BF16, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, dataType of learnable sink(%s) must be bf16.", GetPfaDataTypeStr(contextKeyParams.learnableSinkDataType).c_str()),
+        return false);
+    OP_CHECK_IF(queryShapeInfo.d != 192 && queryShapeInfo.d != 128 && queryShapeInfo.d != 64, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When learnable sink is used, query headdim must be one of {192, 128, 64}."),
+        return false);
+    OP_CHECK_IF(enablePseShift, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, pse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableAlibiPse, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "When learnable sink is used, AlibiPse is not supported!"),
+        return false);
+    OP_CHECK_IF(enableLeftPadding, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, leftpadding is not supported!"),
+        return false);
+    OP_CHECK_IF(isKVHasPrefix, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, system prefix is not supported!"),
+        return false);
+    OP_CHECK_IF(enablePostQuant, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "when learnable sink is used, post quant is not supported!"),
+        return false);
+    OP_CHECK_IF(innerPrecise != HIGH_PRECISION, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "innerPrecise must be high-precision in learnable sink, now is %ld", innerPrecise),
+        return false);
+    OP_CHECK_IF(enableIFAMLAFullQuant || enableIFAMLA || enablePerblockQuant || enablePertensorQuant,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Learnable sink only supports no-quantized GQA mode"),
+        return false);
+    return true;
+}
+
 bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& queryShapeInfo, std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV) {
     uint32_t lenDims = queryShapeInfo.b; // The current length of the actSeqLen array is equal to batch size b.
@@ -2343,14 +2755,14 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
     actSeqLenDims = (actSeqLenData != nullptr) ? actSeqLenData->GetShapeSize() : 0;
     actSeqLenKVDims = (actSeqLenDataKV != nullptr) ? actSeqLenDataKV->GetShapeSize() : 0;
 
-    if (inputLayout == InputLayout::TND) {
+    if (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
         if ((actSeqLenData == nullptr) || (actSeqLenDataKV == nullptr)) {
             return false;
         }
         middleActualSeqLengths = static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[lenDims-1]);
     }
     for (uint32_t i = LOOP_BEGIN_NUM; i < lenDims; i++) {
-        if (inputLayout == InputLayout::TND) {
+        if (inputLayout == InputLayout::TND || inputLayout == InputLayout::NTD) {
             actualSeqLengths[i] = (i == 0) ? static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[0]) :
                 static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i]) - static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i - 1]);
             actualSeqLengthsKV[i] = static_cast<uint32_t>(actSeqLenDataKV->GetData<int64_t>()[i]);
@@ -2368,16 +2780,11 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
 
         if (!enableActSeqLen) {
             actualSeqLengths[i] = queryShapeInfo.s;
-        } else if (enableIFAMLA) {
+        } else if (enableIFAMLA || enableIFA) {
             actualSeqLengths[i] = (actSeqLenDims > 1) ? static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[i]) :
                 static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[0]);
             if (actualSeqLengths[i] != queryShapeInfo.s / gSize) {
                 needInit = 1;
-                OP_CHECK_IF((sparseNextTokens < 0) && (sparseNextTokens * (-1) >= static_cast<int32_t>(actualSeqLengths[i])) &&
-                    isDefaultSparseMode, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                    "nexttoken absolute value should be smaller than actual length of q, "
-                    "nextTokens = %ld, actualSeqLengthsQ = %ld", sparseNextTokens, actualSeqLengths[i]),
-                    return false);
             }
             if (inputLayout == InputLayout::BSND || inputLayout == InputLayout::BSH) {
                 actualSeqLengths[i] *= gSize;
@@ -2389,11 +2796,6 @@ bool PromptFlashAttentionTilingV2::ParseActualSeqLengths(ContextParamsForPFATili
                 static_cast<uint32_t>(actSeqLenData->GetData<int64_t>()[0]);
             if (actualSeqLengths[i] != queryShapeInfo.s) {
                 needInit = 1;
-                OP_CHECK_IF((sparseNextTokens < 0) && (sparseNextTokens * (-1) >= static_cast<int32_t>(actualSeqLengths[i])) &&
-                    isDefaultSparseMode, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                    "nexttoken absolute value should be smaller than actual length of q, "
-                    "nextTokens = %ld, actualSeqLengthsQ = %ld", sparseNextTokens, actualSeqLengths[i]),
-                    return false);
             }
         }
         middleActualSeqLengths += actualSeqLengths[i];
@@ -2431,14 +2833,6 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
     int64_t preTokensPerbatch = 0;
     int64_t nextTokensPerbatch = 0;
     for (uint32_t i = LOOP_BEGIN_NUM; i < lenDims; i++) {
-        OP_CHECK_IF(isDefaultSparseMode && (sparsePreTokens < 0) && \
-            (sparsePreTokens * (-1) >= (actualSeqLengthsKV[i] + actualSharedPrefixLen)),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "preToken absolute value should be smaller than actual length of k and v "
-                "(actual length of k and v + length of prefix when enable prefix), preToken = %ld,"
-                "actual length of k and v = %ld, actual prefix len = %ld.",
-                sparsePreTokens, actualSeqLengthsKV[i], actualSharedPrefixLen),
-            return false);
         if (sparseModeVal == SPARSE_MODE_RIGHT_DOWN) {
             preTokensPerbatch = SPARSE_MODE_INT_MAX;
             if (enableIFAMLA) {
@@ -2461,21 +2855,6 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
         OP_LOGI(contextKeyParams.opName, "preTokensPerbatch[%u] is %ld, nextTokensPerbatch[%u] is %ld",
                 i, preTokensPerbatch, i, nextTokensPerbatch);
 
-        OP_CHECK_IF((isBandMode && (sparseNextTokens < 0) &&
-            (sparseNextTokens * (-1) >= actualSeqLengthsKV[i] + actualSharedPrefixLen)),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "nextTokens absolute value should be smaller than actual length of k and v in band mode "
-                "(actual length of k and v + length of prefix when enable prefix), "
-                "nextTokens = %ld, actual length of k and v = %ld, prefix length = %ld",
-                sparseNextTokens, actualSeqLengthsKV[i], actualSharedPrefixLen),
-            return false);
-
-        OP_CHECK_IF((isBandMode && (sparsePreTokens < 0) && (sparsePreTokens * (-1) >= actualSeqLengths[i])),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "preTokens absolute value should be smaller than actual length of q in band mode,"
-                "preTokens = %ld, actual length of q = %ld", sparsePreTokens, actualSeqLengths[i]),
-            return false);
-
         OP_LOGI(contextKeyParams.opName,
             "actualSeqLengths[%u] is %ld, actualSeqLengthsKV[%u] is %ld, actualSharedPrefixLen is %ld, needInit is %u",
             i, actualSeqLengths[i], i, actualSeqLengthsKV[i], actualSharedPrefixLen, needInit);
@@ -2483,10 +2862,10 @@ bool PromptFlashAttentionTilingV2::CheckMultiFeatureCrossover(ContextParamsForPF
         tilingData.promptAttentionInitOutputParams.set_needInit(needInit);
 
         if (enableAlibiPse) {
-            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i] + actualSharedPrefixLen),
+            OP_CHECK_IF((actualSeqLengths[i] != actualSeqLengthsKV[i]),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                     "When pseType = 2/3, actualSeqLengths[%u](seq size of query)=%ld must be equal to actualSeqLengthsKv[%u](seq size of key)=%ld",
-                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i] + actualSharedPrefixLen),
+                    i, actualSeqLengths[i], i, actualSeqLengthsKV[i]),
                 return false);
         }
     }
@@ -2497,10 +2876,10 @@ bool PromptFlashAttentionTilingV2::CheckPerblockCrossover(ContextParamsForPFATil
     if (!enablePerblockQuant) {
         return true;
     }
-    OP_CHECK_IF(enableActSeqLen, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+    OP_CHECK_IF(enableActSeqLen && (inputLayout == InputLayout::TND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "ActSeqLen is not supported in per-block quant scenario!"),
             return false);
-    OP_CHECK_IF(enableActSeqLenKV, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+    OP_CHECK_IF(enableActSeqLenKV && (inputLayout == InputLayout::TND), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "ActSeqLenKV is not supported in per-block quant scenario!"),
             return false);
     OP_CHECK_IF((innerPrecise == 2) || (innerPrecise == 3),
@@ -2557,6 +2936,7 @@ void PromptFlashAttentionTilingV2::SetTilingDataAttribute(ContextParamsForPFATil
 
     tilingData.promptAttentionBaseParams.set_fromFused((contextKeyParams.fromFused == FROM_FUSED_FLAG) ? 1 : 0);
     tilingData.promptAttentionBaseParams.set_isBSNDOut(contextKeyParams.isBSNDOut);
+    tilingData.promptAttentionBaseParams.set_transposeLayout(contextKeyParams.transposeLayout);
     tilingData.promptAttentionBaseParams.set_isSoftMaxLseEnable(contextKeyParams.isSoftMaxLseEnable);
 
     uint32_t originHeadSize = enableIFAMLA ? tilingData.promptAttentionBaseParams.get_headSize() :
@@ -2579,8 +2959,7 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
     constexpr uint32_t dLimitDN = 128;
     constexpr uint32_t vecCoreNum = 2;
     constexpr uint32_t sOuterLimitDN = 64;
-    enableDN = ((ascendPlatformInfo.socVersion != platform_ascendc::SocVersion::ASCEND910_55) &&
-        !enableMask && !enablePseShift && !enableAlibiPse && !enablePA && !enablePFAMLA && !enablePFARope && 
+    enableDN = (!enableMask && !enablePseShift && !enableAlibiPse && !enablePA && !enablePFAMLA && !enablePFARope && 
         (queryShapeInfo.d <= dLimitDN) && (valueShapeInfo.d <= dLimitDN) &&
         !isKVHasPrefix && (contextKeyParams.inputDataType == ge::DT_FLOAT16 || contextKeyParams.inputDataType == ge::DT_BF16 || enablePerblockQuant) &&
         (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * vecCoreNum > sOuterLimitDN));
@@ -2593,7 +2972,7 @@ void PromptFlashAttentionTilingV2::GetEnableDN(ContextParamsForPFATiling& contex
 
     // 64：扩大sInner的dsize限制
     if (enableDN && isQKVActualSeqLengthsRight && (queryShapeInfo.d == valueShapeInfo.d) && (queryShapeInfo.d == 64)) {   
-        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);	// 256U: 设置sInner的dsize
+        tilingData.promptAttentionSingleCoreParams.set_singleProcessSInnerSize(256U);    // 256U: 设置sInner的dsize
     }   
 
     // 128： perblock全量化，扩大sInner切块大小 d<=128
@@ -2659,7 +3038,8 @@ void PromptFlashAttentionTilingV2::SetTilingData(ContextParamsForPFATiling& cont
     tilingData.promptAttentionBaseParams.set_seqSize(queryShapeInfo.s);
     tilingData.promptAttentionBaseParams.set_headNumSize(queryShapeInfo.n);
     tilingData.promptAttentionBaseParams.set_batchSize(queryShapeInfo.b);
-
+    tilingData.promptAttentionBaseParams.set_t1Size(t1Size);
+    tilingData.promptAttentionBaseParams.set_t2Size(t2Size);
     SetTilingDataAttribute(contextKeyParams, tilingData);
 }
 
@@ -2685,9 +3065,6 @@ void PromptFlashAttentionTilingV2::InferTilingMod(const ContextParamsForPFATilin
 
 void PromptFlashAttentionTilingV2::InferSplitCoreMode() {
     splitCoreMode = SplitCoreMode::SPLIT_NBS_CUBE;
-    if (ascendPlatformInfo.socVersion == platform_ascendc::SocVersion::ASCEND910_55) {
-        splitCoreMode = SplitCoreMode::SPLIT_NBS_VECTOR;
-    }
 }
 
 void PromptFlashAttentionTilingV2::InferConstantization() {
@@ -3032,128 +3409,35 @@ void PromptFlashAttentionTilingV2::GetPreNextTokensLeftUp(PromptFlashAttentionTi
             nextTokensLeftUp = actualSeqLengthKV - actualSeqLength;
         }
     } else if (baseParams->get_sparseMode() == SPARSE_MODE_BAND) {
-        preTokensLeftUp = baseParams->get_preTokens() - actualSeqLengthKV + actualSeqLength;
-        nextTokensLeftUp = baseParams->get_nextTokens() + actualSeqLengthKV - actualSeqLength;
-    } else {
-        preTokensLeftUp = baseParams->get_preTokens();
-        nextTokensLeftUp = baseParams->get_nextTokens();
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeyMaskCfg(PromptFlashAttentionTilingData& tilingData,
-    uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeyDisableMask = 0;
-    constexpr uint64_t tilingKeyEnableMaskNoBand = static_cast<uint64_t>(1e8); // Position 8
-    constexpr uint64_t tilingKeyEnableMaskBand = static_cast<uint64_t>(2e8);
-
-    if (tilingData.promptAttentionBaseParams.get_useMask() == 0U) {
-        tilingKey += tilingKeyDisableMask;
-    } else if (tilingData.promptAttentionBaseParams.get_useMask() == 1U
-        && tilingData.promptAttentionBaseParams.get_sparseMode() == SPARSE_MODE_BAND) {
-        tilingKey += tilingKeyEnableMaskBand;
-    } else {
-        tilingKey += tilingKeyEnableMaskNoBand;
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeyPseCfg(uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeyDisablePse = 0;
-    constexpr uint64_t tilingKeyEnablePse = static_cast<uint64_t>(1e9); // Position 9
-    constexpr uint64_t tilingKeyEnableAlibiPse = static_cast<uint64_t>(2e9); // Position 9
-    constexpr uint64_t tilingKeyEnableAlibiPseSqrt = static_cast<uint64_t>(3e9); // Position 9
-
-    if (usePseShift == 0U) {
-        tilingKey += tilingKeyDisablePse;
-    } else if (usePseShift == 1U) {
-        tilingKey += tilingKeyEnablePse;
-    } else if (usePseShift == 2U) {
-        tilingKey += tilingKeyEnableAlibiPse;
-    } else if (usePseShift == 3U) {
-        tilingKey += tilingKeyEnableAlibiPseSqrt;
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeyDSizeConst(PromptFlashAttentionTilingData &tilingData,
-    uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeyDSizeConstValue64  = static_cast<uint64_t>(1e12); // Position 12
-    constexpr uint64_t tilingKeyDSizeConstValue128 = static_cast<uint64_t>(2e12);
-    constexpr uint64_t tilingKeyDSizeConstValue256 = static_cast<uint64_t>(3e12);
-    constexpr uint64_t tilingKeyDSizeConstValue512 = static_cast<uint64_t>(4e12);
-    constexpr uint64_t tilingKeyDSizeConstValue576 = static_cast<uint64_t>(5e12); // for IFA MLA
-    uint32_t dSize = tilingData.promptAttentionBaseParams.get_qkHeadSize();
-    if (dSize <= 64) {         // 64: headsize is 64
-        tilingKey += tilingKeyDSizeConstValue64;
-    } else if (dSize <= 128) { // 128: headsize 128
-        tilingKey += tilingKeyDSizeConstValue128;
-    } else if (dSize <= 256) { // 256: headsize 256
-        tilingKey += tilingKeyDSizeConstValue256;
-    }  else if (dSize <= 512) { // 512: headsize 512
-        tilingKey += tilingKeyDSizeConstValue512;
-    } else if (dSize <= 576) { // 576: headsize 576
-        tilingKey += tilingKeyDSizeConstValue576;
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeySInnerConst(PromptFlashAttentionTilingData &tilingData,
-    uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeySInnerConstValue128 = static_cast<uint64_t>(1e13); // Position 13
-    constexpr uint64_t tilingKeySInnerConstValue256 = static_cast<uint64_t>(2e13);
-
-    if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize() == 128) { // 128: sinner is 128
-        tilingKey += tilingKeySInnerConstValue128;
-    } else if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize() == 256) { // 256: sinner is 256
-        tilingKey += tilingKeySInnerConstValue256;
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeySOuterConst(PromptFlashAttentionTilingData &tilingData,
-    uint64_t& tilingKey) {
-    constexpr uint64_t tilingKeySOuterConstValue64  = static_cast<uint64_t>(1e14); // Position 14
-    constexpr uint64_t tilingKeySOuterConstValue96  = static_cast<uint64_t>(2e14);
-    constexpr uint64_t tilingKeySOuterConstValue128 = static_cast<uint64_t>(3e14);
-
-    if (!isConstantization) {
-        return;
-    }
-    if (ascendPlatformInfo.socVersion == platform_ascendc::SocVersion::ASCEND910_55) {
-        if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() == 64) {  // 64:souter32
-            tilingKey += tilingKeySOuterConstValue64;
-        } else if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() == 96) {  // 96:souter48*2
-            tilingKey += tilingKeySOuterConstValue96;
-        } else if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() == 128) {  // 128:souter64*2
-            tilingKey += tilingKeySOuterConstValue128;
+        if (enableIFAMLA) {
+            if (inputLayout == InputLayout::BSND || inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND) {
+                preTokensLeftUp = baseParams->get_preTokens() * gSize - actualSeqLengthKV * gSize + actualSeqLength;
+                nextTokensLeftUp = baseParams->get_nextTokens() * gSize + actualSeqLengthKV * gSize - actualSeqLength;
+            } else { // BNSD场景下分核不做优化
+                preTokensLeftUp = SPARSE_MODE_INT_MAX;
+                nextTokensLeftUp = SPARSE_MODE_INT_MAX;
+            }
+        } else {
+            preTokensLeftUp = baseParams->get_preTokens() - actualSeqLengthKV + actualSeqLength;
+            nextTokensLeftUp = baseParams->get_nextTokens() + actualSeqLengthKV - actualSeqLength;
         }
-        return;
-    }
-    // SAMEAB calculates the souter from the cube kernel perspective, which is twice the souter from the vector kernel perspective.
-    if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2 == 64) { // 64: souter32
-        tilingKey += tilingKeySOuterConstValue64;
-    } else if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2 == 96) { // 96: souter48*2
-        tilingKey += tilingKeySOuterConstValue96;
-    } else if (tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2 == 128) { // 128: souter64*2
-        tilingKey += tilingKeySOuterConstValue128;
-    }
-}
-
-void PromptFlashAttentionTilingV2::UpdateTilingKeyValueDSizeConst(PromptFlashAttentionTilingData &tilingData,
-    uint64_t& tilingKey) const {
-    constexpr uint64_t tilingKeyDSizeConstValue64  = static_cast<uint64_t>(1e15); // Position 15
-    constexpr uint64_t tilingKeyDSizeConstValue128 = static_cast<uint64_t>(2e15);
-    constexpr uint64_t tilingKeyDSizeConstValue256 = static_cast<uint64_t>(3e15);
-    constexpr uint64_t tilingKeyDSizeConstValue512 = static_cast<uint64_t>(4e15);
-    uint32_t dSize = tilingData.promptAttentionBaseParams.get_vHeadSize();
-    if (dSize <= 64) {         // 64: headsize is 64
-        tilingKey += tilingKeyDSizeConstValue64;
-    } else if (dSize <= 128) { // 128: headsize 128
-        tilingKey += tilingKeyDSizeConstValue128;
-    } else if (dSize <= 256) { // 256: headsize 256
-        tilingKey += tilingKeyDSizeConstValue256;
-    }  else if (dSize <= 512) { // 512: headsize 512
-        tilingKey += tilingKeyDSizeConstValue512;
+    } else {
+        if (enableIFAMLA) {
+            if (inputLayout == InputLayout::BSND || inputLayout == InputLayout::BSH || inputLayout == InputLayout::TND) {
+                preTokensLeftUp = baseParams->get_preTokens() * gSize;
+                nextTokensLeftUp = baseParams->get_nextTokens() * gSize;
+            } else { // BNSD场景下分核不做优化
+                preTokensLeftUp = SPARSE_MODE_INT_MAX;
+                nextTokensLeftUp = SPARSE_MODE_INT_MAX;
+            }
+        } else {
+            preTokensLeftUp = baseParams->get_preTokens();
+            nextTokensLeftUp = baseParams->get_nextTokens();
+        }
     }
 }
 
-int64_t PromptFlashAttentionTilingV2::GetSInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd,
+int64_t PromptFlashAttentionTilingV2::GetActualInnerBlockNums(int64_t sInnerIndexStart, int64_t sInnerIndexEnd,
     int64_t innerBlockNums) {
     int64_t sInnerBlockNums = 0;
 
@@ -3169,8 +3453,17 @@ int64_t PromptFlashAttentionTilingV2::GetSInnerBlockNums(int64_t sInnerIndexStar
     return sInnerBlockNums;
 }
 
+int64_t PromptFlashAttentionTilingV2::SumOfArithmeticSeries(int64_t an, int64_t d) {
+    // 等差数列求和，an：等差数列第n项，d：等差数列公差
+    if (d == 0) {
+        return 0;
+    }
+    return (an > 0) ? (an % d + an) * (an / d + 1) / 2 : 0; // 2: 等差数列求和公式分母
+}
+
 int64_t PromptFlashAttentionTilingV2::GetCutBlockNums(int64_t blockSeqLengthKV, int64_t blockSeqLength,
         int64_t sInner, int64_t sOuter, int64_t token) {
+    // 以nextToken视角计算完全被nextToken掩盖的基本块数
     int64_t blockNums = 0;
     int64_t blockToken = token > 0 ? ((token + sInner - 1) / sInner * sInner) : (token / sInner * sInner);
     int64_t outDivIn = sOuter > sInner ? sOuter / sInner : 1;
@@ -3184,15 +3477,22 @@ int64_t PromptFlashAttentionTilingV2::GetCutBlockNums(int64_t blockSeqLengthKV, 
         tolerance = InDivOut;
         smallSize = sOuter;
     }
+
+    // nextToken与上边右边构成的大三角形
     int64_t innerCutBlockNums = (blockSeqLengthKV - blockToken) / smallSize - tolerance;
+    blockNums += SumOfArithmeticSeries(innerCutBlockNums, tolerance);
+
+    // nextToken与上边左边构成的左侧三角形，需要减去
     int64_t innerCutBlockLeftNums = -blockToken / smallSize - tolerance;
-    int64_t innerCutBlockDownNums = (blockSeqLengthKV - blockSeqLength- blockToken) / smallSize - tolerance;
-    blockNums += (innerCutBlockNums > 0) ? (innerCutBlockNums % tolerance + innerCutBlockNums) *
-        (innerCutBlockNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
-    blockNums -= (innerCutBlockLeftNums > 0) ? (innerCutBlockLeftNums % tolerance + innerCutBlockLeftNums) *
-        (innerCutBlockLeftNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
-    blockNums -= (innerCutBlockDownNums > 0) ? (innerCutBlockDownNums % tolerance + innerCutBlockDownNums) *
-        (innerCutBlockDownNums / tolerance + 1) / 2 : 0; // 2: The denominator of the arithmetic sequence summation formula
+    blockNums -= SumOfArithmeticSeries(innerCutBlockLeftNums, tolerance);
+
+    // nextToken与下边右边构成的下侧三角形，需要减去
+    int64_t innerCutBlockDownNums = (blockSeqLengthKV - blockSeqLength - blockToken) / smallSize - tolerance;
+    blockNums -= SumOfArithmeticSeries(innerCutBlockDownNums, tolerance);
+
+    // nextToken与下边左边构成的小三角形，是前两个三角形的重叠部分，需要加上
+    int64_t innerCutBlockLeftDownNums = (-blockToken - blockSeqLength) / smallSize - tolerance;
+    blockNums += SumOfArithmeticSeries(innerCutBlockLeftDownNums, tolerance);
     return blockNums;
 }
 
@@ -3201,8 +3501,16 @@ void PromptFlashAttentionTilingV2::FixParamWithRowInvalid(int64_t& actualSeqLeng
     int64_t& preTokensLeftUp, int64_t& nextTokensLeftUp) const {
     // 若出现行无效，需要重新计算nexttokens，pretokens，actualseqlen，以便正确计算分核核数
     int64_t nextTokensError = (nextTokensLeftUp < 0) ? -nextTokensLeftUp : 0;
-    int64_t preTokensError = (actualSeqLength > actualSeqLengthKV + preTokensLeftUp) ?
-        (actualSeqLength - actualSeqLengthKV - preTokensLeftUp) : 0;
+    nextTokensError = nextTokensError > actualSeqLength ? actualSeqLength : nextTokensError;
+    int64_t preTokensError = 0;
+    if (enableIFAMLA) {
+        preTokensError = (actualSeqLength > actualSeqLengthKV * gSize + preTokensLeftUp) ?
+            (actualSeqLength - actualSeqLengthKV * gSize - preTokensLeftUp) : 0;
+    } else {
+        preTokensError = (actualSeqLength > actualSeqLengthKV + preTokensLeftUp) ?
+            (actualSeqLength - actualSeqLengthKV - preTokensLeftUp) : 0;
+    }
+    preTokensError = preTokensError > actualSeqLength ? actualSeqLength : preTokensError;
 
     // 若出现上方行无效，需要重新计算nexttokens，pretokens，actualseqlen
     nextTokensLeftUp += nextTokensError;
@@ -3217,7 +3525,7 @@ int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(int64_t actualSeqL
     uint32_t sOuterSize, uint32_t sInnerSize, int64_t preTokensLeftUp, int64_t nextTokensLeftUp, bool isAttenMaskUsed) {
     if (!isAttenMaskUsed) {
         int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
-        int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize;
+        int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize + (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize; 
         int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
         return toCalcBlockNums;
     } else {
@@ -3228,11 +3536,22 @@ int64_t PromptFlashAttentionTilingV2::GetCalcBlockNumsOneHead(int64_t actualSeqL
             static_cast<int64_t>(sOuterSize);
         int64_t blockSeqLength = outerBlockNums * static_cast<int64_t>(sOuterSize);
         int64_t toCalcBlockNums = innerBlockNums * outerBlockNums;
-        // Must meet this condition : pretoken + nexttoken > 0
+        // 必须满足pretoken + nexttoken > 0，否则会减出小于0的块数，这里需要去除prefix影响
         toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize),
+            static_cast<int64_t>(sOuterSize), nextTokensLeftUp - actualSharedPrefixLen);
+        toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize),
+            static_cast<int64_t>(sOuterSize), blockSeqLengthKV - blockSeqLength + preTokensLeftUp + actualSharedPrefixLen);
+
+        // prefix部分单独计算
+        int64_t innerBlockNumsPrefix = (actualSharedPrefixLen + static_cast<int64_t>(sInnerSize) - 1) /
+            static_cast<int64_t>(sInnerSize);
+        int64_t blockSharedPrefix = innerBlockNumsPrefix * static_cast<int64_t>(sInnerSize);
+        toCalcBlockNums += innerBlockNumsPrefix * outerBlockNums;
+        toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize),
             static_cast<int64_t>(sOuterSize), nextTokensLeftUp);
-        toCalcBlockNums -= GetCutBlockNums(blockSeqLengthKV, blockSeqLength, static_cast<int64_t>(sInnerSize),
-            static_cast<int64_t>(sOuterSize), blockSeqLengthKV - blockSeqLength + preTokensLeftUp);
+        toCalcBlockNums -= GetCutBlockNums(blockSharedPrefix, blockSeqLength, static_cast<int64_t>(sInnerSize),
+            static_cast<int64_t>(sOuterSize), blockSharedPrefix - blockSeqLength + preTokensLeftUp);
+ 
         return toCalcBlockNums;
     }
 }
@@ -3256,6 +3575,7 @@ void PromptFlashAttentionTilingV2::ComputeSplitNBSeq(PromptFlashAttentionTilingD
     uint32_t tmpCoreNidEnd = 0; // actual seq为0时不分配核
     uint32_t tmpCoreSidEnd = 0;
     uint32_t tmpCoreSposEnd = 0;
+    int64_t innerBlockNumsPrefix = (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
     for (uint32_t sIdx = 0; sIdx < batchSize; sIdx++) {
         for (uint32_t headNum = 0; headNum < baseParams->get_headNumSize(); headNum++) {
             // 针对行无效情况修正actualseqlen
@@ -3269,18 +3589,27 @@ void PromptFlashAttentionTilingV2::ComputeSplitNBSeq(PromptFlashAttentionTilingD
                 preTokensLeftUp, nextTokensLeftUp);
 
             int64_t outerBlockNums = (actualSeqLength + sOuterSize - 1) / sOuterSize;
-            int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize +
-                (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
+            int64_t innerBlockNums = (actualSeqLengthKV + sInnerSize - 1) / sInnerSize;
             for (uint32_t sOuterIndex = 0; sOuterIndex < outerBlockNums; sOuterIndex++) {
                 int64_t dif = static_cast<int64_t>(coreWightTarget * double(curCore + 1)) - curWight;
-                int64_t sInnerIndexStart = -(preTokensLeftUp > 0 ? (preTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
+                // 非prefix部分计算，去除prefix影响
+                int64_t preTokensNoPrefix = preTokensLeftUp + actualSharedPrefixLen;
+                int64_t nextTokensNoPrefix = nextTokensLeftUp - actualSharedPrefixLen;
+                int64_t sInnerIndexStart = -(preTokensNoPrefix > 0 ? (preTokensNoPrefix + static_cast<int64_t>(sInnerSize) - 1) /
+                    static_cast<int64_t>(sInnerSize) : preTokensNoPrefix / static_cast<int64_t>(sInnerSize));
+                int64_t sInnerIndexEnd = nextTokensNoPrefix > 0 ? (nextTokensNoPrefix + static_cast<int64_t>(sInnerSize) - 1) /
+                    static_cast<int64_t>(sInnerSize) : nextTokensNoPrefix / static_cast<int64_t>(sInnerSize);
+
+                // prefix部分单独计算
+                int64_t sInnerIndexStartPrefix = -(preTokensLeftUp > 0 ? (preTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
                     static_cast<int64_t>(sInnerSize) : preTokensLeftUp / static_cast<int64_t>(sInnerSize));
-                int64_t sInnerIndexEnd = nextTokensLeftUp > 0 ? (nextTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
+                int64_t sInnerIndexEndPrefix = nextTokensLeftUp > 0 ? (nextTokensLeftUp + static_cast<int64_t>(sInnerSize) - 1) /
                     static_cast<int64_t>(sInnerSize) : nextTokensLeftUp / static_cast<int64_t>(sInnerSize);
-                
-                // The number of innerBlock blocks in each outBlock row represents the calculation amount of each outBlock row.
-                int64_t sInnerBlockNums = GetSInnerBlockNums(sInnerIndexStart, sInnerIndexEnd, innerBlockNums);
-                if (sInnerBlockNums - dif > dif && !(tmpCoreNidEnd == 0 && tmpCoreSidEnd == 0 && tmpCoreSposEnd == 0)) {
+
+                // 当前这一行有多少基本块需要计算
+                int64_t actualInnerBlockNums = GetActualInnerBlockNums(sInnerIndexStart, sInnerIndexEnd, innerBlockNums) +
+                    GetActualInnerBlockNums(sInnerIndexStartPrefix, sInnerIndexEndPrefix, innerBlockNumsPrefix);
+                if (actualInnerBlockNums - dif > dif && !(tmpCoreNidEnd == 0 && tmpCoreSidEnd == 0 && tmpCoreSposEnd == 0)) {
                     coreNidEnd[curCore] = tmpCoreNidEnd;
                     coreSidEnd[curCore] = tmpCoreSidEnd;
                     coreSposEnd[curCore] = tmpCoreSposEnd;
@@ -3295,7 +3624,7 @@ void PromptFlashAttentionTilingV2::ComputeSplitNBSeq(PromptFlashAttentionTilingD
                 tmpCoreSidEnd = sIdx + 1;
                 tmpCoreSposEnd = sOuterIndex + 1;
 
-                curWight += sInnerBlockNums;
+                curWight += actualInnerBlockNums;
                 preTokensLeftUp -= sOuterSize;
                 nextTokensLeftUp += sOuterSize;
             }
@@ -3342,7 +3671,6 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
 
     int64_t totalBlockNumsOneHead = 0; // The calculation amount of all sequences for a single head
 
-    std::vector<uint32_t> sInnerLoopTimes(batchSize);
     uint32_t multiSmaxsInnerLoopTimes = 0U;
     for (uint32_t sIdx = 0; sIdx < batchSize; sIdx++) {
         int64_t actualSeqLengthsTmp = actualSeqLengths[sIdx]; // 用于存放减去行无效后，真实的actseqlen
@@ -3355,11 +3683,11 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionSplitNBSeq(PromptFlashAtt
         FixParamWithRowInvalid(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, preTokensLeftUp, nextTokensLeftUp);
 
         // sinner方向块数，prefix和origin是分开切的。
-        sInnerLoopTimes[sIdx] = (actualSeqLengthsKV[sIdx] + sInnerSize - 1) / sInnerSize +
+        uint32_t sInnerLoopTimes = (actualSeqLengthsKV[sIdx] + sInnerSize - 1) / sInnerSize +
             (actualSharedPrefixLen + sInnerSize - 1) / sInnerSize;
-        multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes[sIdx]);
+        multiSmaxsInnerLoopTimes = std::max(multiSmaxsInnerLoopTimes, sInnerLoopTimes);
 
-        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx] + actualSharedPrefixLen, sOuterSize,
+        totalBlockNumsOneHead += GetCalcBlockNumsOneHead(actualSeqLengthsTmp, actualSeqLengthsKV[sIdx], sOuterSize,
             sInnerSize, preTokensLeftUp, nextTokensLeftUp, isAttenMaskUsed);
     }
     singleCoreParams->set_multiSmaxsInnerLoopTimes(multiSmaxsInnerLoopTimes);
@@ -3390,26 +3718,13 @@ void PromptFlashAttentionTilingV2::PromptFlashAttentionInitSoftmaxLseOutputSplit
     initParams->set_totalSoftMaxLseOutputSize(totalSize);
 }
 
-void PromptFlashAttentionTilingV2::UpdateTilingKeyFlag(ContextParamsForPFATiling& contextKeyParams, uint64_t& tilingKey) {
-    uint64_t binaryFlag = 0;
-    auto queryDtype = contextKeyParams.inputDataType;
-    auto kvDtype = contextKeyParams.kDataType;
-
-    if ((queryDtype == ge::DT_FLOAT16) && (kvDtype == ge::DT_INT8)) {
-        // 4bit flag bit, the leftmost side indicates whether to perform inverse quantization operation,
-        // with a corresponding value of 2**3 = 8, and the remaining 3bit is reserved
-        binaryFlag += 8U;
-    }
-    // If inverse quantization is performed, tilingKey should increase by 8*1e11.
-    tilingKey += (binaryFlag * static_cast<uint64_t>(1e11));
-    return;
-}
-
 void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() {
-	if (inputLayout == InputLayout::BNSD) {
+    if (inputLayout == InputLayout::BNSD) {
         inOutLayoutType = InOutLayoutType_BNSD_BNSD;
     } else if (inputLayout == InputLayout::TND) {
         inOutLayoutType = InOutLayoutType_TND_TND;
+    } else if (inputLayout == InputLayout::NTD) {
+        inOutLayoutType = InOutLayoutType_NTD_NTD;
     } else if (inputLayout == InputLayout::BSH || inputLayout == InputLayout::BSND) {
         inOutLayoutType = InOutLayoutType_BSH_BSH;
     }
@@ -3417,9 +3732,9 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyLayoutType() {
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
     auto sInner = tilingData.promptAttentionSingleCoreParams.get_singleProcessSInnerSize();
-	auto sOuter = tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2;	
-	auto dSize = tilingData.promptAttentionBaseParams.get_qkHeadSize();
-	auto dVsize = tilingData.promptAttentionBaseParams.get_vHeadSize();
+    auto sOuter = tilingData.promptAttentionSingleCoreParams.get_singleProcessSOuterSize() * 2;    
+    auto dSize = tilingData.promptAttentionBaseParams.get_qkHeadSize();
+    auto dVsize = tilingData.promptAttentionBaseParams.get_vHeadSize();
     if (dSize <= 64) dSize = 64;
     else if (dSize <= 128) dSize = 128;
     else if (dSize <= 256) dSize = 256;
@@ -3463,26 +3778,34 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyConfig(ContextParamsForPFATili
         config = Config_S1Aligned64_S2Aligned256_DAligned256_DVAligned256;
     } else if (sOuter == 128 && sInner == 256 && dSize == 128 && dVsize == 128) {
         config = Config_S1Aligned128_S2Aligned256_DAligned128_DVAligned128;
+    } else if (sOuter == 128 && sInner == 128 && dSize == 128 && dVsize == 64) {
+        config = Config_S1Aligned128_S2Aligned128_DAligned128_DVAligned64; //qkvd不等长
+    } else if (sOuter == 128 && sInner == 128 && dSize == 64 && dVsize == 128) {
+        config = Config_S1Aligned128_S2Aligned128_DAligned64_DVAligned128;//qkvd不等长
+    } else if (sOuter == 64 && sInner == 256 && dSize == 128 && dVsize == 64) {
+        config = Config_S1Aligned64_S2Aligned256_DAligned128_DVAligned64;//qkvd不等长
+    } else if (sOuter == 64 && sInner == 256 && dSize == 64 && dVsize == 128) {
+        config = Config_S1Aligned64_S2Aligned256_DAligned64_DVAligned128;//qkvd不等长
     } else {
         OP_LOGE(contextKeyParams.opName, "The combination of parameters S1, S2, D, DV is not supported!");
     }
-	OP_LOGI(contextKeyParams.opName, "sInner is %d, sOuter is %d, dSize is %d, dVsize is %d, config is %d.", sInner, sOuter, dSize, dVsize, config);
+    OP_LOGI(contextKeyParams.opName, "sInner is %d, sOuter is %d, dSize is %d, dVsize is %d, config is %d.", sInner, sOuter, dSize, dVsize, config);
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPseMode() {
-	if (usePseShift == 0U) {
-		pseMode = PSE_MODE_PSE_NONE_TYPE;
-	} else if (usePseShift == 1U) {
-		pseMode = PSE_MODE_PSE_OUTER_MUL_ADD_TYPE;
-	} else if (usePseShift == 2U) {
-		pseMode = PSE_MODE_PSE_INNER_MUL_ADD_TYPE;
-	} else if (usePseShift == 3U) {
-		pseMode = PSE_MODE_PSE_INNER_MUL_ADD_SQRT_TYPE;
-	}
+    if (usePseShift == 0U) {
+        pseMode = PSE_MODE_PSE_NONE_TYPE;
+    } else if (usePseShift == 1U) {
+        pseMode = PSE_MODE_PSE_OUTER_MUL_ADD_TYPE;
+    } else if (usePseShift == 2U) {
+        pseMode = PSE_MODE_PSE_INNER_MUL_ADD_TYPE;
+    } else if (usePseShift == 3U) {
+        pseMode = PSE_MODE_PSE_INNER_MUL_ADD_SQRT_TYPE;
+    }
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDataType) {
-	if (inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
+    if (inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
         quantMode = NoQuantMode;
     } else if (enablePerblockQuant) {
         quantMode = PerBlock;
@@ -3495,7 +3818,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyQuantMode(ge::DataType inputDa
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDataType) {
     // perblock采用新模板
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
+    if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         hasAttenMask = 0;
         return;
     }
@@ -3507,7 +3830,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyAttenMask(ge::DataType inputDa
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputDataType) {
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
+    if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         hasRope = 0;
         return;
     }
@@ -3519,7 +3842,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyHasRope(ge::DataType inputData
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataType) {
-	if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
+    if (enablePertensorQuant && (inputDataType == ge::DT_INT8)) {
         isPa = 0;
         return;
     }
@@ -3531,7 +3854,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsPa(ge::DataType inputDataTyp
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataType) {
-	if (isKVHasPrefix) {
+    if (isKVHasPrefix) {
         isFd = false;
         return;
     }
@@ -3547,11 +3870,11 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyIsFd(ge::DataType inputDataTyp
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyEmptyTensor() {
-	emptyTensor = 0;
+    emptyTensor = 0;
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMask(PromptFlashAttentionTilingData &tilingData, ge::DataType inputDataType) {
-	if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
+    if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
         PFAMask = 0;
         return;
     }
@@ -3566,7 +3889,7 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMask(PromptFlashAttentionTi
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAttentionTilingData &tilingData, ge::DataType inputDataType) {
-	if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
+    if (enablePerblockQuant || enableIFAMLAFullQuant || inputDataType == ge::DT_FLOAT16 || inputDataType == ge::DT_BF16) {
         pFAMatMulType = 0;
         return;
     }
@@ -3585,15 +3908,11 @@ void PromptFlashAttentionTilingV2::UpdateTilingKeyPFAMatMulType(PromptFlashAtten
 }
 
 void PromptFlashAttentionTilingV2::UpdateTilingKeyEnableKVPrefix() {
-    if (isKVHasPrefix) {
-        enableKVPrefix = isKVHasPrefix;
-    } else {
-        enableKVPrefix = isKVHasPrefix;
-    }
+    enableKVPrefix = isKVHasPrefix;
 }
 
 bool PromptFlashAttentionTilingV2::TilingGetTilingKeyAttentionAscendC(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData &tilingData) {
-	auto inputDataType = contextKeyParams.inputDataType; // input q
+    auto inputDataType = contextKeyParams.inputDataType; // input q
     auto attenMaskElemType = contextKeyParams.maskDataType;
     auto outputDataType = contextKeyParams.outputDataType; // output tensor
     tilingData.promptAttentionBaseParams.set_attenMaskElemType(attenMaskElemType);
@@ -3630,12 +3949,20 @@ size_t PromptFlashAttentionTilingV2::GetPFAWorkSpaceSize(PromptFlashAttentionTil
     if (!faRunFlag_) {
         curWorkspaceSize = sysWorkspaceSize + coreNum * softmaxDataTypeSize * (maxSpmSize + mm1ResSize * MM2_UB_NUM + mm2ResSize * MM2_UB_NUM);
     } else {
-        uint32_t kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
-        auto batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
-        auto headNumSize = tilingData.promptAttentionBaseParams.get_headNumSize();
-        auto vHeadSize = tilingData.promptAttentionBaseParams.get_vHeadSize();
-        size_t accumOutSize = batchSize * gSize * headNumSize * kvSplitPart * vHeadSize * sizeof(float);
-        size_t logSumExpSize = batchSize * gSize * headNumSize * kvSplitPart * BYTE_BLOCK * 2;
+        size_t accumOutSize = 0;
+        size_t logSumExpSize = 0;
+        if (isMaxWorkspace) { // 计算maxWorkSpaceSize时默认开启FD且使用最大核数进行归约
+            uint64_t headDimAlign = AlignUp(tilingData.promptAttentionBaseParams.get_vHeadSize(), BYTE_BLOCK);
+            accumOutSize = aicNum * headDimAlign * sizeof(float);
+            logSumExpSize = aicNum * BYTE_BLOCK * 2;
+        } else if (enableFlashDecode) {
+            auto batchSize = tilingData.promptAttentionBaseParams.get_batchSize();
+            auto headNumSize = tilingData.promptAttentionBaseParams.get_headNumSize();
+            uint64_t headDimAlign = AlignUp(tilingData.promptAttentionBaseParams.get_vHeadSize(), BYTE_BLOCK);
+            uint32_t kvSplitPart = faTilingAdapter.inputParamsRegbase.get_kvSplitPart();
+            accumOutSize = batchSize * gSize * headNumSize * kvSplitPart * headDimAlign * sizeof(float);
+            logSumExpSize = batchSize * gSize * headNumSize * kvSplitPart * BYTE_BLOCK * 2;
+        }
 
         int64_t bmm2Bytes = 0;
         int64_t vec2Bytes = 0;
@@ -3761,8 +4088,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
 
     // Pse
     const gert::StorageShape* pseShiftShape = contextKeyParams.pseShiftShape;
-    enablePseShift = (contextKeyParams.pseShift != nullptr) &&
-        (pseShiftShape != nullptr) && (pseShiftShape->GetStorageShape().GetShapeSize() > 0);
+    enablePseShift = (contextKeyParams.pseShift != nullptr) && (pseShiftShape != nullptr);
 
     if (contextKeyParams.pseType != nullptr) {
         pseType = *contextKeyParams.pseType;
@@ -3782,8 +4108,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
 
     // mask check
     const gert::StorageShape* attenMaskShape = contextKeyParams.attentionMaskShape;
-    enableMask = (contextKeyParams.attentionMask != nullptr) && (attenMaskShape != nullptr) &&
-        (attenMaskShape->GetStorageShape().GetShapeSize() != 0);
+    enableMask = (contextKeyParams.attentionMask != nullptr) && (attenMaskShape != nullptr);
 
     // sparsemode check
     const int32_t* sparseMode = contextKeyParams.sparseMode;
@@ -3794,6 +4119,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
 
     // LeftPadding check
     enableLeftPadding = ((contextKeyParams.queryPaddingSize != nullptr) || (contextKeyParams.kvPaddingSize != nullptr));
+    if (enableLeftPadding) {
+        needInit = 1;
+    }
 
     // postQuant check
     if (contextKeyParams.outputDataType != ge::DT_BF16 && contextKeyParams.outputDataType != ge::DT_FLOAT16) {
@@ -3811,6 +4139,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
         contextKeyParams.vDataType == ge::DT_FLOAT8_E4M3FN)) {
         enableIFAMLAFullQuant = true;
     }
+
+    //attention sink
+    enableLearnSink = contextKeyParams.hasLearnableSink;
 
     const int64_t *keyAntiquantMode = contextKeyParams.keyAntiquantMode;
     const int64_t *queryQuantMode = contextKeyParams.queryQuantMode;
@@ -3831,28 +4162,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus PromptFlashAttentionTilingV2::CheckRopeInvalid(const ContextParamsForPFATiling& contextKeyParams) const {
-    const gert::StorageShape* queryRopeShapeParam = contextKeyParams.queryRopeInputShape;
-    const gert::StorageShape* keyRopeShapeParam = contextKeyParams.keyRopeInputShape;
-    if ((queryRopeShapeParam != nullptr) && (queryRopeShapeParam->GetStorageShape().GetShapeSize() == 0)) {
-        OP_LOGE(contextKeyParams.opName, "When queryRopeShape is not nullptr, queryRope should not be empty tensor.");
-        return ge::GRAPH_FAILED; 
-    }
-    if ((keyRopeShapeParam != nullptr) && (keyRopeShapeParam->GetStorageShape().GetShapeSize() == 0)) {
-        OP_LOGE(contextKeyParams.opName, "When keyRopeShape is not nullptr, keyRope should not be empty tensor.");
-        return ge::GRAPH_FAILED; 
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus PromptFlashAttentionTilingV2::CheckTensorInvalid(const ContextParamsForPFATiling& contextKeyParams) const {
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, contextKeyParams.queryInputShape, "query")) {
         return ge::GRAPH_FAILED;
     }
-    OP_CHECK_IF((contextKeyParams.queryInputShape->GetStorageShape().GetShapeSize() == 0) &&
-        (contextKeyParams.outputShape->GetStorageShape().GetShapeSize() != 0),
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Query input is empty and output is not empty!"),
-        return ge::GRAPH_FAILED);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, contextKeyParams.keyInputShape, "key")) {
         return ge::GRAPH_FAILED;
     }
@@ -3868,6 +4181,12 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckTensorInvalid(const ContextPa
 bool PromptFlashAttentionTilingV2::CheckAlibiPseShiftTypeAndShape(ContextParamsForPFATiling& contextKeyParams, uint32_t n)
 {
     const gert::StorageShape* pseShape = contextKeyParams.pseShiftShape;
+    OP_CHECK_IF(isQKVDDifferent,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support alibi pse when query and key headdim is not equal to value headdim."),
+        return false);
+    OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "MLA do not support pseShift."),
+        return false);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShape, "pseShift")) {
         return false;
     }
@@ -3919,6 +4238,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
     }
     if (!CheckRope(contextKeyParams, queryShapeInfo, keyShapeInfo, queryRopeShapeInfo)) {
         OP_LOGE(contextKeyParams.opName, "Check queryRope/keyRope failed!");
+        return ge::GRAPH_FAILED;
+    }
+    if (!CheckLayout(contextKeyParams)) {
+        OP_LOGE(contextKeyParams.opName, "Check layout failed!");
         return ge::GRAPH_FAILED;
     }
     if (!CheckQueryAndKey(contextKeyParams, queryShapeInfo, keyShapeInfo, tilingData)) {
@@ -3975,7 +4298,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
 
     // pse check
     if (enablePseShift) {
-        if (!CheckPseShiftTypeAndShape(contextKeyParams, queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, S2)) {
+        if (!CheckPseShiftTypeAndShape(contextKeyParams, queryShapeInfo.b, queryShapeInfo.n, queryShapeInfo.s, S2 + actualSharedPrefixLen)) {
             return ge::GRAPH_FAILED;
         }
         usePseShift = 1;
@@ -3995,6 +4318,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
     }
 
     // mask check
+    const int32_t* sparseMode = contextKeyParams.sparseMode;
+    if (enableIFA && (sparseMode != nullptr) && (*sparseMode == SPARSE_MODE_RIGHT_DOWN)) {
+        enableMask = false; // qs等于1时，sparse3相当于全部有效没被mask
+    }
     if (enableMask) {
         if (!CheckMaskTypeAndShape(contextKeyParams, tilingData)) {
             return ge::GRAPH_FAILED;
@@ -4008,6 +4335,13 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckSingleAttribute(ContextParams
     if (!CheckSparseMode(contextKeyParams, queryShapeInfo.s, tilingData)) {
         return ge::GRAPH_FAILED;
     }
+
+    // attention sink check
+    if (!CheckLearnSink(contextKeyParams, queryShapeInfo, valueShapeInfo, tilingData)) {
+        OP_LOGE(contextKeyParams.opName, "Check sink failed!");
+        return ge::GRAPH_FAILED;
+    }
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -4046,6 +4380,14 @@ ge::graphStatus PromptFlashAttentionTilingV2::CheckCrossoverAttribute(ContextPar
 
     // TNDLayout and left padding, tensorlist, pse feature crossover
     if (!CheckTNDLayoutCrossover(contextKeyParams)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    if (!CheckNTDLayoutCrossover(contextKeyParams, queryShapeInfo)) {
+        return ge::GRAPH_FAILED;
+    }
+
+    if (!CheckTransposeLayoutCrossover(contextKeyParams, queryShapeInfo)) {
         return ge::GRAPH_FAILED;
     }
 
@@ -4122,7 +4464,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
     std::vector<int64_t>& actualSeqLengths, std::vector<int64_t>& actualSeqLengthsKV,
     PromptFlashAttentionTilingData& tilingData) {
     // Compute tiling data.
-    if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE || (splitCoreMode == SplitCoreMode::SPLIT_NBS_VECTOR && ascendPlatformInfo.socVersion == platform_ascendc::SocVersion::ASCEND910_55)) {
+    if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
         bool isAttenMaskUsed = (contextKeyParams.attentionMaskShape != nullptr);
         PromptFlashAttentionSplitNBSeq(tilingData, actualSeqLengths, actualSeqLengthsKV, isAttenMaskUsed);
     }
@@ -4151,7 +4493,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingData(ContextParamsFor
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingKey(ContextParamsForPFATiling& contextKeyParams,
-    uint32_t& blockDimToBeSet, PromptFlashAttentionTilingData& tilingData) {
+    uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData) {
     bool tilingRet = TilingGetTilingKeyAttentionAscendC(contextKeyParams, tilingData);
     OP_CHECK_IF(!tilingRet, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Get tilingKey fail"),
         return ge::GRAPH_FAILED);
@@ -4160,7 +4502,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ComputeTilingKey(ContextParamsForP
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "platformInfoPtr is null"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    blockDimToBeSet = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
+    numBlocksToBeSet = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
 
     size_t* workspaces = contextKeyParams.workspaceSize;
     workspaces[0] = GetPFAWorkSpaceSize(tilingData);
@@ -4191,6 +4533,7 @@ void PromptFlashAttentionTilingV2::SetLayoutType()
         {InputLayout::TND, LayoutType::LAYOUT_TND},
         {InputLayout::BSND, LayoutType::LAYOUT_BSND},
         {InputLayout::BNSD, LayoutType::LAYOUT_BNSD},
+        {InputLayout::NTD, LayoutType::LAYOUT_NTD},
     };
     auto itr = layoutStrToLayoutTypeMap.find(inputLayout);
     if (itr == layoutStrToLayoutTypeMap.end()) {
@@ -4236,9 +4579,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetQKVStartIdx(ContextParamsForPFA
             }
         }
     }
-    // 当kvStartIdx - qStartIdx超出范围后，由于编译器不支持大数值类型转换，kernel侧int_64转float类型时可能发生截断。
-    OP_CHECK_IF(kvStartIdx - qStartIdx > INT32_MAX || kvStartIdx - qStartIdx < INT32_MIN, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        "kvStartIdx - qStartIdx should >= %d and <= %d, but qStartIdx = %ld, kvStartIdx = %ld.", INT32_MIN, INT32_MAX, qStartIdx, kvStartIdx),
+    // 当kvStartIdx - qStartIdx超出范围后，kernel侧转为float会造成丢失精度。
+    OP_CHECK_IF(kvStartIdx - qStartIdx > POS_SHIFT_MAX || kvStartIdx - qStartIdx < POS_SHIFT_MIN, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "kvStartIdx - qStartIdx should >= %d and <= %d, but qStartIdx = %ld, kvStartIdx = %ld.", POS_SHIFT_MIN, POS_SHIFT_MAX, qStartIdx, kvStartIdx),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -4300,6 +4643,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::ConvertContextToPFAParams(ContextP
     contextKeyParams.workspaceSize = context_->GetWorkspaceSizes(1);
     contextKeyParams.compileInfoPtr = reinterpret_cast<const PromptFlashAttentionCompileInfo *>(context_->GetCompileInfo());
     contextKeyParams.isBSNDOut = (string(contextKeyParams.layout) == "BNSD_BSND") ? 1U : 0U;
+    contextKeyParams.transposeLayout = GetTransposeLayout(string(contextKeyParams.layout));
     contextKeyParams.fromFused = NUM_0;
 
     contextKeyParams.deqScaleType = (context_->GetOptionalInputDesc(DEQ_SCALE1_INDEX) != nullptr) ?
@@ -4319,12 +4663,18 @@ ge::graphStatus PromptFlashAttentionTilingV2::ConvertContextToPFAParams(ContextP
 }
 
 void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTilingData& tilingData) {
-    if (!faRunFlag_) {
+    if (emptyTensor) {
+        auto &initOutputParams = faTilingAdapter.initOutputParams;
+        initOutputParams.set_singleCoreSize(tilingData.promptAttentionInitOutputParams.get_singleCoreSize());
+        initOutputParams.set_totalOutputSize(tilingData.promptAttentionInitOutputParams.get_totalOutputSize());
+        initOutputParams.set_totalSoftMaxLseOutputSize(tilingData.promptAttentionInitOutputParams.get_totalSoftMaxLseOutputSize());
         return;
     }
     SetLayoutType();
     auto &inputParams = faTilingAdapter.inputParamsRegbase;
     inputParams.set_bSize(tilingData.promptAttentionBaseParams.get_batchSize());
+    inputParams.set_t1Size(tilingData.promptAttentionBaseParams.get_t1Size());
+    inputParams.set_t2Size(tilingData.promptAttentionBaseParams.get_t2Size());
     // 将GS1合轴与不合轴场景下，有不同含义的n2Size、gSize与s1Size参数，转化为各自实际的值
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
         inputParams.set_n2Size(tilingData.promptAttentionBaseParams.get_headNumSize());
@@ -4389,6 +4739,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
     inputParams.set_isKvContinuous(tilingData.promptAttentionBaseParams.get_isKvContinuous());
     inputParams.set_fromFused(tilingData.promptAttentionBaseParams.get_fromFused());
     inputParams.set_isBSNDOut(tilingData.promptAttentionBaseParams.get_isBSNDOut());
+    inputParams.set_transposeLayout(tilingData.promptAttentionBaseParams.get_transposeLayout());
     inputParams.set_isGqa(tilingData.promptAttentionBaseParams.get_isIFA() || enablePFAMerge);
     inputParams.set_isSoftMaxLseEnable(tilingData.promptAttentionBaseParams.get_isSoftMaxLseEnable());
     inputParams.set_isActualSharedPrefixLenNull(tilingData.promptAttentionBaseParams.get_isActualSharedPrefixLenNull());
@@ -4437,7 +4788,7 @@ void PromptFlashAttentionTilingV2::InitializeMaxWorkspace(PFAShapeInfo& querySha
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(ContextParamsForPFATiling& contextKeyParams,
-    uint32_t& blockDimToBeSet, PromptFlashAttentionTilingData& tilingData) {
+    uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData) {
     GetMaxWorkspaceFlag(contextKeyParams);
 
     // set memory parameters
@@ -4448,17 +4799,20 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
     if (SetAttributeInfo(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
-    // rope ptr is empty or rope is invalid
-    if (CheckRopeInvalid(contextKeyParams) != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
     // tensor ptr is empty or tensor is invalid
     if (CheckTensorInvalid(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
-    } else if (CheckEmptyTensor(contextKeyParams)) {
-        SetEmptyTensor(contextKeyParams, blockDimToBeSet, tilingData);
+    }
+
+    // empty tensor check
+    if (CheckEmptyTensor(contextKeyParams) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+    if (emptyTensor) {
+        SetEmptyTensor(contextKeyParams, numBlocksToBeSet, tilingData);
         return ge::GRAPH_SUCCESS;
     }
+
     // Input, output check
     PFAShapeInfo queryShapeInfo;
     PFAShapeInfo keyShapeInfo;
@@ -4532,7 +4886,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
     }
 
     // Compute tiling key.
-    if (ComputeTilingKey(contextKeyParams, blockDimToBeSet, tilingData) != ge::GRAPH_SUCCESS) {
+    if (ComputeTilingKey(contextKeyParams, numBlocksToBeSet, tilingData) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
 
@@ -4557,27 +4911,25 @@ void PromptFlashAttentionTilingV2::SetTilingKey(ContextParamsForPFATiling& conte
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling) {
-    uint32_t blockDimToBeSet;
-    auto ret = RunBigKernelTilingWithParams(contextParamsForPFATiling, blockDimToBeSet, tilingData);
+    uint32_t numBlocksToBeSet;
+    auto ret = RunBigKernelTilingWithParams(contextParamsForPFATiling, numBlocksToBeSet, tilingData);
     OP_CHECK_IF(ret == ge::GRAPH_FAILED, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to parse tiling params!"), return ge::GRAPH_FAILED);
-    context_->SetBlockDim(blockDimToBeSet);
+    context_->SetBlockDim(numBlocksToBeSet);
     OP_CHECK_IF(memset_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(),
         0, context_->GetRawTilingData()->GetCapacity()) != EOK,
         OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to memset tiling data"),
         return ge::GRAPH_FAILED);
     if (faRunFlag_) {
-        if (!emptyTensor) {
-            PFATilingDataconvert(tilingData);
-        }        
+        PFATilingDataconvert(tilingData);
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
         OP_LOGI(contextParamsForPFATiling.opName, "Tiling Data context GetCapacity: %lu.", cap);
-		FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
+        FlashAttentionScoreSimplifiedTilingData* tiling = context_->GetTilingData<FlashAttentionScoreSimplifiedTilingData>();
         if (tiling == nullptr) {
             OP_LOGE(contextParamsForPFATiling.opName, "tiling get is nullptr");
             return ge::GRAPH_FAILED;
         }
-		*tiling = faTilingAdapter;
-	} else {
+        *tiling = faTilingAdapter;
+    } else {
         uint64_t cap = context_->GetRawTilingData()->GetCapacity();
         OP_LOGI(contextParamsForPFATiling.opName, "TilingData context GetCapacity: %lu, faRunFlag_ is %d", cap, faRunFlag_);
         if (contextParamsForPFATiling.inputDataType != ge::DT_BF16 && contextParamsForPFATiling.inputDataType != ge::DT_FLOAT16) {
@@ -4587,8 +4939,10 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoSubOpTiling(PromptFlashAttention
             PromptFlashAttentionTilingData* tiling = context_->GetTilingData<PromptFlashAttentionTilingData>();
             *tiling = tilingData;
         }
-	}
-	return ret;
+    }
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    context_->SetScheduleMode(BATCH_MODE_SCHEDULE);
+    return ret;
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::DoOpTiling()
@@ -4600,9 +4954,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoOpTiling()
     ret = DoSubOpTiling(tilingData, contextParamsForPFATiling);
     SetTilingKey(contextParamsForPFATiling);
     OP_LOGI(contextParamsForPFATiling.opName, "All the PFATiling work is done.");
-	return ret;
+    return ret;
 }
 
-REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTilingV2, std::vector<int32_t>({(int32_t)platform_ascendc::SocVersion::ASCEND910_95}), 90);
+REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTilingV2, std::vector<int32_t>({(int32_t)NpuArch::DAV_3510}), 90);
 } // namespace v2
 } // namespace optiling

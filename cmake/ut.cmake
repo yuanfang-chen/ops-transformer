@@ -139,6 +139,7 @@ if(UT_TEST_ALL OR OP_API_UT)
               ${ASCEND_DIR}/pkg_inc 
               ${ASCEND_DIR}/include/ascendc/basic_api 
               ${ASCEND_CANN_PACKAGE_PATH}/runtime/pkg_inc
+              ${PROJECT_SOURCE_DIR}/tests/ut/framework_normal/common
       )
     target_link_libraries(${OP_API_MODULE_NAME}_cases_obj 
       PRIVATE $<BUILD_INTERFACE:intf_llt_pub_asan_cxx17>
@@ -450,8 +451,10 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
         )
       target_include_directories(
         ${opName}_${socVersion}_cases_obj
-        PRIVATE ${ASCEND_DIR}/include/base/context_builder ${PROJECT_SOURCE_DIR}/tests/ut/framework_normal/op_kernel
+        PRIVATE ${ASCEND_DIR}/include/base/context_builder 
+                ${PROJECT_SOURCE_DIR}/tests/ut/framework_normal/op_kernel
                 ${PROJECT_SOURCE_DIR}/tests/ut/framework_normal/common
+                ${PROJECT_SOURCE_DIR}/common/include/kernel
                 ${ASCEND_DIR}/${SYSTEM_PREFIX}/asc/impl/basic_api
                 ${ASCEND_DIR}/${SYSTEM_PREFIX}/asc
                 ${ASCEND_DIR}/${SYSTEM_PREFIX}/asc/include

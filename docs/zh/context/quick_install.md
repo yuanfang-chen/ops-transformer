@@ -43,7 +43,7 @@
 ### 使用Docker部署
 
 > **说明：**
-> - Docker镜像是一种高效部署方式，目前仅适用于Atlas A2系列产品。
+> - Docker镜像是一种高效部署方式，目前仅适用于Atlas A2系列产品，且目前仅适配Ubuntu操作系统。
 > - 镜像文件比较大，下载需要一定时间，请您耐心等待。
 
 #### 1. 下载镜像
@@ -77,7 +77,7 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 | `-v /usr/local/Ascend/driver/version.info:/usr/local/Ascend/driver/version.info` | 挂载驱动版本信息文件。 | |
 | `-v /etc/ascend_install.info:/etc/ascend_install.info` | 挂载CANN软件安装信息文件。 | |
 | `-it` | `-i`（交互式）和 `-t`（分配伪终端）的组合参数。 | |
-| `swr.cn-south-1.myhuaweicloud.com/ascendhub/8.5.0-910b-ubuntu22.04-py3.10-ops-x86` | 指定要运行的Docker镜像。 |请确保此镜像名和标签（tag）与你通过`docker pull`拉取的镜像完全一致。 |
+| `swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops` | 指定要运行的Docker镜像。 |请确保此镜像名和标签（tag）与你通过`docker pull`拉取的镜像完全一致。 |
 | `bash` | 容器启动后立即执行的命令。 | |
 
 
@@ -85,9 +85,7 @@ docker run --name cann_container --device /dev/davinci0 --device /dev/davinci_ma
 
 #### 1. 下载软件包
 
-根据实际产品型号和环境架构，获取`Ascend-cann-toolkit_${cann_version}_linux-${arch}.run`、`Ascend-cann-${soc_name}-ops_${cann_version}_linux-${arch}.run`。其中ops包是运行态依赖，若仅编译算子，可以不安装此包。
-- Atlas A2/A3系列产品：单击[下载链接](https://ascend.devcloud.huaweicloud.com/cann/run/software/8.5.0-beta.1)获取软件包。
-- Ascend 950PR/Ascend 950DT产品：单击[下载链接](https://mirror-centralrepo.devcloud.cn-north-4.huaweicloud.com/artifactory/cann-run-release/software/9.0.0-alpha.1/)获取软件包。
+单击[下载链接](https://mirror-centralrepo.devcloud.cn-north-4.huaweicloud.com/artifactory/cann-run-release/software/9.0.0/)，根据实际产品型号和环境架构，获取`Ascend-cann-toolkit_${cann_version}_linux-${arch}.run`、`Ascend-cann-${soc_name}-ops_${cann_version}_linux-${arch}.run`。其中ops包是运行态依赖，若仅编译算子，可以不安装此包。
 
 #### 2. 安装软件包
 1. **安装社区CANN toolkit包**

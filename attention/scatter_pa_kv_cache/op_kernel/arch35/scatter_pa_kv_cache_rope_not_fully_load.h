@@ -224,7 +224,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         inputKeyQueue_.FreeTensor(inputKeyLocal);
     } else if constexpr (isInteger8or16_) {
         LocalTensor<T> inputKeyLocal = inputKeyQueue_.AllocTensor<T>();
-        CastToOrigin<U>(inputKeyLocal, kTmpLocal, tilingData_->kHeadSize);
+        CastToOrigin<U>(inputKeyLocal, kTmpLocal, handleNum);
         event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
         SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
         WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
@@ -293,7 +293,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         inputValueQueue_.FreeTensor(inputValueLocal);
     } else if constexpr (isInteger8or16_) {
         LocalTensor<T> inputValueLocal = inputValueQueue_.AllocTensor<T>();
-        CastToOrigin<U>(inputValueLocal, vTmpLocal, tilingData_->vHeadSize);
+        CastToOrigin<U>(inputValueLocal, vTmpLocal, handleNum);
         event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
         SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
         WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
@@ -420,9 +420,17 @@ ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode>::CopyInKey(int64_t lo
                                                                       int64_t keyOffset, int64_t handleNum)
 {
     LocalTensor<T> inputKeyLocal = inputKeyQueue_.AllocTensor<T>();
-    DataCopy(inputKeyLocal,
+    DataCopyExtParams inKeyParams = {
+        static_cast<uint16_t>(1), static_cast<uint32_t>(handleNum * sizeof(T)), static_cast<uint32_t>(0),
+        static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
+    DataCopyPadExtParams<T> padParams;
+    padParams.isPad = 0;
+    padParams.leftPadding = 0;
+    padParams.rightPadding = 0;
+    padParams.paddingValue = 0;
+    DataCopyPad(inputKeyLocal,
              inputKeyGm_[keyOffset + k * tilingData_->keyStride1 + loopIdx * tilingData_->kHandleNumPerLoop],
-             RoundUp(handleNum));
+             inKeyParams, padParams);
     inputKeyQueue_.EnQue(inputKeyLocal);
 }
 
@@ -448,9 +456,17 @@ ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode>::CopyInValue(int64_t 
                                                                         int64_t valueOffset, int64_t handleNum)
 {
     LocalTensor<T> inputValueLocal = inputValueQueue_.AllocTensor<T>();
-    DataCopy(inputValueLocal,
+    DataCopyExtParams inValueParams = {
+        static_cast<uint16_t>(1), static_cast<uint32_t>(handleNum * sizeof(T)), static_cast<uint32_t>(0),
+        static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
+    DataCopyPadExtParams<T> padParams;
+    padParams.isPad = 0;
+    padParams.leftPadding = 0;
+    padParams.rightPadding = 0;
+    padParams.paddingValue = 0;
+    DataCopyPad(inputValueLocal,
              inputValueGm_[valueOffset + k * tilingData_->valueStride1 + loopIdx * tilingData_->vHandleNumPerLoop],
-             RoundUp(handleNum));
+             inValueParams, padParams);
     inputValueQueue_.EnQue(inputValueLocal);
 }
 

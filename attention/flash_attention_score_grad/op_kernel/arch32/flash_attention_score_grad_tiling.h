@@ -49,7 +49,7 @@ public:
     uint32_t pad = 0;
     uint8_t tndSoftmaxIn = 0;
     uint32_t sink = 0;
-    uint8_t FlashAttentionScoreGradS1S2BNGS1S2SABBaseParamsPH[7] = {};
+    uint8_t FlashAttentionScoreGradS1S2BNGS1S2SABBaseParamsPH[3] = {};
 
     int64_t get_b() const
     {
@@ -326,9 +326,9 @@ public:
         return sink;
     }
 
-    void set_sink(uint32_t sink)
+    void set_sink(uint32_t sink_val)
     {
-        this->sink = sink;
+        this->sink = sink_val;
     }
 
     void reset()
@@ -1114,6 +1114,7 @@ public:
     uint64_t dsinksumWorkSpaceOffset = 0;
     uint64_t dsinksumDataSizeOffset = 0;
     uint32_t baseMN = 0;
+    uint32_t sinkDataSize = 0;
 
     uint32_t get_coreNum() const
     {
@@ -1502,7 +1503,7 @@ public:
         this->value_d = value_d_val;
     }
 
-    uint64_t get_dsinksumWorkSpaceOffset()
+    uint64_t get_dsinksumWorkSpaceOffset() const
     {
         return this->dsinksumWorkSpaceOffset;
     }
@@ -1510,7 +1511,7 @@ public:
     {
         this->dsinksumWorkSpaceOffset = dsinksumWorkSpaceOffset_val;
     }
-    uint64_t get_dsinksumDataSizeOffset()
+    uint64_t get_dsinksumDataSizeOffset() const
     {
         return this->dsinksumDataSizeOffset;
     }
@@ -1518,13 +1519,22 @@ public:
     {
         this->dsinksumDataSizeOffset = dsinksumDataSizeOffset_val;
     }
-    uint32_t get_baseMN()
+    uint32_t get_baseMN() const
     {
         return this->baseMN;
     }
     void set_baseMN(uint32_t baseMN_val)
     {
         this->baseMN = baseMN_val;
+    }
+
+    uint32_t get_sinkDataSize() const
+    {
+        return this->sinkDataSize;
+    }
+    void set_sinkDataSize(uint32_t sinkDataSize_val)
+    {
+        this->sinkDataSize = sinkDataSize_val;
     }
 
     void reset()
@@ -1575,6 +1585,7 @@ public:
         dsinksumWorkSpaceOffset = 0;
         dsinksumDataSizeOffset = 0;
         baseMN = 0;
+        sinkDataSize = 0;
     }
 };
 

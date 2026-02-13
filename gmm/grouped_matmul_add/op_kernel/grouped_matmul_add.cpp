@@ -20,11 +20,15 @@
 #endif
 
 #if defined(__DAV_C310__)
-#include "arch35/grouped_matmul_add_basic_act.h"
+#include "arch35/grouped_matmul_add_basic_cgmct.h"
 #else
 #include "grouped_matmul_add.h"
 #endif
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 
 using namespace AscendC;
 using namespace matmul;
@@ -400,7 +404,7 @@ extern "C" __global__ __aicore__ void grouped_matmul_add(
     REGISTER_TILING_DEFAULT(GroupedMatmulAdd::GmmAddTilingDataParams);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIC_ONLY);
     if (TILING_KEY_IS(10000900009000090001UL)) { // split_k
-        GroupedMatmulAdd::GmmAddAct<layout::ColumnMajor, layout::RowMajor>(x, weight, groupList, y, tiling);
+        GroupedMatmulAdd::GmmAddCgmct<layout::ColumnMajor, layout::RowMajor>(x, weight, groupList, y, tiling);
     }
 #else
 #ifndef __CCE_UT_TEST__

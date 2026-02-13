@@ -479,6 +479,18 @@ public:
     uint32_t get_isBSNDOut() const { return this->isBSNDOut; }
     void set_isBSNDOut(uint32_t isBSNDOutParam) { this->isBSNDOut = isBSNDOutParam; }
 
+    uint32_t transposeLayout = 0;
+    uint32_t get_transposeLayout() const { return this->transposeLayout; }
+    void set_transposeLayout(uint32_t transposeLayoutParam) { this->transposeLayout = transposeLayoutParam; }
+
+    int64_t t1Size = 0;
+    int64_t get_t1Size() const { return this->t1Size; }
+    void set_t1Size(int64_t t1SizeParam) { this->t1Size = t1SizeParam; }
+
+    int64_t t2Size = 0;
+    int64_t get_t2Size() const { return this->t2Size; }
+    void set_t2Size(int64_t t2SizeParam) { this->t2Size = t2SizeParam; }
+
     uint32_t isIFA = 0;
     uint32_t get_isIFA() const { return this->isIFA; }
     void set_isIFA(uint32_t isIFAParam) { this->isIFA = isIFAParam; }

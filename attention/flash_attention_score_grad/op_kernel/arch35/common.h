@@ -15,7 +15,11 @@
 
 #pragma once
 
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 #include "../../../common/op_kernel/arch35/util_regbase.h"
 #include <cstdint>
 
@@ -32,12 +36,12 @@ namespace commondef {
 #define IS_TSCM_REUSE(HEAD_DIM_ALIGN, T1, IS_DETER_OLD, FP8_OPEN_TSCM)                                                                              \
     ((((!(IS_DETER_OLD) && (HEAD_DIM_ALIGN) <= (uint32_t)DTemplateType::Aligned256) ||                                           \
      ((IS_DETER_OLD) && (HEAD_DIM_ALIGN) <= (uint32_t)DTemplateType::Aligned192)) && (!IsSameType<T1, float>::value) && (!IsSameType<T1, fp8_e5m2_t>::value)) \
-        && (!IsSameType<T1, fp8_e4m3fn_t>::value) || (FP8_OPEN_TSCM && (IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value)))
+        && (!IsSameType<T1, fp8_e4m3fn_t>::value) && (!IsSameType<T1, hifloat8_t>::value) || (FP8_OPEN_TSCM && (IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value || IsSameType<T1, hifloat8_t>::value)))
 // 是否开启L1 preload，限制条件为D <= 192，非BN2模板，非确定性计算，非TND
 #define IS_TSCM_PRELOAD_ROPE(HEAD_DIM_ALIGN, T1, SPLIT_AXIS, IS_DETER_OLD, IS_TND, FP8_OPEN_TSCM, IS_ROPE)                                              \
     ((((HEAD_DIM_ALIGN) <= (uint32_t)DTemplateType::Aligned192) && (((SPLIT_AXIS) == 0) || ((SPLIT_AXIS) == 5)) && ((IS_DETER_OLD) == 0 || ((IS_DETER_OLD) == 1 && IS_ROPE)) &&    \
-     (!IsSameType<T1, float>::value) && (!IsSameType<T1, fp8_e5m2_t>::value) && (!IsSameType<T1, fp8_e4m3fn_t>::value)) ||       \
-     (FP8_OPEN_TSCM && ((HEAD_DIM_ALIGN) <= (uint32_t)DTemplateType::Aligned256) && (IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value)))
+     (!IsSameType<T1, float>::value) && (!IsSameType<T1, fp8_e5m2_t>::value) && (!IsSameType<T1, fp8_e4m3fn_t>::value) && (!IsSameType<T1, hifloat8_t>::value)) ||       \
+     (FP8_OPEN_TSCM && ((HEAD_DIM_ALIGN) <= (uint32_t)DTemplateType::Aligned256) && (IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value || IsSameType<T1, hifloat8_t>::value)))
 // 是否开启L1 preload，限制条件为D <= 192，非BN2模板，非确定性计算，非TND
 #define IS_TSCM_PRELOAD(HEAD_DIM_ALIGN, T1, SPLIT_AXIS, IS_DETER_OLD, IS_TND)                                          \
     (IS_TSCM_PRELOAD_ROPE(HEAD_DIM_ALIGN, T1, SPLIT_AXIS, IS_DETER_OLD, IS_TND, false, false))
@@ -67,12 +71,22 @@ constexpr uint32_t L0C_MAX_SIZE = 256 * 1024;
 #define IS_L0C_REUSE(CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN, IS_DETER_OLD, T1, IS_TND)                                     \
     ((GET_L0C_BUF_NUM(CUBE_BASEM, CUBE_BASEN, HEAD_DIM_ALIGN) >= MIN_L0C_BUF_NUM) && !(IS_DETER_OLD) &&                    \
      (!IsSameType<T1, float>::value) && (!IS_TND) &&                                                                   \
-     (!(IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value)))
+     (!(IsSameType<T1, fp8_e5m2_t>::value || IsSameType<T1, fp8_e4m3fn_t>::value || IsSameType<T1, hifloat8_t>::value)))
 
 constexpr uint32_t L0_MAX_SIZE = 64 * 1024;
 constexpr uint32_t L1_MAX_SIZE = 512 * 1024;
 // 当前判断仅在FP32场景生效，后续需考虑FP16/BF16并结合L0DB开关
 #define IS_L0_EXCEED(M, N, K, T1) (M * K * sizeof(T1) > L0_MAX_SIZE || K * N * sizeof(T1) > L0_MAX_SIZE);
+
+#define FagOldTilingType                                                                                                  \
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND, false> \
+        *__restrict
+
+#define FagTilingType                                                                                                  \
+    const FlashAttentionScoreGradTilingDataUs1s2Bbn2gs1s2Regbase<NEED_DETER_PREFIX(DETER_SPARSE_TYPE, IS_TND), IS_TND, IS_TND_SWIZZLE> \
+        *__restrict
+
+
 constexpr uint32_t RESERVED_WORKSPACE_SIZE = 64 * 1024;
 constexpr bool INPUT_DISABLE = 0;
 constexpr bool INPUT_ENABLE = 1;
@@ -142,6 +156,7 @@ constexpr uint32_t PSE_1_N2_G_SLOPE = 6;
 constexpr uint32_t PSE_COMPRESS_H = 1024;
 constexpr uint32_t VREG_SIZE = 256;
 constexpr uint32_t MAX_CONTINUOUS_BLOCK_NUM = 6;
+constexpr uint16_t UNROLL_FACTOR = 2;
 
 struct DeterConstInfo {
     uint8_t usedCubeCoreNum;
@@ -207,6 +222,7 @@ struct FagConstInfo {
     int64_t mm3Ka;
     int64_t mm4Kb;
     int64_t dRopeSize = 64; // rope旋转的维度
+    uint32_t continuousBlockNum = 0; // 核内连续块数量
 };
 
 // fp8反量化因子
@@ -291,15 +307,15 @@ __aicore__ inline uint32_t AlignTo(uint32_t num1, uint32_t num2)
     return (num1 + num2 - 1) / num2 * num2;
 }
 
-__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 15) >> 4 << 4; }
+__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 16 - 1) >> 4 << 4; }
 
-__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 31) >> 5 << 5; }
+__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 32 - 1) >> 5 << 5; }
 
-__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 63) >> 6 << 6; }
+__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 64 - 1) >> 6 << 6; }
 
-__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 127) >> 7 << 7; }
+__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 128 - 1) >> 7 << 7; }
 
-__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 511) >> 9 << 9; }
+__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 512 - 1) >> 9 << 9; }
 
 __aicore__ constexpr bool IS_DETER_OLD(const uint8_t deterSparseType) 
 {

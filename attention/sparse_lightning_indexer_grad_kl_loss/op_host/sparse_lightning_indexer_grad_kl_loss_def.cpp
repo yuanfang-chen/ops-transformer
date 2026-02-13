@@ -23,65 +23,53 @@ public:
         this->Input("query")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("key")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("query_index")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("key_index")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("weight")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("sparse_indices")
             .ParamType(REQUIRED)
             .DataType({ge::DT_INT32, ge::DT_INT32})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("softmax_max")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("softmax_sum")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("query_rope")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("key_rope")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .AutoContiguous();
+            .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Input("actual_seq_lengths_query")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .ValueDepend(OPTIONAL)
-            .AutoContiguous();
+            .ValueDepend(OPTIONAL);
         this->Input("actual_seq_lengths_key")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
-            .ValueDepend(OPTIONAL)
-            .AutoContiguous();
+            .ValueDepend(OPTIONAL);
         this->Output("d_query_index")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
@@ -99,7 +87,7 @@ public:
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND});
         this->Attr("scale_value").AttrType(REQUIRED).Float(1.0);
-        this->Attr("layout").AttrType(OPTIONAL).String("TND");         // BSND, TND
+        this->Attr("layout").AttrType(OPTIONAL).String("BSND");         // BSND, TND
         this->Attr("sparse_mode").AttrType(OPTIONAL).Int(3);            // 3:默认值，只计算下三角
         this->Attr("pre_tokens").AttrType(OPTIONAL).Int(2147483647);
         this->Attr("next_tokens").AttrType(OPTIONAL).Int(2147483647);
@@ -114,6 +102,7 @@ public:
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn");
         this->AICore().AddConfig("ascend910b", aicore_config);
         this->AICore().AddConfig("ascend910_93", aicore_config);
+        this->AICore().AddConfig("ascend950", aicore_config);
     }
 };
 OP_ADD(SparseLightningIndexerGradKLLoss);

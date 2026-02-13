@@ -131,6 +131,13 @@ function(op_add_subdirectory OP_LIST OP_DIR_LIST)
             endif()
         endif()
 
+        if (NOT ENABLE_AICPU)
+            if(EXISTS "${OP_DIR}/op_kernel_aicpu" AND IS_DIRECTORY "${OP_DIR}/op_kernel_aicpu")
+                MESSAGE(STATUS "disable aicpu kernel ${OP_NAME}, skip it.")
+                continue()
+            endif()
+        endif()
+
         list(APPEND _OP_LIST ${OP_NAME})
         list(APPEND _OP_DIR_LIST ${OP_DIR})
     endforeach()
@@ -371,7 +378,9 @@ function(add_ops_src_copy)
             set(OPS_UTILS_INC_KERNEL_DIR ${_ROOT_OPS_SRC_DIR}/ascendc/common)
             add_custom_command(OUTPUT ${OPS_UTILS_INC_KERNEL_DIR}
                     COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/regbase
+                    COMMAND mkdir -p ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
                     COMMAND cp -rf ${OPS_ADV_UTILS_KERNEL_INC}/*.* ${OPS_UTILS_INC_KERNEL_DIR}
+                    COMMAND cp -rf ${OPS_CGMCT}/* ${OPS_UTILS_INC_KERNEL_DIR}/cgmct
             )
 
             add_custom_target(${OPS_UTILS_INC_KERNEL_TARGET}
@@ -381,6 +390,7 @@ function(add_ops_src_copy)
     endif ()
 
     set(MC2_OPS_LIST "matmul_reduce_scatter;"
+        "matmul_reduce_scatter_v2;"
         "grouped_mat_mul_allto_allv;"
         "grouped_mat_mul_all_reduce;"
         "batch_mat_mul_reduce_scatter_allto_all;"
@@ -394,9 +404,15 @@ function(add_ops_src_copy)
         "moe_distribute_combine_v2;"
         "moe_update_expert;"
         "all_gather_matmul;"
+        "all_gather_matmul_v2;"
         "matmul_all_reduce;"
+        "matmul_all_reduce_apt;"
         "matmul_all_reduce_add_rms_norm;"
         "inplace_matmul_all_reduce_add_rms_norm;"
+        "quant_all_reduce;"
+        "quant_reduce_scatter;"
+        "allto_all_matmul;"
+        "matmul_allto_all;"
         "attention_to_ffn;"
         "ffn_to_attention;"
     ) # mc2算子列表
@@ -581,9 +597,17 @@ function(add_bin_compile_target)
         set(_group "1-0")
         if (DEFINED ASCEND_OP_NAME AND NOT "${ASCEND_OP_NAME}" STREQUAL "")
             if (NOT "${ASCEND_OP_NAME}" STREQUAL "all" AND NOT "${ASCEND_OP_NAME}" STREQUAL "ALL")
-                if (${op_file} IN_LIST ASCEND_OP_NAME)
-                    list(LENGTH ASCEND_OP_NAME _len)
+                string(REGEX MATCH "^(.*_apt)$" _match_apt ${op_file})
+                if(_match_apt)
+                    #如果以_apt结尾，使用去掉后缀的文件名进行查找
+                    string(REGEX REPLACE "_apt$" "" _op_file_strip_apt ${op_file})
+                    list(FIND ASCEND_OP_NAME ${_op_file_strip_apt} _index)
+                else()
                     list(FIND ASCEND_OP_NAME ${op_file} _index)
+                    set(_op_file_strip_apt ${op_file})
+                endif()
+                if (${op_file} IN_LIST ASCEND_OP_NAME OR ${_op_file_strip_apt} IN_LIST ASCEND_OP_NAME)
+                    list(LENGTH ASCEND_OP_NAME _len)
                     math(EXPR _next_index "${_index} + 1")
                     if (${_next_index} LESS ${_len})
                         list(GET ASCEND_OP_NAME ${_next_index} _group_str)
@@ -785,6 +809,25 @@ function(add_static_ops)
     endif()
 endfunction()
 
+function(pack_tiling_sink)
+  ExternalProject_Get_Property(tiling_sink_task BINARY_DIR)
+
+  if(ENABLE_BUILT_IN)
+    set(TRANSFORMER_OPMASTER_SO ${BINARY_DIR}/libtiling_device_transformer.so)
+    set(INSTALL_DIR "ops_transformer/built-in/op_impl/ai_core/tbe/op_tiling_device/lib")
+  else()
+    set(TRANSFORMER_OPMASTER_SO ${BINARY_DIR}/libcust_opmaster.so)
+    set(INSTALL_DIR "packages/vendors/${VENDOR_NAME}_transformer/op_impl/ai_core/tbe/op_master_device/lib")
+  endif()
+  install(CODE "
+    if(EXISTS \"${TRANSFORMER_OPMASTER_SO}\")
+      file(
+        INSTALL DESTINATION \"\${CMAKE_INSTALL_PREFIX}/${INSTALL_DIR}\"
+        TYPE FILE FILES \"${TRANSFORMER_OPMASTER_SO}\")
+    endif()
+  ")
+endfunction()
+
 if (BUILD_OPEN_PROJECT)
     if (TESTS_UT_OPS_TEST)
         include(${OPS_ADV_CMAKE_DIR}/func_utest.cmake)
@@ -793,3 +836,67 @@ if (BUILD_OPEN_PROJECT)
         include(${OPS_ADV_CMAKE_DIR}/func_examples.cmake)
     endif ()
 endif ()
+
+function(concat_op_names)
+    set(multiValueArgs OPTYPE ACLNNTYPE ACLNN_EXTRA_VERSION)
+    cmake_parse_arguments(ARG "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+    if(${ARG_ACLNNTYPE} STREQUAL "aclnn")
+        set(ACLNN_PREFIX aclnn_${ARG_OPTYPE})
+        set(ACLNN_EXTRA_HEADER "")
+        set(ACLNN_EXTRA_SRC "")
+
+        list(LENGTH ARG_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
+        math(EXPR index "${AclnnExtraVersionLen} - 1")
+        if (index GREATER_EQUAL 0)
+            foreach(i RANGE ${index})
+                list(GET ARG_ACLNN_EXTRA_VERSION ${i} version)
+                list(APPEND ACLNN_EXTRA_HEADER ${ACLNN_PREFIX}_${version}.h)
+                list(APPEND ACLNN_EXTRA_SRC ${ACLNN_PREFIX}_${version}.cpp)
+            endforeach()
+        endif()
+
+        list(APPEND ACLNN_EXTRA_HEADERS ${ACLNN_EXTRA_HEADER})
+        list(REMOVE_DUPLICATES ACLNN_EXTRA_HEADERS)
+        list(APPEND ACLNN_EXTRA_SRCS ${ACLNN_EXTRA_SRC})
+        list(REMOVE_DUPLICATES ACLNN_EXTRA_SRCS)
+
+        set(ACLNN_EXTRA_HEADERS
+            ${ACLNN_EXTRA_HEADERS}
+            CACHE STRING "Aclnn Extra Headers" FORCE
+        )
+        set(ACLNN_EXTRA_SRCS
+            ${ACLNN_EXTRA_SRCS}
+            CACHE STRING "Aclnn Extra Sources" FORCE
+        )
+
+    elseif(${ARG_ACLNNTYPE} STREQUAL "aclnn_inner")
+        set(ACLNNINNER_PREFIX aclnnInner_${ARG_OPTYPE})
+        set(ACLNNINNER_EXTRA_HEADER "")
+        set(ACLNNINNER_EXTRA_SRC "")
+
+        list(LENGTH ARG_ACLNN_EXTRA_VERSION AclnnExtraVersionLen)
+        math(EXPR index "${AclnnExtraVersionLen} - 1")
+        if (index GREATER_EQUAL 0)
+            foreach(i RANGE ${index})
+                list(GET ARG_ACLNN_EXTRA_VERSION ${i} version)
+                list(APPEND ACLNNINNER_EXTRA_HEADER ${ACLNNINNER_PREFIX}_${version}.h)
+                list(APPEND ACLNNINNER_EXTRA_SRC ${ACLNNINNER_PREFIX}_${version}.cpp)
+            endforeach()
+        endif()
+
+        list(APPEND ACLNNINNER_EXTRA_HEADERS ${ACLNNINNER_EXTRA_HEADER})
+        list(REMOVE_DUPLICATES ACLNNINNER_EXTRA_HEADERS)
+        list(APPEND ACLNNINNER_EXTRA_SRCS ${ACLNNINNER_EXTRA_SRC})
+        list(REMOVE_DUPLICATES ACLNNINNER_EXTRA_SRCS)
+
+        set(ACLNNINNER_EXTRA_HEADERS
+            ${ACLNNINNER_EXTRA_HEADERS}
+            CACHE STRING "AclnnInner Extra Headers" FORCE
+        )
+        set(ACLNNINNER_EXTRA_SRCS
+            ${ACLNNINNER_EXTRA_SRCS}
+            CACHE STRING "AclnnInner Extra Sources" FORCE
+        )
+    endif()
+endfunction()

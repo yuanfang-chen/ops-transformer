@@ -4,14 +4,17 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
-|<term>Atlas A2 训练系列产品</term>|      √     |
-|<term>Atlas A2 推理系列产品</term>|      ×     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     x      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
 
-- 算子功能：根据topkIndices对key和value选取大小为selectedBlockSize的数据重排，接着进行训练场景下计算注意力的反向输出。
+- 接口功能：根据topkIndices对key和value选取大小为selectedBlockSize的数据重排，接着进行训练场景下计算注意力的反向输出。
 
 - 计算公式：
 
@@ -66,6 +69,7 @@ aclnnStatus aclnnNsaSelectedAttentionGradGetWorkspaceSize(
   uint64_t          *workspaceSize,
   aclOpExecutor    **executor)
 ```
+
 ```c++
 aclnnStatus aclnnNsaSelectedAttentionGrad(
   void          *workspace,
@@ -73,221 +77,220 @@ aclnnStatus aclnnNsaSelectedAttentionGrad(
   aclOpExecutor *executor,
   aclrtStream    stream);
 ```
-**说明**：
 
-### aclnnNsaSelectedAttentionGradGetWorkspaceSize
+## aclnnNsaSelectedAttentionGradGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
-<table style="undefined;table-layout: fixed; width: 1565px">
-<colgroup>
-  <col style="width: 146px">
-  <col style="width: 135px">
-  <col style="width: 326px">
-  <col style="width: 246px">
-  <col style="width: 275px">
-  <col style="width: 101px">
-  <col style="width: 190px">
-  <col style="width: 146px">
-</colgroup>
-<thead>
-  <tr>
-    <th>参数名</th>
-    <th>输入/输出</th>
-    <th>描述</th>
-    <th>使用说明</th>
-    <th>数据类型</th>
-    <th>数据格式</th>
-    <th>维度(shape)</th>
-    <th>非连续Tensor</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td>query</td>
-    <td>输入</td>
-    <td>公式中的query。</td>
-    <td>-</td>
-    <td>BFLOAT16、FLOAT16</td>
-    <td>ND</td>
-    <td>3-4</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>key</td>
-    <td>输入</td>
-    <td>公式中的key。</td>
-    <td>-</td>
-    <td>BFLOAT16、FLOAT16</td>
-    <td>ND</td>
-    <td>3-4</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>value</td>
-    <td>输入</td>
-    <td>公式中的value。</td>
-    <td>-</td>
-    <td>BFLOAT16、FLOAT16</td>
-    <td>ND</td>
-    <td>3-4</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>topkIndices</td>
-    <td>输入</td>
-    <td>公式中的topk_indices。</td>
-    <td>-</td>
-    <td>INT32</td>
-    <td>ND</td>
-    <td>3</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>attenMaskOptional</td>
-    <td>输入</td>
-    <td>公式中的atten_mask。</td>
-    <td>-</td>
-    <td>BOOL、UINT8</td>
-    <td>ND</td>
-    <td>2</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>actualSeqQLenOptional</td>
-    <td>输入</td>
-    <td>query每个Batch的S累加和长度。</td>
-    <td>-</td>
-    <td>INT64</td>
-    <td>ND</td>
-    <td>1</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>actualSeqKvLenOptional</td>
-    <td>输入</td>
-    <td>key/value每个Batch的S累加和长度。</td>
-    <td>-</td>
-    <td>INT64</td>
-    <td>ND</td>
-    <td>1</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>scaleValue</td>
-    <td>输入</td>
-    <td>缩放系数scale。</td>
-    <td>一般为 D^-0.5。</td>
-    <td>DOUBLE</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>headNum</td>
-    <td>输入</td>
-    <td>head个数。</td>
-    <td>-</td>
-    <td>INT64</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>inputLayout</td>
-    <td>输入</td>
-    <td>query/key/value数据排布格式。</td>
-    <td>当前仅支持TND。</td>
-    <td>String</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>selectedBlockSize</td>
-    <td>输入</td>
-    <td>每个block长度。</td>
-    <td>-</td>
-    <td>INT64</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>selectedBlockCount</td>
-    <td>输入</td>
-    <td>select block数量。</td>
-    <td>-</td>
-    <td>INT64</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>sparseMode</td>
-    <td>输入</td>
-    <td>sparse模式。</td>
-    <td>支持0或2。</td>
-    <td>INT32</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>softmaxMaxOut</td>
-    <td>输出</td>
-    <td>Softmax计算的Max中间结果。</td>
-    <td>用于反向计算。</td>
-    <td>FLOAT</td>
-    <td>ND</td>
-    <td>3</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>softmaxSumOut</td>
-    <td>输出</td>
-    <td>Softmax计算的Sum中间结果。</td>
-    <td>用于反向计算。</td>
-    <td>FLOAT</td>
-    <td>ND</td>
-    <td>3</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>attentionOut</td>
-    <td>输出</td>
-    <td>计算公式的最终输出。</td>
-    <td>-</td>
-    <td>BFLOAT16、FLOAT16</td>
-    <td>ND</td>
-    <td>3</td>
-    <td>√</td>
-  </tr>
-  <tr>
-    <td>workspaceSize</td>
-    <td>输出</td>
-    <td>返回需要在Device侧申请的workspace大小。</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-  <tr>
-    <td>executor</td>
-    <td>输出</td>
-    <td>返回op执行器，包含算子计算流程。</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-  </tr>
-</tbody>
-</table>
+  `<table style="undefined;table-layout: fixed; width: 1565px">
+  <colgroup>
+    <col style="width: 146px">
+    <col style="width: 135px">
+    <col style="width: 326px">
+    <col style="width: 246px">
+    <col style="width: 275px">
+    <col style="width: 101px">
+    <col style="width: 190px">
+    <col style="width: 146px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+      <th>描述</th>
+      <th>使用说明</th>
+      <th>数据类型</th>
+      <th>数据格式</th>
+      <th>维度(shape)</th>
+      <th>非连续Tensor</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>query</td>
+      <td>输入</td>
+      <td>公式中的query。</td>
+      <td>-</td>
+      <td>BFLOAT16、FLOAT16</td>
+      <td>ND</td>
+      <td>3-4</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>key</td>
+      <td>输入</td>
+      <td>公式中的key。</td>
+      <td>-</td>
+      <td>BFLOAT16、FLOAT16</td>
+      <td>ND</td>
+      <td>3-4</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>value</td>
+      <td>输入</td>
+      <td>公式中的value。</td>
+      <td>-</td>
+      <td>BFLOAT16、FLOAT16</td>
+      <td>ND</td>
+      <td>3-4</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>topkIndices</td>
+      <td>输入</td>
+      <td>公式中的topk_indices。</td>
+      <td>-</td>
+      <td>INT32</td>
+      <td>ND</td>
+      <td>3</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>attenMaskOptional</td>
+      <td>输入</td>
+      <td>公式中的atten_mask。</td>
+      <td>-</td>
+      <td>BOOL、UINT8</td>
+      <td>ND</td>
+      <td>2</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>actualSeqQLenOptional</td>
+      <td>输入</td>
+      <td>query每个Batch的S累加和长度。</td>
+      <td>-</td>
+      <td>INT64</td>
+      <td>ND</td>
+      <td>1</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>actualSeqKvLenOptional</td>
+      <td>输入</td>
+      <td>key/value每个Batch的S累加和长度。</td>
+      <td>-</td>
+      <td>INT64</td>
+      <td>ND</td>
+      <td>1</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>scaleValue</td>
+      <td>输入</td>
+      <td>缩放系数scale。</td>
+      <td>一般为 D^-0.5。</td>
+      <td>DOUBLE</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>headNum</td>
+      <td>输入</td>
+      <td>head个数。</td>
+      <td>-</td>
+      <td>INT64</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>inputLayout</td>
+      <td>输入</td>
+      <td>query/key/value数据排布格式。</td>
+      <td>当前仅支持TND。</td>
+      <td>String</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>selectedBlockSize</td>
+      <td>输入</td>
+      <td>每个block长度。</td>
+      <td>-</td>
+      <td>INT64</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>selectedBlockCount</td>
+      <td>输入</td>
+      <td>select block数量。</td>
+      <td>-</td>
+      <td>INT64</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>sparseMode</td>
+      <td>输入</td>
+      <td>sparse模式。</td>
+      <td>支持0或2。</td>
+      <td>INT32</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>softmaxMaxOut</td>
+      <td>输出</td>
+      <td>Softmax计算的Max中间结果。</td>
+      <td>用于反向计算。</td>
+      <td>FLOAT</td>
+      <td>ND</td>
+      <td>3</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>softmaxSumOut</td>
+      <td>输出</td>
+      <td>Softmax计算的Sum中间结果。</td>
+      <td>用于反向计算。</td>
+      <td>FLOAT</td>
+      <td>ND</td>
+      <td>3</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>attentionOut</td>
+      <td>输出</td>
+      <td>计算公式的最终输出。</td>
+      <td>-</td>
+      <td>BFLOAT16、FLOAT16</td>
+      <td>ND</td>
+      <td>3</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>workspaceSize</td>
+      <td>输出</td>
+      <td>返回需要在Device侧申请的workspace大小。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>executor</td>
+      <td>输出</td>
+      <td>返回op执行器，包含算子计算流程。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+  </tbody>
+  </table>
 
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -323,9 +326,9 @@ aclnnStatus aclnnNsaSelectedAttentionGrad(
   </table>
 
 
-### aclnnNsaSelectedAttentionGrad
+## aclnnNsaSelectedAttentionGrad
 
-- **参数说明：**
+- **参数说明**
 
   <table style="undefined;table-layout: fixed; width: 1150px"><colgroup>
   <col style="width: 168px">
@@ -362,7 +365,7 @@ aclnnStatus aclnnNsaSelectedAttentionGrad(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 

@@ -13,6 +13,7 @@
  * \brief
  */
 #include <iostream>
+#include <log/log.h>
 #include <cstdio>
 #include "register/op_def_registry.h"
 #include "tiling/tiling_api.h"
@@ -37,6 +38,7 @@ constexpr uint32_t INDEX_KEYOUT_OUTPUT = 1;
 static constexpr uint32_t TILING_BF16 = 20;
 static constexpr uint32_t TILING_FP16 = 21;
 static constexpr uint32_t TILING_FP32 = 22;
+static constexpr uint32_t HAlignSize = 64;
 
 constexpr size_t DIM_0 = 0;
 constexpr size_t DIM_1 = 1;
@@ -81,6 +83,27 @@ struct TilingParams {
 } // namespace
 
 namespace optiling {
+
+inline uint32_t GetLengthByType(int32_t dtype)
+{
+    switch (dtype) {
+        case ge::DT_FLOAT16:
+        case ge::DT_INT16:
+        case ge::DT_UINT16:
+        case ge::DT_BF16:
+            return sizeof(int16_t);
+        case ge::DT_FLOAT:
+        case ge::DT_INT32:
+        case ge::DT_UINT32:
+            return sizeof(int32_t);
+        case ge::DT_DOUBLE:
+        case ge::DT_INT64:
+        case ge::DT_UINT64:
+            return sizeof(int64_t);
+        default:
+            return 0;
+    }
+}
 
 static void SetTiling(TilingParams& params, RopeWithSinCosCacheTilingData& tiling)
 {
@@ -145,6 +168,24 @@ static ge::graphStatus TilingCompute(gert::TilingContext *context, TilingParams 
     uint64_t rotaryDim = static_cast<uint64_t>(
         context->GetInputShape(INPUT_COSSINCACHE_INDEX)->GetStorageShape().GetDim(cosSinSize - 1));
 
+    int32_t qDtype = context->GetInputDesc(INPUT_QUERY_IN_INDEX)->GetDataType();
+    uint32_t queryInTypeLength = GetLengthByType(qDtype);
+    OP_CHECK_IF((queryInTypeLength == 0), 
+        OP_LOGE(context->GetNodeName(), "queryInTypeLength can't be 0."), 
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF((headSize % (HAlignSize / queryInTypeLength) != 0), 
+        OP_LOGE(context->GetNodeName(), "headSize must be 64-byte aligned."),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF((rotaryDim % (HAlignSize / queryInTypeLength) != 0), 
+        OP_LOGE(context->GetNodeName(), "rotaryDim must be 64-byte aligned."),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF((headSize < rotaryDim), 
+        OP_LOGE(context->GetNodeName(), "headSize can't be smaller than rotaryDim."),
+        return ge::GRAPH_FAILED);
+
     auto platformInfo = context->GetPlatformInfo();
     if (platformInfo == nullptr) {
         return ge::GRAPH_FAILED;
@@ -160,7 +201,7 @@ static ge::graphStatus TilingCompute(gert::TilingContext *context, TilingParams 
     uint64_t dataTypeSize = FP32_DTYPE_SIZE;
     uint64_t front_core = totalDataNum % coreNum != 0 ? static_cast<uint64_t>(totalDataNum % coreNum) : coreNum;
     uint64_t tail_core = totalDataNum <= coreNum ? 0 : coreNum - front_core;
-    uint64_t blockDim = front_core + tail_core;
+    uint64_t numBlocks = front_core + tail_core;
 
     uint64_t numHeadsMax = numQheads > numKheads ? numQheads : numKheads;
     uint64_t allSize = params.isNeoxStyle == 1UL ?
@@ -205,7 +246,7 @@ static ge::graphStatus TilingCompute(gert::TilingContext *context, TilingParams 
 
     params.num_tokens = numTokens;
     params.rotary_dim = rotaryDim;
-    params.core_num_use = blockDim;
+    params.core_num_use = numBlocks;
     params.front_core = front_core;
     params.tail_core = tail_core;
 
@@ -226,7 +267,7 @@ static ge::graphStatus TilingCompute(gert::TilingContext *context, TilingParams 
     params.num_kheads_each_loop = num_kheads_each_loop;
     params.num_kheads_last_loop = num_kheads_last_loop;
 
-    context->SetBlockDim(blockDim);
+    context->SetBlockDim(numBlocks);
     context->SetTilingKey(params.tilingKey);
     return ge::GRAPH_SUCCESS;
 }

@@ -23,7 +23,11 @@
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 310
 #include "kernel_utils.h"
 #include "kernel_tiling/kernel_tiling.h"
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_basic_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "arch35/grouped_matmul_finalize_routing.h"
 #include "arch35/grouped_matmul_finalize_routing_tiling_key.h"
@@ -191,12 +195,12 @@ grouped_matmul_finalize_routing(GM_ADDR x, GM_ADDR w, GM_ADDR scale, GM_ADDR bia
     TPipe pipe;
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     if constexpr (ATRANS == 0 && BTRANS == 0) { // transX = false, transW = false
-        grouped_matmul_finalize_routing<Act::Gemm::layout::RowMajor, Act::Gemm::layout::RowMajor>(
+        grouped_matmul_finalize_routing<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor>(
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }
     if constexpr (ATRANS == 0 && BTRANS == 1) { // transX = false, transW = true
-        grouped_matmul_finalize_routing<Act::Gemm::layout::RowMajor, Act::Gemm::layout::ColumnMajor>(
+        grouped_matmul_finalize_routing<Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::ColumnMajor>(
             x, w, scale, bias, pertoken_scale, group_list, share_input, logit, row_index, offset, y, workspaceGM,
             tilingGM);
     }

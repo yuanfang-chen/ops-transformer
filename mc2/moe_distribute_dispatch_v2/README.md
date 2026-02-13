@@ -4,19 +4,22 @@
 
 | 产品                                                         |  是否支持   |
 | :----------------------------------------------------------- |:-------:|
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×    |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √    |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×    |
+| <term>Atlas 推理系列产品</term>                             |    ×    |
+| <term>Atlas 训练系列产品</term>                              |    ×    |
+
 ## 功能说明
 
 算子功能：对token数据进行量化（可选），当存在TP域通信时，先进行EP（Expert Parallelism）域的AllToAllV通信，再进行TP（Tensor Parallelism）域的AllGatherV通信；当不存在TP域通信时，进行EP（Expert Parallelism）域的AllToAllV通信。
 - 不存在TP域通信时：
-
 $$
 expandXOut = AllToAllV(X)\\
 $$
 
 - 存在TP域通信时：
-
 $$
 ataOut = AllToAllV(X)\\
 expandXOut = AllGatherV(ataOut)\\
@@ -94,6 +97,13 @@ $$
    <td>EP通信域动态缩容信息。当某些通信卡因异常而从通信域中剔除，实际参与通信的卡数可从本参数中获取。</td>
    <td>FLOAT32</td>
    <td>ND</td>
+  </tr>
+  <tr>
+    <td>performanceInfoOptional</td>
+    <td>可选输入</td>
+    <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
+    <td>INT64</td>
+    <td>ND</td>
   </tr>
   <tr>
    <td>groupEp</td>
@@ -308,20 +318,22 @@ $$
             - nullptr和""：仅在此场景下，`HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`配置生效。当`HCCL_INTRA_PCIE_ENABLE`=1&&`HCCL_INTRA_ROCE_ENABLE`=0时，调用"hierarchy"算法，否则调用"fullmesh"算法。不推荐使用该方式。
             - "fullmesh"：token数据直接通过RDMA方式发往topk个目标专家所在的卡。
             - "hierarchy"：token数据经过跨机、机内两次发送，仅不同server同号卡之间使用RDMA通信，server内使用HCCS通信。
-        - `epWorldSize`：依commAlg取值，"fullmesh"支持16、32、64、128、256；"hierarchy"支持16、32、64。
+        - `epWorldSize`：依commAlg取值，"fullmesh"支持2、3、4、5、6、7、8、16、32、64、128、192、256、384；"hierarchy"支持16、32、64。
         - `moeExpertNum`：取值范围(0, 512]。
-            -  还需满足`moeExpertNum` / `epWorldSize` <= 24，`commAlg` = "hierarchy"无此约束。
         - `epRecvCountsOut`：要求shape为 (`moeExpertNum` + 2 * `globalBs` * `K` * `serverNum`, )，前`moeExpertNum`个数表示从EP通信域各卡接收的token数，2 * `globalBs` * `K` * `serverNum`存储了机间机内做通信前combine可以提前做reduce的token个数和token在通信区中的偏移，`globalBs`传入0时在此处应当按照`Bs` * `epWorldSize`计算。
+        - `performanceInfoOptional`：可选择传入有效数据或填空指针，传入空指针时表示不使能记录通信耗时功能；当传入有效数据时，要求是一个1D的Tensor，shape为(ep\_world\_size,)，数据类型支持int64；数据格式要求为ND。
     - `HCCL_INTRA_PCIE_ENABLE`和`HCCL_INTRA_ROCE_ENABLE`：不推荐使用该环境变量控制通信算法，原`HCCL_INTRA_PCIE_ENABLE`=1&&`HCCL_INTRA_ROCE_ENABLE`=0场景，下文均通过`commAlg` = "hierarchy"替代，默认场景使用`commAlg` = "fullmesh"替代。
     - `commAlg`配置"hierarchy"时，不支持`scalesOptional`、`xActiveMaskOptional`、`oriXOptional`、`zeroExpertNum`、`copyExpertNum`。
     - 参数说明里shape格式说明：
         - `H`：表示hidden size隐藏层大小。
             - `commAlg` = "fullmesh"：取值范围(0, 7168]，且保证是32的整数倍。
             - `commAlg` = "hierarchy"：取值范围(0, 10 * 1024]，且保证是32的整数倍。
-        - `Bs`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 256]。
+        - `Bs`：表示batch sequence size，即本卡最终输出的token数量。
+            - `commAlg` = "fullmesh"：取值范围(0, 256]。
+            - `commAlg` = "hierarchy"：取值范围(0, 512]。
     - `HCCL_BUFFSIZE`：调用本算子前需检查`HCCL_BUFFSIZE`环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
         - `commAlg` = "fullmesh"：要求 >= (`Bs` * `epWorldSize` * min(`localExpertNum`, `K`) * `H` * 4B + 4MB)。
-        - `commAlg` = "hierarchy"：要求 >= `moeExpertNum` * `Bs` * (`H` * 2 + 16 * Align8(`K`))B + 104MB，不要求`moeExpertNum` / `epWorldSize` <= 24，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
+        - `commAlg` = "hierarchy"：要求 >= (`moeExpertNum` + `epWorldSize` / 4) * `maxBs` * (`H` * 2 + 16 * Align8(`K`)) * 1B + 6MB，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
     - 组网约束：多机场景仅支持交换机组网，不支持双机直连组网。
 
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
@@ -337,6 +349,7 @@ $$
             - "fullmesh_v1"：不使能性能优化模板。
             - "fullmesh_v2"：使能性能优化模板，其中`commAlg`仅在`tpWorldSize`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
         - `epRecvCountsOut`：要求shape为 (`epWorldSize` * max(`tpWorldSize`, 1) * `localExpertNum`, )。
+        - `performanceInfoOptional`：预留参数，当前版本不支持，传空指针即可。
     - 参数说明里shape格式说明：
         - `H`：表示hidden size隐藏层大小，取值范围[1024, 8192]。
         - `Bs`：表示batch sequence size，即本卡最终输出的token数量，取值范围为[1, 512]。

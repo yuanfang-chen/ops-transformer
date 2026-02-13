@@ -40,6 +40,7 @@ constexpr uint32_t SCALER_FACTOR_M_BIT = 16;
 constexpr uint32_t SCALER_FACTOR_N_BIT = 24;
 constexpr uint64_t MTE2_MIN_LOAD_SIZE_V120 = 64 * 1024UL;
 constexpr uint64_t MAX_REPEAT_TIMES = 255; // InitOutput接口取值
+constexpr uint64_t GMM_MAX_GROUP_LIST_SIZE = 1024UL;
 constexpr size_t LAST_FIRST_DIM_INDEX = 1;
 constexpr size_t LAST_SECOND_DIM_INDEX = 2;
 constexpr uint64_t PER_BLOCK_GROUP_SIZE = 128;
@@ -52,6 +53,24 @@ constexpr uint64_t MXFP_BASEK_FACTOR = 64;
 constexpr size_t MXFP_TYPE_K_SCALE_DIM_NUM = 3;
 constexpr size_t MXFP_TYPE_M_SCALE_DIM_NUM = 4;
 constexpr size_t MXFP_PER_TOKEN_SCALE_DIM_NUM = 3;
+constexpr uint32_t RESERVED_LENGTH = 1024;
+
+constexpr size_t WEIGHTNZ_DIM_NUM = 5;
+constexpr size_t WEIGHTNZ_FIRST_DIM = 0;
+constexpr size_t WEIGHTNZ_SECOND_DIM = 1;
+constexpr size_t WEIGHTNZ_THIRD_DIM = 2;
+constexpr size_t WEIGHTNZ_FORTH_DIM = 3;
+constexpr size_t WEIGHTNZ_FIFTH_DIM = 4;
+
+constexpr uint32_t WEIGHTNZ_K0_16 = 16;
+constexpr uint32_t WEIGHTNZ_N0_16 = 16;
+constexpr uint32_t WEIGHTNZ_K0_32 = 32;
+constexpr uint32_t WEIGHTNZ_N0_32 = 32;
+constexpr uint8_t BF16_VALUE = 27;
+constexpr uint32_t BF16_WORKSIZE = 2;
+constexpr uint32_t FP32_WORKSIZE = 4;
+constexpr uint64_t DB_REQUIRED_BYTES_SIZE = 14;
+constexpr uint32_t SYS_WORKSPACE_SIZES = 16 * 1024 * 1024;
 } // namespace GmmConstant
 
 enum class QuantMode : uint32_t {
@@ -63,6 +82,15 @@ enum class QuantMode : uint32_t {
     PERGROUP_MODE = 0x1U << 4,
     PERBLOCK_MODE = 0x1U << 5,
 };
+
+typedef enum {
+    GMM_ACT_TYPE_NONE = 0L,
+    GMM_ACT_TYPE_RELU = 1L,
+    GMM_ACT_TYPE_GELU_TANH = 2L,
+    GMM_ACT_TYPE_GELU_ERR_FUNC = 3L,
+    GMM_ACT_TYPE_FAST_GELU = 4L,
+    GMM_ACT_TYPE_SILU = 5L,
+} GMMActType;
 
 struct GQmmBasicTiling {
     uint32_t usedCoreNum = 1;
@@ -162,6 +190,7 @@ protected:
     virtual bool AnalyzeInputs();
     virtual void PrintQuantParams();
     bool IsMicroScaling() const;
+    bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     GQmmBasicTiling basicTiling_;
     GQmmInputInfo inputParams_;
 
@@ -175,7 +204,6 @@ private:
                       const gert::Shape &wShape);
     void SetPerGroupQuantMode(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape,
                               const gert::Shape &wShape);
-    bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     bool CheckQuantParamsForMXTypeK(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     bool CheckFp4Shape() const;
     bool CheckBiasDtype() const;
@@ -186,8 +214,13 @@ private:
     bool CheckQuantParamsForNonKGroupQuantMode(const gert::Shape &wScaleShape) const;
     bool SetMKNList();
     bool IsBiasInL1() const;
+    bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
+    bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
+    bool CheckActiveModeDtype(const gert::StorageShape *xScaleStorageShape) const;
+ 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
 
     GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
+    bool isWeightNz_ = false;
 
     int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
     int32_t kList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};

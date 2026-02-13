@@ -208,11 +208,12 @@ static const aclTensor* ProcessEmptyTensorWithTrans(
     op::Shape outShape = {mDim, nDim};
     auto out = executor->AllocTensor(outShape, self->GetDataType());
     if (out->IsEmpty()) {
-        OP_LOGI("Returning an empty tensor without actually doing calculation");
+        OP_LOGI("Returning an empty tensor without calculation");
         return out;
     }
     FVector<int64_t> fillShape = GetShape(out);
-    const aclTensor* dims = executor->ConvertToTensor(fillShape.data(), fillShape.size(), op::DataType::DT_INT64);
+    const aclTensor* dims = executor->ConvertToTensor(fillShape.data(),
+        fillShape.size(), op::DataType::DT_INT64);
     aclIntArray* shapeArray = executor->AllocIntArray(fillShape.data(), fillShape.size());
     const aclScalar* valueScalar = executor->AllocScalar(0);
     const aclTensor* valueTensor = executor->ConvertToTensor(valueScalar, out->GetDataType());
@@ -544,7 +545,7 @@ bool CheckGemmV3Support(const aclTensor* mat1, const aclTensor* mat2, MmOpInfo& 
         return false;
     }
     // 当前支持平台
-    if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95) {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
         OP_LOGI("Current SOC version does not support GemmV3.");
         return false;
     }
@@ -557,9 +558,8 @@ bool CheckGemmV3Support(const aclTensor* mat1, const aclTensor* mat2, MmOpInfo& 
 }
 
 bool IsInputSupportFp32() {
-  if (op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910B &&
-      op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910_93 &&
-      op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910_95) {
+  if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_2201 &&
+      op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
     return false;
   }
   return true;
@@ -617,9 +617,8 @@ bool NeedToConvertBias(const aclTensor *self, const aclTensor *mat1, const aclTe
   TensorInfo Tensor_mat2 = {mat2, mat2->GetDataType(), Format::FORMAT_ND};
 
   bool isSplitK = false;
-  if (op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910B &&
-      op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910_93 &&
-      op::GetCurrentPlatformInfo().GetSocVersion() != op::SocVersion::ASCEND910_95) {
+  if (op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_2201 &&
+      op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
     isSplitK = IsSplitk(&Tensor_matl, &Tensor_mat2);;
   }
   op::Shape selfShape = self->GetViewShape();
@@ -681,7 +680,7 @@ bool IsSplitk(const TensorInfo* self, const TensorInfo* mat2) {
 }
 
 bool IsFormatSupportNd(const aclTensor *self, const aclTensor *mat2) {
-  if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910_95) {
+  if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
     return true;
   }
   if (GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910B &&
@@ -774,7 +773,8 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
   int64_t dim1 = tensor->GetViewShape().GetDimNum() - 1;
   int64_t dim2 = tensor->GetViewShape().GetDimNum() - 2;
   // BMM 场景下，Batch维度的stride需要等于 N, D 的乘积
-  if (tensor->GetViewStrides()[dim2] == 1 && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
+  if (tensor->GetViewStrides()[dim2] == 1
+    && tensor->GetViewStrides()[dim1] == tensor->GetViewShape().GetDim(dim2)) {
     int64_t tmpNxD = tensor->GetViewShape().GetDim(dim1) * tensor->GetViewShape().GetDim(dim2);
     // 多batch连续，3是batch索引
     for (int64_t batchDim = tensor->GetViewShape().GetDimNum() - 3; batchDim >= 0; batchDim--) {
@@ -783,7 +783,8 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
       }
       tmpNxD *= tensor->GetViewShape().GetDim(batchDim);
     }
-    if (tensor->GetViewShape().GetDim(dim1) == 1 && tensor->GetViewShape().GetDim(dim2) == 1) {
+    if (tensor->GetViewShape().GetDim(dim1) == 1
+      && tensor->GetViewShape().GetDim(dim2) == 1) {
       return false;
     }
     return true;
@@ -1026,7 +1027,7 @@ const aclTensor *ContiguousBias(const aclTensor *self, const aclTensor *bias, ac
     CHECK_RET(contiguousBias != nullptr, nullptr);
     // bias为bf16时cast为fp32保证精度
     if ((contiguousBias->GetDataType() == DataType::DT_BF16 &&
-          GetCurrentPlatformInfo().GetSocVersion() != SocVersion::ASCEND910_95)||
+          GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510)||
         self->GetDataType() == DataType::DT_FLOAT) {
         contiguousBias = l0op::Cast(contiguousBias, op::DataType::DT_FLOAT, executor);
         CHECK_RET(contiguousBias != nullptr, nullptr);

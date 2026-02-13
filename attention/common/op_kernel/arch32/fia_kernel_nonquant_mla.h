@@ -16,7 +16,12 @@
 #ifndef FIA_KERNEL_NONQUANT_MLA_H
 #define FIA_KERNEL_NONQUANT_MLA_H
 
+#if ASC_DEVKIT_MAJOR >= 9
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -274,7 +279,7 @@ __aicore__ inline bool FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
             return false;
         }
     } else {
-        if (tilingData->baseParams.actualSeqS1Dims == 0 && tilingData->maskParams.attenMaskFlag == 0){
+        if (tilingData->baseParams.actualSeqS1Dims == 0 && tilingData->maskParams.attenMaskFlag == 0) {
             return false;
         }
     }
@@ -286,16 +291,17 @@ template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename
 __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, FdBlockType>::
     InitOutputSingleCore()
 {
+    if (skipInitOutputFlag) {
+        return;
+    }
     if (usedCoreNum != 0) {
         int32_t aivCoreNum = usedCoreNum * constInfo.subBlockNum;
         uint32_t initOutputEventId = 0U;
+        SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         uint64_t tSize = constInfo.batchSize * constInfo.qSeqSize;
         if constexpr (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::NTD) {
             tSize = qActSeqLensParser.GetTSize();
         }
-
-        if (skipInitOutputFlag) return;
-        SetFlag<AscendC::HardEvent::MTE3_V>(initOutputEventId);
         // TND、NTD场景,S1和actualSeq相等,不需要初始化
         if (IsInitAttentionOutGm()) {
             uint64_t totalOutputSize = tSize * constInfo.qHeadNum * constInfo.headDim;
@@ -406,22 +412,20 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         (__gm__ T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T);
 
-    if constexpr (FLASH_DECODE) {
-        accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
-        lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
-        offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
-    }
-
     if ASCEND_IS_AIV {
         if constexpr (FLASH_DECODE) {
+            accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
+            lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
+            offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
+
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
-                                       actualSeqLengthsGmQ, actualSeqLengthsGm);
+                                       actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
             if (constInfo.softmaxLseFlag) {
                 fdService.InitSoftmaxLseGm(softmaxLseGm);
-            }           
+            }
         }
         vectorService.InitParams(constInfo);
         vectorService.Init(query, key, value, pseShift, attenMask, actualSeqLengthsQ, actualSeqLengths,
@@ -656,10 +660,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
                 gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
                 tilingData->fdParams.gS1BaseSizeOfFd};
 
-        SyncAll();
-
         fdService.AllocEventID();
         fdService.InitDecodeParams();
+        SyncAll();
         fdService.FlashDecode(fdParams);
         fdService.FreeEventID();
     } else {

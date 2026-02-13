@@ -156,6 +156,7 @@ enum class Mte2Configuration : uint8_t {
     MTE2_INNER_SIZE_256_BUF_NUM_4 = 3,
     MTE2_INNER_SIZE_512_BUF_NUM_DEFAULT = 4,  // w8 w4在非性能场景下复用一组设置
     MTE2_INNER_SIZE_384_BUF_NUM_3 = 5,
+    MTE2_INNER_SIZE_DYNAMIC_BUF_NUM_4 = 15, // MXA8W4 NZ场景，K轴长度动态调整
 };
 
 class TilingKeyConfigure {
@@ -217,6 +218,7 @@ public:
 
 protected:
     bool SetShapeList(const gert::TilingContext *context);
+    bool CheckEmptyTensor(const gert::TilingContext *context);
     bool CheckTensorListSize(const gert::TilingContext *context);
     bool CheckTensorDtype(const gert::TilingContext *context, uint32_t attrIdx, size_t idx,
                           const ge::DataType &tensorDtype, const std::string &tensorType) const;
@@ -233,10 +235,8 @@ protected:
                           const std::string &tensorType) const;
     bool CheckDimValue(const gert::TilingContext *context, size_t idx) const;
     bool CheckWeightInnerAxisEven(const gert::TilingContext *context, size_t idx) const;
-    bool CheckXAndWeightShape(const gert::TilingContext *context) const;
     bool CheckEveryTensor(const gert::TilingContext *context) const;
     bool CheckGroupList(const gert::TilingContext *context) const;
-    bool CheckRequiredInputs(const gert::TilingContext *context) const;
     bool AnalyzeAttr(const gert::TilingContext *context);
     bool AnalyzeInput(const gert::TilingContext *context);
     bool CalcResplitTiling(const gert::TilingContext *context);
@@ -257,8 +257,8 @@ protected:
     bool SetAntiquantGroupSize(const gert::TilingContext *context);
     bool CheckGroupSize(const gert::TilingContext *context) const;
     bool GetC0Size(const gert::TilingContext *context, ge::DataType dtype, uint64_t &c0Size) const;
-    void CalcFullBlockDimResplitTiling(uint64_t c0Size);
-    void CalcNoFullBlockDimResplitTiling(uint64_t c0Size);
+    void CalcFullNumBlocksResplitTiling(uint64_t c0Size);
+    void CalcNoFullNumBlocksResplitTiling(uint64_t c0Size);
     bool CheckResplitTilingResult(const gert::TilingContext *context) const;
     void PrintInputParam(const gert::TilingContext *context) const;
     void PrintTilingResult(const gert::TilingContext *context);
@@ -288,7 +288,7 @@ private:
     uint32_t groupListType_ = 0;
     uint32_t coreNum_ = 0;
     uint32_t groupSize_ = 0;
-    uint8_t cubeBlockDimN_ = 0;
+    uint8_t cubeNumBlocksN_ = 0;
 
     uint16_t numX_ = 0;
     uint16_t numWeight_ = 0;

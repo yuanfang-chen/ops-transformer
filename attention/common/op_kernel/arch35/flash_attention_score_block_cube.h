@@ -15,10 +15,10 @@
 #ifndef FLASH_ATTENTION_SCORE_BLOCK_CUBE_H_
 #define FLASH_ATTENTION_SCORE_BLOCK_CUBE_H_
 #include "util_regbase.h"
-#include "../../../common/op_kernel/offset_calculator.h"
-#include "../../../common/op_kernel/matmul.h"
-#include "../../../common/op_kernel/FixpipeOut.h"
-#include "../../../common/op_kernel/CopyInL1.h"
+#include "../offset_calculator.h"
+#include "../matmul.h"
+#include "../FixpipeOut.h"
+#include "../CopyInL1.h"
 
 #include "infer_flash_attention_comm.h"
 #include "flash_attention_score_common_regbase.h"
@@ -36,8 +36,10 @@ __aicore__ inline constexpr GmFormat GetQueryGmFormat() {
         return GmFormat::SBNGD;
     } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
         return GmFormat::BNGSD;
-    } else {
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
         return GmFormat::TNGD;
+    } else {
+        return GmFormat::NGTD;
     }
 }
 
@@ -49,8 +51,10 @@ __aicore__ inline constexpr GmFormat GetKVGmFormat() {
         return GmFormat::SBND;
     } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
         return GmFormat::BNSD;
-    } else {
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
         return GmFormat::TND;
+    } else {
+        return GmFormat::NTD;
     }
 }
 
@@ -193,10 +197,11 @@ private:
     __aicore__ inline void IterateBmm2MLAFullQuant(mm2ResPos &outputBuf,
         BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
         ConstInfo<isInfer, hasRope> &constInfo);
+    __aicore__ inline bool IsGS1Merge(ConstInfo<isInfer, hasRope> &constInfo);
     TPipe *tPipe;
     /* =====================GM变量==================== */
-    __gm__ uint8_t *currentKey;    // pageattention需要
-    __gm__ uint8_t *currentValue;  // pageattention需要
+    __gm__ uint8_t *currentKey; // pageattention需要
+    __gm__ uint8_t *currentValue; // pageattention需要
     __gm__ uint8_t *blocktablePtr; // pageattention需要
     GlobalTensor<int32_t> blockTableGm; // pageattention需要
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<layout>();
@@ -419,7 +424,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams<i
             this->keyRopeGm.offsetCalculator.Init(sharedParams->bSize, sharedParams->n2Size, sharedParams->s2Size,
                 sharedParams->dSizeRope);
         }
-    } else {  // GM_KV_TND
+    } else { // GM_KV_TND
         GlobalTensor<int64_t> actualSeqKVLen;
         actualSeqKVLen.SetGlobalBuffer(actualSeqKvlenAddr);
         if constexpr (isInfer) {
@@ -628,6 +633,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos
         if constexpr (!useDn) {
             fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
             fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+            if constexpr (isInfer) {
+                bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+                if (IsGS1Merge(constInfo) && isS1Odd) {
+                    fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
+                }
+            }
         }
         if constexpr (bmm2Write2Ub || splitD) {
             fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
@@ -786,6 +797,12 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &output
             if constexpr (!useDn) {
                 fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需输出部分行即可;L0C上的bmm1结果矩阵M方向的size大小必须是偶数
                 fixpipeParams.srcStride = ((fixpipeParams.mSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+                if constexpr (isInfer) {
+                    bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+                    if (IsGS1Merge(constInfo) && isS1Odd) {
+                        fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
+                    }
+                }
             }
             if constexpr (bmm2Write2Ub) {
                 fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
@@ -861,7 +878,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
 
         if constexpr (isInfer){
-            if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge) {
+            if (IsGS1Merge(constInfo)) {
                 uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
                 CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], constInfo.s1Size, constInfo.gSize, constInfo.dSize,
                     constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
@@ -1016,8 +1033,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     fixpipeParams.params.dstNdStride = 0;
 
     if constexpr (isInfer){
-        bool isS1Odd = constInfo.s1Size % 2 != 0; // BSNGD GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge && isS1Odd) {
+        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+        if (IsGS1Merge(constInfo) && isS1Odd) {
             fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
         }
     }
@@ -1145,15 +1162,20 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
         LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
 
         if constexpr (isInfer) {
-            if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge) {
+            if (IsGS1Merge(constInfo)) {
                 uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
                 CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], constInfo.s1Size, constInfo.gSize, constInfo.dSize,
                     constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
             } else {
-                uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
-                    coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-                CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
-                    constInfo.mm1Ka);
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	 
+                     uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
+                         coordInfo[runInfo.taskIdMod3].s1Coord, 0);	 
+                     CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
+                         constInfo.mm1Ka);	 
+                 } else { 
+                     CopyToL1Nd2Nz<INPUT_T>(mm1ATensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
+                         constInfo.mm1Ka); 
+                 }
             }
         } else {
             uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
@@ -1246,9 +1268,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     mm1ResL0C.Set<HardEvent::M_FIX>(); // 通知
     mm1ResL0C.Wait<HardEvent::M_FIX>(); //等待L0C
 
-#if (__NPU_ARCH__ != 5102)
     outputBuf.WaitCrossCore();
-#endif
+
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C→UB
     fixpipeParams.nSize = (runInfo.s2RealSize + 7) >> 3 << 3; // L0C上的bmm1结果矩阵N方向的size大小; 同mmadParams.n; 为什么要8个元素对齐(32B对齐) // 128
     fixpipeParams.mSize = (runInfo.s1RealSize + 1) >> 1 << 1; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小(必须为偶数) // 128
@@ -1260,8 +1281,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nd(
     fixpipeParams.params.dstNdStride = 0;
 
     if constexpr (isInfer) {
-        bool isS1Odd = constInfo.s1Size % 2 != 0; // BSNGD GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge && isS1Odd) { 
+        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+        if (IsGS1Merge(constInfo) && isS1Odd) { 
             fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
         }
     }
@@ -1318,7 +1339,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
             LocalTensor<INPUT_T> mm1ATensor = mm1A.GetTensor<INPUT_T>();
             
             if constexpr (isInfer) {
-                if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge) { // PFA
+                if (IsGS1Merge(constInfo)) { // PFA
                     gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, 0, 0, 0); // PFA GS1合轴下，g s1 d idx为0
                     CopyToL1Nd2NzGS1Merge<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset], constInfo.s1Size, constInfo.gSize, realK,
                         constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
@@ -1418,8 +1439,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
     fixpipeParams.params.dstNdStride = 0;
 
     if constexpr (isInfer) {
-        bool isS1Odd = constInfo.s1Size % 2 != 0; // BSNGD GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
-        if ((Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge && isS1Odd) {
+        bool isS1Odd = (constInfo.s1Size % 2) != 0; // GS1合轴时，若s1为奇数且开启双目标模式，扩展M维度对齐g，避免计算中间块
+        if (IsGS1Merge(constInfo) && isS1Odd) {
             fixpipeParams.mSize = runInfo.s1RealSize + constInfo.gSize;
         }
     }
@@ -1442,10 +1463,20 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
         mm1B = l1QBuffers.Get();
         mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1A
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
-        uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
-            coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
-            constInfo.mm1Ka);
+        uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx, 
+                    coordInfo[runInfo.taskIdMod3].s1Coord, 0);	
+        if constexpr(isInfer) {
+            if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	  
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
+                    constInfo.mm1Ka);	 
+            } else { 
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
+                 constInfo.mm1Ka); 
+            }
+        } else {
+            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
+                constInfo.mm1Ka);
+        }
         mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
     } else { // 非S2的第一次循环直接复用Q
         mm1B = l1QBuffers.GetPre();
@@ -1502,6 +1533,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
         mmL0ABuffers, mmL0BBuffers,
         mm1ResL0C.GetTensor<T>(),
         param);
+
     if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
         mm1B.Set<HardEvent::MTE1_MTE2>(); // 释放L1Q
     }
@@ -1509,7 +1541,9 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
 
     mm1ResL0C.Set<HardEvent::M_FIX>(); // 通知
     mm1ResL0C.Wait<HardEvent::M_FIX>(); //等待L0C
+
     outputBuf.WaitCrossCore();
+
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams; // L0C→UB
     fixpipeParams.nSize = (runInfo.s1RealSize + 31) >> 5 << 5; // L0C上的bmm1结果矩阵N方向的size大小; 同mmadParams.n; 为什么要8个元素对齐(32B对齐) // 128
     fixpipeParams.mSize = runInfo.s2RealSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小(必须为偶数) // 128
@@ -1525,7 +1559,6 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Dn(
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
     Fixpipe<T, T, PFA_CFG_ROW_MAJOR_UB>(outputBuf.template GetTensor<T>(), mm1ResL0C.GetTensor<T>(), fixpipeParams); // 将matmul结果从L0C搬运到UB
-
     mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
     outputBuf.SetCrossCore();
 }
@@ -1720,6 +1753,14 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2MLAFullQuant(mm2Re
 
     outputBuf.SetCrossCore();
 }
+
+// 判断是否GS1合轴
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline bool FABlockCube<TEMPLATE_ARGS>::IsGS1Merge(ConstInfo<isInfer, hasRope> &constInfo)
+{
+    return (Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge;
+}
+
 
 TEMPLATES_DEF
 class FABlockCubeDummy {

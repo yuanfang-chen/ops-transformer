@@ -4,8 +4,13 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
+|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
-|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
+|<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>|      √     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
+|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 
 
@@ -106,7 +111,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 
 ## aclnnSparseFlashAttentionGradGetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1550px">
         <colgroup>
@@ -141,9 +146,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
             <td>(B,S1,N1,D)、(T1,N1,D)<br>
-            B：支持泛化；S1：支持泛化；N1：支持128、64、32、16、8、4、2、1；D：512；T2：B × S2
+            B：支持泛化；S1：支持泛化；N1：支持128、64、32、16、8、4、2、1；D：512；T1：B × S1
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>key</td>
@@ -153,9 +158,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
             <td>(B,S2,N2,D)、(T2,N2,D)<br>
-            B：支持泛化；N2：1；D：512；T2：B × S2
+            N2：1；T2：B × S2
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>value</td>
@@ -166,10 +171,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S2,N2,D)、(T2,N2,D)<br>
-            B：支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；D：512；T2：B × S2
+            <td>(B,S2,N2,D)、(T2,N2,D)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>sparseIndices</td>
@@ -181,9 +185,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>INT64</td>
             <td>ND</td>
             <td>(B,S1,N2,K)、(T1,N2,K)<br>
-            B：支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；K：2048；T1：B × S1
+            K：1024、2048、3072、4096、5120、6144、7168、8192
             </td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>dOut</td>
@@ -194,10 +198,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S1,N1,D)、(T1,N1,D)<br>
-            B：支持泛化，且与query的B保持一致；S1：支持泛化，且与query的S1保持一致；D：512；T1：B × S1
+            <td>(B,S1,N1,D)、(T1,N1,D)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>out</td>
@@ -208,10 +211,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S1,N1,D)、(T1,N1,D)<br>
-            B：支持泛化，且与query的B保持一致；S1：支持泛化，且与query的S1保持一致；N1：支持128、64、32、16、8、4、2、1；D：512；T1：B × S1
+            <td>(B,S1,N1,D)、(T1,N1,D)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>softmaxMax</td>
@@ -222,9 +224,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>FLOAT32</td>
             <td>ND</td>
             <td>(B,N2,S1,G)、(N2,T1,G)<br>
-            B：支持泛化，且与query的B保持一致；N2：1；S1：支持泛化，且与query的S1保持一致；G：N1/N2；T1：B × S1
+            G：N1/N2
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>softmaxSum</td>
@@ -234,10 +236,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             -
             <td>FLOAT32</td>
             <td>ND</td>
-            <td>(B,N2,S1,G)、(N2,T1,G)<br>
-            B：支持泛化，且与query的B保持一致；N2：1；S1：支持泛化，且与query的S1保持一致；G：N1/N2；T1:：B × S1
+            <td>(B,N2,S1,G)、(N2,T1,G)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
   <tr>
             <td>actualSeqLengthsQueryOptional</td>
@@ -253,7 +254,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>INT32</td>
             <td>ND</td>
             <td>(B,)</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>actualSeqLengthskvOptional</td>
@@ -269,7 +270,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>INT32</td>
             <td>ND</td>
             <td>(B,)</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>queryRopeOptional</td>
@@ -281,9 +282,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
             <td>(B,S1,N1,Dr)、(T1,N1,Dr)<br>
-            B: 支持泛化，且与query的B保持一致；S1：支持泛化，且与query的S1保持一致；N1：支持128、64、32、16、8、4、2、1；Dr：64；T1: B × S1
+            Dr：64
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>keyRopeOptional</td>
@@ -294,33 +295,34 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S2,N2,Dr)、(T2,N2,Dr)<br>
-            B: 支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；Dr：64；T2: B × S2</td>
-            <td>√</td>
+            <td>(B,S2,N2,Dr)、(T2,N2,Dr)
+            </td>
+            <td>x</td>
         </tr>
         <tr>
             <td>scaleValue</td>
             <td>输入</td>
             <td>缩放系数。</td>
             <td>
-            建议值：公式中d开根号的倒数</li>
+            建议值：公式中d开根号的倒数。</li>
             </td>
             <td>FLOAT32</td>
             <td>N/A</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>sparseBlockSize</td>
             <td>输入</td>
             <td>选择的块的大小。</td>
             <td>
-            目前支持1、8、16、32、64。
+            A2/A3支持1、8、16、32、64<br>
+            950支持1
             </td>
             <td>INT32</td>
             <td>N/A</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>layout</td>
@@ -332,7 +334,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>STRING</td>
             <td>N/A</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>sparseMode</td>
@@ -347,7 +349,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
         <td>INT64</td>
         <td>N/A</td>
         <td>-</td>
-        <td>-</td>
+        <td>x</td>
         </tr>
         <tr>
         <td>preTokens</td>
@@ -362,7 +364,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>INT64</td>
             <td>-</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
         <td>nextTokens</td>
@@ -377,33 +379,32 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>INT64</td>
             <td>-</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
         <td>deterministic</td>
             <td>输入</td>
             <td>确定性计算。</td>
             <td>
-            与整网确定性参数use_deterministic_algorithms保持一致
+            与整网确定性参数use_deterministic_algorithms保持一致。
             </td>
             <td>BOOL</td>
             <td>-</td>
             <td>-</td>
-            <td>-</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>dQuery</td>
             <td>输出</td>
             <td>表示query的梯度。</td>
             <td>
-            与输入query的Shape维度保持一致
+            与输入query的Shape维度保持一致。
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S1,N1,D)、(T1,N1,D)<br>
-            B：支持泛化，且与query的B保持一致；S1：支持泛化，且与query的S1保持一致；N1：支持128、64、32、16、8、4、2、1；D：512；T1: B × S1
+            <td>(B,S1,N1,D)、(T1,N1,D)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>dKey</td>
@@ -414,10 +415,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S2,N2,D)、(T2,N2,D)<br>
-            B：支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；D：512；T2：B × S2
+            <td>(B,S2,N2,D)、(T2,N2,D)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>  
             <td>dValue</td>
@@ -428,9 +428,8 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S2,N2,D)、(T2,N2,D)<br>
-            B：支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；D：512；T2: B × S2</td>
-            <td>√</td>
+            <td>(B,S2,N2,D)、(T2,N2,D)</td>
+            <td>x</td>
         </tr>
           <tr>
             <td>dQueryRopeOptional</td>
@@ -444,10 +443,9 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S1,N1,Dr)、(T1,N1,Dr)<br>
-            B：支持泛化，且与query的B保持一致；S1：支持泛化，且与query的S1保持一致；N1：支持128、64、32、16、8、4、2、1；Dr：64；T1：B × S1
+            <td>(B,S1,N1,Dr)、(T1,N1,Dr)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         <tr>
             <td>dKeyRopeOptional</td>
@@ -458,17 +456,16 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             </td>
             <td>BFLOAT16、FLOAT16</td>
             <td>ND</td>
-            <td>(B,S2,N2,Dr)、(T2,N2,Dr)<br>
-            B：支持泛化，且与query的B保持一致；S2：支持泛化，且与value的S2保持一致；N2：1；Dr：64；T2：B × S2
+            <td>(B,S2,N2,Dr)、(T2,N2,Dr)
             </td>
-            <td>√</td>
+            <td>x</td>
         </tr>
         </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -504,7 +501,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 
 ## aclnnSparseFlashAttentionGrad
 
-- **参数说明：**
+- **参数说明**
 
     <table style="undefined;table-layout: fixed; width: 1155px"><colgroup>
     <col style="width: 144px">
@@ -541,7 +538,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -549,7 +546,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnSparseFlashAttentionGrad默认非确定性实现，不支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - aclnnSparseFlashAttentionGrad默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
 - 公共约束
     - 入参为空的场景处理：
         - query为空Tensor：直接返回。
@@ -632,7 +629,10 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
         <tr>
             <td>deterministic</td>
             <td>bool</td>
-            <td>支持确定性计算</td>
+            <td>
+            A2/A3支持确定性计算<br>
+            950不支持确定性计算
+            </td>
         </tr>
         <tr>
             <td>B</td>
@@ -665,6 +665,11 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
             <td>-</td>
         </tr>
         <tr>
+            <td>K</td>
+            <td>1024、2048、3072、4096、5120、6144、7168、8192</td>
+            <td>-</td>
+        </tr>
+        <tr>
             <td>layout</td>
             <td>BSND/TND</td>
             <td>-</td>
@@ -675,7 +680,7 @@ aclnnStatus aclnnSparseFlashAttentionGrad(
 
 ## 调用示例
 
-调用示例代码如下（以<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>为例），仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+调用示例代码如下（以<term>Atlas A2 训练系列产品/Atlas 800I A2 推理产品/A200I A2 Box 异构组件</term>为例），仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
 #include <iostream>
@@ -821,8 +826,8 @@ int main() {
   std::vector<short> dOutHostData(1 * 16 * 512, 1.0);
   std::vector<float> softmaxMaxHostData(16, 3.0);
   std::vector<float> softmaxSumHostData(16, 3.0);
-  std::vector<int64_t> actSeqQLenHostData(1, 1);
-  std::vector<int64_t> actSeqKvLenHostData(1, 2048);
+  std::vector<int32_t> actSeqQLenHostData(1, 1);
+  std::vector<int32_t> actSeqKvLenHostData(1, 2048);
   std::vector<short> qRopeHostData(1 * 16 * 64, 1.0);
   std::vector<short> kRopeHostData(2048 * 1 * 64, 1.0);
   std::vector<short> dqHostData(1 * 16 * 512, 0);
@@ -847,9 +852,9 @@ int main() {
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(softmaxSumHostData, softmaxSumShape, &softmaxSumDeviceAddr, aclDataType::ACL_FLOAT, &softmaxSum);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(actSeqQLenHostData, actSeqQLenshape, &actSeqQLenDeviceAddr, aclDataType::ACL_INT64, &actSeqQLen);
+  ret = CreateAclTensor(actSeqQLenHostData, actSeqQLenshape, &actSeqQLenDeviceAddr, aclDataType::ACL_INT32, &actSeqQLen);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  ret = CreateAclTensor(actSeqKvLenHostData, actSeqKvLenshape, &actSeqKvLenDeviceAddr, aclDataType::ACL_INT64, &actSeqKvLen);
+  ret = CreateAclTensor(actSeqKvLenHostData, actSeqKvLenshape, &actSeqKvLenDeviceAddr, aclDataType::ACL_INT32, &actSeqKvLen);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   ret = CreateAclTensor(qRopeHostData, qRopeShape, &dqDeviceAddr, aclDataType::ACL_FLOAT16, &qRope);
   CHECK_RET(ret == ACL_SUCCESS, return ret);

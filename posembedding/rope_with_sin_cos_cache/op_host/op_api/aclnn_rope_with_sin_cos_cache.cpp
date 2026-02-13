@@ -21,7 +21,7 @@
 #include "aclnn_kernels/cast.h"
 #include "aclnn_rope_with_sin_cos_cache.h"
 #include "aclnn_kernels/common/op_error_check.h"
-
+#include "external/aclnn_kernels/aclnn_platform.h"
 #include "aclnn/aclnn_base.h"
 #include "opdev/common_types.h"
 #include "opdev/data_type_utils.h"
@@ -55,12 +55,12 @@ static const std::initializer_list<op::DataType> positions_dtype_list = {op::Dat
 
 static const std::initializer_list<op::DataType> emptyDtypes = {};
 
-static const std::initializer_list<std::vector<int64_t>> mrope_support_list = {{16, 24, 24}}; // 支持的mrope输入
+static const std::initializer_list<std::vector<int64_t>> mrope_support_list = {{16, 24, 24}, {8, 12, 12}, {24, 20, 20}}; // 支持的mrope输入
 
 static const std::initializer_list<DataType>& GetSupportDtypeList()
 {
     auto socVersion = GetCurrentPlatformInfo().GetSocVersion();
-    if (socVersion == SocVersion::ASCEND910B || socVersion == SocVersion::ASCEND910_93) {
+    if (socVersion == SocVersion::ASCEND910B || socVersion == SocVersion::ASCEND910_93 || Ops::Transformer::AclnnUtil::IsRegbase()) {
         return ASCEND910B_DTYPE_SUPPORT_LIST;
     } else {
         return emptyDtypes;
@@ -185,8 +185,8 @@ static aclnnStatus CheckParams(const aclTensor *positions, const aclTensor *quer
         OP_CHECK(mrope_section0 <= 0 ||
                      (mrope_section0 + mrope_section1 + mrope_section2 == rotary_dim / 2 &&
                       CheckMropeSection(mrope_in, mrope_support_list)), // kernel中mropesection[0]>0为mrope模式，否则rope模式
-                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expected mropeSection[0] + mropeSection[1] + mropeSection[2] "
-                                                  "==rotaryDim/2 to be true and the input mropeSection in the supported list, but got false."),
+                 OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The input mropeSection must be in the supported list "
+                                                  "and mropeSection[0] + mropeSection[1] + mropeSection[2] should be equal to rotaryDim/2."),
                  return ACLNN_ERR_PARAM_INVALID);
     }
     return ACLNN_SUCCESS;
@@ -204,6 +204,10 @@ aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
+    // 固定写法，将输入positions转换成连续的tensor
+    auto positionsContiguous = l0op::Contiguous(positions, uniqueExecutor.get());
+    CHECK_RET(positionsContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    
     // 固定写法，将输入cosSinCosCache转换成连续的tensor
     auto cosSinCacheContiguous = l0op::Contiguous(cosSinCache, uniqueExecutor.get());
     CHECK_RET(cosSinCacheContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
@@ -219,7 +223,7 @@ aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
     int64_t keyStride = keyIn->GetViewStrides()[0];
 
     std::tuple<aclTensor*, aclTensor*> result = l0op::RopeWithSinCosCache(
-        positions, queryIn, keyIn, cosSinCacheContiguous, mropeSection, headSize, isNeoxStyle, queryStride, keyStride,
+        positionsContiguous, queryIn, keyIn, cosSinCacheContiguous, mropeSection, headSize, isNeoxStyle, queryStride, keyStride,
         numQheads, numKheads, uniqueExecutor.get());
     auto query = std::get<0>(result);
     CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);

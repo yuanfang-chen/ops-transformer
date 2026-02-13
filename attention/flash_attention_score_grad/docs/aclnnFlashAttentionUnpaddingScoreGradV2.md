@@ -1,13 +1,15 @@
 # aclnnFlashAttentionUnpaddingScoreGradV2
 
 ## 产品支持情况
+
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
 |<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
-|<term>Atlas A3 训练系列产品</term>|     √      |
-|<term>Atlas A3 推理系列产品</term>|     ×      |
-|<term>Atlas A2 训练系列产品</term>|     √      |
-|<term>Atlas A2 推理系列产品</term>|     ×      |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|     √      |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|     √      |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
 
 
 ## 功能说明
@@ -106,7 +108,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize
 
-- **参数说明：**
+- **参数说明**
   <table style="undefined;table-layout: fixed; width: 1529px"><colgroup>
     <col style="width: 198px">
     <col style="width: 120px">
@@ -192,7 +194,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>paddingMaskOptional</td>
       <td>输入</td>
-      <td>预留参数。</td>
+      <td>预留参数，暂未使用。</td>
       <td>调用时需传空。</td>
       <td>-</td>
       <td>-</td>
@@ -212,7 +214,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     <tr>
       <td>kvStartIdxOptional</td>
       <td>输入</td>
-      <td>代表外切场景，当前分块的query的sequence在全局中的起始索引。</td>
+      <td>代表外切场景，当前分块的key和value的sequence在全局中的起始索引。</td>
       <td>-</td>
       <td>INT64</td>
       <td>ND</td>
@@ -253,7 +255,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
       <td>softmaxInOptional</td>
       <td>输入</td>
       <td>正向softmax的中间输出。</td>
-      <td>暂未使用。</td>
+      <td>预留参数，暂未使用。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -333,7 +335,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
       <td>dpseOut</td>
       <td>输出</td>
       <td>d(pse)梯度。</td>
-      <td>暂未使用。</td>
+      <td>预留参数，暂未使用。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -403,7 +405,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
       <td>innerPrecise</td>
       <td>输入</td>
       <td>内部计算精度控制。</td>
-      <td>暂未使用。</td>
+      <td>保留参数，暂未使用。</td>
       <td>INT64</td>
       <td>-</td>
       <td>-</td>
@@ -452,7 +454,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
   </tbody>
   </table>
 
-- **返回值：**
+- **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
@@ -488,7 +490,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
 
 ## aclnnFlashAttentionUnpaddingScoreGradV2
 
--   **参数说明：**
+-   **参数说明**
     <table style="undefined;table-layout: fixed; width: 1154px"><colgroup>
     <col style="width: 153px">
     <col style="width: 121px">
@@ -524,7 +526,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2(
     </tbody>
     </table>
 
-- **返回值：**
+- **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 ## 约束说明

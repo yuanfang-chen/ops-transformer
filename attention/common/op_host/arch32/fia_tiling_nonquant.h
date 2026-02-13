@@ -21,7 +21,6 @@
 #include "../fia_tiling_info.h"
 #include "../split_core.h"
 #include "../../../fused_infer_attention_score/op_host/fused_infer_attention_score_tiling.h"
-#include "../../../incre_flash_attention/op_host/incre_flash_attention_tiling_struct.h"
 
 namespace optiling {
 
@@ -41,6 +40,7 @@ private:
     bool DealSameSeqEachBatch() const;
 
     void ZeroTensorProcess() const;
+    bool IsHighPerformanceTemplate();
     void InitParams();
 
     void Split();
@@ -63,6 +63,7 @@ private:
     void FillTilingLeftPaddingParams();
     void FillTilingWorkspaceParams();
     void FillTilingFeatureParams();
+    void FillTilingPostQuantParams();
     void FillTiling();
 
     uint32_t CalcFlashDecodeParamNums(const uint32_t coreNum) const;
@@ -71,9 +72,9 @@ private:
     void CalcScheduleMode();
     void CalcWorkspaceSize();
     void CalcMaxWorkspaceSize();
-    void CalcBlockDim(uint32_t coreNum);
-
-    void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv, int64_t &safePreToken, int64_t &safeNextToken) const;
+    void CalcNumBlocks(uint32_t coreNum);
+    void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv,
+                         int64_t &safePreToken, int64_t &safeNextToken) const;
     bool IsExistRowInvalid(const BaseInfo &baseInfo);
 
     bool splitKVFlag_ = false;
@@ -99,7 +100,7 @@ private:
 
     // set info to context
     FusedInferAttentionScoreTilingData tilingData_;
-    uint32_t blockDim_{0};
+    uint32_t numBlocks_{0};
     ScheduleMode scheduleMode_{ScheduleMode::NORMAL_MODE};
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};
