@@ -153,6 +153,8 @@ public:
     __aicore__ inline void UpdateBufferId()
     {
         bufferChosenGlobal_(0) = bufferId_ ^ 1;
+        AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
+            AscendC::DcciDst::CACHELINE_OUT>(bufferChosenGlobal_);
     }
 
     __aicore__ inline GM_ADDR GetRdmaFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
