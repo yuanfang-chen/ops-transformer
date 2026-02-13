@@ -65,7 +65,7 @@ else()
 
     include(ExternalProject)
     ExternalProject_Add(third_party_json
-            URL ${JSON_URL}
+            URL ${REQ_URL}
             TLS_VERIFY OFF
             DOWNLOAD_DIR ${JSON_DOWNLOAD_PATH}
             DOWNLOAD_NO_EXTRACT TRUE
@@ -78,12 +78,10 @@ else()
             UPDATE_COMMAND ""
     )
 
-    # 添加本地归档文件存在时的处理
-    if(NOT EXISTS ${JSON_INSTALL_PATH}/include)
-        file(MAKE_DIRECTORY "${JSON_INSTALL_PATH}/include")
-    endif()
-
-    set(JSON_INCLUDE_DIR ${JSON_INSTALL_PATH}/include)
+    ExternalProject_Get_Property(third_party_json SOURCE_DIR)	 
+    ExternalProject_Get_Property(third_party_json BINARY_DIR)	 
+    set(JSON_INCLUDE_DIR ${SOURCE_DIR}/include)
+    
     add_library(json INTERFACE)
     target_include_directories(json INTERFACE ${JSON_INCLUDE_DIR})
     add_dependencies(json third_party_json)
