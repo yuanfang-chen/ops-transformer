@@ -365,29 +365,6 @@ static bool CheckMmShape(const aclTensor *gmmX, const aclTensor *mmXOptional, co
             return false;
         }
     }
-    if (mmWeightOptional != nullptr) {
-        if ((mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1)) ||
-             (mmWeightOptional->GetViewShape().GetDim(1) < ZERO) ||
-             (mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN) ||
-            (mmWeightScaleOptional->GetViewShape().GetDim(0) != 1)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "the shape of mmWeight  or mmWeightScaleOptional do not match, the first dimension of mmWeightOptional left is not %u, "
-                    "the second dimension of mmWeightOptional left is not %u, the second dimension of mmWeightOptional right is not %u, "
-                    "the dimension of mmWeightScaleOptional is not %u.", mmWeightOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(1),
-                    mmWeightOptional->GetViewShape().GetDim(1) < ZERO, mmWeightOptional->GetViewShape().GetDim(1) > MAX_N_LEN,
-                    mmWeightScaleOptional->GetViewShape().GetDim(0) != 1);
-            return false;
-        }
-    }
-    if (mmYOptional != nullptr) {
-        if ((mmYOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(0)) ||
-            (mmYOptional->GetViewShape().GetDim(1) != mmWeightOptional->GetViewShape().GetDim(1))) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "the shape of mmYOptional does not match, left is not %u, right is not %u.",
-            mmYOptional->GetViewShape().GetDim(0) != mmXOptional->GetViewShape().GetDim(0),
-            mmYOptional->GetViewShape().GetDim(1) != mmWeightOptional->GetViewShape().GetDim(1));
-            return false;
-        }
-    }
     return true;
 }
 
