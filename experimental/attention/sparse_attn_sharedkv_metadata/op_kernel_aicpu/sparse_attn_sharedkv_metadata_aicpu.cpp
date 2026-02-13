@@ -122,45 +122,28 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
         return false;
     }
     // layout_kv 校验
-    if (layoutKv_ != "PA_ND" && layoutKv_ != "TND" && layoutKv_ != "BSND") {
-        KERNEL_LOG_ERROR("layout_kv must be TND or BSND or PA_ND!");
+    if (layoutKv_ != "PA_ND") {
+        KERNEL_LOG_ERROR("layout_kv must be PA_ND!");
         return false;
     }
     return true;
 }
 
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
-{	 
-    auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };	 
-    // 1. Query 存在性逻辑	 
-    if (layoutQuery_ == "TND") {	 
-        if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {	 
-            KERNEL_LOG_ERROR("For query TND, actSeqLenQ or seqUsedQ must be provided!");	 
-            return false; 
-        } 
-    } else if (layoutQuery_ == "BSND") { 
-        if (querySeqSize_ == 0 && isInvalid(seqUsedQ_)) { 
-            KERNEL_LOG_ERROR("For query BSND, querySeqSize or seqUsedQ must be provided!"); 
-            return false;	 
-        }	 
-    }	 
-    // 2. KV 存在性逻辑	 
-    if (layoutKv_ == "TND") {	 
-        if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {	 
-            KERNEL_LOG_ERROR("For KV TND, actSeqLenOriKv or seqUsedKv must be provided!");	 
-            return false; 
-        } 
-    } else if (layoutKv_ == "PA_ND") { 
-        if (isInvalid(seqUsedKv_)) { 
-            KERNEL_LOG_ERROR("For KV PA_ND, seqUsedKv must be provided!"); 
-            return false; 
-        } 
-    } else if (layoutKv_ == "BSND") { 
-        if (kvSeqSize_ == 0 && isInvalid(seqUsedKv_)) { 
-            KERNEL_LOG_ERROR("For KV BSND, KvSeqSize or seqUsedKv must be provided!"); 
-            return false; 
-        } 
-    }	 
+{
+    auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
+    // cu_seqlens_q 存在性校验
+    if (layoutQuery_ == "TND") {
+        if (isInvalid(actSeqLenQ_)) {
+            KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
+            return false;
+        }
+    }
+    // 2. seqused_kv 存在性校验
+    if (isInvalid(seqUsedKv_)) {
+        KERNEL_LOG_ERROR("seqused_kv must be provided!");
+        return false;
+    } 
     return true;	 
 }
 
