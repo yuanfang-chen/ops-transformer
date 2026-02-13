@@ -43,7 +43,7 @@ public:
             localComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
                 workspaceGM, tilingData_, &tilingData_->mmQuantTilingData, mmArrayAddrIn, tPipe);
         }
-        computeOp.Init(permuteOutOptionalGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
+        computeOp.Init(commOutGm, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, gmmyGM, workspaceGM, tilingData_,
             &tilingData_->gmmQuantTilingData, gmmArrayAddrIn, tPipe);
     }
 
