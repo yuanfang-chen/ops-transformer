@@ -45,7 +45,15 @@
     endif()
   endif()
   if(NOT ENABLE_TEST)
-   file(GLOB OPPROTO_SRCS)
+    if(NOT ENABLE_BUILT_IN)
+      file(GLOB OPPROTO_SRCS
+        src/mc2_moe_utils.cpp
+        src/mc2_common_infershape.cpp
+        src/mc2_hcom_topo_info.cpp 
+      )
+    else()
+      file(GLOB OPPROTO_SRCS)
+    endif()
    if(OPPROTO_SRCS)
      add_infer_modules()
      target_sources(${OPHOST_NAME}_infer_obj PRIVATE ${OPPROTO_SRCS})
