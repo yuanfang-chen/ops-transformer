@@ -269,8 +269,8 @@ static aclnnStatus InputsContiguousAndTransFormat(const aclTensor *tensor, const
 }
 
 aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                          const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
-                                          aclOpExecutor **executor)
+                                         const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                                         aclOpExecutor **executor)
 {
     CHECK_COND(CheckNotNull(x, h_res, h_out, h_post, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
                "one of required inputs for aclnnMhcPostGetWorkspaceSize is nullptr.");
@@ -314,8 +314,8 @@ aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_
 
     // Call l0 interface: MhcPost kernel
     // Formula: x_{l+1} = (H_{l}^{res})^{T} * x_l + h_{l}^{out} * H_{t}^{post}
-    const aclTensor *mhcPostResult = l0op::MhcPost(reformatedX, reformatedHRes, reformatedHOut,
-                                                     reformatedHPost, uniqueExecutor.get());
+    const aclTensor *mhcPostResult =
+        l0op::MhcPost(reformatedX, reformatedHRes, reformatedHOut, reformatedHPost, uniqueExecutor.get());
     CHECK_RET(mhcPostResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // Convert output tensor to contiguous tensor and copy to output
