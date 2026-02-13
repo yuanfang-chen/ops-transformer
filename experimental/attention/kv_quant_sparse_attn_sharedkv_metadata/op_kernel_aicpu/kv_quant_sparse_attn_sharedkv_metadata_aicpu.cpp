@@ -191,20 +191,10 @@ int32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetKvBatchSize()
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckConsistency() {
     int32_t queryBatchSize = GetQueryBatchSize();
     int32_t kvBatchSize = GetKvBatchSize();
-    if (layoutQuery_ == "TND") {
-        if (queryBatchSize != kvBatchSize) {
-            KERNEL_LOG_ERROR("For layoutQuery_ TND, the batch_size obtained from q Tensor should be the same as "
-                             "that obtained from kv tensor, but got %d and %d", queryBatchSize, kvBatchSize);
-            return false;
-        }
-    }
-    if (layoutQuery_ == "BSND") {
-        if (batchSize_ != queryBatchSize || queryBatchSize != kvBatchSize || batchSize_ != kvBatchSize) {
-            KERNEL_LOG_ERROR("For BSND, batch_size should be the same as the batch_size that obtained from q Tensor and "
-                             "the batch_size that obtained from kv Tensor, but got %d, %d, %d", batchSize_, 
-                             queryBatchSize, kvBatchSize);
-            return false;
-        }
+    if (queryBatchSize != kvBatchSize) {
+        KERNEL_LOG_ERROR("For layoutQuery_ TND, the batch_size obtained from q Tensor should be the same as "
+                            "that obtained from kv tensor, but got %d and %d", queryBatchSize, kvBatchSize);
+        return false;
     }
     return true;
 }
