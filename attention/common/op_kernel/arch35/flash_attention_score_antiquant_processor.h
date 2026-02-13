@@ -262,7 +262,7 @@ __aicore__ inline void AntiquantProcessorBaseAPI<ANTIQUANT_TEMPLATE_ARGS, ANTIQU
         }
 
         LocalTensor<Q_T> antiqScaleE8M0Ub = antiqScaleInputQue.template AllocTensor<Q_T>();
-        CopyAntiqScaleE8M0Nz(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, (taskParam.copyTotalS + 31)/32*32, 
+        CopyAntiqScaleE8M0Nz(antiqScaleE8M0Ub, antiqScaleGm, scaleOffset / 2, AlignUp32(taskParam.copyTotalS), 
                         grpNum, taskParam.seqSize); //FP8的伪量化参拷贝至UB,需32byte对齐，即32/sizeof(FP8)个参数对齐
         antiqScaleInputQue.template EnQue(antiqScaleE8M0Ub);
         antiqScaleE8M0Ub = antiqScaleInputQue.DeQue<Q_T>();
