@@ -203,11 +203,7 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::InitOffsetParam(
 
     if constexpr (IsMxA8W4<xType, wqmmConfig.antiQuantType>()) {
         offsetParam[0].nAlign = CeilAlign(gmmBaseTiling_->nSize, static_cast<uint64_t>(BLOCK_CUBE));
-        offsetParam[0].scaleAFactor = mmTiling_->mxTypePara & 0xff;
-        offsetParam[0].scaleBFactor = (mmTiling_->mxTypePara >> SCALE_FACTOR_B_BIT) & 0xff;
         offsetParam[1].nAlign = offsetParam[0].nAlign;
-        offsetParam[1].scaleAFactor = offsetParam[0].scaleAFactor;
-        offsetParam[1].scaleBFactor = offsetParam[0].scaleBFactor;
     }
 }
 
@@ -238,8 +234,11 @@ __aicore__ inline void GMM_WQ_RESPLIT_CONTROLLER_CLASS::SplitNByMultiCore(
                  offsetParam[ctrlParam.processId].nL1Size <= MX_A8W4_L1_K_DYNAMIC_CONFIG_N_THRESHOLD) ?
                     MX_A8W4_L1_K_CONFIG_512 :
                     MX_A8W4_L1_K_CONFIG_256;
-            offsetParam[ctrlParam.processId].kaL1Size =
-                offsetParam[ctrlParam.processId].kbL1Size;  // 当前实现a矩阵切分保持b矩阵一致
+            uint64_t aL1Size = gmmBaseTiling_->hasBias ? 124 * 1024 : 128 * 1024;
+            uint64_t mL1Align = CeilAlign(offsetParam[ctrlParam.processId].mL1Size, BLOCK_CUBE);
+            offsetParam[ctrlParam.processId].kaL1Size = aL1Size /
+                                                        (mL1Align * offsetParam[ctrlParam.processId].kbL1Size) *
+                                                        offsetParam[ctrlParam.processId].kbL1Size;
         }
         basicBlock_.ComputeBasicBlock(offsetParam[ctrlParam.processId], offsetParam[GetSwitchedProcessId(ctrlParam)]);
         ctrlParam.processId = GetSwitchedProcessId(ctrlParam);
