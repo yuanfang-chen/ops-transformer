@@ -124,6 +124,7 @@ public:
     __aicore__ inline void AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t offsetD, uint64_t lenD);
     template <bool hasGamma, bool isFirstND>
     __aicore__ inline void VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize);
+    __aicore__ inline void VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean, float normEps);
 
 private:
     MT &mm;
@@ -458,12 +459,12 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
         for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
             uint32_t elementNum = nSize; // 每次update会减去VL_T
             MicroAPI::RegTensor<P> sumReg;
-            // if constexpr (isFirstND) {
-            //     MicroAPI::Duplicate(sumReg, 0);
-            // } else {
-            //     // 非对齐32B
-            //     MicroAPI::DataCopy(sumReg, invRmsDst + mIdx);
-            // }
+            if constexpr (isFirstND) {
+                MicroAPI::Duplicate(sumReg, 0);
+            } else {
+                // 非32B对齐
+                MicroAPI::Load(sumReg, invRmsDst + mIdx);
+            }
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
                 MicroAPI::RegTensor<T> xInReg;
                 MicroAPI::RegTensor<P> gammaReg;
@@ -489,16 +490,41 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessXIn(__ubuf__ P *xDst, __
                 uint32_t dstUbOffset = mIdx * nDstUbAligned + vfBlockIdx * eleNumPerVf;
                 MicroAPI::StoreAlign(xDst + dstUbOffset, xMulReg, maskN4B32);
 
-                // // xFp32 * xFp32
-                // MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN4B32);
+                // xFp32 * xFp32
+                MicroAPI::Mul(xSquaReg, xFp32Reg, xFp32Reg, maskN4B32);
 
-                // // reducesum, 累加到sumReg第一个元素上
-                // MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, xSquaReg, maskN4B32);
-                // MicroAPI::Add(sumReg, sumReg, tmpSumReg, maskN4B32);
+                // reducesum, 累加到sumReg第一个元素上
+                MicroAPI::Reduce<MicroAPI::ReduceType::SUM>(tmpSumReg, xSquaReg, maskN4B32);
+                MicroAPI::Add(sumReg, sumReg, tmpSumReg, maskN4B32);
             }
             
-            // // 搬出地址不32B对齐
-            // MicroAPI::DataCopy<P, MicroAPI::StoreDist::DIST_NORM_B32>(invRmsDst + mIdx, sumReg, maskN4B32);
+            // 搬出地址不32B对齐
+            MicroAPI::Store(invRmsDst + mIdx, sumReg, 1);
+        }
+    }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean, float normEps)
+{
+    uint32_t eleNumPerVf = MhcPreUtils::GetVRegSize() / sizeof(P);
+    uint32_t nUbAligned = MhcPreUtils::Align(nSize, static_cast<uint16_t>(MhcPreUtils::UB_ALIGN_SIZE / sizeof(P)));
+    uint16_t nLoopCnt = MhcPreUtils::CeilDiv(nSize, eleNumPerVf);
+    __VEC_SCOPE__
+    {
+        uint32_t elementNum = nSize; // 每次update会减去VL_T
+        MicroAPI::MaskReg mask = MicroAPI::CreateMask<P>();
+        for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
+            MicroAPI::MaskReg maskN4B32 = MicroAPI::UpdateMask<P>(elementNum);
+            MicroAPI::RegTensor<P> invrmsReg, onesReg;
+
+            MicroAPI::LoadAlign(invrmsReg, invRms + vfBlockIdx * eleNumPerVf);
+            MicroAPI::Muls(invrmsReg, invrmsReg, scaleMean, maskN4B32);
+            MicroAPI::Adds(invrmsReg, invrmsReg, normEps, maskN4B32);
+            MicroAPI::Sqrt(invrmsReg, invrmsReg, maskN4B32);
+            MicroAPI::Duplicate(onesReg, 1);
+            MicroAPI::Div(invrmsReg, onesReg, invrmsReg, maskN4B32);
+            MicroAPI::StoreAlign(invRms + vfBlockIdx * eleNumPerVf, invrmsReg, maskN4B32);
         }
     }
 }
@@ -538,7 +564,7 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             xLocal_ = xInQueue_.DeQue<T>();
 
             uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
-            LocalTensor<P> aL1Ub = aL1_[aL1Offset];
+            LocalTensor<P> aL1Ub = aL1_; //[aL1Offset]; // FIX
 
             if (hasGamma_) {
                 // copy gamma
@@ -573,17 +599,20 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
         vectorCount_++;
     }
 
-    PipeBarrier<PIPE_V>();
-    Muls(invRmsUb_, invRmsUb_, scaleMean_, vectorOffset_.singleCoreM);
-    PipeBarrier<PIPE_V>();
-
-    Adds(invRmsUb_, invRmsUb_, matrixInfo_.normEps, vectorOffset_.singleCoreM);
+    VFDoV0ProcessInvRms((__ubuf__ P *)invRmsUb_.GetPhyAddr(), vectorOffset_.singleCoreM, scaleMean_, matrixInfo_.normEps);
     PipeBarrier<PIPE_V>();
 
-    Sqrt(invRmsUb_, invRmsUb_, vectorOffset_.singleCoreM);
-    PipeBarrier<PIPE_V>();
-    Div(invRmsUb_, oneUb_, invRmsUb_, vectorOffset_.singleCoreM);
-    PipeBarrier<PIPE_V>();
+    // PipeBarrier<PIPE_V>();
+    // Muls(invRmsUb_, invRmsUb_, scaleMean_, vectorOffset_.singleCoreM);
+    // PipeBarrier<PIPE_V>();
+
+    // Adds(invRmsUb_, invRmsUb_, matrixInfo_.normEps, vectorOffset_.singleCoreM);
+    // PipeBarrier<PIPE_V>();
+
+    // Sqrt(invRmsUb_, invRmsUb_, vectorOffset_.singleCoreM);
+    // PipeBarrier<PIPE_V>();
+    // Div(invRmsUb_, oneUb_, invRmsUb_, vectorOffset_.singleCoreM);
+    // PipeBarrier<PIPE_V>();
 
     DataCopyOutInvRmsUb(vectorOffset_.singleCoreM, vectorOffset_.offsetMStart);
 }
