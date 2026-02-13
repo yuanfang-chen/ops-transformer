@@ -109,7 +109,7 @@ protected:
     __aicore__ inline void Bmm2CastAndCopyOut(const RunInfo &info, LocalTensor<MM2_OUT_T> &bmm2ResUb, uint32_t wsMStart,
                                               uint32_t startRow, uint32_t dealRowCount, uint32_t columnCount,
                                               uint32_t actualColumnCount);
-    __aicore__ inline void CopyAttentionOut(FaUbTensor<OUT_T> &ubTensor, GmCoord &gmCoord);
+    // __aicore__ inline void CopyAttentionOut(FaUbTensor<OUT_T> &ubTensor, GmCoord &gmCoord);
     __aicore__ inline void Bmm2DataCopyOutTrans(const RunInfo &info, LocalTensor<OUT_T> &attenOutUb, uint32_t wsMStart,
                                                 uint32_t dealRowCount, uint32_t columnCount,
                                                 uint32_t actualColumnCount);
@@ -842,10 +842,75 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Bmm2CastAndCopyOut(const RunIn
     outputQue1.FreeTensor(tmpBmm2ResCastTensor);
 }
 
+// template <typename FIAT>
+// __aicore__ inline void
+// FiaBlockVecNonQuant<FIAT>::CopyAttentionOut(FaUbTensor<OUT_T> &ubTensor, GmCoord &gmCoord)
+// {
+//     if (constInfo.outputLayout == FIA_LAYOUT::BSH) {
+//         constexpr GmFormat OUT_FORMAT = GmFormat::BSNGD;
+//         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+//         outGmTensor.gmTensor = attentionOutGm;
+//         outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+//             constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims,
+//             constInfo.isQHasLeftPadding, constInfo.qLeftPaddingSize);
+//         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+//         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+//     } else if (constInfo.outputLayout == FIA_LAYOUT::BNSD) {
+//         constexpr GmFormat OUT_FORMAT = GmFormat::BNGSD;
+//         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+//         outGmTensor.gmTensor = attentionOutGm;
+//         outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+//             constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims,
+//             constInfo.isQHasLeftPadding, constInfo.qLeftPaddingSize);
+//         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+//         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+//     } else if (constInfo.outputLayout == FIA_LAYOUT::NBSD) {
+//         constexpr GmFormat OUT_FORMAT = GmFormat::NGBSD;
+//         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+//         outGmTensor.gmTensor = attentionOutGm;
+//         outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+//             constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims);
+//         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+//         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+//     } else if (constInfo.outputLayout == FIA_LAYOUT::TND) {
+//         constexpr GmFormat OUT_FORMAT = GmFormat::TNGD;
+//         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+//         outGmTensor.gmTensor = attentionOutGm;
+//         outGmTensor.offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim,
+//             actualSeqLengthsGmQ, constInfo.actualLenQDims);
+//         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+//         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+//     } else if (constInfo.outputLayout == FIA_LAYOUT::NTD) {
+//         constexpr GmFormat OUT_FORMAT = GmFormat::NGTD;
+//         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+//         outGmTensor.gmTensor = attentionOutGm;
+//         outGmTensor.offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim,
+//             actualSeqLengthsGmQ, constInfo.actualLenQDims);
+//         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+//         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+//     }
+// }
+
 template <typename FIAT>
 __aicore__ inline void
-FiaBlockVecNonQuant<FIAT>::CopyAttentionOut(FaUbTensor<OUT_T> &ubTensor, GmCoord &gmCoord)
+FiaBlockVecNonQuant<FIAT>::Bmm2DataCopyOutTrans(const RunInfo &info, LocalTensor<OUT_T> &attenOutUb,
+                                                           uint32_t wsMStart, uint32_t dealRowCount,
+                                                           uint32_t columnCount, uint32_t actualColumnCount)
 {
+    FaUbTensor<OUT_T> ubTensor {
+        .tensor = attenOutUb,
+        .rowCount = dealRowCount,
+        .colCount = columnCount,
+    };
+    GmCoord gmCoord {
+        .bIdx = info.bIdx,
+        .n2Idx = info.n2Idx,
+        .gS1Idx = info.gS1Idx + wsMStart,
+        .dIdx = 0,
+        .gS1DealSize = dealRowCount,
+        .dDealSize = (uint32_t)constInfo.headDim
+    };
+
     if (constInfo.outputLayout == FIA_LAYOUT::BSH) {
         constexpr GmFormat OUT_FORMAT = GmFormat::BSNGD;
         FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
@@ -889,29 +954,6 @@ FiaBlockVecNonQuant<FIAT>::CopyAttentionOut(FaUbTensor<OUT_T> &ubTensor, GmCoord
         CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
         copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
     }
-}
-
-template <typename FIAT>
-__aicore__ inline void
-FiaBlockVecNonQuant<FIAT>::Bmm2DataCopyOutTrans(const RunInfo &info, LocalTensor<OUT_T> &attenOutUb,
-                                                           uint32_t wsMStart, uint32_t dealRowCount,
-                                                           uint32_t columnCount, uint32_t actualColumnCount)
-{
-    FaUbTensor<OUT_T> ubTensor {
-        .tensor = attenOutUb,
-        .rowCount = dealRowCount,
-        .colCount = columnCount,
-    };
-    GmCoord gmCoord {
-        .bIdx = info.bIdx,
-        .n2Idx = info.n2Idx,
-        .gS1Idx = info.gS1Idx + wsMStart,
-        .dIdx = 0,
-        .gS1DealSize = dealRowCount,
-        .dDealSize = (uint32_t)constInfo.headDim
-    };
-
-    CopyAttentionOut(ubTensor, gmCoord);
 }
 
 template <typename FIAT>
@@ -1307,7 +1349,49 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::DealZeroActSeqLenWithPostQuant
                 .gS1DealSize = dealRowCount,
                 .dDealSize = (uint32_t)constInfo.headDim
             };
-            CopyAttentionOut(ubTensor, gmCoord);
+            if (constInfo.outputLayout == FIA_LAYOUT::BSH) {
+                constexpr GmFormat OUT_FORMAT = GmFormat::BSNGD;
+                FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+                outGmTensor.gmTensor = attentionOutGm;
+                outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+                    constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims,
+                    constInfo.isQHasLeftPadding, constInfo.qLeftPaddingSize);
+                CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+                copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+            } else if (constInfo.outputLayout == FIA_LAYOUT::BNSD) {
+                constexpr GmFormat OUT_FORMAT = GmFormat::BNGSD;
+                FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+                outGmTensor.gmTensor = attentionOutGm;
+                outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+                    constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims,
+                    constInfo.isQHasLeftPadding, constInfo.qLeftPaddingSize);
+                CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+                copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+            } else if (constInfo.outputLayout == FIA_LAYOUT::NBSD) {
+                constexpr GmFormat OUT_FORMAT = GmFormat::NGBSD;
+                FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+                outGmTensor.gmTensor = attentionOutGm;
+                outGmTensor.offsetCalculator.Init(constInfo.batchSize, constInfo.kvHeadNum, constInfo.gSize,
+                    constInfo.qSeqSize, constInfo.headDim, actualSeqLengthsGmQ, constInfo.actualLenQDims);
+                CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+                copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+            } else if (constInfo.outputLayout == FIA_LAYOUT::TND) {
+                constexpr GmFormat OUT_FORMAT = GmFormat::TNGD;
+                FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+                outGmTensor.gmTensor = attentionOutGm;
+                outGmTensor.offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim,
+                    actualSeqLengthsGmQ, constInfo.actualLenQDims);
+                CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+                copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+            } else if (constInfo.outputLayout == FIA_LAYOUT::NTD) {
+                constexpr GmFormat OUT_FORMAT = GmFormat::NGTD;
+                FaGmTensor<OUT_T, OUT_FORMAT> outGmTensor;
+                outGmTensor.gmTensor = attentionOutGm;
+                outGmTensor.offsetCalculator.Init(constInfo.kvHeadNum, constInfo.gSize, constInfo.headDim,
+                    actualSeqLengthsGmQ, constInfo.actualLenQDims);
+                CopyAttenOutUbToGm<OUT_T, OUT_FORMAT, GetOutUbFormat<LAYOUT_T>()> copyAttenOutUbToGm;
+                copyAttenOutUbToGm(outGmTensor, ubTensor, gmCoord);
+            }
         }
         outputQue1.FreeTensor(tmpBmm2ResCastTensor);
     }
