@@ -1111,6 +1111,7 @@ __aicore__ inline void MoeDistributeDispatchA5<TemplateMoeDistributeDispatchA5Ty
                 DataCopyPad(tok, tokenGT, tokenInParams, padParams);
                 tokenGatherQue_.EnQue(tok);
                 tok = tokenGatherQue_.DeQue<ExpandXOutType>();
+                Duplicate(tok, static_cast<ExpandXOutType>(0), axisH_);
                 DataCopyPad(expandXOutGT_[outPreCount * axisH_], tok, tokenOutParams);
                 CopyScalesToOut(outPreCount, tok, sharedExpertRankNum > 0 ? (expertId + 1) : expertId);
                 tokenGatherQue_.FreeTensor(tok);
