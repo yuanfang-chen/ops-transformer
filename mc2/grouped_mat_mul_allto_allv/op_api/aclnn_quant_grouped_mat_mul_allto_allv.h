@@ -109,16 +109,13 @@ ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     int64_t commQuantMode,
     int64_t commQuantDtypeOptional,
     // 规避cc文件编译问题
-    // int64_t groupSize,
+    int64_t groupSize,
     const char* group, 
     int64_t epWorldSize, 
     const aclIntArray* sendCounts,
     const aclIntArray* recvCounts,
     bool transGmmWeight,
     bool transMmWeight,
-    // 规避cc文件编译问题
-    // int64_t gmmYDtype,
-    // int64_t mmYDtype,
     const aclTensor* y,
     const aclTensor* mmYOptional,
     uint64_t* workspaceSize,
