@@ -69,7 +69,7 @@ extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize( // Innn
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
     bool transGmmWeight, bool transMmWeight,
     int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
-    int64_t commQuantMode, int64_t groupSize, int64_t gmmYDtype, int64_t mmYDtype, int64_t commQuantDtypeOptional,
+    int64_t commQuantMode, int64_t groupSize, int64_t commQuantDtypeOptional,
     const aclTensor* yOut, const aclTensor* mmYOptional, uint64_t* workspaceSize,
     aclOpExecutor** executor
 );
@@ -185,7 +185,6 @@ static bool CheckNotEmptyTensor(const aclTensor* gmmX, const aclTensor* gmmWeigh
                                 const aclTensor* y,
                                 const aclTensor* mmXOptional, const aclTensor* mmWeightOptional,
                                 const aclTensor* mmYOptional) {
-    auto aVal = gmmX->GetViewShape().GetDim(0);
     auto h1Val = gmmX->GetViewShape().GetDim(1);
 
     auto h1Val2 = gmmWeight->GetViewShape().GetDim(1);
@@ -194,22 +193,6 @@ static bool CheckNotEmptyTensor(const aclTensor* gmmX, const aclTensor* gmmWeigh
     auto yMval = y->GetViewShape().GetDim(0);
     auto yNval = y->GetViewShape().GetDim(1);
 
-    auto mmDim0 = mmXOptional->GetViewShape().GetDim(0);
-    auto mmDim1 = mmXOptional->GetViewShape().GetDim(1);
-
-    auto mmWdim0 = mmWeightOptional->GetViewShape().GetDim(0);
-    auto mmWdim1 = mmWeightOptional->GetViewShape().GetDim(1);
-
-    auto mmYdim0 = mmYOptional->GetViewShape().GetDim(0);
-    auto mmYdim1 = mmYOptional->GetViewShape().GetDim(1);
-
-
-
-    OP_API_CHECK((aVal == ZERO), {
-      OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-      "gmmX is empty tensor with zero dimM, which is unsupported.");
-      return false;
-    });
     OP_API_CHECK((h1Val == ZERO), {
       OP_LOGE(ACLNN_ERR_PARAM_INVALID,
       "gmmX is empty tensor with zero dimN, which is unsupported.");
@@ -233,7 +216,20 @@ static bool CheckNotEmptyTensor(const aclTensor* gmmX, const aclTensor* gmmWeigh
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "y is empty tensor with zero dimN, which is unsupported.");
         return false;
     });
- 	 
+
+    if (mmXOptional == nullptr || mmWeightOptional == nullptr || mmYOptional == nullptr) {
+        return true;
+    }
+
+    auto mmDim0 = mmXOptional->GetViewShape().GetDim(0);
+    auto mmDim1 = mmXOptional->GetViewShape().GetDim(1);
+
+    auto mmWdim0 = mmWeightOptional->GetViewShape().GetDim(0);
+    auto mmWdim1 = mmWeightOptional->GetViewShape().GetDim(1);
+
+    auto mmYdim0 = mmYOptional->GetViewShape().GetDim(0);
+    auto mmYdim1 = mmYOptional->GetViewShape().GetDim(1);
+
     OP_API_CHECK(
         ((!((mmDim0 != ZERO) && (mmDim1 != ZERO) && (mmWdim0 != ZERO) && (mmWdim1 != ZERO) && (mmYdim0 != ZERO) &&
             (mmYdim1 != ZERO))) &&
@@ -440,41 +436,40 @@ static bool CheckQuantMode(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode,
 static aclnnStatus CheckParams(const aclTensor* gmmX, const aclTensor* gmmWeight, const aclTensor* gmmXScaleOptional,
                               const aclTensor* gmmWeightScaleOptional, const aclTensor* gmmXOffsetOptional,
                               const aclTensor* gmmWeightOffsetOptional,
-                              const aclTensor* sendCountsTensorOptional, const aclTensor* recvCountsTensorOptional, 
-                              const aclTensor* mmXOptional, const aclTensor* mmWeightOptional, 
-                              const aclTensor* mmXScaleOptional, const aclTensor* mmWeightScaleOptional, 
+                              const aclTensor* sendCountsTensorOptional, const aclTensor* recvCountsTensorOptional,
+                              const aclTensor* mmXOptional, const aclTensor* mmWeightOptional,
+                              const aclTensor* mmXScaleOptional, const aclTensor* mmWeightScaleOptional,
                               const aclTensor* mmXOffsetOptional, const aclTensor* mmWeightOffsetOptional,
-                              int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, 
-                              int64_t mmWeightQuantMode, const char* group, int64_t epWorldSize, 
-                              const aclIntArray* sendCounts, const aclIntArray* recvCounts, bool transGmmWeight, 
-                              bool transMmWeight, const aclTensor* y, const aclTensor* mmYOptional, 
+                              int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
+                              int64_t mmWeightQuantMode, int64_t commQuantMode, const char* group,
+                              int64_t epWorldSize,
+                              const aclIntArray* sendCounts, const aclIntArray* recvCounts, bool transGmmWeight,
+                              bool transMmWeight, const aclTensor* y, const aclTensor* mmYOptional,
                               uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     (void)epWorldSize;
     (void)sendCounts;
     (void)recvCounts;
+    CHECK_RET(CheckNotNull(gmmX, gmmWeight, y), ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckNullStatus(gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional,
-                              mmWeightOptional, mmXScaleOptional, 
+                              mmWeightOptional, mmXScaleOptional,
                               group, transGmmWeight, transMmWeight, y, mmYOptional),
               ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckNotSupportNull(gmmXOffsetOptional, gmmWeightOffsetOptional, mmXOffsetOptional, mmWeightOffsetOptional),
               ACLNN_ERR_PARAM_INVALID);
-    CHECK_RET(CheckFormat(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional, mmWeightOptional,
-                          y, mmYOptional),
-              ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckNotEmptyTensor(gmmX, gmmWeight, y, mmXOptional, mmWeightOptional,
                                     mmYOptional), ACLNN_ERR_PARAM_INVALID);
-    CHECK_RET(ReFormatNotND(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, mmXOptional, mmWeightOptional,
-                          y, mmYOptional), ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckQuantMode(gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode,
-                            gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional), 
+                            gmmXScaleOptional, gmmWeightScaleOptional, mmXScaleOptional, mmWeightScaleOptional),
                             ACLNN_ERR_PARAM_INVALID);
-    CHECK_RET(CheckNotNull(gmmX, gmmWeight, y), ACLNN_ERR_PARAM_NULLPTR);
+    if (commQuantMode != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "commQuantMode only supports 0, but got %ld.", commQuantMode);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
     if (strnlen(group, HCCL_GROUP_NAME_MAX) >= HCCL_GROUP_NAME_MAX) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Required group name exceeds %zu.", HCCL_GROUP_NAME_MAX);
         return ACLNN_ERR_PARAM_INVALID;
     }
-    // 所有检查都通过，reformat也通过，输出参数检查成功
     OP_LOGD("aclnnQuantMatmulAlltoAll checkParams success");
 
     return ACLNN_SUCCESS;
@@ -493,21 +488,19 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode,
     int64_t commQuantMode, int64_t commQuantDtypeOptional, 
     // 规避cc文件编译问题
-    // int64_t groupSize,
-
+    int64_t groupSize,
     const char* group, int64_t epWorldSize, const aclIntArray* sendCounts, const aclIntArray* recvCounts,
     bool transGmmWeight, bool transMmWeight, 
-    // 规避cc文件编译问题
-    // int64_t gmmYDtype, int64_t mmYDtype,
     const aclTensor* y, const aclTensor* mmYOptional,
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    auto ret_param = 
+    auto ret_param =
         CheckParams(gmmX, gmmWeight, gmmXScaleOptional, gmmWeightScaleOptional, gmmXOffsetOptional,
                     gmmWeightOffsetOptional,
-                    sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional, 
+                    sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
                     mmXScaleOptional, mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional,
-                    gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, group, epWorldSize, 
+                    gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, commQuantMode,
+                    group, epWorldSize,
                     sendCounts, recvCounts, transGmmWeight, transMmWeight, y, mmYOptional, workspaceSize,
                     executor);
     CHECK_RET(ret_param == ACLNN_SUCCESS, ret_param);
@@ -516,9 +509,9 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
 
     char* str_group = const_cast<char*>(group);
     // 规避cc文件编译问题
-    int64_t groupSize = 0;
-    int64_t gmmYDtype = 28;
-    int64_t mmYDtype = 28;
+    // int64_t groupSize = 0;
+    // int64_t gmmYDtype = 28;
+    // int64_t mmYDtype = 28;
 
     aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
             gmmX, gmmWeight,
@@ -531,7 +524,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
             mmXOffsetOptional, mmWeightOffsetOptional, commQuantScaleOptional,
             str_group, epWorldSize, sendCounts, recvCounts, transGmmWeight, transMmWeight,
             gmmXQuantMode, gmmWeightQuantMode, mmXQuantMode, mmWeightQuantMode, commQuantMode,
-            groupSize, gmmYDtype, mmYDtype, commQuantDtypeOptional,
+            groupSize, commQuantDtypeOptional,
             y, mmYOptional, workspaceSize, executor);
     return ret;
 }
