@@ -29,7 +29,7 @@ public:
 
 private:
     ge::graphStatus DoOpTiling() override final;
-    ge::graphStatus MoeDistributeDispatchTeardownTilingFuncImpl() override;
+    ge::graphStatus MoeDistributeDispatchTeardownTilingFuncImpl();
     bool IsCapable() override final;
 };
 } // namespace optiling

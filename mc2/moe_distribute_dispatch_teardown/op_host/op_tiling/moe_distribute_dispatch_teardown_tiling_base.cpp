@@ -749,8 +749,4 @@ const void MoeDistributeDispatchTeardownTilingBase::PrintTilingDataInfo()
     OP_LOGD(nodeName_, "sdmaUsedStreamPerCore is %u.", info.sdmaUsedStreamPerCore);
 }
 
-ge::graphStatus MoeDistributeDispatchTeardownTilingBase::MoeDistributeDispatchTeardownTilingFuncImpl() {
-    return ge::GRAPH_FAILED;
-}
-
 } // namespace optiling

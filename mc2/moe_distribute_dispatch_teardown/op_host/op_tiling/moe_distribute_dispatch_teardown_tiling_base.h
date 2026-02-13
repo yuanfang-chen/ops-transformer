@@ -55,8 +55,6 @@ protected:
     const bool CheckInputTensorDataType();
     const bool CheckOutputTensorDataType();
     const bool CheckRelationTensorDataType();
-
-    virtual ge::graphStatus MoeDistributeDispatchTeardownTilingFuncImpl();
 };
 } // namespace optiling
 #endif
