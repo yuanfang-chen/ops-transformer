@@ -8,7 +8,7 @@
 
 ## 编译执行
 
-联网场景下，可采用如下方式进行源码编译，未联网场景请参考[离线编译执行](#离线编译执行)。
+联网场景下，可采用如下方式进行源码编译，未联网场景请参考[未联网编译](#未联网编译)。
 
 - [自定义算子包](#自定义算子包)：选择部分算子编译生成的包称为自定义算子包，以**挂载**形式作用于CANN包，不改变原始包内容。生成的自定义算子包优先级高于原始CANN包。该包支持aclnn和图模式调用AI Core算子。
 
@@ -18,7 +18,8 @@
 
 > 说明：若您需要**基于本项目进行二次发布**并且对**软件包大小有要求**时，建议采用静态库编译，该库可以链接您的应用开发程序，仅保留业务所需的算子，从而实现软件最小化部署。
 
-### 自定义算子包
+### 联网编译
+#### 自定义算子包
 
 1. **编译自定义算子包**
 
@@ -57,7 +58,7 @@
 
     注意自定义算子包不支持卸载，如需卸载，请删除vendors\/\$\{vendor\_name}目录，并删除vendors/config.ini中load_priority对应\$\{vendor\_name\}的配置项。
 
-### ops-transformer包
+#### ops-transformer包
 
 1. **编译ops-transformer包**
 
@@ -98,7 +99,7 @@
     ./${install_path}/cann/share/info/ops_transformer/script/uninstall.sh
     ```
 
-### ops-transformer静态库
+#### ops-transformer静态库
 
 > 说明：静态库仅支持Atlas A2、Atlas A3系列产品。experimental算子暂不支持使用静态库。
 
@@ -138,9 +139,9 @@
     |       ├── ...                                 # aclnn接口头文件
     ```
 
-### 离线编译执行
+### 未联网编译
 
-离线编译是指在没有连接互联网环境下，将软件源代码编译成可执行程序，并安装或配置到目标服务器上的过程。
+未联网编译是指在没有连接互联网环境下，将软件源代码编译成可执行程序，并安装或配置到目标服务器上的过程。
 
 本项目编译过程中会依赖一些开源第三方软件，这些软件联网时会自动下载，离线状态无法直接下载，此时可参考下述步骤完成编译。
 
@@ -153,30 +154,32 @@
 
 2. **下载第三方软件依赖**
 
-    本项目编译过程依赖的第三方开源软件列表如下，可通过项目根目录下的[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行批量下载，命令如下。若从其他地址下载，请确保版本号一致。
+    本项目编译过程依赖的第三方开源软件列表如下，若从其他地址下载，请确保版本号一致。
+
+    | 开源软件 | 版本 | 下载地址 |
+    |---|---|---|
+    | googletest | 1.14.0 | [googletest-1.14.0.tar.gz](https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz) |
+    | json | 3.11.3 | [include.zip](https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip) |
+    | makeself | 2.5.0 | [makeself-release-2.5.0-patch1.tar.gz](https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz) |
+    | pybind11 | 2.13.6 | [pybind11-2.13.6.tar.gz](https://gitcode.com/cann-src-third-party/pybind11/releases/download/v2.13.6/pybind11-2.13.6.tar.gz) |
+    | eigen | 5.0.0 | [eigen-5.0.0.tar.gz](https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0/eigen-5.0.0.tar.gz) |
+    | protobuf | 25.1.0 | [protobuf-25.1.tar.gz](https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz) |
+    | abseil-cpp | 20230802.1 | [abseil-cpp-20230802.1.tar.gz](https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz) |
+
+    您可以按照表格手动下载，也可以通过项目根目录下的[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行一键批量下载，命令如下。
 
     ```bash
     python cann_3rd_lib_path_download.py
     ```
 
-    | 开源软件 | 版本 |
-    |---|---|
-    | googletest | 1.14.0 |
-    | json | 3.11.3 |
-    | makeself | 2.5.0 |
-    | pybind11 | 2.13.6 |
-    | eigen | 5.0.0 |
-    | protobuf | 25.1.0 |
-    | abseil-cpp | 20230802.1 |
-
 3. **存放第三方开源软件**
 
-    - 若通过[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行批量下载，默认在根目录下生成`cann_3rd_lib_path_download`文件夹，用于存放下载的开源软件包，此时`${cann_3rd_lib_path}`为`./cann_3rd_lib_path_download`。
-    - 若手动安装：请在离线编译环境任意位置新建一个`${cann_3rd_lib_path}`目录来存放下载的第三方开源软件，请确保该目录有权限访问。
+    - 若手动安装：请在未联网编译环境任意位置新建一个`${cann_3rd_lib_path}`目录来存放下载的第三方开源软件，请确保该目录有权限访问。
 
         ```bash
         mkdir -p ${cann_3rd_lib_path}
         ```
+    - 若通过[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行批量下载，默认在根目录下生成`cann_3rd_lib_path_download`文件夹，用于存放下载的开源软件包，此时`${cann_3rd_lib_path}`为`./cann_3rd_lib_path_download`。
 
 4. **编译算子包**
 
