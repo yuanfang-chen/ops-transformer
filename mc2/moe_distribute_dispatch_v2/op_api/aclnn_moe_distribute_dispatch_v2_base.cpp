@@ -103,19 +103,19 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 }
 
 
-aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
+aclnnStatus GetCommMode(const char* groupEp, HcclComm* hcclHandle, uint32_t& netLayerNum)
 {
     OP_LOGD("PRINT GetCommMode start");
     HcclResult ret;
     uint32_t* netLayers = nullptr;
-    ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
+    ret = HcomGetCommHandleByGroup(groupEp, hcclHandle);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Ep Handle failed.");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcomGetCommHandleByGroup success");
 
-    ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+    ret = HcclRankGraphGetLayers(*hcclHandle, &netLayers, &netLayerNum);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
         return ACLNN_ERR_INNER;
@@ -283,7 +283,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     }
     int64_t ydtype = expandXOut->GetDataType();
 
-    ret = GetCommMode(groupEp, hcclHandle, netLayerNum);
+    ret = GetCommMode(groupEp, &hcclHandle, netLayerNum);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT commAlg:%s",commAlg);
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
