@@ -23,7 +23,7 @@ constexpr uint32_t LOCAL_STREAM_MAX_NUM = 19U;
 constexpr uint32_t AICPU_OP_NOTIFY_MAX_NUM = 2;
 constexpr uint32_t AICPU_MAX_RANK_NUM = 128 * 1024;
 
-constexpr uint32_t MAX_RANK_NUM = 32U; // 最大卡数
+constexpr uint32_t MAX_RANK_NUM = 64U; // 最大卡数
 constexpr uint32_t WRITE_SQE_SIZE = 64U;
 constexpr uint32_t WRITE_WITH_NOTIFY_SQE_SIZE = 96U;
 constexpr uint32_t WIN_PICI_OFFSET = 1024U * 1024U;

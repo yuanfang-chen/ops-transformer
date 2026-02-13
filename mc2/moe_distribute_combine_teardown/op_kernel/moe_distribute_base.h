@@ -23,7 +23,7 @@ constexpr uint32_t LOCAL_STREAM_MAX_NUM = 19U;
 constexpr uint32_t AICPU_OP_NOTIFY_MAX_NUM = 2;
 constexpr uint32_t AICPU_MAX_RANK_NUM = 128 * 1024;
 
-constexpr uint32_t MAX_RANK_NUM = 32U; // 最大卡数
+constexpr uint32_t MAX_RANK_NUM = 64U; // 最大卡数
 constexpr uint32_t WRITE_SQE_SIZE = 64U;
 constexpr uint32_t WRITE_WITH_NOTIFY_SQE_SIZE = 96U;
 constexpr uint32_t WIN_PICI_OFFSET = 1024U * 1024U;
@@ -412,19 +412,17 @@ __aicore__ inline void SyncFunc()
 // URMA通信接口
 __aicore__ inline GM_ADDR GetURMASqInfoGMAddr(GM_ADDR hcclContext, uint32_t dstRankId)
 {
-    if (hcclContext == nullptr || dstRankId >= MAX_RANK_NUM) {
-        ascendc_assert(false, "hcclContext is nullptr or dstRankId >= MAX_RANK_NUM");
-        return nullptr;
-    }
+    ascendc_assert((hcclContext != nullptr && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or dstRankId >= MAX_RANK_NUM");
+
     return (GM_ADDR)((__gm__ HcclAiRMAWQ *)(((__gm__ HcclCombinOpParam *)hcclContext)->sqs) + dstRankId);
 }
 
 __aicore__ inline GM_ADDR GetURMACqInfoGMAddr(GM_ADDR hcclContext, uint32_t dstRankId)
 {
-    if (hcclContext == nullptr || dstRankId >= MAX_RANK_NUM) {
-        ascendc_assert(false, "hcclContext is nullptr or dstRankId >= MAX_RANK_NUM");
-        return nullptr;
-    }
+    ascendc_assert((hcclContext != nullptr && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or dstRankId >= MAX_RANK_NUM");
+
     return (GM_ADDR)((__gm__ HcclAiRMACQ *)(((__gm__ HcclCombinOpParam *)hcclContext)->cqs) + dstRankId);
 }
 
@@ -432,10 +430,8 @@ __aicore__ inline void GetURMASqInfoTensor(const AscendC::LocalTensor<uint8_t> &
                                            uint32_t dstRankId)
 {
     GM_ADDR sqInfoGMAddr = GetURMASqInfoGMAddr(hcclContext, dstRankId);
-    if (sqInfoGMAddr == nullptr) {
-        ascendc_assert(false, "GetURMASqInfoGMAddr failed");
-        return;
-    }
+    ascendc_assert((sqInfoGMAddr != nullptr), "GetURMASqInfoGMAddr failed");
+
     AscendC::GlobalTensor<uint8_t> sqInfoGlobalTensor;
     sqInfoGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(sqInfoGMAddr));
     AscendC::DataCopyExtParams sqInfoParams = {1U, static_cast<uint32_t>(sizeof(HcclAiRMAWQ)), 0U, 0U, 0U};
@@ -447,10 +443,8 @@ __aicore__ inline void GetURMACqInfoTensor(const AscendC::LocalTensor<uint8_t> &
                                            uint32_t dstRankId)
 {
     GM_ADDR cqInfoGMAddr = GetURMACqInfoGMAddr(hcclContext, dstRankId);
-    if (cqInfoGMAddr == nullptr) {
-        ascendc_assert(false, "GetURMACqInfoGMAddr failed");
-        return;
-    }
+    ascendc_assert((cqInfoGMAddr != nullptr), "GetURMACqInfoGMAddr failed");
+
     AscendC::GlobalTensor<uint8_t> cqInfoGlobalTensor;
     cqInfoGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoGMAddr));
     AscendC::DataCopyExtParams cqInfoParams = {1U, static_cast<uint32_t>(sizeof(HcclAiRMACQ)), 0U, 0U, 0U};
@@ -637,7 +631,7 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
     uint32_t cqDepth = cqInfoU32(5);
     AscendC::GlobalTensor<uint8_t> cqGlobalTensor;
     cqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoU64(1)));
-    AscendC::DataCopyExtParams cqeParams = {1U, 32U, 0U, 0U, 0U};
+    AscendC::DataCopyExtParams cqeParams = {1U, 8U, 0U, 0U, 0U};
     AscendC::DataCopyPadExtParams<uint8_t> cqePadParams{false, 0U, 0U, 0U};
 
     uint32_t pollTimes = 0;
@@ -649,11 +643,12 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
             break;
         } else if (cqeTensor(3) != 0) {
             // 退出kernel并报错
-            ascendc_assert(false, "CQE status is abnormal!\n");
+            ascendc_assert(false, "CQE status is abnormal! status is %d, substatus is %d.\n", cqeTensor(3),
+                           cqeTensor(2));
         }
 
         // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
-        newestCompletedPi = (cqeTensor(5) << 8) + cqeTensor(4);
+        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(5)) << 8) + static_cast<uint32_t>(cqeTensor(4));
         // 把CQE的status设置为无效值，并写回CQ
         cqeTensor(3) = 0xff;
         SyncFunc<AscendC::HardEvent::S_MTE3>();
@@ -694,7 +689,7 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
     uint32_t cqDepth = cqInfoU32(5);
     AscendC::GlobalTensor<uint8_t> cqGlobalTensor;
     cqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoU64(1)));
-    AscendC::DataCopyExtParams cqeParams = {1U, 32U, 0U, 0U, 0U};
+    AscendC::DataCopyExtParams cqeParams = {1U, 8U, 0U, 0U, 0U};
     AscendC::DataCopyPadExtParams<uint8_t> cqePadParams{false, 0U, 0U, 0U};
 
     uint32_t pollTimes = 0;
@@ -706,11 +701,12 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
             break;
         } else if (cqeTensor(3) != 0) {
             // 退出kernel并报错
-            ascendc_assert(false, "CQE status is abnormal!\n");
+            ascendc_assert(false, "CQE status is abnormal! status is %d, substatus is %d.\n", cqeTensor(3),
+                           cqeTensor(2));
         }
 
         // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
-        newestCompletedPi = (cqeTensor(5) << 8) + cqeTensor(4);
+        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(5)) << 8) + static_cast<uint32_t>(cqeTensor(4));
         // 把CQE的status设置为无效值，并写回CQ
         cqeTensor(3) = 0xff;
         SyncFunc<AscendC::HardEvent::S_MTE3>();
@@ -726,9 +722,9 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
 
     // 更新本地的outSqCi
     if (pollTimes > 0) {
-        outSqCi = (newestCompletedPi + 2) % sqDepth;
+        outSqCi = (newestCompletedPi + 1) % sqDepth;
     }
-    AscendC::PipeBarrier<PIPE_MTE3>();
+    AscendC::PipeBarrier<PIPE_MTE3>(); // TODO 这个在等谁
     // 通过敲JFC DoorBell，更新硬件的cqCi
     SendJFCDoorBell(jfcDoorBellTensor, cqInfoTensor, outCqCi);
 }
@@ -749,12 +745,15 @@ __aicore__ inline void InvalidateCqeStatus(const AscendC::LocalTensor<uint8_t> &
     uint32_t cqDepth = cqInfoU32(5);
     uint32_t cqeNum = (cqDepth > CQ_DEPTH_256) ? CQ_DEPTH_256 : cqDepth;
 
-    AscendC::Duplicate<uint8_t>(cqeTensor, 0, UB_ALIGN * cqeNum); // 初始化为全0
-    SyncFunc<AscendC::HardEvent::V_S>();
-    for (uint32_t cqeIdx = 0; cqeIdx < cqeNum; ++cqeIdx) {
-        cqeTensor(UB_ALIGN * cqeIdx + 3) = 0xff; // 3: status在Normal CQE中的偏移
-    }
-    SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等cqeTensor标量写入，后续Local向GM拷贝
+    AscendC::Duplicate<uint8_t>(cqeTensor, 0xff, UB_ALIGN * cqeNum); // 初始化为全1
+    SyncFunc<AscendC::HardEvent::V_MTE3>();
+    // AscendC::Duplicate<uint8_t>(cqeTensor, 0, UB_ALIGN); // 初始化为全0
+    // SyncFunc<AscendC::HardEvent::V_S>();
+    // // for (uint32_t cqeIdx = 0; cqeIdx < cqeNum; ++cqeIdx) {
+    // //     cqeTensor(UB_ALIGN * cqeIdx + 3) = 0xff; // 3: status在Normal CQE中的偏移
+    // // }
+    // cqeTensor(3) = 0xff;                    // 3: status在Normal CQE中的偏移
+    // SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等cqeTensor标量写入，后续Local向GM拷贝
 
     AscendC::DataCopyExtParams dataCopyParams = {static_cast<uint16_t>(cqeNum), UB_ALIGN, 0U,
                                                  NORMAL_CQE_SIZE - UB_ALIGN, 0U};
@@ -769,6 +768,11 @@ __aicore__ inline void InvalidateCqeStatus(const AscendC::LocalTensor<uint8_t> &
         }
     }
     AscendC::DataCopyPad(cqGlobalTensor[NORMAL_CQE_SIZE * CQ_DEPTH_256 * (loopTimes - 1)], cqeTensor, dataCopyParams);
+
+    // AscendC::DataCopyExtParams dataCopyParams = {1U, 8U, 0U, 0U, 0U};
+    // for (uint32_t i = 0; i < cqDepth; ++i) {
+    //     AscendC::DataCopyPad(cqGlobalTensor[NORMAL_CQE_SIZE * i], cqeTensor, dataCopyParams);
+    // }
 
     // TODO 缺cqGlobalTensor同步?
 }
@@ -796,10 +800,13 @@ __aicore__ inline void PutCommSQE(const AscendC::LocalTensor<uint8_t> &sqInfoTen
                                   const AscendC::LocalTensor<uint8_t> &sqeTensor,
                                   const AscendC::LocalTensor<uint8_t> &cqeTensor,
                                   const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor, uint32_t sqeCount,
-                                  uint32_t &outSqPi, uint32_t &outSqCi, uint32_t &outCqCi)
+                                  uint32_t &outSqPi, uint32_t &outSqPiLinear, uint32_t &outSqCi, uint32_t &outCqCi)
 {
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint64_t> sqInfoU64 = sqInfoTensor.ReinterpretCast<uint64_t>();
+    uint32_t sqeSize = sqInfoU32(4);
+    uint32_t sqDepth = sqInfoU32(5);
+    ascendc_assert(sqeCount < sqDepth, "too many SQE! SQE num[%d] should less than sqDepth[%d].", sqeCount, sqDepth);
 
     // 计算SQ可用空间大小
     uint32_t availableSpace = GetAvailableSpace(sqInfoTensor, outSqPi, outSqCi);
@@ -810,57 +817,89 @@ __aicore__ inline void PutCommSQE(const AscendC::LocalTensor<uint8_t> &sqInfoTen
     }
 
     // 可用空间足够时，把WQE拷贝到HBM上的SQ中
-    uint32_t sqeSize = sqInfoU32(4);
-    uint32_t sqDepth = sqInfoU32(5);
-
     AscendC::GlobalTensor<uint8_t> sqGlobalTensor;
-    sqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(sqInfoU64(1) + sqeSize * outSqPi));
-    AscendC::DataCopy(sqGlobalTensor, sqeTensor, WRITE_SQE_SIZE * sqeCount);
+    sqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(sqInfoU64(1)));
+
+    if (likely(sqDepth - outSqPi >= sqeCount)) {
+        AscendC::DataCopy(sqGlobalTensor[sqeSize * outSqPi], sqeTensor, WRITE_SQE_SIZE * sqeCount);
+    } else {
+        uint32_t firstPartSize = sqDepth - outSqPi;
+        uint32_t secondPartSize = sqeCount - firstPartSize;
+
+        AscendC::DataCopy(sqGlobalTensor[sqeSize * outSqPi], sqeTensor, WRITE_SQE_SIZE * firstPartSize);
+        AscendC::DataCopy(sqGlobalTensor, sqeTensor[WRITE_SQE_SIZE * firstPartSize], WRITE_SQE_SIZE * secondPartSize);
+    }
 
     // 更新本地的outSqPi
     outSqPi = (outSqPi + sqeCount) % sqDepth;
-    // sqPiLinear_ += sqeCount;
+    outSqPiLinear += sqeCount;
 }
 
-__aicore__ inline void PutCommNotifySQE(const AscendC::LocalTensor<uint8_t> &sqInfoTensor,
-                                        const AscendC::LocalTensor<uint8_t> &cqInfoTensor,
-                                        const AscendC::LocalTensor<uint8_t> &sqeTensor,
-                                        const AscendC::LocalTensor<uint8_t> &cqeTensor,
-                                        const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor, uint32_t sqeCount,
-                                        uint32_t &outSqPi, uint32_t &outSqCi, uint32_t &outCqCi)
+__aicore__ inline void
+PutCommNotifySQE(const AscendC::LocalTensor<uint8_t> &sqInfoTensor, const AscendC::LocalTensor<uint8_t> &cqInfoTensor,
+                 const AscendC::LocalTensor<uint8_t> &sqeTensor, const AscendC::LocalTensor<uint8_t> &cqeTensor,
+                 const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor, uint32_t sqeCount, uint32_t &outSqPi,
+                 uint32_t &outSqPiLinear, uint32_t &outSqCi, uint32_t &outCqCi)
 {
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint64_t> sqInfoU64 = sqInfoTensor.ReinterpretCast<uint64_t>();
+    uint32_t sqeSize = sqInfoU32(4);
+    uint32_t sqDepth = sqInfoU32(5);
+    ascendc_assert((sqeCount << 1) < sqDepth, "too many SQE! SQE num[%d] should less than sqDepth[%d].",
+                   (sqeCount << 1), sqDepth);
 
     // 计算SQ可用空间大小
     uint32_t availableSpace = GetAvailableSpace(sqInfoTensor, outSqPi, outSqCi);
-    while (availableSpace < sqeCount) {
+    while (availableSpace < (sqeCount << 1)) {
         // 可用空间不足时，轮询CQ，更新本地的cqCi_ sqCi_和硬件的cqCi
         PollNotifyCommCQUpdateSQCI(sqInfoTensor, cqInfoTensor, cqeTensor, jfcDoorBellTensor, outSqCi, outCqCi);
         availableSpace = GetAvailableSpace(sqInfoTensor, outSqPi, outSqCi);
     }
 
     // 可用空间足够时，把WQE拷贝到HBM上的SQ中
-    uint32_t sqeSize = sqInfoU32(4);
-    uint32_t sqDepth = sqInfoU32(5);
-
     AscendC::GlobalTensor<uint8_t> sqGlobalTensor;
-    sqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(sqInfoU64(1) + sqeSize * outSqPi));
-    AscendC::DataCopy(sqGlobalTensor, sqeTensor, WRITE_WITH_NOTIFY_SQE_SIZE * sqeCount);
+    sqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(sqInfoU64(1)));
+
+    if (likely((sqDepth - outSqPi) >= (sqeCount << 1))) {
+        AscendC::DataCopyParams intriParams{static_cast<uint16_t>(sqeCount), WRITE_WITH_NOTIFY_SQE_SIZE >> 5, 0, 1};
+        AscendC::DataCopy(sqGlobalTensor[sqeSize * outSqPi], sqeTensor, intriParams);
+    } else {
+        uint32_t firstPartSize = (sqDepth - outSqPi) >> 1;
+        uint32_t secondPartSize = sqeCount - firstPartSize;
+        AscendC::DataCopyParams firstPartParams{static_cast<uint16_t>(firstPartSize), WRITE_WITH_NOTIFY_SQE_SIZE >> 5,
+                                                0, 1};
+        AscendC::DataCopy(sqGlobalTensor[sqeSize * outSqPi], sqeTensor, firstPartParams);
+
+        if (((sqDepth - outSqPi) & 1) == 0) {
+            AscendC::DataCopyParams secondPartParams{static_cast<uint16_t>(secondPartSize),
+                                                     WRITE_WITH_NOTIFY_SQE_SIZE >> 5, 0, 1};
+            AscendC::DataCopy(sqGlobalTensor, sqeTensor[WRITE_WITH_NOTIFY_SQE_SIZE * firstPartSize], secondPartParams);
+        } else {
+            // 如果剩余奇数个WQEBB，其中一个WQE会被切块分在尾和头
+            AscendC::DataCopy(sqGlobalTensor[sqeSize * (sqDepth - 1)],
+                              sqeTensor[WRITE_WITH_NOTIFY_SQE_SIZE * firstPartSize], sqeSize);
+            AscendC::DataCopy(sqGlobalTensor, sqeTensor[WRITE_WITH_NOTIFY_SQE_SIZE * firstPartSize + sqeSize],
+                              WRITE_WITH_NOTIFY_SQE_SIZE - sqeSize);
+
+            AscendC::DataCopyParams secondPartParams{static_cast<uint16_t>(secondPartSize - 1),
+                                                     WRITE_WITH_NOTIFY_SQE_SIZE >> 5, 0, 1};
+            AscendC::DataCopy(sqGlobalTensor[sqeSize], sqeTensor[WRITE_WITH_NOTIFY_SQE_SIZE * (firstPartSize + 1)],
+                              secondPartParams);
+        }
+    }
 
     // 更新本地的outSqPi
-    outSqPi = (outSqPi + sqeCount * 2) % sqDepth;
-    // sqPiLinear_ += sqeCount;
+    outSqPi = (outSqPi + (sqeCount << 1)) % sqDepth;
+    outSqPiLinear += (sqeCount << 1);
 }
 
 __aicore__ inline void GetPICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, uint32_t &outSqPi,
-                               uint32_t &outSqCi, uint32_t &outCqPi, uint32_t &outCqCi/*, uint32_t &outSqPiLinear,
+                               uint32_t &outSqCi, uint32_t &outCqPi, uint32_t &outCqCi, uint32_t &outSqPiLinear/*,
                                uint32_t &outCqCiLinear*/)
 {
-    if (hcclContext == nullptr || curRankId >= MAX_RANK_NUM || dstRankId >= MAX_RANK_NUM) {
-        ascendc_assert(false, "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
-        return;
-    }
+    ascendc_assert((hcclContext != nullptr && curRankId < MAX_RANK_NUM && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
+
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
                                     WIN_ADDR_ALIGN * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
@@ -872,17 +911,39 @@ __aicore__ inline void GetPICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t
     outSqCi = piCiGlobalTensor(1);
     outCqPi = piCiGlobalTensor(2);
     outCqCi = piCiGlobalTensor(3);
+    outSqPiLinear = piCiGlobalTensor(4);
+    // outIsFirst = (piCiGlobalTensor(4) > 0);
+    // outSqPiLinear = outSqPi;
+    // outCqCiLinear = outCqCi;
+}
+
+__aicore__ inline void GetIsFirstInComm(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, bool &outIsFirst)
+{
+    ascendc_assert((hcclContext != nullptr && curRankId < MAX_RANK_NUM && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
+
+    GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
+                                    WIN_ADDR_ALIGN * dstRankId);
+    AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
+    piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
+    AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
+        piCiGlobalTensor);
+
+    // outSqPi = piCiGlobalTensor(0);
+    // outSqCi = piCiGlobalTensor(1);
+    // outCqPi = piCiGlobalTensor(2);
+    // outCqCi = piCiGlobalTensor(3);
+    outIsFirst = (piCiGlobalTensor(5) > 0);
     // outSqPiLinear = outSqPi;
     // outCqCiLinear = outCqCi;
 }
 
 __aicore__ inline void UpdatePICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, uint32_t sqPi,
-                                  uint32_t sqCi, uint32_t cqPi, uint32_t cqCi)
+                                  uint32_t sqCi, uint32_t cqPi, uint32_t cqCi, uint32_t sqPiLinear)
 {
-    if (hcclContext == nullptr || curRankId >= MAX_RANK_NUM || dstRankId >= MAX_RANK_NUM) {
-        ascendc_assert(false, "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
-        return;
-    }
+    ascendc_assert((hcclContext != nullptr && curRankId < MAX_RANK_NUM && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
+
     GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
                                     WIN_ADDR_ALIGN * dstRankId);
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
@@ -892,6 +953,27 @@ __aicore__ inline void UpdatePICI(GM_ADDR hcclContext, uint32_t curRankId, uint3
     piCiGlobalTensor(1) = sqCi;
     piCiGlobalTensor(2) = cqPi;
     piCiGlobalTensor(3) = cqCi;
+    piCiGlobalTensor(4) = sqPiLinear;
+    // piCiGlobalTensor(4) = isFirst ? 1 : 0;
+    AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
+        piCiGlobalTensor);
+}
+
+__aicore__ inline void UpdateIsFirstInComm(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, bool isFirst)
+{
+    ascendc_assert((hcclContext != nullptr && curRankId < MAX_RANK_NUM && dstRankId < MAX_RANK_NUM),
+                   "hcclContext is nullptr or curRankId >= MAX_RANK_NUM or dstRankId >= MAX_RANK_NUM");
+
+    GM_ADDR piCiSpaceGM = (GM_ADDR)(((__gm__ HcclCombinOpParam *)hcclContext)->windowsOut[curRankId] + WIN_PICI_OFFSET +
+                                    WIN_ADDR_ALIGN * dstRankId);
+    AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
+    piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
+
+    // piCiGlobalTensor(0) = sqPi;
+    // piCiGlobalTensor(1) = sqCi;
+    // piCiGlobalTensor(2) = cqPi;
+    // piCiGlobalTensor(3) = cqCi;
+    piCiGlobalTensor(5) = isFirst ? 1 : 0;
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
         piCiGlobalTensor);
 }

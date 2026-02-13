@@ -530,9 +530,9 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Process()
         BuffInit();
         // 首次进入通信域后初始化一次CQE
         InitCqeStatus();
-        // // URMA 生成WQE模板
-        // LocalTensor<uint8_t> templateSqeU8 = templateSqeBuf_.Get<uint8_t>();
-        // GenerateCommWriteWithNotifySQE(templateSqeU8);
+        // URMA 生成WQE模板
+        LocalTensor<uint8_t> templateSqeU8 = templateSqeBuf_.Get<uint8_t>();
+        GenerateCommWriteWithNotifySQE(templateSqeU8);
 
         Communication();
     }
