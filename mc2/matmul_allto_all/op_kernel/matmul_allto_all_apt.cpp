@@ -42,6 +42,24 @@ using namespace MatmulAlltoAllImpl;
     } while (0)
 #endif
 
+#ifndef MATMUL_ALLTO_ALL_APT_FP_IMPL_A3_BASE
+#define MATMUL_ALLTO_ALL_APT_FP_IMPL_A3_BASE(tilingData, pipe)  \
+    do {    \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP_A3_BASE(Mc2MatMulV3TilingData, ComputationType); \
+        ComputationType matmulImplName(&pipe); \
+        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);    \
+        TransposeType transposeImplName(&pipe);    \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_AICPU, 1, 0, MatmulAlltoAllTilingData, CommunicationType); \
+        CommunicationType commImplName(&tilingData);  \
+        using SchedulerContextType = PipelineContext<FpQuantExtraData, Mc2MatMulV3TilingData>;  \
+        using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
+        SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
+        MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingData> op(&SchedulerImpl); \   //Arch35合适吗
+        op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
+        op.Process();   \
+    } while (0)
+#endif
+
 template <uint32_t QUANTMODE, bool X2TRANSPOSE, uint32_t DTYPEBIAS>
 __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale,
                                             GM_ADDR comm_scale, GM_ADDR x1_offset, GM_ADDR x2_offset, GM_ADDR y,
