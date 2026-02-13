@@ -194,7 +194,6 @@ TILING_DATA_FIELD_DEF(uint32_t, antiqSeqSize)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionAntiqParamsOp, FusedInferAttentionAntiqParams)
 
-
 extern "C" {
 ge::graphStatus DeviceDoOpTilingIncreFlashAttention(gert::TilingContext *context);
 ge::graphStatus DeviceDoOpTilingFusedInferAttentionScore(gert::TilingContext *context);

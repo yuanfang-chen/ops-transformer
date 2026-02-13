@@ -12,19 +12,14 @@
  * \file fused_infer_attention_score.cpp
  * \brief
  */
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
-#include "adv_api/quantization/ascend_quant.h"
+#include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa
 #define FIA_ENABLE_MLA
-#ifdef NOT_DYNAMIC_COMPILE
-#include "../../incre_flash_attention/op_kernel/incre_flash_attention_arch32.h"
-#else
-#include "../incre_flash_attention/incre_flash_attention.cpp"
-#endif
+
 #include "fused_infer_attention_score_tilingkey.h"
-// #include "fused_infer_attention_score_v3.cpp"
+#include "fused_infer_attention_score_v3.cpp"
+
 
 #define FullQuantTiling 15
 extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
@@ -44,18 +39,11 @@ extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t
                                                                 __gm__ uint8_t* attentionOut, __gm__ uint8_t* softmaxLse, __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
     if (TILING_KEY_VAR >= FIA_FLAG_TILING) {
-        // fused_infer_attention(query, key, value, pse_shift, attenMask, actualSeqLengths,
-        //                     actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
-        //                     quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
-        //                     keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
-        //                     keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale,
-        //                     learnableSink, attentionOut, softmaxLse, workspace, tiling);
-    } else {
-        incre_flash_attention_FIAS_arch32(query, key, value, pse_shift, attenMask, actualSeqLengths,
-                                actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
-                                quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
-                                keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
-                                keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale, dequantScaleQuery,
-                                attentionOut, softmaxLse, workspace, tiling);
+        fused_infer_attention(query, key, value, pse_shift, attenMask, actualSeqLengths,
+                            actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
+                            quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
+                            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
+                            keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale,
+                            learnableSink, attentionOut, softmaxLse, workspace, tiling);
     }
 }

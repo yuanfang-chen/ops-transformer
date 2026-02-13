@@ -625,7 +625,6 @@ inline aclTensor *ConvertType(const c10::optional<at::Tensor> &opt_tensor) {
   if (opt_tensor.has_value() && opt_tensor.value().defined()) {
     return ConvertType(opt_tensor.value());
   }
-
   return nullptr;
 }
 

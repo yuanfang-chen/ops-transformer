@@ -3466,7 +3466,7 @@ ge::graphStatus IFATiling::GenTilingKey() const
     }
 
     OP_LOGI(ifaContext_->opName, "IFA tilingKey: %lu.", ifaContext_->tilingKey);
-
+    printf("IFA tilingKey: %lu.\n", ifaContext_->tilingKey);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -3698,7 +3698,6 @@ ge::graphStatus IFATiling::RunBigKernelTiling(IncreFlashAttentionContext &contex
     if ((GetNpuInfo() != ge::GRAPH_SUCCESS) || (PreProcess() != ge::GRAPH_SUCCESS)) {
         return ge::GRAPH_FAILED;
     }
-
     // user prompt tiling
     if ((ZeroTensorProcess() != ge::GRAPH_SUCCESS) ||
         (Split() != ge::GRAPH_SUCCESS) ||
@@ -3707,7 +3706,6 @@ ge::graphStatus IFATiling::RunBigKernelTiling(IncreFlashAttentionContext &contex
         (CalcNumBlocks() != ge::GRAPH_SUCCESS)) {
         return ge::GRAPH_FAILED;
     }
-
     if (sysPrefixFlag_ && SharedPrefixTiling() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
@@ -4128,5 +4126,8 @@ IFA_EXTERN_C ge::graphStatus TilingIncreFlashAttention(gert::TilingContext *cont
 {
     return TilingIncreFlashAttentionAdapter(context);
 }
-REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, IFATiling, std::vector<int32_t>({(int32_t)NpuArch::DAV_2201, (int32_t)NpuArch::DAV_2002}), 90);
+REGISTER_TILING_TEMPLATE_FIA(IncreFlashAttention, 
+                             IFATiling, 
+                             std::vector<int32_t>({(int32_t)NpuArch::DAV_2201, (int32_t)NpuArch::DAV_2002}), 
+                             90);
 } // namespace optiling
