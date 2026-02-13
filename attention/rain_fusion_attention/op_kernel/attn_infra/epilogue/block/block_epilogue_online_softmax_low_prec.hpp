@@ -306,7 +306,7 @@ public:
     }
 
     __aicore__ inline
-    void RowmaxSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
+    void RowmaxSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowmaxUb,
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
