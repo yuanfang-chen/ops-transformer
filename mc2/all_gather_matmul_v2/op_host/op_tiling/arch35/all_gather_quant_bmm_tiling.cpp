@@ -81,6 +81,12 @@ bool AllGatherQuantBmmTiling::IsCapable()
         OP_LOGI(opName_, "Start with allgather quantbmm tiling.");
         return true;
     }
+
+    if(args_.geAType == ge::DataType::DT_INT8 && args_.geBType == ge::DataType::DT_INT8){
+        OP_LOGI(opName_, "Start with allgather quantbmm tiling.");
+        return true;
+    }
+
     OP_LOGE(opName_, "Skip allgather quantbmm tiling as dtype not support.");
     return false;
 }
@@ -90,11 +96,11 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckGroupSize()
     uint64_t groupSize = static_cast<uint64_t>(*context_->GetAttrs()->GetAttrPointer<uint64_t>(GROUP_SIZE_INDEX));
     OP_LOGI(opName_, "groupSize=%lu", groupSize);
     auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
-    if ((quantMmMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) &&
-        (scaleInv1Desc->GetDataType() == ge::DataType::DT_FLOAT)) {
+    if (((quantMmMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) || (quantMmMode_ == mc2tiling::Mc2QuantMode::PERTOKEN_MODE)
+        || (quantMmMode_ == mc2tiling::Mc2QuantMode::PERCHANNEL_MODE)) && (scaleInv1Desc->GetDataType() == ge::DataType::DT_FLOAT)) {
         OP_TILING_CHECK(
             groupSize != 0,
-            CUBE_INNER_ERR_REPORT(opName_, "groupSize 0 in pertensor scene,"
+            CUBE_INNER_ERR_REPORT(opName_, "groupSize 0 in pertensor/pertoken/perchannel scene,"
             " but actual is groupSize = %ld", groupSize), return ge::GRAPH_FAILED);
     } else if ((quantMmMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) &&
         (scaleInv1Desc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0)) {
@@ -243,8 +249,65 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckPerTensorScaleInput()
     return ge::GRAPH_SUCCESS;
 }
 
+// Function: Validate the shape legality of input for K-C (pertoken-perchannel) quantization
+//   Shape array of x1scale, required shape to satisfy (m)
+//   Shape array of x2scale, required shape to satisfy (n)
+ge::graphStatus AllGatherQuantBmmTiling::CheckPerTokenScaleInput()
+{
+    auto scaleInv1Shape = context_->GetOptionalInputShape(SCALE_INV1);
+    auto scaleInv2Shape = context_->GetOptionalInputShape(SCALE_INV2);
+    
+    // TODO: 还未评审（m)/(m,1)，(n)/(1,n)，先按(m)(n)来写
+    OP_TILING_CHECK(((scaleInv1Shape->GetStorageShape().GetDimNum() > 1) || (scaleInv2Shape->GetStorageShape().GetDimNum())),
+        CUBE_INNER_ERR_REPORT(opName_,
+        "Both x1scale and x2scale are expected to be 1-dimensional for K-C (pertoken-perchannel) quantization,"
+        " but the current dimensions are [%lu] and [%lu] respectively.",
+        scaleInv1Shape->GetStorageShape().GetDimNum(), scaleInv2Shape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(((scaleInv1Shape->GetStorageShape().GetDim(0) == args_.mValue) || (scaleInv2Shape->GetStorageShape().GetDim(0) == args_.nValue)),
+        CUBE_INNER_ERR_REPORT(opName_,
+        "For K-C (pertoken-perchannel) quantization, the shape of x1scale is expected to be equal to input m, and x2scale to input n,"
+        " but the current shapes are [%lu] and [%lu] respectively.",
+        scaleInv1Shape->GetStorageShape().GetDim(0), scaleInv2Shape->GetStorageShape().GetDim(0)), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
+// Function: Validate the shape legality of input for perchannel quantization
+//   Shape array of x2scale, required shape to satisfy (n)
+ge::graphStatus AllGatherQuantBmmTiling::CheckPerChannelScaleInput()
+{
+    auto scaleInv2Shape = context_->GetOptionalInputShape(SCALE_INV2);
+    
+    // TODO: 还未评审（m)/(m,1)，(n)/(1,n)，先按(m)(n)来写
+    OP_TILING_CHECK((scaleInv2Shape->GetStorageShape().GetDimNum())),
+        CUBE_INNER_ERR_REPORT(opName_,
+        "x2scale are expected to be 1-dimensional for perchannel quantization,"
+        " but the current dimensions are [%lu] respectively.",
+        scaleInv1Shape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK((scaleInv2Shape->GetStorageShape().GetDim(0) == args_.nValue)),
+        CUBE_INNER_ERR_REPORT(opName_,
+        "For perchannel quantization, the shape of x2scale is expected to be equal to input n,"
+        " but the current shapes are [%lu] respectively.",
+        scaleInv2Shape->GetStorageShape().GetDim(0)), return ge::GRAPH_FAILED);
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus AllGatherQuantBmmTiling::SetQuantScene()
 {
+    // When the dtype of input is int8, the quant secne is either K-C or T-C quantization.
+    if(args_.geAType == ge::DataType::DT_INT8){
+        auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
+        if(scaleInv1Desc != nullptr){
+            quanMmMode_ = mc2tiling::Mc2QuantMode::PERTOKEN_MODE;
+        } else {
+            quanMmMode_ = mc2tiling::Mc2QuantMode::PERCHANNEL_MODE;
+        }
+        return ge::GRAPH_SUCCESS;
+    }
+
     auto scaleInv1Shape = context_->GetOptionalInputShape(SCALE_INV1);
     auto scaleInv2Shape = context_->GetOptionalInputShape(SCALE_INV2);
     auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
@@ -280,7 +343,7 @@ mc2tiling::Mc2QuantMode AllGatherQuantBmmTiling::GetQuantScene()
 {
     return quantMmMode_;
 }
-
+// TODO: 为什么函数名时check shape，但内容时check dtype; 什么SD
 ge::graphStatus AllGatherQuantBmmTiling::CheckScaleInvShape()
 {
     auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
@@ -298,6 +361,14 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckScaleInvShape()
         OP_LOGI(opName_, "Check perblock scale input!");
         OP_TILING_CHECK(CheckPerBlockScaleInput() == ge::GRAPH_FAILED,
                         CUBE_INNER_ERR_REPORT(opName_, "Check perblock scale input failed"), return ge::GRAPH_FAILED);
+    } else if (quantMmMode_ == mc2tiling::Mc2QuantMode::PERTOKEN_MODE){
+        OP_LOGI(opName_, "Check pertoken scale input!");
+        OP_TILING_CHECK(CheckPerTokenScaleInput() == ge::GRAPH_FAILED,
+                        CUBE_INNER_ERR_REPORT(opName_, "Check pertoken scale input failed"), return ge::GRAPH_FAILED);
+    } else if (quantMmMode_ == mc2tiling::Mc2QuantMode::PERCHANNEL_MODE){
+        OP_LOGI(opName_, "Check perchannel scale input!");
+        OP_TILING_CHECK(CheckPerChannelScaleInput() == ge::GRAPH_FAILED,
+                        CUBE_INNER_ERR_REPORT(opName_, "Check perchannel scale input failed"), return ge::GRAPH_FAILED);
     } else {
         OP_LOGE(opName_, "Quant mode should be pertensor or mxfp or perblock!");
         return ge::GRAPH_FAILED;
@@ -306,12 +377,55 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckScaleInvShape()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus AllGatherQuantBmmTiling::CheckInputValid()
+/**
+* When the dtype of x1 and x2 is int8, 
+* the supported type combinations for x1scale and x2scale are as follows:
+* - (nullprt, int64)
+* - (float32, float32)
+* - (float32, int64)
+*/
+// TODO: 当前未校验shape, setQuantScene之后，checkInput完成
+ge::graphStatus AllGatherQuantBmmTiling::CheckScaleValidInt8()
 {
-    OP_TILING_CHECK((args_.geAType == ge::DataType::DT_HIFLOAT8) && (args_.geAType != args_.geBType),
-                    CUBE_INNER_ERR_REPORT(opName_, "BType must equal AType when AType is hifp8"),
-                    return ge::GRAPH_FAILED);
+    
+    auto scaleInv2Desc = context_->GetOptionalInputDesc(SCALE_INV2);
 
+    OP_TILING_CHECK(
+        (scaleInv2Desc == nullptr),
+        CUBE_INNER_ERR_REPORT(opName_, "Scale2 can't be nullptr when the dtype of x1 and x2 is int8!"),
+        return ge::GRAPH_FAILED);
+    
+    OP_TILING_CHECK(
+        ((scaleInv2Desc->GetDataType() != ge::DataType::DT_FLOAT) && (scaleInv2Desc->GetDataType() != ge::DataType::DT_INT64)),
+        CUBE_INNER_ERR_REPORT(opName_, "The dtype of Scale2 must be float or int64 when the dtype of x1 and x2 is int8!"
+            "but current is %d.", scaleInv1Desc->GetDataType()),
+        return ge::GRAPH_FAILED);
+
+    auto scaleInv2Shape = context_->GetOptionalInputShape(SCALE_INV2);
+
+    OP_TILING_CHECK(
+        (scaleInv1Shape == nullptr) || (scaleInv2Shape == nullptr),
+        CUBE_INNER_ERR_REPORT(opName_, "ScaleInv2Shape can't be nullptr"),
+        return ge::GRAPH_FAILED);
+    
+    auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
+    
+    OP_TILING_CHECK(
+        ((scaleInv1Desc == nullptr) && (scaleInv2Desc->GetDataType() != ge::DataType::DT_INT64)),
+        CUBE_INNER_ERR_REPORT(opName_, "Scale1 can't be nullptr when the dtype of scale2 is not int64!"),
+        return ge::GRAPH_FAILED);
+    
+    OP_TILING_CHECK(
+        ((scaleInv1Desc != nullptr) && (scaleInv1Desc->GetDataType() != ge::DataType::DT_FLOAT)),
+        CUBE_INNER_ERR_REPORT(opName_, "The dtype of Scale1 must be float when the dtype of x1 and x2 is int8!"
+            "but current is %d.", scaleInv1Desc->GetDataType()),
+        return ge::GRAPH_FAILED);
+        
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus AllGatherQuantBmmTiling::CheckScaleValid()
+{
     auto scaleInv1Desc = context_->GetOptionalInputDesc(SCALE_INV1);
     auto scaleInv2Desc = context_->GetOptionalInputDesc(SCALE_INV2);
     OP_TILING_CHECK(
@@ -323,7 +437,7 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckInputValid()
         scaleInv1Desc->GetDataType() != scaleInv2Desc->GetDataType(),
         CUBE_INNER_ERR_REPORT(
             opName_,
-            "The type of scaleInv1Dtype and scaleInv2Dtype should be equal!"
+            "The type of scaleInv1Dtype and scaleInv2Dtype should be equal when scaleInv2Dtype is not int64!"
             "Current scaleInv1Dtype=%s, scaleInv2Dtype=%s.",
             Ops::Base::ToString(scaleInv1Desc->GetDataType()).c_str(), Ops::Base::ToString(scaleInv2Desc->GetDataType()).c_str()),
         return ge::GRAPH_FAILED);
@@ -349,9 +463,35 @@ ge::graphStatus AllGatherQuantBmmTiling::CheckInputValid()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus AllGatherQuantBmmTiling::CheckInputValid()
+{
+    OP_TILING_CHECK(((args_.geAType == ge::DataType::DT_HIFLOAT8) || (args_.geAType == ge::DataType::DT_INT8)) 
+        && (args_.geAType != args_.geBType),
+        CUBE_INNER_ERR_REPORT(opName_, "BType must equal AType when AType is hifp8 or int8,"
+            " but current is AType:%d, BType:%d.",
+            args_.geAType, args_.geBType),
+        return ge::GRAPH_FAILED);
+
+    // TODO: 组合太多，可能存在漏判，还需详细测试
+    if(args_.geAType == ge::DataType::DT_INT8){
+        OP_TILING_CHECK(CheckScaleValidInt8() == ge::GRAPH_FAILED, CUBE_INNER_ERR_REPORT(opName_, "Check scale valid failed!"),
+                    return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(CheckScaleValid() == ge::GRAPH_FAILED, CUBE_INNER_ERR_REPORT(opName_, "Check scale valid failed!"),
+                    return ge::GRAPH_FAILED);
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus AllGatherQuantBmmTiling::CheckBiasInput()
 {
     auto biasShape = context_->GetOptionalInputShape(BIAS);
+    
+    OP_TILING_CHECK((biasDesc != nullptr) && (args_.geAType == ge::DataType::DT_INT8),
+                    CUBE_INNER_ERR_REPORT(opName_, "The bias should be nullptr where the dtype of x1 and x2 is int8!"), 
+                    return ge::GRAPH_FAILED);
+
     OP_TILING_CHECK((quantMmMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE) && (biasShape != nullptr),
                     CUBE_INNER_ERR_REPORT(opName_, "Perblock scene input bias should be nullptr!"),
                     return ge::GRAPH_FAILED);
