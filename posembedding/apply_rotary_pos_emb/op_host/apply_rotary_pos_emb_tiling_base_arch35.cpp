@@ -317,6 +317,7 @@ ge::graphStatus ApplyRotaryPosEmbRegbaseTilingBaseClass::GetShapeAttrsInfo()
         d_ = qShape_.GetDim(DIM_3);
     }
     reald_ = cosShape_.GetDim(DIM_3);
+    isPartialRope_ = (reald_ != d_);
     return ge::GRAPH_SUCCESS;
 }
 } // namespace optiling
