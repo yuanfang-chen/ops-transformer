@@ -106,6 +106,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
 {
     OP_LOGD("PRINT GetCommMode start");
+    OP_LOGD("PRINT hcclHandle START :%p",hcclHandle);
     HcclResult ret;
     uint32_t* netLayers = nullptr;
     ret = HcomGetCommHandleByGroup(groupEp, &hcclHandle);
@@ -114,7 +115,7 @@ aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& net
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcomGetCommHandleByGroup success");
-
+    OP_LOGD("PRINT hcclHandle end :%p",hcclHandle);
     ret = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get NetLayers failed.");
