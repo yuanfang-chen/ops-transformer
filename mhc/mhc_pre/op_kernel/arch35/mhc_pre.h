@@ -94,7 +94,7 @@ static constexpr uint64_t SYNC_C2V1 = 0x3;    // Cube→Vector同步标志1
 // 其他常量
 static constexpr uint32_t parallNum_ = 2;     // 并行数量
 
-using aT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>; // TPosition::TSCM
+using aT = MatmulType<TPosition::TSCM, CubeFormat::ND, float32_t>; // TPosition::TSCM
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
 using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
@@ -106,7 +106,8 @@ public:
     __aicore__ inline void Init(InitParams initParams);
     __aicore__ inline void Process();
     __aicore__ inline void AICProcess();
-    __aicore__ inline void InitLocalBuffers();
+    __aicore__ inline void InitUbBuffers();
+    __aicore__ inline void InitCubeBuffers();
     __aicore__ inline void VectorComputeOffset();
     __aicore__ inline void V0Process(uint32_t curblock, uint32_t tblockNum);
     __aicore__ inline void DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
@@ -180,7 +181,7 @@ private:
     LocalTensor<uint32_t> postOffsetBuf_;
     LocalTensor<uint32_t> resOffsetBuf_;
 
-    // LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
+    LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
 
     TPipe *pipe_;
     MatrixInfo matrixInfo_;
@@ -269,17 +270,30 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     coreIdx_ = GetBlockIdx();
     subBlockIdx_ = GetSubBlockIdx();
 
-    if ASCEND_IS_AIV {
-        InitLocalBuffers();
-    }
+    InitUbBuffers();
+    InitCubeBuffers();
     
-    SyncAll();
+    SyncAll<false>();
 }
 
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::InitCubeBuffers()
+{
+    aL1_ = LocalTensor<P>(TPosition::TSCM, 0, mnConfig_.singleCoreM * mnConfig_.singleCoreK * sizeof(P));
+    
+    if ASCEND_IS_NOT_AIC {
+        return;
+    }
+
+}
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
+__aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
 {
+    if ASCEND_IS_NOT_AIV {
+        return;
+    }
+
     pipe_->InitBuffer(xInQueue_, 2, 20 * 1024); // 20KB
     pipe_->InitBuffer(outQueue_, 2, 20 * 1024); // 32KB
     pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P)); // 1KB
@@ -394,13 +408,9 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess()
 
         uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % parallNum_) * coreNum_);
 
-        // uint64_t computeLen = mnConfig_.curSingleCoreM * mnConfig_.curSingleCoreK;
-        // LocalTensor<P> aL1 = LocalTensor<P>(TPosition::TSCM, 0, computeLen * sizeof(P));
-        // DataCopy(aL1, aL1_, computeLen);
-
         mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK, mnConfig_.k);                       // MNK
         mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK); // SingleCoreMNK
-        mm.SetTensorA(xFloatGm_[xOffset]); // TODO
+        mm.SetTensorA(aL1_); // TODO
         mm.SetTensorB(phiGm_[offsetNd], true);
         mm.IterateAll(mmResGm_[outOffset], offsetNd == 0 ? 0 : 1);
         mm.End();
@@ -934,8 +944,10 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P>
     copyParams.srcStride = uint32_t(0);
     copyParams.dstStride = uint32_t(0);
 
-    uint64_t offset = chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % parallNum_) * coreNum_) + offsetM * curNdLen;
-    DataCopyPad(xFloatGm_[offset], x, copyParams);
+    // uint64_t offset = chunTSize_ * ND_LENGTH * (coreIdx_ + (vectorCount_ % parallNum_) * coreNum_) + offsetM * curNdLen;
+    // DataCopyPad(xFloatGm_[offset], x, copyParams);
+    uint64_t offset = offsetM * curNdLen;
+    DataCopy(aL1_[offset], x, copyParams);
 }
 
 } // namespace MhcPre
