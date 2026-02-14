@@ -53,19 +53,17 @@ using namespace AlltoAllMatmulImpl;
         DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,             \
             AlltoAllKcQuantMatmulTilingData, MC2AlltoAllPrimitives, 0, 1, CommunicationType);                          \
         CommunicationType commImplName(&tilingData);                                                                   \
-        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
-        TransposeType transposeImplName(&pipe);                                                                        \
-        DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, MMDataTypeX1, DynamicQuantType);                               \
-        DynamicQuantType dynamicQuantImplName(&pipe);                                                                  \
+        DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, MMDataTypeX1, TransAndDynamicQuantType);                       \
+        TransAndDynamicQuantType dynamicQuantImplName(&pipe);                                                          \
         DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_QUANT(ComputationContextType);                                \
         DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, MMDataTypeX1, DTYPE_X2);                       \
         ComputationType matmulImplName(&pipe);                                                                         \
         using SchedulerContextType =                                                                                   \
             PipelineContext<ComputationContextType>;                                                                   \
         using SchedulerType =                                                                                          \
-            MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,         \
+            MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransAndDynamicQuantType,                \
                                                            ComputationType, SchedulerContextType>;                     \
-        SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &dynamicQuantImplName, &matmulImplName);        \
+        SchedulerType SchedulerImpl(&commImplName, &dynamicQuantImplName, &matmulImplName);                            \
         AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllKcQuantMatmulTilingData> op(          \
             &SchedulerImpl);                                                                                           \
         op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);         \
