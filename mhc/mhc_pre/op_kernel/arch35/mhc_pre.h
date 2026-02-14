@@ -175,18 +175,12 @@ private:
     LocalTensor<T> xLocal_;
     LocalTensor<P> invRmsUb_;
     LocalTensor<P> gammaUb_;
-    LocalTensor<P> xFp32Ub_;
-    LocalTensor<P> gammaXFp32Ub_;
 
     LocalTensor<uint32_t> preOffsetBuf_;
     LocalTensor<uint32_t> postOffsetBuf_;
     LocalTensor<uint32_t> resOffsetBuf_;
 
-    LocalTensor<P> mulFp32Ub_;
-    LocalTensor<P> sumFp32Ub_;
-    LocalTensor<P> oneUb_;
-
-    LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
+    // LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
 
     TPipe *pipe_;
     MatrixInfo matrixInfo_;
@@ -277,7 +271,6 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
 
     if ASCEND_IS_AIV {
         InitLocalBuffers();
-        Duplicate<float>(oneUb_, 1.0f, curSingleT_ / 2); // 全为1的tensor，用于计算倒数
     }
     
     SyncAll();
@@ -295,6 +288,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
         pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P)); // 1KB
     }
     
+    // TODO: 全改RegBase后可以淘汰掉tmpBuff
     pipe_->InitBuffer(tmpBuff_, 105 * 1024); // 120KB
 
     pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P)); // 1KB
@@ -305,17 +299,6 @@ __aicore__ inline void MhcPreKernel<T, P>::InitLocalBuffers()
     postOffsetBuf_ = preOffsetBuf_[N_ * V1_BASE_T];
     resOffsetBuf_ = postOffsetBuf_[N_ * V1_BASE_T];
     uint64_t buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t);
-    oneUb_ = tmpBuff_.GetWithOffset<P>(uint32_t(curSingleT_ / 2), buffOffset);
-
-    // V0
-    buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
-    mulFp32Ub_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T * ND_LENGTH), buffOffset);
-    buffOffset += V0_BASE_T * ND_LENGTH * sizeof(P);
-    gammaXFp32Ub_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T * ND_LENGTH), buffOffset);
-    buffOffset += V0_BASE_T * ND_LENGTH * sizeof(P);
-    sumFp32Ub_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T), buffOffset);
-    buffOffset += V0_BASE_T * sizeof(P);
-    aL1_ = tmpBuff_.GetWithOffset<P>(uint32_t(V0_BASE_T * ND_LENGTH), buffOffset);
     
     // V1
     buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
@@ -540,7 +523,6 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
     VectorComputeOffset();
 
     uint32_t computeLen = V0_BASE_T * ND_LENGTH;
-    // FIX: 超过ND_LENGTH时会卡死
     for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
         uint32_t curNdLen = ND_LENGTH;
         if (offsetNd + ND_LENGTH >= matrixInfo_.nD) {
@@ -564,7 +546,7 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             xLocal_ = xInQueue_.DeQue<T>();
 
             uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
-            LocalTensor<P> aL1Ub = aL1_; //[aL1Offset]; // FIX
+            LocalTensor<P> aL1Ub = outQueue_.AllocTensor<P>(); // aL1_; //[aL1Offset]; // FIX
 
             if (hasGamma_) {
                 // copy gamma
@@ -588,31 +570,19 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             }
 
             // TODO: DEBUG FOR C0
-            PipeBarrier<PIPE_V>();
+            outQueue_.EnQue<P>(aL1Ub);
+            aL1Ub = outQueue_.DeQue<P>();
             DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
 
             xInQueue_.FreeTensor(xLocal_);
-            // outQueue_.FreeTensor(xFp32Ub_);
+            outQueue_.FreeTensor(aL1Ub);
         }
         
-        CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C);
+        CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C); // TODO：修改UB->L1通路后同步信号也要改
         vectorCount_++;
     }
 
     VFDoV0ProcessInvRms((__ubuf__ P *)invRmsUb_.GetPhyAddr(), vectorOffset_.singleCoreM, scaleMean_, matrixInfo_.normEps);
-    PipeBarrier<PIPE_V>();
-
-    // PipeBarrier<PIPE_V>();
-    // Muls(invRmsUb_, invRmsUb_, scaleMean_, vectorOffset_.singleCoreM);
-    // PipeBarrier<PIPE_V>();
-
-    // Adds(invRmsUb_, invRmsUb_, matrixInfo_.normEps, vectorOffset_.singleCoreM);
-    // PipeBarrier<PIPE_V>();
-
-    // Sqrt(invRmsUb_, invRmsUb_, vectorOffset_.singleCoreM);
-    // PipeBarrier<PIPE_V>();
-    // Div(invRmsUb_, oneUb_, invRmsUb_, vectorOffset_.singleCoreM);
-    // PipeBarrier<PIPE_V>();
 
     DataCopyOutInvRmsUb(vectorOffset_.singleCoreM, vectorOffset_.offsetMStart);
 }
