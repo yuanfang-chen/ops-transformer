@@ -42,6 +42,7 @@ constexpr uint64_t WIN_STATE_OFFSET = 512 * 1024;  // 状态区的偏移(A区域
 constexpr uint64_t STATE_WIN_OFFSET = 900 * 1024;  // flag标记位的偏移
 constexpr uint64_t CYCLES_PER_US = 50UL;
 
+
 #define TemplateDistributeBarrierTypeClass typename XType
 #define TemplateDistributeBarrierTypeFunc XType
 
