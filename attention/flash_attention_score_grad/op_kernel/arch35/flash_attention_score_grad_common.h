@@ -42,6 +42,9 @@ constexpr uint32_t BASE_SWIZZLE_BLOCK_NUM = 8;
 
 // shift left by three bits
 constexpr uint8_t kShiftToMultiplyByEight = 3;
+constexpr uint32_t M_SWIZZLE_SIZE = 32768;
+constexpr uint32_t N_SWIZZLE_SIZE = 32768;
+constexpr uint32_t SWIZZLE_CONTINUOUS_BLOCK_NUM = 16;
  
 template <typename T, bool IS_WRITE_UB>
 struct DqkvResPos {
