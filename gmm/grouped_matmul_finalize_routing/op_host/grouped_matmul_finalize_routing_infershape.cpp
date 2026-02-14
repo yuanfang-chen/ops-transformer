@@ -129,7 +129,7 @@ static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context,cons
 {
     params.m = params.shape_x1->GetDim(xIndex);
     params.k = params.shape_x1->GetDim(wIndex);
-    params.n = params.shape_x2->GetDim(2);
+    params.n = params.weightTrans ? params.shape_x2->GetDim(DIM_ONE) : params.shape_x2->GetDim(DIM_TWO);
     params.e = params.shape_x2->GetDim(xIndex);
     return ge::GRAPH_SUCCESS;
 }
@@ -248,12 +248,14 @@ static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& b
     
     shape_out->SetDimNum(twoDimNum);
     const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
-    
     if (output_bs != nullptr) {
         shape_out->SetDim(0, *output_bs);
     }
     auto x2_dim = xAndWParams.shape_x2->GetDimNum();
-    shape_out->SetDim(1, xAndWParams.shape_x2->GetDim(x2_dim - 1));
+    OP_LOGI(op_name, "wtrans is %ld", xAndWParams.weightTrans);
+    shape_out->SetDim(DIM_ONE, xAndWParams.weightTrans ? 
+                              xAndWParams.shape_x2->GetDim(DIM_ONE) : 
+                              xAndWParams.shape_x2->GetDim(DIM_TWO)); // 如果非转置，n为最后一维，如果转置，n为倒数第二维。
     OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(DIM_ZERO), shape_out->GetDim(DIM_ONE));
     return ge::GRAPH_SUCCESS;
 }
