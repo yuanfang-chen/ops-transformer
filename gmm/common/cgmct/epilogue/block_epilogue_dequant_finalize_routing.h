@@ -310,7 +310,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     __VEC_SCOPE__
     {
         AscendC::MicroAPI::MaskReg maskN4B16 =
-            AscendC::MicroAPI::CreateMask<DataTypeX2Scale, AscendC::MicroAPI::MaskPattern::ALL>();
+            AscendC::MicroAPI::CreateMask<bfloat16_t, AscendC::MicroAPI::MaskPattern::ALL>();
         for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
             uint32_t elementNum = nSize;
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {
@@ -375,7 +375,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     __VEC_SCOPE__
     {
         AscendC::MicroAPI::MaskReg maskN4B16 =
-            AscendC::MicroAPI::CreateMask<DataTypeX2Scale, AscendC::MicroAPI::MaskPattern::ALL>();
+            AscendC::MicroAPI::CreateMask<bfloat16_t, AscendC::MicroAPI::MaskPattern::ALL>();
         for (uint16_t mIdx = 0; mIdx < mSize; mIdx++) {
             uint32_t elementNum = nSize;
             for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; vfBlockIdx++) {

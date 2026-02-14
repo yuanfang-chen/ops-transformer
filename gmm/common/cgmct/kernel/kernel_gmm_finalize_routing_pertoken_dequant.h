@@ -108,7 +108,6 @@ public:
     using AType = typename BlockMmadBuilder::AType;
     using BType = typename BlockMmadBuilder::BType;
     using CType = typename BlockMmadBuilder::CType;
-    using BiasType = typename BlockMmadBuilder::BiasType;
     using TupleShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>;
     using BlockShape = AscendC::Shape<int64_t, int64_t, int64_t, int64_t>;
     using BlockCoord = AscendC::Coord<int64_t, int64_t, int64_t, int64_t>;
@@ -122,7 +121,6 @@ public:
 
     AscendC::GlobalTensor<AType> aGlobal_;
     AscendC::GlobalTensor<BType> bGlobal_;
-    AscendC::GlobalTensor<BiasType> biasGlobal_;
     AscendC::GlobalTensor<int64_t> groupListGm_;
     // shape
     TupleShape problemShape_{};
@@ -251,8 +249,6 @@ public:
         Get<IDX_X1SCALE_OFFSETS>(baseOffset_) += m;
         // scaleBAxisBaseOffset = gi * n
         Get<IDX_X2SCALE_OFFSETS>(baseOffset_) = groupIdx * n;
-        // yBaseOffset += (m * n) >> 1
-        Get<IDX_C_OFFSETS>(baseOffset_) += m * n;
         Get<IDX_LOGIT_OFFSETS>(baseOffset_) += m;
     }
 
@@ -335,14 +331,6 @@ public:
         InitParamsAndTensor(params);
         BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
         SyncAll<false>();
-        // if ASCEND_IS_AIV
-        // {
-        //     AscendC::CrossCoreSetFlag<SYNC_AIC_AIV_MODES, PIPE_MTE3>(AIV_SYNC_AIC_FLAGS);
-        // }
-        // if ASCEND_IS_AIC
-        // {
-        //     WaitForVector();
-        // }
         if ASCEND_IS_AIV
         {
             epilogueDequantOp_.Init(params.epilogueParams);
@@ -350,7 +338,7 @@ public:
         uint32_t groupNum = params.gmmParams.groupNum;
         if constexpr (formatB == CubeFormat::ZN) {
  	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN);
- 	    } else if (formatB == CubeFormat::NZ) {
+ 	    } else if constexpr (formatB == CubeFormat::NZ) {
  	        bs.SetTailAlign(1, MATMUL_MNK_ALIGN_INT8);
  	    }
         for (uint32_t groupIdx = 0; groupIdx < groupNum; groupIdx++) {

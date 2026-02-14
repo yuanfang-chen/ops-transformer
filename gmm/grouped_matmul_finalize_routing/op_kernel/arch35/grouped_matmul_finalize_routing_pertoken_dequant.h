@@ -46,7 +46,7 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
     using LayoutB = layoutB;
     using LayoutC = layout::RowMajorAlign;
     using weightscaleType = DTYPE_SCALE;
-    using BiasType = DTYPE_BIAS; 
+    using BiasType = bfloat16_t; 
     using LayoutBias = layout::RowMajor;
     using C1Type = std::conditional_t<std::is_same_v<AType, int8_t>, int32_t, float>; // matmul output dtype
     using xscaleType = float;
