@@ -69,22 +69,22 @@ private:
         const uint32_t currSNum);
     __aicore__ inline void CopyInHalfMode(
         LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams);
+        const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams);
     __aicore__ inline void CopyOutHalfMode(
         LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum);
+        const uint32_t blockCount, const uint32_t blockLen);
     __aicore__ inline void CopyInInterleaveMode(
         LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams);
+        const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams);
     __aicore__ inline void CopyOutInterleaveMode(
         LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum);
+        const uint32_t blockCount, const uint32_t blockLen);
     __aicore__ inline void CopyInQuarterMode(
         LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams);
+        const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams);
     __aicore__ inline void CopyOutQuarterMode(
         LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-        const uint32_t currSNum, const uint32_t currDNum);
+        const uint32_t blockCount, const uint32_t blockLen);
 };
 
 template <typename T>
@@ -186,11 +186,11 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessQN(
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         if (tilingData_->isPartialRope) {
             if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-                CopyInHalfMode(qTensor, qGm_, offset, currSNum, currDNum, padParams);
+                CopyInHalfMode(qTensor, qGm_, offset, currSNum * currDNum, dSplitSize_, padParams);
             } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
-                CopyInQuarterMode(qTensor, qGm_, offset, currSNum, currDNum, padParams);
+                CopyInQuarterMode(qTensor, qGm_, offset, currSNum * currDNum, dSplitSize_, padParams);
             } else {
-                CopyInInterleaveMode(qTensor, qGm_, offset, currSNum, currDNum, padParams);
+                CopyInInterleaveMode(qTensor, qGm_, offset, currSNum * currDNum, dSplitSize_, padParams);
             }
         } else {
             DataCopyExtParams copyParams;
@@ -223,11 +223,11 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessQN(
 
         if (tilingData_->isPartialRope) {
             if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-                CopyOutHalfMode(qOutTensor, qOutGm_, offset, currSNum, currDNum);
+                CopyOutHalfMode(qOutTensor, qOutGm_, offset, currSNum * currDNum, dSplitSize_);
             } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
-                CopyOutQuarterMode(qOutTensor, qOutGm_, offset, currSNum, currDNum);
+                CopyOutQuarterMode(qOutTensor, qOutGm_, offset, currSNum * currDNum, dSplitSize_);
             } else {
-                CopyOutInterleaveMode(qOutTensor, qOutGm_, offset, currSNum, currDNum);
+                CopyOutInterleaveMode(qOutTensor, qOutGm_, offset, currSNum * currDNum, dSplitSize_);
             }
         } else {
             DataCopyExtParams copyOutParams;
@@ -270,11 +270,11 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessKN(
         DataCopyPadExtParams<T> padParams{false, 0, 0, 0};
         if (tilingData_->isPartialRope) {
             if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-                CopyInHalfMode(kTensor, kGm_, offset, currSNum, currDNum, padParams);
+                CopyInHalfMode(kTensor, kGm_, offset, currSNum * currDNum, dSplitSize_, padParams);  
             } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
-                CopyInQuarterMode(kTensor, kGm_, offset, currSNum, currDNum, padParams);
+                CopyInQuarterMode(kTensor, kGm_, offset, currSNum * currDNum, dSplitSize_, padParams);
             } else {
-                CopyInInterleaveMode(kTensor, kGm_, offset, currSNum, currDNum, padParams);
+                CopyInInterleaveMode(kTensor, kGm_, offset, currSNum * currDNum, dSplitSize_, padParams);
             }
         } else {
             DataCopyExtParams copyParams;
@@ -295,11 +295,11 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessKN(
 
          if (tilingData_->isPartialRope) {
             if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::HALF)) {
-                CopyOutHalfMode(kOutTensor, kOutGm_, offset, currSNum, currDNum);
+                CopyOutHalfMode(kOutTensor, kOutGm_, offset, currSNum * currDNum, dSplitSize_);
             } else if (tilingData_->rotaryMode == static_cast<int64_t>(ApplyRotaryPosEmbRotaryMode::QUARTER)) {
-                CopyOutQuarterMode(kOutTensor, kOutGm_, offset, currSNum, currDNum);
+                CopyOutQuarterMode(kOutTensor, kOutGm_, offset, currSNum * currDNum, dSplitSize_);
             } else {
-                CopyOutInterleaveMode(kOutTensor, kOutGm_, offset, currSNum, currDNum);
+                CopyOutInterleaveMode(kOutTensor, kOutGm_, offset, currSNum * currDNum, dSplitSize_);
             }
         } else {
             DataCopyExtParams copyOutParams;
@@ -317,19 +317,19 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessKN(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInHalfMode(
     LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams)
+    const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyInHalfMode Begin");
     }
 
     DataCopyExtParams copyParams;
-    copyParams.blockCount = currSNum * currDNum;
-    copyParams.blockLen = dSplitSize_;
+    copyParams.blockCount = blockCount;
+    copyParams.blockLen = blockLen;
     int64_t srcStride = tilingData_->D - tilingData_->realDim / dSplitCoef_;
     copyParams.srcStride = srcStride * sizeof(T);
     int64_t dstStride = Ops::Base::CeilAlign<int64_t>(tilingData_->realDim / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T));
-    copyParams.dstStride = dstStride * sizeof(T) / BLOCK_TYPE_SIZE; // 单位为Block
+    copyParams.dstStride = dstStride * sizeof(T) / BLOCK_TYPE_SIZE;
     DataCopyPad(inTensor, gmTensor[offset], copyParams, padParams);
     DataCopyPad(inTensor[dstStride], gmTensor[offset + tilingData_->realDim / dSplitCoef_], copyParams, padParams);
 }
@@ -337,16 +337,16 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInHalfMode(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyOutHalfMode(
     LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum)
+    const uint32_t blockCount, const uint32_t blockLen)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyOutHalfMode Begin");
     }
     DataCopyExtParams copyOutParams;
-    copyOutParams.blockCount = currSNum * currDNum;
-    copyOutParams.blockLen = dSplitSize_;
+    copyOutParams.blockCount = blockCount;
+    copyOutParams.blockLen = blockLen;
     int64_t srcStride = Ops::Base::CeilAlign<int64_t>(tilingData_->realDim / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T));
-    copyOutParams.srcStride = srcStride * sizeof(T) / BLOCK_TYPE_SIZE; // 单位为Block
+    copyOutParams.srcStride = srcStride * sizeof(T) / BLOCK_TYPE_SIZE;
     int64_t dstStride = tilingData_->D - tilingData_->realDim / dSplitCoef_;
     copyOutParams.dstStride = dstStride * sizeof(T);
     DataCopyPad(gmTensor[offset], outTensor, copyOutParams);
@@ -356,14 +356,14 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyOutHalfMode(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInInterleaveMode(
     LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams)
+    const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyInInterleaveMode Begin");
     }
     DataCopyExtParams copyParams;
-    copyParams.blockCount = currSNum * currDNum * dSplitCoef_;
-    copyParams.blockLen = dSplitSize_;
+    copyParams.blockCount = blockCount;
+    copyParams.blockLen = blockLen;
     copyParams.srcStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
     copyParams.dstStride = 0;
     DataCopyPad(inTensor, gmTensor[offset], copyParams, padParams);
@@ -372,14 +372,14 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInInterleaveMode(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyOutInterleaveMode(
     LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum)
+    const uint32_t blockCount, const uint32_t blockLen)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyOutInterleaveMode Begin");
     }
     DataCopyExtParams copyOutParams;
-    copyOutParams.blockCount = currSNum * currDNum * dSplitCoef_;
-    copyOutParams.blockLen = dSplitSize_;
+    copyOutParams.blockCount = blockCount;
+    copyOutParams.blockLen = blockLen;
     copyOutParams.srcStride = 0;
     copyOutParams.dstStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
     DataCopyPad(gmTensor[offset], outTensor, copyOutParams);
@@ -388,17 +388,17 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyOutInterleaveMode(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInQuarterMode(
     LocalTensor<T>& inTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum, const DataCopyPadExtParams<T>& padParams)
+    const uint32_t blockCount, const uint32_t blockLen, const DataCopyPadExtParams<T>& padParams)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyInQuarterMode Begin");
     }
     DataCopyExtParams copyParams;
-    copyParams.blockCount = currSNum * currDNum;
-    copyParams.blockLen = dSplitSize_;
+    copyParams.blockCount = blockCount;
+    copyParams.blockLen = blockLen;
     copyParams.srcStride = (tilingData_->D - tilingData_->realDim / dSplitCoef_) * sizeof(T);
     int64_t dstStride = Ops::Base::CeilAlign<int64_t>(tilingData_->realDim / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T));
-    copyParams.dstStride = dstStride * sizeof(T) / BLOCK_TYPE_SIZE; // 单位为Block
+    copyParams.dstStride = dstStride *(dSplitCoef_ - 1) * sizeof(T) / BLOCK_TYPE_SIZE;
     DataCopyPad(inTensor, gmTensor[offset], copyParams, padParams);
     DataCopyPad(inTensor[dstStride], gmTensor[offset + tilingData_->realDim / dSplitCoef_], copyParams, padParams);
     DataCopyPad(inTensor[dstStride * 2], gmTensor[offset + tilingData_->realDim / dSplitCoef_ * 2], copyParams, padParams);
@@ -408,16 +408,16 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyInQuarterMode(
 template <typename T>
 __aicore__ inline void ApplyRotaryPosEmbBAB<T>::CopyOutQuarterMode(
     LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
-    const uint32_t currSNum, const uint32_t currDNum)
+    const uint32_t blockCount, const uint32_t blockLen)
 {
     if (GetBlockIdx() == 0) {
         printf("CopyOutQuarterMode Begin");
     }
     DataCopyExtParams copyOutParams;
-    copyOutParams.blockCount = currSNum * currDNum;
-    copyOutParams.blockLen = dSplitSize_;
+    copyOutParams.blockCount = blockCount;
+    copyOutParams.blockLen = blockLen;
     int64_t srcStride = Ops::Base::CeilAlign<int64_t>(tilingData_->realDim / dSplitCoef_, BLOCK_TYPE_SIZE / sizeof(T));
-    copyOutParams.srcStride = srcStride * sizeof(T) / BLOCK_TYPE_SIZE; // 单位为Block
+    copyOutParams.srcStride = srcStride * (dSplitCoef_ - 1) * sizeof(T) / BLOCK_TYPE_SIZE;
     copyOutParams.dstStride = (tilingData_->D - tilingData_->realDim / dSplitCoef_) * sizeof(T);
     DataCopyPad(gmTensor[offset], outTensor, copyOutParams);
     DataCopyPad(gmTensor[offset + tilingData_->realDim / dSplitCoef_], outTensor[srcStride], copyOutParams);
