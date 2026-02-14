@@ -298,7 +298,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     tpipe_->InitBuffer(dynamicScaleBuf_, rowNumSize);
     dynamicScaleLocalTensor_ = dynamicScaleBuf_.Get<float>();
 
-    int32_t gmOffset = 0;
+    int32_t gmOffset = startRowId * axisKa_;
     int32_t elementCount = axisKaAlignSize_ / sizeof(X1Type);
     for (int32_t rowIdx = startRowId; rowIdx < endRowId; ++rowIdx) {
         Add2RmsNormCompute(gmOffset, elementCount);
