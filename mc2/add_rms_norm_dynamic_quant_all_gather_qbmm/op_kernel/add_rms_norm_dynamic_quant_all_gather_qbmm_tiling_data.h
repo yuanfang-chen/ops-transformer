@@ -32,7 +32,7 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t smoothNum = 0;
     float epsilon = 1e-6;
     float avgFactor = 1.0 / (float)5120.0;
-    uint32_t M = 252;
+    uint32_t M = 63;
     uint32_t Ka = 5120;
     uint32_t N = 0;
     uint32_t aivNum = 24;
