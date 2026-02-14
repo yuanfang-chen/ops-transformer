@@ -864,9 +864,9 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     auto matmulRet = l0op::GroupedMatmulFinalizeRouting(reformatedX1, params2.x2, params2.scale, reformatedBias,
         reformatedPertokenScaleOptional, reformatedGroupList, reformatedShareInput, reformatedLogit, reformatedRowIndex,
         reformatedOffset, 0, params.shareInputWeight, params.shareInputOffset, params.transposeX1, params.transposeX2, outputBS, params.groupListType, params.tuningConfig, executor);
-    // zzz test
-    // ret = PostMatmulCalcProcess(matmulRet, params, executor);
-    // CHECK_RET(ret == ACLNN_SUCCESS, ret);
+    // zzz  问题高度怀疑点
+    ret = PostMatmulCalcProcess(matmulRet, params, executor);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
     return ACLNN_SUCCESS;
 }
 }
