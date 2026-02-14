@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_v3_gather_hif8_pertoken_quant.h
+ * \file moe_v3_gather_hifi8_pertoken_quant.h
  * \brief
  */
 #ifndef MOE_V3_GATHER_HIF8_PERTOKEN_QUANT_H_REGBASE
