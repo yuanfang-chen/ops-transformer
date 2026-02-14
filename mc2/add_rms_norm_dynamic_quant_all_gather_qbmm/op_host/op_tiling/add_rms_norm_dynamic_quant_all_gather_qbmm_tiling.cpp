@@ -156,16 +156,9 @@ ge::graphStatus CheckAttrs(const gert::TilingContext *context)
     // transpose校验
     const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
     OP_TILING_CHECK(transposeX2Ptr == nullptr, OP_LOGE(nodeName, "transposeX2Ptr is nullptr."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(*transposeX2Ptr,
-        OP_LOGE(nodeName, "transposeX2 should be false."), return ge::GRAPH_FAILED);
     // 输出type校验
     const int64_t *outputTypePtr = attrs->GetAttrPointer<int64_t>(DTYPE_INDEX);
     OP_TILING_CHECK(outputTypePtr == nullptr, OP_LOGE(nodeName, "outputTypePtr is nullptr."), return ge::GRAPH_FAILED);
-    ge::DataType outputType = static_cast<ge::DataType>(*outputTypePtr);
-    OP_TILING_CHECK(outputType != ge::DT_INT32,
-                    OP_LOGE(nodeName, "outPutType should be int, but actual value is %s.",
-                            Ops::Base::ToString(outputType).c_str()),
-                    return ge::GRAPH_FAILED);
     // residual_norm_mode校验
     const float *residualNormModePtr = attrs->GetAttrPointer<float>(RESIDUAL_NORM_MODE_INDEX);
     OP_TILING_CHECK(residualNormModePtr == nullptr, OP_LOGE(nodeName, "residualNormModePtr is nullptr."), return ge::GRAPH_FAILED);
