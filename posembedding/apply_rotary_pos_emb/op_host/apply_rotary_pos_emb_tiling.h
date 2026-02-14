@@ -209,6 +209,7 @@ protected:
     int64_t blockSize_;
     int64_t vLength_;
     int64_t reald_;
+    bool isPartialRope_ = false;
 
 private:
     ge::graphStatus CheckNullptr();

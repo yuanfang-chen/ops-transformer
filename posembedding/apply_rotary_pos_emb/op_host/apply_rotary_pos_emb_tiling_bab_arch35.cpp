@@ -77,7 +77,6 @@ private:
     int64_t ubTailFactorKN_ = 0; // 最后一次循环处理多少KN
     int64_t ubSize_ = 0;
     uint64_t tilingKey_ = 0;
-    bool isPartialRope_ = false;
 
     void SplitCore();
     ge::graphStatus SplitUb();
@@ -89,7 +88,6 @@ ge::graphStatus ApplyRotaryPosEmbTilingBAB::DoOpTiling()
 {
     ubSize_ = aicoreParams_.ubSize;
     coreNum_ = aicoreParams_.blockDim;
-    isPartialRope_ = (reald_ != d_);
     ge::graphStatus status = SplitUb();
     if (status != ge::GRAPH_SUCCESS) {
         OP_LOGE(context_->GetNodeName(), "SplitUb Failed.");
