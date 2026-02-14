@@ -111,7 +111,7 @@ private:
     }
 
 public:
-    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum)
+    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum, uint32_t aivNum)
     {
         curRankId_ = rankId;
         // Get Hccl Buffer Size
@@ -148,8 +148,10 @@ public:
             uint32_t targetRank = curRankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i;
             shareAddrs[i] = GetWindowsInAddr(targetRank);
         }
+        windowInGM_ = GetWindowsInAddr(curRankId_);
+        combineShareFlagSize_ = RoundUp(static_cast<uint32_t>((maxBs + aivNum / serverNum_ + 1U) * sizeof(uint64_t)), UB_32B_ALIGN);
+        combineShareFlagAddrStart_ = IPC_DISPATCH_FLAG_OFFSET + ipcCombineSyncFlagAddrStart_ - combineShareFlagSize_ * serverNum_;
     }
-
     __aicore__ inline void UpdateBufferId()
     {
         bufferChosenGlobal_(0) = bufferId_ ^ 1;
@@ -195,6 +197,16 @@ public:
     }
 
     // Combine专用
+    __aicore__ inline GM_ADDR GetSelfRdmaDataAddrIn(uint32_t serverId) const
+    {
+        return windowInGM_ + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
+    }
+
+    __aicore__ inline GM_ADDR GetIpcTokenFlagAddr(uint32_t serverId) const
+    {
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + combineShareFlagAddrStart_ + (serverId + 1) * combineShareFlagSize_;
+    }
+
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
     {
         return GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_ + serverId * serverSizeOnRdmaData_;
@@ -260,7 +272,10 @@ private:
     uint64_t rdmaInnerFlagAddrStart_{0UL};
     uint64_t rdmaInnerDataAddrStart_{0UL};
     uint64_t innerTableSize_{0UL};
+    uint64_t combineShareFlagSize_{0UL};
+    uint64_t combineShareFlagAddrStart_{0UL};
     GM_ADDR shareAddrs[8];
+    GM_ADDR windowInGM_;
     __gm__ uint8_t *hcclContext_;
 };
 } // MoeDistributeA2Base
