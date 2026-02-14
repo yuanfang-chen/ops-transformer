@@ -151,7 +151,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <td>输入</td>
       <td>代表量化参数中的缩放因子。</td>
       <td>一般情况下，长度与weight相同。</td>
-      <td>UINT64</td>
+      <td>UINT64、INT64</td>
       <td>ND</td>
       <td>-</td>
       <td>-</td>
@@ -258,13 +258,13 @@ aclnnStatus aclnnGroupedMatmulV3(
     - y支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - 输入参数x、weight，输出参数y支持最多128个tensor。
   - <term>Ascend 950PR/Ascend 950DT</term>：
-    - x支持FLOAT16、BFLOAT16、FLOAT32
+    - x支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - biasOptional支持FLOAT16、BFLOAT16、FLOAT32
-    - y支持FLOAT16、BFLOAT16、FLOAT32
+    - y支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - 不支持scaleOptional、offsetOptional
     - groupType支持m轴分组和不分组，仅非量化支持k轴分组。
-    - 输入参数x、weight，输出参数y在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor。
+    - 输入参数x、weight，输出参数y在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor，在量化场景支持最多1个tensor。
 
 - **返回值：**
 
