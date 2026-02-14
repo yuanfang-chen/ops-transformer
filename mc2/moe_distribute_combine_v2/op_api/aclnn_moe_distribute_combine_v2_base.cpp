@@ -348,7 +348,7 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     uint32_t world;
     uint32_t netLayerNum = 0;
     Mc2TopoType topoType;
-    aclnnStatus res = GetNetAndTopo(groupEp, epRankId, hcclHandle, rank, world, netLayerNum, topoType);
+    aclnnStatus res = GetNetAndTopo(groupEp, epRankId, &hcclHandle, rank, world, netLayerNum, topoType);
     CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("[aclnn-1] commAlg: %s", commAlg);
     aclnnStatus getWorkspaceSizesRes;
