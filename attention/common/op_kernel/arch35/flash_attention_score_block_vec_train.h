@@ -61,9 +61,14 @@ public:
     __aicore__ inline void GenerateDropoutMask(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<uint8_t> &dropMaskUb);
     __aicore__ inline void SoftmaxDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb,
                                               LocalTensor<float> &maxUb);
+    __aicore__ inline void SoftmaxDataCopyOutFp8(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<half> &sumUb,
+                                              LocalTensor<half> &maxUb);
     template <typename VEC2_RES_T>
     __aicore__ inline void CopyOutAttentionOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb,
                                                int64_t vec2S1Idx, int64_t vec2CalcSize);
+    __aicore__ inline void ProcessVec1Nz(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
+        Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo,
+        ConstInfo<isInfer, hasRope> &constInfo) {}
 private:
 };
 
@@ -124,6 +129,7 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.s2Size = inputParamsRegbase.s2Size;
     sharedParams.dSize = inputParamsRegbase.dSize;
     sharedParams.dSizeV = inputParamsRegbase.dSizeV;
+    sharedParams.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
     if constexpr (hasRope) {
         sharedParams.dSizeRope = inputParamsRegbase.dSizeRope;
     } else {
@@ -232,6 +238,32 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
     int64_t gmOffset = (bOffset + n2Offset + gOffset + s1Offset) * fp32BaseSize;
     int64_t calculateSize = runInfo.halfS1RealSize * fp32BaseSize;
 
+    this->BroadCastAndCopyOut(runInfo, softmaxSumGm, softmaxMaxGm, gmOffset, calculateSize);
+}
+
+TEMPLATES_DEF_NO_DEFAULT
+__aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::SoftmaxDataCopyOutFp8(
+    RunInfo<isInfer> & runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<half> & sumUb, LocalTensor<half> & maxUb)
+{
+    if (unlikely(runInfo.halfS1RealSize == 0)) {
+        return;
+    }
+    int64_t bOffset;
+    int64_t n2Offset;
+    int64_t gOffset;
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
+        bOffset = constInfo.n2G * runInfo.s1SizeAcc;
+        n2Offset = runInfo.n2oIdx * constInfo.gSize * runInfo.actualS1Size;
+        gOffset = runInfo.goIdx * runInfo.actualS1Size;
+    } else {
+        bOffset = runInfo.boIdx * constInfo.n2Size * constInfo.gS1;
+        n2Offset = runInfo.n2oIdx * constInfo.gS1;
+        gOffset = runInfo.goIdx * constInfo.s1Size;
+    }
+    int64_t s1Offset =
+        (runInfo.s1oIdx * this->s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize);
+    int64_t gmOffset = (bOffset + n2Offset + gOffset + s1Offset);
+    int64_t calculateSize = runInfo.halfS1RealSize;
     this->BroadCastAndCopyOut(runInfo, softmaxSumGm, softmaxMaxGm, gmOffset, calculateSize);
 }
 
