@@ -333,8 +333,8 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyInQOrK(
     } else {
         DataCopyExtParams copyExtParams;
         copyExtParams.blockCount = sLength * dSplitCoef_;
-        copyExtParams.blockLen = blockLen;
-        copyExtParams.srcStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
+        copyExtParams.blockLen = D_ * sizeof(T) / dSplitCoef_;
+        copyExtParams.srcStride = 0;
         copyExtParams.dstStride = 0;
         DataCopyPad(target, source[offset], copyExtParams, copyPadExtparams);
     }
@@ -372,9 +372,9 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::CopyOutQOrK(
     } else {
         DataCopyExtParams copyExtParams;
         copyExtParams.blockCount = sLength * dSplitCoef_;
-        copyExtParams.blockLen = tilingData_->realDim * sizeof(T) / dSplitCoef_;
+        copyExtParams.blockLen = D_ * sizeof(T) / dSplitCoef_;
         copyExtParams.srcStride = 0;
-        copyExtParams.dstStride = static_cast<uint32_t>((tilingData_->D - tilingData_->realDim) * sizeof(T));
+        copyExtParams.dstStride = 0;
         DataCopyPad(target[bStart * nTotalSize * tilingData_->S * D_ + nStart * tilingData_->S * D_ + sStart * D_],
                     source, copyExtParams);
     }
