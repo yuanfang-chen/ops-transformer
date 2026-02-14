@@ -372,8 +372,6 @@ namespace RainFusion {
                 uint32_t kvSLoopNumTotal = (noSkipKvS + pagedBlockSize - 1) / pagedBlockSize; // CeilDiv
 
                 uint32_t blockStackNum = MAX_KV_STACK_LEN / pagedBlockSize;
-                AscendC::printf("tkd pagedBlockSize: %u\n", pagedBlockSize);
-                AscendC::printf("tkd blockStackNum: %u\n", blockStackNum);
                 uint32_t stackSeqTile;
                 uint32_t stackSeqTilePad = blockStackNum * pagedBlockSize;
                 uint32_t preKVNum = PRE_LAUNCH * blockStackNum;
@@ -404,9 +402,7 @@ namespace RainFusion {
                     // Stage 1: QK matmul (computed on CUBE core)
                     if (kvSIdx < kvSLoopNumTotal) {
                         stackSeqTile = noSkipKvS - kvSIdx * pagedBlockSize;
-                        AscendC::printf("tkd stackSeqTile: %u\n", stackSeqTile);
                         if (stackSeqTile >= pagedBlockSize * blockStackNum) {
-                            AscendC::printf("tkd if (stackSeqTile >= pagedBlockSize * blockStackNum)\n");
                             stackSeqTile = pagedBlockSize * blockStackNum;
                         }
                         AscendC::printf("tkd final stackSeqTile: %u\n", stackSeqTile);
