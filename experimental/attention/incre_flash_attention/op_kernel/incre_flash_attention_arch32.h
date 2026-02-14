@@ -34,11 +34,12 @@
 
 
 #define COPY_TILING_DATA_ALL(tiling)                                                                                   \
-    GET_TILING_DATA_MEMBER(IncreFlashAttentionTilingDataV2, tilingBase, tiling_data_in, tiling);                       \
-    const IncreFlashAttentionTilingData *__restrict tiling_data = &tiling_data_in;                                     \
+    GET_TILING_DATA_MEMBER(optiling::IncreFlashAttentionTilingDataV2, tilingBase, tiling_data_in, tiling);                       \
+    const optiling::IncreFlashAttentionTilingData *__restrict tiling_data = &tiling_data_in;                                     \
     const TCubeTiling *__restrict bmm1tiling = nullptr;                                                                \
     const TCubeTiling *__restrict bmm2tiling = nullptr
 
+template <uint8_t FLASH_DECODE, uint8_t LAYOUT_T, uint8_t ANTIQUANT_MODE>
 inline __aicore__ void incre_flash_attention_FIAS_arch32(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *pseShift, __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ,
@@ -52,71 +53,17 @@ inline __aicore__ void incre_flash_attention_FIAS_arch32(
     __gm__ uint8_t *dequantScaleQuery, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
-    printf("ddddd\n");
+    REGISTER_TILING_DEFAULT(optiling::IncreFlashAttentionTilingDataV2);
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe tPipe;
-
-    /*
-    获取Op可用WorkSpace空间
-    **/
     __gm__ uint8_t *user = GetUserWorkspace(workspace);
-#if (__CCE_AICORE__ > 200)
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-#endif
-
 
 #if (__CCE_AICORE__ > 200) // new template
 
 #if (ORIG_DTYPE_QUERY == DT_BF16) && (ORIG_DTYPE_ATTENTION_OUT == DT_BF16) && (ORIG_DTYPE_KEY == DT_INT8)
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_BSH_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_TND_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_BSH_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_TND_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_BSH_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_TND_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_PAGEDCACHE_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_BSH_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_TND_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    TILING_KEY_IS(QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_PAGEDCACHE_FLASHDECODING_PREDD_TILING);
-    #if TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_PAGEDCACHE_PREDD_TILING
         INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t,
-                                    bfloat16_t, true, false, LAYOUT::BNSD, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_BSH_PAGEDCACHE_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t,
-                                bfloat16_t, true, false, LAYOUT::BSH, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_TND_PAGEDCACHE_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t,
-                                bfloat16_t, true, false, LAYOUT::TND, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::BNSD, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_BSH_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::BSH, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERCHANNEL_TND_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::TND, false, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_PAGEDCACHE_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, false, LAYOUT::BNSD, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_BSH_PAGEDCACHE_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, false, LAYOUT::BSH, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_TND_PAGEDCACHE_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, false, LAYOUT::TND, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::BNSD, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_BSH_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::BSH, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #elif TILING_KEY_VAR == QBF16_KVINT8_OUTBF16_ANTIPERTOKEN_TND_PAGEDCACHE_FLASHDECODING_PREDD_TILING
-        INVOKE_IFA_NO_KFC_DD_OP_IMPL(IncreFlashAttentionAttenPreloadDD, bfloat16_t, int8_t, bfloat16_t, bfloat16_t,
-                                    true, true, LAYOUT::TND, true, false, LAYOUT::NZ, AMLAMODE::NORMAL);
-    #endif
+                                     bfloat16_t, true, FLASH_DECODE, static_cast<LAYOUT>(LAYOUT_T), ANTIQUANT_MODE, false, LAYOUT::NZ, AMLAMODE::NORMAL);
+    
 #endif
 #endif // new template
 }

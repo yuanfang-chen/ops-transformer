@@ -19,7 +19,9 @@
 #include "kernel_cube_intf.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
+#include "incre_flash_attention_tilingdata.h"
 using namespace AscendC;
+// using namespace optiling;
 using AscendC::AIC;
 using AscendC::AIV;
 using AscendC::GlobalTensor;
@@ -223,7 +225,7 @@ struct TNDFDSplitInfo {
 template <typename Q_T, typename KV_T, typename OUT_T, typename ORIGIN_T, const bool PAGE_ATTENTION = false,
           const bool FLASH_DECODE = false, LAYOUT LAYOUT_T = LAYOUT::BSH, const uint8_t ANTIQUANT_MODE = 0,
           const bool SHARED_PREFIX = false, LAYOUT KV_LAYOUT_T = LAYOUT::BSH, const AMLAMODE AMLA = AMLAMODE::NORMAL,
-          const bool BALANCE = false, typename TILING_T = IncreFlashAttentionTilingDataV2, typename... Args>
+          const bool BALANCE = false, typename TILING_T = optiling::IncreFlashAttentionTilingDataV2, typename... Args>
 struct IFAType {
     using queryType = Q_T;
     using kvType = KV_T;

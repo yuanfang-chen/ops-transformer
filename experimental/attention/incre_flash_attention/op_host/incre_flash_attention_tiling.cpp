@@ -23,6 +23,8 @@
 #include "register/op_def_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "../../common/op_host/fia_tiling_templates_registry.h"
+#include "../op_kernel/incre_flash_attention_tilingkey.h"
+#include "../op_kernel/incre_flash_attention_tilingdata.h"
 
 using namespace ge;
 using namespace AscendC;
@@ -2338,14 +2340,12 @@ ge::graphStatus IFATiling::SplitUnbalanced() {
             gOuter_ = (nNumOfQInOneGroup_ + groupSplitSize_ - 1U) / groupSplitSize_;
         }
     }
-
     if (IsFlashDecode(coreNum_, perfMode_)) {
         OP_LOGI(ifaContext_->opName, "Enable flashdecode.");
         splitKVFlag_ = true;
         kvSplit_++;
         return SplitBNS();
     }
-
     CalcInnerSize(seqSize_);
     return SplitBN();
 }
@@ -2670,7 +2670,6 @@ ge::graphStatus IFATiling::CalcInnerSize(uint32_t seqSize)
     } else {
         sInnerSizeAlign_ = Align(sInnerSize_, BYTE_BLOCK); // 元素个数按照基本块大小对齐
     }
-
     CheckUbSpace();
     return ge::GRAPH_SUCCESS;
 }
@@ -2932,9 +2931,10 @@ ge::graphStatus IFATiling::FillTiling()
     FillTilingCoreParams();
     FillTilingSingleCoreParams();
     FillTilingSingleCoreTensorSize();
-    FillTilingSoftmax();
+    // FillTilingSoftmax();
     FillTilingOutputParams();
-    return FillTilingBmm() ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
+    return ge::GRAPH_SUCCESS;
+    // return FillTilingBmm() ? ge::GRAPH_SUCCESS : ge::GRAPH_FAILED;
 }
 
 void IFATiling::FillTilingBaseParams()
@@ -2955,7 +2955,6 @@ void IFATiling::FillTilingBaseParams()
     tilingData_->baseParams.set_pseShiftB(pseShiftBatch_);
     tilingData_->baseParams.set_pseShiftS(pseShiftS1_);
     tilingData_->baseParams.set_selectWithByteMaskTmpMinSize(selectWithByteMaskTmpMinSize_); // mask
-
     tilingData_->baseParams.set_actualLenQDims(actualLenQDims_);
     tilingData_->baseParams.set_actualLenDims(isSysPrefixTiling_ ? actualLenDimsPrefix_ : actualLenDims_);
     tilingData_->baseParams.set_msdIterNum(msdIterNum_);
@@ -3033,9 +3032,9 @@ void IFATiling::FillTilingSingleCoreTensorSize() const
 
 void IFATiling::FillTilingSoftmax() const
 {
-    auto softmaxShape = Shape({1, Align(sInnerSize_, BYTE_BLOCK / blockTypeSize_)});
-    SoftMaxFlashV2TilingFunc(softmaxShape, blockTypeSize_, blockTypeSize_, softmaxFlashTmpSize_,
-                             tilingData_->softmaxFlashTilingData, true, false);
+    // auto softmaxShape = Shape({1, Align(sInnerSize_, BYTE_BLOCK / blockTypeSize_)});
+    // SoftMaxFlashV2TilingFunc(softmaxShape, blockTypeSize_, blockTypeSize_, softmaxFlashTmpSize_,
+    //                          tilingData_->softmaxFlashTilingData, true, false);
 }
 
 // for zero output
@@ -3062,122 +3061,122 @@ void IFATiling::AdjustPABmm1Tiling(uint32_t &bmm1BaseN) const
 
 void IFATiling::AdjustPABmm2Tiling() const
 {
-    uint32_t targetBaseK = 128U;
-    if (targetBaseK < blockSize_) {
-        while ((blockSize_ % targetBaseK != 0U) ||
-               (targetBaseK * tilingData_->bmm2TilingData.get_baseN() * sizeof(float) > L0B_SIZE)) {
-            targetBaseK /=
-                2U; // 2:不断减半，确保1个base块不会跨block拷贝，已校验过blockSize_16/32对齐，因此targetBaseK最小值为16/32
-        }
-    } else {
-        uint32_t tmpBaseK = increGcd(targetBaseK, blockSize_);
-        while (tmpBaseK * tilingData_->bmm2TilingData.get_baseN() * sizeof(float) > L0B_SIZE) {
-            tmpBaseK /= 2U; // 2: 不断减半，确保base块大小在LOB有效范围内
-        }
-        targetBaseK = tmpBaseK;
-    }
-    // mm api不支持通过 SetFixSplit 设置baseK，需要直接配置tiling结构体
-    tilingData_->bmm2TilingData.set_baseK(targetBaseK);
-    OP_LOGD(ifaContext_->opName, "PA is enabled, blockSize is %u, bmm2 baseK is adjusted to %u", blockSize_,
-              targetBaseK);
+    // uint32_t targetBaseK = 128U;
+    // if (targetBaseK < blockSize_) {
+    //     while ((blockSize_ % targetBaseK != 0U) ||
+    //            (targetBaseK * tilingData_->bmm2TilingData.get_baseN() * sizeof(float) > L0B_SIZE)) {
+    //         targetBaseK /=
+    //             2U; // 2:不断减半，确保1个base块不会跨block拷贝，已校验过blockSize_16/32对齐，因此targetBaseK最小值为16/32
+    //     }
+    // } else {
+    //     uint32_t tmpBaseK = increGcd(targetBaseK, blockSize_);
+    //     while (tmpBaseK * tilingData_->bmm2TilingData.get_baseN() * sizeof(float) > L0B_SIZE) {
+    //         tmpBaseK /= 2U; // 2: 不断减半，确保base块大小在LOB有效范围内
+    //     }
+    //     targetBaseK = tmpBaseK;
+    // }
+    // // mm api不支持通过 SetFixSplit 设置baseK，需要直接配置tiling结构体
+    // tilingData_->bmm2TilingData.set_baseK(targetBaseK);
+    // OP_LOGD(ifaContext_->opName, "PA is enabled, blockSize is %u, bmm2 baseK is adjusted to %u", blockSize_,
+    //           targetBaseK);
 }
 
 bool IFATiling::GetBmm1Tiling(const matmul_tiling::DataType &kvType, const uint32_t M) const
 {
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
-    matmul_tiling::MatmulApiTiling bmm1(ascendcPlatform);
-    uint32_t baseN;
-    uint32_t bmm1OrgKa;
-    bmm1.SetShape(M, sInnerSize_, headDim_);
-    bmm1.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
-    bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, true);
-    if (antiQuantFlag_) {
-        bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
-                      matmul_tiling::DataType::DT_INT32);
-        bmm1OrgKa = headDimAlign_;
-        baseN = MAX_MATMUL_BASE; // antiquant to split K
-    } else {
-        bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT);
-        bmm1OrgKa = headDim_;
-        baseN = MATMUL_BASE_N;
-    }
-    // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
-    if (inputLayout_ == IfaLayout::BSH_BSND) {
-        bmm1.SetOrgShape(M, seqSize_, bmm1OrgKa, headDim_ * numKvHeads_);
-    } else {
-        bmm1.SetOrgShape(M, seqSize_, bmm1OrgKa, headDim_);
-    }
-    bmm1.SetBias(false);
+    // auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
+    // matmul_tiling::MatmulApiTiling bmm1(ascendcPlatform);
+    // uint32_t baseN;
+    // uint32_t bmm1OrgKa;
+    // bmm1.SetShape(M, sInnerSize_, headDim_);
+    // bmm1.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
+    // bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, true);
+    // if (antiQuantFlag_) {
+    //     bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
+    //                   matmul_tiling::DataType::DT_INT32);
+    //     bmm1OrgKa = headDimAlign_;
+    //     baseN = MAX_MATMUL_BASE; // antiquant to split K
+    // } else {
+    //     bmm1.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT);
+    //     bmm1OrgKa = headDim_;
+    //     baseN = MATMUL_BASE_N;
+    // }
+    // // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
+    // if (inputLayout_ == IfaLayout::BSH_BSND) {
+    //     bmm1.SetOrgShape(M, seqSize_, bmm1OrgKa, headDim_ * numKvHeads_);
+    // } else {
+    //     bmm1.SetOrgShape(M, seqSize_, bmm1OrgKa, headDim_);
+    // }
+    // bmm1.SetBias(false);
 
-    uint32_t bmm1BaseN = std::min(Align(sInnerSize_, 16U), baseN);
-    if (pageAttentionFlag_) {
-        AdjustPABmm1Tiling(bmm1BaseN);
-    }
+    // uint32_t bmm1BaseN = std::min(Align(sInnerSize_, 16U), baseN);
+    // if (pageAttentionFlag_) {
+    //     AdjustPABmm1Tiling(bmm1BaseN);
+    // }
 
-    if (!isSysPrefixTiling_) {
-        // 向下对齐保证M*N不超过L0C，且由于bmm1BaseN有最大限制，L0C_SIZE / sizeof(float) / bmm1BaseN不会小于16
-        uint32_t bmm1MaxBaseM = Align(static_cast<uint32_t>(L0C_SIZE / sizeof(float) / bmm1BaseN) - 16U, 16U);
-        OP_CHECK_IF((bmm1.SetFixSplit(std::min(Align(M, 16U), bmm1MaxBaseM), bmm1BaseN) == -1),
-                   OP_LOGE(ifaContext_->opName, "bmm1 SetFixSplit fail"), return false);
-    } else {
-        // prefix 模式下A矩阵较大，可能超过L0A，使用默认值-1，由matmul计算baseM
-        OP_CHECK_IF((bmm1.SetFixSplit(-1, bmm1BaseN) == -1), OP_LOGE(ifaContext_->opName, "bmm1 SetFixSplit fail"),
-                   return false);
-    }
+    // if (!isSysPrefixTiling_) {
+    //     // 向下对齐保证M*N不超过L0C，且由于bmm1BaseN有最大限制，L0C_SIZE / sizeof(float) / bmm1BaseN不会小于16
+    //     uint32_t bmm1MaxBaseM = Align(static_cast<uint32_t>(L0C_SIZE / sizeof(float) / bmm1BaseN) - 16U, 16U);
+    //     OP_CHECK_IF((bmm1.SetFixSplit(std::min(Align(M, 16U), bmm1MaxBaseM), bmm1BaseN) == -1),
+    //                OP_LOGE(ifaContext_->opName, "bmm1 SetFixSplit fail"), return false);
+    // } else {
+    //     // prefix 模式下A矩阵较大，可能超过L0A，使用默认值-1，由matmul计算baseM
+    //     OP_CHECK_IF((bmm1.SetFixSplit(-1, bmm1BaseN) == -1), OP_LOGE(ifaContext_->opName, "bmm1 SetFixSplit fail"),
+    //                return false);
+    // }
 
-    OP_CHECK_IF((bmm1.SetTraverse(matmul_tiling::MatrixTraverse::FIRSTN) == -1),
-               OP_LOGE(ifaContext_->opName, "bmm1 SetTraverse fail"), return false);
+    // OP_CHECK_IF((bmm1.SetTraverse(matmul_tiling::MatrixTraverse::FIRSTN) == -1),
+    //            OP_LOGE(ifaContext_->opName, "bmm1 SetTraverse fail"), return false);
 
-    if (bmm1.GetTiling(tilingData_->bmm1TilingData) == -1) {
-        OP_LOGE(ifaContext_->opName, "bmm1 get tiling fail");
-        return false;
-    }
+    // if (bmm1.GetTiling(tilingData_->bmm1TilingData) == -1) {
+    //     OP_LOGE(ifaContext_->opName, "bmm1 get tiling fail");
+    //     return false;
+    // }
     return true;
 }
 
 bool IFATiling::GetBmm2Tiling(const matmul_tiling::DataType &kvType, const uint32_t M) const
 {
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
-    matmul_tiling::MatmulApiTiling bmm2(ascendcPlatform);
-    bmm2.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
-    bmm2.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
-    if (antiQuantFlag_) {
-        bmm2.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
-                      matmul_tiling::DataType::DT_INT32);
-    } else {
-        bmm2.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
-                      matmul_tiling::DataType::DT_FLOAT);
-    }
-    if (slidingFlag_) {
-        // (m, n, k) (so, d, si)
-        bmm2.SetShape(M, headDimV_, sInnerSize_);
-        // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
-        if (inputLayout_ == IfaLayout::BSH_BSND) {
-            bmm2.SetOrgShape(M, headDimV_ * numKvHeads_, sInnerSizeAlign_, seqSize_);
-        } else {
-            bmm2.SetOrgShape(M, headDimV_, sInnerSizeAlign_, seqSize_);
-        }
-    } else {
-        // (m, n, k) (so, d, si)
-        bmm2.SetShape(M, headDim_, sInnerSize_);
-        // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
-        if (inputLayout_ == IfaLayout::BSH_BSND) {
-            bmm2.SetOrgShape(M, headDim_ * numKvHeads_, sInnerSizeAlign_, seqSize_);
-        } else {
-            bmm2.SetOrgShape(M, headDim_, sInnerSizeAlign_, seqSize_);
-        } 
-    }
-    bmm2.SetBias(false);
-    OP_CHECK_IF((bmm2.SetFixSplit(std::min(Align(M, 16U), MAX_MATMUL_BASE_M)) == -1),
-               OP_LOGE(ifaContext_->opName, "bmm2 SetFixSplit fail"), return false);
+    // auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
+    // matmul_tiling::MatmulApiTiling bmm2(ascendcPlatform);
+    // bmm2.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
+    // bmm2.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, kvType, false);
+    // if (antiQuantFlag_) {
+    //     bmm2.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
+    //                   matmul_tiling::DataType::DT_INT32);
+    // } else {
+    //     bmm2.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND_ALIGN,
+    //                   matmul_tiling::DataType::DT_FLOAT);
+    // }
+    // if (slidingFlag_) {
+    //     // (m, n, k) (so, d, si)
+    //     bmm2.SetShape(M, headDimV_, sInnerSize_);
+    //     // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
+    //     if (inputLayout_ == IfaLayout::BSH_BSND) {
+    //         bmm2.SetOrgShape(M, headDimV_ * numKvHeads_, sInnerSizeAlign_, seqSize_);
+    //     } else {
+    //         bmm2.SetOrgShape(M, headDimV_, sInnerSizeAlign_, seqSize_);
+    //     }
+    // } else {
+    //     // (m, n, k) (so, d, si)
+    //     bmm2.SetShape(M, headDim_, sInnerSize_);
+    //     // 存在输入query是BNSD格式，但使能PA，需要按BSH SetOrgShape
+    //     if (inputLayout_ == IfaLayout::BSH_BSND) {
+    //         bmm2.SetOrgShape(M, headDim_ * numKvHeads_, sInnerSizeAlign_, seqSize_);
+    //     } else {
+    //         bmm2.SetOrgShape(M, headDim_, sInnerSizeAlign_, seqSize_);
+    //     } 
+    // }
+    // bmm2.SetBias(false);
+    // OP_CHECK_IF((bmm2.SetFixSplit(std::min(Align(M, 16U), MAX_MATMUL_BASE_M)) == -1),
+    //            OP_LOGE(ifaContext_->opName, "bmm2 SetFixSplit fail"), return false);
 
-    if (bmm2.GetTiling(tilingData_->bmm2TilingData) == -1) {
-        OP_LOGE(ifaContext_->opName, "bmm2 get tiling fail");
-        return false;
-    }
-    if (pageAttentionFlag_) {
-        AdjustPABmm2Tiling();
-    }
+    // if (bmm2.GetTiling(tilingData_->bmm2TilingData) == -1) {
+    //     OP_LOGE(ifaContext_->opName, "bmm2 get tiling fail");
+    //     return false;
+    // }
+    // if (pageAttentionFlag_) {
+    //     AdjustPABmm2Tiling();
+    // }
     return true;
 }
 
@@ -3464,7 +3463,7 @@ ge::graphStatus IFATiling::GenTilingKey() const
         ifaContext_->tilingKey = baseOffset + IFA_GET_TILINGKEY(layoutVal, inputQVal, inputKvVal, outputVal, originVal,
             (paVal + splitKvVal), antiquantMode_, kvLayoutInfo.kvLayoutVal, kvLayoutInfo.amlaMode, balanceMode, cvRatioVal);
     }
-
+    ifaContext_->tilingKey = GET_TPL_TILING_KEY(splitKvVal, layoutVal, static_cast<uint8_t>(antiquantMode_));
     OP_LOGI(ifaContext_->opName, "IFA tilingKey: %lu.", ifaContext_->tilingKey);
     printf("IFA tilingKey: %lu.\n", ifaContext_->tilingKey);
     return ge::GRAPH_SUCCESS;
@@ -3472,6 +3471,7 @@ ge::graphStatus IFATiling::GenTilingKey() const
 
 ge::graphStatus IFATiling::CalcNumBlocks()
 {
+    OP_LOGD(ifaContext_->opName, "ppppppppppppppppppp.");
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
     auto aicNum = aicNum_;
     auto aivNum = aivNum_;
@@ -3678,11 +3678,14 @@ ge::graphStatus IFATiling::ConvertContext(gert::TilingContext &context, IncreFla
 }
 
 ge::graphStatus IFATiling::RunBigKernelTiling(IncreFlashAttentionContext &context,
-                                              IncreFlashAttentionTilingDataV2 &tilingData, bool isWorkspace)
+                                              IncreFlashAttentionTilingDataV2* tilingData, bool isWorkspace)
 {
     this->ifaContext_ = &context;
-    this->tilingData_ = &tilingData.tilingBase;
-    this->tilingDataPrefix_ = &tilingData.tilingPrefix;
+    this->tilingData_ = &(tilingData->tilingBase);
+    // this->tilingDataPrefix_ = &(tilingData->tilingPrefix);
+    if (this->tilingData_ == nullptr){
+        OP_LOGI(ifaContext_->opName, " tiling data is nullptr.");
+    }
     this->isWorkspace_ = isWorkspace;
 
     if ((this->ifaContext_->actualSeqLengths.tensor && !this->ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()) ||
@@ -3706,33 +3709,32 @@ ge::graphStatus IFATiling::RunBigKernelTiling(IncreFlashAttentionContext &contex
         (CalcNumBlocks() != ge::GRAPH_SUCCESS)) {
         return ge::GRAPH_FAILED;
     }
-    if (sysPrefixFlag_ && SharedPrefixTiling() != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
-
+    // if (sysPrefixFlag_ && SharedPrefixTiling() != ge::GRAPH_SUCCESS) {
+    //     return ge::GRAPH_FAILED;
+    // }
     return GenTilingKey();
 }
 
 ge::graphStatus IFATiling::IncreFlashAttentionSetTilingData(gert::TilingContext &context,
                                                             IncreFlashAttentionTilingDataV2 &tilingData)
 {
-    OP_CHECK_IF(context.GetRawTilingData() == nullptr,
-               OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "RawTilingData got from GE context is nullptr."),
-               return GRAPH_FAILED);
+    // OP_CHECK_IF(context.GetRawTilingData() == nullptr,
+    //            OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "RawTilingData got from GE context is nullptr."),
+    //            return GRAPH_FAILED);
 
-    if (ropeFlag_) {
-        tilingDataMla_.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
-        context.GetRawTilingData()->SetDataSize(tilingDataMla_.GetDataSize());
-        return ge::GRAPH_SUCCESS;
-    }
+    // if (ropeFlag_) {
+    //     tilingDataMla_.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
+    //     context.GetRawTilingData()->SetDataSize(tilingDataMla_.GetDataSize());
+    //     return ge::GRAPH_SUCCESS;
+    // }
 
-    if (atbRunFlag_ && pageAttentionFlag_) {
-        ifaTilingAtbData.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
-        context.GetRawTilingData()->SetDataSize(ifaTilingAtbData.GetDataSize());
-    } else {
-        tilingData.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
-        context.GetRawTilingData()->SetDataSize(tilingData.GetDataSize());
-    }
+    // if (atbRunFlag_ && pageAttentionFlag_) {
+    //     ifaTilingAtbData.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
+    //     context.GetRawTilingData()->SetDataSize(ifaTilingAtbData.GetDataSize());
+    // } else {
+    //     tilingData.SaveToBuffer(context.GetRawTilingData()->GetData(), context.GetRawTilingData()->GetCapacity());
+    //     context.GetRawTilingData()->SetDataSize(tilingData.GetDataSize());
+    // }
 
     return ge::GRAPH_SUCCESS;
 }
@@ -3748,18 +3750,18 @@ std::string DataTypeToSerialString(ge::DataType type)
     }
 }
 
-template <typename T>
-ge::graphStatus IfaStartSimpleTiling(T& tilingType, IncreFlashAttentionContext &ifaContext,
-                                     IncreFlashAttentionTilingDataV2 &ifaTilingData, gert::TilingContext *context)
-{
-    if (tilingType.RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
-        context->SetTilingKey(ifaContext.tilingKey);
-        context->SetBlockDim(ifaContext.numBlocks);
-        tilingType.IncreFlashAttentionSetTilingData(*context, ifaTilingData);
-        return ge::GRAPH_SUCCESS;
-    }
-    return ge::GRAPH_FAILED;
-}
+// template <typename T>
+// ge::graphStatus IfaStartSimpleTiling(T& tilingType, IncreFlashAttentionContext &ifaContext,
+//                                      IncreFlashAttentionTilingDataV2 &ifaTilingData, gert::TilingContext *context)
+// {
+//     if (tilingType.RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
+//         context->SetTilingKey(ifaContext.tilingKey);
+//         context->SetBlockDim(ifaContext.numBlocks);
+//         tilingType.IncreFlashAttentionSetTilingData(*context, ifaTilingData);
+//         return ge::GRAPH_SUCCESS;
+//     }
+//     return ge::GRAPH_FAILED;
+// }
 
 ge::graphStatus TilingIncreFlashAttentionAdapter(gert::TilingContext *context)
 {    
@@ -3960,22 +3962,22 @@ ge::graphStatus IFATiling::AtbSplitBlock() const
     const uint32_t tailTaskNum = taskNum % ifaContext_->numBlocks;
     uint32_t taskStart = 0U;
     uint32_t taskEnd = 0U;
-    std::vector<uint32_t> startBlk(MAX_CORE_NUM, 0U);
-    std::vector<uint32_t> endBlk(MAX_CORE_NUM, 0U);
-    std::vector<uint32_t> startBatch(MAX_CORE_NUM, 0U);
-    std::vector<uint32_t> endBatch(MAX_CORE_NUM, 0U);
+    // std::vector<uint32_t> startBlk(MAX_CORE_NUM, 0U);
+    // std::vector<uint32_t> endBlk(MAX_CORE_NUM, 0U);
+    // std::vector<uint32_t> startBatch(MAX_CORE_NUM, 0U);
+    // std::vector<uint32_t> endBatch(MAX_CORE_NUM, 0U);
     for (uint32_t blockIdx = 0U; blockIdx < ifaContext_->numBlocks; blockIdx++) {
         taskStart = taskEnd;
         taskEnd = blockIdx < tailTaskNum ? taskEnd + taskNumPerCore + 1U : taskEnd + taskNumPerCore;
-        startBlk[blockIdx] = taskStart;
-        endBlk[blockIdx] = taskEnd;
-        startBatch[blockIdx] = static_cast<uint32_t>(taskStart / numHeads_);
-        endBatch[blockIdx] = static_cast<uint32_t>((taskEnd - 1U) / numHeads_);
+        // startBlk[blockIdx] = taskStart;
+        // endBlk[blockIdx] = taskEnd;
+        // startBatch[blockIdx] = static_cast<uint32_t>(taskStart / numHeads_);
+        // endBatch[blockIdx] = static_cast<uint32_t>((taskEnd - 1U) / numHeads_);
+        tilingDataCore_->startBlk[blockIdx] = taskStart;
+        tilingDataCore_->endBlk[blockIdx] = taskEnd;
+        tilingDataCore_->startBatch[blockIdx] = static_cast<uint32_t>(taskStart / numHeads_);
+        tilingDataCore_->endBatch[blockIdx] = static_cast<uint32_t>((taskEnd - 1U) / numHeads_);
     }
-    tilingDataCore_->set_startBlk(startBlk.data());
-    tilingDataCore_->set_endBlk(endBlk.data());
-    tilingDataCore_->set_startBatch(startBatch.data());
-    tilingDataCore_->set_endBatch(endBatch.data());
     tilingDataCore_->set_totalQBlockNum(taskNum);
     return ge::GRAPH_SUCCESS;
 }
@@ -4110,11 +4112,24 @@ ge::graphStatus IFATiling::DoOpTiling()
 }
 
 ge::graphStatus IFATiling::DoSubOpTiling(IncreFlashAttentionContext& ifaContext) {
-    IncreFlashAttentionTilingDataV2 ifaTilingData;
+    IncreFlashAttentionTilingDataV2* ifaTilingData = context_->GetTilingData<IncreFlashAttentionTilingDataV2>();
+    if (ifaTilingData == nullptr){
+        OP_LOGD(ifaContext.opName, " ifaTilingData is nullptr.");
+    }
+    if (&ifaTilingData->tilingBase == nullptr){
+        OP_LOGI(ifaContext.opName, " ifaTilingData->tilingBase is nullptr.");
+    }
+    aaa* x = context_->GetTilingData<aaa>();
+    
+    if (x == nullptr){
+        OP_LOGD(ifaContext.opName, " x is nullptr.");
+    } else {
+        OP_LOGD(ifaContext.opName, " x is not nullptr.");
+    }
     if (RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
         context_->SetTilingKey(ifaContext.tilingKey);
         context_->SetBlockDim(ifaContext.numBlocks);
-        IncreFlashAttentionSetTilingData(*context_, ifaTilingData);
+        // IncreFlashAttentionSetTilingData(*context_, ifaTilingData);
         return ge::GRAPH_SUCCESS;
     }
     // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死

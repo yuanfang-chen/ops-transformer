@@ -26,7 +26,7 @@
 #include "incre_flash_attention_tiling_context.h"
 #include "incre_flash_attention_tiling_struct.h"
 #include "incre_flash_attention_tiling_base.h"
-#include "incre_flash_attention_tiling.h"
+#include "../op_kernel/incre_flash_attention_tilingdata.h"
 
 namespace optiling {
 

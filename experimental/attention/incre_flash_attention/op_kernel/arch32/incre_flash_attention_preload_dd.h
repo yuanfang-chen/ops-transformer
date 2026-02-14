@@ -104,7 +104,7 @@ public:
                                 __gm__ uint8_t *pseShift, __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ,
                                 __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *blockTable,
                                 __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
-                                __gm__ uint8_t *workspace, const IncreFlashAttentionTilingData *__restrict tiling,
+                                __gm__ uint8_t *workspace, const optiling::IncreFlashAttentionTilingData *__restrict tiling,
                                 __gm__ uint8_t *gmTiling, TPipe *tPipe, bool isPrefix = false);
     __aicore__ inline void InitQuant(__gm__ uint8_t *deqScale1, __gm__ uint8_t *quantScale1, __gm__ uint8_t *deqScale2,
                                      __gm__ uint8_t *quantScale2, __gm__ uint8_t *quantOffset2,
@@ -154,7 +154,7 @@ public:
     using L0C_T = typename AscendC::Conditional<ANTIQUANT, int32_t, T>::type;
 
 protected:
-    const IncreFlashAttentionTilingData *__restrict tilingData = nullptr;
+    const optiling::IncreFlashAttentionTilingData *__restrict tilingData = nullptr;
     TPipe *pipe = nullptr;
 
     GlobalTensor<Q_T> queryGm;
@@ -901,9 +901,12 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *pseShift,
     __gm__ uint8_t *attenMask, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *kvPaddingSize, __gm__ uint8_t *attentionOut,
-    __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, const IncreFlashAttentionTilingData *__restrict tiling,
+    __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace, const optiling::IncreFlashAttentionTilingData *__restrict tiling,
     __gm__ uint8_t *gmTiling, TPipe *tPipe, bool isPrefix)
 {
+    printf("dd entry!-------------------------\n");
+
+    printf("fd : %d, layout: %d, mode: %d\n", IFAT::flashDecode, IFAT::layout, IFAT::antiquantMode);
     if ASCEND_IS_AIV {
         tmpBlockIdx = GetBlockIdx(); // vec:0-47
         aiCoreIdx = tmpBlockIdx / 2;

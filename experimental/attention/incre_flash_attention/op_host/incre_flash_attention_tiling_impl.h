@@ -25,7 +25,7 @@
 #include "incre_flash_attention_tiling_context.h"
 #include "incre_flash_attention_tiling_base.h"
 #include "incre_flash_attention_tiling_struct.h"
-#include "incre_flash_attention_tiling.h"
+#include "../op_kernel/incre_flash_attention_tilingdata.h"
 #include "../../common/op_host/fia_tiling_base.h"
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
@@ -54,7 +54,7 @@ public:
     ge::graphStatus DoSubOpTiling(IncreFlashAttentionContext& ifaContext);
     ge::graphStatus DoTiling(gert::TilingContext &context);
     ge::graphStatus RunBigKernelTiling(IncreFlashAttentionContext &context,
-        IncreFlashAttentionTilingDataV2 &tilingData, bool isWorkspace = false);
+        IncreFlashAttentionTilingDataV2* tilingData, bool isWorkspace = false);
     ge::graphStatus IncreFlashAttentionSetTilingData(gert::TilingContext &context, IncreFlashAttentionTilingDataV2 &tilingData);
     static ge::graphStatus ConvertContext(gert::TilingContext &context, IncreFlashAttentionContext &ifaContext);
     bool NeedRollBack() const
