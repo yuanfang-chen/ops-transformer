@@ -138,8 +138,10 @@ __aicore__ constexpr bool IsDn(
     if (enableKVPrefix) {
         return false;
     }
-    if (((!isFp32 && !ContainOptionalInput(pseMode, hasAtten, hasDrop)) ||
-        (isValidFp8 && !hasDrop && pseMode == regbaseutil::PseTypeEnum::PSE_NONE_TYPE)) && !isS1Base64 &&
+    if (isValidFp8) {
+        return false;
+    }
+    if ((!isFp32 && !ContainOptionalInput(pseMode, hasAtten, hasDrop)) && !isS1Base64 &&
         (uint16_t)dTemplateType <= (uint16_t)regbaseutil::DTemplateType::Aligned256 && !hasRope) {
         return true;
     }
