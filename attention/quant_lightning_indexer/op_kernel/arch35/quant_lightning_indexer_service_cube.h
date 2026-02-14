@@ -374,18 +374,20 @@ template <typename QLIT>
 __aicore__ inline void QLIMatmul<QLIT>::QueryNd2Nz(uint64_t s1gL1RealSize, const QLICommon::RunInfo &runInfo)
 {
     Nd2NzParams nd2nzPara;
-    nd2nzPara.ndNum = 1;
-    nd2nzPara.nValue = s1gL1RealSize;  // 行数
+    int32_t gSizeAlign = CeilAlign(constInfo_.gSize, 16);
+    nd2nzPara.ndNum = s1gL1RealSize / gSizeAlign;
+    nd2nzPara.nValue = CeilAlign(gSizeAlign, (uint64_t)BLOCK_CUBE);  // 行数
     nd2nzPara.dValue = constInfo_.headDim;
     nd2nzPara.srcDValue = constInfo_.headDim;
-    nd2nzPara.dstNzC0Stride = CeilAlign(s1gL1RealSize, (uint64_t)BLOCK_CUBE);  // 对齐到16 单位block
-    nd2nzPara.dstNzNStride = 1;
-    nd2nzPara.srcNdMatrixStride = 0;
-    nd2nzPara.dstNzMatrixStride = 0;
+    nd2nzPara.srcNdMatrixStride = constInfo_.qHeadNum * constInfo_.headDim;  // --> 0 WANG
+    nd2nzPara.dstNzC0Stride = CeilAlign(gSizeAlign, (uint64_t)BLOCK_CUBE) * nd2nzPara.ndNum;  // 对齐到16 单位block  --> 32
+    nd2nzPara.dstNzNStride = 1; // 连续放
+    nd2nzPara.dstNzMatrixStride = CeilAlign(gSizeAlign, (uint64_t)BLOCK_CUBE) * 32;
     // 默认一块buf最多放两份
     DataCopy(queryL1_[(qwL1Mte2BufIdx_ % DOUBLE_BUF_NUM) * QUERY_BUFFER_OFFSET], queryGm_[runInfo.tensorQueryOffset],
              nd2nzPara);
 }
+
 
 // s1g, d
 template <typename QLIT>

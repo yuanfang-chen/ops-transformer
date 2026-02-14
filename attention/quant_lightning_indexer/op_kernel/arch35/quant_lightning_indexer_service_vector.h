@@ -282,31 +282,31 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec0(const QLICommon::RunInfo &in
     }
     int32_t cuBaseS1Idx = info.gS1Idx * s1BaseSize_;
     // 计算输出w基地址偏移 偶数循环 -> 0 + aic_offset  奇数循环 -> 4*64 + aic_offset
-    int64_t vec0OutGmOffset = (info.loop % 2) * ((s1BaseSize_ * gSize_ * BLOCK_CUBE));
+    int64_t vec0OutGmOffset = (info.loop % 2) * ((s1BaseSize_ * QLICommon::Align(gSize_, 16) * BLOCK_CUBE));
     // 计算输入weight的地址偏移，qScale的地址偏移与weight相同
     int64_t weightGmOffset = info.tensorWeightsOffset + cuBaseS1Idx * qHeadNum_;
     // 当前需要计算的S1行数，处理尾块场景
     int32_t cuS1ProcNum = cuBaseS1Idx + s1BaseSize_ > info.actS1Size ? info.actS1Size % s1BaseSize_ : s1BaseSize_;
-    int32_t cuProcEleNum = cuS1ProcNum * gSize_;
+    int32_t cuProcEleNum = cuS1ProcNum * QLICommon::Align(gSize_, 16); //wang
 
     LocalTensor<bfloat16_t> inWeightsUb = inQueue_.AllocTensor<bfloat16_t>();
     LocalTensor<float> inWeightsFp32 = inWeightsUb.template ReinterpretCast<float>();
     LocalTensor<float> inQScaleUb = inWeightsUb.template ReinterpretCast<float>()[cuProcEleNum];
     LocalTensor<half> mulResHalf = inWeightsUb.template ReinterpretCast<half>();
 
-    AscendC::DataCopyPadExtParams<bfloat16_t> weightsPadParams{false, 0, 0, 0};
+    AscendC::DataCopyPadExtParams<bfloat16_t> weightsPadParams{true, 0, static_cast<uint8_t>(QLICommon::Align(gSize_, 16) - qHeadNum_), 0};
     AscendC::DataCopyExtParams weightsCopyInParams;
-    weightsCopyInParams.blockCount = 1;
-    weightsCopyInParams.blockLen = cuProcEleNum * sizeof(bfloat16_t);
+    weightsCopyInParams.blockCount = cuS1ProcNum;
+    weightsCopyInParams.blockLen = qHeadNum_ * sizeof(bfloat16_t);
     weightsCopyInParams.srcStride = 0;
     weightsCopyInParams.dstStride = 0;
     weightsCopyInParams.rsv = 0;
     AscendC::DataCopyPad(inWeightsUb, weightsGm[weightGmOffset], weightsCopyInParams, weightsPadParams);
 
-    AscendC::DataCopyPadExtParams<float> qScalePadParams{false, 0, 0, 0};
+    AscendC::DataCopyPadExtParams<float> qScalePadParams{true, 0, static_cast<uint8_t>(QLICommon::Align(gSize_, 16) - qHeadNum_), 0};
     AscendC::DataCopyExtParams qScaleCopyInParams;
-    qScaleCopyInParams.blockCount = 1;
-    qScaleCopyInParams.blockLen = cuProcEleNum * sizeof(float);
+    qScaleCopyInParams.blockCount = cuS1ProcNum;
+    qScaleCopyInParams.blockLen = qHeadNum_ * sizeof(float);
     qScaleCopyInParams.srcStride = 0;
     qScaleCopyInParams.dstStride = 0;
     qScaleCopyInParams.rsv = 0;
