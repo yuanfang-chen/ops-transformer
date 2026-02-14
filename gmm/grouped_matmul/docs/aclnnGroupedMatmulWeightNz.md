@@ -575,7 +575,7 @@ aclnnStatus aclnnGroupedMatmulWeightNz(
 <summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 公共约束
-    - 如果传入groupListOptional，当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列，且长度不能为1；groupListType为2时，groupListOptional的第二列数据必须为非负数列，且长度不能为1。
+    - groupListType：支持取值0、1。当groupListType为0时，groupListOptional必须为非负单调非递减数列；当groupListType为1时，groupListOptional必须为非负数列。
     - x和weight中每一组tensor的每一维大小在32字节对齐后都应小于int32的最大值2147483647。
     - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。
       - 在伪量化和非量化场景下，actType仅支持0。
