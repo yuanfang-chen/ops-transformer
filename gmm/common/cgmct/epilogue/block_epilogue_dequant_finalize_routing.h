@@ -490,7 +490,7 @@ __aicore__ inline void BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DE
     if (params_->x1ScaleGmAddr != nullptr) {
         CopyX1ScaleFromGm2Ub(x1ScaleUb, singleMInVec * sizeof(DataTypeX1Scale), mOffset);
     }
-    if (params_->x1ScaleGmAddr != nullptr) {
+    if (params_->biasGmAddr != nullptr) {
         CopyBiasFromGm2Ub(biasUb);
     }
     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitCrossPingPongID_);
