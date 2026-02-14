@@ -543,7 +543,7 @@ public:
             AscendC::printf("tkd low prec rowmax 1024\n");
             RowmaxSPECTILE1024(
                 computeUbTensor,
-                llUbTensor[rowOffset],
+                lmUbTensor[rowOffset],
                 tvUbTensor,
                 rowNumCurLoopRound,
                 columnNum,
