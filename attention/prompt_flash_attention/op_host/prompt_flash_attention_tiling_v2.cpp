@@ -710,16 +710,16 @@ bool PromptFlashAttentionTilingV2::CheckKVDataType(ContextParamsForPFATiling& co
 }
 
 bool PromptFlashAttentionTilingV2::CheckRopeDataType(ContextParamsForPFATiling& contextKeyParams) {
-    ge::DataType queryDataType = contextKeyParams.qDataType;
+    ge::DataType queryDataType = contextKeyParams.inputDataType;
     ge::DataType keyDataType = contextKeyParams.kDataType;
     ge::DataType queryRopeDataType = contextKeyParams.qRopeDataType;
     ge::DataType keyRopeDataType = contextKeyParams.kRopeDataType;
     OP_CHECK_IF((queryDataType != queryRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        "DataType of query rope(%s) not equal datatype of query(%s).",
+        "DataType of query rope(%s) is not equal to datatype of query(%s).",
         GetPfaDataTypeStr(queryRopeDataType).c_str(), GetPfaDataTypeStr(queryDataType).c_str()),
         return false);
     OP_CHECK_IF((keyDataType != keyRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-        "DataType of key(%s) not equal datatype of value(%s).",
+        "DataType of key rope(%s) is not equal to datatype of key(%s).",
         GetPfaDataTypeStr(keyRopeDataType).c_str(), GetPfaDataTypeStr(keyDataType).c_str()),
         return false);
     return true;
