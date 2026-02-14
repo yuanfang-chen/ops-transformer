@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file moe_v3_gather_hif8_pertensor_quant.h
+ * \file moe_v3_gather_hifi8_pertensor_quant.h
  * \brief
  */
-#ifndef MOE_V3_GATHER_HIF8_PERTENSOR_QUANT_H_REGBASE
-#define MOE_V3_GATHER_HIF8_PERTENSOR_QUANT_H_REGBASE
+#ifndef MOE_V3_GATHER_HIIF8_PERTENSOR_QUANT_H_REGBASE
+#define MOE_V3_GATHER_HIFI8_PERTENSOR_QUANT_H_REGBASE
 
 #include "moe_v3_common.h"
 #include "kernel_operator.h"
@@ -328,4 +328,4 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::Process()
     }
 }
 } // namespace MoeInitRoutingV3
-#endif // MOE_V3_GATHER_HIF8_PERTENSOR_QUANT_H_REGBASE
+#endif // MOE_V3_GATHER_HIFI8_PERTENSOR_QUANT_H_REGBASE

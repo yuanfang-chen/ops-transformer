@@ -366,7 +366,7 @@ static ge::graphStatus CheckInputScaleShape(gert::InferShapeContext *context, co
             return ge::GRAPH_FAILED;
         }
     } else if (QuantMode::HIF8_PERTENSOR == quantMode) {
-        // 第一步：校验scale的维度数必须为1（DIM_ONE）
+        // The dimension of scale must be 1
         if (scaleShape->GetDimNum() != DIM_ONE) {
             OP_LOGE(
                 context,
@@ -374,7 +374,7 @@ static ge::graphStatus CheckInputScaleShape(gert::InferShapeContext *context, co
                 quantMode, scaleShape->GetDimNum());
             return ge::GRAPH_FAILED;
         }
-        // 第二步：校验scale的唯一维度值必须为1（DIM_ONE），即shape为(1,)
+        // the dimension value of scale must be 1
         OP_CHECK_IF(
             !isSameDim(scaleShape->GetDim(0), DIM_ONE),
             OP_LOGE(
