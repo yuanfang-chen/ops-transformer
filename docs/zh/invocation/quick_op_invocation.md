@@ -3,10 +3,33 @@
 ## 前提条件
 
 - 环境部署：调用算子之前，请先参考[环境部署](../context/quick_install.md)完成基础环境搭建。
+
 - 调用算子列表：项目可调用的算子参见[算子列表](../op_list.md)，算子对应的aclnn接口参见[aclnn列表](../op_api_list.md)。
 - build.sh：项目的编译运行和功能验证均依赖根目录下**build.sh**脚本，可通过`bash build.sh --help`命令查看所有功能参数，详细介绍参考[build参数说明](../context/build.md)。
 
 ## 编译执行
+
+### 开源第三方软件依赖
+
+本项目编译过程依赖的第三方开源软件列表如下，若从其他地址下载，请确保版本号一致。
+
+| 开源软件 | 版本 | 下载地址 |
+|---|---|---|
+| googletest | 1.14.0 | [googletest-1.14.0.tar.gz](https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz) |
+| json | 3.11.3 | [include.zip](https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip) |
+| makeself | 2.5.0 | [makeself-release-2.5.0-patch1.tar.gz](https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz) |
+| pybind11 | 2.13.6 | [pybind11-2.13.6.tar.gz](https://gitcode.com/cann-src-third-party/pybind11/releases/download/v2.13.6/pybind11-2.13.6.tar.gz) |
+| eigen | 5.0.0 | [eigen-5.0.0.tar.gz](https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0/eigen-5.0.0.tar.gz) |
+| protobuf | 25.1.0 | [protobuf-25.1.tar.gz](https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz) |
+| abseil-cpp | 20230802.1 | [abseil-cpp-20230802.1.tar.gz](https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz) |
+
+您可以按照表格手动下载，也可以通过项目根目录下的[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行一键批量下载，命令如下。
+
+```bash
+python cann_3rd_lib_path_download.py
+```
+
+### 编译方式
 
 联网场景下，可采用如下方式进行源码编译，未联网场景请参考[未联网编译](#未联网编译)。
 
@@ -151,29 +174,6 @@
 
     - 在联网环境中，进入[本项目主页](https://gitcode.com/cann/ops-transformer)，通过`下载ZIP`或`clone`按钮，根据指导完成源码下载。
     - 连接离线环境，上传源码至您指定的目录下。若下载的是源码压缩包，请先进行解压。
-
-2. **下载第三方软件依赖**
-
-    本项目编译过程依赖的第三方开源软件列表如下，若从其他地址下载，请确保版本号一致。
-
-    | 开源软件 | 版本 | 下载地址 |
-    |---|---|---|
-    | googletest | 1.14.0 | [googletest-1.14.0.tar.gz](https://gitcode.com/cann-src-third-party/googletest/releases/download/v1.14.0/googletest-1.14.0.tar.gz) |
-    | json | 3.11.3 | [include.zip](https://gitcode.com/cann-src-third-party/json/releases/download/v3.11.3/include.zip) |
-    | makeself | 2.5.0 | [makeself-release-2.5.0-patch1.tar.gz](https://gitcode.com/cann-src-third-party/makeself/releases/download/release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz) |
-    | pybind11 | 2.13.6 | [pybind11-2.13.6.tar.gz](https://gitcode.com/cann-src-third-party/pybind11/releases/download/v2.13.6/pybind11-2.13.6.tar.gz) |
-    | eigen | 5.0.0 | [eigen-5.0.0.tar.gz](https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0/eigen-5.0.0.tar.gz) |
-    | protobuf | 25.1.0 | [protobuf-25.1.tar.gz](https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz) |
-    | abseil-cpp | 20230802.1 | [abseil-cpp-20230802.1.tar.gz](https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/20230802.1/abseil-cpp-20230802.1.tar.gz) |
-
-    您可以按照表格手动下载，也可以通过项目根目录下的[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行一键批量下载，命令如下。
-
-    ```bash
-    python cann_3rd_lib_path_download.py
-    ```
-
-3. **存放第三方开源软件**
-
     - 若手动安装：请在未联网编译环境任意位置新建一个`${cann_3rd_lib_path}`目录来存放下载的第三方开源软件，请确保该目录有权限访问。
 
         ```bash
@@ -181,7 +181,7 @@
         ```
     - 若通过[cann_3rd_lib_path_download.py](../../../cann_3rd_lib_path_download.py)脚本进行批量下载，默认在根目录下生成`cann_3rd_lib_path_download`文件夹，用于存放下载的开源软件包，此时`${cann_3rd_lib_path}`为`./cann_3rd_lib_path_download`。
 
-4. **编译算子包**
+2. **编译算子包**
 
     创建好目录后，将下载好的第三方开源软件压缩包上传至`${cann_3rd_lib_path}`目录，然后进入源码根目录执行编译命令。
 
