@@ -164,18 +164,17 @@ public:
                             uint32_t numElemsAligned)
     {
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环次数处理。
+        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
-        uint32_t columnStrideIndex = 2;
         uint8_t dataBlockStride = 1;
-        // 1024个元素，以128为单位分治求和。
-        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        // 1024个元素，以128为单位分治求和。1024->512->256->128
+        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
-        //每行分别规约求和。
+        //每行128个元素分别规约求和。
         AscendC::WholeReduceSum<half, false>(
             rowsumUb,
             srcUb,
@@ -311,18 +310,17 @@ public:
                             uint32_t numElemsAligned)
     {
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环次数处理。
+        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
-        uint32_t columnStrideIndex = 2;
         uint8_t dataBlockStride = 1;
-        // 1024个元素，以128为单位分治求最大值。
-        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        // 1024个元素，以128为单位分治求最大值。1024->512->256->128
+        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
-        //每行分别规约求最大值。
+        //每行128个元素分别规约求最大值。
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
             srcUb,
@@ -744,6 +742,7 @@ public:
         uint32_t rowNumCurLoop = layoutOutput.shape(0);
         uint32_t rowNumCurLoopRound = RoundUp(rowNumCurLoop, BLOCK_SIZE);
         uint32_t columnNum = layoutOutput.shape(1);
+        AscendC::printf("tkd columnNum: %u\n", columnNum);
         uint32_t columnNumPad = layoutOutput.stride(0);
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
