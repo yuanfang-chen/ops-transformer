@@ -136,7 +136,7 @@ public:
     }
 
     __aicore__ inline
-    void DivideAndConquerGetSum(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
+    void ReduceSumByPair(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
                                 uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
     {
         for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
@@ -171,7 +171,7 @@ public:
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求和。
         for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            DivideAndConquerGetSum(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
@@ -283,7 +283,7 @@ public:
     }
 
     __aicore__ inline
-    void DivideAndConquerGetMax(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
+    void ReduceMaxByPair(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
                                 uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
     {
         for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
@@ -318,7 +318,7 @@ public:
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求最大值。
         for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            DivideAndConquerGetMax(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
