@@ -36,6 +36,7 @@ if (BUILD_OPEN_PROJECT)  # custom
             OP_NAME GroupedMatMulAlltoAllv
             OPTIONS --cce-auto-sync=off
                     -DAICORE_EXCEPTION_RESTART
+                    -DENALBLE_CV_COMM_VIA_SSBUF=true
         )
     endif()
 else() # 回黄host

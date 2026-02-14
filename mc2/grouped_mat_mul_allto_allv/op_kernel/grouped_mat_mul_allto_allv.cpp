@@ -125,22 +125,35 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     constexpr bool IS_SHARED_EXPERT = true;
     constexpr bool IS_NOT_SHARED_EXPERT = false;
 
-    using HcclOpType = HcclA2avOp<DTYPE_GMM_WEIGHT, false>;
+    using HcclOpType = HcclA2avOp<DTYPE_GMM_Y, false>;
     using GmmASWKernelType = GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_GMM_Y, W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
     // using GmmExpertOpType = GmmExpertOp<GmmASWKernelType, USE_SEND_COUNTS, IS_NOT_SHARED_EXPERT>;
     using SharedGmmExpertOpType = GmmExpertOp<GmmASWKernelType, USE_SEND_COUNTS, IS_SHARED_EXPERT>;
     // using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, GmmExpertOpType, SharedGmmExpertOpType>;
 
+    // using ComputeOpType = QuantGroupedMatmul<
+    //     QuantGmmA2avTilingData, 
+    //     GMMQuantTilingData, 
+    //     DTYPE_GMM_X, 
+    //     DTYPE_GMM_WEIGHT,
+    //     float,
+    //     DTYPE_GMM_Y, 
+    //     CubeFormat::ND,
+    //     TILINGKEY_GROUPED_MATMUL_TRANS, 
+    //     TILINGKEY_MATMUL_TRANS, 
+    //     false,  // isLocal
+    //     false>; // opType
+    // 此处调试，暂且写死，后续需要修改
     using ComputeOpType = QuantGroupedMatmul<
         QuantGmmA2avTilingData, 
         GMMQuantTilingData, 
         DTYPE_GMM_X, 
         DTYPE_GMM_WEIGHT,
         float,
-        DTYPE_GMM_Y, 
+        float16_t, 
         CubeFormat::ND,
-        TILINGKEY_GROUPED_MATMUL_TRANS, 
-        TILINGKEY_MATMUL_TRANS, 
+        false, 
+        false, 
         false,  // isLocal
         false>; // opType
     using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType, SharedGmmExpertOpType>;

@@ -702,8 +702,16 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::DoQuantGMMTiling()
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetCommonInputParams(localParams_));
     // GMM 第一个矩阵块
     uint64_t gmmX_epSize = 0;
-    for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
-        gmmX_epSize += localTilingData_.taskTilingInfo.sendCnt[i];
+    // for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
+    //     gmmX_epSize += localTilingData_.taskTilingInfo.sendCnt[i];
+    // }
+    // 此处tiling上库可能没带上，已修正
+    for (uint64_t expertIdx = 0; expertIdx < localParams_.ep; expertIdx++) {
+        uint64_t mSize = 0;
+        for (uint64_t i = 0; i < localParams_.epWorldSize; i++) {
+            mSize += localTilingData_.taskTilingInfo.sendCnt[i * localParams_.ep + expertIdx];
+        }
+        gmmX_epSize = std::max(gmmX_epSize, mSize);
     }
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.SetGroupExpertInputParameters(localParams_, gmmX_epSize));
     GE_ASSERT_GRAPH_SUCCESS(gmmTile.Process());

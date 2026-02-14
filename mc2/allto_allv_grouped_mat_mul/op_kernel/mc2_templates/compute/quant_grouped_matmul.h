@@ -37,7 +37,8 @@ public:
         N1_ = tilingData_->taskTilingInfo.N1;
         BS_ = tilingData_->taskTilingInfo.BS;
         BSK_ = tilingData_->taskTilingInfo.BSK;
-        groupListGm_ = workspaceGM_ + BSK_ * H1_;
+        // 此处与alltoallv那边有差异，后续需要调整
+        groupListGm_ = workspaceGM_;
 
         xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
         wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
@@ -70,7 +71,8 @@ public:
         this->UpdateAddr(expertIdx);
         GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
         tPipe_->Reset();
-        gmmASWKernel.Init(xGM_, wGM_, nullptr, xScaleGM_, groupListGm_, weightScaleGM_, yGM_, workspaceGM_,
+        //此处逻辑有问题xscale与weightscale反了，alltoallv应该也有，已修正
+        gmmASWKernel.Init(xGM_, wGM_, nullptr, weightScaleGM_, groupListGm_, xScaleGM_, yGM_, workspaceGM_,
             &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
         gmmASWKernel.Process();
     }
