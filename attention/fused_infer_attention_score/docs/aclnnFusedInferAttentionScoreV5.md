@@ -1990,7 +1990,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <td>kv为tensorlist时，keyRope的shape中b需要与tensorlist长度保持一致，n、s需要与tensorlist中每个tensor的n、s相等，d为64</td>
         </tr>
         <tr>
-            <td colspan="4">不支持pse、prefix、伪量化、全量化 (不包括BNSD_BSND)</td>
+            <td colspan="4">不支持pse、prefix、伪量化、全量化</td>
         </tr>
         </tbody>
     </table>

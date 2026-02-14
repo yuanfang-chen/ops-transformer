@@ -1918,6 +1918,10 @@ bool PromptFlashAttentionTilingV2::CheckQuant(ContextParamsForPFATiling& context
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "antiquant params check failed!"),
         return false);
+    OP_CHECK_IF(enableKVAntiquant && (enableIFAMLA || enablePFARope || enablePFAMLA),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "MLA do not support antiquant."),
+        return false);
     return true;
 }
 
