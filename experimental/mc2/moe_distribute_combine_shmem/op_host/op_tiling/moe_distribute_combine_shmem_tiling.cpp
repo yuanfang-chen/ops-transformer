@@ -28,7 +28,6 @@
 #include <type_traits>
 #include <vector>
 
-#include "../../op_kernel/moe_distribute_combine_tiling.h"
 #include "../../op_kernel/moe_distribute_combine_shmem_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "mc2_log.h"
@@ -1459,7 +1458,7 @@ static void CalTilingKey(uint64_t &tilingKey, const uint64_t tpWorldSize,
   }
 }
 
-static ge::graphStatus MoeDistributeCombineA3TilingFuncImpl(
+static ge::graphStatus MoeDistributeCombineTilingFuncImpl(
     gert::TilingContext *context) {
   const char *nodeName = context->GetNodeName();
   OP_LOGD(nodeName, "Enter MoeDistributeCombineShmem Tiling func");
@@ -1660,7 +1659,7 @@ static ge::graphStatus MoeDistributeCombineShmemTilingFunc(
       return ge::GRAPH_FAILED);
 
   ge::graphStatus ret;
-  ret = MoeDistributeCombineA3TilingFuncImpl(context);
+  ret = MoeDistributeCombineTilingFuncImpl(context);
   return ret;
 }
 
