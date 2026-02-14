@@ -16,9 +16,6 @@
 #include <cstdlib>
 #include "securec.h"
 #include "acl/acl.h"
-#include "acl/acl_base.h"
-#include "acl/acl_rt.h"
-#include "acl/acl_dump.h"
 #include "tests/utils/log.h"
 
 extern "C" {
