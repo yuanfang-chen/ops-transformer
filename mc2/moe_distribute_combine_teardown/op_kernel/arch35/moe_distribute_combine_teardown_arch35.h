@@ -15,6 +15,12 @@
 #ifndef MOE_DISTRIBUTE_COMBINE_TEARDOWN_ARCH35_H
 #define MOE_DISTRIBUTE_COMBINE_TEARDOWN_ARCH35_H
 
+#if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
+#include "../common/inc/kernel/mc2_kernel_utils.h"
+#else
+#include "../../common/inc/kernel/mc2_kernel_utils.h"
+#endif
+
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_base.h"
@@ -26,14 +32,6 @@ using namespace AscendC;
 
 #define TemplateMC2TypeClass typename ExpandXType, typename ExpandIdxType
 #define TemplateMC2TypeFunc ExpandXType, ExpandIdxType
-
-template <AscendC::HardEvent event>
-__aicore__ inline void SyncFunc()
-{
-    int32_t eventID = static_cast<int32_t>(GetTPipePtr()->FetchEventID(event));
-    AscendC::SetFlag<event>(eventID);
-    AscendC::WaitFlag<event>(eventID);
-}
 
 template <TemplateMC2TypeClass>
 class MoeDistributeCombineTeardown {
@@ -155,7 +153,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
     // }
     selfDataStatusTensor(0) = 1U - dataState_; // 切换0/1区标识
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
-    PipeBarrier<PIPE_ALL>();
+    // PipeBarrier<PIPE_ALL>();
 
     // workspaceGM_ = workspaceGM;
     // expandXGlobal_.SetGlobalBuffer((__gm__ ExpandXType *)expandX);
@@ -272,7 +270,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::WaitDi
 
     // 计算当前核期望target值
     gatherTmpTensor.SetValue(0, 1);
-    SyncFunc<AscendC::HardEvent::S_V>(); // 等gatherTmpTensor标量写，后续GatherMask使用
+    AscendC::SyncFunc<AscendC::HardEvent::S_V>(); // 等gatherTmpTensor标量写，后续GatherMask使用
 
     uint64_t rsvdCnt = 0;
     DataCopyParams intriParams{static_cast<uint16_t>(sendRankNum_), 1,
@@ -297,23 +295,23 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::WaitDi
                  epStatusSpaceGlobal[static_cast<uint64_t>(startRankId_) *
                                      (stateOffset_ / static_cast<uint64_t>(sizeof(float)))],
                  intriParams);
-        SyncFunc<AscendC::HardEvent::MTE2_V>();
+        AscendC::SyncFunc<AscendC::HardEvent::MTE2_V>();
         GatherMask(gatherMaskOutTensor, statusTensor, gatherTmpTensor, true, 1,
                    {1, static_cast<uint16_t>(sendRankNum_), 1, 0}, rsvdCnt);
         PipeBarrier<PIPE_V>();
         Sum(statusSumOutTensor, gatherMaskOutTensor, sumParams);
-        SyncFunc<AscendC::HardEvent::V_S>();
+        AscendC::SyncFunc<AscendC::HardEvent::V_S>();
         sumOfFlag = statusSumOutTensor.GetValue(0);
     }
 
-    SyncFunc<AscendC::HardEvent::S_V>(); // TODO 这个同步在等谁？
+    // AscendC::SyncFunc<AscendC::HardEvent::S_V>(); // TODO 这个同步在等谁？
     Duplicate<float>(statusTensor, 0, sendRankNum_ * UB_ALIGN / sizeof(float));
-    SyncFunc<AscendC::HardEvent::V_MTE3>();
+    AscendC::SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(epStatusSpaceGlobal[static_cast<uint64_t>(startRankId_) *
                                  (stateOffset_ / static_cast<uint64_t>(sizeof(float)))],
              statusTensor,
-             clearParams);   // 清状态
-    PipeBarrier<PIPE_ALL>(); // TODO 这个同步在等谁？
+             clearParams); // 清状态
+    // PipeBarrier<PIPE_ALL>(); // TODO 这个同步在等谁？
     // SyncAll<true>();         // TODO 这个同步在等谁？
 }
 
@@ -360,7 +358,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
         float scaleVal = 0.0f;
         GM_ADDR wAddr; // 当前token的值对应的win区地址
 
-        SyncFunc<AscendC::HardEvent::MTE3_V>(); // 与结果搬出datacopy同tensor // TODO 等哪个？
+        // AscendC::SyncFunc<AscendC::HardEvent::MTE3_V>(); // 与结果搬出datacopy同tensor // TODO 等哪个？
         Duplicate(sumFloatBufTensor, 0.0f,
                   moeDistributeCombineTeardownInfo_->h); // 清零，sumFloatBufLocal保存累加结果
         LocalTensor<ExpandXType> tmpUb;
@@ -377,6 +375,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
             DataCopyPad(tmpUb, rowTmpGlobal_, copyParams, padParams);
             moeSumQueue_.EnQue(tmpUb);
             tmpUb = moeSumQueue_.DeQue<ExpandXType>();
+            AscendC::SyncFunc<AscendC::HardEvent::MTE2_V>();
 
             Cast(rowTmpFloatTensor, tmpUb, AscendC::RoundMode::CAST_NONE,
                  moeDistributeCombineTeardownInfo_->h); // 转为float
@@ -412,9 +411,9 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
         //         (tokenIndex - preCnt) * moeDistributeCombineTeardownInfo_->h;
         //     GlobalTensor<ExpandXType> shareTokGlobal;
         //     shareTokGlobal.SetGlobalBuffer((__gm__ ExpandXType *)(shareAddr));
-        //     SyncFunc<AscendC::HardEvent::V_MTE2>(); // 与结果搬出Cast同地址
+        //     AscendC::SyncFunc<AscendC::HardEvent::V_MTE2>(); // 与结果搬出Cast同地址
         //     DataCopy(rowTmpTensor, shareTokGlobal, moeDistributeCombineTeardownInfo_->h);
-        //     SyncFunc<AscendC::HardEvent::MTE2_V>();
+        //     AscendC::SyncFunc<AscendC::HardEvent::MTE2_V>();
         //     // tzy int8反量化加在这，可参考combineV2
         //     Cast(rowTmpFloatTensor, rowTmpTensor, AscendC::RoundMode::CAST_NONE,
         //     moeDistributeCombineTeardownInfo_->h); PipeBarrier<PIPE_V>(); Add(sumFloatBufTensor, sumFloatBufTensor,
@@ -427,7 +426,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
         LocalTensor<ExpandXType> sumBufLocal = tokenBuf_.Get<ExpandXType>();
         Cast(sumBufLocal, sumFloatBufTensor, AscendC::RoundMode::CAST_RINT,
              moeDistributeCombineTeardownInfo_->h); // 转成对应数据类型
-        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        AscendC::SyncFunc<AscendC::HardEvent::V_MTE3>();
         DataCopyPad(expandOutGlobal_[tokenIndex * moeDistributeCombineTeardownInfo_->h], sumBufLocal, copyParams);
         // PipeBarrier<PIPE_MTE3>(); // TODO 是否需要等搬运到GM搬完
     }
@@ -440,10 +439,12 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Process()
 {
-    AlltoAllBuffInit();
-    WaitDispatch();
-    SyncAll<true>();   // TODO 这个同步在等谁？
-    LocalWindowCopy(); // 拷出数据
+    if ASCEND_IS_AIV { // 全aiv处理{
+        AlltoAllBuffInit();
+        WaitDispatch();
+        SyncAll<true>();
+        LocalWindowCopy(); // 拷出数据
+    }
 }
 
 } // namespace MoeDistributeCombineTeardownImpl

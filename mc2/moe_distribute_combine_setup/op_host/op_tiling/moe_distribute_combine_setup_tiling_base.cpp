@@ -199,7 +199,7 @@ ge::graphStatus MoeDistributeCombineSetupTilingBase::CheckOptionalAttrValue()
                     OP_LOGE(nodeName_, "commQuantMode only support 0, get %ld.", *commQuantModePtr),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        (*commTypePtr < SDMA_COMM) || (*commTypePtr > URMA_COMM),
+        (*commTypePtr < SDMA_COMM) || (*commTypePtr > URMA_COMM), // A5只支持urma
         OP_LOGE(nodeName_, "commType only support [%lu, %lu], get [%lu]", SDMA_COMM, URMA_COMM, *commTypePtr),
         return ge::GRAPH_FAILED);
     if (commAlgPtr != nullptr) {
