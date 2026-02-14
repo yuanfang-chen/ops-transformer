@@ -30,9 +30,6 @@ using namespace ge;
 namespace ops {
 
 const constexpr int64_t X_INDEX = 0;
-const constexpr int64_t COS_INDEX = 1;
-const constexpr int64_t SIN_INDEX = 2;
-const constexpr int64_t ROTATE_INDEX = 3;
 const constexpr int64_t OUT_INDEX = 0;
 
 // 实现形状推导函数
@@ -41,19 +38,16 @@ static ge::graphStatus InferShapeMatrixTransformRope(InferShapeContext *context)
     OP_LOGD(context->GetNodeName(), "Begin to do InferShape MatrixTransformRope");
 
     // 获取输入tensor的形状
-    auto x_shape = context->GetInputShape(X_INDEX);
-    auto cos_shape = context->GetInputShape(COS_INDEX);
-    auto sin_shape = context->GetInputShape(SIN_INDEX);
-    auto rotate_shape = context->GetInputShape(ROTATE_INDEX);
+    auto xShape = context->GetInputShape(X_INDEX);
 
     // 根据输入形状计算输出形状
     // 输出形状与输入x的形状相同
-    auto Output1Shape = context->GetOutputShape(OUT_INDEX);
+    auto OutputShape = context->GetOutputShape(OUT_INDEX);
 
     // 设置输出的形状
-    Output1Shape->SetDimNum(x_shape->GetDimNum());
-    for (size_t i = 0; i < x_shape->GetDimNum(); ++i) {
-        Output1Shape->SetDim(i, x_shape->GetDim(i));
+    OutputShape->SetDimNum(xShape->GetDimNum());
+    for (size_t i = 0; i < xShape->GetDimNum(); ++i) {
+        OutputShape->SetDim(i, xShape->GetDim(i));
     }
 
     OP_LOGD(context->GetNodeName(), "End to do InferShape MatrixTransformRope");
@@ -63,8 +57,8 @@ static ge::graphStatus InferShapeMatrixTransformRope(InferShapeContext *context)
 static graphStatus InferDataTypeMatrixTransformRope(gert::InferDataTypeContext *context)
 {
     // 输出数据类型与输入x的数据类型相同
-    auto xType = context->GetInputDataType(X_INDEX);
-    context->SetOutputDataType(OUT_INDEX, xType);
+    auto outType = context->GetInputDataType(X_INDEX);
+    context->SetOutputDataType(OUT_INDEX, outType);
 
     return GRAPH_SUCCESS;
 }
@@ -73,5 +67,4 @@ static graphStatus InferDataTypeMatrixTransformRope(gert::InferDataTypeContext *
 IMPL_OP_INFER_SHAPE(MatrixTransformRope)
     .InferShape(InferShapeMatrixTransformRope)
     .InferDataType(InferDataTypeMatrixTransformRope);
-
 } // namespace ops
