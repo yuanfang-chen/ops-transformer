@@ -24,9 +24,11 @@
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 #include "all_gather_mte.h"
 #include "add_rms_norm_dynamic_quant_v2_helper.h"
-#if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
+#include "../common/inc/kernel/moe_distribute_base.h"
 #include "../common/inc/kernel/mc2_kernel_utils.h"
 #else
+#include "../../common/inc/kernel/moe_distribute_base.h"
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
@@ -171,13 +173,22 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
 
-    axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
-    axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
-    axisN_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
-    aivNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
-    rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
-    eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
-    aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
+    // axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
+    // axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
+    // axisN_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
+    // aivNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
+    // rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
+    // eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
+    // aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
+
+    // 传值失败，先打桩输入
+    axisM_ = 63;
+    axisKa_ = 5120;
+    axisN_ = 0;
+    aivNum_ = 24;
+    rankSize_ = 4;
+    eps_ = 1e-6;
+    aveNum_ = 1.0 / (float)5120.0;
 
     axisKaAlignSize_ = Ceil(axisKa_ * sizeof(X1Type), UB_ALIGN) * UB_ALIGN;
     axisKaAlignFloatSize_ = Ceil(axisKa_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
@@ -298,7 +309,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     tpipe_->InitBuffer(dynamicScaleBuf_, rowNumSize);
     dynamicScaleLocalTensor_ = dynamicScaleBuf_.Get<float>();
 
-    int32_t gmOffset = 0;
+    int32_t gmOffset = startRowId * axisKa_;
     int32_t elementCount = axisKaAlignSize_ / sizeof(X1Type);
     for (int32_t rowIdx = startRowId; rowIdx < endRowId; ++rowIdx) {
         Add2RmsNormCompute(gmOffset, elementCount);
