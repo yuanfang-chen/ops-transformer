@@ -173,6 +173,8 @@ public:
             ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
+        AscendC::printf("tkd after ReduceSumByPair\n");
+        AscendC::DumpTensor(srcUb, 1, 128);
 
         //每行128个元素分别规约求和。
         AscendC::WholeReduceSum<half, false>(
@@ -184,6 +186,8 @@ public:
             dataBlockStride,
             blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
+        AscendC::printf("tkd after WholeReduceSum\n");
+        AscendC::DumpTensor(rowsumUb, 2, 128);
     }
 
     __aicore__ inline
@@ -319,6 +323,8 @@ public:
             ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
+        AscendC::printf("tkd after ReduceMaxByPair\n");
+        AscendC::DumpTensor(srcUb, 1, 128);
 
         //每行128个元素分别规约求最大值。
         AscendC::WholeReduceMax<half, false>(
@@ -331,6 +337,8 @@ public:
             blockNumPerRow,
             AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
+        AscendC::printf("tkd after WholeReduceMax\n");
+        AscendC::DumpTensor(rowmaxUb, 2, 128);
     }
 
     __aicore__ inline
