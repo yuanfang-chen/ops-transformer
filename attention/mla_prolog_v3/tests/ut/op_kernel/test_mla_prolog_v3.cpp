@@ -170,7 +170,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_noQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t numBlocks = 12; 
+    uint32_t numBlocks = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
