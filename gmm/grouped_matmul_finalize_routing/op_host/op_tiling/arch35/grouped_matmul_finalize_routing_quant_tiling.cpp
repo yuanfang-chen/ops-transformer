@@ -105,6 +105,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
     OP_CHECK_IF(wDesc == nullptr, OP_LOGE(context_->GetNodeName(), "Input wDesc is nullptr."), return false);
     inputParams_.bDtype = wDesc->GetDataType();
     auto scaleDesc = context_->GetInputDesc(SCALE_INDEX);
+    OP_CHECK_IF(scaleDesc == nullptr, OP_LOGE(context_->GetNodeName(), "Input scaleDesc is nullptr."), return false);
     inputParams_.scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : inputParams_.scaleDtype;
     auto pertokenScaleDesc = context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX);
     inputParams_.perTokenScaleDtype =
@@ -177,38 +178,46 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
 {
-    bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
-    bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
-    if (a8w8 || a4w4) {
-        OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
-                        inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
-                    OP_LOGE(context_->GetNodeName(),
-                            "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1 inputs, \
-the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
-                    return false);
-    } else {
-        OP_LOGE(context_->GetNodeName(), "Quant case with x dtype %s and weight dtype %s is not supported.",
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str());
-        return false;
-    }
+    OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
+        OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
+                ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+        return false);
 
     if (IsMicroScaling()) {
-
-        OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
-                OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
-                return false);
-
+        bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
+        bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
+        OP_CHECK_IF(
+            !(a8w8 || a4w4),
+            OP_LOGE(context_->GetNodeName(),
+                    "In mx quant mode, the expected dtype of x and weight should be "
+                    "DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1, but actual dtype is %s, %s.",
+                    ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+                    ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+            return false);
     } else {
-        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
-                    OP_LOGE(inputParams_.opName,
-                            "In K-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
-                            inputParams_.bFormat),
+        OP_CHECK_IF(!(inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN || inputParams_.aDtype == ge::DT_INT8),
+                    OP_LOGE(context_->GetNodeName(),
+                            "In K-C/T-C quant mode, the expected dtype of x and weight should be "
+                            "DT_FLOAT8_E4M3FN/DT_INT8, but actual dtype is %s, %s.",
+                            ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+                            ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
                     return false);
-        // In K-C quant mode other数据类型校验
+
+        OP_CHECK_IF(!(inputParams_.scaleDtype == ge::DT_FLOAT || inputParams_.scaleDtype == ge::DT_BF16),
+                    OP_LOGE(context_->GetNodeName(),
+                            "In K-C/T-C quant mode, the expected dtype of scale should be "
+                            "DT_FLOAT/DT_BF16, but actual dtype is %s.",
+                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
+                    return false);
+
+        if (context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX)) {
+            OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
+                        OP_LOGE(context_->GetNodeName(),
+                                "In K-C quant mode, the expected dtype of perTokenScaleDtype should be "
+                                "DT_FLOAT, but actual dtype is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
+                        return false);
+        }
     }
 
     return true;
@@ -277,6 +286,39 @@ but actual n size is %lu.",
     return true;
 }
 
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalInputs()
+{
+    auto sharedInputDesc = context_->GetOptionalInputDesc(SHARE_INPUT_INDEX);
+    sharedInputLen_ = sharedInputDesc != nullptr
+                          ? context_->GetOptionalInputShape(SHARE_INPUT_INDEX)->GetStorageShape()[0]
+                          : sharedInputLen_;
+
+    OP_CHECK_IF(
+        sharedInputLen_ > outputBs_,
+        OP_LOGE(context_->GetNodeName(), "Input shared_input_len (%lu) out of batch(%lu).", sharedInputLen_, outputBs_),
+        return false);
+
+    OP_CHECK_IF(sharedInputOffset_ + sharedInputLen_ > outputBs_,
+                OP_LOGE(context_->GetNodeName(), "SharedInputOffset + sharedInputLen (%lu) out of batch(%lu).",
+                        sharedInputOffset_ + sharedInputLen_, outputBs_),
+                return false);
+
+    auto LogitDesc = context_->GetOptionalInputDesc(LOGIT_INDEX);
+    OP_CHECK_IF(LogitDesc == nullptr, OP_LOGE(context_->GetNodeName(), "LogitDesc is nullptr."), return false);
+
+    auto rowIndexDesc = context_->GetOptionalInputDesc(ROW_INDEX_INDEX);
+    OP_CHECK_IF(rowIndexDesc == nullptr, OP_LOGE(context_->GetNodeName(), "RowIndexDesc is nullptr."), return false);
+    rowIndex_ = context_->GetOptionalInputShape(ROW_INDEX_INDEX)->GetStorageShape()[0];
+
+    OP_CHECK_IF(rowIndex_ > inputParams_.mSize,
+                OP_LOGE(context_->GetNodeName(), "Input rowIndex (%lu) out of M (%lu).", rowIndex_, inputParams_.mSize),
+                return false);
+
+    OP_CHECK_IF(outputBs_ > inputParams_.mSize,
+                OP_LOGE(context_->GetNodeName(), "OutputBs (%lu) out of M (%lu).", outputBs_, inputParams_.mSize),
+                return false);
+}
+
 bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
 {
     auto xStorageShape = context_->GetInputShape(X_INDEX);
@@ -288,57 +330,43 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input wStorageShape is nullptr."),
                 return false);
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
-    const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
-    OP_CHECK_IF(!IsMicroScaling() && !CheckShapeForWeightNz(weightStorageShape),
-                OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
-
+    
     auto scaleStorageShape = context_->GetInputShape(SCALE_INDEX);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input scaleStorageShape is nullptr."),
                 return false);
     const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
     
     auto pertokenScaleStorageShape = context_->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
-    OP_CHECK_IF(pertokenScaleStorageShape == nullptr,
-                OP_LOGE(context_->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."), return false);
-    const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
     
     auto yStorageShape = context_->GetOutputShape(Y_INDEX);
     OP_CHECK_IF(yStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Output yStorageShape is nullptr."),
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
-    OP_CHECK_IF(IsMicroScaling() && !CheckShapeForMxQuant(xShape, wShape, pertokenScaleShape, scaleShape, yShape),
-                OP_LOGE(context_->GetNodeName(), "CheckShapeForMxQuant failed."), return false);
+    if (IsMicroScaling()) {
+        OP_CHECK_IF(pertokenScaleStorageShape == nullptr,
+                    OP_LOGE(context_->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."), return false);
+        const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
+        OP_CHECK_IF(!CheckShapeForMxQuant(xShape, wShape, pertokenScaleShape, scaleShape, yShape),
+                    OP_LOGE(context_->GetNodeName(), "CheckShapeForMxQuant failed."), return false);
+        OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
+    } else {
+        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
+                    OP_LOGE(inputParams_.opName,
+                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
+                            inputParams_.bFormat),
+                    return false);
+        const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
+        OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
+                    OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
+    }
 
-    auto sharedInputDesc = context_->GetOptionalInputDesc(SHARE_INPUT_INDEX);
-    sharedInputLen_ = sharedInputDesc != nullptr ?
-                          context_->GetOptionalInputShape(SHARE_INPUT_INDEX)->GetStorageShape()[0] : sharedInputLen_;
-
-    OP_CHECK_IF(
-        sharedInputLen_ > outputBs_,
-        OP_LOGE(context_->GetNodeName(), "Input shared_input_len (%lu) out of batch(%lu).", sharedInputLen_, outputBs_), return false);
-
-    OP_CHECK_IF(sharedInputOffset_ + sharedInputLen_ > outputBs_,
-                OP_LOGE(context_->GetNodeName(), "SharedInputOffset + sharedInputLen (%lu) out of batch(%lu).",
-                        sharedInputOffset_ + sharedInputLen_, outputBs_), return false);
-
-    auto LogitDesc = context_->GetOptionalInputDesc(LOGIT_INDEX);
-    OP_CHECK_IF(LogitDesc == nullptr, OP_LOGE(context_->GetNodeName(), "LogitDesc is nullptr."), return false);
-
-    auto rowIndexDesc = context_->GetOptionalInputDesc(ROW_INDEX_INDEX);
-    OP_CHECK_IF(rowIndexDesc == nullptr, OP_LOGE(context_->GetNodeName(), "RowIndexDesc is nullptr."), return false);
-    rowIndex_ = context_->GetOptionalInputShape(ROW_INDEX_INDEX)->GetStorageShape()[0];
-
+    OP_CHECK_IF(!CheckOptionalInputs(), OP_LOGE(context_->GetNodeName(), "CheckOptionalInputs failed."), return false);
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(context_->GetNodeName(), "SetGroupNum failed."), return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(context_->GetNodeName(), "SetMKN failed."), return false);
     OP_CHECK_IF(!SetQuantModeForGMMFinalizeRouting(),
                 OP_LOGE(context_->GetNodeName(), "SetQuantModeForGMMFinalizeRouting failed."), return false);
-    OP_CHECK_IF(rowIndex_ > inputParams_.mSize,
-                OP_LOGE(context_->GetNodeName(), "Input rowIndex (%lu) out of M (%lu).", rowIndex_, inputParams_.mSize), return false);
-    OP_CHECK_IF(outputBs_ > inputParams_.mSize,
-                OP_LOGE(context_->GetNodeName(), "OutputBs (%lu) out of M (%lu).", outputBs_, inputParams_.mSize),
-                return false);
-    OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
+   
     return true;
 }
 
