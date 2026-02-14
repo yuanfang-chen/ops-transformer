@@ -298,7 +298,7 @@ struct MlaPrologContext {
 
     size_t *workSpaces;
     uint64_t tilingKey;
-    uint32_t blockDim;
+    uint32_t numBlocks;
 };
 
 class MlaPrologTiling {

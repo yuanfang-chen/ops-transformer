@@ -156,7 +156,7 @@ TEST_F(MlaPrologKernel, test_case_v1_noQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -248,7 +248,7 @@ TEST_F(MlaPrologKernel, test_case_v1_noQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks, tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,ropeSin, 
         ropeCos, cacheIndex, kvCache, krCache, dequantScaleX, 
         dequantScaleWDq, dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, 
