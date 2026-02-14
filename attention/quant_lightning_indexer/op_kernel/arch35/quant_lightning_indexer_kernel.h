@@ -77,8 +77,7 @@ public:
     // =================================常量区=================================
     static constexpr uint32_t SYNC_C1_V1_FLAG = 4;
     static constexpr uint32_t SYNC_V1_C1_FLAG = 5;
-
-    static constexpr uint32_t M_BASE_SIZE = 256;
+    static constexpr uint32_t S1_BASE_SIZE = 4;
     static constexpr uint32_t S2_BASE_SIZE = 2048;
     static constexpr uint32_t HEAD_DIM = 128;
     static constexpr uint32_t K_HEAD_NUM = 1;
@@ -150,7 +149,8 @@ __aicore__ inline void QLIPreload<QLIT>::InitTilingData(const QLITilingData *__r
 {
     usedCoreNum = tilingData->usedCoreNum;
     constInfo.batchSize = tilingData->bSize;
-    constInfo.qHeadNum = constInfo.gSize = tilingData->gSize;
+    constInfo.qHeadNum = tilingData->gSize;
+    constInfo.gSize = CeilAlign(tilingData->gSize, 16);
     constInfo.kSeqSize = tilingData->s2Size;
     constInfo.qSeqSize = tilingData->s1Size;
     constInfo.attenMaskFlag = (tilingData->sparseMode == 3);
@@ -168,9 +168,9 @@ __aicore__ inline void QLIPreload<QLIT>::InitTilingData(const QLITilingData *__r
     constInfo.kHeadNum = K_HEAD_NUM;
     constInfo.headDim = HEAD_DIM;
 
-    constInfo.mBaseSize = M_BASE_SIZE;
+    constInfo.s1BaseSize = S1_BASE_SIZE;
     constInfo.s2BaseSize = S2_BASE_SIZE;
-    constInfo.s1BaseSize = (constInfo.mBaseSize + constInfo.gSize - 1) / constInfo.gSize;
+    constInfo.mBaseSize = constInfo.gSize * constInfo.s1BaseSize;
 }
 
 template <typename QLIT>
@@ -509,7 +509,7 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
     runInfo.isValid = s2LoopIdx <= tempLoopInfo.s2LoopEnd;
 
     if (!runInfo.isValid) {
-        return;  // 需要验证， v1 时候需要runInfo
+        return;
     }
 
     runInfo.actS1Size = tempLoopInfo.actS1Size;
@@ -538,9 +538,9 @@ __aicore__ inline void QLIPreload<QLIT>::CalcRunInfo(uint32_t loop, uint32_t s2L
         }
         uint64_t tndBIdxOffset = actualSeqQPrefixSum * constInfo.qHeadNum * constInfo.headDim;
         // B,S1,N1(N2,G),D
-        queryCoreOffset = tndBIdxOffset + runInfo.gS1Idx * constInfo.mBaseSize * constInfo.headDim;
+        queryCoreOffset = tndBIdxOffset + runInfo.gS1Idx * constInfo.qHeadNum * constInfo.s1BaseSize * constInfo.headDim;
         // B,S1,N1(N2,G)/T,N1(N2,G)
-        weightsCoreOffset = actualSeqQPrefixSum * constInfo.qHeadNum + runInfo.n2Idx * constInfo.gSize;
+        weightsCoreOffset = actualSeqQPrefixSum * constInfo.qHeadNum + runInfo.n2Idx * constInfo.qHeadNum;
         // B,S1,N2,k/T,N2,k
         indiceOutCoreOffset =
             actualSeqQPrefixSum * constInfo.kHeadNum * constInfo.sparseCount + runInfo.n2Idx * constInfo.sparseCount;
