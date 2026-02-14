@@ -170,7 +170,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_noQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -264,7 +264,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_noQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -297,7 +297,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVNoQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -391,7 +391,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVNoQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -424,7 +424,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -518,7 +518,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -551,7 +551,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVQuantPerfill)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -645,7 +645,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_semiQuantKVQuantPerfill)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -678,7 +678,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVNoQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -772,7 +772,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVNoQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -805,7 +805,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVQuant)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -899,7 +899,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVQuant)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
@@ -932,7 +932,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVQuantPerfill)
     uint32_t Block_Size = 64;
     uint32_t Nkv = 1;
     uint32_t Dtile = 656;
-    uint32_t blockDim = 12;
+    uint32_t numBlocks  = 12;
     uint32_t Hcq= 1536;
 
     AscendC::SetKernelMode(KernelMode::MIX_MODE);
@@ -1026,7 +1026,7 @@ TEST_F(MlaPrologV3Kernel, test_case_v3_QuantKVQuantPerfill)
     baseParams_->isQcQrScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->qcQrScale - 1.0f) >= std::numeric_limits<float>::epsilon());
     baseParams_->isKcScaleEnable = static_cast<uint16_t>(std::abs(baseParams_->kcScale - 1.0f) >= std::numeric_limits<float>::epsilon());
 
-    ICPU_RUN_KF(func, blockDim, tokenX, weightDq, weightUqQr,
+    ICPU_RUN_KF(func, numBlocks , tokenX, weightDq, weightUqQr,
         weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv,
         ropeSin, ropeCos, kvCache, krCache, cacheIndex, dequantScaleX, dequantScaleWDq, 
         dequantScaleWUqQr, dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq,
