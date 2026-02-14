@@ -709,6 +709,22 @@ bool PromptFlashAttentionTilingV2::CheckKVDataType(ContextParamsForPFATiling& co
     return true;
 }
 
+bool PromptFlashAttentionTilingV2::CheckRopeDataType(ContextParamsForPFATiling& contextKeyParams) {
+    ge::DataType queryDataType = contextKeyParams.qDataType;
+    ge::DataType keyDataType = contextKeyParams.kDataType;
+    ge::DataType queryRopeDataType = contextKeyParams.qRopeDataType;
+    ge::DataType keyRopeDataType = contextKeyParams.kRopeDataType;
+    OP_CHECK_IF((queryDataType != queryRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "DataType of query rope(%s) not equal datatype of query(%s).",
+        GetPfaDataTypeStr(queryRopeDataType).c_str(), GetPfaDataTypeStr(queryDataType).c_str()),
+        return false);
+    OP_CHECK_IF((keyDataType != keyRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "DataType of key(%s) not equal datatype of value(%s).",
+        GetPfaDataTypeStr(keyRopeDataType).c_str(), GetPfaDataTypeStr(keyDataType).c_str()),
+        return false);
+    return true;
+}
+
 bool PromptFlashAttentionTilingV2::CheckKeyValueParamsConsistency(ContextParamsForPFATiling& contextKeyParams,
     const gert::StorageShape* keyShape, const gert::StorageShape* valueShape) {
     if (enableTensorList) {
@@ -1804,6 +1820,9 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
     OP_CHECK_IF((contextKeyParams.queryRopeInputShape != nullptr && contextKeyParams.keyRopeInputShape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "queryRope is not null, but keyRope is null, "
         "they should be consistent."), return false);
+    OP_CHECK_IF(!(CheckRopeDataType(contextKeyParams)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Check rope datatype failed."),
+        return false);
     const gert::StorageShape* queryRopeShape = contextKeyParams.queryRopeInputShape;
     const gert::StorageShape* keyRopeShape = contextKeyParams.keyRopeInputShape;
 
@@ -2704,7 +2723,7 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             layoutStr.c_str()), return false);
     } else if (layoutStr == "BNSD_BSND") {
         if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
-            OP_CHECK_IF(queryShapeInfo.d % D_SIZE_BASE != 0),
+            OP_CHECK_IF((queryShapeInfo.d % D_SIZE_BASE != 0),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size should be a multiple of %d, but got d = %d.",
                 layoutStr.c_str(), D_SIZE_BASE, queryShapeInfo.d), return false);
         }
