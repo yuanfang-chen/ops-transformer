@@ -81,7 +81,7 @@ private:
         return (val + align - 1) / align * align;
     }
 
-    __aicore__ inline void initInnerAddr()
+    __aicore__ inline void InitInnerAddr()
     {
         auto tokenFlagBytes = STATE_OFFSET * (serverNum_ + 1);
         auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
@@ -91,7 +91,7 @@ private:
         rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableFlagTotalBytes;
     }
 
-    __aicore__ inline void initIpcFlagAddr()
+    __aicore__ inline void InitIpcFlagAddr()
     {
         ipcCombineSyncFlagAddrStart_ = ipcFlagAddrStart_[0];
         ipcDispatchSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_FLAG_OFFSET;
@@ -111,7 +111,7 @@ private:
     }
 
 public:
-    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum, uint32_t aivNum)
+    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
     {
         curRankId_ = rankId;
         // Get Hccl Buffer Size
@@ -121,7 +121,7 @@ public:
         bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t*)(GetWindowsOutAddr(rankId) + winSize - UB_32B_ALIGN));
         bufferId_ = bufferChosenGlobal_(0);
         aivId_ = AscendC::GetBlockIdx();
-        localMoeExpertNum_ = moeExpertNum / worldSize;
+        localMoeExpertNum_ = localMoeExpertNum;
         worldSize_ = worldSize;
         serverNum_ = worldSize / SERVER_RANK_SIZE;
         halfWorldSize_ = worldSize / 2U;
@@ -134,7 +134,7 @@ public:
             rdmaFlagAddrStart_ = winSize / 2UL;
         }
         rdmaDataAddrStart_ = rdmaFlagAddrStart_ + STATUS_SIZE_LAYERED;
-        initInnerAddr();
+        InitInnerAddr();
 
         // ipc addr
         ipcFlagAddrStart_[0] = winSize / 2UL - IPC_NON_DATA_BYTES / 2UL;
@@ -143,7 +143,7 @@ public:
             (ipcFlagAddrStart_[0] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
         ipcDataAddrStart_[1] =
             (ipcFlagAddrStart_[1] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
-        initIpcFlagAddr();
+        InitIpcFlagAddr();
         for (int i = 0; i < SERVER_RANK_SIZE; i++) {
             uint32_t targetRank = curRankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i;
             shareAddrs[i] = GetWindowsInAddr(targetRank);

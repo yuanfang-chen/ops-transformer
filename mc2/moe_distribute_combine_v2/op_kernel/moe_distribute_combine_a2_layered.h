@@ -328,7 +328,8 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     qp_info_ = (__gm__ HcclAiRMAInfo*)(((__gm__ HcclA2CombineOpParam*)contextGM)->aiRMAInfo);
 
     serverNum_ = worldSize_ / SERVER_RANK_SIZE;
-    addrInfo_.Init(rankId_, maxBs_, worldSize_, axisH_, axisK_, moeExpertNum_, aivNum_);
+    localMoeExpertNum_ = moeExpertNum_ / worldSize_;
+    addrInfo_.Init(rankId_, maxBs_, worldSize_, axisH_, axisK_, localMoeExpertNum_, aivNum_);
 
     coreIdx_ = GetBlockIdx();
 
@@ -337,7 +338,6 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     expandScalesGlobal_.SetGlobalBuffer((__gm__ float *)scales);
     expandOutGlobal_.SetGlobalBuffer((__gm__ ExpandXType *)XOut);
     readStateGlobal_.SetGlobalBuffer((__gm__ uint64_t *)(addrInfo_.GetRdmaFlagAddrOut()));
-    localMoeExpertNum_ = moeExpertNum_ / worldSize_;
     axisHFloatSize_ = axisH_ * static_cast<uint32_t>(sizeof(float));
     axisHExpandXTypeSize_ = axisH_ * static_cast<uint32_t>(sizeof(ExpandXType));
 

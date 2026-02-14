@@ -221,7 +221,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     localMoeExpertNum_ = moeExpertNum_ / worldSize_;
     serverNum = worldSize_ / SERVER_RANK_SIZE;
     maxBs_ = globalBs_ / worldSize_;
-    addrInfo_.Init(rankId_, maxBs_, worldSize_, axisH_, axisK_, moeExpertNum_, aivNum_);
+    addrInfo_.Init(rankId_, maxBs_, worldSize_, axisH_, axisK_, localMoeExpertNum_, aivNum_);
     expertTokenNumsType_ = tilingData.moeDistributeDispatchInfo.expertTokenNumsType;
     aivId_ = GetBlockIdx();
     expertIdsCnt_ = axisBS_ * axisK_;
