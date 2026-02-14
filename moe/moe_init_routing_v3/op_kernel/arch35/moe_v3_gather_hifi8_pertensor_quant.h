@@ -126,21 +126,6 @@ __aicore__ inline void MoeGatherOutHif8PertensorQuant<T>::Compute()
                                                                                 outRegH8, maskRegInLoop);
         }
     }
-    printf("===== MoeGatherOutHif8PertensorQuant Compute: outLocal Info =====");
-    printf("cols_ (data length): %u, scale_: %f", cols_, scale_);
-
-    // 2. 打印前N个hifloat8_t数据（转为float更直观），避免数据量过大
-    const uint32_t PRINT_LIMIT = 10; // 只打印前10个元素，可根据需要调整
-    uint32_t printCount = (cols_ < PRINT_LIMIT) ? cols_ : PRINT_LIMIT;
-    
-    for (uint32_t i = 0; i < printCount; i++) {
-        // 获取hifloat8_t原始值，并转换为float（hifloat8_t是压缩浮点类型，直接打印无意义）
-        cout<<"outlocal[i]:"<<outLocal(i)<<" ";
-       
-    }
-    if (cols_ > PRINT_LIMIT) {
-        printf("... (total %u elements, only printed first %u)", cols_, PRINT_LIMIT);
-    }
     inputXOutQueue_.EnQue(outLocal);
 }
 
