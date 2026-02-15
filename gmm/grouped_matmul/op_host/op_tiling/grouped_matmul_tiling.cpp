@@ -557,11 +557,9 @@ void GMMTiling::DivideUbAndSetWorkspaceAntiquant(size_t* workspaces, const uint3
 }
 
 int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
-  bool isA4W4 = {xDType_ == ge::DT_INT4 && weightDtype_ == ge::DT_INT4};
-  bool isA8W8 = {xDType_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT8};
   uint64_t quantGroupNum = tilingData.gmmBaseParams.get_quantGroupNum();
   // A8W8模式以及A4W4 Perchannel模式支持动态分块
-  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8 || (isA4W4 && quantGroupNum == 1)) ) {
+  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8_ || (isA4W4_ && quantGroupNum == 1)) ) {
     return baseN_;
   }
   int32_t mDim = CeilDiv(tuningConfig_ , baseM_);
