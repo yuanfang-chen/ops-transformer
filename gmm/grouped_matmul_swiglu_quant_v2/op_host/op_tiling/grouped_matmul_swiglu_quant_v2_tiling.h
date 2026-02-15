@@ -30,7 +30,6 @@ TILING_DATA_FIELD_DEF(int64_t, N);
 TILING_DATA_FIELD_DEF(int64_t, M);
 TILING_DATA_FIELD_DEF(int64_t, baseM);
 TILING_DATA_FIELD_DEF(int64_t, baseN);
-TILING_DATA_FIELD_DEF(int64_t, singleN);
 TILING_DATA_FIELD_DEF(int64_t, mLimit);
 TILING_DATA_FIELD_DEF(int64_t, workSpaceOffset1);
 TILING_DATA_FIELD_DEF(int64_t, workSpaceOffset2);
@@ -38,6 +37,7 @@ TILING_DATA_FIELD_DEF(int64_t, quantGroupNum);
 TILING_DATA_FIELD_DEF(int64_t, isSingleTensor);
 TILING_DATA_FIELD_DEF(int64_t, groupListType);
 TILING_DATA_FIELD_DEF(int64_t, smoothScaleDimNum);
+TILING_DATA_FIELD_DEF(int64_t, singleN);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GMMSwigluQuantV2BaseParamsOp, GMMSwigluQuantV2BaseParams)
 
