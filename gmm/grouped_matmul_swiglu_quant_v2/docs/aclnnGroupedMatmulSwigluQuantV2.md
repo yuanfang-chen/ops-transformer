@@ -665,17 +665,13 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <td>(M, N / 2)</td>
               <td>(M,)</td>
             </tr>
-            <tr>
+              <tr>
               <td>A8W4</td>
               <td>(M, K)</td>
               <td><ul>
               <li>ND格式shape形如{(E, K, N)}</li>
-              <li>A4W4支持非转置和转置NZ</li>
-              <li>NZ非转置格式且INT4时shape形如{(E, N / 64, K / 16, 16, 64)}</li>
-              <li>NZ非转置格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li>
-              <li>NZ转置格式且INT4时原始shape形如{(E, K / 64, N / 16, 16, 64)}，并调用transpose(-1,-2)后传入</li>
-              <li>NZ转置格式且INT32时原始shape形如{(E, K / 64, N / 16, 16, 8)}，并调用transpose(-1,-2)后传入</li>
-              </td>
+              <li>NZ格式且INT4时shape形如{(E, N / 64, K / 16, 16, 64)}</li>
+              <li>NZ格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li></td>
               <td><ul>
               <li>per-channel场景shape形如{(E, N)}</li>
               <li>per-group场景shape形如{(E, K_group_num, N)}</li></td>
@@ -688,8 +684,12 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <td>(M, K)</td>
               <td><ul>
               <li>ND格式shape形如{(E, K, N)}</li>
-              <li>NZ格式且INT4时shape形如{(E, N / 64, K / 16, 16, 64)}</li>
-              <li>NZ格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li></td>
+              <li>A4W4支持非转置和转置NZ</li>
+              <li>NZ非转置格式且INT4时shape形如{(E, N / 64, K / 16, 16, 64)}</li>
+              <li>NZ非转置格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li>
+              <li>NZ转置格式且INT4时原始shape形如{(E, K / 64, N / 16, 16, 64)}，并调用transpose(-1,-2)后传入</li>
+              <li>NZ转置格式且INT32时原始shape形如{(E, K / 64, N / 16, 16, 8)}，并调用transpose(-1,-2)后传入</li>
+              </td>
               <td><ul>
               <li>per-channel场景shape形如{(E, N)}</li>
               <li>per-group场景shape形如{(E, K_group_num, N)}</li></td>
