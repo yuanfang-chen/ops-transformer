@@ -44,14 +44,6 @@ auto CeilDiv(T1 a, T2 b) -> T1
     return (a + b - 1) / b;
 }
 
-template <typename T>
-auto CeilDiv(T a, T b) -> T
-{
-    if (b == 0) {
-        return a;
-    }
-    return (a + b - 1) / b;
-}
 
 static inline uint32_t SixteenAlign(uint32_t a, bool up = false)
 {
@@ -205,7 +197,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
     if (wTensor->GetStorageShape().GetDimNum() == NZ_WEIGHT_DIM_LIMIT || wTensor->GetStorageShape().GetDimNum() == NZ_WEIGHT_MULTI_TENSOR_DIM) {
         isNz_ = true;
     }
-    const auto tuningConfigPtr = attr->GetAttrPointer<gert::ContinuousVector>(6);
+    const auto tuningConfigPtr = attr->GetAttrPointer<gert::ContinuousVector>(ATTR_INDEX_TUNING_CONFIG);
     tuningConfig_ = tuningConfigPtr != nullptr && tuningConfigPtr->GetSize() > 1? 
                     (reinterpret_cast<const int64_t*>(tuningConfigPtr->GetData()))[0] : 0;
 
@@ -227,7 +219,7 @@ ge::graphStatus GroupedMatmulSwigluQuantV2BaseTiling::ParseInputAndAttr()
         }
     }
 
-    isWeightTrans_ = *attr->GetAttrPointer<int64_t>(4);
+    isWeightTrans_ = *attr->GetAttrPointer<int64_t>(ATTR_INDEX_TRANSPOSE_WEIGHT);
 
     if (dequantMode == 1) { // perGroup量化模式：单tensor场景[E, KGroupCount, N]，多tensor场景[KGroupCount, N]
         quantGroupNum_ = wScaleTensor->GetStorageShape().GetDim(wScaleDimNum - DIM_2);
