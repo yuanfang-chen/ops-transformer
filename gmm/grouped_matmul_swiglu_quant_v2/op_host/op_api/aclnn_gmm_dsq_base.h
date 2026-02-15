@@ -288,12 +288,12 @@ protected:
         // weight的NDshape期望为[E, K, N]
         op::Shape weightNDExpectShape = {e, k, n};
         // 单tesnsor weight的NZshape期望为[E, N // 64, K // 16, 16, 64]
-        op::Shape weightNZExpectShape1 = {e, static_cast<int64_t>(n / NZ_DIM_4_INT4), static_cast<int64_t>(k / NZ_DIM_3),
+        op::Shape weightNZExpectShape = {e, static_cast<int64_t>(n / NZ_DIM_4_INT4), static_cast<int64_t>(k / NZ_DIM_3),
                                         NZ_DIM_3, NZ_DIM_4_INT4};
         // 单tensor NZ转置
-        op::Shape weightNZExpectShape2 = {e, static_cast<int64_t>(k / NZ_DIM_4_INT4), static_cast<int64_t>(n / NZ_DIM_3),
+        op::Shape weightNZTransposeExpectShape1 = {e, static_cast<int64_t>(k / NZ_DIM_4_INT4), static_cast<int64_t>(n / NZ_DIM_3),
                                         NZ_DIM_4_INT4, NZ_DIM_3};
-        op::Shape weightNzExpectShape3 = {e, static_cast<int64_t>(k / NZ_DIM_4_INT4), static_cast<int64_t>(n / NZ_DIM_3),
+        op::Shape weightNZTransposeExpectShape2 = {e, static_cast<int64_t>(k / NZ_DIM_4_INT4), static_cast<int64_t>(n / NZ_DIM_3),
                                         NZ_DIM_3, NZ_DIM_4_INT4};
 
 
@@ -308,9 +308,14 @@ protected:
         }
         op::Format weightViewFormat = w->GetViewFormat();
         if (IsPrivateFormat(weightViewFormat)) {
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNZExpectShape1, 
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNZExpectShape2,
-            OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNzExpectShape3, return false)));
+            if (!(w->GetViewShape() == weightNZExpectShape || w->GetViewShape() == weightNZTransposeExpectShape1 || w->GetViewShape() == weightNZTransposeExpectShape2)) {
+                OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Expected tensor for weight to have same size as %s %s or %s, but got %s.",
+                        op::ToString(weightNZExpectShape).GetString(),
+                        op::ToString(weightNZTransposeExpectShape1).GetString(),
+                        op::ToString(weightNZTransposeExpectShape2).GetString(),
+                        op::ToString(w->GetViewShape()).GetString());
+                return false;
+            }
         } else {
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(w, weightNDExpectShape, return false);
         }
@@ -491,12 +496,14 @@ protected:
         tensorS4->SetViewShape(tensorShape);
         tensorS4->SetDataType(DataType::DT_INT4);
         if (isNz){
+            OP_LOGD("Reset %s storageShape because tensor is NZ format.", tensorType.c_str());
             auto storageShape = tensorS4->GetStorageShape();
             auto storageShapeDim = storageShape.GetDimNum();
             storageShape[storageShapeDim - 1] *= INT4_PER_INT32;
             tensorS4->SetStorageShape(storageShape);
         }
         if (transposeTensor) {
+            OP_LOGD("Reset %s stride because tensor is transposed.", tensorType.c_str());
             auto strideSize = newStride.size();
             // 转置场景，B32承载B4时Strides缩小了8倍，需要调整回来
             newStride[strideSize - 1] *= INT4_PER_INT32;
@@ -527,6 +534,17 @@ protected:
                 for (size_t i = 0; i < wLength; i++) {
                     const aclTensor *w = (*gmmDsqParams_.weight)[i];
                     UnpackInt32ToInt4(w, "weight");
+                }
+            }
+            
+            if (transposeWeight == true){
+                const aclTensor* w = (*gmmDsqParams_.weight)[0];
+                bool isNZ = w->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ;
+                if (!isNZ ){
+                    OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                            "In weight Transpose scenario.weight Format expect is FRACTAL_NZ when weight is transposed, but got [%s].", 
+                            op::ToString(w->GetStorageFormat()).GetString());
+                    return false;
                 }
             }
             if (((*gmmDsqParams_.weightScale)[0])->GetDataType() == DataType::DT_INT64) {
