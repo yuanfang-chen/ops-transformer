@@ -87,13 +87,16 @@ static constexpr uint64_t V1_BASE_T = 16;  // T维度分块大小 TODO
 static constexpr uint64_t V1_BASE_D = 32;  // D维度分块大小
 static constexpr uint32_t ND_LENGTH = 256; // nD维度分块长度
 
-// 同步标志常量
-static constexpr uint64_t SYNC_V2C = 0x1;  // Vector→Cube同步标志
-static constexpr uint64_t SYNC_C2V = 0x2;  // Cube→Vector同步标志
-static constexpr uint64_t SYNC_C2V1 = 0x3; // Cube→Vector同步标志1
+// 同步标志常量 - PingPong 流水
+static constexpr uint64_t SYNC_V2C_P0 = 0x1;  // Vector→Cube, buffer P0 就绪
+static constexpr uint64_t SYNC_C2V_P0 = 0x2;  // Cube→Vector, buffer P0 可复用
+static constexpr uint64_t SYNC_V2C_P1 = 0x3;  // Vector→Cube, buffer P1 就绪
+static constexpr uint64_t SYNC_C2V_P1 = 0x4;  // Cube→Vector, buffer P1 可复用
+static constexpr uint64_t SYNC_C2V1 = 0x5;    // Cube→Vector, 矩阵乘法全部完成
 
 // 其他常量
 static constexpr uint32_t parallNum_ = 2; // 并行数量
+static constexpr uint32_t AL1_PINGPONG = 2; // aL1 double buffer 数量
 
 using aT = MatmulType<TPosition::TSCM, CubeFormat::ND, float32_t>; // TPosition::TSCM
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
@@ -116,7 +119,7 @@ public:
     __aicore__ inline void DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM);
     __aicore__ inline void DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen,
-                                                  uint32_t offsetM, uint32_t offsetNd);
+                                                  uint32_t offsetM, uint32_t offsetNd, LocalTensor<P> &aL1Buf);
     __aicore__ inline void DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd);
     __aicore__ inline void AIVPreLoad();
     __aicore__ inline void HMixCopyIn(uint64_t offset, uint64_t lenT);
@@ -186,7 +189,10 @@ private:
     LocalTensor<uint32_t> postOffsetBuf_;
     LocalTensor<uint32_t> resOffsetBuf_;
 
-    LocalTensor<P> aL1_; // V0(UB) -> C1(L1)
+    // aL1 Double Buffer for PingPong
+    LocalTensor<P> aL1Buf0_; // L1 buffer P0
+    LocalTensor<P> aL1Buf1_; // L1 buffer P1
+    uint8_t curAL1BufIdx_ = 0; // 当前使用的 buffer 索引
 
     TPipe *pipe_;
     MatrixInfo matrixInfo_;
@@ -284,7 +290,9 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::InitCubeBuffers()
 {
-    aL1_ = LocalTensor<P>(TPosition::TSCM, 0, mnConfig_.singleCoreM * mnConfig_.singleCoreK);
+    uint64_t bufSize = mnConfig_.singleCoreM * mnConfig_.singleCoreK;
+    aL1Buf0_ = LocalTensor<P>(TPosition::TSCM, 0, bufSize);
+    aL1Buf1_ = LocalTensor<P>(TPosition::TSCM, bufSize * sizeof(P), bufSize);
 
     if ASCEND_IS_NOT_AIC {
         return;
@@ -318,7 +326,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
     resOffsetBuf_ = postOffsetBuf_[N_ * V1_BASE_T];
     uint64_t buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t);
 
-    // V1
+    // V1 hPreBuff这些都换成OutQueue buffer。
     buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
     hPreBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
@@ -401,25 +409,32 @@ __aicore__ inline void MhcPreKernel<T, P>::AICProcess()
         outOffset = mnConfig_.singleCoreM * mnConfig_.singleCoreN * ((mmCount_ % 2) * coreNum_ + coreIdx_);
     }
     mnConfig_.curSingleCoreK = mnConfig_.singleCoreK;
+    curAL1BufIdx_ = 0;
+
     for (uint64_t offsetNd = 0; offsetNd < mnConfig_.k; offsetNd += mnConfig_.singleCoreK) {
-        AscendC::CrossCoreWaitFlag(SYNC_V2C);
+        uint64_t waitFlag = (curAL1BufIdx_ == 0) ? SYNC_V2C_P0 : SYNC_V2C_P1;
+        AscendC::CrossCoreWaitFlag(waitFlag);
 
         if (offsetNd + mnConfig_.singleCoreK > mnConfig_.k) {
             mnConfig_.curSingleCoreK = mnConfig_.k - offsetNd;
         }
 
-        uint64_t xOffset = chunTSize_ * ND_LENGTH * (coreIdx_ + (cubeCount_ % parallNum_) * coreNum_);
+        LocalTensor<P> curAL1Buf = (curAL1BufIdx_ == 0) ? aL1Buf0_ : aL1Buf1_;
 
         mm.SetOrgShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN, mnConfig_.curSingleCoreK,
-                       mnConfig_.k); // MNK
+                       mnConfig_.k);
         mm.SetSingleShape(mnConfig_.curSingleCoreM, mnConfig_.curSingleCoreN,
-                          mnConfig_.curSingleCoreK); // SingleCoreMNK
-        mm.SetTensorA(aL1_);
+                          mnConfig_.curSingleCoreK);
+        mm.SetTensorA(curAL1Buf);
         mm.SetTensorB(phiGm_[offsetNd], true);
         mm.IterateAll(mmResGm_[outOffset], offsetNd == 0 ? 0 : 1);
         mm.End();
         cubeCount_++;
-        CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V);
+
+        uint64_t setFlag = (curAL1BufIdx_ == 0) ? SYNC_C2V_P0 : SYNC_C2V_P1;
+        CrossCoreSetFlag<0x2, PIPE_FIX>(setFlag);
+
+        curAL1BufIdx_ = (curAL1BufIdx_ + 1) % AL1_PINGPONG;
     }
     mmCount_++;
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_C2V1);
@@ -530,7 +545,6 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRm
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t tBlockNum)
 {
-    // 计算vec核0和核1的偏移，核间切T
     curSingleT_ = chunTSize_;
     if (curblock == tBlockNum - 1) {
         curSingleT_ = matrixInfo_.totalLength - curblock * chunTSize_;
@@ -538,14 +552,23 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
     VectorComputeOffset();
 
     uint32_t computeLen = V0_BASE_T * ND_LENGTH;
+    curAL1BufIdx_ = 0;
+
     for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
         uint32_t curNdLen = ND_LENGTH;
         if (offsetNd + ND_LENGTH >= matrixInfo_.nD) {
             curNdLen = matrixInfo_.nD - offsetNd;
         }
-        if (offsetNd > 0) {
-            AscendC::CrossCoreWaitFlag(SYNC_C2V); // 等待cube处理完上一个offsetNd的数据
+
+        uint8_t waitBufIdx = curAL1BufIdx_;
+
+        if (offsetNd >= AL1_PINGPONG * ND_LENGTH) {
+            uint64_t waitFlag = (waitBufIdx == 0) ? SYNC_C2V_P0 : SYNC_C2V_P1;
+            AscendC::CrossCoreWaitFlag(waitFlag);
         }
+
+        LocalTensor<P> curAL1Buf = (curAL1BufIdx_ == 0) ? aL1Buf0_ : aL1Buf1_;
+
         for (uint32_t offsetM = vectorOffset_.offsetMStart; offsetM < vectorOffset_.offsetMEnd; offsetM += V0_BASE_T) {
             uint32_t curMLen = V0_BASE_T;
             if (offsetM + V0_BASE_T >= vectorOffset_.offsetMEnd) {
@@ -554,7 +577,7 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             uint64_t invRmsOffset = offsetM - vectorOffset_.offsetMStart;
             LocalTensor<P> invRmsUb = invRmsUb_[invRmsOffset];
             computeLen = curMLen * Ceil(curNdLen, 16) * 16;
-            // copy x
+
             xLocal_ = xInQueue_.AllocTensor<T>();
             DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
             xLocal_ = xInQueue_.DeQue<T>();
@@ -562,7 +585,6 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
             LocalTensor<P> aL1Ub = outQueue_.AllocTensor<P>();
 
             if (hasGamma_) {
-                // copy gamma
                 gammaUb_ = gammaInQueue_.AllocTensor<P>();
                 DataCopyGamma(curNdLen, offsetNd);
                 gammaUb_ = gammaInQueue_.DeQue<P>();
@@ -589,16 +611,18 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
                 }
             }
 
-            // TODO: DEBUG FOR C0
             outQueue_.EnQue<P>(aL1Ub);
             aL1Ub = outQueue_.DeQue<P>();
-            DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
+            DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd, curAL1Buf);
 
             xInQueue_.FreeTensor(xLocal_);
             outQueue_.FreeTensor(aL1Ub);
         }
 
-        CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C); // TODO: 确认通路同步信号
+        uint64_t setFlag = (curAL1BufIdx_ == 0) ? SYNC_V2C_P0 : SYNC_V2C_P1;
+        CrossCoreSetFlag<0x2, PIPE_MTE3>(setFlag);
+
+        curAL1BufIdx_ = (curAL1BufIdx_ + 1) % AL1_PINGPONG;
     }
 
     VFDoV0ProcessInvRms((__ubuf__ P *)invRmsUb_.GetPhyAddr(), vectorOffset_.singleCoreM, scaleMean_,
@@ -954,20 +978,16 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen,
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen,
                                                                   uint32_t curNdLen, uint32_t offsetM,
-                                                                  uint32_t offsetNd)
+                                                                  uint32_t offsetNd, LocalTensor<P> &aL1Buf)
 {
-    // outQueue_.EnQue<P>(xFp32Ub_);
-    // xFp32Ub_ = outQueue_.DeQue<P>();
-
     DataCopyParams copyParams;
     copyParams.blockCount = static_cast<uint16_t>(curMLen);
     copyParams.blockLen = uint32_t(curNdLen * sizeof(P));
     copyParams.srcStride = uint32_t(0);
     copyParams.dstStride = uint32_t(0);
 
-    // uint64_t l1OffsetM = offsetM + subBlockIdx_ * vectorOffset_.singleCoreM;
     uint64_t offset = offsetM * curNdLen;
-    DataCopy(aL1_[offset], x, copyParams);
+    DataCopy(aL1Buf[offset], x, copyParams);
 }
 
 } // namespace MhcPre
