@@ -298,8 +298,8 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
         return;
     }
 
-    pipe_->InitBuffer(xInQueue_, 2, 20 * 1024);                           // 20KB
-    pipe_->InitBuffer(outQueue_, 2, 20 * 1024);                           // 32KB
+    pipe_->InitBuffer(xInQueue_, 1, 20 * 1024);                           // 20KB
+    pipe_->InitBuffer(outQueue_, 1, 20 * 1024);                           // 32KB
     pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P)); // 1KB
 
     if (hasGamma_) {
@@ -965,8 +965,8 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P>
     copyParams.srcStride = uint32_t(0);
     copyParams.dstStride = uint32_t(0);
 
-    uint64_t l1OffsetM = offsetM + subBlockIdx_ * vectorOffset_.singleCoreM;
-    uint64_t offset = l1OffsetM * matrixInfo_.nD + offsetNd;
+    // uint64_t l1OffsetM = offsetM + subBlockIdx_ * vectorOffset_.singleCoreM;
+    uint64_t offset = offsetM * curNdLen;
     DataCopy(aL1_[offset], x, copyParams);
 }
 
