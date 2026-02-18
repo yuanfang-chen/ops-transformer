@@ -23,6 +23,8 @@ constexpr uint8_t SYNC_AIC_AIV_MODE = 4;
 constexpr uint16_t FLAG_ID_MAX = 16;
 constexpr uint16_t AIC_SYNC_AIV_FLAG = 4;
 constexpr uint16_t AIV_SYNC_AIC_FLAG = 6; 
+constexpr uint16_t VEC0_FLAG_ID_OFFSET = 0;
+constexpr uint16_t VEC1_FLAG_ID_OFFSET = FLAG_ID_MAX;
 
 template <typename T>
 __aicore__ inline T Max(T a, T b) {
