@@ -343,7 +343,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
     hPreBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
     inputBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T * V1_BASE_D), buffOffset);
-    buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
+    buffOffset += mnConfig_.n * V1_BASE_T * V1_BASE_D * sizeof(P);
     broadCastTmpUb_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T), buffOffset); // 20KB
     buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
     hPostBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
