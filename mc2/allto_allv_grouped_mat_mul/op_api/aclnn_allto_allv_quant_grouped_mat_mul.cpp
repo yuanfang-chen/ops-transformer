@@ -299,18 +299,6 @@ static bool CheckQuantValid(int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, c
             return false;
         }
     }
-    if (static_cast<QuantModeType>(mmXQuantMode) == QuantModeType::NO_QUANT) {
-        if ((mmXScaleOptional != nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmXScaleOptional should be empty.");
-            return false;
-        }
-    }
-    if (static_cast<QuantModeType>(mmWeightQuantMode) == QuantModeType::NO_QUANT) {
-        if ((mmWeightScaleOptional != nullptr)) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "mmWeightScaleOptional should be empty.");
-            return false;
-        }
-    }
     return true;
 }
 
