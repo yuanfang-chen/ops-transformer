@@ -12,7 +12,11 @@
 #define MC2_HCCL_IMPL_H
 
 #include "kernel_operator.h"
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/hccl/hccl.h"
 #include "../common/a2av_common_tiling.h"
 
