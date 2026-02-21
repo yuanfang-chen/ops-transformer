@@ -244,11 +244,16 @@ static ge::graphStatus InferDataTypeAlltoAllvGroupedMatMul(gert::InferDataTypeCo
 {
     auto dType = context->GetInputDataType(INDEX_IN_GMM_X);
     auto* attrs = context->GetAttrs();
-    auto* yDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_Y_DTYPE_INDEX);
-    auto* mmDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_MM_DTYPE_INDEX);
-    ge::DataType yDataType = yDtypePtr == nullptr ? dType : static_cast<ge::DataType>(*yDtypePtr);
-    ge::DataType mmDataType = mmDtypePtr == nullptr ? dType : static_cast<ge::DataType>(*mmDtypePtr);
-    
+    const int64_t *yDtypePtr = nullptr;
+    if (attrs->GetAttrNum() > INDEX_ATTR_Y_DTYPE_INDEX) {
+        yDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_Y_DTYPE_INDEX);
+    }
+    const int64_t *mmDtypePtr = nullptr;
+    if (attrs->GetAttrNum() > INDEX_ATTR_MM_DTYPE_INDEX) {
+        mmDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_MM_DTYPE_INDEX);
+    }
+    ge::DataType yDataType = (yDtypePtr == nullptr && *yDtypePtr != -1) ? dType : static_cast<ge::DataType>(*yDtypePtr);
+    ge::DataType mmDataType = (mmDtypePtr == nullptr && *mmDtypePtr != -1) ? dType : static_cast<ge::DataType>(*mmDtypePtr);
     context->SetOutputDataType(INDEX_OUT_MM_Y, mmDataType);
     OP_LOGD(context->GetNodeName(), "infershape mmY data type: %s.", TypeUtils::DataTypeToAscendString(mmDataType).GetString());
     context->SetOutputDataType(INDEX_OUT_GMM_Y, yDataType);
