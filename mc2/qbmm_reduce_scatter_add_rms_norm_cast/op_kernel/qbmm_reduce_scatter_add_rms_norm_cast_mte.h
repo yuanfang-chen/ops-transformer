@@ -52,6 +52,7 @@ public:
 private:
     uint32_t blockIdx_;
     uint32_t tileN_;
+    uint32_t dstTpIndx_;
     GlobalTensor<XType>aGlobalTensor_;
     GlobalTensor<XType>wGlobalTensor_;
     GlobalTensor<YType>yGlobalTensor_;
@@ -81,6 +82,10 @@ __aicore__ inline void InitTilingData(const QuantBatchMatmulV3TilingData *tiling
     singleCoreK_ = tilingData->matmulTiling.singleCoreK;
     usedCoreNum_ = tilingData->matmulTiling.usedCoreNum;
 
+    singleM_ = tilingData->matmulTiling.singleM;
+    singleN_ = tilingData->matmulTiling.singleN;
+
+
     baseM_ = tilingData->matmulTiling.baseM;
     baseN_ = tilingData->matmulTiling.baseN;
     isMouter_ = tilingData->matmulTiling.iterateOrder == 0;
@@ -95,8 +100,7 @@ __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindAddrByRankI
     if (rankId == tpRankId_) {
         return (GM_ADDR)(winContext_->localWindowsIn);
     }
-    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsIn)
-                        + winDataSizeOffset_;
+    return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsIn);   // 先找到某个rank的首地址，然后再偏移到具体的处理data的地方
 }
 
 template <TemplateMC2TypeClass>
@@ -112,7 +116,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x, GM_AD
     GM_ADDR bias, GM_ADDR perTokenScale, GM_ADDR y1, GM_ADDR y2, GM_ADDR xOut, TPipe *pipe, GM_ADDR workSpace, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     PRINTF("kernel init doing.");
-    blockIdx_ = GetBlockIdx();  // AIC_AIV_1_1 by default
+    blockIdx_ = GetBlockIdx();  // AIC_AIV_1_1 by default  // ?
     blockIdx_ /= GetTaskRation();
 
     aGlobalTensor_.SetGlobalBuffer((__gm__ XType*)x);
@@ -133,8 +137,10 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x, GM_AD
 
 template <TemplateMC2TypeClass>
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOfffset,
-                                          uint64_t baseNOfffset, uint32_t curAicM, uint32_t curAicN)
+    uint64_t baseNOfffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t column)
 {
+    // 当前v核处理一半这个mmout的反量化和reducescatter
+    // 反量化的具体细节 TODO
     LocalTensor<float> dstLocalFp32;
     LocalTensor<float> biasFp32;
     LocalTensor<bfloat16_t> oriBiasBf16;
@@ -143,25 +149,27 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(Global
     uint32_t curAivM = ubCalcM_;
     // calcN in ub is equal to aicN
     uint32_t curAivN = curAicN;
-    uint32_t mUbLoops = DequantBmm::CeilDiv(curAicM, ubCalcM_);
+    // 假设能整除，当前这个baseM/N块交给两个v核处理，getblockindex得到的是cid
+    uint32_t mUbLoops = DequantBmm::CeilDiv(curAicM / 2, ubCalcM_);     // 一个baseM和N还要继续被拆分成loops循环，N不拆，M拆分
     DataCopyParams gm2UbParams{1, 0, 0, 0};
     DataCopyExtParams ub2GmParams{1, 0, 0, 0, 0};
     DataCopyPadParams padParams;
     DequantParams dequantParams;
     DequantBmm::CalcDequantParams(mUbLoops == 1 ? curAicM : ubCalcM_, curAicN, dequantParams);
     for (uint32_t mUbLoopIdx = 0; mUbLoopIdx < mUbLoops; ++mUbLoopIdx) {
-        if (mUbLoopIdx == mUbLoops - 1) {
-            curAivM = curAicM - ubCalcM_ * (mUbLoops - 1);
+        if (mUbLoopIdx == mUbLoops - 1) {   // 尾块处理
+            curAivM = curAicM / 2 - ubCalcM_ * (mUbLoops - 1);
             DequantBmm::CalcDequantParams(curAivM, curAicN, dequantParams, mUbLoops != 1 && curAivM != ubCalcM_);
         }
         LocalTensor<int32_t> srcLocal = vecQueSrc_.AllocTensor<int32_t>();
         LocalTensor<yType> dstLocal = vecQueOut_.AllocTensor<yType>();
         LocalTensor<uint8_t> tmpLocal = vecQueTmp_.Get<uint8_t>();
         // datacopypad 32B aligned
+        // 先gm到ub，再进行反量化dequant
         gm2UbParams.blockLen = curAivN * sizeof(int32_t);
         gm2UbParams.blockCount = curAivM;
         gm2UbParams.srcStride = (curAicN - curAivN) * sizeof(int32_t);
-        uint32_t curAicAivOffset = mUbLoopIdx * ubCalcM_ * curAicN;
+        uint32_t curAicAivOffset = mUbLoopIdx * ubCalcM_ * curAicN + curAicM / 2 * curAicN * (GetSubBlockIdx() % 2);
         DataCopyPad(srcLocal, curMmOutGm[curAicAivOffset], gm2UbParams, padParams);
         SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
         WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
@@ -202,14 +210,35 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(Global
         WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
         // 发送Token
         // TODO 自己改下
-        int32_t remoteRankId = curM / (m_ / tpWorldSize);
-        GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
+        int32_t remoteRankId = dstTpIndx_;
+        // 或者 int32_t remoteRankId = row * 2 + vid % 2; ? TODO:
+        
         GlobalTensor<bfloat16_t>remoteTensor;
         remoteTensor.SetGlobalBuffer((__gm__ bfloat16_t*)remoteWinAddr);
-        DataCopyPad(remoteTensor[remoteRankId * (m_ / tpWorldSize) * N_ + offsetC_ + baseMOfffset + baseNOfffset + aivOffset],
-            dstLocal, ub2GmParams);
+        // 目标位置：先确定现在的singleM和singleN是整个输出矩阵C的那一块--》推导处于哪个TP（目标rankId）
+        // 当前处于第几次tileN循环（offsetC_)，由当前的cid*3 or 4 + tileN得到当前为第几块儿singleM、N
+        // 行*singleM*n_ + 列*singleN
+        uint64_t tpOffset = (curAicM / 2) * n_ * GetRankId();
+        uint64_t nOffset = column * baseN_;
+        DataCopyPad(remoteTensor[tpOffset + nOffset + aivOffset], dstLocal, ub2GmParams);
         vecQueOut_.FreeTensor(dstLocal);
     }
+}
+
+template <TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::SplitBlockNumAndComputeTpIndex()
+{
+    // splitBlockNum
+    uint32_t cid = GetBlockIdx()
+    uint32_t vid = GetSubBlockIdx()
+    uint32_t tileNum_ = (n_ / baseN_) * (m_ / baseM_);
+    tileN_ = tileNum / GetBlockDim();
+    uint32_t tileNRemainder_ = tileNum_ % GetBlockDim();
+    tileN_ = cid < tileNRemainder_? tileN_ + 1 : tileN_;
+
+    //computeTpIndex
+    uint32_t curMmBlockIndex = cid < tileNRemainder_? cid * tileN_ : tileNRemainder_ * (tileN_ + 1) + (cid - tileNRemainder_) * tileN_;
+    dstTpIndx_ = curMmBlockIndex / (n_ / baseN_) * 2 + (vid % 2)
 }
 
 template <TemplateMC2TypeClass>
@@ -218,6 +247,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantNOuterSplitAnd
 {
     uint32_t curAicOuter = baseN_;
     uint32_t curAicInner = baseM_;
+    GetDstTpIdx();
     for (uint32_t fixpOuterIdx = 0; fixpOuterIdx < fixpNtimes; ++fixpOuterIdx) {
         if (fixpOuterIdx == fixpNtimes - 1) {
             curAicOuter = singleN - baseN_ * (fixpNtimes - 1);
@@ -228,7 +258,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantNOuterSplitAnd
             }
             auto mmOutGm = mm.GetTensorC();
             DequantCompute(mmOutGm, static_cast<uint64_t>(fixpInnerIdx) * baseM_ * n_, fixpOuterIdx * baseN_,
-                            curAicInner, curAicOuter);
+                            curAicInner, curAicOuter, fixpInnerIdx, fixpOuterIdx);
         }
     }
 }
@@ -236,14 +266,16 @@ template <TemplateMC2TypeClass>
 
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
 {
-    uint32_t fixpMtimes = DequantBmm::CeilDiv(singleM, baseM_);
-    uint32_t fixpNTimes = DequantBmm::CeilDiv(singleN, baseN_);
+
+    uint32_t fixpMtimes = DequantBmm::CeilDiv(singleM_, baseM_);    // 这里的singleM_应该是m_, baseM_是128，其实应该叫做singleCoreM
+    uint32_t fixpNTimes = DequantBmm::CeilDiv(singleN_, baseN_);    // 这里的baseN_应该叫做singleCoreN，256
+    SplitBlockNumAndComputeTpIndex();
     for (uint32_t idx = 0; idx < tileN_; idx++) {
         mm.SetTensorA(aGlobalTensor_[(blockIdx_ / 2) * singleCoreM_ * singleCoreN_ + idx * baseN_]);
-        mm.SetTensorB(bGlovalTensor_[(blockIdx_ / 2) / singleCoreM_ * tileN_ * baseN_]);
+        mm.SetTensorB(bGlobalTensor_[(blockIdx_ / 2) / singleCoreM_ * tileN_ * baseN_]);
         mm.template Iterate<false>();
     }
-    DequantNOuterSplitAndSendDataToRemote(singleM, singleN, fixpMtimes, fixpNTimes);
+    DequantNOuterSplitAndSendDataToRemote(singleM, singleN, fixpMtimes, fixpNTimes);    // TODO:在外面的吗？
     // 后续 按对应 N 发flag对应接受切N，去除全核同步
     SyncAll<true>();
     // 可以先reset一下ubbuffer 重新分配
