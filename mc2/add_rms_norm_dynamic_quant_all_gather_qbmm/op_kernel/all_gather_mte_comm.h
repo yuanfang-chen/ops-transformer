@@ -35,8 +35,9 @@ constexpr static uint32_t UB_ALIGN_BYTES = 32U;     // UB按32B对齐
 constexpr uint32_t FLOAT_UB_ALIGN_NUM = 8U;         // float格式下32B对齐需要 32/4 =8个
 constexpr uint32_t BUFFER_NUM = 2U;                 // 用于double buffer
 constexpr static uint32_t SCALE_BLCOK_BYTES = 32U;  // 一个scale数据块固定32B，搬运要求32B对齐
-constexpr static uint32_t X_BLOCK_BYTES = 1024U;    // 当前一个x数据块固定1024B = 128 * 8(PT) = 32 * 32(MX)，为穿刺取值
-constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // 每个核的标志位间512B对齐，win区数据部分也512B对齐
+constexpr static uint32_t X_BLOCK_BYTES = 512U;    // 当前一个x数据块固定512B = 512 * sizeof(INT8)，为穿刺取值
+constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // win区数据部分512B对齐
+constexpr static uint64_t FLAG_ALIGN = 32UL;    // 每个核的标志位间32B对齐
 
 #define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType
 #define AllGatherTemplateType XType, ScalesType, OutputType
@@ -64,10 +65,12 @@ public:
     uint32_t tailBlockNums_{0};
     uint32_t assignedBlockNums_{0};
     uint64_t scaleNumsPerBlcok_{0};
-    uint64_t xOffset_{0};  
     uint64_t scaleOffset_{0};
     uint64_t lastAivId_{0};
     uint64_t winDataSize_{0};
+    uint32_t curDstId_{0};
+    uint32_t sendCoreNumPerRank_{0};
+    uint32_t curRankId_{0};
 
 private:    
     uint32_t xNumPerBlock_{0};
@@ -100,9 +103,11 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint6
     scaleNumsPerBlcok_ = SCALE_BLCOK_BYTES / sizeof(ScalesType); // 一块scale固定32B, 计算包含多少个数据
     assignedBlockNums_ = aivId_ < tailBlockNums_ ? round_ + 1 : round_; // 当前核分配到的数据块数量，顺序分核，序号小的核多搬一轮
     uint64_t blockIdx = aivId_ * round_ + (aivId_ < tailBlockNums_ ? aivId_ : tailBlockNums_); // 计算当前核分派到的首个数据块序列号
-    xOffset_ = blockIdx * xNumPerBlock_; // 块数 * 一块有多少数据，得到要搬第几个x数据
     scaleOffset_ = blockIdx * scaleNumsPerBlcok_; // 计算要搬第几个 scale
     winDataSize_ = CeilAlign(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
+    curRankId_ = hcclContext_->localUsrRankId;
+    sendCoreNumPerRank_ = aivNum_ / hcclContext_->rankSize;
+    curDstId_ = aivId_ / sendCoreNumPerRank_;
 }
 
 template <AllGatherTemplateTypeClass>
@@ -183,23 +188,20 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::ComputeTailAivId
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void MTECommunication<AllGatherTemplateType>::WriteStatusToWin()
 {
-    uint32_t coreOffset = aivId_ * hcclContext_->rankSize; // Win区大小为 aivNum * rankSize, 此处计算核偏移
-    // 遍历每一张卡，给每一张卡都要写入状态
-    for (uint32_t curRank = 0; curRank < hcclContext_->rankSize; ++curRank) {
-        // 写入状态到对端，每个核写一个状态，表示自己的数据块已经写完
-        LocalTensor<float> statusTensor = writeStateBuf_.Get<float>();
-        DataCopy<float>(statusTensor, stateResetTensor_, FLOAT_UB_ALIGN_NUM); // 先重置statusTensor数据，后面累加需要Tensor内全部数据，防止脏数据
-        SyncFunc<AscendC::HardEvent::MTE2_S>();
-        statusTensor(0) = (float)1.0;  // 用1标识
-        GM_ADDR remoteWinStateGM = GetWinStatusAddrGm(curRank); // 获取当前要写对端卡的状态区地址
-        GlobalTensor<float> stateGMTensor;
-        stateGMTensor.SetGlobalBuffer((__gm__ float*)remoteWinStateGM);
-        // 不同卡上的核的状态写到相邻位置，读时可以一次读rankSize个状态, 状态区大小设计为 aivNum * ranDim
-        uint64_t curOffset = (coreOffset + hcclContext_->localUsrRankId) * FLOAT_UB_ALIGN_NUM; // 当前核偏移 + 卡偏移， 按32B对齐
-        SyncFunc<AscendC::HardEvent::S_MTE3>();
-        DataCopy(stateGMTensor[curOffset], statusTensor, FLOAT_UB_ALIGN_NUM); // 按32B对齐拷贝
-        SyncFunc<AscendC::HardEvent::MTE3_S>();
-    }
+    // Win区大小为 aivNum * rankSize, 此处计算核偏移
+    uint32_t curOffset = (aivId_ % sendCoreNumPerRank_ + curRankId_ * sendCoreNumPerRank_) * FLOAT_UB_ALIGN_NUM;
+    // 写入状态到对端，每个核写一个状态，表示自己的数据块已经写完
+    LocalTensor<float> statusTensor = writeStateBuf_.Get<float>();
+    DataCopy<float>(statusTensor, stateResetTensor_, FLOAT_UB_ALIGN_NUM); // 先重置statusTensor数据，后面累加需要Tensor内全部数据，防止脏数据
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
+    statusTensor(0) = (float)1.0;  // 用1标识
+    GM_ADDR remoteWinStateGM = GetWinStatusAddrGm(curDstId_); // 获取当前要写对端卡的状态区地址
+    GlobalTensor<float> stateGMTensor;
+    stateGMTensor.SetGlobalBuffer((__gm__ float*)remoteWinStateGM);
+    // 不同卡上的核的状态写到相邻位置，读时可以一次读rankSize个状态, 状态区大小设计为 aivNum * ranDim
+    SyncFunc<AscendC::HardEvent::S_MTE3>();
+    DataCopy(stateGMTensor[curOffset], statusTensor, FLOAT_UB_ALIGN_NUM); // 按32B对齐拷贝
+    SyncFunc<AscendC::HardEvent::MTE3_S>();
 }
 
 /**
@@ -214,21 +216,21 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
 {
     GM_ADDR stateGM = GetWinStatusAddrGm(hcclContext_->localUsrRankId); // 获取本卡的状态区用于读取
     GlobalTensor<float> selfStatusWinTensor;
-    uint32_t offset = aivId_ * hcclContext_->rankSize * FLOAT_UB_ALIGN_NUM; // 获取当前核所需读取状态位的头地址，状态按32B对齐
+    // 获取当前核所需读取状态位的头地址，状态按32B对齐
     selfStatusWinTensor.SetGlobalBuffer((__gm__ float*)(stateGM));
+    uint32_t offset = \
+        (aivId_ % sendCoreNumPerRank_ + aivId_ / sendCoreNumPerRank_ * sendCoreNumPerRank_) * FLOAT_UB_ALIGN_NUM;
     LocalTensor<float> statusTensor = readStateBuf_.Get<float>();
     float flag = 0; // 用于计算状态和
-    uint32_t statusCnt = hcclContext_->rankSize * FLOAT_UB_ALIGN_NUM; // 一次读rankSize个，按32B对齐
+    uint32_t statusCnt = FLOAT_UB_ALIGN_NUM; // 一次读rankSize个，按32B对齐
     SumParams sumParams{1, statusCnt, statusCnt};
-    float minTarget = hcclContext_->rankSize - (float)0.5;
-    float maxTarget = hcclContext_->rankSize + (float)0.5;
+    float minTarget = (float)0.5;
+    float maxTarget = (float)1.5;
     // 读取statusCnt个数据求和
     while ((flag < minTarget) || (flag > maxTarget)) {
         SyncFunc<AscendC::HardEvent::S_MTE2>();
         DataCopy<float>(statusTensor, selfStatusWinTensor[offset], statusCnt);
-        SyncFunc<AscendC::HardEvent::MTE2_V>();
-        Sum(statusTensor, statusTensor, sumParams);
-        SyncFunc<AscendC::HardEvent::V_S>();
+        SyncFunc<AscendC::HardEvent::MTE2_S>();
         flag = statusTensor(0);
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>();

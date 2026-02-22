@@ -80,6 +80,7 @@ private:
     GlobalTensor<float> scaleWinGMTensor_; // 类型确定
     GlobalTensor<X1Type> outputGMTensor_;
     GlobalTensor<X1Type> zGMTensor_;
+    GM_ADDR outputAddr_;    // TODO: 仅调试用
     
     LocalTensor<X1Type> x1Tensor_;
     LocalTensor<int8_t> x2Tensor_;
@@ -141,6 +142,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 输出
     outputGMTensor_.SetGlobalBuffer((__gm__ X1Type*)output);
     zGMTensor_.SetGlobalBuffer((__gm__ X1Type*)z);
+    outputAddr_ = output;
 
     // tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
@@ -168,7 +170,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 {
     aivId_ = GetBlockIdx();
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
-    rankId_ = winContext_->localUsrRankId;  // 获取的值为0，需要继续定位 TODO
+    rankId_ = winContext_->localUsrRankId;
 
     // axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
     // axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
@@ -346,7 +348,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
-        allGatherMte_.ExecuteAllGather();
+        allGatherMte_.ExecuteAllGather(outputAddr_);
     }
     
     if ASCEND_IS_AIC {
