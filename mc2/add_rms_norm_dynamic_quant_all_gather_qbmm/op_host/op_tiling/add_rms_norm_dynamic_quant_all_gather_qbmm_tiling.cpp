@@ -100,8 +100,10 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context,
     AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData, const TilingRunInfo &runInfo)
 {
     const char *nodeName = context->GetNodeName();
-    OP_LOGD(nodeName, "group is %s in add_rms_norm_dynamic_quant_all_gather_qbmm.", runInfo.group.c_str());
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(runInfo.group, OP_TYPE_ALL_TO_ALL,
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const char *groupPtr = attrs->GetAttrPointer<char>(GROUP_INDEX);
+    OP_LOGD(nodeName, "group is %s in add_rms_norm_dynamic_quant_all_gather_qbmm.", groupPtr);
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(std::string(groupPtr), OP_TYPE_ALL_TO_ALL,
                                                  "AlltoAll=level0:fullmesh;level1:pairwise");
     // MTE方式必要适配
     mc2CcTilingConfig.SetCommEngine(AIV_TYPE);
@@ -375,6 +377,12 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     SetTilingKey(context);
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
     currentWorkspace[0] = 16 * 1024 * 1024;
+
+    uint32_t numBlocks = 1U;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aicNum, aicNum, aicNum);
+    context->SetBlockDim(numBlocks);
 
     PrintTilingDataInfo(context, *tilingData);
     return ge::GRAPH_SUCCESS;

@@ -67,7 +67,7 @@ private:
     __aicore__ inline void MatmulProcess();
     
     TPipe *tpipe_{nullptr};
-    AllGatherMte<X1Type, float, int8_t> allGatherMte_;  // allGather 相关实现
+    AllGatherMte<int8_t, float, int8_t> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -161,15 +161,12 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
     scaleWinGMTensor_.SetGlobalBuffer((__gm__ float*)dynamicScaleWinGM);
-
-    allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
 }
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     aivId_ = GetBlockIdx();
-    auto contextGM0 = AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;  // 获取的值为0，需要继续定位 TODO
 
@@ -266,7 +263,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // reduce#1 for mean
     float squareSumTemp = ReduceSumHalfInterval(yLocalTensorFp32_, axisKa_); // aveLocalTemp <-- E(x**2)
     float rstdLocalTemp = 1 / sqrt(squareSumTemp * aveNum_ + eps_);
-    SyncFunc<AscendC::HardEvent::V_S>();
+    SyncFunc<AscendC::HardEvent::S_V>();
     Muls(xLocalTensorFp32_, xLocalTensorFp32_, rstdLocalTemp, axisKa_); // xLocalTensorFp32_ <- x * rstd
     PipeBarrier<PIPE_V>();
 }
@@ -285,6 +282,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     } else { // BF16
         Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
     }
+    PipeBarrier<PIPE_V>();
     zOutQueue_.EnQue(zOutLocalTensor);
     zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
     DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
@@ -345,6 +343,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         Add2RmsNormDynamicQuantProcess();
         SyncAll<true>();
         PipeBarrier<PIPE_MTE3>();
+        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
         allGatherMte_.ExecuteAllGather();
