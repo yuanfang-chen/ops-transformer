@@ -24,7 +24,6 @@
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 #include "all_gather_mte_comm.h"
 #include "all_gather_mte_utils.h"
-#include "all_gather_mte_vec_comp.h"
 
 namespace AllGatherImpl {
 
@@ -56,7 +55,6 @@ private:
     uint32_t totalBlockNums_{0};
 
     MTECommunication<AllGatherTemplateType> mteComm_; // MTE 通信相关实现
-    VectorCompute<AllGatherTemplateType> vecComp_; // vector 计算相关实现
 
     GlobalTensor<int8_t> remoteWinXTensor_;
     GlobalTensor<ScalesType> remoteWinScaleTensor_;
@@ -89,14 +87,12 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
 
     // 设置切块大小
     mteComm_.SetBlockSize(X_PRE_BLOCK_NUM, aivNum, tailXNums_);
-    vecComp_.SetBlockSize(X_PRE_BLOCK_NUM);  
 
     // 公共MTE搬运参数计算
     mteComm_.InitParams(xSize_);
 
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
-    vecComp_.InitBuffer(tPipe);
 
     // 初始化GM上的Tensor，包括Win区
     mteComm_.InitGMTensor(xSize_, scaleSize_);
