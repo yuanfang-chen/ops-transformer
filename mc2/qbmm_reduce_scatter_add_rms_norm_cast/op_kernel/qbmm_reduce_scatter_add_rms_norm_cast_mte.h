@@ -33,13 +33,28 @@ using namespace AscendC;
 class QbmmReduceScatterAddRmsNormCastMte {
 public:
     __aicore__ inline QbmmReduceScatterAddRmsNormCastMte() {};
-    __aicore__ inline void Init();
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR bias, GM_ADDR perTokenScale, GM_ADDR y1Out, 
+                                GM_ADDR y2Out, GM_ADDR xOut, GM_ADDR workSpace, TPipe *pipe, const QbmmReduceScatterAddRmsNormCastTilingData *tilingData);
     __aicore__ inline void Process();
+private:
+    TPipe *tpipe_{nullptr};
+    uint32_t coreIdx_{0}; // aiv id
+    GlobalTensor<int8_t> x1GM_;
+    GlobalTensor<int8_t> x2GM_;
+    // 用来存储通信的tensor
+    GlobalTensor<bfloat16_t> yGM_;
+    // 存储reducescatter输出
+    GlobalTensor<bfloat16_t> xOutGM_;
 };
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init()
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR bias, GM_ADDR perTokenScale, GM_ADDR y1Out, 
+                                GM_ADDR y2Out, GM_ADDR xOut, GM_ADDR workSpace, TPipe *pipe, const QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     PRINTF("kernel init doing.");
+    tpipe_ = pipe;
+    coreIdx_ = GetBlockIdx();
+    yGM_.SetGlobalBuffer((__gm__ bfloat16_t*)y);
+    xOutGM_.SetGlobalBuffer((__gm__ bfloat16_t*)xOut);
 }
 
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
