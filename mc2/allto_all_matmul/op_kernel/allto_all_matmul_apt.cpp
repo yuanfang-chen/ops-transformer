@@ -29,14 +29,15 @@ using namespace AlltoAllMatmulImpl;
 #ifndef ALLTO_ALL_MATMUL_APT_FP_IMPL
 #define ALLTO_ALL_MATMUL_APT_FP_IMPL(tilingData, pipe)                                                                 \
     do {                                                                                                               \
-        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllMatmulTilingData,        \
-                                          CommunicationType);                                                          \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,             \
+            AlltoAllMatmulTilingData, MC2AlltoAllPrimitives, 0, 1, CommunicationType);                                 \
         CommunicationType commImplName(&tilingData);                                                                   \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
         TransposeType transposeImplName(&pipe);                                                                        \
-        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(Mc2MatMulV3TilingData, ComputationType);                           \
+        DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP(ComputationContextType);                                   \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(ComputationType);                                                  \
         ComputationType matmulImplName(&pipe);                                                                         \
-        using SchedulerContextType = PipelineContext<FpQuantExtraData, Mc2MatMulV3TilingData>;                         \
+        using SchedulerContextType = PipelineContext<ComputationContextType>;                                          \
         using SchedulerType = MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType,              \
                                                                         ComputationType, SchedulerContextType>;        \
         SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &matmulImplName);                               \
@@ -49,18 +50,18 @@ using namespace AlltoAllMatmulImpl;
 #ifndef ALLTO_ALL_KC_QUANT_MATMUL_IMPL
 #define ALLTO_ALL_KC_QUANT_MATMUL_IMPL(tilingData, pipe, MMDataTypeX1)                                                 \
     do {                                                                                                               \
-        DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1, AlltoAllKcQuantMatmulTilingData, \
-                                          CommunicationType);                                                          \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,             \
+            AlltoAllKcQuantMatmulTilingData, MC2AlltoAllPrimitives, 0, 1, CommunicationType);                          \
         CommunicationType commImplName(&tilingData);                                                                   \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
         TransposeType transposeImplName(&pipe);                                                                        \
         DEFINE_MC2_FP8_DYNAMIC_QUANT_PERTOKEN(DTYPE_X1, MMDataTypeX1, DynamicQuantType);                               \
         DynamicQuantType dynamicQuantImplName(&pipe);                                                                  \
-        DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(                                                       \
-            DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams, ComputationType, MMDataTypeX1, DTYPE_X2);               \
+        DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_QUANT(ComputationContextType);                                \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(ComputationType, MMDataTypeX1, DTYPE_X2);                       \
         ComputationType matmulImplName(&pipe);                                                                         \
         using SchedulerContextType =                                                                                   \
-            PipelineContext<QuantExtraData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>;                        \
+            PipelineContext<ComputationContextType>;                                                                   \
         using SchedulerType =                                                                                          \
             MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, DynamicQuantType,         \
                                                            ComputationType, SchedulerContextType>;                     \
