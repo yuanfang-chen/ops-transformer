@@ -33,7 +33,7 @@ public:
 
     __aicore__ inline void Init();
 
-    __aicore__ inline void ChangeSpecification(void *updateContext);
+    __aicore__ inline void GetContext(ContextType* context);
 
     __aicore__ inline void Process(uint32_t taskCnt);
 
@@ -53,19 +53,19 @@ __aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<Communicat
                                                                       ComputationType, ContextType>::Init()
 {
     commStage_->Init();
+    computeStage_->Init();
 }
 
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
           typename ContextType>
 __aicore__ inline void
 MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
-                                               ContextType>::ChangeSpecification(void *updateContext)
+                                               ContextType>::GetContext(ContextType* context)
 {
-    context_ = (ContextType *)updateContext;
-    commStage_->Update(context_->taskCnt, context_->sendBuffer, context_->recvBuffer, context_->sendOffset,
-                       context_->recvOffset, context_->sendCount, context_->strideCount, context_->hcclDataType);
-    computeStage_->Update(context_->aGM, context_->bGM, context_->cGM, context_->biasGM, &(context_->extraData),
-                          context_->tilingData);
+    context->communicationContext = commStage_->GetContextPtr();
+    context->transposeContext = transStage_->GetContextPtr();
+    context->quantizationContext = quantStage_->GetContextPtr();
+    context->computationContext = computeStage_->GetContextPtr();
 }
 
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
@@ -74,36 +74,20 @@ __aicore__ inline void
 MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
                                                ContextType>::Process(uint32_t taskCnt)
 {
+    commStage_->Prepare(taskCnt);
     uint32_t index;
     for (index = 0; index < taskCnt; index++) {
         if ASCEND_IS_AIV {
             commStage_->Process();
             AscendC::SyncAll<true>();
 
-            transStage_->Init(context_->transposeSrcAddr, context_->transposeDstAddr, context_->rankCnt,
-                              context_->innerAxis, context_->transM, context_->nextSrcBlockOffset,
-                              context_->nextDstBlockOffset, context_->innerAxis,
-                              context_->innerAxis * context_->rankCnt);
-            transStage_->Process();
-            transStage_->Destroy();
-            context_->transposeSrcAddr = (GM_ADDR)((uint64_t)context_->transposeSrcAddr + context_->transposeSrcOffset);
-            context_->transposeDstAddr = (GM_ADDR)((uint64_t)context_->transposeDstAddr + context_->transposeDstOffset);
+            transStage_->Process(index);
             AscendC::SyncAll<true>();
 
-            quantStage_->Init(context_->quantInputAddr, nullptr, context_->quantOutputAddr,
-                              context_->quantOutputScaleAddr, context_->rowNum, context_->colNum,
-                              context_->calBuffSize);
-            quantStage_->Process();
-            quantStage_->Destroy();
-
-            context_->quantInputAddr = (GM_ADDR)((uint64_t)context_->quantInputAddr + context_->quantInputAddrOffset);
-            context_->quantOutputAddr =
-                (GM_ADDR)((uint64_t)context_->quantOutputAddr + context_->quantOutputAddrOffset);
-            context_->quantOutputScaleAddr =
-                (GM_ADDR)((uint64_t)context_->quantOutputScaleAddr + context_->quantOutputScaleAddrOffset);
+            quantStage_->Process(index);
         }
         AscendC::SyncAll<false>();
-        computeStage_->Process(index == 0);
+        computeStage_->Process(index);
     }
 }
 
