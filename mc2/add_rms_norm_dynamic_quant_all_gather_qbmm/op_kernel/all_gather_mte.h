@@ -41,10 +41,11 @@ public:
 
     __aicore__ inline void SetRemoteFlag();
     __aicore__ inline void WaitRemoteFlag();
-    __aicore__ inline void ExecuteAllGather(GM_ADDR outputTensor);
+    __aicore__ inline void ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor);
 
 private:
-    __aicore__ inline void ReadDataBlockDequant(uint64_t curXOffset, uint64_t curScaleOffset);
+    __aicore__ inline void ReadDataBlock(uint64_t curXOffset);
+    __aicore__ inline void ReadScales();
 
     uint64_t xSize_{0}; // 单卡上数据大小
     uint64_t xNums_{0}; // 单卡上数据个数
@@ -56,6 +57,9 @@ private:
     uint64_t M_{0};
     uint64_t K_{0};
     uint32_t sendCoreNumPerRank_{0};
+
+    DataCopyExtParams scalesCopyParams_;
+    DataCopyPadExtParams<ScalesType> scalesCopyPadParams_;
 
     MTECommunication<AllGatherTemplateType> mteComm_; // MTE 通信相关实现
 
@@ -85,6 +89,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
     sendCoreNumPerRank_ = aivNum / mteComm_.hcclContext_->rankSize;
     mteComm_.round_ = totalBlockNums_ / sendCoreNumPerRank_; // 计算总的数据分核搬运需要的轮次数
     mteComm_.tailBlockNums_ = totalBlockNums_ % sendCoreNumPerRank_; // 搬运的尾块数
+    scalesCopyParams_ = {1, scaleSize_, 0, 0, 0};
+    scalesCopyPadParams_ = {false, 0, 0, 0};
+
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
     tPipe->InitBuffer(scaleInQue, BUFFER_NUM, UB_ALIGN_BYTES); // 每次拷贝 32B scale；4 * 8
@@ -99,8 +106,6 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
 
-    // 初始化GM上的Tensor，包括Win区
-    mteComm_.InitGMTensor(xSize_, scaleSize_);
     uint32_t modCoreIndex = mteComm_.aivId_ % sendCoreNumPerRank_;
     uint32_t curBlockIndex = modCoreIndex * mteComm_.round_ + \
                              (modCoreIndex < mteComm_.tailBlockNums_ ? modCoreIndex : mteComm_.tailBlockNums_);
@@ -123,8 +128,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::WaitRemoteFlag()
 }
 
 template <AllGatherTemplateTypeClass>
-__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlockDequant(
-    uint64_t curXOffset, uint64_t curScaleOffset)
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64_t curXOffset)
 {
     /* 读取 x 从 远端Win -> UB -> 本端Win */
     LocalTensor<int8_t> xTmpTensor = xInQueue_.AllocTensor<int8_t>();
@@ -133,19 +137,28 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlockDequant
     xTmpTensor = xInQueue_.DeQue<int8_t>();
     DataCopy(localWinXTensor_[curXOffset], xTmpTensor, X_PRE_BLOCK_NUM);
     xInQueue_.FreeTensor(xTmpTensor);
+}
 
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
+{
     /* 读取 scale 从 远端Win -> UB -> 本端Win */
     LocalTensor<ScalesType> scaleTmpTensor = scaleInQue.AllocTensor<ScalesType>();
-    DataCopy(scaleTmpTensor, remoteWinScaleTensor_[curScaleOffset], mteComm_.scaleNumsPerBlcok_);
+    DataCopyPad(scaleTmpTensor, remoteWinScaleTensor_, scalesCopyParams_, scalesCopyPadParams_);
     scaleInQue.EnQue(scaleTmpTensor);
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
-    DataCopy(localWinScaleTensor_[curScaleOffset], scaleTmpTensor, mteComm_.scaleNumsPerBlcok_);
+    DataCopyPad(localWinScaleTensor_, scaleTmpTensor, scalesCopyParams_);
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
 template <AllGatherTemplateTypeClass>
-__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_ADDR outputTensor)
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor)
 {
+    // +--------+--------+--------+--------+--------+--------+
+    // | Rank0  | Rank1  |  ...   | Rank0  | Rank1  |  ...   |
+    // |  data  |  data  |  ...   | scales | scales |  ...   |
+    // +--------+--------+--------+--------+--------+--------+
+
     // TODO: 入参为调试用，后续需删除
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
@@ -158,26 +171,31 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             }
         }
         uint64_t curXOffset = mLoopIdx_ * K_ + kLoopIdx_ * X_PRE_BLOCK_NUM;
-        // TODO: scales 需要完善，单独一把搬运完成即可
-        // uint64_t curScaleOffset = mteComm_.scaleOffset_ + curBlock * mteComm_.scaleNumsPerBlcok_;
         uint32_t remoteRankId = mteComm_.aivId_ / sendCoreNumPerRank_;
 
         // 获取对端Win区中数据区相关的地址
         GM_ADDR remoteDataGm = mteComm_.GetWinDataAddrGm(remoteRankId) + remoteRankId * xSize_;
-        GM_ADDR remoteScaleGm = remoteDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
         remoteWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)remoteDataGm);
-        remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
-        
         // 本端对应rank win区数据地址
         uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
+        // TODO: 正确位置如下，调试完毕后需要修改回来
         // GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId * xSize_;
         GM_ADDR localDataGm = outputTensor + remoteRankId * xSize_;
-        GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
         localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
-        localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
 
-        // 读取对端对应地址的 x 和 scale数据
-        ReadDataBlockDequant(curXOffset, 0);
+        // 读取对端对应地址的 x 数据
+        ReadDataBlock(curXOffset);
+
+        // scales 一次搬运完毕
+        if (mteComm_.aivId_ % sendCoreNumPerRank_ == 0) {
+            GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId) + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
+            remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
+            // TODO: 正确位置如下，调试完毕后需要修改回来
+            // GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId * scaleSize_;
+            GM_ADDR localScaleGm = zTensor + remoteRankId * scaleSize_;
+            localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
+            ReadScales();
+        }
     }
 }
 } // AllGatherImpl

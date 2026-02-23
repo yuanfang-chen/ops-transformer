@@ -62,7 +62,7 @@ private:
     __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
     __aicore__ inline void Add2RmsNormCompute(int32_t gmOffset, int32_t elementCount);
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
-    __aicore__ inline void DynamicQuant(int32_t rowIdx);
+    __aicore__ inline void DynamicQuant(int32_t offset);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
     __aicore__ inline void MatmulProcess();
     
@@ -81,6 +81,7 @@ private:
     GlobalTensor<X1Type> outputGMTensor_;
     GlobalTensor<X1Type> zGMTensor_;
     GM_ADDR outputAddr_;    // TODO: 仅调试用
+    GM_ADDR zAddr_;    // TODO: 仅调试用
     
     LocalTensor<X1Type> x1Tensor_;
     LocalTensor<int8_t> x2Tensor_;
@@ -142,7 +143,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 输出
     outputGMTensor_.SetGlobalBuffer((__gm__ X1Type*)output);
     zGMTensor_.SetGlobalBuffer((__gm__ X1Type*)z);
-    outputAddr_ = output;
+    outputAddr_ = output;   // TODO: 仅调试用
+    zAddr_ = z;             // TODO: 仅调试用
 
     // tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
@@ -210,7 +212,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DynamicQuant(int32_t rowIdx)
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DynamicQuant(int32_t offset)
 {
     // smooth
     Mul(yLocalTensorFp32_, xLocalTensorFp32_, smoothScaleTensor_, axisKa_); // y * smooth
@@ -225,7 +227,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     SyncFunc<AscendC::HardEvent::V_S>();
     maxTemp = xLocalTensorFp32_.GetValue(0); // Reduce
     scaleTemp = float(127.0) / maxTemp;
-    dynamicScaleLocalTensor_.SetValue(rowIdx, 1 / scaleTemp);
+    dynamicScaleLocalTensor_.SetValue(offset, 1 / scaleTemp);
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(yLocalTensorFp32_, yLocalTensorFp32_, scaleTemp, axisKa_);
     PipeBarrier<PIPE_V>();
@@ -317,7 +319,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
             SyncFunc<AscendC::HardEvent::MTE2_V>(); // wait gammaTensor_ and smoothScaleTensor_
         }
         GammaWeightAndCopyOut(gmOffset);
-        DynamicQuant(rowIdx);
+        DynamicQuant(rowIdx - startRowId);
         // copy out 到本卡win区?  TODO
         x1OutLocalTensor_ = x1OutQueue_.AllocTensor<int8_t>();
         RoundFloat2Int8(x1OutLocalTensor_, yLocalTensorFp32_, axisKa_);
@@ -348,7 +350,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
-        allGatherMte_.ExecuteAllGather(outputAddr_);
+        allGatherMte_.ExecuteAllGather(outputAddr_, zAddr_);
     }
     
     if ASCEND_IS_AIC {
