@@ -48,6 +48,8 @@ constexpr static uint64_t MX_SCALES_LAST_DIM = 2U; // MX量化scales最后一维
 constexpr uint8_t BUFFER_NUM = 2; // 多Buf
 constexpr uint32_t UB_ALIGN = 32; // UB按32字节对齐
 constexpr uint32_t WIN_ALIGN = 512; // win offset 512字节对齐
+constexpr uint64_t SYNC_AIC_TO_AIV = 5;
+constexpr uint64_t CV_STATE_ALIGN = 64;
 
 template<TemplateMC2TypeClass>
 class AddRmsNormDynamicQuantAllGatherQbmm {
@@ -64,6 +66,7 @@ private:
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
     __aicore__ inline void DynamicQuant(int32_t offset);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
+    __aicore__ inline void CheckCvFlagReady(uint32_t curBlock);
     __aicore__ inline void MatmulProcess();
     
     TPipe *tpipe_{nullptr};
@@ -106,12 +109,15 @@ private:
     TQue<QuePosition::VECOUT, 1> zOutQueue_; // 
 
     uint32_t aivId_{0};
+    uint32_t aicId_{0};
     uint32_t rankId_{0};
     uint32_t axisM_{0};
     uint32_t axisKa_{0};
     uint32_t axisN_{0};
     uint32_t aivNum_{0};
     uint32_t rankSize_{0};
+    uint32_t tileK_{0};
+    uint32_t sendCoreNumPerRank_{0};
     float eps_{0};
     float aveNum_{0};
     uint64_t axisKaAlignSize_{0};
@@ -128,7 +134,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR output, GM_ADDR z, GM_ADDR workspaceGM, TPipe *pipe, const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     tpipe_ = pipe;
-    aivId_ = GetBlockIdx();
     InitBaseParams(tilingData);
 
     x1GMTensor_.SetGlobalBuffer((__gm__ X1Type*)x1);
@@ -171,6 +176,7 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     aivId_ = GetBlockIdx();
+    aicId_ = aivId_;    // CV核1:1
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
 
@@ -185,6 +191,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 传值失败，先打桩输入
     axisM_ = 63;
     axisKa_ = 5120;
+    tileK_ = 10;
     axisN_ = 0;
     aivNum_ = 24;
     rankSize_ = 4;
@@ -194,6 +201,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     axisKaAlignSize_ = Ceil(axisKa_ * sizeof(X1Type), UB_ALIGN) * UB_ALIGN;
     axisKaAlignFloatSize_ = Ceil(axisKa_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
     axisKaAlignInt8Size_ = Ceil(axisKa_ * sizeof(int8_t), UB_ALIGN) * UB_ALIGN;
+
+    sendCoreNumPerRank_ = aivNum_ / rankSize_;
 }
 
 template<TemplateMC2TypeClass>
@@ -334,10 +343,33 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::CheckCvFlagReady(uint32_t curBlock)
+{
+    GM_ADDR curExp = (GM_ADDR)winContext_->localWindowsExp;
+    GlobalTensor<int32_t> winCvExp;
+    winCvExp.SetGlobalBuffer((__gm__ int32_t *)(curExp + CV_SYNC_START_OFFSET + aicId_ * CV_STATE_ALIGN));
+    int32_t baseM = axisM_ / sendCoreNumPerRank_;
+    if (aicId_ % sendCoreNumPerRank_ < axisM_ % sendCoreNumPerRank_) {
+        baseM++;
+    }
+    while (true) {
+        DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(winCvExp);
+        int32_t flagCount = winCvExp.GetValue(0);
+        if (flagCount >= baseM) {
+            break;
+        }
+    }
+}
+
+template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
 {
-    
-
+    for (uint32_t curBlock = 0; curBlock < tileK_; curBlock++) {
+        CheckCvFlagReady(curBlock);
+        // TODO: mm计算
+    }
+    // 通知AIV
+    CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
 }
 
 template<TemplateMC2TypeClass>
@@ -351,6 +383,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
         allGatherMte_.ExecuteAllGather(outputAddr_, zAddr_);
+        CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
+        // TODO: DeQuant
     }
     
     if ASCEND_IS_AIC {

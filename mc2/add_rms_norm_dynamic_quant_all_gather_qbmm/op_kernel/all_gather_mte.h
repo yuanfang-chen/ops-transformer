@@ -31,7 +31,8 @@ using namespace QuantMTECommImpl;
 using namespace AscendC;
 
 // 之后可修改成从tiling侧获取数据切块大小
-constexpr static uint32_t X_PRE_BLOCK_NUM = 512U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
+constexpr static uint32_t X_PER_BLOCK_NUM = 512U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 512个x数据
+constexpr static uint64_t CV_SYNC_START_OFFSET = 100UL * 1024UL; // CV同步状态相对于通信状态向后偏移100K
 
 template<AllGatherTemplateTypeClass>
 class AllGatherMte {
@@ -46,6 +47,7 @@ public:
 private:
     __aicore__ inline void ReadDataBlock(uint64_t curXOffset);
     __aicore__ inline void ReadScales();
+    __aicore__ inline void SetCvAtomicFlag();
 
     uint64_t xSize_{0}; // 单卡上数据大小
     uint64_t xNums_{0}; // 单卡上数据个数
@@ -57,19 +59,24 @@ private:
     uint64_t M_{0};
     uint64_t K_{0};
     uint32_t sendCoreNumPerRank_{0};
+    uint64_t tileM_{0};
+    uint64_t tileK_{0};
+    uint64_t cvStateSizePerRank_{0};
 
     DataCopyExtParams scalesCopyParams_;
     DataCopyPadExtParams<ScalesType> scalesCopyPadParams_;
 
     MTECommunication<AllGatherTemplateType> mteComm_; // MTE 通信相关实现
 
+    LocalTensor<int32_t> atomicAddOneTensor_;
     GlobalTensor<int8_t> remoteWinXTensor_;
     GlobalTensor<ScalesType> remoteWinScaleTensor_;
     GlobalTensor<int8_t> localWinXTensor_;
     GlobalTensor<ScalesType> localWinScaleTensor_;
+    GlobalTensor<int32_t> remoteCvFlagTensor_;
 
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xInQueue_, scaleInQue; // 用于读数据和反量化求和的通算并行
-    TBuf<> sumBuf_; // 用于Reduce_sum 求和
+    TBuf<> atomicAddBuf_;
 };
 
 template <AllGatherTemplateTypeClass>
@@ -84,9 +91,12 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
     xNums_ = M * Ka; // 总的x数据个数， M * h
     xSize_ = xNums_ * sizeof(XType); // 总的x数据量，B
     scaleSize_ = M * sizeof(ScalesType);
-    tailXNums_ = BlockAlignMod(xNums_, X_PRE_BLOCK_NUM); // 计算最后一个数据块的大小
+    tailXNums_ = BlockAlignMod(xNums_, X_PER_BLOCK_NUM); // 计算最后一个数据块的大小
     totalBlockNums_ = CeilDiv(xSize_, X_BLOCK_BYTES); // 按每次搬运x的数据量分块，得到的总块数
     sendCoreNumPerRank_ = aivNum / mteComm_.hcclContext_->rankSize;
+    tileM_ = sendCoreNumPerRank_;
+    tileK_ = CeilDiv(K_, X_PER_BLOCK_NUM / sizeof(OutputType));
+    cvStateSizePerRank_ = tileM_ * tileK_ * sizeof(int32_t);
     mteComm_.round_ = totalBlockNums_ / sendCoreNumPerRank_; // 计算总的数据分核搬运需要的轮次数
     mteComm_.tailBlockNums_ = totalBlockNums_ % sendCoreNumPerRank_; // 搬运的尾块数
     scalesCopyParams_ = {1, scaleSize_, 0, 0, 0};
@@ -95,10 +105,13 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
     tPipe->InitBuffer(scaleInQue, BUFFER_NUM, UB_ALIGN_BYTES); // 每次拷贝 32B scale；4 * 8
-    tPipe->InitBuffer(sumBuf_, X_PRE_BLOCK_NUM * sizeof(float)); // 用于Reduce_sum 求和，1024 * 4 = 4k
+    tPipe->InitBuffer(atomicAddBuf_, sizeof(int32_t)); // 用于累加标志位
+
+    atomicAddOneTensor_ = atomicAddBuf_.Get<int32_t>();
+    atomicAddOneTensor_.SetValue(0, 1);
 
     // 设置切块大小
-    mteComm_.SetBlockSize(X_PRE_BLOCK_NUM, aivNum, tailXNums_);
+    mteComm_.SetBlockSize(X_PER_BLOCK_NUM, aivNum, tailXNums_);
 
     // 公共MTE搬运参数计算
     mteComm_.InitParams(xSize_);
@@ -132,10 +145,10 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
 {
     /* 读取 x 从 远端Win -> UB -> 本端Win */
     LocalTensor<int8_t> xTmpTensor = xInQueue_.AllocTensor<int8_t>();
-    DataCopy(xTmpTensor, remoteWinXTensor_[curXOffset], X_PRE_BLOCK_NUM);
+    DataCopy(xTmpTensor, remoteWinXTensor_[curXOffset], X_PER_BLOCK_NUM);
     xInQueue_.EnQue(xTmpTensor);
     xTmpTensor = xInQueue_.DeQue<int8_t>();
-    DataCopy(localWinXTensor_[curXOffset], xTmpTensor, X_PRE_BLOCK_NUM);
+    DataCopy(localWinXTensor_[curXOffset], xTmpTensor, X_PER_BLOCK_NUM);
     xInQueue_.FreeTensor(xTmpTensor);
 }
 
@@ -152,6 +165,19 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
 }
 
 template <AllGatherTemplateTypeClass>
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::SetCvAtomicFlag()
+{
+    GM_ADDR cvFlagBaseAddr = mteComm_.GetWinStatusAddrGm(mteComm_.curDstId_) + CV_SYNC_START_OFFSET;
+    GM_ADDR cvFlagAddr = cvFlagBaseAddr + mteComm_.curDstId_ * cvStateSizePerRank_ + \
+                         (mLoopIdx_ * tileK_ + kLoopIdx_) * sizeof(int32_t);
+    // 计算当前CV同步状态的地址
+    remoteCvFlagTensor_.SetGlobalBuffer((__gm__ int32_t*)cvFlagAddr);
+    SetAtomicAdd<int32_t>();
+    DataCopy(remoteCvFlagTensor_, atomicAddOneTensor_, sizeof(int32_t));
+    SetAtomicNone();
+}
+
+template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor)
 {
     // +--------+--------+--------+--------+--------+--------+
@@ -162,15 +188,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
     // TODO: 入参为调试用，后续需删除
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
-        if (curBlock > 0) {
-            mLoopIdx_++;
-            if (mLoopIdx_ >= M_) {
-                // 切换到下一列搬运
-                mLoopIdx_ = 0;
-                kLoopIdx_++;
-            }
-        }
-        uint64_t curXOffset = mLoopIdx_ * K_ + kLoopIdx_ * X_PRE_BLOCK_NUM;
+        uint64_t curXOffset = mLoopIdx_ * K_ + kLoopIdx_ * X_PER_BLOCK_NUM;
         uint32_t remoteRankId = mteComm_.aivId_ / sendCoreNumPerRank_;
 
         // 获取对端Win区中数据区相关的地址
@@ -195,6 +213,16 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             GM_ADDR localScaleGm = zTensor + remoteRankId * scaleSize_;
             localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
             ReadScales();
+        }
+
+        SetCvAtomicFlag();
+        
+        // 更新索引
+        mLoopIdx_++;
+        if (mLoopIdx_ >= M_) {
+            // 切换到下一列搬运
+            mLoopIdx_ = 0;
+            kLoopIdx_++;
         }
     }
 }
