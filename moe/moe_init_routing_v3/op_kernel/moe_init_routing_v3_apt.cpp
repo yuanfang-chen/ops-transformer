@@ -46,6 +46,14 @@
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP8QUANT_GATHER 1130000  // 多核排序、MXFP8量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP8QUANT_SCATTER 1131000 // 多核排序、MXFP8量化、SCATTER索引
 
+/*
+ * MXFP4量化
+ */
+#define MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_GATHER 1090000    // 单核排序、MXFP4量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_SCATTER 1091000   // 单核排序、MXFP4量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_GATHER 1190000  // 多核排序、MXFP4量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_SCATTER 1191000 // 多核排序、MXFP4量化、SCATTER索引
+
 using namespace AscendC;
 using namespace MoeInitRoutingV3;
 extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR offset,
@@ -156,6 +164,21 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
             gatherMxfp8QuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
             gatherMxfp8QuantOp.Process();
             gatherPipe.Destroy();
+        }
+    } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_SCATTER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_SCATTER)) {
+        // MXFP4量化
+        if constexpr (IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value ||  IsSameType<DTYPE_X, float>::value) {
+            // TPipe gatherPipe;
+            // MoeGatherOutMxfp4Quant<DTYPE_X, DTYPE_EXPANDED_X> gatherMxfp4QuantOp;
+            // gatherMxfp4QuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
+            // gatherMxfp4QuantOp.Process();
+            // gatherPipe.Destroy();
+            printf("----------------------------------\n");
+            printf("Enter the MXFP4 Kernel!\n");
+            printf("----------------------------------\n");
         }
     }
 

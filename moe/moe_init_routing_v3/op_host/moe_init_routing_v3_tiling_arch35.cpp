@@ -79,7 +79,8 @@ const static int64_t QUANT_MODE_UNQUANT = -1LL;
 const static int64_t QUANT_MODE_STATIC = 0LL;
 const static int64_t QUANT_MODE_DYNAMIC = 1LL;
 const static int64_t QUANT_MODE_MXFP8_E5M2 = 2LL;
-const static int64_t QUANT_MODE_MXFP8_E4M3FN = 3LL;
+const static int64_t QUANT_MODE_MXFP8_E4M3FN = 3LL; // MXFP4量化
+const static int64_t QUANT_MODE_MXFP4_E2M1 = 9LL;
 const static int64_t EXPERT_TOKENS_TYPE_COUNT = 1LL;
 const static int64_t EXPERT_TOKENS_TYPE_KEY_VALUE = 2LL;
 const static int64_t DROP_PAD_MODE_DROPLESS = 0LL;
@@ -377,7 +378,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::DoOpTiling()
     Tiling4VMSMiddleCompute();
     Tiling4SortOutCompute();
     Tiling4ExpertTokensCountCompute();
-    if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN) {
+    if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN || quantMode_ == QUANT_MODE_MXFP4_E2M1) {
         Tiling4GatherOutMxQuant();
     } else {
         Tiling4GatherOutCompute();
@@ -395,6 +396,9 @@ uint64_t MoeInitRoutingV3Arch35TilingClass::GetTilingKey() const
         // 其余非量化为0，静态量化为1，动态量化为2，即都是quantMode_+1
         // 可以用与最低的UNQUANT的数值的差值来作为quantModeFactor，这里值就为3
         quantModeFactor = QUANT_MODE_MXFP8_E5M2 - QUANT_MODE_UNQUANT;
+    } else if (quantMode_ == QUANT_MODE_MXFP4_E2M1) {
+        // 对于MXFP4量化，TilingKey体现QuantMode为9
+        quantModeFactor = QUANT_MODE_MXFP4_E2M1 - QUANT_MODE_STATIC;
     }
     return static_cast<uint64_t>(TILINGKEY_BASE + sortMode_ * SORT_CORE_TILINGKEY_BASE +
                                  quantModeFactor * QUANT_MODE_TILINGKEY_BASE + rowIdxType_ * DROP_MODE_TILINGKEY_BASE);
@@ -554,9 +558,9 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckSetAttrs()
                 return ge::GRAPH_FAILED);
     // quantMode
     OP_CHECK_IF(quantMode_ != QUANT_MODE_UNQUANT && quantMode_ != QUANT_MODE_DYNAMIC &&
-                    quantMode_ != QUANT_MODE_MXFP8_E5M2 && quantMode_ != QUANT_MODE_MXFP8_E4M3FN,
-                OP_LOGE(context_, "Attr quant_mode currently supports (%ld, %ld, %ld, %ld), but got %ld",
-                        QUANT_MODE_UNQUANT, QUANT_MODE_DYNAMIC, QUANT_MODE_MXFP8_E5M2, QUANT_MODE_MXFP8_E4M3FN,
+                    quantMode_ != QUANT_MODE_MXFP8_E5M2 && quantMode_ != QUANT_MODE_MXFP8_E4M3FN && quantMode_ != QUANT_MODE_MXFP4_E2M1,
+                OP_LOGE(context_, "Attr quant_mode currently supports (%ld, %ld, %ld, %ld, %ld), but got %ld",
+                        QUANT_MODE_UNQUANT, QUANT_MODE_DYNAMIC, QUANT_MODE_MXFP8_E5M2, QUANT_MODE_MXFP8_E4M3FN, QUANT_MODE_MXFP4_E2M1,
                         quantMode_),
                 return ge::GRAPH_FAILED);
     tilingDataPtr_->quantMode = quantMode_;
@@ -610,11 +614,16 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckInputX()
     using std::unordered_set;
     static const unordered_set<DataType> UNQUANT_SUPPORTED_DTYPES = {DataType::DT_FLOAT, DataType::DT_FLOAT16,
                                                                      DataType::DT_BF16, DataType::DT_INT8};
-    static const std::unordered_set<DataType> MXQUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
-                                                                          ge::DataType::DT_BF16};
+    static const std::unordered_set<DataType> MXFP8QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
+                                                                             ge::DataType::DT_BF16};
+    static const std::unordered_set<DataType> MXFP4QUANT_SUPPORTED_DTYPES = {ge::DataType::DT_FLOAT16,
+                                                                             ge::DataType::DT_BF16,
+                                                                             ge::DataType::DT_FLOAT};
     unordered_set<DataType> supportedDtypes;
     if (quantMode_ == QUANT_MODE_MXFP8_E5M2 || quantMode_ == QUANT_MODE_MXFP8_E4M3FN) {
-        supportedDtypes = MXQUANT_SUPPORTED_DTYPES;
+        supportedDtypes = MXFP8QUANT_SUPPORTED_DTYPES;
+    } if (quantMode_ == QUANT_MODE_MXFP4_E2M1) {
+        supportedDtypes = MXFP4QUANT_SUPPORTED_DTYPES;
     } else {
         //! 出于历史调用的兼容性，这里不拦截quant_mode=1（动态量化）下输入x为int8类型，仅资料说明此时算子输出expandedX、expandedScale无意义
         supportedDtypes = UNQUANT_SUPPORTED_DTYPES;
@@ -805,7 +814,7 @@ ge::graphStatus MoeInitRoutingV3Arch35TilingClass::CheckOutputExpandedScale()
     if ((quantMode_ == QUANT_MODE_UNQUANT && isInputScale_ == 1) || (quantMode_ == QUANT_MODE_DYNAMIC)) {
         expectedRank = RANK_ONE;
         expectedDim0 = totalLength_;
-    } else if ((quantMode_ == QUANT_MODE_MXFP8_E5M2) || (quantMode_ == QUANT_MODE_MXFP8_E4M3FN)) {
+    } else if ((quantMode_ == QUANT_MODE_MXFP8_E5M2) || (quantMode_ == QUANT_MODE_MXFP8_E4M3FN) || (quantMode_ == QUANT_MODE_MXFP4_E2M1)) {
         expectedRank = RANK_TWO;
         expectedDim0 = totalLength_;
         expectedDim1 = Ops::Base::CeilAlign<int64_t>(Ops::Base::CeilDiv<int64_t>(cols_, MX_QUANT_BLOCK_SIZE), 2LL);
