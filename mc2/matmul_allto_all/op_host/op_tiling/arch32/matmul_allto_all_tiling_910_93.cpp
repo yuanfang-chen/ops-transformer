@@ -12,6 +12,10 @@
  * \file fp_matmul_allto_all_tiling_910_93.cpp
  * \brief
  */
+#include <string>
+#include <vector>
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 #include "matmul_allto_all_tiling_910_93.h"
 #include "op_mc2.h"
 #include "mc2_log.h"
