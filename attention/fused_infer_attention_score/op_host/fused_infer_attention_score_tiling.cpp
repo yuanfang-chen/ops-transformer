@@ -1385,7 +1385,8 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
     // bool mhaConditions = isMha && (tempAttnMaskShape == nullptr) &&
     //     (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
-    bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1));
+    bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) &&
+        !((sparseMode == 0) && (tempAttnMaskShape != nullptr));
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
 
     bool usingFAI = false;
