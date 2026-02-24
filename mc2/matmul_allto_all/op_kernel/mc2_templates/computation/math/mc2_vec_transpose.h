@@ -37,12 +37,13 @@ template <typename transposeDataType>
 class MC2VecTranspose {
 public:
     __aicore__ inline MC2VecTranspose(TPipe *tPipe) : tPipe_(tPipe){};
-    __aicore__ inline MC2TransposeContext* GetTransContextPtr();
-    __aicore__ inline void Init();
-    __aicore__ inline void Process();
-    __aicore__ inline void Destroy();
+    __aicore__ inline MC2TransposeContext* GetContextPtr();
+    __aicore__ inline void Process(uint32_t taskIndex);
 
 protected:
+    __aicore__ inline void Init(GM_ADDR transposeSrcAddr, GM_ADDR transposeDstAddr);
+    __aicore__ inline void Process();
+    __aicore__ inline void Destroy();
     static constexpr uint32_t MAIN_TILEM_SPLIT_SIZE = 64;
     static constexpr uint32_t MAIN_INNER_AXIS_SPLIT_SIZE = 256;
     static constexpr uint32_t MULTIPLE_AIV_TO_AIC = 2;
@@ -104,9 +105,9 @@ protected:
                                                     loadGm2UbParams.blockLen);
         loadGm2UbParams.dstStride = static_cast<int64_t>(0);
 
-        DataCopyPadExtParams<transposeDataType> padExtParams{false, 0, 0, *reinterpret_cast<transposeDataType*>(uint8_t(0))};
+        DataCopyPadExtParams<transposeDataType> padExtParams{true, 0, 0, *reinterpret_cast<transposeDataType *>(uint8_t(0))};
 
-        DataCopyPad<transposeDataType, PaddingMode::Normal>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
+        DataCopyPad<transposeDataType>(vecInBuf, tranposeGm_[srcGmOffset], loadGm2UbParams,
                                                         padExtParams);
         vecInQueue_.EnQue(vecInBuf);
     }
@@ -125,7 +126,7 @@ protected:
         loadUb2GmParams.srcStride = 0;
         loadUb2GmParams.dstStride = static_cast<int64_t>(context_.innerOffsetOut * sizeof(transposeDataType) - loadUb2GmParams.blockLen);
 
-        DataCopyPad<transposeDataType, PaddingMode::Normal>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
+        DataCopyPad<transposeDataType>(ubOutGm_[dstGmOffset], vecOutBuf, loadUb2GmParams);
         vecInQueue_.FreeTensor(vecOutBuf);
     }
 
@@ -139,20 +140,29 @@ protected:
 };
 
 template <typename transposeDataType>
-__aicore__ inline MC2TransposeContext* MC2VecTranspose<transposeDataType>::GetTransContextPtr()
+__aicore__ inline MC2TransposeContext* MC2VecTranspose<transposeDataType>::GetContextPtr()
 {
     return &context_;
 }
 
 template <typename transposeDataType>
-__aicore__ inline void MC2VecTranspose<transposeDataType>::Init()
+__aicore__ inline void MC2VecTranspose<transposeDataType>::Process(uint32_t taskIndex)
+{
+    Init(context_.transposeSrcAddr + taskIndex * context_.transposeSrcOffset,
+        context_.transposeDstAddr + taskIndex * context_.transposeDstOffset);
+    Process();
+    Destroy();
+}
+
+template <typename transposeDataType>
+__aicore__ inline void MC2VecTranspose<transposeDataType>::Init(GM_ADDR transposeSrcAddr, GM_ADDR transposeDstAddr)
 {
     tPipe_->Reset();
     usedCoreNum_ = GetBlockNum() * ONE_RATIO_TWO;   //CV(1:2) 先初始化为满核
     getSplitCnt();
 
-    tranposeGm_.SetGlobalBuffer((__gm__ transposeDataType *)context_.transposeSrcAddr);
-    ubOutGm_.SetGlobalBuffer((__gm__ transposeDataType *)context_.transposeDstAddr);
+    tranposeGm_.SetGlobalBuffer((__gm__ transposeDataType *)transposeSrcAddr);
+    ubOutGm_.SetGlobalBuffer((__gm__ transposeDataType *)transposeDstAddr);
 
     const uint32_t twoUbSize = AscendC::TOTAL_UB_SIZE / TWO_FACTOR;
     tPipe_->InitBuffer(vecInQueue_, 1, twoUbSize);
@@ -186,10 +196,6 @@ __aicore__ inline void MC2VecTranspose<transposeDataType>::Process()
             VecTransposeProcess(srcGmOffsetFinal, dstGmOffsetFinal, curTileMCntIdx, curInnerAxisCntIdx);
         }
     }
-
-    //偏移累加
-    context_.transposeSrcAddr = context_.transposeSrcAddr + context_.transposeSrcOffset;
-    context_.transposeDstAddr = context_.transposeDstAddr + context_.transposeDstOffset;
 }
 
 template <typename transposeDataType>

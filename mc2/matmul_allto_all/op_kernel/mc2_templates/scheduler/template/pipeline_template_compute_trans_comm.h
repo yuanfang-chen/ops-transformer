@@ -52,9 +52,9 @@ __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType,
 template <typename ComputationType, typename TransposeType, typename CommunicationType, typename ContextType>
 __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::GetContext(ContextType* context)
 {
-    context->computationContext = computeStage_->GetMMContextPtr();
-    context->transposeContext = transStage_->GetTransContextPtr();
-    context->communicationContext = commStage_->GetCommContextPtr();
+    context->computationContext = computeStage_->GetContextPtr();
+    context->transposeContext = transStage_->GetContextPtr();
+    context->communicationContext = commStage_->GetContextPtr();
 }
 
 //执行流水线
@@ -64,13 +64,11 @@ __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType,
     commStage_->Prepare(taskCnt);
     uint32_t index;
     for (index = 0 ; index < taskCnt; index++) {
-        computeStage_->Process(index == 0);
+        computeStage_->Process(index);
         //后续流水需要使用计算节点的结果
         AscendC::SyncAll<false>();
         if ASCEND_IS_AIV {
-            transStage_->Init();
-            transStage_->Process();
-            transStage_->Destroy();
+            transStage_->Process(index);
             //后续通信需要使用转置后的结果
             AscendC::SyncAll<true>();
             commStage_->Process();

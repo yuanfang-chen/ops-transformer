@@ -104,9 +104,9 @@ __aicore__ inline void AlltoAllMatmulArch35<SchedulerType, SchedulerContextType,
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = y_;
     pipeLineContext_.computationContext->baseData.biasGM = bias_;
-    pipeLineContext_.computationContext->baseData.a_offset = tileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->baseData.aOffset = tileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.cOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TileTilingData);
 
     // 转置相关地址和偏移
@@ -146,9 +146,9 @@ __aicore__ inline void AlltoAllMatmulArch35<SchedulerType, SchedulerContextType,
     pipeLineContext_.computationContext->baseData.aGM = transOutGM_ + tileCntMultitileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = y_ + (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->baseData.a_offset = tailMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->baseData.aOffset = tailMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.cOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TailTilingData);
 
     pipeLineContext_.transposeContext->transposeSrcAddr = commOutGM_ + tileCntMultitileMMultiRankK * sizeof(DTYPE_X1);

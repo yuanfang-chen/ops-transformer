@@ -45,7 +45,7 @@ public:
     __aicore__ inline HcclCommunication(TilingDataType* tiling) : tiling_(tiling){};
     __aicore__ inline void Init();
     __aicore__ inline void Prepare(uint32_t taskCnt);
-    __aicore__ inline MC2AlltoAllContext* GetCommContextPtr();
+    __aicore__ inline MC2AlltoAllContext* GetContextPtr();
     __aicore__ inline void Process();
     __aicore__ inline void End();
 
@@ -57,8 +57,8 @@ private:
     TilingDataType* tiling_;
     Hccl<ServerType> hccl_;
     MC2AlltoAllContext context_;
-    uint64_t sendIndex_;
-    uint64_t recvIndex_;
+    uint64_t sendIndex_ = 0;
+    uint64_t recvIndex_ = 0;
     bool notifyFlag_ = false;
     AscendC::HcclDataType hcclDataType_;
     Communicationtype communicationType_ = COMMUNICATION_WAIT_ONE;
@@ -108,7 +108,7 @@ __aicore__ inline void HcclCommunication<ServerType, TilingDataType, SendCnt, Re
 
 template <HcclServerType ServerType, typename TilingDataType, uint32_t SendCnt, uint32_t RecvCnt>
 __aicore__ inline MC2AlltoAllContext*
-HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::GetCommContextPtr()
+HcclCommunication<ServerType, TilingDataType, SendCnt, RecvCnt>::GetContextPtr()
 {
     return &context_;
 }

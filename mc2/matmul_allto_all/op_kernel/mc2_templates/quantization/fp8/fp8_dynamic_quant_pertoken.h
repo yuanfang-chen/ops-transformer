@@ -121,21 +121,41 @@ protected:
     __aicore__ inline void DoQuantRegBase(__local_mem__ quantInputDataType *xAddr,
                                           __local_mem__ quantOutputDataType *yAddr, float scale);
 
-
-public:
-    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe){};
-
-    __aicore__ inline void Init();
-
-    __aicore__ inline MC2PertokenDQuantContext* GetQuantContextPtr();
+    __aicore__ inline void Init(GM_ADDR quantInputAddr, GM_ADDR quantOutputAddr, GM_ADDR quantOutputScaleAddr);
 
     __aicore__ inline void Process();
 
     __aicore__ inline void Destroy();
+
+
+public:
+    __aicore__ inline Fp8DynamicQuantPertoken(TPipe *tPipe) : tPipe_(tPipe){};
+
+    __aicore__ inline MC2PertokenDQuantContext* GetContextPtr();
+
+    __aicore__ inline void Process(uint32_t taskIndex);
 };
 
 template <typename quantInputDataType, typename quantOutputDataType>
-__aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Init()
+__aicore__ inline MC2PertokenDQuantContext*
+Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::GetContextPtr()
+{
+    return &context_;
+}
+
+template <typename quantInputDataType, typename quantOutputDataType>
+__aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Process(uint32_t taskIndex)
+{
+    GM_ADDR quantInputAddr = context_.quantInputAddr + taskIndex * context_.quantInputAddrOffset;
+    GM_ADDR quantOutputAddr =context_.quantOutputAddr + taskIndex * context_.quantOutputAddrOffset;
+    GM_ADDR quantOutputScaleAddr =context_.quantOutputScaleAddr + taskIndex * context_.quantOutputScaleAddrOffset;
+    Init(quantInputAddr, quantOutputAddr, quantOutputScaleAddr);
+    Process();
+    Destroy();
+}
+
+template <typename quantInputDataType, typename quantOutputDataType>
+__aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::Init(GM_ADDR quantInputAddr, GM_ADDR quantOutputAddr, GM_ADDR quantOutputScaleAddr)
 {
     if ASCEND_IS_AIC {
         return;
@@ -155,13 +175,10 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
     this->startRowThisCore_ = coreIdx * avgRows + (coreIdx < tailRows ? coreIdx : tailRows);
 
     SetMaxValue();
-}
-
-template <typename quantInputDataType, typename quantOutputDataType>
-inline __aicore__ MC2PertokenDQuantContext*
-Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDataType>::GetQuantContextPtr()
-{
-    return &context_;
+    
+    quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)quantInputAddr);
+    quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)quantOutputAddr);
+    quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)quantOutputScaleAddr);
 }
 
 template <typename quantInputDataType, typename quantOutputDataType>
@@ -203,10 +220,6 @@ __aicore__ inline void Fp8DynamicQuantPertoken<quantInputDataType, quantOutputDa
         Ceil(static_cast<uint32_t>(context_.colNum * sizeof(quantInputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
     uint32_t outputSize =
         Ceil(static_cast<uint32_t>(context_.colNum * sizeof(quantOutputDataType)), UB_DATABLOCK) * UB_DATABLOCK;
-
-    quantInputGM_.SetGlobalBuffer((__gm__ quantInputDataType *)context_.quantInputAddr);
-    quantOutputGM_.SetGlobalBuffer((__gm__ quantOutputDataType *)context_.quantOutputAddr);
-    quantOutputScaleGM_.SetGlobalBuffer((__gm__ float *)context_.quantOutputScaleAddr);
 
     tPipe_->InitBuffer(scaleWorkBuf_, UB_DATABLOCK);
     tPipe_->InitBuffer(maxValueBuf_, UB_DATABLOCK);

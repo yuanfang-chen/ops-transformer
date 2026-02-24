@@ -50,9 +50,9 @@ __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationTy
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
 __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType, ComputationType, ContextType>::GetContext(ContextType* context)
 {
-    context->communicationContext = commStage_->GetCommContextPtr();
-    context->transposeContext = transStage_->GetTransContextPtr();
-    context->computationContext = computeStage_->GetMMContextPtr();
+    context->communicationContext = commStage_->GetContextPtr();
+    context->transposeContext = transStage_->GetContextPtr();
+    context->computationContext = computeStage_->GetContextPtr();
 }
 
 template <typename CommunicationType, typename TransposeType, typename ComputationType, typename ContextType>
@@ -64,16 +64,14 @@ __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationTy
         if ASCEND_IS_AIV {
             commStage_->Process();
             AscendC::SyncAll<true>();
-            transStage_->Init();
-            transStage_->Process();
-            transStage_->Destroy();
+            transStage_->Process(index);
             CrossCoreSetFlag<0, PIPE_MTE3>(8);
             CrossCoreWaitFlag(8);
             CrossCoreSetFlag<2, PIPE_MTE3>(9);
         }
         if ASCEND_IS_AIC {
             CrossCoreWaitFlag(9);
-            computeStage_->Process(index == 0);
+            computeStage_->Process(index);
         }
     }
 }

@@ -62,10 +62,10 @@ __aicore__ inline void
 MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
                                                ContextType>::GetContext(ContextType* context)
 {
-    context->communicationContext = commStage_->GetCommContextPtr();
-    context->transposeContext = transStage_->GetTransContextPtr();
-    context->quantizationContext = quantStage_->GetQuantContextPtr();
-    context->computationContext = computeStage_->GetMMContextPtr();
+    context->communicationContext = commStage_->GetContextPtr();
+    context->transposeContext = transStage_->GetContextPtr();
+    context->quantizationContext = quantStage_->GetContextPtr();
+    context->computationContext = computeStage_->GetContextPtr();
 }
 
 template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
@@ -81,17 +81,13 @@ MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType,
             commStage_->Process();
             AscendC::SyncAll<true>();
 
-            transStage_->Init();
-            transStage_->Process();
-            transStage_->Destroy();
+            transStage_->Process(index);
             AscendC::SyncAll<true>();
 
-            quantStage_->Init();
-            quantStage_->Process();
-            quantStage_->Destroy();
+            quantStage_->Process(index);
         }
         AscendC::SyncAll<false>();
-        computeStage_->Process(index == 0);
+        computeStage_->Process(index);
     }
 }
 

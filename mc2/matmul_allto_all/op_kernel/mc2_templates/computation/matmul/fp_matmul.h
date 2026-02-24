@@ -15,77 +15,78 @@
 
 #ifndef MC2_FP_MATMUL_H
 #define MC2_FP_MATMUL_H
-#include "matmul_factory.h"
+#include "matmul_base.h"
 
 namespace MC2KernelTemplate
 {
-//非量化场景没有额外的数据
+// 非量化场景没有额外的数据
 struct FpMMAdditionalData {
 };
 
-//非量化场景的相关逻辑实现
-template <typename MMType>
-class FpMMControl {
+// 非量化场景的相关逻辑实现
+template <typename MMTilingType, typename MMType>
+class MC2FpMMWrapper {
 protected:
-    MC2MMBaseGmAddrs* baseDataPtr_;
-    FpMMAdditionalData* additionalDataPtr_;
-    MMType* MMImplPtr_;
-    Mc2MatMulV3TilingData* tilingDataPtr_;
+    MC2MMContext<FpMMAdditionalData, MMTilingType> MMcontext_;
+    MMType MMImpl_;
     AscendC::TPipe* tPipePtr_;
 
 public:
-    __aicore__ inline void  Init(MC2MMBaseGmAddrs* baseDataPtr, FpMMAdditionalData* additionalDataPtr, Mc2MatMulV3TilingData* tilingDataPtr, MMType* MMImplPtr, AscendC::TPipe *tPipe);
-    __aicore__ inline void  UpdateAdditionalData();
-    __aicore__ inline void  InitMM();
-    __aicore__ inline void  EndMM();
+    __aicore__ inline MC2FpMMWrapper(AscendC::TPipe* tPipe) : tPipePtr_(tPipe) {};
+    // 初始化方法
+    __aicore__ inline void Init();
+    // 获取数据上下文引用
+    __aicore__ inline MC2MMContext<FpMMAdditionalData, MMTilingType>* GetContextPtr();
+    // 执行一次计算的方法
+    __aicore__ inline void Process(uint32_t taskIndex);
+    // 结束方法
+    __aicore__ inline void End();
 };
 
-template <typename MMType>
-__aicore__ inline void FpMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseDataPtr, FpMMAdditionalData *additionalDataPtr,
-                                                 Mc2MatMulV3TilingData *tilingDataPtr, MMType *MMImplPtr,
-                                                 AscendC::TPipe *tPipe)
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::Init() {}
+
+template <typename MMTilingType, typename MMType>
+inline __aicore__ MC2MMContext<FpMMAdditionalData, MMTilingType> *MC2FpMMWrapper<MMTilingType, MMType>::GetContextPtr()
+{
+    return &MMcontext_;
+}
+
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::Process(uint32_t taskIndex)
 {
     if ASCEND_IS_AIV {
         return;
     }
-    baseDataPtr_ = baseDataPtr;
-    additionalDataPtr_ = additionalDataPtr;
-    tilingDataPtr_ = tilingDataPtr;
-    MMImplPtr_ = MMImplPtr;
-    tPipePtr_ = tPipe;
-}
-
-template <typename MMType>
-__aicore__ inline void FpMMControl<MMType>::UpdateAdditionalData()
-{
-    return;
-}
-
-template <typename MMType>
-__aicore__ inline void FpMMControl<MMType>::InitMM()
-{
-    if ASCEND_IS_AIV {
-        return;
-    }
+    GM_ADDR aGM = MMcontext_.baseData.aGM + taskIndex * MMcontext_.baseData.aOffset;
+    GM_ADDR bGM = MMcontext_.baseData.bGM + taskIndex * MMcontext_.baseData.bOffset;
+    GM_ADDR cGM = MMcontext_.baseData.cGM + taskIndex * MMcontext_.baseData.cOffset;
     tPipePtr_->Reset();
-    MMImplPtr_->Init(baseDataPtr_->aGM, baseDataPtr_->bGM, baseDataPtr_->cGM, baseDataPtr_->biasGM, nullptr, nullptr, tilingDataPtr_, tPipePtr_);
+    MMImpl_.Init(aGM, bGM, cGM,MMcontext_.baseData.biasGM,
+        nullptr, nullptr, MMcontext_.tilingDataPtr, tPipePtr_);
+    MMImpl_.Process();
 }
 
-template <typename MMType>
-__aicore__ inline void FpMMControl<MMType>::EndMM()
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2FpMMWrapper<MMTilingType, MMType>::End()
 {
     if ASCEND_IS_AIV {
         return;
     }
-    MMImplPtr_->End();
+    MMImpl_.End();
 }
 
-// 使用matmulv3算子作为计算节点的计算实现,是否转置的参数通过算子的模板参数获取
+// 计算节点的上下文数据类型声明
+#ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP
+#define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP(ContextType) \
+    using ContextType = MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>
+#endif
+
+// 使用matmulv3算子作为计算节点的计算实现，是否转置的参数通过算子的模板参数获取
 #ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP
 #define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(ComputationType) \
-    using ComputationType = MC2MMFactory<\
-        MC2MMContext<FpMMAdditionalData, Mc2MatMulV3TilingData>,\
-        FpMMControl,\
+    using ComputationType = MC2FpMMWrapper<\
+        Mc2MatMulV3TilingData,\
         Mc2MatmulV3Advanced::Mc2MatmulAswKernel<\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X1, false>,\
             MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_X2, X2TRANSPOSE>,\
@@ -94,6 +95,5 @@ __aicore__ inline void FpMMControl<MMType>::EndMM()
             Mc2MatmulV3Advanced::Mc2MatmulAswBlock, MM_CFG_NO_PRELOAD>\
         >
 #endif
-
 }; // namespace MC2KernelTemplate
 #endif
