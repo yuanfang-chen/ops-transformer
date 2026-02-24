@@ -68,10 +68,10 @@ template <typename T> __aicore__ inline T QSFAAlign(T num, T rnd)
     return (((rnd) == 0) ? 0 : (((num) + (rnd) - 1) / (rnd) * (rnd)));
 }
 
-template <typename T1, typename T2> __aicore__ inline T1 Min(T1 a, T2 b)
-{
-    return (a > b) ? (b) : (a);
-}
+// template <typename T1, typename T2> __aicore__ inline T1 Min(T1 a, T2 b)
+// {
+//     return (a > b) ? (b) : (a);
+// }
 
 template <typename T> __aicore__ inline size_t BlockAlign(size_t s)
 {
