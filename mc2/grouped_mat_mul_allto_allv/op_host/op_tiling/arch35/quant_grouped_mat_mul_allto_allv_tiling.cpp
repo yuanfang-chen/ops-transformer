@@ -24,7 +24,7 @@
 using namespace Mc2Log;
 using namespace AscendC;
 using namespace optiling;
-using namespace Mc2GroupedMatmul;
+using namespace optiling::Mc2GroupedMatmul;
 
 // namespace Mc2GroupedMatmul {
 
@@ -545,8 +545,8 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckParamsAttrEpAndSetLocalP
         rankDim = *epWorldSizePtr;
     }
     std::string supportRankSizeRange;
-    for (size_t i = 0; i < SUPPORT_RANK_SIZE.size(); i++) {
-        supportRankSizeRange += (std::to_string(epWorldSizeOptional[i]) + " ");
+    for (const auto& v : SUPPORT_RANK_SIZE) {
+        supportRankSizeRange += (std::to_string(v) + " ");
     }
     OP_TILING_CHECK(SUPPORT_RANK_SIZE.find(rankDim) == SUPPORT_RANK_SIZE.end(),
         OP_LOGE(opName_, "World_size should be %s, but the actual value is %ld.", supportRankSizeRange, rankDim),
