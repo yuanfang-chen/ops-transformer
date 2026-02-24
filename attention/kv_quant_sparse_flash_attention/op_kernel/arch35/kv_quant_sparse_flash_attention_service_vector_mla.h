@@ -37,12 +37,13 @@ using namespace matmul;
 
 namespace BaseApi {
 
-template <typename QSFAT> class QSFAVectorService {
+TEMPLATES_DEF
+class QSFAVectorService {
 public:
-    using T = float;
-    using Q_T = typename QSFAT::queryType;
-    using KV_T = typename QSFAT::kvType;
-    using OUTPUT_T = typename QSFAT::outputType;
+    // using T = float;
+    // using Q_T = typename QSFAT::queryType;
+    // using KV_T = typename QSFAT::kvType;
+    // using OUTPUT_T = typename QSFAT::outputType;
 
     // BUFFER的字节数
     static constexpr uint32_t BUFFER_SIZE_BYTE_32B = 32;
@@ -92,11 +93,11 @@ public:
         ConstInfo_arch35 &constInfo);
 
 private:
-    static constexpr bool isPa = QSFAT::pageAttention;
-    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
-    static constexpr bool isFd = QSFAT::flashDecode;
-    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
-    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+    // static constexpr bool isPa = QSFAT::pageAttention;
+    // static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    // static constexpr bool isFd = QSFAT::flashDecode;
+    // static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    // static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
 
     __aicore__ inline void ProcessSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo);
@@ -166,7 +167,7 @@ private:
 };
 
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx,
     int64_t s2IdxInBase, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     int64_t topkBS1Idx = 0;
@@ -192,7 +193,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetRe
     }
 }
 
-template <typename QSFAT> __aicore__ inline int64_t QSFAVectorService<QSFAT>::GetkeyOffset(int64_t s2Idx, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline int64_t QSFAVectorService<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Idx, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     if (s2Idx < 0) {
         return -1;
@@ -210,8 +211,8 @@ template <typename QSFAT> __aicore__ inline int64_t QSFAVectorService<QSFAT>::Ge
     return realkeyOffset;
 }
 
-template <typename QSFAT> __aicore__ inline void
-QSFAVectorService<QSFAT>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset)
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void
+QSFAVectorService<TEMPLATE_ARGS>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset)
 {
     if (keyOffset < 0) {
         return;
@@ -234,7 +235,7 @@ QSFAVectorService<QSFAT>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t start
     DataCopyPad(kvInUb[startRow * combineDimAlign], keyGm[keyOffset], intriParams, padParams);
 }
 
-template <typename QSFAT> __aicore__ inline uint32_t QSFAVectorService<QSFAT>::CopyInKvSparse(LocalTensor<KV_T> kvInUb , int64_t startRow,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline uint32_t QSFAVectorService<TEMPLATE_ARGS>::CopyInKvSparse(LocalTensor<KV_T> kvInUb , int64_t startRow,
     int64_t token0Idx, int64_t token1Idx, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     int64_t s2IdLimit = runInfo.s2RealSize;
@@ -419,7 +420,7 @@ __aicore__ inline void AntiquantVFFp8D448(LocalTensor<Q_T>& outputUb,  LocalTens
     AntiquantVFImplFp8D448<Q_T, KV_T>(ubSrcAddr, ubDstAddr, ubScaleAddr, dealRowCount);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::DequantKv(LocalTensor<Q_T> antiKvTensorAsB16,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::DequantKv(LocalTensor<Q_T> antiKvTensorAsB16,
     LocalTensor<KV_T> srcTensor, int64_t dealRow, int64_t s2ProcessBaseSize, ConstInfo_arch35 &constInfo)
 {
     // srcTensor是rope(448) + nope(64) + scale + pad, dstTensor是nope(448) + rope(64)
@@ -440,7 +441,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Dequa
         });
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::CopyOutKvUb2L1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
     LocalTensor<Q_T> antiKvTensorAsB16, int64_t v0Loop, int64_t dealRow, int64_t s2StartIdx, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     uint64_t blockElementNum = 16;
@@ -454,7 +455,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyO
     DataCopy(dst[s2StartIdx * blockElementNum], antiKvTensorAsB16, dataCopyParams);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
                                                                        const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     int64_t s2ProcessBaseSize = 32;
@@ -490,7 +491,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyInKvNotSparse(LocalTensor<KV_T> kvMergUb, int64_t v0Loop,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTensor<KV_T> kvMergUb, int64_t v0Loop,
     int64_t dealRow, int64_t s2StartOffset, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     int64_t s2LoopCount = (runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx) ? \
@@ -535,7 +536,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CopyI
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec0(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec0(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
     outputL1.WaitCrossCore(); // 核间同步
@@ -566,7 +567,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     outputL1.SetCrossCore(); // 核间同步
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessSparseKv(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessSparseKv(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
     const RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo)
 {
@@ -623,7 +624,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec1(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec1(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
@@ -703,7 +704,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::ProcessVec2(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::ProcessVec2(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm2ResBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
 {
@@ -745,9 +746,9 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Proce
     SetFlag<HardEvent::MTE3_V>(mte3ToVId[0]);
 }
 
-template <typename QSFAT>
+TEMPLATES_DEF_NO_DEFAULT
 template <typename VEC2_RES_T>
-__aicore__ inline void QSFAVectorService<QSFAT>::Bmm2DataCopyOut (RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo,
+__aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::Bmm2DataCopyOut (RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo,
     LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     LocalTensor<OUTPUT_T> attenOut;
@@ -767,15 +768,15 @@ __aicore__ inline void QSFAVectorService<QSFAT>::Bmm2DataCopyOut (RunInfo_arch35
     DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut, dataCopyParams);
 }
 
-template <typename QSFAT>
+TEMPLATES_DEF_NO_DEFAULT
 template <typename VEC2_RES_T>
-__aicore__ inline void QSFAVectorService<QSFAT>::CopyOutAttentionOut(
+__aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::CopyOutAttentionOut(
     RunInfo_arch35 &runInfo, ConstInfo_arch35 &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb, int64_t vec2S1Idx, int64_t vec2CalcSize)
 {
     this->Bmm2DataCopyOut(runInfo, constInfo, vec2ResUb, vec2S1Idx, vec2CalcSize);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitOutputSingleCore(ConstInfo_arch35 &constInfo)
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo_arch35 &constInfo)
 {
     uint32_t coreNum = GetBlockNum();
     uint64_t totalOutputSize = 0;
@@ -798,7 +799,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitO
     SyncAll();
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo) 
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo) 
 {
     if ASCEND_IS_AIV {
         this->attentionOutGm.SetGlobalBuffer((__gm__ OUTPUT_T *)attentionOut);
@@ -808,7 +809,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::Clean
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitGlobalBuffer(__gm__ uint8_t *key,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitGlobalBuffer(__gm__ uint8_t *key,
 __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable)
 {
     keyGm.SetGlobalBuffer((__gm__ KV_T *)(key));
@@ -831,18 +832,21 @@ __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices, __gm__ uint8_t *blockTable
     // }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::SoftmaxInitBuffer()
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::SoftmaxInitBuffer()
 {
     constexpr uint32_t softmaxBufSize = 256; // VF单次操作256Byte
+    PRINTF("YXC-----ENTER INIT 666 !!!!!!!!!!!!!!!\n");
     tPipe->InitBuffer(softmaxSumBuf[0], softmaxBufSize);
+    PRINTF("YXC-----ENTER INIT 777 !!!!!!!!!!!!!!!\n");
     tPipe->InitBuffer(softmaxSumBuf[1], softmaxBufSize);
     tPipe->InitBuffer(softmaxMaxBuf[0], softmaxBufSize);
     tPipe->InitBuffer(softmaxMaxBuf[1], softmaxBufSize);
     tPipe->InitBuffer(softmaxExpBuf[0], softmaxBufSize);
     tPipe->InitBuffer(softmaxExpBuf[1], softmaxBufSize);
+    PRINTF("YXC-----ENTER INIT 999 !!!!!!!!!!!!!!!\n");
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitSinksBuffer(ConstInfo_arch35 &constInfo)
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitSinksBuffer(ConstInfo_arch35 &constInfo)
 {
     LocalTensor<T> sinksUb = this->sinksBuf.template Get<T>();
     const uint32_t maxN = constInfo.gSize; // N最大支持128, sink shape是[N]
@@ -857,11 +861,12 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitS
     WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_SINKS_BUF_FLAG);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo)
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo)
 {
+    PRINTF("YXC-----ENTER INIT 11 !!!!!!!!!!!!!!!\n");
     // ub buffer
     pipe->InitBuffer(dequantScaleBuff, 64 * 16 * 2 * sizeof(float)); // v0阶段每次处理16行，每行64个元素，开2 buffer
-
+    PRINTF("YXC-----ENTER INIT 22 !!!!!!!!!!!!!!!\n");
     SoftmaxInitBuffer();
 
     tPipe->InitBuffer(commonTBuf, 512); // commonTBuf内存申请512B
@@ -887,7 +892,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitL
     // }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitCubeVecSharedParams(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx)
 {
     auto &sparseAttnSharedkvBaseParams = this->tilingData->baseParams;
@@ -948,7 +953,7 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::InitC
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetExtremeValue(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAVectorService<TEMPLATE_ARGS>::GetExtremeValue(
     T &negativeScalar)
 {
     uint32_t tmp1 = NEGATIVE_MIN_VAULE_FP32;
@@ -956,12 +961,12 @@ template <typename QSFAT> __aicore__ inline void QSFAVectorService<QSFAT>::GetEx
 }
 
 
-class QSFAVectorServiceDummy {
+TEMPLATES_DEF class QSFAVectorServiceDummy {
 public:
     __aicore__ inline QSFAVectorServiceDummy() {};
     __aicore__ inline void CleanOutput(__gm__ uint8_t *attentionOut, ConstInfo_arch35 &constInfo) {}
-    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
-        __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks) {}
+    __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices,
+        __gm__ uint8_t *blockTable) {}
     __aicore__ inline void InitVecBlock(TPipe *pipe, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
         CVSharedParams &sharedParams, int32_t aicIdx, uint8_t subBlockIdx, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *sequsedKv) {};
     __aicore__ inline void InitLocalBuffer(TPipe *pipe, ConstInfo_arch35 &constInfo) {}
