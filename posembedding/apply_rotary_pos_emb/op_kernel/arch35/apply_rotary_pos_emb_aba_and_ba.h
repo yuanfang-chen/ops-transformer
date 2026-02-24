@@ -146,10 +146,6 @@ __aicore__ inline void ApplyRotaryPosEmbABAAndBA<T, IsBBoardcast>::InitAllBuffer
         this->pipe_->InitBuffer(this->cosInQueue_, DOUBLE_BUFFER, ubFactorB_ * ubFactorS_ * dAlign_ * sizeof(T));
         this->pipe_->InitBuffer(this->sinInQueue_, DOUBLE_BUFFER, ubFactorB_ * ubFactorS_ * dAlign_ * sizeof(T));
     }
-    if (GetBlockIdx() == 0) {
-        // printf("realDim=%ld, D=%ld, dAlign_=%ld\n", tilingData_->realDim, tilingData_->D, dAlign_);
-        // printf("ApplyRotaryPosEmbABAAndBA Init END");
-    }
 }
 
 template <typename T, bool IsBBoardcast>

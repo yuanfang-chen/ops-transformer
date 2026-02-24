@@ -41,6 +41,9 @@ constexpr uint32_t BLOCK_TYPE_SIZE = GetUbBlockSize();
 constexpr uint32_t HALF_INTERLEAVE_COEF = 2;
 constexpr uint32_t QUARTER_MODE_COEF = 4;
 constexpr uint32_t DOUBLE_BUFFER = 2;
+constexpr uint32_t QUARTER_MODE_PART_1 = 1;
+constexpr uint32_t QUARTER_MODE_PART_2 = 2;
+constexpr uint32_t QUARTER_MODE_PART_3 = 3;
 
 enum class ApplyRotaryPosEmbRotaryMode : int64_t {
     HALF = 1,
@@ -792,7 +795,6 @@ __aicore__ inline void CopyInHalfMode(
     DataCopyPad(inTensor[dstStride], gmTensor[offset + realDim / dSplitCoef], copyParams, padParams);
 }
 
-
 template <typename T>
 __aicore__ inline void CopyOutHalfMode(
     LocalTensor<T>& outTensor, GlobalTensor<T>& gmTensor, const int64_t offset,
@@ -849,11 +851,11 @@ __aicore__ inline void CopyInQuarterMode(
     copyParams.blockLen = blockLen;
     copyParams.srcStride = (D - realDim / dSplitCoef) * sizeof(T);
     int64_t dstStride = Ops::Base::CeilAlign<int64_t>(realDim / dSplitCoef, BLOCK_TYPE_SIZE / sizeof(T));
-    copyParams.dstStride = dstStride *(dSplitCoef - 1) * sizeof(T) / BLOCK_TYPE_SIZE;
+    copyParams.dstStride = dstStride * (dSplitCoef - 1) * sizeof(T) / BLOCK_TYPE_SIZE;
     DataCopyPad(inTensor, gmTensor[offset], copyParams, padParams);
-    DataCopyPad(inTensor[dstStride], gmTensor[offset + realDim / dSplitCoef], copyParams, padParams);
-    DataCopyPad(inTensor[dstStride * 2], gmTensor[offset + realDim / dSplitCoef * 2], copyParams, padParams);
-    DataCopyPad(inTensor[dstStride * 3], gmTensor[offset + realDim / dSplitCoef * 3], copyParams, padParams);
+    DataCopyPad(inTensor[dstStride * QUARTER_MODE_PART_1], gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_1], copyParams, padParams);
+    DataCopyPad(inTensor[dstStride * QUARTER_MODE_PART_2], gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_2], copyParams, padParams);
+    DataCopyPad(inTensor[dstStride * QUARTER_MODE_PART_3], gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_3], copyParams, padParams);
 }
 
 template <typename T>
@@ -869,9 +871,9 @@ __aicore__ inline void CopyOutQuarterMode(
     copyOutParams.srcStride = srcStride * (dSplitCoef - 1) * sizeof(T) / BLOCK_TYPE_SIZE;
     copyOutParams.dstStride = (D - realDim / dSplitCoef) * sizeof(T);
     DataCopyPad(gmTensor[offset], outTensor, copyOutParams);
-    DataCopyPad(gmTensor[offset + realDim / dSplitCoef], outTensor[srcStride], copyOutParams);
-    DataCopyPad(gmTensor[offset + realDim / dSplitCoef * 2], outTensor[srcStride * 2], copyOutParams);
-    DataCopyPad(gmTensor[offset + realDim / dSplitCoef * 3], outTensor[srcStride * 3], copyOutParams);
+    DataCopyPad(gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_1], outTensor[srcStride * QUARTER_MODE_PART_1], copyOutParams);
+    DataCopyPad(gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_2], outTensor[srcStride * QUARTER_MODE_PART_2], copyOutParams);
+    DataCopyPad(gmTensor[offset + realDim / dSplitCoef * QUARTER_MODE_PART_3], outTensor[srcStride * QUARTER_MODE_PART_3], copyOutParams);
 }
 
 #endif // APPLY_ROTARY_POS_EMB_COMMON_H
