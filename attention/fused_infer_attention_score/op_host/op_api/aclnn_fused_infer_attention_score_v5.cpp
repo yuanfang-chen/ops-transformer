@@ -167,6 +167,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5GetMaxWorkspaceSize(
     aclDestroyTensor(fakeActualSeqLengthsOptional); // 只会成功，无需校验
     aclDestroyTensor(fakeActualSeqLengthsKvOptional);
     aclDestroyTensor(fakeActualSharedPrefixLenOptional);
+    aclDestroyTensor(fakeQStartIdxOptional);
+    aclDestroyTensor(fakeKVStartIdxOptional);
     return ret;
 }
 
