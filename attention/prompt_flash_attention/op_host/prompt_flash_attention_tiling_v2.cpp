@@ -709,7 +709,7 @@ bool PromptFlashAttentionTilingV2::CheckKVDataType(ContextParamsForPFATiling& co
 }
 
 bool PromptFlashAttentionTilingV2::CheckRopeDataType(ContextParamsForPFATiling& contextKeyParams) {
-    if (enablePertensorQuant || enablePerblockQuant) {
+    if (enablePertensorQuant || enablePerblockQuant || enableIFAMLAFullQuant) {
         return true;
     }
     ge::DataType queryDataType = contextKeyParams.inputDataType;
