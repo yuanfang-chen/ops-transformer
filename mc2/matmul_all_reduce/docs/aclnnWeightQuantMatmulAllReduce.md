@@ -416,7 +416,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <td>null、BFLOAT16</td>
         <td>null、BFLOAT16</td>
         <td>BFLOAT16</td>
-        <td>pergroup场景不支持</td>
+        <td>pertensor、pergroup场景不支持</td>
       </tr>
       <tr>
         <td>FLOAT16</td>
@@ -436,7 +436,7 @@ aclnnStatus aclnnWeightQuantMatmulAllReduce(
         <td>null、FLOAT16</td>
         <td>null、FLOAT16</td>
         <td>FLOAT16</td>
-        <td>pergroup场景不支持</td>
+        <td>pertensor、pergroup场景不支持</td>
       </tr>
     </tbody>
   </table>
