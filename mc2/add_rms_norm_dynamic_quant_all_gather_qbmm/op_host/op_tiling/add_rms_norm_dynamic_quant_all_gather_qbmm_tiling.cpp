@@ -214,8 +214,8 @@ ge::graphStatus CheckInputOutputTensorDim(const gert::TilingContext *context)
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1Dim1Value != gammaValue)),
         OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x1DimNum != TWO_DIMS) || (x2DimNum != TWO_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS)),
- 	    OP_LOGE(nodeName, "The dim of x1, x2, residual,y should be 2, but current x1DimNum=%lu, x2DimNum- %lu, residualDimNum=%lu, yDimNum=%lu.",
+    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != TWO_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
+ 	    OP_LOGE(context->GetNodeName(), "The dim of x1, x2, residual,y should be 2, but current x1DimNum=%lu, x2DimNum- %lu, residualDimNum=%lu, yDimNum=%lu.",
  	    x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
