@@ -102,6 +102,7 @@ public:
     int64_t keepProbUint8;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    float pScale;
 
     // PFA
     uint8_t deqScaleFlag;  // 0: uint64  1: float32
