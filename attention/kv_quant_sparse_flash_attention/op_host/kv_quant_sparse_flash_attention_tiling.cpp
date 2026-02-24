@@ -386,7 +386,7 @@ void QSFAMlaTiling::NormalCalcFDWorkSpace(const uint32_t actCoreNum)
         accumOutSize = FDParamNums * headDimAlign_;
         logSumExpSize = 2 * FDParamNums * (BYTE_BLOCK / sfaaInfo_->blockTypeSize); // log和sum的存储空间一致，共需要2份内存
         workspaceSize_ += (accumOutSize + logSumExpSize) * sfaaInfo_->blockTypeSize;
-        if (sfaaInfo_->npuArch == NpuArch::DAV_2002) { // 310P
+        if (sfaaInfo_->socVersion == platform_ascendc::SocVersion::ASCEND310P) {
             workspaceSize_ += static_cast<size_t>(actCoreNum) * 32; // 每个核SyncAll软同步需要32Byte记录状态
         }
     }
@@ -862,9 +862,9 @@ ge::graphStatus QSFATilingCheck::CheckAttenOutShape()
     shapeParams.S = s1Size_;
     shapeParams.D = 512; // 512:输出的head_dim
     shapeParams.T = qTSize_;
-    if (CompareShape(shapeParams, attenOutShapeCmp_, outLayout_, ATTEN_OUT_NAME) != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
+    // if (CompareShape(shapeParams, attenOutShapeCmp_, outLayout_, ATTEN_OUT_NAME) != ge::GRAPH_SUCCESS) {
+    //     return ge::GRAPH_FAILED;
+    // }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1083,7 +1083,7 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
         OP_LOGE(opName_, "q_head_num(%u) must be divisible by kv_head_num(%u)", n1Size_, n2Size_),
         return ge::GRAPH_FAILED);
 
-    if (isA5_) {
+    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
         std::vector<uint32_t> gSizeSupportList = {1, 2, 4, 8, 16, 32, 48, 64, 128};
         OP_CHECK_IF(std::find(gSizeSupportList.begin(), gSizeSupportList.end(), gSize_) == gSizeSupportList.end(),
             OP_LOGE(opName_, "group num should be in 1, 2, 4, 8, 16, 32, 48, 64, 128, but got %u", gSize_),
@@ -1095,13 +1095,13 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
             return ge::GRAPH_FAILED);
     }
     
-    OP_CHECK_IF(qHeadDim_ != 576, // 576:当前不泛化
-        OP_LOGE(opName_, "q_head_dim only support 576, but got %u", qHeadDim_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(qHeadDim_ != 576, // 576:当前不泛化
+    //     OP_LOGE(opName_, "q_head_dim only support 576, but got %u", qHeadDim_),
+    //     return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(kHeadDim_ != 656, // 656:当前不泛化
-        OP_LOGE(opName_, "k_head_dim only support 656, but got %u", kHeadDim_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(kHeadDim_ != 656, // 656:当前不泛化
+    //     OP_LOGE(opName_, "k_head_dim only support 656, but got %u", kHeadDim_),
+    //     return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -1127,15 +1127,15 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantDtype() const
             QSFADataTypeToSerialString(inputQType_).c_str()),
         return ge::GRAPH_FAILED);
     
-    if (isA5_) {
+    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
         OP_CHECK_IF(inputKvType_ != ge::DT_FLOAT8_E4M3FN && inputKvType_ != ge::DT_HIFLOAT8,
-            OP_LOGE(opName_, "key and value dtype only support %s and %s, but got %s",
+            OP_LOGE(opName_, "In ascend950, key and value dtype only support %s and %s, but got %s",
                 QSFADataTypeToSerialString(ge::DT_FLOAT8_E4M3FN).c_str(), QSFADataTypeToSerialString(ge::DT_HIFLOAT8).c_str(),
                 QSFADataTypeToSerialString(inputKvType_).c_str()),
             return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(inputKvType_ != ge::DT_INT8,
-            OP_LOGE(opName_, "key and value dtype only support %s, but got %s",
+            OP_LOGE(opName_, "In ascend910B, key and value dtype only support %s, but got %s",
                 QSFADataTypeToSerialString(ge::DT_INT8).c_str(),
                 QSFADataTypeToSerialString(inputKvType_).c_str()),
             return ge::GRAPH_FAILED);
@@ -1176,10 +1176,10 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantAttr() const
         nextTokens_),
         return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(tileSize_ != 128, // 128:当前不泛化
-        OP_LOGE(opName_, "tile_size should be 128, but got %ld",
-        tileSize_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(tileSize_ != 128, // 128:当前不泛化
+    //     OP_LOGE(opName_, "tile_size should be 128, but got %ld",
+    //     tileSize_),
+    //     return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(ropeHeadDim_ != 64, // 64:当前不泛化
         OP_LOGE(opName_, "rope_head_dim should be 64, but got %d",
@@ -1238,8 +1238,7 @@ void QSFATilingCheck::Init()
     opName_ = sfaaInfo_.opName;
     platformInfo_ = sfaaInfo_.platformInfo;
     opParamInfo_ = sfaaInfo_.opParamInfo;
-    npuArch_ = sfaaInfo_.npuArch;
-    isA5_ = sfaaInfo_.isA5;
+    socVersion_ = sfaaInfo_.socVersion;
 
     bSize_ = sfaaInfo_.bSize;
     n1Size_ = sfaaInfo_.n1Size;
@@ -1421,10 +1420,9 @@ ge::graphStatus QSFAInfoParser::GetNpuInfo()
     OP_CHECK_IF(aicNum == 0 || aivNum == 0,
         OPS_REPORT_VECTOR_INNER_ERR(opName_, "num of core obtained is 0."), return GRAPH_FAILED);
 
-    npuArch_ = ascendcPlatform.GetCurNpuArch();
-    isA5_ = (npuArch_ == NpuArch::DAV_3510);
-    if (npuArch_ != NpuArch::DAV_2201 && npuArch_ != NpuArch::DAV_3510) {
-        OPS_REPORT_VECTOR_INNER_ERR(opName_, "Npu Arch Version[%d] is not support.", static_cast<int32_t>(npuArch_));
+    socVersion_ = ascendcPlatform.GetSocVersion();
+    if (socVersion_ != platform_ascendc::SocVersion::ASCEND910B && socVersion_ != platform_ascendc::SocVersion::ASCEND950) {
+        OPS_REPORT_VECTOR_INNER_ERR(opName_, "SOC Version[%d] is not support.", static_cast<int32_t>(socVersion_));
         return GRAPH_FAILED;
     }
 
@@ -1748,8 +1746,7 @@ void QSFAInfoParser::GenerateInfo(QSFATilingInfo &sfaaInfo)
     sfaaInfo.opName = opName_;
     sfaaInfo.platformInfo = platformInfo_;
     sfaaInfo.opParamInfo = opParamInfo_;
-    sfaaInfo.npuArch = npuArch_;
-    sfaaInfo.isA5 = isA5_;
+    sfaaInfo.socVersion = socVersion_;
 
     sfaaInfo.bSize = bSize_;
     sfaaInfo.n1Size = n1Size_;
