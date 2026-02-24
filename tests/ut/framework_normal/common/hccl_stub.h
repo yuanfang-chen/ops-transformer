@@ -13,7 +13,7 @@
 
 #include <cstdint>
 
-#ifdef __aicore__
+#ifndef __aicore__
 #define __aicore__ [aicore]
 #endif
 
