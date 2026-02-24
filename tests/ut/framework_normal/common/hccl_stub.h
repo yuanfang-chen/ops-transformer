@@ -13,7 +13,10 @@
 
 #include <cstdint>
 
-#define __aicore__
+#ifdef __aicore__
+#define __aicore__ [aicore]
+#endif
+
 #define __gm__
 
 #define GM_ADDR uint8_t*
