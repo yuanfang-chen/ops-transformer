@@ -30,6 +30,7 @@ struct MhcPostTilingData {
     uint32_t lastTileD;
     uint32_t alignedN;      // n aligned to 8 for float32 vector ops
     uint32_t alignedNN;     // n*n aligned to 8 for float32 vector ops
+    uint32_t usePermanentX; // 0: general path, 1: optimized path with buffer_permanent_left
 };
 
 #endif

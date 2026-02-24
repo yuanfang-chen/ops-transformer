@@ -40,8 +40,9 @@ constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;       // Single Buffer depth for wei
 // IS_N_ALIGNED: n % 8 == 0 (n=4,8: true; n=6: false)
 // IS_NN_ALIGNED: (n*n) % 8 == 0 (16,64: true; 36: false)
 // IS_D_ALIGNED: D % 16 == 0 && nTilesD == 1
-#define TEMPLATE_DECLARE template<typename T, uint16_t IS_N_ALIGNED, uint16_t IS_NN_ALIGNED, uint16_t IS_D_ALIGNED>
-#define TEMPLATE_ARGS T, IS_N_ALIGNED, IS_NN_ALIGNED, IS_D_ALIGNED
+// USE_PERMANENT_X: 0 = general path (copy x each time), 1 = optimized path (copy N*d once)
+#define TEMPLATE_DECLARE template<typename T, uint16_t IS_N_ALIGNED, uint16_t IS_NN_ALIGNED, uint16_t IS_D_ALIGNED, uint16_t USE_PERMANENT_X>
+#define TEMPLATE_ARGS T, IS_N_ALIGNED, IS_NN_ALIGNED, IS_D_ALIGNED, USE_PERMANENT_X
 
 TEMPLATE_DECLARE
 class MhcPostKernel {
@@ -56,7 +57,8 @@ public:
 private:
     __aicore__ inline void CopyInWeights(uint32_t globalItemIdx);
     __aicore__ inline void CopyInTile(uint32_t globalItemIdx, uint32_t tileId);
-    __aicore__ inline void ComputeTile(uint32_t tileId);
+    __aicore__ inline void CopyInAllX(uint32_t globalItemIdx);  // For optimized path
+    __aicore__ inline void ComputeTile(uint32_t globalItemIdx, uint32_t tileId);
     __aicore__ inline void CopyOutTile(uint32_t globalItemIdx, uint32_t tileId);
     __aicore__ inline void CopyOutWeights();
 
@@ -77,6 +79,9 @@ private:
     TBuf<QuePosition::VECCALC> xF32Buf_;
     TBuf<QuePosition::VECCALC> outF32Buf_;
     TBuf<QuePosition::VECCALC> tempBuf_;
+    // Permanent buffer for optimized path (USE_PERMANENT_X = 1)
+    // Stores N*d values to reduce repeated data movement
+    TBuf<QuePosition::VECCALC> permanentLeftBuf_;
 
     // Global memory tensors - inputs (bf16/fp16)
     GlobalTensor<T> xGm_;
@@ -133,6 +138,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(
     // Get pre-computed aligned values from tiling
     alignedN_ = tilingData->alignedN;
     alignedNN_ = tilingData->alignedNN;
+    uint32_t usePermanentX = tilingData->usePermanentX;
 
     blockIdx_ = GetBlockIdx();
 
@@ -154,7 +160,10 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(
 
     // Initialize input queues - Double Buffer with depth=DOUBLE_BUFFER_DEPTH for data tiles
     pipe_->InitBuffer(hOutTileQueue_, DOUBLE_BUFFER_DEPTH, tileD_ * sizeof(T));
-    pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, n_ * tileD_ * sizeof(T));
+    // xTileQueue only needed for general path (USE_PERMANENT_X = 0)
+    if constexpr (USE_PERMANENT_X == 0) {
+        pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, n_ * tileD_ * sizeof(T));
+    }
     // Weight queues stay depth=SINGLE_BUFFER_DEPTH (loaded once per item)
     pipe_->InitBuffer(hPostQueue_, SINGLE_BUFFER_DEPTH, alignedN_ * sizeof(float));
     pipe_->InitBuffer(hResQueue_, SINGLE_BUFFER_DEPTH, alignedNN_ * sizeof(float));
@@ -164,7 +173,15 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(
 
     // Initialize intermediate buffers
     pipe_->InitBuffer(hOutF32Buf_, tileD_ * sizeof(float));
-    pipe_->InitBuffer(xF32Buf_, n_ * tileD_ * sizeof(float));
+    // xF32Buf only needed for general path (USE_PERMANENT_X = 0)
+    if constexpr (USE_PERMANENT_X == 0) {
+        pipe_->InitBuffer(xF32Buf_, n_ * tileD_ * sizeof(float));
+    } else {
+        // For optimized path, initialize permanent buffer for N*d
+        // Also initialize xF32Buf for temporary use in CopyInAllX (as T type)
+        pipe_->InitBuffer(xF32Buf_, n_ * tileD_ * sizeof(T));
+        pipe_->InitBuffer(permanentLeftBuf_, n_ * tileD_ * sizeof(float));
+    }
     pipe_->InitBuffer(outF32Buf_, tileD_ * sizeof(float));
     pipe_->InitBuffer(tempBuf_, tileD_ * sizeof(float));
 }
@@ -176,9 +193,14 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
         uint32_t globalItemIdx = itemStart_ + itemIdx;
         CopyInWeights(globalItemIdx);
 
+        if constexpr (USE_PERMANENT_X == 1) {
+            // Optimized path: copy N*d once, then reuse
+            CopyInAllX(globalItemIdx);
+        }
+
         for (uint32_t tileId = 0; tileId < nTilesD_; tileId++) {
             CopyInTile(globalItemIdx, tileId);
-            ComputeTile(tileId);
+            ComputeTile(globalItemIdx, tileId);
             CopyOutTile(globalItemIdx, tileId);
         }
 
@@ -216,6 +238,30 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInWeights(uint32_t glob
 }
 
 TEMPLATE_DECLARE
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInAllX(uint32_t globalItemIdx)
+{
+    // Only used when USE_PERMANENT_X == 1
+    // 对应伪代码第二种优化: buffer_permanent_left = data_copy(x[d])  // 搬入N个d
+    uint32_t xBase = globalItemIdx * n_ * D_;
+    LocalTensor<float> xF32 = permanentLeftBuf_.Get<float>();
+    // In optimized path, xF32Buf is initialized as T type for temporary buffer
+    LocalTensor<T> tempBuf = xF32Buf_.Get<T>();
+
+    if constexpr (IS_D_ALIGNED == 1) {
+        // Fast path: D is aligned and single tile
+        // 一次性复制全部数据
+        DataCopy(tempBuf, xGm_[xBase], n_ * tileD_);
+        Cast(xF32, tempBuf, RoundMode::CAST_NONE, n_ * tileD_);
+    } else {
+        // Slow path: row by row copy
+        for (uint32_t i = 0; i < n_; i++) {
+            DataCopy(tempBuf, xGm_[xBase + i * D_], tileD_);
+            Cast(xF32[i * tileD_], tempBuf, RoundMode::CAST_NONE, tileD_);
+        }
+    }
+}
+
+TEMPLATE_DECLARE
 __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t globalItemIdx, uint32_t tileId)
 {
     uint32_t dStart = tileId * tileD_;
@@ -223,12 +269,15 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t globalI
     uint32_t xBase = globalItemIdx * n_ * D_;
 
     LocalTensor<T> hOutTileLocal = hOutTileQueue_.AllocTensor<T>();
-    LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
+    // xTileQueue only used for general path
+    LocalTensor<T> xTileLocal = (USE_PERMANENT_X == 0) ? xTileQueue_.AllocTensor<T>() : LocalTensor<T>();
 
     if constexpr (IS_D_ALIGNED == 1) {
         // Fast path: D is aligned and single tile, use direct DataCopy
         DataCopy(hOutTileLocal, hOutGm_[hOutBase], tileD_);
-        DataCopy(xTileLocal, xGm_[xBase], n_ * tileD_);
+        if constexpr (USE_PERMANENT_X == 0) {
+            DataCopy(xTileLocal, xGm_[xBase], n_ * tileD_);
+        }
     } else {
         // Slow path: multi-tile or non-aligned
         // Calculate how much data to actually copy from GM for this tile
@@ -247,33 +296,43 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t globalI
                        {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0}, padParams);
         }
 
-        // Load x row by row
-        if (gmCopyD % BF16_FP16_ALIGN_SIZE == 0) {
-            // Aligned, use DataCopy row by row
-            for (uint32_t i = 0; i < n_; i++) {
-                DataCopy(xTileLocal[i * tileD_], xGm_[xBase + i * D_ + dStart], gmCopyD);
-            }
-        } else {
-            // Non-aligned, use DataCopyPad row by row
-            uint32_t padSize = tileD_ - gmCopyD;
-            uint8_t rightPad = (padSize > 255) ? 255 : static_cast<uint8_t>(padSize);
-            DataCopyPadParams padParams = {true, 0, rightPad, 0};
-            for (uint32_t i = 0; i < n_; i++) {
-                DataCopyPad(xTileLocal[i * tileD_], xGm_[xBase + i * D_ + dStart],
-                           {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0}, padParams);
+        // Load x row by row (only for general path)
+        if constexpr (USE_PERMANENT_X == 0) {
+            if (gmCopyD % BF16_FP16_ALIGN_SIZE == 0) {
+                // Aligned, use DataCopy row by row
+                for (uint32_t i = 0; i < n_; i++) {
+                    DataCopy(xTileLocal[i * tileD_], xGm_[xBase + i * D_ + dStart], gmCopyD);
+                }
+            } else {
+                // Non-aligned, use DataCopyPad row by row
+                uint32_t padSize = tileD_ - gmCopyD;
+                uint8_t rightPad = (padSize > 255) ? 255 : static_cast<uint8_t>(padSize);
+                DataCopyPadParams padParams = {true, 0, rightPad, 0};
+                for (uint32_t i = 0; i < n_; i++) {
+                    DataCopyPad(xTileLocal[i * tileD_], xGm_[xBase + i * D_ + dStart],
+                               {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0}, padParams);
+                }
             }
         }
     }
 
     hOutTileQueue_.EnQue(hOutTileLocal);
-    xTileQueue_.EnQue(xTileLocal);
+    if constexpr (USE_PERMANENT_X == 0) {
+        xTileQueue_.EnQue(xTileLocal);
+    } else {
+        // For optimized path, free the tensor if allocated
+        if (xTileLocal.GetSize() > 0) {
+            xTileQueue_.FreeTensor(xTileLocal);
+        }
+    }
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeTile(uint32_t tileId)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeTile(uint32_t globalItemIdx, uint32_t tileId)
 {
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
-    LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
+    // xTile only used for general path
+    LocalTensor<T> xTile = (USE_PERMANENT_X == 0) ? xTileQueue_.DeQue<T>() : LocalTensor<T>();
     LocalTensor<float> hPostLocal = hPostQueue_.DeQue<float>();
     LocalTensor<float> hResLocal = hResQueue_.DeQue<float>();
 
@@ -281,13 +340,18 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeTile(uint32_t tileId
 
     // Get float32 work buffers
     LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
-    LocalTensor<float> xF32 = xF32Buf_.Get<float>();
+    // xF32 comes from different source based on path
+    LocalTensor<float> xF32 = (USE_PERMANENT_X == 0) ? xF32Buf_.Get<float>() : permanentLeftBuf_.Get<float>();
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
     LocalTensor<float> tempLocal = tempBuf_.Get<float>();
 
     // Convert inputs to float32
     Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, tileD_);
-    Cast(xF32, xTile, RoundMode::CAST_NONE, n_ * tileD_);
+    if constexpr (USE_PERMANENT_X == 0) {
+        // General path: convert from xTile
+        Cast(xF32, xTile, RoundMode::CAST_NONE, n_ * tileD_);
+    }
+    // For optimized path, xF32 already contains converted data from CopyInAllX
 
     // Compute output for each head: output[i] = hPost[i] * hOut + sum_j(hRes[j,i] * x[j])
     // This implements: x_{l+1}[i] = h_{l}^{out} * H_{t}^{post}[i] + sum_j((H_{l}^{res})^{T}[j,i] * x_l[j])
@@ -311,7 +375,9 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeTile(uint32_t tileId
     hResQueue_.EnQue(hResLocal);
 
     hOutTileQueue_.FreeTensor(hOutTile);
-    xTileQueue_.FreeTensor(xTile);
+    if constexpr (USE_PERMANENT_X == 0) {
+        xTileQueue_.FreeTensor(xTile);
+    }
 }
 
 TEMPLATE_DECLARE
