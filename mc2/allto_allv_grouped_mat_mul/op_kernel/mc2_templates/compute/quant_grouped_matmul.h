@@ -1,0 +1,126 @@
+#ifndef MC2_QUANT_GROUPED_MATMUL_H
+#define MC2_QUANT_GROUPED_MATMUL_H
+
+#include "kernel_operator.h"
+#include "../../3rd/gqmm_cube_on_the_fly.h"
+
+using namespace AscendC;
+
+namespace MC2KernelTemplate {
+constexpr uint64_t GROUP_LIST_INDEX = 0;
+
+template <typename TilingDataType, typename GmmTilingDataType, class xType, class wType, class scaleType, class yType,
+    CubeFormat wFormat, bool aTrans, bool bTrans, bool isLocal,  bool commBeforeComputeFlag>
+class QuantGroupedMatmul {
+public:
+    __aicore__ inline void Init(GM_ADDR xGM, GM_ADDR weightGM, GM_ADDR xScaleGM, GM_ADDR weightScaleGM, GM_ADDR yGM,
+        GM_ADDR workspaceGM, const TilingDataType *tilingData, const GmmTilingDataType *gmmTilingData,
+        TILING_TYPE *gmmArrayAddrIn, TPipe *tPipe, bool opType)
+    {
+        if ASCEND_IS_AIV {
+            return ;
+        }
+        xGM_ = xGM;
+        wGM_ = weightGM;
+        xScaleGM_ = xScaleGM;
+        weightScaleGM_ = weightScaleGM;
+        yGM_ = yGM;
+        tilingData_ = tilingData;
+        tPipe_ = tPipe;
+        workspaceGM_ = workspaceGM;
+        gmmTilingData_ = gmmTilingData;
+        gmmArrayAddrIn_ = gmmArrayAddrIn;
+
+        expertNumInOneRank_ = tilingData_->taskTilingInfo.e;
+        epWorldSize_ = tilingData_->taskTilingInfo.epWorldSize;
+        H1_ = tilingData_->taskTilingInfo.H1;
+        N1_ = tilingData_->taskTilingInfo.N1;
+        BS_ = tilingData_->taskTilingInfo.BS;
+        BSK_ = tilingData_->taskTilingInfo.BSK;
+        // 此处与alltoallv那边有差异，后续需要调整
+        groupListGm_ = workspaceGM_;
+
+        xGlobalBuffer_.SetGlobalBuffer((__gm__ xType *)this->xGM_);
+        wGlobalBuffer_.SetGlobalBuffer((__gm__ wType *)this->wGM_);
+        yGlobalBuffer_.SetGlobalBuffer((__gm__ yType *)this->yGM_);
+        groupListGlobalBuffer_.SetGlobalBuffer((__gm__ int64_t *)groupListGm_);
+        xScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)xScaleGM);
+        wScaleGlobalBuffer_.SetGlobalBuffer((__gm__ scaleType *)weightScaleGM);
+
+        const auto *opCnt = opType ? &tilingData_->taskTilingInfo.recvCnt[0] : &tilingData_->taskTilingInfo.sendCnt[0];
+        for (uint32_t e = 0U; e < expertNumInOneRank_; e++) {
+            for (uint32_t i = 0U; i < epWorldSize_; i++) {
+                expertTokenNum_[e] += static_cast<uint64_t>(opCnt[e + i * expertNumInOneRank_]);
+            }
+        }
+    }
+
+    __aicore__ inline void Process(uint32_t expertIdx)
+    {
+        if ASCEND_IS_AIV {
+            return ;
+        }
+        if (expertTokenNum_[expertIdx] == 0) {
+            return ;
+        }
+        uint64_t groupListToken = isLocal ? BS_ : expertTokenNum_[expertIdx];
+        groupListGlobalBuffer_.SetValue(GROUP_LIST_INDEX, groupListToken);
+        AscendC::DataCacheCleanAndInvalid<int64_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
+            AscendC::DcciDst::CACHELINE_OUT>(groupListGlobalBuffer_);
+
+        this->UpdateAddr(expertIdx);
+        GmmASWKernel<xType, wType, biasType, scaleType, yType, wFormat, aTrans, bTrans> gmmASWKernel;
+        tPipe_->Reset();
+        //此处逻辑有问题xscale与weightscale反了，alltoallv应该也有，已修正
+        gmmASWKernel.Init(xGM_, wGM_, nullptr, weightScaleGM_, groupListGm_, xScaleGM_, yGM_, workspaceGM_,
+            &gmmTilingData_->gmmQuantParams, &gmmTilingData_->mmTilingData, gmmArrayAddrIn_, tPipe_);
+        gmmASWKernel.Process();
+    }
+
+    __aicore__ inline void End() {
+        if ASCEND_IS_AIV {
+            return ;
+        }
+    }
+
+protected:
+    __aicore__ inline void UpdateAddr(uint32_t expertIdx)
+    {
+        xGM_ = (GM_ADDR)xGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * H1_);
+        wGM_ = (GM_ADDR)wGlobalBuffer_.GetPhyAddr(expertIdx * H1_ * N1_);
+        yGM_ = (GM_ADDR)yGlobalBuffer_.GetPhyAddr(expertTokenOffset_ * N1_);
+        expertTokenOffset_ += expertTokenNum_[expertIdx];
+    }
+
+private:
+    using biasType = float;
+
+    GM_ADDR xGM_;
+    GM_ADDR wGM_;
+    GM_ADDR xScaleGM_;
+    GM_ADDR weightScaleGM_;
+    GM_ADDR yGM_;
+    GM_ADDR groupListGm_;
+    GM_ADDR workspaceGM_;
+    GlobalTensor<xType> xGlobalBuffer_;
+    GlobalTensor<wType> wGlobalBuffer_;
+    GlobalTensor<scaleType> xScaleGlobalBuffer_;
+    GlobalTensor<scaleType> wScaleGlobalBuffer_;
+    GlobalTensor<yType> yGlobalBuffer_;
+    GlobalTensor<int64_t> groupListGlobalBuffer_;
+    const TilingDataType *tilingData_;
+    TPipe *tPipe_;
+    uint64_t expertTokenNum_[32] = {0};
+    uint64_t expertTokenOffset_ = 0;
+    uint64_t expertNumInOneRank_ = 0;
+    uint64_t epWorldSize_ = 0;
+    uint64_t H1_;
+    uint64_t N1_;
+    uint64_t BS_;
+    uint64_t BSK_;
+    const GmmTilingDataType *gmmTilingData_;
+    TILING_TYPE *gmmArrayAddrIn_;
+};
+} // namespace MC2KernelTemplate
+#endif
+// MC2_QUANT_GROUPED_MATMUL_H
