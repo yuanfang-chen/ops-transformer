@@ -953,6 +953,13 @@ if (NOT ENABLE_BUILT_IN AND BUILD_OPEN_PROJECT)
             DESTINATION packages/vendors/${VENDOR_NAME}_transformer/
     )
 
+    # Install torch_extension whl package (npu_ops_transformer)
+    install(
+        DIRECTORY ${CMAKE_BINARY_DIR}/whl_packages/
+        DESTINATION packages/vendors/${VENDOR_NAME}_transformer/whl_packages
+        OPTIONAL
+    )
+
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
         message(STATUS "Detected architecture: x86_64")
         set(ARCH x86_64)

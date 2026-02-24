@@ -358,15 +358,27 @@ install_whl_package() {
 
 # Install npu_ops_transformer whl package
 install_npu_ops_transformer_whl() {
-  # Find whl file in whl_packages directory
-  local whl_path=$(ls ${SOURCEDIR}/whl_packages/npu_ops_transformer-*.whl 2>/dev/null | head -1)
   local whl_name="npu_ops_transformer"
+  local whl_path=""
+
+  # Find whl file in multiple possible locations:
+  # 1. Built-in package: whl_packages/npu_ops_transformer-*.whl
+  # 2. Custom package: packages/vendors/*/whl_packages/npu_ops_transformer-*.whl
+  if [ -d "${SOURCEDIR}/whl_packages" ]; then
+    whl_path=$(ls ${SOURCEDIR}/whl_packages/${whl_name}-*.whl 2>/dev/null | head -1)
+  fi
 
   if [ -z "${whl_path}" ]; then
-    logandprint "[WARNING]: npu_ops_transformer whl file not found in whl_packages, skip installation."
+    # Try custom package path
+    whl_path=$(find ${SOURCEDIR}/packages/vendors -name "${whl_name}-*.whl" 2>/dev/null | head -1)
+  fi
+
+  if [ -z "${whl_path}" ]; then
+    logandprint "[WARNING]: npu_ops_transformer whl file not found, skip installation."
     return 0
   fi
 
+  logandprint "[INFO]: Found whl file: ${whl_path}"
   chmod u+w "${TARGET_VERSION_DIR}/python" 2> /dev/null
   local whl_install_dir_path="${TARGET_VERSION_DIR}/python/site-packages"
   mkdir -p "${whl_install_dir_path}"
