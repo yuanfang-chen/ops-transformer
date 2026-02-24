@@ -302,7 +302,7 @@ void FpMatmulAllToAllTilingBaseA3::PrintMMV3TilingData(const std::string &opName
  * @param tilingInfo
  */
 void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingInfo(const std::string &opName,
-                                                               MatmulAlltoAllTilingInfo &tilingInfo)
+                                                               MatmulAlltoAllTilingInfoA3 &tilingInfo)
 {
     OP_LOGD(opName, "tilingInfo.rankDim: %u", tilingInfo.rankDim);
     OP_LOGD(opName, "tilingInfo.tileM: %u", tilingInfo.tileM);
@@ -366,7 +366,7 @@ uint64_t FpMatmulAllToAllTilingBaseA3::GetTilingKey() const
 ge::graphStatus FpMatmulAllToAllTilingBaseA3::PostTiling()
 {
     SetTilingInfo(localTilingData_.matmulAlltoAllTilingInfo);
-    MatmulAlltoAllTilingData *outTilingData = context_->GetTilingData<MatmulAlltoAllTilingData>();
+    MatmulAlltoAllTilingData *outTilingData = context_->GetTilingData<MatmulAlltoAllTilingDataA3>();
     size_t tilingBufCap = context_->GetRawTilingData()->GetCapacity();
     OP_TILING_CHECK((outTilingData == nullptr), OP_LOGE(opName_, "Failed to get tiling data from context"),
                     return ge::GRAPH_FAILED);
@@ -395,7 +395,7 @@ ge::graphStatus FpMatmulAllToAllTilingBaseA3::PostTiling()
  *
  * @param tilingInfo 目标结构体
  */
-void FpMatmulAllToAllTilingBaseA3::SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const
+void FpMatmulAllToAllTilingBaseA3::SetTilingInfo(MatmulAlltoAllTilingInfoA3 &tilingInfo) const
 {
     // 基本字段拷贝
     tilingInfo.tileM = inferredInfo.tileM;
@@ -425,5 +425,5 @@ FpMatmulAllToAllTilingBaseA3::FpMatmulAllToAllTilingBaseA3(gert::TilingContext *
 
 // 注册tiling类
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAlltoAll, FpMatmulAllToAllTilingBaseA3,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::Ascend910B), 0);
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::Ascend910B), 1);
 } // namespace MC2Tiling
