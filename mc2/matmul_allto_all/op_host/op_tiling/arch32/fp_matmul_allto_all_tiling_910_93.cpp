@@ -53,6 +53,18 @@ bool FpMatmulAllToAllTilingBaseA3::IsCapable()
 }
 
 /**
+ * @brief 工具函数：判断指定value是否存在于list中
+ *
+ * @param list: 有效值列表
+ * @param value: 给定值
+ * @return
+ */
+static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
+{
+ 	return std::count(list.begin(), list.end(), value) > 0;
+}
+
+/**
   * @brief 校验输入Dtype信息是否合规
   *
   * @param context 框架根据input，output，attrs等信息生成tiling需要的context
