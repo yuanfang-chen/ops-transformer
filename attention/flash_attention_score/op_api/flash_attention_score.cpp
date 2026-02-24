@@ -27,13 +27,13 @@ const std::array<const aclTensor *, 4> FlashAttentionScore(
     double scaleValue, double keepProb, int64_t preTockens,
     int64_t nextTockens, int64_t headNum, const char *inputLayout, int64_t innerPrecise,
     int64_t sparseMode, int64_t pseType, int64_t seed, int64_t offset, int64_t outDtype, const char *softmaxOutLayout,
-    aclOpExecutor *executor)
+    double pScale, aclOpExecutor *executor)
 {
     L0_DFX(FlashAttentionScore, query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional,
            attenMaskOptional, sinkOptional, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
            kvStartIdxOptional, dScaleQOptional, dScaleKOptional, dScaleVOptional, queryRopeOptional, keyRopeOptional,
            scaleValue, keepProb, preTockens, nextTockens, headNum, inputLayout, innerPrecise, sparseMode,
-           pseType, seed, offset, outDtype, softmaxOutLayout);
+           pseType, seed, offset, outDtype, softmaxOutLayout, pScale);
 
     if (realShiftOptional == nullptr) {
         realShiftOptional = executor->AllocTensor(query->GetDataType(), Format::FORMAT_ND, Format::FORMAT_ND);
@@ -130,7 +130,8 @@ const std::array<const aclTensor *, 4> FlashAttentionScore(
                            OP_OUTPUT(softmaxMaxOut, softmaxSumOut, softmaxOutOut, attentionOutOut),
                            OP_ATTR(static_cast<float>(scaleValue), static_cast<float>(keepProb),
                                    preTockens, nextTockens, headNum, inputLayout, innerPrecise,
-                                   sparseMode, pseType, seed, offset, outDtype, softmaxOutLayout));
+                                   sparseMode, pseType, seed, offset, outDtype, softmaxOutLayout,
+                                   static_cast<float>(pScale)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FlashAttentionScore InferShape failed.");
         return {nullptr, nullptr, nullptr, nullptr};
@@ -144,7 +145,7 @@ const std::array<const aclTensor *, 4> FlashAttentionScore(
         OP_OUTPUT(softmaxMaxOut, softmaxSumOut, softmaxOutOut, attentionOutOut),
         OP_ATTR(static_cast<float>(scaleValue), static_cast<float>(keepProb), preTockens,
                 nextTockens, headNum, inputLayout, innerPrecise, sparseMode, pseType,
-                seed, offset, outDtype, softmaxOutLayout));
+                seed, offset, outDtype, softmaxOutLayout, static_cast<float>(pScale)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FlashAttentionScore launch kernel failed.");
         return {nullptr, nullptr, nullptr, nullptr};
