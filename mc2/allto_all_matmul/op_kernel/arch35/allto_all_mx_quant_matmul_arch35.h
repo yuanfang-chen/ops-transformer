@@ -146,14 +146,14 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = y_;
     pipeLineContext_.computationContext->baseData.biasGM = bias_;
-    pipeLineContext_.computationContext->baseData.a_offset = tileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = 0UL;
-    pipeLineContext_.computationContext->baseData.c_offset =
+    pipeLineContext_.computationContext->baseData.aOffset = tileMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = 0UL;
+    pipeLineContext_.computationContext->baseData.cOffset =
         (uint64_t)mc2Tiling_.tileM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->additionalData.x1_scale = x1Scale_;
-    pipeLineContext_.computationContext->additionalData.x1_scale_offset = 
+    pipeLineContext_.computationContext->additionalData.x1Scale = x1Scale_;
+    pipeLineContext_.computationContext->additionalData.x1ScaleOffset = 
         (uint64_t)mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO * sizeof(AscendC::fp8_e8m0_t);
-    pipeLineContext_.computationContext->additionalData.x2_scale = x2Scale_;
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTileTilingData);
 
     pipeLine_->Process(taskCnt);
@@ -186,14 +186,14 @@ AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->baseData.aGM = transOutGM_ + tileCntMultitileMMultiRankK * sizeof(DTYPE_X1) * mc2Tiling_.rankDim;
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = y_ + (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->baseData.a_offset = tailMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = 0UL;
-    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * (uint64_t)sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->additionalData.x1_scale =
+    pipeLineContext_.computationContext->baseData.aOffset = tailMMultiRankK * (uint64_t)mc2Tiling_.rankDim * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = 0UL;
+    pipeLineContext_.computationContext->baseData.cOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * (uint64_t)sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->additionalData.x1Scale =
         x1Scale_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO * sizeof(AscendC::fp8_e8m0_t);
-    pipeLineContext_.computationContext->additionalData.x1_scale_offset =
+    pipeLineContext_.computationContext->additionalData.x1ScaleOffset =
         (uint64_t)mc2Tiling_.tailM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO * sizeof(AscendC::fp8_e8m0_t);
-    pipeLineContext_.computationContext->additionalData.x2_scale = x2Scale_;
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTailTilingData);
 
     pipeLine_->Process(taskCnt);

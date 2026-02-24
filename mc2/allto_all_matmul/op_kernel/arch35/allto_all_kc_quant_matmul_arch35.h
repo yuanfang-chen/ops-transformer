@@ -152,7 +152,7 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset = (uint64_t)mc2Tiling_.tileM * sizeof(float);
     pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->additionalData.x2Offset = x2Offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTileTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTileTilingData);
 
     pipeLine_->Process(taskCnt);
 }
@@ -200,7 +200,7 @@ AlltoAllKcQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllMatmulT
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset = (uint64_t)mc2Tiling_.tailM * sizeof(float);
     pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->additionalData.x2Offset = x2Offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTailTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantMmTailTilingData);
 
     pipeLine_->Process(taskCnt);
 }
