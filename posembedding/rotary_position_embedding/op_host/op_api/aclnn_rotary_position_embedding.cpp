@@ -58,7 +58,7 @@ static aclnnStatus RotaryPositionEmbeddingCommonProcess(const aclTensor *x, cons
     const aclTensor *sinProcessed = sin;
     const aclTensor *rotateProcessed = rotate;
 
-    ret = PreProcess(xProcessed, cosProcessed, sinProcessed, rotateProcessed, executor);
+    auto ret = PreProcess(xProcessed, cosProcessed, sinProcessed, rotateProcessed, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     auto result = l0op::RotaryPositionEmbedding(xProcessed, cosProcessed, sinProcessed, rotateProcessed, mode, executor);
