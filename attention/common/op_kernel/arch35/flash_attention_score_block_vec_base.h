@@ -173,8 +173,6 @@ private:
     __aicore__ inline void ProcessVec1Nz(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
         Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo,
         ConstInfo<isInfer, hasRope> &constInfo);
-    __aicore__ inline void SoftmaxDataCopyOutFp8(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-        LocalTensor<half> &sumUb, LocalTensor<half> &maxUb);
     __aicore__ inline void ProcessVec2OnUb(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm2ResBuf,
         RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo);
 
@@ -344,7 +342,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nz(
     }
 
     if (unlikely(runInfo.s2LoopCount == runInfo.s2LoopLimit)) {
-        SoftmaxDataCopyOutFp8(runInfo, constInfo, sumUb, maxUb);
+        GetDerived()->SoftmaxDataCopyOutFp8(runInfo, constInfo, sumUb, maxUb);
     }
 }
 
@@ -466,33 +464,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
 }
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
-__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::SoftmaxDataCopyOutFp8(
-    RunInfo<isInfer> & runInfo, ConstInfo<isInfer, hasRope> &constInfo,
-    LocalTensor<half> & sumUb, LocalTensor<half> & maxUb)
-{
-    if (unlikely(runInfo.halfS1RealSize == 0)) {
-        return;
-    }
-    int64_t bOffset;
-    int64_t n2Offset;
-    int64_t gOffset;
-    if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        bOffset = constInfo.n2G * runInfo.s1SizeAcc;
-        n2Offset = runInfo.n2oIdx * constInfo.gSize * runInfo.actualS1Size;
-        gOffset = runInfo.goIdx * runInfo.actualS1Size;
-    } else {
-        bOffset = runInfo.boIdx * constInfo.n2Size * constInfo.gS1;
-        n2Offset = runInfo.n2oIdx * constInfo.gS1;
-        gOffset = runInfo.goIdx * constInfo.s1Size;
-    }
-    int64_t s1Offset =
-        (runInfo.s1oIdx * this->s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize);
-    int64_t gmOffset = (bOffset + n2Offset + gOffset + s1Offset);
-    int64_t calculateSize = runInfo.halfS1RealSize;
-    this->BroadCastAndCopyOut(runInfo, softmaxSumGm, softmaxMaxGm, gmOffset, calculateSize);
-}
-
-TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline bool FABlockVecBase<TEMPLATE_BASE_ARGS>::SoftmaxInvalidLineCheck(
     LocalTensor<T> &maxUb, uint32_t negativeIntScalar, SoftMaxShapeInfo &softmaxShapeInfo)
 {
@@ -566,11 +537,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::BroadCastAndCopyOut(
         DataCopy(maxGm[gmOffset], maxOutTensor, calculateSize);
         maxBrdcst.template FreeTensor(maxOutTensor);
     } else {
-    LocalTensor<float> maxTensor = softmaxMaxBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-    LocalTensor<float> maxTensor = softmaxMaxBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-    LocalTensor<float> maxOutTensor = maxBrdcst.template AllocTensor<float>();
         LocalTensor<float> maxTensor = softmaxMaxBuf[runInfo.multiCoreIdxMod3].template Get<float>();
-    LocalTensor<float> maxOutTensor = maxBrdcst.template AllocTensor<float>();
         FaVectorApi::BroadcastMaxSum(maxOutTensor, maxTensor, runInfo.halfS1RealSize);
         maxBrdcst.template EnQue(maxOutTensor);
         maxBrdcst.template DeQue<float>();
