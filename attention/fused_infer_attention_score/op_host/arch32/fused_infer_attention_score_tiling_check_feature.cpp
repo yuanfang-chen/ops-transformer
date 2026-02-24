@@ -363,7 +363,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         "BSH", "BSND", "BNSD", "TND", "BNSD_NBSD", "BSND_NBSD", "BSH_NBSD", "TND_NTD" 
     };
     const std::vector<std::string> restrictedLayoutSupportList = {
-        "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND", "BNSD_BSND"
+        "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
     };
 
     if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT && vHeadDim_ == 512) {
