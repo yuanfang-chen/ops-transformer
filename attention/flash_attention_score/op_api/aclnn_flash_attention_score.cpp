@@ -1527,15 +1527,15 @@ aclnnStatus aclnnFlashAttentionScoreQuantGetWorkspaceSize(
     const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *dScaleQOptional,
     const aclTensor *dScaleKOptional,  const aclTensor *dScaleVOptional,
     double scaleValue, int64_t headNum, char *inputLayout, float pScale,
-    const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut,
-    uint64_t *workspaceSize, aclOpExecutor **executor)
+    const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *softmaxOutout,
+    const aclTensor *attentionOutOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     CHECK_RET(CheckFaParam(query, key, value, inputLayout, softmaxMaxOut, softmaxSumOut, attentionOutOut,
         workspaceSize, executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
     L2_DFX_PHASE_1(aclnnFlashAttentionScoreQuant,
                    DFX_IN(query, key, value, dScaleQOptional, dScaleKOptional,
                           dScaleVOptional, scaleValue, headNum, inputLayout, pScale),
-                   DFX_OUT(softmaxMaxOut, softmaxSumOut, attentionOutOut));
+                   DFX_OUT(softmaxMaxOut, softmaxSumOut, softmaxOutout, attentionOutOut));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
