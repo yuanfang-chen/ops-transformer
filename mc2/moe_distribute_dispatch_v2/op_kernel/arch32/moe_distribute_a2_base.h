@@ -150,13 +150,14 @@ public:
         }
         windowInGM_ = GetWindowsInAddr(curRankId_);
         combineShareFlagSize_ = RoundUp(static_cast<uint32_t>((maxBs + aivNum / serverNum_ + 1U) * sizeof(uint64_t)), UB_32B_ALIGN);
-        combineShareFlagAddrStart_ = IPC_DISPATCH_FLAG_OFFSET + ipcCombineSyncFlagAddrStart_ - combineShareFlagSize_ * serverNum_;
+        combineShareFlagAddrStart_ = ipcCombineSyncFlagAddrStart_ + (SERVER_RANK_SIZE + 1) * UB_32B_ALIGN;
     }
     __aicore__ inline void UpdateBufferId()
     {
         bufferChosenGlobal_(0) = bufferId_ ^ 1;
         AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
             AscendC::DcciDst::CACHELINE_OUT>(bufferChosenGlobal_);
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     __aicore__ inline GM_ADDR GetRdmaFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
@@ -204,7 +205,7 @@ public:
 
     __aicore__ inline GM_ADDR GetIpcTokenFlagAddr(uint32_t serverId) const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + combineShareFlagAddrStart_ + (serverId + 1) * combineShareFlagSize_;
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + combineShareFlagAddrStart_ + serverId * combineShareFlagSize_;
     }
 
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
