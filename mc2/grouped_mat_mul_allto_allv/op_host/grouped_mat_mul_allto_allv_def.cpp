@@ -157,7 +157,7 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
-        this->Output("gmm_y")
+        this->Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16,
                        ge::DT_FLOAT16, ge::DT_BF16})
