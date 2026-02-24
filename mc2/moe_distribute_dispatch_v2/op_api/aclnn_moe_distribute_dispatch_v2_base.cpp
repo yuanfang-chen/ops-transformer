@@ -217,11 +217,15 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTen
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
 
+    OP_LOGD("PRINT before HcclEngineCtxGet");
     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
     if(ret != HCCL_SUCCESS) { 
+        OP_LOGD("PRINT in if");
         //如果资源不存在则进行context结构体创建
         auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
         CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    } else {
+        OP_LOGD("PRINT in else");
     }
     OP_LOGD("PRINT HcclEngineCtxGet success");
     hcclBuffSize = mc2_context.winsize;
