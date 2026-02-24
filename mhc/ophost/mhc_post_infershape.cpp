@@ -156,12 +156,15 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
 
 static ge::graphStatus InferDataTypeForMhcPost(gert::InferDataTypeContext* context)
 {
+    OP_LOGD(context->GetNodeName(), "Begin to do MhcPostInferDataType.");
     if (context == nullptr) {
         return GRAPH_FAILED;
     }
     // Output dtype is same as x
     const ge::DataType xDtype = context->GetInputDataType(INDEX_X);
     context->SetOutputDataType(INDEX_Y, xDtype);
+    OP_LOGD(context->GetNodeName(), "End to do MhcPostInferDataType.");
+    return ge::GRAPH_SUCCESS;
 }
 
 IMPL_OP_INFERSHAPE(MhcPost)
