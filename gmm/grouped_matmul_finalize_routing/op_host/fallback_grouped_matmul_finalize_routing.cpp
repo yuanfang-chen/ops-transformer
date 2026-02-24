@@ -191,7 +191,7 @@ static graphStatus GroupedMatmulFinalizeRoutingExecuteFunc(OpExecuteContext *hos
                 OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback", "The weightTensor nullptr"), return GRAPH_FAILED);
     bool isWeightNz = (GetPrimaryFormat(weightTensor->GetStorageFormat()) == ge::Format::FORMAT_FRACTAL_NZ);
     const aclTensor *aclTensorWeight = nullptr;
-    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, false);
+    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, true);
 
     const aclTensor *aclTensorWeightScale = nullptr;
     PrepareAclTensor(host_api_ctx, aclTensorWeightScale, INDEX_INPUT_WEIGHT_SCALE, false, false);
