@@ -30,7 +30,6 @@ static constexpr size_t INDEX_HOUT = 2;
 static constexpr size_t INDEX_HPOST = 3;
 static constexpr size_t INDEX_Y = 0;
 static constexpr uint32_t SOC_VERSION_SIZE = 32;
-static constexpr size_t SUB_INDEX = 1;
 static constexpr size_t DIMS_ONE = 1;
 static constexpr size_t DIMS_TWO = 2;
 static constexpr size_t DIMS_THREE = 3;
