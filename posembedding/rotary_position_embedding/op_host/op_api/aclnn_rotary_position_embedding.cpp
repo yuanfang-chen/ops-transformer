@@ -146,6 +146,12 @@ static aclnnStatus RotaryPositionEmbeddingCommonProcess(const aclTensor *x, cons
     auto result = l0op::RotaryPositionEmbedding(xProcessed, cosProcessed, sinProcessed, rotateProcessed, mode, executor);
     CHECK_RET(result != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
+    auto outContiguous = l0op::Contiguous(out, executor);
+    CHECK_RET(outContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    auto viewCopyResult = l0op::ViewCopy(result, outContiguous, executor);
+    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
     return ACLNN_SUCCESS;
 }
 
