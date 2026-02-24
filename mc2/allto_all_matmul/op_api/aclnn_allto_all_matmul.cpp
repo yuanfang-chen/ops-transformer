@@ -364,7 +364,7 @@ bool IsTransposeLastTwoDims(const aclTensor *tensor) {
 static bool CheckX2Valid(const aclTensor* x2) {
     if (x2 == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "In AlltoAllMatmul, input x2 should not be null.");
-        return false;
+        CHECK_RET(x2 == nullptr, ACLNN_ERR_PARAM_NULLPTR);
     }
   	if (x2->IsEmpty()) {
     	OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In AlltoAllMatmul, input x2 do not support empty tensor.");
@@ -453,7 +453,7 @@ extern "C" aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(const aclTensor *x1, 
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
-    CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_NULLPTR);	// 先检查x2是否合法，避免访问空指针等等非法操作
+    CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_INVALID);	// 先检查x2是否合法，避免访问空指针等等非法操作
     bool notContiguous = IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
     auto transX2 = x2;    // 复制一个x2
     if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
