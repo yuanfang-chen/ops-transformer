@@ -23,8 +23,6 @@ extern "C" {
 #endif
 
 namespace {
-const uint64_t INT4_NUMS_IN_INT32 = 8;
-
 /**
  * @brief for acl graph calculates the max workspace size based on the specific calculation process.
  * declaration here for testcase to use by extern the interface
