@@ -57,12 +57,13 @@ using namespace regbaseutil;
 //     uint64_t mBasicSizeTail = 0U; // gS1方向循环的尾基本块大小
 // };
 namespace BaseApi {
-template <typename QSFAT> class KvQuantSparseFlashAttentionMla {
+template <typename CubeBlockType, typename VecBlockType> class KvQuantSparseFlashAttentionMla {
 public:
     // 中间计算数据类型为float，高精度模式
-    using T = float;
-    using Q_T = typename QSFAT::queryType;
-    using OUTPUT_T = typename QSFAT::outputType;
+    // using T = float;
+    // using Q_T = typename QSFAT::queryType;
+    // using OUTPUT_T = typename QSFAT::outputType;
+    ARGS_TRAITS;
 
     __aicore__ inline KvQuantSparseFlashAttentionMla(){};
     __aicore__ inline void Init(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
@@ -71,16 +72,16 @@ public:
                                 __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
                                 __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
                                 const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
-				                __gm__ uint8_t *gmTiling, TPipe *tPipe);
+				                TPipe *tPipe);
 
     __aicore__ inline void Process();
 
 private:
-    static constexpr bool isPa = QSFAT::pageAttention;
-    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
-    static constexpr bool isFd = QSFAT::flashDecode;
-    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
-    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+    // static constexpr bool isPa = QSFAT::pageAttention;
+    // static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    // static constexpr bool isFd = QSFAT::flashDecode;
+    // static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    // static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
 
     __aicore__ inline void ProcessMainLoop();
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value,
@@ -124,20 +125,20 @@ private:
     ConstInfo_arch35 constInfo;
 
     /* 模板库Block */
-    QSFAMatmulService<QSFAT> cubeBlock;
-    QSFAVectorService<QSFAT> vecBlock;
+    CubeBlockType cubeBlock;
+    VecBlockType vecBlock;
 };
 
-template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Init(
+template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::Init(
     __gm__ uint8_t *query,
     __gm__ uint8_t *key, __gm__ uint8_t *value,
     __gm__ uint8_t *sparseIndices, __gm__ uint8_t* keyScale,
     __gm__ uint8_t* valueScale, __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ,
     __gm__ uint8_t *actualSeqLengths, __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
     const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
-    __gm__ uint8_t *gmTiling, TPipe *tPipe)
+    TPipe *tPipe)
 {
-    PRINTF("ENTER INIT------------------\n");
+    PRINTF("YXC-----ENTER INIT!!!!!!!!!!!!!!!\n");
     fa_base_matmul::idCounterNum = 0;
     constInfo.subBlockIdx = GetSubBlockIdx();
     if ASCEND_IS_AIC {
@@ -186,7 +187,7 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
     this->InitLocalBuffer();
 }
 
-template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitGlobalBuffer(
+template <typename CubeBlockType, typename VecBlockType> __aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitGlobalBuffer(
     __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *sparseIndices,
     __gm__ uint8_t *blockTable, __gm__ uint8_t *actualSeqLengthsQ, __gm__ uint8_t *actualSeqLengths,
     __gm__ uint8_t *workspace, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling, TPipe *tPipe)
@@ -203,9 +204,9 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
 }
 
 
-template <typename QSFAT>
+template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
-KvQuantSparseFlashAttentionMla<QSFAT>::InitMMResBuf()
+KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitMMResBuf()
 {
     uint32_t mm1ResultSize = constInfo.s1BaseSize / CV_RATIO * constInfo.s2BaseSize * sizeof(T);
     uint32_t mm2ResultSize = constInfo.s1BaseSize / CV_RATIO * 512 * sizeof(T);
@@ -234,14 +235,16 @@ KvQuantSparseFlashAttentionMla<QSFAT>::InitMMResBuf()
     }
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitLocalBuffer()
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitLocalBuffer()
 {
-    vecBlock.InitLocalBuffer(pipe, constInfo);
+    // if ASCEND_IS_AIV {
+        vecBlock.InitLocalBuffer(pipe, constInfo);
+    // }
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeConstexpr()
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::ComputeConstexpr()
 {
     // 计算轴的乘积
     if ASCEND_IS_AIC {
@@ -305,8 +308,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeConstexpr()
     InitUniqueConstInfo();
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitUniqueConstInfo()
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
 {
     //[lz todo] qsfa中应该是 bsize
     // this->constInfo.actualSeqLenSize = this->sharedParams.bSize + 1;
@@ -316,8 +319,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitUniqueConstInf
     this->constInfo.isActualLenDimsKVNull = static_cast<bool>(this->sharedParams.isActualSeqLengthsKVNull);
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Process()
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
@@ -326,17 +329,17 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Process()
     ProcessMainLoop();
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::ProcessMainLoop()
 {
-    PRINTF("ENTER PROCESS------------------\n");
+    PRINTF("YXC-----ENTER PROCESS!!!!!!!!!!!!!!!\n");
     // uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
     // if (hasLoad == 0) {
     //     return;
     // }
 
     // 从meta data解析分核信息
-    // 【TODO】小用例先写死
+    // 【TODO】
     uint32_t bN2StartIdx = 0;
     uint32_t gS1StartIdx = 0;
     uint32_t s2StartIdx = 0;
@@ -358,9 +361,9 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
         bool lastBN = (bnIdx == bN2EndIdx - 1);
         runParam.boIdx = bnIdx;
         runParam.n2oIdx = 0;
-        ComputeParamBatch<QSFAT>(runParam, this->constInfo, // 【YXC TODO】
+        ComputeParamBatch<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, // 【YXC TODO】
             this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
-        ComputeS1LoopInfo<QSFAT>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
+        ComputeS1LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
 
         int64_t gS1LoopEnd = lastBN ? (runParam.gs1LoopEndIdx + PRELOAD_NUM) : runParam.gs1LoopEndIdx;
         for (int64_t gS1Index = runParam.gs1LoopStartIdx; gS1Index < gS1LoopEnd; gS1Index++) {
@@ -381,10 +384,10 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
             }
             if (notLastTwoLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
-                bool s1NoNeedCalc = ComputeParamS1<QSFAT>(
+                bool s1NoNeedCalc = ComputeParamS1<TEMPLATE_INTF_ARGS>(
                     runParam, this->constInfo, gS1Index, this->actualSeqQlenAddr); // 【YXC TODO】
                 bool s2NoNeedCalc =
-                    ComputeS2LoopInfo<QSFAT>(runParam, this->constInfo);
+                    ComputeS2LoopInfo<TEMPLATE_INTF_ARGS>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
                 if (s1NoNeedCalc || s2NoNeedCalc) {
                     continue;
@@ -429,8 +432,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
     }
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeAxisIdxByBnAndGs1(
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr &runParam)
 {
     // GS1合轴, 不切G, 只切S1
@@ -438,8 +441,8 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeAxisIdxByBn
     runParam.goIdx = 0;
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::SetRunInfo(
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::SetRunInfo(
     RunInfo_arch35 &runInfo, RunParamStr &runParam, int64_t taskId, int64_t s2LoopCount, int64_t s2LoopLimit, int64_t multiCoreInnerIdx)
 {
     if (s2LoopCount < runParam.oriKvLoopEndIdx) {
@@ -473,15 +476,15 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::SetRunInfo(
     InitUniqueRunInfo(runParam, runInfo);
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::InitUniqueRunInfo(
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
     const RunParamStr &runParam, RunInfo_arch35 &runInfo)
 {
-    InitTaskParamByRun<QSFAT>(runParam, runInfo);
+    InitTaskParamByRun<TEMPLATE_INTF_ARGS>(runParam, runInfo);
 }
 
-template <typename QSFAT>
-__aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ComputeBmm1Tail(
+template <typename CubeBlockType, typename VecBlockType>
+__aicore__ inline void KvQuantSparseFlashAttentionMla<CubeBlockType, VecBlockType>::ComputeBmm1Tail(
     RunInfo_arch35 &runInfo, RunParamStr &runParam)
 {
     // ------------------------S1 Base Related---------------------------
