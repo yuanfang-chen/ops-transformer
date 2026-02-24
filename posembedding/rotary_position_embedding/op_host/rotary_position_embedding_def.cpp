@@ -51,52 +51,53 @@ public:
         this->AICore().AddConfig("ascend910b", membaseCfg);
         this->AICore().AddConfig("ascend910_93", membaseCfg);
 
+        OpAICoreConfig config_fp16_fp32 = GetFP16FP32CoreConfig();
+        this->AICore().AddConfig("ascend310p", config_fp16_fp32);
+        this->AICore().AddConfig("kirinx90", config_fp16_fp32);
+        this->AICore().AddConfig("kirin9030", config_fp16_fp32);
+
         OpAICoreConfig regbaseCfg;
         regbaseCfg.DynamicCompileStaticFlag(true)
             .DynamicRankSupportFlag(true)
             .DynamicShapeSupportFlag(true)
             .ExtendCfgInfo("opFile.value", "rotary_position_embedding_apt");
         this->AICore().AddConfig("ascend950", regbaseCfg);
-
-        OpAICoreConfig config_kirin = GetKirinCoreConfig();
-        this->AICore().AddConfig("kirinx90", config_kirin);
-        this->AICore().AddConfig("kirin9030", config_kirin);
     }
 
 private:
-    OpAICoreConfig GetKirinCoreConfig() const
+    OpAICoreConfig GetFP16FP32CoreConfig() const
     {
-        OpAICoreConfig config_kirin;
-        config_kirin.DynamicCompileStaticFlag(true)
+        OpAICoreConfig config_fp16_fp32;
+        config_fp16_fp32.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
             .DynamicRankSupportFlag(true)
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true);
-        config_kirin.Input("x")
+        config_fp16_fp32.Input("x")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
-        config_kirin.Input("cos")
+        config_fp16_fp32.Input("cos")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
-        config_kirin.Input("sin")
+        config_fp16_fp32.Input("sin")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
-        config_kirin.Output("y")
+        config_fp16_fp32.Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT})
             .Format({ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND});
-        return config_kirin;
+        return config_fp16_fp32;
     }
 };
 

@@ -50,6 +50,13 @@ protected:
     __aicore__ inline void CopyInR(uint64_t rStartOffset, uint16_t sLines, uint32_t copyLength);
     __aicore__ inline void CopyInX(uint64_t xStartOffset, uint16_t sLines, uint32_t copyLength);
     __aicore__ inline void CopyOut(uint64_t yStartOffset, uint16_t sLines, uint32_t copyLength);
+
+#if (defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+    // 310P (arch20) special copy functions without DataCopyPad
+    __aicore__ inline void CopyInR_310P(uint64_t rStartOffset, uint16_t sLines, uint32_t copyLength);
+    __aicore__ inline void CopyInX_310P(uint64_t xStartOffset, uint16_t sLines, uint32_t copyLength);
+    __aicore__ inline void CopyOut_310P(uint64_t yStartOffset, uint16_t sLines, uint32_t copyLength);
+#endif
 };
 
 template <typename T>
@@ -217,6 +224,11 @@ __aicore__ inline void RotateHalf<T>::RB1sdSingleStepProcess(uint32_t progress, 
 template <typename T>
 __aicore__ inline void RotateHalf<T>::CopyInR(uint64_t rStartOffset, uint16_t sLines, uint32_t copyLength)
 {
+#if (defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+    // 310P: D is always aligned (32, 64, 96, 128), use simple DataCopy
+    CopyInR_310P(rStartOffset, sLines, copyLength);
+#else
+    // Other architectures
     LocalTensor<T> cosLocal = inQueueCos.AllocTensor<T>();
     LocalTensor<T> sinLocal = inQueueSin.AllocTensor<T>();
     if (this->isAligned == true) {
@@ -233,11 +245,17 @@ __aicore__ inline void RotateHalf<T>::CopyInR(uint64_t rStartOffset, uint16_t sL
     }
     inQueueCos.EnQue(cosLocal);
     inQueueSin.EnQue(sinLocal);
+#endif
 }
 
 template <typename T>
 __aicore__ inline void RotateHalf<T>::CopyInX(uint64_t xStartOffset, uint16_t sLines, uint32_t copyLength)
 {
+#if (defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+    // 310P: D is always aligned (32, 64, 96, 128), use simple DataCopy
+    CopyInX_310P(xStartOffset, sLines, copyLength);
+#else
+    // Other architectures
     LocalTensor<T> xLocal = inQueueX.AllocTensor<T>();
     DataCopyExtParams copyParams;
 
@@ -285,11 +303,17 @@ __aicore__ inline void RotateHalf<T>::CopyInX(uint64_t xStartOffset, uint16_t sL
         }
     }
     inQueueX.EnQue(xLocal);
+#endif
 }
 
 template <typename T>
 __aicore__ inline void RotateHalf<T>::CopyOut(uint64_t yStartOffset, uint16_t sLines, uint32_t copyLength)
 {
+#if (defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+    // 310P: D is always aligned (32, 64, 96, 128), use simple DataCopy
+    CopyOut_310P(yStartOffset, sLines, copyLength);
+#else
+    // Other architectures
     LocalTensor<T> yLocal = outQueueY.DeQue<T>();
     DataCopyExtParams copyParams;
 
@@ -332,6 +356,7 @@ __aicore__ inline void RotateHalf<T>::CopyOut(uint64_t yStartOffset, uint16_t sL
         }
     }
     outQueueY.FreeTensor(yLocal);
+#endif
 }
 
 template <typename T>
@@ -345,6 +370,83 @@ __aicore__ inline void RotateHalf<T>::Compute(LocalTensor<T> &cos, LocalTensor<T
     outQueueY.EnQue(yLocal);
     inQueueX.FreeTensor<T>(xLocal);
 }
+
+#if (defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3003 || __NPU_ARCH__ == 3113))
+// 310P special implementation without DataCopyPad
+// For 310P, D is guaranteed to be 32, 64, 96, or 128 (all aligned)
+template <typename T>
+__aicore__ inline void RotateHalf<T>::CopyInR_310P(uint64_t rStartOffset, uint16_t sLines, uint32_t copyLength)
+{
+    LocalTensor<T> cosLocal = inQueueCos.AllocTensor<T>();
+    LocalTensor<T> sinLocal = inQueueSin.AllocTensor<T>();
+    DataCopy(cosLocal, cosGm[rStartOffset], copyLength);
+    DataCopy(sinLocal, sinGm[rStartOffset], copyLength);
+    inQueueCos.EnQue(cosLocal);
+    inQueueSin.EnQue(sinLocal);
+}
+
+template <typename T>
+__aicore__ inline void RotateHalf<T>::CopyInX_310P(uint64_t xStartOffset, uint16_t sLines, uint32_t copyLength)
+{
+    LocalTensor<T> xLocal = inQueueX.AllocTensor<T>();
+    if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST ||
+        this->layout == LAYOUT_BND || this->layout == LAYOUT_R_B1SD) {
+        DataCopy(xLocal, xGm[xStartOffset], copyLength);
+    } else if (this->layout == LAYOUT_BSND) {
+        // For BSND layout: copy line by line to handle stride
+        for (uint16_t i = 0; i < sLines; i++) {
+            uint64_t lineOffset = i * this->bcSecondDim * this->dLength;
+            for (uint32_t j = 0; j < this->bcSecondDim; j++) {
+                DataCopy(xLocal[lineOffset + j * this->dLength],
+                         xGm[xStartOffset + i * this->dLength + j * this->bcSecondDim * this->dLength],
+                         this->dLength);
+            }
+        }
+    } else if (this->layout == LAYOUT_SBND) {
+        // For SBND layout: copy line by line to handle stride
+        for (uint16_t i = 0; i < sLines; i++) {
+            uint64_t lineOffset = i * this->bnSize * this->dLength;
+            for (uint32_t j = 0; j < this->bnSize; j++) {
+                DataCopy(xLocal[lineOffset + j * this->dLength],
+                         xGm[xStartOffset + i * this->dLength + j * this->bnSize * this->dLength],
+                         this->dLength);
+            }
+        }
+    }
+    inQueueX.EnQue(xLocal);
+}
+
+template <typename T>
+__aicore__ inline void RotateHalf<T>::CopyOut_310P(uint64_t yStartOffset, uint16_t sLines, uint32_t copyLength)
+{
+    LocalTensor<T> yLocal = outQueueY.DeQue<T>();
+    if (this->layout == LAYOUT_BNSD || this->layout == LAYOUT_NO_BROADCAST ||
+        this->layout == LAYOUT_BND || this->layout == LAYOUT_R_B1SD) {
+        DataCopy(yGm[yStartOffset], yLocal, copyLength);
+    } else if (this->layout == LAYOUT_BSND) {
+        // For BSND layout: copy line by line to handle stride
+        for (uint16_t i = 0; i < sLines; i++) {
+            uint64_t lineOffset = i * this->bcSecondDim * this->dLength;
+            for (uint32_t j = 0; j < this->bcSecondDim; j++) {
+                DataCopy(yGm[yStartOffset + i * this->dLength + j * this->bcSecondDim * this->dLength],
+                         yLocal[lineOffset + j * this->dLength],
+                         this->dLength);
+            }
+        }
+    } else if (this->layout == LAYOUT_SBND) {
+        // For SBND layout: copy line by line to handle stride
+        for (uint16_t i = 0; i < sLines; i++) {
+            uint64_t lineOffset = i * this->bnSize * this->dLength;
+            for (uint32_t j = 0; j < this->bnSize; j++) {
+                DataCopy(yGm[yStartOffset + i * this->dLength + j * this->bnSize * this->dLength],
+                         yLocal[lineOffset + j * this->dLength],
+                         this->dLength);
+            }
+        }
+    }
+    outQueueY.FreeTensor(yLocal);
+}
+#endif
 
 } // namespace RotateHalfN
 #endif // ROTATE_HALF_H

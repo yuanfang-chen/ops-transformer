@@ -38,6 +38,9 @@ protected:
              socVersion_ == platform_ascendc::SocVersion::KIRIN9030) && inputMode_ != MODE_ROTATE_INTERLEAVED) {
             return true;
         }
+        if (socVersion_ == platform_ascendc::SocVersion::ASCEND310P && inputMode_ == MODE_ROTATE_HALF) {
+            return true;
+        }
         return false;
     }
     // 3、计算数据切分TilingData

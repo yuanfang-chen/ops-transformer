@@ -399,7 +399,16 @@ inline void RotateHalfTiling::GetAlignedInfo(const ge::DataType inputDtype, uint
 /* Check input shape */
 ge::graphStatus RotateHalfTiling::CheckShapeSupport(const gert::Shape &xShape, const gert::Shape &cosShape,
                                                     const gert::Shape &sinShape, uint64_t dLength)
-{   
+{
+    // 310P only supports D = 32, 64, 96, 128
+    const auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
+        if (dLength != 32 && dLength != 64 && dLength != 96 && dLength != 128) {
+            OP_LOGE(context, "310P only supports D = 32, 64, 96, 128, but got %lu.", dLength);
+            return ge::GRAPH_FAILED;
+        }
+    }
+
     if(isTndLayOut){
         OP_CHECK_IF(xShape.GetDimNum() != TND_DIM_NUM || cosShape.GetDimNum() != TND_DIM_NUM || sinShape.GetDimNum() != TND_DIM_NUM,
                 OP_LOGE(context, "the input shape must be 3or4-dimensional."), return ge::GRAPH_FAILED);
@@ -407,7 +416,7 @@ ge::graphStatus RotateHalfTiling::CheckShapeSupport(const gert::Shape &xShape, c
         OP_CHECK_IF(xShape.GetDimNum() != DIM_NUM || cosShape.GetDimNum() != DIM_NUM || sinShape.GetDimNum() != DIM_NUM,
                 OP_LOGE(context, "the input shape must be 3or4-dimensional."), return ge::GRAPH_FAILED);
     }
-    
+
     OP_CHECK_IF(dLength > D_LENGTH_LIMIT,
                 OP_LOGE(context, "input last dim (head_dim) should be less than %lu.", D_LENGTH_LIMIT),
                 return ge::GRAPH_FAILED);
