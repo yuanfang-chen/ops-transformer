@@ -311,7 +311,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::CopyIn
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalWindowCopy()
 {
-    CopyIn();
     LocalTensor<ExpandIdxType> indexCountsTensor = indexCountsQueue_.DeQue<ExpandIdxType>();
     LocalTensor<int32_t> expertIdsTensor = expertIdsQueue_.DeQue<int32_t>();
     LocalTensor<float> expandScalesTensor = expandScalesQueue_.DeQue<float>();
@@ -359,38 +358,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
             moeSumQueue_.FreeTensor<ExpandXType>(tmpUb);
         }
 
-        // LocalTensor<ExpandXType> rowTmpTensor = tokenBuf_.Get<ExpandXType>();
-        // if (moeDistributeCombineTeardownInfo_->sharedExpertRankNum > 0U) { // 处理共享专家
-        //     // TODO 感觉缺一个循环，否则只能处理一个共享专家？
-        //     // 累加共享专家，当前bs范围，一个核处理一个token，根据当前tokenId反推对应的共享专家
-        //     uint32_t temp = (moeDistributeCombineTeardownInfo_->epRankId * moeDistributeCombineTeardownInfo_->bs) /
-        //                     moeDistributeCombineTeardownInfo_->sharedExpertRankNum;
-        //     uint32_t moeOnShareRank =
-        //         Ceil((tokenIndex + 1U + temp) * moeDistributeCombineTeardownInfo_->sharedExpertRankNum,
-        //              moeDistributeCombineTeardownInfo_->bs) -
-        //         1U - moeDistributeCombineTeardownInfo_->epRankId; // tzy ？
-        //     uint32_t preCnt = (moeOnShareRank + moeDistributeCombineTeardownInfo_->epRankId) *
-        //                           moeDistributeCombineTeardownInfo_->bs /
-        //                           moeDistributeCombineTeardownInfo_->sharedExpertRankNum -
-        //                       moeDistributeCombineTeardownInfo_->epRankId * moeDistributeCombineTeardownInfo_->bs /
-        //                           moeDistributeCombineTeardownInfo_->sharedExpertRankNum; // tzy ？不化简？
-
-        //     __gm__ ExpandXType *shareAddr = // 获取共享专家token的win区地址
-        //         (__gm__ ExpandXType *)(epWindowGM_ + moeOnShareRank * expertPerSizeOnWin_ *
-        //                                                  moeDistributeCombineTeardownInfo_->moeExpertPerRankNum) +
-        //         (tokenIndex - preCnt) * moeDistributeCombineTeardownInfo_->h;
-        //     GlobalTensor<ExpandXType> shareTokGlobal;
-        //     shareTokGlobal.SetGlobalBuffer((__gm__ ExpandXType *)(shareAddr));
-        //     AscendC::SyncFunc<AscendC::HardEvent::V_MTE2>(); // 与结果搬出Cast同地址
-        //     DataCopy(rowTmpTensor, shareTokGlobal, moeDistributeCombineTeardownInfo_->h);
-        //     AscendC::SyncFunc<AscendC::HardEvent::MTE2_V>();
-        //     // tzy int8反量化加在这，可参考combineV2
-        //     Cast(rowTmpFloatTensor, rowTmpTensor, AscendC::RoundMode::CAST_NONE,
-        //     moeDistributeCombineTeardownInfo_->h); PipeBarrier<PIPE_V>(); Add(sumFloatBufTensor, sumFloatBufTensor,
-        //     rowTmpFloatTensor,
-        //         moeDistributeCombineTeardownInfo_->h); // 累加token
-        // }
-
         // 结果搬出
         PipeBarrier<PIPE_V>(); // 等sumFloatBufTensor的vector操作
         LocalTensor<ExpandXType> sumBufLocal = tokenBuf_.Get<ExpandXType>();
@@ -412,6 +379,8 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Proces
         AlltoAllBuffInit();
         WaitDispatch();
         SyncAll<true>();
+
+        CopyIn();
         LocalWindowCopy(); // 拷出数据
     }
 }

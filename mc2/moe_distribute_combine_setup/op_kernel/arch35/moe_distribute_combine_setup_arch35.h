@@ -69,6 +69,11 @@ private:
     __aicore__ inline void Communication();
     __aicore__ inline void BuffInit();
     __aicore__ inline void AssistInfoLocalCopy();
+    __aicore__ inline void SendPerExpert(const LocalTensor<uint8_t> &tokenSqeU8,
+                                         const LocalTensor<uint8_t> &templateSqeU8,
+                                         const LocalTensor<int32_t> &assistInfoForCombineLocal,
+                                         WriteWithNotifySQEInfoParams &notifySqeInfo, GM_ADDR dstStateAddr,
+                                         uint32_t curRankExpertNum, uint32_t tokenSqeNum, uint32_t epIdx);
 
     __aicore__ GM_ADDR GetWinAddrByRankId(const uint32_t rankId, const uint8_t expertLocalId = 0U)
     {
@@ -253,6 +258,52 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::AssistInf
 }
 
 template <TemplateMC2TypeClass>
+__aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::SendPerExpert(
+    const LocalTensor<uint8_t> &tokenSqeU8, const LocalTensor<uint8_t> &templateSqeU8,
+    const LocalTensor<int32_t> &assistInfoForCombineLocal, WriteWithNotifySQEInfoParams &notifySqeInfo,
+    GM_ADDR dstStateAddr, uint32_t curRankExpertNum, uint32_t tokenSqeNum, uint32_t epIdx)
+{
+    for (uint32_t expertIdx = 0U; expertIdx < curRankExpertNum; ++expertIdx) {
+        uint32_t preCount = 0U;
+        uint32_t assistInfoIdx = expertIdx * moeDistributeCombineSetupInfo_->epWorldSize + epIdx;
+        if (likely(assistInfoIdx > 0U)) {
+            // 计算其他卡或专家已经发了多少token
+            preCount = assistInfoForCombineLocal.GetValue(assistInfoIdx - 1U);
+        }
+        // 当前要发送的token数量
+        uint32_t curTokenNum = assistInfoForCombineLocal.GetValue(assistInfoIdx) - preCount;
+        if (unlikely(curTokenNum == 0U)) {
+            continue;
+        }
+
+        GM_ADDR srcAddr = expandXGM_ + static_cast<uint64_t>(preCount) * axisHExpandXTypeSize_;
+        GM_ADDR dstAddr = GetWinAddrByRankId(epIdx, expertIdx) + epDataOffsetOnWin_;
+
+        // 发送上一个WQE模板
+        if (likely(tokenSqeNum > 0U)) {
+            AscendC::SyncFunc<AscendC::HardEvent::S_V>(); // 等templateSqeU8标量设置完成
+            DataCopy(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)], templateSqeU8,
+                     WRITE_WITH_NOTIFY_SQE_SIZE);
+            AscendC::SyncFunc<AscendC::HardEvent::V_S>();
+            SetCommWriteWithNotifySQE(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)],
+                                      notifySqeInfo.dataSrcAddr, notifySqeInfo.dataDstAddr, notifySqeInfo.length,
+                                      notifySqeInfo.notifyAddr + sizeof(uint64_t), notifySqeInfo.notifyData,
+                                      notifySqeInfo.cqe);
+        }
+
+        // 组装下一个WQE模板
+        notifySqeInfo = {(uint64_t)srcAddr,
+                         (uint64_t)dstAddr,
+                         static_cast<uint32_t>(axisHExpandXTypeSize_) * curTokenNum,
+                         (uint64_t)dstStateAddr,
+                         0U,
+                         0U};
+
+        ++tokenSqeNum;
+    }
+}
+
+template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communication()
 {
     uint32_t curRankExpertNum = (isShardExpert_) ? 1U : moeDistributeCombineSetupInfo_->moeExpertPerRankNum;
@@ -266,7 +317,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
         CurRankComm(assistInfoForCombineLocal, curRankExpertNum);
     }
 
-    uint32_t curTokenNum = 0U;
     uint32_t sqPi = 0U, sqCi = 0U, cqPi = 0U, cqCi = 0U, sqPiLinear = 0U, cqCiLinear = 0U;
     LocalTensor<uint8_t> sqInfoU8 = urmaSqInfoBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> cqInfoU8 = urmaCqInfoBuf_.Get<uint8_t>();
@@ -307,44 +357,8 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
                                                    0U,
                                                    0U};
 
-        for (uint32_t expertIdx = 0U; expertIdx < curRankExpertNum; ++expertIdx) {
-            uint32_t preCount = 0U;
-            uint32_t assistInfoIdx = expertIdx * moeDistributeCombineSetupInfo_->epWorldSize + epIdx;
-            if (likely(assistInfoIdx > 0U)) {
-                // 计算其他卡或专家已经发了多少token
-                preCount = assistInfoForCombineLocal.GetValue(assistInfoIdx - 1U);
-            }
-            // 当前要发送的token数量
-            curTokenNum = assistInfoForCombineLocal.GetValue(assistInfoIdx) - preCount;
-            if (unlikely(curTokenNum == 0U)) {
-                continue;
-            }
-
-            GM_ADDR srcAddr = expandXGM_ + static_cast<uint64_t>(preCount) * axisHExpandXTypeSize_;
-            GM_ADDR dstAddr = GetWinAddrByRankId(epIdx, expertIdx) + epDataOffsetOnWin_;
-
-            // 发送上一个WQE模板
-            if (likely(tokenSqeNum > 0U)) {
-                AscendC::SyncFunc<AscendC::HardEvent::S_V>(); // 等templateSqeU8标量设置完成
-                DataCopy(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)], templateSqeU8,
-                         WRITE_WITH_NOTIFY_SQE_SIZE);
-                AscendC::SyncFunc<AscendC::HardEvent::V_S>();
-                SetCommWriteWithNotifySQE(tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)],
-                                          notifySqeInfo.dataSrcAddr, notifySqeInfo.dataDstAddr, notifySqeInfo.length,
-                                          notifySqeInfo.notifyAddr + sizeof(uint64_t), notifySqeInfo.notifyData,
-                                          notifySqeInfo.cqe);
-            }
-
-            // 组装下一个WQE模板
-            notifySqeInfo = {(uint64_t)srcAddr,
-                             (uint64_t)dstAddr,
-                             static_cast<uint32_t>(axisHExpandXTypeSize_) * curTokenNum,
-                             (uint64_t)dstStateAddr,
-                             0U,
-                             0U};
-
-            ++tokenSqeNum;
-        }
+        SendPerExpert(tokenSqeU8, templateSqeU8, assistInfoForCombineLocal, notifySqeInfo, dstStateAddr,
+                      curRankExpertNum, tokenSqeNum, epIdx);
 
         if (unlikely(tokenSqeNum == 0)) {
             tokenSqeNum = 1;
@@ -361,7 +375,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
         // 发数据
         PutCommNotifySQE(sqInfoU8, cqInfoU8, tokenSqeU8, cqeTensorU8, jfcDoorBellU8, tokenSqeNum, sqPi, sqPiLinear,
                          sqCi, cqCi, cqCiLinear);
-        // PipeBarrier<PIPE_MTE3>();
         AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等sqe下发完成后敲doorbell
         SendJFSDoorBell(jfsDoorBellU8, sqInfoU8, sqPiLinear);
 
