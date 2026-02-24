@@ -895,12 +895,12 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     uint32_t newAivId = aivId_ - aivUsedAllToAll_;
     // 每个核把sumOfRecvCnt重复写 aivUsedCumSum_ 份
     LocalTensor<float> sumCoreFP32Tensor = sumCoreBuf_.Get<float>();
-    uint64_t maskArray_Count[2] = {0x0101010101010101, 0};
+    uint64_t maskArrayCount[2] = {0x0101010101010101, 0};
     uint8_t repeatTimes = Ceil(aivUsedCumSum_, 8); // 8 = 256 / 32
     // 每次处理256字节，8个datablock
-    Duplicate<float>(sumCoreFP32Tensor, sumOfRecvCnt, maskArray_Count, repeatTimes, 1, 8);
-    uint64_t maskArray_flag[2] = {0x0202020202020202, 0};
-    Duplicate<float>(sumCoreFP32Tensor, static_cast<float>(1.0), maskArray_flag, repeatTimes, 1, 8);
+    Duplicate<float>(sumCoreFP32Tensor, sumOfRecvCnt, maskArrayCount, repeatTimes, 1, 8);
+    uint64_t maskArrayFlag[2] = {0x0202020202020202, 0};
+    Duplicate<float>(sumCoreFP32Tensor, static_cast<float>(1.0), maskArrayFlag, repeatTimes, 1, 8);
     DataCopyParams sumIntriParams{static_cast<uint16_t>(aivUsedCumSum_), 1, 0, 0};
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(selfRankWinInGMTensor_[(CUMSUM_CAL_OFFSET + newAivId * aivUsedCumSum_ * UB_ALIGN) / sizeof(float)], sumCoreFP32Tensor, sumIntriParams);
@@ -957,6 +957,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     // 清除 flag 用于下次aivUsedCumSum_软同步
     LocalTensor<float> sumCoreFp32Tensor = sumLocalBuf_.Get<float>();
     uint8_t repeatTimes = Ceil(aivUsedCumSum_, 8);  // 一次处理256字节，8个datablock
+    // 64 = 256 / sizeof(float) 一次操作字节数; 1、8分别为dst、src相邻迭代间地址步长
     Duplicate<float>(sumCoreFp32Tensor, static_cast<float>(0), 64, repeatTimes, 1, 8);
     DataCopyParams cleanParams{static_cast<uint16_t>(aivUsedCumSum_), 1, 0, static_cast<uint16_t>(aivUsedCumSum_ - 1)};
     SyncFunc<AscendC::HardEvent::V_MTE3>();
@@ -1033,7 +1034,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     DataCopyParams sumIntriParams{static_cast<uint16_t>(aivNum_), 1, 0, static_cast<uint16_t>(aivUsedCumSum_ - 1)};
     LocalTensor<int32_t> syncOnCoreTensor = sumCoreBuf_.Get<int32_t>();
     LocalTensor<float> syncOnCoreFP32Tensor = sumCoreBuf_.Get<float>();
-    // 每次处理256字节
+    // 每次处理256字节，1、8分别为dst、src相邻迭代间地址步长
     Duplicate<int32_t>(syncOnCoreTensor, static_cast<int32_t>(1), SIZE_ALIGN_256 / sizeof(int32_t), repeatTimes, 1, 8);
     SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(selfRankWinInGMTensor_[(CUMSUM_FLAG_OFFSET + newAivId * UB_ALIGN) / sizeof(float)], syncOnCoreFP32Tensor, sumIntriParams);  // 软同步
