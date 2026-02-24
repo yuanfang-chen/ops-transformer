@@ -3,12 +3,13 @@
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OR ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
 #include "aclnn_rotary_position_embedding.h"
+#include "aclnn_rotary_position_embedding_v2.h"
 #include "rotary_position_embedding.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
@@ -127,8 +128,34 @@ static aclnnStatus PreProcess(const aclTensor *&x, const aclTensor *&cos, const 
     return ACLNN_SUCCESS;
 }
 
+static aclnnStatus RotaryPositionEmbeddingCommonProcess(const aclTensor *x, const aclTensor *cos, const aclTensor *sin,
+                                                         const aclTensor *rotate, int64_t mode, aclTensor *out,
+                                                         aclOpExecutor *executor)
+{
+    auto ret = CheckParams(x, cos, sin, rotate, out, mode);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
+    const aclTensor *xProcessed = x;
+    const aclTensor *cosProcessed = cos;
+    const aclTensor *sinProcessed = sin;
+    const aclTensor *rotateProcessed = rotate;
+
+    ret = PreProcess(xProcessed, cosProcessed, sinProcessed, rotateProcessed, executor);
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
+    auto result = l0op::RotaryPositionEmbedding(xProcessed, cosProcessed, sinProcessed, rotateProcessed, mode, executor);
+    CHECK_RET(result != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    // 如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续
+    auto viewCopyResult = l0op::ViewCopy(result, out, executor);
+    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+
+    return ACLNN_SUCCESS;
 }
 
+}
+
+/* v1 interface - rotate parameter is implicitly nullptr */
 aclnnStatus aclnnRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, const aclTensor* cos, const aclTensor* sin,
                                                          int64_t mode, aclTensor* out, uint64_t* workspaceSize,
                                                          aclOpExecutor** executor)
@@ -137,27 +164,10 @@ aclnnStatus aclnnRotaryPositionEmbeddingGetWorkspaceSize(const aclTensor* x, con
         DFX_IN(x, cos, sin, mode),
         DFX_OUT(out));
 
-    // rotate参数传递nullptr（保持向后兼容）
-    const aclTensor *rotate = nullptr;
-    auto ret = CheckParams(x, cos, sin, rotate, out, mode);
-    CHECK_RET(ret == ACLNN_SUCCESS, ret);
-
     auto uniqueExecutor = CREATE_EXECUTOR();
-    const aclTensor *xProcessed = x;
-    const aclTensor *cosProcessed = cos;
-    const aclTensor *sinProcessed = sin;
-    const aclTensor *rotateProcessed = rotate;
-
-    ret = PreProcess(xProcessed, cosProcessed, sinProcessed, rotateProcessed, uniqueExecutor.get());
+    const aclTensor *rotate = nullptr;  // v1接口不支持rotate参数
+    auto ret = RotaryPositionEmbeddingCommonProcess(x, cos, sin, rotate, mode, out, uniqueExecutor.get());
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
-
-    auto result = l0op::RotaryPositionEmbedding(xProcessed, cosProcessed, sinProcessed, rotateProcessed, mode,
-                                                uniqueExecutor.get());
-    CHECK_RET(result != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
-    // 如果出参out是非连续Tensor，需要把计算完的连续Tensor转非连续
-    auto viewCopyResult = l0op::ViewCopy(result, out, uniqueExecutor.get());
-    CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -168,6 +178,31 @@ aclnnStatus aclnnRotaryPositionEmbedding(void* workspace, uint64_t workspaceSize
                                          aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnRotaryPositionEmbedding);
+    return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
+}
+
+/* v2 interface - supports rotate parameter */
+aclnnStatus aclnnRotaryPositionEmbeddingV2GetWorkspaceSize(const aclTensor* x, const aclTensor* cos, const aclTensor* sin,
+                                                           int64_t mode, const aclTensor* rotate, aclTensor* out,
+                                                           uint64_t* workspaceSize, aclOpExecutor** executor)
+{
+    L2_DFX_PHASE_1(aclnnRotaryPositionEmbeddingV2,
+        DFX_IN(x, cos, sin, mode, rotate),
+        DFX_OUT(out));
+
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    auto ret = RotaryPositionEmbeddingCommonProcess(x, cos, sin, rotate, mode, out, uniqueExecutor.get());
+    CHECK_RET(ret == ACLNN_SUCCESS, ret);
+
+    *workspaceSize = uniqueExecutor->GetWorkspaceSize();
+    uniqueExecutor.ReleaseTo(executor);
+    return ACLNN_SUCCESS;
+}
+
+aclnnStatus aclnnRotaryPositionEmbeddingV2(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+                                           aclrtStream stream)
+{
+    L2_DFX_PHASE_2(aclnnRotaryPositionEmbeddingV2);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
