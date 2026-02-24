@@ -954,11 +954,18 @@ if (NOT ENABLE_BUILT_IN AND BUILD_OPEN_PROJECT)
     )
 
     # Install torch_extension whl package (npu_ops_transformer)
-    install(
-        DIRECTORY ${CMAKE_BINARY_DIR}/whl_packages/
-        DESTINATION packages/vendors/${VENDOR_NAME}_transformer/whl_packages
-        OPTIONAL
-    )
+    # Use install(CODE ...) to copy whl files at install time, not configure time
+    install(CODE "
+        if(EXISTS \"${CMAKE_BINARY_DIR}/whl_packages\")
+            file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/packages/vendors/${VENDOR_NAME}_transformer/whl_packages\")
+            file(COPY \"${CMAKE_BINARY_DIR}/whl_packages/\"
+                 DESTINATION \"\${CMAKE_INSTALL_PREFIX}/packages/vendors/${VENDOR_NAME}_transformer/whl_packages\"
+                 FILES_MATCHING PATTERN \"*.whl\")
+            message(STATUS \"Copied whl packages to install directory\")
+        else()
+            message(STATUS \"whl_packages directory not found, skipping whl installation\")
+        endif()
+    ")
 
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
         message(STATUS "Detected architecture: x86_64")
