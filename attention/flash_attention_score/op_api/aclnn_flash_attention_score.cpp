@@ -722,8 +722,8 @@ static aclnnStatus Contiguous(const aclTensor *&query, const aclTensor *&key, co
 }
 
 static aclnnStatus ContiguousQuant(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
-                                   const aclTensor *&dScaleQOptional, const aclTensor *&dScaleKOptional,
-                                   const aclTensor *&dScaleVOptional, aclOpExecutor *executor)
+                                   const aclTensor *&dScaleQ, const aclTensor *&dScaleK,
+                                   const aclTensor *&dScaleV, aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
     OP_CHECK(query != nullptr,
@@ -737,24 +737,18 @@ static aclnnStatus ContiguousQuant(const aclTensor *&query, const aclTensor *&ke
     OP_CHECK(value != nullptr,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
         return ACLNN_ERR_PARAM_NULLPTR);
-    if (dScaleQOptional) {
-        dScaleQOptional = l0op::Contiguous(dScaleQOptional, executor);
-        OP_CHECK(dScaleQOptional != nullptr,
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleQOptional is present, the dScaleQOptional cannot be nullptr"),
-            return ACLNN_ERR_PARAM_NULLPTR);
-    }
-    if (dScaleKOptional) {
-        dScaleKOptional = l0op::Contiguous(dScaleKOptional, executor);
-        OP_CHECK(dScaleKOptional != nullptr,
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleKOptional is present, the dScaleKOptional cannot be nullptr"),
-            return ACLNN_ERR_PARAM_NULLPTR);
-    }
-    if (dScaleVOptional) {
-        dScaleVOptional = l0op::Contiguous(dScaleVOptional, executor);
-        OP_CHECK(dScaleVOptional != nullptr,
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleVOptional is present, the dScaleVOptional cannot be nullptr"),
-            return ACLNN_ERR_PARAM_NULLPTR);
-    }
+    dScaleQ = l0op::Contiguous(dScaleQ, executor);
+    OP_CHECK(dScaleQ != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The dScaleQ cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    dScaleK = l0op::Contiguous(dScaleK, executor);
+    OP_CHECK(dScaleK != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The dScaleK cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    dScaleV = l0op::Contiguous(dScaleV, executor);
+    OP_CHECK(dScaleV != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The dScaleV cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     return ACLNN_SUCCESS;
 }
 
@@ -1523,19 +1517,19 @@ aclnnStatus aclnnFlashAttentionScoreV4(void *workspace, uint64_t workspaceSize, 
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-aclnnStatus aclnnFlashAttentionScoreQuantGetWorkspaceSize(
-    const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *dScaleQOptional,
-    const aclTensor *dScaleKOptional,  const aclTensor *dScaleVOptional,
-    double scaleValue, int64_t headNum, char *inputLayout, float pScale,
-    const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *attentionOutOut,
-    uint64_t *workspaceSize, aclOpExecutor **executor)
+aclnnStatus aclnnQuantFlashAttentionScoreGetWorkspaceSize(
+    const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *attenMaskOptional,
+    const aclTensor *dScaleQ, const aclTensor *dScaleK,  const aclTensor *dScaleV, double scaleValue,
+    int64_t preTokens, int64_t nextTokens, int64_t headNum, char *inputLayout, int64_t sparseMode,
+    float pScale, const aclTensor *softmaxMaxOut, const aclTensor *softmaxSumOut, const aclTensor *softmaxOutout,
+    const aclTensor *attentionOutOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     CHECK_RET(CheckFaParam(query, key, value, inputLayout, softmaxMaxOut, softmaxSumOut, attentionOutOut,
         workspaceSize, executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
-    L2_DFX_PHASE_1(aclnnFlashAttentionScoreQuant,
-                   DFX_IN(query, key, value, dScaleQOptional, dScaleKOptional,
-                          dScaleVOptional, scaleValue, headNum, inputLayout, pScale),
-                   DFX_OUT(softmaxMaxOut, softmaxSumOut, attentionOutOut));
+    L2_DFX_PHASE_1(aclnnQuantFlashAttentionScore,
+                   DFX_IN(query, key, value, dScaleQ, dScaleK, dScaleV, scaleValue, headNum,
+                          inputLayout, pScale),
+                   DFX_OUT(softmaxMaxOut, softmaxSumOut, softmaxOutout, attentionOutOut));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
@@ -1554,17 +1548,15 @@ aclnnStatus aclnnFlashAttentionScoreQuantGetWorkspaceSize(
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
-    CHECK_RET(ContiguousQuant(query, key, value, dScaleQOptional, dScaleKOptional,
-                         dScaleVOptional, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(ContiguousQuant(query, key, value, dScaleQ, dScaleK, dScaleV, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
     CHECK_RET(PreprocessQKV(query, key, value, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, dScaleQOptional, dScaleKOptional, dScaleVOptional, nullptr, nullptr,
-        scaleValue, 1, MAX_TOKEN_VALUE, MAX_TOKEN_VALUE, headNum, shapeInfo.l0InputLayoutStr.c_str(),
-        0, 0, 1, 0, 0, 1, "", pScale, l0Executor);
+        nullptr, dScaleQ, dScaleK, dScaleV, nullptr, nullptr, scaleValue, 1, MAX_TOKEN_VALUE,
+        MAX_TOKEN_VALUE, headNum, shapeInfo.l0InputLayoutStr.c_str(), 0, 0, 1, 0, 0, 1, "", pScale, l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1598,10 +1590,10 @@ aclnnStatus aclnnFlashAttentionScoreQuantGetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnFlashAttentionScoreQuant(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+aclnnStatus aclnnQuantFlashAttentionScore(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                           const aclrtStream stream)
 {
-    L2_DFX_PHASE_2(aclnnFlashAttentionScoreQuant);
+    L2_DFX_PHASE_2(aclnnQuantFlashAttentionScore);
     // 固定写法，调用框架能力，完成计算
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }

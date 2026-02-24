@@ -318,6 +318,7 @@ protected:
         kvStartIdx = 0;
         keepProb = 1.0f;
         scaleValue = 1.0f;
+        pScale = 1.0f;
         attenMaskCompressMode = static_cast<uint8_t>(AttenMaskCompressMode::NO_COMPRESS_MODE);
         isHighPercision = true;
 
@@ -462,6 +463,7 @@ protected:
     int64_t offset;
     int64_t outDtype;
     float scaleValue;
+    float pScale;
     uint8_t attenMaskCompressMode;
 
     int64_t s1BasicBlock;
