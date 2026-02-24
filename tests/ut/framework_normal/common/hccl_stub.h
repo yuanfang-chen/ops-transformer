@@ -12,8 +12,6 @@
 #define LIB_HCCL_HCCL_H
 
 #include <cstdint>
-
-#define __aicore__
 #define __gm__
 
 #define GM_ADDR uint8_t*
@@ -99,129 +97,129 @@ template <HcclServerType serverType = HcclServerType::HCCL_SERVER_TYPE_AICPU, co
 class Hccl {
 public:
     template <bool commit = false>
-    __aicore__ HcclHandle AllReduce(
+    HcclHandle AllReduce(
         GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t count, HcclDataType dataType, HcclReduceOp op, uint8_t repeat = 1)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle AllGather(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t sendCount, HcclDataType dataType,
+    HcclHandle AllGather(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t sendCount, HcclDataType dataType,
         uint64_t strideCount, uint8_t repeat = 1)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle AlltoAll(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t dataCount, HcclDataType dataType,
+    HcclHandle AlltoAll(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t dataCount, HcclDataType dataType,
         uint64_t strideCount = 0, uint8_t repeat = 1)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle AlltoAllV(GM_ADDR sendBuf, void *sendCounts, void *sdispls, HcclDataType sendType,
+    HcclHandle AlltoAllV(GM_ADDR sendBuf, void *sendCounts, void *sdispls, HcclDataType sendType,
         GM_ADDR recvBuf, void *recvCounts, void *rdispls, HcclDataType recvType, uint8_t repeat = 1)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle ReduceScatter(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t recvCount, HcclDataType dataType,
+    HcclHandle ReduceScatter(GM_ADDR sendBuf, GM_ADDR recvBuf, uint64_t recvCount, HcclDataType dataType,
         HcclReduceOp op, uint64_t strideCount, uint8_t repeat = 1)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle BatchWrite(GM_ADDR batchWriteInfo, uint32_t itemNum, uint16_t queueID = 0U)
+    HcclHandle BatchWrite(GM_ADDR batchWriteInfo, uint32_t itemNum, uint16_t queueID = 0U)
     {
         return 0;
     }
 
     template <bool commit = false>
-    __aicore__ HcclHandle AlltoAllvWrite(
+    HcclHandle AlltoAllvWrite(
         GM_ADDR usrIn, GM_ADDR sendOffsets, GM_ADDR sendSizes, uint64_t remoteWinOffset, uint64_t localDataSize)
     {
         return 0;
     }
 
-    __aicore__ void Init(GM_ADDR context, __gm__ void *initTiling = nullptr)
+    void Init(GM_ADDR context, __gm__ void *initTiling = nullptr)
     {
     }
 
-    __aicore__ void InitV2(GM_ADDR context, const void *initTiling)
+    void InitV2(GM_ADDR context, const void *initTiling)
     {
     }
 
-    __aicore__ int32_t SetCcTiling(__gm__ void *ccOpTilingData)
-    {
-        return 0;
-    }
-
-    __aicore__ int32_t SetCcTilingV2(uint64_t offset) {
-        return 0;
-    }
-
-    __aicore__ void Commit(HcclHandle handleId)
-    {
-    }
-
-    __aicore__ int32_t Wait(HcclHandle handleId)
+    int32_t SetCcTiling(__gm__ void *ccOpTilingData)
     {
         return 0;
     }
 
-    __aicore__ int32_t Query(HcclHandle handleId)
+    int32_t SetCcTilingV2(uint64_t offset) {
+        return 0;
+    }
+
+    void Commit(HcclHandle handleId)
+    {
+    }
+
+    int32_t Wait(HcclHandle handleId)
+    {
+        return 0;
+    }
+
+    int32_t Query(HcclHandle handleId)
     {
         return 1;
     }
 
-    __aicore__ void InterHcclGroupSync(int8_t srcGroupID, HcclHandle srcHandleID)
+    void InterHcclGroupSync(int8_t srcGroupID, HcclHandle srcHandleID)
     {
     }
 
     template <ScopeType type = ScopeType::ALL>
-    __aicore__ void QueueBarrier(uint16_t queueID)
+    void QueueBarrier(uint16_t queueID)
     {
     }
 
     template <bool sync = true>
-    __aicore__ int32_t Iterate(HcclHandle handleId, uint16_t *seqSlices, uint16_t seqSliceLen) {
+    int32_t Iterate(HcclHandle handleId, uint16_t *seqSlices, uint16_t seqSliceLen) {
         return 0;
     }
 
     template <bool sync = true>
-    __aicore__ void Finalize()
+    void Finalize()
     {
     }
 
-    __aicore__ GM_ADDR GetWindowsInAddr(uint32_t rankId)
-    {
-        return 0;
-    }
-
-    __aicore__ GM_ADDR GetWindowsOutAddr(uint32_t rankId)
+    GM_ADDR GetWindowsInAddr(uint32_t rankId)
     {
         return 0;
     }
 
-    __aicore__ uint32_t GetRankId()
+    GM_ADDR GetWindowsOutAddr(uint32_t rankId)
     {
         return 0;
     }
 
-    __aicore__ uint32_t GetRankDim()
+    uint32_t GetRankId()
     {
         return 0;
     }
 
-    __aicore__ uint16_t GetQueueNum()
+    uint32_t GetRankDim()
     {
         return 0;
     }
 
-    __aicore__ bool SetReduceDataTypeAbility(HcclReduceOp op, HcclDataType dstDataType, HcclDataType srcDataType)
+    uint16_t GetQueueNum()
+    {
+        return 0;
+    }
+
+    bool SetReduceDataTypeAbility(HcclReduceOp op, HcclDataType dstDataType, HcclDataType srcDataType)
     {
         return true;
     }
