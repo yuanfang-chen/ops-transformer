@@ -340,5 +340,70 @@ if [ -d ${targetdir}/$vendordir/op_impl/cpu/aicpu_kernel/impl/ ]; then
     chmod -R 440 ${targetdir}/$vendordir/op_impl/cpu/aicpu_kernel/impl/* >/dev/null 2>&1
 fi
 
+# Install whl package to python site-packages
+install_whl_package() {
+    local _whl_dir="${sourcedir}/${vendordir}/python/whl"
+    local _pythonlocalpath="${targetdir}/python/site-packages"
+
+    log "[INFO]: Installing npu_ops_transformer whl package..."
+
+    # Check if whl directory exists
+    if [ ! -d "${_whl_dir}" ]; then
+        log "[WARNING]: whl directory not found: ${_whl_dir}"
+        return 0
+    fi
+
+    # Find whl file
+    local _whl_file=$(find "${_whl_dir}" -name "npu_ops_transformer-*.whl" 2>/dev/null | head -n 1)
+    if [ -z "${_whl_file}" ]; then
+        log "[WARNING]: No npu_ops_transformer whl file found in ${_whl_dir}"
+        return 0
+    fi
+
+    log "[INFO]: Found whl file: ${_whl_file}"
+
+    # Create python site-packages directory
+    if [ ! -d "${_pythonlocalpath}" ]; then
+        mkdir -p "${_pythonlocalpath}" 2>/dev/null
+        if [ $? -ne 0 ]; then
+            log "[WARNING]: Failed to create ${_pythonlocalpath}, skipping whl installation"
+            return 0
+        fi
+    fi
+
+    # Check pip3 availability
+    local _pip_cmd=""
+    if command -v pip3 &> /dev/null; then
+        _pip_cmd="pip3"
+    elif command -v pip &> /dev/null; then
+        _pip_cmd="pip"
+    else
+        log "[WARNING]: pip/pip3 not found, skipping whl installation"
+        return 0
+    fi
+
+    # Install whl package
+    log "[INFO]: Installing ${_whl_file} to ${_pythonlocalpath}"
+    ${_pip_cmd} install --disable-pip-version-check --upgrade --no-deps --force-reinstall \
+        "${_whl_file}" -t "${_pythonlocalpath}" 2>&1 | while read -r line; do
+        log "[INFO]: ${line}"
+    done
+
+    local _install_result=${PIPESTATUS[0]}
+    if [ ${_install_result} -ne 0 ]; then
+        log "[WARNING]: whl installation failed with code ${_install_result}, but continuing..."
+    else
+        log "[INFO]: npu_ops_transformer whl installed successfully to ${_pythonlocalpath}"
+    fi
+
+    # Set permissions for installed files
+    if [ -d "${_pythonlocalpath}/npu_ops_transformer" ]; then
+        chmod -R 755 "${_pythonlocalpath}/npu_ops_transformer" 2>/dev/null
+    fi
+}
+
+# Call whl installation
+install_whl_package
+
 echo "SUCCESS"
 exit 0

@@ -918,16 +918,17 @@ endif ()
 
 if (NOT ENABLE_BUILT_IN AND BUILD_OPEN_PROJECT)
     add_custom_target(modify_vendor ALL
-            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/scripts/install.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/upgrade.sh
+            DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/scripts/install.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/upgrade.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/uninstall.sh
     )
 
-    # modify VENDOR_NAME in install.sh and upgrade.sh
-    if (EXISTS ${ASCEND_PROJECT_DIR}/fwk_modules/scripts)
-        set(ASCEND_PROJECT_DIR_SCRIPTS_PATH ${ASCEND_PROJECT_DIR}/fwk_modules/scripts)
-    else()
+    # modify VENDOR_NAME in install.sh, upgrade.sh and uninstall.sh
+    # Prefer local scripts which include whl installation support
+    if (EXISTS ${CMAKE_SOURCE_DIR}/cmake/scripts/custom/install.sh)
         set(ASCEND_PROJECT_DIR_SCRIPTS_PATH ${CMAKE_SOURCE_DIR}/cmake/scripts/custom)
+    elseif (EXISTS ${ASCEND_PROJECT_DIR}/fwk_modules/scripts)
+        set(ASCEND_PROJECT_DIR_SCRIPTS_PATH ${ASCEND_PROJECT_DIR}/fwk_modules/scripts)
     endif()
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scripts/install.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/upgrade.sh
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/scripts/install.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/upgrade.sh ${CMAKE_CURRENT_BINARY_DIR}/scripts/uninstall.sh
             COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/scripts
             COMMAND cp -r ${ASCEND_PROJECT_DIR_SCRIPTS_PATH}/* ${CMAKE_CURRENT_BINARY_DIR}/scripts/
             COMMAND chmod +w ${CMAKE_CURRENT_BINARY_DIR}/scripts/*
