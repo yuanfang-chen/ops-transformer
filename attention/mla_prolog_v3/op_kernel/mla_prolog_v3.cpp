@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file mla_prolog_v3.cpp
@@ -156,7 +156,7 @@ __global__ __aicore__ void mla_prolog_v3(
             emptyMode, actualSeqLenMode, false, cvRatio>> op(&pipe, tilingData, tilingDataBaseParams);
         op.Init(tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin,
                 ropeCos, cacheIndex, kvCacheOut, krCacheOut, dequantScaleX, dequantScaleWDq, dequantScaleWUqQr,
-                dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq, nullptr, nullptr,
+                dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq, actualSeqLen, kNopeClipAlpha,
                 queryOut, queryRopeOut, dequantScaleQNopeOut, queryNormOut, dequantScaleQNormOut, workspace);
         op.Process();
     } else if constexpr (static_cast<SCENARIO>(Scenario) == SCENARIO::QUANT && 
@@ -166,7 +166,7 @@ __global__ __aicore__ void mla_prolog_v3(
             emptyMode, actualSeqLenMode, false, cvRatio>> op(&pipe, tilingData, tilingDataBaseParams);
         op.Init(tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin,
                 ropeCos, cacheIndex, kvCacheOut, krCacheOut, dequantScaleX, dequantScaleWDq, dequantScaleWUqQr,
-                dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq, nullptr, nullptr,
+                dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq, actualSeqLen, kNopeClipAlpha,
                 queryOut, queryRopeOut, dequantScaleQNopeOut, queryNormOut, dequantScaleQNormOut, workspace);
         op.Process();
     } else if constexpr (static_cast<SCENARIO>(Scenario) == SCENARIO::QUANT && 
@@ -176,8 +176,8 @@ __global__ __aicore__ void mla_prolog_v3(
             emptyMode, actualSeqLenMode, true, cvRatio>> op(&pipe, tilingData, tilingDataBaseParams);
         op.Init(tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin,
                 ropeCos, cacheIndex, kvCacheOut, krCacheOut, dequantScaleX, dequantScaleWDq, dequantScaleWUqQr,
-                dequantScaleWDkvKr, nullptr, nullptr, nullptr, nullptr, nullptr,
-                queryOut, queryRopeOut, nullptr, queryNormOut, dequantScaleQNormOut, workspace);
+                dequantScaleWDkvKr, quantScaleCkv, quantScaleCkr, smoothScalesCq, actualSeqLen, kNopeClipAlpha,
+                queryOut, queryRopeOut, dequantScaleQNopeOut, queryNormOut, dequantScaleQNormOut, workspace);
         op.Process();
     }
 }
