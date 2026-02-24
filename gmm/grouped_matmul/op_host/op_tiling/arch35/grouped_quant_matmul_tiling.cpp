@@ -1006,23 +1006,12 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
     uint64_t baseScaleASize = 0;
     uint64_t baseScaleBSize = 0;
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        if (inputParams_.groupType == SPLIT_M) {
-            baseScaleASize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
-                                    inputParams_.perTokenScaleDtype);
-            baseScaleBSize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
-                                    inputParams_.scaleDtype);
-        } else {
-            baseScaleASize = GetSizeWithDataType(
-                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
-                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseM, // 2 is dim value of last scale dim
-                inputParams_.perTokenScaleDtype);
-            baseScaleBSize = GetSizeWithDataType(
-                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
-                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseN, // 2 is dim value of last pertokenScale dim
-                inputParams_.scaleDtype);
-        }
+        baseScaleASize = GetSizeWithDataType(
+            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseM,
+            inputParams_.perTokenScaleDtype);
+        baseScaleBSize = GetSizeWithDataType(
+            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseN,
+            inputParams_.scaleDtype);
     }
     uint64_t baseL1Size = baseASize + baseBSize + baseScaleASize + baseScaleBSize;
     OP_CHECK_IF(leftL1Size < baseL1Size,
@@ -1030,21 +1019,30 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
                                          "L1 space overflow. Free L1Size : %lu, used space: %lu", leftL1Size,
                                          baseL1Size),
                return ge::GRAPH_FAILED);
-    uint64_t depthInit = GetDepthA1B1(leftL1Size, baseL1Size, 1UL);
-    uint64_t leftL1SizeByDepthInit = leftL1Size - depthInit * (baseL1Size);
-    uint64_t depthASec = GetDepthA1B1(leftL1SizeByDepthInit, (baseASize + baseScaleASize) * depthInit, depthInit);
-    uint64_t depthBSec = GetDepthA1B1(leftL1SizeByDepthInit, (baseBSize + baseScaleBSize) * depthInit, depthInit);
-    basicTiling_.depthA1 = std::max(depthASec, depthBSec);
-    basicTiling_.depthB1 = basicTiling_.depthA1;
-    if (basicTiling_.depthA1 * baseL1Size > leftL1Size) {
-        basicTiling_.depthA1 = depthASec >= depthBSec ? depthASec : depthInit;
-        basicTiling_.depthB1 = depthASec < depthBSec ? depthBSec : depthInit;
+    uint64_t depthInit = GetDepthA1B1(leftL1Size, baseL1Size, 1UL); // 求A+B和的平均depth
+    // 根据一条指令带宽要求的数据量求取A,B各自的depth
+    basicTiling_.depthA1 = GetDepthWithHighBW(std::min(inputParams_.mSize, basicTiling_.baseM));
+    basicTiling_.depthB1 = GetDepthWithHighBW(std::min(inputParams_.nSize, basicTiling_.baseN));
+    // 如果按照满足带宽的L1数据量超过了L1Size，进行下调整到平均depth;适配mx低阶api scaleKAL1=scaleKBL1的约束
+    if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+            std::max(basicTiling_.depthA1, basicTiling_.depthB1) * (baseScaleASize + baseScaleBSize) >
+        leftL1Size) {
+        basicTiling_.depthA1 = depthInit;
+        basicTiling_.depthB1 = depthInit;
     }
     CalStepKs();
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        CalScaleFactors();
+        return CalScaleFactors();
     }
     return ge::GRAPH_SUCCESS;
+}
+
+uint64_t GroupedQbmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
+{
+    // 只需要满足读GM数据大于64KB即可获得较高的带宽，不一定要把L1用满，同时减少MTE2头开销
+    uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
+    return CeilAlign(CeilDiv(MTE2_MIN_LOAD_SIZE_V120, mnL1), static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256)) /
+           baseKSize * DB_SIZE;
 }
 
 uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)
@@ -1105,7 +1103,7 @@ void GroupedQbmmTiling::CalStepKs()
     basicTiling_.depthB1 = basicTiling_.stepKb * DB_SIZE;
 }
 
-void GroupedQbmmTiling::CalScaleFactors()
+ge::graphStatus GroupedQbmmTiling::CalScaleFactors()
 {
     uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
     uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
@@ -1117,9 +1115,14 @@ void GroupedQbmmTiling::CalScaleFactors()
     uint64_t baseBiasSize = inputParams_.hasBias ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t leftL1Size =
         aicoreParams_.l1Size - (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize + baseBiasSize);
-    uint32_t scaleInit = static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize +
-                                                            basicTiling_.depthB1 * baseScaleBSize));
-
+    uint32_t scaleInit = static_cast<uint32_t>(
+        leftL1Size / (std::max(basicTiling_.depthA1, basicTiling_.depthB1) * (baseScaleASize + baseScaleBSize)));
+    OP_CHECK_IF(
+        scaleInit == 0,
+        OP_LOGE(context_->GetNodeName(),
+                "When m(%lu)/n(%lu)/k(%lu)/groupNum(%lu) in mx quant mode, scaleFactor should not be equal to 0.",
+                inputParams_.mSize, inputParams_.nSize, inputParams_.kSize, inputParams_.groupNum),
+        return ge::GRAPH_FAILED);
     // 计算scaleFactorA, scaleFactorB
     // 来自K轴的约束
     uint32_t scaleFactorAMax =
@@ -1134,24 +1137,16 @@ void GroupedQbmmTiling::CalScaleFactors()
     basicTiling_.scaleFactorB = std::min(scaleFactorBMax, basicTiling_.scaleFactorB);
 
     // 来自L1 size 的约束
-    if (basicTiling_.scaleFactorA <= scaleInit && basicTiling_.scaleFactorB > scaleInit) {
-        leftL1Size -= (basicTiling_.scaleFactorA * basicTiling_.depthA1 * baseScaleASize);
-        basicTiling_.scaleFactorB = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
-                                             basicTiling_.scaleFactorB);
-    } else if (basicTiling_.scaleFactorB <= scaleInit && basicTiling_.scaleFactorA > scaleInit) {
-        leftL1Size -= (basicTiling_.scaleFactorB * basicTiling_.depthB1 * baseScaleBSize);
-        basicTiling_.scaleFactorA = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
-                                             basicTiling_.scaleFactorA);
-    } else if (basicTiling_.scaleFactorA > scaleInit && basicTiling_.scaleFactorB > scaleInit) {
-        leftL1Size -=
-            (scaleInit * basicTiling_.depthB1 * baseScaleBSize + scaleInit * basicTiling_.depthA1 * baseScaleASize);
-        uint32_t scaleASec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
-                                      basicTiling_.scaleFactorA - scaleInit);
-        uint32_t scaleBSec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
-                                      basicTiling_.scaleFactorB - scaleInit);
-        basicTiling_.scaleFactorA = scaleASec >= scaleBSec ? (scaleASec + scaleInit) : scaleInit;
-        basicTiling_.scaleFactorB = scaleASec < scaleBSec ? (scaleBSec + scaleInit) : scaleInit;
+    if (basicTiling_.scaleFactorA > scaleInit && basicTiling_.scaleFactorB > scaleInit) { // 非scalek全载，ka/kb倍数
+        if (basicTiling_.depthA1 >= basicTiling_.depthB1) {
+            basicTiling_.scaleFactorA = scaleInit;
+            basicTiling_.scaleFactorB = scaleInit * basicTiling_.depthA1 / basicTiling_.depthB1;
+        } else {
+            basicTiling_.scaleFactorA = scaleInit * basicTiling_.depthB1 / basicTiling_.depthA1;
+            basicTiling_.scaleFactorB = scaleInit;
+        }
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 uint64_t GroupedQbmmTiling::GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const

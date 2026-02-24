@@ -216,6 +216,9 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
     groupListType_ = params.gmmParams.groupListType;
     isBias_ = params.gmmParams.isBias == 1;
     curBaseM_ = params.gmmParams.baseM;
+    Get<MNK_M>(problemShape_) = params.gmmParams.m;
+    Get<MNK_N>(problemShape_) = params.gmmParams.n;
+    Get<MNK_K>(problemShape_) = params.gmmParams.k;
 
     if (groupListPtr_ != nullptr) {
         groupListGlobal_.SetGlobalBuffer((__gm__ int64_t *)groupListPtr_);
@@ -226,14 +229,9 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
     int64_t scaleFactorB = static_cast<int64_t>((params.gmmParams.mxTypePara >> 8) & 0xff); // 8B-16B is scaleFactorB
     int64_t kL1A = static_cast<int64_t>(params.gmmParams.stepKa) * static_cast<int64_t>(params.gmmParams.baseK);
     int64_t kL1B = static_cast<int64_t>(params.gmmParams.stepKb) * static_cast<int64_t>(params.gmmParams.baseK);
-    int64_t scaleKL1 = AscendC::Std::min(scaleFactorA * kL1A, scaleFactorB * kL1B);
-    scaleKL1 = scaleKL1 / AscendC::Std::max(kL1A, kL1B) * AscendC::Std::max(kL1A, kL1B);
+    int64_t scaleKL1 = Min(Max(scaleFactorA * kL1A, scaleFactorB * kL1B), Get<MNK_K>(problemShape_));
     L1Params tileL12L0{static_cast<uint64_t>(kL1A), static_cast<uint64_t>(kL1B), static_cast<uint64_t>(scaleKL1),
                        2UL}; // 默认开启2buffer
-
-    Get<MNK_M>(problemShape_) = params.gmmParams.m;
-    Get<MNK_N>(problemShape_) = params.gmmParams.n;
-    Get<MNK_K>(problemShape_) = params.gmmParams.k;
     mmadOp_.Init(problemShape_, l0Shape, tileL12L0, isBias_, false);
 }
 

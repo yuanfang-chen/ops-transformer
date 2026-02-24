@@ -196,8 +196,9 @@ protected:
 
 private:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);
+    uint64_t GetDepthWithHighBW(uint64_t mnL1) const;
     void CalStepKs();
-    void CalScaleFactors();
+    ge::graphStatus CalScaleFactors();
     uint64_t GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
     uint64_t GetShapeWithDataType(uint64_t shapeSize, ge::DataType dtype) const;
     bool SetQuantMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape,
