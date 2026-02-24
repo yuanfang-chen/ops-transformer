@@ -71,14 +71,14 @@ private:
     __aicore__ inline void AssistInfoLocalCopy();
     __aicore__ inline void UrmaInit(const LocalTensor<uint8_t> &sqInfoU8, const LocalTensor<uint8_t> &cqInfoU8,
                                     const LocalTensor<uint8_t> &cqeTensorU8, const LocalTensor<uint8_t> &jfcDoorBellU8,
-                                    const LocalTensor<uint8_t> &templateSqeU8, uint32_t epIdx, uint32_t sqPi,
-                                    uint32_t sqCi, uint32_t cqPi, uint32_t cqCi, uint32_t sqPiLinear,
-                                    uint32_t cqCiLinear);
+                                    const LocalTensor<uint8_t> &templateSqeU8, uint32_t epIdx, uint32_t &sqPi,
+                                    uint32_t &sqCi, uint32_t &cqPi, uint32_t &cqCi, uint32_t &sqPiLinear,
+                                    uint32_t &cqCiLinear);
     __aicore__ inline void SendPerExpert(const LocalTensor<uint8_t> &tokenSqeU8,
                                          const LocalTensor<uint8_t> &templateSqeU8,
-                                         const LocalTensor<int32_t> &assistInfoForCombineLocal,
-                                         WriteWithNotifySQEInfoParams &notifySqeInfo, GM_ADDR dstStateAddr,
-                                         uint32_t curRankExpertNum, uint32_t tokenSqeNum, uint32_t epIdx);
+                                         const LocalTensor<int32_t> &assistInfoForCombineLocal, uint32_t epIdx,
+                                         uint32_t curRankExpertNum, WriteWithNotifySQEInfoParams &notifySqeInfo,
+                                         uint32_t &tokenSqeNum);
 
     __aicore__ GM_ADDR GetWinAddrByRankId(const uint32_t rankId, const uint8_t expertLocalId = 0U)
     {
@@ -265,8 +265,8 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::AssistInf
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::UrmaInit(
     const LocalTensor<uint8_t> &sqInfoU8, const LocalTensor<uint8_t> &cqInfoU8, const LocalTensor<uint8_t> &cqeTensorU8,
-    const LocalTensor<uint8_t> &jfcDoorBellU8, const LocalTensor<uint8_t> &templateSqeU8, uint32_t epIdx, uint32_t sqPi,
-    uint32_t sqCi, uint32_t cqPi, uint32_t cqCi, uint32_t sqPiLinear, uint32_t cqCiLinear)
+    const LocalTensor<uint8_t> &jfcDoorBellU8, const LocalTensor<uint8_t> &templateSqeU8, uint32_t epIdx,
+    uint32_t &sqPi, uint32_t &sqCi, uint32_t &cqPi, uint32_t &cqCi, uint32_t &sqPiLinear, uint32_t &cqCiLinear)
 {
     // URMA 加载SQ CQ
     GetURMASqInfoTensor(sqInfoU8, (GM_ADDR)hcclContext_, epIdx);
@@ -286,9 +286,11 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::UrmaInit(
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::SendPerExpert(
     const LocalTensor<uint8_t> &tokenSqeU8, const LocalTensor<uint8_t> &templateSqeU8,
-    const LocalTensor<int32_t> &assistInfoForCombineLocal, WriteWithNotifySQEInfoParams &notifySqeInfo,
-    GM_ADDR dstStateAddr, uint32_t curRankExpertNum, uint32_t tokenSqeNum, uint32_t epIdx)
+    const LocalTensor<int32_t> &assistInfoForCombineLocal, uint32_t epIdx, uint32_t curRankExpertNum,
+    WriteWithNotifySQEInfoParams &notifySqeInfo, uint32_t &tokenSqeNum)
 {
+    GM_ADDR dstStateAddr = GetWinStateAddrByRankId(epIdx) + epStateOffsetOnWin_;
+
     for (uint32_t expertIdx = 0U; expertIdx < curRankExpertNum; ++expertIdx) {
         uint32_t preCount = 0U;
         uint32_t assistInfoIdx = expertIdx * moeDistributeCombineSetupInfo_->epWorldSize + epIdx;
@@ -362,16 +364,16 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
                  sqPiLinear, cqCiLinear);
 
         uint32_t tokenSqeNum = 0;
-        GM_ADDR dstStateAddr = GetWinStateAddrByRankId(epIdx) + epStateOffsetOnWin_;
 
         // 组装第一个SQE，如果后续存在有效SQE则忽略该SQE
         WriteWithNotifySQEInfoParams notifySqeInfo{(uint64_t)expandXGM_,
                                                    (uint64_t)(GetWinAddrByRankId(epIdx) + epDataOffsetOnWin_),
                                                    static_cast<uint32_t>(axisHExpandXTypeSize_),
-                                                   (uint64_t)dstStateAddr, 0U, 0U};
+                                                   (uint64_t)(GetWinStateAddrByRankId(epIdx) + epStateOffsetOnWin_),
+                                                   0U, 0U};
 
-        SendPerExpert(tokenSqeU8, templateSqeU8, assistInfoForCombineLocal, notifySqeInfo, dstStateAddr,
-                      curRankExpertNum, tokenSqeNum, epIdx);
+        SendPerExpert(tokenSqeU8, templateSqeU8, assistInfoForCombineLocal, epIdx, curRankExpertNum, notifySqeInfo,
+                      tokenSqeNum);
 
         if (unlikely(tokenSqeNum == 0)) {
             tokenSqeNum = 1;
