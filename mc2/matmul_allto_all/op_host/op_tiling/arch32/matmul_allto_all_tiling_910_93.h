@@ -62,15 +62,15 @@ private:
     void PrintMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
 };
 
-class AllToAllFpMatmulHelper : public mc2_matmul_v3::Mc2MatmulV3BaseTiling
+class FpMatmulAllToAllHelper : public mc2_matmul_v3::Mc2MatmulV3BaseTiling
 {
 public:
- 	AllToAllFpMatmulHelper(AllToAllFpMatmulTilingBaseA3& alltoAllMatmulTilingA3, Mc2MatmulV3TilingData& data);
+ 	FpMatmulAllToAllHelper(FpMatmulAllToAllTilingBaseA3& matmulAlltoAllTilingA3, Mc2MatmulV3TilingData& data);
  	 
  	ge::graphStatus PostTiling() override;
  	 
 private:
- 	AllToAllFpMatmulTilingBaseA3& tilingProcesser_;
+ 	FpMatmulAllToAllTilingBaseA3& tilingProcesser_;
 };
 
 } // namespace MC2Tiling
