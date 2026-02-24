@@ -75,24 +75,25 @@ using namespace AlltoAllMatmulImpl;
 #endif
 
 #ifndef ALLTO_ALL_MX_QUANT_MATMUL_IMPL
-#define ALLTO_ALL_MX_QUANT_MATMUL_IMPL(tilingData, pipe)                                                             \
+#define ALLTO_ALL_MX_QUANT_MATMUL_IMPL(tilingData, pipe)                                                               \
     do {                                                                                                               \
         DEFINE_MC2_HCCL_FOR_COMMUNICATION(HcclServerType::HCCL_SERVER_TYPE_CCU, 0, 1,                                  \
-                                          AlltoAllQuantMatmulTilingData, CommunicationType);                       \
+                                          AlltoAllQuantMatmulTilingData, CommunicationType);                           \
         CommunicationType commImplName(&tilingData);                                                                   \
         DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_X1, TransposeType);                                            \
         TransposeType transposeImplName(&pipe);                                                                        \
-        DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType);                                 \
+        DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationContextType);                             \
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType);                                            \
         ComputationType matmulImplName(&pipe);                                                                         \
         using SchedulerContextType =                                                                                   \
-            PipelineContext<MC2MMContext<MxQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>>; \
+            PipelineContext<ComputationContextType>;                                                                   \
         using SchedulerType =                                                                                          \
             MC2KernelPipelineCommTransComputeTemplate<CommunicationType, TransposeType,                                \
                                                       ComputationType, SchedulerContextType>;                          \
         SchedulerType SchedulerImpl(&commImplName, &transposeImplName, &matmulImplName);                               \
-        AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllQuantMatmulTilingData> op(      \
+        AlltoAllMxQuantMatmulArch35<SchedulerType, SchedulerContextType, AlltoAllQuantMatmulTilingData> op(            \
             &SchedulerImpl);                                                                                           \
-        op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, workspaceGM, &tilingData, &pipe);         \
+        op.Init(x1, x2, bias, y, all2all_out, x1_scale, x2_scale, workspaceGM, &tilingData, &pipe);                    \
         op.Process();                                                                                                  \
     } while (0)
 #endif
