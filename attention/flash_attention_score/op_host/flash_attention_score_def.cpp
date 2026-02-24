@@ -161,6 +161,7 @@ public:
         this->Attr("offset").AttrType(OPTIONAL).Int(0);
         this->Attr("out_dtype").AttrType(OPTIONAL).Int(0);
         this->Attr("softmax_out_layout").AttrType(OPTIONAL).String("");
+        this->Attr("p_scale").AttrType(OPTIONAL).Float(1.0);
 
         OpAICoreConfig aicore_config_95;
         aicore_config_95.DynamicCompileStaticFlag(true)
