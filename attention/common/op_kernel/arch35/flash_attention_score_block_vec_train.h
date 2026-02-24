@@ -109,6 +109,7 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitUniqueLocalBuffer(Con
         dropMaskInfo.seed = this->tilingData->inputParamsRegbase.seed;
         dropMaskInfo.offset = this->tilingData->inputParamsRegbase.offset;
         constInfo.keepProb = this->tilingData->inputParamsRegbase.keepProb;
+        constInfo.pScale = this->tilingData->inputParamsRegbase.pScale;
         dropMaskInfo.keepProbUint8 = static_cast<uint8_t>(this->tilingData->inputParamsRegbase.keepProbUint8);
         dropMaskInfo.dropMaskOuter = this->tilingData->inputParamsRegbase.dropMaskOuter;
     }
