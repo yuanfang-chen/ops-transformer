@@ -568,10 +568,7 @@ const gert::StorageShape* MxQuantMatmulAlltoAllHelper::GetPertokenShape(const si
 {
     (void)index;
     mxQuantStorageShape = gert::StorageShape(
-        {static_cast<int64_t>(mm_len), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue / MX_SCALE_OFFSET ), 
-            static_cast<int64_t>(EVEN_ALIGN)},
-        {static_cast<int64_t>(mm_len), static_cast<int64_t>(tilingProcesser_.contextInfo.args_.kValue / MX_SCALE_OFFSET ),
-            static_cast<int64_t>(EVEN_ALIGN)});
+        {static_cast<int64_t>(mm_len)}, {static_cast<int64_t>(mm_len)});
     return &mxQuantStorageShape;
 }
 
@@ -607,16 +604,9 @@ ge::graphStatus MxQuantMatmulAlltoAllHelper::GetShapeAttrsInfo()
     inputParams_.outDtype = static_cast<int64_t>(yDType);
     OP_LOGD(tilingProcesser_.opName_, "yDType is %ld", inputParams_.outDtype);
     inputParams_.biasDtype = tilingArgs.isBias ? tilingArgs.geBiasType : ge::DT_INT32;
-    if (inputParams_.isPerChannel) {
-        inputParams_.groupSizeM = 1;
-        inputParams_.groupSizeN = 1;
-    }else if((scaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) && 
+    if((scaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) && 
             (perTokenScaleTensorDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0)) {
-        inputParams_.isPerTensor = true;
-        inputParams_.isDoubleScale = true;        
-        inputParams_.groupSizeM = 1;
-        inputParams_.groupSizeK = 32;
-        inputParams_.groupSizeN = 1;
+        inputParams_.groupSizeK = 64;
     }
     
     GE_ASSERT_TRUE(AnalyzeInputs());
@@ -858,6 +848,6 @@ MxQuantMatmulAllToAllTilingBase::MxQuantMatmulAllToAllTilingBase(gert::TilingCon
 
 // 注册tiling类
 REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAlltoAll, MxQuantMatmulAllToAllTilingBase,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 2);
+                                         static_cast<int32_t>(NpuArch::DAV_3510), 2);
 
 } // namespace optiling
