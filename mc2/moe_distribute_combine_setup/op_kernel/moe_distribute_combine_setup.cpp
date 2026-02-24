@@ -26,22 +26,18 @@ extern "C" __global__ __aicore__ void moe_distribute_combine_setup(GM_ADDR expan
                                                                    GM_ADDR tilingGM)
 
 {
-    // AscendC::printf("Enter MoeDistributeCombineSetup::Start Process");
     REGISTER_TILING_DEFAULT(MoeDistributeCombineSetupTilingData);
     auto tiling = (__gm__ MoeDistributeCombineSetupTilingData *)tilingGM;
     __gm__ void *mc2InitTiling = (__gm__ void *)(&(tiling->mc2InitTiling));
     __gm__ void *mc2CcTiling = (__gm__ void *)(&(tiling->mc2CcTiling));
     TPipe pipe;
 #if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
-    if (TILING_KEY_IS(1000)) { // tp=1 // TODO 1000为tiling侧写死，1000为不使用int8量化
-        // AscendC::printf("Enter MoeDistributeCombineSetup::Process tilingkey=1000");
+    if (TILING_KEY_IS(1000)) { // tp=1
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineSetupTilingData, tilingData, tilingGM);
         MoeDistributeCombineSetup<DTYPE_EXPAND_X, int32_t> op;
         op.Init(expandX, expertIds, assistInfoForCombine, quantExpandX, commCmdInfoOut, workspaceGM, &pipe, &tilingData,
                 mc2InitTiling, mc2CcTiling);
-        // AscendC::printf("Enter MoeDistributeCombineSetup::Init finish");
         op.Process();
     }
 #endif
-    // AscendC::printf("Enter MoeDistributeCombineSetup::Process success");
 }

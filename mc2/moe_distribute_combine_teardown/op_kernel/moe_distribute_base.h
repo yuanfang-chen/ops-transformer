@@ -236,55 +236,20 @@ __aicore__ inline void SetCommWriteWithNotifySQE(const AscendC::LocalTensor<uint
 __aicore__ inline void SendJFSDoorBell(const AscendC::LocalTensor<uint8_t> &jfsDoorBellTensor,
                                        const AscendC::LocalTensor<uint8_t> &sqInfoTensor, uint32_t sqPi)
 {
-    // // // 敲JFS DoorBell，更新硬件的sqPi
-    // // // AscendC::LocalTensor<uint32_t> jfsDoorBellU32 = jfsDoorBellBuf_.Get<uint32_t>(1); // 1*sizeof(uint32_t)
-    // // AscendC::LocalTensor<uint32_t> jfsDoorBellU32 = jfsDoorBellTensor.ReinterpretCast<uint32_t>(); //
-    // // 1*sizeof(uint32_t) jfsDoorBellU32(0) = sqPi;
-
-    // AscendC::GlobalTensor<uint32_t> jfsDoorBellGlobalTensor;
-    // // // AscendC::LocalTensor<uint64_t> sqInfoU64 = urmaSqInfoBuf_.Get<uint64_t>();
+    // 敲JFS DoorBell，更新硬件的sqPi
     AscendC::LocalTensor<uint64_t> sqInfoU64 = sqInfoTensor.ReinterpretCast<uint64_t>();
-    // jfsDoorBellGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)(sqInfoU64(5)));
-    // // AscendC::DataCopyExtParams jfsDbParams = {1U, 4U, 0U, 0U, 0U}; // 4=1*sizeof(uint32_t)
-
-    // // AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等jfsDoorBellU32标量写
-    // // AscendC::DataCopyPad(jfsDoorBellGlobalTensor, jfsDoorBellU32, jfsDbParams);
-    // // // 缺jfsDoorBellGlobalTensor同步？
-    // jfsDoorBellGlobalTensor(0) = sqPi;
-    // AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-    // AscendC::DcciDst::CACHELINE_OUT>(
-    //     jfsDoorBellGlobalTensor);
-
-    st_dev(sqPi, (__gm__ uint32_t *)(sqInfoU64(5)), 0);
+    st_dev(sqPi, (__gm__ uint32_t *)(sqInfoU64(5)), 0); // Scalar操作
 }
 
 __aicore__ inline void SendJFCDoorBell(const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor,
                                        const AscendC::LocalTensor<uint8_t> &cqInfoTensor, uint32_t cqCi)
 {
-    // // 敲JFC DoorBell，更新硬件的cqCi
-    // AscendC::LocalTensor<uint32_t> jfcDoorBellU32 = jfcDoorBellTensor.ReinterpretCast<uint32_t>(); //
-    // 2*sizeof(uint32_t)
+    // 敲JFC DoorBell，更新硬件的cqCi
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
 
-    // jfcDoorBellU32(0) = cqCi;
-    // jfcDoorBellU32(1) = cqInfoU32(0);
-
-    // AscendC::GlobalTensor<uint32_t> jfcDoorBellGlobalTensor;
-    // jfcDoorBellGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)(cqInfoU64(5)));
-    // // AscendC::DataCopyExtParams jfcDbParams = {1U, 8U, 0U, 0U, 0U}; // 8=2*sizeof(uint32_t)
-
-    // // AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等jfsDoorBellU32标量写入完成
-    // // AscendC::DataCopyPad(jfcDoorBellGlobalTensor, jfcDoorBellU32, jfcDbParams);
-    // // // TODO 缺jfcDoorBellGlobalTensor同步？
-    // jfcDoorBellGlobalTensor(0) = cqCi;
-    // jfcDoorBellGlobalTensor(1) = cqInfoU32(0);
-    // AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-    // AscendC::DcciDst::CACHELINE_OUT>(
-    //     jfcDoorBellGlobalTensor);
-
     uint64_t jfcDbValue = (static_cast<uint64_t>(cqInfoU32(0)) << 32) + static_cast<uint64_t>(cqCi);
-    st_dev(jfcDbValue, (__gm__ uint64_t *)(cqInfoU64(5)), 0);
+    st_dev(jfcDbValue, (__gm__ uint64_t *)(cqInfoU64(5)), 0); // Scalar操作
 }
 
 __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> &sqInfoTensor,
@@ -293,13 +258,10 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
                                             const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor, uint32_t &outSqCi,
                                             uint32_t &outCqCi, uint32_t &outCqCiLinear)
 {
-    // TODO 联调不带CQ
-    // return;
-
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
-    // AscendC::LocalTensor<uint8_t> cqeTensorU8 = cqeBuf_.Get<uint8_t>();
+
     uint32_t sqDepth = sqInfoU32(5) << 2;
     uint32_t cqeSize = cqInfoU32(4);
     uint32_t cqDepth = cqInfoU32(5) << 2;
@@ -340,8 +302,7 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
     if (pollTimes > 0) {
         outSqCi = (newestCompletedPi + 1) % sqDepth;
     }
-    // AscendC::PipeBarrier<PIPE_MTE3>();
-    AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // TODO 这个在等谁
+    AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等cqe status写回无效值
     // 通过敲JFC DoorBell，更新硬件的cqCi
     SendJFCDoorBell(jfcDoorBellTensor, cqInfoTensor, outCqCiLinear);
 }
@@ -352,13 +313,10 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
                                                   const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor,
                                                   uint32_t &outSqCi, uint32_t &outCqCi, uint32_t &outCqCiLinear)
 {
-    // TODO 联调不带CQ
-    // return;
-
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
-    // AscendC::LocalTensor<uint8_t> cqeTensorU8 = cqeBuf_.Get<uint8_t>();
+
     uint32_t sqDepth = sqInfoU32(5) << 2;
     uint32_t cqeSize = cqInfoU32(4);
     uint32_t cqDepth = cqInfoU32(5) << 2;
@@ -399,8 +357,7 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
     if (pollTimes > 0) {
         outSqCi = (newestCompletedPi + 1) % sqDepth;
     }
-    // AscendC::PipeBarrier<PIPE_MTE3>(); // TODO 这个在等谁
-    AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>();
+    AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等cqe status写回无效值
     // 通过敲JFC DoorBell，更新硬件的cqCi
     SendJFCDoorBell(jfcDoorBellTensor, cqInfoTensor, outCqCiLinear);
 }
@@ -408,10 +365,6 @@ __aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uin
 __aicore__ inline void InvalidateCqeStatus(const AscendC::LocalTensor<uint8_t> &cqeInfoTensor,
                                            const AscendC::LocalTensor<uint8_t> &cqeTensor)
 {
-    // 联调版本，HCCP无法提供CQ相关的信息，MC2算子先不处理CQ（cqCi_和sqCi_保持为0），kernel假设SQ的队列深度足够大
-    // 在脚本侧，每隔几个MC2算子，需要主动销毁HCCL通信域并重新建链，避免SQ队列满，导致出错
-    // return;
-
     // 为cqeBuf_申请256*32B空间，初始化HGM上的CQ空间时，如果cqDepth>256，则循环多次DataCopy
     AscendC::LocalTensor<uint64_t> cqInfoU64 = cqeInfoTensor.ReinterpretCast<uint64_t>();
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqeInfoTensor.ReinterpretCast<uint32_t>();
@@ -423,13 +376,6 @@ __aicore__ inline void InvalidateCqeStatus(const AscendC::LocalTensor<uint8_t> &
 
     AscendC::Duplicate<uint8_t>(cqeTensor, 0xff, UB_ALIGN * cqeNum); // 初始化为全1
     AscendC::SyncFunc<AscendC::HardEvent::V_MTE3>();
-    // AscendC::Duplicate<uint8_t>(cqeTensor, 0, UB_ALIGN); // 初始化为全0
-    // AscendC::SyncFunc<AscendC::HardEvent::V_S>();
-    // // for (uint32_t cqeIdx = 0; cqeIdx < cqeNum; ++cqeIdx) {
-    // //     cqeTensor(UB_ALIGN * cqeIdx + 3) = 0xff; // 3: status在Normal CQE中的偏移
-    // // }
-    // cqeTensor(3) = 0xff;                    // 3: status在Normal CQE中的偏移
-    // AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等cqeTensor标量写入，后续Local向GM拷贝
 
     AscendC::DataCopyExtParams dataCopyParams = {static_cast<uint16_t>(cqeNum), UB_ALIGN, 0U,
                                                  NORMAL_CQE_SIZE - UB_ALIGN, 0U};
@@ -444,13 +390,6 @@ __aicore__ inline void InvalidateCqeStatus(const AscendC::LocalTensor<uint8_t> &
         }
     }
     AscendC::DataCopyPad(cqGlobalTensor[NORMAL_CQE_SIZE * CQ_DEPTH_256 * (loopTimes - 1)], cqeTensor, dataCopyParams);
-
-    // AscendC::DataCopyExtParams dataCopyParams = {1U, 8U, 0U, 0U, 0U};
-    // for (uint32_t i = 0; i < cqDepth; ++i) {
-    //     AscendC::DataCopyPad(cqGlobalTensor[NORMAL_CQE_SIZE * i], cqeTensor, dataCopyParams);
-    // }
-
-    // TODO 缺cqGlobalTensor同步?
 }
 
 __aicore__ inline uint32_t GetAvailableSpace(const AscendC::LocalTensor<uint8_t> &sqInfoTensor, uint32_t &outSqPi,
@@ -589,9 +528,6 @@ __aicore__ inline void GetPICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t
     outCqCi = piCiGlobalTensor(3);
     outSqPiLinear = piCiGlobalTensor(4);
     outCqCiLinear = piCiGlobalTensor(5);
-    // outIsFirst = (piCiGlobalTensor(4) > 0);
-    // outSqPiLinear = outSqPi;
-    // outCqCiLinear = outCqCi;
 }
 
 __aicore__ inline void GetIsFirstInComm(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, bool &outIsFirst)
@@ -606,13 +542,7 @@ __aicore__ inline void GetIsFirstInComm(GM_ADDR hcclContext, uint32_t curRankId,
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
         piCiGlobalTensor);
 
-    // outSqPi = piCiGlobalTensor(0);
-    // outSqCi = piCiGlobalTensor(1);
-    // outCqPi = piCiGlobalTensor(2);
-    // outCqCi = piCiGlobalTensor(3);
     outIsFirst = (piCiGlobalTensor(6) > 0);
-    // outSqPiLinear = outSqPi;
-    // outCqCiLinear = outCqCi;
 }
 
 __aicore__ inline void UpdatePICI(GM_ADDR hcclContext, uint32_t curRankId, uint32_t dstRankId, uint32_t sqPi,
@@ -632,7 +562,6 @@ __aicore__ inline void UpdatePICI(GM_ADDR hcclContext, uint32_t curRankId, uint3
     piCiGlobalTensor(3) = cqCi;
     piCiGlobalTensor(4) = sqPiLinear;
     piCiGlobalTensor(5) = cqCiLinear;
-    // piCiGlobalTensor(4) = isFirst ? 1 : 0;
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
         piCiGlobalTensor);
 }
@@ -647,10 +576,6 @@ __aicore__ inline void UpdateIsFirstInComm(GM_ADDR hcclContext, uint32_t curRank
     AscendC::GlobalTensor<uint32_t> piCiGlobalTensor;
     piCiGlobalTensor.SetGlobalBuffer((__gm__ uint32_t *)piCiSpaceGM);
 
-    // piCiGlobalTensor(0) = sqPi;
-    // piCiGlobalTensor(1) = sqCi;
-    // piCiGlobalTensor(2) = cqPi;
-    // piCiGlobalTensor(3) = cqCi;
     piCiGlobalTensor(6) = isFirst ? 1 : 0;
     AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE, AscendC::DcciDst::CACHELINE_OUT>(
         piCiGlobalTensor);

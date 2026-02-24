@@ -91,8 +91,6 @@ private:
     uint32_t coreIdx_{0}; // aiv id
     uint32_t sharedExpertNum_{0};
     uint32_t moeSendNum_{0}; // moeExpertPerRankNum * epWorldSize
-    // uint64_t epDataOffsetOnWin_{0};
-    // uint64_t epStateOffsetOnWin_{0};
     uint64_t axisHFloatSize_{0};
     uint64_t axisHExpandXTypeSize_{0};
     uint32_t bsKNum_{0};
@@ -101,7 +99,6 @@ private:
     uint32_t sendRankNum_{0};
     uint32_t beginIndex_{0};
     uint32_t endIndex_{0};
-    // uint32_t tokenPerAivNum_{0};
     uint32_t dataState_{0};
     uint64_t stateOffset_{0};
     uint64_t winDataSizeOffset_{0};
@@ -120,7 +117,6 @@ private:
     TBuf<> gatherMaskOutBuf_; // gather mask输出buf
     TBuf<> gatherTmpBuf_;
     TBuf<> statusSumOutBuf_;
-    // bool isShardExpert_{false};
 
     __gm__ HcclCombinOpParam *hcclContext_{nullptr};
 };
@@ -145,18 +141,10 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
                                                             STATE_SIZE_PER_CORE * static_cast<uint64_t>(coreIdx_)));
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
 
-    dataState_ = selfDataStatusTensor(0); // win状态区的0/1标识
-    // if (dataState_ == 0U) {
-    //     selfDataStatusTensor(0) = 1U;
-    // } else {
-    //     selfDataStatusTensor(0) = 0U;
-    // }
+    dataState_ = selfDataStatusTensor(0);      // win状态区的0/1标识
     selfDataStatusTensor(0) = 1U - dataState_; // 切换0/1区标识
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
-    // PipeBarrier<PIPE_ALL>();
 
-    // workspaceGM_ = workspaceGM;
-    // expandXGlobal_.SetGlobalBuffer((__gm__ ExpandXType *)expandX);
     expertIdsGlobal_.SetGlobalBuffer((__gm__ int32_t *)expertIds);
     expandIdxGlobal_.SetGlobalBuffer((__gm__ ExpandIdxType *)expandIdx);
     expertScalesGlobal_.SetGlobalBuffer((__gm__ float *)expertScales);
@@ -165,8 +153,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
     axisMaxBS_ = moeDistributeCombineTeardownInfo_->globalBs / moeDistributeCombineTeardownInfo_->epWorldSize;
     moeSendNum_ =
         moeDistributeCombineTeardownInfo_->epWorldSize * moeDistributeCombineTeardownInfo_->moeExpertPerRankNum;
-    // isShardExpert_ =
-    //     (moeDistributeCombineTeardownInfo_->epRankId < moeDistributeCombineTeardownInfo_->sharedExpertRankNum);
 
     bsKNum_ = moeDistributeCombineTeardownInfo_->bs * moeDistributeCombineTeardownInfo_->k;
     axisHFloatSize_ = static_cast<uint64_t>(moeDistributeCombineTeardownInfo_->h) *
@@ -181,10 +167,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
     winDataSizeOffset_ = static_cast<uint64_t>(dataState_) *
                          (static_cast<uint64_t>(moeDistributeCombineTeardownInfo_->totalWinSize) / 2ULL);
     stateOffset_ = (moeSendNum_ > STATE_COUNT_THRESHOLD) ? (STATE_OFFSET / 2ULL) : STATE_OFFSET;
-    // epDataOffsetOnWin_ = static_cast<uint64_t>(moeDistributeCombineTeardownInfo_->epRankId) *
-    //                      static_cast<uint64_t>(moeDistributeCombineTeardownInfo_->moeExpertPerRankNum) *
-    //                      expertPerSizeOnWin_; // 前面rank数据区占用内存地址偏移
-    // epStateOffsetOnWin_ = static_cast<uint64_t>(moeDistributeCombineTeardownInfo_->epRankId) * stateOffset_;
 
     epWindowGM_ = GetWinAddrByRankId(moeDistributeCombineTeardownInfo_->epRankId);
     epStatusSpaceGM_ = GetWinStateAddrByRankId(moeDistributeCombineTeardownInfo_->epRankId);
@@ -201,7 +183,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::Init(
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::SplitCoreCal()
 {
-    // tzy 建军老师：可以按照epWorldSize*本卡专家数 进行分核
     // 对worldSize按卡分核，得到每个核上处理的卡的数量
     sendRankNum_ = moeDistributeCombineTeardownInfo_->epWorldSize / moeDistributeCombineTeardownInfo_->aivNum;
     uint32_t remainderRankNum =
@@ -244,7 +225,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::AlltoA
     tpipe_->InitBuffer(statusBuf_, sendRankNum_ * UB_ALIGN); // 等状态需要占用sendRankNum_个DataBlock(32Bytes)
     tpipe_->InitBuffer(tokenBuf_, static_cast<uint32_t>(axisHExpandXTypeSize_));
     tpipe_->InitBuffer(rowTmpFloatBuf_, static_cast<uint32_t>(axisHFloatSize_));
-    // tpipe_->InitBuffer(mulBuf_, static_cast<uint32_t>(axisHFloatSize_));
     tpipe_->InitBuffer(sumFloatBuf_, static_cast<uint32_t>(axisHFloatSize_));
     tpipe_->InitBuffer(gatherTmpBuf_, static_cast<uint32_t>(sizeof(uint32_t)));
     tpipe_->InitBuffer(statusSumOutBuf_, static_cast<uint32_t>(sizeof(float)));
@@ -257,7 +237,6 @@ template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::WaitDispatch()
 {
     if (startRankId_ >= moeDistributeCombineTeardownInfo_->epWorldSize) {
-        // SyncAll<true>();
         return;
     }
 
@@ -304,15 +283,12 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::WaitDi
         sumOfFlag = statusSumOutTensor.GetValue(0);
     }
 
-    // AscendC::SyncFunc<AscendC::HardEvent::S_V>(); // TODO 这个同步在等谁？
     Duplicate<float>(statusTensor, 0, sendRankNum_ * UB_ALIGN / sizeof(float));
     AscendC::SyncFunc<AscendC::HardEvent::V_MTE3>();
     DataCopy(epStatusSpaceGlobal[static_cast<uint64_t>(startRankId_) *
                                  (stateOffset_ / static_cast<uint64_t>(sizeof(float)))],
              statusTensor,
              clearParams); // 清状态
-    // PipeBarrier<PIPE_ALL>(); // TODO 这个同步在等谁？
-    // SyncAll<true>();         // TODO 这个同步在等谁？
 }
 
 template <TemplateMC2TypeClass>
@@ -335,17 +311,12 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::CopyIn
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalWindowCopy()
 {
-    // if (beginIndex_ >= moeDistributeCombineTeardownInfo_->epWorldSize) {
-    //     return;
-    // }
-
     CopyIn();
     LocalTensor<ExpandIdxType> indexCountsTensor = indexCountsQueue_.DeQue<ExpandIdxType>();
     LocalTensor<int32_t> expertIdsTensor = expertIdsQueue_.DeQue<int32_t>();
     LocalTensor<float> expandScalesTensor = expandScalesQueue_.DeQue<float>();
 
     LocalTensor<float> rowTmpFloatTensor = rowTmpFloatBuf_.Get<float>();
-    // LocalTensor<float> mulBufTensor = mulBuf_.Get<float>();
     LocalTensor<float> sumFloatBufTensor = sumFloatBuf_.Get<float>();
 
     DataCopyExtParams copyParams{1U, static_cast<uint32_t>(axisHExpandXTypeSize_), 0U, 0U, 0U};
@@ -358,7 +329,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
         float scaleVal = 0.0f;
         GM_ADDR wAddr; // 当前token的值对应的win区地址
 
-        // AscendC::SyncFunc<AscendC::HardEvent::MTE3_V>(); // 与结果搬出datacopy同tensor // TODO 等哪个？
         Duplicate(sumFloatBufTensor, 0.0f,
                   moeDistributeCombineTeardownInfo_->h); // 清零，sumFloatBufLocal保存累加结果
         LocalTensor<ExpandXType> tmpUb;
@@ -428,7 +398,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
              moeDistributeCombineTeardownInfo_->h); // 转成对应数据类型
         AscendC::SyncFunc<AscendC::HardEvent::V_MTE3>();
         DataCopyPad(expandOutGlobal_[tokenIndex * moeDistributeCombineTeardownInfo_->h], sumBufLocal, copyParams);
-        // PipeBarrier<PIPE_MTE3>(); // TODO 是否需要等搬运到GM搬完
     }
 
     indexCountsQueue_.FreeTensor<ExpandIdxType>(indexCountsTensor);

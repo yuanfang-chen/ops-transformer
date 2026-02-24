@@ -115,7 +115,7 @@ private:
     TBuf<> jfsDoorBellBuf_; // 32B
     TBuf<> jfcDoorBellBuf_; // 32B
     TBuf<> cqeBuf_;         // 32B * CQ_DEPTH_256
-    TBuf<> templateSqeBuf_; // 96B，Write with notify SQE需要96B空间
+    TBuf<> templateSqeBuf_; // 96B
     TBuf<> tokenSqeBuf_;    // 96B
 
     __gm__ HcclCombinOpParam *hcclContext_{nullptr};
@@ -190,70 +190,9 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::SplitCore
     endRankId_ = startRankId_ + sendRankNum_;
 }
 
-// template <TemplateMC2TypeClass>
-// __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::CurRankComm()
-// {
-//     tpipe_->InitBuffer(assistInfoQueue_, BUFFER_NUM,
-//                        moeSendNum_ * sizeof(int32_t)); // epWorldSize * moeExpertPerRankNum * 4
-//     tpipe_->InitBuffer(expertTokenTmpQueue_, 1, static_cast<uint32_t>(expertPerSizeOnWin_)); // TODO 需要切块
-
-//     uint32_t curTokenNum = 0U;
-//     uint32_t curRankExpertNum = (isShardExpert_) ? 1U : moeDistributeCombineSetupInfo_->moeExpertPerRankNum;
-//     AssistInfoLocalCopy();
-//     LocalTensor<int32_t> assistInfoForCombineLocal = assistInfoQueue_.DeQue<int32_t>();
-
-//     for (uint32_t expertIdx = 0U; expertIdx < curRankExpertNum; ++expertIdx) {
-//         uint32_t preCount = 0U;
-//         uint32_t assistInfoIdx =
-//             expertIdx * moeDistributeCombineSetupInfo_->epWorldSize + moeDistributeCombineSetupInfo_->epRankId;
-//         if (likely(assistInfoIdx > 0U)) {
-//             // 计算其他卡或专家已经发了多少token
-//             preCount = assistInfoForCombineLocal.GetValue(assistInfoIdx - 1U);
-//         }
-//         // 当前要发送的token数量
-//         curTokenNum = assistInfoForCombineLocal.GetValue(assistInfoIdx) - preCount;
-//         if (unlikely(curTokenNum == 0U)) {
-//             continue;
-//         }
-
-//         GM_ADDR srcAddr = expandXGM_ + static_cast<uint64_t>(preCount) * axisHExpandXTypeSize_;
-//         GM_ADDR dstAddr =
-//             GetWinAddrByRankId(moeDistributeCombineSetupInfo_->epRankId, expertIdx) + epDataOffsetOnWin_;
-
-//         DataCopyExtParams copyParams{1U, curTokenNum * static_cast<uint32_t>(axisHExpandXTypeSize_), 0U, 0U, 0U};
-//         DataCopyPadExtParams<uint8_t> padParams{false, 0U, 0U, 0U};
-
-//         // expandX在GM上，winIn也属于GM，
-//         // 因此，数据需要GM -> local -> winIn
-//         GlobalTensor<uint8_t> selfDataSrcTensor;
-//         selfDataSrcTensor.SetGlobalBuffer((__gm__ uint8_t *)srcAddr);
-//         LocalTensor<uint8_t> expertTokenTmpU8 = expertTokenTmpQueue_.AllocTensor<uint8_t>();
-
-//         DataCopyPad(expertTokenTmpU8, selfDataSrcTensor, copyParams, padParams);
-//         expertTokenTmpQueue_.EnQue(expertTokenTmpU8);
-//         expertTokenTmpU8 = expertTokenTmpQueue_.DeQue<uint8_t>();
-
-//         GlobalTensor<uint8_t> selfDataDstTensor;
-//         selfDataDstTensor.SetGlobalBuffer((__gm__ uint8_t *)dstAddr);
-//         DataCopyPad(selfDataDstTensor, expertTokenTmpU8, copyParams);
-
-//         expertTokenTmpQueue_.FreeTensor<uint8_t>(expertTokenTmpU8);
-//     }
-
-//     // 向本卡状态区写状态
-//     GlobalTensor<int32_t> selfStatusTensor;
-//     selfStatusTensor.SetGlobalBuffer(
-//         (__gm__ int32_t *)(GetWinStateAddrByRankId(moeDistributeCombineSetupInfo_->epRankId) +
-//         epStateOffsetOnWin_));
-//     selfStatusTensor.SetValue(0, 0x3f800000);
-//     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfStatusTensor);
-// }
-
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::InitCqeStatus()
 {
-    // tpipe_->InitBuffer(urmaCqInfoBuf_, sizeof(HcclAiRMACQ));
-    // tpipe_->InitBuffer(cqeBuf_, UB_ALIGN * CQ_DEPTH_256);
     LocalTensor<uint8_t> cqInfoU8 = urmaCqInfoBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> cqeTensorU8 = cqeBuf_.Get<uint8_t>();
     bool isFirstInitCqe = false;
@@ -288,7 +227,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::BuffInit(
     tpipe_->InitBuffer(urmaCqInfoBuf_, sizeof(HcclAiRMACQ));
     tpipe_->InitBuffer(jfsDoorBellBuf_, static_cast<uint32_t>(sizeof(uint32_t)));
     tpipe_->InitBuffer(jfcDoorBellBuf_, static_cast<uint32_t>(sizeof(uint32_t)));
-    // tpipe_->InitBuffer(cqeBuf_, UB_ALIGN);
     tpipe_->InitBuffer(cqeBuf_, UB_ALIGN * CQ_DEPTH_256);
     tpipe_->InitBuffer(templateSqeBuf_, WRITE_WITH_NOTIFY_SQE_SIZE);
     tpipe_->InitBuffer(tokenSqeBuf_, WRITE_WITH_NOTIFY_SQE_SIZE * moeDistributeCombineSetupInfo_->moeExpertPerRankNum);
@@ -299,7 +237,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::BuffInit(
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::AssistInfoLocalCopy()
 {
-    // assistInfoForCombineLocal = assistInfoBuf_.Get<int32_t>();
     LocalTensor<int32_t> assistInfoForCombineLocal = assistInfoQueue_.AllocTensor<int32_t>();
 
     DataCopyExtParams epSendCntParams;
@@ -312,17 +249,12 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::AssistInf
     }
     DataCopyPadExtParams<int32_t> copyPadParams{false, 0U, 0U, 0U};
     DataCopyPad(assistInfoForCombineLocal, assistInfoForCombineGlobal_, epSendCntParams, copyPadParams);
-    // AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>(); // 等assistInfoBuf_从GM搬运至local，后续标量读
     assistInfoQueue_.EnQue(assistInfoForCombineLocal);
 }
 
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communication()
 {
-    // if (startRankId_ >= moeDistributeCombineSetupInfo_->epWorldSize) { // 空闲核，直接返回
-    //     return;
-    // }
-
     uint32_t curRankExpertNum = (isShardExpert_) ? 1U : moeDistributeCombineSetupInfo_->moeExpertPerRankNum;
     AssistInfoLocalCopy();
     LocalTensor<int32_t> assistInfoForCombineLocal = assistInfoQueue_.DeQue<int32_t>();
@@ -336,7 +268,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
 
     uint32_t curTokenNum = 0U;
     uint32_t sqPi = 0U, sqCi = 0U, cqPi = 0U, cqCi = 0U, sqPiLinear = 0U, cqCiLinear = 0U;
-    // bool isFirstInitCqe = false;
     LocalTensor<uint8_t> sqInfoU8 = urmaSqInfoBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> cqInfoU8 = urmaCqInfoBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> cqeTensorU8 = cqeBuf_.Get<uint8_t>();
@@ -354,17 +285,11 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
         // URMA 加载SQ CQ
         GetURMASqInfoTensor(sqInfoU8, (GM_ADDR)hcclContext_, epIdx);
         GetURMACqInfoTensor(cqInfoU8, (GM_ADDR)hcclContext_, epIdx);
-        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>(); // 等sqInfoU8、cqInfoU8的DataCopy(GM->Local)，后续标量读
+        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>(); // 等sqInfoU8、cqInfoU8从GM拷贝Local，后续标量读
 
         // 获取PI CI
         GetPICI((GM_ADDR)hcclContext_, moeDistributeCombineSetupInfo_->epRankId, epIdx, sqPi, sqCi, cqPi, cqCi,
                 sqPiLinear, cqCiLinear);
-
-        // // 把CQ中所有CQE的status初始化为无效值0xff
-        // if (!isFirstInitCqe && cqPi == 0 && cqCi == 0) {
-        //     InvalidateCqeStatus(cqInfoU8, cqeTensorU8);
-        //     AscendC::SyncFunc<AscendC::HardEvent::MTE3_MTE2>(); // 等cqGlobalTensor的Local->GM，后续GM->Local
-        // }
 
         PollNotifyCommCQUpdateSQCI(sqInfoU8, cqInfoU8, cqeTensorU8, jfcDoorBellU8, sqCi, cqCi, cqCiLinear);
 
@@ -373,8 +298,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
 
         uint32_t tokenSqeNum = 0;
         GM_ADDR dstStateAddr = GetWinStateAddrByRankId(epIdx) + epStateOffsetOnWin_;
-        // dstStateAddr = GetWinStateAddrByRankId(moeDistributeCombineSetupInfo_->epRankId) +
-        //                static_cast<uint64_t>(epIdx) * stateOffset_; // TODO 联调场景，构造输入，2p场景特定
 
         // 组装第一个SQE，如果后续存在有效SQE则忽略该SQE
         WriteWithNotifySQEInfoParams notifySqeInfo{(uint64_t)expandXGM_,
@@ -399,10 +322,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
 
             GM_ADDR srcAddr = expandXGM_ + static_cast<uint64_t>(preCount) * axisHExpandXTypeSize_;
             GM_ADDR dstAddr = GetWinAddrByRankId(epIdx, expertIdx) + epDataOffsetOnWin_;
-            // dstAddr = GetWinAddrByRankId(moeDistributeCombineSetupInfo_->epRankId, expertIdx) +
-            //           static_cast<uint64_t>(epIdx) *
-            //               static_cast<uint64_t>(moeDistributeCombineSetupInfo_->moeExpertPerRankNum) *
-            //               expertPerSizeOnWin_; // TODO 联调场景，构造输入，2p场景特定
 
             // 发送上一个WQE模板
             if (likely(tokenSqeNum > 0U)) {
@@ -414,13 +333,6 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
                                           notifySqeInfo.dataSrcAddr, notifySqeInfo.dataDstAddr, notifySqeInfo.length,
                                           notifySqeInfo.notifyAddr + sizeof(uint64_t), notifySqeInfo.notifyData,
                                           notifySqeInfo.cqe);
-                // AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等tokenSqeU8标量写，后续Local->GM
-                // // 发数据
-                // PutCommNotifySQE(sqInfoU8, cqInfoU8, tokenSqeU8[WRITE_WITH_NOTIFY_SQE_SIZE * (tokenSqeNum - 1)],
-                //                  cqeTensorU8, jfcDoorBellU8, 1, sqPi, sqCi, cqCi);
-                // // PipeBarrier<PIPE_MTE3>(); // TODO 这个等哪个同步？
-                // AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>();
-                // SendJFSDoorBell(jfsDoorBellU8, sqInfoU8, sqPi);
             }
 
             // 组装下一个WQE模板

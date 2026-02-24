@@ -24,19 +24,15 @@ moe_distribute_combine_teardown(GM_ADDR expandX, GM_ADDR quantExpandX, GM_ADDR e
                                 GM_ADDR expertScales, GM_ADDR commCmdInfo, GM_ADDR xActiveMask, GM_ADDR sharedExpertX,
                                 GM_ADDR XOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    // AscendC::printf("Enter MoeDistributeCombineTeardown::Start Process");
     REGISTER_TILING_DEFAULT(MoeDistributeCombineTeardownTilingData);
     TPipe pipe;
 #if (ORIG_DTYPE_EXPAND_X == DT_BF16 || ORIG_DTYPE_EXPAND_X == DT_FLOAT16)
     if (TILING_KEY_IS(1000)) { // tp=1 // TODO 和setup类似，暂时没有int8量化
-        // AscendC::printf("Enter MoeDistributeCombineTeardown::Process tilingkey=1000");
         GET_TILING_DATA_WITH_STRUCT(MoeDistributeCombineTeardownTilingData, tilingData, tilingGM);
         MoeDistributeCombineTeardown<DTYPE_EXPAND_X, int32_t> op;
-        // return;
         op.Init(expandX, quantExpandX, expertIds, expandIdx, expertScales, commCmdInfo, xActiveMask, sharedExpertX,
                 XOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
 #endif
-    // AscendC::printf("Enter MoeDistributeCombineTeardown::Process success");
 }
