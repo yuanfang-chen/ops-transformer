@@ -70,6 +70,9 @@ struct QuantGmmAlltoAllvParamsInfo {
     ge::DataType mmWeightDtype = ge::DT_UNDEFINED;
     ge::DataType mmXScaleDtype = ge::DT_UNDEFINED;
     ge::DataType mmWeightScaleDtype = ge::DT_UNDEFINED;
+    ge::DataType gmmYDtype = ge::DT_UNDEFINED;
+    ge::DataType mmYDtype = ge::DT_UNDEFINED;
+    ge::DataType yDtype = ge::DT_UNDEFINED;
     const char *opName = "GMMALLTOALLV";
 };
 

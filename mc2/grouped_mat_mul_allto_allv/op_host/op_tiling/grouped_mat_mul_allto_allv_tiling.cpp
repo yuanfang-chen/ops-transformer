@@ -913,15 +913,14 @@ static ge::graphStatus GroupedMatMulAlltoAllvTilingFuncA3(gert::TilingContext* c
 
 bool GmmAlltoAllvTilingStruct::IsCapable()
 {
-    if (context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
-        context_->GetInputDesc(GMM_X_INDEX)->GetDataType() != ge::DT_BF16) {
-        return false;
+    QuantModePair mode = GetQuantMode(context_, C_INNER_DEBUG);
+    OP_TILING_CHECK(mode == QUANT_PAIR_ERROR, OP_LOGE(C_INNER_DEBUG, "Fail to get attr quant mode."), return false);
+    if (mode == QUANT_PAIR_NONE) {
+        OP_LOGI(C_INNER_DEBUG, "GroupedMatmulAllToAllvTiling No Quant mode capable.");
+        return true;
     }
-    if (context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_FLOAT16 &&
-        context_->GetInputDesc(GMM_WEIGHT_INDEX)->GetDataType() != ge::DT_BF16) {
-        return false;
-    }
-    return true;
+    OP_LOGI(C_INNER_DEBUG, "Skip GroupedMatmulAllToAllvTiling No Quant.");
+    return false;
 }
 
 ge::graphStatus GmmAlltoAllvTilingStruct::DoOpTiling()

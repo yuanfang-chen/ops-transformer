@@ -41,7 +41,7 @@ enum GmmA2AvInputTensorIndex : uint32_t {
 };
 
 enum GmmA2AvOutputTensorIndex : uint32_t {
-    OUTPUT_GMM_Y_INDEX = 0,
+    OUTPUT_Y_INDEX = 0,
     OUTPUT_MM_Y_OPTIONAL_INDEX
 };
 
@@ -148,7 +148,6 @@ protected:
     ge::graphStatus PostTiling() override;
     QuantModePair GetQuantMode(const gert::TilingContext *context, const char *opName);
     const char *opName_{nullptr};
-    platform_ascendc::SocVersion socVersion_;
 
     NpuArch npuArch_;
 };
