@@ -24,7 +24,7 @@ using namespace Mc2Log;
 using namespace AscendC;
 using namespace Mc2Tiling;
 
-name space{
+namespace{
 constexpr uint32_t ATTR_GROUP_INDEX = 0;
 }
 namespace MC2Tiling {
