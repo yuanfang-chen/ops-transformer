@@ -67,13 +67,15 @@ aclTensor* ConvertTensorToInt4(const aclTensor* input, aclOpExecutor* executor)
 }
 
 // 对x1和x2进行int32到int4的转换预处理
-void InputPreProcessInt4(const aclTensor *&x1, const aclTensor *&x2, aclOpExecutor *executor)
-{
+void InputPreProcessInt4(const aclTensor *&x1, const aclTensor *&x2, const aclTensor *&alltoallout, aclOpExecutor *executor)
     if (x2->GetDataType() == DataType::DT_INT32) {
         x2 = ConvertTensorToInt4(x2, executor);
     }
     if (x1->GetDataType() == DataType::DT_INT32) {
         x1 = ConvertTensorToInt4(x1, executor);
+    }
+    if (alltoallout && alltoallout->GetDataType() == DataType::DT_INT32) {
+        alltoallout = ConvertTensorToInt4(alltoallout, executor);
     }
 }
 
@@ -580,7 +582,7 @@ extern "C" aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(const aclTensor*
     // 只在DAV_2201架构上对x1和x2进行int32到int4的转换预处理
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201 && executor != nullptr) {
         auto uniqueExecutor = CREATE_EXECUTOR();
-        InputPreProcessInt4(x1, transX2, uniqueExecutor.get());
+        InputPreProcessInt4(x1, transX2, alltoAllOutOptional, uniqueExecutor.get());
         uniqueExecutor.ReleaseTo(executor);
     }
     
