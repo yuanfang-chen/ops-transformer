@@ -313,7 +313,7 @@ void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingInfo(const std::stri
  *
  * @param outTilingData tilingData参数
  */
-void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingData &outTilingData)
+void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingDataA3 &outTilingData)
 {
     PrintMatmulAlltoAllTilingInfo(opName_, outTilingData.matmulAlltoAllTilingInfo);
     PrintMMV3TilingData(opName_, outTilingData.mc2MmV3TileTilingData);

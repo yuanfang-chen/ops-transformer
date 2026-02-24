@@ -51,8 +51,8 @@ protected:
                                      Mc2MatMulV3TilingData &tilingData);
     ge::graphStatus DoMMTiling();
     ge::graphStatus SetHcclTiling();
-    void SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const;
-    void PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingData &outTilingData);
+    void SetTilingInfo(MatmulAlltoAllTilingInfoA3 &tilingInfo) const;
+    
 
 private:
     MatmulAlltoAllTilingDataA3 localTilingData_;
@@ -60,9 +60,10 @@ private:
 
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;
-
+    
+    void PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingDataA3 &outTilingData);
     void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling);
-    void PrintMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
+    void PrintMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfoA3 &tilingInfo);
 };
 
 class FpMatmulAllToAllHelper : public mc2_matmul_v3::Mc2MatmulV3BaseTiling
