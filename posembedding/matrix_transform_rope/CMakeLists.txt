@@ -6,19 +6,12 @@
 # THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # ======================================================================================================================
-
-if (BUILD_OPEN_PROJECT)
-    set(matrix_transform_rope_depends posembedding/matrix_transform_rope CACHE INTERNAL "Dependencies for matrix_transform_rope.")
-    target_sources(op_host_aclnnExc PRIVATE
-        matrix_transform_rope_def.cpp
-    )
-    add_ops_compile_options(
-        OP_NAME MatrixTransformRope
-        OPTIONS --cce-auto-sync=on
-                -Wno-deprecated-declarations
-                -Werror
-    )
+file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+if(NOT ENABLE_TEST AND NOT BENCHMARK)
+    list(REMOVE_ITEM CURRENT_DIRS tests)
 endif()
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE matrix_transform_rope ACLNNTYPE aclnn_exclude)
-endif()
+foreach(SUB_DIR ${CURRENT_DIRS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
+        add_subdirectory(${SUB_DIR})
+    endif()
+endforeach()
