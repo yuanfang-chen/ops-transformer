@@ -40,6 +40,9 @@ static int32_t baseM_ = 0;
 static int32_t baseN_ = 0;
 static int32_t baseK_ = 0;
 
+inline const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
+inline const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
+
 static uint64_t GMMGetSizePlatForm(
     const platform_ascendc::CoreMemType memType, platform_ascendc::PlatformAscendC ascendcPlatform)
 {

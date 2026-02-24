@@ -68,7 +68,7 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetPlatformInfo()
 {
     auto platformInfo = context_->GetPlatformInfo();
     OP_TILING_CHECK(
-        platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(C_INNER_DEBUG, "fail to get platform info"),
+        platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(opName_, "fail to get platform info"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     socVersion_ = ascendcPlatform.GetSocVersion();
@@ -95,4 +95,46 @@ uint64_t GmmAlltoAllvTilingBase::GetTilingKey() const
     return 0;
 }
 
+QuantModePair GmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContext *context, const char *opName)
+{
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    if (attrs == nullptr) {
+        OP_LOGE(opName, "Failed to get attrs.");
+        return QUANT_PAIR_ERROR;
+    }
+    // 获取量化模式属性（默认为0，表示非量化）
+    int64_t x1QuantMode = 0;
+    int64_t x2QuantMode = 0;
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(GmmA2AvAttrIndex::ATTR_GMM_X_QUANT_MODE_INDEX)) {
+        x1QuantMode = *ptr;
+    }
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(GmmA2AvAttrIndex::ATTR_GMM_WEIGHT_QUANT_MODE_INDEX)) {
+        x2QuantMode = *ptr;
+    }
+    // 获取输入的x1,x2的数据类型
+    auto x1TensorDesc = context->GetInputDesc(GMM_X_INDEX);
+    auto x2TensorDesc = context->GetInputDesc(GMM_WEIGHT_INDEX);
+    if (x1TensorDesc == nullptr) {
+        OP_LOGE(opName, "Input x1 tensor descriptor is invalid.");
+        return QUANT_PAIR_ERROR; // 返回一个异常值，代表没有落入量化组合模式范围内
+    }
+    if (x2TensorDesc == nullptr) {
+        OP_LOGE(opName, "Input x2 tensor descriptor is invalid.");
+        return QUANT_PAIR_ERROR;
+    }
+    ge::DataType aType = x1TensorDesc->GetDataType();
+    ge::DataType bType = x2TensorDesc->GetDataType();
+    if (x1QuantMode == 0 && x2QuantMode == 0 && aType == bType && (aType == ge::DT_BF16 || aType == ge::DT_FLOAT16)) {
+        return QUANT_PAIR_NONE;
+    }
+    if (x1QuantMode == QUANT_PERTENSOR && x2QuantMode == QUANT_PERTENSOR) {
+        return QUANT_PAIR_TT;
+    } else {
+        OP_LOGD(opName,
+                "Quantization mode error, TT quantization X1 should be one, X2 should be one."
+                "currently X1=%d, X2=%d.",
+                x1QuantMode, x2QuantMode);
+    }
+    return QUANT_PAIR_ERROR;
+}
 } // namespace
