@@ -102,6 +102,7 @@ public:
     int64_t keepProbUint8;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    float pScale;
 
     // PFA
     uint8_t deqScaleFlag;  // 0: uint64  1: float32
@@ -221,6 +222,8 @@ public:
     void set_pseAlibiBaseS1(int64_t pseAlibiBaseS1Param) {this->pseAlibiBaseS1 = pseAlibiBaseS1Param;}
     int64_t get_pseAlibiBaseS2() const {return pseAlibiBaseS2;}
     void set_pseAlibiBaseS2(int64_t pseAlibiBaseS2Param) {this->pseAlibiBaseS2 = pseAlibiBaseS2Param;}
+    int64_t get_pScale() const {return pScale;}
+    void set_pScale(int64_t pScaleParam) {this->pScale = pScaleParam;}
     uint8_t get_deqScaleFlag() const {return deqScaleFlag;}
     void set_deqScaleFlag(uint8_t deqScaleFlagParam) {this->deqScaleFlag = deqScaleFlagParam;}
     uint8_t get_deqScale2Flag() const {return deqScale2Flag;}

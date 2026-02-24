@@ -292,13 +292,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nz(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfoPtr->pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), descaleQK, negativeFloatScalar,
-                constInfo.keepProb);
+                constInfo.keepProb, pScaleUb, deSCaleKValue, constInfo.pScale);
         } else {
             ProcessVec1Vf<half, INPUT_T, pseShiftType, false, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, hasDrop, false, false, useNz>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfoPtr->pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), descaleQK, negativeFloatScalar,
-                constInfo.keepProb);
+                constInfo.keepProb, pScaleUb, deSCaleKValue, constInfo.pScale);
         }
     } else {
         if (runInfo.s2RealSize <= 256) {
@@ -306,13 +306,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nz(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfoPtr->pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), descaleQK, negativeFloatScalar,
-                constInfo.keepProb);
+                constInfo.keepProb, pScaleUb, deSCaleKValue, constInfo.pScale);
         } else {
             ProcessVec1Vf<half, INPUT_T, pseShiftType, true, s1BaseSize, s2BaseSize, GT_256_AND_LTE_512, hasAtten, pseMode, hasDrop, false, false, useNz>(
                 stage1CastTensor, this->vselrIndexesBuf, sumUb, maxUb, mmRes, expUb, sumUb, maxUb,
                 attenMaskUb, pseUb, dropMaskUb, apiTmpBuffer, pScaleUb, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 pseInfoPtr->pseStride, slopes, posShift, static_cast<T>(constInfo.scaleValue), descaleQK, negativeFloatScalar,
-                constInfo.keepProb);
+                constInfo.keepProb, pScaleUb, deSCaleKValue, constInfo.pScale);
         }
     }
 

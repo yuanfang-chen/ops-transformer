@@ -191,30 +191,35 @@ aclnnStatus aclnnFlashAttentionScoreV4(
 
 
 /**
- * @brief aclnnFlashAttentionScoreQuant的第一段接口，根据具体的计算流程，计算workspace大小。
+ * @brief aclnnQuantFlashAttentionScore的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_train
  */
-aclnnStatus aclnnFlashAttentionScoreQuantGetWorkspaceSize(
+aclnnStatus aclnnQuantFlashAttentionScoreGetWorkspaceSize(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
-    const aclTensor *dScaleQOptional,
-    const aclTensor *dScaleKOptional,
-    const aclTensor *dScaleVOptional,
+    const aclTensor *attenMaskOptional,
+    const aclTensor *dScaleQ,
+    const aclTensor *dScaleK,
+    const aclTensor *dScaleV,
     double scaleValue,
+    int64_t preTokens,
+    int64_t nextTokens,
     int64_t headNum,
     char *inputLayout,
+    int64_t sparseMode,
     double pScale,
-    const aclTensor *softmaxMaxOut,
-    const aclTensor *softmaxSumOut,
-    const aclTensor *attentionOutOut,
+    aclTensor *softmaxMaxOut,
+    aclTensor *softmaxSumOut,
+    aclTensor *softmaxOutout,
+    aclTensor *attentionOutOut,
     uint64_t *workspaceSize,
     aclOpExecutor **executor);
 
 /**
- * @brief aclnnFlashAttentionScoreQuant的第二段接口，用于执行计算。
+ * @brief aclnnQuantFlashAttentionScore的第二段接口，用于执行计算。
  */
-aclnnStatus aclnnFlashAttentionScoreQuant(
+aclnnStatus aclnnQuantFlashAttentionScore(
     void *workspace,
     uint64_t workspaceSize,
     aclOpExecutor *executor,
