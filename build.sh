@@ -672,6 +672,7 @@ package_static() {
         CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_OPS_KERNEL=ON"
     fi
     cmake_config -DASCEND_COMPUTE_UNIT=${unit}
+    build_torch_extension_whl
     build_package
     # Check weather BUILD_OUT_DIR directory exists
     if [ ! -d "$BUILD_OUT_DIR" ]; then
@@ -1549,14 +1550,14 @@ function build_pkg_for_single_soc() {
     if [[ "$ENABLE_BUILT_JIT" == "TRUE" ]]; then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=OFF"
         cmake_config ${single_soc_option}
-        build_package
         build_torch_extension_whl
+        build_package
         CUSTOM_OPTION="${original_option}"
     elif [[ "$ENABLE_BUILT_IN" == "TRUE" ]]; then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         cmake_config ${single_soc_option}
-        build_package
         build_torch_extension_whl
+        build_package
         CUSTOM_OPTION="${original_option}"
     fi
 }
@@ -1669,7 +1670,6 @@ elif [[ "$ENABLE_BUILT_CUSTOM" == "TRUE" ]]; then      # --ops, --vendor 新命�
         cmake_config " -DENABLE_BUILD_PKG=OFF"
     fi
     build_package
-    build_torch_extension_whl
 elif [[ "$ENABLE_BUILD_PKG" == "TRUE" ]]; then      # --pkg 新命令新使用
     IFS=';' read -ra SOC_ARRAY <<< "$ASCEND_SOC_UNITS"  # 分割字符串为数组
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILD_PKG=ON"
@@ -1696,7 +1696,6 @@ else
     elif [ "${BUILD}" == "package" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         build_package
-        build_torch_extension_whl
     elif [ -n "${BUILD}" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         cmake_config
