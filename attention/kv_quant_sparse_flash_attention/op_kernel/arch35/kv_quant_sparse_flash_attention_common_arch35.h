@@ -49,46 +49,46 @@ __aicore__ constexpr uint64_t Align64Func(uint64_t data) {
 }
 }
 
-// #define TEMPLATE_INTF \
-//     template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, bool isFd, bool isPa, SAS_LAYOUT LAYOUT_T, \
-//     SAS_KV_LAYOUT KV_LAYOUT_T, SASTemplateMode TEMPLATE_MODE>
+#define TEMPLATE_INTF \
+    template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, bool isFd, bool isPa, QSFA_LAYOUT LAYOUT_T, \
+    QSFA_LAYOUT KV_LAYOUT_T, QSFATemplateMode TEMPLATE_MODE>
 
-// #define TEMPLATE_INTF_ARGS \
-//     Q_T, KV_T, T, OUTPUT_T, isFd, isPa, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE
+#define TEMPLATE_INTF_ARGS \
+    Q_T, KV_T, T, OUTPUT_T, isFd, isPa, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE
 
-// #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
-//     X(Q_T) \
-//     X(KV_T) \
-//     X(T) \
-//     X(OUTPUT_T) \
+#define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
+    X(Q_T) \
+    X(KV_T) \
+    X(T) \
+    X(OUTPUT_T) \
 
-// #define CUBE_BLOCK_TRAITS_CONST_FIELDS(X) \
-//     X(isFd, bool, false) \
-//     X(isPa, bool, true) \
-//     X(LAYOUT_T, SAS_LAYOUT, SAS_LAYOUT::BSND) \
-//     X(KV_LAYOUT_T, SAS_KV_LAYOUT, SAS_KV_LAYOUT::PA_ND) \
-//     X(TEMPLATE_MODE, SASTemplateMode, SASTemplateMode::SCFA_TEMPLATE_MODE) \
+#define CUBE_BLOCK_TRAITS_CONST_FIELDS(X) \
+    X(isFd, bool, false) \
+    X(isPa, bool, true) \
+    X(LAYOUT_T, QSFA_LAYOUT, QSFA_LAYOUT::BSND) \
+    X(KV_LAYOUT_T, QSFA_LAYOUT, QSFA_LAYOUT::PA_BSND) \
+    X(TEMPLATE_MODE, QSFATemplateMode, QSFATemplateMode::SCFA_TEMPLATE_MODE) \
 
 
-// /* 1. 生成带默认值的模版Template */
-// #define GEN_TYPE_PARAM(name) typename name,
-// #define GEN_CONST_PARAM(name, type, default_val) type name = default_val,
+/* 1. 生成带默认值的模版Template */
+#define GEN_TYPE_PARAM(name) typename name,
+#define GEN_CONST_PARAM(name, type, default_val) type name = default_val,
 
-// #define TEMPLATES_DEF \
-// template <CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TYPE_PARAM) \
-//     CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_CONST_PARAM) bool end = true>
+#define TEMPLATES_DEF \
+template <CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TYPE_PARAM) \
+    CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_CONST_PARAM) bool end = true>
 
-// /* 2. 生成不带带默认值的模版Template */
-// #define GEN_TEMPLATE_TYPE_NODEF(name) typename name,
-// #define GEN_TEMPLATE_CONST_NODEF(name, type, default_val) type name,
-// #define TEMPLATES_DEF_NO_DEFAULT \
-// template <CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TEMPLATE_TYPE_NODEF) \
-//     CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_TEMPLATE_CONST_NODEF) bool end>
+/* 2. 生成不带带默认值的模版Template */
+#define GEN_TEMPLATE_TYPE_NODEF(name) typename name,
+#define GEN_TEMPLATE_CONST_NODEF(name, type, default_val) type name,
+#define TEMPLATES_DEF_NO_DEFAULT \
+template <CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TEMPLATE_TYPE_NODEF) \
+    CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_TEMPLATE_CONST_NODEF) bool end>
 
-// /* 3. 生成有默认值的Args */
-// #define GEN_ARG_NAME(name, ...) name,
-// #define TEMPLATE_ARGS \
-//     CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARG_NAME) \
-//     CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_ARG_NAME) end
+/* 3. 生成有默认值的Args */
+#define GEN_ARG_NAME(name, ...) name,
+#define TEMPLATE_ARGS \
+    CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARG_NAME) \
+    CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_ARG_NAME) end
 
 #endif
