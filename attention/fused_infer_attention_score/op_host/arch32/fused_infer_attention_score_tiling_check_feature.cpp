@@ -383,7 +383,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         return ge::GRAPH_FAILED);
 
         if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
-            if (std::find(restrictedLayoutSupportList.begin(), restrictedLayoutSupportList.end(), layout) == restrictedLayoutSupportList.end()) {
+            if (std::find(restrictedLayoutSupportList.begin(), restrictedLayoutSupportList.end(), layout) != restrictedLayoutSupportList.end()) {
                 OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128,
                 OP_LOGE(opName_, "In %s %s situation, when input_layout is NTD、BSH_BNSD、BSND_BNSD、NTD_TND, only query|key|value headDim = 64/128 are supported, but got %u",
                     QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
