@@ -52,7 +52,7 @@ IMPL_OP_INFERSHAPE(AddExample).InferShape(InferShapeAddExample);
 
 InferDataType函数的作用是根据输入的DataType推导输出的DataType。
 
-示例如下，`AddExample`算子完整代码请参考`examples/add_example/op_graph`下[add_example_graph_infer.cpp](../../../examples/add_example/op_graph/add_example_graph_infer.cpp)。
+示例如下，`AddExample`算子完整代码请参考`examples/add_example/op_graph`下[add_example_graph_plugin.cpp](../../../examples/add_example/op_graph/add_example_graph_plugin.cpp)。
 
 ```C++
 // AddExample算子逻辑是两个数相加，因此输出dataType与输入dataType一致
