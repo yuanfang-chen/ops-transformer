@@ -21,15 +21,14 @@
 // 流水线模板
 namespace MC2KernelTemplate {
 // 通信转置计算模板
-template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
+template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
 class MC2KernelPipelineCommTransQuantComputeTemplate {
 public:
     __aicore__ inline MC2KernelPipelineCommTransQuantComputeTemplate(CommunicationType *commStage,
-                                                                     TransposeType *transStage,
-                                                                     QuantizeType *quantStage,
+                                                                     TransposeAndQuantizeType *transAndQuantStage,
                                                                      ComputationType *computeStage)
-        : commStage_(commStage), transStage_(transStage), quantStage_(quantStage), computeStage_(computeStage){};
+        : commStage_(commStage), transAndQuantStage_(transAndQuantStage), computeStage_(computeStage){};
 
     __aicore__ inline void Init();
 
@@ -40,64 +39,55 @@ public:
     __aicore__ inline void End();
 
 private:
-    CommunicationType *commStage_;  // 通信节点
-    TransposeType *transStage_;     // 转置计算的计算节点
-    QuantizeType *quantStage_;      // 进行动态量化的节点
-    ComputationType *computeStage_; // 矩阵乘的计算节点
-    ContextType *context_;          // 相关上下文
+    CommunicationType *commStage_;              // 通信节点
+    TransposeAndQuantizeType *transAndQuantStage_;      // 进行动态量化的节点
+    ComputationType *computeStage_;             // 矩阵乘的计算节点
+    ContextType *context_;                      // 相关上下文
 };
 
-template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
+template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType,
+__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType,
                                                                       ComputationType, ContextType>::Init()
 {
     commStage_->Init();
     computeStage_->Init();
 }
 
-template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
+template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
 __aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
+MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType, ComputationType,
                                                ContextType>::GetContext(ContextType* context)
 {
-    context->communicationContext = commStage_->GetCommContextPtr();
-    context->transposeContext = transStage_->GetTransContextPtr();
-    context->quantizationContext = quantStage_->GetQuantContextPtr();
-    context->computationContext = computeStage_->GetMMContextPtr();
+    context->communicationContext = commStage_->GetContextPtr();
+    context->quantizationContext = transAndQuantStage_->GetContextPtr();
+    context->computationContext = computeStage_->GetContextPtr();
 }
 
-template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
+template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
 __aicore__ inline void
-MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType, ComputationType,
+MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType, ComputationType,
                                                ContextType>::Process(uint32_t taskCnt)
 {
-    commStage_->Prepare(taskCnt);
+    commStage_->PrepareAll(taskCnt);
     uint32_t index;
     for (index = 0; index < taskCnt; index++) {
         if ASCEND_IS_AIV {
-            commStage_->Process();
+            commStage_->Process(index);
             AscendC::SyncAll<true>();
 
-            transStage_->Init();
-            transStage_->Process();
-            transStage_->Destroy();
-            AscendC::SyncAll<true>();
-
-            quantStage_->Init();
-            quantStage_->Process();
-            quantStage_->Destroy();
+            transAndQuantStage_->Process(index);
         }
         AscendC::SyncAll<false>();
-        computeStage_->Process(index == 0);
+        computeStage_->Process(index);
     }
 }
 
-template <typename CommunicationType, typename TransposeType, typename QuantizeType, typename ComputationType,
+template <typename CommunicationType, typename TransposeAndQuantizeType, typename ComputationType,
           typename ContextType>
-__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeType, QuantizeType,
+__aicore__ inline void MC2KernelPipelineCommTransQuantComputeTemplate<CommunicationType, TransposeAndQuantizeType,
                                                                       ComputationType, ContextType>::End()
 {
     commStage_->End();

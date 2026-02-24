@@ -108,9 +108,9 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_;
     pipeLineContext_.computationContext->baseData.biasGM = bias_;
-    pipeLineContext_.computationContext->baseData.a_offset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.computationContext->baseData.c_offset = tileMMultiRankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->baseData.aOffset = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.cOffset = tileMMultiRankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TileTilingData);
 
     // 转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
@@ -150,9 +150,9 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
     pipeLineContext_.computationContext->baseData.aGM = x1_ + tileCntMultitileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
     pipeLineContext_.computationContext->baseData.bGM = x2_;
     pipeLineContext_.computationContext->baseData.cGM = tempComputeOutGM_ + tileCntMultitileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
-    pipeLineContext_.computationContext->baseData.a_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
-    pipeLineContext_.computationContext->baseData.b_offset = (uint64_t)0UL;
-    pipeLineContext_.computationContext->baseData.c_offset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
+    pipeLineContext_.computationContext->baseData.aOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
+    pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
+    pipeLineContext_.computationContext->baseData.cOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2MmV3TailTilingData);
 
     uint64_t commonOffset = (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y);
