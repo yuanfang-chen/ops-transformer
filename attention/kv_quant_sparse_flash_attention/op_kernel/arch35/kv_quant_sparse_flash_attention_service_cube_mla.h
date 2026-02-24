@@ -50,13 +50,14 @@ __aicore__ inline constexpr GmFormat GetQueryGmFormat()
     }
 }
 
-template <typename QSFAT> class QSFAMatmulService {
+TEMPLATES_DEF
+class QSFAMatmulService {
 public:
     /* =================编译期常量的基本块信息================= */
-    using T = float;
-    using Q_T = typename QSFAT::queryType;
-    using KV_T = typename QSFAT::kvType;
-    using OUTPUT_T = typename QSFAT::outputType;
+    // using T = float;
+    // using Q_T = typename QSFAT::queryType;
+    // using KV_T = typename QSFAT::kvType;
+    // using OUTPUT_T = typename QSFAT::outputType;
     static constexpr uint32_t s1BaseSize = 64;
     static constexpr uint32_t s2BaseSize = 128;
     static constexpr uint32_t dBaseSize = 512;
@@ -75,11 +76,11 @@ public:
         ConstInfo_arch35 &constInfo);
 
 private:
-    static constexpr bool isPa = QSFAT::pageAttention;
-    static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
-    static constexpr bool isFd = QSFAT::flashDecode;
-    static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
-    static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
+    // static constexpr bool isPa = QSFAT::pageAttention;
+    // static constexpr int TEMPLATE_MODE = QSFAT::templateMode;
+    // static constexpr bool isFd = QSFAT::flashDecode;
+    // static constexpr QSFA_LAYOUT LAYOUT_T = QSFAT::layout;
+    // static constexpr QSFA_LAYOUT KV_LAYOUT_T = QSFAT::kvLayout;
 
     __aicore__ inline void InitLocalBuffer();
     __aicore__ inline void InitGmTensor(__gm__ uint8_t *cuSeqlensQ, const ConstInfo_arch35& constInfo);
@@ -122,7 +123,7 @@ private:
     BuffersPolicyDB<BufferType::L0C> mmL0CBuffers;
 };
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::InitCubeBlock(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::InitCubeBlock(
     TPipe *pipe, BufferManager<BufferType::L1> *l1BuffMgr, __gm__ uint8_t *query)
 {
     if ASCEND_IS_AIC {
@@ -133,18 +134,18 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::InitC
     }
 }
 
-template <typename QSFAT>
+TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitCubeInput(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
+QSFAMatmulService<TEMPLATE_ARGS>::InitCubeInput(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
 {
     if ASCEND_IS_AIC {
         InitGmTensor(actualSeqLengthsQ, constInfo);
     }
 }
 
-template <typename QSFAT>
+TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitLocalBuffer()
+QSFAMatmulService<TEMPLATE_ARGS>::InitLocalBuffer()
 {
     constexpr uint32_t mm1LeftSize = s1BaseSize * dBaseSize * sizeof(Q_T);
     constexpr uint32_t mm1RightSize = dBaseSize * s2BaseSize * sizeof(Q_T);
@@ -161,9 +162,9 @@ QSFAMatmulService<QSFAT>::InitLocalBuffer()
     mmL0CBuffers.Init(l0cBufferManager, BUFFER_SIZE_128K);
 }
 
-template <typename QSFAT>
+TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void
-QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
+QSFAMatmulService<TEMPLATE_ARGS>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const ConstInfo_arch35& constInfo)
 {
     if constexpr (LAYOUT_T == QSFA_LAYOUT::BSND) {
         this->queryGm.offsetCalculator.Init(constInfo.bSize, constInfo.n2Size, constInfo.gSize,
@@ -176,14 +177,14 @@ QSFAMatmulService<QSFAT>::InitGmTensor(__gm__ uint8_t *actualSeqLengthsQ, const 
     }
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::CalcS1Coord(RunInfo_arch35 &runInfo,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::CalcS1Coord(RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
 {
     // 计算s1方向偏移
     coordInfo[runInfo.taskIdMod3].s1Coord = runInfo.s1oIdx * runInfo.qSNumInOneBlock;
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm1(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
@@ -193,7 +194,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
     IterateBmm1SCFA(outputBuf, inputRightBuf, runInfo, constInfo);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::IterateBmm2(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
@@ -201,7 +202,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
     IterateBmm2SCFA(outputBuf, inputLeftBuffers, inputRightBuf, runInfo, constInfo);
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm1SCFA(
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::IterateBmm1SCFA(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
@@ -267,7 +268,7 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
     outputBuf.SetCrossCore();
 }
 
-template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::IterateBmm2SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
+TEMPLATES_DEF_NO_DEFAULT __aicore__ inline void QSFAMatmulService<TEMPLATE_ARGS>::IterateBmm2SCFA(Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf,
     BuffersPolicyDB<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputLeftBuffers,
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
     ConstInfo_arch35 &constInfo)
@@ -313,7 +314,8 @@ template <typename QSFAT> __aicore__ inline void QSFAMatmulService<QSFAT>::Itera
     outputBuf.SetCrossCore();
 }
 
-template <typename QSFAT> class QSFAMatmulServiceDummy {
+TEMPLATES_DEF
+class QSFAMatmulServiceDummy {
 public:
     __aicore__ inline QSFAMatmulServiceDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr, __gm__ uint8_t *query) {}
@@ -326,5 +328,30 @@ public:
         Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputRightBuf, RunInfo_arch35 &runInfo,
         ConstInfo_arch35 &constInfo) {}
 };
+
+
+template <typename T>
+struct CubeBlockTraits;  // 声明
+
+/* 生成CubeBlockTraits */
+#define GEN_TRAIT_TYPE(name, ...) using name##_TRAITS = name;
+#define GEN_TRAIT_CONST(name, type, ...) static constexpr type name##Traits = name;
+
+#define DEFINE_CUBE_BLOCK_TRAITS(CUBE_BLOCK_CLASS) \
+    TEMPLATES_DEF_NO_DEFAULT \
+    struct CubeBlockTraits<CUBE_BLOCK_CLASS<TEMPLATE_ARGS>> { \
+        CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_TRAIT_TYPE) \
+        CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_TRAIT_CONST) \
+    }
+
+DEFINE_CUBE_BLOCK_TRAITS(QSFAMatmulService);
+DEFINE_CUBE_BLOCK_TRAITS(QSFAMatmulServiceDummy);
+
+// /* 生成Arg Traits, kernel中只需要调用ARGS_TRAITS就可以获取所有CubeBlock中的模板参数 */
+#define GEN_ARGS_TYPE(name, ...) using name = typename CubeBlockTraits<CubeBlockType>::name##_TRAITS;
+#define GEN_ARGS_CONST(name, type, ...) static constexpr type name = CubeBlockTraits<CubeBlockType>::name##Traits;
+#define ARGS_TRAITS \
+    CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARGS_TYPE) \
+    CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_ARGS_CONST)
 }
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_SERVICE_CUBE_MLA_H
