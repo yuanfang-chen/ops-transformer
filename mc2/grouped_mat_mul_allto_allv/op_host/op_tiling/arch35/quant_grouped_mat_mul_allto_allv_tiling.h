@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -29,9 +29,6 @@
 #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
-// using MC2KernelTemplate::GmmTilingArray;
-// using MC2KernelTemplate::GMMQuantTilingData;
-// using MC2KernelTemplate::GMMArray;
 namespace optiling {
 namespace Mc2GroupedMatmul {
 
@@ -67,12 +64,10 @@ struct QuantGmmAlltoAllvParamsInfo {
     bool isMmWeightTrans = 0;
     ge::DataType gmmXDtype = ge::DT_UNDEFINED;
     ge::DataType gmmWeightDtype = ge::DT_UNDEFINED;
-    ge::DataType gmmYDtype = ge::DT_UNDEFINED;
     ge::DataType gmmXScaleDtype = ge::DT_UNDEFINED;
     ge::DataType gmmWeightScaleDtype = ge::DT_UNDEFINED;
     ge::DataType mmXDtype = ge::DT_UNDEFINED;
     ge::DataType mmWeightDtype = ge::DT_UNDEFINED;
-    ge::DataType mmYDtype = ge::DT_UNDEFINED;
     ge::DataType mmXScaleDtype = ge::DT_UNDEFINED;
     ge::DataType mmWeightScaleDtype = ge::DT_UNDEFINED;
     const char *opName = "GMMALLTOALLV";
@@ -112,7 +107,7 @@ protected:
     uint32_t libApiWorkSpaceSize_{0};
     uint32_t workSpaceSize_{0};
     QuantGmmA2avTilingData localTilingData_;
-    TilingInferredInfo inferredInfo;
+    TilingInferredInfo inferredInfo_;
     QuantGmmAlltoAllvParamsInfo localParams_;
 
 private:
@@ -132,6 +127,6 @@ private:
     ge::graphStatus CheckParamsRelationAndSetLocalParams();
 };
 
-} // namespace MC2Tiling
+} // namespace Mc2GroupedMatmul
 }
 #endif

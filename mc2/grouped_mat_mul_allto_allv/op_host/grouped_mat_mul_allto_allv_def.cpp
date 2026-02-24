@@ -186,8 +186,6 @@ public:
         this->Attr("mm_weight_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("comm_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("group_size").AttrType(OPTIONAL).Int(0);
-        this->Attr("gmm_y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
-        this->Attr("mm_y_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
         this->Attr("comm_quant_Dtype").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig aicore_config;
