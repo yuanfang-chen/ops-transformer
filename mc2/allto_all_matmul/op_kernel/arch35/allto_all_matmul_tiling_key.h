@@ -32,7 +32,6 @@
 ASCENDC_TPL_ARGS_DECL(AlltoAllMatmul,
                       ASCENDC_TPL_UINT_DECL(QUANTMODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST, NON_QUANT_MODE,
                                             KC_QUANT_FP8E4M3_MODE, KC_QUANT_FP8E5M2_MODE, MX_QUANT_MODE),
-                                            KC_QUANT_FP8E4M3_MODE, KC_QUANT_FP8E5M2_MODE, MX_QUANT_MODE),
                       ASCENDC_TPL_BOOL_DECL(X2TRANSPOSE, 0, 1),
                       ASCENDC_TPL_UINT_DECL(DTYPEBIAS, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST, DTYPE_BIAS_SAME_WITH_X,
                                             DTYPE_BIAS_FP32), );

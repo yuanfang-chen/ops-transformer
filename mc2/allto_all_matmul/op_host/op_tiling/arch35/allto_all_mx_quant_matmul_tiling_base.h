@@ -37,9 +37,9 @@ constexpr size_t X2_QUANTMODE_VALUES = 6;
 constexpr size_t DIM_TWO = 2;
 constexpr size_t DIM_THREE = 3;
 constexpr uint64_t MX_SCALE_ALIGN = 64;
-constexpr uint64_t MX_SCALE_BLOCK_M = 1;
-constexpr uint64_t MX_SCALE_BLOCK_K = 32;
-constexpr uint64_t MX_SCALE_BLOCK_N = 1;
+constexpr uint64_t MX_SCALE_BLOCK_M = 0;
+constexpr uint64_t MX_SCALE_BLOCK_K = 64;
+constexpr uint64_t MX_SCALE_BLOCK_N = 0;
 class AllToAllMxQuantMatmulTilingBase : public AllToAllMatmulTilingBase {
     friend class AlltoAllMxQuantMatmulHelper;
 public:
