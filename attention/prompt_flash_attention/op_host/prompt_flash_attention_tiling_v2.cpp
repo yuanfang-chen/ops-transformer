@@ -2691,7 +2691,7 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
             layoutStr.c_str()), return false);
     }
-    bool isGqa = !enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant;
+    bool isGqa = !enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant && !enableIFAMLAFullQuant;
     if (isGqa) { // GQA
         OP_CHECK_IF(isQKVDDifferent,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, not support layout %s when query and key headdim is not equal to value headdim.",
