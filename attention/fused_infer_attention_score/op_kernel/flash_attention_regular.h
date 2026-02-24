@@ -129,6 +129,8 @@ namespace SplitFuse {
             gK.SetGlobalBuffer((__gm__ ElementK *)currentKey);
             AscendC::GlobalTensor<ElementK> gV;
             gV.SetGlobalBuffer((__gm__ ElementK *)currentValue);
+            AscendC::GlobalTensor<ElementQ> gPseShift;
+            gPseShift.SetGlobalBuffer((__gm__ ElementQ *)params.pseShift);
             AscendC::GlobalTensor<ElementMask> gMask;
             gMask.SetGlobalBuffer((__gm__ ElementMask *)params.mask);
             AscendC::GlobalTensor<int32_t> gBlockTable;
@@ -806,6 +808,26 @@ namespace SplitFuse {
                                         false);
                                 }
                             }
+                        } else if constexpr (MASK_TYPE == FaiKernel::MaskType::FULL_MASK) {
+                            epilogueOnlineSoftmax(
+                                gP[gmOffsetP], 
+                                gS[gmOffsetS], 
+                                gSink[gmOffsetSink],
+                                gPseShift,
+                                layOutP,
+                                layOutS,     
+                                layOutQ, //pseShift
+                                actualBlockShapeQK,
+                                (stackSeqCount == 0),
+                                qSBlockSize,
+                                qNBlockSize,
+                                curStackTileMod,
+                                qkReady,
+                                kvSStartIdx,
+                                kvSEndIdx,
+                                qNStartIdx,
+                                doTriUMask
+                            );
                         } else {
                             Arch::CrossCoreWaitFlag(qkReady);
                             if constexpr (IS_FD) {

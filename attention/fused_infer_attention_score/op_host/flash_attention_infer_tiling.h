@@ -90,6 +90,7 @@ namespace optiling{
     enum class MaskType : uint32_t {
         NO_MASK = 0,
         MASK_SPEC = 1,
+        FULL_MASK = 5,
         SWA_MASK = 3
     };
 
@@ -221,6 +222,7 @@ namespace optiling{
         constexpr uint64_t PAGED_CACHE_KEY = 10000000;
         constexpr uint64_t COMP_CAUSAL_MASK_KEY = 3;
         constexpr uint64_t COMP_SWA_MASK_KEY = 5;
+        constexpr uint64_t COMP_FULL_MASK_KEY = 6;
         constexpr uint64_t LAYOUTQ_TND_KEY = 200000;
         constexpr uint64_t DTYPE_FP16_KEY = 100;
         constexpr uint64_t DTYPE_BF16_KEY = 200;
@@ -236,6 +238,8 @@ namespace optiling{
             tilingKey += static_cast<uint64_t>(COMP_CAUSAL_MASK_KEY);
         } else if (faInfo_.maskType == MaskType::SWA_MASK) {
             tilingKey += static_cast<uint64_t>(COMP_SWA_MASK_KEY);
+        } else if (faInfo_.maskType == MaskType::FULL_MASK) {
+            tilingKey += static_cast<uint64_t>(COMP_FULL_MASK_KEY);
         }
         if (faInfo_.layout == "TND") {
             tilingKey += static_cast<uint64_t>(LAYOUTQ_TND_KEY);

@@ -174,6 +174,7 @@ enum PfaAttenMaskCompressModefaRun : uint8_t {
     PFA_PREFIX_MODE,
     PFA_RIGHT_DOWN_CAUSAL_BAND_MODE,
     PFA_BAND_LEFT_UP_CAUSAL_MODE
+    // PFA_FULL_MODE
 };
 
 constexpr uint64_t RecursiveSum() {
