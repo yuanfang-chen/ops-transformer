@@ -1338,7 +1338,8 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     tpipe_->InitBuffer(expertFinishBuf, expInfoSize);
     tpipe_->InitBuffer(expertLeftBuf, expInfoSize);
     tpipe_->InitBuffer(flagMaskBuf, BUFFER_NUM * UB_ALIGN);  // max CompareScalar
-    tBufRealSize_ = MAX_UB_SIZE - (UB_ALIGN + cumSumFlagAlign + rscvNumAlign + aivUsedCumSum_ * UB_ALIGN) - (expInfoSize * 3) - BUFFER_NUM * UB_ALIGN; // 3为expInfoSize大小buffer申请个数
+    tBufRealSize_ = MAX_UB_SIZE - (UB_ALIGN + cumSumFlagAlign + rscvNumAlign + aivUsedCumSum_ * UB_ALIGN) -
+        (expInfoSize * 3) - BUFFER_NUM * UB_ALIGN; // 3为expInfoSize大小buffer申请个数
     tpipe_->InitBuffer(tBuf, tBufRealSize_); // 其余buffer空间统一申请
     expertMapTensor_ = expertMapBuf.Get<uint32_t>();
     expertFinishNumTensor_ = expertFinishBuf.Get<uint32_t>();
