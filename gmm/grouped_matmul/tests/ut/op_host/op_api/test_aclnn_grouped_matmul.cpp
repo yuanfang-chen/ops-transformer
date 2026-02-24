@@ -117,6 +117,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_stat
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pertoken)
@@ -157,6 +167,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pert
         OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -200,6 +220,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_staticTC)
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_staticTC)
@@ -242,6 +272,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_staticTC)
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_dynamicKC)
@@ -282,6 +322,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_dynamicKC)
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -324,6 +374,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_dynamicKC)
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8o_nz_dynamicKC_scale_bf16_y_bf16)
@@ -364,6 +424,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8o_nz_dynamicKC_scal
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -406,6 +476,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_shape)
@@ -446,6 +526,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -488,6 +578,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+    
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dims)
@@ -528,6 +628,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -570,6 +680,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+    
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dtype)
@@ -611,6 +731,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);    
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_m0_empty_tensor)
@@ -651,6 +781,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_m0_empty_tensor)
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+    
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
@@ -693,6 +833,16 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_n0_empty_tensor)
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
+    
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
 TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_k0_empty_tensor)
@@ -733,5 +883,15 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_k0_empty_tensor)
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+
+    ut = OP_API_UT(aclnnGroupedMatmulV5,
+                   INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                         antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                         activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                         splitItem, groupType, groupListType, actType, nullptr),
+                   OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    workspaceSize = 0;
+    getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
