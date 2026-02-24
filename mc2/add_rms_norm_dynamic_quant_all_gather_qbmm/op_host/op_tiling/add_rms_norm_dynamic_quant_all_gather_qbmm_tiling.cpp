@@ -50,6 +50,7 @@ constexpr size_t DIM_ZERO = 0;
 constexpr size_t DIM_ONE = 1;
 constexpr size_t DIM_TWO = 2;
 constexpr size_t NUM_THREE = 3;
+constexpr size_t TWO_DIMS = 2;
 
 /**
  * @brief 打印tilingData, addrms  and mamtul tcubetiling
@@ -202,20 +203,31 @@ ge::graphStatus CheckInputOutputTensorDim(const gert::TilingContext *context)
     size_t scaleDimNum = scaleShape->GetStorageShape().GetDimNum();
     size_t smoothDimNum = smoothShape->GetStorageShape().GetDimNum();
     size_t biasDimNum = biasShape->GetStorageShape().GetDimNum();
+    uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
+    uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
 
+    OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(0)),
+        OP_LOGE(context->GetNodeName(), "x1dim1 is not same to x2dim0."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((x1Shape->GetStorageShape() != residualShape->GetStorageShape()),
+        OP_LOGE(context->GetNodeName(), "x1Shape is not same to residualShape."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((x1Shape->GetStorageShape() != yShape->GetStorageShape()),
+        OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(((x1Dim1Value != gammaValue)),
+        OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((x1DimNum != TWO_DIMS) || (x2DimNum != TWO_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS)),
+ 	    OP_LOGE(nodeName, "The dim of x1, x2, residual,y should be 2, but current x1DimNum=%lu, x2DimNum- %lu, residualDimNum=%lu, yDimNum=%lu.",
+ 	    x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        ((x1DimNum != residualDimNum)),
-        OP_LOGE(context->GetNodeName(), "Input x1/residual shape dims not equal. Tiling failed. "), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        ((x1DimNum != yDimNum)),
-        OP_LOGE(context->GetNodeName(), "Input x1/y shape dims not equal. Tiling failed. "), return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        ((gammaDimNum != 1)), OP_LOGE(context->GetNodeName(), "gamma shape dims not equal to 1. Tiling failed."),
+    OP_CHECK_IF(((x1DimNum != residualDimNum)),
+        OP_LOGE(context->GetNodeName(), "Input x1/residual shape dims not equal. x1DimNum=%lu, residualDimNum=%lu ", x1DimNum, residualDimNum), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(((x1DimNum != yDimNum)),
+        OP_LOGE(context->GetNodeName(), "Input x1/y shape dims not equal. x1DimNum=%lu, yDimNum=%lu ", x1DimNum, yDimNum), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(((scaleDimNum != 1)), OP_LOGE(context->GetNodeName(), "scale shape dims not equal to 1. scaleDimNum=%lu.", scaleDimNum),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(
-        ((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. Tiling failed."),
+    OP_CHECK_IF(((gammaDimNum != 1)), OP_LOGE(context->GetNodeName(), "gamma shape dims not equal to 1. gammaDimNum=%lu.", gammaDimNum),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. smoothDimNum=%lu.", smoothDimNum),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -300,25 +312,29 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
     auto outputDesc = context->GetOutputDesc(OUTPUT_INDEX);
     auto zDesc = context->GetOutputDesc(Z_INDEX);
     const char *nodeName = context->GetNodeName();
+    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(x1Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(x1Desc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "x1 format is invalid."), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(residualDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK((x2Format != ge::FORMAT_FRACTAL_NZ) && (x2Format != ge::FORMAT_ND),
+ 	    OP_LOGE(nodeName, "x2 format should be ND or NZ, but current x2 format is %s.",
+ 	    Ops::Base::ToString(x2Format).c_str()), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(residualDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "residual format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(yDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(yDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "y format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(gammaDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(gammaDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "gamma format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scaleDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scaleDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "scale format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "smooth format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(biasDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(biasDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "bias format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "output format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) != ge::FORMAT_ND,
         OP_LOGE(nodeName, "z format is invalid."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
