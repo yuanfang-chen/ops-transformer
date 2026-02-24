@@ -399,11 +399,11 @@ static bool CheckMXQuantDtypesValidA5(const aclTensor* x1, const aclTensor* x2, 
     OP_CHECK_DTYPE_NOT_SUPPORT(x1ScaleOptional, SCALE_DTYPE_FP8_SUPPORT_LIST_A5, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(x2Scale, SCALE_DTYPE_FP8_SUPPORT_LIST_A5, return false);
     OP_CHECK_DTYPE_NOT_SUPPORT(output, OUTPUT_DTYPE_SUPPORT_LIST_A5, return false);
-    if (x1QuantDtype != x1->GetDataType()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "X1QuantDtype must be the same with x1Dtype, but the value is %ld", x1QuantDtype);
-        return false;
-    }
+    // if (x1QuantDtype != x1->GetDataType()) {
+    //     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+    //             "X1QuantDtype must be the same with x1Dtype, but the value is %ld", x1QuantDtype);
+    //     return false;
+    // }
     if (biasOptional != nullptr) {
         OP_CHECK_DTYPE_NOT_SUPPORT(biasOptional, BIAS_DTYPE_SUPPORT_LIST_A5, return false);
     }

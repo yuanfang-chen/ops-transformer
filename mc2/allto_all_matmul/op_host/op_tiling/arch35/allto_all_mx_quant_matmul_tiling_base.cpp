@@ -327,10 +327,10 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::DoMxQuantMMTiling()
  */
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetHcclTiling()
 {
-    OP_TILING_CHECK(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geCType) ==
+    OP_TILING_CHECK(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geAType) ==
                         mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
                     VECTOR_INNER_ERR_REPORT_TILING(opName_, "Cannot find HcclDataType according to ge datatype = %d.",
-                                                   static_cast<int32_t>(contextInfo.args_.geCType)),
+                                                   static_cast<int32_t>(contextInfo.args_.geAType)),
                     return ge::GRAPH_FAILED;);
     Mc2CcTilingConfigBuilder allToAllBuilder =
         Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
@@ -338,8 +338,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::SetHcclTiling()
     // reducetype接口附带的数据类型优先于调用通信接口传入的数据类型，因此这里需要设置
     AscendC::Mc2CcTilingConfig allToAllTilingConfig =
         allToAllBuilder
-            .withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geCType,
-                            contextInfo.args_.geCType)
+            .withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geAType,
+                            contextInfo.args_.geAType)
             .withCommEngine(mc2tiling::A5_CCU_ENGINE)
             .build();
     if (!allToAllBuilder.isSuccess()) {
@@ -652,7 +652,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
-    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + inferredInfo.biasLen;
+    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + inferredInfo.biasLen +
+                             inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
@@ -680,6 +681,11 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
         inferredInfo.biasLen =
             mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
+
+    inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * 
+                                Ops::Base::CeilDiv(static_cast<int>(ContextInfo.args_.kValue), 64) * 2 * 
+                                contextInfo.args_.rankDim, alignAddrLen);
+    inferredInfo.permuteScaleLen = inferredInfo.commScaleLen; 
 }
 
 /**
@@ -692,8 +698,8 @@ AllToAllMxQuantMatmulTilingBase::AllToAllMxQuantMatmulTilingBase(gert::TilingCon
 {
 }
 
-// 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(AlltoAllMatmul, AllToAllMxQuantMatmulTilingBase,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 2);
+ // 注册tiling类
+ 	 REGISTER_TILING_TEMPLATE_WITH_ARCH(AlltoAllMatmul, AllToAllMxQuantMatmulTilingBase,
+ 	                                          static_cast<int32_t>(NpuArch::DAV_3510), 2);
 
 } // namespace MC2Tiling
