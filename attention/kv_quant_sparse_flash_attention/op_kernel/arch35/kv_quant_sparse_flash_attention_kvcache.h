@@ -27,7 +27,7 @@ using namespace AscendC::Impl::Detail;
 
 template <typename QSFAT>
 __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
-    __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t * actualSeqKvlenAddr)
+    __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t * actualSeqKvlenAddr)
 {
     int32_t actualS1Size = 0;
     int32_t actualS2Size = 0;
@@ -77,9 +77,9 @@ __aicore__ inline void GetSingleCoreParam(RunParamStr& runParam, const ConstInfo
 
 template <typename QSFAT>
 __aicore__ inline void ComputeParamBatch(RunParamStr& runParam, const ConstInfo_arch35 &constInfo,
-    __gm__ int32_t *cuSeqlensQAddr, __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
+    __gm__ int32_t *actualSeqQlenAddr, __gm__ int32_t *actualSeqKvlenAddr)
 {
-    GetSingleCoreParam<QSFAT>(runParam, constInfo, cuSeqlensQAddr, actualSeqQlenAddr, actualSeqKvlenAddr);
+    GetSingleCoreParam<QSFAT>(runParam, constInfo, actualSeqQlenAddr, actualSeqKvlenAddr);
 }
 
 template <typename QSFAT>

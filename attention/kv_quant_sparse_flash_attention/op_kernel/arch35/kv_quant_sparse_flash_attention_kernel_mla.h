@@ -137,6 +137,7 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
     const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling,
     __gm__ uint8_t *gmTiling, TPipe *tPipe)
 {
+    PRINTF("ENTER INIT------------------\n");
     fa_base_matmul::idCounterNum = 0;
     constInfo.subBlockIdx = GetSubBlockIdx();
     if ASCEND_IS_AIC {
@@ -328,17 +329,18 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::Process()
 template <typename QSFAT>
 __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
 {
+    PRINTF("ENTER PROCESS------------------\n");
     // uint32_t hasLoad = metadataGm.GetValue(GetAttrAbsIndex(aicIdx, FA_CORE_ENABLE_INDEX, false));
     // if (hasLoad == 0) {
     //     return;
     // }
 
     // 从meta data解析分核信息
-    // 【TODO】
+    // 【TODO】小用例先写死
     uint32_t bN2StartIdx = 0;
     uint32_t gS1StartIdx = 0;
     uint32_t s2StartIdx = 0;
-    uint32_t bN2EndIdx = 0;
+    uint32_t bN2EndIdx = 1;
     uint32_t nextGs1Idx = 0;
     uint32_t s2EndIdx = 0;
     uint32_t s2LoopLimit = 0;
@@ -357,7 +359,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
         runParam.boIdx = bnIdx;
         runParam.n2oIdx = 0;
         ComputeParamBatch<QSFAT>(runParam, this->constInfo, // 【YXC TODO】
-            this->cuSeqlensQAddr, this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
+            this->actualSeqQlenAddr, this->actualSeqKvlenAddr);
         ComputeS1LoopInfo<QSFAT>(runParam, this->constInfo, lastBN, nextGs1Idx, gS1StartIdx);
 
         int64_t gS1LoopEnd = lastBN ? (runParam.gs1LoopEndIdx + PRELOAD_NUM) : runParam.gs1LoopEndIdx;
@@ -380,7 +382,7 @@ __aicore__ inline void KvQuantSparseFlashAttentionMla<QSFAT>::ProcessMainLoop()
             if (notLastTwoLoop) {
                 this->ComputeAxisIdxByBnAndGs1(bnIdx, gS1Index, runParam);
                 bool s1NoNeedCalc = ComputeParamS1<QSFAT>(
-                    runParam, this->constInfo, gS1Index, this->cuSeqlensQAddr); // 【YXC TODO】
+                    runParam, this->constInfo, gS1Index, this->actualSeqQlenAddr); // 【YXC TODO】
                 bool s2NoNeedCalc =
                     ComputeS2LoopInfo<QSFAT>(runParam, this->constInfo);
                 // s1和s2有任意一个不需要算, 则continue, 如果是当前核最后一次循环，则补充计算taskIdx+2的部分
