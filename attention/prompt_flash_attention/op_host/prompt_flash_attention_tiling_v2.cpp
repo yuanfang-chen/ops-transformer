@@ -2083,7 +2083,14 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         return false);
 
     // check actSharedPrefix
-    if (!isMaxWorkspace && (contextKeyParams.actualSharedPrefixLen != nullptr) &&
+    if ((contextKeyParams.actualSequenceLengthQ != nullptr && contextKeyParams.actualSequenceLengthQ->GetData<int64_t>() == nullptr) || 
+        (contextKeyParams.actualSequenceLengthKV != nullptr && contextKeyParams.actualSequenceLengthKV->GetData<int64_t>() == nullptr) || 
+        (contextKeyParams.actualSharedPrefixLen != nullptr && contextKeyParams.actualSharedPrefixLen->GetData<int64_t>() == nullptr)) {
+        isMaxWorkspacePrefix = true;
+    } else {
+        isMaxWorkspacePrefix = false;
+    }
+    if (!isMaxWorkspacePrefix && (contextKeyParams.actualSharedPrefixLen != nullptr) &&
         (contextKeyParams.actualSharedPrefixLen->GetStorageShape().GetShapeSize() > 0) &&
         CheckActSharedPrefix(contextKeyParams, prefixShapeInfo.s, keyShapeInfo.s)) {
         tilingData.promptAttentionBaseParams.set_isActualSharedPrefixLenNull(0);
