@@ -2691,13 +2691,14 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
             layoutStr.c_str()), return false);
     }
-    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+    bool isGqa = !enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant;
+    if (isGqa) { // GQA
         OP_CHECK_IF(isQKVDDifferent,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, not support layout %s when query and key headdim is not equal to value headdim.",
             layoutStr.c_str()), return false);
     }
     if (layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD") {
-        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+        if (isGqa) { // GQA
             OP_CHECK_IF((CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
                 layoutStr.c_str(), queryShapeInfo.d), return false);
@@ -2714,7 +2715,7 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!",
             layoutStr.c_str()), return false);
     } else if (layoutStr == "BNSD_BSND") {
-        if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
+        if (isGqa) { // GQA
             OP_CHECK_IF((contextKeyParams.outputDataType == ge::DT_INT8 && queryShapeInfo.d % D_SIZE_BASE_32 != 0),
                 OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s and output dtype is int8, d size should be a multiple of %d, but got d = %d.",
                 layoutStr.c_str(), D_SIZE_BASE_32, queryShapeInfo.d), return false);
