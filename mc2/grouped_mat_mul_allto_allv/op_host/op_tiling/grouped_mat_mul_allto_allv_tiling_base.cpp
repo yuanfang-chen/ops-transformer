@@ -30,12 +30,12 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetShapeAttrsInfo()
     opName_ = context_->GetNodeName();
     auto gmmXTensorDesc = context_->GetInputDesc(GMM_X_INDEX);
     auto gmmWeightTensorDesc = context_->GetInputDesc(GMM_WEIGHT_INDEX);
-    auto gmmYDesc = context_->GetOutputDesc(OUTPUT_GMM_Y_INDEX);
+    auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
     OP_TILING_CHECK((gmmXTensorDesc == nullptr), OP_LOGE(opName_, "the input gmmX tensor is null."),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK((gmmWeightTensorDesc == nullptr), OP_LOGE(opName_, "the input gmmWeight tensor is null."),
                     return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((gmmYDesc == nullptr), OP_LOGE(opName_, "the output gmmY tensor is null."),
+    OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName_, "the output y tensor is null."),
                     return ge::GRAPH_FAILED);
     
     const gert::RuntimeAttrs *attrs = context_->GetAttrs();
@@ -71,7 +71,6 @@ ge::graphStatus GmmAlltoAllvTilingBase::GetPlatformInfo()
         platformInfo == nullptr, VECTOR_INNER_ERR_REPORT_TILING(opName_, "fail to get platform info"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    socVersion_ = ascendcPlatform.GetSocVersion();
     npuArch_ = ascendcPlatform.GetCurNpuArch();
     return ge::GRAPH_SUCCESS;
 }
@@ -103,37 +102,25 @@ QuantModePair GmmAlltoAllvTilingBase::GetQuantMode(const gert::TilingContext *co
         return QUANT_PAIR_ERROR;
     }
     // 获取量化模式属性（默认为0，表示非量化）
-    int64_t x1QuantMode = 0;
-    int64_t x2QuantMode = 0;
-    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(GmmA2AvAttrIndex::ATTR_GMM_X_QUANT_MODE_INDEX)) {
-        x1QuantMode = *ptr;
+    int64_t gmmXQuantMode = 0;
+    int64_t gmmWeightQuantMode = 0;
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_GMM_X_QUANT_MODE_INDEX)) {
+        gmmXQuantMode = *ptr;
     }
-    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(GmmA2AvAttrIndex::ATTR_GMM_WEIGHT_QUANT_MODE_INDEX)) {
-        x2QuantMode = *ptr;
+    if (const int64_t *ptr = attrs->GetAttrPointer<int64_t>(ATTR_GMM_WEIGHT_QUANT_MODE_INDEX)) {
+        gmmWeightQuantMode = *ptr;
     }
-    // 获取输入的x1,x2的数据类型
-    auto x1TensorDesc = context->GetInputDesc(GMM_X_INDEX);
-    auto x2TensorDesc = context->GetInputDesc(GMM_WEIGHT_INDEX);
-    if (x1TensorDesc == nullptr) {
-        OP_LOGE(opName, "Input x1 tensor descriptor is invalid.");
-        return QUANT_PAIR_ERROR; // 返回一个异常值，代表没有落入量化组合模式范围内
-    }
-    if (x2TensorDesc == nullptr) {
-        OP_LOGE(opName, "Input x2 tensor descriptor is invalid.");
-        return QUANT_PAIR_ERROR;
-    }
-    ge::DataType aType = x1TensorDesc->GetDataType();
-    ge::DataType bType = x2TensorDesc->GetDataType();
-    if (x1QuantMode == 0 && x2QuantMode == 0 && aType == bType && (aType == ge::DT_BF16 || aType == ge::DT_FLOAT16)) {
+
+    if (gmmXQuantMode == QUANT_NONE && gmmWeightQuantMode == QUANT_NONE) {
         return QUANT_PAIR_NONE;
     }
-    if (x1QuantMode == QUANT_PERTENSOR && x2QuantMode == QUANT_PERTENSOR) {
+    if (gmmXQuantMode == QUANT_PERTENSOR && gmmWeightQuantMode == QUANT_PERTENSOR) {
         return QUANT_PAIR_TT;
     } else {
         OP_LOGD(opName,
-                "Quantization mode error, TT quantization X1 should be one, X2 should be one."
-                "currently X1=%d, X2=%d.",
-                x1QuantMode, x2QuantMode);
+                "Quantization mode error, TT quantization gmmXQuantMode should be one, gmmWeightQuantMode should be one."
+                "currently gmmXQuantMode=%d, gmmWeightQuantMode=%d.",
+                gmmXQuantMode, gmmWeightQuantMode);
     }
     return QUANT_PAIR_ERROR;
 }
