@@ -114,7 +114,7 @@ private:
     CVSharedParams sharedParams;
     /* GM信息 */
     // GlobalTensor<uint32_t> metadataGm;
-    __gm__ int32_t *cuSeqlensQAddr = nullptr; // 【YXC TODO】
+    // __gm__ int32_t *cuSeqlensQAddr = nullptr; // 【YXC TODO】
     __gm__ int32_t *actualSeqKvlenAddr = nullptr;
     __gm__ int32_t *actualSeqQlenAddr = nullptr;
     /* 核Index信息 */
@@ -191,7 +191,7 @@ template <typename QSFAT> __aicore__ inline void KvQuantSparseFlashAttentionMla<
     __gm__ uint8_t *workspace, const KvQuantSparseFlashAttentionTilingDataMla *__restrict tiling, TPipe *tPipe)
 {
     if (actualSeqLengthsQ != nullptr) {
-        cuSeqlensQAddr = (__gm__ int32_t *)actualSeqLengthsQ;
+        actualSeqQlenAddr = (__gm__ int32_t *)actualSeqLengthsQ;
     }
     if (actualSeqLengths != nullptr) {
         actualSeqKvlenAddr = (__gm__ int32_t *)actualSeqLengths;
