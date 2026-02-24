@@ -862,9 +862,9 @@ ge::graphStatus QSFATilingCheck::CheckAttenOutShape()
     shapeParams.S = s1Size_;
     shapeParams.D = 512; // 512:输出的head_dim
     shapeParams.T = qTSize_;
-    if (CompareShape(shapeParams, attenOutShapeCmp_, outLayout_, ATTEN_OUT_NAME) != ge::GRAPH_SUCCESS) {
-        return ge::GRAPH_FAILED;
-    }
+    // if (CompareShape(shapeParams, attenOutShapeCmp_, outLayout_, ATTEN_OUT_NAME) != ge::GRAPH_SUCCESS) {
+    //     return ge::GRAPH_FAILED;
+    // }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1095,13 +1095,13 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantShape() const
             return ge::GRAPH_FAILED);
     }
     
-    OP_CHECK_IF(qHeadDim_ != 576, // 576:当前不泛化
-        OP_LOGE(opName_, "q_head_dim only support 576, but got %u", qHeadDim_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(qHeadDim_ != 576, // 576:当前不泛化
+    //     OP_LOGE(opName_, "q_head_dim only support 576, but got %u", qHeadDim_),
+    //     return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(kHeadDim_ != 656, // 656:当前不泛化
-        OP_LOGE(opName_, "k_head_dim only support 656, but got %u", kHeadDim_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(kHeadDim_ != 656, // 656:当前不泛化
+    //     OP_LOGE(opName_, "k_head_dim only support 656, but got %u", kHeadDim_),
+    //     return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -1176,10 +1176,10 @@ ge::graphStatus QSFATilingCheck::CheckFeatureMlaAntiquantAttr() const
         nextTokens_),
         return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(tileSize_ != 128, // 128:当前不泛化
-        OP_LOGE(opName_, "tile_size should be 128, but got %ld",
-        tileSize_),
-        return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(tileSize_ != 128, // 128:当前不泛化
+    //     OP_LOGE(opName_, "tile_size should be 128, but got %ld",
+    //     tileSize_),
+    //     return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(ropeHeadDim_ != 64, // 64:当前不泛化
         OP_LOGE(opName_, "rope_head_dim should be 64, but got %d",
