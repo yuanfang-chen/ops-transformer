@@ -18,7 +18,10 @@
 - 接口功能：融合GroupedMatmul 、dequant、swiglu和quant，详细解释见计算公式。
 
   相较于[aclnnGroupedMatmulSwigluQuant](../../grouped_matmul_swiglu_quant/docs/aclnnGroupedMatmulSwigluQuant.md)接口，**此接口新增：**
-    
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+      - 新增了A4W4量化场景，支持smoothScale参数。
+      - 参数weight，weightScale，weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适接口。
+
     - <term>Ascend 950PR/Ascend 950DT</term>：
       - 新增了MXFP8、MXFP4、Pertoken量化场景。
       - 参数weight, weightScale, weightAssistMatrix的字段类型变为tensorlist，请根据实际情况选择合适的接口。
