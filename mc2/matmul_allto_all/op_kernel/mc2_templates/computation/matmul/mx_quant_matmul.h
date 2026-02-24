@@ -9,72 +9,80 @@
  */
 
 /*!
- * \file mx_quant_matmul.h
+ * \file quant_matmul.h
  * \brief
  */
 
 #ifndef MX_QUANT_MATMUL_H
 #define MX_QUANT_MATMUL_H
-#include "matmul_factory.h"
+#include "matmul_base.h"
 
 namespace MC2KernelTemplate {
-struct MxQuantMMAdditionalData {
-    GM_ADDR x1_scale;
-    GM_ADDR x2_scale;
-    uint64_t x1_scale_offset;
+struct MXQuantMMAdditionalData {
+    GM_ADDR x1Scale;
+    GM_ADDR x2Scale;
+    GM_ADDR x2Offset;
+    uint64_t x1ScaleOffset;
 };
 
-//mx量化场景的相关逻辑实现
-template <typename MMType>
-class MxQuantMMControl {
+// 量化场景的相关逻辑实现
+template <typename MMTilingType, typename MMType>
+class MC2MXQuantMMWrapper {
 protected:
-    MC2MMBaseGmAddrs* baseDataPtr_;
-    MxQuantMMAdditionalData* additionalDataPtr_;
-    MMType* MMImplPtr_;
-    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr_;
+    MC2MMContext<MXQuantMMAdditionalData, MMTilingType> MMcontext_;
+    MMType MMImpl_;
     AscendC::TPipe* tPipePtr_;
 
 public:
-    __aicore__ inline void  Init(MC2MMBaseGmAddrs* baseDataPtr, MxQuantMMAdditionalData* additionalDataPtr, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams* tilingDataPtr, MMType* MMImplPtr, AscendC::TPipe *tPipe);
-    __aicore__ inline void  UpdateAdditionalData();
-    __aicore__ inline void  InitMM();
-    __aicore__ inline void  EndMM();
+    __aicore__ inline MC2MXQuantMMWrapper(AscendC::TPipe* tPipe) : tPipePtr_(tPipe) {};
+    // 初始化方法
+    __aicore__ inline void Init();
+    // 获取数据上下文引用
+    __aicore__ inline MC2MMContext<MXQuantMMAdditionalData, MMTilingType>* GetContextPtr();
+    // 执行一次计算的方法
+    __aicore__ inline void Process(uint32_t taskIndex);
+    // 结束方法
+    __aicore__ inline void End();
 };
 
-template <typename MMType>
-__aicore__ inline void MxQuantMMControl<MMType>::Init(MC2MMBaseGmAddrs *baseDataPtr, MxQuantMMAdditionalData *additionalDataPtr,
-                                                 DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams *tilingDataPtr, MMType *MMImplPtr,
-                                                 AscendC::TPipe *tPipe)
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2MXQuantMMWrapper<MMTilingType, MMType>::Init() {}
+
+template <typename MMTilingType, typename MMType>
+inline __aicore__ MC2MMContext<MXQuantMMAdditionalData, MMTilingType> *
+MC2MXQuantMMWrapper<MMTilingType, MMType>::GetContextPtr()
 {
-    baseDataPtr_ = baseDataPtr;
-    additionalDataPtr_ = additionalDataPtr;
-    tilingDataPtr_ = tilingDataPtr;
-    MMImplPtr_ = MMImplPtr;
-    tPipePtr_ = tPipe;
+    return &MMcontext_;
 }
 
-template <typename MMType>
-__aicore__ inline void MxQuantMMControl<MMType>::UpdateAdditionalData()
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2MXQuantMMWrapper<MMTilingType, MMType>::Process(uint32_t taskIndex)
 {
-    additionalDataPtr_->x1_scale = additionalDataPtr_->x1_scale + additionalDataPtr_->x1_scale_offset;
-}
-
-template <typename MMType>
-__aicore__ inline void MxQuantMMControl<MMType>::InitMM()
-{
+    GM_ADDR aGM = MMcontext_.baseData.aGM + taskIndex * MMcontext_.baseData.aOffset;
+    GM_ADDR bGM = MMcontext_.baseData.bGM + taskIndex * MMcontext_.baseData.bOffset;
+    GM_ADDR cGM = MMcontext_.baseData.cGM + taskIndex * MMcontext_.baseData.cOffset;
+    GM_ADDR x1Scale = MMcontext_.additionalData.x1Scale + taskIndex * MMcontext_.additionalData.x1ScaleOffset;
     tPipePtr_->Reset();
-    MMImplPtr_->Init(baseDataPtr_->aGM, baseDataPtr_->bGM, baseDataPtr_->biasGM, additionalDataPtr_->x2_scale, additionalDataPtr_->x1_scale, baseDataPtr_->cGM, nullptr, tilingDataPtr_, tPipePtr_);
+    MMImpl_.Init(aGM, bGM, MMcontext_.baseData.biasGM, MMcontext_.additionalData.x2Scale, x1Scale, 
+        cGM, nullptr, MMcontext_.tilingDataPtr, tPipePtr_);
+    MMImpl_.Process();
 }
 
-template <typename MMType>
-__aicore__ inline void MxQuantMMControl<MMType>::EndMM(){}
+template <typename MMTilingType, typename MMType>
+inline __aicore__ void MC2KCQuantMMWrapper<MMTilingType, MMType>::End() {}
 
-#ifndef DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT
-#define DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType) \
-    using ComputationType = MC2MMFactory<\
-        MC2MMContext<MxQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>, MxQuantMMControl,\
+// 计算节点的上下文数据类型声明
+#ifndef DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_MX_QUANT
+#define DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_MX_QUANT(ContextType) \
+    using ContextType = MC2MMContext<MXQuantMMAdditionalData, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams>
+#endif
+// 使用MatMulASWKernel算子作为计算节点的计算实现
+#ifndef DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT
+#define DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MX_QUANT(ComputationType) \
+    using ComputationType = MC2KCQuantMMWrapper<\
+        DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams,\
         MatMulASWKernel<DTYPE_X1, DTYPE_X2, AscendC::fp8_e8m0_t, float, DTYPE_Y, CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, false, X2TRANSPOSE>>
 #endif
-} // namespace MC2KernelTemplate
+}; // namespace MC2KernelTemplate
 #endif
 
