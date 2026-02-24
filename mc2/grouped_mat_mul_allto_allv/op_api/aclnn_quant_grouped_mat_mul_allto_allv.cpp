@@ -50,7 +50,7 @@ enum class NnopbaseHcclServerType : uint32_t { // HCCL Server
 static constexpr int64_t DIM_TWO = 2;
 static constexpr int64_t DIM_THREE = 3;
 
-extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize( // Innner的参数要保持与def一致
+extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
@@ -443,7 +443,6 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *mmWeightOffsetOptional, const aclTensor *commQuantScaleOptional, int64_t gmmXQuantMode,
     int64_t gmmWeightQuantMode, int64_t mmXQuantMode, int64_t mmWeightQuantMode, int64_t commQuantMode,
     int64_t commQuantDtypeOptional,
-    // 规避cc文件编译问题
     int64_t groupSize, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
     const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight, const aclTensor *y,
     const aclTensor *mmYOptional, uint64_t *workspaceSize, aclOpExecutor **executor)
@@ -459,10 +458,6 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     CHECK_RET(retSendAndRecv == ACLNN_SUCCESS, retSendAndRecv);
 
     char *strGroup = const_cast<char *>(group);
-    // 规避cc文件编译问题
-    // int64_t groupSize = 0;
-    // int64_t gmmYDtype = 28;
-    // int64_t mmYDtype = 28;
 
     aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
