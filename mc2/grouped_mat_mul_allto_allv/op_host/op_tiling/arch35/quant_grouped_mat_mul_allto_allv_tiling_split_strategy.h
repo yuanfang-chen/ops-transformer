@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -10,7 +10,7 @@
 
 /*!
  * \file quant_grouped_mat_mul_allto_allv_tiling_split_strategy.h
- * \brief
+ * \brief 量化分组矩阵乘法AllToAllV操作的切分策略实现，待建模
  */
 
 #ifndef QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_SPLIT_STRATEGY_H
@@ -36,6 +36,6 @@ public:
     uint32_t mSizePerLoop = 0;
 };
 
-} // namespace MC2Tiling
+} // namespace Mc2GroupedMatmul
 }
 #endif

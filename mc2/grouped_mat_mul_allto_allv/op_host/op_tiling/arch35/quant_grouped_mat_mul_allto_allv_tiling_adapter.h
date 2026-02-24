@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@
 #include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_host_util.h"
 #include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_tiling.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-// #include "../../../op_kernel/arch35/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 
@@ -33,8 +32,6 @@ namespace optiling {
 // 引用3rd目录中的定义
 using namespace Mc2GroupedMatmulTiling::GmmConstant;
 using Mc2GroupedMatmulTiling::QuantMode;
-// using Mc2GroupedMatmulTiling::GQmmBasicTiling;
-// using Mc2GroupedMatmulTiling::GQmmInputInfo;
 using Mc2GroupedMatmulTiling::GroupedQbmmTiling;
 
 namespace Mc2GroupedMatmul {
