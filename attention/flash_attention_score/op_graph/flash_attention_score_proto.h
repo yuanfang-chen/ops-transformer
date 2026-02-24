@@ -105,6 +105,7 @@ REG_OP(FlashAttentionScore)
     .ATTR(offset, Int, 0)
     .ATTR(out_dtype, Int, 0)
     .ATTR(softmax_out_layout, String, "")
+    .ATTR(pScale, Float, 1.0)
     .OP_END_FACTORY_REG(FlashAttentionScore)
 }  // namespace ge
 
