@@ -22,6 +22,96 @@
 #include "tiling/mc2_tiling_utils.h"
 
 namespace optiling {
+enum GmmA2AvInputTensorIndex : uint32_t {
+    GMM_X_INDEX = 0,
+    GMM_WEIGHT_INDEX,
+    SEND_COUNTS_TENSOR_OPTIONAL_INDEX,
+    RECV_COUNTS_TENSOR_OPTIONAL_INDEX,
+    MM_X_OPTIONAL_INDEX,
+    MM_WEIGHT_OPTIONAL_INDEX = 5,
+    GMM_X_SCALE_OPTIONAL_INDEX,
+    GMM_WEIGHT_SCALE_OPTIONAL_INDEX,
+    GMM_X_OFFSET_OPTIONAL_INDEX,
+    GMM_WEIGHT_OFFSET_OPTIONAL_INDEX,
+    MM_X_SCALE_OPTIONAL_INDEX = 10,
+    MM_WEIGHT_SCALE_OPTIONAL_INDEX,
+    MM_X_OFFSET_OPTIONAL_INDEX,
+    MM_WEIGHT_OFFSET_OPTIONAL_INDEX,
+    COMM_QUANT_SCALE_OPTIONAL_INDEX
+}
+// constexpr uint32_t GMM_X_INDEX = 0;
+// constexpr uint32_t GMM_WEIGHT_INDEX = 1;
+// constexpr uint32_t SEND_COUNTS_TENSOR_OPTIONAL_INDEX = 2;
+// constexpr uint32_t RECV_COUNTS_TENSOR_OPTIONAL_INDEX = 3;
+// constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
+// constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
+// constexpr uint32_t GMM_X_SCALE_OPTIONAL_INDEX = 6;
+// constexpr uint32_t GMM_WEIGHT_SCALE_OPTIONAL_INDEX = 7;
+// constexpr uint32_t GMM_X_OFFSET_OPTIONAL_INDEX = 8;
+// constexpr uint32_t GMM_WEIGHT_OFFSET_OPTIONAL_INDEX = 9;
+// constexpr uint32_t MM_X_SCALE_OPTIONAL_INDEX = 10;
+// constexpr uint32_t MM_WEIGHT_SCALE_OPTIONAL_INDEX = 11;
+// constexpr uint32_t MM_X_OFFSET_OPTIONAL_INDEX = 12;
+// constexpr uint32_t MM_WEIGHT_OFFSET_OPTIONAL_INDEX = 13;
+// constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 14;
+enum GmmA2AvOutputTensorIndex : uint32_t {
+    OUTPUT_GMM_Y_INDEX = 0,
+    OUTPUT_MM_Y_OPTIONAL_INDEX
+}
+// constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0;
+// constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
+enum GmmA2AvAttrIndex : uint32_t {
+    ATTR_GROUP_INDEX = 0,
+    ATTR_EP_WORLD_SIZE_INDEX,
+    ATTR_SEND_COUNTS_INDEX,
+    ATTR_RECV_COUNTS_INDEX,
+    ATTR_TRANS_GMM_WEIGHT_INDEX,
+    ATTR_TRANS_MM_WEIGHT_INDEX = 5,
+    ATTR_GMM_X_QUANT_MODE_INDEX,
+    ATTR_GMM_WEIGHT_QUANT_MODE_INDEX,
+    ATTR_MM_X_QUANT_MODE_INDEX,
+    ATTR_MM_WEIGHT_QUANT_MODE_INDEX,
+    ATTR_COMM_QUANT_MODE_INDEX = 10,
+    ATTR_GROUP_SIZE_OPTIONAL_INDEX,
+    ATTR_COMM_QUANT_DTYPE_INDEX
+}
+// constexpr uint32_t ATTR_GROUP_INDEX = 0;
+// constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
+// constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
+// constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
+// constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
+// constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
+// constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 6;
+// constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 7;
+// constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 8;
+// constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 9;
+// constexpr uint32_t ATTR_COMM_QUANT_MODE_INDEX = 10;
+// constexpr uint32_t ATTR_GROUP_SIZE_OPTIONAL_INDEX = 11;
+// constexpr uint32_t ATTR_COMM_QUANT_DTYPE_INDEX = 12;
+
+enum QuantizationMode {
+    QUANT_NONE = 0,          // 不量化
+    QUANT_PERTENSOR = 1,     // pertensor
+    QUANT_PERCHANNEL = 2,    // perchannel
+    QUANT_PERTOKEN = 3,      // pertoken
+    QUANT_PERGROUP = 4,      // pergroup
+    QUANT_PERBLOCK = 5,      // perblock
+    QUANT_MX = 6,            // mx量化
+    QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
+};
+
+enum QuantModePair {
+    QUANT_PAIR_NONE = 0,          // 不量化
+    QUANT_PAIR_TT = 1,     // pertensor
+    QUANT_PAIR_KC = 2,    // perchannel
+    // QUANT_PERTOKEN = 3,      // pertoken
+    // QUANT_PERGROUP = 4,      // pergroup
+    // QUANT_PERBLOCK = 5,      // perblock
+    // QUANT_MX = 6,            // mx量化
+    // QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
+    QUANT_PAIR_ERROR = 255,
+};
+
 constexpr uint32_t DATA_SIZE_L0C = 4;
 constexpr uint64_t CUBE_BLOCK = 16;
 constexpr uint64_t CUBE_REDUCE_BLOCK = 32;
@@ -32,42 +122,6 @@ constexpr uint32_t PERTENSOR_MODE = 1;
 constexpr uint32_t SINGLE_GROUP_NUM = 1;
 constexpr uint32_t GMM_ACT_TYPE_NONE = 0;
 constexpr uint64_t DB_SIZE = 2UL;
-
-constexpr uint32_t GMM_X_INDEX = 0;
-constexpr uint32_t GMM_WEIGHT_INDEX = 1;
-constexpr uint32_t SEND_COUNTS_TENSOR_OPTIONAL_INDEX = 2;
-constexpr uint32_t RECV_COUNTS_TENSOR_OPTIONAL_INDEX = 3;
-constexpr uint32_t MM_X_OPTIONAL_INDEX = 4;
-constexpr uint32_t MM_WEIGHT_OPTIONAL_INDEX = 5;
-constexpr uint32_t GMM_X_SCALE_OPTIONAL_INDEX = 6;
-constexpr uint32_t GMM_WEIGHT_SCALE_OPTIONAL_INDEX = 7;
-constexpr uint32_t GMM_X_OFFSET_OPTIONAL_INDEX = 8;
-constexpr uint32_t GMM_WEIGHT_OFFSET_OPTIONAL_INDEX = 9;
-constexpr uint32_t MM_X_SCALE_OPTIONAL_INDEX = 10;
-constexpr uint32_t MM_WEIGHT_SCALE_OPTIONAL_INDEX = 11;
-constexpr uint32_t MM_X_OFFSET_OPTIONAL_INDEX = 12;
-constexpr uint32_t MM_WEIGHT_OFFSET_OPTIONAL_INDEX = 13;
-constexpr uint32_t COMM_QUANT_SCALE_OPTIONAL_INDEX = 14;
-
-constexpr uint32_t OUTPUT_GMM_Y_INDEX = 0;
-constexpr uint32_t OUTPUT_MM_Y_OPTIONAL_INDEX = 1;
-
-constexpr uint32_t ATTR_GROUP_INDEX = 0;
-constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
-constexpr uint32_t ATTR_SEND_COUNTS_INDEX = 2;
-constexpr uint32_t ATTR_RECV_COUNTS_INDEX = 3;
-
-constexpr uint32_t ATTR_TRANS_GMM_WEIGHT_INDEX = 4;
-constexpr uint32_t ATTR_TRANS_MM_WEIGHT_INDEX = 5;
-constexpr uint32_t ATTR_GMM_X_QUANT_MODE_INDEX = 6;
-constexpr uint32_t ATTR_GMM_WEIGHT_QUANT_MODE_INDEX = 7;
-constexpr uint32_t ATTR_MM_X_QUANT_MODE_INDEX = 8;
-constexpr uint32_t ATTR_MM_WEIGHT_QUANT_MODE_INDEX = 9;
-constexpr uint32_t ATTR_COMM_QUANT_MODE_INDEX = 10;
-constexpr uint32_t ATTR_GROUP_SIZE_OPTIONAL_INDEX = 11;
-constexpr uint32_t ATTR_GMM_Y_DTYPE_INDEX = 12;
-constexpr uint32_t ATTR_MM_Y_DTYPE_INDEX = 13;
-constexpr uint32_t ATTR_COMM_QUANT_DTYPE_INDEX = 14;
 
 constexpr uint32_t DIM_ZERO = 0;
 constexpr uint32_t DIM_ONE = 1;
@@ -108,9 +162,6 @@ constexpr uint32_t MAX_SHARED_H_SHAPE_SIZE = 12288;
 constexpr int64_t MAX_BSK_VALUE = 52428800;
 constexpr int64_t RECV_SEND_MIN = static_cast<int64_t>((2 * 1024 * 1024) / 2);         // 2M / sizeof(gmmX)
 
-inline const char* C_INNER_DEBUG = "GroupedMatMulAlltoAllv Tiling Debug";
-inline const char* C_INNER_PRINT = "GroupedMatMulAlltoAllv Tiling Print";
-
 class GmmAlltoAllvTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass
 {
 public:
@@ -123,6 +174,7 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     uint64_t GetTilingKey() const override;
     ge::graphStatus PostTiling() override;
+    QuantModePair GetQuantMode(const gert::TilingContext *context, const char *opName);
     const char *opName_{nullptr};
     platform_ascendc::SocVersion socVersion_;
 
