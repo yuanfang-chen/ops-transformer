@@ -91,6 +91,17 @@ function(pack_built_in)
       ${CMAKE_SOURCE_DIR}/scripts/package/common/py/merge_binary_info_config.py
   )
 
+  # Install whl to run package staging directory for built-in package
+  if(EXISTS ${WHL_OUTPUT_DIR})
+    file(GLOB WHL_FILES "${WHL_OUTPUT_DIR}/*.whl")
+    if(WHL_FILES)
+      install(FILES ${WHL_FILES}
+        DESTINATION ops_transformer/python/whl
+      )
+      message(STATUS "whl files will be installed to ops_transformer/python/whl")
+    endif()
+  endif()
+
   install(FILES ${SCRIPTS_FILES}
       DESTINATION share/info/ops_transformer/script
   )

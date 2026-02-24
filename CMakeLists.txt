@@ -135,6 +135,33 @@ if (BUILD_OPEN_PROJECT)
         if (ENABLE_TILING_SINK)
             pack_tiling_sink()
         endif()
+
+        # ============= Build torch_extension whl package =============
+        set(TORCH_EXTENSION_DIR ${CMAKE_SOURCE_DIR}/torch_extension)
+        set(WHL_OUTPUT_DIR ${CMAKE_BINARY_DIR}/torch_extension/dist)
+
+        find_program(PYTHON3_EXECUTABLE python3)
+        if(PYTHON3_EXECUTABLE)
+            message(STATUS "Building npu_ops_transformer whl package...")
+            execute_process(
+                COMMAND ${PYTHON3_EXECUTABLE} setup.py bdist_wheel
+                WORKING_DIRECTORY ${TORCH_EXTENSION_DIR}
+                RESULT_VARIABLE WHL_BUILD_RESULT
+                OUTPUT_VARIABLE WHL_BUILD_OUTPUT
+                ERROR_VARIABLE WHL_BUILD_ERROR
+            )
+            if(WHL_BUILD_RESULT EQUAL 0)
+                message(STATUS "npu_ops_transformer whl build successfully")
+                # Copy whl to build directory for packaging
+                file(MAKE_DIRECTORY ${WHL_OUTPUT_DIR})
+                file(COPY ${TORCH_EXTENSION_DIR}/dist/ DESTINATION ${WHL_OUTPUT_DIR})
+            else()
+                message(WARNING "npu_ops_transformer whl build failed: ${WHL_BUILD_ERROR}")
+            endif()
+        else()
+            message(WARNING "python3 not found, skipping whl build")
+        endif()
+
         if (ENABLE_BUILT_IN)
             message(STATUS "Start building built-in package.")
             include(cmake/symbol.cmake)
@@ -146,6 +173,17 @@ if (BUILD_OPEN_PROJECT)
             include(cmake/symbol.cmake)
             if (ENABLE_AICPU)
                 gen_cust_aicpu_symbol()
+            endif()
+
+            # Install whl to run package staging directory for custom package
+            if(EXISTS ${WHL_OUTPUT_DIR})
+                file(GLOB WHL_FILES "${WHL_OUTPUT_DIR}/*.whl")
+                if(WHL_FILES)
+                    install(FILES ${WHL_FILES}
+                        DESTINATION packages/vendors/${VENDOR_NAME}_transformer/python/whl
+                    )
+                    message(STATUS "whl files will be installed to packages/vendors/${VENDOR_NAME}_transformer/python/whl")
+                endif()
             endif()
         endif()
         return()

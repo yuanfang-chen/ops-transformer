@@ -56,4 +56,9 @@
         <path value="opp/built-in/framework" install_mod="550"/>
         <path value="opp/built-in/framework/onnx" install_mod="550"/>
 	</dir_info>
+    <!-- torch_extension whl package directory -->
+    <dir_info value="python" install_path="ops_transformer" install_type="all">
+        <path value="python" install_mod="750"/>
+        <path value="python/whl" install_mod="750"/>
+    </dir_info>
 </config>

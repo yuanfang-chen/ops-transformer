@@ -24,6 +24,36 @@ OPP_COMMON_FILE="${CURR_PATH}/opp_common.sh"
 . "${COMMON_INC_FILE}"
 . "${OPP_COMMON_FILE}"
 
+# Uninstall whl package
+uninstall_whl_package() {
+    local _pythonlocalpath="${TARGET_VERSION_DIR}/python/site-packages"
+    local _whl_package_dir="${_pythonlocalpath}/npu_ops_transformer"
+    local _whl_dist_info=$(find "${_pythonlocalpath}" -maxdepth 1 -type d -name "npu_ops_transformer-*.dist-info" 2>/dev/null | head -n 1)
+
+    logandprint "[INFO]: Uninstalling npu_ops_transformer whl package..."
+
+    if [ -d "${_whl_package_dir}" ]; then
+        rm -rf "${_whl_package_dir}"
+        logandprint "[INFO]: Removed npu_ops_transformer package directory"
+    fi
+
+    if [ -n "${_whl_dist_info}" ] && [ -d "${_whl_dist_info}" ]; then
+        rm -rf "${_whl_dist_info}"
+        logandprint "[INFO]: Removed npu_ops_transformer dist-info directory"
+    fi
+
+    # Remove empty directories
+    local _python_dir="${TARGET_VERSION_DIR}/python"
+    if [ -d "${_python_dir}" ]; then
+        if [ -d "${_pythonlocalpath}" ] && [ -z "$(ls -A "${_pythonlocalpath}" 2>/dev/null)" ]; then
+            rm -rf "${_pythonlocalpath}"
+        fi
+        if [ -z "$(ls -A "${_python_dir}" 2>/dev/null)" ]; then
+            rm -rf "${_python_dir}"
+        fi
+    fi
+}
+
 ARCH_INFO=$(uname -m)
 OPP_PLATFORM_DIR=ops_transformer
 OPP_PLATFORM_UPPER=$(echo "${OPP_PLATFORM_DIR}" | tr '[:lower:]' '[:upper:]')
@@ -186,6 +216,9 @@ remove_ops_transformer() {
   fi
 
   remove_init_py
+
+  # Uninstall whl package before removing module files
+  uninstall_whl_package
 
   remove_module
 

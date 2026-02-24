@@ -335,6 +335,82 @@ add_init_py() {
   fi
 }
 
+# Install whl package to python site-packages
+install_whl_package() {
+    local _pythonlocalpath="${TARGET_VERSION_DIR}/python/site-packages"
+    local _whl_file=""
+
+    logandprint "[INFO]: Installing npu_ops_transformer whl package..."
+
+    # Search for whl file in both built-in and custom package paths
+    # Built-in path: ${TARGET_MOULDE_DIR}/python/whl
+    # Custom path: packages/vendors/*_transformer/python/whl (relative to install root)
+    local _whl_dirs="${TARGET_MOULDE_DIR}/python/whl"
+
+    # Also search in custom vendor paths
+    local _vendor_dir="${TARGET_VERSION_DIR}/packages/vendors"
+    if [ -d "${_vendor_dir}" ]; then
+        for _vendor_path in "${_vendor_dir}"/*_transformer/python/whl; do
+            if [ -d "${_vendor_path}" ]; then
+                _whl_dirs="${_whl_dirs} ${_vendor_path}"
+            fi
+        done
+    fi
+
+    # Find whl file in any of the directories
+    for _whl_dir in ${_whl_dirs}; do
+        if [ -d "${_whl_dir}" ]; then
+            _whl_file=$(find "${_whl_dir}" -name "npu_ops_transformer-*.whl" 2>/dev/null | head -n 1)
+            if [ -n "${_whl_file}" ]; then
+                logandprint "[INFO]: Found whl file: ${_whl_file}"
+                break
+            fi
+        fi
+    done
+
+    if [ -z "${_whl_file}" ]; then
+        logandprint "[WARNING]: No npu_ops_transformer whl file found"
+        return 0
+    fi
+
+    # Create python site-packages directory
+    comm_create_dir "${_pythonlocalpath}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
+
+    # Check pip3 availability
+    local _pip_cmd=""
+    if command -v pip3 &> /dev/null; then
+        _pip_cmd="pip3"
+    elif command -v pip &> /dev/null; then
+        _pip_cmd="pip"
+    else
+        logandprint "[WARNING]: pip/pip3 not found, skipping whl installation"
+        return 0
+    fi
+
+    # Install whl package
+    logandprint "[INFO]: Installing ${_whl_file} to ${_pythonlocalpath}"
+    ${_pip_cmd} install --disable-pip-version-check --upgrade --no-deps --force-reinstall \
+        "${_whl_file}" -t "${_pythonlocalpath}" 2>&1 | while read -r line; do
+        logandprint "[INFO]: ${line}"
+    done
+
+    local _install_result=${PIPESTATUS[0]}
+    if [ ${_install_result} -ne 0 ]; then
+        logandprint "[WARNING]: whl installation failed with code ${_install_result}, but continuing..."
+    else
+        logandprint "[INFO]: npu_ops_transformer whl installed successfully to ${_pythonlocalpath}"
+    fi
+
+    # Set permissions for installed files
+    if [ -d "${_pythonlocalpath}/npu_ops_transformer" ]; then
+        if [ "$(id -u)" = "0" ]; then
+            chmod -R 755 "${_pythonlocalpath}/npu_ops_transformer" 2>/dev/null
+        else
+            chmod -R 750 "${_pythonlocalpath}/npu_ops_transformer" 2>/dev/null
+        fi
+    fi
+}
+
 install_opp() {
   logandprint "[INFO]: Begin install opp module."
   comm_create_dir "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
@@ -357,6 +433,11 @@ install_opp() {
   add_init_py
 
   logandprint "[INFO]: upgradePercentage:50%"
+
+  # Install whl package
+  install_whl_package
+
+  logandprint "[INFO]: upgradePercentage:70%"
 }
 
 main() {
