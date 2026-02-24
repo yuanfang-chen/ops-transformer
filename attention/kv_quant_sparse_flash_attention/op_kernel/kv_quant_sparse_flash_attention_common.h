@@ -47,20 +47,26 @@ enum class QUANT_SCALE_REPO_MODE {
     COMBINE = 1, // 合并存储，量化模式是PER_TOKEN_HEAD/PER_TILE时支持COMBINE模式，参数顺序为：Nope+Rope+DequantScale
 };
 
-template <typename Q_T, typename KV_T, typename OUT_T, const bool FLASH_DECODE = false,
-	  QSFA_LAYOUT LAYOUT_T = QSFA_LAYOUT::BSND, QSFA_LAYOUT KV_LAYOUT_T = QSFA_LAYOUT::BSND,
-          const int TEMPLATE_MODE = C_TEMPLATE, typename... Args>
-struct QSFAType {
-    using queryType = Q_T;
-    using kvType = KV_T;
-    using kRopeType = Q_T;
-    using outputType = OUT_T;
-    static constexpr bool flashDecode = FLASH_DECODE;
-    static constexpr QSFA_LAYOUT layout = LAYOUT_T;
-    static constexpr QSFA_LAYOUT kvLayout = KV_LAYOUT_T;
-    static constexpr int templateMode = TEMPLATE_MODE;
-    static constexpr bool pageAttention = (KV_LAYOUT_T == QSFA_LAYOUT::PA_BSND);
+enum class QSFATemplateMode {
+    SWA_TEMPLATE_MODE = 0,
+    CFA_TEMPLATE_MODE = 1,
+    SCFA_TEMPLATE_MODE = 2
 };
+
+// template <typename Q_T, typename KV_T, typename OUT_T, const bool FLASH_DECODE = false,
+// 	  QSFA_LAYOUT LAYOUT_T = QSFA_LAYOUT::BSND, QSFA_LAYOUT KV_LAYOUT_T = QSFA_LAYOUT::BSND,
+//           const int TEMPLATE_MODE = C_TEMPLATE, typename... Args>
+// struct QSFAType {
+//     using queryType = Q_T;
+//     using kvType = KV_T;
+//     using kRopeType = Q_T;
+//     using outputType = OUT_T;
+//     static constexpr bool flashDecode = FLASH_DECODE;
+//     static constexpr QSFA_LAYOUT layout = LAYOUT_T;
+//     static constexpr QSFA_LAYOUT kvLayout = KV_LAYOUT_T;
+//     static constexpr int templateMode = TEMPLATE_MODE;
+//     static constexpr bool pageAttention = (KV_LAYOUT_T == QSFA_LAYOUT::PA_BSND);
+// };
 
 // ================================Util functions==================================
 template <typename T> __aicore__ inline T QSFAAlign(T num, T rnd)
