@@ -13,8 +13,8 @@
  * \brief
  */
 
-#ifndef MATMUL_ALLTO_ALL_ARCH35_H
-#define MATMUL_ALLTO_ALL_ARCH35_H
+#ifndef MATMUL_ALLTO_ALL_910_93_H
+#define MATMUL_ALLTO_ALL_910_93_H
 
 #include "matmul_allto_all_tiling_data_910_93.h"
 
@@ -27,10 +27,10 @@ using namespace AscendC;
  * MatmulAlltoAllTilingDataType: tilingdata的数据类型
  */
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-class MatmulAlltoAllArch35
+class MatmulAlltoAllA3
 {
 public:
-    __aicore__ inline MatmulAlltoAllArch35(SchedulerType* pipeLine) : pipeLine_(pipeLine){};
+    __aicore__ inline MatmulAlltoAllA3(SchedulerType* pipeLine) : pipeLine_(pipeLine){};
     __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y,
                                 GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData,
                                 TPipe* tPipe);
@@ -60,7 +60,7 @@ private:
 };
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y,
+__aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y,
     GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData,TPipe* tPipe)
 {   
     // 获取tilingdata数据
@@ -80,7 +80,7 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Process()
+__aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Process()
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     // 启动主块流水
@@ -98,7 +98,7 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTile(uint32_t taskCnt)
+__aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTile(uint32_t taskCnt)
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     //matmul矩阵乘计算的输入输出地址，到下一轮计算的数据地址的偏移
@@ -136,7 +136,7 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTail(uint32_t taskCnt)
+__aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTail(uint32_t taskCnt)
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     pipeLineContext_.aGM = x1_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * mc2Tiling_.rankK * sizeof(DTYPE_X1);
@@ -165,7 +165,7 @@ __aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType,
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
-__aicore__ inline void MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessPipeLine(uint32_t taskCnt)
+__aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessPipeLine(uint32_t taskCnt)
 {
     pipeLine_->ChangeSpecification(&pipeLineContext_);
     pipeLine_->Process(taskCnt);

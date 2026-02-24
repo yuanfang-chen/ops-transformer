@@ -12,18 +12,21 @@
  * \file fp_matmul_allto_all_tiling_910_93.cpp
  * \brief
  */
+#include "fp_matmul_allto_all_tiling_910_93.h"
 #include <string>
 #include <vector>
-#include "platform/platform_infos_def.h"
-#include "hccl/hccl_types.h"
-#include "matmul_allto_all_tiling_910_93.h"
 #include "op_mc2.h"
 #include "mc2_log.h"
+#include "platform/platform_infos_def.h"
+#include "hccl/hccl_types.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
 using namespace Mc2Tiling;
 
+name space{
+constexpr uint32_t ATTR_GROUP_INDEX = 0;
+}
 namespace MC2Tiling {
 
 /**
@@ -186,7 +189,7 @@ ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoOpTiling()
 ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoMMTiling()
 {
  	contextInfo.args_.mValue = inferredInfo.tileM;
- 	AllToAllFpMatmulHelper mmTile(*this, localTilingData_.mc2MmV3TileTilingData);
+ 	FpMatmulAllToAllHelper mmTile(*this, localTilingData_.mc2MmV3TileTilingData);
  	if (contextInfo.args_.enableSplitK) {
  	    OP_LOGD(opName_, "Enable SplitK Tiling.");
  	    auto res = mmTile.DoTiling();
@@ -197,7 +200,7 @@ ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoMMTiling()
  	        return ge::GRAPH_SUCCESS;
  	    }
  	    contextInfo.args_.mValue = inferredInfo.tailM;
- 	    AllToAllFpMatmulHelper mmTail(*this, localTilingData_.mc2MmV3TailTilingData);
+ 	    FpMatmulAllToAllHelper mmTail(*this, localTilingData_.mc2MmV3TailTilingData);
  	    auto res = mmTail.DoTiling();
  	    return res;
  	}

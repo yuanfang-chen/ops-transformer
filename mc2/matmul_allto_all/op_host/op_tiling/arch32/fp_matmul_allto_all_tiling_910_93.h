@@ -32,6 +32,8 @@ using namespace optiling;
 using namespace mc2_matmul_v3_advanced;
 
 class FpMatmulAllToAllTilingBaseA3 : public MatmulAllToAllTilingBase {
+    friend class FpMatmulAllToAllHelper;
+
 public:
     explicit FpMatmulAllToAllTilingBaseA3(gert::TilingContext *context);
     ~FpMatmulAllToAllTilingBaseA3() override = default;
@@ -53,7 +55,8 @@ protected:
     void PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingData &outTilingData);
 
 private:
-    MatmulAlltoAllTilingData localTilingData_;
+    MatmulAlltoAllTilingDataA3 localTilingData_;
+    std::string socVersionStr_;
 
     Mc2MatMulV3Args mmV3Args_;
     Mc2MatmulV3CompileInfo compileInfo_;
