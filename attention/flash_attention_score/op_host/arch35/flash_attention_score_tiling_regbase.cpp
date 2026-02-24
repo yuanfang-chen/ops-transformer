@@ -832,7 +832,7 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         int64_t dimValue3 = dScaleKShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_3);
         
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
-            (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE  - 1) / QUANT_KV_BLOCK_SIZE ) || dimValue3 != D_SCALE_DIM_NUM_1,
+            (dimValue2 != (s2Size + QUANT_K_BLOCK_SIZE  - 1) / QUANT_K_BLOCK_SIZE ) || dimValue3 != D_SCALE_DIM_NUM_1,
                     OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleK dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
@@ -855,8 +855,8 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         int64_t dimValue2 = dScaleVShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_2);
         int64_t dimValue3 = dScaleVShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_3);
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
-            (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE - 1) / QUANT_KV_BLOCK_SIZE) || dimValue3 != D_SCALE_DIM_NUM_1,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
+            (dimValue2 != (s2Size + QUANT_V_BLOCK_SIZE - 1) / QUANT_V_BLOCK_SIZE) || dimValue3 != D_SCALE_DIM_NUM_1,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNum [%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/512), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
     }
