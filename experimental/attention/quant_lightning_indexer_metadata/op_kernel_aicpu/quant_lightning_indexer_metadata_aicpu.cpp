@@ -258,8 +258,8 @@ uint32_t QuantLightningIndexerMetadataCpuKernel::GetS1SeqSize(uint32_t bIdx)
     }
     const int32_t *s1Ptr = (int32_t*)actSeqLenQ_->GetData();
     if (layoutQuery_ == "TND") {
-            return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
-                static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
+        return (bIdx == 0) ? static_cast<uint32_t>(s1Ptr[bIdx]) :
+            static_cast<uint32_t>(s1Ptr[bIdx] - s1Ptr[bIdx - 1U]);
     } else {
         return static_cast<uint32_t>(s1Ptr[bIdx]);
     }
