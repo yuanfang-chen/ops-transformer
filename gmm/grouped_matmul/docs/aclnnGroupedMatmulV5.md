@@ -333,7 +333,7 @@ aclnnStatus aclnnGroupedMatmulV5(
   - <term>Ascend 950PR/Ascend 950DT</term>：
 
     - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
-    - 输入参数x、weight均不支持INT16类型，且x不支持int4类型；
+    - 输入参数x、weight均不支持INT16类型，且x不支持INT4类型；
     - 输入参数x、weight，输出参数out在非量化场景支持最多1024个tensor，在伪量化支持最多128个tensor，在全量化场景最多支持1个tensor。
 
 
@@ -775,7 +775,14 @@ aclnnStatus aclnnGroupedMatmulV5(
     - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型，取值范围为0-5。
       - 在伪量化和非量化场景下，actType仅支持0。
       - 在全量化场景下，当x和weight为INT8，量化模式为静态T-C量化或动态K-C量化，scale数据类型为FLOAT32或BFLOAT16时，actType支持传入0、1、2、4、5。其余全量化场景actType仅支持0。
-   
+      - 枚举值含义如下：	 
+       * 0：GMMActType::GMM_ACT_TYPE_NONE；
+       * 1：GMMActType::GMM_ACT_TYPE_RELU；
+       * 2：GMMActType::GMM_ACT_TYPE_GELU_TANH；	 
+       * 3：GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC（不支持）；
+       * 4：GMMActType::GMM_ACT_TYPE_FAST_GELU；
+       * 5：GMMActType::GMM_ACT_TYPE_SILU；
+
     <a id="静态量化场景约束"></a>
     <details>
     <summary>静态量化场景约束</summary>
@@ -929,7 +936,8 @@ aclnnStatus aclnnGroupedMatmulV5(
       |-1|weight多tensor|每个tensor 1维，shape为（$n_i$），不允许存在一个tensorList中部分tensor的shape为（$n_i$）部分tensor为空的情况 |
       |0|weight单tensor|每个tensor 2维，shape为（E, N）|
 
-  - 不同groupType支持场景:
+
+    </details>
 
     <details>
       <summary><term>不同groupType约束</term></summary>
