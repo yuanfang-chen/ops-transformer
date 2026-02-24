@@ -71,11 +71,11 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
         using DtypeBias = float;
         MATMUL_ALLTO_ALL_APT_FP_IMPL(tilingData, pipe);
     }
-#elif (QUANTMODE == KC_QUANT_MODE)
-    //注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
+#else
     REGISTER_TILING_DEFAULT(QuantMatmulAlltoAllTilingData);
     GET_TILING_DATA_WITH_STRUCT(QuantMatmulAlltoAllTilingData, tilingData, tilingGM);
 
+    if constexpr (QUANTMODE == KC_QUANT_MODE) {
     DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_QUANT(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams, ComputationType, DTYPE_X1, DTYPE_X2);
     ComputationType matmulImplName(&pipe);
     DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);
@@ -88,10 +88,8 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl);
     op.Init(x1, x2, bias, y, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
     op.Process();
-#else
-    REGISTER_TILING_DEFAULT(QuantMatmulAlltoAllTilingData);
-    GET_TILING_DATA_WITH_STRUCT(QuantMatmulAlltoAllTilingData, tilingData, tilingGM);
-
+    }
+    else if constexpr (QUANTMODE == MX_QUANT_MODE) {
     DEFINE_AND_IMPL_MC2_MATMUL_FOR_MATMUL_COMPUTATION_MXQUANT(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams, ComputationType);
     ComputationType matmulImplName(&pipe);
     DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);
@@ -104,5 +102,6 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl);
     op.Init(x1, x2, bias, y, x1_scale, x2_scale, workspaceGM, &tilingData, &pipe);
     op.Process();
+    }
 #endif
 }
