@@ -16,25 +16,25 @@
 #ifndef FP_MATMUL_ALLTO_ALL_TILING_BASE_H
 #define FP_MATMUL_ALLTO_ALL_TILING_BASE_H
 
+#include <string>
 #include "securec.h"
 #include "mc2_matmul_tiling_cfg.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
-#include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
+#include "mc2/3rd/mat_mul_v3/op_host/op_tiling/matmul_v3_base_tiling.h"
 #include "../matmul_allto_all_tiling_base.h"
 #include "../common/matmul_allto_all_util_tiling.h"
-#include "../../../op_kernel/arch35/matmul_allto_all_tiling_data.h"
-#include "../../../op_kernel/arch35/matmul_allto_all_tiling_key.h"
+#include "../../../op_kernel/arch32/matmul_allto_all_tiling_data.h"
+#include "../../../op_kernel/arch32/matmul_allto_all_tiling_key.h"
 
 namespace MC2Tiling {
 
 using namespace optiling;
 using namespace mc2_matmul_v3_advanced;
 
-class FpMatmulAllToAllTilingBase : public MatmulAllToAllTilingBase {
+class FpMatmulAllToAllTilingBaseA3 : public MatmulAllToAllTilingBase {
 public:
-    explicit FpMatmulAllToAllTilingBase(gert::TilingContext *context);
-    ~FpMatmulAllToAllTilingBase() override = default;
+    explicit FpMatmulAllToAllTilingBaseA3(gert::TilingContext *context);
+    ~FpMatmulAllToAllTilingBaseA3() override = default;
 
 protected:
     bool IsCapable() override;
@@ -42,6 +42,7 @@ protected:
     ge::graphStatus PostTiling() override;
     uint64_t GetTilingKey() const override;
 
+    ge::graphStatus CheckA3NonQuantTensorDataType(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckOpInputInfo();
     ge::graphStatus InitTilingContextParameters();
     ge::graphStatus DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg, Mc2MMRegisterCfg &registerCfg,
@@ -60,5 +61,17 @@ private:
     void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling);
     void PrintMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
 };
+
+class AllToAllFpMatmulHelper : public mc2_matmul_v3::Mc2MatmulV3BaseTiling
+{
+public:
+ 	AllToAllFpMatmulHelper(AllToAllFpMatmulTilingBaseA3& alltoAllMatmulTilingA3, Mc2MatmulV3TilingData& data);
+ 	 
+ 	ge::graphStatus PostTiling() override;
+ 	 
+private:
+ 	AllToAllFpMatmulTilingBaseA3& tilingProcesser_;
+};
+
 } // namespace MC2Tiling
 #endif

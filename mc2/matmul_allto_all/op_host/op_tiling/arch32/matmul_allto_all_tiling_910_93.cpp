@@ -27,15 +27,94 @@ namespace MC2Tiling {
  *
  * @return true
  */
-bool FpMatmulAllToAllTilingBase::IsCapable()
+bool FpMatmulAllToAllTilingBaseA3::IsCapable()
 {
-    QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
-    if (mode == QuantMode::NON_QUANT) {
-        OP_LOGI(opName_, "Start with FpMatmulAllToAll tiling.");
-        return true;
-    }
-    OP_LOGI(opName_, "Skip FpMatmulAllToAll tiling when not NON_QUANT.");
-    return false;
+ 	fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+ 	OP_TILING_CHECK(platformInfoPtr == nullptr,         \
+ 	    OP_LOGE(opName_, "fail to get platfoem info"),  \
+ 	    return ge::GRAPH_FAILED);
+ 	fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+ 	(void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr_);
+ 	OP_LOGD(opName_, "Current SocVersion is : %s", socVersionStr_.c_str());
+ 	QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+ 	if ((mode == QuantMode::NON_QUANT) && (socVersionStr_ == "Ascend910_93")) {
+ 	    OP_LOGI(opName_, "Start with A3 FpMatmulAllToAll tiling.");
+ 	    return true;
+ 	}
+ 	OP_LOGI(opName_, "Skip FpMatmulAllToAll tiling when it is not NON_QUANT or the SocVersion is unsupported.");
+ 	return false;
+}
+
+/**
+  * @brief 校验输入Dtype信息是否合规
+  *
+  * @param context 框架根据input，output，attrs等信息生成tiling需要的context
+  * @param opName  算子名称
+  * @return ge::graphStatus
+  */
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::CheckA3NonQuantTensorDataType(const gert::TilingContext *context,
+ 	                                                                           const char *opName)
+{
+ 	// 获取并校验输入张量描述符
+ 	auto x1TensorDesc = context->GetInputDesc(INPUT_X1_INDEX);
+ 	OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x1 is invalid."),
+ 	                return ge::GRAPH_FAILED);
+ 	auto x2TensorDesc = context->GetInputDesc(INPUT_X2_INDEX);
+ 	OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x2 is invalid."),
+ 	                return ge::GRAPH_FAILED);
+ 	     // 获取数据类型并校验一致性与范围
+ 	ge::DataType x1Dtype = x1TensorDesc->GetDataType();
+ 	ge::DataType x2Dtype = x2TensorDesc->GetDataType();
+ 	OP_TILING_CHECK((x1Dtype != x2Dtype),
+ 	                OP_LOGE(opName, "The Input x1 and x2 Dtype should be same, but x1 is %s, x2 is %s.",
+ 	                        Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
+ 	                return ge::GRAPH_FAILED);
+ 	OP_TILING_CHECK(!IsContains(NON_QUANT_X_DTYPE_LIST, x1Dtype),
+ 	                OP_LOGE(opName,
+ 	                        "The Input x Dtype should be in non-quant range (float16/bf16), but x1 is %s, x2 is %s.",
+ 	                         Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
+ 	                return ge::GRAPH_FAILED);
+ 	 
+ 	     // 校验 bias 数据类型（如果存在）
+ 	auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
+ 	if (biasTensorDesc != nullptr) {
+ 	    ge::DataType biasDtype = biasTensorDesc->GetDataType();
+ 	    if (x1Dtype == ge::DT_BF16) {
+ 	        OP_TILING_CHECK((biasDtype != ge::DT_FLOAT),
+ 	            OP_LOGE(opName,
+ 	                    "When x1 Dtype is FP16, bias Dtype must be FLOAT32 DType, but bias is %s.",
+ 	                    Ops::Base::ToString(biasDtype).c_str()),
+ 	            return ge::GRAPH_FAILED);
+ 	    } else if (x1Dtype == ge::DT_FLOAT16) {
+ 	        OP_TILING_CHECK((x1Dtype != biasDtype),
+ 	                 OP_LOGE(opName,
+ 	                         "When x1 Dtype is FLOAT16, bias Dtype should be same as x Dtype, but bias is %s.",
+ 	                         Ops::Base::ToString(biasDtype).c_str()),
+ 	                 return ge::GRAPH_FAILED);
+ 	    } else {
+ 	        OP_LOGE(opName,
+ 	                "The non-quantized scene bias Dtype currently only supports FLOAT16 and FP16, but bias is %s.",
+ 	                Ops::Base::ToString(biasDtype).c_str());
+ 	            return ge::GRAPH_FAILED;
+ 	        }
+ 	    }
+ 	 
+ 	// 校验 scale 张量为空（非量化场景）
+ 	auto x1ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
+ 	auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
+ 	OP_TILING_CHECK((x1ScaleTensorDesc != nullptr || x2ScaleTensorDesc != nullptr),
+ 	                OP_LOGE(opName, "Scale tensors should be null in non-quant mode."), return ge::GRAPH_FAILED);
+ 	 
+ 	// 校验输出张量数据类型
+ 	auto yDesc = context->GetOutputDesc(OUTPUT_Y_INDEX);
+ 	OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
+ 	ge::DataType yDtype = yDesc->GetDataType();
+ 	OP_TILING_CHECK((yDtype != x1Dtype),
+ 	                OP_LOGE(opName, "Output y Dtype should be same as input x Dtype, but y is %s.",
+ 	                        Ops::Base::ToString(yDtype).c_str()),
+ 	                return ge::GRAPH_FAILED);
+ 	 
+ 	return ge::GRAPH_SUCCESS;
 }
 
 /**
@@ -43,14 +122,14 @@ bool FpMatmulAllToAllTilingBase::IsCapable()
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::CheckOpInputInfo()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::CheckOpInputInfo()
 {
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
                         ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Attrs failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);              
-    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckNonQuantTensorDataType(context_, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckA3NonQuantTensorDataType(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Dtype failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckShapeInfo(context_, opName_, MATMUL_ALLTOALL_INDEX_SCHEMA) !=
                         ge::GRAPH_SUCCESS,
@@ -65,7 +144,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::CheckOpInputInfo()
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::InitTilingContextParameters()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::InitTilingContextParameters()
 {
     GE_ASSERT_GRAPH_SUCCESS(
         MatmulAlltoAllTilingUtil::SetAttrsInfo(context_, opName_, contextInfo, MATMUL_ALLTOALL_INDEX_SCHEMA));
@@ -80,7 +159,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::InitTilingContextParameters()
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::DoOpTiling()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoOpTiling()
 {
     // 输入参数的校验:Attrs,Dtype,Shape等
     GE_ASSERT_GRAPH_SUCCESS(CheckOpInputInfo());
@@ -100,39 +179,24 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoOpTiling()
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoMMTiling()
 {
-    // 非空校验已在GetPlatformInfo校验过
-    fe::PlatFormInfos *platformInfo = context_->GetPlatformInfo();
-    if (mc2_matmul_v3_advanced::InitCompileInfo(platformInfo, &compileInfo_) != ge::GRAPH_SUCCESS) {
-        OP_LOGE(opName_, "Fail to Init CompileInfo!");
-        return ge::GRAPH_FAILED;
-    }
-
-    auto ascendcPlatForm = platform_ascendc::PlatformAscendC(platformInfo);
-
-    std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_));
-
-    Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", socVersion_, priorities};
-
-    mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, contextInfo.args_, opName_);
-
-    // tile tiling, 对于matmulAlltoAll,mvalue就是切块大小
-    mmV3Args_.mValue = inferredInfo.tileM;
-    Mc2MatmulHelper::Mc2MatmulTilingCfg tileTilingCfg(reinterpret_cast<const void *>(&compileInfo_),
-                                                      reinterpret_cast<const void *>(&mmV3Args_));
-    GE_ASSERT_GRAPH_SUCCESS(DoMatmulV3Tiling(tileTilingCfg, registerCfg, localTilingData_.mc2MmV3TileTilingData));
-
-    if (inferredInfo.tailM > 0) {
-        //  tail  tiling
-        mmV3Args_.mValue = inferredInfo.tailM;
-        Mc2MatmulHelper::Mc2MatmulTilingCfg tailTilingCfg(reinterpret_cast<const void *>(&compileInfo_),
-                                                          reinterpret_cast<const void *>(&mmV3Args_));
-        GE_ASSERT_GRAPH_SUCCESS(DoMatmulV3Tiling(tailTilingCfg, registerCfg, localTilingData_.mc2MmV3TailTilingData));
-    }
-
-    return ge::GRAPH_SUCCESS;
+ 	contextInfo.args_.mValue = inferredInfo.tileM;
+ 	AllToAllFpMatmulHelper mmTile(*this, localTilingData_.mc2MmV3TileTilingData);
+ 	if (contextInfo.args_.enableSplitK) {
+ 	    OP_LOGD(opName_, "Enable SplitK Tiling.");
+ 	    auto res = mmTile.DoTiling();
+ 	    return res;
+ 	} else {
+ 	    GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
+ 	    if (inferredInfo.tailCnt == 0) {
+ 	        return ge::GRAPH_SUCCESS;
+ 	    }
+ 	    contextInfo.args_.mValue = inferredInfo.tailM;
+ 	    AllToAllFpMatmulHelper mmTail(*this, localTilingData_.mc2MmV3TailTilingData);
+ 	    auto res = mmTail.DoTiling();
+ 	    return res;
+ 	}
 }
 
 /**
@@ -143,7 +207,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
  * @param tilingData 对应首块或尾块的tilingData
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg,
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::DoMatmulV3Tiling(Mc2MatmulHelper::Mc2MatmulTilingCfg &tilingCfg,
                                                              Mc2MMRegisterCfg &registerCfg,
                                                              Mc2MatMulV3TilingData &tilingData)
 {
@@ -162,27 +226,34 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMatmulV3Tiling(Mc2MatmulHelper::Mc
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::SetHcclTiling()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::SetHcclTiling()
 {
     OP_TILING_CHECK(mc2tiling::ConvertGeTypeToHcclType(opName_, contextInfo.args_.geCType) ==
-                        mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
-                    VECTOR_INNER_ERR_REPORT_TILING(opName_, "Cannot find HcclDataType according to ge datatype = %d.",
-                                                   static_cast<int32_t>(contextInfo.args_.geCType)),
-                    return ge::GRAPH_FAILED;);
-
-    Mc2CcTilingConfigBuilder allToAllBuilder =
-        Mc2CcTilingConfigBuilder::create(contextInfo.group, mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL,
-                                         Mc2CcTilingConfigBuilder::AlgConfigType::ALL_TO_ALL);
-    //reducetype接口附带的数据类型优先于调用通信接口传入的数据类型，因此这里需要设置
-    AscendC::Mc2CcTilingConfig allToAllTilingConfig = allToAllBuilder.withCommEngine(mc2tiling::A5_CCU_ENGINE).
-        withReduceType(opName_, AscendC::HcclReduceOp::HCCL_REDUCE_SUM, contextInfo.args_.geCType, contextInfo.args_.geCType).build();
-    if (!allToAllBuilder.isSuccess()) {
-        OP_LOGE(opName_, "Build hccl tiling config failed: %s", allToAllBuilder.errorMsg().c_str());
-        return ge::GRAPH_FAILED;
-    }
-    allToAllTilingConfig.GetTiling(localTilingData_.mc2InitTiling);
-    allToAllTilingConfig.GetTiling(localTilingData_.mc2CcTiling);
-    return ge::GRAPH_SUCCESS;
+ 	                    mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
+ 	                OP_LOGE(opName_, "Cannot find HcclDataType according to ge datatype = %d.",
+ 	                        static_cast<int32_t>(contextInfo.args_.geCType)),
+ 	                return ge::GRAPH_FAILED;);
+ 	auto group = context_->GetAttrs()->GetAttrPointer<char>(ATTR_GROUP_INDEX);
+ 	OP_TILING_CHECK(group == nullptr,                                                                   \
+ 	                OP_LOGE(context_->GetNodeName(), "GetAttrPointer for ATTR_GROUP_INDEX failed"),     \
+ 	                return ge::GRAPH_FAILED);
+ 	uint32_t optype = HcclCMDType::HCCL_CMD_ALLTOALL;
+ 	std::string algConfig = "AlltoAll=level0:fullmesh;level1:pairwise";
+ 	OP_LOGD(context_->GetNodeName(), "AllToAllFpMatmulTilingBaseA3, SetHcclTiling algConfig is: %s", \
+ 	        algConfig.c_str());
+ 	AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, optype, algConfig);
+ 	 
+ 	OP_TILING_CHECK(mc2CcTilingConfig.SetSkipBufferWindowCopy(                                              \
+ 	                    static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT)) != 0,    \
+ 	                OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig setSkipBufferWindowCopy failed"),   \
+ 	                return ge::GRAPH_FAILED);
+ 	OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(localTilingData_.mc2InitTiling) != 0,                  \
+ 	                OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), \
+ 	                return ge::GRAPH_FAILED);
+ 	OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(localTilingData_.mc2CcTiling) != 0,                  \
+ 	                OP_LOGE(context_->GetNodeName(), "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), \
+ 	                return ge::GRAPH_FAILED);
+ 	return ge::GRAPH_SUCCESS;
 }
 
 /**
@@ -191,7 +262,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::SetHcclTiling()
  * @param opName
  * @param tiling
  */
-void FpMatmulAllToAllTilingBase::PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling)
+void FpMatmulAllToAllTilingBaseA3::PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling)
 {
     PrintTCubeTilingData(opName, tiling.tCubeTiling);
     OP_LOGD(opName, " tiling.mTailCnt %d", tiling.mTailCnt);
@@ -211,7 +282,7 @@ void FpMatmulAllToAllTilingBase::PrintMMV3TilingData(const std::string &opName, 
  * @param opName
  * @param tilingInfo
  */
-void FpMatmulAllToAllTilingBase::PrintMatmulAlltoAllTilingInfo(const std::string &opName,
+void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingInfo(const std::string &opName,
                                                                MatmulAlltoAllTilingInfo &tilingInfo)
 {
     OP_LOGD(opName, "tilingInfo.rankDim: %u", tilingInfo.rankDim);
@@ -235,7 +306,7 @@ void FpMatmulAllToAllTilingBase::PrintMatmulAlltoAllTilingInfo(const std::string
  *
  * @param outTilingData tilingData参数
  */
-void FpMatmulAllToAllTilingBase::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingData &outTilingData)
+void FpMatmulAllToAllTilingBaseA3::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTilingData &outTilingData)
 {
     PrintMatmulAlltoAllTilingInfo(opName_, outTilingData.matmulAlltoAllTilingInfo);
     PrintMMV3TilingData(opName_, outTilingData.mc2MmV3TileTilingData);
@@ -253,7 +324,7 @@ void FpMatmulAllToAllTilingBase::PrintMatmulAlltoAllTilingData(MatmulAlltoAllTil
  *
  * @return uint64_t tilingKey结果
  */
-uint64_t FpMatmulAllToAllTilingBase::GetTilingKey() const
+uint64_t FpMatmulAllToAllTilingBaseA3::GetTilingKey() const
 {
     // 按照量化组合模式，是否转置，bias数据类型进行展开
     bool x2TransposeFlag = contextInfo.args_.isBTrans ? true : false;
@@ -273,7 +344,7 @@ uint64_t FpMatmulAllToAllTilingBase::GetTilingKey() const
  *
  * @return ge::graphStatus
  */
-ge::graphStatus FpMatmulAllToAllTilingBase::PostTiling()
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::PostTiling()
 {
     SetTilingInfo(localTilingData_.matmulAlltoAllTilingInfo);
     MatmulAlltoAllTilingData *outTilingData = context_->GetTilingData<MatmulAlltoAllTilingData>();
@@ -305,7 +376,7 @@ ge::graphStatus FpMatmulAllToAllTilingBase::PostTiling()
  *
  * @param tilingInfo 目标结构体
  */
-void FpMatmulAllToAllTilingBase::SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const
+void FpMatmulAllToAllTilingBaseA3::SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const
 {
     // 基本字段拷贝
     tilingInfo.tileM = inferredInfo.tileM;
@@ -329,11 +400,11 @@ void FpMatmulAllToAllTilingBase::SetTilingInfo(MatmulAlltoAllTilingInfo &tilingI
  *
  * @param context
  */
-FpMatmulAllToAllTilingBase::FpMatmulAllToAllTilingBase(gert::TilingContext *context) : MatmulAllToAllTilingBase(context)
+FpMatmulAllToAllTilingBaseA3::FpMatmulAllToAllTilingBaseA3(gert::TilingContext *context) : MatmulAllToAllTilingBase(context)
 {
 }
 
 // 注册tiling类
-REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAlltoAll, FpMatmulAllToAllTilingBase,
-                                         static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
+REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(MatmulAlltoAll, FpMatmulAllToAllTilingBaseA3,
+                                         static_cast<int32_t>(platform_ascendc::SocVersion::Ascend910B), 0);
 } // namespace MC2Tiling
