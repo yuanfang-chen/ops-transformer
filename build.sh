@@ -557,6 +557,51 @@ function build_package(){
     build package
 }
 
+# Build torch_extension whl package (npu_ops_transformer)
+function build_torch_extension_whl(){
+    echo "--------------- build torch_extension whl package start ---------------"
+    local torch_ext_dir="${CURRENT_DIR}/torch_extension"
+    local whl_output_dir="${BUILD_DIR}/whl_packages"
+
+    if [ ! -d "${torch_ext_dir}" ]; then
+        echo "[WARNING]: torch_extension directory not found, skip building whl package."
+        return 0
+    fi
+
+    if [ ! -f "${torch_ext_dir}/setup.py" ]; then
+        echo "[WARNING]: setup.py not found in torch_extension, skip building whl package."
+        return 0
+    fi
+
+    # Check if python3 and build module are available
+    if ! command -v python3 &> /dev/null; then
+        echo "[WARNING]: python3 not found, skip building torch_extension whl package."
+        return 0
+    fi
+
+    # Create output directory
+    mkdir -p "${whl_output_dir}"
+
+    # Build whl package
+    pushd "${torch_ext_dir}"
+    python3 -m build --wheel -n 2>/dev/null || {
+        echo "[WARNING]: Failed to build torch_extension whl package, continuing..."
+        popd
+        return 0
+    }
+
+    # Copy whl file to build directory
+    if ls dist/*.whl 1> /dev/null 2>&1; then
+        cp dist/*.whl "${whl_output_dir}/"
+        echo "[INFO]: torch_extension whl package built successfully."
+        ls -la "${whl_output_dir}"/*.whl
+    else
+        echo "[WARNING]: No whl file generated in torch_extension/dist."
+    fi
+    popd
+    echo "--------------- build torch_extension whl package end ---------------"
+}
+
 function build_host(){
     build_package
 }
@@ -1505,11 +1550,13 @@ function build_pkg_for_single_soc() {
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=OFF"
         cmake_config ${single_soc_option}
         build_package
+        build_torch_extension_whl
         CUSTOM_OPTION="${original_option}"
     elif [[ "$ENABLE_BUILT_IN" == "TRUE" ]]; then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         cmake_config ${single_soc_option}
         build_package
+        build_torch_extension_whl
         CUSTOM_OPTION="${original_option}"
     fi
 }
@@ -1622,6 +1669,7 @@ elif [[ "$ENABLE_BUILT_CUSTOM" == "TRUE" ]]; then      # --ops, --vendor 新命�
         cmake_config " -DENABLE_BUILD_PKG=OFF"
     fi
     build_package
+    build_torch_extension_whl
 elif [[ "$ENABLE_BUILD_PKG" == "TRUE" ]]; then      # --pkg 新命令新使用
     IFS=';' read -ra SOC_ARRAY <<< "$ASCEND_SOC_UNITS"  # 分割字符串为数组
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_BUILD_PKG=ON"
@@ -1648,6 +1696,7 @@ else
     elif [ "${BUILD}" == "package" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_BUILT_IN=ON -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         build_package
+        build_torch_extension_whl
     elif [ -n "${BUILD}" ];then
         CUSTOM_OPTION="${CUSTOM_OPTION}  -DENABLE_OPS_HOST=ON -DENABLE_OPS_KERNEL=ON"
         cmake_config

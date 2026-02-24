@@ -193,5 +193,13 @@ function(pack_built_in)
   set(CPACK_PACKAGE_PARAM_NAME "ops_transformer")
 
   message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
+
+  # Install torch_extension whl package (npu_ops_transformer)
+  install(
+      DIRECTORY ${CMAKE_BINARY_DIR}/whl_packages/
+      DESTINATION whl_packages
+      OPTIONAL
+  )
+
   include(CPack)
 endfunction()
