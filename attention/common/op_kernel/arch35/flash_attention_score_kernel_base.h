@@ -94,6 +94,8 @@ public:
     static constexpr bool isFp8 = CubeBlockType::isFp8;
     /* 是否使能dn的信息; 没有可选输入并且S2切分的时候使用dn，s2比较小的时候nd效果更好 */
     static constexpr bool useDn = CubeBlockType::useDn;
+    /* HIFLOAT8场景 softmax计算使用Nz格式计算，vec1ResBuffer可以和bmm1ResBuffer进行复用*/
+    static constexpr bool useNz = CubeBlockType::useNz;
     static constexpr TPosition bmm2OutPos = CubeBlockType::bmm2OutPos;
     static constexpr bool bmm2Write2Ub = CubeBlockType::bmm2Write2Ub;
     static constexpr bool splitD =  CubeBlockType::splitD;
@@ -306,12 +308,17 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         }
     }
     cubeBlock.InitCubeInput(key, value, &sharedParams, &attenMaskInfo, actualSeqQlenAddr, actualSeqKvlenAddr, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen);
+    cubeBlock.InitDequantParams(deqScaleQ, deqScaleK, deqScaleV);
 }
 
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, VecBlockType>::InitMMResBuf()
 {
-    constexpr uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * sizeof(T);
+    uint32_t mm1OutDtype = sizeof(T);
+    if constexpr (useNz) {
+        mm1OutDtype = sizeof(half);
+    }
+    uint32_t mm1ResultSize = s1BaseSize / CV_RATIO * s2BaseSize * mm1OutDtype;
     constexpr uint32_t mm2ResultSize = s1BaseSize / CV_RATIO * dTemplateAlign64 * sizeof(T);
     constexpr uint32_t mm2LeftSize = s1BaseSize * s2BaseSize * sizeof(INPUT_T);
     l1BufferManager.Init(pipe, 524288); // 512 * 1024
@@ -337,8 +344,13 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     }
     bmm1Buffers.Init(ubBufferManager, mm1ResultSize);
     if ASCEND_IS_AIV {
-        bmm1Buffers.Get().SetCrossCore();
-        bmm1Buffers.Get().SetCrossCore();
+        if constexpr (useNz) {
+            bmm1Buffers.Get().SetCrossCore<true>();
+            bmm1Buffers.Get().SetCrossCore<true>();
+        } else {
+            bmm1Buffers.Get().SetCrossCore();
+            bmm1Buffers.Get().SetCrossCore();
+        }
     }
 }
  
@@ -518,6 +530,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             attenMaskInfo.bandIndex = inputParamsRegbase.bandIndex;
         }
         constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
+        constInfo.pScale = this->tilingData->inputParamsRegbase.pScale;
     }
 
     GetDerived()->InitUniqueConstInfo();
@@ -588,6 +601,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
     if constexpr (useDn) {
         runParam.s1RealSizeAlign32 = (runParam.s1RealSize + 31) >> 5 << 5;
         runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : (runParam.s1RealSizeAlign32 >> 1);
+    } else if constexpr (useNz) {
+        runParam.s1RealSizeAlign32 = (runParam.s1RealSize + 31) >> 5 << 5;
+        runParam.halfS1RealSize = runParam.s1RealSizeAlign32 >> 1;
     } else {
         runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
     }
