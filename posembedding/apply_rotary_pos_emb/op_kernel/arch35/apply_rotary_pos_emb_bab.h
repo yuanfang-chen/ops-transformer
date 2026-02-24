@@ -203,18 +203,6 @@ __aicore__ inline void ApplyRotaryPosEmbBAB<T>::ProcessQN(
             copyOutParams.dstStride = 0;
             DataCopyPad(qOutGm_[offset], qOutTensor, copyOutParams);
         }
-
-        // if (GetBlockIdx() == 0) {
-        //     for (int i = 0; i < ubFactorS_; i++) {
-        //         for (int j = 0; j < ubFactorN_; j++) {
-        //             for (int k = 0; k < dAlign_; k++) {
-        //                 int64_t idx = i * ubFactorN_ * dAlign_ + j * dAlign_ + k;
-        //                 printf("qOutTensor[%d][%d][%d] = %f", i, j, k, qTensor.GetValue(idx));
-        //             }
-        //         }
-        //     }
-        // }
-
         qkOutQue_.FreeTensor(qOutTensor);
     }
 }

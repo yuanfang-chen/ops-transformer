@@ -86,10 +86,6 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::Init(
     pipe_->InitBuffer(cosInQueue_, DB_FLAG, ubFactorBS_ * bufferSize);
     pipe_->InitBuffer(sinInQueue_, DB_FLAG, ubFactorBS_ * bufferSize);
     pipe_->InitBuffer(outQueue_, DB_FLAG, bufferSize * ubFactorBS_ * tilingData_->ubFactorN);
-    if (GetBlockIdx() == 0) {
-        // printf("realDim=%d, D=%d, dAlign_=%d\n", tilingData_->realDim, tilingData_->D, tilingData_->dAlign);
-        // printf("ApplyRotaryPosEmbAB Init END");
-    }
 }
 
 template <typename T>
@@ -150,7 +146,6 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
             CopyInByRotaryMode(qkBuffer, qGm_, qGmOffset + ubStart * tilingData_->D, nCount, dSplitSize_, padParams_);
         } else { // Q copy一部分， Q copy一部分
             CopyInByRotaryMode(qkBuffer, qGm_, qGmOffset + ubStart * tilingData_->D, qCount, dSplitSize_, padParams_);
-            // TODO: 这里qkBuffer的偏移会有问题？
             LocalTensor<T> qkTempBuffer = qkBuffer[qCount * tilingData_->dAlign];
             CopyInByRotaryMode(qkTempBuffer, kGm_, kGmOffset, ubStart + nCount - tilingData_->QN, dSplitSize_, padParams_);
         }
@@ -188,7 +183,6 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessLoop(
             CopyOutByRotaryMode(outBuffer, qOutGm_, qGmOffset + ubStart * tilingData_->D, nCount, dSplitSize_);
         } else { // Q copy一部分， Q copy一部分
             CopyOutByRotaryMode(outBuffer, qOutGm_, qGmOffset + ubStart * tilingData_->D, qCount, dSplitSize_);
-            // TODO: 这里outBuffer的偏移会有问题？
             LocalTensor<T> outTempBuffer = outBuffer[qCount * tilingData_->dAlign];
             CopyOutByRotaryMode(outTempBuffer, kOutGm_, kGmOffset, ubStart + nCount - tilingData_->QN, dSplitSize_);
         }
@@ -239,12 +233,6 @@ __aicore__ inline void ApplyRotaryPosEmbAB<T>::ProcessQKLoop(
         CopyOutByRotaryMode(outBuffer, outGm, qkGmOffset, currBSNum * count, dSplitSize_);
     } else {
         DataCopyPad(outGm[qkGmOffset], outBuffer, qkParams);
-    }
-
-    if (GetBlockIdx() == 0) {
-        for (int j = 0; j < 64; j++) {
-            // printf("outBuffer[%d] = %f", j, outBuffer.GetValue(j));
-        }
     }
     outQueue_.FreeTensor(outBuffer);
 }
