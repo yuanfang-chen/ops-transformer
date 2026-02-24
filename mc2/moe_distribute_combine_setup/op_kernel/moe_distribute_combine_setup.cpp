@@ -13,7 +13,6 @@
  * \brief
  */
 #include "basic_api/kernel_basic_intf.h"
-// #include "lib/matmul_intf.h"
 #include "arch35/moe_distribute_combine_setup_arch35.h"
 #include "moe_distribute_combine_setup_tiling.h"
 
