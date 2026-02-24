@@ -941,8 +941,6 @@ ge::graphStatus GmmAlltoAllvTilingStruct::GetShapeAttrsInfo()
 }
 
 REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct, 0);
-// REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, GmmAlltoAllvTilingStruct,
-//                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 0);
 
 static ge::graphStatus GroupedMatMulAlltoAllvTilingFunc(gert::TilingContext* context)
 {
@@ -960,6 +958,5 @@ static ge::graphStatus TilingParseForGroupedMatMulAlltoAllv(gert::TilingParseCon
 IMPL_OP_OPTILING(GroupedMatMulAlltoAllv)
     .Tiling(GroupedMatMulAlltoAllvTilingFunc)
     .TilingParse<GroupedMatMulAlltoAllvCompileInfo>(TilingParseForGroupedMatMulAlltoAllv);
-// IMPL_OP_OPTILING(GroupedMatMulAlltoAllv).Tiling(GroupedMatMulAlltoAllvTilingFunc);
 
 } // end of namespace optiling

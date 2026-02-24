@@ -307,7 +307,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
         OP_LOGE(opName_, "not support commQuant now, but commQuantMode is %ld !", localParams_.commQuantMode),
         return ge::GRAPH_FAILED);
     // para check dtype enum 28 or -1 ???
-    // OP_TILING_CHECK(localParams_.commQuantDtype != 28,
+    // OP_TILING_CHECK(localParams_.commQuantDtype != 27,
     //     OP_LOGE(opName_, "not support commQuant now, but commQuantDtype is %ld !", localParams_.commQuantDtype),
     //     return ge::GRAPH_FAILED);
 
@@ -948,7 +948,5 @@ uint64_t QuantGroupedMatmulAllToAllvTiling::GetTilingKey() const
 
 // 注册tiling类
 REGISTER_OPS_TILING_TEMPLATE(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling, 1);
-// REGISTER_TILING_TEMPLATE_WITH_SOCVERSION(GroupedMatMulAlltoAllv, QuantGroupedMatmulAllToAllvTiling,
-//                                          static_cast<int32_t>(platform_ascendc::SocVersion::ASCEND950), 1);
 
 // }
