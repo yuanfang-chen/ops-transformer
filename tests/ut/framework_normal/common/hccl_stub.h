@@ -14,7 +14,7 @@
 #include <cstdint>
 
 #ifndef __aicore__
-#define __aicore__ [aicore]
+#define __aicore__
 #endif
 
 #define __gm__
