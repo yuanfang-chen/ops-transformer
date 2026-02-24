@@ -99,7 +99,7 @@ static constexpr uint64_t VEC1_FLAG_OFFSET = MhcPreUtils::VEC1_FLAG_ID_OFFSET; /
 static constexpr uint32_t parallNum_ = 2; // 并行数量
 static constexpr uint32_t AL1_PINGPONG = 2; // aL1 double buffer 数量
 
-using aT = MatmulType<TPosition::TSCM, CubeFormat::ND, float32_t>; // TPosition::TSCM
+using aT = MatmulType<TPosition::A1, CubeFormat::ND, float32_t>;
 using bT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t, true>;
 using cT = MatmulType<TPosition::GM, CubeFormat::ND, float32_t>;
 using MT = matmul::MatmulImpl<aT, bT, cT>;
@@ -124,7 +124,7 @@ public:
                                            uint32_t offsetM);
     __aicore__ inline void DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM);
-    __aicore__ inline void DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen,
+    __aicore__ inline void DataCopyUB2L1(LocalTensor<P> &x, uint32_t curMLen, uint32_t curNdLen,
                                                   uint32_t offsetM, uint32_t offsetNd, LocalTensor<P> &aL1Buf);
     __aicore__ inline void DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd);
     __aicore__ inline void AIVPreLoad();
@@ -303,8 +303,8 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::InitCubeBuffers()
 {
     uint64_t bufSize = mnConfig_.singleCoreM * mnConfig_.singleCoreK;
-    aL1Buf0_ = LocalTensor<P>(TPosition::TSCM, 0, bufSize);
-    aL1Buf1_ = LocalTensor<P>(TPosition::TSCM, bufSize * sizeof(P), bufSize);
+    aL1Buf0_ = LocalTensor<P>(TPosition::A1, 0, bufSize);
+    aL1Buf1_ = LocalTensor<P>(TPosition::A1, bufSize * sizeof(P), bufSize);
 
     if ASCEND_IS_NOT_AIC {
         return;
@@ -659,7 +659,7 @@ __aicore__ inline void MhcPreKernel<T, P>::ComputeV0MBlock(LocalTensor<P> &curAL
     RunV0XGammaCompute(aL1Ub, invRmsUb, curMLen, curNdLen, offsetNd);
     outQueue_.EnQue<P>(aL1Ub);
     aL1Ub = outQueue_.DeQue<P>();
-    DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd, curAL1Buf);
+    DataCopyUB2L1(aL1Ub, curMLen, curNdLen, offsetM, offsetNd, curAL1Buf);
     xInQueue_.FreeTensor(xLocal_);
     outQueue_.FreeTensor(aL1Ub);
 }
@@ -1036,7 +1036,7 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutInvRmsUb(uint32_t curMLen,
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P> &x, uint32_t curMLen,
+__aicore__ inline void MhcPreKernel<T, P>::DataCopyUB2L1(LocalTensor<P> &x, uint32_t curMLen,
                                                                   uint32_t curNdLen, uint32_t offsetM,
                                                                   uint32_t offsetNd, LocalTensor<P> &aL1Buf)
 {
@@ -1047,8 +1047,10 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutToWorkSpace(LocalTensor<P>
     copyParams.srcStride = uint32_t((alignedNdLen - curNdLen) * sizeof(P));
     copyParams.dstStride = uint32_t(0);
 
-    uint64_t offset = offsetM * curNdLen;
-    DataCopy(aL1Buf[offset], x, copyParams);
+    uint64_t offset = offsetM * alignedNdLen;
+    DataCopy(aL1Buf[offset], x, alignedNdLen * curMLen);
+
+    // TODO: DataCopyOut Workspace.
 }
 
 } // namespace MhcPre
