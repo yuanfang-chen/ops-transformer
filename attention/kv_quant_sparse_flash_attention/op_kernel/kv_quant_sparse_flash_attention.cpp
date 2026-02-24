@@ -23,6 +23,7 @@
 
 using namespace AscendC;
 
+#if defined(__DAV_C310_CUBE__)
 #define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                         \
     do {                                                                                          \
         using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
@@ -32,9 +33,25 @@ using namespace AscendC;
         templateClass<CubeBlockType, VecBlockType> op;                                            \
         op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,               \
             actualSeqLengthsQuery, actualSeqLengthsKV,                                            \
-	    attentionOut, user, nullptr, &tPipe);                                        \
+	    attentionOut, user, nullptr, &tPipe);                                         \
         op.Process();                                                                             \
     } while (0)
+#else
+#define QSFA_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
+    do {                                                                                          \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+            BaseApi::QSFAMatmulService<__VA_ARGS__>, BaseApi::QSFAMatmulServiceDummy<__VA_ARGS__>>::type; \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
+            BaseApi::QSFAVectorServiceDummy<__VA_ARGS__>, BaseApi::QSFAVectorService<__VA_ARGS__>>::type;   \
+        templateClass<CubeBlockType, VecBlockType> op;                                            \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                       \
+        const tilingdataClass *__restrict tilingData = &tilingDataIn;                             \
+        op.Init(query, key, value, sparseIndices, keyScale, valueScale, blocktable,               \
+            actualSeqLengthsQuery, actualSeqLengthsKV,                                            \
+	    attentionOut, user, tilingData, &tPipe); \
+        op.Process();                                                                             \
+    } while (0)
+#endif
 
 template<int FLASH_DECODE, int LAYOUT_T, int KV_LAYOUT_T, int TEMPLATE_MODE>
  __global__ __aicore__ void
