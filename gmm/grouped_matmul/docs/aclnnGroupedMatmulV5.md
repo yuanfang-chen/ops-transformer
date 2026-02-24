@@ -28,7 +28,7 @@
 
 - 版本演进：
 
-  |版本变化      | Atlas A2 训练系列产品/Atlas A2 推理系列产品<br>Atlas A3 训练系列产品/Atlas A3 推理系列产品 |Ascend 950PR/Ascend 950DT AI处理器|
+  |版本变化      | Atlas A2 训练系列产品/Atlas A2 推理系列产品<br>Atlas A3 训练系列产品/Atlas A3 推理系列产品|Ascend 950PR/Ascend 950DT|
   |---------|---------|----------------|
   |V4 -> V5|  增加可选参数tuningConfigOptional，调优参数。数组中第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值进行最优tiling。   |  /  |
   |V1 -> V4|     支持不同分组轴，由groupType表示。<br />非量化场景，支持x，weight转置（转置指若shape为[M,K]时，则stride为[1, M],数据排布为[K,M]的场景）。<br />量化、伪量化场景，支持weight转置，支持weight为单tensor。<br />x、weight、y都为单tensor非量化场景，支持x，weight输入都为float32类型。<br />支持静态量化（pertensor+perchannel）（量化方式请参见[量化介绍](../../../docs/zh/context/量化介绍.md)，下同）BFLOAT16和FLOAT16输出，带激活及不带激活场景。<br />支持动态量化（pertoken+perchannel）BFLOAT16和FLOAT16输出，带激活及不带激活场景。<br />支持伪量化weight是INT4的输入，不带激活场景，支持perchannel和pergroup两种模式。     |支持不同分组轴，由groupType表示。<br />非量化场景，支持x，weight转置（转置指若shape为[M,K]时，则stride为[1, M],数据排布为[K,M]的场景）。<br />支持静态量化（1.pertensor-perchannel；2.pertensor-pertensor）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。<br />支持动态量化（1.pertoken-perchannel；2.pertoken-pertensor；3.pertensor-pertensor；4.mx量化；5.pergroup-perblock）BFLOAT16，FLOAT16和FLOAT32输出，带bias，不带激活场景。<br />支持伪量化weight是INT4、FLOAT8_E5M2、FLOAT8_E4M3FN、HIFLOAT8的输入，不带激活场景，仅支持perchannel模式。|
@@ -162,7 +162,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       <tr>
           <td>antiquantOffsetOptional</td>
           <td>可选输入</td>
-          <td>公式中的<code>antiquant_offset</code>，代表伪量化参数中的缩放因子。</td>
+          <td>公式中的<code>antiquant_offset</code>，代表伪量化参数中的偏移量。</td>
           <td>长度与weight相同。综合约束请参见<a href="#约束说明">约束说明</a>。</td>
           <td>FLOAT16、BFLOAT16</td>
           <td>ND</td>
@@ -233,7 +233,7 @@ aclnnStatus aclnnGroupedMatmulV5(
           <td>groupType</td>
           <td>输入</td>
           <td>代表需要分组的轴。</td>
-          <td>枚举值-1、0、1、2。如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。</a>。</td>
+          <td>枚举值-1、0、2。如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，2：k轴分组。</a>。</td>
           <td>-</td>
           <td>-</td>
           <td>-</td>
@@ -330,10 +330,10 @@ aclnnStatus aclnnGroupedMatmulV5(
   </table>
 
 
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
     - 上表数据类型列中的角标“1”代表该系列不支持的数据类型。
-    - 输入参数x、weight均不支持INT16类型，且x不支持int4类型；
+    - 输入参数x、weight均不支持INT16类型，且x不支持INT4类型；
     - 输出参数out不支持INT32、INT8类型。
     - 输入参数x、weight，输出参数out在非量化场景支持最多1024个tensor，在伪量化和全量化场景支持最多128个tensor。
 
@@ -387,7 +387,7 @@ aclnnStatus aclnnGroupedMatmulV5(
         <td>若bias不为空，bias的长度不等于weight的长度。</td>
       </tr>
       <tr>
-        <td>groupListOptional维度为1。</td>
+        <td>groupListOptional维度不符合要求（如维度不为1且不为2）。</td>
       </tr>
       <tr>
         <td>splitItem为2、3的场景，out长度不等于1。</td>
@@ -435,9 +435,9 @@ aclnnStatus aclnnGroupedMatmulV5(
     |伪量化-A16W8|BFLOAT16/FLOAT16|INT8|BFLOAT16/FLOAT16|[A16W8场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
     |伪量化-A16W4|BFLOAT16/FLOAT16|INT4|BFLOAT16/FLOAT16|[A16W4场景约束](#a16w4场景约束)|[计算公式](#伪量化场景)|
 
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
+  - <term>Ascend 950PR/Ascend 950DT</term>：
 
-    详见[Ascend 950PR/Ascend 950DT AI处理器](#ascend_950pr_ascend950dt_ai处理器)
+    详见[Ascend 950PR/Ascend 950DT](#ascend_950pr_ascend950dt)
 <a id="计算公式"></a>
 - 计算公式
   <a id="非量化场景"></a>
@@ -464,16 +464,17 @@ aclnnStatus aclnnGroupedMatmulV5(
       y_i=(x_i\times weight_i + bias_i) * scale_i * per\_token\_scale_i
       $$
 
-    - x为INT8，bias为BFLOAT16
-
-      $$
-      y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i  + bias_i
-      $$
-
     - x为INT4，无bias
 
       $$
       y_i=x_i\times (weight_i * scale_i) * per\_token\_scale_i
+      $$
+
+    - <term>Ascend 950PR/Ascend 950DT</term>：
+      该场景还支持x为INT8时，bias为BFLOAT16
+
+      $$
+      y_i=(x_i\times weight_i) * scale_i * per\_token\_scale_i  + bias_i
       $$
 
   <a id="伪量化场景"></a>
@@ -509,7 +510,7 @@ aclnnStatus aclnnGroupedMatmulV5(
     - perTokenScaleOptional：一般情况下，只支持1维且长度与x的M相同。仅支持x、weight、out均为单tensor（TensorList长度为1）场景。
     - groupListOptional：当输出中TensorList的长度为1时，groupListOptional约束了输出数据的有效部分，groupListOptional中未指定的部分将不会参与更新。
     - groupListType为0时要求groupListOptional中数值为非负单调非递减数列，表示分组轴大小的cumsum结果（累积和），groupListType为1时要求groupListOptional中数值为非负数列，表示分组轴上每组大小，groupListType为2时要求 groupListOptional中数值为非负数列，shape为[E, 2]，E表示Group大小，数据排布为[[groupIdx0, groupSize0], [groupIdx1, groupSize1]...]，其中groupSize为分组轴上每组大小，详见[groupListOptional配置示例](#grouplistoptional配置示例)。
-    - groupType代表需要分组的轴，如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，1：n轴分组，2：k轴分组。当前不支持n轴分组，详细参考<a href="#groupType-constraints">groupType支持场景</a>约束。
+    - groupType代表需要分组的轴，如矩阵乘为C[m,n]=A[m,k]xB[k,n]，则groupType取值-1：不分组，0：m轴分组，2：k轴分组。详细参考<a href="#groupType-constraints">groupType支持场景</a>约束。
     - actType（int64\_t，计算输入）：整数型参数，代表激活函数类型。取值范围为0-5，支持的枚举值如下：
       * 0：GMMActType::GMM_ACT_TYPE_NONE；
       * 1：GMMActType::GMM_ACT_TYPE_RELU；
@@ -529,7 +530,7 @@ aclnnStatus aclnnGroupedMatmulV5(
       |---------|----------------|--------------|--------|------------|----------------|-----------------|---------------|-----------|-----------------|----------------------|-----------------------|---------|
       | INT8 | INT8 (ND) | INT32/null | UINT64 | null | null | null | null | INT64 | null | null | null | INT8 |
       | INT8 | INT8 (ND/NZ) | INT32/null |BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
-      | INT8 | INT8 (NZ) | BFLOAT16/null |FLOAT/BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
+      | INT8 | INT8 (NZ) | null |FLOAT/BFLOAT16| null | null | null | FLOAT/null | INT64 | null | null | null | BFLOAT16|
       | INT8 | INT8 (ND/NZ) | INT32/null | FLOAT | null | null | null | FLOAT/null | INT64 | null | null | null | FLOAT16 |
       | INT8 | INT8 (ND/NZ) | INT32/null | null | null | null | null | null | INT64 | null | null | null | INT32 |
 
@@ -761,10 +762,10 @@ aclnnStatus aclnnGroupedMatmulV5(
 
 </details>
 
-<a id="ascend_950pr_ascend950dt_ai处理器"></a>
+<a id="ascend_950pr_ascend950dt"></a>
 
 <details>
-<summary><term>Ascend 950PR/Ascend 950DT AI处理器</term></summary>
+<summary><term>Ascend 950PR/Ascend 950DT</term></summary>
 
   - 公共约束：
 

@@ -813,7 +813,7 @@ bool GetValueD(gert::TilingContext *context, int64_t &valueD)
     return true;
 }
 
-bool GetQS(gert::TilingContext *context, int64_t &queryS) {
+bool GetQS(const gert::TilingContext *context, int64_t &queryS) {
     const std::string inputLayoutStr = std::string(context->GetAttrs()->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
     auto qShape = context->GetInputShape(QUERY_INDEX);
     if (qShape == nullptr) {
@@ -1006,9 +1006,9 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
     int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
     
-    bool isLayoutSupported = (inputLayoutStr == "TND") ? true : false;
-    bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
-    bool isLearnableSink = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
+    bool isLayoutSupported = (inputLayoutStr == "TND");
+    bool isPageAttention = (context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr);
+    bool isLearnableSink = (context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr);
     bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     
@@ -1017,7 +1017,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
         (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
     bool specConditionFlag = false;
-    if (isLayoutSupported && !isLearnableSink && !isRopeSplitMla && sparseModeSupported &&
+    if (isLayoutSupported && !isRopeSplitMla && sparseModeSupported &&
         (nonMhaConditions || mhaConditions)) {
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         if (!isPageAttention) {
@@ -1170,39 +1170,15 @@ bool RouteToFia(gert::TilingContext *context)
     ge::DataType kDataType = context->GetInputDesc(KEY_INDEX)->GetDataType();
     bool isRopeSplit = (context->GetOptionalInputTensor(QUERY_ROPE_INDEX) != nullptr &&
         context->GetOptionalInputTensor(KEY_ROPE_INDEX) != nullptr);
-    // if (isRopeSplit) {
-    //     // MLA非量化
-    //     if ((qDataType == ge::DT_FLOAT16 || qDataType == ge::DT_BF16) && (qDataType == kDataType)) {
-    //         if (CheckGqaConstrain(context)) {
-    //             OP_LOGI(context->GetNodeName(), "FIA RopeSplit GQA No quant.");
-    //             return true;
-    //         }
-    //         if (CheckMlaConstrain(context)) {
-    //             OP_LOGI(context->GetNodeName(), "FIA RopeSplit MLA No quant.");
-    //             return true;
-    //         }
-    //         return false;
-    //     }
-    // } else {
-    //     // GQA非量化
-    //     if ((qDataType == ge::DT_FLOAT16 || qDataType == ge::DT_BF16) && (qDataType == kDataType)) {
-    //         OP_LOGI(context->GetNodeName(), "FIA GQA No quant.");
-    //         if (!CheckSpecConditions(context)) {
-    //             return CheckGqaConstrain(context);
-    //         } else {
-    //             return false;
-    //         }
-    //     }
-    // }
 
     if ((qDataType == ge::DT_FLOAT16 || qDataType == ge::DT_BF16) && (qDataType == kDataType)) {
         auto attrs = context->GetAttrs();
         int32_t headNum = *(attrs->GetAttrPointer<int32_t>(ATTR_N_INDEX));
         int32_t kvHeadNum = *(attrs->GetAttrPointer<int32_t>(ATTR_NUM_KV_HEADS_INDEX));
         bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
-        bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
+        bool isPageAttention = (context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr);
         bool isPrefix = (context->GetOptionalInputShape(KEY_SHARED_PREFIX_INDEX) != nullptr) ||
-                        (context->GetOptionalInputShape(VALUE_SHARED_PREFIX_INDEX) != nullptr) ? true : false;
+                        (context->GetOptionalInputShape(VALUE_SHARED_PREFIX_INDEX) != nullptr);
     
         int64_t queryD = 0;
         int64_t queryRopeD = 0;

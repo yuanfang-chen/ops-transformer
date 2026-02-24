@@ -16,8 +16,12 @@
 #ifndef FIA_KERNEL_NONQUANT_MLA_H
 #define FIA_KERNEL_NONQUANT_MLA_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -354,9 +358,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
 
     // init tiling data
     tilingData = tiling;
+    skipInitOutputFlag = !IsInitAttentionOutGm() && !tilingData->baseParams.softmaxLseFlag;
     if (aiCoreIdx >= tilingData->baseParams.usedCoreNum) {
         if ASCEND_IS_AIV {
-            skipInitOutputFlag = !IsInitAttentionOutGm() && !tilingData->baseParams.softmaxLseFlag;
             if (!skipInitOutputFlag){
                 // superkernel 场景，启动核数大于实际运行核数时，未启动的核仅需要保留 SyncAll
                 SyncAll();

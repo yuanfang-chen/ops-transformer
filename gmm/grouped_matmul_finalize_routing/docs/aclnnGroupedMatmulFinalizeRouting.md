@@ -174,7 +174,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
       <td></td>
       <td>BF16</td>
       <td>ND</td>
-      <td>shape支持一维，维度为(e)，e和w的e一致</td>
+      <td>shape支持二维，维度为(bsdp,n)，bsdp必须小于等于batchSize/e，n和w的n一致。</td>
       <td>-</td>
     </tr>
     <tr>
@@ -302,7 +302,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRouting(
   </colgroup>
   <thead>
     <tr>
-      <th>返回码</th>
+      <th>返回值</th>
       <th>错误码</th>
       <th>描述</th>
     </tr>

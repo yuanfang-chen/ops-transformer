@@ -16,8 +16,12 @@
 #ifndef FIA_KERNEL_NONQUANT_H
 #define FIA_KERNEL_NONQUANT_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -715,49 +719,47 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 {
     fdService.InitBuffers(pipe);
     AscendC::ICachePreLoad(fdPrefetchLen);
+    #ifdef ASCENDC_CPU_DEBUG
+        const uint32_t *bN2IdxOfFdHead = tilingData->fdParams.bN2IdxOfFdHead;
+        const uint32_t *gS1IdxOfFdHead = tilingData->fdParams.gS1IdxOfFdHead;
+        const uint32_t *s2SplitNumOfFdHead = tilingData->fdParams.s2SplitNumOfFdHead;
+        const uint32_t *gS1IdxEndOfFdHead = tilingData->fdParams.gS1IdxEndOfFdHead;
+        const uint32_t *gS1IdxEndOfFdHeadSplit = tilingData->fdParams.gS1IdxEndOfFdHeadSplit;
+        const uint32_t *gS1SplitNumOfFdHead = tilingData->fdParams.gS1SplitNumOfFdHead;
+        const uint32_t *gS1LastPartSizeOfFdHead = tilingData->fdParams.gS1LastPartSizeOfFdHead;
+    #else
+        uint32_t bN2IdxOfFdHead[ARRAY_SIZE(tilingData->fdParams.bN2IdxOfFdHead)];
+        uint32_t gS1IdxOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1IdxOfFdHead)];
+        uint32_t s2SplitNumOfFdHead[ARRAY_SIZE(tilingData->fdParams.s2SplitNumOfFdHead)];
+        uint32_t gS1IdxEndOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1IdxEndOfFdHead)];
+        uint32_t gS1IdxEndOfFdHeadSplit[ARRAY_SIZE(tilingData->fdParams.gS1IdxEndOfFdHeadSplit)];
+        uint32_t gS1SplitNumOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1SplitNumOfFdHead)];
+        uint32_t gS1LastPartSizeOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1LastPartSizeOfFdHead)];
+        copy_data_align64((uint8_t *)bN2IdxOfFdHead, (uint8_t *)(tilingData->fdParams.bN2IdxOfFdHead),
+                    sizeof(bN2IdxOfFdHead));
+        copy_data_align64((uint8_t *)gS1IdxOfFdHead, (uint8_t *)(tilingData->fdParams.gS1IdxOfFdHead),
+                    sizeof(gS1IdxOfFdHead));
+        copy_data_align64((uint8_t *)s2SplitNumOfFdHead, (uint8_t *)(tilingData->fdParams.s2SplitNumOfFdHead),
+                    sizeof(s2SplitNumOfFdHead));
+        copy_data_align64((uint8_t *)gS1IdxEndOfFdHead, (uint8_t *)(tilingData->fdParams.gS1IdxEndOfFdHead),
+                    sizeof(gS1IdxEndOfFdHead));
+        copy_data_align64((uint8_t *)gS1IdxEndOfFdHeadSplit,
+                    (uint8_t *)(tilingData->fdParams.gS1IdxEndOfFdHeadSplit),
+                    sizeof(gS1IdxEndOfFdHeadSplit));
+        copy_data_align64((uint8_t *)gS1SplitNumOfFdHead, (uint8_t *)(tilingData->fdParams.gS1SplitNumOfFdHead),
+                    sizeof(gS1SplitNumOfFdHead));
+        copy_data_align64((uint8_t *)gS1LastPartSizeOfFdHead,
+                    (uint8_t *)(tilingData->fdParams.gS1LastPartSizeOfFdHead),
+                    sizeof(gS1LastPartSizeOfFdHead));
+    #endif
+    FDparams fdParams = {bN2IdxOfFdHead, gS1IdxOfFdHead, s2SplitNumOfFdHead, gS1SplitNumOfFdHead, gS1LastPartSizeOfFdHead,
+            gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
+            tilingData->fdParams.gS1BaseSizeOfFd};
+    fdService.AllocEventID();
+    fdService.InitDecodeParams();
     SyncAll();
-    if ASCEND_IS_AIV {
-        #ifdef ASCENDC_CPU_DEBUG
-            const uint32_t *bN2IdxOfFdHead = tilingData->fdParams.bN2IdxOfFdHead;
-            const uint32_t *gS1IdxOfFdHead = tilingData->fdParams.gS1IdxOfFdHead;
-            const uint32_t *s2SplitNumOfFdHead = tilingData->fdParams.s2SplitNumOfFdHead;
-            const uint32_t *gS1IdxEndOfFdHead = tilingData->fdParams.gS1IdxEndOfFdHead;
-            const uint32_t *gS1IdxEndOfFdHeadSplit = tilingData->fdParams.gS1IdxEndOfFdHeadSplit;
-            const uint32_t *gS1SplitNumOfFdHead = tilingData->fdParams.gS1SplitNumOfFdHead;
-            const uint32_t *gS1LastPartSizeOfFdHead = tilingData->fdParams.gS1LastPartSizeOfFdHead;
-        #else
-            uint32_t bN2IdxOfFdHead[ARRAY_SIZE(tilingData->fdParams.bN2IdxOfFdHead)];
-            uint32_t gS1IdxOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1IdxOfFdHead)];
-            uint32_t s2SplitNumOfFdHead[ARRAY_SIZE(tilingData->fdParams.s2SplitNumOfFdHead)];
-            uint32_t gS1IdxEndOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1IdxEndOfFdHead)];
-            uint32_t gS1IdxEndOfFdHeadSplit[ARRAY_SIZE(tilingData->fdParams.gS1IdxEndOfFdHeadSplit)];
-            uint32_t gS1SplitNumOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1SplitNumOfFdHead)];
-            uint32_t gS1LastPartSizeOfFdHead[ARRAY_SIZE(tilingData->fdParams.gS1LastPartSizeOfFdHead)];
-            copy_data_align64((uint8_t *)bN2IdxOfFdHead, (uint8_t *)(tilingData->fdParams.bN2IdxOfFdHead),
-                        sizeof(bN2IdxOfFdHead));
-            copy_data_align64((uint8_t *)gS1IdxOfFdHead, (uint8_t *)(tilingData->fdParams.gS1IdxOfFdHead),
-                        sizeof(gS1IdxOfFdHead));
-            copy_data_align64((uint8_t *)s2SplitNumOfFdHead, (uint8_t *)(tilingData->fdParams.s2SplitNumOfFdHead),
-                        sizeof(s2SplitNumOfFdHead));
-            copy_data_align64((uint8_t *)gS1IdxEndOfFdHead, (uint8_t *)(tilingData->fdParams.gS1IdxEndOfFdHead),
-                        sizeof(gS1IdxEndOfFdHead));
-            copy_data_align64((uint8_t *)gS1IdxEndOfFdHeadSplit,
-                        (uint8_t *)(tilingData->fdParams.gS1IdxEndOfFdHeadSplit),
-                        sizeof(gS1IdxEndOfFdHeadSplit));
-            copy_data_align64((uint8_t *)gS1SplitNumOfFdHead, (uint8_t *)(tilingData->fdParams.gS1SplitNumOfFdHead),
-                        sizeof(gS1SplitNumOfFdHead));
-            copy_data_align64((uint8_t *)gS1LastPartSizeOfFdHead,
-                        (uint8_t *)(tilingData->fdParams.gS1LastPartSizeOfFdHead),
-                        sizeof(gS1LastPartSizeOfFdHead));
-        #endif
-        FDparams fdParams = {bN2IdxOfFdHead, gS1IdxOfFdHead, s2SplitNumOfFdHead, gS1SplitNumOfFdHead, gS1LastPartSizeOfFdHead,
-                gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
-                tilingData->fdParams.gS1BaseSizeOfFd};
-        fdService.AllocEventID();
-        fdService.InitDecodeParams();
-        fdService.FlashDecode(fdParams);
-        fdService.FreeEventID();
-    }
+    fdService.FlashDecode(fdParams);
+    fdService.FreeEventID();
 }
 
 template <typename FIAT, typename CubeBlockType, typename VecBlockType, typename FdBlockType>
@@ -786,7 +788,9 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
 
     // 对整个batch的结果置0
     if constexpr (POST_QUANT) { // out int8
-        vectorService.DealZeroActSeqLenWithPostQuant(bIdx, n2Idx);
+        if ASCEND_IS_AIV {
+            vectorService.DealZeroActSeqLenWithPostQuant(bIdx, n2Idx);
+        }
     } else {
         if (constInfo.outputLayout == FIA_LAYOUT::BSND || constInfo.outputLayout == FIA_LAYOUT::BSH) {
             OffsetCalculator<GmFormat::BSNGD> offsetCalculator;
@@ -1105,7 +1109,9 @@ __aicore__ inline void FiaKernelNonQuant<FIAT, CubeBlockType, VecBlockType, FdBl
     }
 
     if constexpr (FLASH_DECODE) {
-        FlashDecode();
+        if ASCEND_IS_AIV {
+            FlashDecode();
+        }
     }
 }
 

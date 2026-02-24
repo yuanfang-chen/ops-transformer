@@ -9,7 +9,6 @@
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200I/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -56,6 +55,7 @@
   $$
 
   利用链式法则可以进行weights，query和key矩阵的梯度计算：
+  
   $$
   dW\mathop{{}}\nolimits_{{t,:}}=dI\mathop{{}}\nolimits_{{t,:}}\text{@} \left( ReLU \left( S\mathop{{}}\nolimits_{{t,:}} \left) \left) \mathop{{}}\nolimits^{\top}\right. \right. \right. \right.
   $$
@@ -147,7 +147,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>输入</td>
        <td>attention结构的输入Q</td>
        <td><ul><li>B: 支持泛化。</li><li>S1: 支持泛化。</li><li>N1: 支持128、64、32。</li><li>D: 128。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
-       <td>FLOAT16、BFLOAT16 </td>
+       <td>FLOAT16、BFLOAT16</td>
        <td>ND</td>
        <td>(B,S1,N1,D);(T1,N1,D)</td>
        <td>×</td>
@@ -157,7 +157,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>输入</td>
        <td>attention结构的输入K</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S2: 支持泛化。</li><li>N2: 等于N1。</li><li>D: 128。</li><li>T2: 多个Batch的S2累加。</li></ul></td>
-       <td>FLOAT16、BFLOAT16 </td>
+       <td>FLOAT16、BFLOAT16</td>
        <td>ND</td>
        <td>(B,S2,N2,D);(T2,N2,D)</td>
        <td>×</td>
@@ -188,7 +188,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>输入</td>
        <td>权重</td>
        <td><ul><li>B: 支持泛化且与query的B保持一致。</li><li>S1: 支持泛化且与query的S1保持一致。</li><li>Nidx1: 64、32、16、8。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
-       <td>FLOAT16、BFLOAT16</td>
+       <td>FLOAT16、BFLOAT16、FLOAT32</td>
        <td>ND</td>
        <td>(B,S1,Nidx1);(T1,Nidx1)</td>
        <td>×</td>
@@ -348,7 +348,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
        <td>输出</td>
        <td>Weights的梯度</td>
        <td><ul><li>B: 支持泛化。</li><li>S1: 支持泛化，不能为Matmul的M轴。</li><li>Nidx1: 64、32、16、8。</li><li>T1: 多个Batch的S1累加。</li></ul></td>
-       <td>FLOAT16、BFLOAT16</td>
+       <td>FLOAT16、BFLOAT16、FLOAT32</td>
        <td>ND</td>
        <td>(B,S1,Nidx1);(T1,Nidx1)</td>
        <td>√</td>
@@ -368,7 +368,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -442,7 +442,7 @@ aclnnStatus aclnnDenseLightningIndexerGradKLLoss(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 

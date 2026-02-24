@@ -277,13 +277,13 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Dn(
     float descaleQK = 1.0;
     if constexpr (isFp8) {
         int64_t deScaleQOffset = 0;
-        if (layout == LayOutTypeEnum::LAYOUT_NTD) {
+        if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
             int64_t s1BlockCnt = constInfo.t1Size / FP8_QUANT_BLOCK_SIZE + constInfo.bSize; // Q的反量化scale内容在Gm中的偏移 原始shape为 [N2, G,T // 128 + B, 1]
             int64_t s2BlockCnt = constInfo.t2Size / FP8_QUANT_KV_BLOCK_SIZE + constInfo.bSize; // KV的反量化scale内容在Gm中的偏移 原始shape为 [N2, G, T // 256 + B, 1]
             deScaleQOffset = runInfo.n2oIdx * constInfo.gSize * s1BlockCnt +
-                                    runInfo.goIdx * s1BlockCnt + (runInfo.s1SizeAcc >> 7) + runInfo.s1oIdx;
+                                    runInfo.goIdx * s1BlockCnt + runInfo.s1ScaleNumAcc + runInfo.s1oIdx;
             runInfo.deScaleKvOffset = runInfo.n2oIdx * s2BlockCnt +
-                                    (runInfo.s2SizeAcc >> 8) + runInfo.s2LoopCount; // 8 ：按照256分块计算deScaleKv偏移
+                                    runInfo.s2ScaleNumAcc + runInfo.s2LoopCount; // 8 ：按照256分块计算deScaleKv偏移
         } else {
             int64_t s1BlockCnt = CeilDiv(constInfo.s1Size, FP8_QUANT_BLOCK_SIZE); // Q的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S1, 128), 1]
             int64_t s2BlockCnt = CeilDiv(constInfo.s2Size, FP8_QUANT_KV_BLOCK_SIZE); // KV的反量化scale内容在Gm中的偏移 原始shape为 [B, N2, G, Ceil(S2, 256), 1]
@@ -467,10 +467,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBoolCopyInRegbase(
     ConstInfo<isInfer, hasRope> &constInfo, RunInfo<isInfer> &runInfo)
 {
     if (s1Size == 0 || s2Size == 0) {
-        return;
-    }
-
-    if (totalS2Size % blockBytes != 0) {
         return;
     }
 
@@ -1286,11 +1282,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopy
 {
     int64_t s1DealSize = runInfo.vec2S1RealSize;
     int64_t curGIdx = runInfo.sOuterOffset / constInfo.s1Size;
-    int64_t curS1Idx = runInfo.sOuterOffset % (uint32_t)s1TemplateType;
-    if (constInfo.subBlockIdx == 1) {
-        curGIdx = (curGIdx + s1DealSize / constInfo.s1Size) % constInfo.gSize;
-        curS1Idx = (curGIdx + s1DealSize) % constInfo.s1Size;
-    }
+    int64_t curS1Idx = runInfo.sOuterOffset % constInfo.s1Size;
     bool hasHeadBlock = curS1Idx != 0;
     int headBlock = hasHeadBlock ? constInfo.s1Size - curS1Idx : 0;
     int gCount = hasHeadBlock ? (runInfo.vec2S1BaseSize - headBlock) / constInfo.s1Size : runInfo.vec2S1BaseSize / constInfo.s1Size;
@@ -1319,10 +1311,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopy
     if (hasTailBlock) { // 尾块单独一条DataCopy指令
         DataCopyExtParams dataCopyParamsTail;
         dataCopyParamsTail.blockCount = 1;
-        dataCopyParamsTail.blockLen = tailBlock * constInfo.s1Size * sizeof(OUTPUT_T);
+        dataCopyParamsTail.blockLen = tailBlock * constInfo.dSizeV * sizeof(OUTPUT_T);
         dataCopyParamsTail.srcStride = 0;
         dataCopyParamsTail.dstStride = 0;
-        runInfo.attentionOutOffset += (gCount - int(hasHeadBlock) - 1) * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
+        runInfo.attentionOutOffset += gCount * constInfo.bSize * constInfo.s1Size * constInfo.dSizeV;
         DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset], attenOut[attenOutUbOffset], dataCopyParamsTail);
     }
 }
