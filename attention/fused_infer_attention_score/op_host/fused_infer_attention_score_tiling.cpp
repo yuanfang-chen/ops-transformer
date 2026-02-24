@@ -1989,6 +1989,7 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     if (RouteToFia(context)) {
         return TilingFusedInferAttentionScoreV3(context);
     }
+    
     OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
     auto attrs = context->GetAttrs();
