@@ -64,6 +64,9 @@ public:
     template <typename VEC2_RES_T>
     __aicore__ inline void CopyOutAttentionOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<VEC2_RES_T> &vec2ResUb,
                                                int64_t vec2S1Idx, int64_t vec2CalcSize);
+    __aicore__ inline void ProcessVec1Nz(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
+        Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &bmm1ResBuf, RunInfo<isInfer> &runInfo,
+        ConstInfo<isInfer, hasRope> &constInfo) {}
 private:
 };
 
@@ -124,6 +127,7 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.s2Size = inputParamsRegbase.s2Size;
     sharedParams.dSize = inputParamsRegbase.dSize;
     sharedParams.dSizeV = inputParamsRegbase.dSizeV;
+    sharedParams.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
     if constexpr (hasRope) {
         sharedParams.dSizeRope = inputParamsRegbase.dSizeRope;
     } else {
