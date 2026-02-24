@@ -131,7 +131,7 @@ const std::array<const aclTensor *, 4> FlashAttentionScore(
                            OP_ATTR(static_cast<float>(scaleValue), static_cast<float>(keepProb),
                                    preTockens, nextTockens, headNum, inputLayout, innerPrecise,
                                    sparseMode, pseType, seed, offset, outDtype, softmaxOutLayout,
-                                   pScale));
+                                   static_cast<float>(pScale)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FlashAttentionScore InferShape failed.");
         return {nullptr, nullptr, nullptr, nullptr};
@@ -145,7 +145,7 @@ const std::array<const aclTensor *, 4> FlashAttentionScore(
         OP_OUTPUT(softmaxMaxOut, softmaxSumOut, softmaxOutOut, attentionOutOut),
         OP_ATTR(static_cast<float>(scaleValue), static_cast<float>(keepProb), preTockens,
                 nextTockens, headNum, inputLayout, innerPrecise, sparseMode, pseType,
-                seed, offset, outDtype, softmaxOutLayout, pScale));
+                seed, offset, outDtype, softmaxOutLayout, static_cast<float>(pScale)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "FlashAttentionScore launch kernel failed.");
         return {nullptr, nullptr, nullptr, nullptr};

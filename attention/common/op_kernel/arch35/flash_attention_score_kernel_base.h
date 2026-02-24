@@ -530,6 +530,7 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
             attenMaskInfo.bandIndex = inputParamsRegbase.bandIndex;
         }
         constInfo.scaleValue = static_cast<float>(inputParamsRegbase.scaleValue);
+        constInfo.pScale = this->tilingData->inputParamsRegbase.pScale;
     }
 
     GetDerived()->InitUniqueConstInfo();

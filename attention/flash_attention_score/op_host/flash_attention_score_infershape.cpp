@@ -180,20 +180,10 @@ ge::graphStatus InferDataTypeFlashAttentionScore(gert::InferDataTypeContext *con
 
         auto outDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_OUTDTYPE);
         int64_t outDtype = *outDtypePtr;
-        if (outDtype == 0) {
-            // softmax_out, outidx:2
-            context->SetOutputDataType(INDEX_2, ge::DT_FLOAT16);
-            // attention_out, outidx:3
-            context->SetOutputDataType(INDEX_3, ge::DT_FLOAT16);
-        } else if (outDtype == 1) {
-            // softmax_out, outidx:2
-            context->SetOutputDataType(INDEX_2, ge::DT_BF16);
-            // attention_out, outidx:3
-            context->SetOutputDataType(INDEX_3, ge::DT_BF16);
-        } else {
-            OP_LOGE(context, "Context outDtype:%ld is invalid.", outDtype);
-            return GRAPH_FAILED;
-        }
+        // softmax_out, outidx:2
+        context->SetOutputDataType(INDEX_2, ge::DT_BF16);
+        // attention_out, outidx:3
+        context->SetOutputDataType(INDEX_3, ge::DT_BF16);
         return GRAPH_SUCCESS;
     }
 

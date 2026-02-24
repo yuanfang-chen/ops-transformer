@@ -1201,7 +1201,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nz(
     }
 
     // 加载当前轮的右矩阵到L1
-    int64_t L1Boffset = ((constInfo.dSize + 31) >> 5 << 5) * 256;
+    int64_t L1Boffset = s2SplitSize * constInfo.dSize;
+    int64_t gmSplitOffset = s2SplitSize * constInfo.mm1Kb;
     mm1B = l1KBuffers.Get();
     mm1B.Wait<HardEvent::MTE1_MTE2>(); // 占用L1B
     LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
@@ -1211,7 +1212,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nz(
     if (runInfo.s2RealSize > s2SplitSize) {
         CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], 256,
                                 constInfo.dSize, constInfo.mm1Kb);
-        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor[L1Boffset], GetKeyGm(runInfo, constInfo)[runInfo.keyOffset + L1Boffset],
+        CopyToL1Nd2Nz<INPUT_T>(mm1BTensor[L1Boffset], GetKeyGm(runInfo, constInfo)[runInfo.keyOffset + gmSplitOffset],
                                 runInfo.s2RealSize - 256, constInfo.dSize, constInfo.mm1Kb);
     } else {
         CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, GetKeyGm(runInfo, constInfo)[runInfo.keyOffset], runInfo.s2RealSize,
@@ -1347,10 +1348,11 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2Nz(mm2ResPos &outp
                                                             coordInfo[runInfo.taskIdMod3].s2Coord, 0);
     }
     int64_t L1Boffset = s2SplitSize * constInfo.dSizeV;
+    int64_t gmSplitOffset = s2SplitSize * constInfo.mm2Kb;
     if (runInfo.s2RealSize > s2SplitSize) {
         CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], s2SplitSize,
                                 constInfo.dSizeV, constInfo.mm2Kb);
-        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor[L1Boffset], GetValueGm(runInfo, constInfo)[gmOffset + L1Boffset],
+        CopyToL1Nd2Nz<INPUT_T>(mm2BTensor[L1Boffset], GetValueGm(runInfo, constInfo)[gmOffset + gmSplitOffset],
                                 runInfo.s2RealSize - s2SplitSize, constInfo.dSizeV, constInfo.mm2Kb);
     } else {
         CopyToL1Nd2Nz<INPUT_T>(mm2BTensor, GetValueGm(runInfo, constInfo)[gmOffset], runInfo.s2RealSize,
