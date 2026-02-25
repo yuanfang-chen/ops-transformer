@@ -1,0 +1,5 @@
+case_name,expectResult,x1_shape,x1_dtype,x1_format,x2_shape,x2_dtype,x2_format,bias_shape,bias_dtype,bias_format,x1_scale_shape,x1_scale_dtype,x1_scale_format,x2_scale_shape,x2_scale_dtype,x2_scale_format,quant_scale_shape,quant_scale_dtype,quant_scale_format,group,is_trans_a,is_trans_b,gather_index,comm_turn,rank_size,block_size,group_size,is_gather_out,is_amax_out,y_dtype,comm_mode,expectOutputShape
+Basic,SUCCESS,8192 12288,FLOAT16,ND,12288 3904,FLOAT16,ND,,,,,,,,,,,,,hcclCom,0,0,0,0,0,0,0,0,0,FLOAT,aicpu,65536 3904
+EmptyTensorFailTest,,8192 0,FLOAT16,ND,0 3904,FLOAT16,ND,,,,,,,,,,,,,hcclCom,0,0,0,0,0,0,0,1,0,FLOAT,aicpu,
+Pertensor,SUCCESS,8192 12288,FLOAT16,ND,12288 3904,FLOAT16,ND,,FLOAT,ND,1,FLOAT,ND,1,FLOAT,ND,,,,hcclCom,0,0,0,0,0,0,0,1,0,FLOAT,aicpu,65536 3904
+Perblock,SUCCESS,8192 12288,FLOAT8_E5M2,ND,12288 3904,FLOAT8_E5M2,ND,,FLOAT,ND,64 96,FLOAT,ND,96 30,FLOAT,ND,,,,hcclCom,0,0,0,0,0,0,0,1,0,FLOAT,aicpu,65536 3904
