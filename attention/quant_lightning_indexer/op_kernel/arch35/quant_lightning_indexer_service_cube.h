@@ -501,18 +501,18 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpSToL1(uint64_t s1gL0RealSize, uint64
 {
     SetFlag<HardEvent::M_FIX>(M_FIX_EVENT);
     WaitFlag<HardEvent::M_FIX>(M_FIX_EVENT);
-    DataCopyCO12DstParams params;
-    params.mSize = CeilAlign(s1gL0RealSize, BLOCK_CUBE);
-    params.nSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);
-    params.dstStride = S1G_BASIC_BLOCK_L0;
-    params.srcStride = params.mSize;
-    params.quantPre = QuantMode_t::F322F16;
-    params.reluPre = 1;
-    params.channelSplit = 0;
-    params.nz2ndEn = 0;
-    SetFixpipePreQuantFlag(0x3a800000);
-    DataCopy(sL1_[(sL1BufIdx_ % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET],
-             cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET], params);
+    AscendC::FixpipeParamsC310<AscendC::CO2Layout::NZ> fixpipeParams;
+    fixpipeParams.mSize = CeilAlign(s1gL0RealSize, BLOCK_CUBE);
+    fixpipeParams.nSize = CeilAlign(s2L0RealSize, BLOCK_CUBE);
+    fixpipeParams.dstStride = S1G_BASIC_BLOCK_L0 * BLOCK_CUBE;
+    fixpipeParams.srcStride = fixpipeParams.mSize;
+    fixpipeParams.quantPre = QuantMode_t::QF322F16_PRE;
+    fixpipeParams.reluEn = 1;
+    fixpipeParams.isChannelSplit = 0;
+    fixpipeParams.deqScalar = 0x3a800000;
+    fixpipeParams.dualDstCtl = 0;
+    AscendC::Fixpipe<half, float, AscendC::CFG_NZ>(sL1_[(sL1BufIdx_ % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET],
+                                                cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams);
 }
 
 template <typename QLIT>
