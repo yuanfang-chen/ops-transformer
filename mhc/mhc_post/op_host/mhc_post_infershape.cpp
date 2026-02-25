@@ -7,6 +7,7 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
 /*!
  * \file mhc_post_infershape.cpp
  * \brief MhcPost infershape implementation
@@ -34,6 +35,37 @@ static constexpr size_t DIMS_TWO = 2;
 static constexpr size_t DIMS_THREE = 3;
 static constexpr size_t DIMS_FOUR = 4;
 
+void SetUnknownRank(gert::Shape &shape)
+{
+    shape.SetDimNum(0);
+    shape.AppendDim(UNKNOWN_RANK_DIM_VALUE);
+}
+
+bool IsUnknownRank(const gert::Shape &shape)
+{
+    return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
+}
+
+void SetUnknownShape(int64_t rank, gert::Shape &shape)
+{
+    OP_CHECK_IF(rank < 0, OP_LOGE("SetUnknownShape", "the rank value is invalid, return unsuccessful"), return);
+    const size_t dimNum = static_cast<size_t>(rank);
+    shape.SetDimNum(dimNum);
+    for (size_t i = 0; i < dimNum; i++) {
+        shape.AppendDim(-1LL);
+    }
+}
+
+bool IsUnknownShape(const gert::Shape &shape)
+{
+    size_t dimNum = shape.GetDimNum();
+    for (size_t i = 0; i < dimNum; i++) {
+        if (shape.GetDim(i) == UNKNOWN_DIM_VALUE) {
+            return true;
+        }
+    }
+    return false;
+}
 
 static void ShowInputShapeInfo(gert::InferShapeContext *context, const gert::Shape *xShape, const gert::Shape *hResShape, const gert::Shape *hOutShape, const gert::Shape *hPostShape)
 {
@@ -77,18 +109,19 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     OP_CHECK_NULL_WITH_CONTEXT(context, hOutShape);
     const gert::Shape* hPostShape = context->GetInputShape(INDEX_HPOST);
     OP_CHECK_NULL_WITH_CONTEXT(context, hPostShape);
-    auto yShape = context->GetOutputShape(INDEX_Y);
+    const gert::Shape* yShape = context->GetOutputShape(INDEX_Y);
     OP_CHECK_NULL_WITH_CONTEXT(context, yShape);
 
-    if (ops::IsUnknownRank(xShape)) {
-        ops::SetUnknownRank(yShape);
+    if (IsUnknownRank(*xShape)) {
+        SetUnknownRank(*yShape);
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown rank.");
         return ge::GRAPH_SUCCESS;
     }
     size_t xDims = xShape->GetDimNum();
-    if (ops::IsUnknownShape(xShape)) {
+    if (IsUnknownShape(*xShape)) {
+        SetUnknownShape(xDims, *yShape);
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
-        return SetAllUnknownDim(yShape);
+        return ge::GRAPH_SUCCESS;
     }
     
     size_t hResDims = hResShape->GetDimNum();
