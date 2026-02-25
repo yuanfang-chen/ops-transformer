@@ -157,7 +157,7 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
-        this->Output("y") // 非量化场景为y
+        this->Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16,
                        ge::DT_FLOAT16, ge::DT_BF16})
@@ -339,7 +339,7 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
-        aicore_config_950.Output("gmm_y") // 量化场景为gmm_y
+        aicore_config_950.Output("y")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16,
                        ge::DT_FLOAT16, ge::DT_BF16})

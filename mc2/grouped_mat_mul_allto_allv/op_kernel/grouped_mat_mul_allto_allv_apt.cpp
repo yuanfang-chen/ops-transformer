@@ -16,10 +16,10 @@
 #include "arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "grouped_mat_mul_allto_allv_tiling.h"
 #include "arch35/grouped_mat_mul_allto_allv_tiling_key.h"
-#if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h")
-#include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
+#if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
+#include "../../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
 #else
-#include "../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
+#include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
 #endif
 
 #if defined(CONST_TILING)
@@ -116,17 +116,22 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 
 #elif defined(QUANT_GMM_ALLTO_ALLV)
     REGISTER_TILING_DEFAULT(QuantGmmA2avTilingData);
-    auto tiling = (__gm__ QuantGmmA2avTilingData*)tilingGM;
-    __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.hcclInitTiling));
-    __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.a2avCcTiling));
-    GET_TILING_DATA_WITH_STRUCT(QuantGmmA2avTilingData, tilingData, tilingGM);
+    GET_TILING_DATA(tilingData, tilingGM);
+    const QuantGmmA2avTilingData* tilingData_ = &tilingData;
+    const void* hcclInitTiling = &(tilingData_->hcclA2avTiling.hcclInitTiling);
+    uint64_t hcclCcTilingOffset = offsetof(QuantGmmA2avTilingData, hcclA2avTiling) +
+                    offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
+    // auto tiling = (__gm__ QuantGmmA2avTilingData*)tilingGM;
+    // __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.hcclInitTiling));
+    // __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.a2avCcTiling));
+    // GET_TILING_DATA_WITH_STRUCT(QuantGmmA2avTilingData, tilingData, tilingGM);
     constexpr CubeFormat W_FORMAT = CubeFormat::ND;
     constexpr bool USE_SEND_COUNTS = true;
     constexpr bool IS_SHARED_EXPERT = true;
     constexpr bool IS_NOT_SHARED_EXPERT = false;
 
-    using HcclOpType = HcclA2avOp<DTYPE_GMM_Y, false>;
-    using GmmASWKernelType = GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_GMM_Y,
+    using HcclOpType = HcclA2avOp<DTYPE_Y, false>;
+    using GmmASWKernelType = Mc2GroupedMatmul::Mc2GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_Y,
         W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
     using ComputeOpType = QuantGroupedMatmul<
         QuantGmmA2avTilingData,
@@ -157,7 +162,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 
     // hccl
     HcclOpType hcclOp;
-    hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, workspaceGM, gmmyGM);
+    hcclOp.Init(hcclInitTiling, hcclCcTilingOffset, &tilingData.taskTilingInfo, workspaceGM, yGM);
 
     // gmm
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
