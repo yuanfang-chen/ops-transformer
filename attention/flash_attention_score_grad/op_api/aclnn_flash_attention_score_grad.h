@@ -120,7 +120,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
     const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, double scaleValueOptional,
     double keepProbOptional, int64_t preTokensOptional, int64_t nextTokensOptional, int64_t headNum,
     char *inputLayout, char *softmaxInLayout, int64_t innerPreciseOptional, int64_t sparseModeOptional, int64_t pseTypeOptional,
-    int64_t seed, int64_t offset, int64_t outDtypeOptional,
+    int64_t seed, int64_t offset, int64_t outDtypeOptional, double dsScaleOptional, double pScaleOptional,
     const aclTensor *dqOut, const aclTensor *dkOut, const aclTensor *dvOut,
     const aclTensor *dqRopeOut, const aclTensor *dkRopeOut, const aclTensor *dpseOut, const aclTensor *dsinkOut,
     uint64_t *workspaceSize, aclOpExecutor **executor);

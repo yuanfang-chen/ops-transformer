@@ -120,6 +120,9 @@ public:
     uint8_t dropMaskOuter;
     uint8_t sparseType;
     uint8_t reserved2;  // tilingData需要8字节对齐
+    float pScale;
+    float dsScale;
+    float pScaleLog;
 
     int64_t get_coreNum() const {return coreNum;}
     int64_t get_b() const {return b;}
@@ -151,6 +154,9 @@ public:
     uint8_t get_isSplitByBlockIdx() const {return isSplitByBlockIdx;}
     int64_t get_totalPerBatchNum() const {return totalPerBatchNum;}
     uint8_t get_sparseType() const {return sparseType;}
+    float get_pScale() const {return pScale;}
+    float get_dsScale() const {return dsScale;}
+    float get_pScaleLog() const {return pScaleLog;}
 
     void set_coreNum(int64_t coreNumParam) { this->coreNum = coreNumParam; }
     void set_b(int64_t bParam) { this->b = bParam; }
@@ -185,6 +191,9 @@ public:
     void set_isSplitByBlockIdx(uint8_t isSplitByBlockIdxParam) { this->isSplitByBlockIdx = isSplitByBlockIdxParam; }
     void set_totalPerBatchNum(int64_t totalPerBatchNumParam) { this->totalPerBatchNum = totalPerBatchNumParam; }
     void set_sparseType(uint8_t sparseTypeParam) { this->sparseType = sparseTypeParam; }
+    void set_pScale(float pScaleParam) { this->pScale = pScaleParam; }
+    void set_dsScale(float dsScaleParam) { this->dsScale = dsScaleParam; }
+    void set_pScaleLog(float pScaleLogParam) { this->pScaleLog = pScaleLogParam; }
 };
 
 class FlashAttentionScoreGradS1S2BNGS1S2SplitCoreParamsRegbase {
@@ -302,6 +311,19 @@ public:
     uint8_t reserved2; // tilingData需要8字节对齐
     uint8_t reserved3; // tilingData需要8字节对齐
     uint32_t reserved4; // tilingData需要8字节对齐
+    // softmax grad
+    uint32_t sfmgUsedCoreNum;
+    uint32_t sfmgDyBufferLen;
+    uint32_t sfmgYBufferLen;
+    uint32_t sfmgOutputBufferLen;
+    int64_t singleLoopNBurstNum;
+    int64_t normalCoreLoopTimes;
+    int64_t tailCoreLoopTimes;
+    int64_t normalCoreLastLoopNBurstNum;
+    int64_t tailCoreLastLoopNBurstNum;
+    int64_t normalCoreNBurstNums;
+    int64_t tailCoreNBurstNums;
+    int64_t normalAxisSize;
 
     uint64_t get_maskPreBlockTotal() const { return maskPreBlockTotal; }
     uint64_t get_maskSingleCoreNum() const { return maskSingleCoreNum; }
@@ -325,6 +347,18 @@ public:
     uint32_t get_maskTailCoreLastLoopNum() const { return maskTailCoreLastLoopNum; }
     uint32_t get_dropoutIsDivisibleBy8() const { return dropoutIsDivisibleBy8; }
     bool get_sValueZeroUnderTND() const { return sValueZeroUnderTND; }
+    uint32_t get_sfmgUsedCoreNum() const {return sfmgUsedCoreNum;}
+    uint32_t get_sfmgDyBufferLen() const {return sfmgDyBufferLen;}
+    uint32_t get_sfmgYBufferLen() const {return sfmgYBufferLen;}
+    uint32_t get_sfmgOutputBufferLen() const {return sfmgOutputBufferLen;}
+    int64_t get_singleLoopNBurstNum() const {return singleLoopNBurstNum;}
+    int64_t get_normalCoreLoopTimes() const {return normalCoreLoopTimes;}
+    int64_t get_tailCoreLoopTimes() const {return tailCoreLoopTimes;}
+    int64_t get_normalCoreLastLoopNBurstNum() const {return normalCoreLastLoopNBurstNum;}
+    int64_t get_tailCoreLastLoopNBurstNum() const {return tailCoreLastLoopNBurstNum;}
+    int64_t get_normalCoreNBurstNums() const {return normalCoreNBurstNums;}
+    int64_t get_tailCoreNBurstNums() const {return tailCoreNBurstNums;}
+    int64_t get_normalAxisSize() const {return normalAxisSize;}
 
     void set_maskPreBlockTotal(uint64_t val) { maskPreBlockTotal = val; }
     void set_maskSingleCoreNum(uint64_t val) { maskSingleCoreNum = val; }
@@ -348,6 +382,18 @@ public:
     void set_maskTailCoreLastLoopNum(uint32_t val) { maskTailCoreLastLoopNum = val; }
     void set_dropoutIsDivisibleBy8(uint32_t val) { dropoutIsDivisibleBy8 = val; }
     void set_sValueZeroUnderTND(bool val) { sValueZeroUnderTND = val; }
+    void set_sfmgUsedCoreNum(uint32_t val) { sfmgUsedCoreNum = val; }
+    void set_sfmgDyBufferLen(uint32_t val) { sfmgDyBufferLen = val; }
+    void set_sfmgYBufferLen(uint32_t val) { sfmgYBufferLen = val; }
+    void set_sfmgOutputBufferLen(uint32_t val) {sfmgOutputBufferLen = val;}
+    void set_singleLoopNBurstNum(int64_t val) { singleLoopNBurstNum = val; }
+    void set_normalCoreLoopTimes(int64_t val) { normalCoreLoopTimes = val; }
+    void set_tailCoreLoopTimes(int64_t val) { tailCoreLoopTimes = val; }
+    void set_normalCoreLastLoopNBurstNum(int64_t val) { normalCoreLastLoopNBurstNum = val; }
+    void set_tailCoreLastLoopNBurstNum(int64_t val) { tailCoreLastLoopNBurstNum = val; }
+    void set_normalCoreNBurstNums(int64_t val) { normalCoreNBurstNums = val; }
+    void set_tailCoreNBurstNums(int64_t val) { tailCoreNBurstNums = val; }
+    void set_normalAxisSize(int64_t val) { normalAxisSize = val; }
 };
 
 class PostParamsRegbase {
@@ -372,6 +418,7 @@ public:
     uint64_t dropMaskGmOffset;
     uint64_t deterGmOffset;
     uint64_t deterWorkSpaceOffset;
+    uint64_t sfmgWorkSpaceOffset;
 
     uint32_t get_postUbBaseSize() const { return postUbBaseSize; }
     uint32_t get_qPostBlockFactor() const { return qPostBlockFactor; }
@@ -393,6 +440,7 @@ public:
     uint64_t get_dropMaskGmOffset() const { return dropMaskGmOffset; }
     uint64_t get_deterGmOffset() const { return deterGmOffset; }
     uint64_t get_deterWorkSpaceOffset() const { return deterWorkSpaceOffset; }
+    uint64_t get_sfmgWorkSpaceOffset() const {return sfmgWorkSpaceOffset;}
 
     void set_postUbBaseSize(uint32_t value) { postUbBaseSize = value; }
     void set_qPostBlockFactor(uint32_t value) { qPostBlockFactor = value; }
@@ -414,6 +462,7 @@ public:
     void set_dropMaskGmOffset(uint64_t value) { dropMaskGmOffset = value; }
     void set_deterGmOffset(uint64_t value) { deterGmOffset = value; }
     void set_deterWorkSpaceOffset(uint64_t value) { deterWorkSpaceOffset = value; }
+    void set_sfmgWorkSpaceOffset(uint64_t value) { sfmgWorkSpaceOffset = value; }
 };
 
 class DeterParamRegbase {
