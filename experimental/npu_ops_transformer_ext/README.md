@@ -171,6 +171,11 @@ NpuOpsTransformerExt 是一个轻量级，高性能的算子开发工程模板�
         return()
     endif()
     ```
+    2.1 在`experimental/npu_ops_transformer_ext/CMakeLists.txt`中添加`my_ops`至`NPU_EXT_OPERATOR_LIST`
+    ```cmake
+    set(NPU_EXT_OPERATOR_LIST "typhoon_mla;score_normalize;rope_matrix;select_attention_operators;my_ops")
+    ```
+    
 
 3. 在 `npu_ops_transformer_ext/npu_ops_def.cpp`中添加TORCH_LIBRARY_IMPL定义
    
