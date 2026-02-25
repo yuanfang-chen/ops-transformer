@@ -125,7 +125,7 @@ aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& net
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t srcRankId, std::vector<ChannelHandle>& channeles)
+aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t srcRankId, CommEngine engine, std::vector<ChannelHandle>& channeles)
 {
     std::vector<HcclChannelDesc> channelDesc;
     channelDesc.resize(rankDim);
@@ -134,7 +134,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     HcclResult ret;
     uint32_t netLayers = 0; //目前默认是AIV 单Server内
     uint32_t linkNum = 0;
-    
+
     OP_LOGD("PRINT HcclChannelDescInit start");
     ret = HcclChannelDescInit(channelDesc.data(), rankDim);
     if(ret != HCCL_SUCCESS) {
@@ -203,7 +203,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     }
     OP_LOGD("PRINT HcclGetRankSize success");
 
-    res = GetHcclCommChannel(hcclHandle, mc2_context->rankDim, mc2_context->rankId, channeles);
+    res = GetHcclCommChannel(hcclHandle, mc2_context->rankDim, mc2_context->rankId, engine, channeles);
     CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("PRINT HcclChannelAcquire success");
 
