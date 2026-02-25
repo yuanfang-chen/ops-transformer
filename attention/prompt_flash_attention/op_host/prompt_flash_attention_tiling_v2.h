@@ -94,7 +94,7 @@ public:
     ge::graphStatus RunBigKernelTilingWithParams(ContextParamsForPFATiling& contextKeyParams,
         uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData);
     ge::graphStatus PromptFlashAttentionSetTilingData(gert::TilingContext* context,
-        PromptFlashAttentionTilingData& tilingData);
+        PromptFlashAttentionTilingData& tilingData) const;
     bool CheckNonEmptyShapeExceptions(const ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* shape,
         const std::string &sName) const;
     ge::graphStatus DoSubOpTiling(PromptFlashAttentionTilingData& tilingData, ContextParamsForPFATiling& contextParamsForPFATiling);
@@ -135,7 +135,7 @@ protected:
     bool CheckAntiquantParamsShape(ContextParamsForPFATiling& contextKeyParams);
     bool GetAndCheckPrefixShape(ContextParamsForPFATiling& contextKeyParams, PFAShapeInfo& queryShapeInfo,
         PFAShapeInfo& prefixShapeInfo,
-        PromptFlashAttentionTilingData& tilingData) const;
+        const PromptFlashAttentionTilingData& tilingData) const;
     bool CheckKeyValuePrefixConsistency(ContextParamsForPFATiling& contextKeyParams, const gert::StorageShape* keyShape);
     bool CheckActSharedPrefix(ContextParamsForPFATiling& contextKeyParams, const uint32_t sPrefix, const uint32_t sKV);
     bool CheckPAKeyValueShape(ContextParamsForPFATiling& contextKeyParams, int64_t& keyDim1, PFAShapeInfo& queryShapeInfo,

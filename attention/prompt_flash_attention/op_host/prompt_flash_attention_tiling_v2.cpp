@@ -1159,7 +1159,7 @@ bool PromptFlashAttentionTilingV2::CheckAntiquantParamsShape(ContextParamsForPFA
 
 bool PromptFlashAttentionTilingV2::GetAndCheckPrefixShape(ContextParamsForPFATiling& contextKeyParams,
     PFAShapeInfo& keyShapeInfo, PFAShapeInfo& prefixShapeInfo,
-    PromptFlashAttentionTilingData& tilingData) const {
+    const PromptFlashAttentionTilingData& tilingData) const {
     int64_t prefixSeqInnerSize = 0;
     int64_t bPrefix = 0U;
     int64_t nPrefix = 0U;
@@ -4781,7 +4781,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::PromptFlashAttentionSetTilingData(gert::TilingContext* context,
-    PromptFlashAttentionTilingData& tilingData) {
+    PromptFlashAttentionTilingData& tilingData) const {
     return ge::GRAPH_SUCCESS;
 }
 
@@ -4974,6 +4974,6 @@ ge::graphStatus PromptFlashAttentionTilingV2::DoOpTiling()
     return ret;
 }
 
-REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTilingV2, std::vector<int32_t>({(int32_t)NpuArch::DAV_3510}), 90);
+REGISTER_TILING_TEMPLATE_FIA(PromptFlashAttention, PromptFlashAttentionTilingV2, std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_3510)}), 90);
 } // namespace v2
 } // namespace optiling
