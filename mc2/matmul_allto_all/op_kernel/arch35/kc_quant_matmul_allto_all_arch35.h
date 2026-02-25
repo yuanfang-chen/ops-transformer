@@ -98,7 +98,7 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
 __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTile(uint32_t taskCnt)
 {
-    auto&& mc2Tiling_ = tilingData_->kcQuantMatmulAlltoAllTilingInfo;
+    auto&& mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     // 复用的中间量
     uint64_t tileMMultiRankN = (uint64_t)mc2Tiling_.tileM * mc2Tiling_.rankN;
     uint64_t rankNDivRankDim = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
@@ -115,7 +115,7 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     pipeLineContext_.computationContext->additionalData.x1Scale = x1_scale_; 
     pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_; 
     pipeLineContext_.computationContext->additionalData.x2Offset = x2_offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTileTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TileTilingData);
     
     // 转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
     pipeLineContext_.transposeContext->transposeSrcAddr = tempComputeOutGM_;
@@ -146,7 +146,7 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
 __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::ProcessTail(uint32_t taskCnt)
 {
-    auto&& mc2Tiling_ = tilingData_->kcQuantMatmulAlltoAllTilingInfo;
+    auto&& mc2Tiling_ = tilingData_->quantMatmulAlltoAllTilingInfo;
     // 复用的中间量
     uint64_t tileCntMultitileM = (uint64_t)mc2Tiling_.tileCnt * mc2Tiling_.tileM;
     uint64_t rankNDivRankDim = (uint64_t)mc2Tiling_.rankN / mc2Tiling_.rankDim;
@@ -161,7 +161,7 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     pipeLineContext_.computationContext->additionalData.x1Scale = x1_scale_ + tileCntMultitileM * sizeof(float); 
     pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_; 
     pipeLineContext_.computationContext->additionalData.x2Offset = x2_offset_;
-    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2KcQuantMmTailTilingData);
+    pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TailTilingData);
 
     uint64_t commonOffset = (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.transposeContext->transposeSrcAddr = tempComputeOutGM_ + tileCntMultitileM * mc2Tiling_.rankN * sizeof(DTYPE_Y);

@@ -55,8 +55,9 @@ private:
     uint32_t endIndex_ = 0;
     bool notifyFlag_ = false;
     Communicationtype communicationType_ = COMMUNICATION_WAIT_ONE;
-    AscendC::HcclHandle hTasks_[16]; //hccl只支持最多16个任务并行
-    bool taskSuccess[16];
+    static constexpr uint8_t MAX_HCCL_HANDLE_ = 16;
+    AscendC::HcclHandle hTasks_[MAX_HCCL_HANDLE_]; //hccl只支持最多16个任务并行
+    bool taskSuccess_[MAX_HCCL_HANDLE_];
 };
 
 template <bool AICSync, HcclServerType ServerType, typename ContextType, typename TilingDataType,
@@ -82,8 +83,8 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
         communicationType_ = Communicationtype::COMMUNICATION_WAIT_ONE;
     }
 
-    for (uint8_t i = 0;i < 16; ++i) {
-        taskSuccess[i] = true;
+    for (uint8_t i = 0;i < MAX_HCCL_HANDLE_; ++i) {
+        taskSuccess_[i] = true;
     }
 }
 
@@ -105,7 +106,7 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
         for (uint32_t i = 0; i < taskCnt; i++) {
             hccl_.Commit(hTasks_[startIndex_ + i]);
-            taskSuccess[startIndex_ + i] = false;
+            taskSuccess_[startIndex_ + i] = false;
         }
     }
 }
@@ -128,10 +129,10 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     }
     if (communicationType_ == Communicationtype::COMMUNICATION_WAIT_ONE) {
         hccl_.Wait(hTasks_[startIndex_ + taskIndex]);
-        taskSuccess[startIndex_ + taskIndex] = true;
+        taskSuccess_[startIndex_ + taskIndex] = true;
     } else if (communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
         hccl_.Commit(hTasks_[startIndex_ + taskIndex]);
-        taskSuccess[startIndex_ + taskIndex] = false;
+        taskSuccess_[startIndex_ + taskIndex] = false;
     }
 }
 
@@ -142,9 +143,9 @@ __aicore__ inline void HcclCommunication<AICSync, ServerType, ContextType, Tilin
     // 如果是先算后通就全量等待通信
     if (notifyFlag_ && communicationType_ == Communicationtype::COMMUNICATION_SEND_ONE) {
         for (uint32_t i = 0;i < endIndex_; ++i) {
-            if (!taskSuccess[i]) {
+            if (!taskSuccess_[i]) {
                 hccl_.Wait(hTasks_[i]);
-                taskSuccess[i] = true;
+                taskSuccess_[i] = true;
             }
         }
     }
