@@ -62,7 +62,6 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GM_ADDR yGM, GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 
 {
-    GM_ADDR yGM = gmmyGM;
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     if (workspaceGM == nullptr) {
         return;
