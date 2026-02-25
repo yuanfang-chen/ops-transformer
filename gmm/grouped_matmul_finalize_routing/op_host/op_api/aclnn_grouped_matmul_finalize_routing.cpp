@@ -734,15 +734,11 @@ static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, 
 {
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
-        // if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-        //     if (transposeX2 == false) {
-        //         auto transposeFlag = IsLastTwoDimsTranspose(x2);
-        //         if(transposeFlag) {
-        //             transposeX2 = true;
-        //         }
-        //     }
-        // }
-        // 存疑，这个不清楚要不要加。
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            if (transposeX2 == false) {
+                CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+            }
+        } 
     } else {
         if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             if (transposeX2 == false) {
