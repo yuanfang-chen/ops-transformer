@@ -10,11 +10,11 @@
 
 if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnExc PRIVATE
-        moe_masked_scatter_def.cpp
+        moe_inplace_index_add_def.cpp
     )
     if(CONDITION_UNIT STREQUAL "ascend950")
         add_ops_compile_options(
-            OP_NAME MoeMaskedScatter
+            OP_NAME MoeInplaceIndexAdd
             OPTIONS --cce-auto-sync=off
                     -Wno-deprecated-declarations
                     -Werror
@@ -23,7 +23,7 @@ if (BUILD_OPEN_PROJECT)
         )
     else()
         add_ops_compile_options(
-                    OP_NAME MoeMaskedScatter
+                    OP_NAME MoeInplaceIndexAdd
                     OPTIONS --cce-auto-sync=off
                             -Wno-deprecated-declarations
                             -Werror
@@ -32,5 +32,5 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE moe_masked_scatter ACLNNTYPE aclnn_exclude)
+    add_modules_sources(OPTYPE moe_inplace_index_add ACLNNTYPE aclnn_exclude)
 endif()
