@@ -30,15 +30,6 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
 - 本样例中核函数命名为all_gather_add。
 - 根据对算子输入输出的分析，确定核函数的参数aGM，bGM，cGM，gatherOutGM；aGM，bGM为输入在Global Memory上的内存地址，cGM，gatherOutGM为输出在Global Memory上的内存地址。
-  注意，核函数的参数和[单算子API调用](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/opdevg/Ascendcopdevg/atlas_ascendc_10_0070.html)的输入输出在命名上存在区别，原因是核函数的参数是输入输出在Global Memory上的内存地址，而单算子API调用时输入输出的类型是aclTensor，两者并不完全一致，例如：
-
-  ```cpp
-    // 核函数
-    extern "C" global aicore void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR gatherGM, GM_ADDR tilingGM);
-    // 单算子API调用
-    ACLNN_API aclnnStatus aclnnAllGatherAddGetWorkspaceSize(const aclTensor *a, const aclTensor *b, char *group, int64_t rankSize, const aclTensor *cOut, const aclTensor *gatherOutOut,
-    uint64_t *workspaceSize, aclOpExecutor **executor);
-  ```
 
 ### 1.4 算子实现所需接口
 
@@ -48,21 +39,82 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
 ### 1.5 算子规格
 
-| 算子类型(OpType) | AllGatherAdd | | | |
-| ----------------- | -------------- | ---------- | -------- | -------- |
-| **算子输入输出** | name | dataType | shape | format |
-| | a | float16 | (240, 256) | ND |
-| | b | float16 | (480, 256) | ND |
-| | c | float16 | (480, 256) | ND |
-| | gather_out | float16 | (480, 256) | ND |
-| **算子属性** | rank_size | int32 | 2 |\ |
-| | group | string | 通信域，不能手动构造，需在调用算子前调用hccl接口动态申请 |\ |
-| **核函数名称** | all_gather_add | | | |
-| **关键接口** | DataCopy: 数据搬运接口 | | | |
-| | Add: 矢量双目指令接口 | | | |
-| | AllocTensor、FreeTensor、InitBuffer、Get：内存管理接口 | | | |
-| | TBuf：内存管理数据结构 | | | |
-| | GetHcclContext：获取通信Context | | | |
+<table border="1" style="table-layout: fixed; width: 100%">
+    <colgroup>
+        <col style="width: 25%">
+        <col style="width: 15%">
+        <col style="width: 15%">
+        <col style="width: 20%">
+        <col style="width: 25%">
+    </colgroup>
+    <tr>
+        <th>算子类型(OpType)</th>
+        <td colspan="4">AllGatherAdd</td>
+    </tr>
+    <tr>
+        <th rowspan="5">算子输入输出</th>
+        <th>name</th>
+        <th>dataType</th>
+        <th>shape</th>
+        <th>format</th>
+    </tr>
+    <tr>
+        <td>a</td>
+        <td>float16</td>
+        <td>(240,256)</td>
+        <td>ND</td>
+    </tr>
+    <tr>
+        <td>b</td>
+        <td>float16</td>
+        <td>(480,256)</td>
+        <td>ND</td>
+    </tr>
+    <tr>
+        <td>c</td>
+        <td>float16</td>
+        <td>(480,256)</td>
+        <td>ND</td>
+    </tr>
+    <tr>
+        <td>gather_out</td>
+        <td>float16</td>
+        <td>(480,256)</td>
+        <td>ND</td>
+    </tr>
+    <tr>
+        <th rowspan="2">算子属性</th>
+        <td>rank_size</td>
+        <td>int32</td>
+        <td>2</td>
+        <td>\</td>
+    </tr>
+    <tr>
+        <td>group</td>
+        <td>string</td>
+        <td colspan="2">通信域，不能手动构造，需在调用算子前调用hcc接口动态申请</td>
+    </tr>
+    <tr>
+        <th>核函数名称</th>
+        <td colspan="4">all_gather_add</td>
+    </tr>
+    <tr>
+        <th rowspan="5">关键接口</th>
+        <td colspan="4">DataCopy: 数据搬运接口</td>
+    </tr>
+    <tr>
+        <td colspan="4">Add: 矢量双目指令接口</td>
+    </tr>
+    <tr>
+        <td colspan="4">AllocTensor、FreeTensor、InitBuffer、Get：内存管理接口</td>
+    </tr>
+    <tr>
+        <td colspan="4">TBuf：内存管理数据结构</td>
+    </tr>
+    <tr>
+        <td colspan="4">GetHccContext：获取通信Context</td>
+    </tr>
+</table>
 
 
 ## 数据流分析
@@ -71,12 +123,12 @@ AllGather操作会将通信域内所有卡的输入按照卡id重新排序，然
 
 本样例通信域内卡数rank_size固定为2，若通信不切分轮次，通信计算串行进行，算子语义示意图如下：
 
-![AllGatherAdd算子计算语义示意图.png](../docs/figures/AllGatherAdd算子计算语义示意图.png)
+![AllGatherAdd算子计算语义示意图.png](figures/AllGatherAdd算子计算语义示意图.png)
 
 AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add计算，通信计算部分可以并行进行互不影响。
 因此，可以将通信数据切分为块，每次计算对前一轮的通信结果进行操作，流水互相掩盖，则可得到通信计算掩盖示意图如下：
 
-![AllGatherAdd通算掩盖示意图.png](../docs/figures/AllGatherAdd通算掩盖示意图.png)
+![AllGatherAdd通算掩盖示意图.png](figures/AllGatherAdd通算掩盖示意图.png)
 
 可以看到从第二轮通信开始，通算流水掩盖。由于前一次通信结果的Add计算和后一次通信过程可以并行，当通信切分轮次增多时，在流水上可以掩盖掉（comm_turn-1/comm_turn）* 总数据量 的计算时间。
 本样例中，固定通信轮次comm_turn=2，开发者可以根据shape的大小调整通信轮次来实现不同程度的通算掩盖。
@@ -84,13 +136,13 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 **AllGatherAdd算子计算过程示意**：（comm_turn=2时）
 
 1. AI Core将要执行的通信信息写入Global Memory中的消息区，实现任务下发。消息区是特定地址的Global Memory，AI Core和AI CPU通过向其写入和轮询读取来实现消息在两者间的传递，这些操作统一封装于[Hccl](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0869.html)高阶API中。
-2. AI CPU从消息区读取到所有通信任务信息，开始基于HCCS（华为缓存一致性系统，用于CPU/NPU之间的高速互联）或RoCE（承载在融合以太网上的RDMA技术，即跨越以太网的RDMA通信方式）等链路执行第一轮AllGather集合通信任务。下图为第一轮AllGather通信示意图。
+2. AI CPU从消息区读取到所有通信任务信息，开始基于HCCS（华为缓存一致性系统，用于CPU/NPU之间的高速互联）链路执行第一轮AllGather集合通信任务。下图为第一轮AllGather通信示意图。
 
-![第一轮AllGather通信示意图.png](../docs/figures/AllGatherAdd第一轮通信示意图.png)
+![AllGatherAdd第一轮通信示意图.png](figures/AllGatherAdd第一轮通信示意图.png)
 
-3. AI CPU完成第一轮通信任务后，向消息区写入第一轮通信任务已完成的消息，并开始执行第二轮通信任务。同时，AI Vector开始对第一轮AllGather通信结果进行Add计算。下图为第二轮通信和rank0上第一轮Add计算的示意图。
+3. AI CPU完成第一轮通信任务后，向消息区写入第一轮通信任务已完成的状态，并开始执行第二轮通信任务。同时，AI Vector开始对第一轮AllGather通信结果进行Add计算。下图为第二轮通信和rank0上第一轮Add计算的示意图。
 
-![Rank0上第一轮Add示意图.png](../docs/figures/Rank0上第一轮Add示意图.png)
+![Rank0上第一轮Add示意图.png](figures/Rank0上第一轮Add示意图.png)
 
 4. 按照通信切分轮次逐步完成所有数据块的通信和计算。
 
@@ -111,45 +163,24 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 ## 算子原型定义
 
 相比于一般算子，通算融合算子在实现[算子原型定义](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/opdevg/Ascendcopdevg/atlas_ascendc_10_0062.html)时，有如下约束：
-- 必须定义一个表示算子通信域名称的属性。通信域是集合通信执行的上下文，管理对应的通信实体（例如一个NPU就是一个通信实体）和通信所需的资源。
+- 必须定义至少一个表示算子通信域名称的属性，该属性的数量与算子所在通信域数量一致。通信域是集合通信执行的上下文，管理对应的通信实体（例如一个NPU就是一个通信实体）和通信所需的资源。
 - 必须通过原型注册中的[MC2](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0954.html)接口注册该算子为通算融合算子，并通过[HcclGroup](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_1002.html)接口配置该算子的通信域名称。
 
 AllGatherAdd算子原型定义如下：
 
 ```cpp
-    namespace ops {
-    class AllGatherAdd : public OpDef {
-    public:
-    explicit AllGatherAdd(const char *name) : OpDef(name) {
-        this->Input("a")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Input("b")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        
-        this->Output("c")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Output("gather_out")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-
-        this->Attr("group").AttrType(REQUIRED).String(); // 通算融合算子属性，表示通信域名称
-        this->Attr("rank_size").AttrType(REQUIRED).Int(0);
-
-        this->AICore().AddConfig("ascend910b");
-        this->AICore().AddConfig("ascend910_93");
-        this->MC2().HcclGroup("group"); // group 属性配置为该算子的通信域名称
-    }
-    };
-
-    OP_ADD(AllGatherAdd);
-    }  // namespace ops
+struct AllGatherAddTilingData {
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTiling;
+    uint32_t commTurn; // 通信轮次
+    
+    uint32_t totalElemNum;
+    uint32_t blockElemNum;
+    uint32_t tileNum;
+    uint32_t addTileElemNum;
+    uint32_t gatherTileElemNum;
+    uint32_t addCoresPerRank;
+};
 
 ```
 
@@ -259,7 +290,7 @@ AllGatherAdd算子的核函数定义如下，aGM、bGM、cGM、gatherOutGM参数
 
 ```cpp
 extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
-    GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
+                                                     GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
 ```
 
 - Add计算依赖AIV核，因此算子逻辑仅运行于AIV核中。
@@ -350,7 +381,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     第一轮通信任务完成后，算子开始第一轮Add计算。在开始计算之前，需要确认参与计算的数据地址，CalcAddGmAddr函数根据通信轮次和卡数计算本核需要处理数据的起始地址。为了实现通信计算掩盖和多核并行，提升计算效率，将Add计算的操作数进行切分，切分后的数据分配到不同的核上进行处理。本样例仅切分操作数的Y轴，示意图如下。在这种场景下，每个核需要计算两个加数相对于原始数据的偏移量，并将偏移后的数据块传入AIV核的Unified Buffer作为入参进行Add计算。
 
-    ![Add计算分核示意图.png](../docs//figures/Add计算分核示意图.png)
+    ![Add计算分核示意图.png](figures/Add计算分核示意图.png)
 
     如上图所示，假设当前在AIV-26核进行第一次Add计算，根据Process()函数逻辑，当i = 0时，CalcAddGmAddr函数第一次触发执行，根据[hccl.wait()](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0878.html)接口说明，此时第一轮通信已经完成，第二轮通信开始，因此CalcAddGmAddr函数中计算本核需要处理数据的起始地址偏移时，首先偏移i * 单次通信数据长度的距离，如图commOffset；每次Add操作对上一轮通信的结果进行计算，由于通信分多轮进行，每张卡的相邻数据块在gatherOutGM中起始地址存在偏移（即strideCount），因此需要根据卡数和当前核的index计算当前核被分到处理哪个rank的通信数据，如图，后40个AIV核被均分给两个rank，则AIV-26被分到处理来自rank1的数据，blockOffset如图；计算出当前核处理的rank后，最终偏移需要再加上在此rank数据上的偏移，即6 * 每个核处理的数据个数。
     CalcAddGmAddr函数实现如下：
@@ -369,7 +400,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     每个核完成数据地址的计算之后，就可以遵循[典型算子的编程范式](https://www.hiascend.com/document/detail/zh/canncommercial/850/opdevg/Ascendcopdevg/atlas_ascendc_10_00033.html)，CopyIn（从GM将数据搬到片上Local Memo）->Compute（调用Add算术API完成计算）->CopyOut（从Local Memo将计算结果搬出到GM），完成AllGatherAdd算子的全部计算。每个核内的Add计算内存示意图：
 
-    ![Add计算内存搬运示意图.png](../docs//figures/Add计算内存搬运示意图.png)
+    ![Add计算内存搬运示意图.png](figures/Add计算内存搬运示意图.png)
 
     - 轮询等待每个分块的通信完成和计算完成，最后释放资源。
 
