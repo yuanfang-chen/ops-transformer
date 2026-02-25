@@ -512,75 +512,41 @@ void MhcPostTilingBase::ComputeTiling()
     uint32_t alignedN = AlignUp(n_, FLOAT32_ALIGN_SIZE);
     uint32_t alignedNN = AlignUp(n_ * n_, FLOAT32_ALIGN_SIZE);
 
+    // Calculate bytes per tileD element based on actual n
+    // TQue bf16: (2n+2) * 2 bytes (hOut:1, x:n, output:n)
+    // TBuf f32:  (2n+4) * 4 bytes (hOutF32:1, xF32:n, outF32:1, temp:1)
+    // Small buffers (fixed, not per-tileD):
+    //   - TQue f32: (alignedN + alignedNN) * 4 for hPost, hRes
+    uint32_t bytesPerTileD = (2 * n_ + 2) * 2 + (2 * n_ + 4) * 4;  // = 12n + 20
+    uint32_t smallBufferBytes = (alignedN + alignedNN) * 4;  // aligned sizes
+
+    // Reserve space for small buffers, then calculate max tileD
+    uint32_t availableUB = UB_SIZE - smallBufferBytes;
+    uint32_t maxTileD = availableUB / bytesPerTileD;
+    maxTileD = AlignDown(maxTileD, BF16_FP16_ALIGN_SIZE);  // Align to 16 elements
+
     // Align D to BF16_FP16_ALIGN_SIZE for proper memory access
     uint32_t alignedD = AlignUp(D_, BF16_FP16_ALIGN_SIZE);
 
-    // Calculate bytes per tileD element based on actual n
-    // General path (usePermanentX = 0):
-    //   TQue bf16: (depth=2) hOut(2×1×tileD) + x(2×n×tileD) + output(2×n×tileD)
-    //             Per-tileD elements: 2 + 2n + 2n = 4n + 2
-    //             Per-tileD bytes: (4n + 2) × 2 = 8n + 4
-    //   TBuf f32:  hOutF32(1×tileD) + xF32(n×tileD) + outF32(1×tileD) + temp(1×tileD)
-    //             Per-tileD elements: 1 + n + 1 + 1 = n + 3
-    //             Per-tileD bytes: (n + 3) × 4 = 4n + 12
-    //   Total: (8n + 4) + (4n + 12) = 12n + 16
-    //
-    // Optimized path (usePermanentX = 1):
-    //   TQue bf16: (depth=2) hOut(2×1×tileD) + output(2×n×tileD), x in buffer_permanent_left
-    //             Per-tileD elements: 2 + 2n = 2n + 2
-    //             Per-tileD bytes: (2n + 2) × 2 = 4n + 4
-    //   TBuf f32:  outF32(1×tileD) + temp(1×tileD), xF32 replaced by buffer_permanent_left
-    //             Per-tileD elements: 1 + 1 = 2
-    //             Per-tileD bytes: 2 × 4 = 8
-    //   Extra TBuf: permanentLeftBuf(n×tileD) holds x data
-    //             Per-tileD bytes: n × 4 = 4n
-    //   Total: (4n + 4) + 8 + 4n = 8n + 12
-    //
-    // Small buffers (fixed, not per-tileD):
-    //   - TQue f32: (alignedN + alignedNN) × 4 for hPost, hRes
-
-    // Check if optimized path can be used: N*D must fit in UB with permanent buffer
-    uint32_t bytesPerTileDOptimized = 8 * n_ + 12;  // = 8n + 12
-    uint32_t bytesPerTileDGeneral = 12 * n_ + 16;  // = 12n + 16
-
-    uint32_t smallBufferBytes = (alignedN + alignedNN) * 4;  // aligned sizes
-
-    // Check if optimized path is viable: entire n*D should fit with permanent buffer
-    uint32_t optimizedPathRequired = smallBufferBytes + bytesPerTileDOptimized * alignedD;
-    uint32_t usePermanentX = (optimizedPathRequired <= UB_SIZE) ? 1 : 0;
-
-    // Choose the appropriate bytesPerTileD based on path
-    uint32_t bytesPerTileD = (usePermanentX == 1) ? bytesPerTileDOptimized : bytesPerTileDGeneral;
-    uint32_t availableUB = UB_SIZE - smallBufferBytes;
-
-    // For optimized path, alignedD must fit in UB
-    if (usePermanentX == 1) {
+    // Determine optimal tileD:
+    if (alignedD <= maxTileD) {
         tileD_ = alignedD;
         nTilesD_ = 1;
     } else {
-        uint32_t maxTileD = availableUB / bytesPerTileD;
-        maxTileD = AlignDown(maxTileD, BF16_FP16_ALIGN_SIZE);  // Align to 16 elements
-
-        // Determine optimal tileD:
-        if (alignedD <= maxTileD) {
-            tileD_ = alignedD;
-            nTilesD_ = 1;
-        } else {
-            // Find largest aligned value that fits in UB
-            tileD_ = maxTileD;
-            // Try to find a divisor of alignedD for even splitting
-            while (tileD_ >= BF16_FP16_ALIGN_SIZE) {
-                if (alignedD % tileD_ == 0) {
-                    break;  // 找到可以整除的tileD
-                }
-                tileD_ -= BF16_FP16_ALIGN_SIZE;
+        // Find largest aligned value that fits in UB
+        tileD_ = maxTileD;
+        // Try to find a divisor of alignedD for even splitting
+        while (tileD_ >= BF16_FP16_ALIGN_SIZE) {
+            if (alignedD % tileD_ == 0) {
+                break;  // 找到可以整除的tileD
             }
-            // Fallback: if no exact divisor found, use maxTileD
-            if (tileD_ < BF16_FP16_ALIGN_SIZE) {
-                tileD_ = maxTileD;
-            }
-            nTilesD_ = CeilDiv(alignedD, tileD_);
+            tileD_ -= BF16_FP16_ALIGN_SIZE;
         }
+        // Fallback: if no exact divisor found, use maxTileD
+        if (tileD_ < BF16_FP16_ALIGN_SIZE) {
+            tileD_ = maxTileD;
+        }
+        nTilesD_ = CeilDiv(alignedD, tileD_);
     }
 
     // Calculate last tile size
@@ -604,11 +570,10 @@ void MhcPostTilingBase::ComputeTiling()
     tilingData_->lastTileD = lastTileD;
     tilingData_->alignedN = alignedN;
     tilingData_->alignedNN = alignedNN;
-    tilingData_->usePermanentX = usePermanentX;
 
     OP_LOGI(context_,
-        "Tiling: n=%u, D=%u, alignedD=%u, tileD=%u, lastTileD=%u, nTilesD=%u, usePermanentX=%u",
-        n_, D_, alignedD, tileD_, lastTileD, nTilesD_, usePermanentX);
+        "Tiling: n=%u, D=%u, alignedD=%u, tileD=%u, lastTileD=%u, nTilesD=%u",
+        n_, D_, alignedD, tileD_, lastTileD, nTilesD_);
     OP_LOGI(context_, "Tiling: alignedN=%u, alignedNN=%u", alignedN, alignedNN);
     OP_LOGI(context_,
         "Tiling: usedCores=%u, itemsPerCore=%u, remainderItems=%u, UB=%u, bytesPerTileD=%u",
@@ -667,13 +632,10 @@ uint64_t MhcPostTilingBase::GetTilingKey() const
     uint16_t isNNAligned = ((n_ * n_) % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
     // D is aligned if D % 16 == 0 and single tile
     uint16_t isDAligned = ((D_ % BF16_FP16_ALIGN_SIZE == 0) && (nTilesD_ == 1)) ? 1 : 0;
-    // usePermanentX flag from tiling data
-    uint16_t usePermanentX = (tilingData_->usePermanentX == 1) ? 1 : 0;
     OP_LOGI(context_,
-        "Tiling:isNAligned=%u, isNNAligned=%u, isDAligned=%u, usePermanentX=%u",
-        isNAligned, isNNAligned, isDAligned, usePermanentX);
+        "Tiling:isNAligned=%u, isNNAligned=%u, isDAligned=%u", isNAligned, isNNAligned, isDAligned);
 
-    return GET_TPL_TILING_KEY(isNAligned, isNNAligned, isDAligned, usePermanentX);
+    return GET_TPL_TILING_KEY(isNAligned, isNNAligned, isDAligned);
 }
 
 void MhcPostTilingBase::Reset()
