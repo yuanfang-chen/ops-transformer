@@ -98,7 +98,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <td>输入</td>
       <td>topK值。</td>
       <td>必须大于0，且expandedRowIdx的0轴大小能被topK整除。</td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -108,7 +108,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <td>输入</td>
       <td>表示是否为Drop/Pad场景。</td>
       <td>取值为0或1。<ul><li>0：表示Dropless场景。</li><li>1：表示Drop/Pad场景。</li></ul></td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
@@ -118,7 +118,7 @@ aclnnStatus aclnnMoeInitRoutingV2Grad(
       <td>输入</td>
       <td>表示场景是否为Active场景。</td>
       <td>值范围大于等于0，当dropPadMode为0时生效，0表示非Active场景，大于0表示Active场景，Active场景下gradExpandedX的0轴大小必须等于activeNum值。</td>
-      <td>-</td>
+      <td>INT64</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>
