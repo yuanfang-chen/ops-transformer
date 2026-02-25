@@ -508,7 +508,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpSToL1(uint64_t s1gL0RealSize, uint64
     params.reluPre = 1;
     params.channelSplit = 0;
     params.nz2ndEn = 0;
-    SetFixpipePreQuantFlag(0x7f800000);
+    SetFixpipePreQuantFlag(0x3a800000);
     DataCopy(sL1_[(sL1BufIdx_ % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET],
              cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET], params);
 }
