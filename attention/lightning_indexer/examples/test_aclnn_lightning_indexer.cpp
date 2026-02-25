@@ -191,7 +191,7 @@ int32_t ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream,
         }
     }
 
-    int32_t = aclnnLightningIndexer(*workspaceAddr, *workspaceSize, executor, stream);
+    ret = aclnnLightningIndexer(*workspaceAddr, *workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
         LOG_PRINT("aclnnSparseFlashAttention failed. ERROR: %d\n", ret);
         return ret;
