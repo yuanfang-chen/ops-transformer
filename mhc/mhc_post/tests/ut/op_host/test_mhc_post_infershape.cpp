@@ -8,84 +8,376 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+/**
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 #include <gtest/gtest.h>
-#include "../../../op_host/mhc_post_infershape.h"
-#include "common/infer_shape_context_faker.h"
-#include "common/infer_shape_case_executor.h"
+#include <iostream>
+#include "infer_shape_context_faker.h"
+#include "infer_shape_case_executor.h"
+#include "platform/platform_info.h"
 
-using namespace ge;
-using namespace gert;
-
-class MhcPostInferShape : public testing::Test {
+class MhcPost : public testing::Test
+{
 protected:
-    static void SetUpTestCase() {
-        std::cout << "MhcPostInferShape SetUp" << std::endl;
+    static void SetUpTestCase()
+    {
+        std::cout << "MhcPost Proto Test SetUp" << std::endl;
     }
 
-    static void TearDownTestCase() {
-        std::cout << "MhcPostInferShape TearDown" << std::endl;
+    static void TearDownTestCase()
+    {
+        std::cout << "MhcPost Proto Test TearDown" << std::endl;
     }
 };
 
-TEST_F(MhcPostInferShape, test_mhc_post_infer_shape_3d_fp16)
+TEST_F(MhcPost, MhcPost_normal_dims4)
 {
-    InferShapePara inferShapePara("MhcPost",
-        {{{{1024, 4, 5120}, {1024, 4, 5120}}, ge::DT_FLOAT16},
-         {{{1024, 4, 4}, {1024, 4, 4}}, ge::DT_FLOAT},
-         {{{1024, 5120}, {1024, 5120}}, ge::DT_FLOAT16},
-         {{{1024, 4}, {1024, 4}}, ge::DT_FLOAT});
-    TensorDesc outputDesc;
-
-    const int64_t expectDims[] = {1024, 4, 5120};
-    ge::graphStatus status = ExecuteTestCase(inferShapePara, outputDesc);
-
-    EXPECT_EQ(status, ge::GRAPH_SUCCESS);
-    EXPECT_EQ(outputDesc.GetDataType(), ge::DT_FLOAT16);
-    EXPECT_EQ(outputDesc.GetFormat(), ge::FORMAT_ND);
-    EXPECT_EQ(outputDesc.GetShape().GetDimNum(), 3);
-    for (size_t i = 0; i < 3; i++) {
-        EXPECT_EQ(outputDesc.GetShape().GetDim(i), expectDims[i]);
-    }
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
-TEST_F(MhcPostInferShape, test_mhc_post_infer_shape_4d_fp16)
+TEST_F(MhcPost, MhcPost_normal_dims3)
 {
-    InferShapePara inferShapePara("MhcPost",
-        {{{{1, 1024, 4, 5120}, {1, 1024, 4, 5120}}, ge::DT_FLOAT16},
-         {{{1, 1024, 4, 4}, {1, 1024, 4, 4}}, ge::DT_FLOAT},
-         {{{1, 1024, 5120}, {1, 1024, 5120}}, ge::DT_FLOAT16},
-         {{{1, 1024, 4}, {1, 1024, 4}}, ge::DT_FLOAT});
-    TensorDesc outputDesc;
-
-    const int64_t expectDims[] = {1, 1024, 4, 5120};
-    ge::graphStatus status = ExecuteTestCase(inferShapePara, outputDesc);
-
-    EXPECT_EQ(status, ge::GRAPH_SUCCESS);
-    EXPECT_EQ(outputDesc.GetDataType(), ge::DT_FLOAT16);
-    EXPECT_EQ(outputDesc.GetFormat(), ge::FORMAT_ND);
-    EXPECT_EQ(outputDesc.GetShape().GetDimNum(), 4);
-    for (size_t i = 0; i < 4; i++) {
-        EXPECT_EQ(outputDesc.GetShape().GetDim(i), expectDims[i]);
-    }
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{1024, 4, 512}, {1024, 4, 512}}, ge::DT_BFLOAT16, ge::FORMAT_ND},
+                                                        {{{1024, 4, 4}, {1024, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{1024, 512}, {1024, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{1024, 4}, {1024, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{}, {}}, ge::DT_BFLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{1024, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
-TEST_F(MhcPostInferShape, test_mhc_post_infer_shape_3d_bf16)
+TEST_F(MhcPost, MhcPost_unknowrank)
 {
-    InferShapePara inferShapePara("MhcPost",
-        {{{{256, 8, 2048}, {256, 8, 2048}}, ge::DT_BF16,
-         {{{256, 8, 8}, {256, 8, 8}}, ge::DT_FLOAT,
-         {{{256, 2048}, {256, 2048}}, ge::DT_BF16,
-         {{{256, 8}, {256, 8}}, ge::DT_FLOAT});
-    TensorDesc outputDesc;
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{-2}, {-2}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{-2}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+}
 
-    const int64_t expectDims[] = {256, 8, 2048};
-    ge::graphStatus status = ExecuteTestCase(inferShapePara, outputDesc);
+TEST_F(MhcPost, MhcPost_unknowshape)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{-1}, {-1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{-1}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
+}
 
-    EXPECT_EQ(status, ge::GRAPH_SUCCESS);
-    EXPECT_EQ(outputDesc.GetDataType(), ge::DT_BF16);
-    EXPECT_EQ(outputDesc.GetFormat(), ge::FORMAT_ND);
-    EXPECT_EQ(outputDesc.GetShape().GetDimNum(), 3);
-    for (size_t i = 0; i < 3; i++) {
-        EXPECT_EQ(outputDesc.GetShape().GetDim(i), expectDims[i]);
-    }
+TEST_F(MhcPost, MhcPost_xDims5)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{1, 512, 2, 4, 512}, {1, 512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hResDims5)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4, 1}, {512, 2, 4, 4, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hOutDims4)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512, 1}, {512, 2, 512, 1}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hPostDims4)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 1}, {512, 2, 4, 1}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hResShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 3}, {512, 2, 4, 3}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_xShape_hResShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 1, 4}, {512, 2, 1, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hOutShape_hPostShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 1, 4}, {512, 1, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hResShape_hOutShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 1, 512}, {512, 1, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_xShape_hOutShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 52}, {512, 2, 52}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_hPostShape_hResShape_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend950";
+    platformInfo.str_info.short_soc_version = "Ascend950";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 2}, {512, 2, 2}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
+}
+
+TEST_F(MhcPost, MhcPost_soc_invalid)
+{
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optiCompilationInfo;
+    optiCompilationInfo.soc_version = "Ascend910B";
+    platformInfo.str_info.short_soc_version = "Ascend910B";
+    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend910B"] = platformInfo;
+    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(optiCompilationInfo);
+    gert::InfershapeContextPara infershapeContextPara("MhcPost",
+                                                      {
+                                                        {{{512, 2, 4, 512}, {512, 2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4, 4}, {512, 2, 4, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                        {{{512, 2, 512}, {512, 2, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                        {{{512, 2, 4}, {512, 2, 4}}, ge::DT_FLOAT, ge::FORMAT_ND},
+                                                      },
+                                                      {
+                                                        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+                                                      },
+                                                      );
+    std::vector<std::vector<int64_t>> expectOutputShape = {{512, 2, 4, 512}};
+    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
