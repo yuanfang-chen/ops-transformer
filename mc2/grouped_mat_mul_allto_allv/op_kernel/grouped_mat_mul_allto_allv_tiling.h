@@ -62,7 +62,8 @@ public:
 };
 
 #pragma pack(push, 8)
-struct QuantGroupedMatMulAlltoAllvTilingData {
+struct QuantGroupedMatMulAlltoAllvTilingData
+{
     Mc2InitTiling hcclInitTiling;
     Mc2CcTiling alltoAllvCcTiling;
     GmmAlltoAllvCommonTilingInfo commonTilingInfo;

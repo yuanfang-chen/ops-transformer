@@ -43,22 +43,22 @@
  */
 ASCENDC_TPL_ARGS_DECL(GroupedMatMulAlltoAllv,
 
-                      // 是否进行MM计算
-                      ASCENDC_TPL_BOOL_DECL(TILINGKEY_COMPUTE_MATMUL, 0, 1),
+                    // 是否进行MM计算
+                    ASCENDC_TPL_BOOL_DECL(TILINGKEY_COMPUTE_MATMUL, 0, 1),
 
-                      // GMM 计算转置场景
-                      ASCENDC_TPL_BOOL_DECL(TILINGKEY_GMM_WEIGHT_TRANS, 0, 1),
+                    // GMM 计算转置场景
+                    ASCENDC_TPL_BOOL_DECL(TILINGKEY_GMM_WEIGHT_TRANS, 0, 1),
 
-                      // 共享专家 MM 计算转置场景
-                      ASCENDC_TPL_BOOL_DECL(TILINGKEY_SHARED_MM_WEIGHT_TRANS, 0, 1),
+                    // 共享专家 MM 计算转置场景
+                    ASCENDC_TPL_BOOL_DECL(TILINGKEY_SHARED_MM_WEIGHT_TRANS, 0, 1),
 
-                      // GMM 量化模式：0=NONE, 1=TT
-                      ASCENDC_TPL_UINT_DECL(TILINGKEY_GMM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
+                    // GMM 量化模式：0=NONE, 1=TT
+                    ASCENDC_TPL_UINT_DECL(TILINGKEY_GMM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
                                             QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_2, QUANT_MODE_3, QUANT_MODE_4,
                                             QUANT_MODE_5, QUANT_MODE_6),
 
-                      // 共享专家 MM 量化模式: 0=NONE, 1=TT
-                      ASCENDC_TPL_UINT_DECL(TILINGKEY_SHARED_MM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
+                    // 共享专家 MM 量化模式: 0=NONE, 1=TT
+                    ASCENDC_TPL_UINT_DECL(TILINGKEY_SHARED_MM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
                                             QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_2, QUANT_MODE_3, QUANT_MODE_4,
                                             QUANT_MODE_5, QUANT_MODE_6));
 

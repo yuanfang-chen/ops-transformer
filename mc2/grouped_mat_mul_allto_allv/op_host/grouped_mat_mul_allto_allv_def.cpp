@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv.cpp
+ * \file grouped_mat_mul_allto_allv_def.cpp
  * \brief
  */
 #include "register/op_def_registry.h"

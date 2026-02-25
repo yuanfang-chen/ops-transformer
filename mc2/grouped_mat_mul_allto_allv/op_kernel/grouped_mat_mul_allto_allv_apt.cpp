@@ -26,12 +26,12 @@
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     const outerType *outerPtr##var = (const outerType *)(tiling);                                       \
     const innerType *innerPtr##var = &(outerPtr##var->outerPtr##var);                                   \
-    const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember));
+    const int32_t *(var) = (const int32_t)((const uint8_t *)&(innerPtr##var->innerMember))
 #else
 #define GET_NESTED_TILING_DATA_MEMBER_ADDR(outerType, innerType, outerMember, innerMember, var, tiling) \
     size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
     size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
-    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var);
+    __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var)
 #endif
 
 #if defined(ORIG_DTYPE_GMM_X) && defined(DT_BFLOAT16) && defined(DT_FLOAT16)&& \
@@ -81,7 +81,7 @@ struct GMMATAVType { // Grouped_Mat_Mul_All_To_Allv_Type
     } while (0)
 
 template <
-    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS, 
+    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS,
     bool TILINGKEY_MATMUL_TRANS, uint8_t TILINGKEY_GMM_QUANT_MODE, uint8_t TILINGKEY_SHARED_MM_QUANT_MODE>
 __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
@@ -100,7 +100,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     }
     TPipe pipe;
 #ifdef GMM_ALLTO_ALLV
-    REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData); 
+    REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData);
     auto tiling = (__gm__ GroupedMatMulAlltoAllvTilingData*)tilingGM;
     __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
     __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->alltoAllvCcTiling));
@@ -111,7 +111,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
                             TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS);
 #elif (ORIG_DTYPE_GMM_X == DT_FLOAT16)
     INVOKE_GMMATAV_OP_IMPL(GroupedMatmulAlltoAllv, DTYPE_GMM_X, TILINGKEY_COMPUTE_MATMUL,
-                            TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS);    
+                            TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS);
 #endif
 
 #elif defined(QUANT_GMM_ALLTO_ALLV)
@@ -126,17 +126,18 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     constexpr bool IS_NOT_SHARED_EXPERT = false;
 
     using HcclOpType = HcclA2avOp<DTYPE_GMM_Y, false>;
-    using GmmASWKernelType = GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_GMM_Y, W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
+    using GmmASWKernelType = GmmASWKernel<DTYPE_GMM_X, DTYPE_GMM_WEIGHT, float, float, DTYPE_GMM_Y,
+        W_FORMAT, TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS>;
     using ComputeOpType = QuantGroupedMatmul<
-        QuantGmmA2avTilingData, 
-        GMMQuantTilingData, 
-        DTYPE_GMM_X, 
+        QuantGmmA2avTilingData,
+        GMMQuantTilingData,
+        DTYPE_GMM_X,
         DTYPE_GMM_WEIGHT,
         float,
-        float16_t, 
+        float16_t,
         CubeFormat::ND,
-        false, 
-        TILINGKEY_GROUPED_MATMUL_TRANS, 
+        false,
+        TILINGKEY_GROUPED_MATMUL_TRANS,
         false,  // isShared
         false>; // opType
     using SharedGmmExpertOpType = QuantGroupedMatmul<
@@ -151,25 +152,29 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         TILINGKEY_MATMUL_TRANS,
         true,   // isShared
         false>; // opType
-    using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType, SharedGmmExpertOpType, TILINGKEY_COMPUTE_MATMUL>;
+    using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType,
+        SharedGmmExpertOpType, TILINGKEY_COMPUTE_MATMUL>;
 
     // hccl
     HcclOpType hcclOp;
     hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, userWorkspace, gmmyGM);
 
     // gmm
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData, gmmBaseTiling, gmmArray, gmmArrayAddr_, tilingGM);
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
+        gmmBaseTiling, gmmArray, gmmArrayAddr_, tilingGM);
     ComputeOpType computeOp;
     auto tilingData_ = static_cast<const QuantGmmA2avTilingData*>(&tilingData);
-    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, userWorkspace, userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize, tilingData_,
+    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, userWorkspace,
+        userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize, tilingData_,
         &tilingData_->gmmBaseTiling, gmmArrayAddr_, &pipe, false);
 
     // sharedmm
-    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData, sharedGmmTiling, gmmArray, mmArrayAddr_, tilingGM);
+    GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
+        sharedGmmTiling, gmmArray, mmArrayAddr_, tilingGM);
     SharedGmmExpertOpType shareComputeOp;
     shareComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
-        userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize + tilingData_->workspaceInfo.wsGmmComputeWorkspaceSize, tilingData_,
-        &tilingData_->sharedGmmTiling, mmArrayAddr_, &pipe, false);
+        userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize + tilingData_->workspaceInfo.wsGmmComputeWorkspaceSize,
+        tilingData_, &tilingData_->sharedGmmTiling, mmArrayAddr_, &pipe, false);
     
     GmmA2avSchedulerType gmmA2avScheduler(hcclOp, computeOp, shareComputeOp, &tilingData.taskTilingInfo);
     gmmA2avScheduler.Process();

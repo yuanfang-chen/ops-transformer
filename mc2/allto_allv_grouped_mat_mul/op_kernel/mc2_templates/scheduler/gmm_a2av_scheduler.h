@@ -9,7 +9,7 @@
 */
 
 /* !
-* \file pipeline_template_comm_compute.h
+* \file gmm_a2av_scheduler.h
 * \brief
 */
 
@@ -26,7 +26,9 @@ namespace MC2KernelTemplate {
 template <typename CommOpType, typename ComputationOpType, typename SharedComputationOpType, bool IsNeedMM>
 class GmmA2avScheduler {
 public:
-    __aicore__ inline GmmA2avScheduler(const CommOpType& hcclOp, const ComputationOpType& computeOp, const SharedComputationOpType& shareComputeOp, TaskTilingInfo* taskTilingInfo):hcclOp_(hcclOp),computeOp_(computeOp),shareComputeOp_(shareComputeOp),taskTilingInfo_(taskTilingInfo){};
+    __aicore__ inline GmmA2avScheduler(const CommOpType& hcclOp, const ComputationOpType& computeOp,
+        const SharedComputationOpType& shareComputeOp, TaskTilingInfo* taskTilingInfo):hcclOp_(hcclOp),
+        computeOp_(computeOp), shareComputeOp_(shareComputeOp), taskTilingInfo_(taskTilingInfo){};
     __aicore__ inline void Init();
 
     __aicore__ inline void Process()
@@ -34,7 +36,7 @@ public:
         uint32_t expertNumInOneRank = taskTilingInfo_->e;
 
         for (uint32_t expertIdx = 0U; expertIdx < expertNumInOneRank; expertIdx++) {
-            computeOp_.Process(expertIdx); 
+            computeOp_.Process(expertIdx);
             SyncAll<false>();
             hcclOp_.Launch(expertIdx, 1);   // 每次专家数量设置为1进行调试
         }
