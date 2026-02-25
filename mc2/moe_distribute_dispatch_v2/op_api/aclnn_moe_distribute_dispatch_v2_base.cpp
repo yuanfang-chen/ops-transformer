@@ -136,7 +136,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     uint32_t linkNum = 0;
 
     OP_LOGD("PRINT HcclChannelDescInit start");
-    OP_LOGD("PRINT CommLink ptr %p", CommLink);
+    OP_LOGD("PRINT CommLink ptr %p", links);
     ret = HcclChannelDescInit(channelDesc.data(), rankDim);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed.");
@@ -159,7 +159,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                 return ACLNN_ERR_INNER;
             }
             OP_LOGD("PRINT Get linkNum %d",linkNum);
-            OP_LOGD("PRINT CommLink ptr %p", CommLink);
+            OP_LOGD("PRINT CommLink ptr %p", links);
             channelDesc[index].localEndpoint = links->srcEndpointDesc;
             channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
             channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
