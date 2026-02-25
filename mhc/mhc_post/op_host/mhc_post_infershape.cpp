@@ -80,14 +80,14 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     const gert::Shape* yShape = context->GetOutputShape(INDEX_Y);
     OP_CHECK_NULL_WITH_CONTEXT(context, yShape);
 
-    if (Ops::IsUnknownRank(*xShape)) {
-        Ops::SetUnknownRank(*yShape);
+    if (ops::IsUnknownRank(*xShape)) {
+        ops::SetUnknownRank(*yShape);
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown rank.");
         return ge::GRAPH_SUCCESS;
     }
     size_t xDims = xShape->GetDimNum();
-    if (Ops::IsUnknownShape(*xShape)) {
-        Ops::SetUnknownShape(xDims, *yShape);
+    if (ops::IsUnknownShape(*xShape)) {
+        ops::SetUnknownShape(xDims, *yShape);
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
         return ge::GRAPH_SUCCESS;
     }
