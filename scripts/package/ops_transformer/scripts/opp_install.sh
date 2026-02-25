@@ -335,6 +335,57 @@ add_init_py() {
   fi
 }
 
+# Install whl package to python site-packages
+install_whl_package() {
+  local _package_path="$1"
+  local _package_name="$2"
+  local _pythonlocalpath="$3"
+  logandprint "[INFO]: Start install python module package ${_package_name}."
+  if [ -f "$_package_path" ]; then
+    pip3 install --disable-pip-version-check --upgrade --no-deps --force-reinstall "${_package_path}" -t "${_pythonlocalpath}" 1> /dev/null
+    local ret=$?
+    if [ $ret -ne 0 ]; then
+      logandprint "[WARNING]: Install ${_package_name} failed, error code: $ret."
+    else
+      logandprint "[INFO]: ${_package_name} installed successfully!"
+    fi
+    chmod -R "${CUSTOM_PERM}" "${_pythonlocalpath}"/${_package_name} 2> /dev/null
+    chmod -R "${CUSTOM_PERM}" "${_pythonlocalpath}"/${_package_name}-*.dist-info 2> /dev/null
+  else
+    logandprint "[WARNING]: ${_package_name} whl file not found, skip installation."
+  fi
+}
+
+# Install npu_ops_transformer whl package
+install_npu_ops_transformer_whl() {
+  local whl_name="npu_ops_transformer"
+  local whl_path=""
+
+  # Find whl file in multiple possible locations:
+  # 1. Built-in package: whl_packages/npu_ops_transformer-*.whl
+  # 2. Custom package: packages/vendors/*/whl_packages/npu_ops_transformer-*.whl
+  if [ -d "${SOURCEDIR}/whl_packages" ]; then
+    whl_path=$(ls ${SOURCEDIR}/whl_packages/${whl_name}-*.whl 2>/dev/null | head -1)
+  fi
+
+  if [ -z "${whl_path}" ]; then
+    # Try custom package path
+    whl_path=$(find ${SOURCEDIR}/packages/vendors -name "${whl_name}-*.whl" 2>/dev/null | head -1)
+  fi
+
+  if [ -z "${whl_path}" ]; then
+    logandprint "[WARNING]: npu_ops_transformer whl file not found, skip installation."
+    return 0
+  fi
+
+  logandprint "[INFO]: Found whl file: ${whl_path}"
+  chmod u+w "${TARGET_VERSION_DIR}/python" 2> /dev/null
+  local whl_install_dir_path="${TARGET_VERSION_DIR}/python/site-packages"
+  mkdir -p "${whl_install_dir_path}"
+  chmod u+w "${whl_install_dir_path}" 2> /dev/null
+  install_whl_package "${whl_path}" "${whl_name}" "${whl_install_dir_path}"
+}
+
 install_opp() {
   logandprint "[INFO]: Begin install opp module."
   comm_create_dir "${TARGET_SHARED_INFO_DIR}/${OPP_PLATFORM_DIR}" "${CREATE_DIR_PERM}" "${TARGET_USERNAME}:${TARGET_USERGROUP}" "${IS_FOR_ALL}"
@@ -355,6 +406,8 @@ install_opp() {
   logandprint "[INFO]: upgradePercentage:30%"
 
   add_init_py
+
+  install_npu_ops_transformer_whl
 
   logandprint "[INFO]: upgradePercentage:50%"
 }

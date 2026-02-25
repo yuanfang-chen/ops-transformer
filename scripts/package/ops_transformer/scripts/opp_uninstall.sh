@@ -180,6 +180,51 @@ remove_init_py() {
   [ -e ${built_in_impl_path}/dynamic/__init__.py ] && rm ${built_in_impl_path}/dynamic/__init__.py > /dev/null 2>&1
 }
 
+# Uninstall whl package from python site-packages
+whl_uninstall_package() {
+  local _module="$1"
+  local _module_path="$2"
+  if [ ! -d "${_module_path}/${_module}" ]; then
+    pip3 show "${_module}" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+      logandprint "[WARNING]: ${_module} is not exist."
+    else
+      pip3 uninstall -y "${_module}" 1> /dev/null
+      local ret=$?
+      if [ $ret -ne 0 ]; then
+        logandprint "[WARNING]: Uninstall ${_module} failed, error code: $ret."
+      else
+        logandprint "[INFO]: ${_module} uninstalled successfully!"
+      fi
+    fi
+  else
+    export PYTHONPATH="${_module_path}"
+    pip3 uninstall -y "${_module}" > /dev/null 2>&1
+    local ret=$?
+    if [ $ret -ne 0 ]; then
+      logandprint "[WARNING]: Uninstall ${_module} failed, error code: $ret."
+    else
+      logandprint "[INFO]: ${_module} uninstalled successfully!"
+    fi
+  fi
+}
+
+# Uninstall npu_ops_transformer whl package
+uninstall_npu_ops_transformer_whl() {
+  local whl_name="npu_ops_transformer"
+  local whl_install_dir_path="${TARGET_VERSION_DIR}/python/site-packages"
+
+  if [ ! -d "${whl_install_dir_path}" ]; then
+    logandprint "[INFO]: python/site-packages directory not found, skip whl uninstallation."
+    return 0
+  fi
+
+  chmod u+w "${whl_install_dir_path}" 2> /dev/null
+  chmod u+w -R "${whl_install_dir_path}"/${whl_name} 2> /dev/null
+  chmod u+w -R "${whl_install_dir_path}"/${whl_name}-*.dist-info 2> /dev/null
+  whl_uninstall_package "${whl_name}" "${whl_install_dir_path}"
+}
+
 remove_ops_transformer() {
   if [ "$(id -u)" != 0 ] && [ ! -w "${TARGET_OPP_BUILT_IN}" ]; then
     chmod u+w -R "${TARGET_OPP_BUILT_IN}" 2>/dev/null
@@ -210,6 +255,8 @@ main() {
   check_installed_type "${INSTALLED_TYPE}"
 
   unsetenv
+
+  uninstall_npu_ops_transformer_whl
 
   remove_ops_transformer
 

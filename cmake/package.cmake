@@ -193,5 +193,20 @@ function(pack_built_in)
   set(CPACK_PACKAGE_PARAM_NAME "ops_transformer")
 
   message(STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}")
+
+  # Install torch_extension whl package (npu_ops_transformer)
+  # Use install(CODE ...) to copy whl files at install time, not configure time
+  install(CODE "
+      if(EXISTS \"${CMAKE_BINARY_DIR}/whl_packages\")
+          file(MAKE_DIRECTORY \"\${CMAKE_INSTALL_PREFIX}/whl_packages\")
+          file(COPY \"${CMAKE_BINARY_DIR}/whl_packages/\"
+               DESTINATION \"\${CMAKE_INSTALL_PREFIX}/whl_packages\"
+               FILES_MATCHING PATTERN \"*.whl\")
+          message(STATUS \"Copied whl packages to install directory\")
+      else()
+          message(STATUS \"whl_packages directory not found, skipping whl installation\")
+      endif()
+  ")
+
   include(CPack)
 endfunction()
