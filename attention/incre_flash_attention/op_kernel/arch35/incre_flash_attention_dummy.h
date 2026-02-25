@@ -16,14 +16,14 @@
 #define INCRE_FLASH_ATTENTION_DUMMY_H
 
 #include "kernel_tiling/kernel_tiling.h"
+#include "lib/matmul_intf.h"
+#include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
 #else
 #include "kernel_operator.h"
 #endif
-#include "lib/matmul_intf.h"
-#include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
 
 template<typename T>
 class IncreFlashAttentionDummy {
