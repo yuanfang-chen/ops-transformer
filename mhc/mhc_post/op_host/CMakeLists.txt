@@ -8,19 +8,30 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
+set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
 if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnnExc PRIVATE
+    target_sources(op_host_aclnnInner PRIVATE
         mhc_post_def.cpp
     )
-endif()
-
-if (BUILD_OPS_RTY_KERNEL)
-    add_ops_compile_options(
+    if(CONDITION_UNIT STREQUAL "ascend950")
+        add_ops_compile_options(
             OP_NAME MhcPost
-            OPTIONS --cce-auto-sync=off
+            OPTIONS --cce-auto-sync=on
                     -Wno-deprecated-declarations
                     -Werror
-    )
-else()
-    add_modules_sources(OPTYPE mhc_post ACLNNTYPE aclnn_exclude)
+                    -mllvm 
+                    -cce-aicore-dcci-before-kernel-end=false
+        )
+    else()
+        add_ops_compile_options(
+            OP_NAME MhcPost
+            OPTIONS --cce-auto-sync=on
+                    -Wno-deprecated-declarations
+                    -Werror
+        )
+    endif()
+endif()
+
+if(NOT BUILD_OPS_RTY_KERNEL)
+    add_modules_sources(OPTYPE mhc_post ACLNNTYPE aclnn_inner)
 endif()
