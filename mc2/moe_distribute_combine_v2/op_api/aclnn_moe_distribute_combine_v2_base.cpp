@@ -172,20 +172,19 @@ aclnnStatus GetNetAndTopo(const char *groupEp, int64_t epRankId, HcclComm &hcclH
         return ACLNN_SUCCESS;
     }
     // 第二层
-    CommLink *commLink = nullptr;
-    uint32_t linkNum = 0;
-    uint32_t srcRank = rank;
-    uint32_t dstRank = (srcRank + 1) % world;
-    const uint32_t netLayer = 1;
-    res = HcclRankGraphGetLinks(hcclHandle, netLayer, srcRank, dstRank, &commLink, &linkNum); // 获取第二层组网的links
-    CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Layer2 Links Failed.");
-    bool isHost = false;
-    for (uint32_t i = 0; i < linkNum && commLink; ++i) {
-        if (commLink[i].linkAttr.hop > 0) {
-            isHost = true;
-            break;
-        }
-    }
+    // CommLink *commLink
+    // uint32_t linkNum = 0;
+    // uint32_t srcRank = rank;
+    // uint32_t dstRank = (srcRank + 1) % world;
+    // const uint32_t netLayer = 1;
+    // res = HcclRankGraphGetLinks(hcclHandle, netLayer, srcRank, dstRank, &commLink, &linkNum); //
+    // 获取第二层组网的links CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Layer2 Links Failed."); bool isHost = false; for
+    // (uint32_t i = 0; i < linkNum && commLink; ++i) {
+    //     if (commLink[i].linkAttr.hop > 0) {
+    //         isHost = true;
+    //         break;
+    //     }
+    // }
     topoTypeOut = isHost ? Mc2TopoType::MC2_TOPO_HOST_KFC : Mc2TopoType::MC2_TOPO_AIV_DPU;
     return ACLNN_SUCCESS;
 }
@@ -209,7 +208,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
     OP_LOGD("[BuildMc2Context] mc2CtxTag:%s", mc2CtxTag);
     uint64_t ctxSize = 0;
     HcclResult res = HcclEngineCtxGet(hcclHandle, mc2CtxTag.c_str(), commEngine, &devCtx, &ctxSize);
-    if (res != HCCL_SUCCESS && devCtx != nullptr && ctxSize >= sizeof(Mc2MoeContext)) {
+    if (res != HCCL_SUCCESS || devCtx == nullptr || ctxSize < sizeof(Mc2MoeContext)) {
         res = HcclEngineCtxCreate(hcclHandle, mc2CtxTag.c_str(), commEngine, sizeof(Mc2MoeContext), &devCtx);
         CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Mc2Context Create Failed.");
 
@@ -230,18 +229,46 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
         if (mc2Context.epRankId < HCCL_HOST_KFC_MAX_RANK_NUM) {
             mc2Context.epHcclBuffer_[mc2Context.epRankId] = (uint64_t)hcclBuffer;
         }
+
+        uint32_t *netLayers = nullptr;
+        uint32_t netLayerNum = 0;
+        res = HcclRankGraphGetLayers(hcclHandle, &netLayers, &netLayerNum);
+        CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Net Layers Failed.");
+        const uint32_t endpointLayer = (netLayerNum > 1) ? 1 : 0;
         if (mc2Context.epRankSize > 1) {
             const uint32_t channelNum = mc2Context.epRankSize - 1;
             std::vector<HcclChannelDesc> channelDesc(channelNum);
             res = HcclChannelDescInit(channelDesc.data(), channelNum);
             CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl ChannelDesc Init Failed.");
+
             uint32_t idx = 0;
-            for (uint32_t r = 0; r < mc2Context.epRankSize; ++r) {
-                if (r != (uint32_t)mc2Context.epRankId) {
-                    channelDesc[idx++].remoteRank = r;
-                    channelDesc[idx++].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-                    channelDesc[idx++].notifyNum = 3;
+            uint32_t srcRank = (uint32_t)mc2Context.epRankId;
+            for (uint32_t dstRank = 0; dstRank < mc2Context.epRankSize; ++dstRank) {
+                if (dstRank == srcRank) {
+                    continue;
                 }
+                HcclChannelDesc &desc = channelDesc[idx++];
+                CommLink *commLink = nullptr;
+                uint32_t linkNum = 0;
+                res = HcclRankGraphGetLinks(hcclHandle, endpointLayer, srcRank, dstRank, &commLink, &linkNum);
+                CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Links Failed.");
+
+                if (linkNum == 0 || commLink == nullptr) {
+                    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "linkNum is 0 or commLink is nullptr.");
+                    return ACLNN_ERR_INNER;
+                }
+                desc.remoteRank = dstRank;
+                desc.channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+                desc.notifyNum = 3;
+
+                uint32_t best = 0;
+                for(uint32_t k = 1; k < linkNum; ++k){
+                    if(commLink[k].linkAttr.hop < commLink[best].linkAttr.hop){
+                        best = k;
+                    }
+                }
+                desc.localEndpoint = commLink[best].srcEndpointDesc;
+                desc.remoteEndpoint = commLink[best].dstEndpointDesc;
             }
             std::vector<ChannelHandle> channels(channelNum);
             res = HcclChannelAcquire(hcclHandle, commEngine, channelDesc.data(), channelNum, channels.data());
@@ -267,8 +294,8 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
     uint64_t bytes = sizeof(Mc2MoeContext);
     int64_t shape[1] = {(int64_t)(bytes / sizeof(uint32_t))};
     int64_t strides[1] = {1};
-    mc2TensorOut = aclCreateTensor(shape, 1, aclDataType::ACL_UINT32, strides, 0, 
-                                    aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
+    mc2TensorOut =
+        aclCreateTensor(shape, 1, aclDataType::ACL_UINT32, strides, 0, aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
     if (mc2TensorOut == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, " Create mc2Context Tensor Failed.");
         return ACLNN_ERR_INNER;
@@ -336,7 +363,6 @@ aclnnStatus aclnnMoeDistributeCombineBaseGetWorkspaceSize(
     CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("[aclnn-1] commAlg: %s", commAlg);
     aclnnStatus getWorkspaceSizesRes;
-
     if (!is950 || (is950 && isCcu)) {
         OP_LOGD("[aclnn-1] Enter to the 910B | CCU");
         getWorkspaceSizesRes = aclnnInnerMoeDistributeCombineV2GetWorkspaceSize(
