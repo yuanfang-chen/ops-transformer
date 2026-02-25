@@ -269,7 +269,7 @@ int32_t main() {
     uint64_t workspaceSize = 0;
     std::vector<int64_t> sparseIndicesShape = {1, 2, 1, 16};
     std::vector<int64_t> sparseValuesShape = {1, 2, 1, 16};
-    int ret = ACL_SUCCESS;
+    int32_t ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream
     ret = Init(deviceId, &stream);
