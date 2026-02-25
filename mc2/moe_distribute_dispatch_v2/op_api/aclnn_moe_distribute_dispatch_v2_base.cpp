@@ -136,6 +136,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     uint32_t linkNum = 0;
 
     OP_LOGD("PRINT HcclChannelDescInit start");
+    OP_LOGD("PRINT CommProtocol::COMM_PROTOCOL_UB_MEM: %d",CommProtocol::COMM_PROTOCOL_UB_MEM);
     OP_LOGD("PRINT RankDIm:%d", rankDim);
     OP_LOGD("PRINT CommLink ptr %p", links);
     ret = HcclChannelDescInit(channelDesc.data(), rankDim);
