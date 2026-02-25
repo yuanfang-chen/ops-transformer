@@ -87,9 +87,8 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     }
     size_t xDims = xShape->GetDimNum();
     if (ops::IsUnknownShape(xShape)) {
-        ops::SetUnknownShape(xDims, yShape);
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
-        return ge::GRAPH_SUCCESS;
+        return SetAllUnknownDim(yShape);
     }
     
     size_t hResDims = hResShape->GetDimNum();
