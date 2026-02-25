@@ -288,7 +288,7 @@ aclnnStatus aclnnMoeDistributeCombineV4(
     <td>performanceInfoOptional</td>
     <td>输入</td>
     <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。</td>
- 	<td>单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
+    <td>单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
     <td>INT64</td>
     <td>ND</td>
     <td>-</td>
@@ -540,8 +540,6 @@ aclnnStatus aclnnMoeDistributeCombineV4(
 
     <details>
     <summary><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：</summary>
-
-    - commAlg 当前版本不支持，传空指针即可。
     - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
     - 有TP域通信时 tpSendCountsOptional 为1D Tensor，shape为 (tpWorldSize, )。
     - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
@@ -557,7 +555,7 @@ aclnnStatus aclnnMoeDistributeCombineV4(
     - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
     - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当tpWorldSize < 2时可使能。
     - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
-    - elasticInfoOptional 可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 <code>(4 + 2 * epWorldSize, )</code>。Tensor中的前四个数字分别表示（是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数），后2 * epWorldSize表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为<code>Table1[epRankId]=localEpRankId或-1</code>，localEpRankId表示新EP通信域中的rank Index，-1表示epRankId这张卡从通信域中被剔除，第二个Table映射关系为<code>Table2[localEpRankId] = epRankId</code>。
+    - elasticInfoOptional 预留参数，当前版本不支持。
     - constExpertAlpha1Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
     - constExpertAlpha2Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
     - constExpertVOptional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为 <code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
@@ -567,6 +565,31 @@ aclnnStatus aclnnMoeDistributeCombineV4(
     - performanceInfoOptional 预留参数，当前版本不支持，传空指针即可。
     </details>
 
+    - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - commAlg 支持""，"hierarchy"两种输入方式。""：默认值，不使能hierarchy跨超模板；"hierarchy": 使能跨超模板，改模板仅支持tpWorldSize为1、共享专家为0的场景，且不支持可变BS、二维mask、特殊专家、动态缩容、performanceInfo场景。
+        - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
+        - 有TP域通信时 tpSendCountsOptional 为1D Tensor，shape为 (tpWorldSize, )。
+        - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
+        - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+        - sharedExpertXOptional 要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
+        - epWorldSize 取值范围[2, 768]；当commAlg="hierarchy"场景时，取值范围为[16, 256]，且为16的整数倍。
+        - moeExpertNum 取值范围(0, 1024]；当commAlg="hierarchy"场景时，取值范围为(0, 512]。
+        - groupTp 字符串长度范围为[0, 128)，不能和groupEp相同，仅在无tp域通信时支持传空。
+        - tpWorldSize 取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2。
+        - tpRankId 取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可。
+        - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
+        - sharedExpertNum 当前取值范围[0, 4]。
+        - sharedExpertRankNum 取值范围[0, epWorldSize)；为0时需满足sharedExpertNum为0或1，不为0时需满足sharedExpertRankNum % sharedExpertNum = 0。
+        - commQuantMode 取值范围0或2（0表示不量化，2表示int8量化），取值为2仅当tpWorldSize < 2时可使能。
+        - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+        - elasticInfoOptional 预留参数，当前版本不支持
+        - constExpertAlpha1Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+        - constExpertAlpha2Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+        - constExpertVOptional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为 <code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+        - zeroExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的零专家的ID的值是[<code>moeExpertNum</code>, <code>moeExpertNum + zeroExpertNum</code>)。
+        - copyExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的拷贝专家的ID的值是[<code>moeExpertNum + zeroExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum</code>)。
+        - constExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1, 合法的常量专家的ID的值是[<code>moeExpertNum + zeroExpertNum + copyExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum</code>)。
+        - performanceInfoOptional 可选择传入有效数据或填空指针，传入空指针时表示不使能记录通信耗时功能；当传入有效数据时，要求是一个1D的Tensor，shape为(ep\_world\_size,)，数据类型支持int64；数据格式要求为ND。
 
 - **返回值**
 
@@ -671,11 +694,11 @@ aclnnStatus aclnnMoeDistributeCombineV4(
   | 变量         | 定义与取值范围                                                                 |
   | :----------- | :----------------------------------------------------------------------------- |
   | A            | 本卡需分发的最大token数，取值范围如下: <ul><li>不使能动态缩容场景时：<ul><li>对于共享专家，要满足<code>A = Bs * epWorldSize \* sharedExpertNum / sharedExpertRankNum</code>。</li><li>对于MoE专家，当globalBs为0时，要满足<code>A >= Bs * epWorldSize * min(localExpertNum, K)</code>；当globalBs非0时，要满足<code>A >= globalBs * min(localExpertNum, K)</code>。</li></ul></li><li>使能动态缩容场景时：<ul><li>当globalBs为0时，<code>A >= max(Bs * epWorldSize \* sharedExpertNum / sharedExpertRankNum, Bs * epWorldSize * min(localExpertNum, K))</code>；</li><li>当globalBs非0时，<code>A >= max(Bs * epWorldSize \* sharedExpertNum / sharedExpertRankNum, globalBs * min(localExpertNum, K))</code>；</li></ul></li><ul>
-  | H            |表示hidden size隐藏层大小:<ul><li> <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 7168]且为32的整数倍；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 10*1024]且为32的整数倍；</li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：[1024, 8192]。 |
-  | Bs           | 本卡最终输出token数:<ul><li> <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 256]；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 512]；</li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：0 < Bs ≤512。 |
+  | H            |表示hidden size隐藏层大小:<ul><li> <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 7168]且为32的整数倍；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 10*1024]且为32的整数倍；</li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：依commAlg取值，当commAlg为"hierarchy"时，H取值范围为[1024, 7168]，且为32的整数倍；其余场景下取值范围[1024, 8192]。</li></ul> |
+  | Bs           | 本卡最终输出token数:<ul><li> <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：依commAlg取值，"fullmesh"支持(0, 256]；"hierarchy"并且驱动版本≥25.0.RC1.1时支持(0, 512]；</li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：0 < Bs ≤ 512，且当commAlg="hierarchy"时，需满足0 < Bs ≤ 256。</li></ul> |
   | K            |表示选取topK个专家:<br> 0 < K ≤16，且0 < K ≤ <code>moeExpertNum+zeroExpertNum+copyExpertNum+constExpertNum</code>。 |
   | serverNum    | 服务器节点数:<br>Atlas A2 训练系列产品/Atlas A2 推理系列产品：仅该场景的shape使用了该变量，仅支持2、4、8。
-  | localExpertNum | 本卡专家数：<ul><li>对于共享专家卡，localExpertNum = 1；</li><li>对于MoE专家卡，localExpertNum = <code>moeExpertNum/(epWorldSize-sharedExpertRankNum)</code>，localExpertNum > 1时不支持TP通信。 </li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：应满足 0 < localExpertNum * epWorldSize ≤ 2048。|
+  | localExpertNum | 本卡专家数：<ul><li>对于共享专家卡，localExpertNum = 1；</li><li>对于MoE专家卡，localExpertNum = <code>moeExpertNum/(epWorldSize-sharedExpertRankNum)</code>，localExpertNum > 1时不支持TP通信。 </li><li><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：应满足 0 < localExpertNum * epWorldSize ≤ 2048；当commAlg="hierarchy"时，需满足localExpertNum ≤ 24 且 localExpertNum * epWorldSize ≤ 512</code>。|
 
 - **环境变量约束**：
   - **HCCL_BUFFSIZE**：调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
@@ -684,6 +707,9 @@ aclnnStatus aclnnMoeDistributeCombineV4(
         - commAlg配置为"fullmesh": 要求 <code>= 2 \* (Bs \* epWorldSize \* min(localExpertNum, K) \* H \* sizeof(uint16) + 2MB)</code>。
         - commAlg配置为"hierarchy": 要求 >= (`moeExpertNum` + `epWorldSize` / 4) * `maxBs` * (`H` * 2 + 16 * Align8(`K`)) * 1B + 6MB，其中Align8(x) = ((x + 8 - 1) / 8) * 8。
       - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：要求 <code>>= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))</code>，<code>localExpertNum</code>需使用MoE专家卡的本卡专家数，其中<code>Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32</code>。
+      - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
+        - commAlg配置为""或者未配置时：要求 <code>>= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))</code>，<code>localExpertNum</code>需使用MoE专家卡的本卡专家数，其中<code>Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32</code>。
+        - commAlg配置为"hierarchy"时：要求取值满足 (moeExpertNum \* maxBs * (H \* 2 + (3 \* (K + 7) / 8 \* 8)) * 4 + 64) + 404 \* 1024 \* 1024</code>。
   - **HCCL_INTRA_PCIE_ENABLE/HCCL_INTRA_ROCE_ENABLE**：
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：该环境变量不再推荐使用，建议commAlg配置"hierarchy"。
 
