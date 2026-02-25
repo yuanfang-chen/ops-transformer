@@ -79,7 +79,7 @@ namespace RfaKenelCommon {
     constexpr uint32_t UNIT_BLOCK_STACK_NUM = 4;
 
     constexpr uint32_t Q_TILE_CEIL = 128;
-    constexpr uint32_t MAX_KV_STACK_LEN = 1024; //可配置1024/512
+    constexpr uint32_t MAX_KV_STACK_LEN = 1024; //可配置1024或512
     // constexpr uint32_t MAX_KV_STACK_LEN = 512;
 
     template <typename T>
