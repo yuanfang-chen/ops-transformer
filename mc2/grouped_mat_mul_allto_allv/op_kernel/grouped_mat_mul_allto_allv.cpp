@@ -18,7 +18,7 @@
 #include "kernel_operator.h"
 #endif
 #include "grouped_mat_mul_allto_allv.h"
-#include "arch35/grouped_mat_mul_allto_allv_tiling_key.h"
+#include "grouped_mat_mul_allto_allv_tiling_key.h"
 
 using namespace AscendC;
 
