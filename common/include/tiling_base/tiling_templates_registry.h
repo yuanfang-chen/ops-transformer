@@ -96,7 +96,7 @@ public:
 
     ge::graphStatus DoTilingImpl(gert::TilingContext* context)
     {
-        int32_t arch = (int32_t)NpuArch::DAV_RESV;
+        int32_t arch = static_cast<int32_t>(NpuArch::DAV_RESV);
         const char* op_type = context->GetNodeType();
         fe::PlatFormInfos* platformInfoPtr = context->GetPlatformInfo();
         if (platformInfoPtr == nullptr) {
@@ -106,7 +106,7 @@ public:
             auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
             arch = static_cast<int32_t>(ascendcPlatform.GetCurNpuArch());
             OP_LOGD(context, "npu arch is %d", arch);
-            if (arch == (int32_t)NpuArch::DAV_RESV) {
+            if (arch == static_cast<int32_t>(NpuArch::DAV_RESV)) {
                 OP_LOGE(op_type, "Do op tiling failed, cannot find npu arch.");
                 return ge::GRAPH_FAILED;
             }
