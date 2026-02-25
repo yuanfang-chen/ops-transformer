@@ -16,6 +16,7 @@
 #include <register/op_impl_registry.h>
 #include "util/math_util.h"
 #include "mc2_log.h"
+#include "op_mc2.h"
 #include "mc2_common_infershape.h"
 
 namespace ops {
@@ -39,8 +40,12 @@ constexpr uint64_t NUM_ONE = 1;
 constexpr uint64_t DIM_TWO = 2;
 constexpr int64_t NUM_MINUS_ONE = -1;
 constexpr int64_t NUM_MINUS_TWO = -2;
-constexpr uint64_t X1_QUANT_MODE_NUM = 3;
-constexpr uint64_t X2_QUANT_MODE_NUM = 2;
+// kc量化模式
+constexpr uint64_t X1_PERTOKEN_QUANT_NUM = 3;
+constexpr uint64_t X2_PERCHANNEL_QUANT_NUM = 2;
+// mx量化模式
+constexpr uint64_t X1_MX_QUANT_NUM = 6;
+constexpr uint64_t X2_MX_QUANT_NUM = 6;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
 static const char* INNER_DEBUG = "MC2: MatmulAlltoAll InferShape Debug";
 const std::set<int> SUPPORT_RANK_NUM{2, 4, 8, 16};
@@ -155,26 +160,25 @@ static ge::graphStatus InferDataTypeMatmulAlltoAll(gert::InferDataTypeContext* c
 {
     OPS_CHECK(context == nullptr, OP_LOGE(INNER_DEBUG, "Context is null."), return ge::GRAPH_FAILED);
     OP_LOGD(INNER_DEBUG, "Start to infer datatype of matmul allto all.");
+
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
     const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
-    const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+    OPS_CHECK(!(*x1_quant_mode == 0 && *x2_quant_mode == 0)
+               && !(*x1_quant_mode == X1_PERTOKEN_QUANT_NUM && *x2_quant_mode == X2_PERCHANNEL_QUANT_NUM)
+               && !(*x1_quant_mode == X1_MX_QUANT_NUM && *x2_quant_mode == X2_MX_QUANT_NUM),
+               OP_LOGE(INNER_DEBUG, "x1 or x2 quant mode is invalid."),
+               return ge::GRAPH_FAILED);
+
     auto y_type = ge::DataType::DT_UNDEFINED;
-    ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
-    if (*x1_quant_mode == 0 && *x2_quant_mode == 0) {
-        if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtype_ptr);
-        } else {
-            return ge::GRAPH_FAILED;
-        }
-    } else if (*x1_quant_mode == X1_QUANT_MODE_NUM && *x2_quant_mode == X2_QUANT_MODE_NUM) {
-        if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtype_ptr);
-        } else {
-            return ge::GRAPH_FAILED;
-        }
+    const int64_t* y_dtype_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+    if ((y_dtype_ptr != nullptr && *y_dtype_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+        y_type = static_cast<ge::DataType>(*y_dtype_ptr);
+    } else {
+        return ge::GRAPH_FAILED;
     }
+
     context->SetOutputDataType(0, y_type);
     return ge::GRAPH_SUCCESS;
 }
