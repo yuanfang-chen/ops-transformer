@@ -37,11 +37,11 @@ aclnnStatus aclnnNsaCompressGradGetWorkspaceSize(
   const aclTensor   *outputGrad,
   const aclTensor   *input,
   const aclTensor   *weight,
-  const aclIntArray *actSeqLenOptionalOptional,
+  const aclIntArray *actSeqLenOptional,
   int64_t            compressBlockSize,
   int64_t            compressStride,
   int64_t            actSeqLenType,
-  char              *layoutOptionalOptional,
+  char              *layoutOptional,
   const aclTensor   *inputGradOut,
   const aclTensor   *weightGradOut,
   uint64_t          *workspaceSize,
@@ -84,61 +84,6 @@ aclnnStatus aclnnNsaCompressGrad(
       </tr>
     </thead>
     <tbody>
-      <tr>
-        <td>query</td>
-        <td>输入</td>
-        <td>公式中的query。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16</td>
-        <td>ND</td>
-        <td>3-4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>key</td>
-        <td>输入</td>
-        <td>公式中的key。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16</td>
-        <td>ND</td>
-        <td>3-4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>value</td>
-        <td>输入</td>
-        <td>公式中的value。</td>
-        <td>-</td>
-        <td>FLOAT16、BFLOAT16</td>
-        <td>ND</td>
-        <td>3-4</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>attenMaskOptional</td>
-        <td>输入</td>
-        <td>公式中的atten_mask。</td>
-        <td>
-          <ul>
-            <li>输入shape需为[S,S]。</li>
-            <li>TND场景只支持SS格式，SS分别是max(Sq)和max(CmqSkv)。</li>
-          </ul>
-        </td>
-        <td>BOOL</td>
-        <td>ND</td>
-        <td>2</td>
-        <td>√</td>
-      </tr>
-      <tr>
-        <td>actualSeqQLenOptional</td>
-        <td>输入</td>
-        <td>描述每个Batch对应的query S大小(Sq)。</td>
-        <td>-</td>
-        <td>INT64</td>
-        <td>ND</td>
-        <td>1</td>
-        <td></td>
-      </tr>
       <tr>
         <td>outputGrad</td>
         <td>输入</td>
@@ -540,20 +485,20 @@ int main() {
     // 3. 调用CANN算子库API，需要修改为具体的Api名称
     uint64_t workspaceSize = 0;
     aclOpExecutor* executor;
-    // 调用aclnnGeGluBackward第一段接口
+    // 调用aclnnNsaCompressGrad第一段接口
     ret = aclnnNsaCompressGradGetWorkspaceSize(
         outputGrad, inputKV, weight, actSeqLenOptional, blockSize, blockStride, SeqLenType, layOut,
         inputGradOut, weightGradOut, &workspaceSize, &executor);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnGeGluGradV2GetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnNsaCompressGradGetWorkspaceSize failed. ERROR: %d\n", ret); return ret);
     // 根据第一段接口计算出的workspaceSize申请device内存
     void* workspaceAddr = nullptr;
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("allocate workspace failed. ERROR: %d\n", ret); return ret);
     }
-    // 调用aclnnGeGluBackward第二段接口
+    // 调用aclnnNsaCompressGrad第二段接口
     ret = aclnnNsaCompressGrad(workspaceAddr, workspaceSize, executor, stream);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnGeGluGradV2 failed. ERROR: %d\n", ret); return ret);
+    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("aclnnNsaCompressGrad failed. ERROR: %d\n", ret); return ret);
 
     // 4. （固定写法）同步等待任务执行结束
     ret = aclrtSynchronizeStream(stream);
