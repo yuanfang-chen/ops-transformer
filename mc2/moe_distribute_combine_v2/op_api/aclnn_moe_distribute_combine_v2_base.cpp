@@ -13,7 +13,6 @@
  * \brief
  */
 
-
 #include <vector>
 #include <algorithm>
 #include "op_mc2.h"
@@ -262,8 +261,8 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                 desc.notifyNum = 3;
 
                 uint32_t best = 0;
-                for(uint32_t k = 1; k < linkNum; ++k){
-                    if(commLink[k].linkAttr.hop < commLink[best].linkAttr.hop){
+                for (uint32_t k = 1; k < linkNum; ++k) {
+                    if (commLink[k].linkAttr.hop < commLink[best].linkAttr.hop) {
                         best = k;
                     }
                 }
