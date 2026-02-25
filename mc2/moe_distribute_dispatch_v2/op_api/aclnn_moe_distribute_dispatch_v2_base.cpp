@@ -136,6 +136,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     uint32_t linkNum = 0;
 
     OP_LOGD("PRINT HcclChannelDescInit start");
+    OP_LOGD("PRINT RankDIm:%d", rankDim);
     OP_LOGD("PRINT CommLink ptr %p", links);
     ret = HcclChannelDescInit(channelDesc.data(), rankDim);
     if(ret != HCCL_SUCCESS) {
@@ -145,9 +146,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     OP_LOGD("PRINT HcclChannelDescInit success");
 
     for (uint32_t index = 0; index < rankDim; index++) {
-        channelDesc[index].remoteRank = index;
-        channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-        channelDesc[index].notifyNum =3;
+
         if(index != srcRankId) {
             ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum);
             if(ret != HCCL_SUCCESS) {
@@ -160,16 +159,38 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
             }
             OP_LOGD("PRINT Get linkNum %d",linkNum);
             OP_LOGD("PRINT CommLink ptr %p", links);
+
             if (index < srcRankId) {
+                channelDesc[index].remoteRank = index;
+                channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+                channelDesc[index].notifyNum =3;
                 channelDesc[index].localEndpoint = links->srcEndpointDesc;
                 channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
                 channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+                if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
+                    OP_LOGD("PRINT <INDEX IS ==");
+                }
+                else{
+                    OP_LOGD("PRINT <INDEX IS !=");
+
+                }
             }
             else{
+                channelDesc[index-1].remoteRank = index;
+                channelDesc[index-1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+                channelDesc[index-1].notifyNum =3;
                 channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
                 channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
                 channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
+                if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
+                    OP_LOGD("PRINT >INDEX IS ==");
+                }
+                else{
+                    OP_LOGD("PRINT >INDEX IS !=");
+
+                }
             }
+
         }
     }
 
