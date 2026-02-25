@@ -27,6 +27,10 @@ using namespace Mc2Tiling;
 #include "arch35/quant_bmm_reduce_scatter_fp8_hif8.h"
 using namespace Mc2Tiling;
 #endif
+#if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && (ORIG_DTYPE_X1 == DT_INT8))
+#include "arch35/matmul_reduce_scatter_int8_int8.h"
+using namespace Mc2Tiling;
+#endif
 
 using namespace MatmulReduceScatterV2Impl;
 
@@ -93,7 +97,41 @@ using namespace MatmulReduceScatterV2Impl;
         }                                                                                                             \
     } while (0)
 
-template<bool TPL_ISPERBLOCK, bool TPL_TRANSA, bool TPL_TRANSB, bool TPL_INPUT, uint8_t TPL_OUTPUTDTYPE, uint8_t TPL_SCALETYPE>
+#define INVOKE_QUANT_BATCHMM_PERCHANNEL_REDUCE_SCATTER_OP_IMPL(templateClass, scaleType, ...)                                      \
+    do {                                                                                                              \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                \
+        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                         \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                        \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                            \
+        if (tilingData.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                 \
+            using mmClass =                                                                                           \
+                Mc2MatmulV3::Mc2QuantBatchMatmulASWKernel<DTYPE_X1, DTYPE_X2, scaleType, DTYPE_BIAS, DTYPE_Y,                     \
+                                                         CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>; \
+            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float, mmClass, false, __VA_ARGS__> op;                         \
+            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,          \
+                    mc2InitTiling, mc2CcTiling, &pipe);                                                               \
+            op.Process();                                                                                             \
+        }                                                                                                             \
+    } while (0)    
+
+#define INVOKE_QUANT_BATCHMM_PERTOKEN_REDUCE_SCATTER_OP_IMPL(templateClass, scaleType, ...)                                      \
+    do {                                                                                                              \
+        REGISTER_TILING_DEFAULT(Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData);                                \
+        auto tiling = (__gm__ Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData*)tilingGM;                         \
+        __gm__ void* mc2InitTiling = (__gm__ void*)(&(tiling->mc2InitTiling));                                        \
+        __gm__ void* mc2CcTiling = (__gm__ void*)(&(tiling->mc2CcTiling));                                            \
+        if (tilingData.debugMode != static_cast<uint8_t>(MC2_DEBUG_ONLY_AICPU)) {                                 \
+            using mmClass =                                                                                           \
+                Mc2MatmulV3::Mc2QuantBatchMatmulASWKernel<DTYPE_X1, DTYPE_X2, scaleType, DTYPE_BIAS, DTYPE_Y,                     \
+                                                         CubeFormat::ND, CubeFormat::ND, CubeFormat::ND, __VA_ARGS__>; \
+            templateClass<DTYPE_X1, DTYPE_X2, DTYPE_Y, float, mmClass, true, __VA_ARGS__> op;                         \
+            op.Init(aGM, bGM, biasGM, x1ScaleGM, x2ScaleGM, cGM, (GM_ADDR)context, workspaceGM, &tilingData,          \
+                    mc2InitTiling, mc2CcTiling, &pipe);                                                               \
+            op.Process();                                                                                             \
+        }                                                                                                             \
+    } while (0)     
+
+template<bool TPL_ISPERBLOCK, bool TPL_TRANSA, bool TPL_TRANSB, uint8_t TPL_INPUT, uint8_t TPL_OUTPUTDTYPE, uint8_t TPL_SCALETYPE>
 __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM,
                                                     GM_ADDR x1ScaleGM, GM_ADDR x2ScaleGM,
                                                     GM_ADDR quantScaleGM, GM_ADDR cGM, GM_ADDR amaxOutGM,
@@ -125,6 +163,17 @@ __global__ __aicore__ void matmul_reduce_scatter_v2(GM_ADDR aGM, GM_ADDR bGM, GM
         INVOKE_QUANT_BATCHMM_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, TPL_TRANSA, TPL_TRANSB);
     } else if constexpr (TPL_ISPERBLOCK && TPL_INPUT == INPUT_TYPE_IS_FP8 && TPL_SCALETYPE == TPL_X1_X2_DTYPE_IS_OTHER) {
         INVOKE_QUANT_BATCHMM_PERBLOCK_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatter, TPL_TRANSA, TPL_TRANSB);
+    }
+#elif ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && (ORIG_DTYPE_X1 == DT_INT8))
+    // int8
+    if constexpr (TPL_SCALETYPE ==  TPL_X_INT8_IS_PERCHANNEL_SCALE_FLOAT) {
+        INVOKE_QUANT_BATCHMM_PERCHANNEL_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatterInt8, float, false, TPL_TRANSB);
+    } else if constexpr (TPL_SCALETYPE ==  TPL_X_INT8_IS_PERCHANNEL_SCALE_INT64) {
+        INVOKE_QUANT_BATCHMM_PERCHANNEL_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatterInt8, int64_t, false, TPL_TRANSB);
+    } else if constexpr (TPL_SCALETYPE ==  TPL_X_INT8_IS_PERTOKEN_SCALE_FLOAT) {
+        INVOKE_QUANT_BATCHMM_PERTOKEN_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatterInt8, float, false, TPL_TRANSB);
+    } else if constexpr (TPL_SCALETYPE ==  TPL_X_INT8_IS_PERTOKEN_SCALE_INT64) {
+        INVOKE_QUANT_BATCHMM_PERTOKEN_REDUCE_SCATTER_OP_IMPL(QuantBMMReduceScatterInt8, int64_t, false, TPL_TRANSB);
     }
 #endif
 }
