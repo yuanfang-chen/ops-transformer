@@ -34,6 +34,9 @@ static constexpr size_t DIMS_ONE = 1;
 static constexpr size_t DIMS_TWO = 2;
 static constexpr size_t DIMS_THREE = 3;
 static constexpr size_t DIMS_FOUR = 4;
+static constexpr int64_t UNKNOWN_RANK_DIM_VALUE = -2LL;
+static constexpr int64_t UNKNOWN_DIM_VALUE = -1LL;
+
 
 void SetUnknownRank(gert::Shape &shape)
 {
