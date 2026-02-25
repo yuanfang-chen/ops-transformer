@@ -117,9 +117,16 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
     OP_CHECK_IF(params.m <= 0 || params.k <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "M k value must bigger than 0 ."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(params.shape_x2->GetDimNum() != threeDimNum, OPS_REPORT_CUBE_INNER_ERR(op_name, "W dim is not 3."),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(params.shape_x2->GetDim(wIndex) != params.k, OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different."),
-        return ge::GRAPH_FAILED);
-    params.n = params.shape_x2->GetDim(twoDimNum);
+    if (!params.weightTrans) {
+        OP_CHECK_IF(params.shape_x2->GetDim(wIndex) != params.k,
+                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different."), return ge::GRAPH_FAILED);
+        params.n = params.shape_x2->GetDim(twoDimNum);
+    }
+    else{
+        OP_CHECK_IF(params.shape_x2->GetDim(DIM_TWO) != params.k,
+                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different."), return ge::GRAPH_FAILED);
+        params.n = params.shape_x2->GetDim(DIM_ONE);
+    }
     params.e = params.shape_x2->GetDim(xIndex);
     OP_CHECK_IF(params.n <= 0 || params.e <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "N e value must bigger than 0 ."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
@@ -155,10 +162,11 @@ static ge::graphStatus ValidateScaleAndBias(const InferShapeContext *context, co
             OPS_REPORT_CUBE_INNER_ERR(op_name, "pertoken_scale is not given."), return ge::GRAPH_FAILED);
         OP_CHECK_IF(shape_scale->GetDim(0) != xAndWParams.e || shape_scale->GetDim(2) != xAndWParams.n || shape_scale->GetDim(1) != 1,
             OPS_REPORT_CUBE_INNER_ERR(op_name, "scale 's size is not (E,1,N)."), return ge::GRAPH_FAILED);
-        OP_CHECK_IF((context->GetOptionalInputShape(biasOptionIndex) == nullptr || 
-            context->GetOptionalInputShape(biasOptionIndex)->GetDim(0) != xAndWParams.e || 
-            context->GetOptionalInputShape(biasOptionIndex)->GetDim(DIM_ONE) != xAndWParams.n),
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "bias is not supported."), return ge::GRAPH_FAILED);
+        if (context->GetOptionalInputShape(biasOptionIndex) != nullptr) {
+            OP_CHECK_IF((context->GetOptionalInputShape(biasOptionIndex)->GetDim(0) != xAndWParams.e ||
+                         context->GetOptionalInputShape(biasOptionIndex)->GetDim(DIM_ONE) != xAndWParams.n),
+                        OPS_REPORT_CUBE_INNER_ERR(op_name, "bias is not supported."), return ge::GRAPH_FAILED);
+        }
         OP_CHECK_IF(!(((xAndWParams.n % ND_N_VALUE_ALIGN) == 0) && (xAndWParams.k % ND_K0_VALUE_INT8 == 0) &&
                     (xAndWParams.n > N_VALUE_64) && (xAndWParams.k > K_VALUE_128)),
                     OPS_REPORT_CUBE_INNER_ERR(op_name, "The input shape (K,N) is not supported"),
@@ -235,8 +243,7 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
             OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is larger than m or smaller than 0 "), return ge::GRAPH_FAILED);
         shape_out->SetDim(0, *output_bs);
     }
-    auto x2_dim = xAndWParams.shape_x2->GetDimNum();
-    shape_out->SetDim(1, xAndWParams.shape_x2->GetDim(x2_dim - 1));
+    shape_out->SetDim(1, xAndWParams.n);
     OP_CHECK_IF((bsdp + (*shared_input_offset)) > *output_bs,
         OPS_REPORT_CUBE_INNER_ERR(op_name, "BS/dp add shared_input_offset larger than outputBS."), return ge::GRAPH_FAILED);
     OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(0), shape_out->GetDim(1));
