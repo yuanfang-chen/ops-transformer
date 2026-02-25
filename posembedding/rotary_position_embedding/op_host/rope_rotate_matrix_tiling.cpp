@@ -169,14 +169,12 @@ inline void RotateMatrixTiling::ChooseTilingMode(const gert::Shape &xShape, cons
     uint64_t rFirstDim = 0;
     uint64_t rSecondDim = 0;
     uint64_t rThirdDim = 0;
-        
     xFirstDim = static_cast<uint64_t>(xShape.GetDim(DIM_FIRST));
     xSecondDim = static_cast<uint64_t>(xShape.GetDim(DIM_SECOND));
     xThirdDim = static_cast<uint64_t>(xShape.GetDim(DIM_THIRD));
     rFirstDim = static_cast<uint64_t>(rShape.GetDim(DIM_FIRST));
     rSecondDim = static_cast<uint64_t>(rShape.GetDim(DIM_SECOND));
     rThirdDim = static_cast<uint64_t>(rShape.GetDim(DIM_THIRD));
-
     if (xFirstDim == rFirstDim && xSecondDim == rSecondDim && xThirdDim == rThirdDim) {
         OP_LOGD(context, "Rotate layout: NO_BROADCAST");
         tilingData_.set_tilingMode(TILING_MODE_NO_BROADCAST);
