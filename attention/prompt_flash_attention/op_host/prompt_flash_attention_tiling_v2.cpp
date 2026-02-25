@@ -4807,7 +4807,7 @@ void PromptFlashAttentionTilingV2::InitializeMaxWorkspace(PFAShapeInfo& querySha
 ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(ContextParamsForPFATiling& contextKeyParams,
     uint32_t& numBlocksToBeSet, PromptFlashAttentionTilingData& tilingData) {
     GetMaxWorkspaceFlag(contextKeyParams);
-
+    printf("yxhyxhyxh\n");
     // set memory parameters
     if (SetPlatMemoryInfo(contextKeyParams) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
