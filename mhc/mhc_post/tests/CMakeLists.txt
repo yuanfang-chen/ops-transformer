@@ -8,13 +8,9 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-message(STATUS "=== Debug: target_sources add test_aclnn_mhc_post")
-if(UT_TEST_ALL OR OP_HOST_UT)
-    add_modules_ut_sources(UT_NAME ${OP_TILING_MODULE_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR})
-    add_modules_ut_sources(UT_NAME ${OP_INFERSHAPE_MODULE_NAME} MODE PRIVATE DIR ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-
+message(STATUS "=== Debug: start ops.transformer.mhc_post.tests.CMakeLists.txt ")
 file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+message(STATUS "=== Debug: CURRENT_DIRS =${CURRENT_DIRS} ")
 foreach(SUB_DIR ${CURRENT_DIRS})
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
         add_subdirectory(${SUB_DIR})
