@@ -81,7 +81,7 @@ inline std::string GetOpName()
     } while (false)
 
 #define DDfxlogSub(moduleId, submodule, level, fmt, ...)                                                                                \
-    do {                                                                                                                                \                                                                                   \
+    do {                                                                                                                                \
         DlogRecord((moduleId | RUN_LOG_MASK), level, "[%s:%d][%s]" fmt, GetFileName(__FILE__), __LINE__, submodule, ##__VA_ARGS__); \
     } while (false)
 

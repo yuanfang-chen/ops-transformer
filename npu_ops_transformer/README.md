@@ -29,8 +29,13 @@ cd npu_ops_transformer
 python -m build --wheel -n
 pip install dist/xxx.whl
 ```
+
 再次构建前请先清理编译缓存
 
+可以使用写好的脚本 install_ascend_ops.sh 完成清理、编译、安装步骤。
+```
+bash install_ascend_ops.sh
+```
 ## 目录结构
 关键目录如下。
 ```
