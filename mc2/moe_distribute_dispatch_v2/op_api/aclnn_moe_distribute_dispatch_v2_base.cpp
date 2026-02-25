@@ -160,13 +160,20 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
             }
             OP_LOGD("PRINT Get linkNum %d",linkNum);
             OP_LOGD("PRINT CommLink ptr %p", links);
-            channelDesc[index].localEndpoint = links->srcEndpointDesc;
-            channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
-            channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+            if (index < srcRankId) {
+                channelDesc[index].localEndpoint = links->srcEndpointDesc;
+                channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
+                channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+            }
+            else{
+                channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
+                channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
+                channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
+            }
         }
     }
 
-    ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim, channeles.data());
+    ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim - 1, channeles.data());
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel get channel failed.");
         return ACLNN_ERR_INNER;
@@ -217,7 +224,11 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             OP_LOGD("PRINT HcclGetHcclBuffer success");
         } else {
             //ret = HcclRankGraphGetLinks(hcclHandle, )
-            ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
+            if(index < mc2_context->rankId) {
+                ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
+            } else {
+                ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index - 1], &tempBuffer, &buffersize);
+            }
         }
         if(ret != HCCL_SUCCESS) {
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
@@ -260,9 +271,10 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTen
     std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
     uint64_t ctxSize = sizeof(Mc2MoeContext);
-
+    OP_LOGD("PRINT ctxSize:%d",ctxSize);
     OP_LOGD("PRINT before HcclEngineCtxGet");
     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
+    OP_LOGD("PRINT ctxSize after:%d", ctxSize);
     if(ret != HCCL_SUCCESS) { 
         OP_LOGD("PRINT in if");
         //如果资源不存在则进行context结构体创建
