@@ -77,7 +77,7 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     OP_CHECK_NULL_WITH_CONTEXT(context, hOutShape);
     const gert::Shape* hPostShape = context->GetInputShape(INDEX_HPOST);
     OP_CHECK_NULL_WITH_CONTEXT(context, hPostShape);
-    const gert::Shape* yShape = context->GetOutputShape(INDEX_Y);
+    gert::Shape* yShape = context->GetOutputShape(INDEX_Y);
     OP_CHECK_NULL_WITH_CONTEXT(context, yShape);
 
     if (ops::IsUnknownRank(xShape)) {
