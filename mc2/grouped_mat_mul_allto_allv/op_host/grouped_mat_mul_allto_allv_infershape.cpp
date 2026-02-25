@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv_infer_shape.cc
+ * \file grouped_mat_mul_allto_allv_infer_shape.cpp
  * \brief
  */
 
