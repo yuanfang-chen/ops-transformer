@@ -106,16 +106,6 @@ aclnnStatus aclnnGroupedMatmulAdd(
       <td>-</td>
     </tr>
       <tr>
-        <td>y</td>
-        <td>输入</td>
-        <td>表示原地累加的输出矩阵，即yRef。</td>
-        <td>-</td>
-        <td>FLOAT32</td>
-        <td>ND</td>
-        <td>2<sup>1</sup>、3</td>
-        <td>×</td>
-      </tr>
-      <tr>
         <td>transposeX</td>
         <td>属性</td>
         <td>表示x矩阵是否转置。</td>
