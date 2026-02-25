@@ -211,10 +211,6 @@
             pipeBase.Destroy();                                                                                        \
         }                                                                                                              \
     } while (0)
- 
-#define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(...)                                                         \
-    if (ORIG_DTYPE_QUERY == DT_FLOAT8_E5M2 || ORIG_DTYPE_QUERY == DT_FLOAT8_E4M3FN || ORIG_DTYPE_QUERY == DT_HIFLOAT8)         \
-    INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL(__VA_ARGS__)
 
 #define INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_HIFP8(...)                                                         \
     if (ORIG_DTYPE_QUERY == DT_HIFLOAT8)         \
@@ -462,57 +458,6 @@ RegbaseFAG(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __
         }
     #endif
  
-    #if (ORIG_DTYPE_QUERY == DT_FLOAT8_E5M2)
-        if constexpr (outDType == FLOAT16_PRECISION) {
-            if constexpr (dTemplateType == 768){
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(512)); 
-            } else {
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
-            }
-            return;
-        } else if constexpr (outDType == BFLOAT16) {
-            if constexpr (dTemplateType == 768){
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(512));
-            } else {
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e5m2_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
-            }
-            return;
-        }
-    #endif
- 
-    #if (ORIG_DTYPE_QUERY == DT_FLOAT8_E4M3FN)
-        if constexpr (outDType == FLOAT16_PRECISION) {
-            if constexpr (dTemplateType == 768){
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(512));
-            } else {
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, float, half, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
-            }
-            return;
-        } else if constexpr (outDType == BFLOAT16) {
-            if constexpr (dTemplateType == 768){
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2, 
-                    S1TemplateType(s1TemplateType),S2TemplateType(s2TemplateType), DTemplateType(512));
-            } else {
-                INVOKE_FAG_GENERAL_S1S2_BN2GS1S2_REGBASE_IMPL_FP8(
-                    fp8_e4m3fn_t, float, bfloat16_t, isAttenMask, isPse, isDrop, isTnd, isBn2MultiBlk, deterType, isNEqual, isDNoEqual, isRope, fp8OpenTscm, isTndSwizzle, BN2GS1S2,
-                    S1TemplateType(s1TemplateType), S2TemplateType(s2TemplateType), DTemplateType(dTemplateType));
-            }
-            return;
-        }
-    #endif
 
     #if (ORIG_DTYPE_QUERY == DT_HIFLOAT8)
         if constexpr (outDType == FLOAT16_PRECISION) {
