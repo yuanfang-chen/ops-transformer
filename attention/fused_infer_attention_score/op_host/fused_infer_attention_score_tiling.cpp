@@ -964,6 +964,17 @@ ge::graphStatus CheckSparseModeParams(const gert::TilingContext *context, int64_
             minS = std::min(minS, currS);
             minKV = std::min(minKV, currKV);
         }
+        OP_CHECK_IF((preToken < 0) && (preToken * (-1) >= minS),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                "preTokens absolute value should be smaller than actual length of q in band mode,"
+                "preTokens = %ld, actual length of q = %ld", preToken, minS),
+            return ge::GRAPH_FAILED);
+        
+        OP_CHECK_IF((nextToken < 0) && (nextToken * (-1) >= minKV),
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                "nextTokens absolute value should be smaller than actual length of k and v in band mode,"
+                "nextTokens = %ld, actual length of  k and v  = %ld", nextToken, minKV),
+            return ge::GRAPH_FAILED);
         
         OP_CHECK_IF((preToken < 0) && (nextToken < 0),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
@@ -1103,11 +1114,33 @@ ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
                 OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape(%u) must be same equal queryN(%u)!", sinkDimValue, queryN),
                 return ge::GRAPH_FAILED);
 
- 	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
+ 	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3),
  	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
  	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
  	                 return ge::GRAPH_FAILED);
- 	 
+
+    OP_CHECK_IF(context->GetOptionalInputTensor(PSE_SHIFT_INDEX) != nullptr,
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+            "When learnable sink is used, pse is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(context->GetOptionalInputTensor(QUERY_PADDING_SIZE_INDEX) != nullptr ||
+                context->GetOptionalInputTensor(KV_PADDING_SIZE_INDEX) != nullptr,
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+            "When learnable sink is used, left padding is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(context->GetOptionalInputTensor(KEY_SHARED_PREFIX_INDEX) != nullptr ||
+                context->GetOptionalInputTensor(VALUE_SHARED_PREFIX_INDEX) != nullptr,
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+            "When learnable sink is used, system prefix is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(context->GetOptionalInputTensor(QUANT_SCALE2_INDEX) != nullptr,
+        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+            "When learnable sink is used, post quant is not supported!"),
+        return ge::GRAPH_FAILED);
+
  	         return ge::GRAPH_SUCCESS;
  	 }
 
@@ -1372,8 +1405,8 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
-    bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) && 
-        (tempAttnMaskShape == nullptr);
+    bool mhaConditions = isMha && (tempAttnMaskShape == nullptr) &&
+        (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
 
     bool usingFAI = false;
