@@ -254,8 +254,22 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInAllX(uint32_t globalI
         Cast(xF32, tempBuf, RoundMode::CAST_NONE, n_ * tileD_);
     } else {
         // Slow path: row by row copy
+        // Need to handle the case where D is not aligned to 16
+        // Copy only D_ valid elements, pad the rest with padding
+        uint32_t padSize = tileD_ - D_;
         for (uint32_t i = 0; i < n_; i++) {
-            DataCopy(tempBuf, xGm_[xBase + i * D_], tileD_);
+            // Copy D_ valid elements (not tileD_)
+            if (D_ % BF16_FP16_ALIGN_SIZE == 0) {
+                // D_ is aligned, use DataCopy directly
+                DataCopy(tempBuf, xGm_[xBase + i * D_], D_);
+            } else {
+                // D_ is not aligned, use DataCopyPad with right padding
+                uint8_t rightPad = (padSize > 255) ? 255 : static_cast<uint8_t>(padSize);
+                DataCopyPadParams padParams = {true, 0, rightPad, 0};
+                DataCopyPad(tempBuf, xGm_[xBase + i * D_],
+                           {1, static_cast<uint16_t>(D_ * sizeof(T)), 0, 0}, padParams);
+            }
+            // Cast to float32
             Cast(xF32[i * tileD_], tempBuf, RoundMode::CAST_NONE, tileD_);
         }
     }
