@@ -258,7 +258,8 @@ aclnnStatus aclnnRopeWithSinCosCacheGetWorkspaceSize(
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     // V1版本只支持cacheMode为0
-    int64_t cacheMode = 0;
+    // 20260225 临时版本 cacheMode改为支持1，适配qwen3-vl版本
+    int64_t cacheMode = 1;
     L2_DFX_PHASE_1(
         aclnnRopeWithSinCosCache, DFX_IN(positions, queryIn, keyIn, cosSinCache, mropeSection, headSize, isNeoxStyle, cacheMode),
         DFX_OUT(queryOut, keyOut));
