@@ -21,10 +21,10 @@
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
-#include "kernel_operator.h"
+#include "basic_api/kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_base.h"
-#include "../moe_distribute_combine_teardown_tiling.h"
+#include "../moe_distribute_combine_teardown_tiling_data.h"
 
 namespace MoeDistributeCombineTeardownImpl {
 

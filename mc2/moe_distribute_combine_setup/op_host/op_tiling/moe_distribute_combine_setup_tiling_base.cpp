@@ -49,7 +49,6 @@ constexpr uint32_t COMM_QUANT_NONE = 0U;
 constexpr uint32_t COMM_QUANT_INT12 = 1U;
 constexpr uint32_t COMM_QUANT_INT8 = 2U;
 
-constexpr uint32_t INIT_TILINGKEY = 1000U;
 constexpr uint32_t NO_SCALES = 0U;
 constexpr uint32_t STATIC_SCALES = 1U;
 constexpr uint32_t DYNAMIC_SCALES = 2U;
@@ -555,9 +554,12 @@ ge::graphStatus MoeDistributeCombineSetupTilingBase::CheckTensorDataType()
 
 void MoeDistributeCombineSetupTilingBase::SetTilingKey()
 {
-    uint64_t tilingKey = INIT_TILINGKEY;
-    OP_LOGD(nodeName_, "tilingKey is %lu", tilingKey);
+    bool tp = false;
+
+    // 设置tilingKey模板参数
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(tp);
     context_->SetTilingKey(tilingKey);
+    OP_LOGD(nodeName_, "tilingKey is [%lu].", tilingKey);
 }
 
 ge::graphStatus MoeDistributeCombineSetupTilingBase::CheckHcclBuffSize()

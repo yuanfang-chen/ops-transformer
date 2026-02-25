@@ -9,11 +9,14 @@
  */
 
 /*!
- * \file moe_distribute_combine_teardown_tiling.h
- * \brief
+ * \file moe_distribute_combine_teardown_tiling_data.h
+ * \brief 定义TilingData
  */
-#ifndef MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
-#define MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
+
+#ifndef MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H
+#define MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H
+
+#include <kernel_tiling/kernel_tiling.h>
 
 struct MoeDistributeCombineTeardownInfo {
     uint32_t epWorldSize;
@@ -39,4 +42,5 @@ struct MoeDistributeCombineTeardownTilingData {
     Mc2CcTiling mc2CcTiling;
     MoeDistributeCombineTeardownInfo moeDistributeCombineTeardownInfo;
 };
-#endif // MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
+
+#endif // MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H
