@@ -13,6 +13,7 @@
  * \brief
  */
 
+#include "lib/matmul_intf.h"
 #include "basic_api/kernel_basic_intf.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm.h"
 // #include "add_rms_norm_dynamic_quant_v2_normal_kernel.h"
@@ -42,6 +43,7 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     // GET_TILING_DATA(tilingData, tiling);
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
     if (TILING_KEY_IS(1)) {
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, false, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, workspaceGM, &pipe, &tilingData);
         op.Process();
