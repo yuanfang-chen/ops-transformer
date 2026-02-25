@@ -61,7 +61,7 @@ public:
     aclnnStatus CheckParams(GroupedMatmulParams &gmmParams)
     {
         gmmParams_ = gmmParams;
-        // 0. 进入判断逻辑之前先判断是那种量化
+        // 0. 进入判断逻辑之前先判断是哪种量化
         CHECK_COND(gmmParams_.scale != nullptr, ACLNN_ERR_PARAM_NULLPTR,
                    "In MX quant, scaleOptional should not be nullptr.");
         DataType scaleDtype = gmmParams_.scale->GetDataType();
@@ -170,17 +170,14 @@ public:
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape weightScaleExpectShape =
-            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} :
-                                          op::Shape{e, 1, n};
+            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} : op::Shape{e, 1, n};
         op::Shape weightTransExpectShape = {e, n, k};
         op::Shape weightScaleTransExpectShape =
-            quantMode_ == QuantMode::MX ? op::Shape{e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} :
-                                          op::Shape{e, 1, n};
+            quantMode_ == QuantMode::MX ? op::Shape{e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} : op::Shape{e, 1, n};
         op::Shape grouplistExpectShape = {e};
         op::Shape logitExpectShape = {m};
         op::Shape rowindexExpectShape = {m};
         op::Shape outputExpectShape = {outputBS, n};
-        OP_LOGI("outputexpectshape %ld %ld.",outputBS,n);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.x1, xExpectShape, return false);
         if (gmmParams_.transposeX2) {
             OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.scale, weightScaleTransExpectShape, return false);
@@ -193,7 +190,6 @@ public:
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.logit, logitExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.rowIndex, rowindexExpectShape, return false);
         OP_CHECK_SHAPE_NOT_EQUAL_WITH_EXPECTED_SIZE(gmmParams_.out, outputExpectShape, return false);
-
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             op::Shape xScaleExpectShape =
                 quantMode_ == QuantMode::MX ? op::Shape{m, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} : op::Shape{m};
@@ -334,7 +330,6 @@ public:
         }
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.logit, LOGIT_TYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.out, OUT_TYPE_SUPPORT_LIST, return false);
-        OP_LOGI("zzztestlog");
         if (gmmParams_.x1->GetDataType() != gmmParams_.x2->GetDataType()) {
             bool xIsFP8 = CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8);
             bool wIsFP8 = CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8);
