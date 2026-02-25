@@ -42,6 +42,21 @@
 
 using namespace op;
 
+#define DEPRECATED_API_WARN_ONCE(isHaveDeprecated, oldApiName, newApiName)               \
+    do {                                                                                 \
+        static bool isFirstWarn = true;                                                  \
+        if (isFirstWarn){                                                                \
+            if((isHaveDeprecated)){                                                      \
+                OP_LOGW("%s is deprecated, use %s instead", (oldApiName), (newApiName)); \
+            } else {                                                                     \
+                OP_LOGW("%s is scheduled to be deprecated in December 2026, "                                                                                    \
+                            "and will be replaced by the %s. "                                                                                                   \
+                            "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.", (oldApiName), (newApiName)); \
+            }                                                                            \
+            isFirstWarn = false;                                                         \
+        }                                                                                \
+    } while(0)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -70,22 +85,6 @@ namespace {
   static constexpr size_t PER_CHANNEL_SCALE_DIM = 2UL;
   static constexpr size_t PER_GROUP_SCALE_DIM = 3UL;
   static constexpr size_t DIMS_THREE_FOR_GMM = 3UL;
-
-  inline static void FirstPrint(bool& isFirstToPrint, const char* interfaceName, bool isExecutorInterface)
- 	{
- 	    if (isFirstToPrint) {
- 	        if (isExecutorInterface) {
- 	            OP_LOGW("%s is scheduled to be deprecated in December 2026, "
- 	                        "and will be replaced by the aclnnGroupedMatmulV5. "
- 	                        "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.", interfaceName);
- 	        } else {
- 	            OP_LOGW("%s is scheduled to be deprecated in December 2026, "
- 	                        "and will be replaced by the aclnnGroupedMatmulV5GetWorkspaceSize. "
- 	                        "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.", interfaceName);
- 	        }
- 	        isFirstToPrint = false;
- 	    }
- 	}
 
   static bool IsFormatNZWithC0(const aclTensor* tensor) {
     return ge::GetPrimaryFormat(tensor->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ_C0_2 ||
@@ -2433,8 +2432,7 @@ aclnnStatus aclnnGroupedMatmulV4GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *activationQuantOffsetOptional, int64_t splitItem, int64_t groupType, int64_t groupListType,
   int64_t actType, aclTensorList *out, aclTensorList *activationFeatureOutOptional,
   aclTensorList *dynQuantScaleOutOptional, uint64_t *workspaceSize, aclOpExecutor **executor) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV4GetWorkspaceSize", false);
+ 	DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV4GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, out) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2469,8 +2467,7 @@ aclnnStatus aclnnGroupedMatmulV3GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclTensor *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV3GetWorkspaceSize", false);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV3GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   // Standard syntax, Check parameters.
@@ -2500,8 +2497,7 @@ aclnnStatus aclnnGroupedMatmulV2GetWorkspaceSize(const aclTensorList *x, const a
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, int64_t groupType, const aclTensorList *y,
   uint64_t *workspaceSize, aclOpExecutor **executor) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV2GetWorkspaceSize", false);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV2GetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2527,8 +2523,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
   const aclTensorList *antiquantScaleOptional, const aclTensorList *antiquantOffsetOptional,
   const aclIntArray *groupListOptional, int64_t splitItem, const aclTensorList *y, uint64_t *workspaceSize,
   aclOpExecutor **executor) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulGetWorkspaceSize", false);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulGetWorkspaceSize", "aclnnGroupedMatmulV5GetWorkspaceSize");
   CHECK_COND(CheckNotNull(x, weight, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
              "One of required inputs is nullptr.");
   bool is310P = GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND310P;
@@ -2566,8 +2561,7 @@ aclnnStatus aclnnGroupedMatmulGetWorkspaceSize(const aclTensorList *x, const acl
 
 aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                aclrtStream stream) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmul", true);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmul", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmul);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2576,8 +2570,7 @@ aclnnStatus aclnnGroupedMatmul(void *workspace, uint64_t workspaceSize, aclOpExe
 
 aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV2", true);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV2", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV2);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2586,8 +2579,7 @@ aclnnStatus aclnnGroupedMatmulV2(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV3", true);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV3", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV3);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
@@ -2596,8 +2588,7 @@ aclnnStatus aclnnGroupedMatmulV3(void *workspace, uint64_t workspaceSize, aclOpE
 
 aclnnStatus aclnnGroupedMatmulV4(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                  aclrtStream stream) {
-  static bool isFirstToPrint = true;
- 	FirstPrint(isFirstToPrint, "aclnnGroupedMatmulV4", true);
+  DEPRECATED_API_WARN_ONCE(false, "aclnnGroupedMatmulV4", "aclnnGroupedMatmulV5");
   L2_DFX_PHASE_2(aclnnGroupedMatmulV4);
   CHECK_COND(CommonOpExecutorRun(workspace, workspaceSize, executor, stream) == ACLNN_SUCCESS, ACLNN_ERR_INNER,
              "This is an error in GMM launch aicore");
