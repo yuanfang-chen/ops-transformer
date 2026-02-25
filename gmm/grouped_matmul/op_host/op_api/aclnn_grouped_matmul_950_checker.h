@@ -56,6 +56,7 @@ private:
     aclnnStatus CheckNonPerGroupQuantShape() const;
     aclnnStatus CheckInt8QuantDtype() const;
     aclnnStatus CheckInt8QuantParams() const;
+    aclnnStatus CheckInt8QuantBiasDtype(DataType yDtype) const;
     aclnnStatus CheckFp8Hif8QuantParams() const;
     aclnnStatus CheckFp8Params(const DataType &scaleDtype) const;
     aclnnStatus CheckFp4Params(const DataType &scaleDtype) const;

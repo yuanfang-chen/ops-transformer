@@ -219,17 +219,14 @@ bool GroupedQbmmTiling::AnalyzeDtype()
         std::find(legalInputDtypes.begin(), legalInputDtypes.end(), inputParams_.aDtype) == legalInputDtypes.end(),
         OP_LOGE(inputParams_.opName,
                 "The dtype of x should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1}, \
-actual is %s.",
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str()),
-        return false);
+actual is %s.", ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str()), return false);
     auto wDesc = context_->GetDynamicInputDesc(WEIGHT_INDEX, 0);
     OP_CHECK_IF(wDesc == nullptr, OP_LOGE(context_->GetNodeName(), "wDesc is nullptr."), return false);
     inputParams_.bDtype = wDesc->GetDataType();
     OP_CHECK_IF(
         std::find(legalInputDtypes.begin(), legalInputDtypes.end(), inputParams_.bDtype) == legalInputDtypes.end(),
-        OP_LOGE(inputParams_.opName,
-                "The dtype of weight should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1}, actual is %s.",
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+        OP_LOGE(inputParams_.opName, "The dtype of weight should be in {INT8, HIFLOAT8, FLOAT8_E4M3, \
+FLOAT8_E5M2, FLOAT4_E2M1}, actual is %s.", ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
         return false);
     inputParams_.bFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
     auto biasStorageShape = context_->GetDynamicInputShape(BIAS_INDEX, 0);
@@ -237,8 +234,7 @@ actual is %s.",
     auto biasDesc = context_->GetDynamicInputDesc(BIAS_INDEX, 0);
     OP_CHECK_IF(inputParams_.hasBias && biasDesc == nullptr,
                OP_LOGE(inputParams_.opName,
-                                         "Bias from tensor is not nullptr, but bias from desc is nullptr."),
-               return false);
+                       "Bias from tensor is not nullptr, but bias from desc is nullptr."), return false);
     inputParams_.biasDtype = inputParams_.hasBias ? biasDesc->GetDataType() : inputParams_.biasDtype;
     auto scaleDesc = context_->GetDynamicInputDesc(SCALE_INDEX, 0);
     inputParams_.scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : inputParams_.scaleDtype;

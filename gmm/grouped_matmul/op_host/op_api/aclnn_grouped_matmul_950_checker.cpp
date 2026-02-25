@@ -673,6 +673,30 @@ that of %s[%ld].",
 }
 
 template <typename T>
+aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantBiasDtype(DataType yDtype) const
+{        
+    DataType biasDtype = (*gmmParams_.biasOptional)[0]->GetDataType();
+    if (yDtype == DataType::DT_BF16) {
+        CHECK_COND(
+            biasDtype == DataType::DT_INT32 || biasDtype == DataType::DT_BF16 || biasDtype == DataType::DT_FLOAT,
+            ACLNN_ERR_PARAM_INVALID,
+            "When y dtype is bfloat16, the bias dtype should be int32, bfloat16 or float32, but actual dtype is %s",
+            op::ToString(biasDtype).GetString());
+    } else if (yDtype == DataType::DT_FLOAT16) {
+        CHECK_COND(
+            biasDtype == DataType::DT_INT32 || biasDtype == DataType::DT_FLOAT16 || biasDtype == DataType::DT_FLOAT,
+            ACLNN_ERR_PARAM_INVALID,
+            "When y dtype is float16, the bias dtype should be int32, float16 or float32, but actual dtype is %s",
+            op::ToString(biasDtype).GetString());
+    } else if (yDtype == DataType::DT_INT8 || yDtype == DataType::DT_INT32) {
+        CHECK_COND(biasDtype == DataType::DT_INT32, ACLNN_ERR_PARAM_INVALID,
+                   "When y dtype is int8 or int32, the bias dtype should be int32, but actual dtype is %s",
+                    op::ToString(biasDtype).GetString());
+    }
+    return ACLNN_SUCCESS;
+}
+
+template <typename T>
 aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantDtype() const
 {
     static const std::vector<DataType> legalOutputDtypes = {DataType::DT_INT8, DataType::DT_INT32, DataType::DT_BF16,
@@ -683,24 +707,7 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantDtype() const
                "Expect y dtype to be int8, int32, float16 or bfloat16 in int8 quant case, but actual dtype is %s",
                op::ToString(yDtype).GetString());
     if (gmmParams_.biasOptional != nullptr) {
-        DataType biasDtype = (*gmmParams_.biasOptional)[0]->GetDataType();
-        if (yDtype == DataType::DT_BF16) {
-            CHECK_COND(
-                biasDtype == DataType::DT_INT32 || biasDtype == DataType::DT_BF16 || biasDtype == DataType::DT_FLOAT,
-                ACLNN_ERR_PARAM_INVALID,
-                "When y dtype is bfloat16, the bias dtype should be int32, bfloat16 or float32, but actual dtype is %s",
-                op::ToString(biasDtype).GetString());
-        } else if (yDtype == DataType::DT_FLOAT16) {
-            CHECK_COND(
-                biasDtype == DataType::DT_INT32 || biasDtype == DataType::DT_FLOAT16 || biasDtype == DataType::DT_FLOAT,
-                ACLNN_ERR_PARAM_INVALID,
-                "When y dtype is float16, the bias dtype should be int32, float16 or float32, but actual dtype is %s",
-                op::ToString(biasDtype).GetString());
-        } else if (yDtype == DataType::DT_INT8 || yDtype == DataType::DT_INT32) {
-            CHECK_COND(biasDtype == DataType::DT_INT32, ACLNN_ERR_PARAM_INVALID,
-                       "When y dtype is int8 or int32, the bias dtype should be int32, but actual dtype is %s",
-                       op::ToString(biasDtype).GetString());
-        }
+        CHECK_RET(CheckInt8QuantBiasDtype(yDtype) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     }
     if (yDtype == DataType::DT_INT32) {
         return ACLNN_SUCCESS;
@@ -1042,10 +1049,7 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGroupedMatmulDAV3510() con
 {   
     DataType xDtype = gmmParams_.xDtype;
     DataType weightDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
-    DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     if (IsQuant(xDtype, weightDtype)) {
-        CHECK_COND(yDtype == DataType::DT_INT32 || gmmParams_.scaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-                   "In quant case, scaleOptional should not be nullptr when the output dtype is not int32.");
         CHECK_COND(gmmParams_.groupTensorOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
                    "In quant case, groupListOptional should not be nullptr.");
         CHECK_COND(gmmParams_.offsetOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
@@ -1068,9 +1072,8 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGroupedMatmulDAV3510() con
             scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
         }
         if (xDtype == DataType::DT_INT8 && weightDtype == DataType::DT_INT8) {
-            CHECK_COND(gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,
-                       "In int8 quant case only supports groupType 0 (split M), but actual groupType is %ld",
-                       gmmParams_.groupType);
+            CHECK_COND(gmmParams_.groupType == SPLIT_M, ACLNN_ERR_PARAM_INVALID,"In int8 quant case only supports \
+groupType 0 (split M), but actual groupType is %ld", gmmParams_.groupType);
             return CheckInt8QuantParams();
         } else if (xDtype == DataType::DT_HIFLOAT8 && weightDtype == DataType::DT_HIFLOAT8) {
             CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_FLOAT ||
