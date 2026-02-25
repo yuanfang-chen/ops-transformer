@@ -79,13 +79,13 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
                                tiling);
         
         GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, gmmSwigluQuantV2, gmmSwiglu_, tiling);
+        GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, mmTilingData, mmTilingData_, tiling);
         using xType = MatmulType<TPosition::GM, CubeFormat::ND, int4b_t, false>;
         using weightType = MatmulType<TPosition::GM, wFormat, int4b_t, true>;
         using yType = MatmulType<TPosition::GM, CubeFormat::ND, half, false>;
         using matmulType = MMImplTypeCustom<xType, weightType, yType>;
         matmulType::MT mm;
         if ASCEND_IS_AIC {
-            GET_TILING_DATA_MEMBER(GMMSwigluQuantV2TilingData, mmTilingData, mmTilingData_, tiling);
             mm.SetSubBlockIdx(0);
             mm.Init(&mmTilingData_);
         }
