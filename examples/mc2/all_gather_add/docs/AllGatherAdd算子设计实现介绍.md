@@ -49,6 +49,40 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
 ### 1.5 算子规格
 
+<table style="undefined;table-layout: fixed; width: 1149px"><colgroup>
+    <col style="width: 282px">
+    <col style="width: 120px">
+    <col style="width: 747px">
+    </colgroup>
+    <thead>
+    <tr>
+    <th>返回值</th>
+    <th>错误码</th>
+    <th>描述</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+    <td>ACLNN_ERR_PARAM_NULLPTR</td>
+    <td>161001</td>
+    <td>输入和输出的必选参数Tensor是空指针。</td>
+    </tr>
+    <tr>
+    <td>ACLNN_ERR_PARAM_INVALID</td>
+    <td>161002</td>
+    <td>输入和输出的数据类型不在支持的范围内。</td>
+    </tr>
+    <tr>
+    <td rowspan="2">ACLNN_ERR_INNER_TILING_ERROR</td>
+    <td rowspan="2">561002</td>
+    <td>输入和输出的shape不在支持的范围内。</td>
+    </tr>
+    <tr>
+        <td>参数的取值不在支持的范围。</td>
+    </tr>
+    </tbody>
+    </table>
+
 | 算子类型(OpType) | AllGatherAdd | | | |
 | ----------------- | -------------- | ---------- | -------- | -------- |
 | **算子输入输出** | name | dataType | shape | format |
@@ -72,7 +106,7 @@ AllGather操作会将通信域内所有卡的输入按照卡id重新排序，然
 
 本样例通信域内卡数rank_size固定为2，若通信不切分轮次，通信计算串行进行，算子语义示意图如下：
 
-![AllGatherAdd算子计算语义示意图.png](../docs/figures/AllGatherAdd算子计算语义示意图.png)
+![AllGatherAdd算子计算语义示意图.png](./)
 
 AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add计算，通信计算部分可以并行进行互不影响。
 因此，可以将通信数据切分为块，每次计算对前一轮的通信结果进行操作，流水互相掩盖，则可得到通信计算掩盖示意图如下：
@@ -89,7 +123,7 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 
 ![AllGatherAdd第一轮通信示意图.png](../docs/figures/AllGatherAdd第一轮通信示意图.png)
 
-3. AI CPU完成第一轮通信任务后，向消息区写入第一轮通信任务已完成的消息，并开始执行第二轮通信任务。同时，AI Vector开始对第一轮AllGather通信结果进行Add计算。下图为第二轮通信和rank0上第一轮Add计算的示意图。
+3. AI CPU完成第一轮通信任务后，向消息区写入第一轮通信任务已完成的状态，并开始执行第二轮通信任务。同时，AI Vector开始对第一轮AllGather通信结果进行Add计算。下图为第二轮通信和rank0上第一轮Add计算的示意图。
 
 ![Rank0上第一轮Add示意图.png](../docs/figures/Rank0上第一轮Add示意图.png)
 
