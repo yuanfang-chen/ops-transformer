@@ -8,19 +8,12 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-if (BUILD_OPEN_PROJECT)
-    set(moe_token_unpermute_with_routing_map_depends moe/3rd/moe_inplace_index_add_with_sorted moe/3rd/moe_inplace_index_add CACHE INTERNAL "Dependencies for moe_token_unpermute_with_routing_map")
-    target_sources(op_host_aclnnExc PRIVATE
-        moe_token_unpermute_with_routing_map_def.cpp
-    )
-    add_ops_compile_options(
-        OP_NAME MoeTokenUnpermuteWithRoutingMap
-        OPTIONS --cce-auto-sync=on
-                -Wno-deprecated-declarations
-                -Werror
-    )
+file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+if(NOT ENABLE_TEST AND NOT BENCHMARK)
+    list(REMOVE_ITEM CURRENT_DIRS tests)
 endif()
-
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE moe_token_unpermute_with_routing_map ACLNNTYPE aclnn_exclude)
-endif()
+foreach(SUB_DIR ${CURRENT_DIRS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
+        add_subdirectory(${SUB_DIR})
+    endif()
+endforeach()
