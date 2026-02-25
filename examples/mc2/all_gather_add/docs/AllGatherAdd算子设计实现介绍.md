@@ -130,7 +130,7 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 
 ![AllGatherAdd通算掩盖示意图.png](figures/AllGatherAdd通算掩盖示意图.png)
 
-可以看到从第二轮通信开始，通算流水掩盖。由于前一次通信结果的Add计算和后一次通信过程可以并行，当通信切分轮次增多时，在流水上可以掩盖掉（comm_turn-1/comm_turn）* 总数据量 的计算时间。
+可以看到从第二轮通信开始，通算流水掩盖。由于前一次通信结果的Add计算和后一次通信过程可以并行，当通信切分轮次增多时，在流水上可以掩盖掉（comm_turn-1/comm_turn）* 总数据量的计算时间。
 本样例中，固定通信轮次comm_turn=2，开发者可以根据shape的大小调整通信轮次来实现不同程度的通算掩盖。
 
 **AllGatherAdd算子计算过程示意**：（comm_turn=2时）
@@ -165,6 +165,7 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 相比于一般算子，通算融合算子在实现[算子原型定义](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/opdevg/Ascendcopdevg/atlas_ascendc_10_0062.html)时，有如下约束：
 - 必须定义至少一个表示算子通信域名称的属性，该属性的数量与算子所在通信域数量一致。通信域是集合通信执行的上下文，管理对应的通信实体（例如一个NPU就是一个通信实体）和通信所需的资源。
 - 必须通过原型注册中的[MC2](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0954.html)接口注册该算子为通算融合算子，并通过[HcclGroup](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_1002.html)接口配置该算子的通信域名称。
+
 
 AllGatherAdd算子原型定义如下：
 
@@ -404,7 +405,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     - 轮询等待每个分块的通信完成和计算完成，最后释放资源。
 
-    整合前述代码 ，完整Kernel代码请访问开源仓   
+    整合前述代码 ，完整Kernel代码请访问开源仓。  
 
 ## 编译和运行
 
