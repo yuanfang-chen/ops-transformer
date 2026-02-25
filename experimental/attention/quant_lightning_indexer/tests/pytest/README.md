@@ -9,14 +9,14 @@
 ### 参数限制
 
 - **数据格式**:
-- **query_layout**：BSND TND PA_BSND
-- **key_layout**: PA_BSND
+  - **query_layout**：BSND、TND
+  - **key_layout**: PA_BSND
 
 ### 环境配置
 
 #### 前置要求
-1. 确认torch_npu为最新版本
-2. source CANN包
+1、 确认torch_npu为最新版本  
+2、 参考[Attention融合算子Experimental使用说明](../../../Attention融合算子Experimental使用说明.md)激活CANN包和自定义算子包
 
 #### custom包调用
 支持custom包调用
@@ -34,9 +34,9 @@
 
 批量测试：
 - test_quant_lightning_indexer_batch.py        # 用例批量测试主程序并生成excel文件保存结果
-- quant_lightning_indexer_pt_loadprocess.py    # 读取pt文件并调用算子获取npu输出
-- quant_lightning_indexer_pt_save.py           # 读取excel表格批量生成用例pt文件
-- replace_path.py                              # test_quant_lightning_indexer_batch.py占位符替换
+- ./batch/quant_lightning_indexer_pt_loadprocess.py    # 读取pt文件并调用算子获取npu输出
+- ./batch/quant_lightning_indexer_pt_save.py           # 读取excel表格批量生成用例pt文件
+- ./batch/replace_path.py                              # test_quant_lightning_indexer_batch.py占位符替换
  
 
 ## 使用方法

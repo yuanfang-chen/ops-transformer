@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -27,101 +27,7 @@ using namespace ge;
 using namespace AscendC;
 namespace optiling {
 
-static const std::string X_NAME = "query";
-static const std::string WKV_NAME = "wkv";
-static const std::string WGATE_NAME = "wgate";
-static const std::string KV_STATE_NAME = "kv_state";
-static const std::string SCORE_STATE_NAME = "score_state";
-static const std::string APE_NAME = "ape";
-static const std::string NORM_WEIGHT_NAME = "norm_weight";
-static const std::string ROPE_SIN_NAME = "rope_sin";
-static const std::string ROPE_COS_NAME = "rope_cos";
-static const std::string KV_BLOCK_TABLE_NAME = "kv_block_table";
-static const std::string SCORE_BLOCK_TABLE_NAME = "score_block_table";
-static const std::string CU_SEQLENS_NAME = "cu_seqlens";
-static const std::string SEQUSED_NAME = "seq_used";
-static const std::string START_POS_NAME = "start_pos";
-static const std::string ROPE_HEAD_DIM_NAME = "rope_head_dim";
-static const std::string CMP_RATIO_NAME = "cmp_ratio";
-static const std::string COFF_NAME = "coff";
-static const std::string NORM_EPS_NAME = "nrom_eps";
-static const std::string ROTARY_MODE_NAME = "rotary_mode";
-static const std::string ENABLE_GRAD_NAME = "enable_grad";
-static const std::string CMP_KV_NAME = "cmp_kv";
-static std::string DataTypeToSerialString(ge::DataType type);
-const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
-    {X_NAME,                {ge::DT_BF16, ge::DT_FLOAT16}},
-    {WKV_NAME,              {ge::DT_BF16, ge::DT_FLOAT16}},
-    {WGATE_NAME,            {ge::DT_BF16, ge::DT_FLOAT16}},
-    {KV_STATE_NAME,         {ge::DT_FLOAT}},
-    {SCORE_STATE_NAME,      {ge::DT_FLOAT}},
-    {APE_NAME,              {ge::DT_FLOAT}},
-    {NORM_WEIGHT_NAME,      {ge::DT_BF16, ge::DT_FLOAT16}},
-    {ROPE_SIN_NAME,         {ge::DT_BF16, ge::DT_FLOAT16}},
-    {ROPE_COS_NAME,         {ge::DT_BF16, ge::DT_FLOAT16}},
-    {KV_BLOCK_TABLE_NAME,   {ge::DT_INT32}},
-    {SCORE_BLOCK_TABLE_NAME, {ge::DT_INT32}},
-    {CU_SEQLENS_NAME,       {ge::DT_INT32}},
-    {SEQUSED_NAME,          {ge::DT_INT32}},
-    {START_POS_NAME,       {ge::DT_INT32}},
-    {CMP_KV_NAME,           {ge::DT_BF16, ge::DT_FLOAT16}}
-};
-const std::map<std::string, std::vector<uint32_t>> DIM_NUM_MAP = {
-    {X_NAME,                {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3}},
-    {WKV_NAME,              {COMPRESSOR_DIM_NUM_2}},
-    {WGATE_NAME,            {COMPRESSOR_DIM_NUM_2}},
-    {KV_STATE_NAME,         {COMPRESSOR_DIM_NUM_3}},
-    {SCORE_STATE_NAME,      {COMPRESSOR_DIM_NUM_3}},
-    {APE_NAME,              {COMPRESSOR_DIM_NUM_2}},
-    {NORM_WEIGHT_NAME,      {COMPRESSOR_DIM_NUM_1}},
-    {ROPE_SIN_NAME,         {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3}},
-    {ROPE_COS_NAME,         {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3}},
-    {KV_BLOCK_TABLE_NAME,   {COMPRESSOR_DIM_NUM_2}},
-    {SCORE_BLOCK_TABLE_NAME, {COMPRESSOR_DIM_NUM_2}},
-    {CU_SEQLENS_NAME,       {COMPRESSOR_DIM_NUM_1}},
-    {SEQUSED_NAME,          {COMPRESSOR_DIM_NUM_1}},
-    {START_POS_NAME,       {COMPRESSOR_DIM_NUM_1}},
-    {CMP_KV_NAME,           {COMPRESSOR_DIM_NUM_2, COMPRESSOR_DIM_NUM_3}}
-};
-static const std::map<std::string, uint32_t> LAYOUT_DIM_MAP = {
-    {"BSH", COMPRESSOR_DIM_NUM_3},
-    {"TH", COMPRESSOR_DIM_NUM_2},
-};
-const std::map<ge::DataType, std::string> DATATYPE_TO_STRING_MAP = {
-    {ge::DT_UNDEFINED, "DT_UNDEFINED"},           // Used to indicate a DataType field has not been set.
-    {ge::DT_FLOAT, "DT_FLOAT"},                   // float type
-    {ge::DT_FLOAT16, "DT_FLOAT16"},               // fp16 type
-    {ge::DT_INT8, "DT_INT8"},                     // int8 type
-    {ge::DT_INT16, "DT_INT16"},                   // int16 type
-    {ge::DT_UINT16, "DT_UINT16"},                 // uint16 type
-    {ge::DT_UINT8, "DT_UINT8"},                   // uint8 type
-    {ge::DT_INT32, "DT_INT32"},                   // uint32 type
-    {ge::DT_INT64, "DT_INT64"},                   // int64 type
-    {ge::DT_UINT32, "DT_UINT32"},                 // unsigned int32
-    {ge::DT_UINT64, "DT_UINT64"},                 // unsigned int64
-    {ge::DT_BOOL, "DT_BOOL"},                     // bool type
-    {ge::DT_DOUBLE, "DT_DOUBLE"},                 // double type
-    {ge::DT_DUAL, "DT_DUAL"},                     // dual output type
-    {ge::DT_DUAL_SUB_INT8, "DT_DUAL_SUB_INT8"},   // dual output int8 type
-    {ge::DT_DUAL_SUB_UINT8, "DT_DUAL_SUB_UINT8"}, // dual output uint8 type
-    {ge::DT_COMPLEX32, "DT_COMPLEX32"},           // complex32 type
-    {ge::DT_COMPLEX64, "DT_COMPLEX64"},           // complex64 type
-    {ge::DT_COMPLEX128, "DT_COMPLEX128"},         // complex128 type
-    {ge::DT_QINT8, "DT_QINT8"},                   // qint8 type
-    {ge::DT_QINT16, "DT_QINT16"},                 // qint16 type
-    {ge::DT_QINT32, "DT_QINT32"},                 // qint32 type
-    {ge::DT_QUINT8, "DT_QUINT8"},                 // quint8 type
-    {ge::DT_QUINT16, "DT_QUINT16"},               // quint16 type
-    {ge::DT_RESOURCE, "DT_RESOURCE"},             // resource type
-    {ge::DT_STRING_REF, "DT_STRING_REF"},         // string ref type
-    {ge::DT_STRING, "DT_STRING"},                 // string type
-    {ge::DT_VARIANT, "DT_VARIANT"},               // dt_variant type
-    {ge::DT_BF16, "DT_BFLOAT16"},                 // dt_bfloat16 type
-    {ge::DT_INT4, "DT_INT4"},                     // dt_variant type
-    {ge::DT_UINT1, "DT_UINT1"},                   // dt_variant type
-    {ge::DT_INT2, "DT_INT2"},                     // dt_variant type
-    {ge::DT_UINT2, "DT_UINT2"}                    // dt_variant type
-};
+
 
 void CompressorTiling::ConvertRequiredParams(gert::TilingContext &context, CompressorContext &compressorContext)
 {
@@ -288,13 +194,10 @@ ge::graphStatus CompressorTiling::SetScenarioInfo()
 
 ge::graphStatus CompressorTiling::SetTemplateId()
 {
+    if (context_->templateId == TemplateId::EMPTY_X) {
+        return ge::GRAPH_SUCCESS;
+    }
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND910_95) {
-        return ge::GRAPH_SUCCESS;
-    }
-    if (context_->seqUsed.desc != nullptr || context_->seqUsed.shape != nullptr) {
-        return ge::GRAPH_SUCCESS;
-    }
-    if (context_->layout == LayoutType::LAYOUT_BSH) {
         return ge::GRAPH_SUCCESS;
     }
     // 设置高性能模板
@@ -340,8 +243,9 @@ ge::graphStatus CompressorTiling::CalcWorkSpace()
 
 ge::graphStatus CompressorTiling::CheckEmptyTensor() const
 {
-    if ((context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0) ||
-        (context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0)) {
+    if (context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0 ||
+        context_->layout == LayoutType::LAYOUT_BSH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_1) == 0 ||
+        context_->layout == LayoutType::LAYOUT_TH && context_->x.shape->GetStorageShape().GetDim(COMPRESSOR_DIM_INDEX_0) == 0) {
         context_->templateId = TemplateId::EMPTY_X;
     } else {
         if (context_->x.shape->GetStorageShape().GetShapeSize() == 0 ||
@@ -355,7 +259,7 @@ ge::graphStatus CompressorTiling::CheckEmptyTensor() const
             context_->ropeCos.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->kvBlockTable.shape->GetStorageShape().GetShapeSize() == 0 ||
             context_->scoreBlockTable.shape->GetStorageShape().GetShapeSize() == 0) {
-            OP_LOGI(context_->opName, "Only input tensor x dim S or T supports to be 0");
+            OP_LOGE(context_->opName, "Only input tensor x dim B or S or T supports to be 0");
             return ge::GRAPH_FAILED;
         }
         context_->templateId = TemplateId::NORMAL;
@@ -371,10 +275,10 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
     this->workspaceParams_ = &tilingData->workspaceParams;
     using StatusFunction = std::function<ge::graphStatus()>;
     std::vector<StatusFunction> requiredTilingFuncs {
+        std::bind(&CompressorTiling::GetNpuInfo, this),
         std::bind(&CompressorTiling::CheckRequiredParaExistence, this),
         std::bind(&CompressorTiling::CheckEmptyTensor, this),
         std::bind(&CompressorTiling::CheckSinglePara, this),
-        std::bind(&CompressorTiling::GetNpuInfo, this),
         std::bind(&CompressorTiling::SetBaseInfo, this),
         std::bind(&CompressorTiling::SetPageAttentionInfo, this),
         std::bind(&CompressorTiling::CheckFeature, this),
@@ -389,13 +293,17 @@ ge::graphStatus CompressorTiling::RunBigKernelTiling(CompressorTilingData* tilin
         if (func() != ge::GRAPH_SUCCESS) {
             return ge::GRAPH_FAILED;
         }
-        if (context_->templateId == TemplateId::EMPTY_X) {
-            GenTilingKey();
-            context_->blockDim = 1U;
-            return ge::GRAPH_SUCCESS;
-        }
     }
 
+    if (context_->templateId == TemplateId::EMPTY_X) {
+        workspaceSize_ = libapiSize_;
+        if (context_->workSpaces) {
+            context_->workSpaces[0] = workspaceSize_;
+        }
+        GenTilingKey();
+        context_->blockDim = 1U;
+        return ge::GRAPH_SUCCESS;
+    }
     std::vector<StatusFunction> optionalTilingFuncs {
         std::bind(&CompressorTiling::CalcWorkSpace, this),
         std::bind(&CompressorTiling::GenTilingKey, this)
@@ -507,19 +415,28 @@ ge::graphStatus CompressorTiling::CheckAttrValueSupport(const T *attrValue,
 }
 
 template <typename T>
+std::string to_string(const T &value) {
+    if (std::is_same_v<T, bool>) {
+        return value ? "true" : "false";
+    } else {
+        return std::to_string(value);
+    }
+}
+
+template <typename T>
 void CompressorTiling::LogErrorNumberSupport(const std::vector<T> &expectNumberList,
     const T &actualValue, const std::string &name, const std::string subName) const
 {
     std::ostringstream oss;
     for (size_t i = 0; i < expectNumberList.size(); ++i) {
-        oss << std::to_string(expectNumberList[i]);
+        oss << to_string(expectNumberList[i]);
         if (i < expectNumberList.size() - 1) {
             oss << ", ";
         }
     }
 
     OP_LOGE(context_->opName, "%s %s only supports %s, but got %s",
-              name.c_str(), subName.c_str(), oss.str().c_str(), std::to_string(actualValue).c_str());
+              name.c_str(), subName.c_str(), oss.str().c_str(), to_string(actualValue).c_str());
 }
 
 std::string LayoutTypeToStr(LayoutType layout) {

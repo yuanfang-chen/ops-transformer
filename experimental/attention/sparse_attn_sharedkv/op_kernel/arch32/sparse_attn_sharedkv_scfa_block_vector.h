@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -475,7 +475,7 @@ __aicore__ inline void SASVectorBlock<SAST>::GetRealS2Idx(int64_t s2GmOffset, in
 {
     int64_t cmpS2Offset = s2GmOffset;
     int64_t topkGmIdx = cmpS2Offset / constInfo.sparseBlockSize;
-    if (unlikely(topkGmIdx >= constInfo.sparseBlockCount)) {
+    if (unlikely(topkGmIdx >= constInfo.sparseBlockCount || s2GmOffset >= runInfo.v0S2DealSize)) {
         realS2Idx = -1;
         return;
     }
