@@ -233,7 +233,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
         if (mc2Context.epRankSize > 1) {
             const uint32_t channelNum = mc2Context.epRankSize - 1;
             std::vector<HcclChannelDesc> channelDesc(channelNum);
-            res = HcclChannelDescInit(channelDesc, channelNum);
+            res = HcclChannelDescInit(channelDesc.data(), channelNum);
             CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl ChannelDesc Init Failed.");
             uint32_t idx = 0;
             for (uint32_t r = 0; r < mc2Context.epRankSize; ++r) {
