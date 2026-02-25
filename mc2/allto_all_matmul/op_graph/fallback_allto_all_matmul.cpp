@@ -98,9 +98,8 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
     para.x1_acl = ConvertMmType(x1, false);
     OPS_CHECK(para.x1_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_acl is null"), return ge::GRAPH_FAILED);
 
-    const bool* trans_x2_ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
-    const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
-    para.x2_acl = ConvertMmType(x2, x2_trans);
+    // 适配fusion pass的.t()场景，这里固定传false
+    para.x2_acl = ConvertMmType(x2, false);
     OPS_CHECK(para.x2_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
