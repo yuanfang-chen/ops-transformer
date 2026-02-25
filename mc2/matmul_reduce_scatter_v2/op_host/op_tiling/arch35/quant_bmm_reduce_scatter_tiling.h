@@ -84,6 +84,7 @@ protected:
     bool PerblockSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;
     bool PertensorSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
     bool MxfpSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
+    bool OtherSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
     void SetScene();
     bool CheckPerblockM();
     ge::graphStatus CheckGroupSize() const;
@@ -123,6 +124,7 @@ private:
     uint32_t batch3_{1};
     uint32_t batch4_{1};
     bool isSerial_{false};
+    bool isInt8_{false};
 };
 } // namespace optiling
 
