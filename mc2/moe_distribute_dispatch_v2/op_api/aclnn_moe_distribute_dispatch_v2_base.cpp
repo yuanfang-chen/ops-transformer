@@ -125,6 +125,53 @@ aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& net
     return ACLNN_SUCCESS;
 }
 
+aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t srcRankId, std::vector<ChannelHandle>& channeles)
+{
+    std::vector<HcclChannelDesc> channelDesc;
+    channelDesc.resize(rankDim);
+    channeles.resize(rankDim);
+    CommLink * links;
+    HcclResult ret;
+    uint32_t netLayers = 0; //目前默认是AIV 单Server内
+    uint32_t linkNum = 0;
+    
+    OP_LOGD("PRINT HcclChannelDescInit start");
+    ret = HcclChannelDescInit(channelDesc.data(), rankDim);
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel Init failed.");
+        return ACLNN_ERR_INNER;
+    }
+    OP_LOGD("PRINT HcclChannelDescInit success");
+
+    for (uint32_t index = 0; index < rankDim; index++) {
+        channelDesc[index].remoteRank = index;
+        channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+        channelDesc[index].notifyNum =3;
+        if(index != srcRankId) {
+            ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum);
+            if(ret != HCCL_SUCCESS) {
+                OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed.");
+                return ACLNN_ERR_INNER;
+            }
+            if(linkNum == 0) {
+                OP_LOGE(ACLNN_ERR_INNER, "The Rank LiNK Is nullptr.");
+                return ACLNN_ERR_INNER;
+            }
+            channelDesc[index].localEndpoint = links->srcEndpointDesc;
+            channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
+            channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+        }
+    }
+
+    ret = HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), rankDim, channeles.data());
+    if(ret != HCCL_SUCCESS) {
+        OP_LOGE(ACLNN_ERR_INNER, "Hccl Channel get channel failed.");
+        return ACLNN_ERR_INNER;
+    }
+    OP_LOGD("PRINT HcclChannelAcquire success");
+    return ACLNN_SUCCESS;
+}
+
 aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void * ctx, Mc2MoeContext*  mc2_context)
 {
     OP_LOGD("PRINT inter to the CreatMc2Context");
@@ -133,7 +180,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     uint64_t buffersize = 0;
     uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
     HcclResult ret;
-    std::vector<HcclChannelDesc> channelDesc;
+    aclnnStatus res;
     std::vector<ChannelHandle> channeles;
 
     ret = HcclEngineCtxCreate(hcclHandle, mc2Ctxtag.c_str(), engine, ctxSize, &ctx);
@@ -155,26 +202,18 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcclGetRankSize success");
-    channelDesc.resize(mc2_context->rankDim);
-    channeles.resize(mc2_context->rankDim);
-    HcclChannelDescInit(channelDesc.data(), mc2_context->rankDim);
-    OP_LOGD("PRINT HcclChannelDescInit success");
-    for (uint64_t index = 0; index < mc2_context->rankDim; index++) {
-        channelDesc[index].remoteRank = index;
-        channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-        channelDesc[index].notifyNum =3;
-        // if(index != mc2_context->rankId) {
 
-        // }
-    }
-
-    HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), mc2_context->rankDim, channeles.data());
+    res = GetHcclCommChannel(hcclHandle, mc2_context->rankDim, mc2_context->rankId, channeles);
+    CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("PRINT HcclChannelAcquire success");
+
+    //获取对应的资源
     for(uint64_t index = 0; index < mc2_context->rankDim; index++) {
         if(index == mc2_context->rankId) {
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winsize);
             OP_LOGD("PRINT HcclGetHcclBuffer success");
         } else {
+            //ret = HcclRankGraphGetLinks(hcclHandle, )
             ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
         }
         if(ret != HCCL_SUCCESS) {
