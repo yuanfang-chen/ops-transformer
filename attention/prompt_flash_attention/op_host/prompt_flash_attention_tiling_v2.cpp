@@ -608,12 +608,12 @@ void PromptFlashAttentionTilingV2::GetQueryDimAndOutDim(const gert::StorageShape
         if (i == 1) { // BNSD_BSND：query:N, output:S; BSND_BNSD：query:S, output:N
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i + 1);
-        } else if (i == 2) { // BNSD_BSND：query:S, output:N; BSND_BNSD：query:N, output:S
+        } else if (i == 2) { // 2: current queryDimNum; BNSD_BSND：query:S, output:N; BSND_BNSD：query:N, output:S
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i - 1);
         }
     } else if (layoutStr == "BSH_BNSD") {
-        if (i == 2) { // BSH_BNSD：query:H, output:ND
+        if (i == 2) { // 2: current queryDimNum; BSH_BNSD：query:H, output:ND
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 1);
         }
@@ -621,22 +621,22 @@ void PromptFlashAttentionTilingV2::GetQueryDimAndOutDim(const gert::StorageShape
         if (i == 1) { // BSND_NBSD：query:S, output:B
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i + 1);
-        } else if (i == 2) { // BSND_NBSD：query:N, output:S
+        } else if (i == 2) { // 2: current queryDimNum; BSND_NBSD：query:N, output:S
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-            outDim = outShape->GetStorageShape().GetDim(i - 2);
+            outDim = outShape->GetStorageShape().GetDim(i - 2); // 2: 获取outShape的第i - 2个维度
         }
     } else if (layoutStr == "BNSD_NBSD") {
         if (i == 1) { // BNSD_NBSD：query:N, output:B
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i - 1);
-        } else if (i == 2) { // BNSD_NBSD：query:S, output:S
+        } else if (i == 2) { // 2: current queryDimNum; BNSD_NBSD：query:S, output:S
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
             outDim = outShape->GetStorageShape().GetDim(i);
         }
     } else if (layoutStr == "BSH_NBSD") {
-        if (i == 2) { // BSH_NBSD：query:H, output:ND
+        if (i == 2) { // 2: current queryDimNum; BSH_NBSD：query:H, output:ND
             tmpqueryDim = queryShape->GetStorageShape().GetDim(i);
-            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 2);
+            outDim = outShape->GetStorageShape().GetDim(i + 1) * outShape->GetStorageShape().GetDim(i - 2); //  2: 获取outShape的第i - 2个维度
         }
     } else if (layoutStr == "NTD_TND" || layoutStr == "TND_NTD") {
         if (i == 0) { // query:N/T, output:T/N
@@ -845,7 +845,6 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
             OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
             return false; 
         } 
-          
      } else if (enableIFAMLA || enablePFAMLA || enableIFAMLAFullQuant) { 
         if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > GLIMIT_128)) { // G cannot be greater than 128. 
             OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
