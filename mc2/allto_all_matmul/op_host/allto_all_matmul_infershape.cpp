@@ -36,8 +36,10 @@ constexpr size_t INDEX_ATTR_ALLTOALL_OUT_FLAG = 12;
 constexpr size_t INDEX_OUT = 0;
 constexpr size_t INDEX_ALLTO_ALL_OUT = 1;
 constexpr uint64_t DIM_TWO = 2;
-constexpr uint64_t X1_QUANT_NUM = 7;
-constexpr uint64_t X2_QUANT_NUM = 2;
+constexpr uint64_t X1_KC_QUANT_NUM = 7;
+constexpr uint64_t X2_KC_QUANT_NUM = 2;
+constexpr uint64_t X1_MX_QUANT_NUM = 6;
+constexpr uint64_t X2_MX_QUANT_NUM = 6;
 constexpr int64_t NUM_MINUS_ONE = -1;
 constexpr int64_t NUM_MINUS_TWO = -2;
 constexpr int64_t OUTPUT_INFER_SHAPE = 2;
@@ -164,7 +166,7 @@ static ge::graphStatus InferShapeAlltoAllMatmul(gert::InferShapeContext* context
 }
 
 /**
- * @brief 推导输出数据类型
+ * @brief 推导输出datatype
  *
  * @param context
  */
@@ -172,26 +174,27 @@ static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* c
 {
     OPS_CHECK(context == nullptr, OP_LOGE(INNER_DEBUG, "Context is null."), return ge::GRAPH_FAILED);
     OP_LOGD(INNER_DEBUG, "Start to infer datatype of allto all matmul.");
+
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
     const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
-    const int64_t* y_dtypes_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+    OPS_CHECK(!(*x1_quant_mode == 0 && *x2_quant_mode == 0)
+               && !(*x1_quant_mode == X1_KC_QUANT_NUM && *x2_quant_mode == X2_KC_QUANT_NUM)
+               && !(*x1_quant_mode == X1_MX_QUANT_NUM && *x2_quant_mode == X2_MX_QUANT_NUM),
+               OP_LOGE(INNER_DEBUG, "x1 or x2 quant mode is invalid."),
+               return ge::GRAPH_FAILED);
+
+    // 初始默认值
     auto y_type = ge::DataType::DT_UNDEFINED;
     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
-    if (*x1_quant_mode == 0 && *x2_quant_mode == 0) {
-        if ((y_dtypes_ptr != nullptr && *y_dtypes_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtypes_ptr);
-        } else {
-            return ge::GRAPH_FAILED;
-        }
-    } else if (*x1_quant_mode == X1_QUANT_NUM && *x2_quant_mode == X2_QUANT_NUM) {
-        if ((y_dtypes_ptr != nullptr && *y_dtypes_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
-            y_type = static_cast<ge::DataType>(*y_dtypes_ptr);
-        } else {
-            return ge::GRAPH_FAILED;
-        }
+    const int64_t* y_dtypes_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
+    if ((y_dtypes_ptr != nullptr && *y_dtypes_ptr != static_cast<uint64_t>(ge::DataType::DT_UNDEFINED))) {
+        y_type = static_cast<ge::DataType>(*y_dtypes_ptr);
+    } else {
+        return ge::GRAPH_FAILED;
     }
+    // 设置推导的datatype
     context->SetOutputDataType(0, y_type);
     context->SetOutputDataType(1, x1_type);
     return ge::GRAPH_SUCCESS;

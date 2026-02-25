@@ -7,7 +7,7 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
- 	 
+
 /*!
  * \file fallback_allto_all_matmul.cpp
  * \brief 动态shape图回调aclnn
@@ -15,7 +15,7 @@
 #include "fallback/fallback.h"
 #include "op_mc2.h"
 #include "mc2_log.h"
- 	 
+
 namespace fallback {
 
 constexpr size_t INDEX_IN_X1 = 0;
@@ -44,9 +44,9 @@ constexpr size_t INDEX_OUT = 0;
 constexpr size_t INDEX_OUT_ALL2ALL_OUT = 1;
 constexpr uint64_t X1_QUANT_MODE_NUM = 7;
 constexpr uint64_t X2_QUANT_MODE_NUM = 2;
- 	     
+
 const char* AlltoAllMatmulInfo = "AlltoAllMatmulFallback";
- 	 
+
 // 公共输入参数结构体
 struct CommonMatmulParas {
     /* const aclTensor *会导致Release重载方法匹配不上，造成内存泄漏 */
@@ -76,7 +76,7 @@ struct AttrParas {
     int64_t groupSize = 0;
     bool alltoAllOutFlag;
 };
- 	 
+
 /**
 * @brief 获取公共Matmul输入参数
 * @param host_api_ctx
@@ -98,14 +98,13 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
     para.x1_acl = ConvertMmType(x1, false);
     OPS_CHECK(para.x1_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_acl is null"), return ge::GRAPH_FAILED);
 
-    const bool* trans_x2_ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
-    const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
-    para.x2_acl = ConvertMmType(x2, x2_trans);
+    // 适配fusion pass的.t()场景，这里固定传false
+    para.x2_acl = ConvertMmType(x2, false);
     OPS_CHECK(para.x2_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
 }
- 	 
+
 static ge::graphStatus ParseRecvCounts(
     const gert::TypedContinuousVector<int64_t>* sendCounts,
     std::vector<int64_t>& actSendCountsSeqArray)
