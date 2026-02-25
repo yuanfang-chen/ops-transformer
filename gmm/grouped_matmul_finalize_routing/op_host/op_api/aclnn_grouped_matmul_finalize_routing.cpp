@@ -734,6 +734,11 @@ static aclnnStatus WeightNZCaseProcess(const aclTensor *&x2, bool &transposeX2, 
 {
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            if (transposeX2 == false) {
+                CHECK_RET(TransposeTensorContiguousProcessForMx(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
+            }
+        } 
     } else {
         if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
             if (transposeX2 == false) {
@@ -799,7 +804,7 @@ static aclnnStatus PreMatmulCalcProcess(GroupedMatmulParams &params, aclOpExecut
     auto ret = WeightNZCaseProcess(x2, transposeX2, executor);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
-    if (scale != nullptr && CheckType(x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX)) {
+    if (scale != nullptr && CheckType(x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_MX) && CheckType(scale->GetDataType(), SCALE_TYPE_SUPPORT_LIST_MX)) {
         bool transposescale = false;
         ret = WeightNZCaseProcessForMXScale(scale, transposescale, executor);
         CHECK_RET(transposeX2 == transposescale, ret);
@@ -1037,7 +1042,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     (void) antiquantScaleOptional;
     (void) antiquantOffsetOptional;
     auto viewShape = x2->GetViewShape();
-
     auto uniqueExecutor = CREATE_EXECUTOR();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
@@ -1090,7 +1094,6 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
         CHECK_RET(ret0 == ACLNN_SUCCESS, ret0);
     }
-    
     GroupedMatmulParams params = GroupedMatmulParamsBuilder::Create(x1, tmpWeight, out)
         .SetScale(scale)
         .SetBias(bias)
