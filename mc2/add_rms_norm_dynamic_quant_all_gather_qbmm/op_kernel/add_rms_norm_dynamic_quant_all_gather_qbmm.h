@@ -49,7 +49,6 @@ constexpr uint8_t BUFFER_NUM = 2; // 多Buf
 constexpr uint32_t UB_ALIGN = 32; // UB按32字节对齐
 constexpr uint32_t WIN_ALIGN = 512; // win offset 512字节对齐
 constexpr uint64_t SYNC_AIC_TO_AIV = 5;
-constexpr uint64_t CV_STATE_ALIGN = 64;
 
 template<TemplateMC2TypeClass>
 class AddRmsNormDynamicQuantAllGatherQbmm {
@@ -66,7 +65,7 @@ private:
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
     __aicore__ inline void DynamicQuant(int32_t offset);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
-    __aicore__ inline void CheckCvFlagReady(uint32_t curBlock);
+    __aicore__ inline void CheckCvFlagReady(uint32_t targetRankIdx, uint32_t mBlockIdx, uint32_t kBlockIdx);
     __aicore__ inline void MatmulProcess();
     
     TPipe *tpipe_{nullptr};
@@ -116,6 +115,7 @@ private:
     uint32_t axisN_{0};
     uint32_t aivNum_{0};
     uint32_t rankSize_{0};
+    uint32_t tileM_{0};
     uint32_t tileK_{0};
     uint32_t sendCoreNumPerRank_{0};
     float eps_{0};
@@ -191,6 +191,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 传值失败，先打桩输入
     axisM_ = 63;
     axisKa_ = 5120;
+    tileM_ = 6;
     tileK_ = 10;
     axisN_ = 0;
     aivNum_ = 24;
@@ -343,13 +344,14 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::CheckCvFlagReady(uint32_t curBlock)
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::CheckCvFlagReady(
+    uint32_t targetRankIdx, uint32_t mBlockIdx, uint32_t kBlockIdx)
 {
-    GM_ADDR curExp = (GM_ADDR)winContext_->localWindowsExp;
     GlobalTensor<int32_t> winCvExp;
-    winCvExp.SetGlobalBuffer((__gm__ int32_t *)(curExp + CV_SYNC_START_OFFSET + aicId_ * CV_STATE_ALIGN));
+    GM_ADDR cvFlagAddr = allGatherMte_.CalcCvFlagAddr(targetRankIdx, mBlockIdx, kBlockIdx);
+    winCvExp.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
     int32_t baseM = axisM_ / sendCoreNumPerRank_;
-    if (aicId_ % sendCoreNumPerRank_ < axisM_ % sendCoreNumPerRank_) {
+    if (mBlockIdx % sendCoreNumPerRank_ < axisM_ % sendCoreNumPerRank_) {
         baseM++;
     }
     while (true) {
@@ -364,9 +366,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
 {
-    for (uint32_t curBlock = 0; curBlock < tileK_; curBlock++) {
-        CheckCvFlagReady(curBlock);
-        // TODO: mm计算
+    for (uint32_t targetRankIdx = 0; targetRankIdx < rankSize_; targetRankIdx++) {
+        for (uint32_t mBlockIdx = 0; mBlockIdx < tileM_; mBlockIdx++) {
+            for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
+                CheckCvFlagReady(targetRankIdx, mBlockIdx, kBlockIdx);
+                // TODO: mm计算
+            }
+        }
     }
     // 通知AIV
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
@@ -387,7 +393,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         // TODO: DeQuant
     }
     
-    if ASCEND_IS_AIC {
+    if ASCEND_IS_AIC {        
+        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
         MatmulProcess();
     }
     AscendC::PRINTF("[Kernel] Over!!!");
