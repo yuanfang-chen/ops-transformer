@@ -4781,7 +4781,7 @@ void PromptFlashAttentionTilingV2::PFATilingDataconvert(PromptFlashAttentionTili
 }
 
 ge::graphStatus PromptFlashAttentionTilingV2::PromptFlashAttentionSetTilingData(gert::TilingContext* context,
-    PromptFlashAttentionTilingData& tilingData) {
+    PromptFlashAttentionTilingData& tilingData) const {
     return ge::GRAPH_SUCCESS;
 }
 
