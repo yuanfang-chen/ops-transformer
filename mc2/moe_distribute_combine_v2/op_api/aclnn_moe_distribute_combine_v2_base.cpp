@@ -185,7 +185,7 @@ aclnnStatus GetNetAndTopo(const char *groupEp, int64_t epRankId, HcclComm &hcclH
     //         break;
     //     }
     // }
-    topoTypeOut = isHost ? Mc2TopoType::MC2_TOPO_HOST_KFC : Mc2TopoType::MC2_TOPO_AIV_DPU;
+    // topoTypeOut = isHost ? Mc2TopoType::MC2_TOPO_HOST_KFC : Mc2TopoType::MC2_TOPO_AIV_DPU;
     return ACLNN_SUCCESS;
 }
 
