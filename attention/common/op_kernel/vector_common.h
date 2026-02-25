@@ -1196,8 +1196,8 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsBelow(Loca
             if (dealRowOffset + gNum > params.dealRowCount) {
                 gNum = params.dealRowCount - dealRowOffset;
             }
-            Duplicate(attenOutUb[dealRowOffset * params.columnCount], \
-                      static_cast<T>(AttentionCommon::ConstInfo::FLOAT_ZERO), params.columnCount * gNum);
+            Duplicate(attenOutUb[dealRowOffset * params.columnCount],
+                      static_cast<T>(FLOAT_ZERO), params.columnCount * gNum);
             AscendC::PipeBarrier<PIPE_V>();
             dealRowOffset += gNum;
             s1++;
