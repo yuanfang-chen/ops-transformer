@@ -17,7 +17,7 @@
 
 GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作，支持w为AI处理器亲和数据排布格式(NZ)。
 本接口相较于[aclnnGroupedMatmulFinalizeRoutingWeightNz](aclnnGroupedMatmulFinalizeRoutingWeightNz.md)，新增对INT4类型weight矩阵的支持，并新增入参offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、tuningConfigOptional，其中前三个参数当前为预留参数，暂不生效，传入空指针即可。tuningConfigOptional是调优参数，数组中的第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值合理进行tiling切分，性能更优。请根据实际情况选择合适的接口。
-新增Pertoken-perchannel和静态pertensor-perchannel量化场景（仅 Ascend 950PR/Ascend 950DT 支持），相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
+- <term>Ascend 950PR/Ascend 950DT</term>:新增Pertoken-perchannel和静态pertensor-perchannel量化场景，相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
 
 ## 函数原型
 
@@ -87,9 +87,9 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>输入</td>
       <td>输入x（左矩阵）。</td>
       <td>-</td>
-      <td>INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+      <td>INT8、FLOAT8_E4M3FN</td>
       <td>ND</td>
-      <td>(m,k)</td>
+      <td>(m, k)</td>
       <td>-</td>
     </tr>
     <tr>
@@ -97,7 +97,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>输入</td>
       <td>输入weight（右矩阵）。</td>
       <td>-</td>
-      <td>INT4、INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2</td>
+      <td>INT4、INT8、FLOAT8_E4M3FN</td>
       <td>NZ</td>
       <td>支持三维</td>
       <td>-</td>
@@ -309,18 +309,17 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 
   - x1仅支持INT8。维度m的取值范围为[1,16\*1024\*8]，k支持2048;
   - x2支持INT4以及INT32。当输入为INT32时维度为(e, k, n / 8)，输入转为INT4时维度为(e, k, n)，e取值范围[1,256]，k支持2048，n支持7168。
+  - offsetOptional的shape支持三维，维度为(e, 1, n)，e、n和weight的e、n一致。
   - scaleOptional支持INT64、FLOAT32、BF16。
-  - offsetOptional支持FLOAT32。shape支持三维，维度为(e, 1, n)，e、n和w的e、n一致。
-  - groupListOptional支持e和w的e一致。
-  - sharedInputOptional的shape支持一维，维度为(e)，e和w的e一致。
+  - sharedInputOptional的shape支持一维，维度为(e)，e和weight的e一致。
   - x1、x2、groupListOptional是必选参数，scaleOptional、pertokenScaleOptional、logitOptional、rowIndexOptional、biasOptional，sharedInputOptional是可选参数。
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
 
-  - x1支持INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2等数据类型。
-  - x2支持INT8数据类型。维度为(e,k,n)，e取值范围[1,1024]。
+  - x1支持INT8、FLOAT8_E4M3FN数据类型。
+  - x2支持INT8、FLOAT8_E4M3FN数据类型。维度为(e,k,n)，e取值范围[1,1024]。
   - scaleOptional支持FLOAT32、BF16。
-  - sharedInputOptional的shape支持一维，维度为(shared_m,n)。
+  - sharedInputOptional的shape支持二维，维度为(shared_m,n)。
   - x1、x2、scaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，pertokenScaleOptional、sharedInputOptional是可选参数。目前暂不支持biasOptional，offsetOptional参数。
 
 - **返回值**
@@ -404,9 +403,10 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 ## 约束说明
 
 - 确定性计算：
-  - aclnnGroupedMatmulFinalizeRoutingWeightNzV2默认非确定性实现，<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>支持通过aclrtCtxSetSysParamOpt开启确定性，<term>Ascend 950PR/Ascend 950DT</term>暂不支持确定性计算。
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：aclnnGroupedMatmulFinalizeRoutingWeightNzV2默认非确定性实现，支持通过aclrtCtxSetSysParamOpt开启确定性。
+  - <term>Ascend 950PR/Ascend 950DT</term> ：aclnnGroupedMatmulFinalizeRoutingWeightNzV2默认非确定性实现，不支持通过aclrtCtxSetSysParamOpt开启确定性。
 
-- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>输入和输出支持以下数据类型组合：
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：输入和输出支持以下数据类型组合
   
   | x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   |   rowIndex | out   | tuningConfigOptional |
   |------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------| ----------------------|
@@ -415,15 +415,13 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
   | INT8 | INT4 | INT64   | FLOAT32 | FLOAT32 | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
   | INT8 | INT4 | INT64   | FLOAT32 | null    | null           | null            | FLOAT32       | INT64     | BFLOAT16    | FLOAT32 | INT64    | FLOAT |   IntArray             |
 
-<term>Ascend 950PR/Ascend 950DT</term>支持以下数据类型组合：
+- <term>Ascend 950PR/Ascend 950DT</term>：输入和输出支持以下数据类型组合
 
- | x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   |   rowIndex | out   | tuningConfigOptional |
-  |------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------| ----------------------|
-  | INT8 | INT8 | FLOAT/BFLOAT16 | null    | null    | null           | null            | FLOAT       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
-  | HIFLOAT8 | HIFLOAT8 | FLOAT/BFLOAT16 | null    | null    | null           | null            | FLOAT       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
-  | FLOAT8_E5M2 / FLOAT8_E4M3FN | FLOAT8_E5M2 / FLOAT8_E4M3FN | FLOAT/BFLOAT16   | null | null | null           | null            | FLOAT       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
-  
-
+  | x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   |   rowIndex | out   | tuningConfigOptional |
+    |------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------| ----------------------|
+    | INT8 | INT8 | FLOAT/BFLOAT16 | null    | null    | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
+    | FLOAT8_E4M3FN |  FLOAT8_E4M3FN | FLOAT/BFLOAT16   | null | null | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
+    
 
 ## 调用示例
 
