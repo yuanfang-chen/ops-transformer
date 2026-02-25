@@ -31,7 +31,6 @@
 #include "register/op_def_registry.h"
 #include "../op_kernel/mla_prolog_template_tiling_key.h"
 #include "../op_kernel/mla_prolog_tiling_data.h"
-#include "platform/soc_spec.h"
 
 #ifdef ASCENDC_OP_TEST
 #define MLA_EXTERN_C extern "C"

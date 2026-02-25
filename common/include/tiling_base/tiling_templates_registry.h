@@ -21,7 +21,6 @@
 #include "exe_graph/runtime/tiling_context.h"
 #include "tiling_base/tiling_base.h"
 #include "log/log.h"
-#include "platform/soc_spec.h"
 
 namespace Ops {
 namespace Transformer {

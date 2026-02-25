@@ -12,12 +12,8 @@
  * \file fused_infer_attention_score_apt.cpp 
  * \brief
  */
-#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
-#else
-#include "kernel_operator.h"
-#endif
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa
 #define FIA_ENABLE_MLA

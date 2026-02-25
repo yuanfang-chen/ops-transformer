@@ -13,11 +13,7 @@
  * \brief
  */
 
-#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
-#else
-#include "kernel_operator.h"
-#endif
 #include "quant_reduce_scatter_tiling_data.h"
 #include "quant_reduce_scatter_tiling_key.h"
 #include "quant_reduce_scatter_mte.h"

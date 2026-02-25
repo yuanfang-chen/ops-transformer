@@ -18,7 +18,7 @@
 #include "kernel_operator.h"
 #endif
 #include "grouped_mat_mul_allto_allv.h"
-#include "arch35/grouped_mat_mul_allto_allv_tiling_key.h"
+#include "grouped_mat_mul_allto_allv_tiling_key.h"
 
 using namespace AscendC;
 
@@ -52,8 +52,8 @@ struct GMMATAVType { // Grouped_Mat_Mul_All_To_Allv_Type
     } while (0)
 
 template <
-    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS,
-    bool TILINGKEY_MATMUL_TRANS, uint8_t TILINGKEY_GMM_QUANT_MODE, uint8_t TILINGKEY_SHARED_MM_QUANT_MODE>
+    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS, 
+    bool TILINGKEY_MATMUL_TRANS>
 __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
     GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM,
@@ -62,7 +62,6 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GM_ADDR yGM, GM_ADDR mmyOptionalGM, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 
 {
-    GM_ADDR yGM = gmmyGM;
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     if (workspaceGM == nullptr) {
         return;

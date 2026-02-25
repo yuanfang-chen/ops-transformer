@@ -9,29 +9,24 @@
  */
 
 /*!
- * \file vf_common_utils.h
+ * \file allto_allv_grouped_mat_mul_tiling.h
  * \brief
  */
-#ifndef VF_COMMON_UTILS_H
-#define VF_COMMON_UTILS_H
+#ifndef MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
+#define MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
 
-#include "kernel_basic_intf.h"
+#include "allto_allv_grouped_mat_mul_tiling_base.h"
 
-namespace AscendC {
-using namespace MicroAPI;
+namespace optiling {
+class AlltoAllvGmmTilingStruct : public AlltoAllvGmmTilingBase
+{
+public:
+    explicit AlltoAllvGmmTilingStruct(gert::TilingContext* context) : AlltoAllvGmmTilingBase(context){};
 
-constexpr static AscendC::MicroAPI::CastTrait castTraitB162B32Odd = {
-AscendC::MicroAPI::RegLayout::ONE,
-AscendC::MicroAPI::SatMode::UNKNOWN,
-AscendC::MicroAPI::MaskMergeMode::ZEROING,
-AscendC::RoundMode::UNKNOWN,
+protected:
+    ge::graphStatus DoOpTiling() override;
+    uint64_t GetTilingKey() const override;
+    bool IsCapable() override;
 };
-constexpr static AscendC::MicroAPI::CastTrait castTraitB162B32Even = {
-AscendC::MicroAPI::RegLayout::ZERO,
-AscendC::MicroAPI::SatMode::UNKNOWN,
-AscendC::MicroAPI::MaskMergeMode::ZEROING,
-AscendC::RoundMode::UNKNOWN,
-};
-} // namespace
-
-#endif // VF_COMMON_UTILS_H
+} // namespace optiling
+#endif

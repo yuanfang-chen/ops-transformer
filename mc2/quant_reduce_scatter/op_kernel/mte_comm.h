@@ -18,7 +18,6 @@
 
 #include "adv_api/hccl/hccl.h"
 #include "adv_api/reduce/sum.h"
-#include "../../common/inc/kernel/moe_distribute_base.h"
 
 namespace QuantMTECommImpl {
 
@@ -56,7 +55,7 @@ public:
     __aicore__ inline GM_ADDR GetWinDataAddrGm(uint32_t rankId, uint32_t winFlag);
     __aicore__ inline GM_ADDR GetWinStatusAddrGm(uint32_t rankId, uint32_t winFlag);
 
-    __gm__ Mc2Kernel::HcclOpParam *hcclContext_;
+    __gm__ HcclA5OpResParam *hcclContext_;
     uint32_t aivId_{0};
     uint64_t aivNum_{0};
     uint32_t round_{0};
@@ -97,7 +96,7 @@ private:
 template <TemplateTypeClass>
 __aicore__ inline void MTECommunication<TemplateType>::InitHcclContext()
 {
-    hcclContext_ = (__gm__ Mc2Kernel::HcclOpParam*)GetHcclContext<HCCL_GROUP_ID_0>();
+    hcclContext_ = (__gm__ HcclA5OpResParam*)GetHcclContext<HCCL_GROUP_ID_0>();
 }
 
 template <TemplateTypeClass>

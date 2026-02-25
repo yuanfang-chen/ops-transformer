@@ -21,9 +21,9 @@
 #include "mc2_matmul_tiling_cfg.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "../../../../3rd/grouped_matmul/op_tiling/gmm_qbmm_tiling.h"
-#include "../../../../3rd/grouped_matmul/op_tiling/grouped_matmul_host_util.h"
-#include "../../../../3rd/grouped_matmul/op_tiling/grouped_matmul_tiling.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/gmm_qbmm_tiling.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_host_util.h"
+#include "../../../../allto_allv_grouped_mat_mul/op_host/op_tiling/3rd/grouped_matmul_tiling.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "register/tilingdata_base.h"
 
@@ -32,12 +32,12 @@ namespace optiling {
 // 引用3rd目录中的定义
 using namespace Mc2GroupedMatmulTiling::GmmConstant;
 using Mc2GroupedMatmulTiling::QuantMode;
-using Mc2GroupedMatmulTiling::Mc2GroupedQbmmTiling;
+using Mc2GroupedMatmulTiling::GroupedQbmmTiling;
 
 namespace Mc2GroupedMatmul {
-class QuantGroupedMatmulAllToAllvAdapter : public Mc2GroupedQbmmTiling {
+class QuantGroupedMatmulAllToAllvAdapter : public GroupedQbmmTiling {
 public:
-    explicit QuantGroupedMatmulAllToAllvAdapter(gert::TilingContext *context) : Mc2GroupedQbmmTiling(context) {};
+    explicit QuantGroupedMatmulAllToAllvAdapter(gert::TilingContext *context) : GroupedQbmmTiling(context) {};
     
     ~QuantGroupedMatmulAllToAllvAdapter() override = default;
 

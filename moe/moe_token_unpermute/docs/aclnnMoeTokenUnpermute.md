@@ -289,7 +289,6 @@ aclnnStatus aclnnMoeTokenUnpermute(
 #include "aclnnop/aclnn_moe_token_unpermute.h"
 #include <iostream>
 #include <vector>
-#include <cstdio>
 
 #define CHECK_RET(cond, return_expr)                                           \
   do {                                                                         \

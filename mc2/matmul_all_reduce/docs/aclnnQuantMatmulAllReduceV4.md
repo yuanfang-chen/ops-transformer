@@ -7,9 +7,9 @@
 | 产品                                                                                     | 是否支持 |
 | :--------------------------------------------------------------------------------------- | :------: |
 | <term>Ascend 950PR/Ascend 950DT</term>                                                                      |    √    |
-| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>                        |    ×    |
-| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
-| <term>Atlas 200I/500 A2 推理产品</term>                                         |    ×    |
+| <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品 </term>                        |    ×    |
+| <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品 </term> |    √    |
+| <term>Atlas 200I/500 A2 推理产品 </term>                                         |    ×    |
 | <term>Atlas 推理系列产品</term>                                                 |    ×    |
 | <term>Atlas 训练系列产品 </term>                                                 |    ×    |
 
@@ -70,45 +70,45 @@
 
    - 公式7：x1，x2为`FLOAT8_E4M3FN`/`FLOAT8_E5M2`，x1ScaleOptional为FLOAT32，x2Scale为FLOAT32，可选biasOptional为FLOAT32，当commQuantMode为1时，out为FLOAT16/BFLOAT16/FLOAT32:
 
-      $$
-      matmulAddOutput_{fp32} = (x2ScaleOptional * x1ScaleOptional * (x1_{fp8}@x2_{fp8} + biasOptional_{fp32}) + x3Optional);
-      $$
+    $$
+    matmulAddOutput_{fp32} = (x2ScaleOptional * x1ScaleOptional * (x1_{fp8}@x2_{fp8} + biasOptional_{fp32}) + x3Optional);
+    $$
 
-      $$
-      scaleOut_{fp32} = (matmulAddOutput_{fp32} / (reduceMax(abs(matmulAddOutput_{fp32})) / FP32\_MAX));
-      $$
+    $$
+    scaleOut_{fp32} = (matmulAddOutput_{fp32} / (reduceMax(abs(matmulAddOutput_{fp32})) / FP32\_MAX));
+    $$
 
-      $$
-      quantOutput_{fp8} = (append((matmulAddOutput_{fp32} * scaleOut{fp32})@scaleOut_{fp32}));
-      $$
+    $$
+    quantOutput_{fp8} = (append((matmulAddOutput_{fp32} * scaleOut{fp32})@scaleOut_{fp32}));
+    $$
 
-      $$
-      alltoallOutput_{fp8} = (AllToAll(quantOut_{fp8}));
-      $$
+    $$
+    alltoallOutput_{fp8} = (AllToAll(quantOut_{fp8}));
+    $$
 
-      $$
-      dequantOutput_{fp32} = (alltoallOutput_{fp8} / scaleOut_{fp32});
-      $$
+    $$
+    dequantOutput_{fp32} = (alltoallOutput_{fp8} / scaleOut_{fp32});
+    $$
 
-      $$
-      reduceSumOutput_{fp32} = (reduceSum(dequantOutput_{fp32}));
-      $$
+    $$
+    reduceSumOutput_{fp32} = (reduceSum(dequantOutput_{fp32}));
+    $$
 
-      $$
-      preAllGatherQuantScale_{fp32} = (reduceSumOutput_{fp32} / (reduceMax(abs(reduceSumOutput_{fp32})) / FP8\_MAX));
-      $$
+    $$
+    preAllGatherQuantScale_{fp32} = (reduceSumOutput_{fp32} / (reduceMax(abs(reduceSumOutput_{fp32})) / FP8\_MAX));
+    $$
 
-      $$
-      preAllGatherQuantOutput_{fp8} = (append((reduceSumOutput_{fp32} * preAllGatherQuantScale_{fp32})@preAllGatherQuantScale_{fp32}));
-      $$
+    $$
+    preAllGatherQuantOutput_{fp8} = (append((reduceSumOutput_{fp32} * preAllGatherQuantScale_{fp32})@preAllGatherQuantScale_{fp32}));
+    $$
 
-      $$
-      allGatherOutput_{fp8} = (AllGather(preAllGatherQuantOutput_{fp8}));
-      $$
+    $$
+    allGatherOutput_{fp8} = (AllGather(preAllGatherQuantOutput_{fp8}));
+    $$
 
-      $$
-      output = (cast(allGatherOutput_{fp32} / preAllGatherQuantScale_{fp32}));
-      $$
+    $$
+    output = (cast(allGatherOutput_{fp32} / preAllGatherQuantScale_{fp32}));
+    $$
 
 ## 函数原型
 
@@ -437,7 +437,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 ## 约束说明
 
 - 确定性计算：
-  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：`aclnnQuantMatmulAllReduceV4`默认非确定性实现，支持通过配置`HCCL_DETERMINISTIC`环境变量为true开启确定性计算。
+  - Atlas A2 训练系列产品/Atlas A2 推理系列产品：`aclnnQuantMatmulAllReduceV4`默认非确定性实现，支持通过配置`HCCL_DETERMINISTIC`环境变量为true开启确定性计算。
   - Ascend 950PR/Ascend 950DT：`aclnnQuantMatmulAllReduceV4`默认确定性实现。
 - 增量场景不使能MC2，全量场景使能MC2。
 - 输入x1可为2维或者3维，其shape为(b, s, k)或者(m, k)。x2必须是2维。其shape为(k, n)，k轴满足mm算子入参要求，k轴相等。

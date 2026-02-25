@@ -40,7 +40,7 @@ private:
     bool DealSameSeqEachBatch() const;
 
     void ZeroTensorProcess() const;
-    bool IsHighPerformanceTemplate() const;
+    bool IsHighPerformanceTemplate();
     void InitParams();
 
     void Split();
@@ -75,7 +75,7 @@ private:
     void CalcNumBlocks(uint32_t coreNum);
     void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv,
                          int64_t &safePreToken, int64_t &safeNextToken) const;
-    bool IsExistRowInvalid(const BaseInfo &baseInfo) const;
+    bool IsExistRowInvalid(const BaseInfo &baseInfo);
 
     bool splitKVFlag_ = false;
 

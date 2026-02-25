@@ -21,7 +21,6 @@
 #include <cstdint>
 
 #include "tiling/platform/platform_ascendc.h"
-#include "platform/soc_spec.h"
 
 namespace optiling {
 namespace mc2_matmul_v3_advanced {

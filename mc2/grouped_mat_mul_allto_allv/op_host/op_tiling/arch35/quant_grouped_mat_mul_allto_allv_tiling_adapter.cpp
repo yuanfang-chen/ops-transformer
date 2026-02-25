@@ -22,7 +22,7 @@ using namespace AscendC;
 using namespace optiling;
 using namespace Mc2GroupedMatmulTiling;
 using namespace Mc2GroupedMatmulTiling::GmmConstant;
-using namespace optiling::Mc2GroupedMatmul;
+using namespace Mc2GroupedMatmul;
 
 ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params)
 {

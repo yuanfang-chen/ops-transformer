@@ -470,6 +470,10 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBoolCopyInRegbase(
         return;
     }
 
+    if (totalS2Size % blockBytes != 0) {
+        return;
+    }
+
     if constexpr (isInfer == false) {
         return;
     }

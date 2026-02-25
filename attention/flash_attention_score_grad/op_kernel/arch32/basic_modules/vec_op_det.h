@@ -382,19 +382,16 @@ __aicore__ inline void VecOpDet<FAGT>::SubGrapA(int64_t curIdx,
 
     if (blockInfo.calNextToken) {
         LocalTensor<uint8_t> tmpAttenMaskTensor = attenMaskTensor[subIdx * s1VecSize * 128];
-        int32_t firstAxisOfAttnMask = sparseMode == 1 ? s1Extend : 64;
-        int32_t lastAxisOfAttnMask = sparseMode == 1 ? s2Extend : 128;
-        int32_t lastAxisOfAttnMaskAlign = (lastAxisOfAttnMask + 32 - 1) / 32 * 32;
         if(!enableCausalOpt){
             tmpAttenMaskTensor = attenMaskTensor;
             int32_t offset = blockInfo.nextTokenOffset + subIdx * s1VecSize * attenMaskDimS2;
-            CopyInAttenMaskBool(tmpAttenMaskTensor, offset, firstAxisOfAttnMask, lastAxisOfAttnMask);
+            CopyInAttenMaskBool(tmpAttenMaskTensor, offset, 64, 128);
 
             SET_FLAG(MTE2, V, EVENT_ID0);
             WAIT_FLAG(MTE2, V, EVENT_ID0);
         }
 
-        CalcAttenMaskBool(mm2OutTensor, tmpAttenMaskTensor, s1Extend, s2ExtendAlign, lastAxisOfAttnMaskAlign, 0);
+        CalcAttenMaskBool(mm2OutTensor, tmpAttenMaskTensor, s1Extend, s2ExtendAlign, 128, 0);
         AscendC::PipeBarrier<PIPE_V>();
     }
 

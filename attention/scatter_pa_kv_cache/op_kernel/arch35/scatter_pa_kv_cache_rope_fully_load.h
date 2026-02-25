@@ -209,9 +209,6 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::ReduceMeanKey(int64_t i
             } else {
                 Cast(inputKeyLocal, tmpLocal, RoundMode::CAST_RINT, tilingData_->kHeadSize);
             }
-            event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-            SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
-            WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
             DataCopyPad(outputKeyCacheGm_[kStartIdx * tilingData_->kHeadSize], inputKeyLocal, outKeyCacheParams);
         } else if constexpr (isIntger8or16_) {
             CastToOrigin<U>(inputKeyLocal, tmpLocal, tilingData_->kHeadSize);
@@ -305,9 +302,6 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::ReduceMeanValue(int64_t
             } else {
                 Cast(inputValueLocal, tmpLocal, RoundMode::CAST_RINT, tilingData_->vHeadSize);
             }
-            event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-            SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
-            WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
             DataCopyPad(outputValueCacheGm_[vStartIdx * tilingData_->vHeadSize], inputValueLocal, outValueCacheParams);
         } else if constexpr (isIntger8or16_) {
             CastToOrigin<U>(inputValueLocal, tmpLocal, tilingData_->vHeadSize);
@@ -422,12 +416,12 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutKey(int64_t iter
     DataCopyExtParams outKeyCacheParams = {
         static_cast<uint16_t>(1), static_cast<uint32_t>(tilingData_->kHeadSize * sizeof(T)), static_cast<uint32_t>(0),
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
-    int64_t kSlot = slotMappingLocal.GetValue(iter) + startOffset;
+
     for (int64_t k = 0; k < offsetIndex; k++) {
         if (k >= seqLen_) {
             break;
         }
-        int64_t kStartIdx = kSlot + k;
+        int64_t kStartIdx = slotMappingLocal.GetValue(iter) + k + startOffset;
         if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
@@ -448,12 +442,12 @@ ScatterPaKvCacheRopeFullyLoad<T, IndexDtype, InOutMode>::CopyOutValue(int64_t it
     DataCopyExtParams outValueCacheParams = {
         static_cast<uint16_t>(1), static_cast<uint32_t>(tilingData_->vHeadSize * sizeof(T)), static_cast<uint32_t>(0),
         static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
-    int64_t vSlot = slotMappingLocal.GetValue(iter) + startOffset;
+
     for (int64_t k = 0; k < offsetIndex; k++) {
         if (k >= seqLen_) {
             break;
         }
-        int64_t vStartIdx = vSlot + k;
+        int64_t vStartIdx = slotMappingLocal.GetValue(iter) + k + startOffset;
         if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }

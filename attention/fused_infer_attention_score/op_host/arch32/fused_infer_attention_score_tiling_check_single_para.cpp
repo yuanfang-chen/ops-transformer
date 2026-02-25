@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include <set>
 #include <map>
 #include <numeric>
 #include "tiling/tiling_api.h"

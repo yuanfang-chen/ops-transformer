@@ -26,7 +26,6 @@
 
 计算公式：
 非量化场景：
-
 $$
 y_i=x_i\times weight_i + bias_i
 $$
