@@ -612,7 +612,11 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.s2LeftPaddingSize = 0;
 
                 attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template AllocTensor<uint8_t>();
-                AttentionmaskCopyInForSgLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
+                if (maskInfo.layout == LAYOUT_Q::SG) {
+                    AttentionmaskCopyInForSgLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
+                } else if (maskInfo.layout == LAYOUT_Q::GS) {
+                    AttentionmaskCopyInForGsLayout(attenMaskUb, this->attenMaskGmInt, maskInfo, false);
+                }
             } else {
                 AttenMaskCopyIn<hasAtten, isFd, enableKVPrefix>(this->attenMaskInQue[runInfo.taskIdMod2], this->attenMaskInQue[1 - runInfo.taskIdMod2],
                     this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);

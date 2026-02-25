@@ -159,7 +159,7 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
     DataCopyPad(attenMaskUb, srcGmAddr[maskOffset], dataCopyParams, padParams);
 }
 
-template <typename T, typename U>
+template <typename T>
 __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
     int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
@@ -183,7 +183,8 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
         uint32_t tailS1Size = remainRowCount % info.s1Size;
 
         // 第一块完整的mask
-        AttentionmaskDataCopy(attenMaskUb[headS1Count * attenMaskSizeAlign], srcGmAddr, info, 0, info.s1Size, isPre);
+        LocalTensor<T> attenMaskSecUb = attenMaskUb[headS1Count * attenMaskSizeAlign];
+        AttentionmaskDataCopy(attenMaskSecUb, srcGmAddr, info, 0, info.s1Size, isPre);
         event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
         SetFlag<HardEvent::MTE2_V>(enQueEvtID);
         WaitFlag<HardEvent::MTE2_V>(enQueEvtID);

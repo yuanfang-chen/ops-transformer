@@ -1899,7 +1899,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2MLAFullQuant(mm2Re
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline bool FABlockCube<TEMPLATE_ARGS>::IsGS1Merge(ConstInfo<isInfer, hasRope> &constInfo)
 {
-    return (Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge;
+    return (Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD || Q_FORMAT == GmFormat::BNGSD) && constInfo.isPfaGS1Merge;
 }
 
 
