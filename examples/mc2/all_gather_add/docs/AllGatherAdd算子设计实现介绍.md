@@ -34,7 +34,8 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
   ```cpp
     // 核函数
-    extern "C" global aicore void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR gatherGM, GM_ADDR tilingGM);
+    extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
+                                                         GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
     // 单算子API调用
     ACLNN_API aclnnStatus aclnnAllGatherAddGetWorkspaceSize(const aclTensor *a, const aclTensor *b, char *group, int64_t rankSize, const aclTensor *cOut, const aclTensor *gatherOutOut,
     uint64_t *workspaceSize, aclOpExecutor **executor);
@@ -84,9 +85,9 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 **AllGatherAdd算子计算过程示意**：（comm_turn=2时）
 
 1. AI Core将要执行的通信信息写入Global Memory中的消息区，实现任务下发。消息区是特定地址的Global Memory，AI Core和AI CPU通过向其写入和轮询读取来实现消息在两者间的传递，这些操作统一封装于[Hccl](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0869.html)高阶API中。
-2. AI CPU从消息区读取到所有通信任务信息，开始基于HCCS（华为缓存一致性系统，用于CPU/NPU之间的高速互联）或RoCE（承载在融合以太网上的RDMA技术，即跨越以太网的RDMA通信方式）等链路执行第一轮AllGather集合通信任务。下图为第一轮AllGather通信示意图。
+2. AI CPU从消息区读取到所有通信任务信息，开始基于HCCS（华为缓存一致性系统，用于CPU/NPU之间的高速互联）链路执行第一轮AllGather集合通信任务。下图为第一轮AllGather通信示意图。
 
-![第一轮AllGather通信示意图.png](../docs/figures/AllGatherAdd第一轮通信示意图.png)
+![AllGatherAdd第一轮通信示意图.png](../docs/figures/AllGatherAdd第一轮通信示意图.png)
 
 3. AI CPU完成第一轮通信任务后，向消息区写入第一轮通信任务已完成的消息，并开始执行第二轮通信任务。同时，AI Vector开始对第一轮AllGather通信结果进行Add计算。下图为第二轮通信和rank0上第一轮Add计算的示意图。
 
@@ -117,39 +118,18 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 AllGatherAdd算子原型定义如下：
 
 ```cpp
-    namespace ops {
-    class AllGatherAdd : public OpDef {
-    public:
-    explicit AllGatherAdd(const char *name) : OpDef(name) {
-        this->Input("a")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Input("b")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        
-        this->Output("c")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Output("gather_out")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-
-        this->Attr("group").AttrType(REQUIRED).String(); // 通算融合算子属性，表示通信域名称
-        this->Attr("rank_size").AttrType(REQUIRED).Int(0);
-
-        this->AICore().AddConfig("ascend910b");
-        this->AICore().AddConfig("ascend910_93");
-        this->MC2().HcclGroup("group"); // group 属性配置为该算子的通信域名称
-    }
-    };
-
-    OP_ADD(AllGatherAdd);
-    }  // namespace ops
+struct AllGatherAddTilingData {
+    Mc2InitTiling mc2InitTiling;
+    Mc2CcTiling mc2CcTiling;
+    uint32_t commTurn; // 通信轮次
+    
+    uint32_t totalElemNum;
+    uint32_t blockElemNum;
+    uint32_t tileNum;
+    uint32_t addTileElemNum;
+    uint32_t gatherTileElemNum;
+    uint32_t addCoresPerRank;
+};
 
 ```
 
@@ -259,7 +239,7 @@ AllGatherAdd算子的核函数定义如下，aGM、bGM、cGM、gatherOutGM参数
 
 ```cpp
 extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
-    GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
+                                                     GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
 ```
 
 - Add计算依赖AIV核，因此算子逻辑仅运行于AIV核中。
