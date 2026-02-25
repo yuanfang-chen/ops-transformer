@@ -1343,7 +1343,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 1024);
         if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
             (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && 
-            (isLongSeq || isShortSeq)) {
+            (isLongSeq || isShortSeq)) { // The first 128: D is less than or equal to 128; The second 128: the length limit after axis merging is less than or equal to 128; 16: mtp; 1024: kvseqlen has a minimum value of 1024
             faInfo.flashDecodeFlag = true; 
         }
     } else {
