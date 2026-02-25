@@ -49,6 +49,12 @@ aclnnStatus aclnnPromptFlashAttentionV2GetWorkspaceSize(
     const aclTensor *attentionOut,  // Attention output tensor
     uint64_t *workspaceSize,
     aclOpExecutor **executor) {
+        static bool isFirstCall = true;
+        if (isFirstCall) {
+            OP_LOGW("aclnnPromptFlashAttentionV2GetWorkspaceSize is scheduled to be deprecated in December 2026, "
+                    "and will be replaced by the aclnnPromptFlashAttentionV3GetWorkspaceSize. "
+                    "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.")
+        }
         (void) pseShift;
         int64_t innerPrecise = 1;
         return InnerPromptFlashAttentionGetWorkspaceSize(query, key, value, nullptr, attenMask,
@@ -65,6 +71,12 @@ aclnnStatus aclnnPromptFlashAttentionV2(
     uint64_t workspaceSize,
     aclOpExecutor *executor,
     const aclrtStream stream) { // V2 call aclnn inner
+        static bool isFirstCall = true;
+        if (isFirstCall) {
+            OP_LOGW("aclnnPromptFlashAttentionV2 is scheduled to be deprecated in December 2026, "
+                    "and will be replaced by the aclnnPromptFlashAttentionV3. "
+                    "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.")
+        }
         return InnerPromptFlashAttention(workspace, workspaceSize, executor, stream);
     }
 

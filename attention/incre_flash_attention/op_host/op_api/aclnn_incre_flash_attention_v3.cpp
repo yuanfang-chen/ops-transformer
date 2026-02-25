@@ -35,6 +35,12 @@ aclnnStatus aclnnIncreFlashAttentionV3GetWorkspaceSize(
     int64_t blockSize, int64_t innerPrecise, const aclTensor *attentionOut, uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
+    static bool isFirstCall = true;
+    if (isFirstCall) {
+        OP_LOGW("aclnnIncreFlashAttentionV3GetWorkspaceSize is scheduled to be deprecated in December 2026, "
+                "and will be replaced by the aclnnIncreFlashAttentionV4GetWorkspaceSize. "
+                "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.")
+    }
     aclnnStatus ret = aclnnInnerIncreFlashAttentionGetWorkspaceSize(
         query, key, value, pseShift, attenMask, actualSeqLengths, deqScale1, quantScale1, deqScale2, quantScale2,
         quantOffset2, antiquantScale, antiquantOffset, blocktable, nullptr, numHeads, scaleValue, inputLayout,
@@ -46,6 +52,12 @@ aclnnStatus aclnnIncreFlashAttentionV3GetWorkspaceSize(
 aclnnStatus aclnnIncreFlashAttentionV3(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                        const aclrtStream stream)
 {
+    static bool isFirstCall = true;
+    if (isFirstCall) {
+        OP_LOGW("aclnnIncreFlashAttentionV3 is scheduled to be deprecated in December 2026, "
+                "and will be replaced by the aclnnIncreFlashAttentionV4. "
+                "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.")
+    }
     aclnnStatus ret = aclnnInnerIncreFlashAttention(workspace, workspaceSize, executor, stream);
     return ret;
 }
