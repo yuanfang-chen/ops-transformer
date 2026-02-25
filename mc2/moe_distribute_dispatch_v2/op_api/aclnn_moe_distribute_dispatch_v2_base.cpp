@@ -174,6 +174,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                     OP_LOGD("PRINT <INDEX IS !=");
 
                 }
+                OP_LOGD("PRINT PRINT <INDEX inks->linkAttr.linkProtocol%d",links->linkAttr.linkProtocol);
             }
             else{
                 channelDesc[index-1].remoteRank = index;
@@ -189,6 +190,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                     OP_LOGD("PRINT >INDEX IS !=");
 
                 }
+                OP_LOGD("PRINT PRINT >INDEX inks->linkAttr.linkProtocol%d",links->linkAttr.linkProtocol);
             }
 
         }
