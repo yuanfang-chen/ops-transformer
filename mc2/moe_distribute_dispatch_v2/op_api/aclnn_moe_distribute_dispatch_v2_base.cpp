@@ -160,11 +160,12 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     HcclChannelDescInit(channelDesc.data(), mc2_context->rankDim);
     OP_LOGD("PRINT HcclChannelDescInit success");
     for (uint64_t index = 0; index < mc2_context->rankDim; index++) {
-        if(index != mc2_context->rankId) {
-            channelDesc[index].remoteRank = index;
-            channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-            channelDesc[index].notifyNum =3;
-        }
+        channelDesc[index].remoteRank = index;
+        channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+        channelDesc[index].notifyNum =3;
+        // if(index != mc2_context->rankId) {
+
+        // }
     }
 
     HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), mc2_context->rankDim, channeles.data());
