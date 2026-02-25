@@ -8,29 +8,12 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnnExc PRIVATE
-        moe_masked_scatter_def.cpp
-    )
-    if(CONDITION_UNIT STREQUAL "ascend950")
-        add_ops_compile_options(
-            OP_NAME MoeMaskedScatter
-            OPTIONS --cce-auto-sync=off
-                    -Wno-deprecated-declarations
-                    -Werror
-                    -mllvm 
-                    -cce-aicore-dcci-before-kernel-end=false
-        )
-    else()
-        add_ops_compile_options(
-                    OP_NAME MoeMaskedScatter
-                    OPTIONS --cce-auto-sync=off
-                            -Wno-deprecated-declarations
-                            -Werror
-        )
+file(GLOB CURRENT_DIRS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
+if(NOT ENABLE_TEST AND NOT BENCHMARK)
+    list(REMOVE_ITEM CURRENT_DIRS tests)
+endif()
+foreach(SUB_DIR ${CURRENT_DIRS})
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${SUB_DIR}/CMakeLists.txt")
+        add_subdirectory(${SUB_DIR})
     endif()
-endif()
-
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE moe_masked_scatter ACLNNTYPE aclnn_exclude)
-endif()
+endforeach()
