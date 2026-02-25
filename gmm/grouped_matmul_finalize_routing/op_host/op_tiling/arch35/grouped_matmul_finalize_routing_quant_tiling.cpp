@@ -160,7 +160,9 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
     }
     auto realDtype = optionalDesc->GetDataType();
     OP_CHECK_IF(realDtype != targetDtype,
-                
+                OP_LOGE(context_->GetNodeName(), "%s dtype should be %s,but now is %s ", paramName,
+                        ge::TypeUtils::DataTypeToSerialString(targetDtype).c_str(),
+                        ge::TypeUtils::DataTypeToSerialString(realDtype).c_str()),
                 return false);
     return true;
 }
@@ -223,10 +225,9 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
     return true;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::CheckShapeForMxQuant(const gert::Shape &xShape, const gert::Shape &wShape,
-                                                                   const gert::Shape &pertokenScaleShape,
-                                                                   const gert::Shape &scaleShape,
-                                                                   const gert::Shape &yShape)
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape, const gert::Shape &wShape,
+                                                       const gert::StorageShape *pertokenScaleStorageShape,
+                                                       const gert::Shape &scaleShape, const gert::Shape &yShape)
 {
     auto xDimNum = xShape.GetDimNum();
     OP_CHECK_IF(xDimNum != DIM_NUM_X,
@@ -239,23 +240,39 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckShapeForMxQuant(const gert::S
         OP_LOGE(context_->GetNodeName(), "The dimension of w must be %u, actual is %zu", DIM_NUM_WEIGHT, wDimNum),
         return false);
 
-    auto scaleDimNum = scaleShape.GetDimNum();
-    OP_CHECK_IF(scaleDimNum != DIM_NUM_SCALE,
-                OP_LOGE(context_->GetNodeName(), "The dimension of scale must be %u, actual is %zu", DIM_NUM_SCALE,
-                        scaleDimNum),
-                return false);
-
-    auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
-    OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_PERTOKENSCALE,
-                OP_LOGE(context_->GetNodeName(), "The dimension of pertokenScale must be %u, actual is %zu",
-                        DIM_NUM_PERTOKENSCALE, pertokenScaleDimNum),
-                return false);
-
     auto yDimNum = yShape.GetDimNum();
     OP_CHECK_IF(yDimNum != DIM_NUM_Y,
                 OP_LOGE(context_->GetNodeName(), "The dimension of y must be %u, actual is %zu", DIM_NUM_Y, yDimNum),
                 return false);
 
+    auto scaleDimNum = scaleShape.GetDimNum();
+    if (IsMicroScaling()) {
+        OP_CHECK_IF(scaleDimNum != DIM_NUM_SCALE,
+                    OP_LOGE(context_->GetNodeName(), "The dimension of scale must be %u, actual is %zu", DIM_NUM_SCALE,
+                            scaleDimNum),
+                    return false);
+        OP_CHECK_IF(pertokenScaleStorageShape == nullptr,
+                    OP_LOGE(context_->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."), return false);
+        const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
+        auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
+        OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_PERTOKENSCALE,
+                    OP_LOGE(context_->GetNodeName(), "The dimension of pertokenScale must be %u, actual is %zu",
+                            DIM_NUM_PERTOKENSCALE, pertokenScaleDimNum),
+                    return false);
+    } else {
+        OP_CHECK_IF(scaleDimNum != DIM_NUM_SCALE,
+                    OP_LOGE(context_->GetNodeName(), "The dimension of scale must be %u, actual is %zu", DIM_NUM_SCALE,
+                            scaleDimNum),
+                    return false);
+        if (pertokenScaleStorageShape != nullptr) {
+            const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
+            auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
+            OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_PERTOKENSCALE,
+                        OP_LOGE(context_->GetNodeName(), "The dimension of pertokenScale must be %u, actual is %zu",
+                                DIM_NUM_PERTOKENSCALE, pertokenScaleDimNum),
+                        return false);
+        }
+    }
     return true;
 }
 
@@ -319,6 +336,28 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalInputs()
                 return false);
 }
 
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape &xShape,
+                                                               const gert::StorageShape *wStorageShape,
+                                                               const gert::StorageShape *pertokenScaleStorageShape,
+                                                               const gert::Shape &scaleShape, const gert::Shape &yShape)
+{
+    const gert::Shape &wShape = wStorageShape->GetOriginShape();
+    OP_CHECK_IF(!CheckDim(xShape, wShape, pertokenScaleStorageShape, scaleShape, yShape),
+                OP_LOGE(context_->GetNodeName(), "CheckDim failed."), return false);
+    if (IsMicroScaling()) {
+        OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
+    } else {
+        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
+                    OP_LOGE(inputParams_.opName,
+                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
+                            inputParams_.bFormat),
+                    return false);
+        const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
+        OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
+                    OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
+    }
+}
+
 bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
 {
     auto xStorageShape = context_->GetInputShape(X_INDEX);
@@ -343,24 +382,8 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
-    if (IsMicroScaling()) {
-        OP_CHECK_IF(pertokenScaleStorageShape == nullptr,
-                    OP_LOGE(context_->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."), return false);
-        const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
-        OP_CHECK_IF(!CheckShapeForMxQuant(xShape, wShape, pertokenScaleShape, scaleShape, yShape),
-                    OP_LOGE(context_->GetNodeName(), "CheckShapeForMxQuant failed."), return false);
-        OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
-    } else {
-        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
-                    OP_LOGE(inputParams_.opName,
-                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
-                            inputParams_.bFormat),
-                    return false);
-        const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
-        OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
-                    OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
-    }
-
+    OP_CHECK_IF(!CheckInputsShape(xShape, wStorageShape, pertokenScaleStorageShape, scaleShape, yShape),
+                OP_LOGE(context_->GetNodeName(), "CheckInputsShape failed."), return false);
     OP_CHECK_IF(!CheckOptionalInputs(), OP_LOGE(context_->GetNodeName(), "CheckOptionalInputs failed."), return false);
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(context_->GetNodeName(), "SetGroupNum failed."), return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(context_->GetNodeName(), "SetMKN failed."), return false);
