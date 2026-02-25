@@ -104,13 +104,15 @@ def run_detection_npu(barrier, rank):
                                                   de_world_size, rank, ba_hcomm_info, de_world_size, rank, 1000)
     time.sleep(5)
     barrier.wait()
+    print("elastic_info_1:", elastic_info)
     print(f'rank {rank} epid {rank} npu finished! Prepare for secend time \n')
 
-    elastic_info2 = torch.ops.ascend_ops.detection(tensor_x, ep_hcomm_info, ep_world_size, rank, de_hcomm_info,
-                                                   de_world_size, rank, ba_hcomm_info, de_world_size, rank, 150)
-    torch.npu.synchronize()
-    print(f'rank {rank} epid {rank} npu finished ! \n')
-    print(elastic_info2)
+    if rank in [0,1,2,3,4,5,6,7,8,9]:
+        elastic_info2 = torch.ops.ascend_ops.detection(tensor_x, ep_hcomm_info, ep_world_size, rank, de_hcomm_info,
+                                                    de_world_size, rank, ba_hcomm_info, de_world_size, rank, 150)
+        torch.npu.synchronize()
+        print(f'rank {rank} epid {rank} npu finished ! \n')
+        print("elastic_info_2:", elastic_info2)
 
 if __name__ == "__main__":
     p_list = []
