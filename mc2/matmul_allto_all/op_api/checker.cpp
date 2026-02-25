@@ -101,18 +101,6 @@ bool CheckShapeMMAA(const aclTensor* x1, const aclTensor* x2, const aclTensor* b
     OP_CHECK_WRONG_DIMENSION(x1, TWO_DIMS, return false);
     OP_CHECK_WRONG_DIMENSION(x2, TWO_DIMS, return false);
     OP_CHECK_WRONG_DIMENSION(output, TWO_DIMS, return false);
-    auto kdimX1 = x1->GetViewShape().GetDim(1);
-    auto kdimX2 = transposeX2 ? x2->GetViewShape().GetDim(1) : x2->GetViewShape().GetDim(0);
-    if (kdimX1 != kdimX2) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-        "The k-axis of x1 and x2 should be same, but x1's k-axis is: %ld and x2's k-axis is: %ld.", kdimX1, kdimX2);
-        return false;
-    }
-    if (kdimX1 < KVALUE_MIN || kdimX1 > KVALUE_MAX) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-        "The k-axis should be in range[1, 65535], but it is: %ld.", kdimX1);
-        return false;
-    }
     auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
     if (biasOptional != nullptr){
         OP_CHECK_WRONG_DIMENSION(biasOptional, ONE_DIM, return false);
