@@ -99,7 +99,7 @@ enum class CaseOption {
 // 根据API定义，需要列出所能支持的所有dtype
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {
     op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
-    op::DataType::DT_HIFLOAT8};
+    op::DataType::DT_HIFLOAT8, op::DataType::DT_INT8};
 static const std::initializer_list<op::DataType> BIAS_OUTPUT_SUPPORT_TYPE = {
     op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_HIGH_ACCURACY = {
@@ -115,6 +115,9 @@ static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclT
     OP_CHECK_DTYPE_NOT_SUPPORT(output, BIAS_OUTPUT_SUPPORT_TYPE, return false);
     // 检查bias的数据类型是否在算子的支持列表内
     if (bias != nullptr) {
+        if ((x1->GetDataType() == op::DataType::DT_INT8) && (x2->GetDataType() == op::DataType::DT_INT8)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When input is int8, bias should be nullptr.")         
+        }
         OP_CHECK_DTYPE_NOT_SUPPORT(bias, BIAS_OUTPUT_SUPPORT_TYPE, return false);
     }
     return true;
