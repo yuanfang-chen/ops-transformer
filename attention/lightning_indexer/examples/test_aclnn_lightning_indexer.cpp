@@ -40,7 +40,7 @@ int64_t GetShapeSize(const std::vector<int64_t>& shape) {
   return shapeSize;
 }
  
-int Init(int32_t deviceId, aclrtStream* stream) {
+int32_t Init(int32_t deviceId, aclrtStream* stream) {
   auto ret = aclInit(nullptr);
   if (!CHECK_RET(ret == ACL_SUCCESS)) {
     LOG_PRINT("aclInit failed. ERROR: %d\n", ret); 
@@ -60,7 +60,7 @@ int Init(int32_t deviceId, aclrtStream* stream) {
 }
  
 template <typename T>
-int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
+int32_t CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
                     aclDataType dataType, aclTensor** tensor) {
   auto size = GetShapeSize(shape) * sizeof(T);
   auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -100,7 +100,7 @@ struct TensorResources {
 
 };
 
-int InitializeTensors(TensorResources& resources) {
+int32_t InitializeTensors(TensorResources& resources) {
     std::vector<int64_t> queryShape = {1, 2, 1, 128};
     std::vector<int64_t> keyShape = {1, 2, 1, 128};
     std::vector<int64_t> weightsShape = {1, 2, 1};
@@ -119,7 +119,7 @@ int InitializeTensors(TensorResources& resources) {
     std::vector<int32_t> sparseIndicesHostData(sparseIndicesShapeSize, 1);
     std::vector<float> sparseValuesHostData(sparseValuesShapeSize, 1);
 
-    int ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr, 
+    int32_t ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr, 
                               aclDataType::ACL_FLOAT16, &resources.queryTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
@@ -151,7 +151,7 @@ int InitializeTensors(TensorResources& resources) {
     return ACL_SUCCESS;
 }
 
-int ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream, 
+int32_t ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream, 
                               void** workspaceAddr, uint64_t* workspaceSize) {
     int64_t sparseCount = 2048;
     int64_t sparseMode = 3;
@@ -174,7 +174,7 @@ int ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream,
     }
     aclOpExecutor* executor;
 
-    int ret = aclnnLightningIndexerGetWorkspaceSize(resources.queryTensor, resources.keyTensor, resources.weightsTensor, nullptr, nullptr, nullptr,
+    int32_t ret = aclnnLightningIndexerGetWorkspaceSize(resources.queryTensor, resources.keyTensor, resources.weightsTensor, nullptr, nullptr, nullptr,
                                                     layoutQuery, layoutKey, sparseCount, sparseMode, preTokens, nextTokens,returnValue, 
                                                     resources.sparseIndicesTensor, resources.sparseValuesTensor, workspaceSize, &executor);
         
@@ -191,7 +191,7 @@ int ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream,
         }
     }
 
-    ret = aclnnLightningIndexer(*workspaceAddr, *workspaceSize, executor, stream);
+    int32_t = aclnnLightningIndexer(*workspaceAddr, *workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
         LOG_PRINT("aclnnSparseFlashAttention failed. ERROR: %d\n", ret);
         return ret;
@@ -200,7 +200,7 @@ int ExecuteLightningIndexer(TensorResources& resources, aclrtStream stream,
     return ACL_SUCCESS;
 }
 
-int PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
+int32_t PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
   auto size = GetShapeSize(shape);
   std::vector<aclFloat16> resultData(size, 0);
   auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
@@ -261,7 +261,7 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
 
 } // namespace
  
-int main() {
+int32_t main() {
     int32_t deviceId = 0;
     aclrtStream stream = nullptr;
     TensorResources resources = {};
