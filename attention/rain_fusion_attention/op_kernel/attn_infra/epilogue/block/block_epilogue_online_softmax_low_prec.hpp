@@ -155,7 +155,6 @@ public:
                     repeatStride,
                     repeatStride,
                     repeatStride));
-            AscendC::PipeBarrier<PIPE_V>();  
         }
     }
 
@@ -164,131 +163,130 @@ public:
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
-        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
-        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
-        uint8_t dataBlockStride = 1;
-        // 1024个元素，以128为单位分治求和。1024->512->256->128
-        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        AscendC::printf("tkd before ReduceSumByPair\n");
-        AscendC::DumpTensor(srcUb, 1, 1024);   
-        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
-        AscendC::printf("tkd after ReduceSumByPair\n");
-        AscendC::DumpTensor(srcUb, 1, 128);
-
-        //每行128个元素分别规约求和。
-        AscendC::WholeReduceSum<half, false>(
-            rowsumUb,
-            srcUb,
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            dataBlockStride,
-            dataBlockStride,
-            blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::printf("tkd after WholeReduceSum\n");
-        AscendC::DumpTensor(rowsumUb, 2, 128);
-
-
+        // // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
+        // uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
+        // // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
+        // uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
+        // uint8_t dataBlockStride = 1;
+        // // 1024个元素，以128为单位分治求和。1024->512->256->128
         // AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        // AscendC::printf("tkd 1024 before ReduceSum\n");
-        // AscendC::DumpTensor(srcUb, 1, 512);
+        // AscendC::printf("tkd before ReduceSumByPair\n");
+        // AscendC::DumpTensor(srcUb, 1, 1024);   
+        // for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
+        // AscendC::printf("tkd after ReduceSumByPair\n");
+        // AscendC::DumpTensor(srcUb, 1, 128);
 
-
-
-        // AscendC::Add<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Add<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 2],
-        //     srcUb[HALF_VECTOR_SIZE * 2],
-        //     srcUb[HALF_VECTOR_SIZE * 3],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Add<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 4],
-        //     srcUb[HALF_VECTOR_SIZE * 4],
-        //     srcUb[HALF_VECTOR_SIZE * 5],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Add<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 6],
-        //     srcUb[HALF_VECTOR_SIZE * 6],
-        //     srcUb[HALF_VECTOR_SIZE * 7],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::Add<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Add<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::Add<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::printf("tkd 1024 after ReduceSum\n");
-        // AscendC::DumpTensor(srcUb, 1, 128);   
+        // //每行128个元素分别规约求和。
         // AscendC::WholeReduceSum<half, false>(
-        //     rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
-        //     numElemsAligned / BLOCK_SIZE);
+        //     rowsumUb,
+        //     srcUb,
+        //     AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+        //     numRowsRound,
+        //     dataBlockStride,
+        //     dataBlockStride,
+        //     blockNumPerRow);
         // AscendC::PipeBarrier<PIPE_V>();
         // AscendC::printf("tkd after WholeReduceSum\n");
         // AscendC::DumpTensor(rowsumUb, 2, 128);
+
+        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
+        AscendC::printf("tkd 1024 before ReduceSum\n");
+        AscendC::DumpTensor(srcUb, 1, 512);
+
+        AscendC::Add<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Add<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 2],
+            srcUb[HALF_VECTOR_SIZE * 2],
+            srcUb[HALF_VECTOR_SIZE * 3],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Add<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 4],
+            srcUb[HALF_VECTOR_SIZE * 4],
+            srcUb[HALF_VECTOR_SIZE * 5],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Add<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 6],
+            srcUb[HALF_VECTOR_SIZE * 6],
+            srcUb[HALF_VECTOR_SIZE * 7],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::Add<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Add<half, false>(
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::Add<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::printf("tkd 1024 after ReduceSum\n");
+        AscendC::DumpTensor(srcUb, 1, 128);   
+        AscendC::WholeReduceSum<half, false>(
+            rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+            numElemsAligned / BLOCK_SIZE);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::printf("tkd after WholeReduceSum\n");
+        AscendC::DumpTensor(rowsumUb, 2, 128);
     }
 
     __aicore__ inline
@@ -413,7 +411,6 @@ public:
                     repeatStride,
                     repeatStride,
                     repeatStride));
-            AscendC::PipeBarrier<PIPE_V>();
         }
     }
 
@@ -422,134 +419,131 @@ public:
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
-        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
-        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
-        uint8_t dataBlockStride = 1;
-        // 1024个元素，以128为单位分治求最大值。1024->512->256->128
-        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        AscendC::printf("tkd before ReduceMaxByPair\n");
-        AscendC::DumpTensor(srcUb, 1, 1024);        
-        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
-        AscendC::printf("tkd after ReduceMaxByPair\n");
-        AscendC::DumpTensor(srcUb, 1, 128);
-
-        //每行128个元素分别规约求最大值。
-        AscendC::WholeReduceMax<half, false>(
-            rowmaxUb,
-            srcUb,
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            dataBlockStride,
-            dataBlockStride,
-            blockNumPerRow,
-            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::printf("tkd after WholeReduceMax\n");
-        AscendC::DumpTensor(rowmaxUb, 2, 128);
-
-
-
-
+        // // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
+        // uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
+        // // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
+        // uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
+        // uint8_t dataBlockStride = 1;
+        // // 1024个元素，以128为单位分治求最大值。1024->512->256->128
         // AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        // AscendC::printf("tkd 1024 before ReduceMax\n");
-        // AscendC::DumpTensor(srcUb, 1, 512);
+        // AscendC::printf("tkd before ReduceMaxByPair\n");
+        // AscendC::DumpTensor(srcUb, 1, 1024);        
+        // for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
+        // AscendC::printf("tkd after ReduceMaxByPair\n");
+        // AscendC::DumpTensor(srcUb, 1, 128);
 
-
-
-        // AscendC::Max<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Max<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 2],
-        //     srcUb[HALF_VECTOR_SIZE * 2],
-        //     srcUb[HALF_VECTOR_SIZE * 3],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Max<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 4],
-        //     srcUb[HALF_VECTOR_SIZE * 4],
-        //     srcUb[HALF_VECTOR_SIZE * 5],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Max<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * 6],
-        //     srcUb[HALF_VECTOR_SIZE * 6],
-        //     srcUb[HALF_VECTOR_SIZE * 7],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::Max<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Max<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::Max<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::printf("tkd 1024 after ReduceMax\n");
-        // AscendC::DumpTensor(srcUb, 1, 128);   
+        // //每行128个元素分别规约求最大值。
         // AscendC::WholeReduceMax<half, false>(
-        //     rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
-        //     numElemsAligned / BLOCK_SIZE);
+        //     rowmaxUb,
+        //     srcUb,
+        //     AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+        //     numRowsRound,
+        //     dataBlockStride,
+        //     dataBlockStride,
+        //     blockNumPerRow,
+        //     AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         // AscendC::PipeBarrier<PIPE_V>();
         // AscendC::printf("tkd after WholeReduceMax\n");
         // AscendC::DumpTensor(rowmaxUb, 2, 128);
+
+        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
+        AscendC::printf("tkd 1024 before ReduceMax\n");
+        AscendC::DumpTensor(srcUb, 1, 512);
+
+        AscendC::Max<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Max<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 2],
+            srcUb[HALF_VECTOR_SIZE * 2],
+            srcUb[HALF_VECTOR_SIZE * 3],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Max<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 4],
+            srcUb[HALF_VECTOR_SIZE * 4],
+            srcUb[HALF_VECTOR_SIZE * 5],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Max<half, false>(
+            srcUb[HALF_VECTOR_SIZE * 6],
+            srcUb[HALF_VECTOR_SIZE * 6],
+            srcUb[HALF_VECTOR_SIZE * 7],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::Max<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::Max<half, false>(
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::Max<half, false>(
+            srcUb,
+            srcUb,
+            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                1, 1, 1,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE,
+                numElemsAligned / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
+        
+        AscendC::printf("tkd 1024 after ReduceMax\n");
+        AscendC::DumpTensor(srcUb, 1, 128);   
+        AscendC::WholeReduceMax<half, false>(
+            rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+            numElemsAligned / BLOCK_SIZE);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::printf("tkd after WholeReduceMax\n");
+        AscendC::DumpTensor(rowmaxUb, 2, 128);
     }
 
     __aicore__ inline
