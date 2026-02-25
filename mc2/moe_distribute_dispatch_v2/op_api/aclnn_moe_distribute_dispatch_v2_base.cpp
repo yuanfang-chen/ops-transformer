@@ -167,7 +167,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                 channelDesc[index].notifyNum =3;
                 channelDesc[index].localEndpoint = links->srcEndpointDesc;
                 channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
-                channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+                //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
                 if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
                     OP_LOGD("PRINT <INDEX IS ==");
                 }
@@ -183,7 +183,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                 channelDesc[index-1].notifyNum =3;
                 channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
                 channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
-                channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
+                //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
                 if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
                     OP_LOGD("PRINT >INDEX IS ==");
                 }
