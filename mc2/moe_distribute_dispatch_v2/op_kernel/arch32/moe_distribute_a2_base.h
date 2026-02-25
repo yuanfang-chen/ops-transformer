@@ -28,12 +28,64 @@
 #include "../../../common/inc/kernel/moe_distribute_base.h"
 #endif
 namespace MoeDistributeA2Base {
+/* 
+HCCL_BUFF结构如下：
+W = HCCL_BUFFSIZE
+A1 = (epWorldSize / 8) * 512B
+TOKEN_SIZE = (H * sizeof(dtype) + align8(K) * sizeof(uint32) * 4) * 1B
+MAXBS_TOKEN_SIZE = maxBs * TOKEN_SIZE * 1B
+IPC_DATA_SIZE_PER_EXP = epWorldSize * align512(MAXBS_TOKEN_SIZE) * 1B
+RDMA_DATA_SIZE = epWorldSize / 8 * align4096(MAXBS_TOKEN_SIZE) * 1B
+COMBINE_TOKENFLAG_SIZE = align32((maxBs + (aivNum / (epWorldSize / 8) + 1)) * sizeof(uint64_t)) *1B
 
+# WindowIn
+|           |                                              | Start Addr                                   | Size                                      | Function                      |
+|-----------|----------------------------------------------|----------------------------------------------|-------------------------------------------|-------------------------------|
+| Ping RDMA | Arrived Flag                                 | 0MB                                          | A1                                        | GetRdmaFlagAddrIn             |
+| Ping RDMA | Inner Flag                                   | A1                                           | A1                                        | GetInnerFlagAddrIn            |
+| Ping RDMA | Inner Data                                   | 2 * A1                                       | 1MB - 2 * A1                              | GetInnerDataAddrIn            |
+| Ping RDMA | RDMA Data                                    | 1MB                                          | RDMA_DATA_SIZE                            | GetRdmaDataAddrIn             |
+| -         | -                                            | -                                            | -                                         | -                             |
+| IPC Data  | localExp 0--(srcRankId 0~n/2-1)              | (W/2 - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 3B | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Data  | localExp x--(srcRankId 0~n/2-1)              | (W/2 - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 2B | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Data  | localExp n--(srcRankId 0~n/2-1)              | (W/2 - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 1B | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Flag  | Combine Sync Flag 1: GM2IPC                  | (W/2 - 2)MB                                  | 8 * 32B = 256B                            | GetIpcSyncFlagAddrForCombine  |
+| IPC Flag  | Combine Sync Flag 2: SumToWindow--server 0-n | (w/2 - 2)MB + 288B                           | COMBINE_TOKENFLAG_SIZE * epWorldSize / 8B | GetIpcTokenFlagAddr           |
+| IPC Flag  | Dispatch Sync flag                           | (w/2 - 1)MB                                  | 8 * 32B = 256B                            | GetIpcSyncFlagAddrForDispatch |
+| IPC Flag  | Dispatch Magic Value                         | W/2MB - 256 * 32B                            | aivNum * 32B                              | GetMagicValue                 |
+| IPC Flag  | Combine Magic Value                          | W/2MB - 128 * 32B                            | aivNum * 32B                              | GetMagicValue                 |
+| Pong RDMA | Arrived Flag                                 | W/2MB                                        | A1                                        | GetRdmaFlagAddrIn             |
+| Pong RDMA | Inner Flag                                   | W/2MB + A1                                   | A1                                        | GetInnerFlagAddrIn            |
+| Pong RDMA | Inner Data                                   | W/2MB + 2 * A1                               | 1M - 2 * A1                               | GetInnerDataAddrIn            |
+| Pong RDMA | RDMA Data                                    | (W/2 + 1)MB                                  | RDMA_DATA_SIZE                            | GetRdmaDataAddrIn             |
+|  -        | -                                            | -                                            | -                                         | -                             |
+| IPC Data  | localExp 0--(srcRankId n/2~n-1)              | (W - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 3B   | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Data  | localExp x--(srcRankId n/2~n-1)              | (W - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 2B   | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Data  | localExp n--(srcRankId n/2~n-1)              | (W - 2)MB - IPC_DATA_SIZE_PER_EXP / 2 * 1B   | IPC_DATA_SIZE_PER_EXP / 2                 | GetIpcDataAddrIn              |
+| IPC Flag  | TokenCnt                                     | (W - 2)MB                                    | moeExpertNum * 32B                        | GetIpcTokenCntAddr            |
+# WindowOut
+|           |                                              | Start Addr                                   | Size                                      | Function                      |
+|-----------|----------------------------------------------|----------------------------------------------|-------------------------------------------|-------------------------------|
+| Ping RDMA | Flag                                         | 0MB                                          | 32B                                       | GetRdmaFlagAddrOut            |
+| Ping RDMA | Inner Data                                   | 2 * A1                                       | 1MB - 2 * A1                              | GetInnerDataAddrOut           |
+| Ping RDMA | RDMA Data                                    | 1MB                                          | RDMA_DATA_SIZE                            | GetRdmaDataAddrOutForX        |
+| -         | -                                            | -                                            | -                                         | -                             |
+| Ping RDMA | Flag                                         | 0MB                                          | 32B                                       | GetRdmaFlagAddrOut            |
+| Pong RDMA | Inner Data                                   | W/2MB + 2 * A1                               | 1M - 2 * A1                               | GetInnerDataAddrOut           |
+| Pong RDMA | RDMA Data                                    | (W/2 + 1)MB                                  | RDMA_DATA_SIZE                            | GetRdmaDataAddrOutForX        |
+| -         | BufferId                                     | W MB - 32B                                   | 32B                                       | UpdateBufferId                |
+## WindowOut-Combine--RDMAData
+|           |                                              | Start Addr                                   | Size                                      | Function                      |
+|-----------|----------------------------------------------|----------------------------------------------|-------------------------------------------|-------------------------------|
+| RDMA      | RDMA Data-DstServer 0                        | (1 or (W/2 + 1))MB                           | A2 = RDMA_DATA_SIZE / (epWorldSize / 8)   | GetRdmaDataAddrOutForCombine  |
+| RDMA      | RDMA Data-DstServer x                        | (1 or (W/2 + 1))MB + A2 * x                  | A2                                        | GetRdmaDataAddrOutForCombine  |
+| RDMA      | RDMA Data-DstServer n-1                      | (1 or (W/2 + 1))MB + A2 * (n - 1)            | A2                                        | GetRdmaDataAddrOutForCombine  |
+*/
 template <typename XType>
 class MoeDistributeA2AddrInfo {
 private:
-    constexpr static uint32_t BUFFER_NUM = 2U;    // 多buf
-    constexpr static uint64_t STATE_OFFSET = 512UL; // 状态空间偏移地址
+    constexpr static uint32_t BUFFER_NUM = 2U;                     // 多buf
+    constexpr static uint64_t STATE_OFFSET = 512UL;                // 状态空间偏移地址
     constexpr static uint64_t STATUS_SIZE_LAYERED = 1024 * 1024UL; // 1M
     constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024UL;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
@@ -52,9 +104,9 @@ private:
             return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->windowsIn[rankId]);
         } else {
             if (rankId == curRankId_) {
-                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam*)hcclContext_)->data[rankId].localInput.addr);
+                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->data[rankId].localInput.addr);
             } else {
-                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam*)hcclContext_)->data[rankId].remoteInput.addr);
+                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->data[rankId].remoteInput.addr);
             }
         }
     }
@@ -65,15 +117,16 @@ private:
             return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->windowsOut[rankId]);
         } else {
             if (rankId == curRankId_) {
-                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam*)hcclContext_)->data[rankId].localOutput.addr);
+                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->data[rankId].localOutput.addr);
             } else {
-                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam*)hcclContext_)->data[rankId].remoteOutput.addr);
+                return (GM_ADDR)(((__gm__ HcclA2CombineOpParam *)hcclContext_)->data[rankId].remoteOutput.addr);
             }
         }
     }
 
     template <typename T>
-    inline __aicore__ T RoundUp(const T val, const T align) {
+    inline __aicore__ T RoundUp(const T val, const T align)
+    {
         static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type");
         if (align == 0 || val + align - 1 < val) {
             return val;
@@ -81,7 +134,7 @@ private:
         return (val + align - 1) / align * align;
     }
 
-    __aicore__ inline void initInnerAddr()
+    __aicore__ inline void InitInnerAddr()
     {
         auto tokenFlagBytes = STATE_OFFSET * (serverNum_ + 1);
         auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
@@ -91,7 +144,7 @@ private:
         rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableFlagTotalBytes;
     }
 
-    __aicore__ inline void initIpcFlagAddr()
+    __aicore__ inline void InitIpcFlagAddr()
     {
         ipcCombineSyncFlagAddrStart_ = ipcFlagAddrStart_[0];
         ipcDispatchSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_FLAG_OFFSET;
@@ -111,17 +164,17 @@ private:
     }
 
 public:
-    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t moeExpertNum, uint32_t aivNum)
+    __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
     {
         curRankId_ = rankId;
         // Get Hccl Buffer Size
         hcclContext_ = AscendC::GetHcclContext<AscendC::HCCL_GROUP_ID_0>();
         auto winSize = ((__gm__ HcclA2CombineOpParam *)hcclContext_)->winSize;
         // Get BufferId
-        bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t*)(GetWindowsOutAddr(rankId) + winSize - UB_32B_ALIGN));
+        bufferChosenGlobal_.SetGlobalBuffer((__gm__ uint32_t *)(GetWindowsOutAddr(rankId) + winSize - UB_32B_ALIGN));
         bufferId_ = bufferChosenGlobal_(0);
         aivId_ = AscendC::GetBlockIdx();
-        localMoeExpertNum_ = moeExpertNum / worldSize;
+        localMoeExpertNum_ = localMoeExpertNum;
         worldSize_ = worldSize;
         serverNum_ = worldSize / SERVER_RANK_SIZE;
         halfWorldSize_ = worldSize / 2U;
@@ -134,29 +187,31 @@ public:
             rdmaFlagAddrStart_ = winSize / 2UL;
         }
         rdmaDataAddrStart_ = rdmaFlagAddrStart_ + STATUS_SIZE_LAYERED;
-        initInnerAddr();
+        InitInnerAddr();
 
         // ipc addr
         ipcFlagAddrStart_[0] = winSize / 2UL - IPC_NON_DATA_BYTES / 2UL;
         ipcFlagAddrStart_[1] = winSize - IPC_NON_DATA_BYTES / 2UL;
-        ipcDataAddrStart_[0] =
-            (ipcFlagAddrStart_[0] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
-        ipcDataAddrStart_[1] =
-            (ipcFlagAddrStart_[1] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) / IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
-        initIpcFlagAddr();
+        ipcDataAddrStart_[0] = (ipcFlagAddrStart_[0] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) /
+                               IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+        ipcDataAddrStart_[1] = (ipcFlagAddrStart_[1] - rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_) /
+                               IPC_BUFF_ALIGN * IPC_BUFF_ALIGN;
+        InitIpcFlagAddr();
         for (int i = 0; i < SERVER_RANK_SIZE; i++) {
             uint32_t targetRank = curRankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i;
             shareAddrs[i] = GetWindowsInAddr(targetRank);
         }
         windowInGM_ = GetWindowsInAddr(curRankId_);
-        combineShareFlagSize_ = RoundUp(static_cast<uint32_t>((maxBs + aivNum / serverNum_ + 1U) * sizeof(uint64_t)), UB_32B_ALIGN);
-        combineShareFlagAddrStart_ = IPC_DISPATCH_FLAG_OFFSET + ipcCombineSyncFlagAddrStart_ - combineShareFlagSize_ * serverNum_;
+        combineShareFlagSize_ =
+            RoundUp(static_cast<uint32_t>((maxBs + aivNum / serverNum_ + 1U) * sizeof(uint64_t)), UB_32B_ALIGN);
+        combineShareFlagAddrStart_ = ipcCombineSyncFlagAddrStart_ + (SERVER_RANK_SIZE + 1) * UB_32B_ALIGN;
     }
     __aicore__ inline void UpdateBufferId()
     {
         bufferChosenGlobal_(0) = bufferId_ ^ 1;
         AscendC::DataCacheCleanAndInvalid<uint32_t, AscendC::CacheLine::SINGLE_CACHE_LINE,
-            AscendC::DcciDst::CACHELINE_OUT>(bufferChosenGlobal_);
+                                          AscendC::DcciDst::CACHELINE_OUT>(bufferChosenGlobal_);
+        AscendC::PipeBarrier<PIPE_ALL>();
     }
 
     __aicore__ inline GM_ADDR GetRdmaFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
@@ -174,18 +229,20 @@ public:
         return GetWindowsOutAddr(curRankId_) + rdmaFlagAddrStart_;
     }
 
-    __aicore__ inline GM_ADDR GetIpcDataAddrIn(uint32_t targetRankId, uint32_t localMoeExpertId, uint32_t fromRankId) const
+    __aicore__ inline GM_ADDR GetIpcDataAddrIn(uint32_t targetRankId, uint32_t localMoeExpertId,
+                                               uint32_t fromRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] + (localMoeExpertId * halfWorldSize_ + (fromRankId % halfWorldSize_)) * rankSizeOnIpcData_;
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDataAddrStart_[fromRankId / halfWorldSize_] +
+               (localMoeExpertId * halfWorldSize_ + (fromRankId % halfWorldSize_)) * rankSizeOnIpcData_;
     }
 
     __aicore__ inline uint64_t GetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal, bool isDispatch)
     {
         AscendC::GlobalTensor<uint64_t> magicGt;
         if (isDispatch) {
-            magicGt.SetGlobalBuffer((__gm__ uint64_t*)(GetIpcMagicAddrForDispatch()));
+            magicGt.SetGlobalBuffer((__gm__ uint64_t *)(GetIpcMagicAddrForDispatch()));
         } else {
-            magicGt.SetGlobalBuffer((__gm__ uint64_t*)(GetIpcMagicAddrForCombine()));
+            magicGt.SetGlobalBuffer((__gm__ uint64_t *)(GetIpcMagicAddrForCombine()));
         }
         AscendC::DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
         AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
@@ -204,7 +261,8 @@ public:
 
     __aicore__ inline GM_ADDR GetIpcTokenFlagAddr(uint32_t serverId) const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + combineShareFlagAddrStart_ + (serverId + 1) * combineShareFlagSize_;
+        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + combineShareFlagAddrStart_ +
+               serverId * combineShareFlagSize_;
     }
 
     __aicore__ inline GM_ADDR GetRdmaDataAddrOutForCombine(uint32_t serverId) const
@@ -214,7 +272,8 @@ public:
 
     __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForCombine(uint32_t targetRankId, uint32_t fromRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcCombineSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcCombineSyncFlagAddrStart_ +
+               (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
     }
 
     // Dispatch专用
@@ -225,13 +284,14 @@ public:
 
     __aicore__ inline GM_ADDR GetIpcSyncFlagAddrForDispatch(uint32_t targetRankId, uint32_t fromRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchSyncFlagAddrStart_ + (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchSyncFlagAddrStart_ +
+               (fromRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
     }
 
     __aicore__ inline GM_ADDR GetIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t fromRankId) const
     {
         return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcDispatchTokenCntAddrStart_ +
-            ((targetExpId % localMoeExpertNum_) * worldSize_ + fromRankId) * UB_32B_ALIGN;
+               ((targetExpId % localMoeExpertNum_) * worldSize_ + fromRankId) * UB_32B_ALIGN;
     }
 
     __aicore__ inline GM_ADDR GetInnerFlagAddrIn(uint32_t targetRankId, uint32_t serverId) const
@@ -278,5 +338,5 @@ private:
     GM_ADDR windowInGM_;
     __gm__ uint8_t *hcclContext_;
 };
-} // MoeDistributeA2Base
+} // namespace MoeDistributeA2Base
 #endif // MOE_DISTRIBUTE_A2_BASE_H
