@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_aclnn_lightning_indexer.cpp
+ * \file test_aclnn_sparse_flash_attention.cpp
  * \brief
  */
 
@@ -40,7 +40,7 @@ int64_t GetShapeSize(const std::vector<int64_t>& shape) {
   return shapeSize;
 }
 
-int Init(int32_t deviceId, aclrtStream* stream) {
+int32_t Init(int32_t deviceId, aclrtStream* stream) {
   auto ret = aclInit(nullptr);
   if (!CHECK_RET(ret == ACL_SUCCESS)) {
     LOG_PRINT("aclInit failed. ERROR: %d\n", ret); 
@@ -60,7 +60,7 @@ int Init(int32_t deviceId, aclrtStream* stream) {
 }
 
 template <typename T>
-int CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
+int32_t CreateAclTensor(const std::vector<T>& hostData, const std::vector<int64_t>& shape, void** deviceAddr,
                     aclDataType dataType, aclTensor** tensor) {
   auto size = GetShapeSize(shape) * sizeof(T);
   auto ret = aclrtMalloc(deviceAddr, size, ACL_MEM_MALLOC_HUGE_FIRST);
@@ -107,7 +107,7 @@ struct TensorResources {
     aclTensor* keyRopeTensor = nullptr; 
 };
 
-int InitializeTensors(TensorResources& resources) {
+int32_t InitializeTensors(TensorResources& resources) {
     std::vector<int64_t> queryShape = {1, 2, 1, 512};
     std::vector<int64_t> keyShape = {1, 2, 1, 512};
     std::vector<int64_t> valueShape = {1, 2, 1, 512};
@@ -139,7 +139,7 @@ int InitializeTensors(TensorResources& resources) {
     std::vector<float> keyRopeHostData(keyRopeShapeSize, 1);
 
     // Create query aclTensor.
-    int ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr, 
+    int32_t ret = CreateAclTensor(queryHostData, queryShape, &resources.queryDeviceAddr, 
                              aclDataType::ACL_FLOAT16, &resources.queryTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
       return ret;
@@ -204,7 +204,7 @@ int InitializeTensors(TensorResources& resources) {
     return ACL_SUCCESS;
 }
 
-int ExecuteSparseFlashAttention(TensorResources& resources, aclrtStream stream, 
+int32_t ExecuteSparseFlashAttention(TensorResources& resources, aclrtStream stream, 
                               void** workspaceAddr, uint64_t* workspaceSize) {
     int64_t d = 2;
     double scaleValue = 1 / sqrt(d);
@@ -230,7 +230,7 @@ int ExecuteSparseFlashAttention(TensorResources& resources, aclrtStream stream,
     bool returnSoftmaxLse = false;
     aclOpExecutor* executor;
 
-    int ret = aclnnSparseFlashAttentionGetWorkspaceSize(resources.queryTensor, resources.keyTensor, resources.valueTensor, resources.sparseIndicesTensor, nullptr, nullptr, nullptr, resources.queryRopeTensor, resources.keyRopeTensor,
+    int32_t ret = aclnnSparseFlashAttentionGetWorkspaceSize(resources.queryTensor, resources.keyTensor, resources.valueTensor, resources.sparseIndicesTensor, nullptr, nullptr, nullptr, resources.queryRopeTensor, resources.keyRopeTensor,
                                                     scaleValue, sparseBlockSize, layoutQuery, layoutKv, sparseMode, preTokens,
                                                     nextTokens, attentionMode, returnSoftmaxLse, resources.attentionOutTensor, resources.softmaxMaxTensor, resources.softmaxSumTensor, workspaceSize, &executor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -255,7 +255,7 @@ int ExecuteSparseFlashAttention(TensorResources& resources, aclrtStream stream,
     return ACL_SUCCESS;
 }
 
-int PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
+int32_t PrintOutResult(std::vector<int64_t> &shape, void** deviceAddr) {
   auto size = GetShapeSize(shape);
   std::vector<aclFloat16> resultData(size, 0);
   auto ret = aclrtMemcpy(resultData.data(), resultData.size() * sizeof(resultData[0]),
@@ -342,7 +342,7 @@ void CleanupResources(TensorResources& resources, void* workspaceAddr,
 
 } // namespace
 
-int main() {
+int32_t main() {
 
     int32_t deviceId = 0;
     aclrtStream stream = nullptr;
@@ -352,7 +352,7 @@ int main() {
     std::vector<int64_t> attentionOutShape = {1, 2, 1, 16};
     std::vector<int64_t> softmaxMaxShape = {1, 2, 1, 16};
     std::vector<int64_t> softmaxSumShape = {1, 2, 1, 16}; 
-    int ret = ACL_SUCCESS;
+    int32_t ret = ACL_SUCCESS;
 
     // 1. Initialize device and stream
     ret = Init(deviceId, &stream);
