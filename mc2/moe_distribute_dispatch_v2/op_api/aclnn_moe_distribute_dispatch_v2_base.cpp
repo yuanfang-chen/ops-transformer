@@ -141,24 +141,24 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         OP_LOGE(ACLNN_ERR_INNER, "Creat MC2 Context failed.");
         return ACLNN_ERR_INNER;
     }
-
+    OP_LOGD("PRINT HcclEngineCtxCreate success");
     //获取对应的资源
     ret = HcclGetRankId(hcclHandle, &mc2_context->rankId);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Id failed.");
         return ACLNN_ERR_INNER;
     }
-
+    OP_LOGD("PRINT HcclGetRankId success");
     ret = HcclGetRankSize(hcclHandle, &mc2_context->rankDim);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
         return ACLNN_ERR_INNER;
     }
-
+    OP_LOGD("PRINT HcclGetRankSize success");
     channelDesc.resize(mc2_context->rankDim);
     channeles.resize(mc2_context->rankDim);
     HcclChannelDescInit(channelDesc.data(), mc2_context->rankDim);
-
+    OP_LOGD("PRINT HcclChannelDescInit success");
     for (uint64_t index = 0; index < mc2_context->rankDim; index++) {
         if(index != mc2_context->rankId) {
             channelDesc[index].remoteRank = index;
@@ -168,10 +168,11 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     }
 
     HcclChannelAcquire(hcclHandle, engine, channelDesc.data(), mc2_context->rankDim, channeles.data());
-
+    OP_LOGD("PRINT HcclChannelAcquire success");
     for(uint64_t index = 0; index < mc2_context->rankDim; index++) {
         if(index == mc2_context->rankId) {
             ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winsize);
+            OP_LOGD("PRINT HcclGetHcclBuffer success");
         } else {
             ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
         }
@@ -181,7 +182,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         }
         mc2_context->windowsIn[index] = reinterpret_cast<uint64_t>(tempBuffer);
     }
-    
+    OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
     ret = HcclEngineCtxCopy(hcclHandle, engine, mc2Ctxtag.c_str(), mc2_context, ctxSize, dstCtxOffset);
     if(ret != HCCL_SUCCESS) {
