@@ -25,7 +25,9 @@ namespace ge {
 
 * @par Inputs:
 * Inputs including:
-* @li key: Key values to be updated,A 3D or 4D tensor.
+* @li key: Key values to be updated, A 3D or 4D tensor. Must be one of the following types: float16、float、bfloat16、int8、uint8、
+*          int16、uint16、int32、uint32、hifloat8、float8_e5m2、float8_e4m3fn、float4_e2m1、float4_e1m2. When key is a 4D tensor, 
+*          its data type must not be hifloat8、float8_e5m2、float8_e4m3fn、float4_e2m1 or float4_e1m2.
 * @li key_cache: Tensors that need to be updated by key.
 * @li slot_mapping: The offset of each token of key in the cache. Must be one of the following types: int32 or int64.
 * @li compress_lens: Compression amount. Must be one of the following types: int32 or int64.
