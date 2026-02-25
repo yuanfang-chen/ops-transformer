@@ -29,18 +29,38 @@ extern "C" {
  *          其中：(H_{l}^{res})^{T} * x_l 表示对x_l使用转置后的h_res矩阵进行矩阵乘法变换
  *                h_{l}^{out} * H_{t}^{post} 表示逐元素相乘后广播到所有维度
  * @domain aclnn_ops_infer
+ * @param [in] x：必选参数，Device侧的aclTensor，输入张量x_l，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND。
+ *                   shape支持3D格式[T, n, D]或4D格式[B, S, n, D]。
+ * @param [in] h_res：必选参数，Device侧的aclTensor，残差连接矩阵h_res，数据类型支持FLOAT32，数据格式支持ND。
+ *                    shape支持3D格式[T, n, n]或4D格式[B, S, n, n]。
+ * @param [in] h_out：必选参数，Device侧的aclTensor，输出状态h_out，数据类型支持FLOAT16、BFLOAT16，
+ *                    数据格式支持ND，shape支持3D格式[T, D]或4D格式[B, S, D]。
+ * @param [in] h_post：必选参数，Device侧的aclTensor，后处理矩阵h_post，数据类型支持FLOAT32，数据格式支持ND，
+ *                     shape支持3D格式[T, n]或4D格式[B, S, n]。
+ * @param [out] y：输出Tensor，计算结果x_{l+1}，数据类型支持FLOAT16、BFLOAT16，数据格式支持ND，
+ *                 shape与输入x一致（[T, n, D]或[B, S, n, D]）。
+ * @param [out] workspaceSize：返回用户需要在Device侧申请的workspace大小。
+ * @param [out] executor：返回op执行器，包含了算子计算流程。
+ * @return      aclnnStatus: 返回状态码
  */
-aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                         const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
-                                         aclOpExecutor **executor);
+__attribute__((visibility("default"))) aclnnStatus
+aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
+                              const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                              aclOpExecutor **executor);
 
 /**
  * @brief aclnnMhcPost的第二段接口，用于执行计算。
+ * @param [in] workspace: 在Device侧申请的workspace内存起址。
+ * @param [in] workspaceSize: 在Device侧申请的workspace大小，由第一段接口aclnnMhcPostGetWorkspaceSize获取。
+ * @param [in] executor: op执行器，包含了算子计算流程。
+ * @param [in] stream: 指定执行任务的AscendCL stream流。
+ * @return     aclnnStatus: 返回状态码
  */
-aclnnStatus aclnnMhcPost(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream);
+__attribute__((visibility("default"))) aclnnStatus aclnnMhcPost(void *workspace, uint64_t workspaceSize,
+                                                                 aclOpExecutor *executor, aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // OP_API_INC_MHC_POST_H
+#endif // OP_API_INC_MHC_POST_H

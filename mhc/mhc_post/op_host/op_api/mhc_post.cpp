@@ -42,11 +42,7 @@ const aclTensor* MhcPostAICore(
         MhcPost,
         OP_INPUT(x, hRes, hOut, hPost),
         OP_OUTPUT(output));
-
-    if (retAicore != ACLNN_SUCCESS) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "MhcPost launch kernel failed.");
-        return nullptr;
-    }
+    (void)retAicore;
     return output;
 }
 
