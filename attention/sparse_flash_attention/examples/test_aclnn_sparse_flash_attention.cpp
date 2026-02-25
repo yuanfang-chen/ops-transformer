@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2024 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_incre_flash_attention_v4.cpp
+ * \file test_aclnn_lightning_indexer.cpp
  * \brief
  */
 
@@ -360,7 +360,6 @@ int main() {
         LOG_PRINT("Init acl failed. ERROR: %d\n", ret);
         return ret;
     }
-
 
     // 2. Initialize tensors
     ret = InitializeTensors(resources);
