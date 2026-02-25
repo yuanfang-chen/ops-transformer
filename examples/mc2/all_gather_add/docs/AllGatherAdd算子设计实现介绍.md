@@ -166,6 +166,7 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 - 必须定义至少一个表示算子通信域名称的属性，该属性的数量与算子所在通信域数量一致。通信域是集合通信执行的上下文，管理对应的通信实体（例如一个NPU就是一个通信实体）和通信所需的资源。
 - 必须通过原型注册中的[MC2](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0954.html)接口注册该算子为通算融合算子，并通过[HcclGroup](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_1002.html)接口配置该算子的通信域名称。
 
+
 AllGatherAdd算子原型定义如下：
 
 ```cpp
@@ -404,7 +405,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     - 轮询等待每个分块的通信完成和计算完成，最后释放资源。
 
-    整合前述代码 ，完整Kernel代码请访问开源仓   
+    整合前述代码 ，完整Kernel代码请访问开源仓。  
 
 ## 编译和运行
 
