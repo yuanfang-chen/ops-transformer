@@ -34,7 +34,8 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
   ```cpp
     // 核函数
-    extern "C" global aicore void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM, GM_ADDR gatherGM, GM_ADDR tilingGM);
+    extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
+                                                         GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
     // 单算子API调用
     ACLNN_API aclnnStatus aclnnAllGatherAddGetWorkspaceSize(const aclTensor *a, const aclTensor *b, char *group, int64_t rankSize, const aclTensor *cOut, const aclTensor *gatherOutOut,
     uint64_t *workspaceSize, aclOpExecutor **executor);
@@ -259,7 +260,7 @@ AllGatherAdd算子的核函数定义如下，aGM、bGM、cGM、gatherOutGM参数
 
 ```cpp
 extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR cGM,
-    GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
+                                                     GM_ADDR gatherGM, GM_ADDR workspaceGM, GM_ADDR tilingGM);
 ```
 
 - Add计算依赖AIV核，因此算子逻辑仅运行于AIV核中。
