@@ -26,10 +26,10 @@
 #include "../utils/tensor_utils.h"
 #include "../utils/status_utils.h"
 
-#include "./semaphore.h"
 #include "../block/block_mmad_builder.h"
 #include "../epilogue/block_epilogue_dequant_finalize_routing.h"
 #include "../prologue/block_prologue_finalize_routing.h"
+#include "./semaphore.h"
 
 #include "../block/block_scheduler_utils.h"
 #include "../block/block_scheduler_gmm_aswt_with_tail_split.h"
@@ -39,9 +39,6 @@ namespace Gemm {
 namespace Kernel {
 
 namespace {
-constexpr uint64_t M_VALUES = 0UL;
-constexpr uint64_t N_VALUES = 1UL;
-constexpr uint64_t K_VALUES = 2UL;
 constexpr uint64_t IDX_A_OFFSETS = 0UL;
 constexpr uint64_t IDX_B_OFFSETS = 1UL;
 constexpr uint64_t IDX_X1SCALE_OFFSETS = 2UL;
@@ -57,11 +54,11 @@ constexpr uint8_t SYNC_AIC_AIV_MODES = 4;
 constexpr uint16_t FLAG_ID_MAXS = 16;
 constexpr uint16_t AIC_SYNC_AIV_FLAGS = 4;
 constexpr uint16_t AIV_SYNC_AIC_FLAGS = 6;
-constexpr uint32_t WEIGHTNZ_K0_16 = 16;
-constexpr uint32_t WEIGHTNZ_N0_16 = 16;
-constexpr uint32_t WEIGHTNZ_K0_32 = 32;
-constexpr uint32_t WEIGHTNZ_N0_32 = 32;
-constexpr uint32_t WEIGHTNZ_N0_K0 = 512;
+constexpr uint32_t WEIGHT_TILE_K_SMALL = 16;
+constexpr uint32_t WEIGHT_TILE_N_SMALL = 16;
+constexpr uint32_t WEIGHT_TILE_K_LARGE = 32;
+constexpr uint32_t WEIGHT_TILE_N_LARGE = 32;
+constexpr uint32_t WEIGHT_TILE_CAPACITY = 512;
 } // namespace
 
 using namespace AscendC;
@@ -106,7 +103,6 @@ public:
     using BlockMmadOp = typename BlockMmadBuilder::BlockMmadOp;
     using BlockMmadArguments = typename BlockMmadBuilder::Arguments;
     using BlockPrologueArguments = typename BlockPrologue::Arguments;
-    using BlockEpilogueArguments = typename BlockEpilogueDequantFinalizeRouting::Arguments;
     using BlockMmadParams = typename BlockMmadBuilder::Params;
     using BlockPrologueParams = typename BlockPrologue::Params;
     using BlockEpilogueParams = typename BlockEpilogueDequantFinalizeRouting::Params;
@@ -162,7 +158,7 @@ public:
         ProblemShape problemShape;
         BlockMmadArguments mmadArgs;
         BlockPrologueArguments prologueArgs;
-        BlockEpilogueArguments epilogueArgs;
+        BlockEpilogueParams epilogueArgs;
         GMMTiling gmmArgs;
         Arguments() = default;
     };
@@ -241,18 +237,18 @@ public:
         if (groupIdx == 0) {
             return;
         }
-        uint64_t m = Get<M_VALUES>(problemShape_);
-        uint64_t n = Get<N_VALUES>(problemShape_);
-        uint64_t k = Get<K_VALUES>(problemShape_);
+        uint64_t m = Get<MNK_M>(problemShape_);
+        uint64_t n = Get<MNK_N>(problemShape_);
+        uint64_t k = Get<MNK_K>(problemShape_);
         // aBaseOffset += m * k
         Get<IDX_A_OFFSETS>(baseOffset_) = Get<IDX_A_OFFSETS>(baseOffset_) + m * k;
         // bBaseOffset += n * k
         if constexpr (formatB == CubeFormat::NZ) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) +
-                                              CeilDiv(n, WEIGHTNZ_N0_32) * CeilDiv(k, WEIGHTNZ_K0_16) * WEIGHTNZ_N0_K0;
+                                              CeilDiv(n, WEIGHT_TILE_N_LARGE) * CeilDiv(k, WEIGHT_TILE_K_SMALL) * WEIGHT_TILE_CAPACITY;
         } else if constexpr (formatB == CubeFormat::ZN) {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) +
-                                              CeilDiv(k, WEIGHTNZ_K0_32) * CeilDiv(n, WEIGHTNZ_N0_16) * WEIGHTNZ_N0_K0;
+                                              CeilDiv(k, WEIGHT_TILE_K_LARGE) * CeilDiv(n, WEIGHT_TILE_N_SMALL) * WEIGHT_TILE_CAPACITY;
         } else {
             Get<IDX_B_OFFSETS>(baseOffset_) = Get<IDX_B_OFFSETS>(baseOffset_) + n * k;
         }
