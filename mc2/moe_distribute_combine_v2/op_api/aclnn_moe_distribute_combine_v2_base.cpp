@@ -258,7 +258,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                 }
                 desc.remoteRank = dstRank;
                 desc.channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-                desc.notifyNum = 3;
+                desc.notifyNum = mc2Context.epRankSize;
 
                 uint32_t best = 0;
                 for (uint32_t k = 1; k < linkNum; ++k) {
