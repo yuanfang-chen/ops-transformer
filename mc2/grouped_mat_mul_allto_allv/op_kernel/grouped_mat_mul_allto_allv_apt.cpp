@@ -157,24 +157,25 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 
     // hccl
     HcclOpType hcclOp;
-    hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, userWorkspace, gmmyGM);
+    hcclOp.Init(hcclInitTiling, alltoAllvCcTiling, &tilingData.taskTilingInfo, workspaceGM, gmmyGM);
 
     // gmm
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
         gmmBaseTiling, gmmArray, gmmArrayAddr_, tilingGM);
     ComputeOpType computeOp;
     auto tilingData_ = static_cast<const QuantGmmA2avTilingData*>(&tilingData);
-    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, userWorkspace,
-        userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize, tilingData_,
-        &tilingData_->gmmBaseTiling, gmmArrayAddr_, &pipe, false);
+    auto gmmGroupListGM = workspaceGM + tilingData_->workspaceInfo.wsGmmOutputSize;
+    computeOp.Init(gmmxGM, gmmweightGM, gmmxScaleGM, gmmWeightScaleGM, workspaceGM, gmmGroupListGM,
+        tilingData_, &tilingData_->gmmBaseTiling, gmmArrayAddr_, &pipe, false);
 
     // sharedmm
     GET_NESTED_TILING_DATA_MEMBER_ADDR(QuantGmmA2avTilingData, GMMQuantTilingData,
         sharedGmmTiling, gmmArray, mmArrayAddr_, tilingGM);
     SharedGmmExpertOpType shareComputeOp;
+    auto mmGroupListGM = workspaceGM + tilingData_->workspaceInfo.wsGmmOutputSize +
+        tilingData_->workspaceInfo.wsGmmComputeWorkspaceSize;
     shareComputeOp.Init(mmxOptionalGM, mmweightOptionalGM, mmxScaleGM, mmWeightScaleGM, mmyOptionalGM,
-        userWorkspace + tilingData_->workspaceInfo.wsGmmOutputSize + tilingData_->workspaceInfo.wsGmmComputeWorkspaceSize,
-        tilingData_, &tilingData_->sharedGmmTiling, mmArrayAddr_, &pipe, false);
+        mmGroupListGM, tilingData_, &tilingData_->sharedGmmTiling, mmArrayAddr_, &pipe, false);
     
     GmmA2avSchedulerType gmmA2avScheduler(hcclOp, computeOp, shareComputeOp, &tilingData.taskTilingInfo);
     gmmA2avScheduler.Process();

@@ -52,7 +52,7 @@ struct GMMATAVType { // Grouped_Mat_Mul_All_To_Allv_Type
     } while (0)
 
 template <
-    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS, 
+    bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS,
     bool TILINGKEY_MATMUL_TRANS>
 __global__ __aicore__ void grouped_mat_mul_allto_allv(
     GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
@@ -70,7 +70,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     if (userWorkspace == nullptr) {
         return;
     }
-    REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData); 
+    REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData);
     auto tiling = (__gm__ GroupedMatMulAlltoAllvTilingData*)tilingGM;
     __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
     __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->alltoAllvCcTiling));
