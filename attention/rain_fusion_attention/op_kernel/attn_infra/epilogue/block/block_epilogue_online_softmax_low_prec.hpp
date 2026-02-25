@@ -169,6 +169,7 @@ public:
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求和。1024->512->256->128
+        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
         AscendC::printf("tkd before ReduceSumByPair\n");
         AscendC::DumpTensor(srcUb, 1, 1024);   
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
@@ -197,6 +198,7 @@ public:
         const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
+        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
         AscendC::printf("tkd 512 before ReduceSum\n");
         AscendC::DumpTensor(srcUb, 1, 512);   
         AscendC::Add<half, false>(
@@ -235,7 +237,7 @@ public:
                 numElemsAligned / BLOCK_SIZE));
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::printf("tkd 512 after ReduceSum\n");
-        AscendC::DumpTensor(srcUb, 1, 512);   
+        AscendC::DumpTensor(srcUb, 1, 128);   
         AscendC::WholeReduceSum<half, false>(
             rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
@@ -327,6 +329,7 @@ public:
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
         // 1024个元素，以128为单位分治求最大值。1024->512->256->128
+        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
         AscendC::printf("tkd before ReduceMaxByPair\n");
         AscendC::DumpTensor(srcUb, 1, 1024);        
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
