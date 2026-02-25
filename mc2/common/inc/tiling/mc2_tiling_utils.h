@@ -29,6 +29,7 @@
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_type.h"
 #include "../../../3rd/mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_base_tiling_advanced.h"
+#include "platform/soc_spec.h"
 
 namespace mc2tiling {
 constexpr uint32_t COMM_MESH = 0b1U;
@@ -231,7 +232,7 @@ inline ge::graphStatus GetCclBufferSize(const char* groupStr, uint64_t* cclBuffe
 }
 
 inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const char *nodeName,
-    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex)
+    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex, bool isLayered)
 {
     auto attrs = context->GetAttrs();
     if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
@@ -240,10 +241,14 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
         // A5 上前 1MB 作为状态区，剩余空间用作数据区
         maxWindowSizeEp = hcclBufferSizeEp - MTE_STATE_ZONE_SIZE;
     } else {
-        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
-        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
-            OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
-            return ge::GRAPH_FAILED);
+        if (isLayered) {
+            hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        } else {
+            auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
+            OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
+                OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
+                return ge::GRAPH_FAILED);
+        }
         maxWindowSizeEp = hcclBufferSizeEp;
     }
     return ge::GRAPH_SUCCESS;
