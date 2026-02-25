@@ -96,7 +96,7 @@ public:
         this->Input("gmmXOffsetOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化参数（offset）通常为float类型
             .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                      ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
@@ -132,7 +132,7 @@ public:
         this->Input("mmXOffsetOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化参数（offset）通常为float类型
             .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                      ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
@@ -141,7 +141,7 @@ public:
         this->Input("mmWeightOffsetOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化scale通常为float类型
+                       ge::DT_FLOAT, ge::DT_FLOAT})  // 量化参数（offset）通常为float类型
             .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                      ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
@@ -157,7 +157,7 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
-        this->Output("y")
+        this->Output("y") // 非量化场景为y
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16,
                        ge::DT_FLOAT16, ge::DT_BF16})
@@ -186,7 +186,7 @@ public:
         this->Attr("mm_weight_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("comm_quant_mode").AttrType(OPTIONAL).Int(0);
         this->Attr("group_size").AttrType(OPTIONAL).Int(0);
-        this->Attr("comm_quant_Dtype").AttrType(OPTIONAL).Int(0);
+        this->Attr("comm_quant_dtype").AttrType(OPTIONAL).Int(0);
 
         OpAICoreConfig aicore_config_910_93;
         aicore_config_910_93.DynamicCompileStaticFlag(true)
@@ -339,7 +339,7 @@ public:
                                  ge::FORMAT_ND, ge::FORMAT_ND})
             .AutoContiguous();
 
-        aicore_config_950.Output("gmm_y")
+        aicore_config_950.Output("gmm_y") // 量化场景为gmm_y
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16, ge::DT_BF16,
                        ge::DT_FLOAT16, ge::DT_BF16})
