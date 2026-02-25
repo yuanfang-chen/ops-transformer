@@ -1225,6 +1225,9 @@ bool PromptFlashAttentionTilingV2::CheckKeyValuePrefixConsistency(ContextParamsF
 
 bool PromptFlashAttentionTilingV2::CheckActSharedPrefix(ContextParamsForPFATiling& contextKeyParams,
     const uint32_t sPrefix, const uint32_t sKV) {
+    OP_CHECK_IF((contextKeyParams.actualSharedPrefixLen->GetStorageShape().GetShapeSize() <= 0),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input actualSharedPrefixLen GetShapeSize should > 0!"),
+        return false);
     size_t prefixDimNum = contextKeyParams.actualSharedPrefixLen->GetStorageShape().GetDimNum();
     OP_CHECK_IF((prefixDimNum != 1), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
         "actualSharedPrefixLen dim num(%zu) should be 1!", prefixDimNum),
@@ -2083,16 +2086,10 @@ bool PromptFlashAttentionTilingV2::CheckPrefix(ContextParamsForPFATiling& contex
         return false);
 
     // check actSharedPrefix
-    if ((contextKeyParams.actualSequenceLengthQ != nullptr && contextKeyParams.actualSequenceLengthQ->GetData<int64_t>() == nullptr) || 
-        (contextKeyParams.actualSequenceLengthKV != nullptr && contextKeyParams.actualSequenceLengthKV->GetData<int64_t>() == nullptr) || 
-        (contextKeyParams.actualSharedPrefixLen != nullptr && contextKeyParams.actualSharedPrefixLen->GetData<int64_t>() == nullptr)) {
-        isMaxWorkspacePrefix = true;
-    } else {
-        isMaxWorkspacePrefix = false;
-    }
-    if (!isMaxWorkspacePrefix && (contextKeyParams.actualSharedPrefixLen != nullptr) &&
-        (contextKeyParams.actualSharedPrefixLen->GetStorageShape().GetShapeSize() > 0) &&
-        CheckActSharedPrefix(contextKeyParams, prefixShapeInfo.s, keyShapeInfo.s)) {
+    if ((contextKeyParams.actualSharedPrefixLen != nullptr) && (contextKeyParams.actualSharedPrefixLen->GetData<int64_t>() != nullptr)) {
+        if (!CheckActSharedPrefix(contextKeyParams, prefixShapeInfo.s, keyShapeInfo.s)) {
+            return false;
+        }
         tilingData.promptAttentionBaseParams.set_isActualSharedPrefixLenNull(0);
     } else {
         tilingData.promptAttentionBaseParams.set_isActualSharedPrefixLenNull(1);
