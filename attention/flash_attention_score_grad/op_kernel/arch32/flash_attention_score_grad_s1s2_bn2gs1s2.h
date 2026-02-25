@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2023-2024 Huawei Technologies Co., Ltd.
+ * This file is a part of the CANN Open Software.
+ * Licensed under CANN Open Software License Agreement Version 1.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file flash_attention_score_grad_s1s2_bn2gs1s2.h
@@ -255,6 +255,14 @@ protected:
     int64_t gDimIdx{0};
     int64_t s1oDimIdx{0};
     int64_t s2oCvDimIdx{0};
+    int64_t totalBaseIdx{0};
+    int64_t preTotal{0};
+    int64_t bDimTail{0};
+    int64_t actualS1Len;
+    int64_t actualS2Len;
+    int64_t s1OuterTmp{0};
+    int64_t s2OuterTmp{0};
+    bool isInitIndex{false};
 
     uint32_t preS2CvBegin{0};
     uint32_t preS2CvEnd{0};
@@ -651,11 +659,11 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         uint32_t s1Extend, EvenvIdList &eventIdList)
 {
     bool isOuterPing = ((outerPingPong % 2) == 0);
-    int32_t curEventIdMte2WaitMte3 = static_cast<int32_t>(isOuterPing ?
-                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong);
+    event_t curEventIdMte2WaitMte3 = isOuterPing ?
+                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong;
     // SFMG加入到PingPong循环中，这里需要等待GraphB中的set的MTE3、2；
     if (outerPingPong > 1) {
-        AscendC::WaitFlag<HardEvent::MTE3_MTE2>(curEventIdMte2WaitMte3);
+        wait_flag(PIPE_MTE3, PIPE_MTE2, curEventIdMte2WaitMte3);
     }
 
     int64_t sfmgResultOffset = isOuterPing ? 0 : SFMG_RESULT_DB_SIZE;
@@ -686,14 +694,14 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     } else {
         CopyInSoftMaxGrad(sfmgClc1, sfmgClc2, softmaxGradFrontOffset, s1Extend, dExtend, dExtendAlign);
     }
-    int32_t vWaitMte2Pingpong = static_cast<int32_t>(isOuterPing ?
-                        eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-    AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2Pingpong);
-    AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2Pingpong);
+    event_t vWaitMte2Pingpong = isOuterPing ?
+                        eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+    set_flag(PIPE_MTE2, PIPE_V, vWaitMte2Pingpong);
+    wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2Pingpong);
     if constexpr (!IsSameType<T1, float>::value) {
         Cast(sfmgClc1, vecInBuffer, RoundMode::CAST_NONE, s1Extend * dExtendAlign);
         Cast(sfmgClc2, vecInBuffer2, RoundMode::CAST_NONE, s1Extend * dExtendAlign);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
     }
     uint32_t shapeArray[2];
     shapeArray[0] = s1Extend;
@@ -711,9 +719,9 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     } else {
         SoftmaxGradFront<float, false>(sfmgClc3, sfmgClc1, sfmgClc2, vecOutBuffer, TilingData->softmaxGradTilingData);
     }
-    int32_t mte2WaitVSfmg2A = static_cast<int32_t>(isOuterPing ?
-                              eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong);
-    AscendC::SetFlag<HardEvent::V_MTE2>(mte2WaitVSfmg2A);
+    event_t mte2WaitVSfmg2A = isOuterPing ?
+                              eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong;
+    set_flag(PIPE_V, PIPE_MTE2, mte2WaitVSfmg2A);
 }
 
 template <typename T1, typename T2, const uint32_t IS_ATTEN_MASK, const uint32_t IS_PSE, const uint32_t IS_DROP,
@@ -727,7 +735,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     LocalTensor<float> sfmgClc2 = ubBuffer.GetWithOffset<float>(32 * 1024 / sizeof(T2), 32 * 1024);
     Duplicate<float>(sfmgClc3, 0.0, s1Extend * 32 / sizeof(float));
 
-    int32_t mte2WaitV = static_cast<int32_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
+    event_t mte2WaitV = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::V_MTE2>());
     for (uint32_t sfmgdIdx = 0; sfmgdIdx < sfmgdOuter; sfmgdIdx++) {
         LocalTensor<T1> vecInBuffer;
         LocalTensor<T1> vecInBuffer2;
@@ -743,20 +751,20 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         bool isBasicBlock = (s1Extend % 8 == 0) && (dExtend % 64 == 0);
 
         if (sfmgdIdx > 0) {
-            AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
+            wait_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
         }
         if constexpr (!IsSameType<T1, float>::value) {
             CopyInSoftMaxGrad(vecInBuffer, vecInBuffer2, softmaxGradFrontOffset, s1Extend, dExtend, dExtendAlign);
         } else {
             CopyInSoftMaxGrad(sfmgClc1, sfmgClc2, softmaxGradFrontOffset, s1Extend, dExtend, dExtendAlign);
         }
-        int32_t vWaitMte2 = static_cast<int32_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-        AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-        AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+        event_t vWaitMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+        wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
         if constexpr (!IsSameType<T1, float>::value) {
             Cast(sfmgClc1, vecInBuffer, RoundMode::CAST_NONE, s1Extend * dExtendAlign);
             Cast(sfmgClc2, vecInBuffer2, RoundMode::CAST_NONE, s1Extend * dExtendAlign);
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
         }
         uint32_t shapeArray[2];
         shapeArray[0] = s1Extend;
@@ -775,14 +783,14 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
             SoftmaxGradFront<float, false>(softmaxGradTmp, sfmgClc1, sfmgClc2, vecOutBuffer,
                                            TilingData->softmaxGradTilingData);
         }
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         Add(sfmgClc3, softmaxGradTmp, sfmgClc3, s1Extend * 32 / sizeof(float));
         if (sfmgdIdx < (sfmgdOuter - 1)) {
-            AscendC::SetFlag<HardEvent::V_MTE2>(mte2WaitV);
+            set_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
         }
     }
     GetTPipePtr()->ReleaseEventID<HardEvent::V_MTE2>(mte2WaitV);
-    AscendC::PipeBarrier<PIPE_ALL>();
+    pipe_barrier(PIPE_ALL);
 }
 
 template <typename T1, typename T2, const uint32_t IS_ATTEN_MASK, const uint32_t IS_PSE, const uint32_t IS_DROP,
@@ -828,16 +836,16 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                 subMaskCount, s1Extend,
                 {static_cast<uint8_t>(1), static_cast<uint8_t>(1), 0, static_cast<uint8_t>(s2ExtendAlign / 8),
                  static_cast<uint8_t>(s2ExtendAlign / 8), 1});
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             Exp(vecOutBuffer[subIdx * cal_repeat_num], dstTensor[subIdx * cal_repeat_num], subMaskCount, s1Extend,
                 {static_cast<uint8_t>(1), static_cast<uint8_t>(1), static_cast<uint8_t>(s2ExtendAlign / 8),
                  static_cast<uint8_t>(s2ExtendAlign / 8)});
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             Div(dstTensor[subIdx * cal_repeat_num], vecOutBuffer[subIdx * cal_repeat_num], srcTensor, subMaskCount,
                 s1Extend,
                 {static_cast<uint8_t>(1), static_cast<uint8_t>(1), 0, static_cast<uint8_t>(s2ExtendAlign / 8),
                  static_cast<uint8_t>(s2ExtendAlign / 8), 1});
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
         }
     }
 }
@@ -903,6 +911,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK
             return;
         }
 
+        InitIndex(preIndex);
         int64_t blockEndsTemp = blockEnds[cBlockIdx];
         for (int64_t blockInnerIdx = blockStarts[cBlockIdx] + 1; blockInnerIdx <= blockEndsTemp; blockInnerIdx++) {
             if (isStart == 1) {
@@ -1025,50 +1034,55 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     if constexpr (INPUT_LAYOUT == TND) {
         // 安全防护，baseIdx不可小于0，防止gDimTail、s2oCvDimIdx等出现除0
         int64_t resbaseIdx = baseIdx < 0 ? 0 : baseIdx;
-        int64_t actualS1Len;
-        int64_t actualS2Len;
-        for (int64_t bIdx = 0; bIdx < b; bIdx++) {
-            GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
-            int32_t s1OuterTmp = (actualS1Len + s1CvInner - 1) / s1CvInner;
-            int32_t s2OuterTmp = (actualS2Len + s2CvInner - 1) / s2CvInner;
-            int32_t s1s2OuterTmp = s1OuterTmp * s2OuterTmp;
-            int64_t totalBaseIdx = static_cast<int64_t>(n2) * g * s1s2OuterTmp;
-            if (resbaseIdx < totalBaseIdx) {
-                int32_t gDimTail = resbaseIdx % s1s2OuterTmp;
-                int32_t s2oCvDimIdx = gDimTail / s1OuterTmp;
-                int32_t s1oDimIdx = gDimTail % s1OuterTmp;
-                int32_t s2IdxLeft = s2oCvDimIdx * s2CvInner;
-                int32_t s2IdxRight = (s2oCvDimIdx + 1) * s2CvInner < actualS2Len
-                                        ? (s2oCvDimIdx + 1) * s2CvInner
-                                        : actualS2Len;
-
-                // 6: prefix压缩，unpad只支持prefix压缩，不支持prefix
-                if (sparseMode == 6) {
-                    return CheckIsValidBlock(baseIdx, s1oDimIdx, s2oCvDimIdx, bIdx);
+        int64_t actualS1LenCur = actualS1Len;
+        int64_t actualS2LenCur = actualS2Len;
+        int64_t s1OuterTmpCur = s1OuterTmp;
+        int64_t s2OuterTmpCur = s2OuterTmp;
+        int64_t s1s2OuterTmp = s1OuterTmpCur * s2OuterTmpCur;
+        int64_t preTotalCur = preTotal;
+        int64_t totalBaseIdxTmp = totalBaseIdx;
+        if (resbaseIdx >= totalBaseIdx) {
+            for (int64_t bIdx = bDimIdx + 1; bIdx < b; bIdx++) {
+                GetSeqQlenKvlenByBidx(bIdx, actualS1LenCur, actualS2LenCur);
+                s1OuterTmpCur = (actualS1LenCur + s1CvInner - 1) / s1CvInner;
+                s2OuterTmpCur = (actualS2LenCur + s2CvInner - 1) / s2CvInner;
+                s1s2OuterTmp = s1OuterTmpCur * s2OuterTmpCur;
+                preTotalCur = totalBaseIdx;
+                totalBaseIdxTmp += static_cast<int64_t>(n2) * g * s1s2OuterTmp;
+                if (resbaseIdx < totalBaseIdxTmp) {
+                    break;
                 }
-
-                UpdateToken(bIdx);
-                int32_t s2SparseLeftPre = int64_t(s1CvInner * s1oDimIdx) - actualCalcS1Token;
-                int32_t s2SparseLeft = s2SparseLeftPre < 0 ?
-                                           0 : s2SparseLeftPre;
-                s2SparseLeft = s2SparseLeft / 64 * 64;
-                int32_t s2SparseRight = (s1CvInner * (s1oDimIdx + 1) + actualCalcS2Token + 63) / 64 * 64 < 0 ?
-                                            0 :
-                                            (s1CvInner * (s1oDimIdx + 1) + actualCalcS2Token + 63) / 64 * 64;
-                s2SparseRight = static_cast<uint32_t>(s2SparseRight)
-                                    < actualS2Len ? s2SparseRight : actualS2Len;
-                if (s2IdxLeft < s2SparseRight && s2IdxRight > s2SparseLeft) {
-                    nextS2CvBegin = s2IdxLeft < s2SparseLeft ? s2SparseLeft : s2IdxLeft;
-                    nextS2CvEnd = s2IdxRight > s2SparseRight ? s2SparseRight : s2IdxRight;
-                    return true;
-                } else {
-                    return false;
-                }
-            } else {
-                resbaseIdx -= totalBaseIdx;
             }
         }
-        return false;
+        int64_t gDimTail = (resbaseIdx - preTotalCur) % s1s2OuterTmp;
+        int64_t s2oCvDimIdx = gDimTail / s1OuterTmpCur;
+        int64_t s1oDimIdx = gDimTail % s1OuterTmpCur;
+        int64_t s2IdxLeft = s2oCvDimIdx * s2CvInner;
+        int64_t s2IdxRight = (s2oCvDimIdx + 1) * s2CvInner < actualS2LenCur
+                            ? (s2oCvDimIdx + 1) * s2CvInner
+                            : actualS2LenCur;
+
+        // 6: prefix压缩，unpad只支持prefix压缩，不支持prefix
+        if (sparseMode == 6) {
+            return CheckIsValidBlock(baseIdx, s1oDimIdx, s2oCvDimIdx, bDimIdx);
+        }
+        UpdateToken(bDimIdx);
+        int64_t s2SparseLeftPre = int64_t(s1CvInner * s1oDimIdx) - actualCalcS1Token;
+        int64_t s2SparseLeft = s2SparseLeftPre < 0 ?
+                                0 : s2SparseLeftPre;
+        s2SparseLeft = s2SparseLeft / 64 * 64;
+        int64_t s2SparseRight = (s1CvInner * (s1oDimIdx + 1) + actualCalcS2Token + 63) / 64 * 64 < 0 ?
+                                0 :
+                                (s1CvInner * (s1oDimIdx + 1) + actualCalcS2Token + 63) / 64 * 64;
+        s2SparseRight = static_cast<uint32_t>(s2SparseRight)
+                            < actualS2LenCur ? s2SparseRight : actualS2LenCur;
+        if (s2IdxLeft < s2SparseRight && s2IdxRight > s2SparseLeft) {
+            nextS2CvBegin = s2IdxLeft < s2SparseLeft ? s2SparseLeft : s2IdxLeft;
+            nextS2CvEnd = s2IdxRight > s2SparseRight ? s2SparseRight : s2IdxRight;
+            return true;
+        } else {
+            return false;
+        }
     } else {
         uint32_t gDimTail = baseIdx % s1os2o;
         uint32_t s2oCvDimIdx = gDimTail / s1Outer;
@@ -1377,7 +1391,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                  VEC_REPEAT * c1_remain, n_repeat, nz2ndParams);
         }
     }
-    AscendC::PipeBarrier<PIPE_V>();
+    pipe_barrier(PIPE_V);
 }
 
 template <typename T1, typename T2, const uint32_t IS_ATTEN_MASK, const uint32_t IS_PSE, const uint32_t IS_DROP,
@@ -1424,29 +1438,30 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK
     if constexpr (INPUT_LAYOUT == TND) {
         // 安全防护，index不可小于0，防止n2DimIdx、gDimIdx等出现除0
         int64_t resbaseIdx = index < 0 ? 0 : index;
-        int64_t actualS1Len;
-        int64_t actualS2Len;
-        for (uint32_t bIdx = 0; bIdx < b; bIdx++) {
-            GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
-            uint32_t s1OuterTmp = (actualS1Len + s1CvInner - 1) / s1CvInner;
-            uint32_t s2OuterTmp = (actualS2Len + s2CvInner - 1) / s2CvInner;
-            int64_t totalBaseIdx = static_cast<int64_t>(n2) * g * s1OuterTmp * s2OuterTmp;
-            if (resbaseIdx < totalBaseIdx) {
-                uint32_t s1CvTailTmp = actualS1Len - (s1OuterTmp - 1) * s1CvInner;
-                bDimIdx = bIdx;
-                uint32_t bDimTail = resbaseIdx;
-                n2DimIdx = bDimTail / (g * s1OuterTmp * s2OuterTmp);
-                uint32_t n2DimTail = bDimTail % (g * s1OuterTmp * s2OuterTmp);
-                gDimIdx = n2DimTail / (s1OuterTmp * s2OuterTmp);
-                uint32_t gDimTail = n2DimTail % (s1OuterTmp * s2OuterTmp);
-                s2oCvDimIdx = gDimTail / s1OuterTmp;
-                s1oDimIdx = gDimTail % s1OuterTmp;
-                s1CvExtend = (s1oDimIdx == s1OuterTmp - 1) ? s1CvTailTmp : s1CvInner;
-                break;
-            } else {
-                resbaseIdx -= totalBaseIdx;
+        if (resbaseIdx >= totalBaseIdx) {
+            bDimIdx = isInitIndex ? (bDimIdx + 1) : 0;
+            for (uint32_t bIdx = bDimIdx; bIdx < b; bIdx++) {
+                GetSeqQlenKvlenByBidx(bIdx, actualS1Len, actualS2Len);
+                s1OuterTmp = (actualS1Len + s1CvInner - 1) / s1CvInner;
+                s2OuterTmp = (actualS2Len + s2CvInner - 1) / s2CvInner;
+                preTotal = totalBaseIdx;
+                totalBaseIdx += static_cast<int64_t>(n2) * g * s1OuterTmp * s2OuterTmp;
+                if (resbaseIdx < totalBaseIdx) {
+                    bDimIdx = bIdx;
+                    break;
+                }
             }
+            isInitIndex = true;
         }
+        uint32_t s1CvTailTmp = actualS1Len - (s1OuterTmp - 1) * s1CvInner;
+        bDimTail = resbaseIdx - preTotal;
+        n2DimIdx = bDimTail / (g * s1OuterTmp * s2OuterTmp);
+        uint32_t n2DimTail = bDimTail % (g * s1OuterTmp * s2OuterTmp);
+        gDimIdx = n2DimTail / (s1OuterTmp * s2OuterTmp);
+        uint32_t gDimTail = n2DimTail % (s1OuterTmp * s2OuterTmp);
+        s2oCvDimIdx = gDimTail / s1OuterTmp;
+        s1oDimIdx = gDimTail % s1OuterTmp;
+        s1CvExtend = (s1oDimIdx == s1OuterTmp - 1) ? s1CvTailTmp : s1CvInner;
     } else {
         baseIdx = index;
         bDimIdx = baseIdx / n2gs1os2o;
@@ -1532,17 +1547,17 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     s2ExtendAlign = (s2Extend + 15) / 16 * 16;
     uint32_t s2VBegin = preS2CvBegin + curS2Idx * s2VecSize;
 
-    int32_t curEventIdMte2WaitMte3 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong);
+    event_t curEventIdMte2WaitMte3 = isPing ?
+                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong;
     uint32_t ubBufferOffset = isPing ? 0 : DbBegin;
 
     if constexpr (TND_S1_PP == ENABLE) {
-        int32_t mte2WaitVSfmg2A = static_cast<int32_t>(isPing ?
-                                  eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong);
-        AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitVSfmg2A);
+        event_t mte2WaitVSfmg2A = isPing ?
+                                  eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong;
+        wait_flag(PIPE_V, PIPE_MTE2, mte2WaitVSfmg2A);
     } else {
         if (curIdx > 1) {
-            AscendC::WaitFlag<HardEvent::MTE3_MTE2>(curEventIdMte2WaitMte3);
+            wait_flag(PIPE_MTE3, PIPE_MTE2, curEventIdMte2WaitMte3);
         }
     }
 
@@ -1638,7 +1653,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         ubBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + U8Begin);
     if constexpr (IS_DROP == ENABLE) {
         if constexpr (IsSameType<T1, float>::value) {
-            AscendC::PipeBarrier<PIPE_ALL>();
+            pipe_barrier(PIPE_ALL);
         }
         DropOutCopy(vecInDropBuffer, curS1Idx, s2VBegin);
     }
@@ -1655,20 +1670,20 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                          static_cast<uint16_t>((s2CvExtendAlign - s2ExtendAlign) * sizeof(float)), 0},
                         {false, 0, 0, 0});
         }
-        int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-        AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-        AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+        event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+        set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+        wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
     } else {
         int64_t mmAddr = curS1Idx * s1VecSize * C0_SIZE + curS2Idx * s1CvExtend * s2VecSizeAlign;
         NZCopyIn(mmAddr, mm2WorkspaceGm, vecClc2Buffer, s1VecSize, s2ExtendAlign);
-        int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-        AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-        AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+        event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+        set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+        wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
         auto tmpTensor = tmpBuffer.Get<T2>();
         DataCopy(tmpTensor, vecClc2Buffer, s1VecSize * s2ExtendAlign + s2ExtendAlign / C0_SIZE * VEC_REPEAT);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         NZ2ND(vecClc2Buffer, tmpTensor, s1VecSize, s2ExtendAlign);
     }
 
@@ -1678,7 +1693,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     // pse shape  0--BN2G1S2    1--BN2GS1S2
     if constexpr (IS_PSE == ENABLE) {
         if (TilingData->s1s2BNGS1S2BaseParams.pseType != (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
             s1ExtendSubGraph * s2ExtendAlign);
         }
@@ -1693,31 +1708,31 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
             if constexpr (!IsSameType<T1, float>::value) {
                 uint32_t calculateRowsAlign = (s2Extend + input_block_num - 1) / input_block_num * input_block_num;
                 Cast(castTensor, pseUbT1, RoundMode::CAST_NONE, repeatTimes * calculateRowsAlign);
-                AscendC::PipeBarrier<PIPE_V>();
+                pipe_barrier(PIPE_V);
             } else {
-                int32_t mte2WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong);
-                AscendC::SetFlag<HardEvent::V_MTE2>(mte2WaitV);
-                AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
+                event_t mte2WaitV = isPing ?
+                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong;
+                set_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
+                wait_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
                 if constexpr (INPUT_LAYOUT == TND) {
                     PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_TND, true>(castTensor, castTensor, this->pseGm, pseInfo);
                 } else {
                     PseCopyIn<T1, T2, LayOutTypeEnum::LAYOUT_BNSD, true>(castTensor, castTensor, this->pseGm, pseInfo);
                 }
-                int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-                AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-                AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+                event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+                set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+                wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
             }
         } else {
             PseSlopeCast<T2, true>(castTensor, pseUb, pseSlope, pseInfo);
         }
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         PseCompute<T2, true>(vecClc2Buffer, castTensor, pseInfo);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
     }
     if (TilingData->s1s2BNGS1S2BaseParams.pseType == (uint32_t)PseTypeEnum::PSE_OUTER_ADD_MUL_TYPE) {
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         Muls(vecClc2Buffer, vecClc2Buffer, (T2)(TilingData->s1s2BNGS1S2BaseParams.scaleValue),
             s1ExtendSubGraph * s2ExtendAlign);
     }
@@ -1727,7 +1742,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     // attenMaskOffset     attenMaskShapeType  0--111S1S2        1--B11S1S2         2--BN2GS1S2
     if constexpr (IS_ATTEN_MASK == ENABLE) {
         int64_t compressMode = TilingData->s1s2BNGS1S2BaseParams.attenMaskCompressMode;
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
 
         if (compressMode == 4) { // 4: prefix compress
             if (prefixCompressCanSimplify == false) {
@@ -1737,20 +1752,20 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                 uint32_t s2ExtendPadAlign = (s2Extend + 31) / 32 * 32; // attenmask做pad时会32对齐，故加31/32做ceil
                 int32_t maskNum = s1ExtendSubGraph * s2ExtendPadAlign / 2; // 除2数据量按照uint16类型折半
 
-                int32_t mte2WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong);
-                AscendC::SetFlag<HardEvent::V_MTE2>(mte2WaitV);
-                AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
+                event_t mte2WaitV = isPing ?
+                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong;
+                set_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
+                wait_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
                 CopyInAttenMaskBool(attenMaskUbPreuint8, attenMaskOffsetPre, s1ExtendSubGraph, s2Extend);
 
-                int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-                AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-                AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+                event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+                set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+                wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
                 auto attenMaskUbuint8Tmp = attenMaskUbuint8.ReinterpretCast<uint16_t>();
                 auto attenMaskUbPreuint8Tmp = attenMaskUbPreuint8.ReinterpretCast<uint16_t>();
                 And(attenMaskUbuint8Tmp, attenMaskUbPreuint8Tmp, attenMaskUbuint8Tmp, maskNum);
-                AscendC::PipeBarrier<PIPE_V>();
+                pipe_barrier(PIPE_V);
                 attenMaskUbuint8 = attenMaskUbuint8Tmp.ReinterpretCast<uint8_t>();
             }
         }
@@ -1763,15 +1778,15 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         }
 
         if ((compressMode == 3 || unpadUseBand) && AttenBandMode == AttenMaskCompress::All) { // 3: band
-            int32_t mte2WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong);
-            AscendC::SetFlag<HardEvent::V_MTE2>(mte2WaitV);
-            AscendC::WaitFlag<HardEvent::V_MTE2>(mte2WaitV);
+            event_t mte2WaitV = isPing ?
+                                     eventIdList.structMte2WaitVPing : eventIdList.structMte2WaitVPong;
+            set_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
+            wait_flag(PIPE_V, PIPE_MTE2, mte2WaitV);
             CopyInAttenMaskBool(attenMaskUbuint8, attenMaskOffsetPre, s1ExtendSubGraph, s2Extend);
-            int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-            AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-            AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+            event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+            set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+            wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
             CalcAttenMaskBool(vecClc2Buffer, attenMaskUbuint8, s1ExtendSubGraph, s2ExtendAlign, 1);
         }
     }
@@ -1779,7 +1794,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     ///////////////////////////////////////////////////////////////
     // simpleSoftMax
     ///////////////////////////////////////////////////////////////
-    AscendC::PipeBarrier<PIPE_V>();
+    pipe_barrier(PIPE_V);
     CalcSoftMax(vecClc2Buffer, vecInBuffer3, s1ExtendSubGraph, s2Extend, s2ExtendAlign, TilingData->softmaxTilingData);
 
     ///////////////////////////////////////////////////////////////
@@ -1788,7 +1803,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     LocalTensor<T2> vecDropBuffer = vecClc2Buffer;
     if constexpr (IS_DROP == ENABLE) {
         vecDropBuffer = tmpBuffer.GetWithOffset<T2>(32 * 1024 / sizeof(T2), 0);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         LocalTensor<uint8_t> tmpDropBuffer =
             ubBuffer.GetWithOffset<uint8_t>(32 * 1024 / sizeof(uint8_t), ubBufferOffset + T1Begin);
 
@@ -1797,7 +1812,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         dropMaskInfo.maskLstAxis = s2ExtendAlign;
         ComputeDropMask<T2, true>(vecDropBuffer, vecClc2Buffer, vecInDropBuffer, tmpDropBuffer, this->dropMaskInfo);
         if constexpr (IsSameType<T1, float>::value) {
-            AscendC::PipeBarrier<PIPE_ALL>();
+            pipe_barrier(PIPE_ALL);
         }
     }
 
@@ -1807,21 +1822,21 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     LocalTensor<T1> vecOut1Buffer1;
     if constexpr (!IsSameType<T1, float>::value) {
         vecOut1Buffer1 = ubBuffer.GetWithOffset<T1>(17 * 1024 / sizeof(T1), ubBufferOffset + T1Begin);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         Cast(vecOut1Buffer1, vecDropBuffer, RoundMode::CAST_ROUND, s1ExtendSubGraph * s2ExtendAlign);
     }
     if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         LocalTensor<T1> tmpTensor = tmpBuffer.Get<T1>();
         if constexpr (!IsSameType<T1, float>::value) {
             DataCopy(tmpTensor, vecOut1Buffer1, s1ExtendSubGraph * s2ExtendAlign);
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             ND2NZ(vecOut1Buffer1, tmpTensor, s1ExtendSubGraph, s2ExtendAlign);
 
-            int32_t mte3WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong);
-            AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
-            AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
+            event_t mte3WaitV = isPing ?
+                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong;
+            set_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
+            wait_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
             DataCopyPad(dropWorkSpaceGm[pingpongIdx * coreNum * cubeBaseMN + cBlockIdx * cubeBaseMN +
                                         curS1Idx * s1VecSize * C0_SIZE + curS2Idx * s1CvExtendAlign * s2VecSize],
                         vecOut1Buffer1,
@@ -1830,13 +1845,13 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                         static_cast<uint16_t>((s1CvExtendAlign - s1ExtendSubGraph) * C0_SIZE * sizeof(T1))});
         } else {
             DataCopy(tmpTensor, vecDropBuffer, s1ExtendSubGraph * s2ExtendAlign);
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             ND2NZ(vecDropBuffer, tmpTensor, s1ExtendSubGraph, s2ExtendAlign);
 
-            int32_t mte3WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong);
-            AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
-            AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
+            event_t mte3WaitV = isPing ?
+                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong;
+            set_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
+            wait_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
             DataCopyPad(dropWorkSpaceGm[pingpongIdx * coreNum * cubeBaseMN + cBlockIdx * cubeBaseMN +
                                         curS1Idx * s1VecSize * C0_SIZE + curS2Idx * s1CvExtendAlign * s2VecSize],
                         vecDropBuffer,
@@ -1845,10 +1860,10 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                         static_cast<uint16_t>((s1CvExtendAlign - s1ExtendSubGraph) * C0_SIZE * sizeof(T1))});
         }
     } else {
-        int32_t mte3WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong);
-        AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
-        AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
+        event_t mte3WaitV = isPing ?
+                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong;
+        set_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
+        wait_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
         if constexpr (!IsSameType<T1, float>::value) {
                 DataCopyPad(dropWorkSpaceGm[pingpongIdx * coreNum * cubeBaseMN + cBlockIdx * cubeBaseMN +
                                     curS1Idx * s1VecSize * s2CvExtendAlign + curS2Idx * s2VecSize],
@@ -1863,7 +1878,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                      static_cast<uint16_t>((s2CvExtendAlign - s2ExtendAlign) * sizeof(T1))});
         }
     }
-    AscendC::SetFlag<HardEvent::MTE3_MTE2>(curEventIdMte2WaitMte3);
+    set_flag(PIPE_MTE3, PIPE_MTE2, curEventIdMte2WaitMte3);
 }
 
 template <typename T1, typename T2, const uint32_t IS_ATTEN_MASK, const uint32_t IS_PSE, const uint32_t IS_DROP,
@@ -1874,13 +1889,13 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                                     EvenvIdList &eventIdList)
 {
     bool isPing = ((curIdx % 2) == 0);
-    int32_t curEventId = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong);
+    event_t curEventId = isPing ?
+                                     eventIdList.structMte2WaitMte3Ping : eventIdList.structMte2WaitMte3Pong;
     uint32_t ubBufferOffset = isPing ? 0 : DbBegin;
     s2Extend = (curS2Idx == s2VecLoop - 1) ? (s2CvExtend - (s2VecLoop - 1) * s2VecSize) : s2VecSize;
     s2ExtendAlign = (s2Extend + 15) / 16 * 16;
 
-    AscendC::WaitFlag<HardEvent::MTE3_MTE2>(curEventId);
+    wait_flag(PIPE_MTE3, PIPE_MTE2, curEventId);
 
     LocalTensor<uint8_t> vecInDropBuffer =
         ubBuffer.GetWithOffset<uint8_t>(8 * 1024 / sizeof(uint8_t), ubBufferOffset + U8Begin);
@@ -1888,7 +1903,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         int64_t s2VBegin = preS2CvBegin + curS2Idx * s2VecSize;
         DropOutCopy(vecInDropBuffer, curS1Idx, s2VBegin);
         if constexpr (IsSameType<T1, float>::value) {
-            AscendC::PipeBarrier<PIPE_ALL>();
+            pipe_barrier(PIPE_ALL);
         }
     }
 
@@ -1903,20 +1918,20 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
                          static_cast<uint16_t>((s2CvExtendAlign - s2ExtendAlign) * sizeof(float)), 0},
                         {false, 0, 0, 0});
         }
-        int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-        AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-        AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+        event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+        set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+        wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
     } else {
         int64_t mmAddr = curS1Idx * s1VecSize * C0_SIZE + curS2Idx * s1CvExtend * s2VecSizeAlign;
         NZCopyIn(mmAddr, mm1WorkspaceGm, vecClc1Buffer, s1VecSize, s2ExtendAlign);
-        int32_t vWaitMte2 = static_cast<int32_t>(isPing ?
-                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong);
-        AscendC::SetFlag<HardEvent::MTE2_V>(vWaitMte2);
-        AscendC::WaitFlag<HardEvent::MTE2_V>(vWaitMte2);
+        event_t vWaitMte2 = isPing ?
+                                     eventIdList.structVWaitMte2Ping : eventIdList.structVWaitMte2Pong;
+        set_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
+        wait_flag(PIPE_MTE2, PIPE_V, vWaitMte2);
         auto tmpTensor = tmpBuffer.Get<T2>();
         DataCopy(tmpTensor, vecClc1Buffer, s1VecSize * s2ExtendAlign + s2ExtendAlign / C0_SIZE * VEC_REPEAT);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         NZ2ND(vecClc1Buffer, tmpTensor, s1VecSize, s2ExtendAlign);
     }
 
@@ -1946,7 +1961,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         sfmgClc3 = vecClc3.Get<float>();
     }
 
-    AscendC::PipeBarrier<PIPE_V>();
+    pipe_barrier(PIPE_V);
     for (uint32_t subIdx = 0; subIdx < sub_block_cout; subIdx++) {
         uint32_t subMaskCout =
             (subIdx == sub_block_cout - 1) ? (s2ExtendAlign - subIdx * cal_repeat_num) : cal_repeat_num;
@@ -1959,33 +1974,33 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     ///////////////////////////////////////////////////////////////
     // mul
     ///////////////////////////////////////////////////////////////
-    AscendC::PipeBarrier<PIPE_V>();
+    pipe_barrier(PIPE_V);
     LocalTensor<float> vecClc2Buffer =
         ubBuffer.GetWithOffset<float>(32 * 1024 / sizeof(float), ubBufferOffset + T2Begin);
     Mul(vecClc1Buffer, vecClc1Buffer, vecClc2Buffer, s1ExtendSubGraph * s2ExtendAlign);
     LocalTensor<T1> vecOutBuffer;
     if constexpr (!IsSameType<T1, float>::value) {
         vecOutBuffer = ubBuffer.GetWithOffset<T1>(17 * 1024 / sizeof(T1), ubBufferOffset + T1Begin);
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         Cast(vecOutBuffer, vecClc1Buffer, RoundMode::CAST_ROUND, s1ExtendSubGraph * s2ExtendAlign);
     }
     if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
-        AscendC::PipeBarrier<PIPE_V>();
+        pipe_barrier(PIPE_V);
         auto tmpTensor1 = tmpBuffer.Get<T1>();
         if constexpr (IsSameType<T1, float>::value) {
             DataCopy(tmpTensor1, vecClc1Buffer, s1ExtendSubGraph * s2ExtendAlign);
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             ND2NZ(vecClc1Buffer, tmpTensor1, s1ExtendSubGraph, s2ExtendAlign);
         } else {
             DataCopy(tmpTensor1, vecOutBuffer, s1ExtendSubGraph * s2ExtendAlign);
-            AscendC::PipeBarrier<PIPE_V>();
+            pipe_barrier(PIPE_V);
             ND2NZ(vecOutBuffer, tmpTensor1, s1ExtendSubGraph, s2ExtendAlign);
         }
 
-        int32_t mte3WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong);
-        AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
-        AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
+        event_t mte3WaitV = isPing ?
+                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong;
+        set_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
+        wait_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
 
         if constexpr(IsSameType<T1, float>::value){
             DataCopyPad(mulWorkSpaceGm[pingpongIdx * coreNum * cubeBaseMN + cBlockIdx * cubeBaseMN +
@@ -2003,10 +2018,10 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
             static_cast<uint16_t>((s1CvExtendAlign - s1ExtendSubGraph) * C0_SIZE * sizeof(T1))});
         }
     } else {
-        int32_t mte3WaitV = static_cast<int32_t>(isPing ?
-                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong);
-        AscendC::SetFlag<HardEvent::V_MTE3>(mte3WaitV);
-        AscendC::WaitFlag<HardEvent::V_MTE3>(mte3WaitV);
+        event_t mte3WaitV = isPing ?
+                                     eventIdList.structMte3WaitVPing : eventIdList.structMte3WaitVPong;
+        set_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
+        wait_flag(PIPE_V, PIPE_MTE3, mte3WaitV);
 
         if constexpr(IsSameType<T1, float>::value) {
                DataCopyPad(mulWorkSpaceGm[pingpongIdx * coreNum * cubeBaseMN + cBlockIdx * cubeBaseMN +
@@ -2024,7 +2039,7 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
     }
 
     if ((s1VecLoop * s2VecLoop > 2) && (curIdx < (s1VecLoop * s2VecLoop - 2))) {
-        AscendC::SetFlag<HardEvent::MTE3_MTE2>(curEventId);
+        set_flag(PIPE_MTE3, PIPE_MTE2, curEventId);
     }
 }
 
@@ -2403,7 +2418,7 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK
             s1ExtendSubGraph = (curS1Idx == s1VecLoop - 1) ? (s1CvExtend - (s1VecLoop - 1) * s1VecSize) : s1VecSize;
             dropMaskInfo.s1CopySize = s1ExtendSubGraph;
             if (s1CvRatio > 1) {
-                AscendC::PipeBarrier<PIPE_ALL>();
+                pipe_barrier(PIPE_ALL);
                 int64_t sfmgOffset = 0;
                 if constexpr (INPUT_LAYOUT == TND) {
                     if (bDimIdxTmp > 0) {
