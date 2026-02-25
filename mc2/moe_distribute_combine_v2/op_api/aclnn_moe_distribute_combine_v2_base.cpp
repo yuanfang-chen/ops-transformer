@@ -14,6 +14,7 @@
  */
 
 
+#include <vector>
 #include <algorithm>
 #include "op_mc2.h"
 #include "op_mc2_def.h"
@@ -40,7 +41,7 @@ extern "C" {
 
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 extern "C" void NnopbaseSetUserHandle(void *executor, void *handle);
-extern "C" void* NnopbaseGetUserHandle(void *executor);
+extern "C" void *NnopbaseGetUserHandle(void *executor);
 
 // host侧通信资源准备
 extern uint32_t AscCommResPrepare(const char *group, const std::string &opName, void *ascCommArgs,
@@ -231,48 +232,31 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
         }
         if (mc2Context.epRankSize > 1) {
             const uint32_t channelNum = mc2Context.epRankSize - 1;
-            HcclChannelDesc *descs = new (std::nothrow) HcclChannelDesc[channelNum];
-            ChannelHandle *ch = new (std::nothrow) ChannelHandle[channelNum];
-            if (descs == nullptr || ch == nullptr) {
-                delete[] descs;
-                delete[] ch;
-                OP_LOGE(ACLNN_ERR_INNER, "Alloc Channel Desc Failed.");
-                return ACLNN_ERR_INNER;
-            }
-            res = HcclChannelDescInit(descs, channelNum);
-            if (res != ACLNN_SUCCESS) {
-                delete[] descs;
-                delete[] ch;
-                CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Desc Init Failed.");
-            }
+            std::vector<HcclChannelDesc> channelDesc(channelNum);
+            res = HcclChannelDescInit(channelDesc, channelNum);
+            CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl ChannelDesc Init Failed.");
             uint32_t idx = 0;
             for (uint32_t r = 0; r < mc2Context.epRankSize; ++r) {
                 if (r != (uint32_t)mc2Context.epRankId) {
-                    descs[idx++].remoteRank = r;
+                    channelDesc[idx++].remoteRank = r;
+                    channelDesc[idx++].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+                    channelDesc[idx++].notifyNum = 3;
                 }
             }
-            res = HcclChannelAcquire(hcclHandle, commEngine, descs, channelNum, ch);
-            if (res != ACLNN_SUCCESS) {
-                delete[] descs;
-                delete[] ch;
-                CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Acquire Failed.");
-            }
+            std::vector<ChannelHandle> channels(channelNum);
+            res = HcclChannelAcquire(hcclHandle, commEngine, channelDesc.data(), channelNum, channels.data());
+            CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Acquire Failed.");
+
             for (uint32_t i = 0; i < channelNum; ++i) {
-                void *buf = nullptr;
+                void *bufAddr = nullptr;
                 uint64_t bufSize = 0;
-                res = HcclChannelGetHcclBuffer(hcclHandle, ch[i], &buf, &bufSize);
-                if (res != ACLNN_SUCCESS) {
-                    delete[] descs;
-                    delete[] ch;
-                    CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Get HcclBuffer Failed.");
-                }
-                uint32_t remoteRank = descs[i].remoteRank;
+                res = HcclChannelGetHcclBuffer(hcclHandle, channels[i], &bufAddr, &bufSize);
+                CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Channel Get HcclBuffer Failed.");
+                uint32_t remoteRank = channelDesc[i].remoteRank;
                 if (remoteRank < HCCL_HOST_KFC_MAX_RANK_NUM) {
-                    mc2Context.epHcclBuffer_[remoteRank] = (uint64_t)buf;
+                    mc2Context.epHcclBuffer_[remoteRank] = (uint64_t)bufAddr;
                 }
             }
-            delete[] descs;
-            delete[] ch;
         }
         // BuildKfcContext();
         const uint64_t dstCtxOffset = 0; // 全部拷贝，偏移为0
@@ -283,8 +267,8 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
     uint64_t bytes = sizeof(Mc2MoeContext);
     int64_t shape[1] = {(int64_t)(bytes / sizeof(uint32_t))};
     int64_t strides[1] = {1};
-    mc2TensorOut =
-        aclCreateTensor(shape, 1, aclDataType::ACL_UINT32, strides, 0, aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
+    mc2TensorOut = aclCreateTensor(shape, 1, aclDataType::ACL_UINT32, strides, 0, 
+                                    aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
     if (mc2TensorOut == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, " Create mc2Context Tensor Failed.");
         return ACLNN_ERR_INNER;
