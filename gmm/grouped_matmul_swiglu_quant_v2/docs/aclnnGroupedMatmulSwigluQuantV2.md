@@ -153,6 +153,50 @@
 
           $Q_{i} = \left\lfloor \frac{S_{i}}{Q\_scale_{i}} \right\rceil$
     </details>
+    <details>
+    <summary>量化场景A4W4（A指激活矩阵，W指权重矩阵，4指INT4数据类型）：</summary>
+    <a id="量化场景A4W4"></a>
+
+      - **定义**：
+
+        * **⋅** 表示矩阵乘法。
+        * **⊙** 表示逐元素乘法。
+        * \(\left \lfloor x\right \rceil\) 表示将x四舍五入到最近的整数。
+        * \(\mathbb{Z_4} = \{ x \in \mathbb{Z} | −8≤x≤7 \}\)
+        * \(\mathbb{Z_8} = \{ x \in \mathbb{Z} | −128≤x≤127 \}\)
+        * \(\mathbb{Z_{32}} = \{ x \in \mathbb{Z} | -2147483648≤x≤2147483647 \}\)
+      - **输入**：
+
+        * \(X∈\mathbb{Z_4}^{M \times K}\)：激活矩阵（左矩阵），M是总token数，K是特征维度。
+        * \(W∈\mathbb{Z_4}^{E \times K \times N}\)：分组权重矩阵（右矩阵），E是专家个数，K是特征维度，N是输出维度。
+        * \(w\_scale∈\mathbb{R}^{E \times N}\)：分组权重矩阵（右矩阵）的逐通道缩放因子，E是专家个数，N是输出维度。
+        * \(x\_scale∈\mathbb{R}^{M}\)：激活矩阵（左矩阵）的逐 token缩放因子，M是总token数。
+        * \(smoothScale∈\mathbb{R}^{M}\)：平滑缩放因子，M是总token数。
+        * \(grouplist∈\mathbb{N}^{E}\)：cumsum或count的分组索引列表。
+      - **输出**：
+
+        * \(Q∈\mathbb{Z_8}^{M \times N / 2}\)：量化后的输出矩阵。
+        * \(Q\_scale∈\mathbb{R}^{M}\)：量化缩放因子。
+
+      - **计算过程**
+
+        - 1.根据groupList[i]确定当前分组的 token ，\(i \in [0,Len(groupList)]\)。
+          - 分组逻辑与A8W8相同。
+
+        - 2.根据分组确定的入参进行如下计算：
+
+          \(C_{i} = (X_{i}\cdot W_{i} )\odot x\_scale_{i\ Broadcast} \odot w\_scale_{i\ Broadcast} \odot smoothScale_{i\ Broadcast}\)
+
+          \(C_{i,act}, gate_{i} = split(C_{i})\)
+
+          \(S_{i}=Swish(C_{i,act})\odot gate_{i}\)  &nbsp;&nbsp;其中\(Swish(x)=\frac{x}{1+e^{-x}}\)
+
+        - 3.量化输出结果
+
+          \(Q\_scale_{i} = \frac{max(|S_{i}|)}{127}\)
+
+          \(Q_{i} = \left\lfloor \frac{S_{i}}{Q\_scale_{i}} \right\rceil\)
+    </details>
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
     <details>
@@ -299,7 +343,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td rowspan="1">输入</td>
         <td>表示左矩阵，对应公式中的X。</td>
         <td>不支持空tensor。</td>
-        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8、HIFLOAT8</td>
+        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8、INT4、INT32、HIFLOAT8</td>
         <td>ND</td>
         <td>2，形如(M, K)</td>
         <td>√</td>
@@ -367,12 +411,15 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       <tr>
         <td>smoothScale</td>
         <td rowspan="1">可选输入</td>
-        <td>表示左矩阵的的量化因子。</td>
-        <td>预留输入，暂不支持，需要传空指针。</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
+        <td>表示左矩阵的平滑缩放因子。</td>
+        <td><ul>
+        <li>在A4W4场景下必填，其他场景需传空指针。</li>
+        <li>长度需与xScale的长度相等。</li>
+        </ul></td>
+        <td>FLOAT</td>
+        <td>ND</td>
+        <td>1</td>
+        <td>√</td>
       </tr>
       <tr>
         <td>groupList</td>
@@ -494,8 +541,8 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
     </table>
 
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-      - weight仅支持非转置，INT32为A8W4场景下的适配用途，实际1个INT32会被解释为8个INT4数据，A8W8场景不支持ND数据格式。
-      - 支持dequantMode参数：A8W4场景支持取值0和1，A8W8场景仅支持取值0。
+      - weight仅支持非转置，INT32为A8W4和A4W4场景下的适配用途，实际1个INT32会被解释为8个INT4数据，A8W8场景不支持ND数据格式。
+      - 支持dequantMode参数：A8W4场景支持取值0和1，A8W8和A4W4场景仅支持取值0。
       - 不支持dequantDtype和quantMode参数。
     - <term>Ascend 950PR/Ascend 950DT</term>：
       - weight支持转置，仅支持ND格式。
@@ -583,13 +630,14 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
   - 确定性计算：
       - aclnnGroupedMatmulSwigluQuantV2默认为确定性实现。
   - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>、<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    - A8W8/A8W4量化场景下需满足以下约束条件：
+    - A8W8/A8W4/A4W4量化场景下需满足以下约束条件：
         - 数据类型需要满足下表：
           <table style="undefined;table-layout: fixed; width: 1134px"><colgroup>
           <col style="width: 130px">
           <col style="width: 130px">
           <col style="width: 300px">
           <col style="width: 300px">
+          <col style="width: 130px">
           <col style="width: 130px">
           <col style="width: 130px">
           <col style="width: 130px">
@@ -601,6 +649,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <th>weight</th>
               <th>weightScale</th>
               <th>xScale</th>
+              <th>smoothScale</th>
               <th>output</th>
               <th>outputScale</th>
             </tr></thead>
@@ -611,6 +660,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <td>INT8</td>
               <td>FLOAT、FLOAT16、BFLOAT16</td>
               <td>FLOAT</td>
+              <td>-</td>
               <td>INT8</td>
               <td>FLOAT</td>
             </tr>
@@ -619,6 +669,17 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <td>INT8</td>
               <td>INT4、INT32</td>
               <td>UINT64</td>
+              <td>FLOAT</td>
+              <td>-</td>
+              <td>INT8</td>
+              <td>FLOAT</td>
+            </tr>
+            <tr>
+              <td>A4W4</td>
+              <td>INT4、INT32</td>
+              <td>INT4、INT32</td>
+              <td>FLOAT</td>
+              <td>FLOAT</td>
               <td>FLOAT</td>
               <td>INT8</td>
               <td>FLOAT</td>
@@ -635,6 +696,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
           <col style="width: 130px">
           <col style="width: 130px">
           <col style="width: 130px">
+          <col style="width: 130px">
           </colgroup>
           <thead>
             <tr>
@@ -643,6 +705,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <th>weight</th>
               <th>weightScale</th>
               <th>xScale</th>
+              <th>smoothScale</th>
               <th>output</th>
               <th>outputScale</th>
             </tr></thead>
@@ -653,6 +716,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <td>NZ格式shape形如{(E, N / 32, K / 16, 16, 32)}</td>
               <td>{(E, N)}</td>
               <td>(M,)</td>
+              <td>-</td>
               <td>(M, N / 2)</td>
               <td>(M,)</td>
             </tr>
@@ -667,6 +731,20 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
               <li>per-channel场景shape形如{(E, N)}</li>
               <li>per-group场景shape形如{(E, K_group_num, N)}</li></td>
               <td>(M,)</td>
+              <td>-</td>
+              <td>(M, N / 2)</td>
+              <td>(M,)</td>
+            </tr>
+            <tr>
+              <td>A4W4</td>
+              <td>(M, K)</td>
+              <td><ul>
+              <li>ND格式shape形如{(E, K, N)}</li>
+              <li>NZ格式且INT4时shape形如{(E, N / 64, K / 16, 16, 64)}</li>
+              <li>NZ格式且INT32时shape形如{(E, N / 64, K / 16, 16, 8)}</li></td>
+              <td>{(E, N)}</td>
+              <td>(M,)</td>
+              <td>(M,)</td>
               <td>(M, N / 2)</td>
               <td>(M,)</td>
             </tr>
@@ -675,6 +753,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
       - A8W8场景下，不支持N轴长度超过10240，不支持x的尾轴长度大于等于65536。
       - A8W4场景下，不支持N轴长度超过10240，不支持x的尾轴长度大于等于20000。
+      - A4W4场景下，不支持N轴长度超过10240，不支持x的尾轴长度大于等于20000。
       
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
