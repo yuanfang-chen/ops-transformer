@@ -38,9 +38,13 @@ constexpr size_t INDEX_ATTR_TRANS_X2 = 9;
 constexpr size_t INDEX_ATTR_TRANS_X1 = 8;
 constexpr size_t INDEX_ATTR_GROUP_SIZE = 10;
 constexpr size_t INDEX_OUT = 0;
-constexpr uint64_t X1_QUANT_MODE_NUM = 3;
-constexpr uint64_t X2_QUANT_MODE_NUM = 2;
-    
+// kc量化模式
+constexpr uint64_t X1_PERTOKEN_QUANT_MODE_NUM = 3;
+constexpr uint64_t X2_PERCHANNEL_QUANT_MODE_NUM = 2;
+// mx量化模式
+constexpr uint64_t X1_MX_QUANT_MODE_NUM = 6;
+constexpr uint64_t X2_MX_QUANT_MODE_NUM = 6;
+
 const char* MatmulAlltoAllInfo = "MatmulAlltoAllFallback";
 
 // 公共输入参数结构体
@@ -92,9 +96,22 @@ inline ge::graphStatus GetCommonMatmulInputPara(const gert::OpExecuteContext* ho
     para.x1_acl = ConvertMmType(x1, false);
     OPS_CHECK(para.x1_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x1_acl is null"), return ge::GRAPH_FAILED);
 
-    const bool* transX2Ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
-    const bool x2Trans = (transX2Ptr != nullptr ? *transX2Ptr : false);
-    para.x2_acl = ConvertMmType(x2, x2Trans);
+    // 获取x1_quant_mode和x2_quant_mode
+    const int64_t* x1QuantMode_ptr = attrs->GetInt(INDEX_ATTR_X1_QUANT_MODE);
+    const int64_t x1QuantMode = (x1QuantMode_ptr != nullptr ? *x1QuantMode_ptr : 0);
+    const int64_t* x2QuantMode_ptr = attrs->GetInt(INDEX_ATTR_X2_QUANT_MODE);
+    const int64_t x2QuantMode = (x2QuantMode_ptr != nullptr ? *x2QuantMode_ptr : 0);
+
+    if (x1QuantMode == X1_MX_QUANT_MODE_NUM && x2QuantMode == X2_MX_QUANT_MODE_NUM) {
+        // 适配fusion pass的.t()场景，这里固定传false
+        para.x2_acl = ConvertMmType(x2, false);
+    } else {
+        // x1QuantMode == X1_DYN_PERTOKEN_QUANT_MODE_NUM && x2QuantMode == X2_PERCHANNEL_QUANT_MODE_NUM
+        // x1QuantMode == 0 && x2QuantMode == 0
+        const bool* trans_x2_ptr = attrs->GetBool(static_cast<size_t>(INDEX_ATTR_TRANS_X2));
+        const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
+        para.x2_acl = ConvertMmType(x2, x2_trans);
+    }
     OPS_CHECK(para.x2_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
@@ -175,9 +192,23 @@ inline ge::graphStatus GetQuantMatmulPara(const gert::OpExecuteContext* host_api
     const auto x2_scale = host_api_ctx->GetOptionalInputTensor(INDEX_IN_X2_SCALE);
     OPS_CHECK(x2_scale == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2scale is null"), return ge::GRAPH_FAILED);
     const auto attrs = host_api_ctx->GetAttrs();
-    const bool* transX2Ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
-    const bool x2Trans = (transX2Ptr != nullptr ? *transX2Ptr : false);
-    para.x2_scale_acl = ConvertMmType(x2_scale, x2Trans);
+
+    // 获取x1_quant_mode和x2_quant_mode
+    const int64_t* x1QuantMode_ptr = attrs->GetInt(INDEX_ATTR_X1_QUANT_MODE);
+    const int64_t x1QuantMode = (x1QuantMode_ptr != nullptr ? *x1QuantMode_ptr : 0);
+    const int64_t* x2QuantMode_ptr = attrs->GetInt(INDEX_ATTR_X2_QUANT_MODE);
+    const int64_t x2QuantMode = (x2QuantMode_ptr != nullptr ? *x2QuantMode_ptr : 0);
+
+    if (x1QuantMode == X1_MX_QUANT_MODE_NUM && x2QuantMode == X2_MX_QUANT_MODE_NUM) {
+        // 适配fusion pass的.t()场景，这里固定传false
+        para.x2_scale_acl = ConvertMmType(x2_scale, false);
+    } else {
+        // x1QuantMode == X1_DYN_PERTOKEN_QUANT_MODE_NUM && x2QuantMode == X2_PERCHANNEL_QUANT_MODE_NUM
+        // x1QuantMode == 0 && x2QuantMode == 0
+        const bool* trans_x2_ptr = attrs->GetBool(INDEX_ATTR_TRANS_X2);
+        const bool x2_trans = (trans_x2_ptr != nullptr ? *trans_x2_ptr : false);
+        para.x2_scale_acl = ConvertMmType(x2_scale, x2_trans);
+    }
     OPS_CHECK(para.x2_scale_acl == nullptr, OP_LOGE(host_api_ctx->GetNodeName(), "x2_scale_acl is null"), return ge::GRAPH_FAILED);
 
     return ge::SUCCESS;
@@ -225,7 +256,8 @@ static ge::graphStatus MatmulAlltoAllExecuteFunc(gert::OpExecuteContext* host_ap
         OPS_ERR_IF(ret != ge::GRAPH_SUCCESS,
                    OPS_LOG_E(MatmulAlltoAllInfo, "Aclnn matmul allto all api error code %d", ret),
                    return ge::GRAPH_FAILED);
-    } else if (x1QuantMode == X1_QUANT_MODE_NUM && x2QuantMode == X2_QUANT_MODE_NUM) {
+    } else if ((x1QuantMode == X1_PERTOKEN_QUANT_MODE_NUM && x2QuantMode == X2_PERCHANNEL_QUANT_MODE_NUM)
+               || (x1QuantMode == X1_MX_QUANT_MODE_NUM && x2QuantMode == X2_MX_QUANT_MODE_NUM)) {
         QuantMatmulParas quant_matmul_para;
         retPara = GetQuantMatmulPara(host_api_ctx, quant_matmul_para);
         OPS_CHECK(
