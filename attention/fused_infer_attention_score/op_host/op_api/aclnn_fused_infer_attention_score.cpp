@@ -8,6 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "opdev/op_log.h"
+#include "opdev/common_types.h"
+#include "opdev/platform.h"
 #include "aclnn_fused_infer_attention_score.h"
 #include "aclnn_fused_infer_attention_score_inner.h"
 
@@ -26,6 +29,10 @@ aclnnStatus aclnnFusedInferAttentionScoreGetWorkspaceSize(
     int64_t sparseMode, int64_t innerPrecise, int64_t blockSize, int64_t antiquantMode, bool softmaxLseFlag,
     const aclTensor *attentionOut, const aclTensor *softmaxLse, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnFusedInferAttentionScore versions V1 to V4 are no longer supported on Ascend950.");
+        return ACLNN_ERR_RUNTIME_ERROR;
+    }
     const aclTensor *placeHolder = nullptr;
     const aclTensor *tempTensor = nullptr;
     FusedInferAttentionScoreProcessSoftmaxLse(softmaxLseFlag, softmaxLse, tempTensor, placeHolder);
@@ -46,6 +53,10 @@ aclnnStatus aclnnFusedInferAttentionScoreGetWorkspaceSize(
 aclnnStatus aclnnFusedInferAttentionScore(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                           const aclrtStream stream)
 {
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnFusedInferAttentionScore versions V1 to V4 are no longer supported on Ascend950.");
+        return ACLNN_ERR_RUNTIME_ERROR;
+    }
     return aclnnInnerFusedInferAttentionScore(workspace, workspaceSize, executor, stream);
 }
 
