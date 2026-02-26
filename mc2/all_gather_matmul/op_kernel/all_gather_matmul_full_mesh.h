@@ -62,9 +62,11 @@ __aicore__ inline void AllGatherMatmulFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE
 template <class A_TYPE, class B_TYPE, class C_TYPE, class BIAS_TYPE, bool BNd2Nz, bool Bias2Float>
 __aicore__ inline void AllGatherMatmulFullMesh<A_TYPE, B_TYPE, C_TYPE, BIAS_TYPE, BNd2Nz, Bias2Float>::Process()
 {
+    AscendC::printf("******** CHUGUOWEI AllGatherMatmulFullMesh \n");
     HcclPrepare();
     this->Nd2NzBiasCast();
-    InnerProcess();
+    AscendC::printf("******** CHUGUOWEI AllGatherMatmulFullMesh no InnerProcess \n");
+    // InnerProcess();
     HcclFinalize();
 }
 
