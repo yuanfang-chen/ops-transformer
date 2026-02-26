@@ -89,6 +89,7 @@ protected:
     ge::graphStatus CheckGroupSize() const;
     ge::graphStatus CheckScale() const;
     ge::graphStatus CheckMxScaleDim(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;
+    
 
 private:
     Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData quantBmmMatmulReducescatterTilingDataSelf_;

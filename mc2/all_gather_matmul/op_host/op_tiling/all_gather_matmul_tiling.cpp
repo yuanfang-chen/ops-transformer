@@ -208,6 +208,7 @@ static ge::graphStatus GetAllGatherFormulateTileCnt(const gert::TilingContext* c
 static ge::graphStatus MCSpliteM(gert::TilingContext* ctx, AllGatherMatmulTilingData& tilingData,
                                  mc2tiling::TilingArgs& args)
 {
+    printf("************** CHUGUOWEI is v1 MCSpliteM");
     args.rankTileNum = args.rankDim - 1;
     // cmdType = HCCL_CMD_ALLGATHER, 是允许切K
     if (args.enableSplitK) { // 只有1份
