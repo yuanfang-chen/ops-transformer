@@ -50,7 +50,7 @@ using Idx = common_const::IndexExtend;
 
 namespace optiling {
 
-static void PrintTilingDataInfo(const char *nodeName, MoeDistributeCombineV2ExtendTilingData& tilingData)
+static void PrintTilingDataInfo(const char *nodeName, MoeDistributeCombineV2TilingData& tilingData)
 {
     OP_LOGD(nodeName, "epWorldSize is %u.", tilingData.moeDistributeCombineV2Info.epWorldSize);
     OP_LOGD(nodeName, "tpWorldSize is %u.", tilingData.moeDistributeCombineV2Info.tpWorldSize);
@@ -75,7 +75,7 @@ static void PrintTilingDataInfo(const char *nodeName, MoeDistributeCombineV2Exte
 }
 
 static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *context,
-    MoeDistributeCombineV2ExtendTilingData &tilingData, const char *nodeName, std::string &groupEp, std::string &groupTp,
+    MoeDistributeCombineV2TilingData &tilingData, const char *nodeName, std::string &groupEp, std::string &groupTp,
     uint32_t &commQuantMode)
 {
     auto attrs = context->GetAttrs();
@@ -197,7 +197,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     return ge::GRAPH_SUCCESS;
 }
 
-static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCombineV2ExtendTilingData &tilingData,
+static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCombineV2TilingData &tilingData,
     const char *nodeName, bool isShared, bool isActiveMask, uint32_t localMoeExpertNum, const bool hasElasticInfo, const bool isPerformance)
 {
     // 校验输入expertIds的维度1并设k, bs已校验过
@@ -421,7 +421,7 @@ static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCo
     return true;
 }
 
-static bool CheckSharedAttrs(const char *nodeName, const MoeDistributeCombineV2ExtendTilingData &tilingData)
+static bool CheckSharedAttrs(const char *nodeName, const MoeDistributeCombineV2TilingData &tilingData)
 {
     uint32_t sharedExpertNum = tilingData.moeDistributeCombineV2Info.sharedExpertNum;
     uint32_t sharedExpertRankNum = tilingData.moeDistributeCombineV2Info.sharedExpertRankNum;
@@ -444,7 +444,7 @@ static bool CheckSharedAttrs(const char *nodeName, const MoeDistributeCombineV2E
     return true;
 }
 
-static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV2ExtendTilingData &tilingData,
+static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV2TilingData &tilingData,
     const char *nodeName, uint32_t &localMoeExpertNum, bool isActiveMask)
 {
     uint32_t epWorldSize = tilingData.moeDistributeCombineV2Info.epWorldSize;
@@ -519,7 +519,7 @@ static bool CheckAttrs(const gert::TilingContext *context, MoeDistributeCombineV
     return true;
 }
 
-static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context, MoeDistributeCombineV2ExtendTilingData *tilingData)
+static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context, MoeDistributeCombineV2TilingData *tilingData)
 {
     uint32_t axisH = tilingData->moeDistributeCombineV2Info.h;
     uint32_t axisBS = tilingData->moeDistributeCombineV2Info.bs;
@@ -574,7 +574,7 @@ static void UbUsedCal(const uint64_t ubSize, const gert::TilingContext* context,
     tilingData->moeDistributeCombineV2Info.bufferNum = totalBufferSize > ubSize ? BUFFER_SINGLE : BUFFER_NUM;
 }
 
-static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeCombineV2ExtendTilingData* tilingData,
+static ge::graphStatus CheckWinSize(const gert::TilingContext *context, MoeDistributeCombineV2TilingData* tilingData,
     const char *nodeName, uint32_t localMoeExpertNum)
 {
     auto attrs = context->GetAttrs();
@@ -627,7 +627,7 @@ static ge::graphStatus MoeDistributeCombineA5ExtendTilingFuncImpl(gert::TilingCo
 {
     const char *nodeName = context->GetNodeName();
     OP_LOGD(nodeName, "Enter MoeDistributeCombineV2Extend Tiling func");
-    MoeDistributeCombineV2ExtendTilingData *tilingData = context->GetTilingData<MoeDistributeCombineV2ExtendTilingData>();
+    MoeDistributeCombineV2TilingData *tilingData = context->GetTilingData<MoeDistributeCombineV2TilingData>();
     OP_TILING_CHECK(tilingData == nullptr, OP_LOGE(nodeName, "tilingData is nullptr."), return ge::GRAPH_FAILED);
     std::string groupEp = "";
     std::string groupTp = "";
