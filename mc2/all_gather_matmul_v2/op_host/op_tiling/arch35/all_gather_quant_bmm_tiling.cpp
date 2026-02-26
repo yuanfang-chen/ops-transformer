@@ -62,6 +62,7 @@ constexpr int32_t IDX_B_LOW = 6;
 
 constexpr uint32_t X1_INDEX = 0;
 constexpr uint32_t X2_INDEX = 1;
+constexpr uint64_t MAX_BYTES_256MB = 256ULL * 1024 * 1024;
 
 }  // namespace
 
@@ -415,8 +416,25 @@ ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
+/**
+ * Due to communication constraints: 
+ * 1. The maximum number of communication attempts is limited to 16
+ * 2. The data volume of a single communication shall not exceed 256MB;
+ * Thus, it is required to pre-intercept the x1 that still exceeds the limit after being evenly split into 16 parts
+ */
+ge::graphStatus AllGatherQuantBmmTiling::CheckX1Size()
+{
+    uint64_t sizeOfA = args_.orgMValue * args_.orgMValue * sizeOf(args_.geAType);
+    OP_TILING_CHECK( Ops::Base::CeilDiv(sizeOfA,16) > MAX_BYTES_256MB,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data x1 into 16 parts (rounded up), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+
 ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckX1Size());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     SetTilingKeyParams();
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
