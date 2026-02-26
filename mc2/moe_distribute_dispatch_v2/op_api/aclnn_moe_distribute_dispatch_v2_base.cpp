@@ -206,7 +206,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void * ctx, Mc2MoeContext*  mc2_context)
+aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngine engine, void* & ctx, Mc2MoeContext*  mc2_context)
 {
     OP_LOGD("PRINT inter to the CreatMc2Context");
     uint64_t ctxSize = sizeof(Mc2MoeContext);
@@ -272,7 +272,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus CreatMc2ContextTensor(void * ctx, aclTensor* mc2Context)
+aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* mc2Context)
 {
     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
     OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
@@ -318,7 +318,8 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* m
     hcclBuffSize = mc2_context.winsize;
     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
     if(ctx == nullptr) {
-
+        OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
+        return ACLNN_ERR_INNER;
     }
     res = CreatMc2ContextTensor(ctx, mc2Context);
     CHECK_RET(res == ACLNN_SUCCESS, ret);
