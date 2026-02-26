@@ -138,13 +138,14 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
     OP_CHECK_IF(!CheckOptional(LOGIT_INDEX, "LogitIndex", ge::DT_FLOAT),
                 OP_LOGE(context_->GetNodeName(), "LogitIndex check failed."), return false);
 
-    if (IsMicroScaling()) {
+    if (inputParams_.aDtype != ge::DT_INT8) {
         OP_CHECK_IF(!CheckOptional(ROW_INDEX_INDEX, "RowIndex", ge::DT_INT64),
                     OP_LOGE(context_->GetNodeName(), "RowIndex check failed."), return false);
     } else if (context_->GetOptionalInputDesc(ROW_INDEX_INDEX) != nullptr) {
         auto rowIndexDtype = context_->GetOptionalInputDesc(ROW_INDEX_INDEX)->GetDataType();
         OP_CHECK_IF(!(rowIndexDtype == ge::DT_INT64 || rowIndexDtype == ge::DT_INT32),
-                    OP_LOGE(context_->GetNodeName(), "RowIndex dtype should be DT_INT64/DT_INT32,but now is %s ",
+                    OP_LOGE(context_->GetNodeName(),
+                            "When inputs are DT_INT8, rowIndex dtype should be DT_INT64/DT_INT32,but now is %s ",
                             ge::TypeUtils::DataTypeToSerialString(rowIndexDtype).c_str()),
                     return false);
     }
@@ -153,7 +154,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, const char *paramName,
-                                                            ge::DataType targetDtype)
+                                                            ge::DataType targetDtype) const
 {
     auto optionalDesc = context_->GetOptionalInputDesc(index);
     if (optionalDesc == nullptr) {
@@ -168,23 +169,23 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
     return true;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp4Dtype(ge::DataType dtype)
+bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp4Dtype(ge::DataType dtype) const
 {
     return dtype == ge::DT_FLOAT4_E2M1;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
+bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype) const
 {
     return (dtype == ge::DT_FLOAT8_E4M3FN || dtype == ge::DT_FLOAT8_E5M2);
 }
 
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype() const
 {
     OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
-        OP_LOGE(context_->GetNodeName(), "Bias dtype should be DT_BF16,but now is %s ",
-                ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
-        return false);
+                OP_LOGE(context_->GetNodeName(), "The dtype of bias should be DT_BF16, but now is %s ",
+                        ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+                return false);
 
     if (IsMicroScaling()) {
         bool a8w8 = IsFp8Dtype(inputParams_.aDtype) && IsFp8Dtype(inputParams_.bDtype);
@@ -198,10 +199,11 @@ DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1, but actual dtype 
                     ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
             return false);
     } else {
-        OP_CHECK_IF(!(inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN || inputParams_.aDtype == ge::DT_INT8),
+        OP_CHECK_IF(!(inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN || inputParams_.aDtype == ge::DT_INT8 ||
+                      inputParams_.aDtype == ge::DT_HIFLOAT8),
                     OP_LOGE(context_->GetNodeName(),
                             "In K-C/T-C quant mode, the expected dtype of x and weight should be \
-DT_FLOAT8_E4M3FN/DT_INT8, but actual dtype is %s, %s.",
+DT_FLOAT8_E4M3FN/DT_INT8/DT_HIFLOAT8, but actual dtype is %s, %s.",
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
                     return false);
@@ -213,7 +215,7 @@ DT_FLOAT/DT_BF16, but actual dtype is %s.",
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
                     return false);
 
-        if (context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX)) {
+        if (context_->GetOptionalInputDesc(PERTOKEN_SCALE_INDEX) != nullptr) {
             OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(context_->GetNodeName(),
                                 "In K-C quant mode, the expected dtype of perTokenScaleDtype should be \
@@ -228,7 +230,7 @@ DT_FLOAT, but actual dtype is %s.",
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape, const gert::Shape &wShape,
                                                        const gert::StorageShape *pertokenScaleStorageShape,
-                                                       const gert::Shape &scaleShape, const gert::Shape &yShape)
+                                                       const gert::Shape &scaleShape, const gert::Shape &yShape) const
 {
     auto xDimNum = xShape.GetDimNum();
     OP_CHECK_IF(xDimNum != DIM_NUM_X,
@@ -277,7 +279,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape
     return true;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::CheckFp4Shape()
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckFp4Shape() const
 {
     bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
     if (!a4w4) {
@@ -335,12 +337,14 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalInputsShape()
     OP_CHECK_IF(outputBs_ > inputParams_.mSize,
                 OP_LOGE(context_->GetNodeName(), "OutputBs (%lu) out of M (%lu).", outputBs_, inputParams_.mSize),
                 return false);
+    return true;
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape &xShape,
                                                                const gert::StorageShape *wStorageShape,
                                                                const gert::StorageShape *pertokenScaleStorageShape,
-                                                               const gert::Shape &scaleShape, const gert::Shape &yShape)
+                                                               const gert::Shape &scaleShape,
+                                                               const gert::Shape &yShape) const
 {
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     OP_CHECK_IF(!CheckDim(xShape, wShape, pertokenScaleStorageShape, scaleShape, yShape),
@@ -352,6 +356,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
         OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
                     OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
     }
+    return true;
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
