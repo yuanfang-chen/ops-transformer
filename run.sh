@@ -38,7 +38,7 @@ git pull
 THREAD_NUM=$(nproc)
 
 # 后台执行编译，捕获子进程PID
-bash  build.sh -j${THREAD_NUM}  --pkg --soc=ascend950 --ops="moe_distribute_dispatch_v2" 2>&1 | tee compiler.log &
+bash  build.sh -j${THREAD_NUM}  --pkg --soc=ascend950 --ops="moe_distribute_dispatch_v2_extend" 2>&1 | tee compiler.log &
 BUILD_CHILD_PID=$!
 
 # 等待子进程执行，并捕获编译返回码
