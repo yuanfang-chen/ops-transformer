@@ -39,8 +39,6 @@ struct GMMNoQuantBaseParams {
     uint32_t hasBias = 0;
     uint32_t mTailCnt = 0;
     uint32_t nTailCnt = 0;
-    uint32_t weightNoL2Cache = 0;
-    uint32_t placeHolder = 0;
 };
 #pragma pack(pop)
 
@@ -95,6 +93,7 @@ struct GMMQuantTilingData {
 #pragma pack(push, 8)
 struct GMMNoQuantTilingData {
     GMMNoQuantBaseParams gmmNoQuantParam;
+    GMMArray gmmArray;
     TCubeTiling mmTilingData;
 };
 #pragma pack(pop)
