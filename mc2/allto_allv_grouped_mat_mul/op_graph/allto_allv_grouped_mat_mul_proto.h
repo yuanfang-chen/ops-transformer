@@ -51,8 +51,8 @@ namespace ge {
 * @li mm_x_quant_mode: An int. Quantization mode of mm_x. Default: 0.
 * @li mm_weight_quant_mode: An int. Quantization mode of mm_weight. Default: 0.
 * @li group_size: An int. Default: 0.
-* @li y_dtype: An int. Declare the gmm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为-1.
-* @li mm_dtype: An int. Declare the mm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为-1.
+* @li y_dtype: An int. Declare the gmm_y dtype.
+* @li mm_dtype: An int. Declare the mm_y dtype.
 *
 * @par Outputs:
 * @li gmm_y: A matrix tensor of shape [A, N1] containing result of grouped matmul. The data type of elements supports float16 or bfloat16; the format supports ND.
