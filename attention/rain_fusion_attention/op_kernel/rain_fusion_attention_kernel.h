@@ -405,7 +405,6 @@ namespace RainFusion {
                         if (stackSeqTile >= pagedBlockSize * blockStackNum) {
                             stackSeqTile = pagedBlockSize * blockStackNum;
                         }
-                        AscendC::printf("tkd final stackSeqTile: %u\n", stackSeqTile);
                         uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1);
                         uint64_t gmOffsetS = coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1) +
                             curStackTileMod * WORKSPACE_BLOCK_SIZE_DB;

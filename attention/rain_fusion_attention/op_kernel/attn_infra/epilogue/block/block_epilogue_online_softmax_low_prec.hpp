@@ -157,7 +157,7 @@ public:
                     repeatStride));
         }
     }
-    
+
     __aicore__ inline
     void RowsumSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
@@ -542,7 +542,6 @@ public:
         uint32_t rowOffset)
     {
         if (columnNum == 1024U) {
-            AscendC::printf("tkd low prec rowmax 1024\n");
             RowmaxSPECTILE1024(
                 computeUbTensor,
                 lmUbTensor[rowOffset],
@@ -550,8 +549,7 @@ public:
                 rowNumCurLoopRound,
                 columnNum,
                 columnNumRound);
-        } else {   
-            AscendC::printf("tkd low prec rowmax tail\n");     
+        } else {      
             RowmaxTAILTILE(
                 computeUbTensor,
                 lmUbTensor[rowOffset],
@@ -660,7 +658,6 @@ public:
     {
         // *** ll = rowsum(ls32)
         if (columnNum == 1024U) {
-            AscendC::printf("tkd low prec rowsum 1024\n");
             RowsumSPECTILE1024(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -668,7 +665,6 @@ public:
                 columnNum,
                 columnNumRound);
         } else if (columnNum == 512U) {
-            AscendC::printf("tkd low prec rowsum 512\n");
             RowsumSPECTILE512(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -676,7 +672,6 @@ public:
                 columnNum,
                 columnNumRound);
         } else {
-            AscendC::printf("tkd low prec rowsum tail\n");
             RowsumTAILTILE(computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
@@ -752,7 +747,6 @@ public:
         uint32_t rowNumCurLoop = layoutOutput.shape(0);
         uint32_t rowNumCurLoopRound = RoundUp(rowNumCurLoop, BLOCK_SIZE);
         uint32_t columnNum = layoutOutput.shape(1);
-        AscendC::printf("tkd columnNum: %u\n", columnNum);
         uint32_t columnNumPad = layoutOutput.stride(0);
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
