@@ -26,13 +26,13 @@
 #endif
 
 using namespace AscendC;
-#define INVOKE_ALL_GATHER_MATMUL_OP_IMPL(templateClass, ...)                                   \
-    do {                                                                                       \
-        using aType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, A_DTYPE, true>;       \
-        using cType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;             \
-        templateClass<aType, bType, cType, biasType, __VA_ARGS__> op;                          \
+#define INVOKE_ALL_GATHER_MATMUL_OP_IMPL(templateClass, ...)            \                       
+    do {                                                                    \                   
+        using aType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, A_DTYPE, true>;      \ 
+        using cType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;         \    
+        templateClass<aType, bType, cType, biasType, __VA_ARGS__> op;                       \   
         op.Init(aGM, bGM, biasGM, cGM, gatherOut, workspaceGM, contextGM, &tilingData, mc2InitTiling, mc2CcTiling, &pipe); \
-        op.Process();                                                                          \
+        AscendC::printf("******** CHUGUOWEI INVOKE_ALL_GATHER_MATMUL_OP_IMPL no process! \n"); \                           
     } while (0)
 
 template <class T> struct BiasType {

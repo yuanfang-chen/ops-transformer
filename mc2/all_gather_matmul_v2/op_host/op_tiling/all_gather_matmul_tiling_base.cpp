@@ -648,7 +648,7 @@ ge::graphStatus AllGatherMatmulTilingBase::GetWorkspaceSize()
 
     workspaceSize_ = libApiWorkSpaceSize_ + storageA_ + biasLen_;
     workspaces[0] = workspaceSize_;
-    OP_LOGD(opName_, "workspaces[0] size=%ld, biasLen=%d", workspaces[0], biasLen_);
+    printf("******** CHUGUOWEI workspaces[0] size=%ld, libApiWorkSpaceSize_=%ld, storageA_=%ld, biasLen=%d \n", workspaces[0], libApiWorkSpaceSize_, storageA_, biasLen_);
 
     return ge::GRAPH_SUCCESS;
 }
