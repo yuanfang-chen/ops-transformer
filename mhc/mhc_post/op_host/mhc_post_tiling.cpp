@@ -440,24 +440,6 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
 
 ge::graphStatus MhcPostTilingBase::CheckSpecConstraints()
 {
-    // 1. Check totalItems (BS or T) <= 512K
-    OP_CHECK_IF(totalItems_ == 0,
-                OP_LOGE(context_, "totalItems cannot be zero"),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(totalItems_ > MAX_TOTAL_ITEMS,
-                OP_LOGE(context_, "totalItems (%u) exceeds max allowed (%u)", totalItems_, MAX_TOTAL_ITEMS),
-                return ge::GRAPH_FAILED);
-
-    // 2. Check n in {4, 6, 8}
-    OP_CHECK_IF(n_ != 4 && n_ != 6 && n_ != 8,
-                OP_LOGE(context_, "n (%u) must be 4, 6, or 8", n_),
-                return ge::GRAPH_FAILED);
-
-    // 3. Check D in [384, 24576]
-    OP_CHECK_IF(D_ < MIN_D || D_ > MAX_D,
-                OP_LOGE(context_, "D (%u) must be in range [%u, %u]", D_, MIN_D, MAX_D),
-                return ge::GRAPH_FAILED);
-
     return ge::GRAPH_SUCCESS;
 }
 
