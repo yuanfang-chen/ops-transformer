@@ -110,8 +110,8 @@ __aicore__ inline void LoadL1A(const GlobalTensor<T> &tensorAGm, const uint32_t 
 }
 
 template <typename T, DataFormat loadFormat = DataFormat::NZ, bool preload = false>
-__aicore__ inline void LoadL1B(const GlobalTensor<T> &tensorBGm, const uint32_t nL1Size, const uint32_t kL1StepSize,
-                               const uint32_t kInput, MMBufParams &bufParam)
+__aicore__ inline void LoadL1B(const GlobalTensor<T> &tensorBGm, const uint32_t nL1Size, const uint32_t nInput, 
+                               const uint32_t kL1StepSize, const uint32_t kInput, MMBufParams &bufParam)
 {
     uint32_t bufIter = bufParam.bL1BufIter;
     if constexpr (preload) {
@@ -126,7 +126,7 @@ __aicore__ inline void LoadL1B(const GlobalTensor<T> &tensorBGm, const uint32_t 
     if constexpr (loadFormat == DataFormat::NZ) {
         CopyNZGmToL1(bL1, tensorBGm, kL1StepSize, nL1Size, kInput);
     } else {
-        CopyNDGmToL1(bL1, tensorBGm, kInput, nL1Size, nL1Size);
+        CopyNDGmToL1(bL1, tensorBGm, kInput, nL1Size, nInput);
     }
     SetFlag<HardEvent::MTE2_MTE1>(B_EVENT0 + (bufIter & 1u));
 }
@@ -466,24 +466,34 @@ __aicore__ inline void GetTensorC(const GlobalTensor<O> &tensorCGm, const LocalT
  * @param kOffesetUnit K维度寻址的偏移单位
  * @param bufParam L1缓冲区管理的参数对象
  */
-template <typename T, bool hasL1ALoaded>
+template <typename T, bool hasL1ALoaded, DataFormat bLoadFormat = DataFormat::NZ>
 __aicore__ inline void LoadL1AB(const GlobalTensor<T> &tensorAGm, const GlobalTensor<T> &tensorBGm, uint32_t kL1,
                                 uint32_t kL1Loops, const MMParams &para, uint32_t nL1Offset, uint32_t nL1Size,
                                 uint32_t kOffesetUnit, MMBufParams &bufParam)
 {
     if (kL1 == 0) {
         if constexpr (!hasL1ALoaded) {
-            LoadL1A(tensorAGm[kL1 * para.kL1StepSize], para.m, para.kL1StepSize, para.k, bufParam);
+            LoadL1A(tensorAGm[kL1 * para.kL1StepSize], para.m, para.kL1StepSize, para.orgKa, bufParam);
         }
-        LoadL1B(tensorBGm[para.k * nL1Offset + kL1 * kOffesetUnit], nL1Size, para.kL1StepSize, para.k, bufParam);
+        if constexpr (bLoadFormat == DataFormat::NZ) {
+            LoadL1B(tensorBGm[para.k * nL1Offset + kL1 * kOffesetUnit], nL1Size, para.n, para.kL1StepSize, para.k, bufParam);
+        } else {
+            LoadL1B<T, DataFormat::ND>(tensorBGm[kL1 * para.kL1StepSize * para.n + nL1Offset], nL1Size, para.n, 
+                                       para.kL1StepSize, para.kL1StepSize, bufParam);
+        }
     }
 
     if (kL1 + 1 < kL1Loops) {
         if constexpr (!hasL1ALoaded) {
-            LoadL1A<T, true>(tensorAGm[(kL1 + 1) * para.kL1StepSize], para.m, para.kL1StepSize, para.k, bufParam);
+            LoadL1A<T, true>(tensorAGm[(kL1 + 1) * para.kL1StepSize], para.m, para.kL1StepSize, para.orgKa, bufParam);
         }
-        LoadL1B<T, DataFormat::NZ, true>(tensorBGm[para.k * nL1Offset + (kL1 + 1) * kOffesetUnit], nL1Size,
+        if constexpr (bLoadFormat == DataFormat::NZ) {
+            LoadL1B<T, DataFormat::NZ, true>(tensorBGm[para.k * nL1Offset + (kL1 + 1) * kOffesetUnit], nL1Size, para.n,
             para.kL1StepSize, para.k, bufParam);
+        } else {
+            LoadL1B<T, DataFormat::ND, true>(tensorBGm[(kL1 + 1) * para.kL1StepSize * para.n + nL1Offset], nL1Size, para.n, 
+                                       para.kL1StepSize, para.kL1StepSize, bufParam);
+        }
     }
 }
 
@@ -527,7 +537,7 @@ __aicore__ inline void LoadL1ABAndScale(const GlobalTensor<T> &tensorAGm, const 
         if constexpr (!hasL1ALoaded) {
             LoadL1A<T, true>(tensorAGm[(kL1 + 1) * para.kL1StepSize], para.m, para.kL1StepSize, para.k, bufParam);
         }
-        LoadL1B<T, DataFormat::NZ, true>(tensorBGm[para.k * nL1Offset + (kL1 + 1) * kOffesetUnit], nL1Size,
+        LoadL1B<T, DataFormat::NZ, true>(tensorBGm[para.k * nL1Offset + (kL1 + 1) * kOffesetUnit], nL1Size, para.n,
             para.kL1StepSize, para.k, bufParam);
     }
 #endif
@@ -631,7 +641,7 @@ __aicore__ inline void MatmulL1(const LocalTensor<O_L0C> &cL0, const LocalTensor
  * @param tensorAScaleGm AScale矩阵在GM的位置
  * @param tensorBScaleGm BScale矩阵在GM的位置
  */
-template <typename T, typename O, typename S, bool hasL1ALoaded = false, bool scaleSrcPadFlag = false, bool enUnitFlag = false>
+template <typename T, typename O, typename S, bool hasL1ALoaded = false, bool scaleSrcPadFlag = false, bool enUnitFlag = false, DataFormat bLoadFormat = DataFormat::NZ>
 __aicore__ inline void MatmulSplitK(const GlobalTensor<O> &tensorCGm, const GlobalTensor<T> &tensorAGm,
     const GlobalTensor<T> &tensorBGm, const MMParams &para, MMBufParams &bufParam, const uint32_t nL1Offset,
     const uint32_t nL1Size, const GlobalTensor<S> &tensorAScaleGm={}, const GlobalTensor<S> &tensorBScaleGm={})
@@ -659,6 +669,9 @@ __aicore__ inline void MatmulSplitK(const GlobalTensor<O> &tensorCGm, const Glob
     MmadParams mmadParams = MmadParams(mSize, nL1Size, para.baseK, UNIT_FLAG_DISABLE, false, true);
 
     int64_t aOffset = 0;
+    if constexpr (std::is_same<T, FP8E4M3>::value) {
+        WaitFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT);
+    }
 
     for (uint32_t kL1 = 0; kL1 < kL1Loops; kL1++) {
         // Load data from global memory to L1 cache
@@ -666,7 +679,7 @@ __aicore__ inline void MatmulSplitK(const GlobalTensor<O> &tensorCGm, const Glob
             LoadL1ABAndScale<T, S, hasL1ALoaded, scaleSrcPadFlag>(tensorAGm, tensorBGm, tensorAScaleGm, tensorBScaleGm,
                 kL1, kL1Loops, para, nL1Offset, nL1Size, kOffesetUnit, bufParam);
         } else {
-            LoadL1AB<T, hasL1ALoaded>(tensorAGm, tensorBGm, kL1, kL1Loops, para, nL1Offset, nL1Size, kOffesetUnit, bufParam);
+            LoadL1AB<T, hasL1ALoaded, bLoadFormat>(tensorAGm, tensorBGm, kL1, kL1Loops, para, nL1Offset, nL1Size, kOffesetUnit, bufParam);
         }
 
         WaitFlag<HardEvent::MTE2_MTE1>(B_EVENT0 + (bufParam.bL1BufIter & 1u));
@@ -687,11 +700,9 @@ __aicore__ inline void MatmulSplitK(const GlobalTensor<O> &tensorCGm, const Glob
             SetFlag<HardEvent::MTE1_MTE2>(A_EVENT0 + (bufParam.aL1BufIter & 1u));
             bufParam.aL1BufIter++;
         }
-        if constexpr (std::is_same<T, FP8E4M3>::value) {
-#if __CCE_AICORE__ == 310
-            AscendC::PipeBarrier<PIPE_ALL>();
-#endif
-        }
+    }
+    if constexpr (std::is_same<T, FP8E4M3>::value) {
+        SetFlag<HardEvent::MTE1_MTE2>(SCALE_EVENT);
     }
     GetTensorC<T, O, O_L0C, enUnitFlag>(tensorCGm[nL1Offset], cL0, para.m, nL1Size, mSize, para.orgKc, bufParam);
     SetFlag<HardEvent::FIX_M>(L0C_EVENT0 + (bufParam.cL0BufIter & 1u));
@@ -723,7 +734,7 @@ __aicore__ inline void MatmulFullLoad(const GlobalTensor<O> &tensorCGm, const Gl
     LocalTensor<T> aL1 = localTensors.aL1Tensor[(bufParam.aL1BufIter & 1u) * aL1Offset];
 
     if constexpr (!hasL1BLoaded) {
-        LoadL1B<T, DataFormat::ND, false>(tensorBGm, para.n, para.k, para.k, bufParam);
+        LoadL1B<T, DataFormat::ND, false>(tensorBGm, para.n, para.n, para.k, para.k, bufParam);
         WaitFlag<HardEvent::MTE2_MTE1>(B_EVENT0 + (bufParam.bL1BufIter & 1u));
     }
     LocalTensor<T> bL1 = localTensors.bL1Tensor[(bufParam.bL1BufIter & 1u) * bL1Offset];
