@@ -355,13 +355,17 @@ public:
         // }
 
         NewReduceMax(tvUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
         NewReduceMax(tvUbTensor, srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
         NewReduceMax(tvUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
         NewReduceMax(tvUbTensor, srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
 
 
         NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
         NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
 
