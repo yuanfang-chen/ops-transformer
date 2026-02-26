@@ -37,6 +37,7 @@ public:
     void SetShortTileLen() override;
     void SetLongTileLen() override;
     void AdjustLongShortTileLen() override;
+    void CheckHCCLLimit() override;
 };
 
 #endif // __ALL_GATHER_FIT_BALANCE_TILING_H__
