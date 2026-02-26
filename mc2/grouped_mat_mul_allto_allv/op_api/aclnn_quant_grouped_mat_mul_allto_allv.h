@@ -67,29 +67,29 @@ extern "C" {
  * 计算输入，表示接收其他卡的token数，数据类型支持INT64，取值大小为e*epWorldSize，最大为256。输入类型需为list。
  * @param [in] transGmmWeight: 可选入参，计算输入。表明gmm的右矩阵是否需要转置，默认为false表示不转置。
  * @param [in] transMmWeight: 可选入参，计算输入。表明共享专家mm的右矩阵是否需要转置，默认为false表示不转置。
- * @param [out] y: 计算输出，最终计算结果，支持2维，shape为(BSH,N1)。
+ * @param [out] y: 计算输出，最终计算结果，支持2维，shape为(BSK,N1)。
  * @param [out] mmYOptional:
  * 可选输出，共享专家计算输出，数据类型与mmXOptional保持一致，支持2维，shape为(BS,N2)，仅当传入mmXOptional与mmWeightOptional才输出。
  * @param [out] workspaceSize: 出参，返回需要在npu device侧申请的workspace大小。
  * @param [out] executor: 出参，返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回值，返回状态码。
  *
- * 因为集合通信及BatchMatMul计算所需，输入输出shape需满足以下数学关系：（其中ep=epWorldSize，tp=tpWorldSize）
- * gmmX: (BSK, H1);
+ * 因为集合通信及BatchMatMul计算所需，输入输出shape需满足以下数学关系：（其中ep=epWorldSize）
+ * gmmX: (A, H1);
  * gmmWeight: (e, H1, N1);
  * gmmXScaleOptional: pertensor场景(1,);
  * gmmWeightScaleOptional: pertensor场景(1,)
- * groupList: (e);
  * mmXOptional: (BS, H2);
  * mmWeightOptional: (H2, N2);
  * mmXScaleOptional: pertensor场景(1,);
  * mmWeightScaleOptional: pertensor场景(1,);
- * y: (BSH, N1);
+ * y: (BSK, N1);
  * mmYOptional: (BS, N2);
  *
  * 数据关系说明：
  * e表示单卡上的专家数量;
- * A = recvCounts的累加和;
+ * A = sendCounts的累加和;
+ * K = topK;
  */
 ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScale, const aclTensor *gmmWeightScale,
@@ -99,7 +99,6 @@ ACLNN_API aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *mmXOffsetOptional, const aclTensor *mmWeightOffsetOptional,
     const aclTensor *commQuantScaleOptional, int64_t gmmXQuantMode, int64_t gmmWeightQuantMode, int64_t mmXQuantMode,
     int64_t mmWeightQuantMode, int64_t commQuantMode, int64_t commQuantDtypeOptional,
-    // 规避cc文件编译问题
     int64_t groupSize, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
     const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight, const aclTensor *y,
     const aclTensor *mmYOptional, uint64_t *workspaceSize, aclOpExecutor **executor);
