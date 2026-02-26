@@ -192,18 +192,19 @@ __aicore__ inline void FAGBlockVecQuant<TEMPLATE_ARGS>::ProcessPDs(const LocalTe
     uint16_t realS1 = static_cast<uint16_t>(runInfo.quantRunInfo.innerS1RealSize[runInfo.quantRunInfo.s1Idx]);
     uint16_t realS2 = static_cast<uint16_t>(runInfo.quantRunInfo.innerS2RealSize[runInfo.quantRunInfo.s2Idx]);
 
-    uint16_t firstHalfS1 = Ceil<uint16_t>(realS1, 32) * 32 / 2;
+    uint16_t firstHalfS1 = Ceil<uint16_t>(realS1, 64) * 64 / 2;
     uint16_t currentRealS1 = vSubBlockIdx == 0 ? firstHalfS1 : realS1 - firstHalfS1;
     uint16_t currentRealS2 = Ceil<uint16_t>(realS2, 8) * 8;
 
-    if (currentRealS1 == 0) {
+    if (currentRealS1 <= 0) {
         // 反向同步
         SetFlag<AscendC::HardEvent::V_MTE2>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
         maxsumIdx = (maxsumIdx + 1) & 3;
         return;
     }
 
-    CopyMaxSumD(constInfo, runInfo, firstHalfS1, currentRealS1);
+    uint16_t maxCopySize = realS1 < firstHalfS1 ? realS1 : firstHalfS1;
+    CopyMaxSumD(constInfo, runInfo, firstHalfS1, maxCopySize);
     SetFlag<AscendC::HardEvent::MTE2_V>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
     WaitFlag<AscendC::HardEvent::MTE2_V>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
 

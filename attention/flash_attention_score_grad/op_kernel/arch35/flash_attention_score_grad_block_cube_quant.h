@@ -38,6 +38,7 @@ public:
 
     uint32_t commonBufferId = 0;
     uint32_t l0BufferId = 0;
+    uint32_t l0cBufferId = 0;
 
     // input global mmemory
     GlobalTensor<INPUT_TYPE> queryGm, keyGm, valueGm;
@@ -61,8 +62,7 @@ public:
     BufferManager<BufferType::L0C> l0cBufferManager;
     BuffersPolicySingleBuffer<BufferType::L0C, SyncType::NO_SYNC> mm1L0CBuf;
     BuffersPolicySingleBuffer<BufferType::L0C, SyncType::NO_SYNC> mm2L0CBuf;
-    BuffersPolicySingleBuffer<BufferType::L0C, SyncType::NO_SYNC> dvdqL0CBuf;
-    BuffersPolicySingleBuffer<BufferType::L0C, SyncType::NO_SYNC> dkL0CBuf;
+    BuffersPolicySingleBuffer<BufferType::L0C, SyncType::NO_SYNC> dqkvL0CBuf[2];
 
     __aicore__ inline FAGBlockCubeQuant(){};
     __aicore__ inline ~FAGBlockCubeQuant();
@@ -156,8 +156,8 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::InitCubeBuffer(FagConst
     l0cBufferManager.Init(pipe, L0C_MAX_SIZE);
     mm1L0CBuf.Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
     mm2L0CBuf.Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
-    dvdqL0CBuf.Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
-    dkL0CBuf.Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
+    dqkvL0CBuf[0].Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
+    dqkvL0CBuf[1].Init(l0cBufferManager, L0C_SINGLE_BUFFER_SIZE);
 }
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::AllocEventID()
@@ -249,6 +249,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::CopyInDYToL1(LocalTenso
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::CopyOutDkDvResult(LocalTensor<CALC_TYPE> &dvOutTensor, LocalTensor<CALC_TYPE> &dkOutTensor, FagConstInfo &constInfo)
 {
+    uint32_t l0cId = l0cBufferId;
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams;
     fixpipeParams.mSize = 128;
     fixpipeParams.nSize = (HEAD_DIM_ALIGN + 7) >> 3 << 3;
@@ -259,15 +260,16 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::CopyOutDkDvResult(Local
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
     constexpr static FixpipeConfig DK_FIXPIPE_CONFIG = {CO2Layout::ROW_MAJOR, true};
-    Fixpipe<CALC_TYPE, CALC_TYPE, DK_FIXPIPE_CONFIG>(dvOutTensor, dvdqL0CBuf.Get().GetTensor<CALC_TYPE>(), fixpipeParams);
-    Fixpipe<CALC_TYPE, CALC_TYPE, DK_FIXPIPE_CONFIG>(dkOutTensor, dkL0CBuf.Get().GetTensor<CALC_TYPE>(), fixpipeParams);
-    SetFlag<HardEvent::FIX_M>(4);
-    SetFlag<HardEvent::FIX_M>(5);
+    Fixpipe<CALC_TYPE, CALC_TYPE, DK_FIXPIPE_CONFIG>(dvOutTensor, dqkvL0CBuf[l0cId].Get().GetTensor<CALC_TYPE>(), fixpipeParams);
+    Fixpipe<CALC_TYPE, CALC_TYPE, DK_FIXPIPE_CONFIG>(dkOutTensor, dqkvL0CBuf[(l0cId + 1) & 1].Get().GetTensor<CALC_TYPE>(), fixpipeParams);
+    SetFlag<HardEvent::FIX_M>(l0cId + 4);
+    SetFlag<HardEvent::FIX_M>(4 + ((l0cId + 1) & 1));
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::CopyOutDqResult(LocalTensor<CALC_TYPE> &dqOutTensor, FagConstInfo &constInfo)
 {
+    uint32_t l0cId = l0cBufferId;
     FixpipeParamsC310<CO2Layout::ROW_MAJOR> fixpipeParams;
     fixpipeParams.mSize = 128;
     fixpipeParams.nSize = (HEAD_DIM_ALIGN + 7) >> 3 << 3;
@@ -278,8 +280,9 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::CopyOutDqResult(LocalTe
     fixpipeParams.params.srcNdStride = 0;
     fixpipeParams.params.dstNdStride = 0;
     constexpr static FixpipeConfig DQ_FIXPIPE_CONFIG = {CO2Layout::ROW_MAJOR, true};
-    Fixpipe<CALC_TYPE, CALC_TYPE, DQ_FIXPIPE_CONFIG>(dqOutTensor, dvdqL0CBuf.Get().GetTensor<CALC_TYPE>(), fixpipeParams);
-    SetFlag<HardEvent::FIX_M>(4);
+    Fixpipe<CALC_TYPE, CALC_TYPE, DQ_FIXPIPE_CONFIG>(dqOutTensor, dqkvL0CBuf[l0cId].Get().GetTensor<CALC_TYPE>(), fixpipeParams);
+    SetFlag<HardEvent::FIX_M>(4 + l0cId);
+    l0cBufferId = (l0cBufferId + 1) & 1;
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -394,6 +397,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsK(LocalTenso
                                                 FagConstInfo &constInfo, FagRunInfo &runInfo)
 {
     uint32_t l0Id = l0BufferId;
+    uint32_t l0cId = l0cBufferId;
     bool isTailK = (runInfo.quantRunInfo.s2Idx * BASEK < runInfo.commonRunInfo.s2RealSize) && ((runInfo.quantRunInfo.s2Idx + 2) * BASEK > runInfo.commonRunInfo.s2RealSize);
     uint32_t realM = runInfo.quantRunInfo.innerS1RealSize[runInfo.quantRunInfo.s1Idx];
     uint32_t realK = isTailK ? (runInfo.commonRunInfo.s2RealSize % K_SIZE) : K_SIZE;
@@ -454,9 +458,9 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsK(LocalTenso
 
     SetFlag<HardEvent::MTE1_M>(l0Id);
     WaitFlag<HardEvent::MTE1_M>(l0Id);
-    Buffer<BufferType::L0C, SyncType::NO_SYNC> dqL0CBuffer = dvdqL0CBuf.Get();
+    Buffer<BufferType::L0C, SyncType::NO_SYNC> dqL0CBuffer = dqkvL0CBuf[l0cId].Get();
     if (!runInfo.quantRunInfo.isDqFixOut) {
-        WaitFlag<HardEvent::FIX_M>(4);
+        WaitFlag<HardEvent::FIX_M>(4 + l0cId);
     }
     MmadParams mmadParams;
     mmadParams.m = param.singleM;
@@ -485,6 +489,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsQ(LocalTenso
     uint32_t realK = isTailK ? (runInfo.commonRunInfo.s1RealSize % 256) : 256;
     uint32_t qBufferId = commonBufferId;
     uint32_t l0Id = l0BufferId;
+    uint32_t l0cId = (l0cBufferId + 1) & 1;
     LocalTensor<INPUT_TYPE> qL1Tensor = commonL1Buf[qBufferId].Get().GetTensor<INPUT_TYPE>();
     int64_t queryOffset = runInfo.commonRunInfo.queryOffset + runInfo.quantRunInfo.s1Idx * constInfo.commonConstInfo.n2GD * CUBE_BASEM;
     WaitFlag<HardEvent::MTE1_MTE2>(4 + qBufferId);
@@ -521,9 +526,9 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsQ(LocalTenso
     mmadParams.cmatrixInitVal = !runInfo.quantRunInfo.isDkFixOut;
     mmadParams.cmatrixSource = false;
     Buffer<BufferType::L0C, SyncType::NO_SYNC> dkL0CBuffer;
-    dkL0CBuffer = dkL0CBuf.Get();
+    dkL0CBuffer = dqkvL0CBuf[l0cId].Get();
     if (!runInfo.quantRunInfo.isDkFixOut) {
-        WaitFlag<HardEvent::FIX_M>(5);
+        WaitFlag<HardEvent::FIX_M>(4 + l0cId);
     }
     Mmad(dkL0CBuffer.GetTensor<CALC_TYPE>(), L0ATensor, L0BTensor, mmadParams);
     SetFlag<HardEvent::M_MTE1>(4 + l0Id);
@@ -546,7 +551,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmPDy(LocalTenso
     uint32_t realK = isTailK ? (runInfo.commonRunInfo.s1RealSize % 256) : 256;
     uint32_t dyBufferId = commonBufferId;
     uint32_t l0Id = l0BufferId;
-
+    uint32_t l0cId = l0cBufferId;
     LocalTensor<INPUT_TYPE> dyL1Tensor = commonL1Buf[dyBufferId].Get().GetTensor<INPUT_TYPE>();
     int64_t dyOffset = runInfo.dyOffset + runInfo.quantRunInfo.s1Idx * constInfo.commonConstInfo.n2GDv * CUBE_BASEM;
     WaitFlag<HardEvent::MTE1_MTE2>(4 + dyBufferId);
@@ -575,9 +580,9 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmPDy(LocalTenso
     SetFlag<HardEvent::MTE1_M>(l0Id);
     WaitFlag<HardEvent::MTE1_M>(l0Id);
 
-    Buffer<BufferType::L0C, SyncType::NO_SYNC> dvL0CBuffer = dvdqL0CBuf.Get();
+    Buffer<BufferType::L0C, SyncType::NO_SYNC> dvL0CBuffer = dqkvL0CBuf[l0cId].Get();
     if (!runInfo.quantRunInfo.isDvFixOut) {
-        WaitFlag<HardEvent::FIX_M>(4);
+        WaitFlag<HardEvent::FIX_M>(4 + l0cId);
     }
     MmadParams mmadParams;
     mmadParams.m = param.singleM;

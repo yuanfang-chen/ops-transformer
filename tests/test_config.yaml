@@ -62,13 +62,9 @@ attention:
     module: True
     src:
       - attention/flash_attention_score
-      - attention/common
     exclude:
       - attention/flash_attention_score/docs
       - attention/flash_attention_score/README.md
-    test:
-      ut: False
-      examples: False
     ut_cov_exclude:
       - attention/flash_attention_score
     options:
@@ -78,7 +74,6 @@ attention:
     module: True
     src:
       - attention/flash_attention_score_grad
-      - attention/common
     exclude:
       - attention/flash_attention_score_grad/docs
       - attention/flash_attention_score_grad/README.md
