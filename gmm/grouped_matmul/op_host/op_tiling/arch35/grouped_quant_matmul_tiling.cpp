@@ -375,6 +375,7 @@ bool GroupedQbmmTiling::CheckQuantParamsForNonKGroupQuantMode(const gert::Shape 
                OP_LOGE(inputParams_.opName, "In non k axis group quant mode, the dim num of scale \
 should be 1 or 2, but the actual dim num is %zu.", wScaleDimNum), return false);
     if (inputParams_.cDtype == ge::DT_INT8) {
+        std::cout << "cDtype == DT_INT8" << std::endl;
         OP_CHECK_IF(
             wScaleDimNum == 1,
             OP_LOGE(inputParams_.opName, "When the dtype of output is INT8, the dim num of scale should not be 1."),
