@@ -59,12 +59,12 @@ def ref_quest_prefill_metadata(
         # iterate over block_size kv blocks tokens of this request to produce one metadata block
         for meta_blk in range(num_meta_blocks_in_request):
             num_kv_blocks_completed = meta_blk * block_size
-            num_kv_blocks_todo_curr_iter = min(num_kv_blocks_in_request - num_kv_blocks_completed, block_size);            
+            num_kv_blocks_curr_iter = min(num_kv_blocks_in_request - num_kv_blocks_completed, block_size);            
             meta_blk_id = metadata_block_tables[r, meta_blk].item()
     
             # iterate over one kv block (block_size tokens)
-            for blk in range(num_kv_blocks_todo_curr_iter):
-                is_last = (blk == num_kv_blocks_todo_curr_iter - 1) and (meta_blk == num_meta_blocks_in_request - 1)
+            for blk in range(num_kv_blocks_curr_iter):
+                is_last = (blk == num_kv_blocks_curr_iter - 1) and (meta_blk == num_meta_blocks_in_request - 1)
                 ntokens_to_reduce = _calculate_tokens_to_reduce(is_last, seq_lens[r], meta_blk, blk, block_size)
                 
                 kv_block_id = block_tables[r, meta_blk * block_size + blk].item()   # global block id
@@ -73,10 +73,10 @@ def ref_quest_prefill_metadata(
                 minblocks[meta_blk_id, blk, :, :] = kv_block.min(dim=0)[0]
 
             # tail filling with zeros
-            num_unused_metadata_tokens = block_size - num_kv_blocks_todo_curr_iter
+            num_unused_metadata_tokens = block_size - num_kv_blocks_curr_iter
             if (num_unused_metadata_tokens > 0):
-                maxblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0
-                minblocks[meta_blk_id, num_kv_blocks_todo_curr_iter:, :, :] = 0              
+                maxblocks[meta_blk_id, num_kv_blocks_curr_iter:, :, :] = 0
+                minblocks[meta_blk_id, num_kv_blocks_curr_iter:, :, :] = 0              
 
 
 def _calculate_tokens_to_reduce(is_last_block: bool, seq_len: torch.Tensor, meta_blk: int, blk: int, 

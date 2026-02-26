@@ -82,11 +82,11 @@ public:
                 
                 /* loop over real KV-blocks of this request that should be packed into 1 current meta_blk */
                 int32_t num_kv_blocks_completed = meta_blk * BLOCK_SIZE_;
-                int32_t num_kv_blocks_todo_curr_iter = min(num_kv_blocks_in_request - num_kv_blocks_completed, BLOCK_SIZE_);
-                for (int32_t blk = 0; blk < num_kv_blocks_todo_curr_iter; ++blk) {
+                int32_t num_kv_blocks_curr_iter = min(num_kv_blocks_in_request - num_kv_blocks_completed, BLOCK_SIZE_);
+                for (int32_t blk = 0; blk < num_kv_blocks_curr_iter; ++blk) {
                     // tail check - set ntokens_to_reduce to the number of valid tokens in the current K block
                     int32_t ntokens_to_reduce;
-                    if ((blk == num_kv_blocks_todo_curr_iter - 1) && 
+                    if ((blk == num_kv_blocks_curr_iter - 1) && 
                         (meta_blk == num_meta_blocks_in_request - 1)) {
                         // tail (last KV block) - do not reduce over all tokens!
                         int32_t ntokens_reduced_so_far = (meta_blk * BLOCK_SIZE_  + blk) * BLOCK_SIZE_;
@@ -128,11 +128,11 @@ public:
                 }
 
                 // Tail filling with zero
-                int32_t num_unused_metadata_rows = BLOCK_SIZE_ - num_kv_blocks_todo_curr_iter;
+                int32_t num_unused_metadata_rows = BLOCK_SIZE_ - num_kv_blocks_curr_iter;
                 if (num_unused_metadata_rows > 0) {
-                    Duplicate<half>(max_lt[num_kv_blocks_todo_curr_iter * D_], (half)(0.0f), 
+                    Duplicate<half>(max_lt[num_kv_blocks_curr_iter * D_], (half)(0.0f), 
                                     num_unused_metadata_rows * D_);
-                    Duplicate<half>(min_lt[num_kv_blocks_todo_curr_iter * D_], (half)(0.0f), 
+                    Duplicate<half>(min_lt[num_kv_blocks_curr_iter * D_], (half)(0.0f), 
                                     num_unused_metadata_rows * D_);
                 }
                 AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID0);
