@@ -471,7 +471,7 @@ public:
             static_cast<half>(1.0),
             AscendC::CMPMODE::NE,
             REPEAT_SIZE_IN_BYTE / sizeof(half),
-            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE, 
+            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE,
             AscendC::UnaryRepeatParams(1, 1, 8, 8)
         );
         AscendC::PipeBarrier<PIPE_V>();
@@ -551,7 +551,7 @@ public:
     }
 
     template<typename ElementMaskDst, typename ElementMaskSrc>
-    __aicore__ inline 
+    __aicore__ inline
     void UpCastMask(
         const AscendC::LocalTensor<ElementMaskDst> &maskUbTensorDst,
         const AscendC::LocalTensor<ElementMaskSrc> &maskUbTensorSrc,
