@@ -1130,12 +1130,11 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     } else {     // 本卡为moe专家
         A = globalBs * std::min(localMoeExpertNum, expertIdsDim1);
     }
-
+    const int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
     // 校验elasticInfo的维度，并更新一下最大输出的值
     if (hasElasticInfo) {
         const gert::StorageShape *elasticInfoStorageShape = context->GetOptionalInputShape(ELASTIC_INFO_INDEX);
         const int64_t elasticInfoDim0 = elasticInfoStorageShape->GetStorageShape().GetDim(0);
-        const int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
 
         OP_TILING_CHECK(elasticInfoDim0 != (ELASTIC_METAINFO_OFFSET + RANK_LIST_NUM * epWorldSize),
             OP_LOGE(nodeName, "elasticInfo's dim0 not equal to 4 + 2 * epWorldSize, "
@@ -1148,7 +1147,6 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     if (isPerformance) {
         const gert::StorageShape *performanceInfoStorageShape = context->GetOptionalInputShape(PERFORMANCE_INFO_INDEX);
         const int64_t performanceInfoDim0 = performanceInfoStorageShape->GetStorageShape().GetDim(0);
-        const int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
 
         OP_TILING_CHECK(performanceInfoDim0 != epWorldSize,
             OP_LOGE(nodeName, "performanceInfo's dim0 not equal to epWorldSize, "
@@ -1194,7 +1192,10 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     const gert::StorageShape *assistInfoStorageShape = context->GetOutputShape(OUTPUT_ASSIST_INFO_INDEX);
     const int64_t assistInfoDim0 = assistInfoStorageShape->GetStorageShape().GetDim(0);
     int64_t minAssistInfoDim0 = static_cast<int64_t>(A * ASSIST_NUM_PER_A);
-    OP_TILING_CHECK(assistInfoDim0 < minAssistInfoDim0, OP_LOGE(nodeName, "assistInfoDim0 < minAssistInfoDim0,"
+    if (isLayered) {
+        minAssistInfoDim0 = std::max(minAssistInfoDim0, static_cast<int64_t>(globalBs * 2 * expertIdsDim1 * ((epWorldSize) / RANK_NUM_PER_NODE_A2)));
+    }
+    OP_TILING_CHECK(assistInfoDim0 < minAssistInfoDim0, OP_LOGE(nodeName, "assistInfoDim0 should be greater than minAssistInfoDim0,"
         " assistInfoDim0 is %ld, minAssistInfoDim0 is %ld.", assistInfoDim0, minAssistInfoDim0), return ge::GRAPH_FAILED);
 
     // 校验expertTokenNums的维度
@@ -1215,7 +1216,6 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     }
 
     // 校验epRecvCount和tpRecvCount的维度
-    int64_t epWorldSize = static_cast<int64_t>(tilingData.moeDistributeDispatchV2Info.epWorldSize);
     const gert::StorageShape *epRecvCountStorageShape = context->GetOutputShape(OUTPUT_EP_RECV_COUNTS_INDEX);
     const gert::StorageShape *tpRecvCountStorageShape = context->GetOutputShape(OUTPUT_TP_RECV_COUNTS_INDEX);
     const int64_t epRecvCountDim0 = epRecvCountStorageShape->GetStorageShape().GetDim(0);
