@@ -20,8 +20,8 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
 #include "lib/matrix/matmul/tiling.h"
-#include "quant_lightning_indexer_common.h"
-#include "quant_lightning_indexer_vector.h"
+#include "../quant_lightning_indexer_common.h"
+#include "../quant_lightning_indexer_vector.h"
 
 namespace QLIKernel {
 using namespace QLICommon;
@@ -248,16 +248,6 @@ __aicore__ inline void QLIVector<QLIT>::InitVecWorkspaceTensor(GlobalTensor<half
     this->vec1ResGm = vec1ResGm;
     this->vec0OutGm = vec0OutGm;
     this->vec1ParamGm = vec1ParamGm;
-}
-
-template <typename QLIT>
-__aicore__ inline void QLIVector<QLIT>::AllocEventID()
-{
-}
-
-template <typename QLIT>
-__aicore__ inline void QLIVector<QLIT>::FreeEventID()
-{
 }
 
 template <typename QLIT>
