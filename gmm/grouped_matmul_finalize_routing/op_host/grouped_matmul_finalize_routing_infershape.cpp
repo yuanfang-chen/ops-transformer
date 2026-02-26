@@ -243,7 +243,7 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
             OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is larger than m or smaller than 0 "), return ge::GRAPH_FAILED);
         shape_out->SetDim(0, *output_bs);
     }
-    shape_out->SetDim(1, xAndWParams.n);
+    shape_out->SetDim(DIM_ONE, xAndWParams.n);
     OP_CHECK_IF((bsdp + (*shared_input_offset)) > *output_bs,
         OPS_REPORT_CUBE_INNER_ERR(op_name, "BS/dp add shared_input_offset larger than outputBS."), return ge::GRAPH_FAILED);
     OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(0), shape_out->GetDim(1));
@@ -326,9 +326,6 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
 
         OP_CHECK_IF(ValidateRowIndex(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
 
-        OP_CHECK_IF(SetupOutputAndCheckAttrs(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
-                    return ge::GRAPH_FAILED, );
-
         OP_CHECK_IF(ValidateOffsetShape(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
 
         OP_CHECK_IF(SetupOutputAndCheckAttrs(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
@@ -340,7 +337,10 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
 static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *context)
 {
     // 先判断a8w4还是a8w8出问题
-    if (context->GetInputDataType(xIndex) == ge::DT_INT8 && context->GetInputDataType(wIndex) == ge::DT_INT8) {
+    if ((context->GetInputDataType(xIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
+        (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN)) {
         OP_CHECK_IF((context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_FLOAT &&
                      context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_BF16),
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W8A8 InputDataType of scale is wrong."),
@@ -353,7 +353,7 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W8A8 InputDataType of rowIndex is wrong."),
                      return ge::GRAPH_FAILED);
     }
-    
+
     if (context->GetInputDataType(xIndex) == ge::DT_INT8 && context->GetInputDataType(wIndex) == ge::DT_INT4) {
         OP_CHECK_IF((context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_INT64),
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W4A8 InputDataType of scale is wrong."),
@@ -416,7 +416,8 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
     return ge::GRAPH_FAILED;
 }
 
-static bool IsSupportMX(gert::InferDataTypeContext *context){
+static bool IsSupportMX(gert::InferDataTypeContext *context)
+{
     if (CheckType(context->GetInputDataType(xIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         CheckType(context->GetInputDataType(wIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT8_E8M0 &&
@@ -428,14 +429,17 @@ static bool IsSupportMX(gert::InferDataTypeContext *context){
     }
     return false;
 }
+
 static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferDataTypeContext *context)
 {
     bool supportDataTypeMX = IsSupportMX(context);
-    
-    bool supportDataTypeW8A8 = context->GetInputDataType(xIndex) == ge::DT_INT8 && 
-                               context->GetInputDataType(wIndex) == ge::DT_INT8 &&
+
+    bool supportDataTypeW8A8 = (context->GetInputDataType(xIndex) == ge::DT_INT8 ||
+                                context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
+                               (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
+                                context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN) &&
                                (context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT ||
-                               context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
+                                context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
                                context->GetOptionalInputDataType(groupListOptionIndex) == ge::DT_INT64 &&
                                (context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT64 ||
                                 context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT32);
