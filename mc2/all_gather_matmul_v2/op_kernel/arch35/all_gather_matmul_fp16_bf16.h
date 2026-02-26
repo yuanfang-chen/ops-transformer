@@ -166,12 +166,14 @@ __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::E
 template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void AllGatherMatmulFP16BF16<AType, BType, BiasType, CType>::Process()
 {
+    AscendC::printf("******** CHUGUOWEI AllGatherMatmulFP16BF16");
     if ASCEND_IS_AIC {
         // 先发出通信
         StartNotify();
 
         // 计算本卡、远端数据
-        InnerProcess();
+        AscendC::printf("******** CHUGUOWEI AllGatherMatmulFP16BF16 no InnerProcess");
+        // InnerProcess();
 
         // 结束通信
         EndNotify();
