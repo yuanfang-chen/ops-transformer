@@ -340,7 +340,10 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
 static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *context)
 {
     // 先判断a8w4还是a8w8出问题
-    if (context->GetInputDataType(xIndex) == ge::DT_INT8 && context->GetInputDataType(wIndex) == ge::DT_INT8) {
+    if ((context->GetInputDataType(xIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
+        (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN)) {
         OP_CHECK_IF((context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_FLOAT &&
                      context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_BF16),
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W8A8 InputDataType of scale is wrong."),
@@ -353,7 +356,7 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W8A8 InputDataType of rowIndex is wrong."),
                      return ge::GRAPH_FAILED);
     }
-    
+
     if (context->GetInputDataType(xIndex) == ge::DT_INT8 && context->GetInputDataType(wIndex) == ge::DT_INT4) {
         OP_CHECK_IF((context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_INT64),
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W4A8 InputDataType of scale is wrong."),
@@ -416,7 +419,8 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
     return ge::GRAPH_FAILED;
 }
 
-static bool IsSupportMX(gert::InferDataTypeContext *context){
+static bool IsSupportMX(gert::InferDataTypeContext *context)
+{
     if (CheckType(context->GetInputDataType(xIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         CheckType(context->GetInputDataType(wIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT8_E8M0 &&
@@ -428,14 +432,17 @@ static bool IsSupportMX(gert::InferDataTypeContext *context){
     }
     return false;
 }
+
 static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferDataTypeContext *context)
 {
     bool supportDataTypeMX = IsSupportMX(context);
-    
-    bool supportDataTypeW8A8 = context->GetInputDataType(xIndex) == ge::DT_INT8 && 
-                               context->GetInputDataType(wIndex) == ge::DT_INT8 &&
+
+    bool supportDataTypeW8A8 = (context->GetInputDataType(xIndex) == ge::DT_INT8 ||
+                                context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
+                               (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
+                                context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN) &&
                                (context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT ||
-                               context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
+                                context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
                                context->GetOptionalInputDataType(groupListOptionIndex) == ge::DT_INT64 &&
                                (context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT64 ||
                                 context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT32);
