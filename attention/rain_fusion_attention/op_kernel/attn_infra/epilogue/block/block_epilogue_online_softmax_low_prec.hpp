@@ -302,6 +302,7 @@ public:
                     repeatStride,
                     repeatStride,
                     repeatStride));
+            AscendC::PipeBarrier<PIPE_V>();
         }
     }
 
@@ -324,7 +325,6 @@ public:
                 repeatStride,
                 repeatStride,
                 repeatStride));
-        AscendC::PipeBarrier<PIPE_V>();
     }    
  	 
 
