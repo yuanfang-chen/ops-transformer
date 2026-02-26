@@ -64,25 +64,30 @@ operator_group_9:
   - norm_rope_concat
   - norm_rope_concat_grad
 operator_group_10:
-  - allto_allv_grouped_mat_mul
+  
   - grouped_mat_mul_allto_allv
-  - all_gather_matmul_v2
+  
   - all_gather_matmul
   - allto_all_matmul
   - matmul_allto_all
   - matmul_reduce_scatter
-  - matmul_reduce_scatter_v2
+  
   - matmul_all_reduce
   - moe_distribute_combine
-  - moe_distribute_combine_v2
+  
   - moe_distribute_combine_add_rms_norm
-  - moe_distribute_dispatch
+  
   - moe_distribute_dispatch_v2
   - quant_all_reduce
   - quant_reduce_scatter
   - moe_update_expert
   - distribute_barrier
 operator_group_11:
+  - all_gather_matmul_v2 # from 10 -> 11
+  - allto_allv_grouped_mat_mul # from 10 -> 11
+  - matmul_reduce_scatter_v2
+  - moe_distribute_combine_v2
+  - moe_distribute_dispatch
   - fused_infer_attention_score,10-3
 operator_group_12:
   - fused_infer_attention_score,10-4
