@@ -347,11 +347,6 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
     if (IsMicroScaling()) {
         OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
     } else {
-        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
-                    OP_LOGE(inputParams_.opName,
-                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
-                            inputParams_.bFormat),
-                    return false);
         const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
         OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
                     OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
@@ -382,6 +377,13 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
+    if (!IsMicroScaling()) {
+        OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
+                    OP_LOGE(inputParams_.opName,
+                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
+                            inputParams_.bFormat),
+                    return false);
+    }
     OP_CHECK_IF(!CheckInputsShape(xShape, wStorageShape, pertokenScaleStorageShape, scaleShape, yShape),
                 OP_LOGE(context_->GetNodeName(), "CheckInputsShape failed."), return false);
     OP_CHECK_IF(!CheckOptionalInputs(), OP_LOGE(context_->GetNodeName(), "CheckOptionalInputs failed."), return false);
