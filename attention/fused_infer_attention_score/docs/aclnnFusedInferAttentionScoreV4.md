@@ -1156,6 +1156,145 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
 
 <summary><a id="INT8"></a>int8量化场景：</summary>
 
+    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+        <table style="undefined;table-layout: fixed;  width: 1840px">
+            <colgroup>
+                <col style="width: 90px">
+                <col style="width: 100px">
+                <col style="width: 150px">
+                <col style="width: 150px">
+                <col style="width: 200px">
+                <col style="width: 200px">
+                <col style="width: 200px">
+                <col style="width: 300px">
+                <col style="width: 350px">
+                <col style="width: 200px">
+            </colgroup>
+            <thead>
+                <tr>
+                    <th rowspan="2">场景</th>
+                    <th rowspan="2">quantMode</th>
+                    <th rowspan="2">量化方式</th>
+                    <th colspan="3">KV不分离</th>
+                    <th colspan="4">KV分离</th>
+                </tr>
+                <tr>
+                    <th>antiquantMode</th>
+                    <th>antiquantScale</th>
+                    <th>antiquantOffset</th>
+                    <th>keyAntiquantMode 和 valueAntiquantMode</th>
+                    <th colspan="2">keyAntiquantScaleOptional 和 valueAntiquantScaleOptional</th>
+                    <th>keyAntiquantOffset 和 valueAntiquantOffset</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td rowspan="2">Q_S>1</td>
+                    <td>0</td>
+                    <td>per-channel（包含per-tensor）</td>
+                    <td rowspan="2">该参数无效
+                    </td>
+                    <td rowspan="2">
+                       数据类型仅支持FLOAT16
+                    </td>
+                    <td rowspan="2">
+                        数据类型仅支持FLOAT16
+                    </td>
+                    <td rowspan="2">
+                        <ul>
+                        <li>仅支持传入值为0、1，其他值会执行异常。</li>
+                        <li>keyAntiquantMode 和 valueAntiquantMode需要保持一致。</li>
+                        </ul>
+                    </td>
+                    <td rowspan="2">
+                        KeyAntiquantScale 和valueAntiquantScaleOptional都不为空时：
+                            <ul>
+                            <li>shape需要保持一致；</li>
+                            <li>要求query的s小于等于16</li>
+                            <li>要求query的数据类型为BFLOAT16,key、value的数据类型为INT8，输出的数据类型为BFLOAT16</li>
+                            <li>不支持tensorlist、左padding、PagedAttention特性</li>
+                        </ul>
+                    </td>
+                    <td>
+                    per-channel模式下要求两个参数的shape为(N, D)，(N, 1, D)或(H)，数据类型固定为BF16。
+                    </td>
+                    <td rowspan="2">
+                        <ul>
+                        <li>keyAntiquantOffset 和 valueAntiquantOffset要么都为空，要么都不为空</li>
+                        <li>keyAntiquantOffset 和 valueAntiquantOffset都不为空时：其shape需要保持一致
+                        </li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>per-token</td>
+                    <td>
+                        per-token模式下要求两个参数的shape均为(B, S)，数据类型固定为FLOAT32。
+                    </td>
+                </tr>
+                <tr>
+                    <td rowspan="7">Q_S=1</td>
+                    <td>0</td>
+                    <td>per-channel（包含per-tensor）</td>
+                    <td rowspan="7">传入0和1之外的其他值会执行异常</td>
+                    <td rowspan="7">数据类型支持FLOAT16、BFLOAT16、FLOAT32。</td>
+                    <td rowspan="7">数据类型支持FLOAT16、BFLOAT16、FLOAT32。</td>
+                    <td rowspan="7">除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，keyAntiquantMode 和 valueAntiquantMode需要保持一致</td>
+                    <td rowspan="7">
+                    keyAntiquantScaleOptional 和valueAntiquantScaleOptional都不为空时：
+                        <ul>
+                        <li>除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致</li>
+                        </ul>
+                    </td>
+                    <td>
+                        <ul>
+                        <li>per-channel模式：两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)。参数数据类型和query数据类型相同，当key、value数据类型为INT8、INT4(INT32)时支持。</li>
+                        <li>per-tensor模式：两个参数的shape均为(1)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。</li>
+                        </ul>
+                    </td>
+                    <td rowspan="7">
+                        <ul>
+                        <li>keyAntiquantOffset 和 valueAntiquantOffset要么都为空，要么都不为空</li>
+                        <li>
+                            keyAntiquantOffset 和 valueAntiquantOffset都不为空时：
+                            除了keyAntiquantMode为0并且valueAntiquantMode为1的场景外，其shape需要保持一致
+                        </li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td>1</td>
+                    <td>per-token</td>
+                    <td>两个参数的shape均为(1, B, S)，数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>per-tensor叠加per-head模式</td>
+                    <td>两个参数的shape均为(N)，数据类型和query数据类型相同，当key、value数据类型为INT8时支持。</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>per-channel叠加value支持per-token模式</td>
+                    <td>key支持per-channel叠加value支持per-token模式：对于key支持per-channel，两个参数的shape可支持(1, N, 1, D)，(1, N, D)，(1, H)且参数数据类型和query数据类型相同；对于value支持per-token，两个参数的shape均为(1, B, S)且数据类型固定为FLOAT32，当key、value数据类型为INT8、INT4(INT32)时支持。当key、value数据类型为INT8时，仅支持query和attentionOut的数据类型为FLOAT16。</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>代表per-token叠加使用PagedAttention模式管理scale/offset模式</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>代表per-token叠加per head并使用PagedAttention模式管理scale/offset模式</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>代表per-token-group模式</td>
+                    <td>-</td>
+                </tr>
+            <tbody>
+        </table>
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
