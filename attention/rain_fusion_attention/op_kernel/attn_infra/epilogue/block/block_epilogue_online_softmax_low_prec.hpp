@@ -580,30 +580,30 @@ public:
     void CalcLocalRowMax(uint32_t sUbOffset, uint32_t rowNumCurLoopRound, uint32_t columnNum, uint32_t columnNumRound,
         uint32_t rowOffset)
     {
-        if (columnNum == 1024U) {
-            RowmaxSPECTILE1024(
-                computeUbTensor,
-                lmUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        } else {      
-            RowmaxTAILTILE(
-                computeUbTensor,
-                lmUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        }    
-        // RowmaxTAILTILE(
-        //     computeUbTensor,
-        //     lmUbTensor[rowOffset],
-        //     tvUbTensor,
-        //     rowNumCurLoopRound,
-        //     columnNum,
-        //     columnNumRound);
+        // if (columnNum == 1024U) {
+        //     RowmaxSPECTILE1024(
+        //         computeUbTensor,
+        //         lmUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else {      
+        //     RowmaxTAILTILE(
+        //         computeUbTensor,
+        //         lmUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // }    
+        RowmaxTAILTILE(
+            computeUbTensor,
+            lmUbTensor[rowOffset],
+            tvUbTensor,
+            rowNumCurLoopRound,
+            columnNum,
+            columnNumRound);
     }
 
     __aicore__ inline
