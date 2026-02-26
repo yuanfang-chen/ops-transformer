@@ -897,9 +897,9 @@ namespace SplitFuse {
                         Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(pvReady);
 #endif
 #ifdef __DAV_C220_VEC__
-                        LayoutO layoutO(qSeqlen, embed * qHeads);
+                        LayoutO layoutO(qSeqlen, embed * qHeads); // todo 为什么layoutO是 qSeqLen，但是layoutLse是totalQtokens
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
-                        LayoutLse layoutLse(totalQTokens, qHeads);
+                        LayoutLse layoutLse(totalQTokens, qHeads); // todo，这里是写错了吧？totalTokens实际没有使用？
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
                         Arch::CrossCoreWaitFlag(pvReady);
 

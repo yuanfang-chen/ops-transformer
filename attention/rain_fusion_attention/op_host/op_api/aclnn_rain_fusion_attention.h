@@ -38,6 +38,7 @@ extern "C" {
  * @param [in] scaleValue: 缩放因子 (double类型)
  * @param [in] innerPrecise: Softmax精度控制 (0=float32 softmax, 1=fp16 softmax)
  * @param [in] blockSize: Block大小
+ * @param [in] softmaxLseFlag,新增：是否使能softmaxLse输出的标志位。
  * @param [in] attentionOut: Attention输出tensor
  * @param [in] softmaxLseOptional: Softmax log-sum-exp输出tensor (可选)
  * @param [out] workspaceSize: 返回计算所需workspace大小
@@ -62,6 +63,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnRainFusionAttentionGetWo
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
+    int64_t softmaxLseFlag,
     const aclTensor *attentionOut,
     const aclTensor *softmaxLseOptional,
     uint64_t *workspaceSize,

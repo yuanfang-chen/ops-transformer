@@ -72,6 +72,7 @@ public:
         this->Attr("scaleValue").AttrType(OPTIONAL).Float(0.0);
         this->Attr("innerPrecise").AttrType(OPTIONAL).Int(1);  // 0=float32 softmax, 1=fp16 softmax（推理优先）
         this->Attr("blockSize").AttrType(OPTIONAL).Int(128);
+        this->Attr("softmaxLseFlag").AttrType(OPTIONAL).Int(0);
 
         this->AICore().AddConfig("ascend910b");
         this->AICore().AddConfig("ascend910_93");
