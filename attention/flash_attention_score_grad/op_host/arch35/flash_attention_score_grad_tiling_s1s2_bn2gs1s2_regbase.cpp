@@ -1387,7 +1387,7 @@ uint8_t FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetSparseType()
             (fBaseParams.sparseMode == static_cast<uint32_t>(SparseMode::BAND) &&
             fBaseParams.s1Token >= fBaseParams.s1 && fBaseParams.s2Token == 0);
         // 仅支持N1为偶数，分核时按照N1维度拼接性能最优，如果N1为奇数存在负载不均问题。
-        casualCondition = casualCondition && ((fBaseParams.n1 % MULT_BASE == 0));
+        casualCondition = casualCondition && ((fBaseParams.n1 % NUM_TWO == 0));
         if (fBaseParams.sparseMode != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
             casualCondition = casualCondition && tndBaseInfo.isS1GreaterThanS2;
         } else {
@@ -2594,7 +2594,7 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DetermineMode()
     } else if (fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
         fBaseParams.inputDtype = (optiling::DtypeEnum)5;    // DtypeEnum::FLOAT8_E4M3
     } else if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
-        fBaseParams.inputDtype = (optiling::DtypeEnum)6;    // DtypeEnum::HIFLOAT8
+        fBaseParams.inputDtype = static_cast<optiling::DtypeEnum>(DTYPE_ENUM_INDEX_6);    // DtypeEnum::HIFLOAT8
     } else {
         fBaseParams.inputDtype = DtypeEnum::FLOAT16_PRECISION;
     }
@@ -4327,7 +4327,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     return ge::GRAPH_SUCCESS;
 }
 
-REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUs1s2Bs2Regbase, (int32_t)NpuArch::DAV_3510, 950);
-REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUnpaddedAttensionRegbase, (int32_t)NpuArch::DAV_3510, 900);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUs1s2Bs2Regbase, static_cast<int32_t>(NpuArch::DAV_3510), 950);
+REGISTER_TILING_TEMPLATE_WITH_ARCH(FlashAttentionScoreGrad, FlashAttentionScoreGradTilingUnpaddedAttensionRegbase, static_cast<int32_t>(NpuArch::DAV_3510), 900);
 }
 } // namespace optiling
