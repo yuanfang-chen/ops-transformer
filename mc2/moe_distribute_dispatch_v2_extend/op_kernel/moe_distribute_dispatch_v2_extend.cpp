@@ -14,9 +14,9 @@
  */
 #include "basic_api/kernel_basic_intf.h"
 // #include "moe_distribute_dispatch_v2.h"
-// #include "moe_distribute_dispatch_v2_tiling.h"
+#include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2_tiling.h"
 // #include "moe_distribute_dispatch_v2_full_mesh.h"
-// #include "moe_distribute_dispatch_v2_tiling_key.h"
+#include "moe_distribute_dispatch_v2_extend_tiling_key.h"
 
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/mc2_moe_context.h"
@@ -27,7 +27,7 @@
 // using namespace MoeDistributeDispatchV2Impl;
 // using namespace MoeDistributeDispatchV2FullMeshImpl;
 using namespace Mc2Context;
-// using namespace Mc2Tiling;
+using namespace Mc2Tiling;
 using namespace AscendC;
 
 template<bool HasTp, uint8_t QuantMode, bool ScaleMode, uint8_t FullMesh, uint8_t CommMode, uint8_t ArchTag>
@@ -37,10 +37,10 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
-    AscendC::printf("rankid %d",ptr->rankId);
+    // __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
+    // AscendC::printf("rankid %d",ptr->rankId);
 
-// REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 // #if defined(__DAV_C310__)
 //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
 // #endif
