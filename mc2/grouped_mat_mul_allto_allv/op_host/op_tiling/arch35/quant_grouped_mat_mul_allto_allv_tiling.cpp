@@ -286,27 +286,6 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckAndSetLocalParamsAttr()
     //     OP_LOGE(opName_, "not support commQuant now, but commQuantDtype is %ld !", localParams_.commQuantDtype),
     //     return ge::GRAPH_FAILED);
 
-    auto mmXQuantModeptr = attrs->GetAttrPointer<int64_t>(ATTR_MM_X_QUANT_MODE_INDEX);
-    OP_TILING_CHECK(mmXQuantModeptr == nullptr, OP_LOGE(opName_, "mmXQuantModeptr is null."), return ge::GRAPH_FAILED);
-    localParams_.mmXQuantMode = *mmXQuantModeptr;
-    auto mmWeightQuantModeptr = attrs->GetAttrPointer<int64_t>(ATTR_MM_WEIGHT_QUANT_MODE_INDEX);
-    OP_TILING_CHECK(mmWeightQuantModeptr == nullptr, OP_LOGE(opName_, "mmWeightQuantModeptr is null."), return ge::GRAPH_FAILED);
-    localParams_.mmWeightQuantMode = *mmWeightQuantModeptr;
-    auto mmTransWeightptr = attrs->GetAttrPointer<bool>(ATTR_TRANS_MM_WEIGHT_INDEX);
-    OP_TILING_CHECK(mmTransWeightptr == nullptr, OP_LOGE(opName_, "mmTransWeightptr is null."), return ge::GRAPH_FAILED);
-    localParams_.isMmWeightTrans = *mmTransWeightptr;
-    if (!localParams_.hasSharedMm) {
-        OP_TILING_CHECK(localParams_.mmXQuantMode != QUANT_NONE,
-            OP_LOGE(opName_, "no sharedmm, but mmXQuantMode is %ld !", localParams_.mmXQuantMode),
-            return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.mmWeightQuantMode != QUANT_NONE,
-            OP_LOGE(opName_, "no sharedmm, but mmWeightQuantMode is %ld !", localParams_.mmWeightQuantMode),
-            return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(localParams_.isMmWeightTrans != false,
-            OP_LOGE(opName_, "no sharedmm, but mmWeightTrans is true !"),
-            return ge::GRAPH_FAILED);
-    }
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -321,7 +300,15 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckFormat()
         OP_LOGE(opName_, "gmmXScale storage format should be ND."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX)->GetStorageFormat() != ge::Format::FORMAT_ND,
         OP_LOGE(opName_, "gmmWeightScale storage format should be ND."), return ge::GRAPH_FAILED);
-
+    auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
+    OP_TILING_CHECK(yDesc == nullptr,
+        OP_LOGE(opName_, "y tensor desc can not be null."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(yDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
+        OP_LOGE(opName_, "y storage format should be ND."), return ge::GRAPH_FAILED);
+    if (!localParams_.hasSharedMm) {
+        return ge::GRAPH_SUCCESS;
+    }
+    // 即使传入nullptr，GetOptionalInputDesc接口也有可能拿到非nullptr的地址？？？
     auto mmXDesc = context_->GetOptionalInputDesc(MM_X_OPTIONAL_INDEX);
     if (mmXDesc != nullptr) {
         OP_TILING_CHECK(mmXDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
@@ -342,12 +329,6 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckFormat()
         OP_TILING_CHECK(mmWeightScaleDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
             OP_LOGE(opName_, "mmWeightScale storage format should be ND."), return ge::GRAPH_FAILED);
     }
-
-    auto yDesc = context_->GetOutputDesc(OUTPUT_Y_INDEX);
-    OP_TILING_CHECK(yDesc == nullptr,
-        OP_LOGE(opName_, "y tensor desc can not be null."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(yDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
-        OP_LOGE(opName_, "y storage format should be ND."), return ge::GRAPH_FAILED);
     auto mmYDesc = context_->GetOutputDesc(OUTPUT_MM_Y_OPTIONAL_INDEX);
     if (mmYDesc != nullptr) {
         OP_TILING_CHECK(mmYDesc->GetStorageFormat() != ge::Format::FORMAT_ND,
