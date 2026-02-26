@@ -324,6 +324,7 @@ public:
                 repeatStride,
                 repeatStride,
                 repeatStride));
+        AscendC::PipeBarrier<PIPE_V>();
     }    
  	 
 
@@ -351,7 +352,7 @@ public:
         // 1024个元素，以128为单位分治求最大值。1024->512->256->128
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             ReduceMaxByPair(lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
+            // AscendC::PipeBarrier<PIPE_V>();
         }
 
         // NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
