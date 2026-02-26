@@ -73,15 +73,10 @@ enum QuantizationMode {
 };
 
 enum QuantModePair {
-    QUANT_PAIR_NONE = 0,          // 不量化
-    QUANT_PAIR_TT = 1,     // pertensor
-    QUANT_PAIR_KC = 2,    // perchannel
-    // QUANT_PERTOKEN = 3,      // pertoken
-    // QUANT_PERGROUP = 4,      // pergroup
-    // QUANT_PERBLOCK = 5,      // perblock
-    // QUANT_MX = 6,            // mx量化
-    // QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
-    QUANT_PAIR_ERROR = 255,
+    QUANT_PAIR_NONE = 0,   // 不量化
+    QUANT_PAIR_TT = 1,     // pertensor - pertensor
+    QUANT_PAIR_KC = 2,     // pertoken - perchannel
+    QUANT_PAIR_ERROR = 255
 };
 
 constexpr uint32_t DATA_SIZE_L0C = 4;
