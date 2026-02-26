@@ -351,16 +351,16 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::CopyOut(uint64_t yOffset, uin
             else {
                 copyParams.dstStride = (this->bnSize - 1) * this->dBytes;   //layout = SBND
             }
-            #if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+#if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
             DataCopyParams dataCopyParams;
             dataCopyParams.blockCount = copyParams.blockCount;
             dataCopyParams.blockLen = copyParams.blockLen / BYTE_OF_BLOCK;
             dataCopyParams.srcGap= copyParams.srcStride / BYTE_OF_BLOCK;
             dataCopyParams.dstGap= copyParams.dstStride / BYTE_OF_BLOCK;
             DataCopy(yGm[yOffset], yLocal, dataCopyParams);
-            #else
+#else
             DataCopyPad(yGm[yOffset], yLocal, copyParams);
-            #endif
+#endif
         }
     } 
 #if !(defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
@@ -406,7 +406,12 @@ __aicore__ inline void RotateHalfBf16<OriT, CmpT>::Compute(LocalTensor<CmpT> &co
 
     this->XNewCopy(xFp32, xNewFp32, sLines);
     this->ComputeInner(xFp32, xNewFp32, cos, sin, calcLength);
+
+#if (defined(__CCE_AICORE__) && __CCE_AICORE__ == 200)
+    Cast(yLocal, xNewFp32, RoundMode::CAST_NONE, calcLength);
+#else
     Cast(yLocal, xNewFp32, RoundMode::CAST_RINT, calcLength);
+#endif
     outQueueY.EnQue(yLocal);
 }
 } // namespace RotateHalfN
