@@ -357,35 +357,44 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
 {
+    std::cout << "AnalyzeInputs" << std::endl;
+
     auto xStorageShape = context_->GetInputShape(X_INDEX);
     OP_CHECK_IF(xStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input xStorageShape is nullptr."),
                 return false);
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
-   
+
+    std::cout << "xStorageShape" << std::endl;
     auto wStorageShape = context_->GetInputShape(W_INDEX);
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input wStorageShape is nullptr."),
                 return false);
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     
+    std::cout << "wStorageShape" << std::endl;
     auto scaleStorageShape = context_->GetInputShape(SCALE_INDEX);
     OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input scaleStorageShape is nullptr."),
                 return false);
     const gert::Shape &scaleShape = scaleStorageShape->GetOriginShape();
     
+    std::cout << "scaleStorageShape" << std::endl;
     auto pertokenScaleStorageShape = context_->GetOptionalInputShape(PERTOKEN_SCALE_INDEX);
     
+    std::cout << "pertokenScaleStorageShape" << std::endl;
     auto yStorageShape = context_->GetOutputShape(Y_INDEX);
     OP_CHECK_IF(yStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Output yStorageShape is nullptr."),
                 return false);
     const gert::Shape &yShape = yStorageShape->GetOriginShape();
 
+    std::cout << "yStorageShape" << std::endl;
     if (!IsMicroScaling()) {
+        std::cout << "!IsMicroScaling() in" << std::endl;
         OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
                     OP_LOGE(inputParams_.opName,
                             "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
                             inputParams_.bFormat),
                     return false);
     }
+    std::cout << "!IsMicroScaling() out" << std::endl;
     OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(context_->GetNodeName(), "SetGroupNum failed."), return false);
     OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(context_->GetNodeName(), "SetMKN failed."), return false);
     OP_CHECK_IF(!CheckInputsShape(xShape, wStorageShape, pertokenScaleStorageShape, scaleShape, yShape),
