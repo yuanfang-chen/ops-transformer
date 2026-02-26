@@ -172,6 +172,7 @@ private:
     float scaleValue_ = 0.0f;
     uint32_t maskType_ = 0;
     uint32_t innerPrecise_ = 1;  // 0=float32 softmax, 1=fp16 softmax
+    bool softmaxLseFlag_ = false;
     
     uint32_t totalQBlocks_ = 0;
     uint32_t maxKvBlockNum_ = 0;
