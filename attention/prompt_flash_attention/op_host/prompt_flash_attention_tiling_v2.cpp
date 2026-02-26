@@ -126,6 +126,8 @@ constexpr int32_t POS_SHIFT_MAX = 1048576; // 2^20
 constexpr int32_t POS_SHIFT_MIN = -1048576; // -2^20
 
 constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+constexpr int32_t D_SIZE_BASE_16 = 16;
+constexpr int32_t D_SIZE_BASE_32 = 32;
 
 const std::vector<std::tuple<ge::DataType, ge::DataType, ge::DataType>> inOutDtypeSupported = {
     {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
@@ -704,6 +706,25 @@ bool PromptFlashAttentionTilingV2::CheckKVDataType(ContextParamsForPFATiling& co
         return false);
     OP_CHECK_IF((keyTypeCheck == allowedDtypes.end()), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
          "DataType of key(%s) should be DT_FLOAT16, DT_BF16, DT_INT8.", GetPfaDataTypeStr(contextKeyParams.kDataType).c_str()),
+        return false);
+    return true;
+}
+
+bool PromptFlashAttentionTilingV2::CheckRopeDataType(ContextParamsForPFATiling& contextKeyParams) {
+    if (enablePertensorQuant || enablePerblockQuant || enableIFAMLAFullQuant) {
+        return true;
+    }
+    ge::DataType queryDataType = contextKeyParams.inputDataType;
+    ge::DataType keyDataType = contextKeyParams.kDataType;
+    ge::DataType queryRopeDataType = contextKeyParams.qRopeDataType;
+    ge::DataType keyRopeDataType = contextKeyParams.kRopeDataType;
+    OP_CHECK_IF((queryDataType != queryRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "DataType of query rope(%s) is not equal to datatype of query(%s).",
+        GetPfaDataTypeStr(queryRopeDataType).c_str(), GetPfaDataTypeStr(queryDataType).c_str()),
+        return false);
+    OP_CHECK_IF((keyDataType != keyRopeDataType), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+        "DataType of key rope(%s) is not equal to datatype of key(%s).",
+        GetPfaDataTypeStr(keyRopeDataType).c_str(), GetPfaDataTypeStr(keyDataType).c_str()),
         return false);
     return true;
 }
@@ -1812,6 +1833,9 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
     OP_CHECK_IF((contextKeyParams.queryRopeInputShape != nullptr && contextKeyParams.keyRopeInputShape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "queryRope is not null, but keyRope is null, "
         "they should be consistent."), return false);
+    OP_CHECK_IF(!(CheckRopeDataType(contextKeyParams)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Check rope datatype failed."),
+        return false);
     const gert::StorageShape* queryRopeShape = contextKeyParams.queryRopeInputShape;
     const gert::StorageShape* keyRopeShape = contextKeyParams.keyRopeInputShape;
 
@@ -1907,6 +1931,10 @@ bool PromptFlashAttentionTilingV2::CheckQuant(ContextParamsForPFATiling& context
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "antiquant params check failed!"),
         return false);
+    OP_CHECK_IF(enableKVAntiquant && (enableIFAMLA || enablePFARope || enablePFAMLA),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "MLA do not support antiquant."),
+        return false);
     return true;
 }
 
@@ -1976,6 +2004,14 @@ bool PromptFlashAttentionTilingV2::CheckKVScaleShape4MLAFullQuant(ContextParamsF
 
 bool PromptFlashAttentionTilingV2::CheckMLAFullQuant(ContextParamsForPFATiling& contextKeyParams)
 {
+    // check layout
+    std::string layoutStr(contextKeyParams.layout);
+    const std::vector<std::string> supportedLayoutList = {"BSH", "BSND", "BNSD", "TND"};
+    OP_CHECK_IF(std::find(supportedLayoutList.begin(), supportedLayoutList.end(), layoutStr) == supportedLayoutList.end(),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When MLAFullQuant enables, the layout of Q(%s) must be BSH/BSND/BNSD/TND.",
+            layoutStr.c_str()),
+        return false);
     // check QKV dtype for fp8_e4m3, output dtype for bf16, QK Rope Type for bf16
     OP_CHECK_IF((contextKeyParams.inputDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.kDataType != ge::DT_FLOAT8_E4M3FN ||
         contextKeyParams.vDataType != ge::DT_FLOAT8_E4M3FN || contextKeyParams.outputDataType != ge::DT_BF16),
@@ -2115,19 +2151,34 @@ bool PromptFlashAttentionTilingV2::CheckActSeq(const ContextParamsForPFATiling& 
 
     auto batchOfQuery = actSeqLen->GetShapeSize();
     auto batchOfKey = actSeqLenKV->GetShapeSize();
-    OP_CHECK_IF(batchOfQuery != batchOfKey,
-        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "When layout is TND/NTD, the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
-            "batch size of actualSequenceLengthQ = %ld, batch size of actualSequenceLengthKV = %ld",
-            batchOfQuery, batchOfKey),
-        return false);
+    OP_CHECK_IF(!enablePA && (batchOfQuery != batchOfKey),
+                OP_LOGE(contextKeyParams.opName,
+                        "When layout is TND/NTD and page attention is not enable, "
+                        "the batch size of actualSequenceLengthQ and actualSequenceLengthKV must be equal, "
+                        "batch size of actualSequenceLengthQ = %ld, batch size of actualSequenceLengthKV = %ld",
+                        batchOfQuery, batchOfKey),
+                return false);
+    // layout为TND, kv PA管理场景 actualSequenceLengthKV size可以为1或者>=B
+    OP_CHECK_IF(enablePA && (batchOfKey != 1 && batchOfKey < batchOfQuery),
+                OP_LOGE(contextKeyParams.opName,
+                        "When layout is TND/NTD and page attention is enable, "
+                        "the size of actualSequenceLengthKV (%ld) should be greater than or equal to "
+                        "the size of actualSequenceLengthQ(%ld) or equal to 1 ",
+                        batchOfKey, batchOfQuery),
+                return false);
 
     int64_t lastActSeq = 0;
     int64_t lastActSeqKV = 0;
+    int64_t curActSeqKV = 0;
     uint32_t batchSize = queryShapeInfo.b; // actSeqLengthSize and actSeqLengthKVSize are equal
     for (uint32_t i = LOOP_BEGIN_NUM; i < batchSize; ++i) {
         int64_t curActSeq = actSeqLen->GetData<int64_t>()[i];
-        int64_t curActSeqKV = actSeqLenKV->GetData<int64_t>()[i];
+        if (enablePA && batchOfKey == 1) {
+            curActSeqKV = actSeqLenKV->GetData<int64_t>()[0];
+        } else {
+            curActSeqKV = actSeqLenKV->GetData<int64_t>()[i];
+        }
+
         OP_CHECK_IF(curActSeq < 0,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "actualSeqLengths[%u] = %ld, should >= 0",
                 i, curActSeq),
@@ -2299,10 +2350,10 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     // Tiling sinking scene, workspace needs to be calculated, at this time, blockTableDim2 * blockSize is used as S2.
     blockTableDim2 = static_cast<int32_t>(blockTableShape->GetStorageShape().GetDim(1));
     // PFA PA blockSize % 128 == 0
-    if (enableIFAMLAFullQuant) {
+    if (enableIFAMLAFullQuant || enablePertensorQuant) {
         OP_CHECK_IF((!enableIFAMLA && !enableIFA && !(queryShapeInfo.s == 1 && enableAlibiPse) && (*blockSize % BLOCK_SIZE_BASE != 0 || *blockSize < BLOCK_SIZE_BASE || *blockSize > BLOCK_SIZE_MAX)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when Full Quant and PA enable",
                 *blockSize, BLOCK_SIZE_BASE, BLOCK_SIZE_BASE, BLOCK_SIZE_MAX),
             return false);
     } else {
@@ -2314,10 +2365,10 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     }
     // IFA PA blockSize % 16 == 0
     ifaBlockSizeBase /= static_cast<int32_t>(dataTypeSize);
-    if (enableIFAMLAFullQuant) {
+    if (enableIFAMLAFullQuant || enablePertensorQuant) {
         OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % ifaBlockSizeBase != 0 || *blockSize < ifaBlockSizeBase || *blockSize > BLOCK_SIZE_MAX)),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable",
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when Full Quant and PA enable",
                 *blockSize, ifaBlockSizeBase, ifaBlockSizeBase, BLOCK_SIZE_MAX),
             return false);
     } else {
@@ -2346,7 +2397,7 @@ bool PromptFlashAttentionTilingV2::CheckPseShiftTypeAndShape(ContextParamsForPFA
     OP_CHECK_IF(isQKVDDifferent,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "Not support pse shift when query and key headdim is not equal to value headdim."),
         return false);   
-    OP_CHECK_IF(enableIFAMLA || enablePFAMLA,
+    OP_CHECK_IF(enableIFAMLA || enablePFAMLA || enablePFARope,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "MLA do not support pseShift."),
         return false);
     if (!CheckNonEmptyShapeExceptions(contextKeyParams, pseShiftShape, "pseShift")) {
@@ -2693,12 +2744,18 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In prefill MLA scenario, when layout is %s, full quant is not supported!",
             layoutStr.c_str()), return false);
     }
-    if (!enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant) { // GQA
-        OP_CHECK_IF((CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)),
-            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
-            layoutStr.c_str(), queryShapeInfo.d), return false);
+    bool isGqa = !enablePFAMLA && !enablePFARope && !enableIFAMLA && !enablePertensorQuant && !enablePerblockQuant && !enableIFAMLAFullQuant;
+    if (isGqa) { // GQA
+        OP_CHECK_IF(isQKVDDifferent,
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, not support layout %s when query and key headdim is not equal to value headdim.",
+            layoutStr.c_str()), return false);
     }
     if (layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD") {
+        if (isGqa) { // GQA
+            OP_CHECK_IF((CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size of query must be 64 or 128, but got d = %d.",
+                layoutStr.c_str(), queryShapeInfo.d), return false);
+        }
         OP_CHECK_IF(enableLeftPadding,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, left padding is not supported!",
             layoutStr.c_str()), return false);
@@ -2710,6 +2767,15 @@ bool PromptFlashAttentionTilingV2::CheckTransposeLayoutCrossover(ContextParamsFo
         OP_CHECK_IF(enablePseShift,
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When layout is %s, pse is not supported!",
             layoutStr.c_str()), return false);
+    } else if (layoutStr == "BNSD_BSND") {
+        if (isGqa) { // GQA
+            OP_CHECK_IF((contextKeyParams.outputDataType == ge::DT_INT8 && queryShapeInfo.d % D_SIZE_BASE_32 != 0),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s and output dtype is int8, d size should be a multiple of %d, but got d = %d.",
+                layoutStr.c_str(), D_SIZE_BASE_32, queryShapeInfo.d), return false);
+            OP_CHECK_IF((queryShapeInfo.d % D_SIZE_BASE_16 != 0),
+                OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "In GQA scenario, when layout is %s, d size should be a multiple of %d, but got d = %d.",
+                layoutStr.c_str(), D_SIZE_BASE_16, queryShapeInfo.d), return false);
+        }
     }
     return true;
 }

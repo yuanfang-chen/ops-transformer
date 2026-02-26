@@ -15,11 +15,7 @@ import os
 
 def down_files_native(url_list):
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # 创建子目录（例如：downloads）
-    download_dir = os.path.join(current_dir, "cann_3rd_lib_path_download")
-    os.makedirs(download_dir, exist_ok=True)  # 如果目录不存在则创建
-    
+
     for url in url_list:
 
         file_name = url.split('/')[-1]
@@ -27,8 +23,8 @@ def down_files_native(url_list):
         if not file_name:
             file_name = "downloaded_file"
         
-        # 将文件保存到新建的目录下
-        file_path = os.path.join(download_dir, file_name)
+        # 将下载的文件保存到脚本所在目录
+        file_path = os.path.join(current_dir, file_name)
         
         urllib.request.urlretrieve(url, file_path)
 
@@ -39,7 +35,7 @@ if __name__ == "__main__":
         ("https://gitcode.com/cann-src-third-party/makeself/releases/download/"
         "release-2.5.0-patch1.0/makeself-release-2.5.0-patch1.tar.gz"),
         "https://gitcode.com/cann-src-third-party/pybind11/releases/download/v2.13.6/pybind11-2.13.6.tar.gz",
-        "https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0/eigen-5.0.0.tar.gz",
+        "https://gitcode.com/cann-src-third-party/eigen/releases/download/5.0.0-h0.trunk/eigen-5.0.0.tar.gz",
         "https://gitcode.com/cann-src-third-party/protobuf/releases/download/v25.1/protobuf-25.1.tar.gz",
         ("https://gitcode.com/cann-src-third-party/abseil-cpp/releases/download/"
         "20230802.1/abseil-cpp-20230802.1.tar.gz")

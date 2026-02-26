@@ -221,6 +221,7 @@ private:
     ge::graphStatus CheckShapeAllPositive(const int64_t &idx, const gert::Shape &shape);
     ge::graphStatus CheckShapeAllPositive();
     void ConvertRotaryMode();
+    void SetBsnd();
     std::string rotaryModeStr_;
 
     ge::DataType qDataType_;
