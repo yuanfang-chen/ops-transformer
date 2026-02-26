@@ -4945,7 +4945,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_3510)
                                                 { // input info
                                                     {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
                                                     {{{E, K, N}, {E, K, N}}, ge::DT_INT8, ge::FORMAT_ND},        //weight
-                                                    {{{M, N}, {M, N}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
+                                                    {{{E, N}, {E, N}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
                                                     {{{}, {}}, ge::DT_INT32, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantScale
@@ -4995,7 +4995,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_notrans)
                                                 { // input info
                                                     {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},              //x
                                                     {{{E, K, N}, {E, N/32, K/16, 16, 32}}, ge::DT_INT8, ge::FORMAT_FRACTAL_NZ},   //weight
-                                                    {{{M, N}, {M, N}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
+                                                    {{{E, N}, {E, N}}, ge::DT_INT32, ge::FORMAT_ND},                //bias
                                                     {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                //scale
                                                     {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //offset
                                                     {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},                        //antiquantScale
