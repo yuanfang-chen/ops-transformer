@@ -234,22 +234,38 @@ public:
 
 
 
+        // NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
 
+        // NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // AscendC::WholeReduceSum<half, false>(
+        //     rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+        //     numElemsAligned / BLOCK_SIZE);
+        // AscendC::PipeBarrier<PIPE_V>();
 
 
 
 
         NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
         NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
         NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
+
+        NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+
         NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
@@ -260,11 +276,6 @@ public:
             rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
-
-
-
-
-
 
 
 
@@ -578,17 +589,37 @@ public:
 
 
 
+        // NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // AscendC::WholeReduceMax<half, false>(
+        //     rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+        //     numElemsAligned / BLOCK_SIZE);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+
+
         NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
         NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        NewReduceMax(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
         NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
+
+        NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceMax(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+
         NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
@@ -599,6 +630,7 @@ public:
             rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
+
 
 
 
