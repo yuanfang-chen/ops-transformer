@@ -294,7 +294,7 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTen
     CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
     std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
-    uint64_t ctxSize = sizeof(Mc2MoeContext);
+    uint64_t ctxSize = 0;
     OP_LOGD("PRINT ctxSize:%d",ctxSize);
     OP_LOGD("PRINT before HcclEngineCtxGet");
     ret = HcclEngineCtxGet(hcclHandle, mc2Ctxtag.c_str(), engine, &ctx, &ctxSize);
