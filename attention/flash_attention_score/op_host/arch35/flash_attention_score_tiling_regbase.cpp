@@ -1590,7 +1590,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoLibApiTiling()
 
 void FlashAttentionScoreTilingRegbase::CalcDVBasicBlock() {
     dVBasicBlock = AlignUp(dSizeV, D_TEMPLATE_SPLIT_SIZE);
-    if (dTemplateType == DTemplateType::ALIGNED_192 && (hasRope || dVBasicBlock == 128)) {
+    if (dTemplateType == DTemplateType::ALIGNED_192 && (hasRope || dVBasicBlock == DTemplateType::ALIGNED_128)) {
         dVTemplateType = DTemplateType::ALIGNED_128;
     } else {
         dVTemplateType = dTemplateType;
