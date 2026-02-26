@@ -415,14 +415,49 @@ ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
+ge::graphStatus AllGatherQuantBmmTiling::AdjustHCCLLimit()
+{
+    printf("**************** CHUGUOWEI AdjustHCCLLimit tileMValue_ %ld, args_.kValue %ld, sizeof(args_.geAType) %ld, args_.rankDim %d",
+     tileMValue_, args_.kValue, sizeof(args_.geAType), args_.rankDim);
+    
+    if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
+        printf("**************** CHUGUOWEI AdjustHCCLLimit pass");
+        return ge::GRAPH_SUCCESS;
+    }
+    
+    OPS_LOG_I(opName_, "The result of formulaic tiling result does not meet the hccl restriction,"
+     " current splitting: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld].",
+        tileMValue_, MutableRCSTilingDataA5().tileCnt, tailMValue_, MutableRCSTilingDataA5().tailCnt);
+    
+    OP_TILING_CHECK((quantMmMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE),
+        OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting when quant scene is perblock, the size still exceeds 256MB."), 
+        return ge::GRAPH_FAILED);
+    
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
+    MutableRCSTilingDataA5().tileCnt = Ops::Base::FloorDiv(args_.mValue, tileMValue_);
+    MutableRCSTilingDataA5().tailM = args_.mValue - MutableRCSTilingDataA5().tileCnt * tileMValue_;
+    tailMValue_ = MutableRCSTilingDataA5().tailM;
+    if (tailMValue_ == 0) {
+        MutableRCSTilingDataA5().tailCnt = 0;
+    } else {
+        MutableRCSTilingDataA5().tailCnt = 1;
+    } 
+    return ge::GRAPH_SUCCESS;
+}
+
+
 ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     SetTilingKeyParams();
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
       OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingDataA5());
     DoSplitMTiling(MutableRCSTilingDataA5());
+    GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingDataA5(), GetQuantScene()));
     GE_ASSERT_GRAPH_SUCCESS(DoAdaptSlidWindowTiling());
     DoAllGatherTiling(MutableRCSTilingDataA5(), MutableTCubeTileTilingData(), MutableTCubeTailTilingData(),
                       allGatherMatmulTilingDataFp8_->debugMode, allGatherMatmulTilingDataFp8_->dataType);
