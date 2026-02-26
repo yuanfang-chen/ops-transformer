@@ -18,7 +18,11 @@
 #include "kernel_tiling/kernel_tiling.h"
 #include "kernel_operator.h"
 #include "lib/matmul_intf.h"
+#if __has_include("../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h")
 #include "../../../common/op_kernel/arch35/flash_attention_score_tiling_regbase.h"
+#else
+#include "../../common/arch35/flash_attention_score_tiling_regbase.h"
+#endif
 
 template<typename T>
 class PromptFlashAttentionZeroOutPut {
