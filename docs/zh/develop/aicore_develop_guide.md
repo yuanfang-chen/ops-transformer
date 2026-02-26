@@ -66,9 +66,31 @@ ${op_name}                              # 替换为实际算子名的小写下�
 └── CMakeLists.txt                      # 算子cmakelist入口
 ```
 
-若```${op_class}```为全新算子分类需额外在`cmake/custom_build.cmake`中添加```add_subdirectory(${op_class})```，否则无法正常编译。
+若```${op_class}```为全新算子分类需额外在`cmake/custom_build.cmake`中添加```add_subdirectory(${op_class})```，否则无法正常编译，具体修改如下。
 
+```bash
+# 编译examples目录下算子
+foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
+    set(EXAMPLES_DIR "${OPS_TRANSFORMER_DIR}/examples/${EXAMPLES_OP_NAME}")
+    set(EXAMPLES_MC2_DIR "${OPS_TRANSFORMER_DIR}/examples/mc2/${EXAMPLES_OP_NAME}")
+    # 在examples目录下新增算子分类时，参考mc2目录增加命令语句如下：
+    # set(EXAMPLES_${op_class}_DIR "${OPS_TRANSFORMER_DIR}/examples/${op_class}/${EXAMPLES_OP_NAME}")
+    if(IS_DIRECTORY ${EXAMPLES_DIR})
+        add_subdirectory(examples/${EXAMPLES_OP_NAME})
+        list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${EXAMPLES_OP_NAME})
+    elseif(IS_DIRECTORY ${EXAMPLES_MC2_DIR})
+        add_subdirectory(examples/mc2/${EXAMPLES_OP_NAME})
+        list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${EXAMPLES_OP_NAME})
+    # 在examples目录下新增算子分类时，参考mc2目录增加命令语句如下：
+    # elseif(IS_DIRECTORY ${EXAMPLES_${op_class}_DIR})
+    #     add_subdirectory(examples/${op_class}/${EXAMPLES_OP_NAME}")
+    #     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${op_class}/${EXAMPLES_OP_NAME})
+    endif()
+endforeach()
 ```
+
+```bash
+# 编译experimental目录下算子
 if(ENABLE_EXPERIMENTAL)
     # genop新增experimental算子分类
     # add_subdirectory(${op_class})
@@ -359,7 +381,7 @@ __aicore__ inline void AddExample<T>::Process()
 
     以`AddExample`算子为例，假设开发交付件在`examples`目录，完整代码参见[add_example](../../../examples/add_example)目录。
 
-    > 说明：编译过程依赖第三方开源软件，联网场景会自动下载，离线编译场景需要自行安装，具体参考[离线编译](../context/build_offline.md)。
+    > 说明：编译过程依赖第三方开源软件，联网场景会自动下载，离线编译场景需要自行安装，具体参考[离线编译执行](../invocation/op_invocation.md)。
 
     ```bash
     # 编译指定算子，如bash build.sh --pkg --ops=add_example

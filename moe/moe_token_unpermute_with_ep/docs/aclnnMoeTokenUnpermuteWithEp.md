@@ -60,18 +60,18 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEpGetWorkspaceSize(
     const aclTensor   *probsOptional,
     int64_t            numTopk,
     const aclIntArray *rangeOptional,
-    bool               paddedMode
-    const aclIntArray *restoreShapeOptional
-    const aclTensor   *out
+    bool               paddedMode,
+    const aclIntArray *restoreShapeOptional,
+    const aclTensor   *out,
     uint64_t          *workspaceSize,
-    aclOpExecutor     **executor)
+    aclOpExecutor     **executor);
 ```
 ```c++
 aclnnStatus aclnnMoeTokenUnpermuteWithEp(
     void          *workspace,
     uint64_t       workspaceSize,
     aclOpExecutor *executor,
-    aclrtStream    stream)
+    aclrtStream    stream);
 ```
 
 ## aclnnMoeTokenUnpermuteWithEpGetWorkspaceSize
@@ -145,8 +145,8 @@ aclnnStatus aclnnMoeTokenUnpermuteWithEp(
     <tr>
       <td>rangeOptional</td>
       <td>输入</td>
-      <td>ep切分的有效范围。</td>
-      <td>size为2。为空时，忽略numTopk，执行逻辑回退到<a href="../../moe_token_unpermute/docs/aclnnMoeTokenUnpermute.md">aclnnMoeTokenUnpermute</a>。</td>
+      <td>ep切分的有效范围, size为2。</td>
+      <td>为空时，忽略numTopk，执行逻辑回退到<a href="../../moe_token_unpermute/docs/aclnnMoeTokenUnpermute.md">aclnnMoeTokenUnpermute</a>。</td>
       <td>-</td>
       <td>-</td>
       <td>-</td>

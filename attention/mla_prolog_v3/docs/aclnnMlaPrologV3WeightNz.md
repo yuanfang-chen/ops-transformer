@@ -160,11 +160,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | dequantScaleWDqOptional    | 输入      | weight_dq的反量化参数。   | - 支持非空Tensor（仅INT8、FLOAT8_E4M3FN dtype场景需传）    | FLOAT          | FLOAT8_E8M0| ND          | (1,Hcq) <br> mxfp8全量化场景： <br>  (Hcq, He/32)                                 |×   |
   | dequantScaleWUqQrOptional  | 输入      | 用于MatmulQcQr矩阵乘后反量化操作的per-channel参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8、FLOAT8_E4M3FN dtype场景需传）  | FLOAT          | FLOAT8_E8M0 | ND         | (1,N*(D+Dr))<br> mxfp8全量化场景： <br>  (N*(D+Dr), Hcq/32)     |×   |
   | dequantScaleWDkvKrOptional | 输入      | weight_dkv_kr的反量化参数。   | - 支持非空Tensor（仅INT8、FLOAT8_E4M3FN dtype场景需传）   | FLOAT          | FLOAT8_E8M0| ND         | (1,Hckv+Dr) <br> mxfp8全量化场景： <br>  (Hckv+Dr, He/32) |×   |
-  | quantScaleCkvOptional      | 输入      | 用于对kvCache输出数据做量化操作的参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8、FLOAT8_E4M3FN dtype量化输出场景需传）  | FLOAT          | FLOAT| ND         | - 部分量化场景：(1,Hckv) <br> - 全量化、mxfp8全量化场景：(1)  |×   |
-  | quantScaleCkrOptional      | 输入      | 用于对krCache输出数据做量化操作的参数，Device侧的aclTensor。| - 支支持非空Tensor（仅INT8 dtype量化输出场景需传）    | FLOAT    | - | ND   | (1,Dr)     |×   |
+  | quantScaleCkvOptional      | 输入      | 用于对kvCache输出数据做量化操作的参数，Device侧的aclTensor。 | - 支持非空Tensor（仅INT8、FLOAT8_E4M3FN dtype量化输出场景需传）  | FLOAT          | FLOAT| ND         | - 部分量化场景：(1,Hckv) <br> - int8全量化、mxfp8全量化场景：(1)  |×   |
+  | quantScaleCkrOptional      | 输入      | 用于对krCache输出数据做量化操作的参数，Device侧的aclTensor。| - 支持非空Tensor（仅INT8 dtype量化输出场景需传）    | FLOAT    | - | ND   | (1,Dr)     |×   |
   | smoothScalesCqOptional     | 输入      | 用于对RmsNormCq输出做动态量化操作的参数，Device侧的aclTensor。   | - 支持非空Tensor（仅INT8 dtype场景可选传）| FLOAT  | - | ND | (1,Hcq)                       |×   |
   | actualSeqLenOptional     | 输入      | 表示每个batch中的序列长度，以前缀和的形式储存，Device侧的aclTensor。 | - BS合轴且CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时需传  | INT64    | - | ND   | (B)     |×   |
-  | kNopeClipAlphaOptional     | 输入      | 表示对kvCache做clip操作时的缩放因子，Device侧的aclTensor。  | - 在半量化和全量化的pertile场景下shape为1，其余场景可不填，不支持空Tensor | FLOAT  | - | ND | (1)    |×   |
+  | kNopeClipAlphaOptional     | 输入      | 表示对kvCache做clip操作时的缩放因子，Device侧的aclTensor。  | - 在半量化和int8全量化的pertile场景下shape为1，其余场景可不填，不支持空Tensor | FLOAT  | - | ND | (1)    |×   |
   | rmsnormEpsilonCq           | 输入      | 计算$c^Q$的RmsNorm公式中的$\epsilon$参数，Host侧参数。        | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型 | DOUBLE         | - | -          | - |-   |
   | rmsnormEpsilonCkv          | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\epsilon$参数，Host侧参数。   | - 用户未特意指定时，建议传入1e-05 - 仅支持double类型   | DOUBLE         | - | -          | -  |-   |
   | cacheModeOptional          | 输入      | 表示kvCache的模式，Host侧参数。| - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - 可选值为："PA_BSND"、 "PA_NZ"、 "PA_BLK_BSND"、 "PA_BLK_NZ"、 "BSND"、 "TND" <br> - A2、A3支持所有可选值，A5当前仅支持"PA_BSND"和"PA_NZ" | CHAR*          | CHAR* | -          | - |-   |
@@ -175,8 +175,8 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | ckvkrRepoMode     | 输入      | 表示kv_cache和kr_cache的存储模式，Host侧参数。  | - 0表示kv_cache和kr_cache分别存储，1表示kv_cache和kr_cache合并存储，默认值为0| INT64  | - | -- | --    |-   |
   | quantScaleRepoMode     | 输入      | 表示量化scale的存储模式，Host侧参数。  | - 0表示量化scale和数据分别存储，1表示量化scale和数据合并存储作为kvCacheRef输出，默认值为0| INT64  | - | -- | --    |-   |
   | tileSize     | 输入      | 表示per-tile量化时每个tile的大小，仅在kv_cache_quant_mode为3时有效，Host侧参数。  | - 默认值为128 | INT64 | - | -- | --    |-   |
-  | qcQrScale     | 输入      |   表示Query的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | - | -   | -  |- |
-  | kcScale     | 输入      |   表示Key的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | - | -    | -  |- |
+  | qcQrScale     | 输入      |   表示Query的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | DOUBLE | -   | -  |- |
+  | kcScale     | 输入      |   表示Key的尺度矫正系数。  | - 用户不特意指定时需要传入1.0 | DOUBLE | DOUBLE | -    | -  |- |
   | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$），Device侧的aclTensor。     | -  | BFLOAT16、INT8 | BFLOAT16、FLOAT8_E4M3FN | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) |×   |
   | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$），Device侧的aclTensor。  | - | BFLOAT16       | BFLOAT16 | ND         | - BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr)     |×   |
   | dequantScaleQNopeOutOptional  | 输出           | 公式中Query输出的量化参数，Device侧的aclTensor。  | -     | FLOAT      | FLOAT| ND   | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)   |×   |
@@ -232,29 +232,29 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
   | Dr           | qk 位置编码维度                | 取值固定为：64                                                              |
   | Nkv          | kv 的 head 数                  | 取值固定为：1                                                               |
   | BlockNum     | PagedAttention 场景下的块数    | 1. 当CacheMode="PA_BSND"/"PA_NZ"时，取值大于或等于 `(B*S)/BlockSize` 向上取整的结果。<br> 2. 当CacheMode="PA_BLK_BSND"/"PA_BLK_NZ"时，取值大于或等于`B` * `(S / BlockSize)`向上取整的结果（即`B * Ceil(S/BlockSize)`）。注：BS合轴场景，每个Batch中的S长度可以不同，因此BlockNum的取值需大于或等于各Batch中S长度除以BlockSize后的向上取整结果相加。 |
-  | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br> Ascend 950PR/Ascend 950DT取值范围：16、128                                              |
+  | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br>                                              |
   | T            | BS 合轴后的大小                | 取值范围：不限制；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维 |
   | Dtile        | kvCache的D维度的大小           | - Per-tile量化场景下，取值固定为656 <br> - 其他场景下，取值固定为Hckv（512）                                                       |
 
 -   shape约束
-    -   若tokenX的维度采用BS合轴，即(T, He)
+    - 若tokenX的维度采用BS合轴，即(T, He)
         - ropeSin和ropeCos的shape为(T, Dr)
         - 当CacheMode为PA_BSND或PA_NZ时，cacheIndex的shape为(T)
         - 当CacheMode为PA_BLK_BSND或PA_BLK_NZ时，cacheIndex的shape为(Sum(Ceil(S_i/BlockSize)))，S_i为每个Batch中的S的长度
         - 当CacheMode为PA_BLK_BSND或PA_BLK_NZ时，actualSeqLenOptional需要传入，维度为(B)
-        - dequantScaleXOptional的shape为(T, 1)
+        - int8全量化场景下，dequantScaleXOptional的shape为(T, 1)；mxfp8全量化场景下，dequantScaleXOptional的shape为(T, He/32)
         - queryOut的shape为(T, N, Hckv)
         - queryRopeOut的shape为(T, N, Dr)
-        - 全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(T, N, 1)，其他场景下为(1)
+        - int8全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(T, N, 1)，其他场景下为(1)
     - 若tokenX的维度不采用BS合轴，即(B, S, He)
         - ropeSin和ropeCos的shape为(B, S, Dr)
         - 当CacheMode为PA_BSND或PA_NZ时，cacheIndex的shape为(B, S)
         - 当CacheMode为PA_BLK_BSND或PA_BLK_NZ时，cacheIndex的shape为(B,Ceil(S/BlockSize))
-        - dequantScaleXOptional的shape为(B*S, 1)
+        - int8全量化场景下，dequantScaleXOptional的shape为(B\*S, 1)；mxfp8全量化场景下，dequantScaleXOptional的shape为(B*S, He/32)
         - queryOut的shape为(B, S, N, Hckv)
         - queryRopeOut的shape为(B, S, N, Dr)
-        - 全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)，其他场景下为(1)
-    -   B、S、T、Skv值允许一个或多个取0，即Shape与B、S、T、Skv值相关的入参允许传入空Tensor，其余入参不支持传入空Tensor。
+        - int8全量化场景和mxfp8全量化场景下，dequantScaleQNopeOutOptional的shape为(B*S, N, 1)，其他场景下为(1)
+    - B、S、T、Skv值允许一个或多个取0，即Shape与B、S、T、Skv值相关的入参允许传入空Tensor，其余入参不支持传入空Tensor。
         - 如果B、S、T取值为0，则queryOut、queryRopeOut输出空Tensor，kvCacheRef、krCacheRef不做更新。
         - 如果Skv取值为0，则queryOut、queryRopeOut、dequantScaleQNopeOutOptional正常计算，kvCacheRef、krCacheRef不做更新，即输出空Tensor。
     - 当CacheMode为BSND时
@@ -302,30 +302,30 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
     <tr>
       <td>kvCache per-tile量化 </td>
       <td>
-          入参：weightUqQr传入pertoken量化数据，kvCacheRef传入per-tile量化数据,其余入参皆为非量化数据。dequant_scale_w_uq_qr、quant_scale_ckv字段必须传入，smooth_scale_cq字段可选传入 <br>
+          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
           出参：kvCacheRef_out返回pertile量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
-      <td rowspan="3">全量化</td>
+      <td rowspan="3">int8全量化</td>
       <td> kvCache非量化</td>
       <td>
           入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：所有出参皆为非量化数据
+          出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tensor量化 </td>
       <td>
           入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，kvCacheRef传入pertensor量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参范围非量化数据
+          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tile量化 </td>
       <td>
-          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入，smooth_scale_cq字段可选传入 <br>
-          出参：kvCacheRef出参返回pertile量化数据，其余出参范围非量化数据
+          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入，smooth_scale_cq字段可选传入 <br>
+          出参：kvCacheRef出参返回pertile量化数据，其余出参返回非量化数据
       </td>
     </tr>
     <tr>
@@ -333,14 +333,21 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td> kvCache非量化</td>
       <td>
           入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入 <br>
-          出参：所有出参皆为非量化数据
+          出参：所有出参返回非量化数据
       </td>
     </tr>
     <tr>
       <td> kvCache per-tensor量化 </td>
       <td>
           入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，kvCacheRef传入pertensor量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr、quant_scale_ckv字段必须传入 <br>
-          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参范围非量化数据
+          出参：queryOut返回pertoken_head量化数据，kvCacheRef出参返回pertensor量化数据，其余出参返回非量化数据
+      </td>
+    </tr>
+    <tr>
+      <td> kvCache per-tile量化 </td>
+      <td>
+          入参：tokenX传入pertoken量化数据，weightDq、weightUqQr、weightDkvKr传入perchannel量化数据，其余入参皆为非量化数据。dequant_scale_x、dequant_scale_w_dq、dequant_scale_w_uq_qr、dequant_scale_w_dkv_kr字段必须传入 <br>
+          出参：kvCacheRef出参返回pertile量化数据，其余出参返回非量化数据
       </td>
     </tr>
   </table>
@@ -353,7 +360,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <th rowspan="3">参数名</th>
       <th rowspan="2" colspan="1">非量化场景</th>
       <th colspan="3">部分量化场景</th>
-      <th colspan="3">全量化场景</th>
+      <th colspan="3">int8全量化场景</th>
       <th colspan="3">mxfp8全量化场景</th>
     </tr>
     <tr>
@@ -365,8 +372,10 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <th colspan="1">kvCache per-tile量化</th>
       <th colspan="1">kvCache非量化</th>
       <th colspan="1">kvCache per-tensor量化</th>
+      <th colspan="1">kvCache per-tile量化</th>
     </tr>
     <tr>
+      <th>dtype</th>
       <th>dtype</th>
       <th>dtype</th>
       <th>dtype</th>
@@ -388,6 +397,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td>weightDq</td>
@@ -398,6 +408,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>INT8</td>
       <td>INT8</td>
+      <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
     </tr>
@@ -412,9 +423,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td>weightUk</td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -436,9 +449,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td> rmsnormGammaCq </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -460,9 +475,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> ropeSin </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -484,6 +501,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> kvCacheRef </td>
@@ -495,6 +513,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>INT8</td>
       <td>BFLOAT16</td>
+      <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
@@ -508,9 +527,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> cacheIndexOptional </td>
+      <td>INT64</td>
       <td>INT64</td>
       <td>INT64</td>
       <td>INT64</td>
@@ -532,6 +553,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
+      <td>FLOAT8_E8M0</td>
     </tr>
     <tr>
       <td> dequantScaleWDqOptional </td>
@@ -542,6 +564,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>
@@ -556,6 +579,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
+      <td>FLOAT8_E8M0</td>
     </tr>
     <tr>
       <td> dequantScaleWDkvKrOptional </td>
@@ -566,6 +590,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>
@@ -580,12 +605,14 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> quantScaleCkrOptional </td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
@@ -604,15 +631,17 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
-      <td> actualSeqLenOptional </td>
+      <td> kNopeClipAlphaOptional </td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
+      <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
-      <td>NULLPTR</td>
+      <td>FLOAT</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>NULLPTR</td>
@@ -628,9 +657,11 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>BFLOAT16</td>
     </tr>
     <tr>
       <td> queryRopeOut </td>
+      <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
       <td>BFLOAT16</td>
@@ -652,6 +683,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>NULLPTR</td>
       <td>NULLPTR</td>
       <td>FLOAT</td>
+      <td>NULLPTR</td>
     </tr>
     <tr>
       <td> queryNormOutOptional </td>
@@ -664,6 +696,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>INT8</td>
       <td>FLOAT8_E4M3FN</td>
       <td>FLOAT8_E4M3FN</td>
+      <td>FLOAT8_E4M3FN</td>
     </tr>
     <tr>
       <td> dequantScaleQNormOutOptional </td>
@@ -674,6 +707,7 @@ aclnnStatus aclnnMlaPrologV3WeightNz(
       <td>FLOAT</td>
       <td>FLOAT</td>
       <td>FLOAT</td>
+      <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
       <td>FLOAT8_E8M0</td>
     </tr>

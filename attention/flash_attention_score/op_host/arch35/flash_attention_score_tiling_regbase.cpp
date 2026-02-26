@@ -1590,7 +1590,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoLibApiTiling()
 
 void FlashAttentionScoreTilingRegbase::CalcDVBasicBlock() {
     dVBasicBlock = AlignUp(dSizeV, D_TEMPLATE_SPLIT_SIZE);
-    if (dTemplateType == DTemplateType::ALIGNED_192 && hasRope) {
+    if (dTemplateType == DTemplateType::ALIGNED_192 && (hasRope || dVBasicBlock == 128)) {
         dVTemplateType = DTemplateType::ALIGNED_128;
     } else {
         dVTemplateType = dTemplateType;
@@ -1600,12 +1600,12 @@ void FlashAttentionScoreTilingRegbase::CalcDVBasicBlock() {
 
 ge::graphStatus FlashAttentionScoreTilingRegbase::PostTiling()
 {
-    auto blockDim = CalcTschBlockDim(multiCoreParamsRegbase_->get_coreNum() * 2, aicNum, aivNum);
-    context_->SetBlockDim(blockDim);
+    auto numBlocks = CalcTschBlockDim(multiCoreParamsRegbase_->get_coreNum() * 2, aicNum, aivNum);
+    context_->SetBlockDim(numBlocks);
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     if (inputParamsRegbase_->get_needDropMaskOp() == 1) {
-        blockDim = CalcTschBlockDim(aivNum, aicNum, aivNum);
-        context_->SetBlockDim(blockDim);
+        numBlocks = CalcTschBlockDim(aivNum, aicNum, aivNum);
+        context_->SetBlockDim(numBlocks);
 
         int64_t shapeTotalSize = bSize * n2Size * gSize * s1Size * s2Size;
         auto layoutType = inputParamsRegbase_->get_layoutType();

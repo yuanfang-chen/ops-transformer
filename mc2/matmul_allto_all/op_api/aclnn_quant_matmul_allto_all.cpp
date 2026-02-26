@@ -325,13 +325,10 @@ static bool CheckDtypesValid(const aclTensor* x1, const aclTensor* x2,
         } else {
             isAllDtypesValid = CheckKCDtypesValid(x1, x2, x1Scale, x2Scale, biasOptional, output);
         }
-    }
-    if (!isAllDtypesValid) {
+    } else {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-            "Input tensors x1:%s, x2:%s, x1_scales:%s, x2_scales:%s, x1QuantMode:%ld, x2QuantMode:%ld, biasOptional:%s and output:%s are not simultaneously supported.", \
-            op::ToString(x1->GetDataType()).GetString(), op::ToString(x2->GetDataType()).GetString(),
-            op::ToString(x1Scale->GetDataType()).GetString(), op::ToString(x2Scale->GetDataType()).GetString(),
-            x1QuantMode, x2QuantMode, op::ToString(biasOptional->GetDataType()).GetString(), op::ToString(output->GetDataType()).GetString()); \
+                "The input x1QuantMode %ld and x2QuantMode %ld do not match any currently supported quantization mode scenarios.",
+                x1QuantMode, x2QuantMode);
     }
     return isAllDtypesValid;
 }
@@ -376,21 +373,21 @@ static aclnnStatus CheckAndHandleParams(const aclTensor* x1, const aclTensor* x2
     // 3. 检查shape
     CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output), ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(CheckScaleShape(x1, x2, x1Scale, x2Scale, transposeX2), ACLNN_ERR_PARAM_INVALID);
-    // 3. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
+    // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
     CHECK_RET(CheckDtypesValid(x1, x2, x1QuantMode, x2QuantMode, x1Scale, x2Scale, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
-    // 4. 检查暂不支持的参数是否为空，不影响场景
+    // 5. 检查暂不支持的参数是否为空，不影响场景
      CHECK_RET(CheckNotSupportNull(commScaleOptional, x1OffsetOptional, x2OffsetOptional), ACLNN_ERR_PARAM_INVALID);
-    // 5. 检查预留参数是否为指定值，不影响场景
+    // 6. 检查预留参数是否为指定值，不影响场景
      CHECK_RET(CheckReservedParams(commQuantMode, commQuantDtype, groupSize), ACLNN_ERR_PARAM_INVALID);
-    // 6. 检查alltoAllAxes是否为空或者[-1,-2]
+    // 7. 检查alltoAllAxes是否为空或者[-1,-2]
     CHECK_RET(CheckAlltoAllAxes(alltoAllAxesOptional), ACLNN_ERR_PARAM_INVALID);
-    // 7. 检查transposeX1是否合法, 目前不能为true
+    // 8. 检查transposeX1是否合法, 目前不能为true
     CHECK_RET(CheckTransposeX1(transposeX1), ACLNN_ERR_PARAM_INVALID);
-    // 8. 检查group长度是否小于等于128
+    // 9. 检查group长度是否小于等于128
     CHECK_RET(CheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
-    // 9. 检查输入的数据格式是否为ND
+    // 10. 检查输入的数据格式是否为ND
     CHECK_RET(CheckFormat(x1, x2, biasOptional, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_INVALID);
-    // 10.兼容性处理非ND格式
+    // 11.兼容性处理非ND格式
     CHECK_RET(ReFormatNotND(x1, x2, biasOptional, x1Scale, x2Scale, output), ACLNN_ERR_PARAM_INVALID);
     // 如果所有检查都通过，且reformat也通过，输出参数检查成功
     OP_LOGD("aclnnQuantMatmulAlltoAll checkParams success");
@@ -423,8 +420,24 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
                                                                 bool transposeX1, bool transposeX2, const aclTensor* output,
                                                                 uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_NULLPTR);	// 先检查x2是否合法，避免访问空指针等等非法操作
+    bool notContiguous = IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
+    auto transX2 = x2;    // 复制一个x2
+    if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 not contiguous, and set x2 transpose, it is error!");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if (notContiguous && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {    // 只有当非连续时，才会涉及到转连续等情况
+        transposeX2 = !transposeX2;
+        // 把非连续x2转成连续
+        transX2 = TransX2Tensor(x2);
+        CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+            x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+    }
     aclnnStatus retParam = CheckAndHandleParams(
-        x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
+        x1, transX2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional, group, alltoAllAxesOptional,
         x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype, groupSize, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     // Inner接口部分入参类型和aclnn接口不一致，需要重新包装，同时Inner接口额外需要部分参数，按算子原型模板和实际业务逻辑生成
@@ -444,7 +457,7 @@ extern "C" aclnnStatus aclnnQuantMatmulAlltoAllGetWorkspaceSize(const aclTensor*
         enumYDtype = 27;
     }
     aclnnStatus ret = aclnnInnerMatmulAlltoAllGetWorkspaceSize(
-        x1, x2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
+        x1, transX2, biasOptional, x1Scale, x2Scale, commScaleOptional, x1OffsetOptional, x2OffsetOptional,
         str_group, worldSize, alltoAllAxesOptional, enumYDtype, x1QuantMode, x2QuantMode, commQuantMode, commQuantDtype,
         transposeX1, transposeX2, groupSize, out, workspaceSize, executor);
     OP_LOGD("QuantMatmulAlltoAll, aclnnnInnerGetWorkspaceSize ret %d.", ret);

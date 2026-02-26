@@ -65,6 +65,24 @@ REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201200, FAInfer
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000110201200, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201203, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000110201203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000200100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000210100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000200103, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010200100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010200103, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000200200, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000200203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010200200, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010200203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000211100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201103, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201100, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201103, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201200, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000000201203, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201200, FAInferTilingData)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5100000000010201203, FAInferTilingData)
 
 // Test purposes - using old key
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, IncreFlashAttentionTilingDataV2)
@@ -946,17 +964,6 @@ ge::graphStatus CheckSparseModeParams(const gert::TilingContext *context, int64_
             minS = std::min(minS, currS);
             minKV = std::min(minKV, currKV);
         }
-        OP_CHECK_IF((preToken < 0) && (preToken * (-1) >= minS),
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-                "preTokens absolute value should be smaller than actual length of q in band mode,"
-                "preTokens = %ld, actual length of q = %ld", preToken, minS),
-            return ge::GRAPH_FAILED);
-        
-        OP_CHECK_IF((nextToken < 0) && (nextToken * (-1) >= minKV),
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-                "nextTokens absolute value should be smaller than actual length of k and v in band mode,"
-                "nextTokens = %ld, actual length of  k and v  = %ld", nextToken, minKV),
-            return ge::GRAPH_FAILED);
         
         OP_CHECK_IF((preToken < 0) && (nextToken < 0),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
@@ -1067,6 +1074,43 @@ ge::graphStatus CheckFAIQKV(gert::TilingContext *context, bool isPageAttention)
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus CheckFAILearnableSink(const gert::TilingContext *context) {
+ 	         auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
+ 	         auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+             auto queryShape = context->GetInputShape(QUERY_INDEX);
+             auto learnableSinkShape = context->GetOptionalInputShape(LEARNABLE_SINK_INDEX);
+
+ 	         auto attrs = context->GetAttrs();
+ 	         int32_t tempInnerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
+ 	         int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
+ 	 
+ 	        OP_CHECK_IF((sinkDataType != qDataType),
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of Q and learnable sink must be consistent"),
+ 	                 return ge::GRAPH_FAILED);
+
+ 	        OP_CHECK_IF(((sinkDataType != ge::DT_FLOAT16) && (sinkDataType != ge::DT_BF16)),
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Input dtype of learnable sink must be FP16 or BF16"),
+ 	                 return ge::GRAPH_FAILED);
+
+            auto sinkDim = learnableSinkShape->GetStorageShape().GetDimNum();
+            OP_CHECK_IF(sinkDim != 1U,
+                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape dim(%u) must be 1!", sinkDim),
+                return ge::GRAPH_FAILED);
+
+            auto sinkDimValue = learnableSinkShape->GetStorageShape().GetDim(DIM_0);
+            auto queryN = queryShape->GetStorageShape().GetDim(DIM_1);
+            OP_CHECK_IF(sinkDimValue != queryN,
+                OP_LOGE(context->GetNodeName(), "learnable_sink enable, sink shape(%u) must be same equal queryN(%u)!", sinkDimValue, queryN),
+                return ge::GRAPH_FAILED);
+
+ 	         OP_CHECK_IF((tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
+ 	             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+ 	             "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
+ 	                 return ge::GRAPH_FAILED);
+ 	 
+ 	         return ge::GRAPH_SUCCESS;
+ 	 }
+
 ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPageAttention)
 {
     auto attrs = context->GetAttrs();
@@ -1077,8 +1121,7 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
     int64_t tempKD = 0;
     int64_t tempVD = 0;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    bool tempLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
-    int32_t tempInnerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
+    bool isLearnableSinkFlag = context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr;
     
     if (!isPageAttention) {
         tempKD = tempK->GetStorageShape().GetDim(DIM_2);
@@ -1109,10 +1152,11 @@ ge::graphStatus CheckFAISinglePara(const gert::TilingContext *context, bool isPa
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
             "When input layout is TND, headDim shall not exceed 256"),
             return ge::GRAPH_FAILED);
-    OP_CHECK_IF(tempLearnableSinkFlag && (tempInnerPrecise == 1 || tempInnerPrecise == 2 || tempInnerPrecise == 3), 
-            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-            "When learnable sink is enabled, innerPrecise shall not be 1, 2 or 3"),
-            return ge::GRAPH_FAILED);
+    
+    if (isLearnableSinkFlag) {
+ 	         return CheckFAILearnableSink(context);
+ 	}
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1206,7 +1250,7 @@ ge::graphStatus CheckFAIAvailability(gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, FAInferContext& faInfo)
+static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, FAInferContext& faInfo, uint32_t aicoreNum)
 {
     auto qDataType = context->GetInputDesc(QUERY_INDEX)->GetDataType();
     auto tempQ = context->GetInputShape(QUERY_INDEX);
@@ -1268,6 +1312,40 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
         faInfo.qSeqlenList = actualSeqQTnd;
         faInfo.kvSeqlenList = actualSeqKvTnd;
         faInfo.isTilingSink = false;
+        int64_t maxQSeqlen = 0;
+        int64_t minQSeqlen = INT64_MAX;
+        int64_t minKVSeqlen = INT64_MAX;
+        for (int32_t batchIdx = 0; batchIdx < batch; batchIdx++) {
+            int64_t qSeqlen = *(actualSeqQTnd + batchIdx);
+            int64_t kvSeqlen = *(actualSeqKvTnd + batchIdx);
+            if (faInfo.layout == "TND") {
+                if (batchIdx > 0) {
+                    int64_t prevQSeqlenSum = *(actualSeqQTnd + batchIdx - 1);
+                    qSeqlen = qSeqlen - prevQSeqlenSum;
+                    if (!faInfo.pagedCacheFlag) {
+                        int64_t prevKvSeqlenSum = *(actualSeqKvTnd + batchIdx - 1);
+                        kvSeqlen = kvSeqlen - prevKvSeqlenSum;
+                    }
+                }
+            }
+            if (qSeqlen > maxQSeqlen) {
+                maxQSeqlen = qSeqlen;
+            }
+            if (qSeqlen < minQSeqlen) {
+                minQSeqlen = qSeqlen;
+            }
+            if (kvSeqlen < minKVSeqlen) {
+                minKVSeqlen = kvSeqlen;
+            }
+        }
+        uint32_t numTasks = faInfo.batch * faInfo.kvHeads;
+        bool isLongSeq = (numTasks <= 0.8 * aicoreNum) && (minKVSeqlen >= aicoreNum * 512);
+        bool isShortSeq = (numTasks <= 0.4 * aicoreNum) && (minKVSeqlen >= 1024);
+        if ((!faInfo.lseFlag) && (faInfo.pagedCacheFlag) && !(faInfo.maskType == MaskType::SWA_MASK) && (!faInfo.learnableSinkFlag) && !(faInfo.innerPrecise == 1) &&
+            (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && 
+            (isLongSeq || isShortSeq)) {
+            faInfo.flashDecodeFlag = true; 
+        }
     } else {
         faInfo.isTilingSink = true;
     }
@@ -1294,13 +1372,13 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
     bool sparseModeSupported = (sparseMode == 0) || (sparseMode == 3) || (sparseMode == 4);
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
-    bool mhaConditions = isMha && (tempAttnMaskShape == nullptr) &&
-        (qDataType == ge::DT_FLOAT16) && (innerPrecise == 1) && !isPageAttention;
+    bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) && 
+        (tempAttnMaskShape == nullptr);
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
 
     bool usingFAI = false;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    if (inputLayoutStr == "TND" && !isLearnableSink && !isRopeSplitMla &&
+    if (inputLayoutStr == "TND" && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
@@ -1333,16 +1411,20 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     OP_CHECK_IF(CheckFAIAvailability(context) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Split fuse condition check failed"),
         return ge::GRAPH_FAILED);
-    FAInferTilingData faiTilingData;
-    FAInferContext faiContext;
-    ConvertContextToParamsFAI(context, faiContext);
-    FAInferTiling fai_tiling(faiContext);
     auto platformInfoPtr = context->GetPlatformInfo();
     OP_CHECK_IF(platformInfoPtr == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "PlatformInfoPtr is null"),
         return ge::GRAPH_FAILED);
+    // 使用SyncAll，需要设置为batchmode模式，所有核同时启动，否则多流方式下执行可能会卡死
+    constexpr uint32_t BATCH_MODE_SCHEDULE = 1;
+    context->SetScheduleMode(BATCH_MODE_SCHEDULE);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    fai_tiling.SetCoreNum(ascendcPlatform.GetCoreNumAic());
+    uint32_t aicoreNum = ascendcPlatform.GetCoreNumAic();
+    FAInferTilingData faiTilingData;
+    FAInferContext faiContext;
+    ConvertContextToParamsFAI(context, faiContext, aicoreNum);
+    FAInferTiling fai_tiling(faiContext);
+    fai_tiling.SetCoreNum(aicoreNum);
     auto ret = fai_tiling.DoTiling(faiTilingData);
     OP_CHECK_IF(ret != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "Do fai tiling went wrong"),
@@ -1350,8 +1432,17 @@ static ge::graphStatus TilingProcess4SplitFuse(gert::TilingContext *context)
     faiTilingData.SaveToBuffer(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity());
     context->GetRawTilingData()->SetDataSize(faiTilingData.GetDataSize());
     faiContext.workspaces[0] = 16U * 1024U * 1024U +
-        static_cast<uint64_t>(fai_tiling.GetCoreNum()) * WORKSPACE_BLOCK_SIZE_DB * 4U * 3U * 4U;
-    context->SetBlockDim(fai_tiling.GetCoreNum());
+        static_cast<uint64_t>(fai_tiling.GetCoreNum()) * WORKSPACE_BLOCK_SIZE_DB * 4U * 3U * 4U + static_cast<uint64_t>(faiTilingData.get_splitLseTotalSize()) + static_cast<uint64_t>(faiTilingData.get_splitOTotalSize());
+    if (faiContext.flashDecodeFlag) {
+        auto needCoreNum = faiTilingData.get_needCoreNum();
+        if (needCoreNum == 0) {
+            context->SetBlockDim(fai_tiling.GetCoreNum());
+        } else {
+            context->SetBlockDim(needCoreNum);
+        }
+    } else {
+        context->SetBlockDim(fai_tiling.GetCoreNum());
+    }
     context->SetTilingKey(fai_tiling.GetTilingKey());
     return ge::GRAPH_SUCCESS;
 }
@@ -1414,7 +1505,7 @@ bool IsGqaMtp(gert::TilingContext &context, const string inputLayoutStr, const i
         return false;
     }
     auto tempK = context.GetInputShape(KEY_INDEX);
-    bool isNz = (tempK->GetStorageShape().GetDimNum() == 5) ? true : false;
+    bool isNz = (tempK->GetStorageShape().GetDimNum() == 5);
     if (!isNz) {
         return false;
     }
@@ -1719,10 +1810,10 @@ static ge::graphStatus GetQueryD(const gert::TilingContext *context, const strin
         inputLayoutStr == "NTD_TND") {
         queryD = tempQ->GetStorageShape().GetDim(DIM_2);
     } else if (inputLayoutStr == "BNSD_BSND" || 
-               inputLayoutStr == "BNSD_NBSD"  || 
-               inputLayoutStr == "BNSD"  || 
-               inputLayoutStr == "BSND_NBSD" || 
-               inputLayoutStr == "BSND") {
+            inputLayoutStr == "BNSD_NBSD"  || 
+            inputLayoutStr == "BNSD"  || 
+            inputLayoutStr == "BSND_NBSD" || 
+            inputLayoutStr == "BSND") {
         queryD = tempQ->GetStorageShape().GetDim(DIM_3);
     } else {
         int64_t queryH = tempQ->GetStorageShape().GetDim(DIM_2);
@@ -1958,7 +2049,7 @@ FIA_EXTERN_C ge::graphStatus DoOpTilingFusedInferAttentionScore(gert::TilingCont
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    if ((ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510)) {
+    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         return TilingFusedInferAttentionScoreV2(context);
     } else {
         return TilingFusedInferAttentionScore(context);

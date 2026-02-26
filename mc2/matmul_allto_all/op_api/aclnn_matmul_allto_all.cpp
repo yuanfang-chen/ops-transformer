@@ -58,11 +58,19 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
 }
 
 // 检查是否有空tensor
-// 非量化场景支持x1的m轴为0，即token提示词为空
-static bool CheckNotEmptyTensor(const aclTensor* x1, const aclTensor* x2) {
+// 950 非量化场景支持x1的m轴为0，即token提示词为空
+static bool CheckNotEmptyTensor(const aclTensor* x1, const aclTensor* x2, bool transposeX2) {
+    if (GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
+        auto mVal = x1->GetViewShape().GetDim(0);
+        OP_API_CHECK((mVal == ZERO), {
+          OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+          "X1 is empty tensor with zero dimM, which is unsupported.");
+          return false;
+        });
+    }
     auto kVal1 = x1->GetViewShape().GetDim(1);
-    auto kVal2 = x2->GetViewShape().GetDim(0);
-    auto nVal = x2->GetViewShape().GetDim(1);
+    auto kVal2 = transposeX2 ? x2->GetViewShape().GetDim(1) : x2->GetViewShape().GetDim(0);
+    auto nVal = transposeX2 ? x2->GetViewShape().GetDim(0) : x2->GetViewShape().GetDim(1);
     OP_API_CHECK((kVal1 == ZERO), {
       OP_LOGE(ACLNN_ERR_PARAM_INVALID,
       "X1 is empty tensor with zero dimK, which is unsupported.");
@@ -169,7 +177,7 @@ static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const 
     if (biasOptional != nullptr) {
         if (biasOptional->GetDataType() != op::DataType::DT_FLOAT && biasOptional->GetDataType() != x1->GetDataType()) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "aclnnMatmulAlltoAll, biasOptional dtype should be x1Dtype or float32 , but it is %s .",
+                "aclnnMatmulAlltoAll, biasOptional dtype should be x1Dtype or float32 , but it is %s.",
                 op::ToString(biasOptional->GetDataType()).GetString());
             return false;
         }
@@ -206,7 +214,7 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x1, x2, output), ACLNN_ERR_PARAM_NULLPTR);
     // 2. 检查空tensor
-    CHECK_RET(CheckNotEmptyTensor(x1, x2), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查shape
     CHECK_RET(CheckShape(x1, x2, biasOptional, transposeX2, output), ACLNN_ERR_PARAM_INVALID);
     // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
@@ -228,6 +236,16 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     CHECK_RET(ReFormatNotND(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
     // 如果所有检查都通过，且reformat也通过，输出参数检查成功
     OP_LOGD("aclnnMatmulAlltoAll checkParams success");
+    return ACLNN_SUCCESS;
+}
+
+static aclnnStatus DealWithEmptyTensor(uint64_t *workspaceSize, aclOpExecutor **executor) {
+    OP_LOGD("MatmulAlltoAll, dealing with empty tensor.");
+    // 固定写法，创建OpExecutor
+    auto uniqueExecutor = CREATE_EXECUTOR();
+    CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
+    *workspaceSize = 0;
+    uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;
 }
 } // namespace
@@ -283,10 +301,30 @@ extern "C" aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(const aclTensor *x1, 
                                                            bool transposeX1, bool transposeX2, const aclTensor *output,
                                                            uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    aclnnStatus retParam = CheckAndHandleParams(x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output);
+    // 处理非连续Tensor，目前只有支持转置的x2涉及该处理
+    CHECK_RET(CheckX2Valid(x2), ACLNN_ERR_PARAM_NULLPTR);	// 先检查x2是否合法，避免访问空指针等等非法操作
+    bool notContiguous = IsTransposeLastTwoDims(x2);    // notContiguous标识x2是否是非连续的，通常在pytorch经过.t()会导致x2非连续
+    auto transX2 = x2;    // 复制一个x2
+    if (notContiguous && transposeX2) {    // 当非连续和转置同时生效时，判断为错误用法，直接报错
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 not contiguous, and set x2 transpose, it is error!");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    if (notContiguous && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {    // 只有当非连续时，才会涉及到转连续等情况
+        transposeX2 = !transposeX2;
+        // 把非连续x2转成连续
+        transX2 = TransX2Tensor(x2);
+        CHECK_RET(transX2 != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_LOGD("X2 is a non-contiguous tensor. The original dim0 is %ld, and dim1 is %ld. After processing, transX2 dim0 is %ld, and dim1 is %ld.",
+            x2->GetViewShape().GetDim(0), x2->GetViewShape().GetDim(1), transX2->GetViewShape().GetDim(0), transX2->GetViewShape().GetDim(1));
+    }
+    aclnnStatus retParam = CheckAndHandleParams(x1, transX2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
+    // 处理空tensor，目前非量化matmulalltoall只支持x1第一维度bs为0，空tensor作异常处理
+    if (x1->GetViewShape().GetDim(0) == 0 && GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        return DealWithEmptyTensor(workspaceSize, executor);
+    }
     aclnnStatus ret = InnerMatmulAlltoAllGetWorkspaceSize(
-        x1, x2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
+        x1, transX2, biasOptional, alltoAllAxesOptional, group, transposeX1, transposeX2, output, workspaceSize, executor);
     OP_LOGD("MatmulAlltoAll, end ret %d", ret);
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER,

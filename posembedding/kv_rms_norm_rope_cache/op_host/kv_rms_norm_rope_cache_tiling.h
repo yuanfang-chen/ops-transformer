@@ -12,6 +12,7 @@
  * \file kv_rms_norm_rope_cache_tiling.h
  * \brief
  */
+
 #ifndef OPS_BUILT_IN_OP_TILING_RUNTIME_KV_RMS_NORM_ROPE_CACHE_H_
 #define OPS_BUILT_IN_OP_TILING_RUNTIME_KV_RMS_NORM_ROPE_CACHE_H_
 
@@ -23,7 +24,7 @@ namespace optiling {
 using namespace Ops::Base;
 // DS
 BEGIN_TILING_DATA_DEF(KvRmsNormRopeCacheTilingData)
-TILING_DATA_FIELD_DEF(int64_t, blockDim);
+TILING_DATA_FIELD_DEF(int64_t, numBlocks);
 TILING_DATA_FIELD_DEF(int64_t, rowsPerBlock);
 TILING_DATA_FIELD_DEF(int64_t, cacheLength);
 TILING_DATA_FIELD_DEF(int64_t, batchSize);
@@ -41,7 +42,7 @@ TILING_DATA_FIELD_DEF(int64_t, methodMode);
 END_TILING_DATA_DEF;
 
 BEGIN_TILING_DATA_DEF(KvRmsNormRopeCacheDefaultTilingData)
-TILING_DATA_FIELD_DEF(int64_t, blockDim);
+TILING_DATA_FIELD_DEF(int64_t, numBlocks);
 TILING_DATA_FIELD_DEF(int64_t, rowsPerBlock);
 TILING_DATA_FIELD_DEF(int64_t, cacheLength);
 TILING_DATA_FIELD_DEF(int64_t, batchSize);
@@ -328,6 +329,8 @@ protected:
 protected:
     bool CheckScaleOffsetShape(const gert::StorageShape* inShape, int64_t lastDim, int64_t& brcFlag);
     bool CheckInputDtype();
+    bool CheckCacheIsQuant(ge::DataType& cacheDtype);
+    ge::graphStatus CheckInputShapeIsEmpty();
 
 private:
     KvRmsNormRopeCacheRegbaseFullLoadTilingData tilingData_;
@@ -355,6 +358,8 @@ protected:
 protected:
     bool CheckScaleOffsetShape(const gert::StorageShape* inShape, int64_t lastDim, int64_t& brcFlag);
     bool CheckInputDtype();
+    bool CheckCacheIsQuant(ge::DataType& cacheDtype);
+    ge::graphStatus CheckInputShapeIsEmpty();
     int64_t FindNearestPower2(const int64_t value);
 
 private:

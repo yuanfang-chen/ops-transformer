@@ -15,7 +15,11 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTILE_COMM_FP8_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTILE_COMM_FP8_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
@@ -120,7 +124,9 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     tilingData_ = tilingData;
     rankNum_ = tilingData_->param.rankDim;
     tPipe_ = tPipe;
@@ -272,7 +278,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
             MatmulAllReduceElementWiseAddKernel<float, YType>(cGM_, addGM_, cOffset / sizeof(float),
                                                               tilingData_->param.addX3UbCnt, tPipe_);
             addGM_ += addOffset;
-            SyncAll();
+            SyncAll<false>();
         }
         // matmul, add和quant独立进行，分别分核，在大shape场景性能可能更好。为适配其他场景可考虑将三者做一个mix版本
         quantOp.Init(cGM_, all2allInGM_, mmTiling->matmulTiling.M, mmTiling->matmulTiling.N, oneLineSCnt, coreNum_,
@@ -285,6 +291,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
         }
         if (isSendTileFlag_) {
             StepOneTurn(mmOp, quantOp, mmTiling, curPadM, isTail, i == 0);
+            SyncAll<false>();
         }
         isSendTileFlag_ = true;
         aGM_ += aOffset;
