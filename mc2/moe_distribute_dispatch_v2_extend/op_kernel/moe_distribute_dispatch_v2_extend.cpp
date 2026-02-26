@@ -37,7 +37,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    Mc2MoeContext * ptr = (Mc2MoeContext *)(mc2Context);
+    __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
     AscendC::printf("rankid %d",ptr->rankId);
 
 // REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
