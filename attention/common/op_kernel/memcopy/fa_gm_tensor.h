@@ -9,24 +9,21 @@
  */
 
 /*!
- * \file allto_allv_grouped_mat_mul_tiling.h
+ * \file fa_gm_tensor.h
  * \brief
  */
-#ifndef MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
-#define MC2_ALLTO_ALLV_GROUPED_MATMUL_TILING_STRUCT_H
+#ifndef FA_GM_TENSOR_H
+#define FA_GM_TENSOR_H
 
-#include "allto_allv_grouped_mat_mul_tiling_base.h"
+#include "kernel_vec_intf.h"
+#include "kernel_cube_intf.h"
+#include "gm_layout.h"
+#include "offset_calculator_v2.h"
 
-namespace optiling {
-class AlltoAllvGmmTilingStruct : public AlltoAllvGmmTilingBase
-{
-public:
-    explicit AlltoAllvGmmTilingStruct(gert::TilingContext* context) : AlltoAllvGmmTilingBase(context){};
-
-protected:
-    ge::graphStatus DoOpTiling() override;
-    uint64_t GetTilingKey() const override;
-    bool IsCapable() override;
+template <typename Q_T, GmFormat FORMAT>
+struct FaGmTensor {
+    GlobalTensor<Q_T> gmTensor;
+    OffsetCalculator<FORMAT> offsetCalculator;
 };
-} // namespace optiling
+
 #endif
