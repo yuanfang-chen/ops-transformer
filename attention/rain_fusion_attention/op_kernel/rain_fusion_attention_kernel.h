@@ -76,7 +76,7 @@ namespace RainFusion {
         using ElementUpdate = typename EpilogueRescaleO::ElementUpdate;
         using LayoutUpdate = typename EpilogueRescaleO::LayoutUpdate;
 
-        static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
+        // static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
 
         // Methods
         __aicore__ inline
@@ -236,6 +236,7 @@ namespace RainFusion {
             uint64_t vBOffset = 0;
             uint64_t oBOffset = 0;
             uint64_t blockBOffset = 0;
+            uint64_t lseBOffset = 0;
 
             uint32_t preTotalTaskNum = 0;
             uint32_t preTotalQBlockNum = 0;
@@ -268,10 +269,12 @@ namespace RainFusion {
                         // BNSD: [B, N, S, D], offset = batch * strideB
                         qBOffset = curBatch * strideQOB;
                         oBOffset = curBatch * strideQOB;
+                        lseBOffset = curBatch * qHeads * maxQSeqlen; // 封装成strideLseB？
                     } else {
                         // TND
                         qBOffset += qSeqlen * strideQO;
                         oBOffset += qSeqlen * strideQO;
+                        lseBOffset = curBatch * qHeads;
                     }
                     
                     if constexpr (!PAGED_CACHE_FLAG) {
@@ -334,17 +337,22 @@ namespace RainFusion {
                 uint64_t gmOffsetK = 0;
                 uint64_t gmOffsetV = 0;
                 uint64_t gmOffsetO = 0;
+                uint64_t gmOffsetLse = 0;
                 
                 if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
                     // offset = batch * strideB + head * strideN + seq * strideS
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
                     gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                    // LSE format: [B, N, S] - same as O but without D dimension
+                    gmOffsetLse = lseBOffset + qHeadIdx * qHeads + qSeqOffset;
                 } else {
                     // TND: [T, N, D]
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
                     gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                    // LSE format: [T, N] - same as Q/O but without D dimension
+                    gmOffsetLse = lseBOffset + qSeqOffset * qHeads + qHeadIdx;
                 }
                 
                 if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD: [B, N, S, D]
@@ -513,16 +521,18 @@ namespace RainFusion {
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-
+                        LayoutLse layoutLse(totalQTokens, qHeads); // todo这里需要确认
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
+                            gLse[gmOffsetLse], // todo 这里便宜计算正确吗？
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
+                            layoutLse,
                             actualBlockShapePV,
                             qSBlockSize,
                             qNBlockSize,

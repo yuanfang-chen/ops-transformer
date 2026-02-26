@@ -50,6 +50,7 @@ constexpr int ATTENTION_MASK_INDEX = 6;
 constexpr int ACTUAL_SEQ_LENGTHS_INDEX = 7;
 constexpr int ACTUAL_SEQ_LENGTHS_KV_INDEX = 8;
 constexpr int BLOCK_TABLE_INDEX = 9;
+constexpr int SOFTMAX_LSE_INDEX = 11;
 constexpr int MAX_BLOCK_NUM_INDEX = 2;
 
 
@@ -554,6 +555,13 @@ ge::graphStatus RFATiling::ProcessActualSeqLengths(gert::TilingContext *rfaConte
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus RFATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext)
+{
+    auto softmaxLse = rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX);
+    bool softmaxLseFlag = softmaxLse != nullptr;
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus RFATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
 {
     auto blockShape = rfaContext->GetInputTensor(BLOCK_SHAPE_INDEX);
@@ -914,6 +922,10 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
         tilingKey += 2;  // 2 for TND
     } else if (qInputLayout_ == RFAQInputLayout::BNSD_Q) {
         tilingKey += 3;  // 3 for BNSD
+    }
+    bool softmaxLseOut = (rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX) != nullptr);
+    if (softmaxLseOut) {
+        tilingKey += 100000000000ULL // 1 for lse out
     }
     
     return tilingKey;
