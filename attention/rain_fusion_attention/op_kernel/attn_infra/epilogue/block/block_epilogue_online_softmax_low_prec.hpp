@@ -168,6 +168,7 @@ public:
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
+        
         // 1024个元素，以128为单位分治求和。1024->512->256->128
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
@@ -314,7 +315,6 @@ public:
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
-        // 1024个元素，以128为单位分治求最大值。1024->512->256->128
 
         AscendC::DataCopy(
             lsUbTensor,
@@ -325,6 +325,8 @@ public:
                 (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE,
                 (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE));
         AscendC::PipeBarrier<PIPE_V>();
+
+        // 1024个元素，以128为单位分治求最大值。1024->512->256->128
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
             ReduceMaxByPair(lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
