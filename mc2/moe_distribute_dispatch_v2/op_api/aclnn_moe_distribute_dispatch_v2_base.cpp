@@ -272,25 +272,32 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     return ACLNN_SUCCESS;
 }
 
-void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
+aclnnStatus CreatMc2ContextTensor(void * ctx, aclTensor* mc2Context)
 {
     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
+    OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
     uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
     mc2Context = aclCreateTensor(
-        shap, 1, aclDataType::ACL_INT8, strides, 0, 
+        shap, 1, aclDataType::ACL_INT32, strides, 0, 
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
+    if(mc2Context == nullptr) {
+        OP_LOGE(ACLNN_ERR_INNER, "PRINT Create Mc2Context Tensor failed.");
+        return ACLNN_ERR_INNER;
+    }
     OP_LOGD("PRINT end to the CreatMc2ContextTensor");
+    return ACLNN_SUCCESS;
 }
 
 
-aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize,
+aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* mc2Context, int64_t& hcclBuffSize,
                          std::string& hcclTopoType) 
 {
     OP_LOGD("PRINT inter to the GetMc2Context");
     Mc2MoeContext mc2_context;
     HcclResult ret;
+    aclnnStatus res;
     CommEngine engine = CommEngine::COMM_ENGINE_AIV; //默认AIV引擎
     std::string mc2Ctxtag = std::string(groupEp) + "_moe_distribute_dispatch_v2"; // 最长255
     void * ctx = nullptr;
@@ -310,7 +317,11 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTen
     OP_LOGD("PRINT HcclEngineCtxGet success");
     hcclBuffSize = mc2_context.winsize;
     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
-    CreatMc2ContextTensor(ctx, mc2Context);
+    if(ctx == nullptr) {
+
+    }
+    res = CreatMc2ContextTensor(ctx, mc2Context);
+    CHECK_RET(res == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT end to the GetMc2Context");
     return ACLNN_SUCCESS;
 }
@@ -357,7 +368,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
     const aclTensor* performanceInfoOptionalDispatchV2Temp = performanceInfoOptional;
     const char* groupTpDispatchV2Temp = groupTp;
-    const aclTensor* mc2Context = nullptr;
+    aclTensor* mc2Context = nullptr;
     HcclComm hcclHandle;
     uint32_t netLayerNum;
     aclnnStatus getWorkspaceSizesRes;
