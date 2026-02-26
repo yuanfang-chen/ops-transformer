@@ -51,6 +51,12 @@ constexpr size_t DIM_ONE = 1;
 constexpr size_t DIM_TWO = 2;
 constexpr size_t NUM_THREE = 3;
 constexpr size_t TWO_DIMS = 2;
+constexpr size_t FOUR_DIMS = 4;
+
+// matmul tiling 切分
+constexpr int32_t SINGLE_CORE_M = 126;
+constexpr int32_t SINGLE_CORE_N = 128;
+constexpr int32_t SINGLE_CORE_K = 512;
 
 /**
  * @brief 打印tilingData, addrms  and mamtul tcubetiling
@@ -60,6 +66,27 @@ constexpr size_t TWO_DIMS = 2;
  */
 static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
 {
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "M is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.M);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Ka is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.Ka);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "N is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.N);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "aivNum is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "rankSize is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.rankSize);
+    
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.M is %u.", tilingData.matmulTiling.M);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.Ka is %u.", tilingData.matmulTiling.Ka);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.Kb is %u.", tilingData.matmulTiling.Kb);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.N is %u.", tilingData.matmulTiling.N);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.singleCoreM is %u.", tilingData.matmulTiling.singleCoreM);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.singleCoreK is %u.", tilingData.matmulTiling.singleCoreK);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.singleCoreN is %u.", tilingData.matmulTiling.singleCoreN);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.baseM is %u.", tilingData.matmulTiling.baseM);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.baseK is %u.", tilingData.matmulTiling.baseK);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.baseN is %u.", tilingData.matmulTiling.baseN);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.stepM is %u.", tilingData.matmulTiling.stepM);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.stepKa is %u.", tilingData.matmulTiling.stepKa);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.stepKb is %u.", tilingData.matmulTiling.stepKb);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.stepN is %u.", tilingData.matmulTiling.stepN);
+
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Tiling end");
 }
 
@@ -94,11 +121,10 @@ static ge::graphStatus GetMatmultiling(
  * @brief 设置hcomm参数
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @param tilingData: 框架根据context的opName匹配tiling模板，计算产生的tilingData
- * @param runInfo: 封装的doTiling所需要的参数
  * @return
  */
 static ge::graphStatus SetHcommCfg(const gert::TilingContext *context,
-    AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData, const TilingRunInfo &runInfo)
+    AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     const char *nodeName = context->GetNodeName();
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -124,12 +150,12 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context,
 //  需要修改核数设置
 static void SetTilingData(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
 {
-    fe::PlatFormInfos *platformInfoPtr = context->GetPlatformInfo();
-    platform_ascendc::PlatformAscendC ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    // set corenum
-    uint32_t aivNum = 24;
-    context->SetBlockDim(ascendcPlatform.CalcTschBlockDim(aivNum, aivNum, aivNum));
-    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum = aivNum;
+    uint32_t numBlocks = 1U;
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
+    uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
+    numBlocks = ascendcPlatform.CalcTschBlockDim(aicNum, aicNum, aicNum);
+    context->SetBlockDim(numBlocks);
+    tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum = aicNum;   // CV 1:1
 }
 
 /**
@@ -146,7 +172,8 @@ static void SetTilingKey(gert::TilingContext *context)
     // OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
 }
 
-ge::graphStatus CheckAttrs(const gert::TilingContext *context)
+ge::graphStatus CheckAttrs(
+    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     const char *nodeName = context->GetNodeName();
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -156,6 +183,10 @@ ge::graphStatus CheckAttrs(const gert::TilingContext *context)
     OP_TILING_CHECK(groupPtr == nullptr, OP_LOGE(nodeName, "groupPtr is null."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(std::string(groupPtr).empty(),
         OP_LOGE(nodeName, "group should not be empty."), return ge::GRAPH_FAILED);
+    // rankSize校验
+    const int64_t *rankSizePtr = attrs->GetAttrPointer<int64_t>(RANK_SIZE_INDEX);
+    OP_TILING_CHECK(rankSizePtr == nullptr, OP_LOGE(nodeName, "rankSizePtr is nullptr."), return ge::GRAPH_FAILED);
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize = *rankSizePtr;
     // transpose校验
     const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
     OP_TILING_CHECK(transposeX2Ptr == nullptr, OP_LOGE(nodeName, "transposeX2Ptr is nullptr."), return ge::GRAPH_FAILED);
@@ -168,9 +199,10 @@ ge::graphStatus CheckAttrs(const gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CheckInputOutputTensorDim(const gert::TilingContext *context)
+ge::graphStatus CheckInputOutputTensorDim(
+    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
-   // Check Shape Not NULL
+    // Check Shape Not NULL
     const gert::StorageShape* x1Shape = context->GetInputShape(X1_INDEX);
     const gert::StorageShape* x2Shape = context->GetInputShape(X2_INDEX);
     const gert::StorageShape* residualShape = context->GetInputShape(RESIDUAL_INDEX);
@@ -206,17 +238,18 @@ ge::graphStatus CheckInputOutputTensorDim(const gert::TilingContext *context)
     uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
 
-    OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(0)),
-        OP_LOGE(context->GetNodeName(), "x1dim1 is not same to x2dim0."), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(1) * x2Shape->GetStorageShape().GetDim(2)),
+        OP_LOGE(context->GetNodeName(), "x1dim1 is not same to x2dim1 * x2dim2."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((x1Shape->GetStorageShape() != residualShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to residualShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((x1Shape->GetStorageShape() != yShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1Dim1Value != gammaValue)),
         OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != TWO_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
- 	    OP_LOGE(context->GetNodeName(), "The dim of x1, x2, residual,y should be 2, but current x1DimNum=%lu, x2DimNum- %lu, residualDimNum=%lu, yDimNum=%lu.",
- 	    x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != FOUR_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
+        OP_LOGE(context->GetNodeName(),
+        "The dim of x1, residual, y should be 2, and the dim of x2 should be 4, but current x1DimNum=%lu, x2DimNum=%lu, residualDimNum=%lu, yDimNum=%lu.",
+        x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1DimNum != residualDimNum)),
@@ -229,6 +262,11 @@ ge::graphStatus CheckInputOutputTensorDim(const gert::TilingContext *context)
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. smoothDimNum=%lu.", smoothDimNum),
         return ge::GRAPH_FAILED);
+    
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.M = x1Shape->GetStorageShape().GetDim(0);
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka = x1Dim1Value;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = \
+        x2Shape->GetStorageShape().GetDim(0) * x2Shape->GetStorageShape().GetDim(3);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -340,6 +378,46 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
+static ge::graphStatus SetTCubeTiling(
+    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+{
+    auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+    matmul_tiling::MatmulApiTiling mmTiling(*ascendcPlatform);
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const char *nodeName = context->GetNodeName();
+    uint32_t M = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
+        tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
+    uint32_t N = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
+    uint32_t K = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
+
+    uint32_t blockDim = context->GetBlockDim();
+    const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
+    bool isAtrans = true;
+    bool isBtrans = *transposeX2Ptr;
+    auto biasDesc = context->GetOptionalInputDesc(BIAS_INDEX);
+    bool hasBias = (biasDesc != nullptr);
+    
+    mmTiling.SetAType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isAtrans);
+    mmTiling.SetBType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, isBtrans);
+    mmTiling.SetCType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT32);
+    mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+        matmul_tiling::DataType::DT_INT32);
+    mmTiling.SetOrgShape(M, N, K);
+    mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetFixSplit(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.EnableBias(hasBias);
+    mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
+    // mmTiling.EnableMultiCoreSplitK(true);
+
+    OP_TILING_CHECK(mmTiling.GetTiling(tilingData->matmulTiling) == -1,
+                    OP_LOGE(nodeName, "failed to get tiling matmulTiling."),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 /**
  * @brief add_rms_norm_dynamic_quant_all_gather_qbmm算子的tiling函数
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
@@ -365,10 +443,10 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
         return ge::GRAPH_FAILED);
 
     // 检查attrs
-    OP_TILING_CHECK(CheckAttrs(context) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(CheckAttrs(context, tilingData) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "CheckAttrs failed."), return ge::GRAPH_FAILED);
     // 检查输入输出tensor的维度
-    OP_TILING_CHECK(CheckInputOutputTensorDim(context) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(CheckInputOutputTensorDim(context, tilingData) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "CheckInputOutputTensorDim failed."), return ge::GRAPH_FAILED);
     // 检查输入输出tensor的数据类型
     OP_TILING_CHECK(CheckTensorDataType(context) != ge::GRAPH_SUCCESS,
@@ -377,28 +455,34 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     // 检查输入输出tensor的格式
     OP_TILING_CHECK(CheckTensorFormat(context) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "CheckTensorFormat failed."), return ge::GRAPH_FAILED);
-    
-    // addrmsnormdynamicquantallgatherqbmm 部分tiling切分
-    // OP_TILING_CHECK(GetAddRmsNormDynamicQuantAllGatherQbmm(context, *tilingData) != ge::GRAPH_SUCCESS,
-    //     OP_LOGE(nodeName, "GetAddRmsNormDynamicQuantAllGatherQbmm failed."),
-    //     return ge::GRAPH_FAILED);
-    // 先切k= 2560，直接调用matmul做tiling切分
-    // OP_TILING_CHECK(GetMatmultiling(context, *tilingData) != ge::GRAPH_SUCCESS,
-    //     OP_LOGE(nodeName, "GetMatmultiling failed."),
-    //     return ge::GRAPH_FAILED);
-    TilingRunInfo runInfo = {};
-    OP_TILING_CHECK(SetHcommCfg(context, tilingData, runInfo) != ge::GRAPH_SUCCESS,
-        OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
-    SetTilingData(context, *tilingData);
-    SetTilingKey(context);
-    size_t *currentWorkspace = context->GetWorkspaceSizes(1);
-    currentWorkspace[0] = 16 * 1024 * 1024;
 
+    // 设置 blockDim
     uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
     uint64_t aicNum = ascendcPlatform.GetCoreNumAic();
     numBlocks = ascendcPlatform.CalcTschBlockDim(aicNum, aicNum, aicNum);
     context->SetBlockDim(numBlocks);
+    
+    // addrmsnormdynamicquantallgatherqbmm 部分tiling切分
+    // OP_TILING_CHECK(GetAddRmsNormDynamicQuantAllGatherQbmm(context, *tilingData) != ge::GRAPH_SUCCESS,
+    //     OP_LOGE(nodeName, "GetAddRmsNormDynamicQuantAllGatherQbmm failed."),
+    //     return ge::GRAPH_FAILED);
+
+    // 调用matmul做tiling切分
+    OP_TILING_CHECK(SetTCubeTiling(context, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "SetTCubeTiling failed."),
+        return ge::GRAPH_FAILED);
+
+    OP_TILING_CHECK(SetHcommCfg(context, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
+    SetTilingData(context, *tilingData);
+    SetTilingKey(context);
+    size_t *currentWorkspace = context->GetWorkspaceSizes(1);
+    currentWorkspace[0] = 16 * 1024 * 1024 + \
+        tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
+        tilingData->addRmsNormDynamicQuantAllGatherTilingData.N * \
+        tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize * \
+        sizeof(int32_t);
 
     PrintTilingDataInfo(context, *tilingData);
     return ge::GRAPH_SUCCESS;
