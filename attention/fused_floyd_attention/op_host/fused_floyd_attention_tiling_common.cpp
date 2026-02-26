@@ -112,8 +112,7 @@ ge::graphStatus CheckAttrs(gert::TilingContext *context)
 {
     auto attrs = context->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    size_t idx = 0;
-    auto scaleValuePtr = attrs->GetAttrPointer<float>(idx++);
+    auto scaleValuePtr = attrs->GetAttrPointer<float>(0);
     size_t *workspaces = context->GetWorkspaceSizes(1);
 
     OP_CHECK_NULL_WITH_CONTEXT(context, scaleValuePtr);
