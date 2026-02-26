@@ -361,12 +361,12 @@ public:
         AscendC::PipeBarrier<PIPE_V>(); 
 
 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
 
 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>();
 
         //每行128个元素分别规约求最大值。
