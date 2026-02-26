@@ -44,11 +44,12 @@ static const std::initializer_list<op::DataType> SHARED_INPUT_TYPE_SUPPORT_LIST 
 static const std::initializer_list<op::DataType> LOGIT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> OUT_TYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
 
-const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN = {DataType::DT_INT8, DataType::DT_FLOAT8_E4M3FN, DataType::DT_FLOAT8_E5M2, DataType::DT_HIFLOAT8};
+const std::initializer_list<DataType> X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN = {DataType::DT_INT8, DataType::DT_FLOAT8_E4M3FN, DataType::DT_HIFLOAT8};
 static const std::initializer_list<op::DataType> PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> BIAS_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_BF16, op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> SCALE_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_FLOAT, op::DataType::DT_BF16};
-static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN = {op::DataType::DT_INT64, op::DataType::DT_INT32};
+static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN_INT8 = {op::DataType::DT_INT64, op::DataType::DT_INT32};
+static const std::initializer_list<op::DataType> ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN_FP8HIFLOAT8 = {op::DataType::DT_INT64};
 enum class QuantMode {
     PERTOEKN = 0, // pertoken 量化
     MX = 2        // MX量化
@@ -170,10 +171,12 @@ public:
         op::Shape xExpectShape = {m, k};
         op::Shape weightExpectShape = {e, k, n};
         op::Shape weightScaleExpectShape =
-            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} : op::Shape{e, 1, n};
+            quantMode_ == QuantMode::MX ? op::Shape{e, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), n, GMMFR_SPLIT_FACTOR} :
+                                          op::Shape{e, 1, n};
         op::Shape weightTransExpectShape = {e, n, k};
         op::Shape weightScaleTransExpectShape =
-            quantMode_ == QuantMode::MX ? op::Shape{e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} : op::Shape{e, 1, n};
+            quantMode_ == QuantMode::MX ? op::Shape{e, n, Ops::Base::CeilDiv(k, GMMFR_SPLIT_SIZE), GMMFR_SPLIT_FACTOR} :
+                                          op::Shape{e, 1, n};
         op::Shape grouplistExpectShape = {e};
         op::Shape logitExpectShape = {m};
         op::Shape rowindexExpectShape = {m};
@@ -266,17 +269,15 @@ public:
     {
         DataType scaleDtype = gmmParams_.scale->GetDataType();
         if (quantMode_ == QuantMode::MX) {
-            if(CheckDtypeValidForMX() == false){
+            if (CheckDtypeValidForMX() == false) {
                 return false;
             }
-        } 
-        else if(quantMode_ == QuantMode::PERTOEKN){
-            if(CheckDtypeValidForPertoken() == false){
+        } else if (quantMode_ == QuantMode::PERTOEKN) {
+            if (CheckDtypeValidForPertoken() == false) {
                 return false;
             }
-        }else {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "scale dtype %s is not supported.",
-                    op::ToString(scaleDtype).GetString());
+        } else {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "scale dtype %s is not supported.", op::ToString(scaleDtype).GetString());
             return false;
         }
         return true;
@@ -303,7 +304,7 @@ public:
             (CheckType(gmmParams_.x1->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8) !=
              CheckType(gmmParams_.x2->GetDataType(), X_WEIGHT_TYPE_SUPPORT_LIST_FP8))) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                    "X1 and x2 dtype should be same, actual x1 dtype is %s and x2 dtype is %s.",
+                    "X1 and x2 dtype should be both mxfp4 or both mxfp8, actual x1 dtype is %s and x2 dtype is %s.",
                     op::ToString(gmmParams_.x1->GetDataType()).GetString(),
                     op::ToString(gmmParams_.x2->GetDataType()).GetString());
             return false;
@@ -316,7 +317,12 @@ public:
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x1, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.x2, X_WEIGHT_TYPE_SUPPORT_LIST_PERTOKEN, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.scale, SCALE_TYPE_SUPPORT_LIST_PERTOKEN, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN, return false);
+        if (gmmParams_.x1->GetDataType() == DataType::DT_INT8) {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN_INT8, return false);
+        } else {
+            OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.rowIndex, ROW_INDEX_TYPE_SUPPORT_LIST_PERTOKEN_FP8HIFLOAT8,
+                                       return false);
+        }
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             OP_CHECK_DTYPE_NOT_SUPPORT(gmmParams_.pertokenScaleOptional, PERTOKEN_SCALE_TYPE_SUPPORT_LIST_PERTOKEN,
                                        return false);
