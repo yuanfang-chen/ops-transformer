@@ -1859,7 +1859,7 @@ inline void MoeDistributeDispatchV2ExceptionImplWrapper(aclrtExceptionInfo *args
     Mc2ExceptionImpl(args, userdata, "MoeDistributeDispatchV2Extend");
 }
 
-IMPL_OP(MoeDistributeDispatchV2Extend)
+IMPL_OP(MoeDistributeDispatchV2)
     .ExceptionDumpParseFunc(MoeDistributeDispatchV2ExceptionImplWrapper);
 #endif
 
