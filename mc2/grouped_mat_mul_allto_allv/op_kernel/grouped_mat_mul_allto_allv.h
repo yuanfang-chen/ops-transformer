@@ -21,13 +21,21 @@
 #include "kernel_operator.h"
 #endif
 #include "adv_api/hccl/hccl.h"
-#include "lib/matmul_intf.h"
-#if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
-#include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
-#else
-#include "../allto_allv_grouped_mat_mul/allto_allv_gmm.h"
-#endif
 #include "grouped_mat_mul_allto_allv_tiling.h"
+#include "lib/matmul_intf.h"
+#if __CCE_AICORE__ == 310
+    #if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
+    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
+    #else
+    #include "../allto_allv_grouped_mat_mul_apt/op_kernel/allto_allv_gmm.h"
+    #endif
+#else
+    #if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
+    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
+    #else
+    #include "../allto_allv_grouped_mat_mul/allto_allv_gmm.h"
+    #endif
+#endif
 
 namespace AscendC {
 using namespace ALLTO_ALLV_GMM;
