@@ -2006,10 +2006,6 @@ IMPL_OP_OPTILING(MoeDistributeCombineV2)
     .Tiling(MoeDistributeCombineV2TilingFunc)
     .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV2);
 
-IMPL_OP_OPTILING(MoeDistributeCombineV2Extend)
-    .Tiling(MoeDistributeCombineV2TilingFunc)
-    .TilingParse<MoeDistributeCombineCompileInfo>(TilingParseForMoeDistributeCombineV2);
-
 // Register exception func
 inline void MoeDistributeCombineV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
