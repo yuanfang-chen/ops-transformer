@@ -104,6 +104,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
     auto wDesc = context_->GetInputDesc(W_INDEX);
     OP_CHECK_IF(wDesc == nullptr, OP_LOGE(context_->GetNodeName(), "Input wDesc is nullptr."), return false);
     inputParams_.bDtype = wDesc->GetDataType();
+    inputParams_.bFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
     auto scaleDesc = context_->GetInputDesc(SCALE_INDEX);
     OP_CHECK_IF(scaleDesc == nullptr, OP_LOGE(context_->GetNodeName(), "Input scaleDesc is nullptr."), return false);
     inputParams_.scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : inputParams_.scaleDtype;
@@ -389,9 +390,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
     if (!IsMicroScaling()) {
         std::cout << "!IsMicroScaling() in" << std::endl;
         OP_CHECK_IF(inputParams_.bFormat != ge::FORMAT_FRACTAL_NZ,
-                    OP_LOGE(inputParams_.opName,
-                            "In K-C/T-C quant mode, the format of weight should be FRACTAL_NZ, actual format is %s",
-                            inputParams_.bFormat),
+                    OP_LOGE(inputParams_.opName, "In K-C/T-C quant mode, the format of weight must be FRACTAL_NZ"),
                     return false);
     }
     std::cout << "!IsMicroScaling() out" << std::endl;
