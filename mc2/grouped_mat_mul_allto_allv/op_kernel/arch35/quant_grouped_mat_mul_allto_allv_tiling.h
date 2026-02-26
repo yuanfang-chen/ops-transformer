@@ -15,12 +15,19 @@
 #ifndef QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 #define QUANT_GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
 
-#if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h")
-#include "../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h"
+#if __CCE_AICORE__ == 310
+    #if __has_include("../../allto_allv_grouped_mat_mul_apt/op_kernel/mc2_templates/common/a2av_common_tiling.h")
+    #include "../../allto_allv_grouped_mat_mul_apt/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+    #else
+    #include "../../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+    #endif
 #else
-#include "../../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+    #if __has_include("../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h")
+    #include "../../allto_allv_grouped_mat_mul/mc2_templates/common/a2av_common_tiling.h"
+    #else
+    #include "../../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
+    #endif
 #endif
-
 #pragma once
 
 // 使用公共命名空间中的类型
