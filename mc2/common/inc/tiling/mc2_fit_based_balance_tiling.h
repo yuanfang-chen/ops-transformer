@@ -48,6 +48,7 @@ public:
     virtual void SetShortTileLen() {};
     virtual void SetLongTileLen();
     virtual void AdjustLongShortTileLen() {};
+    virtual void CheckHCCLLimit() {};
 
     virtual ~Mc2FitBasedBalanceTiling()
     {}
