@@ -53,13 +53,17 @@ private:
     int64_t lastCoreElements;
 };
 
+// 
 __simt_vf__ __aicore__ LAUNCH_BOUND(SIMT_THREAD_NUM) inline void ComputeSimt(int64_t elements, int64_t indexBase,
                                                                              __gm__ int32_t *sortedExpertIndicesGmAddr,
                                                                              __gm__ int32_t *expandedRowIdxGmAddr)
 {
+    // SIMT线程分块遍历：每个线程处理elements中的部分元素，步长为总线程数
     for (int32_t index = static_cast<int32_t>(Simt::GetThreadIdx()); index < static_cast<int32_t>(elements);
          index += static_cast<int32_t>(Simt::GetThreadNum())) {
+        // 1. 获取当前位置的排序后专家索引
         int64_t outIndices = sortedExpertIndicesGmAddr[index];
+        // 2. 核心操作：将原始行索引（indexBase + index）回填到expandedRowIdxGmAddr的对应位置
         expandedRowIdxGmAddr[outIndices] = indexBase + index;
     }
 }

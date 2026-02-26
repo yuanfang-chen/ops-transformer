@@ -99,11 +99,12 @@ __aicore__ inline void MoeSortMultiCore::UBSortCompute(int64_t progress, int64_t
     uint32_t sreg = static_cast<uint32_t>(sortNum);
     __local_mem__ float *inUbAddr = (__local_mem__ float *)expertForSourceRowLocalFp32.GetPhyAddr();
     float cmpScalar = static_cast<float>(expertStart_);
+    float cmpEndScalar = static_cast<float>(expertEnd_);
     float negone = static_cast<float>(-1);
 
     __VEC_SCOPE__
     {
-        MicroAPI::MaskReg maskRegLoop, cmpMaskReg;
+        MicroAPI::MaskReg maskRegLoop, cmpMaskReg, cmpEndMaskReg;
         MicroAPI::MaskReg pregMain = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
 
         MicroAPI::RegTensor<float> inRegToFloat, infFloat, vDstReg0;
@@ -113,8 +114,10 @@ __aicore__ inline void MoeSortMultiCore::UBSortCompute(int64_t progress, int64_t
             maskRegLoop = MicroAPI::UpdateMask<float>(sreg);
             MicroAPI::DataCopy(inRegToFloat, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
             MicroAPI::CompareScalar<float, CMPMODE::LT>(cmpMaskReg, inRegToFloat, cmpScalar, maskRegLoop);
+            MicroAPI::CompareScalar<float, CMPMODE::GE>(cmpEndMaskReg, inRegToFloat, cmpEndScalar, maskRegLoop);
             MicroAPI::Muls(inRegToFloat, inRegToFloat, negone, maskRegLoop);
             MicroAPI::Select(vDstReg0, infFloat, inRegToFloat, cmpMaskReg);
+            MicroAPI::Select(vDstReg0, infFloat, vDstReg0, cmpEndMaskReg);
             MicroAPI::DataCopy(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, vDstReg0, maskRegLoop);
         }
     }
