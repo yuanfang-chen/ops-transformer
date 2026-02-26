@@ -40,6 +40,7 @@ void AllGatherMMFitBalanceTiling::EstimateMMCommTime()
     ratioCalcComm_ = (std::max(totalTpTime, totalMatmulTime) / std::min(totalTpTime, totalMatmulTime));
 
     uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.kValue * (rankDim_ - 1) / ONE_MBYTE * commPerf_.GetCommDTypeSize();
+    printf("**************** CHUGUOWEI my print");
     OPS_LOG_D("AllGatherMatmul", "Input shape {M, N, K} = {%lu, %lu, %lu}, cubeUtil_ %f, sizeOfComm %lu, "
         "totalMatmulTime %f, totalCommTime %f, minTileSize %lu, mAlignLen %lu, commTimeFactor_ %f, "
         "rankDim_ %lu, rankTile %lu",
