@@ -128,11 +128,11 @@ ge::graphStatus QuantGroupedMatmulAllToAllvTiling::CheckOpInputSingleParamsTenso
 {
     auto gmmXScaleTensorDesc = context_->GetOptionalInputDesc(GMM_X_SCALE_OPTIONAL_INDEX);
     auto gmmWeightScaleTensorDesc = context_->GetOptionalInputDesc(GMM_WEIGHT_SCALE_OPTIONAL_INDEX);
-    bool gmmXScaleTensorDescNotNull = gmmXScaleTensorDesc != nullptr;
-    bool gmmWeightScaleTensorDescNotNull = gmmWeightScaleTensorDesc != nullptr;
-    OP_TILING_CHECK(gmmXScaleTensorDescNotNull || gmmWeightScaleTensorDescNotNull,
-        OP_LOGE(opName_, "gmmXScaleTensorNotNull=%d and gmmWeightScaleTensorNotNull=%d, should all not be nullptr!",
-                gmmXScaleTensorDescNotNull, gmmWeightScaleTensorDescNotNull),
+    bool gmmXScaleTensorDescNull = gmmXScaleTensorDesc == nullptr;
+    bool gmmWeightScaleTensorDescNull = gmmWeightScaleTensorDesc == nullptr;
+    OP_TILING_CHECK(gmmXScaleTensorDescNull || gmmWeightScaleTensorDescNull,
+        OP_LOGE(opName_, "gmmXScaleTensorNull=%d and gmmWeightScaleTensorNull=%d, should all not be nullptr!",
+                gmmXScaleTensorDescNull, gmmWeightScaleTensorDescNull),
         return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
