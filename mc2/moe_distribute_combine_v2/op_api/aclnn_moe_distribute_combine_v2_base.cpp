@@ -204,7 +204,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                             const aclTensor *&mc2TensorOut, Mc2TopoType &topoTypeOut, uint64_t &hcclBuffSize)
 {
     std::string mc2CtxTag = std::string(groupEp) + opName;
-    OP_LOGD("[BuildMc2Context] mc2CtxTag:%s", mc2CtxTag);
+    OP_LOGD("[BuildMc2Context] mc2CtxTag:%s", mc2CtxTag.c_str());
     uint64_t ctxSize = 0;
     HcclResult res = HcclEngineCtxGet(hcclHandle, mc2CtxTag.c_str(), commEngine, &devCtx, &ctxSize);
     if (res != HCCL_SUCCESS || devCtx == nullptr || ctxSize < sizeof(Mc2MoeContext)) {
@@ -253,7 +253,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
                 CHECK_HCCL(res, ACLNN_ERR_INNER, "Hccl Get Links Failed.");
 
                 if (linkNum == 0 || commLink == nullptr) {
-                    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "linkNum is 0 or commLink is nullptr.");
+                    OP_LOGE(ACLNN_ERR_INNER, "linkNum is 0 or commLink is nullptr.");
                     return ACLNN_ERR_INNER;
                 }
                 desc.remoteRank = dstRank;
