@@ -58,6 +58,7 @@ const std::array<const aclTensor *, 2> RainFusionAttention(
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
+    int64_t softmaxLseFlag,
     aclOpExecutor *executor)
 {
     const char *safeKvInputLayout = (kvInputLayout != nullptr) ? kvInputLayout : qInputLayout;
@@ -65,7 +66,7 @@ const std::array<const aclTensor *, 2> RainFusionAttention(
     L0_DFX(RainFusionAttention, query, key, value, selectIdx, selectNumIdx, blockShape,
            attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional,
            blockTableOptional, qInputLayout, safeKvInputLayout, numKeyValueHeads,
-           maskType, scaleValue, innerPrecise, blockSize);
+           maskType, scaleValue, innerPrecise, blockSize, softmaxLseFlag);
 
     const aclTensor *blockShapeTensor = ConvertIntArrayToTensor(blockShape, executor, DataType::DT_INT64);
     const aclTensor *attenMaskTensor = (attenMaskOptional != nullptr) ? attenMaskOptional :
@@ -84,7 +85,7 @@ const std::array<const aclTensor *, 2> RainFusionAttention(
                            OP_ATTR(qInputLayout, safeKvInputLayout,
                                    static_cast<uint32_t>(numKeyValueHeads), static_cast<uint32_t>(maskType),
                                    static_cast<float>(scaleValue), static_cast<uint32_t>(innerPrecise),
-                                   static_cast<uint32_t>(blockSize)));
+                                   static_cast<uint32_t>(blockSize), static_cast<uint32_t>(softmaxLseFlag)));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "RainFusionAttention infer shape failed, scaleValue: %f.", scaleValue);
         return {nullptr, nullptr};
@@ -96,7 +97,7 @@ const std::array<const aclTensor *, 2> RainFusionAttention(
                                 OP_OUTPUT(attentionOutTensor, softmaxLseTensor),
                                 OP_ATTR(qInputLayout, safeKvInputLayout, static_cast<uint32_t>(numKeyValueHeads),
                                         static_cast<uint32_t>(maskType), static_cast<float>(scaleValue),
-                                        static_cast<uint32_t>(innerPrecise), static_cast<uint32_t>(blockSize)));
+                                        static_cast<uint32_t>(innerPrecise), static_cast<uint32_t>(blockSize), static_cast<uint32_t>(softmaxLseFlag)));
 
     return {attentionOutTensor, softmaxLseTensor};
 }

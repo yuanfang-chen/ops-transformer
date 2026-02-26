@@ -546,7 +546,7 @@ public:
                             if (splitParams.isSplitkv) {
                                 AscendC::DataCopyPad(
                                     splitParams.gCombineLse[qNIdx], 
-                                    tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
+                                    tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE], // 这里qSBlockSize是qSeqLen
                                     AscendC::DataCopyExtParams(
                                         qSBlockSize, sizeof(float), 0, (qHeads_gmlse - 1) * sizeof(float), 0));
                             }
@@ -652,8 +652,8 @@ public:
         uint32_t outColOffsetThisSubBlock = (qNBlockSize == 1U) ? 0 : subBlockIdx * qNSplitSubBlock * embedV;
         uint32_t qSThisSubBlock = (qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize;
         int64_t outOffsetSubBlock =
-            layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
-
+            layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock)); // O当前batch内的偏移
+        // 相对偏移
         int64_t gmlooutOffsetSubBlock = 0;
         if (splitParams.isSplitkv) {
             gmlooutOffsetSubBlock = 
@@ -666,10 +666,10 @@ public:
             0 : subBlockIdx * qNSplitSubBlock;
         int64_t offsetLse =
             layoutLse.GetOffset(MatrixCoord(outLseRowOffsetThisSubBlock, outLseColOffsetThisSubBlock));
-        auto gLseThisSubBlock = gLse[offsetLse];
+        auto gLseThisSubBlock = gLse[offsetLse]; // 全局的偏移
 
         auto layoutOutLseThisSubBlock = layoutLse;
-
+        // 全局绝对偏移
         int64_t gmLseoffsetLse = 0;
         if (splitParams.isSplitkv) {
             gmLseoffsetLse = 
@@ -710,7 +710,7 @@ public:
                     blockParams.gCombineo = splitParams.gCombineo[gmloffset];
                 }
 
-                auto gOutputCurLoop = gOutput[offsetOutput];
+                auto gOutputCurLoop = gOutput[offsetOutput]; // 又取了一次偏移，相当于下边每次操作go的一块内存
                 auto layoutOutputCurLoop = layoutOutput;
                 int64_t offsetInput = layoutInput.GetOffset(MatrixCoord(rowOffsetCurLoop, 0));
                 auto gInputCurLoop = gInput[offsetInput];
