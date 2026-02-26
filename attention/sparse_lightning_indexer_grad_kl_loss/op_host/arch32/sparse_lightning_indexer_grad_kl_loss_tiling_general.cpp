@@ -360,7 +360,7 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDtype()
             ge::TypeUtils::DataTypeToSerialString(queryIndexDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyIndexDtype).c_str(),
             ge::TypeUtils::DataTypeToSerialString(weightsDtype).c_str());
         // weightsDtype在float输入时，可不与q和k的输入dtype一致
-        same16 = (weightsDtype == ge::DT_FLOAT32);
+        same16 = (weightsDtype == ge::DT_FLOAT);
     } 
     if (sparseIndicesDtype == ge::DT_INT32 && softmaxMaxDtype == ge::DT_FLOAT && softmaxSumDtype == ge::DT_FLOAT) {
         same32 = true;
