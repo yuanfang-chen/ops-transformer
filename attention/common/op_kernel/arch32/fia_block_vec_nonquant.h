@@ -534,7 +534,6 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         maskInfo.maskValue = negativeIntScalar;
         maskInfo.s1LeftPaddingSize = info.qPaddingBeginOffset;
         maskInfo.s2LeftPaddingSize = info.kvPaddingBeginOffset;
-
         if (constInfo.qSeqSize == 1) {
             maskInfo.layout = fa_base_vector::S1_EQUAL1;
         } else if (LAYOUT_T == FIA_LAYOUT::TND || LAYOUT_T == FIA_LAYOUT::BSH) {
@@ -542,26 +541,43 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
         } else {
             maskInfo.layout = fa_base_vector::GS;
         }
+
         maskInfo.attenMaskType = fa_base_vector::MASK_BOOL; // compatible with int8/uint8
-        LocalTensor<bool> maskUb;
-        LocalTensor<bool> attenMaskTmpUb;
+
+        // TODO 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
+        // TND场景下mask传入∑s1²，其余场景传入[B,S1,S1]
+        LocalTensor<bool> maskUb ;
+        
+        if (maskInfo.sparseMode == fa_base_vector::TREE) {
+            maskUb = inputQue2.AllocTensor<bool>();
+            LocalTensor<int16_t> mask16 = maskUb.template ReinterpretCast<int16_t>();
+            uint32_t zeroCount  = BUFFER_SIZE_BYTE_16K / sizeof(int16_t);
+            AscendC::Duplicate(mask16, static_cast<int16_t>(0), zeroCount);
+            // 修改attenMaskStride、attenMaskBatchStride值
+            maskInfo.attenMaskBatchStride = maskInfo.attenMaskBatchStride * maskInfo.batchIdx;
+            if (LAYOUT_T == FIA_LAYOUT::TND) {
+                maskInfo.attenMaskStride = info.actS1Size;
+                maskInfo.attenMaskBatchStride = 0;
+                for (int i = 0; i < maskInfo.batchIdx; i++) {
+                    maskInfo.attenMaskBatchStride += qActSeqLensParser.GetActualSeqLength(i) * qActSeqLensParser.GetActualSeqLength(i);
+                }
+            }
+        }
+        LocalTensor<bool> attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2];
         LocalTensor<uint8_t> ubWorkSpace = tmpBuf.Get<uint8_t>();
         if (!fa_base_vector::IsSkipAttentionmask(maskInfo)) {
-            maskUb = inputQue2.AllocTensor<bool>();
-            attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2];
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo);
             AscendC::PipeBarrier<PIPE_V>();
             fa_base_vector::AttentionmaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo);
             inputQue2.FreeTensor(maskUb);
         }
         if (!fa_base_vector::IsSkipAttentionmaskForPre(maskInfo)) {
-            maskUb = inputQue2.AllocTensor<bool>();
-            attenMaskTmpUb = maskUb[BUFFER_SIZE_BYTE_16K / 2]; 
             fa_base_vector::AttentionmaskCopyIn(maskUb, attenMaskBoolGm, attenMaskTmpUb, maskInfo, true);
             fa_base_vector::AttentionmaskCompute<MM1_OUT_T>(mmResUb, mmResUb, maskUb, ubWorkSpace, maskInfo, true);
             inputQue2.FreeTensor(maskUb);
         }
     }
+
 }
 
 template <typename FIAT>
