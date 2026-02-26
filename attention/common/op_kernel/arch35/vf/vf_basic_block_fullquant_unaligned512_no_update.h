@@ -28,6 +28,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl512GqaFullquantVF(
     const uint16_t m, const uint32_t n, const T minValue, const float pScale)
 {
     RegTensor<half> vreg_min;
+    RegTensor<half> vreg_p_scale;
+    RegTensor<half> vreg_ln_p_scale;
     RegTensor<half> vreg_input_x_1;
     RegTensor<half> vreg_input_x_unroll_1;
     RegTensor<half> vreg_input_x_2;
@@ -79,29 +81,17 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl512GqaFullquantVF(
     MaskReg preg_all_b8 = CreateMask<uint8_t, MaskPattern::ALL>();
 
     Duplicate(vreg_min, minValue);
+    Duplicate(vreg_p_scale, static_cast<half>(pScale));
+    Ln(vreg_ln_p_scale, vreg_p_scale, preg_all);
     for (uint16_t i = 0; i < 4; ++i) {
         // 一次循环处理[32, 16, 16]
         LoadAlign(vreg_input_x_1, srcUb1 + i * 16 * 16);  // 第一个256中第一个[64, 16]的前8行
         LoadAlign(vreg_input_x_unroll_1, srcUb1 + i * 16 * 16 + 8 * 16);  // 第一个[64, 16]接下来的8行
         LoadAlign(vreg_input_x_2, srcUb2 + i * 16 * 16);  // 第二个256
         LoadAlign(vreg_input_x_unroll_2, srcUb2 + i * 16 * 16 + 8 * 16);
-
-        Muls(vreg_input_x_1, vreg_input_x_1, (half)pScale, preg_all);
-        Muls(vreg_input_x_unroll_1, vreg_input_x_unroll_1, (half)pScale, preg_all);
-        Muls(vreg_input_x_2, vreg_input_x_2, (half)pScale, preg_all);
-        Muls(vreg_input_x_unroll_2, vreg_input_x_unroll_2, (half)pScale, preg_all);
         
         Max(vreg_max_tmp, vreg_input_x_1, vreg_input_x_2, preg_all);  // 第1/2个256的第一个[64, 16]前8行的最大值
         Max(vreg_max_tmp_unroll, vreg_input_x_unroll_1, vreg_input_x_unroll_2, preg_all);
-
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb1 + i * 16 * 16, vreg_input_x_1, preg_all);
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb1 + i * 16 * 16 + 8 * 16, vreg_input_x_unroll_1, preg_all);
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb2 + i * 16 * 16, vreg_input_x_2, preg_all);
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb2 + i * 16 * 16 + 8 * 16, vreg_input_x_unroll_2, preg_all);
 
         for (uint16_t j = 1; j < n / 16; ++j) {  // 每个256内部，第j个[64, 16]，n / 16为NZ shape的第一个维度
             LoadAlign(vreg_input_x_1, srcUb1 + i * 16 * 16 + j * 64 * 16);  // 第一个256，搬入第j个[64, 16]的两个8行
@@ -109,27 +99,15 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl512GqaFullquantVF(
             LoadAlign(vreg_input_x_2, srcUb2 + i * 16 * 16 + j * 64 * 16);  // 第二个256
             LoadAlign(vreg_input_x_unroll_2, srcUb2 + i * 16 * 16 + j * 64 * 16 + 8 * 16);
 
-            Muls(vreg_input_x_1, vreg_input_x_1, (half)pScale, preg_all);
-            Muls(vreg_input_x_unroll_1, vreg_input_x_unroll_1, (half)pScale, preg_all);
-            Muls(vreg_input_x_2, vreg_input_x_2, (half)pScale, preg_all);
-            Muls(vreg_input_x_unroll_2, vreg_input_x_unroll_2, (half)pScale, preg_all);
-
             Max(vreg_max_tmp, vreg_max_tmp, vreg_input_x_1, preg_all);  // 读入第j个[64, 16]，和第1个256块已经读入的前j-1个[64, 16]的max再取max
             Max(vreg_max_tmp, vreg_max_tmp, vreg_input_x_2, preg_all);  // 读入第j个[64, 16]，和第2个256块已经读入的前j-1个[64, 16]的max再取max
             Max(vreg_max_tmp_unroll, vreg_max_tmp_unroll, vreg_input_x_unroll_1, preg_all);
             Max(vreg_max_tmp_unroll, vreg_max_tmp_unroll, vreg_input_x_unroll_2, preg_all);
-
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb1 + i * 16 * 16 + j * 64 * 16, vreg_input_x_1, preg_all);
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb1 + i * 16 * 16 + j * 64 * 16 + 8 * 16, vreg_input_x_unroll_1, preg_all);
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb2 + i * 16 * 16 + j * 64 * 16, vreg_input_x_2, preg_all);
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb2 + i * 16 * 16 + j * 64 * 16 + 8 * 16, vreg_input_x_unroll_2, preg_all);
         }
         ReduceDataBlock<AscendC::MicroAPI::ReduceType::MAX>(vreg_max_tmp, vreg_max_tmp, preg_all); // 只剩8行的8个max值
         ReduceDataBlock<AscendC::MicroAPI::ReduceType::MAX>(vreg_max_tmp_unroll, vreg_max_tmp_unroll, preg_all);
+        Sub(vreg_max_tmp, vreg_max_tmp, vreg_ln_p_scale, preg_all);
+        Sub(vreg_max_tmp_unroll, vreg_max_tmp_unroll, vreg_ln_p_scale, preg_all);
         StoreUnAlign<half, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ half *&)tmpMaxUb), vreg_max_tmp, ureg_max, 8);  // 存入这16行的max到ub
         StoreUnAlign<half, MicroAPI::PostLiteral::POST_MODE_UPDATE>(

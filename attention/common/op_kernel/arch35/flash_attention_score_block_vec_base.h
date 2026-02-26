@@ -325,8 +325,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nz(
     if (likely(runInfo.halfS1RealSize != 0)) {
         int32_t s2RealSizeAlign32 = (runInfo.s2RealSize + 31) >> 5 << 5;
         DataCopy(mm2AL1Tensor[constInfo.subBlockIdx * (blockBytes / sizeof(INPUT_T)) * (runInfo.s1RealSize - runInfo.halfS1RealSize)], stage1CastTensor,
-            {(uint16_t)(s2RealSizeAlign32 / 32), (uint16_t)(s1BaseSize >> 1), (uint16_t)0,
-            (uint16_t)(s1BaseSize >> 1)});
+            {(uint16_t)(s2RealSizeAlign32 / 32), (uint16_t)(runInfo.halfS1RealSize), (uint16_t)((s1BaseSize >> 1) - runInfo.halfS1RealSize),
+            (uint16_t)(runInfo.halfS1RealSize)});
     }
     bmm1ResBuf.SetCrossCore<true>();
     outputBuf.SetCrossCore();

@@ -598,12 +598,9 @@ __aicore__ inline void FlashAttentionScoreKernelBase<ChildClass, CubeBlockType, 
         }
     }
     runParam.s1RealSize = Min(s1BaseSize, runParam.actualS1Size - runParam.s1oIdx * s1BaseSize);
-    if constexpr (useDn) {
+    if constexpr (useDn || useNz) {
         runParam.s1RealSizeAlign32 = (runParam.s1RealSize + 31) >> 5 << 5;
         runParam.halfS1RealSize = runParam.s1RealSize <= 16 ? runParam.s1RealSize : (runParam.s1RealSizeAlign32 >> 1);
-    } else if constexpr (useNz) {
-        runParam.s1RealSizeAlign32 = (runParam.s1RealSize + 31) >> 5 << 5;
-        runParam.halfS1RealSize = runParam.s1RealSizeAlign32 >> 1;
     } else {
         runParam.halfS1RealSize = (runParam.s1RealSize + 1) >> 1;
     }
