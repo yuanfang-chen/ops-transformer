@@ -35,31 +35,6 @@ const std::vector<uint32_t> QUANT_GMM_WEIGHT_SCALE_DTYPE_LIST = {ge::DT_FLOAT,};
 const std::vector<uint32_t> QUANT_GMM_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16};
 const std::set<int64_t> SUPPORT_RANK_SIZE{2, 4, 8, 16, 32, 64, 128, 256};
 constexpr int64_t RANK_DEFAULT_NUM = -1;
-namespace {
-    // 定义量化方式的枚举类型，显式指定每个值确保与需求完全一致
-    enum QuantizationMode {
-        QUANT_NONE = 0,          // 不量化
-        QUANT_PERTENSOR = 1,     // pertensor
-        QUANT_PERCHANNEL = 2,    // perchannel
-        QUANT_PERTOKEN = 3,      // pertoken
-        QUANT_PERGROUP = 4,      // pergroup
-        QUANT_PERBLOCK = 5,      // perblock
-        QUANT_MX = 6,            // mx量化
-        QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
-    };
-
-    enum QuantModePair {
-        QUANT_PAIR_NONE = 0,          // 不量化
-        QUANT_PAIR_TT = 1,     // pertensor
-        QUANT_PAIR_KC = 2,    // perchannel
-        // QUANT_PERTOKEN = 3,      // pertoken
-        // QUANT_PERGROUP = 4,      // pergroup
-        // QUANT_PERBLOCK = 5,      // perblock
-        // QUANT_MX = 6,            // mx量化
-        // QUANT_PERTOKEN_DYNAMIC = 7  // pertoken动态量化
-        QUANT_PAIR_ERROR = 255,
-    };
-}
 
 static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 {
@@ -71,7 +46,7 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
 {
     uint64_t dimNum = shape->GetStorageShape().GetDimNum();
     OP_TILING_CHECK((dimNum != dims),
-        OP_LOGE(opName_, "The %s dimNum should be %lu.", shapeName, dims), return ge::GRAPH_FAILED);
+        OP_LOGE(opName_, "The %s dimNum should be %lu, now is %lu.", shapeName, dims, dimNum), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
