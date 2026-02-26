@@ -44,6 +44,7 @@ const size_t threeDimNum = 3;
 const size_t fourDimNum = 4;
 const size_t sharedInputOffsetAttrIndex = 2;
 const size_t outputBSAttrIndex = 5;
+const int64_t DYNAMIC_DIM = -1;
 const int64_t NZ_K0_VALUE_INT8 = 16;
 const int64_t NZ_K0_VALUE_INT8_TRANS = 32;
 const int64_t N_VALUE_256 = 256;
@@ -300,19 +301,16 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
     } else {
         OP_CHECK_IF(ValidateXAndWShapes(op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
         // 在动态图模式下，跳过校验逻辑
-        if (xAndWParams.m != -1 && xAndWParams.n != -1 && xAndWParams.k != -1 && xAndWParams.e != -1) {
+        if (xAndWParams.m != DYNAMIC_DIM && xAndWParams.n != DYNAMIC_DIM && xAndWParams.k != DYNAMIC_DIM &&
+            xAndWParams.e != DYNAMIC_DIM) {
             OP_CHECK_IF(ValidateScaleAndBias(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
-
             OP_CHECK_IF(ValidatePertokenAndGroupList(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
-
             OP_CHECK_IF(ValidateSharedInputAndLogit(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
-
             OP_CHECK_IF(ValidateRowIndex(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
-
             OP_CHECK_IF(ValidateOffsetShape(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
         }
