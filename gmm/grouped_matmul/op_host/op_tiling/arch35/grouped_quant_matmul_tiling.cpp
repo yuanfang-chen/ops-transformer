@@ -585,8 +585,17 @@ bool GroupedQbmmTiling::AnalyzeInputs()
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     const gert::Shape &weightNzStorageShape = wStorageShape->GetStorageShape();
 
+    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
+               return false);
+    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
+    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
+
+    if (inputParams_.cDtype == ge::DT_INT32) {
+        return true;
+    }
+
     auto scaleStorageShape = context_->GetDynamicInputShape(SCALE_INDEX, 0);
-    OP_CHECK_IF(inputParams_.cDtype != ge::DT_INT32 && scaleStorageShape == nullptr,
+    OP_CHECK_IF(scaleStorageShape == nullptr,
                 OP_LOGE(context_->GetNodeName(), "scaleStorageShape is nullptr when cDtype is not INT32."),
                 return false);
     const gert::Shape &wScaleShape = scaleStorageShape->GetOriginShape();
@@ -597,16 +606,10 @@ bool GroupedQbmmTiling::AnalyzeInputs()
                                          scaleDimNum),
                return false);
     auto xScaleStorageShape = context_->GetOptionalInputShape(PER_TOKEN_SCALE_INDEX);
-    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
-               return false);
-    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
-    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
-    if (inputParams_.cDtype != ge::DT_INT32) {
-        OP_CHECK_IF(!SetQuantMode(wScaleShape, xScaleStorageShape, wShape),
-                    OP_LOGE(inputParams_.opName, "SetQuantMode failed."), return false);
-        OP_CHECK_IF(!CheckQuantParams(xScaleStorageShape, wScaleShape),
-                    OP_LOGE(inputParams_.opName, "CheckQuantParams failed."), return false);
-    }
+    OP_CHECK_IF(!SetQuantMode(wScaleShape, xScaleStorageShape, wShape),
+               OP_LOGE(inputParams_.opName, "SetQuantMode failed."), return false);
+    OP_CHECK_IF(!CheckQuantParams(xScaleStorageShape, wScaleShape),
+               OP_LOGE(inputParams_.opName, "CheckQuantParams failed."), return false);
 
     if (isWeightNz_) {
         OP_CHECK_IF(!CheckShapeForWeightNz(weightNzStorageShape), OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."),
