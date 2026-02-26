@@ -1031,7 +1031,8 @@ bool PromptFlashAttentionTilingV2::CheckPerblockQuantParams(const ContextParamsF
             "now dequantScaleQuery's type is %s, KeyAntiquantScale's type is %s, valueAntiquantScale's type is %s.",
             GetPfaDataTypeStr(dequantScaleQueryType).c_str(), GetPfaDataTypeStr(KeyAntiquantScaleType).c_str(), GetPfaDataTypeStr(valueAntiquantScaleType).c_str()),
         return false);
-    OP_CHECK_IF((layoutStr == "BNSD_NBSD" || layoutStr == "BSH_NBSD" || layoutStr == "BSH_BNSD" || layoutStr == "BSND_BNSD" || layoutStr == "NTD" || inputLayout == InputLayout::TND),
+    const std::vector<std::string> unsupportedLayoutList = {"BNSD_NBSD", "BSH_NBSD", "BSH_BNSD", "BSND_BNSD", "BSND_NBSD", "NTD"};
+    OP_CHECK_IF((std::find(unsupportedLayoutList.begin(), unsupportedLayoutList.end(), layoutStr) != unsupportedLayoutList.end()) || inputLayout == InputLayout::TND,
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "In per-block quant scenario, the layout %s is not supported.", layoutStr.c_str()),
         return false);
