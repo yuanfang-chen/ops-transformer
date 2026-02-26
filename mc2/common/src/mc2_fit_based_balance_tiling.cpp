@@ -27,6 +27,9 @@ CutResult Mc2FitBasedBalanceTiling::GetTiling()
         SetLongTileLen();
         AdjustLongShortTileLen();
     }
+
+    CheckHCCLLimit();
+
     OPS_LOG_D("Mc2FitBasedBalanceTiling", "Input shape {M, N, K} = {%lu, %lu, %lu}, Final cut: shortTileAtBack %d,"
         " longTileLen %lu, numLongTile %lu, shortTileLen %lu, numShortTile %lu",
         mmInfo_.mValue, mmInfo_.nValue, mmInfo_.kValue, tilingM_.cutRes.shortTileAtBack, tilingM_.cutRes.longTileLen,
