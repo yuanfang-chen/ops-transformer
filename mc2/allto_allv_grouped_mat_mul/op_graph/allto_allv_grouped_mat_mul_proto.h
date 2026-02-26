@@ -45,7 +45,7 @@ namespace ge {
 * @li recv_counts: An int list. A list containing amount of data to be received.
 * @li trans_gmm_weight: A boolean value. Whether gmm_weight is transposed. True indicates transposition. Default: false.
 * @li trans_mm_weight: A boolean value. Whether mm_weight is transposed. True indicates transposition. Default: false.
-* @li permute_out_flag: A boolean value. Whether to output permute_out. Default: false.
+* @li permute_out_flag: A boolean value. Whether to output permute_out. True indicates that output permute_out is required. Default: false.
 * @li gmm_x_quant_mode: An int. Quantization mode of gmm_x. Default: 0.
 *        - 0：No Quantization
 *        - 1：PerTensor Quantization
