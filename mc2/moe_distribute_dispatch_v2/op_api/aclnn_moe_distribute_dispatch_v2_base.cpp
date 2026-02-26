@@ -401,13 +401,20 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         std::string hcclTopoType;
         ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
-        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
-            x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
+        getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2GetWorkspaceSize(
+            x, expertIds, scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
-            hcclBuffSize, hcclTopoType.c_str(), groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+            groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
             sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
             constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
             epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
+        // getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
+        //     x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
+        //     elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
+        //     hcclBuffSize, hcclTopoType.c_str(), groupTpDispatchV2Temp, tpWorldSize, tpRankId, expertShardType, sharedExpertNum,
+        //     sharedExpertRankNum, quantMode, globalBs, expertTokenNumsType, commAlg, zeroExpertNum, copyExpertNum,
+        //     constExpertNum, ydtype, expandXOut, dynamicScalesOut, assistInfoForCombineOut, expertTokenNumsOut,
+        //     epRecvCountsOut, tpRecvCountsOut, expandScalesOut, workspaceSize, executor);
     }
     SetCommArgs(is950, is910B, commAlg, executor);
     return getWorkspaceSizesRes;
