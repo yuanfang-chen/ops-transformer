@@ -1847,9 +1847,9 @@ static ge::graphStatus TilingParseForMoeDistributeDispatchV2(gert::TilingParseCo
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
-    .Tiling(MoeDistributeDispatchV2TilingFunc)
-    .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2);
+// IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
+//     .Tiling(MoeDistributeDispatchV2TilingFunc)
+//     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2);
 
 
 #ifdef MC2_EXCEPTION_HANDLER
