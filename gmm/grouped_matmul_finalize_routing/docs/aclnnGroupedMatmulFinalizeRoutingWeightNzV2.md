@@ -87,7 +87,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>输入</td>
       <td>输入x（左矩阵）。</td>
       <td>-</td>
-      <td>INT8、FLOAT8_E4M3FN</td>
+      <td>INT8、FLOAT8_E4M3FN、HIFLOAT8</td>
       <td>ND</td>
       <td>(m, k)</td>
       <td>-</td>
@@ -97,7 +97,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>输入</td>
       <td>输入weight（右矩阵）。</td>
       <td>-</td>
-      <td>INT4、INT8、FLOAT8_E4M3FN</td>
+      <td>INT4、INT8、FLOAT8_E4M3FN、HIFLOAT8</td>
       <td>NZ</td>
       <td>支持三维</td>
       <td>-</td>
@@ -129,7 +129,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>-</td>
       <td>FLOAT32</td>
       <td>ND</td>
-      <td>-</td>
+      <td></td>
       <td>-</td>
     </tr>
     <tr>
@@ -179,7 +179,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td></td>
       <td>BF16</td>
       <td>ND</td>
-      <td>-</td>
+      <td>shape支持一维，维度为(e)，e和w的e一致</td>
       <td>-</td>
     </tr>
     <tr>
@@ -197,7 +197,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
       <td>输入</td>
       <td>moe专家输出按照该rowIndex进行combine，其中的值即为combine做scatter add的索引。</td>
       <td></td>
-      <td>INT64、INT32</td>
+      <td>-</td>
       <td>ND</td>
       <td>shape支持一维，维度为(m)，m和x的m一致</td>
       <td>-</td>
@@ -311,7 +311,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
   - x2支持INT4以及INT32。当输入为INT32时维度为(e, k, n / 8)，输入转为INT4时维度为(e, k, n)，e取值范围[1,256]，k支持2048，n支持7168。
   - offsetOptional的shape支持三维，维度为(e, 1, n)，e、n和weight的e、n一致。
   - scaleOptional支持INT64、FLOAT32、BF16。
-  - sharedInputOptional的shape支持一维，维度为(e)，e和weight的e一致。
+  - rowIndex支持INT64、INT32。
   - x1、x2、groupListOptional是必选参数，scaleOptional、pertokenScaleOptional、logitOptional、rowIndexOptional、biasOptional，sharedInputOptional是可选参数。
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
@@ -319,6 +319,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
   - x1支持INT8、FLOAT8_E4M3FN数据类型。
   - x2支持INT8、FLOAT8_E4M3FN数据类型。维度为(e,k,n)，e取值范围[1,1024]。
   - scaleOptional支持FLOAT32、BF16。
+  - rowIndex在x1以及x2数据类型为int8时，数据类型支持INT64、INT32；在x1以及x2数据类型为FLOAT8_E4M3FN、HIFLOAT8时，数据类型支持INT64。
   - sharedInputOptional的shape支持二维，维度为(shared_m,n)。
   - x1、x2、scaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，pertokenScaleOptional、sharedInputOptional是可选参数。目前暂不支持biasOptional，offsetOptional参数。
 
@@ -419,8 +420,9 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 
   | x1    | x2    | scale   | bias    | offsetOptional  | antiquantScaleOptional | antiquantOffsetOptional | pertokenScaleOptional| groupList | sharedInput | logit   |   rowIndex | out   | tuningConfigOptional |
     |------|------|---------|---------|---------|----------------|-----------------|---------------|-----------|-------------|---------|----------|-------| ----------------------|
-    | INT8 | INT8 | FLOAT/BFLOAT16 | null    | null    | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
-    | FLOAT8_E4M3FN |  FLOAT8_E4M3FN | FLOAT/BFLOAT16   | null | null | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
+    | INT8 | INT8 | FLOAT/BFLOAT16 | BFLOAT16/null    | null    | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64/INT32    | FLOAT |   null             |
+    | FLOAT8_E4M3FN |  FLOAT8_E4M3FN | FLOAT/BFLOAT16   | BFLOAT16/null | null | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64    | FLOAT |   null             |
+    | HIFLOAT8 |  HIFLOAT8 | FLOAT/BFLOAT16   | BFLOAT16/null | null | null           | null            | FLOAT/null       | INT64     | BFLOAT16    | FLOAT | INT64    | FLOAT |   null             |
     
 
 ## 调用示例

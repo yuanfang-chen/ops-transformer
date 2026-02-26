@@ -121,7 +121,7 @@
      ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOuputShape);
  }
 
- TEST_F(GroupedMatmulFinalizeRouting, grouped_matmul_finalize_routing_1) {
+ TEST_F(GroupedMatmulFinalizeRouting, grouped_matmul_finalize_routing_950_normal_2) {
     int m = 1024;
     int k = 2048;
     int n = 7168;
