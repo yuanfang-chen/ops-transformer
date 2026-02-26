@@ -1356,9 +1356,15 @@ ge::graphStatus IFATiling::CheckTreeSparseMaskShape()
             OP_LOGE(ifaContext_->opName, "TND/TND_NTD need input attenMask when sparse = 9."), return ge::GRAPH_FAILED);
 
         auto shape = ifaContext_->attenMask.tensor->GetStorageShape();
-        OP_CHECK_IF(shape.GetDimNum() != 1U || shape.GetDim(0) != qSeqSquareSum_,
-            OP_LOGE(ifaContext_->opName, "TND/TND_NTD when sparse = 9, atten_mask tensor shape must be ∑s1²."),
+        OP_CHECK_IF(shape.GetDimNum() != 1U,
+            OP_LOGE(ifaContext_->opName, "TND/TND_NTD when sparse = 9, atten_mask tensor shape must be 1 dimension."),
             return ge::GRAPH_FAILED);
+    
+        if (!isWorkspace_) {
+            OP_CHECK_IF(shape.GetDim(0) != qSeqSquareSum_,
+                OP_LOGE(ifaContext_->opName, "TND/TND_NTD when sparse = 9, atten_mask tensor shape must be ∑s1²."),
+                return ge::GRAPH_FAILED);
+        }
         attenMaskFlag_ = true;
     } else {
         OP_CHECK_IF(maskShape == nullptr,
@@ -1399,10 +1405,16 @@ ge::graphStatus IFATiling::CheckTndMaskShapeWithSparseMode()
 ge::graphStatus IFATiling::CheckMaskShapeWithQSeq() const
 {
     if (antiQuantFlag_ || quantFlag_) {
+        OP_CHECK_IF((ropeFlag_ && qSeqSize_ > 1U && (static_cast<int32_t>(sparseMode_) != 3 ||
+                     static_cast<int32_t>(sparseMode_) != 9)),
+           OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3/9 "
+                "in MLA when full quant situation.", static_cast<int32_t>(sparseMode_)),
+           return ge::GRAPH_FAILED);
+
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ > 1U && static_cast<int32_t>(sparseMode_) != 3),
-               OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3 or 9"
-                    "in MLA when antiquant or full quant situation.", static_cast<int32_t>(sparseMode_)),
-               return ge::GRAPH_FAILED);
+           OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3 "
+                "in MLA when antiquant situation.", static_cast<int32_t>(sparseMode_)),
+           return ge::GRAPH_FAILED);
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ == 1U && static_cast<int32_t>(sparseMode_) != 0),
                 OP_LOGE(ifaContext_->opName, "when queryS = 1, sparseMode(%d) only support 0 "
                     "in MLA when antiquant or full quant situation.", static_cast<int32_t>(sparseMode_)),

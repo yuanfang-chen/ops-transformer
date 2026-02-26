@@ -313,6 +313,9 @@ static ge::graphStatus ConvertAttrsPFA(gert::TilingContext &context, ContextPara
         OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "PFA not support query dequant now"),
         return ge::GRAPH_FAILED);
 
+    OP_CHECK_IF(*contextKeyParams.sparseMode == 9U,
+        OPS_REPORT_VECTOR_INNER_ERR(context.GetNodeName(), "PFA not support Tree Sparse(9) now"),
+        return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1958,7 +1961,7 @@ FIA_EXTERN_C ge::graphStatus DoOpTilingFusedInferAttentionScore(gert::TilingCont
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
         return ge::GRAPH_FAILED);
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    if ((ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510)) {
+    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         return TilingFusedInferAttentionScoreV2(context);
     } else {
         return TilingFusedInferAttentionScore(context);

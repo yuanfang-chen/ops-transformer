@@ -1902,7 +1902,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyFo
 
     // 第二步，计算偏移 从Gm上把mask拷过来
     AttenMaskCopyNoFull(attenMaskUb, info, s1StartIdx, s1EndIdx + 1);
-    DumpTensor(attenMaskUb, 210, s1Count * 512);
+
     // 第三步，添加拷贝同步信号
     inputQue2.template EnQue(attenMaskUb);
     attenMaskUb = inputQue2.DeQue<bool>();

@@ -525,7 +525,7 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
     }
 
     // TODO 遗留问题：看路由条件放开的情况在做决定，现在先放开
-    if (sOfQuery > 1U && sOfQuery <= 32U && !ropeFlag_) {  // 投机推理场景，QS在1到32之间
+    if (sOfQuery > 1U && sOfQuery <= 16U && !ropeFlag_) {  // 投机推理场景，QS在1到32之间
         gqaMtpFlag_ = true;
     }
     if (kDimNum == 5U && !ropeFlag_) {
@@ -533,7 +533,7 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
     }
     if (!ropeFlag_ && !gqaMtpFlag_) {
         OP_CHECK_IF(sOfQuery != 1U,
-            OP_LOGE(ifaContext_->opName, "In case where MLA is not applied, S of Query:%u is invalid. It should be in range [1, 32]", sOfQuery),
+            OP_LOGE(ifaContext_->opName, "In case where MLA is not applied, S of Query:%u is invalid. It should be in range [1, 16]", sOfQuery),
                    return ge::GRAPH_FAILED);
     } else if (layout != "TND" && layout != "TND_NTD") {
         OP_CHECK_IF(sOfQuery > 32, OP_LOGE(ifaContext_->opName, "QueryS(%u) should not be bigger than 32 in MLA.", sOfQuery),
@@ -1852,7 +1852,7 @@ ge::graphStatus IFATiling::ProcessSparseMode()
 
     sparseMode_ = ifaContext_->sparseMode != nullptr ? *ifaContext_->sparseMode : 0;
 
-    if (sparseMode_ == 9) {
+    if (sparseMode_ == 9U) {
         if (ropeFlag_ && quantFlag_) {
             OP_CHECK_IF(kvPaddingSizeFlag_,
                 OP_LOGE(ifaContext_->opName,
@@ -1875,6 +1875,11 @@ ge::graphStatus IFATiling::ProcessSparseMode()
                         "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode_),
                 return ge::GRAPH_FAILED);
             
+            // tiling下沉场景，获取不到actualseqlen,不进行校验
+            if (isWorkspace_) {
+                return ge::GRAPH_SUCCESS;
+            }
+
             // 补充s2 >= s1的拦截，在MLA全量化场景，必须开启PA(NZ)，所以actualSeqKV不进行累加
             if (inputLayout_ == IfaLayout::TND) {
                 const int64_t *actualSeqQTnd = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>();
@@ -1882,7 +1887,20 @@ ge::graphStatus IFATiling::ProcessSparseMode()
                 int64_t qActSize = 0;
                 int64_t kvActSize = 0;
 
-                for (int b = 0; b < static_cast<int>(actualLenQDims_); b++) {
+                // 入图padding场景，最后几个batch s2=0时不校验
+                int32_t NonpaddingZeroIndex = -1;
+                for (int32_t i = actualLenQDims_ - 1; i >= 0; i--) {
+                    if (actualSeqKVTnd[i] != 0) {
+                        NonpaddingZeroIndex = i;
+                        break;
+                    }
+                }
+        
+                if (NonpaddingZeroIndex == -1) {
+                    return ge::GRAPH_SUCCESS;
+                }
+
+                for (int b = 0; b <= NonpaddingZeroIndex; b++) {
                     qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
                     kvActSize = actualSeqKVTnd[b];
                     OP_CHECK_IF(qActSize > kvActSize,

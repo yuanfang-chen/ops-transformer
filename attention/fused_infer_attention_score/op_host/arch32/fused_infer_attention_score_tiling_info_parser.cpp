@@ -818,12 +818,12 @@ ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
     uint32_t maskDimNum = maskTensor->GetStorageShape().GetDimNum();
 
     // TODO TND传入的mask
-    if (qLayout_ == FiaLayout::TND) {
+    if (qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD) {
         if (maskDimNum == 1U) {
             attenMaskBatchStride_ = 1;
             attenMaskStride_ = 1;
         } else {
-            OP_LOGE(opName_, "When layout is TND, Tree mask(%u) matrix dim only support 1.", *opParamInfo_.sparseMode);
+            OP_LOGE(opName_, "When layout is TND/NTD, Tree mask(%u) matrix dim only support 1.", *opParamInfo_.sparseMode);
         }
     } else {
         if (maskDimNum == 3U) {
@@ -831,7 +831,7 @@ ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
                                     maskTensor->GetStorageShape().GetDim(maskDimNum-2);
             attenMaskStride_ = maskTensor->GetStorageShape().GetDim(maskTensor->GetStorageShape().GetDimNum() - 1);
         } else {
-            OP_LOGE(opName_, "When layout is not TND, Tree mask(%u) matrix dim only support 3.", *opParamInfo_.sparseMode);
+            OP_LOGE(opName_, "When layout is not TND/NTD, Tree mask(%u) matrix dim only support 3.", *opParamInfo_.sparseMode);
         }
     }
     return ge::GRAPH_SUCCESS;
