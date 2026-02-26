@@ -252,8 +252,8 @@ static ge::graphStatus InferDataTypeAlltoAllvGroupedMatMul(gert::InferDataTypeCo
     if (attrs->GetAttrNum() > INDEX_ATTR_MM_DTYPE_INDEX) {
         mmDtypePtr = attrs->GetAttrPointer<int64_t>(INDEX_ATTR_MM_DTYPE_INDEX);
     }
-    ge::DataType yDataType = (yDtypePtr == nullptr || *yDtypePtr == 28) ? dType : static_cast<ge::DataType>(*yDtypePtr);
-    ge::DataType mmDataType = (mmDtypePtr == nullptr || *mmDtypePtr == 28) ? dType : static_cast<ge::DataType>(*mmDtypePtr);
+    ge::DataType yDataType = (yDtypePtr == nullptr || *yDtypePtr == -1) ? dType : static_cast<ge::DataType>(*yDtypePtr);
+    ge::DataType mmDataType = (mmDtypePtr == nullptr || *mmDtypePtr == -1) ? dType : static_cast<ge::DataType>(*mmDtypePtr);
     context->SetOutputDataType(INDEX_OUT_MM_Y, mmDataType);
     OP_LOGD(context->GetNodeName(), "infershape mmY data type: %s.", TypeUtils::DataTypeToAscendString(mmDataType).GetString());
     context->SetOutputDataType(INDEX_OUT_GMM_Y, yDataType);
