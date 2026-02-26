@@ -275,7 +275,11 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
 aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
 {
     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
-    OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
+    // OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
+    if(ctx == nullptr) {
+        OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
+        return ACLNN_ERR_INNER;
+    }
     uint64_t mc2ContextLength = sizeof(Mc2MoeContext);
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
