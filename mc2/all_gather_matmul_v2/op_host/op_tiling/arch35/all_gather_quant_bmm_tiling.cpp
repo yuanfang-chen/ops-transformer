@@ -16,8 +16,10 @@
 #define _ALL_GATHER_QUANT_BMM_TILING_CPP_
 #include "op_mc2.h"
 #include "mc2_log.h"
+#include "util/math_util.h"
 #include "all_gather_quant_bmm_tiling.h"
 #include "../../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
+#include "tiling/mc2_tiling_utils.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -415,8 +417,29 @@ ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
+/**
+ * Due to communication constraints: 
+ * 1. The maximum number of communication attempts is limited to 16
+ * 2. The data volume of a single communication shall not exceed 256MB;
+ * Thus, it is required to pre-intercept the x1 that still exceeds the limit after being evenly split into 16 parts
+ */
+ge::graphStatus AllGatherQuantBmmTiling::CheckHCCLSize()
+{
+    uint64_t sizeOfSingleM = args_.kValue * sizeof(args_.geAType) * args_.rankDim;
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data x1 into (1, k), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    
+    uint64_t sizeOfSplitM = Ops::Base::CeilDiv(args_.mValue, mc2tiling::ALL_GATHER_HCCL_NUM_LIMIT) * sizeOfSingleM;
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data M into 16 parts (rounded up), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+
 ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     SetTilingKeyParams();
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,

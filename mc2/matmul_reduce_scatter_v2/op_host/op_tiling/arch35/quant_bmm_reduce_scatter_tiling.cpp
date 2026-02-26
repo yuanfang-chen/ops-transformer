@@ -427,8 +427,27 @@ bool QuantBmmReduceScatterTiling::CheckPerblockM()
     return args_.orgMValue % (PERBLOCK_SIZE * args_.rankDim) == 0;
 }
 
+/**
+ * Due to communication constraints: 
+ * 1. The maximum number of communication attempts is limited to 16
+ * 2. The data volume of a single communication shall not exceed 256MB;
+ * Thus, it is required to pre-intercept the x1 that still exceeds the limit after being evenly split into 16 parts
+ */
+ge::graphStatus QuantBmmReduceScatterTiling::CheckHCCLSize()
+{
+    uint64_t sizeOfSingleM = args_.nValue * sizeof(args_.geCType);
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported matmul output size. Even after splitting data matmul output into (1, n), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    
+    uint64_t sizeOfSplitM = Ops::Base::CeilDiv(args_.mValue, mc2tiling::ALL_GATHER_HCCL_NUM_LIMIT) * sizeOfSingleM;
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data M into 16 parts (rounded up), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus QuantBmmReduceScatterTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
         OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);

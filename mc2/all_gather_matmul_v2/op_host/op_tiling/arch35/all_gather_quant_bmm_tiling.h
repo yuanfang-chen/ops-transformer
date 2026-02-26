@@ -72,6 +72,7 @@ protected:
     ge::graphStatus CheckScaleInvShape();
     ge::graphStatus CheckInputValid();
     ge::graphStatus CheckX1Input();
+    ge::graphStatus CheckHCCLSize();
     ge::graphStatus CheckInput() override;
 
 private:

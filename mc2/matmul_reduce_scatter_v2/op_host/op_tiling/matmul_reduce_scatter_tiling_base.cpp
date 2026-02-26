@@ -94,6 +94,28 @@ void MatmulReduceScatterTilingBase::DoFormulaticTiling(Mc2Tiling::RCSTiling &rcs
     longTileLen_ = mCutScatter.longTileLen;
 }
 
+void MatmulReduceScatterTilingBase::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg)
+{
+    if (tileMValue_ * args_.mValue * sizeof(args_.geCType) <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
+        return;
+    }
+    OPS_LOG_I(opName_, "The result of formulaic tiling result does not meet the hccl restriction,"
+     " current splitting: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld].",
+        tileMValue_, rcfCfg.tileCnt, tailMValue_, rcfCfg.tailCnt);
+    
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.nValue * sizeof(args_.geCType), mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
+    rcfCfg.tileCnt = args_.mValue / tileMValue_;
+    rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
+    tailMValue_ = rcfCfg.tailM;
+    if (tailMValue_ == 0) {
+        rcfCfg.tailCnt = 0;
+    } else {
+        rcfCfg.tailCnt = 1;
+    }
+    longTileLen_ = tileMValue_;
+}
+
 
 ge::graphStatus MatmulReduceScatterTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling &rcsCfg)
 {
@@ -121,6 +143,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::DoSplitMTiling(Mc2Tiling::RCSTili
     } else {
         DoFormulaticTiling(rcsCfg);
     }
+    AdjustHCCLLimit(rcsCfg);
     return ge::GRAPH_SUCCESS;
 }
 

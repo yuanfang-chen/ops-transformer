@@ -80,6 +80,7 @@ protected:
     ge::graphStatus DoAdaptSlidWindowTiling();
     ge::graphStatus SetMc2Hcomm();
     ge::graphStatus CheckInput() override;
+    ge::graphStatus CheckHCCLSize();
     bool CommonParamCheck() const;
     bool PerblockSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape) const;
     bool PertensorSceneParamCheck(const gert::StorageShape *x1ScaleShape, const gert::StorageShape *x2ScaleShape);
