@@ -137,7 +137,7 @@ namespace {
     constexpr uint64_t PERGROUP_BLOCK_SIZE = 128U;
 
     // A2定义
-    const char *K_INNER_DEBUG = "MoeDistributeDispatchV2 Tiling Debug";
+    const char *K_INNER_DEBUG = "MoeDistributeDispatchV2Extend Tiling Debug";
     constexpr uint32_t RANK_NUM_PER_NODE_A2 = 8;
     constexpr uint32_t BLOCK_SIZE_A2 = 32;
     constexpr uint32_t MAX_K_VALUE_A2 = 16;
@@ -819,7 +819,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
             return ge::GRAPH_FAILED);
     }
     isSetFullMeshV2 = ((strcmp(commAlgPtr, "fullmesh_v2") == 0) ? true : false);
-    OP_LOGD(nodeName, "MoeDistributeDispatchV2 isSetFullMeshV2 = %d\n", isSetFullMeshV2);
+    OP_LOGD(nodeName, "MoeDistributeDispatchV2Extend isSetFullMeshV2 = %d\n", isSetFullMeshV2);
 
     groupEp = std::string(groupEpPtr);
     tilingData.moeDistributeDispatchV2Info.epWorldSize = static_cast<uint32_t>(epWorldSize);
@@ -838,7 +838,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
     tilingData.moeDistributeDispatchV2Info.quantMode = static_cast<uint32_t>(*quantModePtr);
     tilingData.moeDistributeDispatchV2Info.expertTokenNumsType = static_cast<uint32_t>(*expertTokenNumsTypePtr);
     tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum = static_cast<int32_t>(zeroComputeExpertNum);
-    OP_LOGD(nodeName, "MoeDistributeDispatchV2 zeroComputeExpertNum = %d\n",
+    OP_LOGD(nodeName, "MoeDistributeDispatchV2Extend zeroComputeExpertNum = %d\n",
         tilingData.moeDistributeDispatchV2Info.zeroComputeExpertNum);
     uint32_t localMoeExpertNum = static_cast<uint32_t>(moeExpertNum) / (static_cast<uint32_t>(epWorldSize) - static_cast<uint32_t>(sharedExpertRankNum));
     uint32_t lastDim = localMoeExpertNum * static_cast<uint32_t>(epWorldSize);
@@ -851,7 +851,7 @@ static ge::graphStatus GetAttrAndSetTilingData(const gert::TilingContext *contex
         uint32_t cumSumUBMinValue = 0; 
         AscendC::GetCumSumMaxMinTmpSize(srcShape, sizeof(float), true, true, cumSumUBMaxValue, cumSumUBMinValue); 
         tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue = static_cast<uint32_t>(cumSumUBMinValue); 
-        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2 cumSumUBMinValue = %d\n", lastDim, 
+        OP_LOGD(nodeName, "lastDim = %d, MoeDistributeDispatchV2Extend cumSumUBMinValue = %d\n", lastDim, 
             tilingData.moeDistributeDispatchV2Info.cumSumUBMinValue); 
     }
     return ge::GRAPH_SUCCESS;
@@ -947,7 +947,7 @@ static ge::graphStatus CheckAttrs(const gert::TilingContext *context, const char
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName, "attrs is nullptr."), return ge::GRAPH_FAILED);
     auto globalBsPtr = attrs->GetAttrPointer<int64_t>(ATTR_GLOBAL_BS_INDEX);
     OP_TILING_CHECK(globalBsPtr == nullptr, OP_LOGE(nodeName, "globalBsPtr is nullptr."), return ge::GRAPH_FAILED);
-    OP_LOGD(nodeName, "MoeDistributeDispatchV2 *globalBsPtr = %ld, bs = %ld, epWorldSize = %u\n",
+    OP_LOGD(nodeName, "MoeDistributeDispatchV2Extend *globalBsPtr = %ld, bs = %ld, epWorldSize = %u\n",
         *globalBsPtr, xDim0, epWorldSize);
     OP_TILING_CHECK((*globalBsPtr != 0) && ((*globalBsPtr < xDim0 * static_cast<int64_t>(epWorldSize)) ||
         ((*globalBsPtr) % (static_cast<int64_t>(epWorldSize)) != 0)), OP_LOGE(nodeName, "globalBS is invalid, only "
@@ -1240,7 +1240,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistri
     const std::string groupEp, const std::string groupTp, const uint32_t tpWorldSize)
 {
     const char *nodeName = context->GetNodeName();
-    OP_LOGD(nodeName, "MoeDistributeDispatchV2 groupEp = %s", groupEp.c_str());
+    OP_LOGD(nodeName, "MoeDistributeDispatchV2Extend groupEp = %s", groupEp.c_str());
     uint32_t opType1 = OP_TYPE_ALL_TO_ALL;
     uint32_t opType2 = OP_TYPE_ALL_GATHER;
     std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
@@ -1254,7 +1254,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context, MoeDistri
             OP_LOGE(nodeName, "mc2CcTilingConfig mc2CcTiling1 GetTiling failed"), return ge::GRAPH_FAILED);
 
     if (tpWorldSize > 1) {
-        OP_LOGD(nodeName, "MoeDistributeDispatchV2 groupTp = %s", groupTp.c_str());
+        OP_LOGD(nodeName, "MoeDistributeDispatchV2Extend groupTp = %s", groupTp.c_str());
         mc2CcTilingConfig.SetGroupName(groupTp);
         mc2CcTilingConfig.SetOpType(opType2);
         mc2CcTilingConfig.SetAlgConfig(algConfigAllGatherStr);
@@ -1345,7 +1345,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
     bool isPerformance = false;
     bool isSetFullMeshV2 = false;
     uint32_t localMoeExpertNum = 1;
-    OP_LOGI(nodeName, "Enter MoeDistributeDispatchV2 tiling check func.");
+    OP_LOGI(nodeName, "Enter MoeDistributeDispatchV2Extend tiling check func.");
 
     // 获取入参属性
     OP_TILING_CHECK(GetAttrAndSetTilingData(context, nodeName, *tilingData, groupEp, groupTp, isSetFullMeshV2) != ge::GRAPH_SUCCESS,
@@ -1825,7 +1825,7 @@ static ge::graphStatus MoeDistributeDispatchA5TilingFuncImpl(gert::TilingContext
     return MoeDistributeDispatchA3TilingFuncImpl(context);
 }
 
-static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* context)
+static ge::graphStatus MoeDistributeDispatchV2ExtendTilingFunc(gert::TilingContext* context)
 {
     std::string socVersion = mc2tiling::GetSocVersion(context);
     NpuArch npuArch = mc2tiling::GetNpuArch(context);
@@ -1841,22 +1841,22 @@ static ge::graphStatus MoeDistributeDispatchV2TilingFunc(gert::TilingContext* co
 }
 
 struct MoeDistributeDispatchCompileInfo {};
-static ge::graphStatus TilingParseForMoeDistributeDispatchV2(gert::TilingParseContext *context)
+static ge::graphStatus TilingParseForMoeDistributeDispatchV2Extend(gert::TilingParseContext *context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;
 }
 
 IMPL_OP_OPTILING(MoeDistributeDispatchV2Extend)
-    .Tiling(MoeDistributeDispatchV2TilingFunc)
-    .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2);
+    .Tiling(MoeDistributeDispatchV2ExtendTilingFunc)
+    .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV2Extend);
 
 
 #ifdef MC2_EXCEPTION_HANDLER
 // Register exception func
 inline void MoeDistributeDispatchV2ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
-    Mc2ExceptionImpl(args, userdata, "MoeDistributeDispatchV2");
+    Mc2ExceptionImpl(args, userdata, "MoeDistributeDispatchV2Extend");
 }
 
 IMPL_OP(MoeDistributeDispatchV2Extend)
