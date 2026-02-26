@@ -361,6 +361,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
     OP_CHECK_IF(xStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input xStorageShape is nullptr."),
                 return false);
     const gert::Shape &xShape = xStorageShape->GetOriginShape();
+
    
     auto wStorageShape = context_->GetInputShape(W_INDEX);
     OP_CHECK_IF(wStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "Input wStorageShape is nullptr."),
