@@ -19,7 +19,7 @@
 #include "kernel_tiling/kernel_tiling.h"
 
 // a3
-struct MoeDistributeCombineV2Info {
+struct MoeDistributeCombineV2Info{
     uint32_t epWorldSize;
     uint32_t tpWorldSize;
     uint32_t epRankId;
@@ -58,6 +58,14 @@ struct MoeDistributeCombineV2TilingData {
     Mc2CcTiling mc2CcTiling1;
     Mc2CcTiling mc2CcTiling2;
     MoeDistributeCombineV2Info moeDistributeCombineV2Info;
+};
+
+// AIV_DPU/KFC
+struct MoeDistributeCombineV2ExtendInfo : MoeDistributeCombineV2Info{
+    uint64_t hcclBufferSize; // 新适配属性
+};
+struct MoeDistributeCombineV2ExtendTilingData {
+    MoeDistributeCombineV2ExtendInfo moeDistributeCombineV2ExtendInfo;
 };
 
 #endif //__MOE_DISTRIBUTE_COMBINE_V2_TILING_H__
