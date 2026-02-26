@@ -13,11 +13,15 @@
  * \brief
  */
 #include <iostream>
+#include "util/math_util.h"
 #include "mc2_log.h"
 #include "all_gather_fit_balance_tiling.h"
 
 constexpr static double MM_EXPANSION_TIME = 40;
 constexpr static double COMM_EXPANSION_TIME = 40;
+
+constexpr static uint64_t ALL_GATHER_HCCL_MEM_LIMIT = 256 * 1024 * 1024;
+constexpr static uint64_t ALL_GATHER_HCCL_NUM_LIMIT = 16;
 
 void AllGatherMMFitBalanceTiling::EstimateMMCommTime()
 {
@@ -79,10 +83,28 @@ void AllGatherMMFitBalanceTiling::SetShortTileLen()
 void AllGatherMMFitBalanceTiling::AdjustLongShortTileLen()
 {
     tilingM_.FitTileLengthDiscrete(false, true, true);
+
     // When the long and short tiles are equal, the long and short pieces become one.
     if (tilingM_.cutRes.shortTileLen == tilingM_.cutRes.longTileLen) {
         tilingM_.cutRes.shortTileLen = 0U;
         tilingM_.cutRes.numShortTile = 0U;
         tilingM_.cutRes.numLongTile++;
+    }
+}
+
+void AllGatherMMFitBalanceTiling::CheckHCCLLimit()
+{
+    if (tilingM_.cutRes.longTileLen * mmInfo_.kValue * sizeof(mmInfo_.dtypeA) <= ALL_GATHER_HCCL_MEM_LIMIT) {
+        return;
+    }
+    
+    uint64_t minSplitPart = Ops::Base::CeilDiv(mmInfo_.mValue * mmInfo_.kValue * sizeof(mmInfo_.dtypeA), ALL_GATHER_HCCL_MEM_LIMIT);
+    tilingM_.cutRes.longTileLen = Ops::Base::CeilDiv(mmInfo_.mValue, minSplitPart);
+    tilingM_.cutRes.numLongTile = mmInfo_.mValue / longTileLen;
+    tilingM_.cutRes.shortTileLen = mmInfo_.mValue - tilingM_.cutRes.numTileLen * tilingM_.cutRes.longTileLen;
+    if (tilingM_.cutRes.shortTileLen == 0) {
+        tilingM_.cutRes.numShortTile = 0;
+    } else {
+        tilingM_.cutRes.numShortTile = 1;
     }
 }
