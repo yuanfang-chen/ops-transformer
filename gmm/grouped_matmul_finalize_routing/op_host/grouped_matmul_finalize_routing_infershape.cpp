@@ -73,6 +73,7 @@ static const std::initializer_list<ge::DataType> MX_IN_TYPE_SUPPORT_LIST = {ge::
 static const std::initializer_list<ge::DataType> MXFP4_IN_TYPE_SUPPORT_LIST = {ge::DT_FLOAT4_E2M1};
 static const std::initializer_list<ge::DataType> MXFP8_IN_TYPE_SUPPORT_LIST = {ge::DT_FLOAT8_E4M3FN,
                                                                                ge::DT_FLOAT8_E5M2};
+static const std::initializer_list<ge::DataType> Pertoken_IN_TYPE_SUPPORT_LIST = {ge::DT_FLOAT8_E4M3FN, ge::DT_INT8};
 
 template <typename T>
 std::string Shape2String(const T& shape) {
@@ -416,7 +417,8 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
     return ge::GRAPH_FAILED;
 }
 
-static bool IsSupportMX(gert::InferDataTypeContext *context){
+static bool IsSupportMX(gert::InferDataTypeContext *context)
+{
     if (CheckType(context->GetInputDataType(xIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         CheckType(context->GetInputDataType(wIndex), MX_IN_TYPE_SUPPORT_LIST) &&
         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT8_E8M0 &&
@@ -428,9 +430,26 @@ static bool IsSupportMX(gert::InferDataTypeContext *context){
     }
     return false;
 }
+
+static bool IsSupportPERTOKEN(gert::InferDataTypeContext *context)
+{
+    if (CheckType(context->GetInputDataType(xIndex), Pertoken_IN_TYPE_SUPPORT_LIST) &&
+        CheckType(context->GetInputDataType(wIndex), Pertoken_IN_TYPE_SUPPORT_LIST) &&
+        (context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT ||
+         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
+        context->GetOptionalInputDataType(groupListOptionIndex) == ge::DT_INT64 &&
+        (context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT64 ||
+         context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT32)) {
+        return true;
+    }
+    return false;
+}
+
 static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferDataTypeContext *context)
 {
     bool supportDataTypeMX = IsSupportMX(context);
+
+    bool supportDataTypePERTOKEN = IsSupportPERTOKEN(context);
     
     bool supportDataTypeW8A8 = context->GetInputDataType(xIndex) == ge::DT_INT8 && 
                                context->GetInputDataType(wIndex) == ge::DT_INT8 &&
@@ -462,7 +481,7 @@ static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferData
         supportDataTypeW4A8 = supportDataTypeW4A8 && context->GetOptionalInputDataType(offsetOptionIndex) == ge::DT_FLOAT;
     }
     
-    if (!(supportDataTypeW4A8 || supportDataTypeW8A8 || supportDataTypeMX )) {
+    if (!(supportDataTypeW4A8 || supportDataTypeW8A8 || supportDataTypeMX || supportDataTypePERTOKEN)) {
         OP_CHECK_IF(ValidateFailedDataType(context) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED,);
     }
     
