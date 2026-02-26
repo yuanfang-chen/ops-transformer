@@ -229,7 +229,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         GemmCoord processSize{static_cast<uint32_t>(realM), static_cast<uint32_t>(n), static_cast<uint32_t>(realK)};
         using BlockScheduler30 = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
 
-        GM_ADDR srcGM = (QuantType == MC2_NON_QUANT)  ? reinterpret_cast<GM_ADDR>(gmPeerMem_) : reinterpret_cast<GM_ADDR>(quantAGM_);  // int8时，才需要更改左矩阵读取位置
+        GM_ADDR srcGM = (QuantType == MC2_DYNAMIC_QUANT) ? reinterpret_cast<GM_ADDR>(quantAGM_) : reinterpret_cast<GM_ADDR>(gmPeerMem_);  // 动态量化时，需要更改左矩阵读取位置
         GM_ADDR matmulResultGM = (QuantType == MC2_NON_QUANT) ? cGM_ : reinterpret_cast<GM_ADDR>(dequantCGM_);  // 量化矩阵乘法时，需要修改c矩阵存放地址
         if constexpr (AscendC::IsSameType<AscendC::int4b_t, BType>::value) {
             if (m0 == 128) {
@@ -239,7 +239,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
                 using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
                 MatmulKernel matmul_op;
                 typename MatmulKernel::Params params{processSize,
-                                        reinterpret_cast<GM_ADDR>(gmPeerMem_), layoutA,
+                                        reinterpret_cast<GM_ADDR>(srcGM), layoutA,
                                         reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                         reinterpret_cast<GM_ADDR>(biasGM_),
                                         reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
@@ -252,7 +252,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
                 using MatmulKernel = Gemm::Kernel::AlltoAllMatmulKernel<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
                 MatmulKernel matmul_op;
                 typename MatmulKernel::Params params{processSize,
-                                        reinterpret_cast<GM_ADDR>(gmPeerMem_), layoutA,
+                                        reinterpret_cast<GM_ADDR>(srcGM), layoutA,
                                         reinterpret_cast<GM_ADDR>(bGM_), layoutB,
                                         reinterpret_cast<GM_ADDR>(biasGM_),
                                         reinterpret_cast<GM_ADDR>(matmulResultGM), layoutC,
