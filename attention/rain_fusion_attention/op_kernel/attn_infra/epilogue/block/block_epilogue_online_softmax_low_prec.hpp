@@ -306,6 +306,28 @@ public:
     }
 
     __aicore__ inline
+    void NewReduceMax(const AscendC::LocalTensor<half> &dstUb, const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t index1,
+                                uint32_t index2, uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        uint32_t src0Start = index1;
+        uint32_t src1Start = index2;
+        AscendC::Max<half, false>(
+            dstUb[src0Start],
+            srcUb[src0Start],
+            srcUb[src1Start],
+            (uint64_t)0,
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                dataBlockStride,
+                dataBlockStride,
+                dataBlockStride,
+                repeatStride,
+                repeatStride,
+                repeatStride));
+    }    
+ 	 
+
+    __aicore__ inline
     void RowmaxSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowmaxUb,
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
@@ -316,26 +338,41 @@ public:
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
 
-        // AscendC::DataCopy(
-        //     lsUbTensor,
-        //     srcUb,
-        //     AscendC::DataCopyParams(
-        //         numRowsRound,
-        //         HALF_VECTOR_SIZE / BLOCK_SIZE,
-        //         (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE,
-        //         (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
+        AscendC::DataCopy(
+            lsUbTensor,
+            srcUb,
+            AscendC::DataCopyParams(
+                numRowsRound,
+                HALF_VECTOR_SIZE / BLOCK_SIZE,
+                (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE,
+                (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
 
-        // 1024个元素，以128为单位分治求最大值。1024->512->256->128
-        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
+        // // 1024个元素，以128为单位分治求最大值。1024->512->256->128
+        // for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
+
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
+
+
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
+
+
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>();
 
         //每行128个元素分别规约求最大值。
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
-            srcUb,
+            lsUbTensor,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
             numRowsRound,
             dataBlockStride,
