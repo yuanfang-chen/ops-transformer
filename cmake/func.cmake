@@ -402,8 +402,6 @@ function(add_ops_src_copy)
         "moe_distribute_combine;"
         "moe_distribute_dispatch_v2;"
         "moe_distribute_combine_v2;"
-        "moe_distribute_combine_setup;"
-        "moe_distribute_combine_teardown;"
         "moe_update_expert;"
         "all_gather_matmul;"
         "all_gather_matmul_v2;"
