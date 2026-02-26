@@ -120,7 +120,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
     const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, double scaleValueOptional,
     double keepProbOptional, int64_t preTokensOptional, int64_t nextTokensOptional, int64_t headNum,
     char *inputLayout, char *softmaxInLayout, int64_t innerPreciseOptional, int64_t sparseModeOptional, int64_t pseTypeOptional,
-    int64_t seed, int64_t offset, int64_t outDtypeOptional,
+    int64_t seed, int64_t offset, int64_t outDtypeOptional, double dsScaleOptional, double pScaleOptional,
     const aclTensor *dqOut, const aclTensor *dkOut, const aclTensor *dvOut,
     const aclTensor *dqRopeOut, const aclTensor *dkRopeOut, const aclTensor *dpseOut, const aclTensor *dsinkOut,
     uint64_t *workspaceSize, aclOpExecutor **executor);
@@ -240,6 +240,44 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
 
 aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                     const aclrtStream stream);                                
+
+
+/**
+ * @brief aclnnQuantFlashAttentionScoreGrad的第一段接口，根据具体的计算流程，计算workspace大小
+ */
+aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
+  const aclTensor   *query,
+  const aclTensor   *keyIn,
+  const aclTensor   *value,
+  const aclTensor   *dy,
+  const aclTensor   *attenMaskOptional,
+  const aclTensor   *softmaxMax,
+  const aclTensor   *softmaxSum,
+  const aclTensor   *attentionIn,
+  const aclTensor   *dScaleQ,
+  const aclTensor   *dScaleK,
+  const aclTensor   *dScaleV,
+  const aclTensor   *dScaleDy,
+  double             scaleValueOptional,
+  int64_t            preTokensOptional,
+  int64_t            nextTokensOptional,
+  int64_t            headNum,
+  char              *inputLayout,
+  int64_t            sparseModeOptional,
+  int64_t            outDtypeOptional,
+  double             dsScaleOptional,
+  double             pScaleOptional,
+  aclTensor         *dqOut,
+  aclTensor         *dkOut,
+  aclTensor         *dvOut,
+  uint64_t          *workspaceSize,
+  aclOpExecutor    **executor);
+ 
+/**
+ * @brief aclnnQuantFlashAttentionScoreGrad的第二段接口，用于执行计算
+ */
+aclnnStatus aclnnQuantFlashAttentionScoreGrad(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                    const aclrtStream stream);
 
 #ifdef __cplusplus
 }
