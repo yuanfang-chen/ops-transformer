@@ -214,23 +214,71 @@ public:
         // AscendC::printf("tkd after WholeReduceSum\n");
         // AscendC::DumpTensor(rowsumUb, 2, 128);
 
-        NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceSum(srcUb, numRowsRound, 0, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // AscendC::WholeReduceSum<half, false>(
+        //     rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+        //     numElemsAligned / BLOCK_SIZE);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+
+
+
+
+
+
+
+        NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        NewReduceSum(srcUb, numRowsRound, 0, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
         AscendC::WholeReduceSum<half, false>(
             rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     //     AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
     //     AscendC::printf("tkd 1024 before ReduceSum\n");
     //     AscendC::DumpTensor(srcUb, 1, 512);
@@ -333,9 +381,6 @@ public:
         const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
-        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        AscendC::printf("tkd 512 before ReduceSum\n");
-        AscendC::DumpTensor(srcUb, 1, 512);   
         AscendC::Add<half, false>(
             srcUb,
             srcUb,
@@ -370,15 +415,11 @@ public:
                 numElemsAligned / BLOCK_SIZE,
                 numElemsAligned / BLOCK_SIZE,
                 numElemsAligned / BLOCK_SIZE));
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::printf("tkd 512 after ReduceSum\n");
-        AscendC::DumpTensor(srcUb, 1, 128);   
+        AscendC::PipeBarrier<PIPE_V>();  
         AscendC::WholeReduceSum<half, false>(
             rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::printf("tkd after WholeReduceSum\n");
-        AscendC::DumpTensor(rowsumUb, 2, 128);
     }
 
     __aicore__ inline
@@ -510,23 +551,52 @@ public:
         // AscendC::printf("tkd after WholeReduceMax\n");
         // AscendC::DumpTensor(rowmaxUb, 2, 128);
 
-        NewReduceMax(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceMax(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // NewReduceMax(srcUb, numRowsRound, 0, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        // AscendC::WholeReduceMax<half, false>(
+        //     rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+        //     numElemsAligned / BLOCK_SIZE);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+
+
+
+
+
+        NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         NewReduceMax(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        NewReduceMax(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
-        NewReduceMax(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceMax(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        NewReduceMax(srcUb, numRowsRound, 0, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceMax(srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
+
+
+
+
+
+
 
         // AscendC::Max<half, false>(
         //     srcUb,
