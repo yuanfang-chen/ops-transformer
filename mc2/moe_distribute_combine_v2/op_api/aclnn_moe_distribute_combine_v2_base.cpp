@@ -294,7 +294,7 @@ aclnnStatus BuildMc2Context(HcclComm hcclHandle, const char *groupEp, int64_t ep
     int64_t shape[1] = {(int64_t)(bytes / sizeof(uint32_t))};
     int64_t strides[1] = {1};
     mc2TensorOut =
-        aclCreateTensor(shape, 1, aclDataType::ACL_UINT32, strides, 0, aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
+        aclCreateTensor(shape, 1, aclDataType::ACL_INT8, strides, 0, aclFormat::ACL_FORMAT_ND, shape, 1, devCtx);
     if (mc2TensorOut == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, " Create mc2Context Tensor Failed.");
         return ACLNN_ERR_INNER;
