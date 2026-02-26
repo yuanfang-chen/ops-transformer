@@ -26,6 +26,8 @@ constexpr uint32_t B16 = 2;
 constexpr uint32_t BASE_LEN_256 = 256;
 constexpr int64_t GM_ALIGN = 512;
 constexpr uint32_t PING_PONG_BUFFER = 2;
+constexpr uint32_t D_SIZE = 512;
+constexpr uint32_t DROPE_SIZE = 64;
 
 ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetShapeAttrsInfo()
 {
@@ -58,7 +60,7 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetPlatformInfo()
         auto compileInfoPtr = reinterpret_cast<const SparseFlashAttentionGradCompileInfo *>(context_->GetCompileInfo());
         OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_VECTOR_INNER_ERR(opName, "compile_info is null."),
                    return ge::GRAPH_FAILED);
-        aicoreParams_.blockDim = compileInfoPtr->aivNum;
+        aicoreParams_.numBlocks = compileInfoPtr->aivNum;
         aicoreParams_.aicNum = compileInfoPtr->aicNum;
         aicoreParams_.ubSize = compileInfoPtr->ubSize;
         aicoreParams_.l1Size = compileInfoPtr->l1Size;
@@ -68,7 +70,7 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetPlatformInfo()
         l2CacheSize = compileInfoPtr->l2CacheSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-        aicoreParams_.blockDim = ascendcPlatform.GetCoreNumAiv();
+        aicoreParams_.numBlocks = ascendcPlatform.GetCoreNumAiv();
         aicoreParams_.aicNum = ascendcPlatform.GetCoreNumAic();
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, aicoreParams_.ubSize);
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, aicoreParams_.l1Size);
@@ -78,9 +80,9 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetPlatformInfo()
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, aicoreParams_.l0cSize);
     }
 
-    OP_CHECK_IF((aicoreParams_.blockDim == 0) || (aicoreParams_.aicNum == 0),
+    OP_CHECK_IF((aicoreParams_.numBlocks == 0) || (aicoreParams_.aicNum == 0),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "num of coreNum(aivNum) is %lu, num of aicNum is %lu.",
-                                           aicoreParams_.blockDim, aicoreParams_.aicNum),
+                                           aicoreParams_.numBlocks, aicoreParams_.aicNum),
                return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(aicoreParams_.ubSize <= 0 || l2CacheSize <= 0,
@@ -125,15 +127,15 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::DoLibApiTiling()
 ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetWorkspaceSize()
 {
     int64_t coreNum = aicoreParams_.aicNum;
-    int64_t launchBlockDims = aicoreParams_.blockDim;
+    int64_t launchBlockDims = aicoreParams_.numBlocks;
     int64_t inputDtypeSize = B16;
     int64_t selectedS2 = tmpData.singleN;
 
     // Tiling传递的内存大小、起始地址，统一为字节数，单位为B
-    auto blockdim = CalcTschBlockDim(launchBlockDims, aicoreParams_.aicNum, aicoreParams_.blockDim);
+    auto blockdim = CalcTschBlockDim(launchBlockDims, aicoreParams_.aicNum, aicoreParams_.numBlocks);
     OP_CHECK_IF(blockdim == 0,
                OPS_REPORT_VECTOR_INNER_ERR(opName, "blockdim is 0, aicNum is %lu, aivNum is %lu.",
-                                           aicoreParams_.aicNum, aicoreParams_.blockDim),
+                                           aicoreParams_.aicNum, aicoreParams_.numBlocks),
                return ge::GRAPH_FAILED);
     context_->SetBlockDim(blockdim);
 
@@ -250,7 +252,7 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::DoCastTiling()
     }
 
     uint32_t typeSize = B16;
-    uint32_t usedCoreNum = aicoreParams_.blockDim;
+    uint32_t usedCoreNum = aicoreParams_.numBlocks;
     uint32_t coreNum = aicoreParams_.aicNum;
     constexpr uint32_t postNzCoexNode = 12;
     constexpr uint32_t blockSize = 32;
@@ -341,6 +343,30 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::DoCastTiling()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus SparseFlashAttentionGradBs1Regbase::CheckOutShapeInfo(const gert::Shape &inputshape, const char *inputName, 
+                                                                    const gert::Shape &outputshape, const char *inputLayout)
+{
+    if (strcmp(inputLayout, TND_STR) == 0) {
+        if (inputshape.GetDim(DIM_0) != outputshape.GetDim(DIM_0) || inputshape.GetDim(DIM_1) != outputshape.GetDim(DIM_1) 
+            || inputshape.GetDim(DIM_2) != outputshape.GetDim(DIM_2)) {
+            OP_LOGE(context_, "SparseFlashAttentionGrad Input %s [%ld, %ld, %ld] is not equal to Output d_%s [%ld, %ld, %ld]", 
+                inputName, inputshape.GetDim(DIM_0), inputshape.GetDim(DIM_1), inputshape.GetDim(DIM_2),
+                inputName, outputshape.GetDim(DIM_0), outputshape.GetDim(DIM_1), outputshape.GetDim(DIM_2));
+            return ge::GRAPH_FAILED;
+        }
+    } else {
+        if (inputshape.GetDim(DIM_0) != outputshape.GetDim(DIM_0) || inputshape.GetDim(DIM_1) != outputshape.GetDim(DIM_1) 
+            || inputshape.GetDim(DIM_2) != outputshape.GetDim(DIM_2) || inputshape.GetDim(DIM_3) != outputshape.GetDim(DIM_3)){
+            OP_LOGE(context_, "SparseFlashAttentionGrad Input %s [%ld, %ld, %ld, %ld] is not equal to Output d_%s [%ld, %ld, %ld, %ld]", 
+                inputName, inputshape.GetDim(DIM_0), inputshape.GetDim(DIM_1), inputshape.GetDim(DIM_2), inputshape.GetDim(DIM_3),
+                inputName, outputshape.GetDim(DIM_0), outputshape.GetDim(DIM_1), outputshape.GetDim(DIM_2), outputshape.GetDim(DIM_3));
+            return ge::GRAPH_FAILED;
+        }    
+    }
+
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
 {
     OP_CHECK_IF(((context_->GetInputShape(static_cast<size_t>(InputIndex::QUERY)) == nullptr) ||
@@ -357,6 +383,9 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
     const gert::Shape &indicesShape = context_->GetInputShape(static_cast<size_t>(InputIndex::TOPK_INDICES))->GetStorageShape();
     auto qRopeTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::Q_ROPE));
     auto kRopeTensor = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::K_ROPE));
+    const gert::Shape &dqShape = context_->GetOutputShape(static_cast<size_t>(OutputIndex::DQ))->GetStorageShape();
+    const gert::Shape &dkShape = context_->GetOutputShape(static_cast<size_t>(OutputIndex::DK))->GetStorageShape();
+    const gert::Shape &dvShape = context_->GetOutputShape(static_cast<size_t>(OutputIndex::DV))->GetStorageShape();
     uint32_t dimSize = queryShape.GetDimNum();
     int64_t dimDq = queryShape.GetDim(dimSize - 1);
     int64_t dimDk = keyShape.GetDim(dimSize - 1);
@@ -378,18 +407,15 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
     auto sparse_mode = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::SPARSE_MODE));
     tmpData.deterministic = *context_->GetAttrs()->GetAttrPointer<int>(static_cast<size_t>(AttrIndex::DETERMINISTIC));
     
-    if (sparse_mode == 0) {
-        tmpData.attenEnable = false;
-    } else if (sparse_mode == 3) {
+    if (sparse_mode == 3) {
         OP_LOGI(context_, "SparseFlashAttentionGrad AttenMask enable.");
         tmpData.attenEnable = true;
     } else {
-        OP_LOGE(context_, "SparseFlashAttentionGrad only support sparse_mode=0 or 3, now sparse_mode=%d.", sparse_mode);
+        OP_LOGE(context_, "SparseFlashAttentionGrad only support sparse_mode = 3, now sparse_mode=%d.", sparse_mode);
         return ge::GRAPH_FAILED;
     }
-
-    if (dimDq != dimDk) {
-        OP_LOGE(context_, "head_dim of Query[%ld] should be equal to head_dim of Key[%ld].", dimDq, dimDk);
+    if (dimDq != D_SIZE && dimDq != D_SIZE) {
+        OP_LOGE(context_, "head_dim of Query[%ld] should be equal to head_dim of Key[%ld], and their value must be 512.", dimDq, dimDk);
         return ge::GRAPH_FAILED;
     }
     if (dimDq < dimDv) {
@@ -406,20 +432,51 @@ ge::graphStatus SparseFlashAttentionGradBs1Regbase::GetBaseShapeInfo()
                   dimSize);
         return ge::GRAPH_FAILED;
     }
-
+    // 对输入shape进行校验
+    auto status = CheckOutShapeInfo(queryShape, "query", dqShape, inputLayout);
+    if (status == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
+    status = CheckOutShapeInfo(keyShape, "key", dkShape, inputLayout);
+    if (status == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
+    status = CheckOutShapeInfo(valueShape, "value", dvShape, inputLayout);
+    if (status == ge::GRAPH_FAILED) {
+        return ge::GRAPH_FAILED;
+    }
     if (qRopeTensor != nullptr && kRopeTensor != nullptr) {
         OP_LOGD(context_, "SparseFlashAttentionGrad qRope and kRope is not nullptr, rope is enabled.");
         tmpData.ropeEnable = true;
         const gert::Shape &qRopeShape = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::Q_ROPE))->GetStorageShape();
         const gert::Shape &kRopeShape = context_->GetOptionalInputTensor(static_cast<size_t>(InputIndex::K_ROPE))->GetStorageShape();
+        const gert::Shape &dqRopeShape = context_->GetOutputShape(DIM_3)->GetStorageShape();
+        const gert::Shape &dkRopeShape = context_->GetOutputShape(DIM_4)->GetStorageShape();
         auto qRopeDim = qRopeShape.GetDim(dimSize - 1);
         auto kRopeDim = kRopeShape.GetDim(dimSize - 1);
+        if (qRopeDim != DROPE_SIZE && kRopeDim != DROPE_SIZE) {
+            OP_LOGE(context_, "SparseFlashAttentionGrad headDim of qRope and kRope should be 64, but qRope[%ld], kRope[%ld].", qRopeDim, kRopeDim);
+            return ge::GRAPH_FAILED;
+        }
         if (qRopeDim != kRopeDim) {
             OP_LOGE(context_, "SparseFlashAttentionGrad headDim of qRope and kRope should be equal.");
             return ge::GRAPH_FAILED;
         }
         tmpData.ropeDim = kRopeDim;
+        status = CheckOutShapeInfo(qRopeShape, "query_rope", dqRopeShape, inputLayout);
+        if (status == ge::GRAPH_FAILED) {
+            return ge::GRAPH_FAILED;
+        }
+        status = CheckOutShapeInfo(qRopeShape, "key_rope", dqRopeShape, inputLayout);
+        if (status == ge::GRAPH_FAILED) {
+            return ge::GRAPH_FAILED;
+        }
     } else {
+        if (queryShape.GetDim(DIM_0) != keyShape.GetDim(DIM_0)){
+            OP_LOGE(context_, "SparseFlashAttentionGrad batchsize of query[%ld] and key[%ld] should be equal.",
+            queryShape.GetDim(DIM_0), keyShape.GetDim(DIM_0));
+            return ge::GRAPH_FAILED;            
+        }
         tmpData.ropeEnable = false;
         tmpData.ropeDim = 0;
     }

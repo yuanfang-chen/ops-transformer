@@ -1190,8 +1190,6 @@ static aclnnStatus CheckFunctionParams(const gmm::GroupedMatmulParams &gmmParams
     gmmParams, weightDtype, isNoActivation) == ACLNN_SUCCESS,
     ACLNN_ERR_PARAM_INVALID, "Check310PlatformForFunction failed.");
   if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-    CHECK_COND(isNoActivation, ACLNN_ERR_PARAM_INVALID,
-               "ActType[%ld] is not supported on this platform.", gmmParams.activeType);
     if (IsQuant(gmmParams.xDtype, weightDtype)) {
       CHECK_COND(isNoActivation || CheckIsEnabledActive(gmmParams), ACLNN_ERR_PARAM_INVALID, "On this platform, activation is supported only when the input is INT8"
                  " and the quant mode is either pertoken-perchannel or pertensor-perchannel; "
@@ -2101,7 +2099,8 @@ static aclnnStatus ParamsWeightNzDtype(gmm::GroupedMatmulParams &params) {
     }
     OP_LOGE(ACLNN_ERR_PARAM_INVALID,
             "The dtypes of x[%s]-weight[%s] do not match with required dtype."
-            "Only supported x-weight: INT8-INT8,BF16-BF16,FP16-FP16,INT8-INT4, INT4-INT4,FP16/BF16-FP4_E2M1",
+            "Only supported x-weight: INT8-INT8, BF16-BF16, FP16-FP16, INT8-INT4, INT4-INT4, FP16/BF16-FP4_E2M1, "
+            "FP8_E4M3FN-FP4_E2M1",
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str());
     return ACLNN_ERR_PARAM_INVALID;
 }
@@ -2216,12 +2215,16 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
   bool zeroK = false;
   // current view_shape transpose is always false false
   for (size_t i = 0; i < x->Size(); ++i) {
-    CHECK_COND((*x)[i] != nullptr, ACLNN_ERR_PARAM_INVALID,
-               "GroupedMatmul x tensor should not be null");
+    CHECK_COND((*x)[i] != nullptr, ACLNN_ERR_PARAM_INVALID, "GroupedMatmul x tensor should not be null");
     auto xShape = (*x)[i]->GetViewShape();
-    CHECK_COND(xShape.GetDimNum() >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
-               "GroupedMatmul x dim num should larger than 2, but actual %d.", xShape.GetDimNum());
-    zeroM = zeroM && (xShape.GetDim(xShape.GetDimNum() - 2) == 0);
+    size_t xDimNum = xShape.GetDimNum();
+    CHECK_COND(xDimNum >= gmm::MIN_FM_DIM && xDimNum <= gmm::MAX_FM_DIM, ACLNN_ERR_PARAM_INVALID,
+ 	             "GroupedMatmul x dim num should be in the range [2, 6], but actual is %zu.", xDimNum);
+    uint64_t m = 1;
+    for (size_t dimIdx = 0; dimIdx < xDimNum - 1; dimIdx++) {
+        m *= xShape.GetDim(dimIdx);
+    }
+    zeroM = zeroM && m == 0;
     zeroK = zeroK || (xShape.GetDim(xShape.GetDimNum() - 1) == 0);
   }
   for (size_t i = 0; i < weight->Size(); ++i) {
@@ -2229,12 +2232,12 @@ static aclnnStatus CheckEmptyTensor(const aclTensorList *x, const aclTensorList 
                "GroupedMatmul weight tensor should not be null");
     auto wShape = (*weight)[i]->GetViewShape();
     CHECK_COND(wShape.GetDimNum() >= gmm::MIN_FM_DIM, ACLNN_ERR_PARAM_INVALID,
-               "GroupedMatmul weight dim num should larger than 2, but actual %d.", wShape.GetDimNum());
+               "GroupedMatmul weight dim num should be 2 or 3, but actual %zu.", wShape.GetDimNum());
     zeroN = zeroN && (wShape.GetDim(wShape.GetDimNum() - 1) == 0);
   }
   // if all M or N is zero, do not need to check K
   CHECK_COND(zeroM || zeroN || !zeroK, ACLNN_ERR_PARAM_INVALID,
-             " GroupedMatmul does not support input K being 0 unless all M/N is 0");
+             "GroupedMatmul does not support input K being 0 unless all M/N is 0");
   return ACLNN_SUCCESS;
 }
 
