@@ -773,8 +773,6 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetPlatformInfo()
         npuArch = compileInfoPtr->npuArch;
         fBaseParams.coreNum = compileInfoPtr->aivNum;
         fBaseParams.aicNum = compileInfoPtr->aicNum;
-        // fBaseParams.coreNum = 2;
-        // fBaseParams.aicNum = 1;
         fBaseParams.ubSize = compileInfoPtr->ubSize;
         fBaseParams.l1Size = compileInfoPtr->l1Size;
         fBaseParams.l0aSize = compileInfoPtr->l0aSize;
@@ -786,8 +784,6 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetPlatformInfo()
         coreNum = ascendcPlatform.GetCoreNumAiv();
         fBaseParams.coreNum = coreNum;
         fBaseParams.aicNum = ascendcPlatform.GetCoreNumAic();
-        // fBaseParams.coreNum = 2;
-        // fBaseParams.aicNum = 1;
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, fBaseParams.ubSize);
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, fBaseParams.l1Size);
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_A, fBaseParams.l0aSize);
