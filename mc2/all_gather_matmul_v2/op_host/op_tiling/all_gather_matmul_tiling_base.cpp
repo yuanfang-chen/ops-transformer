@@ -472,6 +472,27 @@ CutResult AllGatherMatmulTilingBase::GetTilingResult()
     }
 }
 
+void AllGatherMatmulTilingBase::CheckHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg)
+{
+    if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
+        return;
+    }
+    OPS_LOG_D(opName_, "The result of formulaic tiling result does not meet the hccl restriction,:"
+     " current splitting: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld].",
+        tileMValue_, rcfCfg.tileCnt, tailMValue_, rcfCfg.tailCnt);
+    
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
+    rcfCfg.tileCnt = args_.mValue / tileMValue_;
+    rcfCfg.tailM = args_.mValue - rcfCfg.tileCnt * tileMValue_;
+    tailMValue_ = rcfCfg.tailM;
+    if (tailMValue_ == 0) {
+        rcfCfg.tailCnt = 0;
+    } else {
+        rcfCfg.tailCnt = 1;
+    }  
+}
+
 void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
 {
     if (args_.commAlg == mc2tiling::COMM_ALG_DOUBLE_RING) {
@@ -512,6 +533,7 @@ void AllGatherMatmulTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg)
             rcfCfg.tailCnt = mCutAllgather.numShortTile;
         }
     }
+    CheckHCCLLimit(rcfCfg);
 }
 
 void AllGatherMatmulTilingBase::Reset()

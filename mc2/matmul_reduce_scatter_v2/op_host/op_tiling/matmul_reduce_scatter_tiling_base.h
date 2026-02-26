@@ -69,6 +69,7 @@ protected:
     bool CheckGroupSize() const;
     bool CheckBias() const;
     bool CheckAttrInfoValid(uint64_t kValue);
+    void CheckHCCLLimit();
     void SetReduceScatterTilingArgsDataType();
     void SetReduceScatterTilingArgsShapeInfo();
     void SetReduceScatterTilingArgsBasicInfo();

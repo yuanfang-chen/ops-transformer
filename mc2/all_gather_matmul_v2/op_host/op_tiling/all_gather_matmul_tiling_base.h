@@ -104,6 +104,7 @@ protected:
     bool CheckOutputParaDim0();
     bool CheckBiasParaDim0();
     bool CheckParaInvaild();
+    void CheckHCCLLimit();
     void SetTilingArgsDim();
     void SetTilingArgsDataType();
     void SetTilingArgsGatherStatus();

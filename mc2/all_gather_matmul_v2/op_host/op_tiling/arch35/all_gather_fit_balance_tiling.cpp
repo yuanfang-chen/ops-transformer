@@ -13,8 +13,10 @@
  * \brief
  */
 #include <iostream>
+#include "util/math_util.h"
 #include "mc2_log.h"
 #include "all_gather_fit_balance_tiling.h"
+#include "tiling/mc2_tiling_utils.h"
 
 constexpr static double MM_EXPANSION_TIME = 40;
 constexpr static double COMM_EXPANSION_TIME = 40;
