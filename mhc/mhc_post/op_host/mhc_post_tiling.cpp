@@ -508,17 +508,12 @@ void MhcPostTilingBase::ComputeTiling()
     // More accurate: include n-related small buffers separately
     const uint32_t UB_SIZE = static_cast<uint32_t>(aicoreParams_.ubSize);
 
-    // Calculate aligned n and n*n for float32 vector operations
-    uint32_t alignedN = AlignUp(n_, FLOAT32_ALIGN_SIZE);
-    uint32_t alignedNN = AlignUp(n_ * n_, FLOAT32_ALIGN_SIZE);
 
     // Calculate bytes per tileD element based on actual n
-    // TQue bf16: (2n+2) * 2 bytes (hOut:1, x:n, output:n)
-    // TBuf f32:  (2n+4) * 4 bytes (hOutF32:1, xF32:n, outF32:1, temp:1)
-    // Small buffers (fixed, not per-tileD):
-    //   - TQue f32: (alignedN + alignedNN) * 4 for hPost, hRes
-    uint32_t bytesPerTileD = (2 * n_ + 2) * 2 + (2 * n_ + 4) * 4;  // = 12n + 20
-    uint32_t smallBufferBytes = (alignedN + alignedNN) * 4;  // aligned sizes
+    // TQue bf16: 3 * 2 bytes (hOut:1, x:1, output:1)
+    // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
+    uint32_t bytesPerTileD = 2 * 3 * 2 + 3 * 4;
+    uint32_t smallBufferBytes = 0;  // for h_post, h_res
 
     // Reserve space for small buffers, then calculate max tileD
     uint32_t availableUB = UB_SIZE - smallBufferBytes;
@@ -568,13 +563,10 @@ void MhcPostTilingBase::ComputeTiling()
     tilingData_->nTilesD = nTilesD_;
     tilingData_->alignedD = alignedD;
     tilingData_->lastTileD = lastTileD;
-    tilingData_->alignedN = alignedN;
-    tilingData_->alignedNN = alignedNN;
 
     OP_LOGI(context_,
         "Tiling: n=%u, D=%u, alignedD=%u, tileD=%u, lastTileD=%u, nTilesD=%u",
         n_, D_, alignedD, tileD_, lastTileD, nTilesD_);
-    OP_LOGI(context_, "Tiling: alignedN=%u, alignedNN=%u", alignedN, alignedNN);
     OP_LOGI(context_,
         "Tiling: usedCores=%u, itemsPerCore=%u, remainderItems=%u, UB=%u, bytesPerTileD=%u",
         usedCores_, itemsPerCore_, remainderItems_, UB_SIZE, bytesPerTileD);
@@ -625,17 +617,11 @@ ge::graphStatus MhcPostTilingBase::PostTiling()
 uint64_t MhcPostTilingBase::GetTilingKey() const
 {
     // Calculate fast path flags
-    // For n: n=4 (16 bytes) and n=8 (32 bytes) are 8-aligned for float32
-    // n=6 (24 bytes) is not 8-aligned
-    uint16_t isNAligned = (n_ % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
-    // For n*n: 16 (n=4) and 64 (n=8) are 8-aligned, 36 (n=6) is not
-    uint16_t isNNAligned = ((n_ * n_) % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
     // D is aligned if D % 16 == 0 and single tile
     uint16_t isDAligned = ((D_ % BF16_FP16_ALIGN_SIZE == 0) && (nTilesD_ == 1)) ? 1 : 0;
-    OP_LOGI(context_,
-        "Tiling:isNAligned=%u, isNNAligned=%u, isDAligned=%u", isNAligned, isNNAligned, isDAligned);
+    OP_LOGI(context_, "Tiling: isDAligned=%u", isDAligned);
 
-    return GET_TPL_TILING_KEY(isNAligned, isNNAligned, isDAligned);
+    return GET_TPL_TILING_KEY(isDAligned);
 }
 
 void MhcPostTilingBase::Reset()
