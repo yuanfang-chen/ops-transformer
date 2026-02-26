@@ -248,10 +248,6 @@ actual is %s.",
     auto yDesc = context_->GetOutputDesc(Y_INDEX);
     OP_CHECK_IF(yDesc == nullptr, OP_LOGE(context_->GetNodeName(), "yDesc is nullptr."), return false);
     inputParams_.cDtype = yDesc->GetDataType();
-    if (inputParams_.cDtype == ge::DT_INT32 && scaleDesc != nullptr) {
-        inputParams_.scaleDtype = ge::DT_UINT64;
-        (void)const_cast<gert::CompileTimeTensorDesc*>(scaleDesc)->SetDataType(ge::DT_UINT64);
-    }
     isWeightNz_ = inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ;
     if (isWeightNz_) {
         OP_CHECK_IF(!CheckDtypeForWeightNz(nullptr == pertokenScaleDesc),
