@@ -144,7 +144,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         false,
         TILINGKEY_GROUPED_MATMUL_TRANS,
         false,  // isShared
-        false>; // opType
+        false>; // isA2avGmm
     using SharedGmmExpertOpType = QuantGroupedMatmul<
         QuantGmmA2avTilingData,
         GMMQuantTilingData,
@@ -156,7 +156,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         false,
         TILINGKEY_MATMUL_TRANS,
         true,   // isShared
-        false>; // opType
+        false>; // isA2avGmm
     using GmmA2avSchedulerType = GmmA2avScheduler<HcclOpType, ComputeOpType,
         SharedGmmExpertOpType, TILINGKEY_COMPUTE_MATMUL>;
 
