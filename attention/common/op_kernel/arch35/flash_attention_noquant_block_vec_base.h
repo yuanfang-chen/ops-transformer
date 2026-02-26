@@ -400,7 +400,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::InvalidLinePro
         SoftMaxShapeInfo softmaxShapeInfo{
             static_cast<uint32_t>(runInfo.halfS1RealSize), static_cast<uint32_t>(1),
             static_cast<uint32_t>(runInfo.halfS1RealSize), static_cast<uint32_t>(1)};
-        bool res = SoftmaxInvalidLineCheck(maxUb, NEGATIVE_MIN_VAULE_FP32, softmaxShapeInfo);
+        bool res = SoftmaxInvalidLineCheck(maxUb, NEGATIVE_MIN_VALUE_FP32, softmaxShapeInfo);
         if (!res) {
             constInfo.softMaxCheckRes = false;
         } else {
@@ -1204,7 +1204,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::RowInvalid(Loc
         for (uint32_t i = 0; i < runInfo.vec2S1RealSize; i++) {
             float maxValue = maxTensor.GetValue(i);
             uint32_t checkValue = *(uint32_t*)&maxValue;
-            if (checkValue == NEGATIVE_MIN_VAULE_FP32) {
+            if (checkValue == NEGATIVE_MIN_VALUE_FP32) {
                 isRowInvalidNeedUpdate = true;
                 break;
             }
@@ -1606,7 +1606,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::GetExtremeValu
     T &negativeScalar, T &positiveScalar)
 {
     if constexpr (IsSameType<T, float>::value) {
-        uint32_t tmp1 = NEGATIVE_MIN_VAULE_FP32;
+        uint32_t tmp1 = NEGATIVE_MIN_VALUE_FP32;
         negativeScalar = *((float *)&tmp1);
         if constexpr (implMode == ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION || IsSameType<INPUT_T, float>::value) {
             if (this->tilingData->inputParamsRegbase.implMode ==
@@ -1616,7 +1616,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::GetExtremeValu
             }
         }
     } else {
-        uint16_t tmp1 = NEGATIVE_MIN_VAULE_FP16;
+        uint16_t tmp1 = NEGATIVE_MIN_VALUE_FP16;
         negativeScalar = *((half *)&tmp1);
         if constexpr (implMode == ImplModeEnum::AA_INVALID_LINE_HIGH_PRECISION || IsSameType<INPUT_T, float>::value) {
             if (this->tilingData->inputParamsRegbase.implMode ==
@@ -1629,7 +1629,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::GetExtremeValu
 }
 
 TEMPLATES_DEF
-class FABlockVecDummy {
+class FANoQuantBlockVecDummy {
 public:
     static constexpr uint32_t s1BaseSize = (uint32_t)s1TemplateType;
     static constexpr uint32_t s2BaseSize = (uint32_t)s2TemplateType;
@@ -1638,7 +1638,7 @@ public:
         s1BaseSize == 64), (s2BaseSize == 256 && s1BaseSize == 64), false);
     static constexpr bool bmm2Write2Ub = bmm2OutPos == TPosition::VECCALC;
 
-    __aicore__ inline FABlockVecDummy() {};
+    __aicore__ inline FANoQuantBlockVecDummy() {};
     __aicore__ inline void CleanOutput(__gm__ uint8_t *softmaxLse, __gm__ uint8_t *attentionOut, 
         ConstInfo<isInfer, hasRope> &constInfo) {}
     __aicore__ inline void InitVecBlock(TPipe *pipe, const optiling::FlashAttentionScoreSimplifiedTilingData *__restrict tiling,

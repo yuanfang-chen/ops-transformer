@@ -13,6 +13,11 @@
  * \brief
  */
 
+// TODO，尝试把文件删掉，编训练的算子
+// 把MLA模板的代码一起整改掉
+// 训练的算子也要同步切过来
+// 上库前检查下近期合入，把合入的代码拿过来
+
 #ifndef FLASH_ATTENTION_NOQUANT_KERNEL_BASE_H_
 #define FLASH_ATTENTION_NOQUANT_KERNEL_BASE_H_
 #include "flash_attention_noquant_block_cube.h"
@@ -107,7 +112,7 @@ public:
 
     BufferManager<BufferType::UB> ubBufferManager;
     BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> bmm1Buffers;
-    using bmm2ResBufferType = typename Bmm2ResBuffSel<useDn, isFp8>::Type;
+    using bmm2ResBufferType = typename NoQuantCube::Bmm2ResBuffSel<useDn, isFp8>::Type;
     bmm2ResBufferType bmm2Buffers;
 
     // mm2左矩阵P
@@ -500,10 +505,10 @@ __aicore__ inline void FlashAttentionNoQuantKernelBase<ChildClass, CubeBlockType
             pseInfo.pseS1Size = inputParamsRegbase.pseS1Size;
             pseInfo.pseS2Size = inputParamsRegbase.pseS2Size;
             pseInfo.pseEncodeType = (uint32_t)inputParamsRegbase.pseEncodeType;
-            pseInfo.pseStride = pseInfo.pseLayoutType == pse1S2 ? 0 : s2BaseSize;
+            pseInfo.pseStride = (pseInfo.pseLayoutType == (uint32_t)PseLayoutTypeEnum::PSE_1S2) ? 0 : s2BaseSize;
             pseInfo.qStartIdx = inputParamsRegbase.qStartIdx;
             pseInfo.kvStartIdx = inputParamsRegbase.kvStartIdx;
-            if (inputParamsRegbase.pseShapeType == pse1S2) {
+            if (inputParamsRegbase.pseShapeType == (uint32_t)PseLayoutTypeEnum::PSE_1S2) {
                 constInfo.gS2 = constInfo.gSize * constInfo.s2Size;
             }
         }

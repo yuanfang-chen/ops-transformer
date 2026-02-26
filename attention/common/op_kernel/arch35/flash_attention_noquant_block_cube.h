@@ -27,7 +27,9 @@ using namespace AscendC;
 using namespace AscendC::Impl::Detail;
 using namespace regbaseutil;
 using namespace fa_base_matmul;
-namespace BaseApi {
+
+namespace NoQuantCube {
+
 template <LayOutTypeEnum LAYOUT>
 __aicore__ inline constexpr GmFormat GetQueryGmFormat() {
     if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BSH) {
@@ -124,6 +126,10 @@ struct Bmm2ResBuffSel {
         BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>>;
 };
 
+}
+
+namespace BaseApi {
+
 TEMPLATES_DEF
 class FANoQuantBlockCube {
 public:
@@ -204,8 +210,8 @@ private:
     __gm__ uint8_t *currentValue; // pageattention需要
     __gm__ uint8_t *blocktablePtr; // pageattention需要
     GlobalTensor<int32_t> blockTableGm; // pageattention需要
-    static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<layout>();
-    static constexpr GmFormat KV_FORMAT = GetKVGmFormat<layout>();
+    static constexpr GmFormat Q_FORMAT = NoQuantCube::GetQueryGmFormat<layout>();
+    static constexpr GmFormat KV_FORMAT = NoQuantCube::GetKVGmFormat<layout>();
     FaGmTensor<INPUT_T, Q_FORMAT> queryGm;
     FaGmTensor<INPUT_T, KV_FORMAT> keyGm;
     FaGmTensor<INPUT_T, KV_FORMAT> valueGm;
@@ -228,20 +234,20 @@ private:
     BufferManager<BufferType::L0C> l0cBufferManager;
 
     // D小于等于256 mm1左矩阵Q，GS1循环内左矩阵复用, GS1循环间开pingpong；D大于256使用单块Buffer，S1循环间驻留；fp32场景单块不驻留
-    typename QL1BuffSel<INPUT_T, dBaseSize>::Type l1QBuffers;
+    typename NoQuantCube::QL1BuffSel<INPUT_T, dBaseSize>::Type l1QBuffers;
     // mm1右矩阵K
-    typename KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1KBuffers;
+    typename NoQuantCube::KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1KBuffers;
 
     // mm2右矩阵V
-    typename KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1VBuffers;
+    typename NoQuantCube::KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1VBuffers;
     // L0A
-    using L0AType = typename L0ABuffSel<INPUT_T>::Type;
+    using L0AType = typename NoQuantCube::L0ABuffSel<INPUT_T>::Type;
     L0AType mmL0ABuffers;
     // L0B
-    using L0BType = typename L0BBuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type;
+    using L0BType = typename NoQuantCube::L0BBuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type;
     L0BType mmL0BBuffers;
     // L0C
-    using L0CType = typename L0CBuffSel<INPUT_T, s1BaseSize, s2BaseSize, dVBaseSize>::Type;
+    using L0CType = typename NoQuantCube::L0CBuffSel<INPUT_T, s1BaseSize, s2BaseSize, dVBaseSize>::Type;
     L0CType mmL0CBuffers;
 };
 
@@ -393,8 +399,8 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
                 sharedParams->s1Size, sharedParams->dSizeRope);
         }
     } else {  // GM_Q_OUT_TND
-        GlobalTensor<int64_t> actualSeqQLen;
-        actualSeqQLen.SetGlobalBuffer(actualSeqQlenAddr);
+        GlobalTensor<uint64_t> actualSeqQLen;
+        actualSeqQLen.SetGlobalBuffer((__gm__ uint64_t *)actualSeqQlenAddr);
         if constexpr (isInfer) {
             this->queryGm.offsetCalculator.Init(sharedParams->n2Size, sharedParams->gSize, sharedParams->dSize,
                 actualSeqQLen, sharedParams->actualSeqLengthsSize);
@@ -425,8 +431,8 @@ __aicore__ inline void FANoQuantBlockCube<TEMPLATE_ARGS>::InitGmTensor(CVSharedP
                 sharedParams->dSizeRope);
         }
     } else { // GM_KV_TND
-        GlobalTensor<int64_t> actualSeqKVLen;
-        actualSeqKVLen.SetGlobalBuffer(actualSeqKvlenAddr);
+        GlobalTensor<uint64_t> actualSeqKVLen;
+        actualSeqKVLen.SetGlobalBuffer((__gm__ uint64_t *)actualSeqKvlenAddr);
         if constexpr (isInfer) {
             this->keyGm.offsetCalculator.Init(sharedParams->n2Size, sharedParams->dSize, actualSeqKVLen,
                 sharedParams->actualSeqLengthsKVSize);
