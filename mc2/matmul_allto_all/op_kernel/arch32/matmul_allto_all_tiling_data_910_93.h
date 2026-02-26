@@ -9,17 +9,16 @@
  */
 
 /*!
- * \file matmul_allto_all_tiling_data_arch35.h
+ * \file matmul_allto_all_tiling_data_910_93.h
  * \brief 定义tiling_data
  */
-#ifndef MATMUL_ALLTO_ALL_TILING_DATA_ARCH35_H
-#define MATMUL_ALLTO_ALL_TILING_DATA_ARCH35_H
+#ifndef MATMUL_ALLTO_ALL_TILING_DATA_910_93_H
+#define MATMUL_ALLTO_ALL_TILING_DATA_910_93_H
 
 #include <cstdint>
-#include <kernel_tiling/kernel_tiling.h>
+#include "kernel_tiling/kernel_tiling.h"
 #include "../../common/inc/kernel/mc2_tiling_struct.h"
-#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
-#include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/quant_batch_matmul_v3_tiling_data.h"
+#include "../../3rd/mat_mul_v3/op_kernel/mat_mul_v3_tiling_data.h"
 
 struct MatmulAlltoAllTilingInfoA3 {
     uint32_t rankDim;     // 卡数:kernel能通过hccl接口获取到就直接删除
@@ -41,8 +40,8 @@ struct MatmulAlltoAllTilingDataA3 {
     Mc2InitTiling mc2InitTiling; // 初始化通信任务配置
     Mc2CcTiling mc2CcTiling;     // 具体每个通信任务的参数配置
     MatmulAlltoAllTilingInfoA3 matmulAlltoAllTilingInfo;
-    Mc2MatMulV3TilingData mc2MmV3TileTilingData;  // 通算切分头块matmul tiling数据
-    Mc2MatMulV3TilingData mc2MmV3TailTilingData;  // 通算切分尾块matmul tiling数据
+    Mc2MatmulV3TilingData mc2MmV3TileTilingData;  // 通算切分头块matmul tiling数据
+    Mc2MatmulV3TilingData mc2MmV3TailTilingData;  // 通算切分尾块matmul tiling数据
 };
 
 #endif // MATMUL_ALLTO_ALL_TILING_H

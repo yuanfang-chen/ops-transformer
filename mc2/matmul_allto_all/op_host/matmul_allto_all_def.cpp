@@ -100,7 +100,7 @@ public:
         // 将group配置为该算子的通信域
         this->MC2().HcclGroup("group");
 
-// ascend910_93 AI处理器定义OpAICoreConfig变量，定制化配置参数
+      // ascend910_93 AI处理器定义OpAICoreConfig变量，定制化配置参数
  	    OpAICoreConfig aicoreConfig_910_93;
  	    aicoreConfig_910_93.Input("x1")
  	        .ParamType(REQUIRED)
@@ -153,7 +153,6 @@ public:
  	    this->Attr("x1_quant_mode").AttrType(OPTIONAL).Int(0);
  	    this->Attr("x2_quant_mode").AttrType(OPTIONAL).Int(0);
  	    this->Attr("comm_quant_mode").AttrType(OPTIONAL).Int(0);
- 	    this->Attr("x1_quant_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
  	    this->Attr("comm_quant_dtype").AttrType(OPTIONAL).Int(static_cast<int64_t>(ge::DT_UNDEFINED));
  	    this->Attr("transpose_x1").AttrType(OPTIONAL).Bool(false);
  	    this->Attr("transpose_x2").AttrType(OPTIONAL).Bool(false);

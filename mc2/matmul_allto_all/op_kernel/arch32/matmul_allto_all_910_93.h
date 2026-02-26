@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file matmul_allto_all_arch35.h
+ * \file matmul_allto_all_910_93.h
  * \brief
  */
 
