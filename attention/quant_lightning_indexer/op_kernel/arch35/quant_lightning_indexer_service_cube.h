@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -73,9 +73,9 @@ public:
     static constexpr uint64_t SL1_BUFFER_OFFSET = S1G_BASIC_BLOCK_L0 * S2_BASIC_BLOCK_L0;
     static constexpr uint64_t KEY_BUFFER_OFFSET = S2_BASIC_BLOCK_L0 * D_BASIC_BLOCK;
     static constexpr uint64_t WEIGHT_BUFFER_OFFSET = S1G_BASIC_BLOCK_L1 * BLOCK_CUBE;
-    static constexpr uint64_t L0AB_BUFFER_OFFSET_S8_16K = 16 * 1024;
-    static constexpr uint64_t L0AB_BUFFER_OFFSET_FP16_16K = 16 * 512;
-    static constexpr uint64_t L0C_BUFFER_OFFSET = 64 * 256;
+    static constexpr uint64_t L0AB_BUFFER_OFFSET_S8_16K = 16384;
+    static constexpr uint64_t L0AB_BUFFER_OFFSET_FP16_16K = 4096;
+    static constexpr uint64_t L0C_BUFFER_OFFSET = 16384;
 
 private:
     __aicore__ inline void WeightDmaCopy(uint64_t s1gL1RealSize, const QLICommon::RunInfo &runInfo);
@@ -256,10 +256,10 @@ __aicore__ inline void QLIMatmul<QLIT>::ComputeMm1(const QLICommon::RunInfo &run
         QueryNd2Nz(runInfo.actMBaseSize, runInfo);  // 256 * 128 // L1BasicBlock
         WeightDmaCopy(runInfo.actMBaseSize, runInfo);
     }
-    int64_t loopIdx = 0;
+    uint64_t loopIdx = 0;
     int64_t s2L0LoopCnt = CeilDiv(runInfo.actualSingleProcessSInnerSize, S2_BASIC_BLOCK_L0);  // 2048取128
     int64_t s1L0LoopCnt = CeilDiv(runInfo.actMBaseSize, S1G_BASIC_BLOCK_L0);                  // 256取128
-    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(S1G_BASIC_BLOCK_L0)};
+    int64_t s1gL1Offset[2] = {0, static_cast<int64_t>(S1G_BASIC_BLOCK_L0)}; // preload = 2
     int64_t s1gL0RealSize[2] = {s1L0LoopCnt > 1 ? static_cast<int64_t>(S1G_BASIC_BLOCK_L0) : runInfo.actMBaseSize,
                                 runInfo.actMBaseSize - s1gL1Offset[1]};
     MmInfo mmInfo[2];
@@ -448,7 +448,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadKeyToL0b(uint64_t s2L0RealSize)
     loadData2DParamsV2.mStartPosition = 0;
     loadData2DParamsV2.kStartPosition = 0;
     loadData2DParamsV2.mStep = CeilDiv(s2L0RealSize, BLOCK_CUBE);
-    loadData2DParamsV2.kStep = CeilDiv(constInfo_.headDim, 32);
+    loadData2DParamsV2.kStep = CeilDiv(constInfo_.headDim, S8_BLOCK_CUBE);
     loadData2DParamsV2.srcStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.dstStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.ifTranspose = false;
@@ -565,12 +565,12 @@ __aicore__ inline void QLIMatmul<QLIT>::FreeEventID()
     WaitFlag<HardEvent::MTE1_MTE2>(KEY_MTE1_MTE2_EVENT + 2);
 
     WaitFlag<HardEvent::MTE1_MTE2>(QW_MTE1_MTE2_EVENT + 0);
-    WaitFlag<HardEvent::MTE1_MTE2>(QW_MTE1_MTE2_EVENT + 1);
+    WaitFlag<HardEvent::MTE1_MTE2>(QW_MTE1_MTE2_EVENT + 1); // DOUBLE_BUF_NUM
 
     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 0);
     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 1);
     WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 2);
-    WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 3);
+    WaitFlag<HardEvent::M_MTE1>(M_MTE1_EVENT + 3); // L0AB_BUF_NUM
 
     WaitFlag<HardEvent::FIX_M>(FIX_M_EVENT + 0);
     WaitFlag<HardEvent::FIX_M>(FIX_M_EVENT + 1);

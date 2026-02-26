@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -438,10 +438,6 @@ __aicore__ inline void QLIVector<QLIT>::ProcessVec1(const QLICommon::RunInfo &in
                                        idxULocal.template ReinterpretCast<int32_t>(), constInfo_.sparseCount);
                 outQueue_.FreeTensor(idxULocal);
             } else if (needCopyWsGm) {
-                // vec1Res Gm = [aic, s1BaseSize_, 2, 2, topkOut_] float32
-                // vec1Param Gm = [aic, s1BaseSize_, 2, 16] int64
-                //     16 = [needFd, s2AcSeq, s2Start, s2End, isS2End, bn2idx, s1Idx, S1ProcNum, ......]
-
                 int64_t wsOffset =
                     (blockId_ / 2) * s1BaseSize_ * 2 * BASE_TOPK_VALUE_IDX_SIZE +        // 2个AIV共同地址偏移
                     (blockId_ % 2) * (s1BaseSize_ / 2) * 2 * BASE_TOPK_VALUE_IDX_SIZE +  // 每个AIV的地址偏移，S1方向
@@ -523,18 +519,18 @@ __aicore__ inline void QLIVector<QLIT>::ProcessLD()
     int32_t curCubeId = blockId_ / 2;
     int32_t tmpCubeId = curCubeId;
 
-    int64_t s2ActSeq;
-    int64_t s2Start;
-    int64_t s2End;
-    int64_t isS2End;
-    int64_t bn2Idx;
-    int64_t s1Idx;
+    int64_t s2ActSeq = 0;
+    int64_t s2Start = 0;
+    int64_t s2End = 0;
+    int64_t isS2End = 0;
+    int64_t bn2Idx = 0;
+    int64_t s1Idx = 0;
     uint32_t acc_list_num = 0;
     int64_t bIdx = 0;
-    int64_t needFd;
-    int64_t wsOffset;
+    int64_t needFd = 0;
+    int64_t wsOffset = 0;
     int64_t wsInfoOffset = 0;
-    int64_t nextneedFd;
+    int64_t nextneedFd = 0;
     int64_t valueOffset = 0;
     int64_t outOffset = 0;
 
@@ -633,7 +629,8 @@ __aicore__ inline void QLIVector<QLIT>::ProcessLD()
             }
 
             tmpCubeId++;
-            wsInfoOffset = tmpCubeId * s1BaseSize_ * 2 * paramNum_ + innerS1Idx * 2 * paramNum_;
+            wsInfoOffset = tmpCubeId * s1BaseSize_ * 2 * paramNum_ + innerS1Idx * 2 * paramNum_; // 2个AIV共同地址偏移
+            // LD的标志位 [needFd, s2AcSeq, s2Start, s2End, isS2End, bn2idx, s1Idx, ......]
             needFd = vec1ParamGm.GetValue(wsInfoOffset);
             isS2End = vec1ParamGm.GetValue(wsInfoOffset + 4);
         }
