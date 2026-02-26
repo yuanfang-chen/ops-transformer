@@ -292,7 +292,7 @@ public:
             if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
                 if (isLastRowLoop) {
                     AscendC::PipeBarrier<PIPE_V>();
-                    AscendC::Ln<float, flase>(
+                    AscendC::Ln<float, false>(
                         lse32_ubuf_tensor, // 未定义，看是用哪一块空间
                         glUbTensor,
                         (uint64_t)0,
