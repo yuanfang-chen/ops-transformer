@@ -813,7 +813,7 @@ namespace SplitFuse {
                                         layOutS,
                                         actualBlockShapeQK,
                                         (stackSeqCount == 0),
-                                        (isLastNoMaskStackTile ? (stackSeqCount == noMaskStackSeqNum) : (stackSeqCount == noMaskStackSeqNum - 1)),
+                                        (stackSeqCount == noMaskStackSeqNum),
                                         qSBlockSize,
                                         qNBlockSize,
                                         curStackTileMod,
