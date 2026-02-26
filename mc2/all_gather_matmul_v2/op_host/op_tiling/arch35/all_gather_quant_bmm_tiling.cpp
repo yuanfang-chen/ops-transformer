@@ -16,8 +16,10 @@
 #define _ALL_GATHER_QUANT_BMM_TILING_CPP_
 #include "op_mc2.h"
 #include "mc2_log.h"
+#include "util/math_util.h"
 #include "all_gather_quant_bmm_tiling.h"
 #include "../../../op_kernel/all_gather_matmul_v2_apt_tiling_key.h"
+#include "tiling/mc2_tiling_utils.h"
 
 using namespace Mc2Log;
 using namespace AscendC;
@@ -415,14 +417,62 @@ ge::graphStatus AllGatherQuantBmmTiling::SetMc2Hcomm()
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2CcTiling failed"), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
+
+/**
+ * Due to communication constraints: 
+ * 1. The maximum number of communication attempts is limited to 16
+ * 2. The data volume of a single communication shall not exceed 256MB;
+ * Thus, it is required to pre-intercept the x1 that still exceeds the limit after being evenly split into 16 parts
+ */
+ge::graphStatus AllGatherQuantBmmTiling::CheckHCCLSize()
+{
+    uint64_t sizeOfSingleM = args_.kValue * sizeof(args_.geAType) * args_.rankDim;
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data x1 into (1, k), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    
+    uint64_t sizeOfSplitM = Ops::Base::CeilDiv(args_.mValue, mc2tiling::ALL_GATHER_HCCL_NUM_LIMIT) * sizeOfSingleM;
+    OP_TILING_CHECK(sizeOfSingleM > mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT,
+        OP_LOGE(opName_, "Unsupported x1 size. Even after splitting data M into 16 parts (rounded up), the size still exceeds 256MB."), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+void AllGatherQuantBmmTiling::AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcfCfg)
+{
+    if (tileMValue_ * args_.kValue * sizeof(args_.geAType) * args_.rankDim <= mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT) {
+        return;
+    }
+    
+    OPS_LOG_I(opName_, "The result of formulaic tiling result does not meet the hccl restriction,"
+     " current splitting: tileM [%ld], tileCnt [%ld], tailM [%ld], tailCnt [%ld].",
+        tileMValue_, MutableRCSTilingDataA5().tileCnt, tailMValue_, MutableRCSTilingDataA5().tailCnt);
+    
+    OP_TILING_CHECK((inputParams_.isPerBlock || inputParams_.isMxfp),
+        OP_LOGE(opName_, "Unsupported x1 size. Even after formulaic splitting when quant scene is perblock/mxfp, the size still exceeds 256MB."), 
+        return ge::GRAPH_FAILED);
+    
+    uint64_t minSplitPart = Ops::Base::CeilDiv(args_.mValue * args_.kValue * sizeof(args_.geAType) * args_.rankDim, mc2tiling::ALL_GATHER_HCCL_MEM_LIMIT);
+    tileMValue_ = Ops::Base::CeilDiv(args_.mValue, minSplitPart);
+    MutableRCSTilingDataA5().tileCnt = args_.mValue / tileMValue_;
+    MutableRCSTilingDataA5().tailM = args_.mValue - MutableRCSTilingDataA5().tileCnt * tileMValue_;
+    tailMValue_ = MutableRCSTilingDataA5().tailM;
+    if (tailMValue_ == 0) {
+        MutableRCSTilingDataA5().tailCnt = 0;
+    } else {
+        MutableRCSTilingDataA5().tailCnt = 1;
+    }  
+}
+
+
 ge::graphStatus AllGatherQuantBmmTiling::DoOpTiling()
 {
+    GE_ASSERT_GRAPH_SUCCESS(CheckHCCLSize());
     GE_ASSERT_GRAPH_SUCCESS(CheckInput());
     SetTilingKeyParams();
     OP_TILING_CHECK(SetMc2Hcomm() != ge::GRAPH_SUCCESS,
       OP_LOGE(opName_, "Tiling SetHcommCfg failed."), return ge::GRAPH_FAILED);
     SetRcsTilingData(MutableRCSTilingDataA5());
     DoSplitMTiling(MutableRCSTilingDataA5());
+    AdjustHCCLLimit();
     GE_ASSERT_GRAPH_SUCCESS(DoAdaptSlidWindowTiling());
     DoAllGatherTiling(MutableRCSTilingDataA5(), MutableTCubeTileTilingData(), MutableTCubeTailTilingData(),
                       allGatherMatmulTilingDataFp8_->debugMode, allGatherMatmulTilingDataFp8_->dataType);
