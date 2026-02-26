@@ -334,6 +334,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalInputsShape()
     OP_CHECK_IF(outputBs_ > inputParams_.mSize,
                 OP_LOGE(context_->GetNodeName(), "OutputBs (%lu) out of M (%lu).", outputBs_, inputParams_.mSize),
                 return false);
+    return true;
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape &xShape,
@@ -351,6 +352,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
         OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
                     OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
     }
+    return true;
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
