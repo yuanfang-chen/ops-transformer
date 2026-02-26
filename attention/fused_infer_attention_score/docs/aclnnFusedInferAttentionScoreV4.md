@@ -917,7 +917,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <tr>
             <td>2</td>
             <td>leftUpCausal模式的mask，需要传入优化后的attenmask矩阵</td>
-            <td rowspan="3">传入的attenMask为下三角矩阵，对角线全0。不传入attenMask或者传入的shape不正确报错。</td>
+            <td rowspan="3">传入的attenMask为下三角矩阵，对角线全0。attentionMask为nullptr或者传入的shape不正确报错。</td>
         </tr>
         <tr>
             <td>3</td>
@@ -1648,7 +1648,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
         <tr>
             <td>sparseMode</td>
             <td>全量化场景sparseMode仅支持0,3</td>
-            <td>qs=1时，仅支持sparseMode=0，且不传mask;qs>1时，仅支持sparseMode=3，且mask shape为[2048,2048]</td>
+            <td>qs=1时，仅支持sparseMode=0，且attentionMask为nullptr; qs>1时，仅支持sparseMode=3，且attentionMask的shape为[2048,2048]</td>
         </tr>
         <tr>
             <td>blockSize</td>
@@ -1761,7 +1761,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
     </tr>
     <tr>
         <td colspan="2">Mask</td>
-        <td colspan="3">当MTP等于0时，支持sparseMode=0且不传mask；当MTP大于0、小于16时，支持sparseMode=3且传入优化后的attenmask矩阵，attenmask矩阵shape必须传入（2048*2048）；</td>
+        <td colspan="3">当MTP等于0时，支持sparseMode=0且attentionMask为nullptr；当MTP大于0、小于16时，支持sparseMode=3且传入优化后的attentionMask矩阵，attentionMask矩阵shape必须传入（2048*2048）；</td>
     </tr>
     <tr>
         <td rowspan="9">伪量化</td>
@@ -1930,7 +1930,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>
                 <ul>
                 <li>sparseMode = 0时，attenMaskOptional如果为空指针，或者在左padding场景传入attenMaskOptional，则忽略入参preTokens、nextTokens。</li>
-                <li>sparseMode = 2、3、4时，attenMaskOptional的shape需要为（2048,2048）或（1,2048,2048）或（1,1,2048,2048），且需要用户保证传入的attenMaskOptional为下三角，不传入attenMaskOptional或者传入的shape不正确报错。</li>
+                <li>sparseMode = 2、3、4时，attenMaskOptional的shape需要为（2048,2048）或（1,2048,2048）或（1,1,2048,2048），且需要用户保证传入的attenMaskOptional为下三角，attenMaskOptional为nullptre或者传入的shape不正确报错。</li>
                 <li>sparseMode = 1、2、3的场景忽略入参preTokens、nextTokens并按照相关规则赋值。</li>
                 <li>sparseMode取其它值时会报错</li>
                 </ul>
