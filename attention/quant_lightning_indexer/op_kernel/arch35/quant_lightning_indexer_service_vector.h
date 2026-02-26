@@ -251,6 +251,16 @@ __aicore__ inline void QLIVector<QLIT>::InitVecWorkspaceTensor(GlobalTensor<half
 }
 
 template <typename QLIT>
+__aicore__ inline void QLIVector<QLIT>::AllocEventID()
+{
+}
+
+template <typename QLIT>
+__aicore__ inline void QLIVector<QLIT>::FreeEventID()
+{
+}
+
+template <typename QLIT>
 __aicore__ inline void QLIVector<QLIT>::CleanInvalidOutput(int64_t invalidS1offset)
 {
     // init -1 and copy to output
