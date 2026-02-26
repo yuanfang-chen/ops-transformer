@@ -159,15 +159,36 @@ public:
     }
 
     __aicore__ inline
+    void NewReduceSum(const AscendC::LocalTensor<half> &srcUb, uint32_t numRowsRound, uint32_t index1,
+                                uint32_t index2, uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        uint32_t src0Start = index1;
+        uint32_t src1Start = index2;
+        AscendC::Add<half, false>(
+            srcUb[src0Start],
+            srcUb[src0Start],
+            srcUb[src1Start],
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                dataBlockStride,
+                dataBlockStride,
+                dataBlockStride,
+                repeatStride,
+                repeatStride,
+                repeatStride));
+    }    
+
+    __aicore__ inline
     void RowsumSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
-        // // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
-        // uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
-        // // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
-        // uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
-        // uint8_t dataBlockStride = 1;
+        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
+        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
+        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
+        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
+        uint8_t dataBlockStride = 1;
         // // 1024个元素，以128为单位分治求和。1024->512->256->128
         // AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
         // AscendC::printf("tkd before ReduceSumByPair\n");
@@ -192,102 +213,119 @@ public:
         // AscendC::printf("tkd after WholeReduceSum\n");
         // AscendC::DumpTensor(rowsumUb, 2, 128);
 
-        AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
-        AscendC::printf("tkd 1024 before ReduceSum\n");
-        AscendC::DumpTensor(srcUb, 1, 512);
-
-        AscendC::Add<half, false>(
-            srcUb,
-            srcUb,
-            srcUb[HALF_VECTOR_SIZE],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
-        AscendC::Add<half, false>(
-            srcUb[HALF_VECTOR_SIZE * 2],
-            srcUb[HALF_VECTOR_SIZE * 2],
-            srcUb[HALF_VECTOR_SIZE * 3],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
-        AscendC::Add<half, false>(
-            srcUb[HALF_VECTOR_SIZE * 4],
-            srcUb[HALF_VECTOR_SIZE * 4],
-            srcUb[HALF_VECTOR_SIZE * 5],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
-        AscendC::Add<half, false>(
-            srcUb[HALF_VECTOR_SIZE * 6],
-            srcUb[HALF_VECTOR_SIZE * 6],
-            srcUb[HALF_VECTOR_SIZE * 7],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
+        NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::Add<half, false>(
-            srcUb,
-            srcUb,
-            srcUb[HALF_VECTOR_SIZE],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
-        AscendC::Add<half, false>(
-            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
+        NewReduceSum(srcUb, numRowsRound, 0, HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
+        NewReduceSum(srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::Add<half, false>(
-            srcUb,
-            srcUb,
-            srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-            (uint64_t)0,
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                1, 1, 1,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE,
-                numElemsAligned / BLOCK_SIZE));
+        NewReduceSum(srcUb, numRowsRound, 0, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::printf("tkd 1024 after ReduceSum\n");
-        AscendC::DumpTensor(srcUb, 1, 128);   
         AscendC::WholeReduceSum<half, false>(
             rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
             numElemsAligned / BLOCK_SIZE);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::printf("tkd after WholeReduceSum\n");
-        AscendC::DumpTensor(rowsumUb, 2, 128);
-    }
+    //     AscendC::printf("tkd numRowsRound: %u\n", numRowsRound);
+    //     AscendC::printf("tkd 1024 before ReduceSum\n");
+    //     AscendC::DumpTensor(srcUb, 1, 512);
+
+    //     AscendC::Add<half, false>(
+    //         srcUb,
+    //         srcUb,
+    //         srcUb[HALF_VECTOR_SIZE],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::Add<half, false>(
+    //         srcUb[HALF_VECTOR_SIZE * 2],
+    //         srcUb[HALF_VECTOR_SIZE * 2],
+    //         srcUb[HALF_VECTOR_SIZE * 3],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::Add<half, false>(
+    //         srcUb[HALF_VECTOR_SIZE * 4],
+    //         srcUb[HALF_VECTOR_SIZE * 4],
+    //         srcUb[HALF_VECTOR_SIZE * 5],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::Add<half, false>(
+    //         srcUb[HALF_VECTOR_SIZE * 6],
+    //         srcUb[HALF_VECTOR_SIZE * 6],
+    //         srcUb[HALF_VECTOR_SIZE * 7],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::PipeBarrier<PIPE_V>();
+
+    //     AscendC::Add<half, false>(
+    //         srcUb,
+    //         srcUb,
+    //         srcUb[HALF_VECTOR_SIZE],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::Add<half, false>(
+    //         srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+    //         srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+    //         srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::PipeBarrier<PIPE_V>();
+
+    //     AscendC::Add<half, false>(
+    //         srcUb,
+    //         srcUb,
+    //         srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
+    //         (uint64_t)0,
+    //         numRowsRound,
+    //         AscendC::BinaryRepeatParams(
+    //             1, 1, 1,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE,
+    //             numElemsAligned / BLOCK_SIZE));
+    //     AscendC::PipeBarrier<PIPE_V>();
+
+    //     AscendC::printf("tkd 1024 after ReduceSum\n");
+    //     AscendC::DumpTensor(srcUb, 1, 128);   
+    //     AscendC::WholeReduceSum<half, false>(
+    //         rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+    //         numElemsAligned / BLOCK_SIZE);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::printf("tkd after WholeReduceSum\n");
+    //     AscendC::DumpTensor(rowsumUb, 2, 128);
+    // }
 
     __aicore__ inline
     void RowsumSPECTILE512(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
