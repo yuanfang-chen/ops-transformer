@@ -23,12 +23,12 @@ namespace ge {
 /**
 * @brief Fusion of alltoallv and grouped matmul.
 * @par Inputs:
-* @li gmm_x: A matrix tensor of shape [BSK, H1]. The data type of elements supports float16, bfloat16 or hifloat8; the format supports ND.
-* @li gmm_weight: A matrix tensor of shape [e, H1, N1]. The data type of elements supports float16, bfloat16 or hifloat8 and should match that of gmm_x; the format supports ND.
-* @li send_counts_tensor: A tensor of shape [e * ep]. The data type of elements supports int32; the format supports ND.
-* @li recv_counts_tensor: A tensor of shape [e * ep]. The data type of elements supports int32; the format supports ND.
-* @li mm_x: A matrix tensor of shape [BS, H1]. The data type of elements supports float16, bfloat16 or hifloat8; the format supports ND.
-* @li mm_weight: A matrix tensor of shape [H2, N2]. The data type of elements supports float16, bfloat16 or hifloat8 and should match that of mm_x; the format supports ND.
+* @li gmm_x: A matrix Tensor of shape [BSK, H1]. The data type of elements supports float16, bfloat16 or hifloat8; the format supports ND.
+* @li gmm_weight: A matrix Tensor of shape [e, H1, N1]. The data type of elements supports float16, bfloat16 or hifloat8 and should match that of gmm_x; the format supports ND.
+* @li send_counts_tensor: A Tensor of shape [e * ep]. The data type of elements supports int32 or int64; the format supports ND.
+* @li recv_counts_tensor: A Tensor of shape [e * ep]. The data type of elements supports int32 or int64; the format supports ND.
+* @li mm_x: A matrix Tensor of shape [BS, H1]. The data type of elements supports float16, bfloat16 or hifloat8; the format supports ND.
+* @li mm_weight: A matrix Tensor of shape [H2, N2]. The data type of elements supports float16, bfloat16 or hifloat8 and should match that of mm_x; the format supports ND.
 * @li gmm_x_scale: A matrix Tensor. The type support float. The format supports ND.
 * @li gmm_weight_scale: A matrix Tensor. The type support float. The format supports ND.
 * @li gmm_x_offset: A matrix Tensor. The type support float. The format supports ND.
@@ -43,21 +43,28 @@ namespace ge {
 * @li ep_world_size: A required int identifying the number of expert parallel group rank num.
 * @li send_counts: An int list. A list containing amount of data to be sent.
 * @li recv_counts: An int list. A list containing amount of data to be received.
-* @li trans_gmm_weight: A boolean value. Indicating whether gmm_weight is transposed.
-* @li trans_mm_weight: A boolean value. Indicating whether mm_weight is transposed.
-* @li permute_out_flag: A boolean value. Indicating whether to perform permutation.
+* @li trans_gmm_weight: A boolean value. Whether gmm_weight is transposed. True indicates transposition. Default: false.
+* @li trans_mm_weight: A boolean value. Whether mm_weight is transposed. True indicates transposition. Default: false.
+* @li permute_out_flag: A boolean value. Whether to output permute_out. Default: false.
 * @li gmm_x_quant_mode: An int. Quantization mode of gmm_x. Default: 0.
+*        - 0：No Quantization
+*        - 1：PerTensor Quantization
+*        - 2：PerChannel Quantization
+*        - 3：PerToken Quantization
+*        - 4：PerGroup Quantization
+*        - 5：PerBlock Quantization
+*        - 6：Mx Quant Quantization
 * @li gmm_weight_quant_mode: An int. Quantization mode of gmm_weight. Default: 0.
 * @li mm_x_quant_mode: An int. Quantization mode of mm_x. Default: 0.
 * @li mm_weight_quant_mode: An int. Quantization mode of mm_weight. Default: 0.
 * @li group_size: An int. Default: 0.
-* @li y_dtype: An int. Declare the gmm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为28.
-* @li mm_dtype: An int. Declare the mm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) 为28.
+* @li y_dtype: An int. Declare the gmm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) is 28.
+* @li mm_dtype: An int. Declare the mm_y dtype. Default: static_cast<int64_t>(ge::DT_UNDEFINED) is 28.
 *
 * @par Outputs:
 * @li gmm_y: A matrix tensor of shape [A, N1] containing result of grouped matmul. The data type of elements supports float16 or bfloat16; the format supports ND.
 * @li mm_y: A matrix tensor of shape [BS, N2] containing result of matmul. The data type of elements supports float16 or bfloat16; the format supports ND.
-* @li permute_out: A matrix tensor of shape [BSK, H1] containing result of permutation if permute_out_flag == true. The data type of elements supports float16 or bfloat16; the format supports ND.
+* @li permute_out: A matrix tensor of shape [BSK, H1] containing result of permutation if permute_out_flag == true. The data type of elements supports float16, bfloat16 or hifloat8; the format supports ND.
 */
 REG_OP(AlltoAllvGroupedMatMul)
       .INPUT(gmm_x, TensorType({DT_FLOAT16, DT_BF16, DT_HIFLOAT8}))
