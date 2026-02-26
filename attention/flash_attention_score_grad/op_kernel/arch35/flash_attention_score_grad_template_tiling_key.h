@@ -1181,58 +1181,6 @@
              ASCENDC_TPL_TILING_STRUCT_SEL(FagTilingWithTemplateTTF)
          ),
      #endif
- 
-     #if (ORIG_DTYPE_QUERY == -1) || (ORIG_DTYPE_QUERY == DT_FLOAT8_E5M2)
-         // FP8_E5M2
-         ASCENDC_TPL_ARGS_SEL(
-             ASCENDC_TPL_BOOL_SEL(IsEmptyTensor, 0),
-             ASCENDC_TPL_UINT_SEL(SplitAxis, ASCENDC_TPL_UI_LIST, 0),
-             ASCENDC_TPL_UINT_SEL(InputDType, ASCENDC_TPL_UI_LIST, 4),
-             ASCENDC_TPL_BOOL_SEL(IsTnd, 0),
-             ASCENDC_TPL_BOOL_SEL(IsDrop, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsPse, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsAttenMask, 0, 1),
-             ASCENDC_TPL_UINT_SEL(S1TemplateNum, ASCENDC_TPL_UI_LIST, 64),
-             ASCENDC_TPL_UINT_SEL(S2TemplateNum, ASCENDC_TPL_UI_LIST, 256),
-             ASCENDC_TPL_UINT_SEL(DTemplateNum, ASCENDC_TPL_UI_LIST, 64, 128, 192, 256, 768),
-             ASCENDC_TPL_UINT_SEL(DeterType, ASCENDC_TPL_UI_LIST, 0),
-             ASCENDC_TPL_BOOL_SEL(IsNEqual, 0),
-             ASCENDC_TPL_BOOL_SEL(IsBn2MultiBlk, 0),
-             ASCENDC_TPL_BOOL_SEL(IsDNoEqual, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsRope, 0),
-             ASCENDC_TPL_UINT_SEL(OutDType, ASCENDC_TPL_UI_LIST, 2, 3),
-             ASCENDC_TPL_BOOL_SEL(Fp8OpenTscm, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsRegbase, 1),
-             ASCENDC_TPL_BOOL_SEL(IsTndSwizzle, 0),
-             ASCENDC_TPL_TILING_STRUCT_SEL(FagTilingWithTemplateFFF)
-         ),
-     #endif
- 
-     #if (ORIG_DTYPE_QUERY == -1) || (ORIG_DTYPE_QUERY == DT_FLOAT8_E4M3FN)
-         // FP8_E4M3
-         ASCENDC_TPL_ARGS_SEL(
-             ASCENDC_TPL_BOOL_SEL(IsEmptyTensor, 0),
-             ASCENDC_TPL_UINT_SEL(SplitAxis, ASCENDC_TPL_UI_LIST, 0),
-             ASCENDC_TPL_UINT_SEL(InputDType, ASCENDC_TPL_UI_LIST, 5),
-             ASCENDC_TPL_BOOL_SEL(IsTnd, 0),
-             ASCENDC_TPL_BOOL_SEL(IsDrop, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsPse, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsAttenMask, 0, 1),
-             ASCENDC_TPL_UINT_SEL(S1TemplateNum, ASCENDC_TPL_UI_LIST, 64),
-             ASCENDC_TPL_UINT_SEL(S2TemplateNum, ASCENDC_TPL_UI_LIST, 256),
-             ASCENDC_TPL_UINT_SEL(DTemplateNum, ASCENDC_TPL_UI_LIST, 64, 128, 192, 256, 768),
-             ASCENDC_TPL_UINT_SEL(DeterType, ASCENDC_TPL_UI_LIST, 0),
-             ASCENDC_TPL_BOOL_SEL(IsNEqual, 0),
-             ASCENDC_TPL_BOOL_SEL(IsBn2MultiBlk, 0),
-             ASCENDC_TPL_BOOL_SEL(IsDNoEqual, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsRope, 0),
-             ASCENDC_TPL_UINT_SEL(OutDType, ASCENDC_TPL_UI_LIST, 2, 3),
-             ASCENDC_TPL_BOOL_SEL(Fp8OpenTscm, 0, 1),
-             ASCENDC_TPL_BOOL_SEL(IsTndSwizzle, 0),
-             ASCENDC_TPL_BOOL_SEL(IsRegbase, 1),
-             ASCENDC_TPL_TILING_STRUCT_SEL(FagTilingWithTemplateFFF)
-         ),
-     #endif
 
     #if (ORIG_DTYPE_QUERY == -1) || (ORIG_DTYPE_QUERY == DT_HIFLOAT8)
          // HIFLOAT8
