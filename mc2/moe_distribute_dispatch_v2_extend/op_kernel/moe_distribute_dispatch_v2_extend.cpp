@@ -26,6 +26,7 @@
 
 // using namespace MoeDistributeDispatchV2Impl;
 // using namespace MoeDistributeDispatchV2FullMeshImpl;
+using namespace Mc2Context;
 using namespace Mc2Tiling;
 using namespace AscendC;
 
