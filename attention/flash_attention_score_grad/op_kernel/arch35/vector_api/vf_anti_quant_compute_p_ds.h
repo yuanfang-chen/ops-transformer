@@ -82,7 +82,6 @@ __aicore__ inline void ComputePDS_VF_unalign(uint64_t sp, uint64_t dpds, uint64_
                 DataCopy(vreg_sp3, (__ubuf__ float *)sp + (i + 2)*128);
                 DataCopy(vreg_sp4, (__ubuf__ float *)sp + (i + 3)*128);
 
-                //ss = qs * ks;
                 Muls(vreg_sp1, vreg_sp1, ss, preg_all);
                 Muls(vreg_sp2, vreg_sp2, ss, preg_all);
                 Muls(vreg_sp3, vreg_sp3, ss, preg_all);

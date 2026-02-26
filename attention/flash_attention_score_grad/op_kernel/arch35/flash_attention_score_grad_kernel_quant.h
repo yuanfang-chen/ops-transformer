@@ -586,7 +586,6 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
     if (!runInfos[(taskId + 1) & 1].quantRunInfo.isDkvCompleted) {
         int64_t kv_iib = 3;
         if ASCEND_IS_AIV {
-            // pipe_barrier(PIPE_ALL);
             SetQuantRunInfo<false>(runInfos[(taskId + 1) & 1], 0, 0, kv_iib - 1);
             if (runInfos[(taskId + 1) & 1].quantRunInfo.s2Idx < runInfos[(taskId + 1) & 1].quantRunInfo.innerS2LoopNum) {
                 this->vecBlock.template CopyDqkv2GM<1>(runInfos[(taskId + 1) & 1], this->constInfo, dvWorkSpaceGm, dvTensor, dkWorkSpaceGm, dkTensor);

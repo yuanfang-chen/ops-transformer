@@ -138,7 +138,6 @@ const std::array<const aclTensor *, MAX_FAG_OUTPUT_CNT> FlashAttentionScoreGrad(
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Fag InferShape failed.");
         return {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
     }
-    OP_LOGE(ACLNN_ERR_PARAM_INVALID, "===========pScaleOptional===========1111.");
 
     ret = ADD_TO_LAUNCHER_LIST_AICORE(
         FlashAttentionScoreGrad,

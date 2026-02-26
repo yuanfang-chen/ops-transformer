@@ -2533,7 +2533,6 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
     const aclTensor *dqRopeOut, const aclTensor *dkRopeOut, const aclTensor *dpseOut, const aclTensor *dsinkOut, 
     uint64_t *workspaceSize, aclOpExecutor **executor) 
 {
-    OP_LOGD("Entering aclnnFlashAttentionScoreGradV4GetWorkspaceSize.....");
     L2_DFX_PHASE_1(aclnnFlashAttentionScoreGradV4,
         DFX_IN(query, keyIn, value, dy, pseShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional,
                softmaxMaxOptional, softmaxSumOptional, softmaxInOptional, attentionInOptional, sinkInOptional, queryRopeOptional,
@@ -2542,7 +2541,6 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
                scaleValueOptional, keepProbOptional, preTokensOptional, nextTokensOptional, headNum, inputLayout, 
                softmaxInLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional, seed, offset, outDtypeOptional),
         DFX_OUT(dqOut, dkOut, dvOut, dqRopeOut, dkRopeOut, dpseOut, dsinkOut));
- OP_LOGD("aclnnFlashAttentionScoreGradV4GetWorkspaceSize print log end.....");
     // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
