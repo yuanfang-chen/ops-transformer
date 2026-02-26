@@ -164,8 +164,6 @@ BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_
     if ASCEND_IS_AIV {
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(0);
         AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(1);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(0);
-        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(1);
     }
 }
 
@@ -176,8 +174,6 @@ BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_
     if ASCEND_IS_AIV {
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(0);
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(1);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(0);
-        AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(1);
     }
 }
 
@@ -530,7 +526,6 @@ BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_
     auto x2ScaleUb = logitPingPongID_ == 0 ? x2ScaleUbPing_ : x2ScaleUbPong_;
     auto x1ScaleUb = logitPingPongID_ == 0 ? x1ScaleUbPing_ : x1ScaleUbPong_;
     auto biasUb = logitPingPongID_ == 0 ? biasUbPing_ : biasUbPong_;
-    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(logitPingPongID_);
     CopyInLogit(singleMInVec, logitOffset, logitUb);
     CopyX2ScaleFromGm2Ub(x2ScaleUb, 0);
     if (params_->x1ScaleGmAddr != nullptr) {
@@ -542,6 +537,7 @@ BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_
     AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(logitPingPongID_);
     AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(logitPingPongID_);
     VFDoDequantWithX1X2Scale(x2ScaleUb, x1ScaleUb, biasUb, singleMInVec);
+    logitPingPongID_ = (logitPingPongID_ + 1) & 1;
     uint32_t loopNumY = CeilDiv(singleMInVec, MAX_OUTPUT_M_UBS);
     for (uint32_t i = 0; i < loopNumY; i++) {
         AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(yPingPongID_);
@@ -558,7 +554,7 @@ BlockEpilogueDequantFinalizeRouting<GMM_BLOCK_EPILOGUE_DEQUANT_FINALIZE_ROUTING_
         yPingPongID_ = (yPingPongID_ + 1) & 1;
     }
     AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(logitPingPongID_);
-    logitPingPongID_ = (logitPingPongID_ + 1) & 1;
+    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(logitPingPongID_);
 }
 } // namespace Block
 } // namespace Gemm
