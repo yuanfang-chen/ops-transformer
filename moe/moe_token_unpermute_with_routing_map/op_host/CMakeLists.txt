@@ -9,7 +9,7 @@
 # -----------------------------------------------------------------------------------------------------------
 
 if (BUILD_OPEN_PROJECT)
-    set(moe_token_unpermute_with_routing_map_depends moe/3rd/moe_inplace_index_add_with_sorted CACHE INTERNAL "Dependencies for moe_token_unpermute_with_routing_map")
+    set(moe_token_unpermute_with_routing_map_depends moe/3rd/moe_inplace_index_add_with_sorted moe/3rd/moe_inplace_index_add CACHE INTERNAL "Dependencies for moe_token_unpermute_with_routing_map")
     target_sources(op_host_aclnnExc PRIVATE
         moe_token_unpermute_with_routing_map_def.cpp
     )
@@ -19,6 +19,13 @@ if (BUILD_OPEN_PROJECT)
                 -Wno-deprecated-declarations
                 -Werror
     )
+    if ("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend910_95")
+        add_ops_compile_options(
+        OP_NAME MoeTokenUnpermuteWithRoutingMap
+        COMPUTE_UNIT ascend910_9599
+        OPTIONS -mllvm -cce-aicore-dcci-before-kernel-end=false
+        )
+    endif()
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL)
