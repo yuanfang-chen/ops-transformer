@@ -321,6 +321,7 @@ public:
                     tileRowBroadcastAdd(ubBiasAdd, ubPerTokenMul, ubBiasFp32);
                     AscendC::PipeBarrier<PIPE_V>();
                 } else {
+                    auto &ubBias = ubBiasList[ubListId];
                     AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbBiasMTE2VList[ubListId]);
                     tileRowBroadcastAdd(ubBiasAdd, ubPerTokenMul, ubBias);
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbBiasVMTE2List[ubListId]);
