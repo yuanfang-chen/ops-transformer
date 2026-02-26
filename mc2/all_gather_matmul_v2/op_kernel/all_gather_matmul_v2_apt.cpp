@@ -44,7 +44,8 @@ using namespace AllGatherMatmulImpl;
         templateClass<aType, bType, biasType, cType> op;                                                          \
         op.Init(aGM, bGM, biasGM, cGM, (__gm__ uint8_t*)context, workspaceGM, gatherOut, &tilingData,             \
                                         mc2InitTiling, mc2CcTiling, &pipe);                                       \
-        op.Process();                                                                                             \
+        AscendC::printf(" *********** CHUGUOWEI INVOKE_ALLGATHERMM_FP16_BF16_V2_OP_IMPL no process \n");
+        // op.Process();                                                                                             
     } while (0)
 
 #define INVOKE_ALL_GATHER_QUANT_BATCHMATMUL_OP_IMPL(templateClass, ...)                                               \

@@ -32,7 +32,8 @@ using namespace AscendC;
         using cType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, C_DTYPE>;             \
         templateClass<aType, bType, cType, biasType, __VA_ARGS__> op;                          \
         op.Init(aGM, bGM, biasGM, cGM, gatherOut, workspaceGM, contextGM, &tilingData, mc2InitTiling, mc2CcTiling, &pipe); \
-        op.Process();                                                                          \
+        AscendC::printf("******** CHUGUOWEI INVOKE_ALL_GATHER_MATMUL_OP_IMPL no process! \n");
+        // op.Process();                                                                          
     } while (0)
 
 template <class T> struct BiasType {
