@@ -362,7 +362,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
         }
     } else if constexpr (NO_QUANT_B_TRANS == GMM_NO_TRANS && NO_QUANT_A_TRANS == GMM_TRANS) {    // x transposed
         if ASCEND_IS_AIV {
-            EmptyTensor<DTYPE_Y>(x, weight, groupList, y, tiling);
+            EmptyTensor<DTYPE_Y>(groupList, y, tiling);
         }
         if ASCEND_IS_AIC {
             if constexpr (wFormat == CubeFormat::NZ) {
