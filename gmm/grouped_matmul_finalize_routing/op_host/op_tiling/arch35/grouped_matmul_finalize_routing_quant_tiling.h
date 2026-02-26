@@ -98,18 +98,18 @@ private:
     bool SetQuantModeForGMMFinalizeRouting();
    
     bool CheckOptionalAttr();
-    bool CheckDtype();
-    bool CheckOptional(uint32_t index, const char* paramName, ge::DataType targetDtype);
-    bool IsFp4Dtype(ge::DataType dtype);
-    bool IsFp8Dtype(ge::DataType dtype);
+    bool CheckDtype() const;
+    bool CheckOptional(uint32_t index, const char *paramName, ge::DataType targetDtype) const;
+    bool IsFp4Dtype(ge::DataType dtype) const;
+    bool IsFp8Dtype(ge::DataType dtype) const;
     bool CheckInputsShape(const gert::Shape &xShape, const gert::StorageShape *wStorageShape,
                           const gert::StorageShape *pertokenScaleStorageShape, const gert::Shape &scaleShape,
-                          const gert::Shape &yShape);
+                          const gert::Shape &yShape) const;
     bool CheckOptionalInputsShape();
     bool CheckDim(const gert::Shape &xShape, const gert::Shape &wShape,
                   const gert::StorageShape *pertokenScaleStorageShape, const gert::Shape &scaleShape,
-                  const gert::Shape &yShape);
-    bool CheckFp4Shape();
+                  const gert::Shape &yShape) const;
+    bool CheckFp4Shape() const;
     bool CheckCoreNum() const override;
 
     GMMFinalizeRoutingTilingData tilingData_;
