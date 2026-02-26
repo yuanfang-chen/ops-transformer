@@ -508,7 +508,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpSToL1(uint64_t s1gL0RealSize, uint64
     fixpipeParams.quantPre = QuantMode_t::QF322F16_PRE;
     fixpipeParams.reluEn = 1;
     fixpipeParams.isChannelSplit = 0;
-    fixpipeParams.deqScalar = 0x3a800000;
+    fixpipeParams.deqScalar = 0x3a800000; // 量化参数
     fixpipeParams.dualDstCtl = 0;
     AscendC::Fixpipe<half, float, AscendC::CFG_NZ>(sL1_[(sL1BufIdx_ % DOUBLE_BUF_NUM) * SL1_BUFFER_OFFSET],
                                                 cL0_[(l0cBufIdx_ % DOUBLE_BUF_NUM) * L0C_BUFFER_OFFSET], fixpipeParams);
@@ -530,7 +530,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpResToGm(uint64_t s1L0RealCount, uint
     intriParams.quantPre = QuantMode_t::NoQuant;
     intriParams.nz2ndEn = true;
     intriParams.reluPre = 0;
-    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * 1024 / 64,
+    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * BLOCK_CUBE
                                  2048);
     AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * constInfo_.mBaseSize / constInfo_.gSize * constInfo_.s2BaseSize +
                                 s1GmOffset * intriParams.dstStride + s2GmOffset],
