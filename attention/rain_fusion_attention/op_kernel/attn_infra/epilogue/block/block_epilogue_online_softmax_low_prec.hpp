@@ -325,7 +325,7 @@ public:
     //     AscendC::PipeBarrier<PIPE_V>();
     //     AscendC::printf("tkd after WholeReduceSum\n");
     //     AscendC::DumpTensor(rowsumUb, 2, 128);
-    // }
+    }
 
     __aicore__ inline
     void RowsumSPECTILE512(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
