@@ -76,7 +76,7 @@ namespace RainFusion {
         using ElementUpdate = typename EpilogueRescaleO::ElementUpdate;
         using LayoutUpdate = typename EpilogueRescaleO::LayoutUpdate;
 
-        static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
+        // static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
 
         // Methods
         __aicore__ inline
@@ -236,12 +236,13 @@ namespace RainFusion {
             uint64_t vBOffset = 0;
             uint64_t oBOffset = 0;
             uint64_t blockBOffset = 0;
+            uint64_t lseBOffset = 0;
 
             uint32_t preTotalTaskNum = 0;
             uint32_t preTotalQBlockNum = 0;
             uint32_t curBatch = 0;
             // 根据useUniformQSeqlen标志位决定使用actualSeqLengths数组还是maxQSeqlen
-            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen : 
+            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen : // TODO 这里BNSD和TND的actualSeqLens数组应该是不一样的，为什么能混用？
                               static_cast<uint32_t>(static_cast<int64_t>(gActualQseqlen.GetValue(curBatch)));
             // 根据useUniformKvSeqlen标志位决定使用actualSeqLengthsKv数组还是maxKvSeqlen
             uint32_t kvSeqlen = useUniformKvSeqlen ? maxKvSeqlen : 
@@ -268,10 +269,12 @@ namespace RainFusion {
                         // BNSD: [B, N, S, D], offset = batch * strideB
                         qBOffset = curBatch * strideQOB;
                         oBOffset = curBatch * strideQOB;
+                        lseBOffset = curBatch * qHeads * maxQSeqlen; // 封装成strideLseB？
                     } else {
                         // TND
                         qBOffset += qSeqlen * strideQO;
                         oBOffset += qSeqlen * strideQO;
+                        lseBOffset += qSeqlen * qHeads;
                     }
                     
                     if constexpr (!PAGED_CACHE_FLAG) {
@@ -334,17 +337,22 @@ namespace RainFusion {
                 uint64_t gmOffsetK = 0;
                 uint64_t gmOffsetV = 0;
                 uint64_t gmOffsetO = 0;
+                uint64_t gmOffsetLse = 0;
                 
                 if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
                     // offset = batch * strideB + head * strideN + seq * strideS
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
                     gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                    // LSE format: [B, N, S] - same as O but without D dimension
+                    gmOffsetLse = lseBOffset + qHeadIdx * qHeads + qSeqOffset;
                 } else {
                     // TND: [T, N, D]
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
                     gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                    // LSE format: [T, N] - same as Q/O but without D dimension
+                    gmOffsetLse = lseBOffset + qSeqOffset * qHeads + qHeadIdx;
                 }
                 
                 if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD: [B, N, S, D]
@@ -504,25 +512,30 @@ namespace RainFusion {
 #ifdef __DAV_C220_VEC__
                         // Setup layoutO based on data format
                         LayoutO layoutO;
+                        LayoutLse layoutLse;
                         if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
                             // BNSD format: stride[0] = embed (strideQOS)
                             layoutO = LayoutO(qSeqlen, embed);
+                            layoutLse = LayoutLse(qSeqlen, 1); // 1为了适配尾块DataCopy LSE时目的偏移
                         } else {  // TND: [T, N, D]
                             // TND format: stride[0] = qHeads * embed (strideQO)
                             layoutO = LayoutO(qSeqlen, qHeads * embed);
+                            layoutLse = LayoutLse(qSeqlen, qHeads);
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-
+                        // LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认，BNSD情况qSeqlen是S，TND是前边所有token？这里可能是qHeads，qSeqlen
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
+                            gLse[gmOffsetLse], // todo 这里便宜计算正确吗？
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
+                            layoutLse,
                             actualBlockShapePV,
                             qSBlockSize,
                             qNBlockSize,

@@ -34,6 +34,7 @@ const std::array<const aclTensor *, 2> RainFusionAttention(
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
+    int64_t softmaxLseFlag,
     aclOpExecutor *executor);
 
 } // namespace l0op
