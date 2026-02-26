@@ -291,13 +291,45 @@ public:
                 gOutput, proTokenIdx, proTokenNum, epiTokenNum, integralHeadNum, qSThisSubBlock, embed, oHiddenSize);
             if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
                 if (isLastRowLoop) {
-                    AscendC::PipieBarrier<PIPE_V>();
+                    AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Ln<float, flase>(
                         lse32_ubuf_tensor, // 未定义，看是用哪一块空间
                         glUbTensor,
                         (uint64_t)0,
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::UnaryRepeatParams(1, 1, 8, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::Add<float, false>(
+                        lse32_ubuf_tensor,
+                        lse32_ubuf_tensor,
+                        gmUbTensor,
+                        (uint64_t)0,
+                        CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
+                        AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::Brcb(
+                        tvUbTensor.ReinterpretCast<uint32_t>(),
+                        lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
+                        CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
+                        AscendC::BrcbRepeatParams(1, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
+                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
+                    uint32_t qHeads = layoutLse->layoutLse->shape(1);
+                    if (qNThisSubBlock == 0U) { // 不切头
+                        AscendC::DataCopyPad(
+                            gLse, tvUbTensor,
+                            AscendC:DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
+                    } else {
+                        for(uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
+                            AscendC::DataCopyPad(
+                                gLse[qNIdx],
+                                tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
+                                AscendC::DataCopyExtParams(
+                                    qSBlockSize, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
+                        }
+                    }
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
                 }
             }
         } else if (needRowLoop) {
