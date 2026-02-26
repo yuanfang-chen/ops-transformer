@@ -272,7 +272,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* mc2Context)
+aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
 {
     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
     OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
@@ -291,7 +291,7 @@ aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* mc2Context)
 }
 
 
-aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* mc2Context, int64_t& hcclBuffSize,
+aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* &mc2Context, int64_t& hcclBuffSize,
                          std::string& hcclTopoType) 
 {
     OP_LOGD("PRINT inter to the GetMc2Context");
