@@ -280,7 +280,7 @@ aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
     int64_t shap[1] = {mc2ContextLength / sizeof(uint32_t)}; // 默认1维
     int64_t strides[1] = {1};
     mc2Context = aclCreateTensor(
-        shap, 1, aclDataType::ACL_UINT32, strides, 0, 
+        shap, 1, aclDataType::ACL_INT8, strides, 0, 
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
     if(mc2Context == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "PRINT Create Mc2Context Tensor failed.");
