@@ -13,6 +13,7 @@
  * \brief
  */
 #include <iostream>
+#include "util/math_util.h"
 #include "mc2_log.h"
 #include "all_gather_fit_balance_tiling.h"
 
@@ -79,6 +80,14 @@ void AllGatherMMFitBalanceTiling::SetShortTileLen()
 void AllGatherMMFitBalanceTiling::AdjustLongShortTileLen()
 {
     tilingM_.FitTileLengthDiscrete(false, true, true);
+
+    printf("*********** CHUGUOWEI adjust to 16 part.");
+    
+    tilingM_.cutRes.longTileLen = Ops::Base::CeilDiv(mmInfo_.mValue, 16ULL);
+    tilingM_.cutRes.numLongTile = 15U;
+    tilingM_.cutRes.shortTileLen = mmInfo_.mValue - tilingM_.cutRes.longTileLen * 15;
+    tilingM_.cutRes.numShortTile = 1U;
+
     // When the long and short tiles are equal, the long and short pieces become one.
     if (tilingM_.cutRes.shortTileLen == tilingM_.cutRes.longTileLen) {
         tilingM_.cutRes.shortTileLen = 0U;
