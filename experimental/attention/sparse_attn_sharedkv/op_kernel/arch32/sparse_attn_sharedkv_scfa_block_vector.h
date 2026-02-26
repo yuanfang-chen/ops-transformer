@@ -374,6 +374,7 @@ __aicore__ inline void SASVectorBlock<SAST>::ElewiseCompute(const RunInfo &info,
     Muls(mmResUb, mmResUb, static_cast<T>(tilingData->baseParams.softmaxScale), dealRowCount * columnCount);
 }
 
+template <typename SAST>
 __aicore__ inline void SASVectorBlock<SAST>::ProcessLSE(const RunInfo &info, const MSplitInfo &mSplitInfo)
 {
     if (mSplitInfo.vecDealM == 0) {
@@ -539,16 +540,16 @@ __aicore__ inline int64_t SASVectorBlock<SAST>::GetKeyGmOffset(int64_t realS2Idx
         return -1;
     }
     int64_t realKeyGmOffset = 0;
-    if constexpr (PAGE_ATTENTION) {
+    if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
         int64_t blkTableIdx = realS2Idx / constInfo.paCmpBlockSize;
         int64_t blkTableOffset = realS2Idx % constInfo.paCmpBlockSize;
         realKeyGmOffset = cmpBlockTableGm_.GetValue(runInfo.bIdx * constInfo.cmpMaxBlockNumPerBatch + blkTableIdx) *
                               static_cast<int64_t>(constInfo.paCmpBlockSize) *
                               static_cast<int64_t>(constInfo.kvHeadNum) +
                           blkTableOffset;
-    } else { // 只支持PA
-        // realKeyGmOffset = (runInfo.tensorBOffset + realS2Idx * constInfo.kvHeadNum * constInfo.headDim) /
-        //                   constInfo.headDim;
+
+    } else if constexpr (KV_LAYOUT_T == SAS_LAYOUT::BSND) {
+        realKeyGmOffset = runInfo.bIdx * constInfo.kvSeqSize / constInfo.cmpRatio * constInfo.kvHeadNum + realS2Idx * constInfo.kvHeadNum;
     }
     return realKeyGmOffset;
 }
@@ -588,18 +589,18 @@ __aicore__ inline void SASVectorBlock<SAST>::CopyInKv(int64_t &mte2Size, int64_t
     }
 
     int64_t keySrcStride = 0;
-    if constexpr (PAGE_ATTENTION) {
-        int64_t blkTableSrcStride = ((keyOffset1 > keyOffset2 ? (keyOffset1 - keyOffset2) : (keyOffset2 - keyOffset1)) -
-                                     constInfo.sparseBlockSize);
+    if constexpr (KV_LAYOUT_T == SAS_LAYOUT::PA_ND) {
+        int64_t blkTableSrcStride =
+        ((keyOffset1 > keyOffset2 ? (keyOffset1 - keyOffset2) :
+        (keyOffset2 - keyOffset1)) - constInfo.sparseBlockSize);
         keySrcStride = blkTableSrcStride * constInfo.headDim * sizeof(KV_T);
-    } else {
-        keySrcStride = ((keyOffset1 > keyOffset2 ? (keyOffset1 - keyOffset2) : (keyOffset2 - keyOffset1)) -
-                        constInfo.sparseBlockSize) *
-                       constInfo.headDim * sizeof(KV_T);
+    } else if constexpr (KV_LAYOUT_T == SAS_LAYOUT::BSND) {
+        keySrcStride = ((keyOffset1 > keyOffset2 ? (keyOffset1 - keyOffset2) :
+                        (keyOffset2 - keyOffset1)) - constInfo.sparseBlockSize) * constInfo.headDim * sizeof(KV_T);
     }
-    if (unlikely(keySrcStride >= INT32_MAX || keySrcStride < 0 || (!PAGE_ATTENTION) ||
-                 realS2Idx1 + constInfo.sparseBlockSize >= s2IdLimit ||
-                 realS2Idx2 + constInfo.sparseBlockSize >= s2IdLimit)) {
+    if (unlikely(keySrcStride >= INT32_MAX || keySrcStride < 0 ||
+        realS2Idx1 + constInfo.sparseBlockSize >= s2IdLimit ||
+        realS2Idx2 + constInfo.sparseBlockSize >= s2IdLimit)) {
         // stride溢出、stride为负数、s2超长等异常场景，还原成2条搬运指令
         // 因为需要拷贝两块
         CopyInSingleKv(mte2Size, mte3Size, mergeMte3Idx, realS2Idx1, keyOffset1, s2IdLimit, runInfo);
@@ -619,7 +620,6 @@ __aicore__ inline void SASVectorBlock<SAST>::CopyInKv(int64_t &mte2Size, int64_t
         DataCopyPad(kvMergUb_[mergeMte3Idx % 2 * INPUT2_BUFFER_OFFSET / sizeof(KV_T) +
                               (mte2Size - mte3Size) * constInfo.headDim],
                     cmpKvGm_[startGmOffset * constInfo.headDim], intriParams, padParams);
-
         mte2Size += ((keyOffset1 > -1) + (keyOffset2 > -1)) * constInfo.sparseBlockSize;
     }
 }

@@ -320,9 +320,10 @@ __aicore__ inline int32_t SparseAttnSharedkvScfa<SAST>::GetActualSeqLenKV(uint32
         tempLoopInfo.actualSeqKVPrefixSum = static_cast<uint64_t>(bIdx * constInfo.kvSeqSize);
         if (constInfo.actualLenDimsKV == 0) {
             return static_cast<int32_t>(constInfo.kvSeqSize);
-        } else {
-            return actualSeqLengthsKVGm.GetValue(bIdx);
         }
+        return actualSeqLengthsKVGm.GetValue(bIdx);
+    } else if constexpr(KV_LAYOUT_T == SAS_LAYOUT::BSND) {
+        return static_cast<int32_t>(constInfo.kvSeqSize);
     }
 }
 
@@ -609,7 +610,6 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Process()
     if (hasLoad == 0) {
         return;
     }
-
     if ASCEND_IS_AIV {
         vectorBlock.AllocEventID();
         vectorBlock.InitSoftmaxDefaultBuffer();
