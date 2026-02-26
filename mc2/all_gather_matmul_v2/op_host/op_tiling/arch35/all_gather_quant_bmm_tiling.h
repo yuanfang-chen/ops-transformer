@@ -72,8 +72,9 @@ protected:
     ge::graphStatus CheckScaleInvShape();
     ge::graphStatus CheckInputValid();
     ge::graphStatus CheckX1Input();
+    ge::graphStatus CheckHCCLSize();
     ge::graphStatus CheckInput() override;
-
+    void AdjustHCCLLimit();
 private:
     Mc2Tiling::AllGatherMatmulTilingDataFp8 allGatherMatmulTilingDataFp8Self_;
     Mc2Tiling::AllGatherMatmulTilingDataFp8 *allGatherMatmulTilingDataFp8_;

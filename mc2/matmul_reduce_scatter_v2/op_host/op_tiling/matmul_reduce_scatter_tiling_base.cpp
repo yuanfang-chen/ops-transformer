@@ -95,6 +95,8 @@ void MatmulReduceScatterTilingBase::DoFormulaticTiling(Mc2Tiling::RCSTiling &rcs
 }
 
 
+
+
 ge::graphStatus MatmulReduceScatterTilingBase::DoSplitMTiling(Mc2Tiling::RCSTiling &rcsCfg)
 {
     args_.mValue = args_.orgMValue / args_.rankDim; // 必须能够整数切分, 并且不能切K
