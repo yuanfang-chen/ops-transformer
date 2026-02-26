@@ -784,7 +784,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV3(
         - 支持page attention，kv cache排布格式支持BnBsH（blocknum, blocksize, H），H不大于65535，blockSize仅支持128；
       - TND场景，当head配比为MHA时，有如下约束：
         - 当数据类型为FLOAT16、BFLOAT16时，支持sparse=0且不传mask，或sparse=3，4且传入优化后的attentionMask；
-        - 当数据类型为FLOAT16时，支持innerPrecise=0和1；
+        - 当数据类型为FLOAT16时，支持innerPrecise=0和innerPrecise=1；
         - 当数据类型为BFLOAT16时，仅支持innerPrecise=0；
         - 支持page attention，kv cache排布格式支持BnBsH（blocknum, blocksize, H），H不大于65535，blockSize仅支持128；
       - NTD_TND场景，不支持page attention；
