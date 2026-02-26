@@ -49,16 +49,6 @@ bool IsUnknownRank(const gert::Shape &shape)
     return shape.GetDimNum() == 1 && shape.GetDim(0) == UNKNOWN_RANK_DIM_VALUE;
 }
 
-void SetUnknownShape(int64_t rank, gert::Shape &shape)
-{
-    OP_CHECK_IF(rank < 0, OP_LOGE("SetUnknownShape", "the rank value is invalid, return unsuccessful"), return);
-    const size_t dimNum = static_cast<size_t>(rank);
-    shape.SetDimNum(dimNum);
-    for (size_t i = 0; i < dimNum; i++) {
-        shape.AppendDim(-1LL);
-    }
-}
-
 bool IsUnknownShape(const gert::Shape &shape)
 {
     size_t dimNum = shape.GetDimNum();
@@ -98,12 +88,10 @@ bool IsPlatform950(const char *nodeName)
 
 static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
 {
-    std::cout << "wsunmoon line101" << std::endl;
     if (!IsPlatform950(context->GetNodeName())) {
         OP_LOGD(context, "The current Platform is not support to do MhcPostInfershape.");
         return ge::GRAPH_FAILED;
     }
-    std::cout << "wsunmoon line106" << std::endl;
 
     OP_LOGD(context, "Begin to do MhcPostInfershape.");
     const gert::Shape* xShape = context->GetInputShape(INDEX_X);
@@ -124,7 +112,10 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     }
     size_t xDims = xShape->GetDimNum();
     if (IsUnknownShape(*xShape)) {
-        SetUnknownShape(xDims, *yShape);
+        yShape->SetDimNum(xDims);
+        for (size_t i = 0; i < xDims; ++i) {
+            yShape->SetDim(i, UNKNOWN_DIM_VALUE);
+        }
         OP_LOGD(context->GetNodeName(), "MhcPost infershape handles unknown shape.");
         return ge::GRAPH_SUCCESS;
     }
