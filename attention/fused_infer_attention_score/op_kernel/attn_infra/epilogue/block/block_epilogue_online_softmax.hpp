@@ -123,6 +123,7 @@ public:
         lsUbTensor = resource.ubBuf.template GetBufferByByte<float>(LS_UB_TENSOR_OFFSET);
         lpUbTensor = resource.ubBuf.template GetBufferByByte<ElementOutput>(LP_UB_TENSOR_OFFSET);
         maskUbTensor = resource.ubBuf.template GetBufferByByte<ElementMask>(MASK_UB_TENSOR_OFFSET);
+        maskUbTwoTensor = resource.ubBuf.template GetBufferByByte<uint8_t>(MASK_UB_TENSOR_OFFSET);
         maskUbTensor16 = resource.ubBuf.template GetBufferByByte<half>(MASK16_UB_TENSOR_OFFSET);
         maskUbTensor32 = resource.ubBuf.template GetBufferByByte<float>(MASK32_UB_TENSOR_OFFSET);
         lmUbTensor = resource.ubBuf.template GetBufferByByte<float>(LM_UB_TENSOR_OFFSET);
@@ -465,18 +466,18 @@ public:
             columnNumRound
         );
         AscendC::CompareScalar(
-            maskUbTensor,
+            maskUbTwoTensor,
             maskUbTensor16,
             static_cast<half>(1.0),
             AscendC::CMPMODE::NE,
             REPEAT_SIZE_IN_BYTE / sizeof(half),
-            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE,
+            (rowNumCurLoop * columnNumRound + HALF_VECTOR_SIZE - 1) / HALF_VECTOR_SIZE, 
             AscendC::UnaryRepeatParams(1, 1, 8, 8)
         );
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::Duplicate<half>(tempMaskTensor, static_cast<half>(1), rowNumCurLoop * columnNumRound);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::Select(maskUbTensor16, maskUbTensor, tempMaskTensor, static_cast<half>(0), AscendC::SELMODE::VSEL_TENSOR_SCALAR_MODE, rowNumCurLoop * columnNumRound);
+        AscendC::Select(maskUbTensor16, maskUbTwoTensor, tempMaskTensor, static_cast<half>(0), AscendC::SELMODE::VSEL_TENSOR_SCALAR_MODE, rowNumCurLoop * columnNumRound);
         AscendC::PipeBarrier<PIPE_V>();
         UpCastMask<float, half>(maskUbTensor32, maskUbTensor16, rowNumCurLoop, columnNumRound);
     }
@@ -550,7 +551,7 @@ public:
     }
 
     template<typename ElementMaskDst, typename ElementMaskSrc>
-    __aicore__ inline
+    __aicore__ inline 
     void UpCastMask(
         const AscendC::LocalTensor<ElementMaskDst> &maskUbTensorDst,
         const AscendC::LocalTensor<ElementMaskSrc> &maskUbTensorSrc,
@@ -873,7 +874,7 @@ public:
         uint32_t rowOffset, uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
         uint32_t isFirstRowLoop, uint32_t isLastRowLoop,
         uint32_t columnNumRound, uint32_t pingpongFlag,
-        uint32_t curStackTileMod, SinkLoopParam& sinkLoopParam, bool isLastStackTile, bool isSplitKV)
+        uint32_t curStackTileMod, SinkLoopParam& sinkLoopParam, bool isLastStackTile, bool isSplitKV, bool startsWithMaskThenNomaskFlag)
     {
         uint32_t rowNumCurLoop = layoutOutput.shape(0);
         uint32_t rowNumCurLoopRound = NpuArch::Detail::Alignment::RoundUp(rowNumCurLoop, FLOAT_BLOCK_SIZE);
@@ -919,7 +920,9 @@ public:
         if constexpr (!doTriUMask) {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
             if (isLastNoMaskStackTile && isLastRowLoop) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+                if(!startsWithMaskThenNomaskFlag) {
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+                }
                 AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
             }
         } else {
@@ -1053,7 +1056,8 @@ public:
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementInput> gInput, AscendC::GlobalTensor<ElementSink> gSink,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
         uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile, uint32_t qSBlockSize, uint32_t qNBlockSize,
-        uint32_t curStackTileMod, bool isLastStackTile, bool isSplitKV = false)
+        uint32_t curStackTileMod, bool isLastStackTile, bool isSplitKV = false, bool startsWithMaskTile = false,
+        bool startsWithMaskThenNomaskFlag = false)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
@@ -1088,6 +1092,9 @@ public:
                 auto gInputCurLoop = gInput[offsetInput];
 
                 AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
+                if (startsWithMaskTile && rowLoopIdx == 0) { 
+                     AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0); 
+                }
                 CopySGmToUb(
                     gInputCurLoop, (pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound, columnNumPad);
                 AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
@@ -1123,7 +1130,8 @@ public:
                     curStackTileMod,
                     curSinkLoop,
                     isLastStackTile,
-                    isSplitKV);
+                    isSplitKV,
+                    startsWithMaskThenNomaskFlag);
             }
         }
     }
@@ -1287,7 +1295,8 @@ public:
                     curStackTileMod,
                     curSinkLoop,
                     isLastStackTile,
-                    isSplitKV);
+                    isSplitKV,
+                    false);
             }
         }
     }
@@ -1534,6 +1543,7 @@ public:
                     curStackTileMod,
                     curSinkLoop,
                     isLastStackTile,
+                    false,
                     false);
             }
         }
@@ -1544,6 +1554,7 @@ private:
     AscendC::LocalTensor<float> lsUbTensor;
     AscendC::LocalTensor<ElementOutput> lpUbTensor;
     AscendC::LocalTensor<ElementMask> maskUbTensor;
+    AscendC::LocalTensor<uint8_t> maskUbTwoTensor;
     AscendC::LocalTensor<half> maskUbTensor16;
     AscendC::LocalTensor<float> maskUbTensor32;
     AscendC::LocalTensor<float> lmUbTensor;
