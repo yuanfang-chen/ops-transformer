@@ -658,11 +658,11 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckNonPerGroupQuantShape() co
 that of %s[%ld].",
                        scaleName_.c_str(), scaleNDim, weightName_.c_str(), weightNDim);
             DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
-            CHECK_COND((yDtype != DataType::DT_INT8 && yDtype != DataType::DT_INT32) || scaleNDim == weightNDim,
-                       ACLNN_ERR_PARAM_INVALID,
-                       "When the output dtype is %s, the N dim of %s[%ld] should be equal to that of %s[%ld].",
-                       op::ToString(yDtype).GetString(), scaleName_.c_str(), scaleNDim, weightName_.c_str(),
-                       weightNDim);
+            if (yDtype == DataType::DT_INT8) {
+                CHECK_COND(scaleNDim == weightNDim, ACLNN_ERR_PARAM_INVALID,
+                           "When the output dtype is int8, the N dim of %s[%ld] should be equal to that of %s[%ld].",
+                           scaleName_.c_str(), scaleNDim, weightName_.c_str(), weightNDim);
+            }
         }
 
         if (gmmParams_.perTokenScaleOptional != nullptr) {
@@ -702,7 +702,7 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckInt8QuantDtype() const
                        op::ToString(biasDtype).GetString());
         }
     }
-    if (yDtype == DataType::DT_INT32) {
+    if (yDtype == DataType::DT_INT32 && gmmParams_.scaleOptional == nullptr) {
         return ACLNN_SUCCESS;
     }
     DataType scaleDtype = GetInputTensor(gmmParams_.scaleOptional)->GetDataType();
@@ -719,6 +719,11 @@ dtype is %s", op::ToString(scaleDtype).GetString());
     } else if (yDtype == DataType::DT_INT8) {
         CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_INT64, ACLNN_ERR_PARAM_INVALID,
                    "When y dtype is int8, the scale dtype should be uint64 or int64, but actual dtype is %s",
+                   op::ToString(scaleDtype).GetString());
+    } else if (yDtype == DataType::DT_INT32) {
+        CHECK_COND(scaleDtype == DataType::DT_UINT64 || scaleDtype == DataType::DT_INT64, ACLNN_ERR_PARAM_INVALID,
+                   "When y dtype is int32 and scaleOptional is not nullptr, the scale dtype should be uint64 or int64, \
+but actual dtype is %s",
                    op::ToString(scaleDtype).GetString());
     }
     if (gmmParams_.perTokenScaleOptional != nullptr) {
@@ -980,8 +985,10 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckGroupedMatmulDAV3510() con
     DataType weightDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
     DataType yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     if (IsQuant(xDtype, weightDtype)) {
-        CHECK_COND(yDtype == DataType::DT_INT32 || gmmParams_.scaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
-                   "In quant case, scaleOptional should not be nullptr when the output dtype is not int32.");
+        if (yDtype != DataType::DT_INT32) {
+            CHECK_COND(gmmParams_.scaleOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
+                       "In quant case, scaleOptional should not be nullptr when the output dtype is not int32.");
+        }
         CHECK_COND(gmmParams_.groupTensorOptional != nullptr, ACLNN_ERR_PARAM_INVALID,
                    "In quant case, groupListOptional should not be nullptr.");
         CHECK_COND(gmmParams_.offsetOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
