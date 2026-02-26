@@ -1323,7 +1323,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1Nz(
         // 搬VEC1
         fixpipeParamsVec1.subBlockId = 1;
         Fixpipe<half, T, FA_CFG_NZ_UB>(outputBuf.template GetTensor<half>()[256 * (s1BaseSize >> 1) * n],
-                                        mm1ResL0C.GetTensor<T>()[(s1BaseSize >> 1) * 16], fixpipeParamsVec1); // 将matmul结果从L0C搬运到UB
+                                        mm1ResL0C.GetTensor<T>()[runInfo.halfS1RealSize * 16], fixpipeParamsVec1); // 将matmul结果从L0C搬运到UB
  
         mm1ResL0C.Set<HardEvent::FIX_M>(); // 释放L0C
     }
@@ -1363,7 +1363,7 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2Nz(mm2ResPos &outp
  
     Buffer<BufferType::L0C> mm2ResL0C = mmL0CBuffers.Get();
     mm2ResL0C.Wait<HardEvent::FIX_M>(); // 占用
-    MMParam param = {(uint32_t)s1BaseSize,  // singleM 128
+    MMParam param = {(uint32_t)runInfo.s1RealSize,  // singleM 128
                     (uint32_t)constInfo.dSizeV, // singleN 128
                     (uint32_t)runInfo.s2RealSize,  // singleK
                     false,    // isLeftTranspose
@@ -1403,8 +1403,8 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm2Nz(mm2ResPos &outp
         fixpipeParams.nSize = constInfo.dSizeV; // L0C上的bmm1结果矩阵N方向的size大小
     }
  
-    fixpipeParams.mSize = s1BaseSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小; 同mmadParams.m
-    fixpipeParams.srcStride = ((s1BaseSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
+    fixpipeParams.mSize = runInfo.s1RealSize; // 有效数据不足16行，只需要输出部分行即可; L0C上的bmm1结果矩阵M方向的size大小; 同mmadParams.m
+    fixpipeParams.srcStride = ((runInfo.s1RealSize + 15) / 16) * 16; // L0C上bmm1结果相邻连续数据片段间隔（前面一个数据块的头与后面数据块的头的间隔）
     if constexpr (bmm2Write2Ub) {
         fixpipeParams.dstStride = ((uint32_t)dVTemplateType + 15) >> 4 << 4;
     } else {
