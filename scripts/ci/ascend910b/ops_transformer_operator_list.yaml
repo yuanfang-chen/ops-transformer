@@ -19,9 +19,7 @@ operator_group_1:
   - moe_token_permute_with_ep
   - moe_token_permute_with_ep_grad
   - all_gather_matmul
-  - all_gather_matmul_v2
-  - inplace_matmul_all_reduce_add_rms_norm
-  - matmul_reduce_scatter_v2
+  
   - grouped_mat_mul_all_reduce
   - grouped_matmul
   - grouped_matmul_swiglu_quant
@@ -87,17 +85,19 @@ operator_group_8:
   - swin_transformer_ln_qkv
   - ffn
   - matmul_reduce_scatter
+  
   - matmul_all_reduce
-  - matmul_all_reduce_add_rms_norm
-  - matmul_allto_all
+  
+  - inplace_matmul_all_reduce_add_rms_norm
+  
   - allto_all_matmul
   - moe_distribute_combine
+   
+  - moe_distribute_dispatch_v2 #
   
-  - moe_distribute_dispatch
   
 operator_group_9:
-  - moe_distribute_combine_v2 # 从group8挪到group 9 
-  - moe_distribute_dispatch_v2 #
+  
   - dequant_rope_quant_kvcache
   - interleave_rope
   - rope_with_sin_cos_cache
@@ -118,3 +118,9 @@ operator_group_9:
   - mla_preprocess
 operator_group_10:
   - fused_infer_attention_score,3-2
+  - all_gather_matmul_v2 # from 1->10
+  - matmul_allto_all # from 8 -> 10
+  - matmul_all_reduce_add_rms_norm
+  - matmul_reduce_scatter_v2
+  - moe_distribute_combine_v2 # 从group8挪到group 10
+  - moe_distribute_dispatch
