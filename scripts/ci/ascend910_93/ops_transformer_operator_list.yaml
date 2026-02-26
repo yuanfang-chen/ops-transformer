@@ -96,11 +96,16 @@ operator_group_9:
   - moe_token_unpermute_with_ep_grad
   - moe_token_unpermute_with_routing_map
   - moe_token_unpermute_with_routing_map_grad
-operator_group_10:
+  - all_gather_matmul_v2
   - allto_allv_grouped_mat_mul
+  - matmul_reduce_scatter_v2
+  - moe_distribute_combine_v2
+  - moe_distribute_dispatch
+operator_group_10:
+  
   - allto_all_all_gather_batch_mat_mul
   - all_gather_matmul
-  - all_gather_matmul_v2
+  
   - attention_to_ffn
   - batch_mat_mul_reduce_scatter_allto_all
   - distribute_barrier
@@ -108,10 +113,11 @@ operator_group_10:
   - grouped_mat_mul_allto_allv
   - grouped_mat_mul_all_reduce
   - matmul_reduce_scatter
-  - matmul_reduce_scatter_v2
+  
   - moe_distribute_combine
   - moe_distribute_combine_add_rms_norm
-  - moe_distribute_combine_v2
-  - moe_distribute_dispatch
+  
+  
   - moe_distribute_dispatch_v2
   - attention_worker_combine
+  
