@@ -622,6 +622,9 @@ ge::graphStatus IFATilingV2::CheckInputFormatAndLimits() const {
   OP_CHECK_IF((numKvHeads_ > NUM256),
              OP_LOGE(ifaContext_->opName, "NumHeads of key and value:%u cannot be greater than 256.", numKvHeads_),
              return ge::GRAPH_FAILED);
+  OP_CHECK_IF(antiQuantFlag_ && (headDimK_ != headDimV_),
+             OP_LOGE(ifaContext_->opName, "HeadDims of key and value should be equal, but now headDims of key is %u, headDims of value is %u", headDimK_, headDimV_),
+             return ge::GRAPH_FAILED);
   return ge::GRAPH_SUCCESS;
 }
 
@@ -2626,7 +2629,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   }
   kvAntiParamSplitFlag_ = false;
   OP_CHECK_IF(antiQuantFlag_ && (queryRopeInputShape != nullptr || keyRopeInputShape != nullptr),
-    OP_LOGE(ifaContext_->opName, "The antiquant scenario(QDtype != KDtype and QDtype != VDtype) does not support RoPE, but q_rope_shape or k_rope_shape exists."),
+    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario(Query Dtype != Key/Value Dtype)."),
       return ge::GRAPH_FAILED);
   OP_CHECK_IF((keyAntiquantScaleTensor != nullptr && valueAntiquantScaleTensor == nullptr),
     OP_LOGE(ifaContext_->opName, "ValueAntiquantScaleTensor is null, but keyAntiquantScaleTensor exists."),
