@@ -90,10 +90,7 @@ __aicore__ inline int64_t CalculateActualS1Size(RunParamStr<isInfer>& runParam,
             actualMSize = constInfo.gS1;
             runParam.actualSeqLengthOfMlaPerBatch = constInfo.s1Size;
         }
-        // if (constInfo.isGqa) {
-        //     actualS1Size = constInfo.gS1;
-        // }
-        return actualS1Size;
+        return actualMSize;
     }
     
     int64_t actualMSize = 0;
@@ -117,17 +114,10 @@ __aicore__ inline int64_t CalculateActualS1Size(RunParamStr<isInfer>& runParam,
                          layout == LayOutTypeEnum::LAYOUT_NTD) {
         actualMSize = (bIdx == 0) ? actualSeqQlenAddr[0] :
             actualSeqQlenAddr[bIdx] - actualSeqQlenAddr[bIdx - 1];
-        // if (constInfo.isGqa) {
-        //     actualS1Size *= constInfo.gSize;
-        // }
     } else {
         actualMSize = (constInfo.actualSeqLenSize == actualSeqMin) ? 
             actualSeqQlenAddr[0] : actualSeqQlenAddr[bIdx];
-        // if (constInfo.isGqa) {
-        //     actualS1Size *= constInfo.gSize;
-        // }
     }
-    
     return actualMSize;
 }
 
