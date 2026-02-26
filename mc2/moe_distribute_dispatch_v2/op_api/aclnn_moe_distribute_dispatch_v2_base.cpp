@@ -175,7 +175,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                     OP_LOGD("PRINT <INDEX IS !=");
 
                 }
-                OP_LOGD("PRINT PRINT <INDEX inks->linkAttr.linkProtocol%d",links->linkAttr.linkProtocol);
+                OP_LOGD("PRINT PRINT <INDEX inks->linkAttr.linkProtocol: %d",links->linkAttr.linkProtocol);
             }
             else{
                 channelDesc[index-1].remoteRank = index;
@@ -191,7 +191,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
                     OP_LOGD("PRINT >INDEX IS !=");
 
                 }
-                OP_LOGD("PRINT PRINT >INDEX inks->linkAttr.linkProtocol%d",links->linkAttr.linkProtocol);
+                OP_LOGD("PRINT PRINT >INDEX inks->linkAttr.linkProtocol: %d",links->linkAttr.linkProtocol);
             }
 
         }
@@ -223,6 +223,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcclEngineCtxCreate success");
+    OP_LOGD("PRINT ctxSize: %d", ctxSize);
     //获取对应的资源
     ret = HcclGetRankId(hcclHandle, &mc2_context->rankId);
     if(ret != HCCL_SUCCESS) {
@@ -282,7 +283,6 @@ void CreatMc2ContextTensor(void * ctx, const aclTensor* mc2Context)
         aclFormat::ACL_FORMAT_ND, shap, 1, ctx);
     OP_LOGD("PRINT end to the CreatMc2ContextTensor");
 }
-
 
 
 aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, const aclTensor* mc2Context, int64_t& hcclBuffSize,
