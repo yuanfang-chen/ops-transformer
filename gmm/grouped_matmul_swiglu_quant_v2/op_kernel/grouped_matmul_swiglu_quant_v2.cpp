@@ -71,7 +71,7 @@ extern "C" __global__ __aicore__ void grouped_matmul_swiglu_quant_v2(GM_ADDR x, 
             mm.Init(&mmTilingData_);
         }
         GMMSwigluQuantPipelineSchedule<matmulType> op(mm, &gmmSwigluQuantV2BaseParams_, &gmmSwiglu_, &tPipe);
-        op.Init(x, weight, weightScale, xScale, weightAssistanceMatrix, groupList, y, yScale, userWorkspace);
+        op.Init(x, weight, weightScale, xScale, weightAssistanceMatrix, groupList, smoothScale, y, yScale, userWorkspace);
         op.Process();
     }
 #endif
