@@ -28,8 +28,6 @@ struct MhcPostTilingData {
     uint32_t nTilesD;
     uint32_t alignedD;
     uint32_t lastTileD;
-    uint32_t alignedN;      // n aligned to 8 for float32 vector ops
-    uint32_t alignedNN;     // n*n aligned to 8 for float32 vector ops
 };
 
 #endif

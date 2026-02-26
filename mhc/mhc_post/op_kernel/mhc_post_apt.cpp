@@ -21,7 +21,7 @@
 using namespace AscendC;
 using namespace MhcPost;
 
-template <uint16_t isNAligned, uint16_t isNNAligned, uint16_t isDAligned>
+template <uint16_t isDAligned>
 __global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_ADDR hPost, GM_ADDR output,
                                     GM_ADDR workspace, GM_ADDR tiling)
 {
@@ -30,23 +30,13 @@ __global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_AD
     }
 
     // Template instantiation based on alignment flags from tiling data
-    // IS_N_ALIGNED: n % 8 == 0 (n=4,8: true; n=6: false)
-    // IS_NN_ALIGNED: (n*n) % 8 == 0 (16,64: true; 36: false)
     // IS_D_ALIGNED: D % 16 == 0 && nTilesD == 1
-    //
-    // Note: IS_N_ALIGNED and IS_NN_ALIGNED are always同步变化:
-    // - n=4: isNAligned=0, isNNAligned=1
-    // - n=6: isNAligned=0, isNNAligned=0
-    // - n=8: isNAligned=1, isNNAligned=1
-    //
-    // Actually for n=4: 4%8!=0 but 16%8==0, so isNAligned=0, isNNAligned=1
-    // So we need to handle all 8 combinations properly
 
     REGISTER_TILING_DEFAULT(MhcPostTilingData);
     GET_TILING_DATA_WITH_STRUCT(MhcPostTilingData, tilingData, tiling);
     TPipe tPipe;
 
-    MhcPostKernel<DTYPE_X, isNAligned, isNNAligned, isDAligned> op;
+    MhcPostKernel<DTYPE_X, isDAligned> op;
     op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
     op.Process();
 
