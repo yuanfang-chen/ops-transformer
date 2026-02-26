@@ -218,14 +218,10 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeAttrs()
         outDtype = outDtype + 1; // 外部合法是0或1, 内部对应使用1和2,如果没有量化参数, 后面会刷成0, 1表示fp16, 2表示bf16
     }
     idx++; // 跳过softmax_out_layout属性
-    if (attrs->GetAttrNum() > idx) {
-        auto pScalePtr = attrs->GetAttrPointer<float>(idx++);
-        pScale = *pScalePtr;
-    }    
     OP_LOGD(context_, "attrs: scale_value[%f] keep_prob[%f] pre_tockens[%ld] next_tockens[%ld] head_num[%ld] input_layout[%s]"
-                      "inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld] pScale[%f].",
+                      "inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld].",
               scaleValue, keepProb, preTokens, nextTokens, n1Size, inputLayout, static_cast<int>(implMode), sparseMode, pseType,
-              seed, offset, outDtype, pScale);
+              seed, offset, outDtype);
     return true;
 }
 
@@ -541,7 +537,6 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::GetShapeAttrsInfo()
     inputParamsRegbase_->set_keepProbUint8(keepProbUint8);
     inputParamsRegbase_->set_seed(seed);
     inputParamsRegbase_->set_offset(offset);
-    inputParamsRegbase_->set_pScale(pScale);
 
     OP_LOGD(context_, "input ParamsRegbase: bn2gs1s2d[%ld, %ld, %ld, %ld, %ld, %ld], keepProb[%f], scaleValue[%f],"
                         "pseType:%ld.", bSize, n2Size, gSize, s1Size, s2Size, dSize, keepProb, scaleValue, pseType);

@@ -714,8 +714,8 @@ static aclnnStatus Contiguous(const aclTensor *&query, const aclTensor *&key, co
 }
 
 static aclnnStatus ContiguousQuant(const aclTensor *&query, const aclTensor *&key, const aclTensor *&value,
-                                   const aclTensor *&dScaleQ, const aclTensor *&dScaleK,
-                                   const aclTensor *&dScaleV, aclOpExecutor *executor)
+                                   const aclTensor *&dScaleQ, const aclTensor *&dScaleK, const aclTensor *&dScaleV,
+                                   const aclTensor *&pScale, aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
     OP_CHECK(query != nullptr,
@@ -740,6 +740,10 @@ static aclnnStatus ContiguousQuant(const aclTensor *&query, const aclTensor *&ke
     dScaleV = l0op::Contiguous(dScaleV, executor);
     OP_CHECK(dScaleV != nullptr,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The dScaleV cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    pScale = l0op::Contiguous(pScale, executor);
+    OP_CHECK(pScale != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The pScale cannot be nullptr"),
         return ACLNN_ERR_PARAM_NULLPTR);
     return ACLNN_SUCCESS;
 }
@@ -1052,8 +1056,8 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb, preTokens, nextTokens,
-        headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode, PSE_TYPE_V1, 0, 0, 0, "", 1.0f, l0Executor);
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb, preTokens,
+        nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode, PSE_TYPE_V1, 0, 0, 0, "", l0Executor);
 
     OP_CHECK(l0FlashAttentionScoreOuts[0] != nullptr,
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the l0FlashAttentionScoreOuts[0] cannot be nullptr"),
@@ -1164,9 +1168,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreGetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        actualSeqQLenOptional, actualSeqKvLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue,
-        keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
-        PSE_TYPE_V1, 0, 0, 0, "", 1.0f, l0Executor);
+        actualSeqQLenOptional, actualSeqKvLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
+        PSE_TYPE_V1, 0, 0, 0, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1262,9 +1266,9 @@ aclnnStatus aclnnFlashAttentionScoreV2GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        nullptr, nullptr, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb,
-        preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
-        pseType, 0, 0, 0, "", 1.0f, l0Executor);
+        nullptr, nullptr, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue,
+        keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
+        pseType, 0, 0, 0, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1365,9 +1369,9 @@ aclnnStatus aclnnFlashAttentionScoreV3GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, sinkOptional, prefixOptional,
-        nullptr, nullptr, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb,
-        preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
-        pseType, 0, 0, 0, "", 1.0f, l0Executor);
+        nullptr, nullptr, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue,
+        keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
+        pseType, 0, 0, 0, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1465,9 +1469,9 @@ aclnnStatus aclnnFlashAttentionScoreV4GetWorkspaceSize(
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, sinkOptional,
         prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional,
-        dScaleQOptional, dScaleKOptional, dScaleVOptional, queryRopeOptional, keyRopeOptional,
+        dScaleQOptional, dScaleKOptional, dScaleVOptional, nullptr, queryRopeOptional, keyRopeOptional,
         scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(),
-        innerPrecise, sparseMode, pseType, seed, offset, outDtype, softmaxOutLayout, 1.0f, l0Executor);
+        innerPrecise, sparseMode, pseType, seed, offset, outDtype, softmaxOutLayout, l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1511,16 +1515,16 @@ aclnnStatus aclnnFlashAttentionScoreV4(void *workspace, uint64_t workspaceSize, 
 
 aclnnStatus aclnnQuantFlashAttentionScoreGetWorkspaceSize(
     const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *attenMaskOptional,
-    const aclTensor *dScaleQ, const aclTensor *dScaleK,  const aclTensor *dScaleV, double scaleValue,
-    int64_t preTokens, int64_t nextTokens, int64_t headNum, char *inputLayout, int64_t sparseMode,
-    double pScale, aclTensor *softmaxMaxOut, aclTensor *softmaxSumOut, aclTensor *softmaxOutout,
+    const aclTensor *dScaleQ, const aclTensor *dScaleK, const aclTensor *dScaleV, const aclTensor *pScale,
+    double scaleValue, int64_t preTokens, int64_t nextTokens, int64_t headNum, char *inputLayout,
+    int64_t sparseMode, aclTensor *softmaxMaxOut, aclTensor *softmaxSumOut, aclTensor *softmaxOutout,
     aclTensor *attentionOutOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     CHECK_RET(CheckFaParam(query, key, value, inputLayout, softmaxMaxOut, softmaxSumOut, attentionOutOut,
         workspaceSize, executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
     L2_DFX_PHASE_1(aclnnQuantFlashAttentionScore,
-                   DFX_IN(query, key, value, dScaleQ, dScaleK, dScaleV, scaleValue, headNum,
-                          inputLayout, pScale),
+                   DFX_IN(query, key, value, dScaleQ, dScaleK, dScaleV, pScale, scaleValue, headNum,
+                          inputLayout),
                    DFX_OUT(softmaxMaxOut, softmaxSumOut, softmaxOutout, attentionOutOut));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -1540,15 +1544,15 @@ aclnnStatus aclnnQuantFlashAttentionScoreGetWorkspaceSize(
 
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
-    CHECK_RET(ContiguousQuant(query, key, value, dScaleQ, dScaleK, dScaleV, l0Executor) == ACLNN_SUCCESS,
+    CHECK_RET(ContiguousQuant(query, key, value, dScaleQ, dScaleK, dScaleV, pScale, l0Executor) == ACLNN_SUCCESS,
               ACLNN_ERR_INNER_NULLPTR);
 
     CHECK_RET(PreprocessQKV(query, key, value, shapeInfo, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, dScaleQ, dScaleK, dScaleV, nullptr, nullptr, scaleValue, 1, MAX_TOKEN_VALUE,
-        MAX_TOKEN_VALUE, headNum, shapeInfo.l0InputLayoutStr.c_str(), 0, 0, 1, 0, 0, 1, "", pScale, l0Executor);
+        nullptr, dScaleQ, dScaleK, dScaleV, pScale, nullptr, nullptr, scaleValue, 1, MAX_TOKEN_VALUE,
+        MAX_TOKEN_VALUE, headNum, shapeInfo.l0InputLayoutStr.c_str(), 0, 0, 1, 0, 0, 1, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1653,9 +1657,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV2GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr,
-        scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
-        sparseMode, pseType, 0, 0, 0, "", 1.0f, l0Executor);
+        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr,
+        nullptr, nullptr, scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
+        sparseMode, pseType, 0, 0, 0, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1763,9 +1767,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV3GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, queryRope, keyRope,
-        scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
-        sparseMode, pseType, 0, 0, 0, "", 1.0f, l0Executor);
+        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr,
+        queryRope, keyRope, scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
+        sparseMode, pseType, 0, 0, 0, "", l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1867,9 +1871,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, nullptr, prefixOptional,
-        actualSeqQLenOptional, actualSeqKvLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue,
-        keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
-        PSE_TYPE_V1, 0, 0, 0, softmaxOutLayout, 1.0f, l0Executor);
+        actualSeqQLenOptional, actualSeqKvLenOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode,
+        PSE_TYPE_V1, 0, 0, 0, softmaxOutLayout, l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
@@ -1979,9 +1983,9 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize(
 
     auto l0FlashAttentionScoreOuts = l0op::FlashAttentionScore(
         query, key, value, realShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional, sinkOptional, prefixOptional,
-        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, queryRope, keyRope,
-        scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
-        sparseMode, pseType, 0, 0, 0, softmaxOutLayout, 1.0f, l0Executor);
+        actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr,
+        queryRope, keyRope, scaleValue, keepProb, preTokens, nextTokens, headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise,
+        sparseMode, pseType, 0, 0, 0, softmaxOutLayout, l0Executor);
 
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
