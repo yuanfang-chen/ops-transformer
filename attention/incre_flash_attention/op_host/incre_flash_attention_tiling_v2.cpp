@@ -2627,7 +2627,7 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   }
   kvAntiParamSplitFlag_ = false;
   OP_CHECK_IF(antiQuantFlag_ && (queryRopeInputShape != nullptr || keyRopeInputShape != nullptr),
-    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario(Query Dtype != Key/Value Dtype)."),
+    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario."),
       return ge::GRAPH_FAILED);
   OP_CHECK_IF((keyAntiquantScaleTensor != nullptr && valueAntiquantScaleTensor == nullptr),
     OP_LOGE(ifaContext_->opName, "ValueAntiquantScaleTensor is null, but keyAntiquantScaleTensor exists."),
