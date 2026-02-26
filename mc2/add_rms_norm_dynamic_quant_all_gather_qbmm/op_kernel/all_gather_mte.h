@@ -34,6 +34,7 @@ using namespace AscendC;
 constexpr static uint32_t X_PER_BLOCK_NUM = 512U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 512个x数据
 constexpr static uint64_t CV_SYNC_START_OFFSET = 100UL * 1024UL; // CV同步状态相对于通信状态向后偏移100K
 constexpr static uint64_t CV_STATE_ALIGN = 64UL;    // CV同步的标志位间64B对齐
+constexpr static uint64_t CV_STATE_ROW_NUM = 2UL;    // CV同步的标志位行数
 
 template<AllGatherTemplateTypeClass>
 class AllGatherMte {
@@ -44,7 +45,7 @@ public:
     __aicore__ inline void SetRemoteFlag();
     __aicore__ inline void WaitRemoteFlag();
     __aicore__ inline void ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor);
-    __aicore__ inline GM_ADDR CalcCvFlagAddr(uint32_t targetRankId, uint64_t mBlockIdx, uint64_t kBlockIdx);
+    __aicore__ inline GM_ADDR CalcCvFlagAddr(uint32_t originRankId, uint64_t kBlockIdx);
 
 private:
     __aicore__ inline void ReadDataBlock(uint64_t curXOffset);
@@ -175,26 +176,19 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
 
 template <AllGatherTemplateTypeClass>
 __aicore__ inline GM_ADDR AllGatherMte<AllGatherTemplateType>::CalcCvFlagAddr(
-    uint32_t targetRankId, uint64_t mBlockIdx, uint64_t kBlockIdx)
+    uint32_t originRankId, uint64_t kBlockIdx)
 {
     /* 获取本卡上对应CV状态区的地址 */
     GM_ADDR cvFlagBaseAddr = \
         mteComm_.GetWinStatusAddrGm(mteComm_.hcclContext_->localUsrRankId) + CV_SYNC_START_OFFSET;
-    GM_ADDR cvFlagAddr = cvFlagBaseAddr + targetRankId * cvStateSizePerRank_ + \
-        (mBlockIdx * tileK_ + kBlockIdx) * CV_STATE_ALIGN;
+    GM_ADDR cvFlagAddr = cvFlagBaseAddr + (originRankId / CV_STATE_ROW_NUM * tileK_ + kBlockIdx) * CV_STATE_ALIGN;
     return cvFlagAddr;
 }
 
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::SetCvAtomicFlag()
 {
-    uint64_t mBlockIdx_ = 0;
-    if (mLoopIdx_ < largerBlocksEnd_) {
-        mBlockIdx_ = mLoopIdx_ / (baseBlockSize_ + 1);
-    } else {
-        mBlockIdx_ = numLargerBlocks_ + (mLoopIdx_ - largerBlocksEnd_) / baseBlockSize_;
-    }
-    GM_ADDR cvFlagAddr = CalcCvFlagAddr(remoteRankId_, mBlockIdx_, kLoopIdx_);
+    GM_ADDR cvFlagAddr = CalcCvFlagAddr(remoteRankId_, kLoopIdx_);
     PipeBarrier<PIPE_ALL>();
     // 计算当前CV同步状态的地址
     remoteCvFlagTensor_.SetGlobalBuffer((__gm__ int32_t*)cvFlagAddr);

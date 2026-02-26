@@ -65,7 +65,7 @@ private:
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
     __aicore__ inline void DynamicQuant(int32_t offset);
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
-    __aicore__ inline void CheckCvFlagReady(uint32_t targetRankIdx, uint32_t mBlockIdx, uint32_t kBlockIdx);
+    __aicore__ inline void CheckCvFlagReady(uint32_t originRankIdx, uint32_t kBlockIdx);
     __aicore__ inline void MatmulProcess();
     
     TPipe *tpipe_{nullptr};
@@ -345,19 +345,16 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::CheckCvFlagReady(
-    uint32_t targetRankIdx, uint32_t mBlockIdx, uint32_t kBlockIdx)
+    uint32_t originRankIdx, uint32_t kBlockIdx)
 {
     GlobalTensor<int32_t> winCvExp;
-    GM_ADDR cvFlagAddr = allGatherMte_.CalcCvFlagAddr(targetRankIdx, mBlockIdx, kBlockIdx);
+    GM_ADDR cvFlagAddr = allGatherMte_.CalcCvFlagAddr(originRankIdx, kBlockIdx);
     winCvExp.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
-    int32_t baseM = axisM_ / sendCoreNumPerRank_;
-    if (mBlockIdx % sendCoreNumPerRank_ < axisM_ % sendCoreNumPerRank_) {
-        baseM++;
-    }
+    int32_t targetCount = axisM_ * rankSize_ / CV_STATE_ROW_NUM;
     while (true) {
         DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(winCvExp);
         int32_t flagCount = winCvExp.GetValue(0);
-        if (flagCount >= baseM) {
+        if (flagCount >= targetCount) {
             break;
         }
         __asm__ volatile("NOP");    // Necessary
@@ -367,10 +364,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
 {
-    uint32_t targetRankIdx = aicId_ / tileM_;
-    uint32_t mBlockIdx = aicId_ % tileM_;
+    uint32_t originRankIdx = aicId_ / tileM_;
     for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
-        CheckCvFlagReady(targetRankIdx, mBlockIdx, kBlockIdx);
+        CheckCvFlagReady(originRankIdx, kBlockIdx);
         // TODO: mm计算
     }
     // 通知AIV
