@@ -384,11 +384,11 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                             inputParams_.bFormat),
                     return false);
     }
+    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(context_->GetNodeName(), "SetGroupNum failed."), return false);
+    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(context_->GetNodeName(), "SetMKN failed."), return false);
     OP_CHECK_IF(!CheckInputsShape(xShape, wStorageShape, pertokenScaleStorageShape, scaleShape, yShape),
                 OP_LOGE(context_->GetNodeName(), "CheckInputsShape failed."), return false);
     OP_CHECK_IF(!CheckOptionalInputs(), OP_LOGE(context_->GetNodeName(), "CheckOptionalInputs failed."), return false);
-    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(context_->GetNodeName(), "SetGroupNum failed."), return false);
-    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(context_->GetNodeName(), "SetMKN failed."), return false);
     OP_CHECK_IF(!SetQuantModeForGMMFinalizeRouting(),
                 OP_LOGE(context_->GetNodeName(), "SetQuantModeForGMMFinalizeRouting failed."), return false);
    
