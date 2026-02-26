@@ -629,7 +629,8 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "get workspace failed"), return ge::GRAPH_FAILED);
     SetUserWorkSpace();
-    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + inferredInfo.biasLen;
+    uint64_t workspaceSize = libApiWorkSpaceSize_ + inferredInfo.commLen + inferredInfo.permuteLen + inferredInfo.biasLen +
+                             inferredInfo.commScaleLen + inferredInfo.permuteScaleLen;
     workspaces[0] = workspaceSize;
     OP_LOGD(
         opName_,
@@ -644,12 +645,12 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::GetWorkspaceSize()
  */
 void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
 {
-    constexpr uint64_t alignAddrLength = 512;
+    constexpr uint64_t alignAddrLen = 512;
     // AlltoAllMatmul先进行通信，需要有对应的空间先存放结果，假设x1(m,k),假设原始rank上X1的第0维为M，这里的m就是M/ranksize,
     // m已经在前面获取输入参数的时候进行过处理
     inferredInfo.commLen = mc2tiling::AlignUp(
-        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLength);
-    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，就不需要申请这块空间
+        contextInfo.args_.mValue * contextInfo.args_.kValue * contextInfo.args_.inputDtypeSize, alignAddrLen);
+    // 重排空间等于通信结果结果空间,如果存在alltoallout空间的话，不需要申请这块
     if (!contextInfo.allToAllOutFlag) {
         inferredInfo.permuteLen = inferredInfo.commLen;
     }
@@ -657,6 +658,10 @@ void AllToAllMxQuantMatmulTilingBase::SetUserWorkSpace()
         inferredInfo.biasLen =
             mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
     }
+
+    inferredInfo.commScaleLen = mc2tiling::AlignUp(contextInfo.args_.mValue * 
+                                Ops::Base::CeilDiv(static_cast<int>(contextInfo.args_.kValue), 64) * 2, alignAddrLen);
+    inferredInfo.permuteScaleLen = inferredInfo.commScaleLen; 
 }
 
 /**
