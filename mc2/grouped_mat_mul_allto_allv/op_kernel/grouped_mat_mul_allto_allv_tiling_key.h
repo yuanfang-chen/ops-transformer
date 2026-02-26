@@ -19,11 +19,11 @@
 
 ASCENDC_TPL_ARGS_DECL(
     GroupedMatMulAlltoAllv,
-    ASCENDC_TPL_BOOL_DECL( // 共享专家mm计算
+    ASCENDC_TPL_BOOL_DECL(  // 共享专家mm计算
         TILINGKEY_COMPUTE_MATMUL, 0, 1),
-    ASCENDC_TPL_BOOL_DECL( // gmm计算转置场景
+    ASCENDC_TPL_BOOL_DECL(  // gmm计算转置场景
         TILINGKEY_GROUPED_MATMUL_TRANS, 0, 1),
-    ASCENDC_TPL_BOOL_DECL( // mm计算转置场景
+    ASCENDC_TPL_BOOL_DECL(  // mm计算转置场景
         TILINGKEY_MATMUL_TRANS, 0, 1),
 );
 
