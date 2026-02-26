@@ -126,6 +126,7 @@ public:
     template <bool hasGamma, bool isFirstND>
     __aicore__ inline void VFDoV0ProcessXIn(__ubuf__ P *xDst, __ubuf__ P *invRmsDst, __ubuf__ T *xIn, __ubuf__ P *gamma, uint16_t mSize, uint16_t nSize);
     __aicore__ inline void VFDoV0ProcessInvRms(__ubuf__ P *invRms, uint16_t nSize, float scaleMean, float normEps);
+    __aicore__ inline void V0Proluge(uint32_t curNdLen, uint32_t offsetNd);
 
 private:
     MT &mm;
@@ -528,6 +529,56 @@ __aicore__ inline void MhcPreKernel<T, P>::VFDoV0ProcessInvRms(__ubuf__ P *invRm
 }
 
 template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::V0Proluge(uint32_t curNdLen, uint32_t offsetNd)
+{
+    for (uint32_t offsetM = vectorOffset_.offsetMStart; offsetM < vectorOffset_.offsetMEnd; offsetM += V0_BASE_T) {
+        uint32_t curMLen = V0_BASE_T;
+        if (offsetM + V0_BASE_T >= vectorOffset_.offsetMEnd) {
+            curMLen = vectorOffset_.offsetMEnd - offsetM;
+        }
+        uint64_t invRmsOffset = offsetM - vectorOffset_.offsetMStart;
+        LocalTensor<P> invRmsUb = invRmsUb_[invRmsOffset];
+        // computeLen = curMLen * Ceil(curNdLen, 16) * 16;
+        // copy x
+        xLocal_ = xInQueue_.AllocTensor<T>();
+        DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
+        xLocal_ = xInQueue_.DeQue<T>();
+
+        uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
+        LocalTensor<P> aL1Ub = outQueue_.AllocTensor<P>(); // aL1_; //[aL1Offset]; // FIX
+
+        if (hasGamma_) {
+            // copy gamma
+            gammaUb_ = gammaInQueue_.AllocTensor<P>();
+            DataCopyGamma(curNdLen, offsetNd);
+            gammaUb_ = gammaInQueue_.DeQue<P>();
+
+            if (offsetNd == 0) {
+                VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+            } else {
+                VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
+            }
+            PipeBarrier<PIPE_V>();
+            gammaInQueue_.FreeTensor(gammaUb_);
+        } else {
+            if (offsetNd == 0) {
+                VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+            } else {
+                VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
+            }
+        }
+
+        // TODO: DEBUG FOR C0
+        outQueue_.EnQue<P>(aL1Ub);
+        aL1Ub = outQueue_.DeQue<P>();
+        DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
+
+        xInQueue_.FreeTensor(xLocal_);
+        outQueue_.FreeTensor(aL1Ub);
+    }
+}
+
+template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t tBlockNum)
 {
     // 计算vec核0和核1的偏移，核间切T
@@ -537,7 +588,6 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
     }
     VectorComputeOffset();
 
-    uint32_t computeLen = V0_BASE_T * ND_LENGTH;
     for (uint32_t offsetNd = 0; offsetNd < matrixInfo_.nD; offsetNd += ND_LENGTH) {
         uint32_t curNdLen = ND_LENGTH;
         if (offsetNd + ND_LENGTH >= matrixInfo_.nD) {
@@ -546,52 +596,8 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
         if (vectorCount_ >= 2) {
             AscendC::CrossCoreWaitFlag(SYNC_C2V); // 等待cube
         }
-        for (uint32_t offsetM = vectorOffset_.offsetMStart; offsetM < vectorOffset_.offsetMEnd; offsetM += V0_BASE_T) {
-
-            uint32_t curMLen = V0_BASE_T;
-            if (offsetM + V0_BASE_T >= vectorOffset_.offsetMEnd) {
-                curMLen = vectorOffset_.offsetMEnd - offsetM;
-            }
-            uint64_t invRmsOffset = offsetM - vectorOffset_.offsetMStart;
-            LocalTensor<P> invRmsUb = invRmsUb_[invRmsOffset];
-            computeLen = curMLen * Ceil(curNdLen, 16) * 16;
-            // copy x
-            xLocal_ = xInQueue_.AllocTensor<T>();
-            DataCopyX(curMLen, curNdLen, offsetM, offsetNd);
-            xLocal_ = xInQueue_.DeQue<T>();
-
-            uint64_t aL1Offset = (offsetM - vectorOffset_.offsetMStart) * curNdLen;
-            LocalTensor<P> aL1Ub = outQueue_.AllocTensor<P>(); // aL1_; //[aL1Offset]; // FIX
-
-            if (hasGamma_) {
-                // copy gamma
-                gammaUb_ = gammaInQueue_.AllocTensor<P>();
-                DataCopyGamma(curNdLen, offsetNd);
-                gammaUb_ = gammaInQueue_.DeQue<P>();
-
-                if (offsetNd == 0) {
-                    VFDoV0ProcessXIn<true, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
-                } else {
-                    VFDoV0ProcessXIn<true, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), (__ubuf__ P *)gammaUb_.GetPhyAddr(), curMLen, curNdLen);
-                }
-                PipeBarrier<PIPE_V>();
-                gammaInQueue_.FreeTensor(gammaUb_);
-            } else {
-                if (offsetNd == 0) {
-                    VFDoV0ProcessXIn<false, true>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
-                } else {
-                    VFDoV0ProcessXIn<false, false>((__ubuf__ P *)aL1Ub.GetPhyAddr(), (__ubuf__ P *)invRmsUb.GetPhyAddr(), (__ubuf__ T *)xLocal_.GetPhyAddr(), nullptr, curMLen, curNdLen);
-                }
-            }
-
-            // TODO: DEBUG FOR C0
-            outQueue_.EnQue<P>(aL1Ub);
-            aL1Ub = outQueue_.DeQue<P>();
-            DataCopyOutToWorkSpace(aL1Ub, curMLen, curNdLen, offsetM, offsetNd);
-
-            xInQueue_.FreeTensor(xLocal_);
-            outQueue_.FreeTensor(aL1Ub);
-        }
+        
+        V0Proluge(curNdLen, offsetNd);
 
         L1AInQue_.EnQue(aL1_);
         aL1_ = L1AInQue_.DeQue<P>();
