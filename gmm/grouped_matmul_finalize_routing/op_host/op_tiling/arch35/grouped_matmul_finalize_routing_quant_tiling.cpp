@@ -417,7 +417,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::PostTiling()
 
 void GroupedMatmulFinalizeRoutingQuantTiling::PrintMatmulParams()
 {
-    int32_t enable = AlogCheckDebugLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }
@@ -431,7 +431,7 @@ void GroupedMatmulFinalizeRoutingQuantTiling::PrintMatmulParams()
 
 void GroupedMatmulFinalizeRoutingQuantTiling::PrintQuantParams()
 {
-    int32_t enable = AlogCheckDebugLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }
