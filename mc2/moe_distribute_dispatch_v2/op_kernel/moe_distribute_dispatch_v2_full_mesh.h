@@ -450,7 +450,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
 {
     DataCopyPadExtParams<XType> copyPadExtParams{true, 0U, 0U, 0U};
     LocalTensor<XType> xInTensor = inQueue.AllocTensor<XType>();
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     LocalTensor<uint8_t> singleByteTok = xInTensor.template ReinterpretCast<uint8_t>();
     // 由于MX以及PERGROUP量化在计算scales时每次搬入256字节数据，所以在token搬入前需要对空间填0，避免引入脏数据
     if constexpr ((QuantMode == MX_QUANT) || (QuantMode == PERGROUP_DYNAMIC_QUANT)) {
