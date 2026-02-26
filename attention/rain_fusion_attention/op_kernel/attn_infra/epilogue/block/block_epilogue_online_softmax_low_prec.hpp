@@ -354,29 +354,29 @@ public:
         //     AscendC::PipeBarrier<PIPE_V>();
         // }
 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
-        NewReduceMax(tvUbTensor, srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        AscendC::PipeBarrier<PIPE_V>(); 
-
-
-        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        AscendC::PipeBarrier<PIPE_V>(); 
-        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
 
 
-        NewReduceMax(tvUbTensor, tvUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        NewReduceMax(lsUbTensor, lsUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 2 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
+        NewReduceMax(lsUbTensor, lsUbTensor, numRowsRound, 4 * HALF_VECTOR_SIZE, 6 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
+        AscendC::PipeBarrier<PIPE_V>(); 
+
+
+        NewReduceMax(lsUbTensor, lsUbTensor, numRowsRound, 0 * HALF_VECTOR_SIZE, 4 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>();
 
         //每行128个元素分别规约求最大值。
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
-            tvUbTensor,
+            lsUbTensor,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
             numRowsRound,
             dataBlockStride,
