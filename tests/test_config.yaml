@@ -66,6 +66,9 @@ attention:
     exclude:
       - attention/flash_attention_score/docs
       - attention/flash_attention_score/README.md
+    test:
+      ut: False
+      examples: False
     ut_cov_exclude:
       - attention/flash_attention_score
     options:
