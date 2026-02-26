@@ -356,11 +356,11 @@ public:
         // }
 
         NewReduceMax(lsUbTensor, srcUb, numRowsRound, 0 * HALF_VECTOR_SIZE, 1 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        AscendC::PipeBarrier<PIPE_V>(); 
+
         NewReduceMax(lsUbTensor, srcUb, numRowsRound, 2 * HALF_VECTOR_SIZE, 3 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        AscendC::PipeBarrier<PIPE_V>(); 
+
         NewReduceMax(lsUbTensor, srcUb, numRowsRound, 4 * HALF_VECTOR_SIZE, 5 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
-        AscendC::PipeBarrier<PIPE_V>(); 
+
         NewReduceMax(lsUbTensor, srcUb, numRowsRound, 6 * HALF_VECTOR_SIZE, 7 * HALF_VECTOR_SIZE, dataBlockStride, blockNumPerRow); 
         AscendC::PipeBarrier<PIPE_V>(); 
 
