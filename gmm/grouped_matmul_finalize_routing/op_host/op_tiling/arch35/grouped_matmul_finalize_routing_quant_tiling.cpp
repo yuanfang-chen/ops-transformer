@@ -247,17 +247,17 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape
 
     auto scaleDimNum = scaleShape.GetDimNum();
     if (IsMicroScaling()) {
-        OP_CHECK_IF(scaleDimNum != DIM_NUM_SCALE,
-                    OP_LOGE(context_->GetNodeName(), "The dimension of scale must be %u, actual is %zu", DIM_NUM_SCALE,
-                            scaleDimNum),
+        OP_CHECK_IF(scaleDimNum != DIM_NUM_MX_SCALE,
+                    OP_LOGE(context_->GetNodeName(), "The dimension of scale must be %u, actual is %zu",
+                            DIM_NUM_MX_SCALE, scaleDimNum),
                     return false);
         OP_CHECK_IF(pertokenScaleStorageShape == nullptr,
                     OP_LOGE(context_->GetNodeName(), "Input pertokenScaleStorageShape is nullptr."), return false);
         const gert::Shape &pertokenScaleShape = pertokenScaleStorageShape->GetOriginShape();
         auto pertokenScaleDimNum = pertokenScaleShape.GetDimNum();
-        OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_PERTOKENSCALE,
+        OP_CHECK_IF(pertokenScaleDimNum != DIM_NUM_MX_PERTOKENSCALE,
                     OP_LOGE(context_->GetNodeName(), "The dimension of pertokenScale must be %u, actual is %zu",
-                            DIM_NUM_PERTOKENSCALE, pertokenScaleDimNum),
+                            DIM_NUM_MX_PERTOKENSCALE, pertokenScaleDimNum),
                     return false);
     } else {
         OP_CHECK_IF(scaleDimNum != DIM_NUM_SCALE,
