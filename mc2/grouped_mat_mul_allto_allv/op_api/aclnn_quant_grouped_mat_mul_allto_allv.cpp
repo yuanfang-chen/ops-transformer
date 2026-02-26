@@ -91,15 +91,14 @@ static bool CheckNullStatus(const aclTensor *gmmX, const aclTensor *gmmWeight,
                             const aclTensor *mmXScaleOptional, const char *group, const aclTensor *y,
                             const aclTensor *mmYOptional)
 {
-    // 如果scale不是optional，也需要进行判断非空的操作？
     if ((sendCountsTensorOptional != nullptr) || (recvCountsTensorOptional != nullptr)) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "sendCountsTensorOptional and recvCountsTensorOptional should be empty.");
-        return false; // 无需修改
+        return false;
     }
     if ((group == nullptr) || (strnlen(group, HCCL_GROUP_NAME_MAX) == 0)) { // HCCL_GROUP_NAME_MAX = 128U
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Required group name is Empty.");
         return false;
-    } // 无需修改
+    }
     if ((!((mmXOptional != nullptr) && (mmWeightOptional != nullptr) && (mmYOptional != nullptr))) &&
         (!((mmXOptional == nullptr) && (mmWeightOptional == nullptr) && (mmYOptional == nullptr)))) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,

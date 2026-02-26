@@ -114,8 +114,9 @@ protected:
     QuantGmmAlltoAllvParamsInfo localParams_;
 
 private:
-    ge::graphStatus CheckOpInputSingleParamsTensorNotSup();
-    ge::graphStatus CheckOpInputSingleParamsTensorSup();
+    ge::graphStatus CheckOpInputSingleParamsTensorNotSupport();
+    ge::graphStatus CheckOpInputSingleParamsTensorSupport();
+    ge::graphStatus CheckFormat();
     ge::graphStatus CheckOpInputSingleParamsTensorMM();
     ge::graphStatus CheckOpInputSingleParamsTensor();
     ge::graphStatus CheckAndSetLocalParamsGmm();
