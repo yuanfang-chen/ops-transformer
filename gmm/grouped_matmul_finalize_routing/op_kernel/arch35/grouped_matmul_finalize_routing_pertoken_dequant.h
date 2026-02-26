@@ -25,10 +25,9 @@ using namespace Cgmct::Gemm;
 using namespace Cgmct::Gemm::Kernel;
 
 template <typename layoutA, typename layoutB>
-__aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR x, GM_ADDR w, GM_ADDR w_scale, GM_ADDR bias,
-                                                       GM_ADDR x_scale, GM_ADDR group_list, GM_ADDR share_input,
-                                                       GM_ADDR logit, GM_ADDR row_index, GM_ADDR offset, GM_ADDR y,
-                                                       GM_ADDR workspaceGM, GM_ADDR tilingGM)
+__aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(
+    GM_ADDR x, GM_ADDR w, GM_ADDR w_scale, GM_ADDR bias, GM_ADDR x_scale, GM_ADDR group_list, GM_ADDR share_input,
+    GM_ADDR logit, GM_ADDR row_index, GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
@@ -46,7 +45,7 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
     using LayoutB = layoutB;
     using LayoutC = layout::RowMajorAlign;
     using weightscaleType = DTYPE_SCALE;
-    using BiasType = bfloat16_t; 
+    using BiasType = bfloat16_t;
     using LayoutBias = layout::RowMajor;
     using C1Type = std::conditional_t<std::is_same_v<AType, int8_t>, int32_t, float>; // matmul output dtype
     using xscaleType = float;
@@ -61,11 +60,13 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
 
     using BlockPrologue = Cgmct::Gemm::Block::BlockPrologueFinalizeRouting<CType, BiasType>;
 
-    using BlockEpilogueDequant = Cgmct::Gemm::Block::BlockEpilogueDequantFinalizeRouting<CType, C1Type, weightscaleType, xscaleType,
-        BiasType, rowIndexType>;
+    using BlockEpilogueDequant =
+        Cgmct::Gemm::Block::BlockEpilogueDequantFinalizeRouting<CType, C1Type, weightscaleType, xscaleType, BiasType,
+                                                                rowIndexType>;
 
-    using GmmKernel = Cgmct::Gemm::Kernel::KernelGmmFinalizeRoutingPertokenDequant<ProblemShape, BlockMmadBuilder, BlockPrologue,
-                                                                    BlockEpilogueDequant, BlockScheduler>;
+    using GmmKernel =
+        Cgmct::Gemm::Kernel::KernelGmmFinalizeRoutingPertokenDequant<ProblemShape, BlockMmadBuilder, BlockPrologue,
+                                                                     BlockEpilogueDequant, BlockScheduler>;
     using Params = typename GmmKernel::Params;
     using GMMTiling = typename GmmKernel::GMMTiling;
 
@@ -78,13 +79,12 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(GM_ADDR 
 
     gmmParams.matmulTiling = &matmulTiling_;
     Params params = {
-        {1, 1, 1, 1}, // problem shape
+        {1, 1, 1, 1},                // problem shape
         {x, w, y, bias, group_list}, // BlockMmadParams
         {share_input, y, gmmFinalizeRoutingQuantParams_.sharedInputOffset,
          gmmFinalizeRoutingQuantParams_.sharedInputLen, matmulTiling_.N, gmmFinalizeRoutingQuantParams_.batch,
-         gmmFinalizeRoutingQuantParams_.residualScale}, // prologue params
-        {y, w_scale, x_scale, bias, logit, row_index, matmulTiling_.baseM,
-         matmulTiling_.baseN}, // epilogue params
+         gmmFinalizeRoutingQuantParams_.residualScale},                                          // prologue params
+        {y, w_scale, x_scale, bias, logit, row_index, matmulTiling_.baseM, matmulTiling_.baseN}, // epilogue params
         gmmParams};
     GmmKernel gmm;
     gmm(params);

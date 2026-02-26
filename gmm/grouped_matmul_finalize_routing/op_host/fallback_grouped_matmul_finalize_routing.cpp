@@ -90,6 +90,25 @@ static void InitShapeAndStrideForGMMFinalizeRouting(const gert::Shape &originSha
     }
 }
 
+static bool IsFP8OrFP4BitsDataTypeForGMMFinalizeRouting(ge::DataType dataType)
+{
+    return dataType == ge::DataType::DT_FLOAT8_E4M3FN || dataType == ge::DataType::DT_FLOAT8_E5M2 ||
+           dataType == ge::DataType::DT_FLOAT8_E8M0 || dataType == ge::DataType::DT_FLOAT4_E2M1;
+}
+
+
+static inline aclDataType ToAclDataTypeForGMMFinalizeRouting(ge::DataType dtype)
+{
+    static const std::vector<DataType> GMMWsiglu_CONVERT_TO_ACL_DataType_LIST = {
+        ge::DataType::DT_FLOAT8_E4M3FN, ge::DataType::DT_FLOAT8_E5M2, ge::DataType::DT_FLOAT8_E8M0, ge::DataType::DT_FLOAT4_E2M1};
+    auto iter =
+        std::find(GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.begin(), GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.end(), dtype);
+    if (iter == GMMWsiglu_CONVERT_TO_ACL_DataType_LIST.end()) {
+        return aclDataType::ACL_DT_UNDEFINED;
+    }
+    return static_cast<aclDataType>(dtype);
+}
+
 static inline aclTensor *GeTensor2AclTensor(const gert::Tensor *geTensor, bool enableTranspose, size_t index,
                                             bool enableNZ = false)
 {
@@ -112,7 +131,11 @@ static inline aclTensor *GeTensor2AclTensor(const gert::Tensor *geTensor, bool e
     // convert data type
     auto dataTypeGE = geTensor->GetDataType();
     aclDataType dataType = ACL_DT_UNDEFINED;
-    dataType = ToAclDataType(dataTypeGE);
+    if (IsFP8OrFP4BitsDataTypeForGMMFinalizeRouting(dataTypeGE)) {
+        dataType = ToAclDataTypeForGMMFinalizeRouting(dataTypeGE);
+    } else {
+        dataType = ToAclDataType(dataTypeGE);
+    }
     // convert view shape
     const gert::Shape &origin_shape = geTensor->GetOriginShape();
     std::vector<int64_t> viewShape;
@@ -186,12 +209,8 @@ static graphStatus GroupedMatmulFinalizeRoutingExecuteFunc(OpExecuteContext *hos
     const aclTensor *aclTensorX = nullptr;
     PrepareAclTensor(host_api_ctx, aclTensorX, INDEX_INPUT_X, false, false);
 
-    const gert::Tensor *weightTensor = host_api_ctx->GetInputTensor(INDEX_INPUT_WEIGHT);
-    OP_CHECK_IF(weightTensor == nullptr,
-                OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback", "The weightTensor nullptr"), return GRAPH_FAILED);
-    bool isWeightNz = (GetPrimaryFormat(weightTensor->GetStorageFormat()) == ge::Format::FORMAT_FRACTAL_NZ);
     const aclTensor *aclTensorWeight = nullptr;
-    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, true);
+    PrepareAclTensor(host_api_ctx, aclTensorWeight, INDEX_INPUT_WEIGHT, false, false);
 
     const aclTensor *aclTensorWeightScale = nullptr;
     PrepareAclTensor(host_api_ctx, aclTensorWeightScale, INDEX_INPUT_WEIGHT_SCALE, false, false);
@@ -225,26 +244,13 @@ static graphStatus GroupedMatmulFinalizeRoutingExecuteFunc(OpExecuteContext *hos
     aclIntArray *tuningConfig = nullptr;
 
     // execute opapi
-    if (isWeightNz) {
-        auto apiRet =
-            EXEC_OPAPI_CMD(aclnnGroupedMatmulFinalizeRoutingWeightNzV2, aclTensorX, aclTensorWeight,
-                           aclTensorWeightScale, aclTensorBias, aclTensorOffset, aclTensorAntiQuantScaleOptional,
-                           aclTensorAntiQunatOffsetOptional, aclTensorXScale, aclTensorGroupList, aclTensorSharedInput,
-                           aclTensorLogit, aclTensorRowIndex, *dtypeGe, *sharedInputWeightGe, *sharedInputOffsetGe,
-                           *transXGe, *transWeightGe, *groupListTypeGe, tuningConfig, geTensorY);
-        OP_CHECK_IF(apiRet != GRAPH_SUCCESS,
-                    OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback", "The apiRet failed: %u", apiRet),
-                    return GRAPH_FAILED);
-    } else {
-        auto apiRet = EXEC_OPAPI_CMD(
-            aclnnGroupedMatmulFinalizeRoutingV3, aclTensorX, aclTensorWeight, aclTensorWeightScale, aclTensorBias,
-            aclTensorOffset, aclTensorAntiQuantScaleOptional, aclTensorAntiQunatOffsetOptional, aclTensorXScale,
-            aclTensorGroupList, aclTensorSharedInput, aclTensorLogit, aclTensorRowIndex, *dtypeGe, *sharedInputWeightGe,
-            *sharedInputOffsetGe, *transXGe, *transWeightGe, *groupListTypeGe, tuningConfig, geTensorY);
-        OP_CHECK_IF(apiRet != GRAPH_SUCCESS,
-                    OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback", "The apiRet failed: %u", apiRet),
-                    return GRAPH_FAILED);
-    }
+    auto apiRet = EXEC_OPAPI_CMD(
+        aclnnGroupedMatmulFinalizeRoutingV3, aclTensorX, aclTensorWeight, aclTensorWeightScale, aclTensorBias,
+        aclTensorOffset, aclTensorAntiQuantScaleOptional, aclTensorAntiQunatOffsetOptional, aclTensorXScale,
+        aclTensorGroupList, aclTensorSharedInput, aclTensorLogit, aclTensorRowIndex, *dtypeGe, *sharedInputWeightGe,
+        *sharedInputOffsetGe, *transXGe, *transWeightGe, *groupListTypeGe, tuningConfig, geTensorY);
+    OP_CHECK_IF(apiRet != GRAPH_SUCCESS, OP_LOGE("GroupedMatmulFinalizeRouting aclnnfallback",
+                "The apiRet failed:%u", apiRet), return GRAPH_FAILED);
     return GRAPH_SUCCESS;
 }
 
