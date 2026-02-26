@@ -338,19 +338,19 @@ public:
         uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock。
         uint8_t dataBlockStride = 1;
 
-        // AscendC::DataCopy(
-        //     lsUbTensor,
-        //     srcUb,
-        //     AscendC::DataCopyParams(
-        //         numRowsRound,
-        //         HALF_VECTOR_SIZE / BLOCK_SIZE,
-        //         (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE,
-        //         (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
+        AscendC::DataCopy(
+            tvUbTensor,
+            srcUb,
+            AscendC::DataCopyParams(
+                numRowsRound,
+                HALF_VECTOR_SIZE / BLOCK_SIZE,
+                (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE,
+                (numElemsAligned - HALF_VECTOR_SIZE) / BLOCK_SIZE));
+        AscendC::PipeBarrier<PIPE_V>();
 
         // 1024个元素，以128为单位分治求最大值。1024->512->256->128
         for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceMaxByPair(tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
@@ -372,7 +372,7 @@ public:
         //每行128个元素分别规约求最大值。
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
-            srcUb,
+            tvUbTensor,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
             numRowsRound,
             dataBlockStride,
@@ -580,30 +580,30 @@ public:
     void CalcLocalRowMax(uint32_t sUbOffset, uint32_t rowNumCurLoopRound, uint32_t columnNum, uint32_t columnNumRound,
         uint32_t rowOffset)
     {
-        // if (columnNum == 1024U) {
-        //     RowmaxSPECTILE1024(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else {      
-        //     RowmaxTAILTILE(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // }    
-        RowmaxTAILTILE(
-            computeUbTensor,
-            lmUbTensor[rowOffset],
-            tvUbTensor,
-            rowNumCurLoopRound,
-            columnNum,
-            columnNumRound);
+        if (columnNum == 1024U) {
+            RowmaxSPECTILE1024(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else {      
+            RowmaxTAILTILE(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        }    
+        // RowmaxTAILTILE(
+        //     computeUbTensor,
+        //     lmUbTensor[rowOffset],
+        //     tvUbTensor,
+        //     rowNumCurLoopRound,
+        //     columnNum,
+        //     columnNumRound);
     }
 
     __aicore__ inline
