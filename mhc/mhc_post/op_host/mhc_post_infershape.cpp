@@ -85,23 +85,25 @@ static void ShowOutputShapeInfo(gert::InferShapeContext *context, const gert::Sh
 
 bool IsPlatform950(const char *nodeName)
 {
-    char versionValVersion[SOC_VERSION_SIZE];
-    // rtGetSocSpec获取成功返回值是0，获取失败返回非0
-    if (rtGetSocSpec("version", "Short_SoC_version", versionValVersion, SOC_VERSION_SIZE) != RT_ERROR_NONE) {
-        OPS_LOG_E(nodeName, "Cannot get Short_SoC_version info in infershape!");
+    fe::PlatformInfo platformInfo;
+    fe::OptionalInfo optionalInfo;
+    auto ret = fe::PlatformInfoManager::Instance().GetPlatformInfoWithOutSocVersion(platformInfo, optionalInfo);
+    if (ret != ge::GRAPH_SUCCESS) {
+        OP_LOGE(nodeName, "Cannot get platform info!");
         return false;
+    } else {
+        return (optionalInfo.soc_version.find("950") != std::string::npos);
     }
-    static std::set<std::string> supportedSoc = {"Ascend950"};
-    OPS_LOG_D(nodeName, "Get Short_SoC_version %s", versionValVersion);
-    return (supportedSoc.count(versionValVersion) > 0);
 }
 
 static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
 {
+    std::cout << "wsunmoon line101" << std::endl;
     if (!IsPlatform950(context->GetNodeName())) {
         OP_LOGD(context, "The current Platform is not support to do MhcPostInfershape.");
         return ge::GRAPH_FAILED;
     }
+    std::cout << "wsunmoon line106" << std::endl;
 
     OP_LOGD(context, "Begin to do MhcPostInfershape.");
     const gert::Shape* xShape = context->GetInputShape(INDEX_X);
@@ -130,46 +132,46 @@ static ge::graphStatus InferShapeForMhcPost(gert::InferShapeContext* context)
     size_t hResDims = hResShape->GetDimNum();
     size_t hOutDims = hOutShape->GetDimNum();
     size_t hPostDims = hPostShape->GetDimNum();
-    OP_CHECK_IF((xDims == DIMS_THREE) || (xDims == DIMS_FOUR),
+    OP_CHECK_IF((xDims != DIMS_THREE) && (xDims != DIMS_FOUR),
         OP_LOGE(context->GetNodeName(), "The dim of x should be 3 or 4, but got %d", xDims),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(xDims == hResDims,
+    OP_CHECK_IF(xDims != hResDims,
         OP_LOGE(context->GetNodeName(), "The dims of x and hRes should be equal, but xDims is %d and hResDims is %d", xDims, hResDims),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF((hOutDims == DIMS_TWO) || (hOutDims == DIMS_THREE),
+    OP_CHECK_IF((hOutDims != DIMS_TWO) && (hOutDims != DIMS_THREE),
         OP_LOGE(context->GetNodeName(), "The dim of hOut should be 2 or 3, but got %d", hOutDims),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(hOutDims == hPostDims,
+    OP_CHECK_IF(hOutDims != hPostDims,
         OP_LOGE(context->GetNodeName(), "The dims of hOut and hPost should be equal, but hOutDims is %d and hPostDims is %d", hOutDims, hPostDims),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(hResShape->GetDim(hResDims - DIMS_ONE) == hResShape->GetDim(hResDims - DIMS_TWO),
+    OP_CHECK_IF(hResShape->GetDim(hResDims - DIMS_ONE) != hResShape->GetDim(hResDims - DIMS_TWO),
         OP_LOGE(context->GetNodeName(), "The last two dims of hRes should be same."),
         return ge::GRAPH_FAILED);
     for (size_t i = 0; i < xDims - DIMS_ONE; ++i) {
         int32_t xDimI = xShape->GetDim(i);
         int32_t hResDimI = hResShape->GetDim(i);
-        OP_CHECK_IF(xDimI == hResDimI,
+        OP_CHECK_IF(xDimI != hResDimI,
             OP_LOGE(context->GetNodeName(), "xShape[%d] and hResShape[%d] should be same, but xShape[%d] is %d, hResShape[%d] is %d", i, i, i, xDimI, i, hResDimI),
             return ge::GRAPH_FAILED);
     }
     for (size_t i = 0; i < hOutDims - DIMS_ONE; ++i) {
         int32_t hOutDimI = hOutShape->GetDim(i);
         int32_t hPostDimI = hPostShape->GetDim(i);
-        OP_CHECK_IF(hOutDimI == hPostDimI,
+        OP_CHECK_IF(hOutDimI != hPostDimI,
             OP_LOGE(context->GetNodeName(), "hOutShape[%d] and hPostShape[%d] should be same, but hOutShape[%d] is %d, hPostShape[%d] is %d", i, i, i, hOutDimI, i, hPostDimI),
             return ge::GRAPH_FAILED);
     }
     for (size_t i = 0; i < hResDims - DIMS_TWO; ++i) {
         int32_t hResDimI = hResShape->GetDim(i);
         int32_t hOutDimI = hOutShape->GetDim(i);
-        OP_CHECK_IF(hResDimI == hOutDimI,
+        OP_CHECK_IF(hResDimI != hOutDimI,
             OP_LOGE(context->GetNodeName(), "The shapes of hRes and hOut are invalid."),
             return ge::GRAPH_FAILED);
     }
-    OP_CHECK_IF(xShape->GetDim(xDims - DIMS_ONE) == hOutShape->GetDim(hOutDims - DIMS_ONE),
+    OP_CHECK_IF(xShape->GetDim(xDims - DIMS_ONE) != hOutShape->GetDim(hOutDims - DIMS_ONE),
         OP_LOGE(context->GetNodeName(), "The last dims of x and hOut should be same."),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(hPostShape->GetDim(hPostDims - DIMS_ONE) == hResShape->GetDim(hResDims - DIMS_ONE),
+    OP_CHECK_IF(hPostShape->GetDim(hPostDims - DIMS_ONE) != hResShape->GetDim(hResDims - DIMS_ONE),
         OP_LOGE(context->GetNodeName(), "The last dims of hPost and hRes should be same."),
         return ge::GRAPH_FAILED);
 
