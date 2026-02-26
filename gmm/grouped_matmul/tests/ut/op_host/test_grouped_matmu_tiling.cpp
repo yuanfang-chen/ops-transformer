@@ -5001,7 +5001,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a8w8o32_weightnz_notrans)
                                                     {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},                        //antiquantScale
                                                     {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},                        //antiquantOffset
                                                     {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                      //groupList
-                                                    {{{M}, {M}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //perTokenScale
+                                                    {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //perTokenScale
                                                 }, 
                                                 { // output info
                                                     {{{M}, {N}}, ge::DT_INT32, ge::FORMAT_ND}
