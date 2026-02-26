@@ -152,9 +152,11 @@ public:
         AscendC::GlobalTensor<ElementOutput> gOutput,
         AscendC::GlobalTensor<ElementInput> gInput,
         AscendC::GlobalTensor<ElementUpdate> gUpdate,
+        AscendC::GlobalTensor<ElementLse> glse,
         const LayoutOutput &layoutOutput,
         const LayoutInput &layoutInput,
         const LayoutUpdate &layoutUpdate,
+        const LayoutLse &layoutLse,
         uint32_t qNThisSubBlock, uint32_t qSThisSubBlock, uint32_t totalRowNum,
         uint32_t isFirstStackTile, uint32_t isLastStackTile, uint32_t curStackTileMod,
         uint32_t needRowLoop, uint32_t isLastRowLoop, uint32_t rowOffsetLoop,
@@ -287,6 +289,17 @@ public:
             // ***move O to GM
             CopyOToGm(
                 gOutput, proTokenIdx, proTokenNum, epiTokenNum, integralHeadNum, qSThisSubBlock, embed, oHiddenSize);
+            if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
+                if (isLastRowLoop) {
+                    AscendC::PipieBarrier<PIPE_V>();
+                    AscendC::Ln<float, flase>(
+                        lse32_ubuf_tensor, // 未定义，看是用哪一块空间
+                        glUbTensor,
+                        (uint64_t)0,
+                        CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
+                        AscendC::UnaryRepeatParams(1, 1, 8, 8));
+                }
+            }
         } else if (needRowLoop) {
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID5);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID5);
@@ -301,9 +314,11 @@ public:
         AscendC::GlobalTensor<ElementOutput> gOutput,
         AscendC::GlobalTensor<ElementInput> gInput,
         AscendC::GlobalTensor<ElementUpdate> gUpdate,
+        AscendC::GlobalTensor<ElementLse> glse,
         const LayoutOutput &layoutOutput,
         const LayoutInput &layoutInput,
         const LayoutUpdate &layoutUpdate,
+        const LayoutLse &layoutLse,
         GemmCoord actualBlockShape,
         uint32_t qSBlockSize, uint32_t qNBlockSize,
         uint32_t isFirstStackTile, uint32_t isLastStackTile, uint32_t curStackTileMod)
@@ -369,9 +384,11 @@ public:
                     gOutputCurLoop,
                     gInputCurLoop,
                     gUpdateCurLoop,
+                    glse,
                     layoutOutputCurLoop,
                     layoutInputCurLoop,
                     layoutUpdateCurLoop,
+                    layoutLse, // 这里可能需要参考FIA，需要偏移？
                     qNThisSubBlock,
                     qSThisSubBlock,
                     inRowActualThisSubBlock,
@@ -392,7 +409,7 @@ public:
 private:
     AscendC::LocalTensor<float> loUbTensor;
     AscendC::LocalTensor<float> dmUbTensor;
-    AscendC::LocalTensor<float> hmUbTensor;
+    AscendC::LocalTensor<float> hmUbTensor; // 复用为LSE ub？
     AscendC::LocalTensor<float> glUbTensor;
     AscendC::LocalTensor<float> tvUbTensor;
     AscendC::LocalTensor<ElementOutput> goUbTensor16;
