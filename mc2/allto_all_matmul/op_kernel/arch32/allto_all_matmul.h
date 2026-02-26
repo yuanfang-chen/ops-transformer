@@ -662,6 +662,16 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Dequant()
     AscendC::GlobalTensor<ElementC> gmC;
     gmC.SetGlobalBuffer((__gm__ ElementC *)dequantCGM_);
 
+    AscendC::GlobalTensor<ScaleType> gmScale;
+    gmScale.SetGlobalBuffer((__gm__ ScaleType *)scaleGM_);
+    AscendC::GlobalTensor<float> gmPerTokenScale;
+    gmPerTokenScale.SetGlobalBuffer((__gm__ float *)quantScaleGM_);
+
+    AscendC::GlobalTensor<ElementBias> gmBias;
+    if (biasGM_ != nullptr) {
+        gmBias.SetGlobalBuffer((__gm__ ElementBias *)biasGM_);
+    }
+
     uint32_t rowsPerCore = DivCeil(problemShape.m(), blockNum);
     uint32_t rowsThisCore = rowsPerCore;
     uint32_t stRowPerCore = aicIdx * rowsPerCore;
