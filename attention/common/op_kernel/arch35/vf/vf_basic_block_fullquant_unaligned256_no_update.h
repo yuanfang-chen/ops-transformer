@@ -25,9 +25,10 @@ template <typename T, typename T2, typename OUTPUT_T, uint32_t s1BaseSize = 16, 
 __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256GqaFullquantVF(
     __ubuf__ T2 * expUb, __ubuf__ T * srcUb,
     __ubuf__ T * maxUb, __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, __ubuf__ uint8_t * indexesUb, 
-    const uint16_t m, const uint32_t n, const T minValue, const uint32_t tailN, const int64_t tailNOffset, const float pScale)
+    const uint16_t m, const uint32_t n, const T minValue, const uint32_t tailN, const int64_t tailNOffset, const T logPScale)
 {
     RegTensor<half> vreg_min;
+    RegTensor<half> vreg_p_scale;
     RegTensor<half> vreg_input_x_1;
     RegTensor<half> vreg_input_x_unroll_1;
     RegTensor<half> vreg_input_x_2;
@@ -78,6 +79,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256GqaFullquantVF(
     MaskReg preg_all_b8 = CreateMask<uint8_t, MaskPattern::ALL>();
 
     Duplicate(vreg_min, minValue);
+    Duplicate(vreg_p_scale, logPScale);
     for (uint16_t i = 0; i < m / 8; ++i) {
         StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
             (__ubuf__ half *&)srcUb + tailNOffset + i * 128, vreg_min, preg_all);
@@ -88,34 +90,20 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256GqaFullquantVF(
         LoadAlign(vreg_input_x_1, srcUb + i * 16 * 16);  // 第一个[64, 16]的前8行
         LoadAlign(vreg_input_x_unroll_1, srcUb + i * 16 * 16 + 8 * 16);  // 第一个[64, 16]接下来的8行
 
-        Muls(vreg_input_x_1, vreg_input_x_1, (half)pScale, preg_all);
-        Muls(vreg_input_x_unroll_1, vreg_input_x_unroll_1, (half)pScale, preg_all);
-
         Max(vreg_max_tmp, vreg_input_x_1, vreg_input_x_1, preg_all);  // 第一个[64, 16]前8行的最大值
         Max(vreg_max_tmp_unroll, vreg_input_x_unroll_1, vreg_input_x_unroll_1, preg_all);
 
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb + i * 16 * 16, vreg_input_x_1, preg_all);
-        StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-            srcUb + i * 16 * 16 + 8 * 16, vreg_input_x_unroll_1, preg_all);
-        
         for (uint16_t j = 1; j < n / 16; ++j) {
             LoadAlign(vreg_input_x_1, srcUb + i * 16 * 16 + j * 64 * 16);  // 第一个256，搬入第j个[64, 16]的两个8行
             LoadAlign(vreg_input_x_unroll_1, srcUb + i * 16 * 16 + j * 64 * 16 + 8 * 16);
 
-            Muls(vreg_input_x_1, vreg_input_x_1, (half)pScale, preg_all);
-            Muls(vreg_input_x_unroll_1, vreg_input_x_unroll_1, (half)pScale, preg_all);
-
             Max(vreg_max_tmp, vreg_max_tmp, vreg_input_x_1, preg_all);  // 读入第j个[64, 16]，和已经读入的前j-1个[64, 16]的max再取max
             Max(vreg_max_tmp_unroll, vreg_max_tmp_unroll, vreg_input_x_unroll_1, preg_all);
-
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb + i * 16 * 16 + j * 64 * 16, vreg_input_x_1, preg_all);
-            StoreAlign<half, MicroAPI::StoreDist::DIST_NORM_B16>(
-                srcUb + i * 16 * 16 + j * 64 * 16 + 8 * 16, vreg_input_x_unroll_1, preg_all);
         }
         ReduceDataBlock<AscendC::MicroAPI::ReduceType::MAX>(vreg_max_tmp, vreg_max_tmp, preg_all);
         ReduceDataBlock<AscendC::MicroAPI::ReduceType::MAX>(vreg_max_tmp_unroll, vreg_max_tmp_unroll, preg_all);
+        Sub(vreg_max_tmp, vreg_max_tmp, vreg_p_scale, preg_all);
+        Sub(vreg_max_tmp_unroll, vreg_max_tmp_unroll, vreg_p_scale, preg_all);
         StoreUnAlign<half, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ half *&)tmpMaxUb), vreg_max_tmp, ureg_max, 8);
         StoreUnAlign<half, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
@@ -223,9 +211,11 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl256GqaFullquant(
 
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
+    const T logPScale = static_cast<half>(std::log(pScale));
+
     ProcessVec1NoUpdateGeneralImpl256GqaFullquantVF<T, T2, OUTPUT_T, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(
         expUb, srcUb, maxUb, tmpExpSumUb, tmpMaxUb, tmpMaxUb2, indexesUb,
-        m, n, minValue, tailN, tailNOffset, pScale);
+        m, n, minValue, tailN, tailNOffset, logPScale);
 }
 } // namespace
 
