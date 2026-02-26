@@ -376,7 +376,7 @@ __aicore__ inline void QLIMatmul<QLIT>::QueryNd2Nz(uint64_t s1gL1RealSize, const
     Nd2NzParams nd2nzPara;
     int32_t gSizeAlign = CeilAlign(constInfo_.gSize, 16);
     nd2nzPara.ndNum = s1gL1RealSize / gSizeAlign;
-    nd2nzPara.nValue = CeilAlign(gSizeAlign, (uint64_t)BLOCK_CUBE);  // 行数
+    nd2nzPara.nValue = constInfo_.qHeadNum;
     nd2nzPara.dValue = constInfo_.headDim;
     nd2nzPara.srcDValue = constInfo_.headDim;
     nd2nzPara.srcNdMatrixStride = constInfo_.qHeadNum * constInfo_.headDim;  // --> 0 WANG
@@ -397,7 +397,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gL1Offset, uin
     loadData2DParamsA.mStartPosition = CeilDiv(s1gL1Offset, BLOCK_CUBE);
     loadData2DParamsA.kStartPosition = 0;
     loadData2DParamsA.mStep = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
-    loadData2DParamsA.mStep = (loadData2DParamsA.mStep + 1) / 2 * 2;
+    loadData2DParamsA.mStep = CeilAlign(loadData2DParamsA.mStep,2);
     loadData2DParamsA.kStep = CeilDiv(constInfo_.headDim, 32);
     loadData2DParamsA.srcStride = CeilDiv(s1gL1RealSize, BLOCK_CUBE);
     loadData2DParamsA.dstStride = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
@@ -530,7 +530,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpResToGm(uint64_t s1L0RealCount, uint
     intriParams.quantPre = QuantMode_t::NoQuant;
     intriParams.nz2ndEn = true;
     intriParams.reluPre = 0;
-    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * BLOCK_CUBE
+    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * BLOCK_CUBE,
                                  2048);
     AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * constInfo_.mBaseSize / constInfo_.gSize * constInfo_.s2BaseSize +
                                 s1GmOffset * intriParams.dstStride + s2GmOffset],
