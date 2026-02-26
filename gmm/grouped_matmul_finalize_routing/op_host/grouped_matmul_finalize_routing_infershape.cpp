@@ -114,7 +114,6 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
     OP_CHECK_IF(params.shape_x1->GetDimNum() != twoDimNum, OPS_REPORT_CUBE_INNER_ERR(op_name, "X dim is not 2."), return ge::GRAPH_FAILED);
     params.m = params.shape_x1->GetDim(xIndex);
     params.k = params.shape_x1->GetDim(wIndex);
-    OP_CHECK_IF(params.m <= 0 || params.k <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "M k value must bigger than 0 ."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(params.shape_x2->GetDimNum() != threeDimNum, OPS_REPORT_CUBE_INNER_ERR(op_name, "W dim is not 3."),
         return ge::GRAPH_FAILED);
     if (!params.weightTrans) {
@@ -128,7 +127,6 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
         params.n = params.shape_x2->GetDim(DIM_ONE);
     }
     params.e = params.shape_x2->GetDim(xIndex);
-    OP_CHECK_IF(params.n <= 0 || params.e <= 0, OPS_REPORT_CUBE_INNER_ERR(op_name, "N e value must bigger than 0 ."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -230,22 +228,14 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
 {
     auto attrs = context->GetAttrs();
     auto shape_out = context->GetOutputShape(0);
-    const int *shared_input_offset = attrs->GetAttrPointer<int>(sharedInputOffsetAttrIndex);
-    OP_CHECK_IF(shared_input_offset == nullptr || *shared_input_offset < 0,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "shared_input_offset is smaller than 0."), return ge::GRAPH_FAILED);
-
     shape_out->SetDimNum(twoDimNum);
     const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
     OP_CHECK_IF(output_bs == nullptr,
         OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is not given."), return ge::GRAPH_FAILED);
     if (output_bs != nullptr) {
-        OP_CHECK_IF(*output_bs > xAndWParams.m || *output_bs < 0,
-            OPS_REPORT_CUBE_INNER_ERR(op_name, "output_bs is larger than m or smaller than 0 "), return ge::GRAPH_FAILED);
         shape_out->SetDim(0, *output_bs);
     }
     shape_out->SetDim(DIM_ONE, xAndWParams.n);
-    OP_CHECK_IF((bsdp + (*shared_input_offset)) > *output_bs,
-        OPS_REPORT_CUBE_INNER_ERR(op_name, "BS/dp add shared_input_offset larger than outputBS."), return ge::GRAPH_FAILED);
     OP_LOGI(op_name, "shape out is %ld, %ld", shape_out->GetDim(0), shape_out->GetDim(1));
     return ge::GRAPH_SUCCESS;
 }
@@ -254,7 +244,6 @@ static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& b
 {
     auto attrs = context->GetAttrs();
     auto shape_out = context->GetOutputShape(0);
-    const int *shared_input_offset = attrs->GetAttrPointer<int>(sharedInputOffsetAttrIndex);
     
     shape_out->SetDimNum(twoDimNum);
     const int *output_bs = attrs->GetAttrPointer<int>(outputBSAttrIndex);
@@ -314,20 +303,23 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
         return ge::GRAPH_SUCCESS;
     } else {
         OP_CHECK_IF(ValidateXAndWShapes(op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
+        // 在动态图模式下，跳过校验逻辑
+        if (xAndWParams.m != -1 && xAndWParams.n != -1 && xAndWParams.k != -1 && xAndWParams.e != -1) {
+            OP_CHECK_IF(ValidateScaleAndBias(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+                        return ge::GRAPH_FAILED, );
 
-        OP_CHECK_IF(ValidateScaleAndBias(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
-                    return ge::GRAPH_FAILED, );
+            OP_CHECK_IF(ValidatePertokenAndGroupList(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+                        return ge::GRAPH_FAILED, );
 
-        OP_CHECK_IF(ValidatePertokenAndGroupList(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
-                    return ge::GRAPH_FAILED, );
+            OP_CHECK_IF(ValidateSharedInputAndLogit(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+                        return ge::GRAPH_FAILED, );
 
-        OP_CHECK_IF(ValidateSharedInputAndLogit(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
-                    return ge::GRAPH_FAILED, );
+            OP_CHECK_IF(ValidateRowIndex(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+                        return ge::GRAPH_FAILED, );
 
-        OP_CHECK_IF(ValidateRowIndex(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
-
-        OP_CHECK_IF(ValidateOffsetShape(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
-
+            OP_CHECK_IF(ValidateOffsetShape(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+                        return ge::GRAPH_FAILED, );
+        }
         OP_CHECK_IF(SetupOutputAndCheckAttrs(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                     return ge::GRAPH_FAILED, );
     }
