@@ -44,6 +44,7 @@ constexpr uint8_t COMM_NUM = 2;  // 通信域大小
 constexpr uint8_t COMM_EP_IDX = 0;
 constexpr uint8_t COMM_TP_IDX = 1;
 constexpr uint8_t QUANT_PADDING_VALUE = 0;
+constexpr uint32_t FIRST_CORE = 0U;
 // 先写死这个偏移，如果TP固定为2，可直接往起始数据偏移开始读写
 constexpr uint64_t WIN_STATE_OFFSET = 384UL * 1024UL;
 constexpr uint64_t TIMEOUT_DETECTION_THRESHOLD = 50000UL;
@@ -72,6 +73,7 @@ constexpr uint32_t STATIC_QUANT = 1;
 constexpr uint32_t PERTOKEN_DYNAMIC_QUANT = 2;
 constexpr uint32_t PERGROUP_DYNAMIC_QUANT = 3;
 constexpr uint32_t MX_QUANT = 4;
+constexpr uint32_t CACHEWRITESIZE = 8U;
 
 // combinev2额外所需常量段
 constexpr uint64_t COMBINE_STATE_WIN_OFFSET = 818UL * 1024UL;   // combine 0/1状态区偏移，为dispatch预留50k大小

@@ -71,6 +71,8 @@ constexpr uint32_t BF16_WORKSIZE = 2;
 constexpr uint32_t FP32_WORKSIZE = 4;
 constexpr uint64_t DB_REQUIRED_BYTES_SIZE = 14;
 constexpr uint32_t SYS_WORKSPACE_SIZES = 16 * 1024 * 1024;
+
+constexpr uint32_t CORE_RATIO = 2;
 } // namespace GmmConstant
 
 enum class QuantMode : uint32_t {
@@ -82,6 +84,15 @@ enum class QuantMode : uint32_t {
     PERGROUP_MODE = 0x1U << 4,
     PERBLOCK_MODE = 0x1U << 5,
 };
+
+typedef enum {
+    GMM_ACT_TYPE_NONE = 0L,
+    GMM_ACT_TYPE_RELU = 1L,
+    GMM_ACT_TYPE_GELU_TANH = 2L,
+    GMM_ACT_TYPE_GELU_ERR_FUNC = 3L,
+    GMM_ACT_TYPE_FAST_GELU = 4L,
+    GMM_ACT_TYPE_SILU = 5L,
+} GMMActType;
 
 struct GQmmBasicTiling {
     uint32_t usedCoreNum = 1;
@@ -208,7 +219,8 @@ private:
     bool CheckDtypeForWeightNz(bool isPertokenScaleNull) const;
     bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     bool CheckActiveModeDtype(const gert::StorageShape *xScaleStorageShape) const;
- 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape) const;
+ 	bool CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape);
+    virtual bool CheckCoreNum() const;
 
     GroupedMatmulTilingData::GMMQuantTilingData tilingData_;
     bool isWeightNz_ = false;

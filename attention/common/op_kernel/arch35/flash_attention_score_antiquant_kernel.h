@@ -322,10 +322,10 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
             pseInfo.pseS1Size = inputParamsRegbase.pseS1Size;
             pseInfo.pseS2Size = inputParamsRegbase.pseS2Size;
             pseInfo.pseEncodeType = (uint32_t)inputParamsRegbase.pseEncodeType;
-            pseInfo.pseStride = pseInfo.pseLayoutType == pse1S2 ? 0 : s2BaseSize;
+            pseInfo.pseStride = (pseInfo.pseLayoutType == (uint32_t)PseLayoutTypeEnum::PSE_1S2)? 0 : s2BaseSize;
             pseInfo.qStartIdx = inputParamsRegbase.qStartIdx;
             pseInfo.kvStartIdx = inputParamsRegbase.kvStartIdx;
-            if (inputParamsRegbase.pseShapeType == pse1S2) {
+            if (inputParamsRegbase.pseShapeType == (uint32_t)PseLayoutTypeEnum::PSE_1S2) {
                 constInfo.gS2 = constInfo.gSize * constInfo.s2Size;
             }
         }
@@ -373,9 +373,8 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
         this->constInfo.paBlockNumSum = inputParamsRegbase.paBlockNumSum;
     }
 
-    this->constInfo.isBSNDOut = inputParamsRegbase.isBSNDOut;
-    this->constInfo.isTNDOut = inputParamsRegbase.isTNDOut;
-    if (this->constInfo.isBSNDOut == 1) {
+    this->constInfo.transposeLayout = inputParamsRegbase.transposeLayout;
+    if (this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND)) {
         this->constInfo.attentionOutStride =
             (this->constInfo.n2GDv - this->constInfo.dSizeV) * sizeof(OUTPUT_T);
     }
@@ -584,7 +583,7 @@ __aicore__ inline void FlashAttentionScoreAntiquantKernel<AntiquantCubeBlockType
                     if ASCEND_IS_AIV {
                         GlobalTensor<KV_T> keyGmAnti;
                         if constexpr (enableKVPrefix) {
-                            if (runInfo1.s2LoopCount < constInfo.prefixLoopCount) {
+                            if ((runInfo1.s2LoopCount + runInfo1.s2StartIdx / s2BaseSize) < constInfo.prefixLoopCount) {
                                 keyGmAnti = this->keySharedPrefixGm;
                             } else {
                                 keyGmAnti = this->keyGm;

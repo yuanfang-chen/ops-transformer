@@ -15,8 +15,12 @@
 #ifndef FIA_BLOCK_VEC_FLASHDECODE_H
 #define FIA_BLOCK_VEC_FLASHDECODE_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -146,29 +150,49 @@ protected:
     TaskInfo taskInfo{};
 private:    
  // ================================FD Local Buffer区====================================
-    TBuf<> fdSumBuf1;    // 1.5k: 16*24*4
-    TBuf<> fdSumBuf2;    // 1.5k: 16*24*4
-    TBuf<> fdMaxBuf1;    // 1.5k: 16*24*4
-    TBuf<> fdMaxBuf2;    // 1.5k: 16*24*4
-    TBuf<> fdLseExpBuf;  // 1.5k: 16*24*4
-    TBuf<> fdMm2ResBuf1; // 32k: 16*512*4
-    TBuf<> fdMm2ResBuf2; // 32k: 16*512*4
-    TBuf<> fdReduceBuf;  // 32k: 16*512*4
-    TBuf<> fdOutputBuf;  // 32k: 16*512*4
-    TBuf<> fdSinkCopyInBuf;   // 2*1k: 2*128*8
-    TBuf<> fdSinkValueBuf;    // 2k
-    TBuf<> fdSinkExpBuf;      // 256B
-    TBuf<> fdSinkTmpBuf;      // 2k
+    TBuf<> fdSumBuf1;
+    TBuf<> fdSumBuf2;
+    TBuf<> fdMaxBuf1;
+    TBuf<> fdMaxBuf2;
+    TBuf<> fdLseExpBuf;
+    TBuf<> fdMm2ResBuf1;
+    TBuf<> fdMm2ResBuf2;
+    TBuf<> fdReduceBuf;
+    TBuf<> fdOutputBuf;
+    TBuf<> fdSinkCopyInBuf;
+    TBuf<> fdSinkValueBuf;
+    TBuf<> fdSinkExpBuf;
+    TBuf<> fdSinkTmpBuf;
 
-    TBuf<> fdLseMaxUbBuf1; // 64B: 16*4
-    TBuf<> fdLseMaxUbBuf2; // 64B: 16*4
-    TBuf<> fdLseSumUbBuf1; // 64B: 16*4
-    TBuf<> fdLseSumUbBuf2; // 64B: 16*4
+    TBuf<> fdLseMaxUbBuf1;
+    TBuf<> fdLseMaxUbBuf2;
+    TBuf<> fdLseSumUbBuf1;
+    TBuf<> fdLseSumUbBuf2;
     TBuf<> quant2TmpBuf1;
     TBuf<> quant2TmpBuf2;
-    TBuf<> fdLseMaxUbBuf; // 64B: 16*4
-    TBuf<> fdLseSumUbBuf; // 64B: 16*4
-    TBuf<> fdLseUbBuf; // 64B: 16*4
+    TBuf<> fdLseUbBuf;
+};
+
+template <typename FIAT> 
+class FiaBlockVecFlashDecodeDummy {
+public:
+    // =================================类型定义区=================================
+    // 中间计算数据类型为float，高精度模式
+    using T = float;
+    using OUT_T = typename FIAT::outputType;  
+    using SINK_T = bfloat16_t;
+
+    __aicore__ inline void InitGlobalTensor(GlobalTensor<T> lseMaxFdGm, GlobalTensor<T> lseSumFdGm, GlobalTensor<T> accumOutGm, 
+         GlobalTensor<OUT_T> attentionOutGm, GlobalTensor<uint64_t> actualSeqLengthsGmQ, GlobalTensor<uint64_t> actualSeqLengthsGm,
+         __gm__ uint8_t *key, __gm__ uint8_t *quantScale2, __gm__ uint8_t *quantOffset2);
+    __aicore__ inline void InitParams(const AttentionCommon::ConstInfo &constInfo);
+    __aicore__ inline void InitSoftmaxLseGm(GlobalTensor<float> softmaxLseGm);
+    __aicore__ inline void InitLearnableSinkGm(GlobalTensor<SINK_T> learnableSink);
+    __aicore__ inline void FlashDecode(FDparams &fd);
+    __aicore__ inline void InitBuffers(TPipe *pipe);
+    __aicore__ inline void InitDecodeParams();
+    __aicore__ inline void AllocEventID();
+    __aicore__ inline void FreeEventID();
 };
 
 template <typename FIAT> __aicore__ inline 
@@ -494,18 +518,17 @@ __aicore__ inline void FiaBlockVecFlashDecode<FIAT>::Bmm2DataCopyOutTrans(LocalT
     }
 }
 
-template <typename FIAT>__aicore__ inline 
+template <typename FIAT> __aicore__ inline 
 void FiaBlockVecFlashDecode<FIAT>::Bmm2DataCopyOut(uint64_t attenOutOffset, LocalTensor<OUT_T> &attenOutUb,
-                                                               uint32_t startRow, uint32_t dealRowCount,
-                                                               uint32_t columnCount, uint32_t actualColumnCount)
+                                                   uint32_t startRow, uint32_t dealRowCount,
+                                                   uint32_t columnCount, uint32_t actualColumnCount)
 {
     DataCopyExtParams dataCopyParams;
     dataCopyParams.blockCount = dealRowCount;
     dataCopyParams.blockLen = actualColumnCount * sizeof(OUT_T);
     dataCopyParams.srcStride = (columnCount - actualColumnCount) / (fa_base_vector::BYTE_BLOCK / sizeof(OUT_T));
     dataCopyParams.dstStride = 0;
-    DataCopyPad(attentionOutGm[attenOutOffset + startRow * actualColumnCount], attenOutUb,
-                dataCopyParams);
+    DataCopyPad(attentionOutGm[attenOutOffset + startRow * actualColumnCount], attenOutUb, dataCopyParams);
 }
 
 template <typename FIAT>__aicore__ inline 
@@ -516,14 +539,14 @@ void FiaBlockVecFlashDecode<FIAT>::ReduceFinalRes(LocalTensor<T> &reduceOut,
                                                       uint32_t dealRowCount)
 {
     uint32_t dealRowCountAlign = dealRowCount * fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
-    LocalTensor<T> tmpRst =
+    LocalTensor<T> tmpRes =
         cntKV == 0 ? reduceOut : mm2Res; // 第一次mul结果直接写入reduceOut，否则在mm2Res原地进行mul，再加到reduceOut
 
-    fa_base_vector::RowMuls(tmpRst, mm2Res, lseLocal[cntKV * dealRowCountAlign], dealRowCount, constInfo.headDimAlign, constInfo.headDim);
+    fa_base_vector::RowMuls(tmpRes, mm2Res, lseLocal[cntKV * dealRowCountAlign], dealRowCount, constInfo.headDimAlign, constInfo.headDim);
 
     if (cntKV != 0) {
         AscendC::PipeBarrier<PIPE_V>();
-        Add(reduceOut, reduceOut, tmpRst, dealRowCount * constInfo.headDimAlign);
+        Add(reduceOut, reduceOut, tmpRes, dealRowCount * constInfo.headDimAlign);
         AscendC::PipeBarrier<PIPE_V>();
     }
 }
@@ -534,6 +557,9 @@ void FiaBlockVecFlashDecode<FIAT>::CopyFinalResOut(LocalTensor<T> &accumOutLocal
                                                        uint32_t dealRowCount,
                                                        uint32_t cntM)
 {
+    DealInvalidRows(accumOutLocal, startRow, dealRowCount, constInfo.headDimAlign);
+    DealInvalidMaskRows(accumOutLocal, startRow, dealRowCount, constInfo.headDimAlign, cntM);
+    AscendC::PipeBarrier<PIPE_V>();
     if constexpr (POST_QUANT) {
         if (isQuant2PerChn) {
             DealPostQuantOutPerChn(accumOutLocal, startRow, dealRowCount, constInfo.headDimAlign, cntM);
@@ -543,11 +569,6 @@ void FiaBlockVecFlashDecode<FIAT>::CopyFinalResOut(LocalTensor<T> &accumOutLocal
             AscendC::PipeBarrier<PIPE_V>();
         }
     }
-
-    DealInvalidRows(accumOutLocal, startRow, dealRowCount, constInfo.headDimAlign);
-    DealInvalidMaskRows(accumOutLocal, startRow, dealRowCount, constInfo.headDimAlign, cntM);
-    AscendC::PipeBarrier<PIPE_V>();
-
     LocalTensor<OUT_T> tmpBmm2ResCastTensor = fdOutputBuf.Get<OUT_T>();
     WaitFlag<AscendC::HardEvent::MTE3_V>(SYNC_FDOUTPUT_BUF_FLAG);
     if constexpr (POST_QUANT) {
@@ -771,7 +792,7 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
     uint32_t fdS1gOuterMEnd = fd.gS1IdxEndOfFdHeadSplit[blockIdx]; // 当前核的末尾是该规约的第几个base行
     uint32_t tmpFdS1gOuterMStart = (blockIdx > 0) ? fdS1gOuterMPrevEnd + 1 : 0; // 当前核从第几个base行开始
     uint32_t tmpFdS1gOuterMEnd = 0;
-    uint32_t reduceGlobaLoop = 0;
+    uint32_t reduceGlobalLoop = 0;
     uint32_t reduceMLoop = 0;
 
     for (uint32_t fdTaskId = fdTaskPrevEnd; fdTaskId <= fdTaskEnd; fdTaskId++) {
@@ -782,7 +803,7 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
         taskInfo.actualCombineLoopSize = fd.s2SplitNumOfFdHead[fdTaskId]; // 当前规约任务kv方向有几份
 
         uint64_t combineTaskPrefixSum = 0;
-        for (int i = 0; i < fdTaskId; i++) {
+        for (uint32_t i = 0; i < fdTaskId; i++) {
             // 计算此前规约数据的累计份数，每一份的数据大小为 kvHeadNum * constInfo.tndSgBasicSize
             // |Task0-0|Task0-1|Task0-3|Task1-0|Task1-2|...|
             combineTaskPrefixSum += fd.s2SplitNumOfFdHead[i];
@@ -810,12 +831,11 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
                 CopySinkIn(reduceMLoop);
             }
 
-            LocalTensor<T> mm2Res;
             for (uint32_t preLoadIdx = 0; preLoadIdx < constInfo.preLoadNum; preLoadIdx++) {
-                mm2Res = (reduceGlobaLoop + preLoadIdx) % 2 == 0 ? fdMm2ResBuf1.Get<T>() : fdMm2ResBuf2.Get<T>();
-                WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + (reduceGlobaLoop + preLoadIdx) % 2);
+                LocalTensor<T> mm2Res = (reduceGlobalLoop + preLoadIdx) % 2 == 0 ? fdMm2ResBuf1.Get<T>() : fdMm2ResBuf2.Get<T>();
+                WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + (reduceGlobalLoop + preLoadIdx) % 2);
                 CopyAccumOutIn(mm2Res, preLoadIdx, taskOffset + startRow, actualGSplitSize);
-                SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + (reduceGlobaLoop + preLoadIdx) % 2);
+                SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + (reduceGlobalLoop + preLoadIdx) % 2);
             }
 
             ComputeScaleValue(lseExp, startRow, actualGSplitSize, reduceMLoop);
@@ -828,8 +848,8 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
                 // 新增 最终LSE的计算lse = log(sum) + max
 
                 WaitFlag<HardEvent::MTE3_V>(SYNC_LSEOUTPUT_BUF_FLAG);
-                LocalTensor<T> lseftMaxLseUb = fdLseUbBuf.Get<T>();
-                fa_base_vector::ComputeSoftMaxLse(lseftMaxLseUb, lseSumUb, lseMaxUb, actualGSplitSize);
+                LocalTensor<T> maxLseUb = fdLseUbBuf.Get<T>();
+                fa_base_vector::ComputeSoftMaxLse(maxLseUb, lseSumUb, lseMaxUb, actualGSplitSize);
                 // 判断是否行无效
                 bool isInValidRowsFlag = fa_base_vector::IsExistInvalidRows(nextTokensPerBatch, preTokensPerBatch, constInfo.sparseMode,
                                           constInfo.attenMaskFlag, constInfo.isRowInvalid);
@@ -837,27 +857,27 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
                     SoftMaxShapeInfo softmaxShapeInfo{
                     static_cast<uint32_t>(actualGSplitSize), static_cast<uint32_t>(FP32_BLOCK_ELEMENT_NUM),
                     static_cast<uint32_t>(actualGSplitSize), static_cast<uint32_t>(FP32_BLOCK_ELEMENT_NUM)};
-                    AdjustSoftMaxRes<T, T>(lseftMaxLseUb, lseMaxUb, negativeIntScalar, (T)3e+99, softmaxShapeInfo);
+                    AdjustSoftMaxRes<T, T>(maxLseUb, lseMaxUb, negativeIntScalar, FLOAT_INF, softmaxShapeInfo);
                 }
                 SetFlag<HardEvent::V_MTE3>(SYNC_LSEOUTPUT_BUF_FLAG);
                 WaitFlag<HardEvent::V_MTE3>(SYNC_LSEOUTPUT_BUF_FLAG);
                 uint32_t mOffset = taskInfo.gS1Idx + startRow;
-                if (LAYOUT_T == FIA_LAYOUT::TND) {
+                if constexpr (LAYOUT_T == FIA_LAYOUT::TND) {
                     uint32_t prefixBS1 = taskInfo.bIdx == 0U ? 0U : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1);
                     uint64_t bN2Offset = prefixBS1 * constInfo.qHeadNum + taskInfo.n2Idx * constInfo.gSize;
-                    DataCopySoftmaxLseTND(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo);
-                } else if (LAYOUT_T == FIA_LAYOUT::NTD) {
+                    DataCopySoftmaxLseTND(softmaxLseGm, maxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo);
+                } else if constexpr (LAYOUT_T == FIA_LAYOUT::NTD) {
                     uint32_t prefixBS1 = taskInfo.bIdx == 0U ? 0U : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1);
                     uint32_t s1Size = taskInfo.bIdx == 0U ? 
                             actualSeqLengthsGmQ.GetValue(0U) : actualSeqLengthsGmQ.GetValue(taskInfo.bIdx) - actualSeqLengthsGmQ.GetValue(taskInfo.bIdx - 1U);
                     uint64_t bN2Offset = prefixBS1 * constInfo.qHeadNum + taskInfo.n2Idx * constInfo.gSize;
-                    DataCopySoftmaxLseNTD(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, s1Size);
-                } else if (LAYOUT_T == FIA_LAYOUT::BSND || LAYOUT_T == FIA_LAYOUT::BSH) {
+                    DataCopySoftmaxLseNTD(softmaxLseGm, maxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, s1Size);
+                } else if constexpr (LAYOUT_T == FIA_LAYOUT::BSND || LAYOUT_T == FIA_LAYOUT::BSH) {
                     uint64_t bN2Offset = taskInfo.bIdx * constInfo.qHeadNum * constInfo.qSeqSize + taskInfo.n2Idx * constInfo.gSize * constInfo.qSeqSize;
-                    DataCopySoftmaxLseBSND(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, qActSeqLensParser, taskInfo.bIdx);
+                    DataCopySoftmaxLseBSND(softmaxLseGm, maxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, qActSeqLensParser, taskInfo.bIdx);
                 } else { // BNSD
                     uint64_t bN2Offset = taskInfo.bIdx * constInfo.qHeadNum * constInfo.qSeqSize + taskInfo.n2Idx * constInfo.gSize * constInfo.qSeqSize;
-                    DataCopySoftmaxLseBNSD<T, Q_MODE>(softmaxLseGm, lseftMaxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, qActSeqLensParser, taskInfo.bIdx);
+                    DataCopySoftmaxLseBNSD<T, Q_MODE>(softmaxLseGm, maxLseUb, bN2Offset, mOffset, actualGSplitSize, constInfo, qActSeqLensParser, taskInfo.bIdx);
                 }
                 SetFlag<HardEvent::MTE3_V>(SYNC_LSEOUTPUT_BUF_FLAG);
             }
@@ -866,17 +886,17 @@ FiaBlockVecFlashDecode<FIAT>::FlashDecode(FDparams &fd)
             //****************************************************************************************************** */
 
             for (uint32_t i = 0; i < taskInfo.actualCombineLoopSize; i++) {
-                mm2Res = reduceGlobaLoop % 2 == 0 ? fdMm2ResBuf1.Get<T>() : fdMm2ResBuf2.Get<T>();
+                LocalTensor<T> mm2Res = reduceGlobalLoop % 2 == 0 ? fdMm2ResBuf1.Get<T>() : fdMm2ResBuf2.Get<T>();
                 if (i >= constInfo.preLoadNum) {
-                    WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + reduceGlobaLoop % 2);
+                    WaitFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + reduceGlobalLoop % 2);
                     CopyAccumOutIn(mm2Res, i, taskOffset + startRow, actualGSplitSize);
-                    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + reduceGlobaLoop % 2);
+                    SetFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + reduceGlobalLoop % 2);
                 }
 
-                WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + reduceGlobaLoop % 2);
+                WaitFlag<AscendC::HardEvent::MTE2_V>(SYNC_MM2RES_BUF1_FLAG + reduceGlobalLoop % 2);
                 ReduceFinalRes(reduceOut, mm2Res, lseExp, i, actualGSplitSize);
-                SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + reduceGlobaLoop % 2);
-                reduceGlobaLoop += 1;
+                SetFlag<AscendC::HardEvent::V_MTE2>(SYNC_MM2RES_BUF1_FLAG + reduceGlobalLoop % 2);
+                reduceGlobalLoop += 1;
             }
             CopyFinalResOut(reduceOut, startRow, actualGSplitSize, reduceMLoop);
             reduceMLoop += 1;

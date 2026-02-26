@@ -163,7 +163,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp4Dtype(ge::DataType dtype)
 {
-    return (dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_FLOAT4_E2M1);
+    return dtype == ge::DT_FLOAT4_E2M1;
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
@@ -179,7 +179,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
         OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0 ||
                         inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0,
                     OP_LOGE(context_->GetNodeName(),
-                            "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1 inputs, \
+                            "With DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E2M1 inputs, \
 the expected dtype of scale and pertokenScale should be DT_FLOAT8_E8M0, but actual dtype is %s, %s.",
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str(),
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
@@ -315,6 +315,21 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeInputs()
                 OP_LOGE(context_->GetNodeName(), "OutputBs (%lu) out of M (%lu).", outputBs_, inputParams_.mSize),
                 return false);
     OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
+    OP_CHECK_IF(!CheckCoreNum(),
+                OP_LOGE(inputParams_.opName, "CheckCoreNum failed."), return false);  
+    return true;
+}
+
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckCoreNum() const
+{
+    auto aicNum = context_->GetCompileInfo<GroupedMatmulFinalizeRoutingCompileInfo>()->aicNum;
+    auto aivNum = context_->GetCompileInfo<GroupedMatmulFinalizeRoutingCompileInfo>()->aivNum;
+    OP_CHECK_IF(aicNum == 0,
+               OP_LOGE(inputParams_.opName, "aicNum should be positive integer, actual is %u.", aicNum),
+               return false);
+    OP_CHECK_IF(aivNum != GmmConstant::CORE_RATIO * aicNum,
+                OP_LOGE(inputParams_.opName, "aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
+                return false);
     return true;
 }
 

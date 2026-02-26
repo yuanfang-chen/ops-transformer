@@ -42,6 +42,7 @@ static constexpr uint32_t S1_BASE_STEP = 128;
 static constexpr uint32_t S2_BASE_STEP = 1024;
 static constexpr uint32_t CUBE_BASE_BLOCK = 128;
 static constexpr uint32_t C0_SIZE = 16;
+static constexpr uint32_t VEC_ALIGN_SIZE = 32;
 static constexpr uint32_t CUBE_MATRIX_SIZE = 256;
 static constexpr uint32_t S1_VEC_SIZE_8 = 8;
 static constexpr uint32_t DOUBLE_BUFFER = 2;
@@ -50,6 +51,9 @@ static constexpr uint32_t FLOAT_DATA_BLOCK_NUM = 8;
 static constexpr uint32_t FLOAT_REPEAT_NUM = 64;
 static constexpr uint32_t S2_BASE_STEP_MASK_V3V4  = 128;
 static constexpr uint32_t TEMP_VEC_SIZE_V3V4  = 24 * 1024;
+
+// deter
+static constexpr int64_t DETER_INVALID_RUNINFO_VALUE  = -1;
 
 enum class DLILayout
 {
@@ -83,7 +87,7 @@ struct MMParam {
 /** @name 模版类型定义
  *  @{
  */
-template <typename InputQT, typename InputKT, typename OutT,
+template <typename InputQT, typename InputKT, typename InputWT, typename OutT,
 	      DLILayout LayoutQT = DLILayout::TND,
           DLILayout LayoutKT = DLILayout::TND,
           DLISparseMode SparseMode = DLISparseMode::RightDown,
@@ -92,6 +96,7 @@ template <typename InputQT, typename InputKT, typename OutT,
 struct DLIType {
     using inputQT = InputQT;
     using inputKT = InputKT;
+    using inputWT = InputWT;
     using outputT = OutT;
     static constexpr DLILayout inputQLayout = LayoutQT;
     static constexpr DLILayout inputKLayout = LayoutKT;
@@ -106,6 +111,7 @@ struct DLIType {
  */
 struct DLIGradKLLossConstInfo {
     static constexpr uint32_t BUFFER_SIZE_BYTE_64 = 64;
+    static constexpr uint32_t BUFFER_SIZE_BYTE_128 = 128;
     static constexpr uint32_t BUFFER_SIZE_BYTE_256 = 256;
     static constexpr uint32_t BUFFER_SIZE_BYTE_512 = 512;
     static constexpr uint32_t BUFFER_SIZE_BYTE_1K = 1024;
@@ -123,6 +129,7 @@ struct DLIGradKLLossConstInfo {
     uint32_t aivIdx;
     uint32_t subBlockIdx;
     uint32_t aivNum;
+    uint32_t aicNum;
 
     /** \brief TilingData中的信息 */
 	uint32_t bSize;
@@ -158,6 +165,11 @@ struct DLIGradKLLossConstInfo {
 
     uint32_t dKeySingleCoreSize = 0;
     uint32_t dKeyGmOffset = 0;
+
+    // 确定性参数
+    uint32_t dKeyDeterGmOffset = 0;
+    uint32_t dKeyDeterGmLength = 0;
+    int64_t maxLoopSize = 0;
 };
 
 struct DLIGradKLLossRunInfo {

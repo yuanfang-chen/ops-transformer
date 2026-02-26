@@ -15,7 +15,11 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_COMMFP8_MIXED_CALC_H
 #define MATMUL_ALL_REDUCE_QUANT_COMMFP8_MIXED_CALC_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
@@ -120,7 +124,9 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     tilingData_ = tilingData;
     rankNum_ = tilingData_->param.rankDim;
     tPipe_ = tPipe;
@@ -271,7 +277,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
             MatmulAllReduceElementWiseAddKernel<float, YType>(cGM_, addGM_, cOffset / sizeof(float),
                                                               tilingData_->param.addX3UbCnt, tPipe_);
             addGM_ += addOffset;
-            SyncAll();
+            SyncAll<false>();
         }
         quantOp.Init(cGM_, all2allInGM_, mmTiling->matmulTiling.M, mmTiling->matmulTiling.N, oneLineSCnt, coreNum_,
                      maxProcRowsQuant_, true, tPipe_);
@@ -283,6 +289,7 @@ __aicore__ inline void MatmulAllReduceCommFp8MixedCalc<XType, WType, YType, MmTy
         }
         if (isSendTileFlag_) {
             StepOneTurn(mmOp, quantOp, mixedOp, mmTiling, curPadM, isTail, i == 0);
+            SyncAll<false>();
         }
         isSendTileFlag_ = true;
         aGM_ += aOffset;

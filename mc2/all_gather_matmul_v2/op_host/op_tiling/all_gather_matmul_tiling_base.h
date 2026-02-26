@@ -84,6 +84,7 @@ protected:
                            ::TCubeTiling& tailTiling, uint32_t& debugMode, uint32_t& dataType);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
+    CutResult GetTilingResult();
     virtual ge::graphStatus CheckInput()
     {
         return ge::GRAPH_SUCCESS;
@@ -110,7 +111,7 @@ protected:
                                  ::TCubeTiling& tailTiling, uint32_t debugMode);
 
     mc2tiling::TilingArgs args_;
-    platform_ascendc::SocVersion socVersion_;
+    NpuArch npuArch_;
     const char* opName_{nullptr};
     const char* group_{nullptr};
     uint64_t tileMValue_{0};
@@ -128,4 +129,5 @@ protected:
     uint32_t gatherIndex_{0};
 };
 }  // namespace optiling
+
 #endif  // __ALL_GATHER_MATMUL_TILING_BASE__

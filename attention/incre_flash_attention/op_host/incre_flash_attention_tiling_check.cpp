@@ -1404,13 +1404,13 @@ ge::graphStatus IFATiling::CheckTndMaskShapeWithSparseMode()
 
 ge::graphStatus IFATiling::CheckMaskShapeWithQSeq() const
 {
+
     if (antiQuantFlag_ || quantFlag_) {
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ > 1U && (static_cast<int32_t>(sparseMode_) != 3 ||
                      static_cast<int32_t>(sparseMode_) != 9)),
            OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3/9 "
                 "in MLA when full quant situation.", static_cast<int32_t>(sparseMode_)),
            return ge::GRAPH_FAILED);
-
         OP_CHECK_IF((ropeFlag_ && qSeqSize_ > 1U && static_cast<int32_t>(sparseMode_) != 3),
            OP_LOGE(ifaContext_->opName, "when queryS > 1, sparseMode(%d) only support 3 "
                 "in MLA when antiquant situation.", static_cast<int32_t>(sparseMode_)),
@@ -1821,10 +1821,6 @@ ge::graphStatus IFATiling::CheckDefaultMisc(std::string scene) const
 
     OP_CHECK_IF(sysPrefixFlag_,
         OP_LOGE(ifaContext_->opName, "SysPrefix is not supported in %s.", scene.c_str()),
-        return ge::GRAPH_FAILED);
-
-    OP_CHECK_IF(softmaxLseFlag_,
-        OP_LOGE(ifaContext_->opName, "SoftmaxLse output is not supported in %s.", scene.c_str()),
         return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(outputType_ == ge::DT_INT8,

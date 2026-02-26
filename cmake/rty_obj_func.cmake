@@ -150,6 +150,9 @@ function(add_opmaster_ct_gentask_modules)
         error_manager
         ops_utils_tiling
       -Wl,--as-needed
+      -Wl,--whole-archive
+        tiling_api
+      -Wl,--no-whole-archive
         c_sec
         json
         platform
@@ -225,7 +228,7 @@ endfunction()
 # OPTYPE 和 ACLNNTYPE 需一一对应
 macro(add_modules_sources)
   set(oneValueArgs OP_API_INDEPENDENT OP_API_DIR)
-  set(multiValueArgs OPTYPE ACLNNTYPE)
+  set(multiValueArgs OPTYPE ACLNNTYPE ACLNN_EXTRA_VERSION)
 
   cmake_parse_arguments(MODULE "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})

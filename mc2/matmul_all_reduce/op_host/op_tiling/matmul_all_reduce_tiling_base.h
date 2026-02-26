@@ -47,7 +47,9 @@ constexpr uint8_t DIM_NUM_TWO = 2;
 constexpr uint8_t DIM_NUM_ONE = 1;
 constexpr int64_t SUPPORTED_BLOCK_SIZE = 128;
 constexpr uint64_t MX_GROUP_SIZE = 64;
-constexpr uint64_t MX_FP4_GROUP_SIZE = 32;
+constexpr uint64_t MX_GROUP_SIZE_K = 32;
+constexpr uint64_t MX_GROUP_SIZE_M = 1;
+constexpr uint64_t MX_GROUP_SIZE_N = 1;
 constexpr uint64_t MM_UN_ALINGNED_TILING_KEY_A2 = 65535UL;
 constexpr uint64_t MM_ALINGNED_TILING_KEY_A2 = 65536UL;
 constexpr uint64_t TILING_KEY_BASE_VALUE = 10000000000000000000UL;
@@ -255,6 +257,7 @@ protected:
     uint32_t rankSize_{0U};
     uint32_t libApiWorkSpaceSize_{0U};
     platform_ascendc::SocVersion socVersion_;
+    NpuArch npuArch_;
     bool supportL0c2Out_{false};
     mc2tiling::TilingArgs args_;
     bool isWeightNz_{false};

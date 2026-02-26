@@ -1,11 +1,17 @@
 # aclnnMoeFinalizeRouting
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/moe/moe_finalize_routing)
+
 ## 产品支持情况
 
 | 产品                                                         |  是否支持   |
 | :----------------------------------------------------------- |:-------:|
+| <term>Ascend 950PR/Ascend 950DT</term>                             |    ×    |
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √    |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    √    |
+| <term>Atlas 200I/500 A2 推理产品</term>                      |    ×    |
+| <term>Atlas 推理系列产品</term>                             |    ×    |
+| <term>Atlas 训练系列产品</term>                              |    ×    |
 
 ## 功能说明
 
@@ -79,7 +85,7 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>FLOAT16、BFLOAT16、FLOAT32</td>
       <td>ND</td>
       <td>(NUM_ROWS * K, H)<br>NUM_ROWS为行数<br>K为从总的专家E中选出K个专家<br>H为列数</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>x1</td>
@@ -87,9 +93,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的x1。</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td>-</td>
+      <td>ND</td>
       <td>与out一致</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>x2Optional</td>
@@ -97,9 +103,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的x2Optional。</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td>-</td>
+      <td>ND</td>
       <td>与out一致</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>bias</td>
@@ -107,9 +113,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的bias。</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td>-</td>
+      <td>ND</td>
       <td>(E，H)<br>E为总的专家个数，H为列数</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>scales</td>
@@ -117,9 +123,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的scales.</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td>-</td>
+      <td>ND</td>
       <td>(NUM_ROWS，K)</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>expandedRowIdx</td>
@@ -127,9 +133,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的expandedRowIdx.</td>
       <td>要求是一个1D的Tensor。<br>Tensor中的值取值范围是[0,NUM_ROWS * K-1]。</td>
       <td>INT32</td>
-      <td>-</td>
+      <td>ND</td>
       <td>(NUM_ROWS * K)</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>expandedExpertIdx</td>
@@ -137,9 +143,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的expandedExpertIdx。</td>
       <td>要求是一个2D的Tensor。<br>Tensor中的值取值范围是[0, E-1]，E为总的专家个数</td>
       <td>INT32</td>
-      <td>-</td>
+      <td>ND</td>
       <td>(NUM_ROWS，K)</td>
-      <td>-</td>
+      <td>√</td>
     </tr>
     <tr>
       <td>out</td>
@@ -147,9 +153,9 @@ aclnnStatus aclnnMoeFinalizeRouting(
       <td>公式中的输出。</td>
       <td>要求是一个2D的Tensor。</td>
       <td>与expandedX一致</td>
-      <td></td>
+      <td>ND</td>
       <td>(NUM_ROWS，H)</td>
-      <td>-</td>
+      <td>×</td>
     </tr>
     <tr>
       <td>workspaceSize</td>
@@ -367,13 +373,13 @@ int main() {
   // 创建x1 aclTensor
   ret = CreateAclTensor(x1HostData, x1Shape, &x1Addr, aclDataType::ACL_FLOAT, &x1);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  // 创建x2Optional aclScalar
+  // 创建x2Optional aclTensor
   ret = CreateAclTensor(x2OptionalHostData, x2OptionalShape, &x2OptionalAddr, aclDataType::ACL_FLOAT, &x2Optional);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   // 创建bias aclTensor
   ret = CreateAclTensor(biasHostData, biasShape, &biasAddr, aclDataType::ACL_FLOAT, &bias);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
-  // 创建totalWeightOut aclTensor
+  // 创建scale aclTensor
   ret = CreateAclTensor(scalesHostData, scalesShape, &scalesDeviceAddr, aclDataType::ACL_FLOAT, &scales);
   CHECK_RET(ret == ACL_SUCCESS, return ret);
   

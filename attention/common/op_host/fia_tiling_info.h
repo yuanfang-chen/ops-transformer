@@ -251,6 +251,9 @@ public:
     float scaleValue = 0;
     int32_t innerPrecise = 0;
     uint32_t l2CacheOffFlag = 0;
+    uint64_t l2CacheSize = 0;
+    std::vector<gert::StorageShape *> kCache = {};
+    std::vector<gert::StorageShape *> vCache = {};
 
     // empty Tensor
     bool emptyTensorFlag = false;
@@ -326,6 +329,8 @@ public:
     ge::DataType inputQType = ge::DT_FLOAT16;
     ge::DataType inputKvType = ge::DT_FLOAT16;
     ge::DataType outputType = ge::DT_FLOAT16;
+    ge::DataType inputQRopeType = ge::DT_FLOAT16;
+    ge::DataType inputKRopeType = ge::DT_FLOAT16;
 
     // Layout
     TilingKeyLayout inputKvLayout = TilingKeyLayout::BSH_BSND;
@@ -340,13 +345,6 @@ public:
     FiaLayout qLayout = FiaLayout::BSND;
     FiaLayout outLayout = FiaLayout::BSND;
     FiaLayout kvLayout = FiaLayout::BSND;
-
-    ge::DataType inputQRopeType = ge::DT_FLOAT16;
-    ge::DataType inputKRopeType = ge::DT_FLOAT16;
-
-    uint64_t l2CacheSize = 0;
-    std::vector<gert::StorageShape *> kCache = {};
-    std::vector<gert::StorageShape *> vCache = {};
 };
 } // optiling
 #endif // FIA_TILING_INFO_H

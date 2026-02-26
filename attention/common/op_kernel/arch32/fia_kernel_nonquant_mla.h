@@ -16,8 +16,12 @@
 #ifndef FIA_KERNEL_NONQUANT_MLA_H
 #define FIA_KERNEL_NONQUANT_MLA_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -408,16 +412,14 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
         (__gm__ T *)(workspace + offset + aiCoreIdx * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T)));
     offset += GetBlockNum() * dbWorkspaceRatio * constInfo.bmm2ResUbSize * sizeof(T);
 
-    if constexpr (FLASH_DECODE) {
-        accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
-        lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
-        lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
-        offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
-    }
-
     if ASCEND_IS_AIV {
         if constexpr (FLASH_DECODE) {
+            accumOutGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            offset = offset + tilingData->workspaceParams.fdAccumOutSize * sizeof(float);
+            lseSumFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset));
+            lseMaxFdGm.SetGlobalBuffer((__gm__ float *)(workspace + offset) + tilingData->workspaceParams.fdLogSumExpSize / 2);
+            offset = offset + tilingData->workspaceParams.fdLogSumExpSize * sizeof(float);
+
             fdService.InitParams(constInfo);
             fdService.InitGlobalTensor(lseMaxFdGm, lseSumFdGm, accumOutGm, attentionOutGm,
                                        actualSeqLengthsGmQ, actualSeqLengthsGm, key, quantScale2, quantOffset2);
@@ -658,10 +660,9 @@ __aicore__ inline void FiaKernelNonQuantMla<FIAT, CubeBlockType, VecBlockType, F
                 gS1IdxEndOfFdHead, gS1IdxEndOfFdHeadSplit, tilingData->fdParams.usedVecNumOfFd,
                 tilingData->fdParams.gS1BaseSizeOfFd};
 
-        SyncAll();
-
         fdService.AllocEventID();
         fdService.InitDecodeParams();
+        SyncAll();
         fdService.FlashDecode(fdParams);
         fdService.FreeEventID();
     } else {

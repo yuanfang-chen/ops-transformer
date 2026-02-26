@@ -29,6 +29,7 @@
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_type.h"
 #include "../../../3rd/mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_base_tiling_advanced.h"
+#include "platform/soc_spec.h"
 
 namespace mc2tiling {
 constexpr uint32_t COMM_MESH = 0b1U;
@@ -78,6 +79,10 @@ constexpr double SCATTER_LARGERNK_COMM_GROW_RATIO2 = 1.2;
 constexpr double CUBE_UTIL_THRESH = 0.85;
 constexpr uint32_t AICPU_NUM_BLOCKS_A2 = 6U;
 
+constexpr uint64_t GROUP_M_OFFSET = 32;
+constexpr uint64_t GROUP_N_OFFSET = 16;
+constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
+
 constexpr auto DEFAULT_KEY_FOR_FITTING_MAP = "0_0";
 
 enum class Mc2QuantMode {
@@ -90,6 +95,16 @@ enum class Mc2QuantMode {
 
 struct HcclAicpuOpParam {
   uint8_t res[RES_LEN];
+};
+
+struct Mc2MatmulShapeInfo {
+    const gert::StorageShape *x1Shape{nullptr};
+    const gert::StorageShape *x2Shape{nullptr};
+    const gert::StorageShape *x1ScaleShape{nullptr};
+    const gert::StorageShape *x2ScaleShape{nullptr};
+    bool isMxfp{false};
+    bool isBTrans{false};
+    const char* opName{nullptr};
 };
 
 struct KFCMsgBody {
@@ -121,8 +136,7 @@ bool CheckSuppportedFormat(ge::Format format);
 bool IsDeterministic();
 bool GetRankSize(const std::string &opName, const char *group,
                  int64_t &rankSize);
-bool CheckRankSize(const platform_ascendc::SocVersion socVersion,
-                   const uint32_t rankSize);
+bool CheckRankSize(const NpuArch npuArch, const uint32_t rankSize);
 uint8_t Mc2GetCommAlgo(int64_t rankDim, uint64_t mValue, const char *group,
                        const gert::TilingContext *context);
 
@@ -131,9 +145,7 @@ bool CheckDataTypeVaild(ge::DataType type,
 
 void UpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mmV3Args,
                         const mc2tiling::TilingArgs &args, const char *opName);
-ge::graphStatus GetMatmulV3PriorityPolicy(
-    const platform_ascendc::SocVersion socVersion,
-    std::vector<int32_t> &priorities, const char *opName);
+ge::graphStatus GetMatmulV3PriorityPolicy(const NpuArch npuArch, std::vector<int32_t> &priorities, const char *opName);
 
 inline std::string GetSocVersion(const gert::TilingContext *context)
 {
@@ -142,6 +154,13 @@ inline std::string GetSocVersion(const gert::TilingContext *context)
     std::string socVersion;
     (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersion);
     return socVersion;
+}
+
+inline NpuArch GetNpuArch(const gert::TilingContext *context)
+{
+    auto platformInfo = context->GetPlatformInfo();
+    platform_ascendc::PlatformAscendC ascendcPlatform(platformInfo);
+    return ascendcPlatform.GetCurNpuArch();
 }
 
 class Mc2TilingUtils {
@@ -153,11 +172,11 @@ class Mc2TilingUtils {
   static ge::graphStatus CommonParamCheck(const gert::TilingContext *context);
   static mc2tiling::HcclDataType GetDataType(ge::DataType type);
   static uint64_t GetMaxWindowSize();
-  static bool CheckRankSize(platform_ascendc::SocVersion socVersion,
-                            uint32_t rankSize);
+  static bool CheckRankSize(NpuArch npuArch, uint32_t rankSize);
   static HcclDataType ConvertGeTypeToHcclType(const std::string &opName,
                                               ge::DataType type);
-
+  static bool InferGroupSize(Mc2MatmulShapeInfo &mmInfo, uint64_t &groupSizeM,
+                             uint64_t &groupSizeN, uint64_t &groupSizeK);
   template <typename T>
   static uint64_t GetTilingKey(T &tilingData, bool isFullMeshHost = false) {
     uint8_t commAlg =
@@ -198,13 +217,13 @@ const std::map<ge::DataType, mc2tiling::HcclDataType> HCCL_DATA_TYPE = {
     {ge::DataType::DT_FLOAT16, mc2tiling::HcclDataType::HCCL_DATA_TYPE_FP16},
     {ge::DataType::DT_FLOAT, mc2tiling::HcclDataType::HCCL_DATA_TYPE_FP32},
     {ge::DataType::DT_BF16, mc2tiling::HcclDataType::HCCL_DATA_TYPE_BFP16},
+    {ge::DataType::DT_HIFLOAT8, mc2tiling::HcclDataType::HCCL_DATA_TYPE_HIF8}
 };
 
-const std::map<platform_ascendc::SocVersion, std::set<uint32_t>>
-    supportedRankSizeSet = {
-        {platform_ascendc::SocVersion::ASCEND310P, {1, 2, 4}},
-        {platform_ascendc::SocVersion::ASCEND910B, {1, 2, 4, 8}},
-        {platform_ascendc::SocVersion::ASCEND950, {1, 2, 4, 8, 16, 32, 64}},
+ const std::map<NpuArch, std::set<uint32_t>> supportedRankSizeSet = {
+    {NpuArch::DAV_2002, {1, 2, 4}},
+    {NpuArch::DAV_2201, {1, 2, 4, 8}},
+    {NpuArch::DAV_3510, {1, 2, 4, 8, 16, 32, 64}},
 };
 
 const std::set<ge::Format> SUPPORTED_FORMAT = {
@@ -229,19 +248,23 @@ inline ge::graphStatus GetCclBufferSize(const char* groupStr, uint64_t* cclBuffe
 }
 
 inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const char *nodeName,
-    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex)
+    uint64_t &hcclBufferSizeEp, uint64_t &maxWindowSizeEp, uint32_t attrGroupEpIndex, bool isLayered)
 {
     auto attrs = context->GetAttrs();
-    if (mc2tiling::GetSocVersion(context) == "Ascend950") {
+    if (mc2tiling::GetNpuArch(context) == NpuArch::DAV_3510) {
         // A5 暂不支持 Hccl CommGetBufSizeCfg 接口，此处暂作规避
         hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
         // A5 上前 1MB 作为状态区，剩余空间用作数据区
         maxWindowSizeEp = hcclBufferSizeEp - MTE_STATE_ZONE_SIZE;
     } else {
-        auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
-        OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
-            OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
-            return ge::GRAPH_FAILED);
+        if (isLayered) {
+            hcclBufferSizeEp = mc2tiling::Mc2TilingUtils::GetMaxWindowSize();
+        } else {
+            auto groupEpHccl = attrs->GetAttrPointer<char>(static_cast<int>(attrGroupEpIndex));
+            OP_TILING_CHECK(GetCclBufferSize(groupEpHccl, &hcclBufferSizeEp, nodeName) != ge::GRAPH_SUCCESS,
+                OP_LOGE(nodeName, "Get Ep HcclBufferSizeEP failed, HcclBufferSizeEP is %lu", maxWindowSizeEp),
+                return ge::GRAPH_FAILED);
+        }
         maxWindowSizeEp = hcclBufferSizeEp;
     }
     return ge::GRAPH_SUCCESS;

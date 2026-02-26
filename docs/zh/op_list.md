@@ -276,6 +276,16 @@
   </tr>
   <tr>
     <td>attention</td>
+    <td><a href="../../attention/scatter_pa_cache/README.md">scatter_pa_cache</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>更新KCache中指定位置的key。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
     <td><a href="../../attention/sparse_flash_attention/README.md">sparse_flash_attention</a></td>
     <td>✓</td>
     <td>✓</td>
@@ -413,6 +423,16 @@
     <td>✓</td>
     <td>AI Core</td>
     <td>完成AllToAll、AllGather集合通信与BatchMatMul计算融合、并行。</td>
+  </tr>
+  <tr>
+    <td>mc2</td>
+    <td><a href="../../mc2/allto_all_matmul/README.md">allto_all_matmul</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>AI Core</td>
+    <td>完成AlltoAll通信与MatMul计算融合。</td>
   </tr>
   <tr>
     <td>mc2</td>
@@ -913,6 +933,16 @@
     <td>✓</td>
     <td>AI Core</td>
     <td>针对单输入 x 进行旋转位置编码。</td>
+  </tr>
+  <tr>
+    <td>posembedding</td>
+    <td><a href="../../posembedding/qkv_rms_norm_rope_cache/README.md">qkv_rms_norm_rope_cache</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>输入qkv融合张量，通过SplitVD拆分q、k、v张量，执行RmsNorm、ApplyRotaryPosEmb、Quant、Scatter融合操作，输出q_out、k_cache、v_cache、q_out_before_quant(可选)、k_out_before_quant(可选)、v_out_before_quant(可选)。</td>
   </tr>
   <tr>
     <td>posembedding</td>
