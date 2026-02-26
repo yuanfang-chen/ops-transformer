@@ -118,12 +118,12 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
         return ge::GRAPH_FAILED);
     if (!params.weightTrans) {
         OP_CHECK_IF(params.shape_x2->GetDim(wIndex) != params.k,
-                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different."), return ge::GRAPH_FAILED);
+                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different. %d %d",params.shape_x2->GetDim(wIndex),params.k), return ge::GRAPH_FAILED);
         params.n = params.shape_x2->GetDim(twoDimNum);
     }
     else{
         OP_CHECK_IF(params.shape_x2->GetDim(DIM_TWO) != params.k,
-                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different."), return ge::GRAPH_FAILED);
+                    OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different.%d %d",params.shape_x2->GetDim(wIndex),params.k), return ge::GRAPH_FAILED);
         params.n = params.shape_x2->GetDim(DIM_ONE);
     }
     params.e = params.shape_x2->GetDim(xIndex);
@@ -330,9 +330,11 @@ static ge::graphStatus ValidateFailedDataType(const gert::InferDataTypeContext *
 {
     // 先判断a8w4还是a8w8出问题
     if ((context->GetInputDataType(xIndex) == ge::DT_INT8 ||
-         context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
+         context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN ||
+         context->GetInputDataType(xIndex) == ge::DT_HIFLOAT8) &&
         (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
-         context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN)) {
+         context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN ||
+         context->GetInputDataType(wIndex) == ge::DT_HIFLOAT8)) {
         OP_CHECK_IF((context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_FLOAT &&
                      context->GetOptionalInputDataType(scaleOptionIndex) != ge::DT_BF16),
                      OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "The W8A8 InputDataType of scale is wrong."),
@@ -426,15 +428,18 @@ static ge::graphStatus InferDataTypeGroupedMatmulFinalizeRouting(gert::InferData
 {
     bool supportDataTypeMX = IsSupportMX(context);
 
-    bool supportDataTypeW8A8 = (context->GetInputDataType(xIndex) == ge::DT_INT8 ||
-                                context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN) &&
-                               (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
-                                context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN) &&
-                               (context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT ||
-                                context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
-                               context->GetOptionalInputDataType(groupListOptionIndex) == ge::DT_INT64 &&
-                               (context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT64 ||
-                                context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT32);
+    ge::DT_HIFLOAT8 bool supportDataTypeW8A8 =
+        (context->GetInputDataType(xIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(xIndex) == ge::DT_FLOAT8_E4M3FN ||
+         context->GetInputDataType(xIndex) == ge::DT_HIFLOAT8) &&
+        (context->GetInputDataType(wIndex) == ge::DT_INT8 ||
+         context->GetInputDataType(wIndex) == ge::DT_FLOAT8_E4M3FN ||
+         context->GetInputDataType(wIndex) == ge::DT_HIFLOAT8) &&
+        (context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_FLOAT ||
+         context->GetOptionalInputDataType(scaleOptionIndex) == ge::DT_BF16) &&
+        context->GetOptionalInputDataType(groupListOptionIndex) == ge::DT_INT64 &&
+        (context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT64 ||
+         context->GetOptionalInputDataType(rowIndexOptionIndex) == ge::DT_INT32);
 
     bool supportDataTypeW4A8 = context->GetInputDataType(xIndex) == ge::DT_INT8 && 
                                context->GetInputDataType(wIndex) == ge::DT_INT4 &&
