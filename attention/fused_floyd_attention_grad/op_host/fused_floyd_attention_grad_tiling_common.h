@@ -19,7 +19,7 @@
 #include "log/log.h"
 
 namespace optiling {
-
+namespace FFAG {
 constexpr int64_t BYTE_PER_BLOCK = 32; // 32 B in block
 constexpr int HIGH_PRECISION = 0;
 constexpr int HIGH_PERFORMANCE = 1;
@@ -315,4 +315,5 @@ TILING_DATA_FIELD_DEF(int64_t, d);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(FFAGPostParamsOp, FFAGPostParams)
 
+} // namespace FFAG
 } // namespace optiling

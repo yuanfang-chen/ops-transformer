@@ -18,7 +18,7 @@
 #include "err/ops_err.h"
 
 namespace optiling {
-
+namespace FFAG {
 ge::graphStatus CheckSoftmaxMaxAndSumShape(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2, uint8_t inputIdx)
 {
     auto softmaxMaxAndSumShape = context->GetOptionalInputShape(inputIdx);
@@ -70,6 +70,26 @@ ge::graphStatus CheckAttentionMaskShape(gert::TilingContext *context, int64_t b,
     return ge::GRAPH_SUCCESS;
 }
 
+bool CheckSameShape(const gert::StorageShape *aShape, const gert::StorageShape *bShape) {
+    OP_CHECK_IF((aShape == nullptr) || (bShape == nullptr),
+               OP_LOGW("fused_floyd_attention_grad_tiling_common", "aShape or bShape is nullptr."),
+               return false);
+    uint32_t dimNumA = aShape->GetStorageShape().GetDimNum();
+    uint32_t dimNumB = bShape->GetStorageShape().GetDimNum();
+    if (dimNumA != dimNumB || dimNumA != SUPPORT_DIM_NUM) {
+        return false;
+    }
+
+    for (uint32_t i = 0; i < dimNumA; i++) {
+        auto dimA = aShape->GetStorageShape().GetDim(i);
+        auto dimB = bShape->GetStorageShape().GetDim(i);
+        if (dimA != dimB) {
+            return false;
+        }
+    }
+    return true;
+}
+
 ge::graphStatus CheckSupportShape(gert::TilingContext *context)
 {
     const gert::StorageShape *queryShape = context->GetInputShape(QUERY);
@@ -90,8 +110,7 @@ ge::graphStatus CheckSupportShape(gert::TilingContext *context)
 
 ge::graphStatus CheckInputShapeValid(gert::TilingContext *context, int64_t b, int64_t n, int64_t s1, int64_t s2, int64_t s3, int64_t d)
 {
-    auto isShapeInValid = (b == 0 || n == 0 || s1 == 0 || s2 == 0 || s3 == 0 || d == 0);
-    OP_CHECK_IF(isShapeInValid,
+    OP_CHECK_IF((b == 0 || n == 0 || s1 == 0 || s2 == 0 || s3 == 0 || d == 0),
                 OP_LOGE(context, "input shape error, got 0 in bhmnkd(%ld,%ld,%ld,%ld,%ld,%ld)", b, n, s1, s2, s3, d),
                 return ge::GRAPH_FAILED);
 
@@ -126,25 +145,5 @@ ge::graphStatus CheckInputShapeValid(gert::TilingContext *context, int64_t b, in
 
     return ge::GRAPH_SUCCESS;
 }
-
-bool CheckSameShape(const gert::StorageShape *aShape, const gert::StorageShape *bShape) {
-    OP_CHECK_IF((aShape == nullptr) || (bShape == nullptr),
-               OP_LOGW("fused_floyd_attention_grad_tiling_common", "aShape or bShape is nullptr."),
-               return false);
-    uint32_t dimSizeA = aShape->GetStorageShape().GetDimNum();
-    uint32_t dimSizeB = bShape->GetStorageShape().GetDimNum();
-    if (dimSizeA != dimSizeB || dimSizeA != SUPPORT_DIM_NUM) {
-        return false;
-    }
-
-    for (uint32_t i = 0; i < dimSizeA; i++) {
-        auto dimA = aShape->GetStorageShape().GetDim(i);
-        auto dimB = bShape->GetStorageShape().GetDim(i);
-        if (dimA != dimB) {
-            return false;
-        }
-    }
-    return true;
-}
-
+} // namespace FFAG
 } // namespace optiling
