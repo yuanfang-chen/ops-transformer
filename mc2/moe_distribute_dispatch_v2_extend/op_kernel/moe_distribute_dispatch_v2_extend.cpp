@@ -36,11 +36,12 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    // __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
-    // AscendC::printf("rankid %d\n",ptr->epRankId);
-    // AscendC::printf("epRankSize: %d\n",ptr->epRankSize);
-    // AscendC::printf("winSize: %d\n",ptr->winSize);
+    __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
+    AscendC::printf("rankid %d\n",ptr->epRankId);
+    AscendC::printf("epRankSize: %d\n",ptr->epRankSize);
+    AscendC::printf("winSize: %d\n",ptr->winSize);
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+
 #if defined(__DAV_C310__)
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
 #else
