@@ -154,7 +154,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
 }
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, const char *paramName,
-                                                            ge::DataType targetDtype)
+                                                            ge::DataType targetDtype) const
 {
     auto optionalDesc = context_->GetOptionalInputDesc(index);
     if (optionalDesc == nullptr) {
@@ -169,18 +169,18 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptional(uint32_t index, cons
     return true;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp4Dtype(ge::DataType dtype)
+bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp4Dtype(ge::DataType dtype) const
 {
     return dtype == ge::DT_FLOAT4_E2M1;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype)
+bool GroupedMatmulFinalizeRoutingQuantTiling::IsFp8Dtype(ge::DataType dtype) const
 {
     return (dtype == ge::DT_FLOAT8_E4M3FN || dtype == ge::DT_FLOAT8_E5M2);
 }
 
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype()
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDtype() const
 {
     OP_CHECK_IF(inputParams_.biasDtype != ge::DT_BF16,
                 OP_LOGE(context_->GetNodeName(), "The dtype of bias should be DT_BF16, but now is %s ",
@@ -199,10 +199,11 @@ DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2/DT_FLOAT4_E1M2/DT_FLOAT4_E2M1, but actual dtype 
                     ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
             return false);
     } else {
-        OP_CHECK_IF(!(inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN || inputParams_.aDtype == ge::DT_INT8),
+        OP_CHECK_IF(!(inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN || inputParams_.aDtype == ge::DT_INT8 ||
+                      inputParams_.aDtype == ge::DT_HIFLOAT8),
                     OP_LOGE(context_->GetNodeName(),
                             "In K-C/T-C quant mode, the expected dtype of x and weight should be \
-DT_FLOAT8_E4M3FN/DT_INT8, but actual dtype is %s, %s.",
+DT_FLOAT8_E4M3FN/DT_INT8/DT_HIFLOAT8, but actual dtype is %s, %s.",
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
                             ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
                     return false);
@@ -229,7 +230,7 @@ DT_FLOAT, but actual dtype is %s.",
 
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape, const gert::Shape &wShape,
                                                        const gert::StorageShape *pertokenScaleStorageShape,
-                                                       const gert::Shape &scaleShape, const gert::Shape &yShape)
+                                                       const gert::Shape &scaleShape, const gert::Shape &yShape) const
 {
     auto xDimNum = xShape.GetDimNum();
     OP_CHECK_IF(xDimNum != DIM_NUM_X,
@@ -278,7 +279,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckDim(const gert::Shape &xShape
     return true;
 }
 
-bool GroupedMatmulFinalizeRoutingQuantTiling::CheckFp4Shape()
+bool GroupedMatmulFinalizeRoutingQuantTiling::CheckFp4Shape() const
 {
     bool a4w4 = IsFp4Dtype(inputParams_.aDtype) && IsFp4Dtype(inputParams_.bDtype);
     if (!a4w4) {
@@ -342,7 +343,8 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckOptionalInputsShape()
 bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape &xShape,
                                                                const gert::StorageShape *wStorageShape,
                                                                const gert::StorageShape *pertokenScaleStorageShape,
-                                                               const gert::Shape &scaleShape, const gert::Shape &yShape)
+                                                               const gert::Shape &scaleShape,
+                                                               const gert::Shape &yShape) const
 {
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     OP_CHECK_IF(!CheckDim(xShape, wShape, pertokenScaleStorageShape, scaleShape, yShape),
