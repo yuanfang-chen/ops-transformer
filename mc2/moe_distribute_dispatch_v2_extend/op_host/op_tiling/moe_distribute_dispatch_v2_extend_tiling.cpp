@@ -69,9 +69,9 @@ namespace {
     constexpr uint32_t ATTR_GROUP_EP_INDEX = 0;
     constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
     constexpr uint32_t ATTR_EP_RANK_ID_INDEX = 2;
-    constexpr uint32_t ATTR_HCCL_BUFF_SIZE = 3; //新增必选参数
-    constexpr uint32_t ATTR_HCCL_TOPO_TYPE = 4; //新增必选参数
-    constexpr uint32_t ATTR_MOE_EXPERT_NUM_INDEX = 5;
+    constexpr uint32_t ATTR_MOE_EXPERT_NUM_INDEX = 3;
+    constexpr uint32_t ATTR_HCCL_BUFF_SIZE = 4; //新增必选参数
+    constexpr uint32_t ATTR_HCCL_TOPO_TYPE = 5; //新增必选参数
     constexpr uint32_t ATTR_GROUP_TP_INDEX = 6;
     constexpr uint32_t ATTR_TP_WORLD_SIZE_INDEX = 7;
     constexpr uint32_t ATTR_TP_RANK_ID_INDEX = 8;
