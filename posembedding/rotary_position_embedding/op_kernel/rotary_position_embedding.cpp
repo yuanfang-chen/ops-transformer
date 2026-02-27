@@ -216,6 +216,7 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         interleavedSplitBSNPad.Process();
     }
 
+    #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
     if (TILING_KEY_IS(3011)) {
         using aT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
         using bT = MatmulType<TPosition::GM, CubeFormat::ND, float>;
@@ -252,5 +253,6 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         RotateMatrixAll<bfloat16_t, bfloat16_t, MT> op(mm);
         op.Init(x, cos, sin, rotate, y, usrWorkspace, tilingData, &pipe);
         op.Process();
-    } 
+    }
+    #endif
 }
