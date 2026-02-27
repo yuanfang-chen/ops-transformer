@@ -523,6 +523,7 @@ CreateInnerReduceInfo(uint32_t serverIdx)
         SyncFunc<AscendC::HardEvent::MTE3_S>();
         uint32_t finalSendSize = sendOffset;
         uint64_t srcInnerRdmaAddr = (uint64_t)(sendInnerTableTensor_.GetPhyAddr());
+        uint32_t dstRankId = rankId_ % SERVER_RANK_SIZE + dstServerId * SERVER_RANK_SIZE;
         uint64_t dstInnerRdmaAddr = (uint64_t)(addrInfo_.GetRemoteRecvBuffInnerDataAddr(dstServerId));
         // 发送Inner表
         AIVRDMAPostSend((GM_ADDR)srcInnerRdmaAddr, (GM_ADDR)dstInnerRdmaAddr, dstRankId, finalSendSize, qp_info_);
@@ -932,9 +933,7 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
         }
     } while (isSync);
     // 本卡和本卡之间通信，在跨机部分已统计过，机内不需要统计
-    if (unlikely(needPerformanceInfo_ && (destRankIdx != rankId_))) {
-        auto curServerId = rankId_ / SERVER_RANK_SIZE;
-        auto srcRankId = curServerId * SERVER_RANK_SIZE + destRankIdx;
+    if (unlikely(needPerformanceInfo_ && (srcRankId != rankId_))) {
         RecordRankCommDuration(performanceInfoI32Tensor_, srcRankId, startTime);
     }
 }
