@@ -82,6 +82,7 @@ template <typename ComputationType, typename TransposeType, typename Communicati
 __aicore__ inline void MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, ContextType>::End()
 {
     computeStage_->End();
+    AscendC::PRINTF("liushui");
     commStage_->End();
 }
 
