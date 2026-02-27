@@ -109,9 +109,9 @@ static bool  QuantAllReduceCheckAllDtypesValid(const aclTensor* x, const aclTens
                         QuantAllReduceCheckMXAllDtypesValid(x, scales, output));
     if (!isAllDtypesValid) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-                "In KG quantMode, x support [DT_INT8/DT_HIFLOAT8/DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2], scales support [DT_FLOAT]"
+                "In KG quantMode, x support [DT_INT8/DT_HIFLOAT8/DT_FLOAT8_E5M2/DT_FLOAT8_E4M3FN], scales support [DT_FLOAT]"
                 "and output support [DT_FLOAT16/DT_BF16/DT_FLOAT]."
-                "In MX quantMode, x support [DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2], scales support [DT_FLOAT8_E8M0]"
+                "In MX quantMode, x support [DT_FLOAT8_E5M2/DT_FLOAT8_E4M3FN], scales support [DT_FLOAT8_E8M0]"
                 "and output support [DT_FLOAT16/DT_BF16/DT_FLOAT]."
                 "Input tensors x: %s, scales: %s and output: %s are not simultaneously supported.",
                 op::ToString(x->GetDataType()).GetString(),
