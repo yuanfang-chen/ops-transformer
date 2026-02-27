@@ -52,11 +52,12 @@ using namespace ge;
 namespace {
     constexpr uint32_t X_INDEX = 0U;
     constexpr uint32_t EXPERT_IDS_INDEX = 1U;
-    constexpr uint32_t SCALES_INDEX = 2U;
-    constexpr uint32_t X_ACTIVE_MASK_INDEX = 3U;
-    constexpr uint32_t EXPERT_SCALES_INDEX = 4U;
-    constexpr uint32_t ELASTIC_INFO_INDEX = 5U;
-    constexpr uint32_t PERFORMANCE_INFO_INDEX = 6U;
+    constexpr uint32_t MC2_CONTEXT = 2U; //新增必选输入
+    constexpr uint32_t SCALES_INDEX = 3U;
+    constexpr uint32_t X_ACTIVE_MASK_INDEX = 4U;
+    constexpr uint32_t EXPERT_SCALES_INDEX = 5U;
+    constexpr uint32_t ELASTIC_INFO_INDEX = 6U;
+    constexpr uint32_t PERFORMANCE_INFO_INDEX = 7U;
     constexpr uint32_t OUTPUT_EXPAND_X_INDEX = 0U;
     constexpr uint32_t OUTPUT_DYNAMIC_SCALES_INDEX = 1U;
     constexpr uint32_t OUTPUT_ASSIST_INFO_INDEX = 2U;
@@ -68,11 +69,13 @@ namespace {
     constexpr uint32_t ATTR_GROUP_EP_INDEX = 0;
     constexpr uint32_t ATTR_EP_WORLD_SIZE_INDEX = 1;
     constexpr uint32_t ATTR_EP_RANK_ID_INDEX = 2;
-    constexpr uint32_t ATTR_MOE_EXPERT_NUM_INDEX = 3;
-    constexpr uint32_t ATTR_GROUP_TP_INDEX = 4;
-    constexpr uint32_t ATTR_TP_WORLD_SIZE_INDEX = 5;
-    constexpr uint32_t ATTR_TP_RANK_ID_INDEX = 6;
-    constexpr uint32_t ATTR_EXPERT_SHARD_TYPE_INDEX = 7;
+    constexpr uint32_t ATTR_HCCL_BUFF_SIZE = 3; //新增必选参数
+    constexpr uint32_t ATTR_HCCL_TOPO_TYPE = 4; //新增必选参数
+    constexpr uint32_t ATTR_MOE_EXPERT_NUM_INDEX = 5;
+    constexpr uint32_t ATTR_GROUP_TP_INDEX = 6;
+    constexpr uint32_t ATTR_TP_WORLD_SIZE_INDEX = 7;
+    constexpr uint32_t ATTR_TP_RANK_ID_INDEX = 8;
+    constexpr uint32_t ATTR_EXPERT_SHARD_TYPE_INDEX = 9;
     constexpr uint32_t ATTR_SHARED_EXPERT_NUM_INDEX = 8;
     constexpr uint32_t ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
     constexpr uint32_t ATTR_QUANT_MODE_INDEX = 10;
