@@ -215,37 +215,37 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
     // |  data  |  data  |  ...   | scales | scales |  ...   |
     // +--------+--------+--------+--------+--------+--------+
     // data整体有512B对齐
+    
+    // 获取对端Win区中数据区相关的地址
+    GM_ADDR remoteDataGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + remoteRankId_ * xSize_;
+    remoteWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)remoteDataGm);
+    // 本端对应rank win区数据地址
+    uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
+    // TODO: 正确位置如下，调试完毕后需要修改回来
+    GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId_ * xSize_;
+    localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
+    GM_ADDR allGatherOutDataGm = allGatherDataAddr + remoteRankId_ * xSize_;
+    allGatherXOutTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherOutDataGm);
+    
+    // scales 一次搬运完毕
+    if (mteComm_.aivId_ % sendCoreNumPerRank_ == 0) {
+        GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
+        remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
+        // TODO: 正确位置如下，调试完毕后需要修改回来
+        GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
+        localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
+        GM_ADDR allGatherOutScaleGm = allGatherScalesAddr + remoteRankId_ * scaleSize_;
+        allGatherScaleOutTensor_.SetGlobalBuffer((__gm__ ScalesType*)allGatherOutScaleGm);
+        ReadScales();
+    }
 
     // TODO: 入参为调试用，后续需删除
     // 遍历需要搬运的数据块
     for (uint64_t curBlock = 0; curBlock < mteComm_.assignedBlockNums_; ++curBlock) {
         uint64_t curXOffset = mLoopIdx_ * K_ + kLoopIdx_ * X_PER_BLOCK_NUM;
 
-        // 获取对端Win区中数据区相关的地址
-        GM_ADDR remoteDataGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + remoteRankId_ * xSize_;
-        remoteWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)remoteDataGm);
-        // 本端对应rank win区数据地址
-        uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
-        // TODO: 正确位置如下，调试完毕后需要修改回来
-        GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId_ * xSize_;
-        localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
-        GM_ADDR allGatherOutDataGm = allGatherDataAddr + remoteRankId_ * xSize_;
-        allGatherXOutTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherOutDataGm);
-
         // 读取对端对应地址的 x 数据
         ReadDataBlock(curXOffset);
-
-        // scales 一次搬运完毕
-        if (mteComm_.aivId_ % sendCoreNumPerRank_ == 0) {
-            GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
-            remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
-            // TODO: 正确位置如下，调试完毕后需要修改回来
-            GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
-            localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
-            GM_ADDR allGatherOutScaleGm = allGatherScalesAddr + remoteRankId_ * scaleSize_;
-            allGatherScaleOutTensor_.SetGlobalBuffer((__gm__ ScalesType*)allGatherOutScaleGm);
-            ReadScales();
-        }
 
         SetCvAtomicFlag();
         
@@ -257,6 +257,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             kLoopIdx_++;
         }
     }
+    PipeBarrier<PIPE_MTE3>;
 }
 } // AllGatherImpl
 #endif  // ALL_GATHER_MTE_H
