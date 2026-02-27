@@ -130,7 +130,7 @@ private:
     LocalTensor<uint64_t> batchWriteU64Local_;
     LocalTensor<uint32_t> batchWriteU32Local_;
     LocalTensor<uint32_t> flagLocal_;
-    LocalTensor<uint32_t> sendCountLocal_;
+    LocalTensor<int32_t> sendCountLocal_;
     LocalTensor<uint32_t> recvCountLocal_;
     LocalTensor<uint32_t> expertWindowOffsetLocal_;
     LocalTensor<float> topkSumFloatLocal_;
@@ -647,20 +647,22 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::LocalWindo
     uint32_t tileNum = CeilDiv(tokenTaskInfo_.taskNum, maxTokenNumPerTile);
     uint32_t lastTileEleCount = tokenTaskInfo_.taskNum - (tileNum - 1) * maxTokenNumPerTile;
 
-    DataCopyPad(expertWindowOffsetLocal_, expertWindowOffsetGlobal_, {1, moeExpertNum_ * sizeof(uint32_t), 0, 0, 0},
-                {false, 0, 0, 0});
+    auto copyParams = DataCopyExtParams{1, static_cast<uint32_t>(moeExpertNum_ * sizeof(uint32_t)), 0, 0, 0};
+    auto noPadParams = DataCopyPadExtParams<uint32_t>{false, 0U, 0U, 0U};
+    DataCopyPad(expertWindowOffsetLocal_, expertWindowOffsetGlobal_, copyParams, noPadParams);
 
     for (uint32_t ti = 0; ti < tileNum; ++ti) {
         uint32_t tileEleCount = (ti == tileNum - 1) ? lastTileEleCount : maxTokenNumPerTile;
         uint32_t tileStart = tokenTaskInfo_.startTaskId + ti * maxTokenNumPerTile;
         DataCopyPad(topkWeightsLocal_, topkWeightsGlobal_[tileStart * axisK_],
-                    {1, tileEleCount * axisK_ * sizeof(float), 0, 0, 0}, {false, 0, 0, 0});
+                    {1, static_cast<uint32_t>(tileEleCount * axisK_ * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
         DataCopyPad(expandIdxLocal_, expandIdxGlobal_[tileStart * axisK_],
-                    {1, tileEleCount * axisK_ * sizeof(ExpandIdxType), 0, 0, 0}, {false, 0, 0, 0});
-        DataCopyPad(expertIdsLocal_, expertIdsGlobal_[tileStart * axisK_],
-                    {1, tileEleCount * axisK_ * sizeof(int32_t), 0, 0, 0}, {false, 0, 0, 0});
-        DataCopyPad(expertMaskLocal_, xActiveMaskGlobal_[tileStart * axisK_], {1, tileEleCount * axisK_, 0, 0, 0},
+                    {1, static_cast<uint32_t>(tileEleCount * axisK_ * sizeof(ExpandIdxType)), 0, 0, 0},
                     {false, 0, 0, 0});
+        DataCopyPad(expertIdsLocal_, expertIdsGlobal_[tileStart * axisK_],
+                    {1, static_cast<uint32_t>(tileEleCount * axisK_ * sizeof(int32_t)), 0, 0, 0}, {false, 0, 0, 0});
+        DataCopyPad(expertMaskLocal_, xActiveMaskGlobal_[tileStart * axisK_],
+                    {1, static_cast<uint32_t>(tileEleCount * axisK_), 0, 0, 0}, {false, 0, 0, 0});
         SyncFunc<HardEvent::MTE2_S>();
         for (uint32_t j = 0; j < tileEleCount; ++j) {
             uint32_t tokenIdx = tileStart + j;
