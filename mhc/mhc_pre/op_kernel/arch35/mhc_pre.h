@@ -758,23 +758,57 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
         HMixOffset = mnConfig_.singleCoreM * mnConfig_.singleCoreN * ((vec1Count_ % 2) * coreNum_ + coreIdx_) + offsetT * mnConfig_.n;
     }
     HMixCopyIn(HMixOffset, lenT);
-
-    uint32_t hMixShape[] = {uint32_t(lenT), uint32_t(mnConfig_.n)};
-    uint32_t alphaBiaShape[] = {uint32_t(1), uint32_t(mnConfig_.n)};
-    uint32_t rShape[] = {uint32_t(lenT), uint32_t(1)};
     matmulRes_ = xInQueue_.DeQue<P>(); // TODO
-    Broadcast<P, 2, 1>(broadCastTmpUb_, invRmsUb_[singleCoreOffset], hMixShape, rShape);
-    PipeBarrier<PIPE_V>();
-    matmulRes_ = matmulRes_ * broadCastTmpUb_;
-    PipeBarrier<PIPE_V>();
-    Broadcast<P, 2, 0>(broadCastTmpUb_, alphaInUb_, hMixShape, alphaBiaShape);
-    PipeBarrier<PIPE_V>();
-    matmulRes_ = matmulRes_ * broadCastTmpUb_;
-    PipeBarrier<PIPE_V>();
-    Broadcast<P, 2, 0>(broadCastTmpUb_, biasInUb_, hMixShape, alphaBiaShape);
-    PipeBarrier<PIPE_V>();
-    matmulRes_ = matmulRes_ + broadCastTmpUb_;
-    PipeBarrier<PIPE_V>();
+    
+    __ubuf__ P* matmulPtr = (__ubuf__ P*)matmulRes_.GetPhyAddr();
+    __ubuf__ P* invRmsPtr = (__ubuf__ P*)invRmsUb_.GetPhyAddr();
+    __ubuf__ P* biasInPtr = (__ubuf__ P*)biasInUb_.GetPhyAddr();
+    __ubuf__ P* alphaInPtr = (__ubuf__ P*)alphaInUb_.GetPhyAddr();
+    __ubuf__ P* hPreBuffPtr = (__ubuf__ P*)hPreBuff_.GetPhyAddr();
+    __ubuf__ P* hPostBuffPtr = (__ubuf__ P*)hPostBuff_.GetPhyAddr();
+    __ubuf__ P* hResOutLocalPtr = (__ubuf__ P*)hResOutLocal.GetPhyAddr();
+
+    uint32_t eleNumPerVf = 256 / sizeof(P); // TODO：待提出替换为全局变量
+    __VEC_SCOPE__
+    {
+        MicroAPI::RegTensor<P> matmulResReg;
+        MicroAPI::RegTensor<P> invRmsReg;
+        MicroAPI::RegTensor<P> invRmsBroadReg;
+        MicroAPI::RegTensor<P> biasInReg;
+        MicroAPI::RegTensor<P> alphaInReg;
+
+        for (uint16_t tIdx = 0; tIdx < static_cast<uint16_t>(lenT); tIdx++) {
+            MicroAPI::Load<P>(invRmsReg, invRmsPtr + singleCoreOffset + tIdx);
+
+            uint32_t loopCntPerN = (mnConfig_.n + eleNumPerVf - 1) / eleNumPerVf;
+            uint32_t curLen = mnConfig_.n;
+            for (uint16_t vfBlockIdx = 0; vfBlockIdx < (uint16_t)loopCntPerN; vfBlockIdx++) {
+                uint32_t maskOffset = tIdx * mnConfig_.n + vfBlockIdx * eleNumPerVf;
+                uint32_t alphaOffset = vfBlockIdx * eleNumPerVf;
+                uint32_t biasOffset = vfBlockIdx * eleNumPerVf;
+                MicroAPI::MaskReg curMask = MicroAPI::UpdateMask<P>(curLen);
+
+                // UB-> Reg
+                MicroAPI::LoadAlign<P>(matmulResReg, matmulPtr + maskOffset);
+                MicroAPI::LoadAlign<P>(biasInReg, biasInPtr + biasOffset);
+                MicroAPI::LoadAlign<P>(alphaInReg, alphaInPtr + alphaOffset);
+
+                // compute
+                // step1: inv_rms广播并相乘：invRmsReg * matmulResReg = [eleNumPerVf, 1] * [eleNumPerVf, n*n +2n]
+                MicroAPI::Duplicate(invRmsBroadReg, invRmsReg, curMask);
+                MicroAPI::Mul(matmulResReg, matmulResReg, invRmsBroadReg, curMask);
+
+                // step2: alpha相乘 (alpha已经广播为n*n +2n)
+                MicroAPI::Mul(matmulResReg, matmulResReg, alphaInReg, curMask);
+
+                // step3: 加bias:matmulResReg + bias = [eleNumPerVf, n*n + 2n] + [n*n + 2n]
+                MicroAPI::Add(matmulResReg, matmulResReg, biasInReg, curMask);
+
+                // Reg->UB
+                MicroAPI::StoreAlign<P>(matmulPtr + maskOffset, matmulResReg, curMask);
+            }
+        }
+    }
 
     SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
     WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
