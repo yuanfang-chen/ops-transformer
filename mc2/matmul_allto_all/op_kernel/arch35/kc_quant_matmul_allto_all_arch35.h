@@ -40,9 +40,9 @@ private:
     GM_ADDR x2_;
     GM_ADDR y_;
     GM_ADDR bias_;
-    GM_ADDR x1_scale_;
-    GM_ADDR x2_scale_;
-    GM_ADDR x2_offset_;
+    GM_ADDR x1Scale_;
+    GM_ADDR x2Scale_;
+    GM_ADDR x2Offset_;
     GM_ADDR workspaceGM_;
     GM_ADDR tempComputeOutGM_;
     GM_ADDR transOutGM_;
@@ -65,9 +65,9 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     x1_ = x1;
     x2_ = x2;
     y_ = y;
-    x1_scale_ = x1_scale;
-    x2_scale_ = x2_scale;
-    x2_offset_ = x2_offset; 
+    x1Scale_ = x1_scale;
+    x2Scale_ = x2_scale;
+    x2Offset_ = x2_offset; 
     bias_ = bias;
     workspaceGM_ = workspaceGM;
     tempComputeOutGM_ = workspaceGM;
@@ -112,9 +112,9 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
     pipeLineContext_.computationContext->baseData.cOffset = tileMMultiRankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset = (uint64_t)mc2Tiling_.tileM * sizeof(float);
-    pipeLineContext_.computationContext->additionalData.x1Scale = x1_scale_; 
-    pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_; 
-    pipeLineContext_.computationContext->additionalData.x2Offset = x2_offset_;
+    pipeLineContext_.computationContext->additionalData.x1Scale = x1Scale_; 
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_; 
+    pipeLineContext_.computationContext->additionalData.x2Offset = x2Offset_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TileTilingData);
     
     // 转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
@@ -158,9 +158,9 @@ __aicore__ inline void KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerConte
     pipeLineContext_.computationContext->baseData.bOffset = (uint64_t)0UL;
     pipeLineContext_.computationContext->baseData.cOffset = (uint64_t)mc2Tiling_.tailM * mc2Tiling_.rankN * sizeof(DTYPE_Y);
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset = (uint64_t)mc2Tiling_.tailM * sizeof(float);
-    pipeLineContext_.computationContext->additionalData.x1Scale = x1_scale_ + tileCntMultitileM * sizeof(float); 
-    pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_; 
-    pipeLineContext_.computationContext->additionalData.x2Offset = x2_offset_;
+    pipeLineContext_.computationContext->additionalData.x1Scale = x1Scale_ + tileCntMultitileM * sizeof(float); 
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_; 
+    pipeLineContext_.computationContext->additionalData.x2Offset = x2Offset_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TailTilingData);
 
     uint64_t commonOffset = (uint64_t)mc2Tiling_.rankM * (uint64_t)mc2Tiling_.rankN * sizeof(DTYPE_Y);
