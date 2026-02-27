@@ -50,8 +50,8 @@ private:
     GM_ADDR x2_;
     GM_ADDR y_;
     GM_ADDR bias_;
-    GM_ADDR x1_scale_;
-    GM_ADDR x2_scale_;
+    GM_ADDR x1Scale_;
+    GM_ADDR x2Scale_;
     GM_ADDR workspaceGM_;
     GM_ADDR tempComputeOutGM_;
     GM_ADDR transOutGM_;
@@ -76,8 +76,8 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     x1_ = x1;
     x2_ = x2;
     y_ = y;
-    x1_scale_ = x1_scale;
-    x2_scale_ = x2_scale;
+    x1Scale_ = x1_scale;
+    x2Scale_ = x2_scale;
     bias_ = bias;
     workspaceGM_ = workspaceGM;
     tempComputeOutGM_ = workspaceGM;
@@ -125,8 +125,8 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     // mx的scale大小为1B
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset =
         (uint64_t)mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
-    pipeLineContext_.computationContext->additionalData.x1Scale = x1_scale_;
-    pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_;
+    pipeLineContext_.computationContext->additionalData.x1Scale = x1Scale_;
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TileTilingData);
 
     // 转置操作的输入输出地址，单轮转置内部数据块的偏移，到下一轮转置数据地址的偏移
@@ -180,8 +180,8 @@ MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllT
     pipeLineContext_.computationContext->additionalData.x1ScaleOffset =
         (uint64_t)mc2Tiling_.tailM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
     pipeLineContext_.computationContext->additionalData.x1Scale =
-        x1_scale_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
-    pipeLineContext_.computationContext->additionalData.x2Scale = x2_scale_;
+        x1Scale_ + mc2Tiling_.tileCnt * mc2Tiling_.tileM * CeilDiv(mc2Tiling_.rankK, MXFP_GROUP_SIZE) * NUM_TWO;
+    pipeLineContext_.computationContext->additionalData.x2Scale = x2Scale_;
     pipeLineContext_.computationContext->tilingDataPtr = &(tilingData_->mc2QuantBmmV3TailTilingData);
 
     pipeLineContext_.transposeContext->transposeSrcAddr =
