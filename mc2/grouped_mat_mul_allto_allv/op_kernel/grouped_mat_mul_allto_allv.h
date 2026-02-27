@@ -144,8 +144,10 @@ __aicore__ inline void GroupedMatmulAlltoAllv<GMMATAV>::Init(
     axisA_ = tilingData_->commonTilingInfo.A;
     axisN1_ = tilingData_->commonTilingInfo.N1;
 
-    hccl_.Init(contextGM, hcclInitTiling);
-    hccl_.SetCcTiling(alltoAllvCcTiling);
+    const void *hcclInitTilingV2 = &(tilingData_->hcclInitTiling);
+    uint64_t hcclCcTilingOffset = offsetof(GroupedMatMulAlltoAllvTilingData, alltoAllvCcTiling);
+    hccl_.InitV2(contextGM, hcclInitTilingV2);
+    hccl_.SetCcTilingV2(hcclCcTilingOffset);
     rankId_ = hccl_.GetRankId();
     rankDim_ = hccl_.GetRankDim();
 
