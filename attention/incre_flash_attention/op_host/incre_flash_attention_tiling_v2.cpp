@@ -2152,8 +2152,8 @@ ge::graphStatus IFATilingV2::ProcessQuant2Dtype() const {
   return ge::GRAPH_SUCCESS;
 }
 
+const ge::DataType quantScale2Type = qtScale2->GetDataType();
 ge::graphStatus IFATilingV2::ProcessQuant2Attribute(const gert::Tensor *qtScale2) {
-  const ge::DataType quantScale2Type = qtScale2->GetDataType();
   int64_t quantScale2ShapeSize = qtScale2->GetShapeSize();
   size_t quantScale2Dim = qtScale2->GetStorageShape().GetDimNum();
   OP_CHECK_IF((quantScale2Type != ge::DT_BF16) && (quantScale2Type != ge::DT_FLOAT),

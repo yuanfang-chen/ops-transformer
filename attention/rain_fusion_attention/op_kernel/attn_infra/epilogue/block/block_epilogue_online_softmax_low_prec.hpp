@@ -581,14 +581,6 @@ public:
                 rowNumCurLoopRound,
                 columnNum,
                 columnNumRound);
-        } else if (columnNum == 512U) {
-            RowmaxSPECTILE512(
-                computeUbTensor,
-                lmUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
         } else {
             RowmaxTAILTILE(
                 computeUbTensor,
