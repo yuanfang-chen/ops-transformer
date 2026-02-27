@@ -10,7 +10,7 @@
 
 /*!
  * \file moe_distribute_combine_setup_tiling.cpp
- * \brief
+ * \brief host侧tiling实现
  */
 
 #include "register/op_def_registry.h"
@@ -22,17 +22,21 @@ using namespace Ops::Transformer::OpTiling;
 using namespace AscendC;
 using namespace ge;
 
-namespace optiling {
+namespace MC2Tiling {
 
 REGISTER_OPS_TILING_TEMPLATE(MoeDistributeCombineSetup, MoeDistributeCombineSetupTilingA5, 0);
 REGISTER_OPS_TILING_TEMPLATE(MoeDistributeCombineSetup, MoeDistributeCombineSetupTilingA3, 1);
 
-ge::graphStatus MoeDistributeCombineSetupTilingFunc(gert::TilingContext* context)
+ge::graphStatus MoeDistributeCombineSetupTilingFunc(gert::TilingContext *context)
 {
+    OP_TILING_CHECK(
+        context == nullptr,
+        OP_LOGE("MoeDistributeCombineSetup", "failed to get tiling context in moe_distribute_combine_setup."),
+        return ge::GRAPH_FAILED);
     return TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
-ge::graphStatus TilingParseForMoeDistributeCombineSetup(gert::TilingParseContext* context)
+ge::graphStatus TilingParseForMoeDistributeCombineSetup(gert::TilingParseContext *context)
 {
     (void)context;
     return ge::GRAPH_SUCCESS;

@@ -9,16 +9,16 @@
  */
 
 /*!
- * \file moe_distribute_combine_setup_tiling.h
- * \brief
+ * \file moe_distribute_combine_setup_tiling_data.h
+ * \brief 定义TilingData
  */
-#ifndef MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H
-#define MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H
 
-#include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
+#ifndef MOE_DISTRIBUTE_COMBINE_SETUP_TILING_DATA_H
+#define MOE_DISTRIBUTE_COMBINE_SETUP_TILING_DATA_H
 
-// a3
+#include <kernel_tiling/kernel_tiling.h>
+
+// 910C 950
 struct MoeDistributeCombineSetupInfo {
     uint32_t epWorldSize;
     uint32_t epRankId;
@@ -44,6 +44,7 @@ struct MoeDistributeCombineSetupTilingData {
     MoeDistributeCombineSetupInfo moeDistributeCombineSetupInfo;
 };
 
+// 910C
 struct BatchWriteItem {
     uint64_t type;
     uint32_t res1[5];
@@ -54,4 +55,5 @@ struct BatchWriteItem {
     uint32_t dstAddrHigh;
     uint32_t res2[4];
 };
-#endif //__MOE_DISTRIBUTE_CMOBINE_SETUP_TILING_H__
+
+#endif // MOE_DISTRIBUTE_COMBINE_SETUP_TILING_DATA_H

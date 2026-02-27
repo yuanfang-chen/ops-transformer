@@ -17,18 +17,17 @@
 #define MOE_DISTRIBUTE_COMBINE_SETUP_TILING_BASE_H_
 
 #include "tiling/moe_tiling_base.h"
-#include "../../op_kernel/moe_distribute_combine_setup_tiling.h"
+#include "../../op_kernel/moe_distribute_combine_setup_tiling_key.h"
+#include "../../op_kernel/moe_distribute_combine_setup_tiling_data.h"
 
-namespace optiling {
-class MoeDistributeCombineSetupTilingBase : public MoeTilingBase
-{
+namespace MC2Tiling {
+class MoeDistributeCombineSetupTilingBase : public optiling::MoeTilingBase {
 public:
-    explicit MoeDistributeCombineSetupTilingBase(gert::TilingContext* context)
-        : MoeTilingBase(context), nodeName_(context->GetNodeName()){};
+    explicit MoeDistributeCombineSetupTilingBase(gert::TilingContext *context)
+        : optiling::MoeTilingBase(context), nodeName_(context->GetNodeName()) {};
 
 protected:
-    enum TensorType
-    {
+    enum TensorType {
         INPUT = 0,
         OUTPUT = 1,
         OPTIONINPUT = 2
@@ -62,17 +61,17 @@ protected:
     void SetTilingKey();
     void SetPlatformInfo();
     void PrintTilingDataInfo();
-    virtual ge::graphStatus CheckEpWorldSize();
-    virtual ge::graphStatus CheckMoeExpertNum();
-    virtual ge::graphStatus CheckSharedExpertAttr();
+    virtual ge::graphStatus CheckEpWorldSize() = 0;
+    virtual ge::graphStatus CheckMoeExpertNum() = 0;
+    virtual ge::graphStatus CheckSharedExpertAttr() = 0;
     virtual ge::graphStatus CheckMoeExpertNumPerRank();
-    virtual ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k);
-    virtual void SetHcommCfg();
+    virtual ge::graphStatus CheckTensorShapeSize(int64_t h, int64_t bs, int64_t k) = 0;
+    virtual void SetHcommCfg() = 0;
 
-    const char* socTilingName_;
+    const char *socTilingName_ = nullptr;
     std::string nodeName_;
-    MoeDistributeCombineSetupTilingData* tilingData_ = nullptr;
+    MoeDistributeCombineSetupTilingData *tilingData_ = nullptr;
     std::string groupEp_;
 };
-} // namespace optiling
-#endif
+} // namespace MC2Tiling
+#endif // MOE_DISTRIBUTE_COMBINE_SETUP_TILING_BASE_H_

@@ -44,45 +44,46 @@ static constexpr size_t COMBINE_INPUT_ATTR_COMM_QUANT_MODE_INDEX = 8;
 static constexpr size_t COMBINE_INPUT_ATTR_COMM_TYPE_INDEX = 9;
 
 template <typename T>
-std::string Shape2String(const T& shape) {
-  std::ostringstream oss;
-  oss << "[";
-  if (shape.GetDimNum() > 0) {
-    for (size_t i = 0; i < shape.GetDimNum() - 1; ++i) {
-      oss << shape.GetDim(i) << ", ";
+std::string Shape2String(const T &shape)
+{
+    std::ostringstream oss;
+    oss << "[";
+    if (shape.GetDimNum() > 0) {
+        for (size_t i = 0; i < shape.GetDimNum() - 1; ++i) {
+            oss << shape.GetDim(i) << ", ";
+        }
+        oss << shape.GetDim(shape.GetDimNum() - 1);
     }
-    oss << shape.GetDim(shape.GetDimNum() - 1);
-  }
-  oss << "]";
-  return oss.str();
+    oss << "]";
+    return oss.str();
 }
 
 inline int64_t Align(int64_t x, int64_t base)
 {
-    if (base == 0){
+    if (base == 0) {
         OP_LOGD("Align: base cannot be zero");
         return 0;
     }
     return ((x + base - 1) / base) * base;
 }
 
-static ge::graphStatus InferShapeMoeDistributeCombineSetup(gert::InferShapeContext* context)
+static ge::graphStatus InferShapeMoeDistributeCombineSetup(gert::InferShapeContext *context)
 {
     OP_LOGD(context->GetNodeName(), "Begin to do InferShapeMoeDistributeCombineSetup.");
     // 获取输入shape
-    const gert::Shape* expandXShape = context->GetInputShape(COMBINE_INPUT_EXPAND_X_INDEX);
+    const gert::Shape *expandXShape = context->GetInputShape(COMBINE_INPUT_EXPAND_X_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, expandXShape);
 
-    const gert::Shape* expertIdsShape = context->GetInputShape(COMBINE_INPUT_EXPERT_IDS_INDEX);
+    const gert::Shape *expertIdsShape = context->GetInputShape(COMBINE_INPUT_EXPERT_IDS_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, expertIdsShape);
 
-    const gert::Shape* assistInfoForCombineShape = context->GetInputShape(COMBINE_INPUT_ASSIST_INFO_FOR_COMBINE_INDEX);
+    const gert::Shape *assistInfoForCombineShape = context->GetInputShape(COMBINE_INPUT_ASSIST_INFO_FOR_COMBINE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, assistInfoForCombineShape);
 
-    gert::Shape* quantExpandXShape = context->GetOutputShape(COMBINE_OUTPUT_QUANT_EXPAND_X_INDEX);
+    gert::Shape *quantExpandXShape = context->GetOutputShape(COMBINE_OUTPUT_QUANT_EXPAND_X_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, quantExpandXShape);
 
-    gert::Shape* commCmdInfoShape = context->GetOutputShape(COMBINE_OUTPUT_COMM_CMD_INFO_INDEX);
+    gert::Shape *commCmdInfoShape = context->GetOutputShape(COMBINE_OUTPUT_COMM_CMD_INFO_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, commCmdInfoShape);
 
     const auto attrs = context->GetAttrs();
@@ -122,21 +123,19 @@ static ge::graphStatus InferShapeMoeDistributeCombineSetup(gert::InferShapeConte
     quantExpandXShape->SetDimNum(DIM_TWO);
     quantExpandXShape->SetDim(0U, a);
     quantExpandXShape->SetDim(1U, hs);
-    OP_LOGD(
-        context->GetNodeName(), "quantExpandX shape is :%s after infershape.",
-        Shape2String(*quantExpandXShape).c_str());
+    OP_LOGD(context->GetNodeName(), "quantExpandX shape is :%s after infershape.",
+            Shape2String(*quantExpandXShape).c_str());
 
     commCmdInfoShape->SetDimNum(DIM_ONE);
     commCmdInfoShape->SetDim(0U, (a + *epWorldSize) * COMM_CMD_INFO_BASE);
-    OP_LOGD(
-        context->GetNodeName(), "commCmdInfo shape is :%s after infershape.",
-        Shape2String(*commCmdInfoShape).c_str());
+    OP_LOGD(context->GetNodeName(), "commCmdInfo shape is :%s after infershape.",
+            Shape2String(*commCmdInfoShape).c_str());
     OP_LOGD(context->GetNodeName(), "End to do InferShapeMoeDistributeCombineSetup.");
 
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus InferDataTypeMoeDistributeCombineSetup(gert::InferDataTypeContext* context)
+static ge::graphStatus InferDataTypeMoeDistributeCombineSetup(gert::InferDataTypeContext *context)
 {
     OP_LOGD(context->GetNodeName(), "Begin to do InferDataTypeMoeDistributeCombineSetup.");
     context->SetOutputDataType(COMBINE_OUTPUT_QUANT_EXPAND_X_INDEX, ge::DT_INT8);

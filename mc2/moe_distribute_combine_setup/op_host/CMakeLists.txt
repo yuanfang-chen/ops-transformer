@@ -22,5 +22,5 @@ if (BUILD_OPEN_PROJECT)  # custom
     set(moe_distribute_combine_setup_depends mc2/common mc2/3rd PARENT_SCOPE)
 else() # 回黄host
     add_mc2_modules_sources(OPTYPE moe_distribute_combine_setup moe_distribute_combine_setup ACLNNTYPE aclnn aclnn_inner)
-    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE) 
+    set(SUB_MC2_COMPILE TRUE PARENT_SCOPE)
 endif()

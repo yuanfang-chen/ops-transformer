@@ -16,10 +16,9 @@
 #include "register/op_def_registry.h"
 
 namespace ops {
-class MoeDistributeCombineSetup : public OpDef
-{
+class MoeDistributeCombineSetup : public OpDef {
 public:
-    explicit MoeDistributeCombineSetup(const char* name) : OpDef(name)
+    explicit MoeDistributeCombineSetup(const char *name) : OpDef(name)
     {
         this->Input("expand_x")
             .ParamType(REQUIRED)

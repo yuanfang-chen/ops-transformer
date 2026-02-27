@@ -7,6 +7,11 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file aclnn_moe_distribute_combine_setup.cpp
+ * \brief
+ */
 #include "aclnn_moe_distribute_combine_setup.h"
 #include <algorithm>
 #include "op_mc2.h"
@@ -17,19 +22,19 @@
 #include "opdev/common_types.h"
 #include "opdev/platform.h"
 
-using namespace op;
-
 namespace {
+
+using namespace op;
 
 static inline bool CheckEmptyTensor(const aclTensor *tensor, const char *name)
 {
-    const auto& shape = tensor->GetViewShape();
+    const auto &shape = tensor->GetViewShape();
     if (shape.GetDimNum() == 0) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Tensor %s has empty shape", name);
         return false;
     }
     for (size_t i = 0; i < shape.GetDimNum(); ++i) {
-        if(shape.GetDim(i) <= 0){
+        if (shape.GetDim(i) <= 0) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Tensor %s has zero or negative dimension at index %zu.", name, i);
             return false;
         }
@@ -37,9 +42,9 @@ static inline bool CheckEmptyTensor(const aclTensor *tensor, const char *name)
     return true;
 }
 
-#define OP_CHECK_EMPTY_TENSOR(tensor, retExpr) \
-    if (!CheckEmptyTensor(tensor, #tensor)) { \
-        retExpr; \
+#define OP_CHECK_EMPTY_TENSOR(tensor, retExpr)                                                                         \
+    if (!CheckEmptyTensor(tensor, #tensor)) {                                                                          \
+        retExpr;                                                                                                       \
     }
 
 static constexpr size_t TWO_DIM = 2;
@@ -48,7 +53,7 @@ static constexpr int64_t ALIGN_32 = 32;
 static constexpr int64_t ALIGN_512 = 512;
 static constexpr int64_t COMM_CMD_INFO_BASE = 16;
 
-enum NnopbaseHcclServerType {
+enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
     NNOPBASE_HCCL_SERVER_TYPE_MTE,
     NNOPBASE_HCCL_SERVER_TYPE_CCU,
@@ -65,9 +70,8 @@ static inline int64_t AlignUp(int64_t x, int64_t base)
 }
 
 // check nullptr
-static bool CheckNotNull(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
-    aclTensor* quantExpandXOut, aclTensor* commCmdInfoOut)
+static bool CheckNotNull(const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine,
+                         const char *groupEp, aclTensor *quantExpandXOut, aclTensor *commCmdInfoOut)
 {
     OP_LOGD("aclnn_moe_distribute_combine_setup CheckNotNull start");
     OP_CHECK_NULL(expandX, return false);
@@ -84,11 +88,11 @@ static bool CheckNotNull(
 }
 
 // 入参校验
-static aclnnStatus CheckParams(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
-    int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertShardType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    aclTensor* quantExpandXOut, aclTensor* commCmdInfoOut)
+static aclnnStatus CheckParams(const aclTensor *expandX, const aclTensor *expertIds,
+                               const aclTensor *assistInfoForCombine, const char *groupEp, int64_t epWorldSize,
+                               int64_t epRankId, int64_t moeExpertNum, int64_t expertShardType, int64_t sharedExpertNum,
+                               int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType,
+                               const char *commAlg, aclTensor *quantExpandXOut, aclTensor *commCmdInfoOut)
 {
     (void)epWorldSize;
     (void)epRankId;
@@ -119,48 +123,46 @@ static aclnnStatus CheckParams(
 } // namespace
 
 extern "C" aclnnStatus aclnnInnerMoeDistributeCombineSetupGetWorkspaceSize(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
+    const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine, const char *groupEp,
     int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertShardType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    aclTensor* quantExpandXOut, aclTensor* commCmdInfoOut, uint64_t* workspaceSize, aclOpExecutor** executor);
+    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char *commAlg,
+    aclTensor *quantExpandXOut, aclTensor *commCmdInfoOut, uint64_t *workspaceSize, aclOpExecutor **executor);
 
-extern "C" aclnnStatus aclnnInnerMoeDistributeCombineSetup(void* workspace, uint64_t workspaceSize,
-    aclOpExecutor* executor, aclrtStream stream);
+extern "C" aclnnStatus aclnnInnerMoeDistributeCombineSetup(void *workspace, uint64_t workspaceSize,
+                                                           aclOpExecutor *executor, aclrtStream stream);
 
-extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void* executor, NnopbaseHcclServerType sType);
+extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
 extern "C" aclnnStatus aclnnMoeDistributeCombineSetupGetWorkspaceSize(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
+    const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine, const char *groupEp,
     int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertShardType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    aclTensor* quantExpandXOut, aclTensor* commCmdInfoOut, uint64_t* workspaceSize,
-    aclOpExecutor** executor)
+    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char *commAlg,
+    aclTensor *quantExpandXOut, aclTensor *commCmdInfoOut, uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     OP_LOGD("aclnnMoeDistributeCombineSetupGetWorkspaceSize start.");
     if (GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unsupported npuArch. Only support %d, now get %d.",
-            NpuArch::DAV_3510, GetCurrentPlatformInfo().GetCurNpuArch());
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Unsupported npuArch. Only support %d, now get %d.", NpuArch::DAV_3510,
+                GetCurrentPlatformInfo().GetCurNpuArch());
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    auto retParam = CheckParams(expandX, expertIds, assistInfoForCombine, groupEp, 
-                                 epWorldSize, epRankId, moeExpertNum, expertShardType, sharedExpertNum, 
-                                 sharedExpertRankNum, globalBs, commQuantMode,
-                                 commType, commAlg, quantExpandXOut, commCmdInfoOut);
+    auto retParam = CheckParams(expandX, expertIds, assistInfoForCombine, groupEp, epWorldSize, epRankId, moeExpertNum,
+                                expertShardType, sharedExpertNum, sharedExpertRankNum, globalBs, commQuantMode,
+                                commType, commAlg, quantExpandXOut, commCmdInfoOut);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
 
     aclnnStatus retStatus = aclnnInnerMoeDistributeCombineSetupGetWorkspaceSize(
-        expandX, expertIds, assistInfoForCombine, groupEp, epWorldSize, epRankId, moeExpertNum, 
-        expertShardType, sharedExpertNum, sharedExpertRankNum, globalBs, commQuantMode, commType, commAlg, 
-        quantExpandXOut, commCmdInfoOut, workspaceSize, executor);
+        expandX, expertIds, assistInfoForCombine, groupEp, epWorldSize, epRankId, moeExpertNum, expertShardType,
+        sharedExpertNum, sharedExpertRankNum, globalBs, commQuantMode, commType, commAlg, quantExpandXOut,
+        commCmdInfoOut, workspaceSize, executor);
     return retStatus;
 }
 
 extern "C" aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
+    const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine, const char *groupEp,
     int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertShardType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    uint64_t& tokenMsgSize, uint64_t& commCmdInfoOutSize)
+    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char *commAlg,
+    uint64_t &tokenMsgSize, uint64_t &commCmdInfoOutSize)
 {
     (void)expertIds;
     (void)assistInfoForCombine;
@@ -177,8 +179,8 @@ extern "C" aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
     OP_CHECK_NULL(expandX, return ACLNN_ERR_PARAM_NULLPTR);
     OP_CHECK_EMPTY_TENSOR(expandX, return ACLNN_ERR_PARAM_INVALID);
     if (expandX->GetViewShape().GetDimNum() != TWO_DIM) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "expandX's DimNum should be 2, but got %lu.", expandX->GetViewShape().GetDimNum());
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "expandX's DimNum should be 2, but got %lu.",
+                expandX->GetViewShape().GetDimNum());
         return ACLNN_ERR_PARAM_INVALID;
     }
     int64_t a = expandX->GetViewShape().GetDim(0);
@@ -194,12 +196,12 @@ extern "C" aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
     return ACLNN_SUCCESS;
 }
 
-extern "C" aclnnStatus aclnnMoeDistributeCombineSetup(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
-                                           aclrtStream stream)
+extern "C" aclnnStatus aclnnMoeDistributeCombineSetup(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                                      aclrtStream stream)
 {
     OP_LOGD("aclnnMoeDistributeCombineSetup start");
     if (NnopbaseSetHcclServerType) {
-        NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
+        NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
     }
     aclnnStatus ret = aclnnInnerMoeDistributeCombineSetup(workspace, workspaceSize, executor, stream);
     OP_LOGD("aclnnMoeDistributeCombineSetup success");

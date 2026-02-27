@@ -287,6 +287,24 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
     </tr>
     </tbody></table>
   
+  - Ascend 950PR/Ascend 950DT：
+    - 不支持共享专家场景。
+    - epWorldSize当前取值仅支持2、4、8。
+    - expertShardType当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
+    - sharedExpertNum表示共享专家数量，当前不支持共享专家，仅能传入0。
+    - commQuantMode当前仅支持传入0，表示不进行量化。
+    - commType取值范围[0, 2]，当前仅支持2，表示URMA通路。
+    - commAlg 当前版本不支持，传空指针即可。
+  
+  - Atlas A3 训练系列产品/Atlas A3 推理系列产品：
+    - 不支持共享专家场景。
+    - epWorldSize当前取值仅支持2、4、8。
+    - expertShardType当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
+    - sharedExpertNum表示共享专家数量，当前不支持共享专家，仅能传入0。
+    - commQuantMode当前仅支持传入0，表示不进行量化。
+    - commType取值范围[0, 2]，当前仅支持2，表示URMA通路。
+    - commAlg 当前版本不支持，传空指针即可。
+
 - **返回值**
   
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -585,6 +603,8 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
 
 ## 约束说明
 
+- 确定性计算：
+  - aclnnMoeDistributeCombineSetup默认确定性实现。
 - aclnnMoeDistributeDispatchSetup接口，aclnnMoeDistributeDispatchTeardown接口，aclnnMoeDistributeCombineSetup接口，aclnnMoeDistributeCombineTeardown接口必须配套使用。
 - 调用接口过程中使用的`groupEp`、`epWorldSize`、`moeExpertNum`、`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`、`globalBs`、`commQuantMode`、`commType`、`commAlg`参数取值所有卡需保持一致，`groupEp`、`epWorldSize`、`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`、`globalBs`、`commQuantMode`、`commType`、`commAlg`参数取值在网络中不同层中也需保持一致，且和aclnnMoeDistributeDispatchSetup接口、aclnnMoeDistributeDispatchTeardown接口、aclnnMoeDistributeCombineTeardown接口对应参数也保持一致。
 - 参数说明里shape格式说明：
@@ -605,4 +625,4 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
   - Atlas A3 训练系列产品/Atlas A3 推理系列产品：
     - 要求 >= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))，localExpertNum需使用MoE专家卡的本卡专家数，其中Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32。
 - 通信域使用约束：
-  - 一个模型中的aclnnMoeDistributeDispatchSetup、aclnnMoeDistributeDispatchTeardow、aclnnMoeDistributeCombineSetup、aclnnMoeDistributeCombineTeardown仅支持相同EP通信域，且该通信域中不允许有其他算子。
+  - 一个模型中的aclnnMoeDistributeDispatchSetup、aclnnMoeDistributeDispatchTeardown、aclnnMoeDistributeCombineSetup、aclnnMoeDistributeCombineTeardown仅支持相同EP通信域，且该通信域中不允许有其他算子。

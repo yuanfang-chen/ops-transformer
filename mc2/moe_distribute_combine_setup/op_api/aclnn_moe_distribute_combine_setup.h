@@ -7,6 +7,11 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
+
+/*!
+ * \file aclnn_moe_distribute_combine_setup.h
+ * \brief
+ */
 #ifndef OP_API_INC_MOE_DISTRIBUTE_COMBINE_SETUP
 #define OP_API_INC_MOE_DISTRIBUTE_COMBINE_SETUP
 
@@ -45,10 +50,10 @@ extern "C" {
  *
  */
 ACLNN_API aclnnStatus aclnnMoeDistributeCombineSetupGetWorkspaceSize(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
+    const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine, const char *groupEp,
     int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertSharedType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    aclTensor* quantExpandXOut, aclTensor* commCmdInfoOut, uint64_t* workspaceSize, aclOpExecutor** executor);
+    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char *commAlg,
+    aclTensor *quantExpandXOut, aclTensor *commCmdInfoOut, uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * 算子功能：进行AlltoAllv通信，将数据写入对端GM。
@@ -74,24 +79,25 @@ ACLNN_API aclnnStatus aclnnMoeDistributeCombineSetupGetWorkspaceSize(
  *
  */
 ACLNN_API aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
-    const aclTensor* expandX, const aclTensor* expertIds, const aclTensor* assistInfoForCombine, const char* groupEp,
+    const aclTensor *expandX, const aclTensor *expertIds, const aclTensor *assistInfoForCombine, const char *groupEp,
     int64_t epWorldSize, int64_t epRankId, int64_t moeExpertNum, int64_t expertSharedType, int64_t sharedExpertNum,
-    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char* commAlg,
-    uint64_t& tokenMsgSize, uint64_t& commCmdInfoOutSize);
+    int64_t sharedExpertRankNum, int64_t globalBs, int64_t commQuantMode, int64_t commType, const char *commAlg,
+    uint64_t &tokenMsgSize, uint64_t &commCmdInfoOutSize);
 
 /**
  * @brief aclnnMoeDistributeCombineSetup的第二段接口，用于执行计算。
  * @param [in] workspace: 在npu device侧申请的workspace内存起址。
- * @param [in] workspaceSize: 在npu device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineSetupGetWorkspaceSize获取。
+ * @param [in] workspaceSize: 在npu
+ * device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineSetupGetWorkspaceSize获取。
  * @param [in] executor: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码。
  */
-ACLNN_API aclnnStatus aclnnMoeDistributeCombineSetup(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor,
+ACLNN_API aclnnStatus aclnnMoeDistributeCombineSetup(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                                      aclrtStream stream);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif  // OP_API_INC_MOE_DISTRIBUTE_COMBINE_SETUP
+#endif // OP_API_INC_MOE_DISTRIBUTE_COMBINE_SETUP
