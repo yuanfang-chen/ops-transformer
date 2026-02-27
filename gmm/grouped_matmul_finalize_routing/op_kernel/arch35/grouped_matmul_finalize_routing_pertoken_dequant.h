@@ -24,7 +24,7 @@
 using namespace Cgmct::Gemm;
 using namespace Cgmct::Gemm::Kernel;
 
-template <typename layoutA, typename layoutB>
+template <typename layoutA, typename layoutB, int scaleNum, int rowindexNum>
 __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(
     GM_ADDR x, GM_ADDR w, GM_ADDR w_scale, GM_ADDR bias, GM_ADDR x_scale, GM_ADDR group_list, GM_ADDR share_input,
     GM_ADDR logit, GM_ADDR row_index, GM_ADDR offset, GM_ADDR y, GM_ADDR workspaceGM, GM_ADDR tilingGM)
@@ -32,6 +32,9 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(
     REGISTER_TILING_DEFAULT(GMMFinalizeRoutingArch35Tiling::GMMFinalizeRoutingTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
 
+    using weightscaleType =
+        std::conditional_t<scaleNum == 0, float, bfloat16_t>;
+    using rowIndexType = std::conditional_t<rowindexNum == 0, int64_t, int32_t>;
     auto gmmFinalizeRoutingQuantParams_ = tilingData.gmmFinalizeRoutingDataParams;
     auto matmulTiling_ = tilingData.matmulTiling;
 
@@ -44,12 +47,12 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(
     using LayoutA = layoutA;
     using LayoutB = layoutB;
     using LayoutC = layout::RowMajorAlign;
-    using weightscaleType = DTYPE_SCALE;
+    // using weightscaleType = DTYPE_SCALE;
     using BiasType = bfloat16_t;
     using LayoutBias = layout::RowMajor;
     using C1Type = std::conditional_t<std::is_same_v<AType, int8_t>, int32_t, float>; // matmul output dtype
     using xscaleType = float;
-    using rowIndexType = DTYPE_ROW_INDEX;
+    // using rowIndexType = DTYPE_ROW_INDEX;
 
     using ProblemShape = Cgmct::Gemm::MatmulShape;
     using BlockScheduler = Cgmct::Gemm::GroupedMatmulAswtWithTailSplitScheduler;
