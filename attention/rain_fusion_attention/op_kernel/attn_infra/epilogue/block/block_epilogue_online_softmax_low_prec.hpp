@@ -282,7 +282,8 @@ public:
         AscendC::PipeBarrier<PIPE_V>();
     }
 
-    __aicore__ inline void ReduceMaxByPair(const AscendC::LocalTensor<half> &dstUb, const AscendC::LocalTensor<half> &srcUb,
+    __aicore__ inline
+    void ReduceMaxByPair(const AscendC::LocalTensor<half> &dstUb, const AscendC::LocalTensor<half> &srcUb,
                                            uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
                                            uint8_t dataBlockStride, uint8_t repeatStride)
     {
