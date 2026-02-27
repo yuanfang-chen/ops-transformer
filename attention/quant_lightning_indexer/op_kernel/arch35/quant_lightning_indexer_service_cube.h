@@ -74,7 +74,7 @@ public:
     static constexpr uint64_t KEY_BUFFER_OFFSET = S2_BASIC_BLOCK_L0 * D_BASIC_BLOCK;
     static constexpr uint64_t WEIGHT_BUFFER_OFFSET = S1G_BASIC_BLOCK_L1 * BLOCK_CUBE;
     static constexpr uint64_t L0AB_BUFFER_OFFSET_S8_16K = 16384;
-    static constexpr uint64_t L0AB_BUFFER_OFFSET_FP16_16K = 4096;
+    static constexpr uint64_t L0AB_BUFFER_OFFSET_FP16_16K = 8192;
     static constexpr uint64_t L0C_BUFFER_OFFSET = 16384;
 
 private:
