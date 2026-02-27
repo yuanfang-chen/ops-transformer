@@ -13,11 +13,11 @@
 
 ## 功能说明
 
-- 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)和Matmul计算的融合，**先通信后计算**，支持非量化、K-C量化和K-C动态[量化模式](../../docs/zh/context/量化介绍.md)。
+- 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)和Matmul计算的融合，**先通信后计算**，支持非量化、K-C量化、K-C动态量化和mx[量化模式](../../docs/zh/context/量化介绍.md)。
 - 计算公式：假设x1输入shape为(BS, H)，rankSize为NPU卡数
 
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-        - **动态量化场景：**
+    - **动态量化场景：**
+        - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
           $$
           commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
           permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -26,22 +26,21 @@
           output = output_{quant} \times x1_{scale} \times x2_{scale} \\
           output = output + bias
           $$
-        - **全量化场景：**
+        - <term>Ascend 950PR/Ascend 950DT</term>：
+          $$
+          commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+          permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+          dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
+          output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+          $$
+
+    - **全量化场景：**
           $$
           commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
           permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
           output_{quant} = x1 @ x2 \\
           output = output_{quant} \times x1_{scale} \times x2_{scale} \\
           output = output + bias
-          $$
-
-    - <term>Ascend 950PR/Ascend 950DT</term>：
-        - **动态量化场景：**
-          $$
-          commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-          permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-          dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
-          output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
           $$
 
 ## 参数说明​
@@ -203,7 +202,7 @@
     <tr>
     <td>group_size</td>
     <td>可选属性</td>
-    <td>用于Matmul计算三个方向上的量化分组大小，预留参数，仅支持配置为0，取值不生效。groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>用于Matmul计算三个方向上的量化分组大小，其值由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
     <td>INT</td>
     <td>-</td>
     </tr>
