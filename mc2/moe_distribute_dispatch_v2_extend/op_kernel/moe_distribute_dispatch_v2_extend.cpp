@@ -41,6 +41,7 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     // AscendC::printf("rankid %d",ptr->rankId);
 
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+AscendC::printf("PRINT start In kERNEL");
 // #if defined(__DAV_C310__)
 //     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
 // #endif
