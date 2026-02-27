@@ -1427,6 +1427,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
 
     // 获取scales
     const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(3U);
+    OP_LOGD("PRINT SCALES_INDEX,%d",SCALES_INDEX);
     if(scalesStorageShape == nullptr) {
         OP_LOGD("PRINT tiling scalesStorageShape is null ptr");
     } else {
