@@ -579,7 +579,7 @@ void MhcPostTilingBase::ComputeTilingNew()
     } else {
         dInner_ = ALIGN_SIZE_512B;  // 小于512的也和512B对齐。
     }
-    dOuter_ = Ops::Base::CeilDiv(static_cast<uint32_t>(D_), dInner_);
+    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
 
     if (isNotFullCore_ == 1) {
