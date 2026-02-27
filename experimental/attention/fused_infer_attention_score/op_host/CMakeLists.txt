@@ -37,7 +37,7 @@ else()
                 -Werror
                 -mllvm -cce-vf-remove-membar=false
                 -mllvm -cce-aicore-hoist-movemask=false
-                --op_relocatable_kernel_binary=true
+                # --op_relocatable_kernel_binary=true
     )
 endif()
 
@@ -46,6 +46,7 @@ if(NOT BUILD_OPS_RTY_KERNEL)
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL) #
+    message(STATUS "-----fia cmakeList")
     add_tiling_modules()
     target_sources(${OPHOST_NAME}_tiling_obj PRIVATE
     ../../common/op_host/fia_tiling_shape.cpp

@@ -33,6 +33,8 @@
 #endif
 #endif // FIA_ENABLE_MLA
 
+
+
 using namespace AscendC;
 
 #define INVOKE_FIA_OP_GENERAL_IMPL(templateClass, CubeBlockType, VecBlockType, FdBlockType, ...)                       \
@@ -245,6 +247,29 @@ extern "C" __global__ __aicore__ void fused_infer_attention(
                                false, FIA_LAYOUT::BSH, true);
 
 #endif
+#endif
+
+#if (ORIG_DTYPE_QUERY == DT_FLOAT16) && (ORIG_DTYPE_ATTENTION_OUT == DT_INT8) && (ORIG_DTYPE_KEY == DT_FLOAT16)
+ // Gqa NoQuant PA
+    TILING_KEY_IS(103000000000203000);
+
+// Gqa NoQuant PA Non Perf
+#if TILING_KEY_VAR == 103000000000203000
+	INVOKE_FIA_OP_GENERAL_IMPL(FiaKernelNonQuant, FiaBlockCubeNonQuantGqa, FiaBlockVecNonQuant, FiaBlockVecFlashDecode,
+                               half, half, int8_t, half, true, false, FIA_LAYOUT::BNSD, false, false,
+                                   FIA_LAYOUT::BNSD, false);
+#endif    
+#endif
+
+#if (ORIG_DTYPE_QUERY == DT_BF16) && (ORIG_DTYPE_ATTENTION_OUT == DT_INT8) && (ORIG_DTYPE_KEY == DT_BF16)
+     // Gqa NoQuant PA
+    TILING_KEY_IS(103000000000223220);
+// Gqa NoQuant PA
+#if TILING_KEY_VAR == 103000000000223220 
+    INVOKE_FIA_OP_GENERAL_IMPL(FiaKernelNonQuant, FiaBlockCubeNonQuantGqa, FiaBlockVecNonQuant, FiaBlockVecFlashDecode,
+                               bfloat16_t, bfloat16_t, int8_t, bfloat16_t, true, false, FIA_LAYOUT::BNSD, false, false,
+                                   FIA_LAYOUT::BNSD);
+#endif    
 #endif
 
 #endif
