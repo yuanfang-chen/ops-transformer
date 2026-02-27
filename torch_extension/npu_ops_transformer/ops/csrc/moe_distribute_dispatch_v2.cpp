@@ -42,7 +42,7 @@ tensor_list npu_moe_distribute_dispatch_v2(const at::Tensor &x, const at::Tensor
                                            c10::optional<int64_t> y_dtype, c10::optional<int64_t> x_dtype,
                                            c10::optional<int64_t> scales_dtype)
 {
-
+    std::cout << "torch_extension is running!" << std::endl;
     TORCH_CHECK((x.dim() == DIM_TWO) && (expert_ids.dim() == DIM_TWO), "The x and expert_ids should be 2D");
     TORCH_CHECK((ep_rank_id >= 0) && (ep_rank_id < ep_world_size),
                 "ep_rank_id should be in [0, ep_world_size), but got",
