@@ -21,14 +21,41 @@
 #endif
 #include "common.h"
 #include "./arch35/template_head.h"
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+#include "./arch32/matmul_allto_all_tiling_data_910_93.h"
+#include "./arch32/matmul_allto_all_tiling_key_910_93.h"
+#include "./arch32/matmul_allto_all_910_93.h"
+#endif
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3101
 #include "./arch35/matmul_allto_all_tiling_key.h"
 #include "./arch35/matmul_allto_all_arch35.h"
 #include "./arch35/kc_quant_matmul_allto_all_arch35.h"
 #include "./arch35/mx_quant_matmul_allto_all_arch35.h"
+#endif
 
 using namespace AscendC;
 using namespace MC2KernelTemplate;
 using namespace MatmulAlltoAllImpl;
+
+#ifndef MATMUL_ALLTO_ALL_A3_FP_IMPL
+#define MATMUL_ALLTO_ALL_A3_FP_IMPL(tilingData, pipe)  \
+    do {    \
+        DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_A3_FP(ComputationContextType);\
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_A3_FP(ComputationType); \
+        ComputationType matmulImplName(&pipe); \
+        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);    \
+        TransposeType transposeImplName(&pipe);    \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_AICPU, MC2AlltoAllContext,\
+            MatmulAlltoAllTilingDataA3, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
+        CommunicationType commImplName(&tilingData);  \
+        using SchedulerContextType = PipelineContext<ComputationContextType>;  \
+        using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
+        SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
+        MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataA3> op(&SchedulerImpl); \
+        op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
+        op.Process();   \
+    } while (0)
+#endif
 
 #ifndef MATMUL_ALLTO_ALL_APT_FP_IMPL
 #define MATMUL_ALLTO_ALL_APT_FP_IMPL(tilingData, pipe)  \
@@ -59,6 +86,21 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
+    AscendC::PRINTF("qiziy");
+ 	REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingDataA3);
+ 	GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingDataA3, tilingData, tilingGM);
+ 	 
+ 	if constexpr (DTYPEBIAS == DTYPE_BIAS_SAME_WITH_X) {
+ 	    using DtypeBias = DTYPE_X1;
+ 	    MATMUL_ALLTO_ALL_A3_FP_IMPL(tilingData, pipe);
+ 	} else if constexpr (DTYPEBIAS == DTYPE_BIAS_FP32) {
+ 	    using DtypeBias = float;
+ 	    MATMUL_ALLTO_ALL_A3_FP_IMPL(tilingData, pipe);
+ 	}
+#endif
+ 	 
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3101
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     //注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
     REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingData);
@@ -108,5 +150,6 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
         op.Init(x1, x2, bias, y, x1Scale, x2Scale, workspaceGM, &tilingData, &pipe);
         op.Process(); 
     }
+#endif
 #endif
 }
