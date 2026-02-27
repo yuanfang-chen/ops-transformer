@@ -20,7 +20,7 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 ### 1.2 输入输出和属性
 
 - a，b为源操作数，a为通信的输入操作数，在本样例中形状固定为[240，256]。b为Add的加数，在本样例中形状固定为[480，256]；
-- gather_out为目的操作数，存放AllGather通信结果，形状为[240 * rank_size，256]，其中rank_size为通信域内的卡数，在本样例中固定为2；
+- gather_out为目的操作数，存放AllGather的通信结果，形状为[240 * rank_size，256]，其中rank_size为通信域内的卡数，在本样例中固定为2；
 - c为目的操作数，存放Add运算结果，形状为[240 * rank_size，256]；
 - 算子输入输出的数据类型为float16，[format](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0961.html)为：ND。
 - group为算子属性，表示通信域名称，明确算子运行时所在的通信域。
@@ -112,7 +112,7 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
         <td colspan="4">TBuf：内存管理数据结构</td>
     </tr>
     <tr>
-        <td colspan="4">GetHccContext：获取通信Context</td>
+        <td colspan="4">GetHcclContext：获取通信Context</td>
     </tr>
 </table>
 
@@ -126,12 +126,10 @@ AllGather操作会将通信域内所有卡的输入按照卡id重新排序，然
 ![AllGatherAdd算子计算语义示意图.png](figures/AllGatherAdd算子计算语义示意图.png)
 
 AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add计算，通信计算部分可以并行进行互不影响。
-因此，可以将通信数据切分为块，每次计算对前一轮的通信结果进行操作，流水互相掩盖，则可得到通信计算掩盖示意图如下：
+因此，可以将通信数据切分多块，每次通信只通信一块数据，每次计算只对前一轮的通信结果进行操作，流水互相掩盖，可得到通信计算掩盖示意图如下：
 
 ![AllGatherAdd通算掩盖示意图.png](figures/AllGatherAdd通算掩盖示意图.png)
 
-可以看到从第二轮通信开始，通算流水掩盖。由于前一次通信结果的Add计算和后一次通信过程可以并行，当通信切分轮次增多时，在流水上可以掩盖掉（comm_turn-1/comm_turn）* 总数据量 的计算时间。
-本样例中，固定通信轮次comm_turn=2，开发者可以根据shape的大小调整通信轮次来实现不同程度的通算掩盖。
 
 **AllGatherAdd算子计算过程示意**：（comm_turn=2时）
 
@@ -157,7 +155,6 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 │   ├── op_host                # 算子host目录，算子原型定义、Tiling、aclnn接口等相关实现
 │   ├── op_kernel              # 算子kernel目录
 │   └── README.md              # 算子说明文档
-
 ```
 
 ## 算子原型定义
@@ -166,42 +163,43 @@ AllGatherAdd算子的数据在卡间进行AllGather通信，在卡内进行Add�
 - 必须定义至少一个表示算子通信域名称的属性，该属性的数量与算子所在通信域数量一致。通信域是集合通信执行的上下文，管理对应的通信实体（例如一个NPU就是一个通信实体）和通信所需的资源。
 - 必须通过原型注册中的[MC2](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0954.html)接口注册该算子为通算融合算子，并通过[HcclGroup](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_1002.html)接口配置该算子的通信域名称。
 
+
 AllGatherAdd算子原型定义如下：
 
 ```cpp
-    namespace ops {
-    class AllGatherAdd : public OpDef {
-    public:
-    explicit AllGatherAdd(const char *name) : OpDef(name) {
-        this->Input("a")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Input("b")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        
-        this->Output("c")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
-        this->Output("gather_out")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16})
-            .Format({ge::FORMAT_ND});
+namespace ops {
+class AllGatherAdd : public OpDef {
+public:
+explicit AllGatherAdd(const char *name) : OpDef(name) {
+    this->Input("a")
+        .ParamType(REQUIRED)
+        .DataType({ge::DT_FLOAT16})
+        .Format({ge::FORMAT_ND});
+    this->Input("b")
+        .ParamType(REQUIRED)
+        .DataType({ge::DT_FLOAT16})
+        .Format({ge::FORMAT_ND});
+    
+    this->Output("c")
+        .ParamType(REQUIRED)
+        .DataType({ge::DT_FLOAT16})
+        .Format({ge::FORMAT_ND});
+    this->Output("gather_out")
+        .ParamType(REQUIRED)
+        .DataType({ge::DT_FLOAT16})
+        .Format({ge::FORMAT_ND});
 
-        this->Attr("group").AttrType(REQUIRED).String(); // 通算融合算子属性，表示通信域名称
-        this->Attr("rank_size").AttrType(REQUIRED).Int(0);
+    this->Attr("group").AttrType(REQUIRED).String(); // 通算融合算子属性，表示通信域名称
+    this->Attr("rank_size").AttrType(REQUIRED).Int(0);
 
-        this->AICore().AddConfig("ascend910b");
-        this->AICore().AddConfig("ascend910_93");
-        this->MC2().HcclGroup("group"); // group 属性配置为该算子的通信域名称
-    }
-    };
+    this->AICore().AddConfig("ascend910b");
+    this->AICore().AddConfig("ascend910_93");
+    this->MC2().HcclGroup("group"); // group 属性配置为该算子的通信域名称
+}
+};
 
-    OP_ADD(AllGatherAdd);
-    }  // namespace ops
+OP_ADD(AllGatherAdd);
+}  // namespace ops
 
 ```
 
@@ -233,7 +231,6 @@ AllGatherAdd算子原型定义如下：
         uint32_t gatherTileElemNum;
         uint32_t addCoresPerRank;
     };
-
     ```
     - commTurn: 通信切分轮次，在实际业务场景中是对通算融合掩盖程度重要影响因素，参考[通算融合基础知识](https://www.hiascend.com/document/detail/zh/canncommercial/850/opdevg/Ascendcopdevg/atlas_ascendc_10_10033.html)。
     - tileNum: 计算切分轮次。在本节Tiling实现分析中可知单轮计算UB无溢出风险，该值为1。
@@ -283,6 +280,7 @@ AllGatherAdd算子原型定义如下：
 在AllGatherAdd算子的Kernel实现中，需要按照通信切分轮次对所有卡的数据执行AllGather通信计算，同时需要对每轮的通信数据进行Add运算。多轮通信场景下，多张卡的数据拼接到一张卡时，相邻数据块地址并不连续，而每轮Add运算仅对上一轮的通信结果进行计算，因此需要考虑Add计算所需的基本信息：
 - 输入a、b操作数和输出c的地址。
 - gather_out、b操作数在核间切分的策略。
+
 
 **首先介绍AllGatherAdd算子核函数的主流程**：
 
@@ -383,7 +381,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     ![Add计算分核示意图.png](figures/Add计算分核示意图.png)
 
-    如上图所示，假设当前在AIV-26核进行第一次Add计算，根据Process()函数逻辑，当i = 0时，CalcAddGmAddr函数第一次触发执行，根据[hccl.wait()](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0878.html)接口说明，此时第一轮通信已经完成，第二轮通信开始，因此CalcAddGmAddr函数中计算本核需要处理数据的起始地址偏移时，首先偏移i * 单次通信数据长度的距离，如图commOffset；每次Add操作对上一轮通信的结果进行计算，由于通信分多轮进行，每张卡的相邻数据块在gatherOutGM中起始地址存在偏移（即strideCount），因此需要根据卡数和当前核的index计算当前核被分到处理哪个rank的通信数据，如图，后40个AIV核被均分给两个rank，则AIV-26被分到处理来自rank1的数据，blockOffset如图；计算出当前核处理的rank后，最终偏移需要再加上在此rank数据上的偏移，即6 * 每个核处理的数据个数。
+    如上图所示，假设当前在AIV-26核进行第一次Add计算，根据Process()函数逻辑，当i = 0时，CalcAddGmAddr函数第一次触发执行，根据[hccl.wait()](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0878.html)接口说明，此时第一轮通信已经完成，第二轮通信开始，因此CalcAddGmAddr函数中计算本核需要处理数据的起始地址偏移时，首先偏移i * 单次通信数据长度的距离，如图commOffset；每次Add操作对上一轮通信的结果进行计算，由于通信分多轮进行，每张卡的相邻数据块在gatherOutGM中起始地址存在偏移（即strideCount），因此需要根据卡数和当前核的index计算当前核被分到处理哪个rank的通信数据，如图，总共40个AIV核被均分给两个rank，则AIV-26被分到处理来自rank1的数据，blockOffset如图；计算出当前核处理的rank后，最终偏移需要再加上在此rank数据上的偏移，即6 * 每个核处理的数据个数。
     CalcAddGmAddr函数实现如下：
 
     ```cpp
@@ -404,7 +402,7 @@ extern "C" __global__ __aicore__ void all_gather_add(GM_ADDR aGM, GM_ADDR bGM, G
 
     - 轮询等待每个分块的通信完成和计算完成，最后释放资源。
 
-    整合前述代码 ，完整Kernel代码请访问开源仓   
+    整合前述代码 ，完整Kernel代码请访问开源仓。  
 
 ## 编译和运行
 
