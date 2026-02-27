@@ -1794,7 +1794,7 @@ static uint64_t MoeDistributeDispatchA2CalcTilingKey(const gert::TilingContext *
     if (isLayered) {
         commMode = TILINGKEY_TPL_AICPU;
     }
-    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(3U);
     bool isScales = (scalesStorageShape != nullptr);
     if (isScales) {
         scaleMode = true;
