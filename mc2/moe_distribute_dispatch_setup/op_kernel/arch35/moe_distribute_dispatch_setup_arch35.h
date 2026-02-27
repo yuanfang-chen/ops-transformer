@@ -942,25 +942,26 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
     CalMoeStartTokenNum(startRankId_, statusTensor_, moeStartToken);
     LocalTensor<uint8_t> sqInfoU8 = urmaSqInfoBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> cqInfoU8 = urmaCqInfoBuf_.Get<uint8_t>();
-    uint32_t sqPi{0U}, sqCi{0U}, cqPi{0U}, cqCi{0U};
+    uint32_t sqPi{0U}, sqCi{0U}, cqPi{0U}, cqCi{0U}, sqPiLinear{0U}, cqCiLinear{0U};
     LocalTensor<uint8_t> cqeTensorU8 = cqeBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> jfcDoorBellU8 = jfcDoorBellBuf_.Get<uint8_t>(8); // 2*sizeof(uint32_t)=8*sizeof(uint8_t)
     LocalTensor<uint8_t> tokenSqeU8 = tokenSqeBuf_.Get<uint8_t>();
     LocalTensor<uint8_t> statusSqeU8 = statusSqeBuf_.Get<uint8_t>();
-    bool temp = false;
+    bool isNotFirstInitCqe = false;
     for (uint32_t rankId = startRankId_; rankId < endRankId_; rankId++) {
         // 加载SQ CQ
         if (epRankId_ != rankId) {
             GetURMASqInfoTensor(sqInfoU8, (GM_ADDR)hcclContext_, rankId);
             GetURMACqInfoTensor(cqInfoU8, (GM_ADDR)hcclContext_, rankId);
             SyncFunc<AscendC::HardEvent::MTE2_S>(); 
-            GetPICI((GM_ADDR)hcclContext_, epRankId_, rankId, sqPi, sqCi, cqPi, cqCi, temp);
+            GetIsFirstInComm((GM_ADDR)hcclContext_, epRankId_, rankId, isNotFirstInitCqe);
+            GetPICI((GM_ADDR)hcclContext_, epRankId_, rankId, sqPi, sqCi, cqPi, cqCi, sqPiLinear, cqCiLinear);
             // 把CQ中所有CQE的status初始化为无效值（0xff）
-            if (cqPi == 0 && cqCi == 0 && !temp) {
+            if (cqPi == 0 && cqCi == 0 && !isNotFirstInitCqe) {
                 InvalidateCqeStatus(cqInfoU8, cqeTensorU8);
                 SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
             }
-            PollCommCQUpdateSQCI(sqInfoU8, cqInfoU8, cqeTensorU8, jfcDoorBellU8, sqCi, cqCi);
+            PollCommCQUpdateSQCI(sqInfoU8, cqInfoU8, cqeTensorU8, jfcDoorBellU8, sqCi, cqCi, cqCiLinear);
             UpdateCommWriteSQE(templateSqeU8, sqInfoU8);
         }
         if (rankId < sharedExpertRankNum_) { // 给共享专家卡发数据和状态，每张共享专家卡上只会有一个共享专家
@@ -1083,17 +1084,17 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Communic
             moeStartToken += calCnt;
             if (rankId != epRankId_) {
                 SyncFunc<AscendC::HardEvent::S_MTE3>();
-                PutCommSQE(sqInfoU8, cqInfoU8, tokenSqeU8, cqeTensorU8, jfcDoorBellU8, tokenSqeNum, sqPi, sqCi, cqCi);
+                PutCommSQE(sqInfoU8, cqInfoU8, tokenSqeU8, cqeTensorU8, jfcDoorBellU8, tokenSqeNum, sqPi, sqPiLinear, sqCi, cqCi, cqCiLinear);
                 SyncFunc<AscendC::HardEvent::MTE3_S>();
                 LocalTensor<uint8_t> jfsDoorBellU8 = jfsDoorBellBuf_.Get<uint8_t>(4); // 1*sizeof(uint32_t)=4*sizeof(uint8_t)
                 SyncFunc<AscendC::HardEvent::S_MTE3>();
-                PutCommSQE(sqInfoU8, cqInfoU8, statusSqeU8, cqeTensorU8, jfcDoorBellU8, moeExpertNumPerRank_, sqPi, sqCi, cqCi);
+                PutCommSQE(sqInfoU8, cqInfoU8, statusSqeU8, cqeTensorU8, jfcDoorBellU8, moeExpertNumPerRank_, sqPi, sqPiLinear, sqCi, cqCi, cqCiLinear);
                 SyncFunc<AscendC::HardEvent::MTE3_S>();
-                SendJFSDoorBell(jfsDoorBellU8, sqInfoU8, sqPi);
+                SendJFSDoorBell(jfsDoorBellU8, sqInfoU8, sqPiLinear);
             }
             
         }
-        UpdatePICI((GM_ADDR)hcclContext_, epRankId_, rankId, sqPi, sqCi, cqPi, cqCi, temp);
+        UpdatePICI((GM_ADDR)hcclContext_, epRankId_, rankId, sqPi, sqCi, cqPi, cqCi, sqPiLinear, cqCiLinear);
     }
 }
 
