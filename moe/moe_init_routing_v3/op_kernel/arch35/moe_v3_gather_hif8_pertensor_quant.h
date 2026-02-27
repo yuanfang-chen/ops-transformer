@@ -30,6 +30,7 @@ public:
     __aicore__ inline void Init(GM_ADDR inputX, GM_ADDR scale, GM_ADDR sortedExpertIdx, GM_ADDR expandedRowIdx, 
                                 GM_ADDR expandedX, const MoeInitRoutingV3Arch35TilingData *tilingData, TPipe *tPipe); 
     __aicore__ inline void Process();
+    
 
 private:
     __aicore__ inline void CopyInExpandedExpertIdx(int64_t progress);
