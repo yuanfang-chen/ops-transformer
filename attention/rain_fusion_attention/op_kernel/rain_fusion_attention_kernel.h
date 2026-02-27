@@ -76,7 +76,7 @@ namespace RainFusion {
         using ElementUpdate = typename EpilogueRescaleO::ElementUpdate;
         using LayoutUpdate = typename EpilogueRescaleO::LayoutUpdate;
 
-        static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
+        // static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
 
         // Methods
         __aicore__ inline
@@ -513,16 +513,18 @@ namespace RainFusion {
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-
+                        LayoutLse layoutLse(totalQTokens, qHeads); // todo这里需要确认
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
+                            gLse[], // todo 这里便宜怎么算？
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
+                            layoutLse,
                             actualBlockShapePV,
                             qSBlockSize,
                             qNBlockSize,
