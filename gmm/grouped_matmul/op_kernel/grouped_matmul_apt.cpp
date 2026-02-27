@@ -186,6 +186,14 @@ using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_BIAS>;
         }                                                                                                              \
     } while (0)
 
+#define GMM_QUANT_EMPTY_TENSOR_WITHOUT_BIAS_IMPL_CLASS()                                                               \
+    do {                                                                                                               \
+        GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);                           \
+        GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);                               \
+        GET_TILING_DATA_MEMBER_ADDR(GMMQuantTilingData, gmmArray, gmmArrayAddr_, tiling);                              \
+        GQmmEmptyTensor<DTYPE_Y>(groupList, y, &gmmQuantParams_, gmmArrayAddr_, mmTilingData_.usedCoreNum, &tPipe);    \
+    } while (0)
+
 #define GMM_QUANT_GB_IMPL_CLASS(xLayout, wLayout, yLayout)                                                             \
     do {                                                                                                               \
         GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);                           \
@@ -195,13 +203,13 @@ using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_BIAS>;
                                              &gmmQuantParams_, &mmTilingData_, &tPipe);                                \
     } while (0)
 
-#define GMM_QUANT_MXFP8_LOW_API_IMPL_CLASS(xLayout, wLayout, yLayout)                                                             \
+#define GMM_QUANT_MX_LOW_API_IMPL_CLASS(xLayout, wLayout, yLayout)                                                     \
     do {                                                                                                               \
         GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);                           \
         GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);                               \
-        GmmCgmctMxKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, float, DTYPE_Y, xLayout, wLayout, yLayout, \
-                         DTYPE_L0C_LOCAL>(x, weight, bias, scale, groupList, perTokenScale, y, user1,               \
-                                          &gmmQuantParams_, &mmTilingData_, &tPipe);                                \
+        GmmCgmctMxKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, float, DTYPE_Y, xLayout, wLayout, yLayout,    \
+                         DTYPE_L0C_LOCAL>(x, weight, bias, scale, groupList, perTokenScale, y, user1,                  \
+                                          &gmmQuantParams_, &mmTilingData_, &tPipe);                                   \
     } while (0)
 
 #if defined(V310_GMM_QUANT)
@@ -227,25 +235,43 @@ __global__ __aicore__ void grouped_matmul(GM_ADDR x, GM_ADDR weight, GM_ADDR bia
 #if defined(V310_GMM_QUANT) // Quant: A8W8, A4W4
 REGISTER_TILING_DEFAULT(GMMQuantTilingData);
 #if defined(V310_GMM_QUANT_MX) // mx
-    if constexpr (wFormat != CubeFormat::ND) {
-#if defined(V310_MXFP8_LOW_API)
-        if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-            GMM_QUANT_MXFP8_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz,
-                                    Cgmct::Gemm::layout::RowMajor);
-        } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-            GMM_QUANT_MXFP8_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Zn,
-                                    Cgmct::Gemm::layout::RowMajor);
+#if defined(V310_MXFP8_LOW_API) // mxfp8
+if constexpr (wFormat == CubeFormat::ND) {
+    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_MX_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor,
+                                           Cgmct::Gemm::layout::RowMajor);
+    } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&
+                         KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_MX_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::ColumnMajor,
+                                           Cgmct::Gemm::layout::RowMajor);
+    } else if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS &&
+                         KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if ASCEND_IS_AIV {
+            GMM_QUANT_EMPTY_TENSOR_WITHOUT_BIAS_IMPL_CLASS();
         }
-#endif
-    } else {
-        if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
-            && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-            GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
-        } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
-            && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-            GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
+        if ASCEND_IS_AIC {
+            GMM_QUANT_MX_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::ColumnMajor, Cgmct::Gemm::layout::RowMajor,
+                                            Cgmct::Gemm::layout::RowMajor);
         }
     }
+} else {
+    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_MX_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Nz,
+                                           Cgmct::Gemm::layout::RowMajor);
+    } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&
+                         KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_MX_LOW_API_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::Zn,
+                                           Cgmct::Gemm::layout::RowMajor);
+    }
+}
+#else // mxfp4
+    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
+    } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS &&
+                         KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
+    }
+#endif
 
 #endif
 #if defined(V310_GMM_QUANT_CUBE) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // scale64/perTensor/double perTensor
@@ -257,11 +283,9 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
         GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
     }
 #endif
-#if defined(V310_GMM_QUANT_MX) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // mx/perTensor/double perTensor
-    if constexpr (wFormat == CubeFormat::ND) {
-        if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
-            GMM_QUANT_WITH_EMPTY_TENSOR_IMPL_CLASS(true, false, GmmASWKernel);
-        }
+#if defined(V310_GMM_QUANT_PERTENSOR_CUBE) // mx/perTensor/double perTensor
+    if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        GMM_QUANT_WITH_EMPTY_TENSOR_IMPL_CLASS(true, false, GmmASWKernel);
     }
 #endif
 #if defined(V310_GMM_QUANT_MIX) // perToken/SPLIT_K/scale bf16/fp32

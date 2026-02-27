@@ -1023,6 +1023,7 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
     // 根据一条指令带宽要求的数据量求取A,B各自的depth
     basicTiling_.depthA1 = GetDepthWithHighBW(std::min(inputParams_.mSize, basicTiling_.baseM));
     basicTiling_.depthB1 = GetDepthWithHighBW(std::min(inputParams_.nSize, basicTiling_.baseN));
+    ModifyDepthForUnalign(leftL1Size, baseASize, baseBSize, baseScaleASize + baseScaleBSize);
     // 如果按照满足带宽的L1数据量超过了L1Size，进行下调整到平均depth;适配mx低阶api scaleKAL1=scaleKBL1的约束
     if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
             std::max(basicTiling_.depthA1, basicTiling_.depthB1) * (baseScaleASize + baseScaleBSize) >
@@ -1041,8 +1042,56 @@ uint64_t GroupedQbmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
 {
     // 只需要满足读GM数据大于64KB即可获得较高的带宽，不一定要把L1用满，同时减少MTE2头开销
     uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
-    return CeilAlign(CeilDiv(MTE2_MIN_LOAD_SIZE_V120, mnL1), static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256)) /
-           baseKSize * DB_SIZE;
+    uint64_t depth =
+        CeilAlign(CeilDiv(MTE2_MIN_LOAD_SIZE_V120, mnL1), static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256)) /
+        baseKSize * DB_SIZE;
+    uint64_t pow2Depth = POWER_OF_TWO;
+    while (pow2Depth < depth) {
+        pow2Depth *= POWER_OF_TWO;
+    }
+    // 对齐2次幂或者实际最大depth大小
+    return std::min(pow2Depth, CeilDiv(inputParams_.kSize, basicTiling_.baseK) * DB_SIZE);
+}
+
+void GroupedQbmmTiling::ModifyDepthForUnalign(uint64_t leftL1Size, uint64_t baseASize, uint64_t baseBSize,
+                                              uint64_t baseScaleABSize)
+{
+    // 只调整K轴非对齐场景
+    if (inputParams_.kSize % GmmConstant::BASIC_BLOCK_SIZE_128 == 0) {
+        return;
+    }
+    // m，n在内轴且ND时，修改stepk无法改变ND2NZ小包数量
+    if (inputParams_.transA && (!inputParams_.transB || inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ)) {
+        return;
+    }
+    if (!inputParams_.transA) {
+        if (basicTiling_.depthA1 <= basicTiling_.depthB1) {
+            uint64_t leftASize = leftL1Size - basicTiling_.depthB1 * baseBSize - basicTiling_.depthB1 * baseScaleABSize;
+            while (basicTiling_.depthA1 * POWER_OF_TWO * baseASize <= leftASize) {
+                basicTiling_.depthA1 *= POWER_OF_TWO;
+            }
+            if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+                    std::max(basicTiling_.depthA1, basicTiling_.depthB1) * baseScaleABSize >
+                leftL1Size) {
+                basicTiling_.depthA1 = basicTiling_.depthB1;
+            }
+        } else if (inputParams_.transB && inputParams_.bFormat == ge::FORMAT_ND) {
+            uint64_t leftBSize = leftL1Size - basicTiling_.depthA1 * baseASize - basicTiling_.depthA1 * baseScaleABSize;
+            while (basicTiling_.depthB1 * POWER_OF_TWO * baseBSize <= leftBSize) {
+                basicTiling_.depthB1 *= POWER_OF_TWO;
+            }
+            if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+                    std::max(basicTiling_.depthA1, basicTiling_.depthB1) * baseScaleABSize >
+                leftL1Size) {
+                basicTiling_.depthB1 = basicTiling_.depthA1;
+            }
+        }
+    } else { // transA = true, transB = true, 仅考虑B depth
+        while ((basicTiling_.depthA1 * baseASize -
+                std::max(basicTiling_.depthA1, basicTiling_.depthB1 * POWER_OF_TWO) * baseScaleABSize) < leftL1Size) {
+            basicTiling_.depthB1 *= POWER_OF_TWO;
+        }
+    }
 }
 
 uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)

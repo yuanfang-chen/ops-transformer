@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file gqmm_cgmct_pertile_kernel.h
+ * \file gqmm_cgmct_mx_kernel.h
  * \brief
  */
-#ifndef GQMM_CGMCT_PERTILE_KERNEL_H
-#define GQMM_CGMCT_PERTILE_KERNEL_H
+#ifndef GQMM_CGMCT_MX_KERNEL_H
+#define GQMM_CGMCT_MX_KERNEL_H
 
 #include "cgmct/block/block_mmad_mx.h"
 #include "cgmct/block/block_scheduler_gmm_aswt_with_tail_split.h"
