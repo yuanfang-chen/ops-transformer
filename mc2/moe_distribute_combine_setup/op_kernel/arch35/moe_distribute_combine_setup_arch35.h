@@ -21,7 +21,7 @@
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
-#include "basic_api/kernel_basic_intf.h"
+#include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_base.h"
 #include "../moe_distribute_combine_setup_tiling_data.h"
