@@ -314,6 +314,7 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
     LocalTensor<ExpandIdxType> indexCountsTensor = indexCountsQueue_.DeQue<ExpandIdxType>();
     LocalTensor<int32_t> expertIdsTensor = expertIdsQueue_.DeQue<int32_t>();
     LocalTensor<float> expandScalesTensor = expandScalesQueue_.DeQue<float>();
+    AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
 
     LocalTensor<float> rowTmpFloatTensor = rowTmpFloatBuf_.Get<float>();
     LocalTensor<float> sumFloatBufTensor = sumFloatBuf_.Get<float>();

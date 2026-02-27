@@ -387,6 +387,7 @@ __aicore__ inline void MoeDistributeCombineSetup<TemplateMC2TypeFunc>::Communica
                                   notifySqeInfo.dataDstAddr, notifySqeInfo.length, notifySqeInfo.notifyAddr, 0x3f800000,
                                   1);
         AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>(); // 等tokenSqeU8标量写，后续Local->GM
+
         // 发数据
         PutCommNotifySQE(sqInfoU8, cqInfoU8, tokenSqeU8, cqeTensorU8, jfcDoorBellU8, tokenSqeNum, sqPi, sqPiLinear,
                          sqCi, cqCi, cqCiLinear);
