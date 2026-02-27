@@ -1,12 +1,12 @@
 /**
- * This program is free software, you can redistribute it and/or modify.
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This file is a part of the CANN Open Software.
- * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file moe_distribute_dispatch_teardown.h
@@ -114,16 +114,12 @@ private:
         LocalTensor<float>& statusSumOutTensor);
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId)
     {
-        // if (epRankId_ == rankId) {
-        //     return (GM_ADDR)(winContext_->windowsIn[epRankId_]) + winDataSizeOffset_;
-        // }
         return (GM_ADDR)((winContext_->windowsIn[rankId]) + winDataSizeOffset_);
     }
 
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId)
     {
         return (GM_ADDR)((winContext_->windowsOut[rankId]) + dataState_ * WIN_STATE_OFFSET);
-        // return (GM_ADDR)((winContext_->windowsIn[rankId]) + winDataSizeOffset_ + 3 * expertPerSizeOnWin_);
     }
 
     __aicore__ inline uint32_t MIN(uint32_t x, uint32_t y)
@@ -259,8 +255,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     hOutSize_ = axisH_ * sizeof(ExpandXOutType);
     hOutSizeAlign_ = Ceil(hOutSize_, UB_ALIGN) * UB_ALIGN; // scale起始放置偏移
     QuantInit();
-    // uint32_t hScaleSizeAlign = hOutSizeAlign_ + UB_ALIGN;  // 实际搬运大小，搬运token_align32B + 32B(float)
-    // uint32_t hScaleSizeAlign = hOutSizeAlign_;  // 实际搬运大小，搬运token_align32B + 32B(float)
     hAlignWinSize_ = Ceil(hOutSizeAlign_, WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN; // win区token起始地址对齐512
     hAlignWinCnt_ = hAlignWinSize_ / sizeof(ExpandXOutType);
     expertPerSizeOnWin_ = axisMaxBS_ * hAlignWinSize_;
@@ -298,7 +292,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
         startStatusIndex_ += remainderRankNum_;
     }
     uint32_t waitStatusBufSize = (((recStatusNumPerCore_ * UB_ALIGN) > 256) ? (recStatusNumPerCore_ * UB_ALIGN) : 256);
-    // AscendC::printf("waitStatusBufSize size is %d",waitStatusBufSize);
     tpipe_->InitBuffer(waitStatusBuf_, waitStatusBufSize);      // 1024/24 * 32B = 43 * 32B
     uint32_t statusBufCntAlign = Ceil(recvWinBlockNum_, 8) * 8; // 8 = UB_ALIGN / sizeof(int32_t)
     tpipe_->InitBuffer(statusBuf_, statusBufCntAlign * UB_ALIGN);
@@ -306,7 +299,7 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Init(
     statusSpaceGm_ = GetWindStateAddrByRankId(epRankId_);
     sumTarget_ = static_cast<float>(1.0);
     winDataSizeOffset_ = dataState_ * (tilingData->moeDistributeDispatchTeardownInfo.totalWinSize / 2);
-    tempTotalWinSize_ = tilingData->moeDistributeDispatchTeardownInfo.totalWinSize; //tjn
+    tempTotalWinSize_ = tilingData->moeDistributeDispatchTeardownInfo.totalWinSize;
     windowGM_ = GetWindAddrByRankId(epRankId_);
     windowInstatusFp32Tensor_.SetGlobalBuffer((__gm__ float*)(statusSpaceGm_));
     hOutAlignUbSize_ = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN;
@@ -529,9 +522,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::GetCu
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::LocalWindowCopy()
 {
-    // for(int i;i<100;i++){
-    //     AscendC::printf("enter LocalWindowCopy");
-    // }
     LocalTensor<int32_t> outCountLocal;
     if (startExpertId_ >= rscvStatusNum_) { // 分核已与前面的waitDispatch里保持一致
         return;
@@ -545,7 +535,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Local
     for (uint32_t index = startExpertId_; index < endExpertId_; index++) {
         uint32_t i = index - startExpertId_;
         uint32_t count = statusTensor_.GetValue(i * 8 + 1);
-        // AscendC::printf("teardown count is %d",count);
         outCountLocal.SetValue(i, beginIdx + count);
         uint32_t winOffset = index;
         if constexpr (!IsShareExpertRank) {
@@ -573,10 +562,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Local
             CopyScalesToOut(beginIdx + j, xTmpTensor_);
             expandXOutGlobal.SetGlobalBuffer((__gm__ ExpandXOutType*)(expandXOutGM_) + (beginIdx + j) * axisH_, axisH_);
             DataCopyPad(expandXOutGlobal, xTmpTensor_, expandXCopyParams_);
-            // PipeBarrier<PIPE_ALL>(); // test
-    //         for(int i=0; i<100;i++){
-    //     AscendC::printf("test");
-    // } //test
             xQueue_.FreeTensor(xTmpTensor_);
         }
         beginIdx += count;
@@ -587,10 +572,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Local
     GlobalTensor<int32_t> sendCountsGlobal;
     sendCountsGlobal.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t*>(sendCountsOutGM_));
     DataCopyPad(sendCountsGlobal[startExpertId_], outCountLocal, dataCopyOutParams);
-    // PipeBarrier<PIPE_ALL>(); // test
-    // for(int i=0; i<100;i++){
-    //     AscendC::printf("test");
-    // } //test
     PipeBarrier<PIPE_MTE3>();
 }
 
@@ -655,15 +636,11 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Updat
 template <TemplateMC2TypeClass>
 __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Process()
 {
-    // return;
     if ASCEND_IS_AIV { // 全aiv处理
         WaitDispatch();
         SyncAll<true>();
-        // return;
         LocalWindowCopy();
-        // return;
         UpdateTokenNumsOut();
-        // return;
     }
 }
 
