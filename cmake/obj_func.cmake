@@ -236,6 +236,10 @@ macro(add_modules_sources_with_soc)
       ${SOURCE_DIR}/../op_graph/fallback_*.cpp
       ${SOURCE_DIR}/../graph_plugin/fallback_*.cpp)
   if (OPTILING_SRCS OR SUB_OPTILING_SRC)
+    message(STATUS "===================")
+ 	  message(STATUS "OPTILING_SRCS:${OPTILING_SRCS}")
+ 	  message(STATUS "SUB_OPTILING_SRC:${SUB_OPTILING_SRC}")
+ 	  message(STATUS "===================")
     # tiling
     add_tiling_modules()
     target_sources(${OPHOST_NAME}_tiling_obj PRIVATE ${OPTILING_SRCS} ${SUB_OPTILING_SRC})
