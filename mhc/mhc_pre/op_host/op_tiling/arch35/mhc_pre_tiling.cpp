@@ -4,8 +4,7 @@
  * This file is a part of the CANN Open Software.
  * Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
-BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
@@ -89,7 +88,7 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
     }
 
     matM_ = totalLength_;
-    matN_ = phiTensor->GetStorageShape().GetDim(0); // phi的第二个维度是nD
+    matN_ = phiTensor->GetStorageShape().GetDim(0);  // phi的第二个维度是nD
     chunkTSize_ = (((totalLength_ + 24 - 1) / 24) + 32 - 1) / 32 * 32;
     if (chunkTSize_ > 192) {
         chunkTSize_ = 192;
@@ -139,7 +138,7 @@ ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
     } else {
         outFlag_ = 0U;
     }
-
+ 
     auto normEpsPtr = attrs->GetAttrPointer<double>(1);
     if (normEpsPtr != nullptr) {
         normEps_ = static_cast<float>(*normEpsPtr);
@@ -161,21 +160,20 @@ ge::graphStatus MhcPreBaseTiling::ParseInputAndAttr()
 void MhcPreBaseTiling::FillTilingData()
 {
     // 矩阵计算剩余部分
-    tilingData_.matmulTiling.set_dbL0C(2); // 2: 开启double buffer
-    tilingData_.matmulTiling.set_dbL0A(2); // 2: 开启double buffer
-    tilingData_.matmulTiling.set_dbL0B(2); // 2: 开启double buffer
-    tilingData_.matmulTiling.set_stepKa(1);
+    tilingData_.matmulTiling.set_dbL0C(2);  // 2: 开启double buffer
+    tilingData_.matmulTiling.set_dbL0A(2);  // 2: 开启double buffer
+    tilingData_.matmulTiling.set_dbL0B(2);  // 2: 开启double buffer
+    tilingData_.matmulTiling.set_stepKa(1); 
     tilingData_.matmulTiling.set_stepKb(1);
-    tilingData_.matmulTiling.set_depthA1(1); // 2: stepKa的两倍，开启double buffer
-    tilingData_.matmulTiling.set_depthB1(1); // 2: stepKb的两倍，开启double buffer
+    tilingData_.matmulTiling.set_depthA1(2);  // 2: stepKa的两倍，开启double buffer
+    tilingData_.matmulTiling.set_depthB1(2);  // 2: stepKb的两倍，开启double buffer
     tilingData_.matmulTiling.set_stepM(1);
     tilingData_.matmulTiling.set_stepN(1);
 
-    uint32_t baseN = (matN_ + 16 - 1) / 16 * 16; // 16: BaseM，16个元素对齐
-    uint32_t baseK = 8 * 1024 / baseN / 8 * 8;   // 8 * 1024: 64k(L0Bsize) / 2(dbL0B) / 4(float), A矩阵不转置且
-                                                 // B矩阵转置场景下baseK以C0_size对齐，float场景下为8
-    uint32_t baseM =
-        8 * 1024 / baseK / 16 * 16; // 8 * 1024: 64k(L0Bsize) / 2(dbL0A) / 4(float), 16: BaseM，16个元素对齐
+    uint32_t baseN = (matN_ + 16 - 1) / 16 * 16;  // 16: BaseM，16个元素对齐
+    uint32_t baseK = 8 * 1024 / baseN / 8 * 8;  // 8 * 1024: 64k(L0Bsize) / 2(dbL0B) / 4(float), A矩阵不转置且
+                                                // B矩阵转置场景下baseK以C0_size对齐，float场景下为8
+    uint32_t baseM = 8 * 1024 / baseK / 16 * 16;  // 8 * 1024: 64k(L0Bsize) / 2(dbL0A) / 4(float), 16: BaseM，16个元素对齐
 
     tilingData_.matmulTiling.set_baseM(baseM);
     tilingData_.matmulTiling.set_baseN(baseN);
@@ -201,7 +199,7 @@ void MhcPreBaseTiling::FillTilingData()
 ge::graphStatus MhcPreBaseTiling::TilingProcess()
 {
     // 当前最大为128*128的matmul计算, 预留3倍空间适配最大矩阵
-    size_t userWorkspaceSize = (2 * 192 * 256 + 2 * 192 * (8 * 8 + 2 * 8)) * sizeof(float) * blockDim_;
+    size_t userWorkspaceSize = (2 * 192 * 256 +  2 * 192 * (8 * 8 + 2 * 8))* sizeof(float) * blockDim_;
     size_t systemWorkspaceSize = 20 * 1024 * 1024; // 20M
 
     mm_.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT, false);
@@ -209,11 +207,10 @@ ge::graphStatus MhcPreBaseTiling::TilingProcess()
     mm_.SetCType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_FLOAT);
     mm_.SetBias(false);
     mm_.SetDim(1);
-    mm_.SetShape(matM_, matN_, matK_);
-    mm_.SetOrgShape(matM_, matN_, matK_); // 原始MNK
+    mm_.SetShape(matM_, matN_, matK_);       
+    mm_.SetOrgShape(matM_, matN_, matK_);    // 原始MNK
     if (mm_.GetTiling(tilingData_.matmulTiling) == -1) {
-        OP_LOGE(context_->GetNodeName(), "LowerTriangularInverseBaseTiling Get Tiling Failed!, batch, m: %lu, %lu",
-                totalLength_, matM_);
+        OP_LOGE(context_->GetNodeName(), "LowerTriangularInverseBaseTiling Get Tiling Failed!, batch, m: %lu, %lu", totalLength_, matM_);
         return ge::GRAPH_FAILED;
     }
 
@@ -272,8 +269,7 @@ uint64_t MhcPreBaseTiling::GetTilingKey() const
 
 ge::graphStatus MhcPreBaseTiling::PostTiling()
 {
-    OP_CHECK_IF(
-        tilingData_.GetDataSize() % sizeof(uint64_t) != 0,
+    OP_CHECK_IF(tilingData_.GetDataSize() % sizeof(uint64_t) != 0,
         OP_LOGE(context_->GetNodeName(), "tiling data size[%zu] is not aligned to 8", tilingData_.GetDataSize()),
         return ge::GRAPH_FAILED);
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetRawTilingData());
@@ -284,31 +280,35 @@ ge::graphStatus MhcPreBaseTiling::PostTiling()
 
     size_t *workspaces = context_->GetWorkspaceSizes(1); // set workspace
     OP_CHECK_IF(workspaces == nullptr, OPS_REPORT_CUBE_INNER_ERR(context_->GetNodeName(), "workspaces is null"),
-                return ge::GRAPH_FAILED);
+        return ge::GRAPH_FAILED);
 
     workspaces[0] = workspaceSize_;
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus TilingFunc4mHCPre(gert::TilingContext *context)
+static ge::graphStatus TilingFunc4mHCPre(gert::TilingContext* context)
 {
-    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[mHCPostTilingTilingFunc]", " context is null"),
-                return ge::GRAPH_FAILED);
+     OP_CHECK_IF(context == nullptr,
+        OPS_REPORT_CUBE_INNER_ERR("[mHCPostTilingTilingFunc]", " context is null"),
+        return ge::GRAPH_FAILED);
 
     return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
 
-static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
+static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext* context)
 {
-    OP_CHECK_IF(context == nullptr, OPS_REPORT_CUBE_INNER_ERR("[TilingPrepare4mHC]", "context is null"),
+    OP_CHECK_IF(context == nullptr,
+                OPS_REPORT_CUBE_INNER_ERR("[TilingPrepare4mHC]", "context is null"),
                 return ge::GRAPH_FAILED);
-    fe::PlatFormInfos *platformInfo = context->GetPlatformInfo();
-    OP_CHECK_IF(platformInfo == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
+    fe::PlatFormInfos* platformInfo = context->GetPlatformInfo();
+    OP_CHECK_IF(platformInfo == nullptr,
+                OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "platformInfoPtr is null"),
                 return ge::GRAPH_FAILED);
 
     auto compileInfoPtr = context->GetCompiledInfo<MhcPreCompileInfo>();
-    OP_CHECK_IF(compileInfoPtr == nullptr, OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "compileInfoPtr is null"),
+    OP_CHECK_IF(compileInfoPtr == nullptr,
+                OPS_REPORT_CUBE_INNER_ERR(context->GetNodeName(), "compileInfoPtr is null"),
                 return ge::GRAPH_FAILED);
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
@@ -323,8 +323,11 @@ static ge::graphStatus TilingPrepare4mHCPre(gert::TilingParseContext *context)
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, compileInfoPtr->l0BSize);
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfoPtr->l0CSize);
 
-    OP_LOGI(context->GetNodeName(), "parse compile info success l1Size:%lu, l2Size:%lu, coreNum:%lu",
-            compileInfoPtr->l1Size, compileInfoPtr->l2Size, compileInfoPtr->aicNum);
+    OP_LOGI(context->GetNodeName(),
+            "parse compile info success l1Size:%lu, l2Size:%lu, coreNum:%lu",
+            compileInfoPtr->l1Size,
+            compileInfoPtr->l2Size,
+            compileInfoPtr->aicNum);
     return ge::GRAPH_SUCCESS;
 }
 
