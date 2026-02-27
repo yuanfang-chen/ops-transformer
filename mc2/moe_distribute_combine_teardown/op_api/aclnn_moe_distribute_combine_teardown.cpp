@@ -15,17 +15,18 @@
 #include "aclnn_moe_distribute_combine_teardown.h"
 #include <algorithm>
 #include "op_mc2.h"
+#include "matmul_util.h"
 #include "op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
 #include "opdev/platform.h"
 
-using namespace op;
-
 namespace {
 
-enum NnopbaseHcclServerType {
+using namespace op;
+
+enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_AICPU = 0,
     NNOPBASE_HCCL_SERVER_TYPE_MTE,
     NNOPBASE_HCCL_SERVER_TYPE_CCU,
@@ -119,7 +120,7 @@ extern "C" aclnnStatus aclnnMoeDistributeCombineTeardown(void *workspace, uint64
 {
     OP_LOGD("aclnnMoeDistributeCombineTeardown start");
     if (NnopbaseSetHcclServerType) {
-        NnopbaseSetHcclServerType(executor, NNOPBASE_HCCL_SERVER_TYPE_MTE); // 当前固定走AIV+URMA通信，暂时设置为MTE
+        NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
     }
     aclnnStatus ret = aclnnInnerMoeDistributeCombineTeardown(workspace, workspaceSize, executor, stream);
     OP_LOGD("aclnnMoeDistributeCombineTeardown success");

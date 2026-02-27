@@ -75,23 +75,23 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckAttrsWithoutRelation(
     auto quantModePtr = attrs->GetAttrPointer<int64_t>(ATTR_COMM_QUANT_MODE_INDEX);
 
     OP_TILING_CHECK((strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH) == 0) ||
-        (strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH) == MAX_GROUP_NAME_LENGTH),
-        OP_LOGE(nodeName_, "groupEp length should be [1, %lu), get %lu.", MAX_GROUP_NAME_LENGTH,
-            strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH)),
-        return ge::GRAPH_FAILED);
+                        (strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH) == MAX_GROUP_NAME_LENGTH),
+                    OP_LOGE(nodeName_, "groupEp length should be [1, %lu), get %lu.", MAX_GROUP_NAME_LENGTH,
+                            strnlen(groupEpPtr, MAX_GROUP_NAME_LENGTH)),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK(!((*epWorldSizePtr == GROUP_EP_SIZE_2) || (*epWorldSizePtr == GROUP_EP_SIZE_4) ||
-        (*epWorldSizePtr == GROUP_EP_SIZE_8)),
-        OP_LOGE(nodeName_, "epWorldSize should be in {2, 4, 8}, get %lu", *epWorldSizePtr),
-        return ge::GRAPH_FAILED);
+                      (*epWorldSizePtr == GROUP_EP_SIZE_8)),
+                    OP_LOGE(nodeName_, "epWorldSize should be in {2, 4, 8}, get %lu", *epWorldSizePtr),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*sharedExpertNumPtr != 0),
-        OP_LOGE(nodeName_, "sharedExpertNum shoud be 0, get %lu", *sharedExpertNumPtr),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "sharedExpertNum shoud be 0, get %lu", *sharedExpertNumPtr),
+                    return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*quantModePtr != NON_QUANT),
-        OP_LOGE(nodeName_, "quantMode shoud be equal to %lu, get %lu", NON_QUANT, *quantModePtr),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "quantMode shoud be equal to %lu, get %lu", NON_QUANT, *quantModePtr),
+                    return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -103,45 +103,43 @@ ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckAttrsComplex()
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
     auto epRankIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_RANK_ID_INDEX);
     OP_TILING_CHECK((*epRankIdPtr < 0) || (*epRankIdPtr >= *epWorldSizePtr),
-        OP_LOGE(nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu), get %lu",
-        *epWorldSizePtr, *epRankIdPtr),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu), get %lu",
+                            *epWorldSizePtr, *epRankIdPtr),
+                    return ge::GRAPH_FAILED);
 
     auto moeExpertNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_MOE_EXPERT_NUM_INDEX);
     OP_TILING_CHECK(!((*moeExpertNumPtr == MOE_EXPERT_NUM_32) || (*moeExpertNumPtr == MOE_EXPERT_NUM_64) ||
-        (*moeExpertNumPtr == MOE_EXPERT_NUM_128)),
-        OP_LOGE(nodeName_, "moeExpertNum shoud be in {32, 64, 128}, get %lu", *moeExpertNumPtr),
-        return ge::GRAPH_FAILED);
+                      (*moeExpertNumPtr == MOE_EXPERT_NUM_128)),
+                    OP_LOGE(nodeName_, "moeExpertNum shoud be in {32, 64, 128}, get %lu", *moeExpertNumPtr),
+                    return ge::GRAPH_FAILED);
 
     auto sharedExpertRankNumPtr = attrs->GetAttrPointer<int64_t>(ATTR_SHARED_EXPERT_RANK_NUM_INDEX);
     OP_TILING_CHECK((*sharedExpertRankNumPtr != 0),
-        OP_LOGE(nodeName_, "sharedExpertRankNum shoud be 0, get %lu", *sharedExpertRankNumPtr),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "sharedExpertRankNum shoud be 0, get %lu", *sharedExpertRankNumPtr),
+                    return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr) != 0),
+    OP_TILING_CHECK(
+        (*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr) != 0),
         OP_LOGE(nodeName_,
-        "moeExpertNum should follow moeExpertNum %% (epWorldSize - sharedExpertRankNum) = 0, got %ld",
-        (*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr))),
+                "moeExpertNum should follow moeExpertNum %% (epWorldSize - sharedExpertRankNum) = 0, got %ld",
+                (*moeExpertNumPtr % (*epWorldSizePtr - *sharedExpertRankNumPtr))),
         return ge::GRAPH_FAILED);
 
     OP_TILING_CHECK((*moeExpertNumPtr / (*epWorldSizePtr - *sharedExpertRankNumPtr) != MOE_EXPERT_NUM_PER_RANK_16),
-        OP_LOGE(nodeName_, "moeExpertNumPerRank shoud be 16, get %lu",
-        (*moeExpertNumPtr / (*epWorldSizePtr - *sharedExpertRankNumPtr))),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "moeExpertNumPerRank shoud be 16, get %lu",
+                            (*moeExpertNumPtr / (*epWorldSizePtr - *sharedExpertRankNumPtr))),
+                    return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MoeDistributeCombineTeardownTilingA5::CheckBsHKSize(int64_t bs, int64_t h, int64_t k)
 {
-    OP_TILING_CHECK(bs != BS_SIZE_16,
-        OP_LOGE(nodeName_, "Bs should be 16, get %ld", bs), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(bs != BS_SIZE_16, OP_LOGE(nodeName_, "Bs should be 16, get %ld", bs), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK(h != H_SIZE_4096,
-        OP_LOGE(nodeName_, "H should be 4096, get %ld", h), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(h != H_SIZE_4096, OP_LOGE(nodeName_, "H should be 4096, get %ld", h), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((k != K_SIZE_6),
-        OP_LOGE(nodeName_, "K should be 6, get %ld", k), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((k != K_SIZE_6), OP_LOGE(nodeName_, "K should be 6, get %ld", k), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }

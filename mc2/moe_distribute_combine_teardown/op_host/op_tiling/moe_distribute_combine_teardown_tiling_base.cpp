@@ -48,7 +48,6 @@ constexpr int64_t MAX_H = 8192;
 constexpr int64_t MAX_BS = 512;
 constexpr int64_t MAX_K = 16;
 
-constexpr uint32_t INIT_TILINGKEY = 1000U;
 constexpr uint32_t NO_SCALES = 0U;
 constexpr uint32_t STATIC_SCALES = 1U;
 constexpr uint32_t DYNAMIC_SCALES = 2U;
@@ -77,7 +76,7 @@ constexpr uint32_t SDMA_NEED_WORKSPACE = 16U * 1024 * 1024;
 constexpr uint32_t COMM_CMD_INFO_SIZE = 16U;
 constexpr int64_t MIN_AVAILABLE_BUFF_SIZE = 2;
 constexpr int64_t HCCL_BUFFER_SIZE = 44;
-}
+} // namespace
 namespace MC2Tiling {
 
 void MoeDistributeCombineTeardownTilingBase::PrintTilingDataInfo()
@@ -229,7 +228,7 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckAttrsNullptr()
 }
 
 ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckOneTensorDim(std::string name, TensorType tensortype,
-                                                                        uint32_t index, uint32_t dims)
+                                                                          uint32_t index, uint32_t dims)
 {
     const gert::StorageShape *StorageShape;
     if (tensortype == INPUT) {
@@ -506,9 +505,9 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeSize()
 
     auto expandIdxStorageShape = context_->GetInputShape(EXPAND_IDX_INDEX); // Bs * K
     OP_TILING_CHECK((expandIdxStorageShape->GetStorageShape().GetDim(0) != Bs * K),
-        OP_LOGE(nodeName_, "ExpandIdx should be BS * K [%ld], but got [%ld]", Bs * K,
-            expandIdxStorageShape->GetStorageShape().GetDim(0)),
-        return ge::GRAPH_FAILED);
+                    OP_LOGE(nodeName_, "ExpandIdx should be BS * K [%ld], but got [%ld]", Bs * K,
+                            expandIdxStorageShape->GetStorageShape().GetDim(0)),
+                    return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -580,7 +579,8 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorDataTypeSecon
         auto shardExpertXDesc = context_->GetOptionalInputDesc(SHARED_EXPERT_X_INDEX);
         OP_TILING_CHECK(shardExpertXDesc == nullptr, OP_LOGE(nodeName_, "shardExpertXDesc is null."),
                         return ge::GRAPH_FAILED);
-        OP_TILING_CHECK((shardExpertXDesc->GetDataType() != expandXDesc->GetDataType()),
+        OP_TILING_CHECK(
+            (shardExpertXDesc->GetDataType() != expandXDesc->GetDataType()),
             OP_LOGE(nodeName_,
                     "shardExpertX dataType is invalid, dataType should be equal to expandX dataType %s, but is %s",
                     Ops::Base::ToString(expandXDesc->GetDataType()).c_str(),
@@ -602,9 +602,12 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorDataTypeSecon
 
 void MoeDistributeCombineTeardownTilingBase::SetTilingKey()
 {
-    uint64_t tilingKey = INIT_TILINGKEY;
-    OP_LOGD(nodeName_, "tilingKey is %lu", tilingKey);
+    bool tp = false;
+
+    // 设置tilingKey模板参数
+    const uint64_t tilingKey = GET_TPL_TILING_KEY(tp);
     context_->SetTilingKey(tilingKey);
+    OP_LOGD(nodeName_, "tilingKey is [%lu].", tilingKey);
 }
 
 ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckHcclBuffsize()

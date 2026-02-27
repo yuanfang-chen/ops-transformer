@@ -61,10 +61,7 @@ public:
             .DataType({ge::DT_BF16, ge::DT_FLOAT16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Output("x")
-            .ParamType(REQUIRED)
-            .DataType({ge::DT_BF16, ge::DT_FLOAT16})
-            .FormatList({ge::FORMAT_ND});
+        this->Output("x").ParamType(REQUIRED).DataType({ge::DT_BF16, ge::DT_FLOAT16}).FormatList({ge::FORMAT_ND});
         this->Attr("group_ep").AttrType(REQUIRED).String();
         this->Attr("ep_world_size").AttrType(REQUIRED).Int();
         this->Attr("ep_rank_id").AttrType(REQUIRED).Int();

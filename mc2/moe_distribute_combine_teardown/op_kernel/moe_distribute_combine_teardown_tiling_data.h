@@ -3,17 +3,20 @@
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, 
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
 /*!
- * \file moe_distribute_combine_teardown_tiling.h
- * \brief
+ * \file moe_distribute_combine_teardown_tiling_data.h
+ * \brief 定义TilingData
  */
-#ifndef MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
-#define MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
+
+#ifndef MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H
+#define MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H
+
+#include <kernel_tiling/kernel_tiling.h>
 
 struct MoeDistributeCombineTeardownInfo {
     uint32_t epWorldSize;
@@ -39,4 +42,5 @@ struct MoeDistributeCombineTeardownTilingData {
     Mc2CcTiling mc2CcTiling;
     MoeDistributeCombineTeardownInfo moeDistributeCombineTeardownInfo;
 };
-#endif // MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_H
+
+#endif // MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_DATA_H

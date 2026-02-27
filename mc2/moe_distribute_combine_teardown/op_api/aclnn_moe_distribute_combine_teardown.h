@@ -33,9 +33,12 @@ extern "C" {
  * @param [in] expertIds: 计算输入，Tensor，数据类型int32，必须为2维，数据格式支持ND。
  * @param [in] expandIdx: 计算输入，Tensor，数据类型int32，必须为2维，数据格式支持ND。
  * @param [in] expertScales: 计算输入，Tensor，数据类型float32，必须为2维，数据格式支持ND。
- * @param [in] commCmdInfo: 计算输入，Tensor，数据类型int32，必须为1维，数据格式支持ND，aclnnMoeDistributeCombineSetUp的输出。
- * @param [in] xActiveMaskOptional: 计算输入，Tensor，数据类型bool，必须为1维，数据格式支持ND。预留参数，暂未使用，传空即可。
- * @param [in] sharedExpertXOptional: 计算输入，Tensor，数据类型与expandX保持一致，必须为2维，数据格式支持ND。预留参数，暂未使用，传空即可。
+ * @param [in] commCmdInfo:
+ * 计算输入，Tensor，数据类型int32，必须为1维，数据格式支持ND，aclnnMoeDistributeCombineSetUp的输出。
+ * @param [in] xActiveMaskOptional:
+ * 计算输入，Tensor，数据类型bool，必须为1维，数据格式支持ND。预留参数，暂未使用，传空即可。
+ * @param [in] sharedExpertXOptional:
+ * 计算输入，Tensor，数据类型与expandX保持一致，必须为2维，数据格式支持ND。预留参数，暂未使用，传空即可。
  * @param [in] groupEp: 计算输入，str。ep通信域名称，专家并行的通信域。不能和groupTp相同。
  * @param [in] epWorldSize: 计算输入，int。ep通信域size。
  * @param [in] epRankId: 计算输入，int。ep本卡Id。同一个EP通信域中各卡的epRankId不能重复。
@@ -63,7 +66,8 @@ ACLNN_API aclnnStatus aclnnMoeDistributeCombineTeardownGetWorkspaceSize(
 /**
  * @brief aclnnMoeDistributeCombineTeardown的第二段接口，用于执行计算。
  * @param [in] workspace: 在npu device侧申请的workspace内存地址。
- * @param [in] workspace_size: 在npu device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineTeardownGetWorkspaceSize获取。
+ * @param [in] workspace_size: 在npu device侧申请的workspace大小，
+ * 由第一段接口aclnnMoeDistributeCombineTeardownGetWorkspaceSize获取。
  * @param [in] executor: op执行器，包含了算子计算流程。
  * @param [in] stream: acl stream流。
  * @return aclnnStatus: 返回状态码。
