@@ -63,6 +63,9 @@ ENABLE_GENOP_AICPU=FALSE
 GENOP_TYPE=""
 GENOP_NAME=""
 PR_CHANGED_FILES=""  # PR场景, 修改文件清单, 可用于标识是否PR场景
+UT_SOC_ARRAY=()
+UT_TEST_CNT=0
+PR_UT_FLAG=FALSE
 
 if [ "${USER_ID}" != "0" ]; then
     DEFAULT_TOOLKIT_INSTALL_DIR="${HOME}/Ascend/ascend-toolkit/latest"
@@ -1042,7 +1045,12 @@ while [[ $# -gt 0 ]]; do
     --PR_UT)
         PR_CHANGED_FILES="$2"
         ENABLE_TEST=TRUE
-        process_soc_input "ascend310p,ascend910b,ascend950"
+        PR_UT_FLAG=TRUE
+        ut_soc_version=$(python3 "$CURRENT_DIR"/cmake/scripts/get_soc_version.py -c "$CURRENT_DIR"/tests/test_soc_config.yaml -f "$PR_CHANGED_FILES" get_related_soc)
+        ut_soc_version="ascend${ut_soc_version#*ascend}"
+        IFS=',' read -ra UT_SOC_ARRAY <<< "$ut_soc_version"
+        echo "UT_SOC_ARRAY = ${UT_SOC_ARRAY[@]}"
+
         shift 2
         ;;
     --PR_PKG)
@@ -1284,6 +1292,9 @@ if [[ "$ENABLE_TEST" == "TRUE" ]]; then
         TEST="$ascend_op_name"
     fi
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_TEST=TRUE"
+fi
+if [[ $UT_TEST_CNT -eq 0 ]]; then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DUT_INFERSHAPE_FLAG=TRUE"
 fi
 if [[ "$OP_HOST_UT" == "TRUE" ]]; then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DOP_HOST_UT=TRUE"
@@ -1540,7 +1551,6 @@ build_ut() {
         fi
     fi
   fi
-  exit 0
 }
 
 function build_pkg_for_single_soc() {
@@ -1629,8 +1639,26 @@ if [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
 fi
 
 if [[ "$ENABLE_TEST" == "TRUE" ]]; then
-    set_compute_unit_option
-    build_ut ${BUILD}
+    if [[ "$PR_UT_FLAG" == "TRUE" ]]; then
+        for element in "${UT_SOC_ARRAY[@]}"; do
+            if [ $UT_TEST_CNT -eq 0 ]; then
+                CUSTOM_OPTION="${CUSTOM_OPTION} -DUT_INFERSHAPE_FLAG=TRUE"
+                CUSTOM_OPTION="${CUSTOM_OPTION} -DOP_API_UT=TRUE"
+            else
+                CUSTOM_OPTION="${CUSTOM_OPTION} -DUT_INFERSHAPE_FLAG=FALSE"
+                CUSTOM_OPTION="${CUSTOM_OPTION} -DOP_API_UT=FALSE"
+            fi
+            echo "start to test $element"
+            process_soc_input "$element"
+            set_compute_unit_option
+            build_ut ${BUILD}
+            UT_TEST_CNT=$((UT_TEST_CNT +1))
+        done
+    else
+        set_compute_unit_option
+        build_ut ${BUILD}
+    fi
+    exit 0
 elif [[ "$ENABLE_CREATE_LIB" == "TRUE" ]]; then
     build_lib
 elif [[ "$ENABLE_STATIC" == "TRUE" ]]; then
