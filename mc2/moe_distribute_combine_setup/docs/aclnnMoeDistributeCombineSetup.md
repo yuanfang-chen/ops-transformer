@@ -289,7 +289,7 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
   
 - **返回值**
   
-    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。  
+    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
     第一段接口完成入参校验，出现以下场景时报错：
   
@@ -358,14 +358,14 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>op执行器，包含了算子计算流程。</td>
     </tr>
     <tr>
-        <td>指定执行任务的AscendCL&nbsp;&nbsp;&nbsp;stream流。</td>
+        <td>指定执行任务的stream流。</td>
     </tr>
     </tbody>
     </table>
 
 - **返回值：**
   
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## aclnnMoeDistributeCombineSetupTeardownCalcOutputSize
 
@@ -581,13 +581,12 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
 
 - **返回值**
 
-    返回aclnnStatus状态码，具体参见aclnn返回码。
+    返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
 - aclnnMoeDistributeDispatchSetup接口，aclnnMoeDistributeDispatchTeardown接口，aclnnMoeDistributeCombineSetup接口，aclnnMoeDistributeCombineTeardown接口必须配套使用。
-- 调用接口过程中使用的groupEp、epWorldSize、moeExpertNum、expertShardType、sharedExpertNum、sharedExpertRankNum、globalBs、commQuantMode、commType、commAlg参数取值所有卡需保持一致，groupEp、epWorldSize、expertShardType、sharedExpertNum、sharedExpertRankNum、globalBs、commQuantMode、commType、commAlg参数取值在网络中不同层中也需保持一致，且和aclnnMoeDistributeDispatchSetup接口、aclnnMoeDistributeDispatchTeardown接口、aclnnMoeDistributeCombineTeardown接口对应参数也保持一致。
-- 昇腾950 AI处理器：该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明里的“本卡”均表示单DIE。
+- 调用接口过程中使用的`groupEp`、`epWorldSize`、`moeExpertNum`、`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`、`globalBs`、`commQuantMode`、`commType`、`commAlg`参数取值所有卡需保持一致，`groupEp`、`epWorldSize`、`expertShardType`、`sharedExpertNum`、`sharedExpertRankNum`、`globalBs`、`commQuantMode`、`commType`、`commAlg`参数取值在网络中不同层中也需保持一致，且和aclnnMoeDistributeDispatchSetup接口、aclnnMoeDistributeDispatchTeardown接口、aclnnMoeDistributeCombineTeardown接口对应参数也保持一致。
 - 参数说明里shape格式说明：
   - A：表示本卡需要分发的最大token数量，取值范围如下：
     - 对于共享专家，当globalBs为0时，要满足A = BS \* epWorldSize \* sharedExpertNum / sharedExpertRankNum；当globalBs非0时，要满足A = globalBs\* sharedExpertNum / sharedExpertRankNum。
@@ -601,6 +600,9 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
   - 当前不支持共享专家。
 - HCCL_BUFFSIZE：
   调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
-  - 昇腾950 AI处理器：要求 >= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))，localExpertNum需使用MoE专家卡的本卡专家数，其中Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32。
+  - Ascend 950PR/Ascend 950DT：
+    - 要求 >= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))，localExpertNum需使用MoE专家卡的本卡专家数，其中Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32。
+  - Atlas A3 训练系列产品/Atlas A3 推理系列产品：
+    - 要求 >= 2且满足>= 2 \* (localExpertNum \* maxBs \* epWorldSize \* Align512(Align32(2 \* H) + 44) + (K + sharedExpertNum) \* maxBs \* Align512(2 \* H))，localExpertNum需使用MoE专家卡的本卡专家数，其中Align512(x) = ((x + 512 - 1) / 512) \* 512，Align32(x) = ((x + 32 - 1) / 32) \* 32。
 - 通信域使用约束：
   - 一个模型中的aclnnMoeDistributeDispatchSetup、aclnnMoeDistributeDispatchTeardow、aclnnMoeDistributeCombineSetup、aclnnMoeDistributeCombineTeardown仅支持相同EP通信域，且该通信域中不允许有其他算子。
