@@ -1620,14 +1620,14 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
         return true;
     }
 
-    const int32_t nQ = *contextKeyParams.headsNumber;
-    const int32_t nKV = *contextKeyParams.numKeyValueHeads;
-    if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
-        return false;
-    }
-    if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
-        return false;
-    }
+    // const int32_t nQ = *contextKeyParams.headsNumber;
+    // const int32_t nKV = *contextKeyParams.numKeyValueHeads;
+    // if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
+    //     return false;
+    // }
+    // if ((nKV == 0) && (queryShapeInfo.s > pfaMergeGSLimit)) {
+    //     return false;
+    // }
 
     // 隔离高阶特性
     std::string layoutStr(contextKeyParams.layout);
