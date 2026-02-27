@@ -159,7 +159,7 @@ private:
     TQue<QuePosition::VECOUT, 1> outQueue_;
     TQue<QuePosition::VECIN, 1> biasInQue_;
 
-    TQue<TPosition::TSCM, 1> L1AInQue_;
+    // TQue<TPosition::TSCM, 1> L1AInQue_;
 
     TBuf<TPosition::VECCALC> tmpBuff_;
     TBuf<TPosition::VECCALC> alphaBuf_;
@@ -283,8 +283,8 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::InitCubeBuffers()
 {
     // aL1_ = LocalTensor<P>(TPosition::TSCM, 0, mnConfig_.singleCoreM * mnConfig_.singleCoreK);
-    pipe_->InitBuffer(L1AInQue_, 1, mnConfig_.singleCoreM * mnConfig_.singleCoreK * sizeof(P));
-    aL1_ = L1AInQue_.AllocTensor<P>();
+    // pipe_->InitBuffer(L1AInQue_, 1, mnConfig_.singleCoreM * mnConfig_.singleCoreK * sizeof(P));
+    // aL1_ = L1AInQue_.AllocTensor<P>();
     
     if ASCEND_IS_NOT_AIC {
         return;
@@ -367,7 +367,7 @@ __aicore__ inline void MhcPreKernel<T, P>::Process()
         invRmsOutQueue_.FreeTensor(invRmsUb_);
         biasInQue_.FreeTensor(biasInUb_);
     }
-    L1AInQue_.FreeTensor(aL1_);
+    // L1AInQue_.FreeTensor(aL1_);
 }
 
 template <class T, class P>
@@ -599,8 +599,8 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Process(uint32_t curblock, uint32_t
         
         V0Proluge(curNdLen, offsetNd);
 
-        L1AInQue_.EnQue(aL1_);
-        aL1_ = L1AInQue_.DeQue<P>();
+        // L1AInQue_.EnQue(aL1_);
+        // aL1_ = L1AInQue_.DeQue<P>();
         
         CrossCoreSetFlag<0x2, PIPE_MTE3>(SYNC_V2C); // TODO：修改UB->L1通路后同步信号也要改
         vectorCount_++;
