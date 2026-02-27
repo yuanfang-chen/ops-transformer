@@ -476,7 +476,6 @@ protected:
         return false;
     }
 
-
     void UnpackInt32ToInt4(const aclTensor *&tensorS32, const std::string &tensorType)
     {
         OP_LOGD("Unpack %s from int32 to int4 start.", tensorType.c_str());
