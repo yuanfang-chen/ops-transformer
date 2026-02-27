@@ -33,9 +33,11 @@ AllGatherAdd算子实现了[AllGather](https://www.hiascend.com/document/detail/
 
 ### 1.4 算子实现所需接口
 
-- 算子涉及AllGather通信，查看Ascend C API参考中的通信相关接口，需要使用[Hccl](https://www.hiascend.com/document/detail/zh/canncommercial/850/commlib/hcclug/hcclug_000001.html)高阶API来实现AllGather通信。
-- 算子涉及Add被加数和加数在外部存储和内部存储间的数据搬运，查看Ascend C API参考中的数据搬运接口，需要使用[DataCopy](https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0103.html)来实现数据搬运。
-- 计算过程涉及Add矢量计算操作，需要使用Add基础算术API实现加法计算。
+| 接口 | 描述 | 参考连接 |
+|--|--------------------------------------------------------------------------|--|
+| AllGather | 算子涉及AllGather通信，需要使用Hccl高阶API来实现AllGather通信。 |https://www.hiascend.com/document/detail/zh/canncommercial/850/commlib/hcclug/hcclug_000001.html  |
+| DataCopy | 算子涉及Add被加数和加数在外部存储和内部存储间的数据搬运，需要使用DataCopy来实现数据搬运。 | https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0103.html  |
+| Add | 计算过程涉及Add矢量计算操作，需要使用Add基础算术API实现加法计算。| https://www.hiascend.com/document/detail/zh/canncommercial/850/API/ascendcopapi/atlasascendc_api_07_0035.html |
 
 ### 1.5 算子规格
 
