@@ -6,7 +6,7 @@
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
@@ -415,7 +415,7 @@ aclnnStatus aclnnPromptFlashAttention(
         - sparse模式仅支持sparse=0且不传mask，或sparse=3且传入mask；
         - 当sparse=3时，要求每个batch单独的actualSeqLengths < actualSeqLengthsKv。
     - <term>Atlas 推理系列加速卡产品</term>：
-        - 支持B轴小于等于128；
+        - 在inputLayout为BSH时，支持B轴小于等于300，其余情况B轴小于等于128；
         - 支持N轴小于等于256；
         - 支持S轴小于等于65535(64k), Q_S或KV_S非128对齐，Q_S和KV_S不等长的场景不支持配置atten_mask；
         - 支持D轴小于等于512。
