@@ -50,7 +50,8 @@ extern "C" {
 ACLNN_API aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
-    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z, aclTensor* addRmsNormOut,
+    aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 
 /**

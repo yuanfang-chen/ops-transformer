@@ -35,6 +35,7 @@ constexpr static uint32_t UB_ALIGN_BYTES = 32U;     // UB按32B对齐
 constexpr uint32_t FLOAT_UB_ALIGN_NUM = 8U;         // float格式下32B对齐需要 32/4 =8个
 constexpr uint32_t BUFFER_NUM = 2U;                 // 用于double buffer
 constexpr static uint32_t X_BLOCK_BYTES = 512U;    // 当前一个x数据块固定512B = 512 * sizeof(INT8)，为穿刺取值
+constexpr static uint32_t SCALES_BLOCK_BYTES = 256U;     // 63*4B并按照32B对齐
 constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // win区数据部分512B对齐
 
 #define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType

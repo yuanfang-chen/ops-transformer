@@ -44,7 +44,7 @@ public:
 
     __aicore__ inline void SetRemoteFlag();
     __aicore__ inline void WaitRemoteFlag();
-    __aicore__ inline void ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor);
+    __aicore__ inline void ExecuteAllGather(GM_ADDR allGatherDataAddr, GM_ADDR allGatherScalesAddr);
     __aicore__ inline GM_ADDR CalcCvFlagAddr(uint32_t mBlockIdx, uint64_t kBlockIdx);
 
 private:
@@ -80,6 +80,8 @@ private:
     GlobalTensor<ScalesType> remoteWinScaleTensor_;
     GlobalTensor<int8_t> localWinXTensor_;
     GlobalTensor<ScalesType> localWinScaleTensor_;
+    GlobalTensor<int8_t> allGatherXOutTensor_;
+    GlobalTensor<ScalesType> allGatherScaleOutTensor_;
     GlobalTensor<int32_t> remoteCvFlagTensor_;
 
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xInQueue_, scaleInQue; // 用于读数据和反量化求和的通算并行
@@ -114,7 +116,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(TPipe *tPipe, u
 
     tPipe->Reset();
     tPipe->InitBuffer(xInQueue_, BUFFER_NUM, X_BLOCK_BYTES); // 每次拷贝 1024B x; 128 * 8
-    tPipe->InitBuffer(scaleInQue, BUFFER_NUM, UB_ALIGN_BYTES); // 每次拷贝 32B scale；4 * 8
+    tPipe->InitBuffer(scaleInQue, BUFFER_NUM, SCALES_BLOCK_BYTES); // 每次拷贝 63 * 4B scale；
     tPipe->InitBuffer(atomicAddBuf_, CV_STATE_ALIGN); // 用于累加标志位
 
     atomicAddOneTensor_ = atomicAddBuf_.Get<int32_t>();
@@ -159,6 +161,8 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
     xInQueue_.EnQue(xTmpTensor);
     xTmpTensor = xInQueue_.DeQue<int8_t>();
     DataCopy(localWinXTensor_[curXOffset], xTmpTensor, X_PER_BLOCK_NUM);
+    // 调试输出
+    DataCopy(allGatherXOutTensor_[curXOffset], xTmpTensor, X_PER_BLOCK_NUM);
     xInQueue_.FreeTensor(xTmpTensor);
 }
 
@@ -171,6 +175,8 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
     scaleInQue.EnQue(scaleTmpTensor);
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
     DataCopyPad(localWinScaleTensor_, scaleTmpTensor, scalesCopyParams_);
+    // 调试输出
+    DataCopyPad(allGatherScaleOutTensor_, scaleTmpTensor, scalesCopyParams_);
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
@@ -202,7 +208,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::SetCvAtomicFlag()
 }
 
 template <AllGatherTemplateTypeClass>
-__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_ADDR outputTensor, GM_ADDR zTensor)
+__aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_ADDR allGatherDataAddr, GM_ADDR allGatherScalesAddr)
 {
     // +--------+--------+--------+--------+--------+--------+
     // | Rank0  | Rank1  |  ...   | Rank0  | Rank1  |  ...   |
@@ -221,9 +227,10 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         // 本端对应rank win区数据地址
         uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
         // TODO: 正确位置如下，调试完毕后需要修改回来
-        // GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId_ * xSize_;
-        GM_ADDR localDataGm = outputTensor + remoteRankId_ * xSize_;
+        GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId_ * xSize_;
         localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
+        GM_ADDR allGatherOutDataGm = allGatherDataAddr + remoteRankId_ * xSize_;
+        allGatherXOutTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherOutDataGm);
 
         // 读取对端对应地址的 x 数据
         ReadDataBlock(curXOffset);
@@ -233,9 +240,10 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
             remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
             // TODO: 正确位置如下，调试完毕后需要修改回来
-            // GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
-            GM_ADDR localScaleGm = zTensor + remoteRankId_ * scaleSize_;
+            GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
             localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
+            GM_ADDR allGatherOutScaleGm = allGatherScalesAddr + remoteRankId_ * scaleSize_;
+            allGatherScaleOutTensor_.SetGlobalBuffer((__gm__ ScalesType*)allGatherOutScaleGm);
             ReadScales();
         }
 
