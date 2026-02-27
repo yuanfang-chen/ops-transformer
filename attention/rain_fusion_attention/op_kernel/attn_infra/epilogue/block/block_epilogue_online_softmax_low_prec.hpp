@@ -697,21 +697,24 @@ public:
     {
         // *** ll = rowsum(ls32)
         if (columnNum == 1024U) {
-            RowsumSPECTILE1024(computeUbTensor,
+            RowsumSPECTILE1024(
+                computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
                 rowNumCurLoopRound,
                 columnNum,
                 columnNumRound);
         } else if (columnNum == 512U) {
-            RowsumSPECTILE512(computeUbTensor,
+            RowsumSPECTILE512(
+                computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
                 rowNumCurLoopRound,
                 columnNum,
                 columnNumRound);
         } else {
-            RowsumTAILTILE(computeUbTensor,
+            RowsumTAILTILE(
+                computeUbTensor,
                 llUbTensor[rowOffset],
                 tvUbTensor,
                 rowNumCurLoopRound,
