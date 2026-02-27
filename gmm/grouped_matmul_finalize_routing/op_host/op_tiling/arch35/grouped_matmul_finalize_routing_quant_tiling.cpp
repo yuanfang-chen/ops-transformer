@@ -450,10 +450,8 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::DoOpTiling()
 uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
 {
     uint64_t scaleDtype = 0;
-    if (inputParams_.scaleDtype == ge::DT_FLOAT) {
+    if (inputParams_.scaleDtype == ge::DT_BF16) {
         scaleDtype = 1;
-    } else if (inputParams_.scaleDtype == ge::DT_BF16) {
-        scaleDtype = 2;
     }
     uint64_t rowIndexDtype = 0;
     if (context_->GetOptionalInputDesc(ROW_INDEX_INDEX)->GetDataType() == ge::DT_INT32) {
