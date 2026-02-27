@@ -70,7 +70,7 @@ namespace {
   static constexpr size_t PER_CHANNEL_SCALE_DIM = 2UL;
   static constexpr size_t PER_GROUP_SCALE_DIM = 3UL;
   static constexpr size_t DIMS_THREE_FOR_GMM = 3UL;
-
+  static constexpr int64_t GMM_SPLIT_K = 2L;
   static bool IsFormatNZWithC0(const aclTensor* tensor) {
     return ge::GetPrimaryFormat(tensor->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ_C0_2 ||
            ge::GetPrimaryFormat(tensor->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ_C0_4;
@@ -2138,7 +2138,7 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
   SetTransposedTensorListContiguous(params, executorPtr);
   CHECK_COND(ParamsDataContiguous(params, executorPtr) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID,
              "ParamsDataContiguous failed.");
-  if (CheckZeroShape(params, workspaceSize) != ACLNN_SUCCESS) {
+  if (params.groupType != GMM_SPLIT_K && CheckZeroShape(params, workspaceSize) != ACLNN_SUCCESS) {
     uniqueExecutor.ReleaseTo(executor);
     return ACLNN_SUCCESS;}
   op::Shape nzShape = (*params.weight)[0]->GetStorageShape();
