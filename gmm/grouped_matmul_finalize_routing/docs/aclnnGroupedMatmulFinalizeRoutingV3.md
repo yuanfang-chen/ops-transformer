@@ -18,7 +18,7 @@
 - 接口功能：
   GroupedMatmul和MoeFinalizeRouting的融合算子，GroupedMatmul计算后的输出按照索引做combine动作。
   
-  相较于相较于[GroupedMatmulV3](aclnnGroupedMatmulV3.md)接口，**此接口新增:**
+  相较于aclnnGroupedMatmulFinalizeRoutingV2接口，**此接口新增:**
     - 新增入参tuningConfigOptional，调优参数。数组中的第一个值表示各个专家处理的token数的预期值，算子tiling时会按照该预期值合理进行tiling切分，性能更优。
     - <term>Ascend 950PR/Ascend 950DT</term>：
       - 新增了MX量化场景，相关信息参考[量化介绍](../../../docs/zh/context/量化介绍.md)。
