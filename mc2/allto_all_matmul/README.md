@@ -236,6 +236,7 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../doc
 * all2all_axes为1维数组，shape必须为(2)。
 * 目前支持左矩阵perToken量化和perToken动态量化，x1QuantMode=3或7；右矩阵perChannel量化，x2QuantMode=2。
 * 非量化场景x1、x2计算输入的数据类型要和output、alltoAllOutOptional计算输出的数据类型一致，传入的x1、x2与output均不为空指针。
+* 量化场景x1和alltoAllOutOptional的数据类型一致，传入的x1、x2、x2Scale与output均不为空指针。
 * x1、x2和bias计算输入的数据类型根据不同设备型号有不同的限制：
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
         - 非量化场景下，output计算输出的数据类型为FLOAT16时，bias计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，bias计算输入的数据类型支持FLOAT32。
