@@ -225,31 +225,31 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
     OP_LOGD("PRINT HcclEngineCtxCreate success");
     OP_LOGD("PRINT ctxSize: %d", ctxSize);
     //获取对应的资源
-    ret = HcclGetRankId(hcclHandle, &mc2_context->rankId);
+    ret = HcclGetRankId(hcclHandle, &mc2_context->epRankId);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Id failed.");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcclGetRankId success");
-    ret = HcclGetRankSize(hcclHandle, &mc2_context->rankDim);
+    ret = HcclGetRankSize(hcclHandle, &mc2_context->epRankSize);
     if(ret != HCCL_SUCCESS) {
         OP_LOGE(ACLNN_ERR_INNER, "Hccl Get Rank Size failed.");
         return ACLNN_ERR_INNER;
     }
     OP_LOGD("PRINT HcclGetRankSize success");
 
-    res = GetHcclCommChannel(hcclHandle, mc2_context->rankDim, mc2_context->rankId, engine, channeles);
+    res = GetHcclCommChannel(hcclHandle, mc2_context->epRankSize, mc2_context->epRankId, engine, channeles);
     CHECK_RET(res == ACLNN_SUCCESS, res);
     OP_LOGD("PRINT HcclChannelAcquire success");
 
     //获取对应的资源
-    for(uint64_t index = 0; index < mc2_context->rankDim; index++) {
-        if(index == mc2_context->rankId) {
-            ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winsize);
+    for(uint64_t index = 0; index < mc2_context->epRankSize; index++) {
+        if(index == mc2_context->epRankId) {
+            ret = HcclGetHcclBuffer(hcclHandle, &tempBuffer, &mc2_context->winSize);
             OP_LOGD("PRINT HcclGetHcclBuffer success");
         } else {
             //ret = HcclRankGraphGetLinks(hcclHandle, )
-            if(index < mc2_context->rankId) {
+            if(index < mc2_context->epRankId) {
                 ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index], &tempBuffer, &buffersize);
             } else {
                 ret = HcclChannelGetHcclBuffer(hcclHandle, channeles[index - 1], &tempBuffer, &buffersize);
@@ -259,7 +259,7 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
             OP_LOGE(ACLNN_ERR_INNER, "Hccl Get hccl buffer failed.");
             return ACLNN_ERR_INNER;
         }
-        mc2_context->windowsIn[index] = reinterpret_cast<uint64_t>(tempBuffer);
+        mc2_context->epHcclBuffer[index] = reinterpret_cast<uint64_t>(tempBuffer);
     }
     OP_LOGD("PRINT HcclChannelGetHcclBuffer success");
     //把数据拷贝到device侧
