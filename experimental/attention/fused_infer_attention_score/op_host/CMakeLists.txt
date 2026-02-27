@@ -46,6 +46,7 @@ if(NOT BUILD_OPS_RTY_KERNEL)
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL) #
+    message(STATUS "=====e fia cmakeList======")
     add_tiling_modules()
     target_sources(${OPHOST_NAME}_tiling_obj PRIVATE
     ../../common/op_host/fia_tiling_shape.cpp
