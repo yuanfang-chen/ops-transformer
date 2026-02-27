@@ -94,7 +94,7 @@ private:
     __aicore__ inline void AddRmsNormRmsNormCompute(uint32_t tokenIndex, uint32_t tokenOffset, uint32_t numCol,
                                                     LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
                                                     LocalTensor<ExpandXType>& gammaLocal,
-                                                    const DataCopyExtParams& copyExtParams, TBuf<>& rmsNormYBuf);
+                                                    const DataCopyExtParams& copyExtParams);
     __aicore__ GM_ADDR GetWinAddrByRankId(const int32_t rankId, const uint8_t domain)
     {
         if (domain == EP_DOMAIN) {
@@ -672,8 +672,9 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AlltoAllBuffI
     tpipe_->InitBuffer(sumFloatBuf_, hFloatAlign32Size_);                    // 32K add
     tpipe_->InitBuffer(moeSumQueue_, bufferNum_, hExpandXAlign32Size_);      // 32K 搬入
     if constexpr (HasAddRmsNorm) {
-        tpipe_->InitBuffer(gammaBuf_, hExpandXAlign32Size_);                    // 32K add
-        tpipe_->InitBuffer(reduceFp32Buf_, NUM_PER_REP_FP32 * sizeof(float));      // 32K 搬入
+        tpipe_->InitBuffer(gammaBuf_, hExpandXAlign32Size_);                    
+        tpipe_->InitBuffer(reduceFp32Buf_, NUM_PER_REP_FP32 * sizeof(float) * 2);      
+        // H取最大值时，根据ReduceSum接口公式计算所需空间至少为64 * 2 = 128个元素
     }
     tpipe_->InitBuffer(stateBuf_, (flagRcvCount_) * STATE_OFFSET);
     tpipe_->InitBuffer(stateResetBuf_, (flagRcvCount_) * STATE_OFFSET);      // 清理状态区
@@ -1025,7 +1026,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormAdd
 template <CombineMC2TypeClass>
 __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRmsNormCompute(
     uint32_t tokenIndex, uint32_t tokenOffset, uint32_t numCol, LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
-    LocalTensor<ExpandXType>& gammaLocal, const DataCopyExtParams& copyExtParams, TBuf<>& rmsNormYBuf)
+    LocalTensor<ExpandXType>& gammaLocal, const DataCopyExtParams& copyExtParams)
 {
     // 计算rstd
     LocalTensor<float> reduceBufLocal = reduceFp32Buf_.Get<float>();
@@ -1055,7 +1056,7 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::AddRmsNormRms
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
-    LocalTensor<XType> yLocal = rmsNormYBuf.Get<XType>();
+    LocalTensor<XType> yLocal = rowTmpFloatBuf_.Get<XType>();
     Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
     PipeBarrier<PIPE_V>();
     Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
@@ -1348,27 +1349,21 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
         return;
     }
     processLen = axisH_;
-    TBuf<> rmsNormYBuf;
-    LocalTensor<XType> gammaLocal;
-    const DataCopyPadExtParams<XType> copyPadXTypeParams{false, 0U, 0U, 0U};
-    DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
-    const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
-    if constexpr (HasAddRmsNorm) {
-        uint32_t maxSizeRowTmpFloatBuf = hFloatAlign32Size_;
-        if (isInputExpertMaskFlag_ || enableSpecialExpert_) {
-            uint32_t activeMaskAlignHalfSize = activeMaskAlignSize_ * sizeof(half);
-            maxSizeRowTmpFloatBuf = (activeMaskAlignHalfSize > hFloatAlign32Size_ ? activeMaskAlignHalfSize : hFloatAlign32Size_);
-        }
-        tpipe_->InitBuffer(rmsNormYBuf, maxSizeRowTmpFloatBuf);
-        gammaLocal = gammaBuf_.Get<XType>();
-        DataCopyPad(gammaLocal, gammaGM_, expandXCopyParams, copyPadXTypeParams);
-    }
     TBuf<> opPosDfxBuf;
     tpipe_->InitBuffer(opPosDfxBuf, UB_ALIGN);
     dataStateLocalTensor_ = opPosDfxBuf.Get<uint32_t>();
     rowTmpFloatLocal_ = rowTmpFloatBuf_.Get<float>();
     mulBufLocal_ = mulBuf_.Get<float>();
     sumFloatBufLocal_ = sumFloatBuf_.Get<float>();
+    const DataCopyPadExtParams<XType> copyPadXTypeParams{false, 0U, 0U, 0U};
+    DataCopyParams dataStateParams{1U, sizeof(uint32_t), 0U, 0U};
+    const DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(hExpandXTypeSize_), 0U, 0U, 0U};
+    LocalTensor<XType> gammaLocal;
+    if constexpr (HasAddRmsNorm) {
+        gammaLocal = gammaBuf_.Get<XType>();
+        DataCopyPad(gammaLocal, gammaGM_, expandXCopyParams, copyPadXTypeParams);
+        SyncFunc<AscendC::HardEvent::MTE2_V>();
+    }
     ExpertScaleCopy(beginIndex, endIndex, tokenPerAivNum);
     TBuf<> tokenStatusBuf;
     tpipe_->InitBuffer(tokenStatusBuf, Ceil(tokenPerAivNum * sizeof(int32_t), UB_ALIGN) * UB_ALIGN);
@@ -1421,9 +1416,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::LocalWindowCo
             DataCopyPad(expandOutGlobal_[tokenIndex * axisH_ + tokenOffset], sumBufLocal, expandXCopyParams);
             if constexpr (HasAddRmsNorm) {
                 SyncFunc<AscendC::HardEvent::MTE3_V>();
-                SyncFunc<AscendC::HardEvent::MTE2_V>();
                 AddRmsNormRmsNormCompute(tokenIndex, tokenOffset, processLen, sumFloatBufLocal_, mulBufLocal_, gammaLocal,
-                                expandXCopyParams, rmsNormYBuf);
+                                expandXCopyParams);
             }
         }
     }
