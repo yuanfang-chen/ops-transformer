@@ -327,7 +327,6 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
         ExpandIdxType indexCount = 0;
         int32_t moeExpert = 0;
         float scaleVal = 0.0f;
-        GM_ADDR wAddr; // 当前token的值对应的win区地址
 
         Duplicate(sumFloatBufTensor, 0.0f,
                   moeDistributeCombineTeardownInfo_->h); // 清零，sumFloatBufLocal保存累加结果
@@ -337,8 +336,9 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
             indexCount = indexCountsTensor.GetValue(idx); // 根据expandIdx获取当前是第几个专家
             moeExpert = expertIdsTensor.GetValue(idx);    // 当前token的专家id
             scaleVal = expandScalesTensor.GetValue(idx);  // 当前专家的量化参数
-            wAddr = epWindowGM_ + sharedExpertDataSizeOffset_ + expertPerSizeOnWin_ * static_cast<uint64_t>(moeExpert) +
-                    axisHExpandXTypeSize_ * static_cast<uint64_t>(indexCount);
+            GM_ADDR wAddr = epWindowGM_ + sharedExpertDataSizeOffset_ +
+                            expertPerSizeOnWin_ * static_cast<uint64_t>(moeExpert) +
+                            axisHExpandXTypeSize_ * static_cast<uint64_t>(indexCount); // 当前token的值对应的win区地址
 
             rowTmpGlobal_.SetGlobalBuffer((__gm__ ExpandXType *)wAddr);
             tmpUb = moeSumQueue_.AllocTensor<ExpandXType>();
@@ -347,14 +347,14 @@ __aicore__ inline void MoeDistributeCombineTeardown<TemplateMC2TypeFunc>::LocalW
             tmpUb = moeSumQueue_.DeQue<ExpandXType>();
             AscendC::SyncFunc<AscendC::HardEvent::MTE2_V>();
 
-            Cast(rowTmpFloatTensor, tmpUb, AscendC::RoundMode::CAST_NONE,
-                 moeDistributeCombineTeardownInfo_->h); // 转为float
+            // 转为float
+            Cast(rowTmpFloatTensor, tmpUb, AscendC::RoundMode::CAST_NONE, moeDistributeCombineTeardownInfo_->h);
             PipeBarrier<PIPE_V>();
-            Muls(rowTmpFloatTensor, rowTmpFloatTensor, scaleVal,
-                 moeDistributeCombineTeardownInfo_->h); // 乘量化系数
+            // 乘量化系数
+            Muls(rowTmpFloatTensor, rowTmpFloatTensor, scaleVal, moeDistributeCombineTeardownInfo_->h);
             PipeBarrier<PIPE_V>();
-            Add(sumFloatBufTensor, sumFloatBufTensor, rowTmpFloatTensor,
-                moeDistributeCombineTeardownInfo_->h); // 累加token
+            // 累加token
+            Add(sumFloatBufTensor, sumFloatBufTensor, rowTmpFloatTensor, moeDistributeCombineTeardownInfo_->h);
 
             moeSumQueue_.FreeTensor<ExpandXType>(tmpUb);
         }

@@ -209,10 +209,10 @@ __aicore__ inline void GenerateCommWriteWithNotifySQE(const AscendC::LocalTensor
     sqeTensor(SQE_COMMON_SGE_NUM_OFFSET) = 1;          // sge_num=1
 }
 
-__aicore__ inline void UpdateCommWriteSQE(const AscendC::LocalTensor<uint8_t> &sqeTensor,
-                                          const AscendC::LocalTensor<uint8_t> &sqInfoTensor)
+__aicore__ inline void UpdateCommonSQE(const AscendC::LocalTensor<uint8_t> &sqeTensor,
+                                       const AscendC::LocalTensor<uint8_t> &sqInfoTensor)
 {
-    // 更新tp_id(24b), jetty_id(20b), rmt_eid(128b), rmt_token_value(32b), rmt_token_id(20b)
+    // 更新tp_id(24b), jetty_id(20b), rmt_eid(128b), rmt_token_value(32b)
 
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> templateSqeU32 = sqeTensor.ReinterpretCast<uint32_t>();
@@ -224,26 +224,24 @@ __aicore__ inline void UpdateCommWriteSQE(const AscendC::LocalTensor<uint8_t> &s
     templateSqeU32(SQE_COMMON_RMT_EID_95_64_OFFSET) = sqInfoU32(WQ_RMTEID_8_11_OFFSET);
     templateSqeU32(SQE_COMMON_RMT_EID_127_96_OFFSET) = sqInfoU32(WQ_RMTEID_12_15_OFFSET);
     templateSqeU32(SQE_COMMON_RMT_TOKEN_VALUE_OFFSET) = sqInfoU32(WQ_RMTTOKENVALUE_OFFSET); // rmt_token_value
-    templateSqeU32(SQE_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET);                    // rmt_token_id
+}
+
+__aicore__ inline void UpdateCommWriteSQE(const AscendC::LocalTensor<uint8_t> &sqeTensor,
+                                          const AscendC::LocalTensor<uint8_t> &sqInfoTensor)
+{
+    UpdateCommonSQE(sqeTensor, sqInfoTensor);
+
+    // 更新rmt_token_id(20b)
+    templateSqeU32(SQE_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_token_id
 }
 
 __aicore__ inline void UpdateCommWriteWithNotifySQE(const AscendC::LocalTensor<uint8_t> &sqeTensor,
                                                     const AscendC::LocalTensor<uint8_t> &sqInfoTensor)
 {
-    // 更新tp_id(24b), jetty_id(20b), rmt_eid(128b), rmt_token_value(32b), rmt_token_id(20b),
-    // notify_token_value(32b), notify_token_id(20b)
+    UpdateCommonSQE(sqeTensor, sqInfoTensor);
 
-    AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
-    AscendC::LocalTensor<uint32_t> templateSqeU32 = sqeTensor.ReinterpretCast<uint32_t>();
-    templateSqeU32(SQE_COMMON_UINT32_OFFSET_2) =
-        (1U << 24) + (sqInfoU32(WQ_TP_ID_OFFSET) & 0x00ffffff);                            // sge_num=1 tp_id
-    templateSqeU32(SQE_COMMON_RMT_JETTY_OR_SEG_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_jetty_or_seg_id
-    templateSqeU32(SQE_COMMON_RMT_EID_31_0_OFFSET) = sqInfoU32(WQ_RMTEID_0_3_OFFSET);      // rmt_eid
-    templateSqeU32(SQE_COMMON_RMT_EID_63_32_OFFSET) = sqInfoU32(WQ_RMTEID_4_7_OFFSET);
-    templateSqeU32(SQE_COMMON_RMT_EID_95_64_OFFSET) = sqInfoU32(WQ_RMTEID_8_11_OFFSET);
-    templateSqeU32(SQE_COMMON_RMT_EID_127_96_OFFSET) = sqInfoU32(WQ_RMTEID_12_15_OFFSET);
-    templateSqeU32(SQE_COMMON_RMT_TOKEN_VALUE_OFFSET) = sqInfoU32(WQ_RMTTOKENVALUE_OFFSET); // rmt_token_value
-    templateSqeU32(SQE_WITH_NOTIFY_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET);        // rmt_token_id
+    // 更新rmt_token_id(20b), notify_token_value(32b), notify_token_id(20b)
+    templateSqeU32(SQE_WITH_NOTIFY_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_token_id
     templateSqeU32(SQE_WITH_NOTIFY_NOTIFY_TOKEN_VALUE_OFFSET) =
         sqInfoU32(WQ_RMTTOKENVALUE_OFFSET);                                                 // notify_token_value
     templateSqeU32(SQE_WITH_NOTIFY_NOTIFY_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // notify_token_id
