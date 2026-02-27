@@ -338,10 +338,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::Quant
         hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
         scaleOutBytes_ = Ceil128(axisH_) * sizeof(float); // MX量化每128个值生成一个scale
     }
-    // uint32_t hScaleSizeAlign = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN; //保证后面填充三元组的起始地址对齐32
-    // tokenQuantAlign_ = hScaleSizeAlign / sizeof(int32_t);
-    // // 实际搬运大小，搬运Align32(token_align + scaleOutBytes_) + 3*4B(三元组)
-    // hScaleIdxSize_ = hScaleSizeAlign + EXPAND_IDX_INFO * sizeof(int32_t);
 }
 
 template <TemplateMC2TypeClass>

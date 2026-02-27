@@ -24,7 +24,6 @@ using namespace AscendC;
      GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR YOut, GM_ADDR expandIdxOut, GM_ADDR commCmdInfoOut,
      GM_ADDR workspaceGM, GM_ADDR tilingGM)
  {
-    //  return;
      REGISTER_TILING_DEFAULT(MoeDistributeDispatchSetupTilingData);
      TPipe pipe;
      auto tiling = (__gm__ MoeDistributeDispatchSetupTilingData*)tilingGM;
