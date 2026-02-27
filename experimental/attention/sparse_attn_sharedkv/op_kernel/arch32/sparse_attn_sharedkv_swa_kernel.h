@@ -264,13 +264,23 @@ __aicore__ inline void SparseAttnSharedkvSwa<SAST>::InitAllZeroOutput(uint32_t b
         uint32_t tBase = actualSeqLengthsQGm.GetValue(bIdx);
         uint64_t attenOutOffset = (tBase + s1Idx) * kvHeadNum * constInfo.gSize * headDim + // T轴、s1轴偏移
                                   n2Idx * constInfo.gSize * headDim;                        // N2轴偏移
+        uint64_t lseOffset = (tBase + s1Idx) * constInfo.gSize  + // T轴、s1轴偏移
+                                n2Idx * constInfo.qSeqSize * constInfo.gSize; // N2轴偏移
         matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], constInfo.gSize * headDim, 0);
+        if (constInfo.returnSoftmaxLse) {
+            matmul::InitOutput<T>(softmaxLseGm[lseOffset], constInfo.gSize, 0);
+        }
     } else if (constInfo.outputLayout == SAS_LAYOUT::BSND) {
         uint64_t attenOutOffset = bIdx * constInfo.qSeqSize * kvHeadNum * constInfo.gSize * headDim +
                                   s1Idx * kvHeadNum * constInfo.gSize * headDim + // B轴、S1轴偏移
                                   n2Idx * constInfo.gSize * headDim;              // N2轴偏移
+        uint64_t lseOffset = bIdx * constInfo.qSeqSize * constInfo.kvHeadNum * constInfo.gSize  + // B轴偏移
+                    n2Idx  * constInfo.qSeqSize * constInfo.gSize + // N2轴偏移
+                    s1Idx * constInfo.gSize; // S1轴偏移
         matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], constInfo.gSize * headDim, 0);
-
+        if (constInfo.returnSoftmaxLse) {
+            matmul::InitOutput<T>(softmaxLseGm[lseOffset], constInfo.gSize, 0);
+        }
     }
 }
 
