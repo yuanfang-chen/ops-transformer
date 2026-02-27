@@ -106,6 +106,12 @@ if (ENABLE_TEST)
 endif()
 include(${OPS_ADV_CMAKE_DIR}/ut.cmake)
 
+include(version.cmake)
+if (BUILD_OPEN_PROJECT)
+    check_pkg_build_deps()
+endif()
+add_version_info_targets()
+
 if (BUILD_OPEN_PROJECT)
     include(cmake/intf.cmake)
     add_definitions(-DBUILD_OPEN_PROJECT)
@@ -423,6 +429,9 @@ if (BUILD_OPS_RTY_KERNEL)
             $<BUILD_INTERFACE:intf_pub>
     )
     add_dependencies(ops_aclnn opbuild_gen_default opbuild_gen_inner)
+    add_dependencies(transformer-compiler version_transformer-compiler_info)
+    add_dependencies(transformer-executor version_transformer-executor_info)
+    add_dependencies(dflow-executor version_dflow-executor_info)
 
     set_source_files_properties(${generate_proto_srcs}
             PROPERTIES GENERATED TRUE
