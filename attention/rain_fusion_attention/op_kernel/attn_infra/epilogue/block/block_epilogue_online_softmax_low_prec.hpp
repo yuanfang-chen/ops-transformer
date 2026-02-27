@@ -303,7 +303,6 @@ public:
                     repeatStride,
                     repeatStride,
                     repeatStride));
-            AscendC::PipeBarrier<PIPE_V>();
         }
     }
 
@@ -575,6 +574,14 @@ public:
     {
         if (columnNum == 1024U) {
             RowmaxSPECTILE1024(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512U) {
+            RowmaxSPECTILE512(
                 computeUbTensor,
                 lmUbTensor[rowOffset],
                 tvUbTensor,
