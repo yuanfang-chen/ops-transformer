@@ -21,6 +21,7 @@
 #include "tiling_base/tiling_base.h"
 #include "platform/platform_info.h"
 #include "log/log.h"
+#include "util/math_util.h"
 #include "mhc_post_tiling.h"
 
 namespace optiling {
@@ -578,7 +579,7 @@ void MhcPostTilingBase::ComputeTilingNew()
     } else {
         dInner_ = ALIGN_SIZE_512B;  // 小于512的也和512B对齐。
     }
-    dOuter_ = Ops::Base::CeilDiv(D_, dInner_);
+    dOuter_ = Ops::Base::CeilDiv(static_cast<uint32_t>(D_), dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
 
     if (isNotFullCore_ == 1) {

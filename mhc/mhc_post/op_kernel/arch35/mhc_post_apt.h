@@ -28,14 +28,6 @@
 namespace MhcPost {
 using namespace AscendC;
 
-// Constants for memory alignment and buffer configuration
-constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
-constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
-
-// Double Buffer configuration - Double Buffer提升Memory Bound算子性能
-constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;  // Double Buffer depth for data tiles
-constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;  // Single Buffer depth for weights
-
 // Template macro definitions - 用于编译时优化,类似DequantSwiGLU的quantIsOne设计
 // IS_D_ALIGNED: D % 16 == 0 && nTilesD == 1
 #define TEMPLATE_DECLARE template<typename T, uint16_t IS_D_ALIGNED>
@@ -113,15 +105,15 @@ __aicore__ inline void MhcPostKernelApt<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR 
     n_ = tilingData->n;
     D_ = tilingData->D;
 
-    usedCoreNum_ = tilingData->usedCoreNum_;
-    normalCoreProcessNum_ = tilingData->normalCoreProcessNum_;
-    tailCoreProcessNum_ = tilingData->tailCoreProcessNum_;
-    bsInner_ = tilingData->bsInner_;
-    bsOuter_ = tilingData->bsOuter_;
-    bsTail_ = tilingData->bsTail_;
-    dInner_ = tilingData->dInner_;
-    dOuter_ = tilingData->dOuter_;
-    dTail_ = tilingData->dTail_;
+    usedCoreNum_ = tilingData->usedCoreNum;
+    normalCoreProcessNum_ = tilingData->normalCoreProcessNum;
+    tailCoreProcessNum_ = tilingData->tailCoreProcessNum;
+    bsInner_ = tilingData->bsInner;
+    bsOuter_ = tilingData->bsOuter;
+    bsTail_ = tilingData->bsTail;
+    dInner_ = tilingData->dInner;
+    dOuter_ = tilingData->dOuter;
+    dTail_ = tilingData->dTail;
 
     blockIdx_ = GetBlockIdx();
 
