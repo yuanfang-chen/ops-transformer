@@ -149,7 +149,6 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::AnalyzeDtype()
                             ge::TypeUtils::DataTypeToSerialString(rowIndexDtype).c_str()),
                     return false);
     }
-    rowIndexDtype_ = context_->GetOptionalInputDesc(ROW_INDEX_INDEX)->GetDataType();
     return true;
 }
 
@@ -351,7 +350,7 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
                 OP_LOGE(context_->GetNodeName(), "CheckDim failed."), return false);
     if (IsMicroScaling()) {
         OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
-    } else {
+    } else if (inputParams_.aDtype != ge::DT_HIFLOAT8){
         const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
         OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
                     OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
@@ -457,7 +456,7 @@ uint64_t GroupedMatmulFinalizeRoutingQuantTiling::GetTilingKey() const
         scaleDtype = 2;
     }
     uint64_t rowIndexDtype = 0;
-    if (rowIndexDtype_ == ge::DT_INT32) {
+    if (context_->GetOptionalInputDesc(ROW_INDEX_INDEX)->GetDataType() == ge::DT_INT32) {
         rowIndexDtype = 1;
     }
 
@@ -530,7 +529,7 @@ ge::graphStatus GroupedMatmulFinalizeRoutingQuantTiling::PostTiling()
 
 void GroupedMatmulFinalizeRoutingQuantTiling::PrintMatmulParams()
 {
-    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    int32_t enable = AlogCheckDebugLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }
@@ -544,7 +543,7 @@ void GroupedMatmulFinalizeRoutingQuantTiling::PrintMatmulParams()
 
 void GroupedMatmulFinalizeRoutingQuantTiling::PrintQuantParams()
 {
-    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    int32_t enable = AlogCheckDebugLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }

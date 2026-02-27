@@ -118,7 +118,6 @@ private:
     uint64_t rowIndex_ = 0;
     float sharedInputWeight_ = 1.0;
     uint64_t outputBs_ = 0;
-    ge::DataType rowIndexDtype_ = ge::DT_INT64;
 };
 } // namespace optiling
 
