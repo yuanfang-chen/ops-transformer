@@ -240,7 +240,29 @@ x1QuantMode、x2QuantMode、commQuantMode的枚举值跟[量化模式](../../doc
 * x1、x2和bias计算输入的数据类型根据不同设备型号有不同的限制：
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
         - 非量化场景下，output计算输出的数据类型为FLOAT16时，bias计算输入的数据类型支持FLOAT16；output计算输出的数据类型为BFLOAT16时，bias计算输入的数据类型支持FLOAT32。
-        - 量化场景下，支持K-C量化模式后加bias，x1、x2计算输入的数据类型必须为INT8；output计算输出的数据类型为BFLOAT16时，bias的数据类型为FLOAT32或BFLOAT16；output的数据类型为FLOAT16时，biasOptional的数据类型为FLOAT32或FLOAT16。
+        - 量化场景下，遵循以下规则：
+          1. 若x1、x2、alltoallout输入int32类型，则视作8个int4打包，会被重新解释为int4。
+          2. 动态量化时，smoothQuant场景，x1ScaleOptional与x1的数据类型必须一致。
+          3. 动态量化支持的数据类型组合有：
+
+              | x1 | x2 | biasOptional | output |
+              | :------: | :------: | :------: | :------: |
+              | FLOAT16 | INT8 | FLOAT16 | FLOAT16 |
+              | FLOAT16 | INT8 | FLOAT32 | FLOAT16 |
+              | BFLOAT16 | INT8 | BFLOAT16 | BFLOAT16 |
+              | BFLOAT16 | INT8 | FLOAT32 | BFLOAT16 |
+              | FLOAT16 | INT4 | FLOAT16 | FLOAT16 |
+              | FLOAT16 | INT4 | FLOAT32 | FLOAT16 |
+              | BFLOAT16 | INT4 | BFLOAT16 | BFLOAT16 |
+              | BFLOAT16 | INT4 | FLOAT32 | BFLOAT16 |
+          4. 静态量化支持的数据类型组合有：
+
+              | x1 | x2 | biasOptional | output |
+              | :------: | :------: | :------: | :------: |
+              | INT4 | INT4 | FLOAT16 | FLOAT16 |
+              | INT4 | INT4 | FLOAT32 | FLOAT16 |
+              | INT4 | INT4 | BFLOAT16 | BFLOAT16 |
+              | INT4 | INT4 | FLOAT32 | BFLOAT16 |
     - <term>Ascend 950PR/Ascend 950DT</term>：
         - 非量化场景下，x1/x2计算输入的数据类型为FLOAT16时，bias计算输入的数据类型支持FLOAT16和FLOAT32；x1/x2计算输入的数据类型为BFLOAT16时，bias计算输入的数据类型支持BFLOAT16和FLOAT32。
         - 量化场景下，支持K-C量化模式，x1、x2计算输入的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2，bias的数据类型为FLOAT16、BFLOAT16、FLOAT32，可自由组合。
