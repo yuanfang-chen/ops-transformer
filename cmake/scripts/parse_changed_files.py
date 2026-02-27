@@ -269,6 +269,10 @@ class Parser:
         sub_ps = ps.add_subparsers(help="Sub-Command")
         p_ut = sub_ps.add_parser('get_related_ut', help="Get related ut.")
         p_ut.set_defaults(func=Parser.get_related_ut)
+        p_ut_mc2 = sub_ps.add_parser('get_related_ut_mc2', help="Get related ut mc2.")
+        p_ut_mc2.set_defaults(func=Parser.get_related_ut_mc2)
+        p_ut_exclude_mc2 = sub_ps.add_parser('get_related_ut_exclude_mc2', help="Get related ut exclude mc2.")
+        p_ut_exclude_mc2.set_defaults(func=Parser.get_related_ut_exclude_mc2)
         p_examples = sub_ps.add_parser('get_related_examples', help="Get related examples.")
         p_examples.set_defaults(func=Parser.get_related_examples)
         # 处理
@@ -281,6 +285,60 @@ class Parser:
         Parser.print_details()
         rst = args.func()
         return rst
+
+    @classmethod
+    def get_related_ut_mc2(cls):
+        def ops_test_list_append(ops, ops_test_option_lst):
+            if ops not in ops_test_option_lst:
+                ops_test_option_lst.append(ops)
+        ops_test_option_lst: List[str] = []
+        for p in cls._ChangedPaths:
+            if not ("mc2" in p.parts):
+                continue
+            for m in cls._Modules:
+                new_options = m.get_test_options(f=p)
+                for opt in new_options:
+                    opt_test_list_append(opt, opt_test_option_lst)
+        if len(ops_test_option_lst) == 0:
+            logging.info("Don't trigger any mc2 UT.")
+            return ""
+        ops_test_ut_str: str = ""
+        if "all" in ops_test_option_lst:
+            ops_test_ut_str = "all"
+        else:
+            for opt in ops_test_option_lst:
+                if opt not in cls._UTExcludes:
+                    ops_test_ut_str += f"{opt};"
+        ops_test_ut_str = f"{ops_test_ut_str}"
+        logging.info(f"Trigger UT: {ops_test_ut_str}")
+        return ops_test_ut_str
+
+    @classmethod
+    def get_related_ut_exclude_mc2(cls):
+        def ops_test_list_append(ops, ops_test_option_lst):
+            if ops not in ops_test_option_lst:
+                ops_test_option_lst.append(ops)
+        ops_test_option_lst: List[str] = []
+        for p in cls._ChangedPaths:
+            if ("mc2" in p.parts):
+                continue
+            for m in cls._Modules:
+                new_options = m.get_test_options(f=p)
+                for opt in new_options:
+                    opt_test_list_append(opt, opt_test_option_lst)
+        if len(ops_test_option_lst) == 0:
+            logging.info("Don't trigger any UT exclude mc2.")
+            return ""
+        ops_test_ut_str: str = ""
+        if "all" in ops_test_option_lst:
+            ops_test_ut_str = "all"
+        else:
+            for opt in ops_test_option_lst:
+                if opt not in cls._UTExcludes:
+                    ops_test_ut_str += f"{opt};"
+        ops_test_ut_str = f"{ops_test_ut_str}"
+        logging.info(f"Trigger UT: {ops_test_ut_str}")
+        return ops_test_ut_str
 
 
 if __name__ == '__main__':
