@@ -76,15 +76,15 @@ namespace {
     constexpr uint32_t ATTR_TP_WORLD_SIZE_INDEX = 7;
     constexpr uint32_t ATTR_TP_RANK_ID_INDEX = 8;
     constexpr uint32_t ATTR_EXPERT_SHARD_TYPE_INDEX = 9;
-    constexpr uint32_t ATTR_SHARED_EXPERT_NUM_INDEX = 8;
-    constexpr uint32_t ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
-    constexpr uint32_t ATTR_QUANT_MODE_INDEX = 10;
-    constexpr uint32_t ATTR_GLOBAL_BS_INDEX = 11;
-    constexpr uint32_t ATTR_EXPERT_TOKEN_NUMS_TYPE_INDEX = 12;
-    constexpr uint32_t ATTR_COMM_ALG_INDEX = 13;
-    constexpr uint32_t ATTR_ZERO_EXPERT_NUM_INDEX = 14;
-    constexpr uint32_t ATTR_COPY_EXPERT_NUM_INDEX = 15;
-    constexpr uint32_t ATTR_CONST_EXPERT_NUM_INDEX = 16;
+    constexpr uint32_t ATTR_SHARED_EXPERT_NUM_INDEX = 10;
+    constexpr uint32_t ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 11;
+    constexpr uint32_t ATTR_QUANT_MODE_INDEX = 12;
+    constexpr uint32_t ATTR_GLOBAL_BS_INDEX = 13;
+    constexpr uint32_t ATTR_EXPERT_TOKEN_NUMS_TYPE_INDEX = 14;
+    constexpr uint32_t ATTR_COMM_ALG_INDEX = 15;
+    constexpr uint32_t ATTR_ZERO_EXPERT_NUM_INDEX = 16;
+    constexpr uint32_t ATTR_COPY_EXPERT_NUM_INDEX = 17;
+    constexpr uint32_t ATTR_CONST_EXPERT_NUM_INDEX = 18;
 
     constexpr uint32_t TWO_DIMS = 2;
     constexpr uint32_t ONE_DIM = 1;
