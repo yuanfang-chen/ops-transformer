@@ -28,6 +28,15 @@ struct MhcPostTilingData {
     uint32_t nTilesD;
     uint32_t alignedD;
     uint32_t lastTileD;
+    int64_t usedCoreNum;
+    int64_t normalCoreProcessNum;
+    int64_t tailCoreProcessNum;
+    int64_t bsInner;
+    int64_t bsOuter;
+    int64_t bsTail;
+    int64_t dInner;
+    int64_t dOuter;
+    int64_t dTail;
 };
 
 #endif
