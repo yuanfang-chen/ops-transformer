@@ -108,6 +108,7 @@ private:
     TBuf<> yTempBuf_;
     TBuf<> weightTempBuf_;
     TBuf<> dynamicScaleBuf_;
+    TBuf<> stateResetBuf_;
 
     TQue<QuePosition::VECIN, 1> inQueue_;
     TQue<QuePosition::VECOUT, 1> x1OutQueue_;
@@ -185,6 +186,26 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
     scaleWinGMTensor_.SetGlobalBuffer((__gm__ float*)dynamicScaleWinGM);
+
+    if ASCEND_IS_AIC {
+        return;
+    }
+
+    // 清空状态区100K之后的2*tileK*64B数据
+    if (aivId_ == 0) {
+        // 已保证32B对齐
+        uint64_t sizeToBeCleaned = tileK_ * CV_STATE_ROW_NUM * CV_STATE_ALIGN;
+        LocalTensor<int32_t> stateResetTensor;
+        tpipe_->InitBuffer(stateResetBuf_, sizeToBeCleaned);
+        stateResetTensor = stateResetBuf_.Get<int32_t>();
+        Duplicate<int32_t>(stateResetTensor, 0, sizeToBeCleaned / sizeof(int32_t));
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        GM_ADDR cvFlagAddr = (GM_ADDR)(winContext_->localWindowsExp + CV_SYNC_START_OFFSET);
+        GlobalTensor<int32_t> winCvExpTensor;
+        winCvExpTensor.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
+        DataCopy(winCvExpTensor, stateResetTensor, sizeToBeCleaned / sizeof(int32_t));
+        PipeBarrier<PIPE_V>();
+    }
 }
 
 template<TemplateMC2TypeClass>
@@ -380,7 +401,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     while (true) {
         DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(winCvExp);
         int32_t flagCount = winCvExp.GetValue(0);
-        if (flagCount >= targetCount) {
+        if (flagCount == targetCount) {
             break;
         }
         __asm__ volatile("NOP");    // Necessary
