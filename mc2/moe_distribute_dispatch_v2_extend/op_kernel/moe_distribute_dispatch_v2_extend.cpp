@@ -37,40 +37,13 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    // __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
-    // AscendC::printf("rankid %d",ptr->rankId);
+    AscendC::printf("rankid %d",ptr->rankId);
+    __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
+    AscendC::printf("rankid %d",ptr->epRankId);
+    AscendC::printf("rankid %d",ptr->epRankSize);
+    AscendC::printf("rankid %d",ptr->winSize);
+    
 
-REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
-AscendC::printf("PRINT start In kERNEL");
-// #if defined(__DAV_C310__)
-//     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
-// #endif
-//     TPipe pipe;
+    REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 
-// #if defined(__DAV_C310__)
-// #if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16))
-//     Mc2MoeContext * ptr = (Mc2MoeContext *)(mc2context);
-//     AscendC::printf("rankid %d",ptr->rankId);
-//     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
-//         if constexpr (CommMode == TILINGKEY_TPL_CCU) {
-//             MoeDistributeDispatchA5<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-//             op.Init(x, expertIds, scales, xActiveMask, expandXOut, dynamicScalesOut, assistInfoOut, 
-//                     expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-//             op.Process();
-//         } else if constexpr (CommMode == TILINGKEY_TPL_MTE) {
-//             if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
-//                 MoeDistributeDispatchV2FullMesh<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-//                 op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
-//                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-//                 op.Process();
-//             } else {
-//                 MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-//                 op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
-//                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-//                 op.Process();
-//             }
-//         }  
-//     }
-// #endif
-// #endif
 }
