@@ -1426,7 +1426,7 @@ static ge::graphStatus MoeDistributeDispatchA3TilingFuncImpl(gert::TilingContext
         OP_LOGE(nodeName, "Get attr and set tiling data failed."), return ge::GRAPH_FAILED);
 
     // 获取scales
-    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
+    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(3U);
     if(scalesStorageShape == nullptr) {
         OP_LOGD("PRINT tiling scalesStorageShape is null ptr");
     } else {
@@ -1794,7 +1794,7 @@ static uint64_t MoeDistributeDispatchA2CalcTilingKey(const gert::TilingContext *
     if (isLayered) {
         commMode = TILINGKEY_TPL_AICPU;
     }
-    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(3U);
+    const gert::StorageShape *scalesStorageShape = context->GetOptionalInputShape(SCALES_INDEX);
     bool isScales = (scalesStorageShape != nullptr);
     if (isScales) {
         scaleMode = true;
