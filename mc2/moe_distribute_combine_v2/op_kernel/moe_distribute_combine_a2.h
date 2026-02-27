@@ -98,8 +98,8 @@ private:
     __aicore__ inline void WaitDispatch();
     __aicore__ inline void TokenActiveMaskCal();
     __aicore__ inline void CalXActiveMask();
-    __aicore__ inline void ProcessMoeAndCopyExpert(uint32_t tokenIdx, uint32_t topKIdx);
-    __aicore__ inline void ProcessConstantExpert(uint32_t tokenIdx, uint32_t topKIdx);
+    __aicore__ inline void ProcessMoeAndCopyExpert(int32_t eventId, uint32_t tokenIdx, uint32_t expertOffset);
+    __aicore__ inline void ProcessConstantExpert(uint32_t tokenIdx, uint32_t expertOffset);
     __aicore__ inline void SingleServerDispatch(LocalTensor<ExpandIdxType> &sendCountInfo);
     __aicore__ inline void MultiServerDispatch(LocalTensor<ExpandIdxType> &sendCountInfo);
     __aicore__ inline uint32_t GetRankTokenNumAndDataCopy2WindowOut(LocalTensor<ExpandIdxType> &sendCountInfo,
@@ -678,7 +678,7 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::LocalWindo
                 } else if (expertId < moeExpertNum_ + zeroExpertNum_) {
                     continue; // 零专家不需要任何操作
                 } else if (expertId < moeExpertNum_ + zeroExpertNum_ + copyExpertNum_) {
-                    ProcessMoeAndCopyExpert(tokenIdx, expertOffset);
+                    ProcessMoeAndCopyExpert(0, tokenIdx, expertOffset);
                 } else if (expertId < moeExpertNum_ + zeroExpertNum_ + copyExpertNum_ + constExpertNum_) {
                     ProcessConstantExpert(tokenIdx, expertOffset);
                 }
@@ -716,6 +716,12 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::ProcessMoe
     Muls(tokenFloatLocal_, tokenFloatLocal_, topkWeight, axisH_);
     PipeBarrier<PIPE_V>();
     Add(topkSumFloatLocal_, topkSumFloatLocal_, tokenFloatLocal_, axisH_);
+}
+
+template <TemplateMC2TypeA2Class>
+__aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::ProcessConstantExpert(uint32_t tokenIdx,
+                                                                                            uint32_t expertOffset)
+{
 }
 } // namespace MoeDistributeCombineA2Impl
 #endif // MOE_DISTRIBUTE_COMBINE_A2_H
