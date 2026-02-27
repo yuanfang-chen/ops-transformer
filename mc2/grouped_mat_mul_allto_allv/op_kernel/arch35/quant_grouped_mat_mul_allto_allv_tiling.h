@@ -1,12 +1,12 @@
-/**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+/* *
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+  */
 
 /*!
  * \file quant_grouped_mat_mul_allto_allv_tiling.h
@@ -39,8 +39,8 @@ using MC2KernelTemplate::TaskTilingInfo;
  *
  * 算子级 workspace 分为三部分:
  *   [0, wsGmmOutputSize)                              → 路由专家 GMM 输出缓冲, 传给 GmmComputeOp.Init 的 y 参数
- *   [wsGmmOutputSize, + wsGmmComputeWorkspaceSize)    → 路由专家 GmmComputeOp 内部临时空间, 传给 GmmComputeOp.Init 的 tempAddr 参数
- *   [+, + wsSharedGmmComputeWorkspaceSize)            → 共享专家 SharedGmmComputeOp 内部临时空间, 传给 SharedGmmComputeOp.Init 的 tempAddr 参数
+ *   [wsGmmOutputSize, + wsGmmComputeWorkspaceSize)    → 路由专家 GmmComputeOp 内部空间, 传给 GmmComputeOp.Init 的 tempAddr 参数
+ *   [+, + wsSharedGmmComputeWorkspaceSize)            → 共享专家 SharedGmmComputeOp 内部空间, 传给 SharedGmmComputeOp.Init 的 tempAddr 参数
  *
  * GmmComputeOp / SharedGmmComputeOp workspace 内部布局 (由各自内部管理, tiling 侧仅需计算并分配总大小):
  *   [0, 64)                   ptrTable:  4 × 16B GetTensorAddr 双重间接指针表 (x, weight, scaleB, y)
@@ -53,8 +53,8 @@ using MC2KernelTemplate::TaskTilingInfo;
  */
 struct GmmA2avWorkspaceInfo {
     uint64_t wsGmmOutputSize;                    // 路由专家 GMM 主输出缓冲大小 (x @ weight -> gmm_output -> hccl -> y)
-    uint64_t wsGmmComputeWorkspaceSize;          // 路由专家 GmmComputeOp 内部工作空间大小
-    uint64_t wsSharedGmmComputeWorkspaceSize;    // 共享专家 SharedGmmComputeOp 内部临时空间大小
+    uint64_t wsGmmComputeWorkspaceSize;          // 路由专家 GmmComputeOp 内部空间大小
+    uint64_t wsSharedGmmComputeWorkspaceSize;    // 共享专家 SharedGmmComputeOp 内部空间大小
 };
 
 struct QuantGmmA2avTilingData {

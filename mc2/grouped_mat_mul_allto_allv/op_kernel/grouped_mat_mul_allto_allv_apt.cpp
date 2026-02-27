@@ -1,12 +1,12 @@
 /* *
-* Copyright (c) 2025 Huawei Technologies Co., Ltd.
-* This program is free software, you can redistribute it and/or modify it under the terms and conditions of
-* CANN Open Software License Agreement Version 2.0 (the "License").
-* Please refer to the License for details. You may not use this file except in compliance with the License.
-* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
-* INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
-* See LICENSE in the root of the software repository for the full text of the License.
-*/
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+  */
 
 /* !
 * \file grouped_mat_mul_allto_allv_apt.cpp
@@ -128,10 +128,6 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     const void* hcclInitTiling = &(tilingData_->hcclA2avTiling.hcclInitTiling);
     uint64_t hcclCcTilingOffset = offsetof(QuantGmmA2avTilingData, hcclA2avTiling) +
                     offsetof(MC2KernelTemplate::HcclA2avTilingInfo, a2avCcTiling);
-    // auto tiling = (__gm__ QuantGmmA2avTilingData*)tilingGM;
-    // __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.hcclInitTiling));
-    // __gm__ void* alltoAllvCcTiling = (__gm__ void*)(&(tiling->hcclA2avTiling.a2avCcTiling));
-    // GET_TILING_DATA_WITH_STRUCT(QuantGmmA2avTilingData, tilingData, tilingGM);
     constexpr CubeFormat W_FORMAT = CubeFormat::ND;
     constexpr bool USE_SEND_COUNTS = true;
     constexpr bool IS_SHARED_EXPERT = true;
