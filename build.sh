@@ -63,6 +63,7 @@ ENABLE_GENOP_AICPU=FALSE
 GENOP_TYPE=""
 GENOP_NAME=""
 PR_CHANGED_FILES=""  # PR场景, 修改文件清单, 可用于标识是否PR场景
+UT_SOC_ARRAY=()
 
 if [ "${USER_ID}" != "0" ]; then
     DEFAULT_TOOLKIT_INSTALL_DIR="${HOME}/Ascend/ascend-toolkit/latest"
@@ -1042,7 +1043,11 @@ while [[ $# -gt 0 ]]; do
     --PR_UT)
         PR_CHANGED_FILES="$2"
         ENABLE_TEST=TRUE
-        process_soc_input "ascend310p,ascend910b,ascend950"
+        ut_soc_version=$(python3 "$CURRENT_DIR"/cmake/scripts/get_soc_version.py -c "$CURRENT_DIR"/tests/test_soc_config.yaml -f "$PR_CHANGED_FILES" get_related_soc)
+        ut_soc_version="ascend${str#*ut_soc_version}"
+        IFS=',' read -ra UT_SOC_ARRAY <<< "$ut_soc_version"
+        echo "UT_SOC_ARRAY = ${UT_SOC_ARRAY[@]}"
+
         shift 2
         ;;
     --PR_PKG)
@@ -1540,7 +1545,6 @@ build_ut() {
         fi
     fi
   fi
-  exit 0
 }
 
 function build_pkg_for_single_soc() {
@@ -1629,8 +1633,13 @@ if [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
 fi
 
 if [[ "$ENABLE_TEST" == "TRUE" ]]; then
-    set_compute_unit_option
-    build_ut ${BUILD}
+    for element in "${UT_SOC_ARRAY[@]}"; do
+        echo "start to test $element"
+        process_soc_input "$element"
+        set_compute_unit_option
+        build_ut ${BUILD}
+    done
+    exit 0
 elif [[ "$ENABLE_CREATE_LIB" == "TRUE" ]]; then
     build_lib
 elif [[ "$ENABLE_STATIC" == "TRUE" ]]; then
