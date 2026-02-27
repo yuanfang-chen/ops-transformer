@@ -1082,10 +1082,13 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
             tmpWeight->SetDataType(DataType::DT_INT4);
         }
         tmpWeight->SetStorageShape(storageShape);
+
         if (tmpWeight->GetDataType() == DataType::DT_INT4 && pertokenScaleOptional == nullptr) {
-            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,"GroupedMatmulFinalizeRoutingWeightNz does not support nullptr for pertokenScale.");
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR,
+                    "GroupedMatmulFinalizeRoutingWeightNz does not support nullptr for pertokenScale.");
             return ACLNN_ERR_PARAM_NULLPTR;
         }
+
         CheckSupportSceneParams sceneParams{x1,    tmpWeight, scale, pertokenScaleOptional, groupList, sharedInput,
                                             logit, rowIndex,  dtype};
         auto ret0 = CheckSupportScene(sceneParams, transposeX1, transposeX2);
