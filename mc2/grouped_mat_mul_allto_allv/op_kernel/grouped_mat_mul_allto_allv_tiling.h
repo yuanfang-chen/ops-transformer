@@ -31,7 +31,7 @@
     #include "../../allto_allv_grouped_mat_mul/op_kernel/mc2_templates/common/a2av_common_tiling.h"
     #endif
 #endif
-constexpr uint32_t MAX_EXPERT_SIZE = 512U; // 最大通信域专家的数量
+constexpr uint32_t MAX_EXPERT_SIZE = 256U; // 最大通信域专家的数量
 
 struct GmmAlltoAllvAicpuTiling {
     int32_t sendCnt[MAX_EXPERT_SIZE];
@@ -67,19 +67,5 @@ public:
     TCubeTiling sharedExpMatmulTiling;
     GmmAlltoAllvAicpuTiling aicpuTilingInfo;
 };
-
-#pragma pack(push, 8)
-struct QuantGroupedMatMulAlltoAllvTilingData
-{
-    Mc2InitTiling hcclInitTiling;
-    Mc2CcTiling alltoAllvCcTiling;
-    GmmAlltoAllvCommonTilingInfo commonTilingInfo;
-    TCubeTiling matmulTiling;
-    TCubeTiling sharedExpMatmulTiling;
-    GmmAlltoAllvAicpuTiling aicpuTiling;
-    Mc2GroupedMatmulTilingData::GMMQuantTilingData gmmQuantTilingData;
-    Mc2GroupedMatmulTilingData::GMMQuantTilingData mmQuantTilingData;
-};
-#pragma pack(pop)
 
 #endif // __GROUPED_MAT_MUL_ALLTO_ALLV_TILING_H__
