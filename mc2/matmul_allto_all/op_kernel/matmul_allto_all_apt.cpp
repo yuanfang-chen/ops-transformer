@@ -51,8 +51,8 @@ using namespace MatmulAlltoAllImpl;
 #endif
 
 template <uint32_t QUANTMODE, bool X2TRANSPOSE, uint32_t DTYPEBIAS>
-__global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1_scale, GM_ADDR x2_scale,
-                                            GM_ADDR comm_scale, GM_ADDR x1_offset, GM_ADDR x2_offset, GM_ADDR y,
+__global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1Scale, GM_ADDR x2Scale,
+                                            GM_ADDR commScale, GM_ADDR x1Offset, GM_ADDR x2Offset, GM_ADDR y,
                                             GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     //kernel的使用类型，这里是cube和vic混用，cube是主核，cube:vec=1:2
@@ -89,7 +89,7 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
         using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;
         SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);
         KcQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl);
-        op.Init(x1, x2, bias, y, x1_scale, x2_scale, x2_offset, workspaceGM, &tilingData, &pipe);
+        op.Init(x1, x2, bias, y, x1Scale, x2Scale, x2Offset, workspaceGM, &tilingData, &pipe);
         op.Process();
     }
     else if constexpr (QUANTMODE == MX_QUANT_MODE) {
@@ -105,7 +105,7 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
         using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;
         SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);
         MxQuantMatmulAlltoAllArch35<SchedulerType, SchedulerContextType, QuantMatmulAlltoAllTilingData> op(&SchedulerImpl);
-        op.Init(x1, x2, bias, y, x1_scale, x2_scale, workspaceGM, &tilingData, &pipe);
+        op.Init(x1, x2, bias, y, x1Scale, x2Scale, workspaceGM, &tilingData, &pipe);
         op.Process(); 
     }
 #endif
