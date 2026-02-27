@@ -33,7 +33,7 @@ __aicore__ inline void grouped_matmul_finalize_routing_pertoken_dequant(
     GET_TILING_DATA(tilingData, tilingGM);
 
     using weightscaleType =
-        std::conditional_t<scaleNum == 1, float, bfloat16_t>;
+        std::conditional_t<scaleNum == 0, float, bfloat16_t>;
     using rowIndexType = std::conditional_t<rowindexNum == 0, int64_t, int32_t>;
     auto gmmFinalizeRoutingQuantParams_ = tilingData.gmmFinalizeRoutingDataParams;
     auto matmulTiling_ = tilingData.matmulTiling;
