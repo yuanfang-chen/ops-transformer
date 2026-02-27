@@ -120,9 +120,6 @@ public:
     uint8_t dropMaskOuter;
     uint8_t sparseType;
     uint8_t reserved2;  // tilingData需要8字节对齐
-    float pScale;
-    float dsScale;
-    float pScaleLog;
 
     int64_t get_coreNum() const {return coreNum;}
     int64_t get_b() const {return b;}
@@ -154,9 +151,6 @@ public:
     uint8_t get_isSplitByBlockIdx() const {return isSplitByBlockIdx;}
     int64_t get_totalPerBatchNum() const {return totalPerBatchNum;}
     uint8_t get_sparseType() const {return sparseType;}
-    float get_pScale() const {return pScale;}
-    float get_dsScale() const {return dsScale;}
-    float get_pScaleLog() const {return pScaleLog;}
 
     void set_coreNum(int64_t coreNumParam) { this->coreNum = coreNumParam; }
     void set_b(int64_t bParam) { this->b = bParam; }
@@ -191,9 +185,6 @@ public:
     void set_isSplitByBlockIdx(uint8_t isSplitByBlockIdxParam) { this->isSplitByBlockIdx = isSplitByBlockIdxParam; }
     void set_totalPerBatchNum(int64_t totalPerBatchNumParam) { this->totalPerBatchNum = totalPerBatchNumParam; }
     void set_sparseType(uint8_t sparseTypeParam) { this->sparseType = sparseTypeParam; }
-    void set_pScale(float pScaleParam) { this->pScale = pScaleParam; }
-    void set_dsScale(float dsScaleParam) { this->dsScale = dsScaleParam; }
-    void set_pScaleLog(float pScaleLogParam) { this->pScaleLog = pScaleLogParam; }
 };
 
 class FlashAttentionScoreGradS1S2BNGS1S2SplitCoreParamsRegbase {

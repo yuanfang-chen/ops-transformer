@@ -1395,9 +1395,9 @@ static aclnnStatus FlashAttentionScoreGradGetWorkspace(
         queryCngs, keyCngs, valueCngs, dyCngs, pseShiftOptionalCngs, dropMaskOptionalCngs, paddingMaskOptionalCngs,
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, nullptr, nullptr,
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         scaleValue, keepProb, preTokens, nextTokens, headNum, inputLayoutUnderTrans,
-        innerPrecise, sparseMode, PSE_TYPE_V1, 0, 0, 0, softmaxInLayout, 0, 0, executor);
+        innerPrecise, sparseMode, PSE_TYPE_V1, 0, 0, 0, softmaxInLayout, executor);
     CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
               ACLNN_ERR_PARAM_NULLPTR);
 
@@ -1656,9 +1656,9 @@ static aclnnStatus FlashAttentionScoreGradV2GetWorkspace(
         queryCngs, keyCngs, valueCngs, dyCngs, pseShiftOptionalCngs, dropMaskOptionalCngs, paddingMaskOptionalCngs,
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
-        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         scaleValue, keepProb, preTokens, nextTokens,
-        headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, defaultSoftmaxInLayout, 0, 0, executor);
+        headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, defaultSoftmaxInLayout, executor);
     CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
     // transpose + slice + reshape + viewCopy
@@ -1920,8 +1920,8 @@ static aclnnStatus FlashAttentionScoreGradV3GetWorkspace(
         queryCngs, keyCngs, valueCngs, dyCngs, pseShiftOptionalCngs, dropMaskOptionalCngs, paddingMaskOptionalCngs,
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
-        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, queryRopeCngs, keyRopeCngs, nullptr, scaleValue, keepProb, preTokens, nextTokens, headNum,
-        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, defaultSoftmaxInLayout, 0, 0, executor);
+        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, queryRopeCngs, keyRopeCngs, nullptr, scaleValue, keepProb, preTokens, nextTokens, headNum,
+        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, defaultSoftmaxInLayout, executor);
 
     if (queryRope != nullptr && keyRope != nullptr) {
         CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr && fagRes[4] != nullptr && fagRes[5] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
@@ -2191,9 +2191,9 @@ static aclnnStatus FlashAttentionScoreGradV5GetWorkspace(
         queryCngs, keyCngs, valueCngs, dyCngs, pseShiftOptionalCngs, dropMaskOptionalCngs, paddingMaskOptionalCngs,
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
-        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, queryRopeCngs, keyRopeCngs, sinkInOptional,
+        kvStartIdxOptional, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, queryRopeCngs, keyRopeCngs, sinkInOptional,
         scaleValue, keepProb, preTokens, nextTokens, headNum,
-        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, softmaxInLayout, 0, 0, executor);
+        inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, 0, 0, 0, softmaxInLayout, executor);
 
     if (queryRope != nullptr && keyRope != nullptr) {
         CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr && fagRes[4] != nullptr && fagRes[5] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
@@ -2504,8 +2504,8 @@ static aclnnStatus FlashAttentionScoreGradV4GetWorkspace(
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional,
         kvStartIdxOptional, dScaleQOptionalCngs, dScaleKOptionalCngs, dScaleVOptionalCngs, dScaleDyOptionalCngs,
-        dScaleOOptionalCngs, queryRopeOptionalCngs, keyRopeOptionalCngs, dsink, scaleValue, keepProb, preTokens, nextTokens,
-        headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, seed, offset, outDtypeOptional, defaultSoftmaxInLayout, 0, 0, executor);
+        dScaleOOptionalCngs, nullptr, nullptr, queryRopeOptionalCngs, keyRopeOptionalCngs, dsink, scaleValue, keepProb, preTokens, nextTokens,
+        headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType, seed, offset, outDtypeOptional, defaultSoftmaxInLayout, executor);
     CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
               ACLNN_ERR_PARAM_NULLPTR);
 
@@ -2612,10 +2612,9 @@ static aclnnStatus QuantFlashAttentionScoreGradGetWorkspace(
     const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *dy,
     const aclTensor *softmaxMaxOptional, const aclTensor *softmaxSumOptional, const aclTensor *attentionInOptional,
     const aclTensor *dScaleQOptional, const aclTensor *dScaleKOptional, const aclTensor *dScaleVOptional,
-    const aclTensor *dScaleDyOptional,
+    const aclTensor *dScaleDyOptional, const aclTensor *dsScaleOptional, const aclTensor *pScaleOptional,
     double scaleValue, int64_t headNum,
-    char *inputLayout, int64_t outDtypeOptional, double dsScaleOptional, double pScaleOptional,
-    const aclTensor *dqOut, const aclTensor *dkOut, const aclTensor *dvOut,
+    char *inputLayout, int64_t outDtypeOptional, const aclTensor *dqOut, const aclTensor *dkOut, const aclTensor *dvOut,
     aclOpExecutor *executor) {
     // 获取基本参数
     FagInShapeInfo fagShape;
@@ -2694,9 +2693,9 @@ static aclnnStatus QuantFlashAttentionScoreGradGetWorkspace(
         attenMaskOptionalCngs, softmaxMaxOptionalCngs, softmaxSumOptionalCngs, softmaxInOptionalCngs,
         attentionInOptionalCngs, nullptr, nullptr, nullptr, nullptr,
         nullptr, dScaleQOptionalCngs, dScaleKOptionalCngs, dScaleVOptionalCngs, dScaleDyOptionalCngs,
-        nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb,
+        dScaleOOptionalCngs, dsScaleOptional, pScaleOptional, nullptr, nullptr, nullptr, scaleValue, keepProb,
         preTokens, nextTokens, headNum, inputLayoutUnderTrans, innerPrecise, sparseMode, pseType,
-        seed, offset, outDtypeOptional, defaultSoftmaxInLayout, dsScaleOptional, pScaleOptional, executor);
+        seed, offset, outDtypeOptional, defaultSoftmaxInLayout, executor);
     CHECK_RET(fagRes[0] != nullptr && fagRes[1] != nullptr && fagRes[2] != nullptr,  // 0: dqOut 1: dkOut 2:dvOut
               ACLNN_ERR_PARAM_NULLPTR);
 
@@ -2721,6 +2720,8 @@ aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
   const aclTensor   *dScaleK,
   const aclTensor   *dScaleV,
   const aclTensor   *dScaleDy,
+  const aclTensor   *dsScale,
+  const aclTensor   *pScale,
   double             scaleValueOptional,
   int64_t            preTokensOptional,
   int64_t            nextTokensOptional,
@@ -2728,8 +2729,6 @@ aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
   char              *inputLayout,
   int64_t            sparseModeOptional,
   int64_t            outDtypeOptional,
-  double             dsScaleOptional,
-  double             pScaleOptional,
   aclTensor         *dqOut,
   aclTensor         *dkOut,
   aclTensor         *dvOut,
@@ -2738,7 +2737,7 @@ aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
 {
     L2_DFX_PHASE_1(aclnnQuantFlashAttentionScoreGrad,
         DFX_IN(query, keyIn, value, dy, softmaxMax, softmaxSum, attentionIn, dScaleQ, dScaleK, dScaleV, dScaleDy,
-        scaleValueOptional, headNum, inputLayout, outDtypeOptional, dsScaleOptional, pScaleOptional),
+        scaleValueOptional, headNum, inputLayout, outDtypeOptional, dsScale, pScale),
         DFX_OUT(dqOut, dkOut, dvOut));
  
     // 固定写法，创建OpExecutor
@@ -2782,8 +2781,8 @@ aclnnStatus aclnnQuantFlashAttentionScoreGradGetWorkspaceSize(
     // calculate fag
     auto ret = QuantFlashAttentionScoreGradGetWorkspace(
         query, keyIn, value, dy, softmaxMax, softmaxSum, attentionIn,
-        dScaleQ, dScaleK, dScaleV, dScaleDy, scaleValueOptional, headNum, inputLayout, 
-        outDtypeOptional, dsScaleOptional, pScaleOptional, dqOut, dkOut,
+        dScaleQ, dScaleK, dScaleV, dScaleDy, dsScale, pScale, scaleValueOptional, headNum, inputLayout, 
+        outDtypeOptional, dqOut, dkOut,
         dvOut, uniqueExecutor.get());
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
  

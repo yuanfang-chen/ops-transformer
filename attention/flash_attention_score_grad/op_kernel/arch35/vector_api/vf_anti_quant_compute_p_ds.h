@@ -60,7 +60,7 @@ __aicore__ inline void ComputePDS_VF_unalign(uint64_t sp, uint64_t dpds, uint64_
             RegTensor<float> vreg_dps1, vreg_dps2, vreg_dps3, vreg_dps4;
             RegTensor<hifloat8_t> vreg_p1, vreg_p2, vreg_p3, vreg_p4;
             RegTensor<hifloat8_t> vreg_ds1, vreg_ds2, vreg_ds3, vreg_ds4;
-            RegTensor<float> vreg_d, vreg_max, vreg_sum, vreg_dps;
+            RegTensor<float> vreg_d, vreg_max, vreg_sum, vreg_dps, vreg_ps;
             RegTensor<uint16_t> vreg_perm;
             DataCopy(vreg_d, (__ubuf__ float *)d);
             DataCopy(vreg_max, (__ubuf__ float *)max);
@@ -68,9 +68,12 @@ __aicore__ inline void ComputePDS_VF_unalign(uint64_t sp, uint64_t dpds, uint64_
             DataCopy(vreg_perm, (__ubuf__ uint16_t *)perm_ub);
 
             // (max + log(sum) + log(ps)
+            Duplicate(vreg_ps, pscale, preg_all);
+            Log(vreg_ps, vreg_ps, preg_all);
+
             Log(vreg_sum, vreg_sum, preg_all);
             Add(vreg_max, vreg_max, vreg_sum, preg_all);
-            Adds(vreg_max, vreg_max, pscale, preg_all);
+            Add(vreg_max, vreg_max, vreg_ps, preg_all);
 
             Muls(vreg_d, vreg_d, dscale_neg, preg_all);
             Duplicate(vreg_dps, dps, preg_all);

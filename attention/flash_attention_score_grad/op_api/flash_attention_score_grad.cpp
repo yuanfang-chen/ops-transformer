@@ -33,17 +33,18 @@ const std::array<const aclTensor *, MAX_FAG_OUTPUT_CNT> FlashAttentionScoreGrad(
     const aclIntArray *actualSeqQLenOptional, const aclIntArray *actualSeqKvLenOptional,
     const aclIntArray *qStartIdxOptional, const aclIntArray *kvStartIdxOptional, const aclTensor *dScaleQOptional,
     const aclTensor *dScaleKOptional, const aclTensor *dScaleVOptional, const aclTensor *dScaleDyOptional,
-    const aclTensor *dScaleOOptional, const aclTensor *queryRope, const aclTensor *keyRope, const aclTensor *sinkInOptional,
+    const aclTensor *dScaleOOptional, const aclTensor *dsScaleOptional, const aclTensor *pScaleOptional,
+    const aclTensor *queryRope, const aclTensor *keyRope, const aclTensor *sinkInOptional,
     double scaleValueOptional, double keepProbOptional, int64_t preTockensOptional, int64_t nextTockensOptional, int64_t headNum,
     char *inputLayout, int64_t innerPreciseOptional, int64_t sparseModeOptional, int64_t pseTypeOptional,
-    int64_t seed, int64_t offset, int64_t outDTypeOptional,char *softmaxInLayout, double dsScaleOptional, double pScaleOptional, aclOpExecutor *executor)
+    int64_t seed, int64_t offset, int64_t outDTypeOptional,char *softmaxInLayout, aclOpExecutor *executor)
 {
     L0_DFX(FlashAttentionScoreGrad, query, key, value, dy, pseShiftOptional, dropMaskOptional, paddingMaskOptional,
            attenMaskOptional, softmaxMaxOptional, softmaxSumOptional, softmaxInOptional, attentionInOptional,
            prefixOptional, actualSeqQLenOptional, actualSeqKvLenOptional, qStartIdxOptional, kvStartIdxOptional,
-           dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional,
+           dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional, dsScaleOptional, pScaleOptional,
            queryRope, keyRope, scaleValueOptional, keepProbOptional, preTockensOptional, nextTockensOptional, headNum,
-           inputLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional, seed, offset, outDTypeOptional,softmaxInLayout, sinkInOptional, dsScaleOptional, pScaleOptional); 
+           inputLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional, seed, offset, outDTypeOptional,softmaxInLayout, sinkInOptional); 
     DataType outputDtype = query->GetDataType();
     if (outputDtype == DataType::DT_FLOAT8_E4M3FN || outputDtype == DataType::DT_FLOAT8_E5M2 || outputDtype == DataType::DT_HIFLOAT8) {
         if (outDTypeOptional == 0) {
@@ -124,16 +125,25 @@ const std::array<const aclTensor *, MAX_FAG_OUTPUT_CNT> FlashAttentionScoreGrad(
     if (dScaleOOptional == nullptr) {
         dScaleOOptional = executor->AllocTensor(DataType::DT_FLOAT, op::Format::FORMAT_ND, op::Format::FORMAT_ND);
     }
+
+    if (dsScaleOptional == nullptr) {
+        dsScaleOptional = executor->AllocTensor(DataType::DT_FLOAT, op::Format::FORMAT_ND, op::Format::FORMAT_ND);
+    }
+
+    if (pScaleOptional == nullptr) {
+        pScaleOptional = executor->AllocTensor(DataType::DT_FLOAT, op::Format::FORMAT_ND, op::Format::FORMAT_ND);
+    }
     auto ret = INFER_SHAPE(FlashAttentionScoreGrad,
                            OP_INPUT(query, key, value, dy, pseShiftOptional, dropMaskOptional, paddingMaskOptional,
                                     attenMaskOptional, softmaxMaxOptional, softmaxSumOptional, softmaxInOptional,
                                     attentionInOptional, prefix, actualSeqQLen, actualSeqKvLen,
                                     qStartIdxOptionalTensor, kvStartIdxOptionalTensor,
-                                    dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional, queryRope, keyRope, sinkInOptional), 
+                                    dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional,
+                                    queryRope, keyRope, sinkInOptional, dsScaleOptional, pScaleOptional), 
                            OP_OUTPUT(dqOut, dkOut, dvOut, dpseOut, dqRopeOut, dkRopeOut, dsinkOut), 
                            OP_ATTR(static_cast<float>(scaleValueOptional), static_cast<float>(keepProbOptional),
                                    preTockensOptional, nextTockensOptional, headNum, inputLayout, innerPreciseOptional,
-                                   sparseModeOptional, pseTypeOptional, seed, offset, outDTypeOptional, softmaxInLayout, static_cast<float>(dsScaleOptional), static_cast<float>(pScaleOptional)));
+                                   sparseModeOptional, pseTypeOptional, seed, offset, outDTypeOptional, softmaxInLayout));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Fag InferShape failed.");
         return {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
@@ -144,11 +154,12 @@ const std::array<const aclTensor *, MAX_FAG_OUTPUT_CNT> FlashAttentionScoreGrad(
         OP_INPUT(query, key, value, dy, pseShiftOptional, dropMaskOptional, paddingMaskOptional, attenMaskOptional,
                  softmaxMaxOptional, softmaxSumOptional, softmaxInOptional, attentionInOptional, prefix, actualSeqQLen,
                  actualSeqKvLen, qStartIdxOptionalTensor, kvStartIdxOptionalTensor,
-                 dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional, queryRope, keyRope, sinkInOptional),
+                 dScaleQOptional, dScaleKOptional, dScaleVOptional, dScaleDyOptional, dScaleOOptional,
+                 queryRope, keyRope, sinkInOptional, dsScaleOptional, pScaleOptional),
         OP_OUTPUT(dqOut, dkOut, dvOut, dpseOut, dqRopeOut, dkRopeOut,dsinkOut),
         OP_ATTR(static_cast<float>(scaleValueOptional), static_cast<float>(keepProbOptional), preTockensOptional,
                 nextTockensOptional, headNum, inputLayout, innerPreciseOptional, sparseModeOptional, pseTypeOptional,
-                seed, offset, outDTypeOptional, softmaxInLayout, static_cast<float>(dsScaleOptional), static_cast<float>(pScaleOptional)));
+                seed, offset, outDTypeOptional, softmaxInLayout));
     if (ret != ACLNN_SUCCESS) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Fag launch kernel failed.");
         return {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};

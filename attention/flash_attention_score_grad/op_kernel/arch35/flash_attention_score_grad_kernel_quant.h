@@ -40,7 +40,7 @@ public:
 
     GlobalTensor<OUTDTYPE> dqGm, dkGm, dvGm;
     GlobalTensor<float> dqWorkSpaceGm, dkWorkSpaceGm, dvWorkSpaceGm;
-    GlobalTensor<float> deqScaleQGm, deqScaleKGm, deqScaleVGm, deqScaleDyGm;
+    GlobalTensor<float> deqScaleQGm, deqScaleKGm, deqScaleVGm, deqScaleDyGm, pScaleGm, dsScaleGm;
 
     FagTilingType tilingData;
     PreloadArgs<IS_ROPE> preloadArgs;
@@ -50,7 +50,7 @@ public:
     __aicore__ inline void Init(
             GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR query, GM_ADDR pseShift, GM_ADDR dropMask, GM_ADDR attenMask,
             GM_ADDR y, GM_ADDR softmaxMax, GM_ADDR softmaxSum, GM_ADDR prefixN, GM_ADDR actualSeqQlen, GM_ADDR actualSeqKvlen,
-            GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR queryRope, GM_ADDR keyRope,
+            GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR dsScale, GM_ADDR pScale, GM_ADDR queryRope, GM_ADDR keyRope,
             GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope, GM_ADDR dkRope, GM_ADDR workspace,
             FagTilingType ordTilingData, TPipe *pipeIn);
     __aicore__ inline void InitBuffer();
@@ -59,7 +59,7 @@ public:
     __aicore__ inline void SetConstInfo();
     __aicore__ inline void InitCVCommonBuffer();
     __aicore__ inline void InitCVCommonGlobalBuffer(GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR deqScaleQ, GM_ADDR deqScaleK,
-                                                    GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR workspace);
+                                                    GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR dsScale, GM_ADDR pScale, GM_ADDR workspace);
     __aicore__ inline void SetRunInfo(FagRunInfo &runInfo, FagRunInfo &lastRunInfo, int64_t taskId, CoordinateInfo &coordinateInfo, CoordinateInfo &nextCoordinateInfo);
     template<bool isSetSize>
     __aicore__ inline void SetQuantRunInfo(FagRunInfo &runInfo, int64_t taskId, int64_t s1Idx, int64_t s2Idx);
@@ -116,7 +116,7 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::Init(
     GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR query, GM_ADDR pseShift, GM_ADDR dropMask, GM_ADDR attenMask,
     GM_ADDR y, GM_ADDR softmaxMax, GM_ADDR softmaxSum, GM_ADDR prefixN, GM_ADDR actualSeqQlen, GM_ADDR actualSeqKvlen,
-    GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR queryRope, GM_ADDR keyRope,
+    GM_ADDR deqScaleQ, GM_ADDR deqScaleK, GM_ADDR deqScaleV, GM_ADDR deqScaleDy, GM_ADDR dsScale, GM_ADDR pScale, GM_ADDR queryRope, GM_ADDR keyRope,
     GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse, GM_ADDR dqRope, GM_ADDR dkRope, GM_ADDR workspace,
     FagTilingType ordTilingData, TPipe *pipeIn)
 {
@@ -130,8 +130,8 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
     tilingData = ordTilingData;
     pipe = pipeIn;
 
+    InitCVCommonGlobalBuffer(dq, dk, dv, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, dsScale, pScale, workspace);
     SetConstInfo();
-    InitCVCommonGlobalBuffer(dq, dk, dv, deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, workspace);
     
     InitCVCommonBuffer();
     this->vecBlock.SetVecBlockParams(pipeIn, tilingData, this->vBlockIdx, this->cBlockIdx, this->vSubBlockIdx, this->constInfo);
@@ -215,9 +215,8 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
     this->innerN2GD = this->constInfo.commonConstInfo.n2GD * 128;
 
     if ASCEND_IS_AIV {
-        this->constInfo.pScale = tilingData->s1s2BNGS1S2BaseParams.pScale;
-        this->constInfo.dsScale = tilingData->s1s2BNGS1S2BaseParams.dsScale;
-        this->constInfo.pScaleLog = tilingData->s1s2BNGS1S2BaseParams.pScaleLog;
+        this->constInfo.pScale = pScaleGm.GetValue(0);
+        this->constInfo.dsScale = dsScaleGm.GetValue(0);
         this->constInfo.pScaleD = (float)1.0 / this->constInfo.pScale;
         this->constInfo.dsScaleD = (float)1.0 / this->constInfo.dsScale;    
         this->constInfo.copyOutDStride = (this->constInfo.commonConstInfo.n2GD - 64) * sizeof(CALC_TYPE);
@@ -264,6 +263,8 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::InitCVCommonGlo
                                                                                          GM_ADDR deqScaleK,
                                                                                          GM_ADDR deqScaleV,
                                                                                          GM_ADDR deqScaleDy,
+                                                                                         GM_ADDR dsScale,
+                                                                                         GM_ADDR pScale,
                                                                                          GM_ADDR workspace)
 {
     dqGm.SetGlobalBuffer((__gm__ OUTDTYPE *)dq);
@@ -273,6 +274,8 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::InitCVCommonGlo
     deqScaleKGm.SetGlobalBuffer((__gm__ float *)deqScaleK);
     deqScaleVGm.SetGlobalBuffer((__gm__ float *)deqScaleV);
     deqScaleDyGm.SetGlobalBuffer((__gm__ float *)deqScaleDy);
+    dsScaleGm.SetGlobalBuffer((__gm__ float *)dsScale);
+    pScaleGm.SetGlobalBuffer((__gm__ float *)pScale);
 
     dqWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace +
                                           tilingData->postTilingData.dqWorkSpaceOffset / sizeof(float));

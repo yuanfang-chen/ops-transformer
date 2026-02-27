@@ -272,16 +272,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessQuantInfo()
                 outDType);
             return ge::GRAPH_FAILED;
         }
-        fBaseParams.dsScale = *(context_->GetAttrs()->GetAttrPointer<float>(DS_SCALE_ATTR_IDX));
-        fBaseParams.pScale = *(context_->GetAttrs()->GetAttrPointer<float>(P_SCALE_ATTR_IDX));
-        OP_LOGD("ProcessQuantInfo", "dsScale or pScale, got %f, %f", fBaseParams.dsScale, fBaseParams.pScale);
-        if (fBaseParams.pScale == 0 || fBaseParams.dsScale == 0) {
-            OP_LOGE("ProcessQuantInfo", "dsScale or pScale is not valid, got %f, %f", fBaseParams.dsScale, fBaseParams.pScale);
-            return ge::GRAPH_FAILED;
-        }
-        fBaseParams.pScaleLog = std::log((1 / fBaseParams.pScale));
     } else {
-        OP_LOGE("ProcessQuantInfo", "dsScale or pScale is not valid, got 1");
         // 非FP8场景无需check scale
         return ge::GRAPH_SUCCESS;
     }
@@ -2812,7 +2803,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
         workspaceSize =
             (workspaceSize + static_cast<size_t>(fBaseParams.dropMaskSize) + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
     }
-    
+
     if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
         // softmax grad workspace size
         postTilingData_->set_sfmgWorkSpaceOffset(workspaceSize);
@@ -2820,7 +2811,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
                             AlignTo(fBaseParams.s1, ALIGN128)) * BIT_NUMS;
         workspaceSize = (workspaceSize + static_cast<size_t>(sfmgSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
     }
-
+    
     GetWorkspaceSize4Deter(workspaceSize);
 
     workspaceSize += WORKSPACE_BUFFER;
@@ -4408,9 +4399,6 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::SaveToTilingData()
     s1s2BNGS1S2BaseParams_->set_scaleValue(fBaseParams.scaleValue);
     s1s2BNGS1S2BaseParams_->set_keepProb(fBaseParams.keepProb);
     s1s2BNGS1S2BaseParams_->set_keepProbUint8(fBaseParams.keepProbUint8);
-    s1s2BNGS1S2BaseParams_->set_pScale(fBaseParams.pScale);
-    s1s2BNGS1S2BaseParams_->set_dsScale(fBaseParams.dsScale);
-    s1s2BNGS1S2BaseParams_->set_pScaleLog(fBaseParams.pScaleLog);
     // fBaseParams.s1Token int64_t类型   s1s2BNGS1S2BaseParams_->s1Token  int32_t类型 防止溢出
     s1s2BNGS1S2BaseParams_->set_s1Token(fBaseParams.s1Token > INT32_MAX ? INT32_MAX : fBaseParams.s1Token);
     s1s2BNGS1S2BaseParams_->set_s2Token(fBaseParams.s2Token > INT32_MAX ? INT32_MAX : fBaseParams.s2Token);

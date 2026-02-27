@@ -208,7 +208,7 @@ __aicore__ inline void FAGBlockVecQuant<TEMPLATE_ARGS>::ProcessPDs(const LocalTe
     SetFlag<AscendC::HardEvent::MTE2_V>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
     WaitFlag<AscendC::HardEvent::MTE2_V>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
 
-    ComputePDS(spTensor, dpdsTensor, permTensor, maxTensor[maxsumIdx], sumTensor[maxsumIdx], dTensor[maxsumIdx], currentRealS2, currentRealS1, runInfo.quantRunInfo.qkDScale * constInfo.scaleValue, runInfo.quantRunInfo.vdyDScale, constInfo.pScaleLog, constInfo.pScaleD * constInfo.dsScale);
+    ComputePDS(spTensor, dpdsTensor, permTensor, maxTensor[maxsumIdx], sumTensor[maxsumIdx], dTensor[maxsumIdx], currentRealS2, currentRealS1, runInfo.quantRunInfo.qkDScale * constInfo.scaleValue, runInfo.quantRunInfo.vdyDScale, constInfo.pScaleD, constInfo.pScaleD * constInfo.dsScale);
 
     // 反向同步
     SetFlag<AscendC::HardEvent::V_MTE2>(PDS_COPY_IN_MAXSUMD_INNER_CORE_SYNC_EVENTS[maxsumIdx]);
