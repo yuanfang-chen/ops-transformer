@@ -30,7 +30,7 @@
 namespace MoeDistributeA2Base {
 class MoeDistributeA2Context {
 public:
-    __aicore__ inline void Init(GM_ADDR hcclContext) const
+    __aicore__ inline void Init(GM_ADDR hcclContext)
     {
         hcclContext_ = (__gm__ HcclA2CombineOpParam *)hcclContext;
     }
@@ -130,7 +130,7 @@ COMBINE_TOKENFLAG_SIZE = align32((maxBs + (aivNum / (epWorldSize / 8) + 1)) * si
 */
 template <typename XType>
 class MoeDistributeA2AddrInfo {
-private:
+protected:
     constexpr static uint32_t BUFFER_NUM = 2U;                     // 多buf
     constexpr static uint64_t STATE_OFFSET = 512UL;                // 状态空间偏移地址
     constexpr static uint64_t STATUS_SIZE_LAYERED = 1024 * 1024UL; // 1M
@@ -228,7 +228,7 @@ public:
     }
 
 protected:
-    __aicore__ inline uint64_t UpdateAndGetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal, __gm__ uint64_t *magicAddrStart)
+    __aicore__ inline uint64_t UpdateAndGetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal, GM_ADDR magicAddrStart)
     {
         AscendC::GlobalTensor<uint64_t> magicGt;
         magicGt.SetGlobalBuffer((__gm__ uint64_t *)(magicAddrStart));
@@ -266,88 +266,93 @@ protected:
 
 template <typename XType>
 class MoeDistributeA2DispatchAddrInfo : public MoeDistributeA2AddrInfo<XType> {
-private:
+
+using BaseClass = MoeDistributeA2AddrInfo<XType>;
+protected:
     __aicore__ inline void InitInnerAddr()
     {
-        auto tokenFlagBytes = STATE_OFFSET * (serverNum_ + 1);
-        auto innerTableFlagTotalBytes = STATE_OFFSET * (serverNum_ + 1);
-        auto innerTableDataTotalBytes = STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
-        innerTableSize_ = innerTableDataTotalBytes / serverNum_ / UB_32B_ALIGN * UB_32B_ALIGN;
-        rdmaInnerFlagAddrStart_ = rdmaFlagAddrStart_ + tokenFlagBytes;
+        auto tokenFlagBytes = BaseClass::STATE_OFFSET * (BaseClass::serverNum_ + 1);
+        auto innerTableFlagTotalBytes = BaseClass::STATE_OFFSET * (BaseClass::serverNum_ + 1);
+        auto innerTableDataTotalBytes = BaseClass::STATUS_SIZE_LAYERED - tokenFlagBytes - innerTableFlagTotalBytes;
+        innerTableSize_ = innerTableDataTotalBytes / BaseClass::serverNum_ / BaseClass::UB_32B_ALIGN * BaseClass::UB_32B_ALIGN;
+        rdmaInnerFlagAddrStart_ = BaseClass::rdmaFlagAddrStart_ + tokenFlagBytes;
         rdmaInnerDataAddrStart_ = rdmaInnerFlagAddrStart_ + innerTableFlagTotalBytes;
     }
 
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
     {
-        MoeDistributeA2AddrInfo<XType>::Init(rankId, maxBs, worldSize, axisH, axisK, localMoeExpertNum, aivNum);
+        BaseClass::Init(rankId, maxBs, worldSize, axisH, axisK, localMoeExpertNum, aivNum);
         InitInnerAddr();
-        magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_DISPATCH_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
-        ipcSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_DISPATCH_FLAG_OFFSET;
-        ipcTokenCntAddrStart_ = ipcFlagAddrStart_[1] + IPC_TOKEN_CNT_OFFSET;
+        magicAddrStart_ = BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + BaseClass::ipcFlagAddrStart_[0] +
+            BaseClass::IPC_DISPATCH_MAGIC_OFFSET + BaseClass::aivId_ * BaseClass::UB_32B_ALIGN;
+        ipcSyncFlagAddrStart_ = BaseClass::ipcFlagAddrStart_[0] + BaseClass::IPC_DISPATCH_FLAG_OFFSET;
+        ipcTokenCntAddrStart_ = BaseClass::ipcFlagAddrStart_[1] + BaseClass::IPC_TOKEN_CNT_OFFSET;
     }
 
     __aicore__ inline uint64_t UpdateAndGetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal)
     {
-        return MoeDistributeA2AddrInfo<XType>::UpdateAndGetMagicValue(tempLocal, magicAddrStart);
+        return BaseClass::UpdateAndGetMagicValue(tempLocal, magicAddrStart_);
     }
 
     // ===== Sender =====
     __aicore__ inline GM_ADDR GetLocalSendBuffDataAddr() const
     {
-        return context_.GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_;
+        return BaseClass::context_.GetWindowsOutAddr(BaseClass::curRankId_) + BaseClass::rdmaDataAddrStart_;
     }
     __aicore__ inline GM_ADDR GetLocalSendBuffInnerDataAddr(uint32_t dstServerId) const
     {
-        return context_.GetWindowsOutAddr(curRankId_) + rdmaInnerDataAddrStart_ + dstServerId * innerTableSize_;
+        return BaseClass::context_.GetWindowsOutAddr(BaseClass::curRankId_) + rdmaInnerDataAddrStart_ + dstServerId * innerTableSize_;
     }
 
     __aicore__ inline GM_ADDR GetRemoteRecvBuffInnerFlagAddr(uint32_t dstServerId) const
     {
-        return context_.GetWindowsInAddr(dstServerId * SERVER_RANK_SIZE + curRankId_ % SERVER_RANK_SIZE) + rdmaInnerFlagAddrStart_ + curRankId_ / SERVER_RANK_SIZE * STATE_OFFSET;
+        return BaseClass::context_.GetWindowsInAddr(dstServerId * BaseClass::SERVER_RANK_SIZE + BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE) +
+            rdmaInnerFlagAddrStart_ + BaseClass::curRankId_ / BaseClass::SERVER_RANK_SIZE * BaseClass::STATE_OFFSET;
     }
 
     __aicore__ inline GM_ADDR GetRemoteRecvBuffInnerDataAddr(uint32_t dstServerId) const
     {
-        return context_.GetWindowsInAddr(dstServerId * SERVER_RANK_SIZE + curRankId_ % SERVER_RANK_SIZE) + rdmaInnerDataAddrStart_ + curRankId_ / SERVER_RANK_SIZE * innerTableSize_;
+        return BaseClass::context_.GetWindowsInAddr(dstServerId * BaseClass::SERVER_RANK_SIZE + BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE) +
+            rdmaInnerDataAddrStart_ + BaseClass::curRankId_ / BaseClass::SERVER_RANK_SIZE * innerTableSize_;
     }
 
     __aicore__ inline GM_ADDR GetRemoteIpcSyncFlagAddr(uint32_t targetRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
-               (curRankId_ % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return BaseClass::shareAddrs[targetRankId % BaseClass::SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
+               (BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE) * BaseClass::UB_32B_ALIGN;
     }
 
     __aicore__ inline GM_ADDR GetRemoteIpcTokenCntAddr(uint32_t targetRankId, uint32_t targetExpId, uint32_t srcRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcTokenCntAddrStart_ +
-               ((targetExpId % localMoeExpertNum_) * worldSize_ + srcRankId) * UB_32B_ALIGN;
+        return BaseClass::shareAddrs[targetRankId % BaseClass::SERVER_RANK_SIZE] + ipcTokenCntAddrStart_ +
+               ((targetExpId % BaseClass::localMoeExpertNum_) * BaseClass::worldSize_ + srcRankId) * BaseClass::UB_32B_ALIGN;
     }
 
     // ===== Receiver =====
     __aicore__ inline GM_ADDR GetLocalRecvBuffInnerFlagAddr(uint32_t srcServerId) const
     {
-        return context_.GetWindowsInAddr(curRankId_) + rdmaInnerFlagAddrStart_ + srcServerId * STATE_OFFSET;
+        return BaseClass::context_.GetWindowsInAddr(BaseClass::curRankId_) + rdmaInnerFlagAddrStart_ + srcServerId * BaseClass::STATE_OFFSET;
     }
 
     __aicore__ inline GM_ADDR GetLocalRecvBuffInnerDataAddr(uint32_t srcServerId) const
     {
-        return context_.GetWindowsInAddr(curRankId_) + rdmaInnerDataAddrStart_ + srcServerId * innerTableSize_;
+        return BaseClass::context_.GetWindowsInAddr(BaseClass::curRankId_) + rdmaInnerDataAddrStart_ + srcServerId * innerTableSize_;
     }
 
     __aicore__ inline GM_ADDR GetLocalIpcSyncFlagAddr(uint32_t srcRankId) const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
-               (srcRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
+               (srcRankId % BaseClass::SERVER_RANK_SIZE) * BaseClass::UB_32B_ALIGN;
     }
 
     __aicore__ inline GM_ADDR GetLocalIpcTokenCntAddr() const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcTokenCntAddrStart_;
+        return BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + ipcTokenCntAddrStart_;
     }
 
 private:
-    __gm__ uint64_t *magicAddrStart{nullptr};
+    GM_ADDR magicAddrStart_{nullptr};
     uint64_t ipcSyncFlagAddrStart_{0UL};
     uint64_t ipcTokenCntAddrStart_{0UL};
     uint64_t rdmaInnerFlagAddrStart_{0UL};
@@ -357,51 +362,54 @@ private:
 
 template <typename XType>
 class MoeDistributeA2CombineAddrInfo : public MoeDistributeA2AddrInfo<XType> {
+
+using BaseClass = MoeDistributeA2AddrInfo<XType>;
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
     {
         MoeDistributeA2AddrInfo<XType>::Init(rankId, maxBs, worldSize, axisH, axisK, localMoeExpertNum, aivNum);
-        magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_COMBINE_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
-        ipcSyncFlagAddrStart_ = ipcFlagAddrStart_[0] + IPC_COMBINE_FLAG_OFFSET;
+        magicAddrStart_ = BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + BaseClass::ipcFlagAddrStart_[0] +
+            BaseClass::IPC_COMBINE_MAGIC_OFFSET + BaseClass::aivId_ * BaseClass::UB_32B_ALIGN;
+        ipcSyncFlagAddrStart_ = BaseClass::ipcFlagAddrStart_[0] + BaseClass::IPC_COMBINE_FLAG_OFFSET;
         shareFlagSize_ =
-            RoundUp(static_cast<uint32_t>((maxBs + aivNum / serverNum_ + 1U) * sizeof(uint64_t)), UB_32B_ALIGN);
-        shareFlagAddrStart_ = ipcSyncFlagAddrStart_ + (SERVER_RANK_SIZE + 1) * UB_32B_ALIGN;
+            RoundUp(static_cast<uint32_t>((maxBs + aivNum / BaseClass::serverNum_ + 1U) * sizeof(uint64_t)), BaseClass::UB_32B_ALIGN);
+        shareFlagAddrStart_ = ipcSyncFlagAddrStart_ + (BaseClass::SERVER_RANK_SIZE + 1) * BaseClass::UB_32B_ALIGN;
     }
 
     __aicore__ inline uint64_t UpdateAndGetMagicValue(AscendC::LocalTensor<uint64_t> tempLocal)
     {
-        return MoeDistributeA2AddrInfo<XType>::UpdateAndGetMagicValue(tempLocal, magicAddrStart);
+        return BaseClass::UpdateAndGetMagicValue(tempLocal, magicAddrStart_);
     }
 
     // ===== Sender =====
     __aicore__ inline GM_ADDR GetLocalSendBuffDataAddr(uint32_t dstRankId) const
     {
-        return context_.GetWindowsOutAddr(curRankId_) + rdmaDataAddrStart_ + dstRankId / SERVER_RANK_SIZE * serverSizeOnRdmaData_;
+        return BaseClass::context_.GetWindowsOutAddr(BaseClass::curRankId_) + BaseClass::rdmaDataAddrStart_ + dstRankId / BaseClass::SERVER_RANK_SIZE * BaseClass::serverSizeOnRdmaData_;
     }
 
     __aicore__ inline GM_ADDR GetRemoteIpcSyncFlagAddr(uint32_t targetRankId) const
     {
-        return shareAddrs[targetRankId % SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
-               (curRankId_ % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return BaseClass::shareAddrs[targetRankId % BaseClass::SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
+               (BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE) * BaseClass::UB_32B_ALIGN;
     }
 
     // ===== Receiver =====
     __aicore__ inline GM_ADDR GetLocalIpcSyncFlagAddr(uint32_t srcRankId) const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
-               (srcRankId % SERVER_RANK_SIZE) * UB_32B_ALIGN;
+        return BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + ipcSyncFlagAddrStart_ +
+               (srcRankId % BaseClass::SERVER_RANK_SIZE) * BaseClass::UB_32B_ALIGN;
     }
 
 
     // ===== Sender And Receiver =====
     __aicore__ inline GM_ADDR GetIpcTokenFlagAddr(uint32_t serverId) const
     {
-        return shareAddrs[curRankId_ % SERVER_RANK_SIZE] + shareFlagAddrStart_ +
+        return BaseClass::shareAddrs[BaseClass::curRankId_ % BaseClass::SERVER_RANK_SIZE] + shareFlagAddrStart_ +
                serverId * shareFlagSize_;
     }
 
 private:
-    __gm__ uint64_t *magicAddrStart{nullptr};
+    GM_ADDR magicAddrStart_{nullptr};
     uint64_t ipcSyncFlagAddrStart_{0UL};
     uint64_t shareFlagSize_{0UL};
     uint64_t shareFlagAddrStart_{0UL};
