@@ -62,11 +62,15 @@ aclnnStatus aclnnSparseFlashAttention(
 
 - **参数说明：**
 
+> [!NOTE]  
+>- query、key、value参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
+>- Q\_S和S1表示query shape中的S，KV\_S和S2表示key shape中的S，Q\_N和N1表示num\_query\_heads，KV\_N和N2表示num\_key\_value\_heads，T1表示query shape中的T，T2表示key shape中的输入样本序列长度的累加和。
+
   <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
   <col style="width: 146px">
   <col style="width: 110px">
   <col style="width: 301px">
-  <col style="width: 219px">
+  <col style="width: 500px">
   <col style="width: 328px">
   <col style="width: 101px">
   <col style="width: 143px">
@@ -88,7 +92,13 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>query</td>
       <td>输入</td>
       <td>attention结构的Query输入。</td>
-      <td>shape支持(B,S1,N1,D)和(T1,N1,D)。</td>
+      <td>
+          <ul>
+                <li>layout_query为BSND时，shape为[B,S1,N1,D]。</li>
+                <li>layout_query为TND时，shape为[T1,N1,D]。</li>
+                <li>N1支持1/2/4/8/16/32/64/128。</li>
+          </ul>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3、4</td>
@@ -98,7 +108,15 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>key</td>
       <td>输入</td>
       <td>attention结构的Key输入</td>
-      <td>shape支持(B,S2,N2,D)、(T2,N2,D)和(block_num,block_size,N2,D)。</td>
+      <td>
+          <ul>
+                <li>layout_kv为PA_BSND时，shape为[block_num, block_size, KV_N, D]。</li>
+                <li>block_num为PageAttention时block总数，block_size为一个block的token数，block_size取值为16的倍数，最大支持1024。</li>
+                <li>layout_kv为BSND时，shape为[B, S2, KV_N, D]。</li>
+                <li>layout_kv为TND时，shape为[T2, KV_N, D]。</li>
+                <li>KV_N只支持1。</li>
+          </ul>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3、4</td>
@@ -108,7 +126,11 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>value</td>
       <td>输入</td>
       <td>attention结构的Value输入。</td>
-      <td>shape支持(B,S2,N2,D)、(T2,N2,D)和(block_num,block_size,N2,D)。</td>
+      <td>
+          <ul>
+                <li>shape与key的shape一致。</li>
+          </ul>
+      </td>
       <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>3、4</td>
@@ -118,7 +140,13 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>sparseIndices</td>
       <td>输入</td>
       <td>离散取kvCache的索引。</td>
-      <td>shape支持(B,S1,N2,K)和(T1,N2,K)。</td>
+      <td>
+          <ul>
+                <li>layout_query为BSND时，shape为[B, Q_S, KV_N, sparse_size]。</li>
+                <li>layout_query为TND时，shape需要传入[Q_T, KV_N, sparse_size]。</li>
+                <li>sparse_size为一次离散选取的block数，且需要满足sparse_size大于0。</li>
+          </ul>
+      </td>
       <td>INT32</td>
       <td>ND</td>
       <td>3、4</td>
@@ -128,7 +156,12 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>blockTable</td>
       <td>输入</td>
       <td>表示PageAttention中kvCache存储使用的block映射表。</td>
-      <td>shape支持(B,S2/block_size)。</td>
+      <td>
+          <ul>
+                <li>shape支持(B,S2/block_size)。</li>
+                <li>第二维长度不小于所有batch中最大的S2对应的block数量，即S2_max / block_size向上取整。</li>
+          </ul>
+      </td>
       <td>INT32</td>
       <td>ND</td>
       <td>2</td>
@@ -138,7 +171,13 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>actualSeqLengthsQuery</td>
       <td>输入</td>
       <td>表示不同Batch中query的有效token数。</td>
-      <td>shape支持(B,)。</td>
+      <td>
+          <ul>
+                <li>如果不指定seqlen可传入None，表示和query的shape的S长度相同。</li>
+                <li>该入参中每个Batch的有效token数不超过query中的维度S大小且不小于0。支持长度为B的一维tensor。</li>
+                <li>layout_query为TND时，该入参必须传入，且以该入参元素的数量作为B值，该参数中每个元素的值表示当前batch与之前所有batch的token数总和。</li>
+          </ul>
+      </td>
       <td>INT32</td>
       <td>ND</td>
       <td>1</td>
