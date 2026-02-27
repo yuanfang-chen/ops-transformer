@@ -196,7 +196,7 @@ public:
                     ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,ge::FORMAT_ND,ge::FORMAT_ND,
                     ge::FORMAT_ND, ge::FORMAT_ND});
         config91095.Input("row_index")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64, ge::DT_INT64,
             ge::DT_INT64, ge::DT_INT64,
             ge::DT_INT32, ge::DT_INT32,
