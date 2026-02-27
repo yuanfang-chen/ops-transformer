@@ -319,7 +319,7 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* &
         OP_LOGD("PRINT in else");
     }
     OP_LOGD("PRINT HcclEngineCtxGet success");
-    hcclBuffSize = mc2_context.winsize;
+    hcclBuffSize = mc2_context.winSize;
     hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
     if(ctx == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
