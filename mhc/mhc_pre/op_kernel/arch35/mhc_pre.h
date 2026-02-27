@@ -118,7 +118,7 @@ public:
     __aicore__ inline void DataCopyGamma(uint32_t curNdLen, uint32_t offsetNd);
     __aicore__ inline void AIVPreLoad();
     __aicore__ inline void HMixCopyIn(uint64_t offset, uint64_t lenT);
-    __aicore__ inline void AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT, uint64_t lenD);
+    __aicore__ inline void AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT);
     __aicore__ inline void AIV1Prologue(uint64_t offsetT, uint64_t lenT, uint64_t singleCoreOffset);
     __aicore__ inline void AIV1Process(uint64_t curBlock, uint64_t tBlockNum);
     __aicore__ inline void BiasCopyIn();
@@ -330,13 +330,13 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
     hPreBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
     inputBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T * V1_BASE_D), buffOffset);
-    buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
+    buffOffset += mnConfig_.n * V1_BASE_T * V1_BASE_D * sizeof(P);
     broadCastTmpUb_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T), buffOffset); // 20KB
     buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
     hPostBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
-    hResBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
-    buffOffset += V1_BASE_T * N_ * sizeof(P);
+    // hResBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
+    // buffOffset += V1_BASE_T * N_ * sizeof(P);
 }
 
 template <class T, class P>
@@ -639,7 +639,7 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Process(uint64_t curBlock, uint64
         // H 切分
         AIV1Prologue(offsetT, lenT, singleCoreOffset); // gather 切分出 hpost、hpre、hres
 
-        AIV1ProcessHPost(offsetT, lenT, lenD);
+        AIV1ProcessHPost(offsetT, lenT);
         
         AIV1ProcessHPre(offsetT, lenT);
         AIV1ProcessHIn(offsetT, lenT, lenD); 
@@ -817,6 +817,8 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1Prologue(uint64_t offsetT, uint64
     Gather(hPostBuff_, matmulRes_, postOffsetBuf_, uint32_t(0), lenT * N_);
     Gather(hResOutLocal, matmulRes_, resOffsetBuf_, uint32_t(0), lenT * N_ * N_);
     PipeBarrier<PIPE_V>();
+
+    // Copy Out HRes
     outQueue_.EnQue(hResOutLocal);
     hResOutLocal = outQueue_.DeQue<P>();
     DataCopyExtParams copyParams;
@@ -878,16 +880,38 @@ __aicore__ inline void MhcPreKernel<T, P>::DataCopyOutHPre(uint64_t offset, uint
 }
 
 template <class T, class P>
-__aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT, uint64_t lenD)
+__aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPost(uint64_t offsetT, uint64_t lenT)
 {
-
     uint64_t offset = globalOffsetM_ + offsetT;
-    LocalTensor<P> hPostSigmoid = broadCastTmpUb_;
     LocalTensor<P> hPostOutLocal = outQueue_.AllocTensor<P>();
-    Sigmoid(hPostSigmoid, hPostBuff_);
-    PipeBarrier<PIPE_V>();
-    Muls(hPostOutLocal, hPostSigmoid, static_cast<float>(2.0), lenT * N_);
-    PipeBarrier<PIPE_V>();
+    __ubuf__ P *hPostBuffAddr = (__ubuf__ P *)hPostBuff_.GetPhyAddr();
+    __ubuf__ P *hPostOutAddr = (__ubuf__ P *)hPostOutLocal.GetPhyAddr();
+    uint32_t totalElem = lenT * N_;
+    uint32_t regCapacityFp32 = 64;
+    uint16_t nLoopCnt = Ceil(totalElem, regCapacityFp32);
+    float scalarValue = 2.0;
+    uint32_t curElemCnt = totalElem;
+
+    __VEC_SCOPE__
+    {
+        for (uint16_t vfBlockIdx = 0; vfBlockIdx < nLoopCnt; ++vfBlockIdx) {
+            uint32_t elemOffset = vfBlockIdx * regCapacityFp32;
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curElemCnt);
+            MicroAPI::RegTensor<P> hPostReg;
+            MicroAPI::RegTensor<P> negReg, expReg, addOneReg, sigmoidReg, resultReg, oneReg;
+            
+            MicroAPI::LoadAlign(hPostReg, hPostBuffAddr + elemOffset);// UB -> Reg
+            // 计算 sigmoid: 1 / (1 + e^(-x))
+            MicroAPI::Neg(negReg, hPostReg, mask); // 1 negReg = -hPostReg
+            MicroAPI::Exp(expReg, negReg, mask); // 2 expReg = e^(negReg) = e^(-hPostReg)
+            MicroAPI::Adds(addOneReg, expReg, 1.0f, mask); // 3 addOneReg = 1 + expReg = 1 + e^(-hPostReg)
+            MicroAPI::Duplicate(oneReg, 1.0f, mask); // 4 sigmoidReg = 1 / addOneReg
+            MicroAPI::Div<P, &divMode>(sigmoidReg, oneReg, addOneReg, mask);
+
+            MicroAPI::Muls(resultReg, sigmoidReg, scalarValue, mask);// 5 resultReg = sigmoidReg * 2.0
+            MicroAPI::StoreAlign(hPostOutAddr + elemOffset, resultReg, mask); // Reg -> UB
+        }
+    }
     outQueue_.EnQue(hPostOutLocal);
     hPostOutLocal = outQueue_.DeQue<P>();
     DataCopyExtParams copyParams;
