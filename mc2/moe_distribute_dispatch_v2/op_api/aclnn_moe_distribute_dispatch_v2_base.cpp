@@ -401,6 +401,11 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
         std::string hcclTopoType;
         ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
+        if(scalesOptional == nullptr) {
+            OP_LOGD("PRINT SUCCESS scalesOptional is nullptr");
+        } else {
+            OP_LOGD("PRINT ERROR scalesOptional is not nullptr");
+        }
         getWorkspaceSizesRes = aclnnInnerMoeDistributeDispatchV2ExtendGetWorkspaceSize(
             x, expertIds, mc2Context,scalesOptional, xActiveMaskOptional, expertScalesOptional,
             elasticInfoOptional, performanceInfoOptionalDispatchV2Temp, groupEp, epWorldSize, epRankId, moeExpertNum,
