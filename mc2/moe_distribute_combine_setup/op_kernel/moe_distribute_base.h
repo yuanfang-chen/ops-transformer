@@ -232,6 +232,8 @@ __aicore__ inline void UpdateCommWriteSQE(const AscendC::LocalTensor<uint8_t> &s
     UpdateCommonSQE(sqeTensor, sqInfoTensor);
 
     // 更新rmt_token_id(20b)
+    AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
+    AscendC::LocalTensor<uint32_t> templateSqeU32 = sqeTensor.ReinterpretCast<uint32_t>();
     templateSqeU32(SQE_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_token_id
 }
 
@@ -241,6 +243,8 @@ __aicore__ inline void UpdateCommWriteWithNotifySQE(const AscendC::LocalTensor<u
     UpdateCommonSQE(sqeTensor, sqInfoTensor);
 
     // 更新rmt_token_id(20b), notify_token_value(32b), notify_token_id(20b)
+    AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
+    AscendC::LocalTensor<uint32_t> templateSqeU32 = sqeTensor.ReinterpretCast<uint32_t>();
     templateSqeU32(SQE_WITH_NOTIFY_TOKEN_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_token_id
     templateSqeU32(SQE_WITH_NOTIFY_NOTIFY_TOKEN_VALUE_OFFSET) =
         sqInfoU32(WQ_RMTTOKENVALUE_OFFSET);                                                 // notify_token_value
@@ -320,62 +324,6 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
                                             const AscendC::LocalTensor<uint8_t> &cqeTensor,
                                             const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor, uint32_t &outSqCi,
                                             uint32_t &outCqCi, uint32_t &outCqCiLinear)
-{
-    AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
-    AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
-    AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
-
-    uint32_t sqDepth = sqInfoU32(WQ_SQDEPTH_OFFSET);
-    uint32_t cqeSize = cqInfoU32(CQ_CQESIZE_OFFSET);
-    uint32_t cqDepth = cqInfoU32(CQ_CQDEPTH_OFFSET);
-    AscendC::GlobalTensor<uint8_t> cqGlobalTensor;
-    cqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoU64(CQ_CQVA_OFFSET)));
-    AscendC::DataCopyExtParams cqeParams = {1U, 8U, 0U, 0U, 0U};
-    AscendC::DataCopyPadExtParams<uint8_t> cqePadParams{false, 0U, 0U, 0U};
-
-    uint32_t pollTimes = 0;
-    uint32_t newestCompletedPi = 0;
-    while (pollTimes < cqDepth - 1) {
-        AscendC::DataCopyPad(cqeTensor, cqGlobalTensor[cqeSize * outCqCi], cqeParams, cqePadParams);
-        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
-        if (cqeTensor(CQE_STATUS_OFFSET) == 0xff) {
-            break;
-        } else if (cqeTensor(CQE_STATUS_OFFSET) != 0) {
-            // 退出kernel并报错
-            ascendc_assert(false, "CQE status is abnormal! status is %d, substatus is %d.\n",
-                           cqeTensor(CQE_STATUS_OFFSET), cqeTensor(CQE_SUBSTATUS_OFFSET));
-        }
-
-        // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
-        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_HIGH_OFFSET)) << 8) +
-                            static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_LOW_OFFSET));
-        // 把CQE的status设置为无效值，并写回CQ
-        cqeTensor(CQE_STATUS_OFFSET) = 0xff;
-        AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
-        AscendC::DataCopyPad(cqGlobalTensor[cqeSize * outCqCi], cqeTensor, cqeParams);
-        // 防止cqeTensor被下一轮加载覆盖
-        AscendC::SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
-
-        // 递增本地的outCqCi
-        outCqCi = (outCqCi + 1) % cqDepth;
-        ++outCqCiLinear;
-        ++pollTimes;
-    }
-
-    // 更新本地的outSqCi
-    if (pollTimes > 0) {
-        outSqCi = (newestCompletedPi + 1) % sqDepth;
-    }
-    AscendC::SyncFunc<AscendC::HardEvent::MTE3_S>(); // 等cqe status写回无效值
-    // 通过敲JFC DoorBell，更新硬件的cqCi
-    SendJFCDoorBell(jfcDoorBellTensor, cqInfoTensor, outCqCiLinear);
-}
-
-__aicore__ inline void PollNotifyCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> &sqInfoTensor,
-                                                  const AscendC::LocalTensor<uint8_t> &cqInfoTensor,
-                                                  const AscendC::LocalTensor<uint8_t> &cqeTensor,
-                                                  const AscendC::LocalTensor<uint8_t> &jfcDoorBellTensor,
-                                                  uint32_t &outSqCi, uint32_t &outCqCi, uint32_t &outCqCiLinear)
 {
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
@@ -531,8 +479,7 @@ PutCommNotifySQE(const AscendC::LocalTensor<uint8_t> &sqInfoTensor, const Ascend
     uint32_t availableSpace = GetAvailableSpace(sqInfoTensor, outSqPi, outSqCi);
     while (availableSpace < (sqeCount << 1)) {
         // 可用空间不足时，轮询CQ，更新本地的cqCi_ sqCi_和硬件的cqCi
-        PollNotifyCommCQUpdateSQCI(sqInfoTensor, cqInfoTensor, cqeTensor, jfcDoorBellTensor, outSqCi, outCqCi,
-                                   outCqCiLinear);
+        PollCommCQUpdateSQCI(sqInfoTensor, cqInfoTensor, cqeTensor, jfcDoorBellTensor, outSqCi, outCqCi, outCqCiLinear);
         availableSpace = GetAvailableSpace(sqInfoTensor, outSqPi, outSqCi);
     }
 
