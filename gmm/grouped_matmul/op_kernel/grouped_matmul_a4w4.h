@@ -351,7 +351,6 @@ __aicore__ inline void GMMA4W4Compute<mmType>::VectorCompute(uint32_t groupIdx, 
         CrossCoreSetFlag<2, PIPE_MTE2>(SYNC_AIV_TO_AIC);  // 2: mode为2, group内同步
         ++cubeCount;
     }
-    
 }
 
 template <typename mmType>
