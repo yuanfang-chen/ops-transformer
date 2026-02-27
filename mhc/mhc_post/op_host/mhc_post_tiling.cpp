@@ -21,6 +21,7 @@
 #include "tiling_base/tiling_base.h"
 #include "platform/platform_info.h"
 #include "log/log.h"
+#include "util/math_util.h"
 #include "mhc_post_tiling.h"
 
 namespace optiling {
@@ -32,6 +33,7 @@ constexpr uint64_t TILING_KEY_GENERALIZED = 0;
 // Memory alignment constants (in elements)
 constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
 constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
+constexpr uint32_t ALIGN_SIZE_512B = 256;     // 256 elements = 512 bytes for bf16/fp16
 
 constexpr uint32_t SIZE_OF_16BIT = 2;
 constexpr uint32_t SIZE_OF_32BIT = 4;
@@ -44,12 +46,6 @@ constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;    // Single Buffer depth for weight
 constexpr uint32_t MAX_TOTAL_ITEMS = 512 * 1024;  // BS max 512K
 constexpr uint32_t MIN_D = 384;                    // D min = 192 * 2
 constexpr uint32_t MAX_D = 24576;                  // D max = 192 * 128
-
-// Ceiling division
-inline int64_t CeilDiv(int64_t a, int64_t b)
-{
-    return (b == 0) ? 0 : (a + b - 1) / b;
-}
 
 // Align value up to the nearest multiple of align
 inline uint32_t AlignUp(uint32_t value, uint32_t align)
@@ -113,7 +109,7 @@ private:
     ge::graphStatus CheckParam();
 
     void ComputeTiling();
-
+    void ComputeTilingNew();
     const gert::Shape *xShape_ = nullptr;
 
     uint32_t B_ = 0;
@@ -126,6 +122,16 @@ private:
     uint32_t remainderItems_ = 0;
     uint32_t tileD_ = 0;
     uint32_t nTilesD_ = 0;
+    int64_t usedCoreNum_;
+    int64_t normalCoreProcessNum_;
+    int64_t tailCoreProcessNum_;
+    int64_t bsInner_;
+    int64_t bsOuter_;
+    int64_t bsTail_;
+    int64_t dInner_;
+    int64_t dOuter_;
+    int64_t dTail_;
+    int64_t isNotFullCore_;
 
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
@@ -514,7 +520,7 @@ void MhcPostTilingBase::ComputeTiling()
         if (tileD_ < BF16_FP16_ALIGN_SIZE) {
             tileD_ = maxTileD;
         }
-        nTilesD_ = CeilDiv(alignedD, tileD_);
+        nTilesD_ = Ops::Base::CeilDiv(alignedD, tileD_);
     }
 
     // Calculate last tile size
@@ -545,6 +551,64 @@ void MhcPostTilingBase::ComputeTiling()
         usedCores_, itemsPerCore_, remainderItems_, UB_SIZE, bytesPerTileD);
 }
 
+void MhcPostTilingBase::ComputeTilingNew()
+{
+    // Core Partitioning - handle remainder properly
+    uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.numBlocks);
+
+    bsOuter_ = (totalItems_ < coreNum) ? totalItems_ : coreNum; // useCore
+    bsInner_ = totalItems_ / bsOuter_;  // perCoreNum
+    bsTail_ = totalItems_ - (bsOuter_ - 1) * bsInner_;
+    isNotFullCore_ = (bsOuter_ < coreNum) ? 1 : 0;
+ 
+    const uint32_t UB_SIZE = static_cast<uint32_t>(aicoreParams_.ubSize);
+
+    // Calculate bytes per tileD element based on actual n
+    // TQue bf16: 3 * 2 bytes (hOut:1, x:1, output:1)
+    // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
+    uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);  // 24
+
+    // Reserve space for small buffers, then calculate max tileD
+    uint32_t maxTileD = UB_SIZE / bytesPerTileD;  // 10922
+
+    if (isNotFullCore_ == 1) {
+        // dInner <= (bsOuter * D_) / coreNum
+        int64_t fullCoreTileD = (bsOuter_ * D_) / coreNum;
+        fullCoreTileD = (fullCoreTileD < maxTileD) ? fullCoreTileD : maxTileD;
+        dInner_ = AlignDown(fullCoreTileD, ALIGN_SIZE_512B);   // 512对齐
+        dInner_ = (dInner_ == 0) ? ALIGN_SIZE_512B : dInner_;
+    } else {
+        dInner_ = ALIGN_SIZE_512B;  // 小于512的也和512B对齐。
+    }
+    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
+    dTail_ = D_ - (dOuter_ - 1) * dInner_;
+
+    if (isNotFullCore_ == 1) {
+        int64_t totalCount = bsOuter_ * dOuter_;
+        usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
+        normalCoreProcessNum_ = totalCount / usedCoreNum_;
+        tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
+        isNotFullCore_ = 1;
+    } else {
+        usedCoreNum_ = bsOuter_;
+        normalCoreProcessNum_ = dOuter_;
+        tailCoreProcessNum_ = dTail_;
+        isNotFullCore_ = 0;
+    }
+
+    tilingData_->usedCoreNum = usedCoreNum_;
+    tilingData_->normalCoreProcessNum = normalCoreProcessNum_;
+    tilingData_->tailCoreProcessNum = tailCoreProcessNum_;
+    tilingData_->bsInner = bsInner_;
+    tilingData_->bsOuter = bsOuter_;
+    tilingData_->bsTail = bsTail_;
+    tilingData_->dInner = dInner_;
+    tilingData_->dOuter = dOuter_;
+    tilingData_->dTail = dTail_;
+
+    usedCores_ = usedCoreNum_;
+}
+
 ge::graphStatus MhcPostTilingBase::DoOpTiling()
 {
     auto ret = CheckParam();
@@ -553,6 +617,7 @@ ge::graphStatus MhcPostTilingBase::DoOpTiling()
     }
 
     ComputeTiling();
+    ComputeTilingNew();
 
     return ge::GRAPH_SUCCESS;
 }

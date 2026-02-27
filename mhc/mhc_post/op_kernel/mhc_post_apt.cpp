@@ -17,6 +17,7 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "arch35/mhc_post.h"
+#include "arch35/mhc_post_apt.h"
 
 using namespace AscendC;
 using namespace MhcPost;
@@ -36,9 +37,15 @@ __global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_AD
     GET_TILING_DATA_WITH_STRUCT(MhcPostTilingData, tilingData, tiling);
     TPipe tPipe;
 
-    MhcPostKernel<DTYPE_X, isDAligned> op;
-    op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
-    op.Process();
+    if (tilingData.usedCoreNum > tilingData.bsOuter) {
+        MhcPostKernelApt<DTYPE_X, isDAligned> op;
+        op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
+        op.Process();
+    } else {
+        MhcPostKernel<DTYPE_X, isDAligned> op;
+        op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
+        op.Process();
+    }
 
     tPipe.Destroy();
 }
