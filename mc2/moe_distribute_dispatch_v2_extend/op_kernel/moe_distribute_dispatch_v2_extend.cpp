@@ -13,19 +13,18 @@
  * \brief
  */
 #include "basic_api/kernel_basic_intf.h"
-// #include "moe_distribute_dispatch_v2.h"
+#include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2.h"
 #include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2_tiling.h"
-// #include "moe_distribute_dispatch_v2_full_mesh.h"
+#include "../moe_distribute_dispatch_v2/moe_distribute_dispatch_v2_full_mesh.h"
 #include "moe_distribute_dispatch_v2_extend_tiling_key.h"
-
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/mc2_moe_context.h"
 #else 
 #include "../../common/inc/mc2_moe_context.h"
 #endif
 
-// using namespace MoeDistributeDispatchV2Impl;
-// using namespace MoeDistributeDispatchV2FullMeshImpl;
+using namespace MoeDistributeDispatchV2Impl;
+using namespace MoeDistributeDispatchV2FullMeshImpl;
 using namespace Mc2Context;
 using namespace Mc2Tiling;
 using namespace AscendC;
@@ -41,7 +40,6 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     // AscendC::printf("rankid %d\n",ptr->epRankId);
     // AscendC::printf("epRankSize: %d\n",ptr->epRankSize);
     // AscendC::printf("winSize: %d\n",ptr->winSize);
-
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 #if defined(__DAV_C310__)
     GET_TILING_DATA_WITH_STRUCT(MoeDistributeDispatchV2TilingData, tilingData, tilingGM);
