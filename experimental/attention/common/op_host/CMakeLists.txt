@@ -8,7 +8,11 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-if (BUILD_OPS_RTY_KERNEL)
-else()
-    add_modules_sources(OPTYPE common ACLNNTYPE no_need_aclnn)
-endif()
+add_modules_sources_with_soc(OPTYPE common ACLNNTYPE no_need_aclnn)
+target_sources(${OPHOST_NAME}_tiling_obj PRIVATE 
+split_core.cpp
+fia_tiling_info.cpp
+fia_tiling_shape.cpp
+arch32/fia_tiling_nonquant_mla.cpp
+arch32/fia_tiling_nonquant.cpp
+)

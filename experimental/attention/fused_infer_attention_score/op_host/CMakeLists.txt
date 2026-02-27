@@ -45,16 +45,10 @@ if(NOT BUILD_OPS_RTY_KERNEL)
     add_modules_sources_with_soc(OPTYPE fused_infer_attention_score ACLNNTYPE aclnn_inner)
 endif()
 
-if(NOT BUILD_OPS_RTY_KERNEL) #
-    add_tiling_modules()
-    target_sources(${OPHOST_NAME}_tiling_obj PRIVATE
-    ../../common/op_host/fia_tiling_shape.cpp
-    ../../common/op_host/fia_tiling_info.cpp
-    ../../common/op_host/split_core.cpp
-    ../../common/op_host/arch32/fia_tiling_nonquant_mla.cpp
-    ../../common/op_host/arch32/fia_tiling_nonquant.cpp
-    ../op_host/arch32/fused_infer_attention_score_tiling_v3.cpp
-    ../op_host/arch32/fused_infer_attention_score_tiling_info_parser.cpp
-    fallback_fused_infer_attention_score.cpp
-    )
-endif()
+target_sources(${OPHOST_NAME}_tiling_obj PRIVATE 
+fallback_fused_infer_attention_score.cpp
+fused_infer_attention_score_tiling.cpp
+fused_infer_attention_score_tiling_register.cpp
+arch32/fused_infer_attention_score_tiling_v3.cpp
+arch32/fused_infer_attention_score_tiling_info_parser.cpp
+)
