@@ -7,9 +7,23 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
+add_op_to_compiled_list()
 
-if (BUILD_OPS_RTY_KERNEL)
-else()
-    message(STATUS "-----common cmakeList")
-    add_modules_sources(OPTYPE common ACLNNTYPE no_need_aclnn)
+if (BUILD_OPEN_PROJECT)
+    target_sources(op_host_aclnn PRIVATE
+        sparse_flash_attention_def.cpp
+    )
+endif()
+
+add_ops_compile_options(
+    OP_NAME SparseFlashAttention
+    OPTIONS --cce-auto-sync=off
+            -Wno-deprecated-declarations
+            -Werror
+            -mllvm -cce-vf-remove-membar=false
+            -mllvm -cce-aicore-hoist-movemask=false
+)
+
+if (NOT BUILD_OPS_RTY_KERNEL)
+    add_modules_sources(OPTYPE sparse_flash_attention ACLNNTYPE aclnn)
 endif()
