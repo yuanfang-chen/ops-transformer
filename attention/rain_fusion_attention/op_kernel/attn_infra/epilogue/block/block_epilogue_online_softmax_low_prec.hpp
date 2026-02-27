@@ -163,6 +163,7 @@ public:
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
+        AscendC::printf("tkd RowsumSPECTILE1024\n");
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
         uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
@@ -327,12 +328,12 @@ public:
                 repeatStride));
     }    
  	 
-
     __aicore__ inline
     void RowmaxSPECTILE1024(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowmaxUb,
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
+        AscendC::printf("tkd RowmaxSPECTILE1024\n");
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素。
         uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理。
         // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素。
@@ -350,14 +351,13 @@ public:
         // AscendC::PipeBarrier<PIPE_V>();
 
         // 1024个元素，以128为单位分治求最大值。1024->512->256->128
-        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            if (columnStrideIndex == 2) {
-                ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride,
-                                blockNumPerRow);
-            } else {
-                ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride,
-                                blockNumPerRow);
-            }
+        uint32_t columnStrideIndex = 2;
+        // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数。
+        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+        columnStrideIndex *= 2;
+        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
