@@ -17,12 +17,11 @@
 #include "kernel_operator.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "arch35/mhc_post.h"
-#include "arch35/mhc_post_apt.h"
 
 using namespace AscendC;
 using namespace MhcPost;
 
-template <uint16_t isDAligned>
+template <uint16_t usePermanentX>
 __global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_ADDR hPost, GM_ADDR output,
                                     GM_ADDR workspace, GM_ADDR tiling)
 {
@@ -30,22 +29,13 @@ __global__ __aicore__ void mhc_post(GM_ADDR x, GM_ADDR hRes, GM_ADDR hOut, GM_AD
         return;
     }
 
-    // Template instantiation based on alignment flags from tiling data
-    // IS_D_ALIGNED: D % 16 == 0 && nTilesD == 1
-
     REGISTER_TILING_DEFAULT(MhcPostTilingData);
     GET_TILING_DATA_WITH_STRUCT(MhcPostTilingData, tilingData, tiling);
     TPipe tPipe;
 
-    if (tilingData.usedCoreNum > tilingData.bsOuter) {
-        MhcPostKernelApt<DTYPE_X, isDAligned> op;
-        op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
-        op.Process();
-    } else {
-        MhcPostKernel<DTYPE_X, isDAligned> op;
-        op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
-        op.Process();
-    }
+    MhcPostKernel<DTYPE_X, usePermanentX> op;
+    op.Init(x, hRes, hOut, hPost, output, workspace, &tilingData, &tPipe);
+    op.Process();
 
     tPipe.Destroy();
 }

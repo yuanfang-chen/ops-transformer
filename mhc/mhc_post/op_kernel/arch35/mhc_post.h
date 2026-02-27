@@ -29,17 +29,15 @@ namespace MhcPost {
 using namespace AscendC;
 
 // Constants for memory alignment and buffer configuration
-constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
-constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
+constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;     // 16 elements = 32 bytes for bf16/fp16
+constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;         // 8 elements = 32 bytes for float32
 
 // Double Buffer configuration - Double Buffer提升Memory Bound算子性能
-constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;  // Double Buffer depth for data tiles
-constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;  // Single Buffer depth for weights
+constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;       // Double Buffer depth for data tiles
+constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;       // Single Buffer depth for weights
 
-// Template macro definitions - 用于编译时优化,类似DequantSwiGLU的quantIsOne设计
-// IS_D_ALIGNED: D % 16 == 0 && nTilesD == 1
-#define TEMPLATE_DECLARE template<typename T, uint16_t IS_D_ALIGNED>
-#define TEMPLATE_ARGS T, IS_D_ALIGNED
+#define TEMPLATE_DECLARE template<typename T, uint16_t USE_PERMANENT_X>
+#define TEMPLATE_ARGS T, USE_PERMANENT_X
 
 TEMPLATE_DECLARE
 class MhcPostKernel {
@@ -50,10 +48,10 @@ public:
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void CopyInTile(uint32_t globalItemIdx, uint32_t tileId);
-    __aicore__ inline void ComputeAndCopyOutTile(uint32_t globalItemIdx, uint32_t tileId);
-    __aicore__ inline void CopyOutTile(uint32_t globalItemIdx, uint32_t tileId, uint32_t nI);
-    __aicore__ inline void CopyInXAndSum(uint32_t globalItemIdx, uint32_t tileId, uint32_t nI, uint32_t nJ,
+    __aicore__ inline void CopyInTile(uint32_t bsIdx, uint32_t dIdx);
+    __aicore__ inline void ComputeAndCopyOutTile(uint32_t bsIdx, uint32_t dIdx);
+    __aicore__ inline void CopyOutTile(uint32_t bsIdx, uint32_t dIdx, uint32_t nI);
+    __aicore__ inline void CopyInX(uint32_t bsIdx, uint32_t dIdx, uint32_t nI, uint32_t nJ,
                                          LocalTensor<float> outF32);
 
 private:
@@ -82,21 +80,21 @@ private:
     GlobalTensor<T> outputGm_;
 
     // Tiling parameters
-    uint32_t totalItems_;
-    uint32_t itemsPerCore_;
-    uint32_t remainderItems_;
-    uint32_t usedCores_;
-    uint32_t S_;
-    uint32_t n_;
-    uint32_t D_;
-    uint32_t tileD_;
-    uint32_t nTilesD_;
-    uint32_t alignedD_;
-    uint32_t lastTileD_;
+    int64_t n_;
+    int64_t D_;
+    int64_t usedCoreNum_;
+    int64_t normalCoreProcessNum_;
+    int64_t tailCoreProcessNum_;
+    int64_t bsInner_;
+    int64_t bsOuter_;
+    int64_t bsTail_;
+    int64_t dInner_;
+    int64_t dOuter_;
+    int64_t dTail_;
 
-    uint32_t blockIdx_;
     uint32_t myItemCount_;
     uint32_t itemStart_;
+    uint32_t blockIdx_;
 };
 
 TEMPLATE_DECLARE
@@ -107,47 +105,47 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
     pipe_ = tPipe;
 
     // Get tiling data using direct member access
-    totalItems_ = tilingData->totalItems;
-    itemsPerCore_ = tilingData->itemsPerCore;
-    remainderItems_ = tilingData->remainderItems;
-    usedCores_ = tilingData->usedCores;
-    S_ = tilingData->S;
     n_ = tilingData->n;
     D_ = tilingData->D;
-    tileD_ = tilingData->tileD;
-    nTilesD_ = tilingData->nTilesD;
-    alignedD_ = tilingData->alignedD;
-    lastTileD_ = tilingData->lastTileD;
+
+    usedCoreNum_ = tilingData->usedCoreNum;
+    normalCoreProcessNum_ = tilingData->normalCoreProcessNum;
+    tailCoreProcessNum_ = tilingData->tailCoreProcessNum;
+    bsInner_ = tilingData->bsInner;
+    bsOuter_ = tilingData->bsOuter;
+    bsTail_ = tilingData->bsTail;
+    dInner_ = tilingData->dInner;
+    dOuter_ = tilingData->dOuter;
+    dTail_ = tilingData->dTail;
 
     blockIdx_ = GetBlockIdx();
 
     // Calculate work distribution with remainder handling
-    if (blockIdx_ < remainderItems_) {
-        myItemCount_ = itemsPerCore_ + 1;
-        itemStart_ = blockIdx_ * (itemsPerCore_ + 1);
+    if (blockIdx_ < usedCoreNum_ - 1) {
+        myItemCount_ = normalCoreProcessNum_;
     } else {
-        myItemCount_ = itemsPerCore_;
-        itemStart_ = remainderItems_ * (itemsPerCore_ + 1) + (blockIdx_ - remainderItems_) * itemsPerCore_;
+        myItemCount_ = tailCoreProcessNum_;
     }
+    itemStart_ = blockIdx_ * normalCoreProcessNum_;
 
     // Set global memory buffers
-    xGm_.SetGlobalBuffer((__gm__ T *)x, totalItems_ * n_ * D_);
-    hOutGm_.SetGlobalBuffer((__gm__ T *)hOut, totalItems_ * D_);
-    hResGm_.SetGlobalBuffer((__gm__ float *)hRes, totalItems_ * n_ * n_);
-    hPostGm_.SetGlobalBuffer((__gm__ float *)hPost, totalItems_ * n_);
-    outputGm_.SetGlobalBuffer((__gm__ T *)output, totalItems_ * n_ * D_);
+    xGm_.SetGlobalBuffer((__gm__ T *)x);
+    hOutGm_.SetGlobalBuffer((__gm__ T *)hOut);
+    hResGm_.SetGlobalBuffer((__gm__ float *)hRes);
+    hPostGm_.SetGlobalBuffer((__gm__ float *)hPost);
+    outputGm_.SetGlobalBuffer((__gm__ T *)output);
 
     // Initialize input queues - Double Buffer with depth=DOUBLE_BUFFER_DEPTH for data tiles
-    pipe_->InitBuffer(hOutTileQueue_, DOUBLE_BUFFER_DEPTH, tileD_ * sizeof(T));
-    pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, tileD_ * sizeof(T));
+    pipe_->InitBuffer(hOutTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
+    pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
 
     // Initialize output queues - Double Buffer with depth=DOUBLE_BUFFER_DEPTH
-    pipe_->InitBuffer(outputTileQueue_, DOUBLE_BUFFER_DEPTH, tileD_ * sizeof(T));
+    pipe_->InitBuffer(outputTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
 
     // Initialize intermediate buffers
-    pipe_->InitBuffer(hOutF32Buf_, tileD_ * sizeof(float));
-    pipe_->InitBuffer(xF32Buf_, tileD_ * sizeof(float));
-    pipe_->InitBuffer(outF32Buf_, tileD_ * sizeof(float));
+    pipe_->InitBuffer(hOutF32Buf_, dInner_ * sizeof(float));
+    pipe_->InitBuffer(xF32Buf_, dInner_ * sizeof(float));
+    pipe_->InitBuffer(outF32Buf_, dInner_ * sizeof(float));
 }
 
 TEMPLATE_DECLARE
@@ -155,93 +153,36 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
 {
     for (uint32_t itemIdx = 0; itemIdx < myItemCount_; itemIdx++) {
         uint32_t globalItemIdx = itemStart_ + itemIdx;
+        uint32_t bsIdx = globalItemIdx / dOuter_;
+        uint32_t dIdx = globalItemIdx - bsIdx * dOuter_;
 
-        for (uint32_t tileId = 0; tileId < nTilesD_; tileId++) {
-            CopyInTile(globalItemIdx, tileId);
-            ComputeAndCopyOutTile(globalItemIdx, tileId);
-        }
+        CopyInTile(bsIdx, dIdx);
+        ComputeAndCopyOutTile(bsIdx, dIdx);
     }
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t globalItemIdx, uint32_t tileId)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t bsIdx, uint32_t dIdx)
 {
-    uint32_t dStart = tileId * tileD_;
-    uint32_t hOutBase = globalItemIdx * D_;
-
+    uint32_t hOutOffset = bsIdx * D_ + dIdx * dInner_;
     LocalTensor<T> hOutTileLocal = hOutTileQueue_.AllocTensor<T>();
 
-    if constexpr (IS_D_ALIGNED == 1) {
-        // Fast path: D is aligned and single tile, use direct DataCopy
-        DataCopy(hOutTileLocal, hOutGm_[hOutBase], tileD_);
+    if (dIdx < dOuter_ - 1) {
+        DataCopy(hOutTileLocal, hOutGm_[hOutOffset], dInner_);
     } else {
-        // Slow path: multi-tile or non-aligned
-        // Calculate how much data to actually copy from GM for this tile
-        uint32_t remainingD = D_ - dStart;
-        uint32_t gmCopyD = (remainingD >= tileD_) ? tileD_ : remainingD;
-
-        // Load hOut tile
-        if (gmCopyD % BF16_FP16_ALIGN_SIZE == 0) {
-            DataCopy(hOutTileLocal, hOutGm_[hOutBase + dStart], gmCopyD);
-        } else {
-            // Non-aligned: use DataCopyPad with right padding
-            uint32_t padSize = tileD_ - gmCopyD;
-            uint8_t rightPad = (padSize > 255) ? 255 : static_cast<uint8_t>(padSize);
-            DataCopyPadParams padParams = {true, 0, rightPad, 0};
-            DataCopyPad(hOutTileLocal, hOutGm_[hOutBase + dStart],
-                        {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0}, padParams);
-        }
+        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+        DataCopyPad(hOutTileLocal, hOutGm_[hOutOffset], copyParams, {false, 0, 0, 0});
     }
 
     hOutTileQueue_.EnQue(hOutTileLocal);
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInXAndSum(uint32_t globalItemIdx, uint32_t tileId, uint32_t nI,
-                                                                   uint32_t nJ, LocalTensor<float> outF32)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint32_t bsIdx, uint32_t dIdx)
 {
-    uint32_t dStart = tileId * tileD_;
-    uint32_t hResBase = globalItemIdx * n_ * n_;
-    uint32_t xBase = globalItemIdx * n_ * D_ + nJ * D_;
-    LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
-    LocalTensor<float> xF32 = xF32Buf_.Get<float>();
-
-    if constexpr (IS_D_ALIGNED == 1) {
-        // Fast path: D is aligned and single tile, use direct DataCopy
-        DataCopy(xTileLocal, xGm_[xBase], tileD_);
-    } else {
-        // Slow path: multi-tile or non-aligned
-        // Calculate how much data to actually copy from GM for this tile
-        uint32_t remainingD = D_ - dStart;
-        uint32_t gmCopyD = (remainingD >= tileD_) ? tileD_ : remainingD;
-
-        // Load x row by row
-        if (gmCopyD % BF16_FP16_ALIGN_SIZE == 0) {
-            // Aligned, use DataCopy row by row
-            DataCopy(xTileLocal, xGm_[xBase + dStart], gmCopyD);
-        } else {
-            // Non-aligned, use DataCopyPad row by row
-            uint32_t padSize = tileD_ - gmCopyD;
-            uint8_t rightPad = (padSize > 255) ? 255 : static_cast<uint8_t>(padSize);
-            DataCopyPadParams padParams = {true, 0, rightPad, 0};
-            DataCopyPad(xTileLocal, xGm_[xBase + dStart], {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0},
-                        padParams);
-        }
-    }
-    xTileQueue_.EnQue(xTileLocal);
-
-    LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
-    float hResJI = hResGm_.GetValue(hResBase + nJ * n_ + nI);  // hRes[j,i] instead of hRes[i,j]
-    Cast(xF32, xTile, RoundMode::CAST_NONE, tileD_);
-    Axpy(outF32, xF32, hResJI, tileD_);
-
-    xTileQueue_.FreeTensor(xTile);
-}
-
-TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint32_t globalItemIdx, uint32_t tileId)
-{
-    uint32_t hPostBase = globalItemIdx * n_;
+    uint32_t hPostBase = bsIdx * n_;
+    uint32_t hResBase = bsIdx * n_ * n_;
+    int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
 
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
     LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
@@ -249,54 +190,69 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint3
     // Get float32 work buffers
     LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
+    LocalTensor<float> xF32 = xF32Buf_.Get<float>();
 
     // Convert inputs to float32
-    Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, tileD_);
+    Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, dNum);
 
     // Compute output for each head: output[i] = hPost[i] * hOut + sum_j(hRes[j,i] * x[j])
     // This implements: x_{l+1}[i] = h_{l}^{out} * H_{t}^{post}[i] + sum_j((H_{l}^{res})^{T}[j,i] * x_l[j])
     // Note: hRes indexing is [j,i] to access transposed matrix element (H_res)^T[j,i]
     for (uint32_t i = 0; i < n_; i++) {
         // outF32 = hPost[i] * hOut
-        Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), tileD_);
-
+        Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
         // outF32 += sum_j(hRes[j,i] * x[j])
         for (uint32_t j = 0; j < n_; j++) {
-            CopyInXAndSum(globalItemIdx, tileId, i, j, outF32);
+            CopyInX(bsIdx, dIdx, i, j, outF32);
+            LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
+            Cast(xF32, xTile, RoundMode::CAST_NONE, dNum);
+            Axpy(outF32, xF32, hResGm_.GetValue(hResBase + j * n_ + i), dNum);
+            xTileQueue_.FreeTensor(xTile);
         }
 
         // Convert to bf16/fp16 and store
-        Cast(outputTile, outF32, RoundMode::CAST_RINT, tileD_);
+        Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
-        CopyOutTile(globalItemIdx, tileId, i);
+        CopyOutTile(bsIdx, dIdx, i);
     }
 
     hOutTileQueue_.FreeTensor(hOutTile);
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(uint32_t globalItemIdx, uint32_t tileId, uint32_t nI)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(uint32_t bsIdx, uint32_t dIdx, uint32_t nI,
+                                                                   uint32_t nJ, LocalTensor<float> outF32)
 {
-    uint32_t dStart = tileId * tileD_;
-    uint32_t outputBase = globalItemIdx * n_ * D_ + nI * D_;
+    uint32_t dStart = dIdx * dInner_;
+    uint32_t xBase = bsIdx * n_ * D_ + nJ * D_;
+    uint32_t xOffset = xBase + dStart;
+
+    LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
+
+    if (dIdx < dOuter_ - 1) {
+        DataCopy(xTileLocal, xGm_[xOffset], dInner_);
+    } else {
+        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+        DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
+    }
+
+    xTileQueue_.EnQue(xTileLocal);
+}
+
+TEMPLATE_DECLARE
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(uint32_t bsIdx, uint32_t dIdx, uint32_t nI)
+{
+    uint32_t dStart = dIdx * dInner_;
+    uint32_t outputBase = bsIdx * n_ * D_ + nI * D_;
+    uint32_t outputOffset = outputBase + dStart;
 
     LocalTensor<T> outputTile = outputTileQueue_.DeQue<T>();
 
-    if constexpr (IS_D_ALIGNED == 1) {
-        // Fast path: D is aligned and single tile
-        DataCopy(outputGm_[outputBase], outputTile, tileD_);
+    if (dIdx < dOuter_ - 1) {
+        DataCopy(outputGm_[outputOffset], outputTile, dInner_);
     } else {
-        // Slow path: multi-tile or non-aligned
-        uint32_t remainingD = D_ - dStart;
-        uint32_t gmCopyD = (remainingD >= tileD_) ? tileD_ : remainingD;
-
-        // Copy output row by row
-        if (gmCopyD % BF16_FP16_ALIGN_SIZE == 0) {
-            DataCopy(outputGm_[outputBase + dStart], outputTile, gmCopyD);
-        } else {
-            DataCopyPad(outputGm_[outputBase + dStart], outputTile,
-                        {1, static_cast<uint16_t>(gmCopyD * sizeof(T)), 0, 0});
-        }
+        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+        DataCopyPad(outputGm_[outputOffset], outputTile, copyParams);
     }
 
     outputTileQueue_.FreeTensor(outputTile);
