@@ -397,7 +397,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadQueryToL0a(uint64_t s1gL1Offset, uin
     loadData2DParamsA.mStartPosition = CeilDiv(s1gL1Offset, BLOCK_CUBE);
     loadData2DParamsA.kStartPosition = 0;
     loadData2DParamsA.mStep = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
-    loadData2DParamsA.mStep = CeilAlign(loadData2DParamsA.mStep,2);
+    loadData2DParamsA.mStep = (loadData2DParamsA.mStep + 1) / 2 * 2;
     loadData2DParamsA.kStep = CeilDiv(constInfo_.headDim, 32);
     loadData2DParamsA.srcStride = CeilDiv(s1gL1RealSize, BLOCK_CUBE);
     loadData2DParamsA.dstStride = CeilDiv(s1gL0RealSize, BLOCK_CUBE);
