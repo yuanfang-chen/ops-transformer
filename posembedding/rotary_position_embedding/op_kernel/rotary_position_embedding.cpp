@@ -22,13 +22,13 @@
 #include "rotate_interleaved_split_s_pad.h"
 #include "rotate_interleaved_split_bs_pad.h"
 #include "rotate_interleaved_split_bsn_pad.h"
+using namespace RotateInterleavedN;
 #endif
 
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 #include "rotate_matrix.h"
 using namespace RotateMatrix;
 using namespace matmul;
-using namespace RotateInterleavedN;
 #endif
 
 using namespace AscendC;
@@ -37,9 +37,9 @@ using namespace RotateHalfN;
 extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR rotate,
                                                                 GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
 {
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
     GET_TILING_DATA(tilingData, tiling);
     GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIV_1_0);
 
     // mode: rotate_half
     if (TILING_KEY_IS(1011)) {
