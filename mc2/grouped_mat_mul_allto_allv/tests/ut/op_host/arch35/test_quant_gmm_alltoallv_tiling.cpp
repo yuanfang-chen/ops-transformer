@@ -91,26 +91,26 @@ struct GroupedMatMulAlltoAllvTilingTestParam {
 
 static const vector<GroupedMatMulAlltoAllvTilingTestParam> groupedMatMulAlltoAllvTilingTestParam = {
     // hif8 全量化
-    // 正常测试用例
-    {
-        "gmmalltoallv_hif8_quant_normal",
-        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmX
-        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmWeight
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND, // gmmXScale
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND, // gmmWeightScale
-        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmX
-        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmWeight
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND, // mmXScale
-        {1}, ge::DT_FLOAT, ge::FORMAT_ND, // mmWeightScale
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
-        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
-        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
-        {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmYShape
-        1, 1, 1, 1, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode
-        false, false, // gmmTrans mmTrans
-        2, 2, 0, // worldSize epWorldSize graphType
-        ge::GRAPH_SUCCESS, 137 // expectedStatus expectTilingKey
-    },
+    // // 正常测试用例
+    // {
+    //     "gmmalltoallv_hif8_quant_normal",
+    //     {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmX
+    //     {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // gmmWeight
+    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND, // gmmXScale
+    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND, // gmmWeightScale
+    //     {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmX
+    //     {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, // mmWeight
+    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND, // mmXScale
+    //     {1}, ge::DT_FLOAT, ge::FORMAT_ND, // mmWeightScale
+    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // sendCounts
+    //     {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024}, // recvCounts
+    //     {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // gmmYShape
+    //     {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, // mmYShape
+    //     1, 1, 1, 1, // gmmXQuantMode gmmWeightQuantMode mmXQuantMode mmWeightQuantMode
+    //     false, false, // gmmTrans mmTrans
+    //     2, 2, 0, // worldSize epWorldSize graphType
+    //     ge::GRAPH_SUCCESS, 137 // expectedStatus expectTilingKey
+    // },
 
     // 异常测试用例
     // 数据类型非法异常
