@@ -598,23 +598,31 @@ public:
         //         columnNumRound);
         // }
 
-        if (columnNum == 1024U) {
-            RowmaxSPECTILE1024(
-                computeUbTensor,
-                lmUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        } else {
-            RowmaxTAILTILE(
-                computeUbTensor,
-                lmUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        }
+        // if (columnNum == 1024U) {
+        //     RowmaxSPECTILE1024(
+        //         computeUbTensor,
+        //         lmUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else {
+        //     RowmaxTAILTILE(
+        //         computeUbTensor,
+        //         lmUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // }
+
+        RowmaxTAILTILE(
+            computeUbTensor,
+            lmUbTensor[rowOffset],
+            tvUbTensor,
+            rowNumCurLoopRound,
+            columnNum,
+            columnNumRound);
     }
 
     __aicore__ inline
