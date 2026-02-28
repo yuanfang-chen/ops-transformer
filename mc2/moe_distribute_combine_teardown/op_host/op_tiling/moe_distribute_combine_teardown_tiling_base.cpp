@@ -457,7 +457,6 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeRelation
     if (tilingData_->moeDistributeCombineTeardownInfo.hasSharedExpertX) {
         auto sharedExpertXStorageShape =
             context_->GetOptionalInputShape(SHARED_EXPERT_X_INDEX); // Bs, H 或 a, b, H (a * b = Bs)
-
         if (sharedExpertXStorageShape->GetStorageShape().GetDimNum() == TWO_DIMS) { // Bs, H
             OP_TILING_CHECK(sharedExpertXStorageShape->GetStorageShape().GetDim(0) != Bs,
                             OP_LOGE(nodeName_, "sharedExpertX's dim0[%ld] should be equal to Bs[%ld]",
@@ -498,7 +497,6 @@ ge::graphStatus MoeDistributeCombineTeardownTilingBase::CheckTensorShapeSize()
     auto Bs = expertIdsStorageShape->GetStorageShape().GetDim(0);
     auto K = expertIdsStorageShape->GetStorageShape().GetDim(1);
     auto H = expandXStorageShape->GetStorageShape().GetDim(1);
-
     if (CheckBsHKSize(Bs, H, K) != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
