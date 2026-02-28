@@ -4112,7 +4112,7 @@ ge::graphStatus IFATiling::DoOpTiling()
 }
 
 ge::graphStatus IFATiling::DoSubOpTiling(IncreFlashAttentionContext& ifaContext) {
-    IncreFlashAttentionTilingDataV2* ifaTilingData = context_->GetTilingData<IncreFlashAttentionTilingDataV2>();
+    ifaTilingData = context_->GetTilingData<IncreFlashAttentionTilingDataV2>();
     if (ifaTilingData == nullptr){
         OP_LOGD(ifaContext.opName, " ifaTilingData is nullptr.");
     }

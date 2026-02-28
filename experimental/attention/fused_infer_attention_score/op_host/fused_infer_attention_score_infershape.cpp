@@ -283,9 +283,17 @@ static ge::graphStatus InferLseOutShape(const char *inputLayoutPtr,
     }
     return ge::GRAPH_SUCCESS;
 }
-
+static void PrintShape(const char* name, const gert::Shape* s) {
+    std::cout << name << " dim_num=" << s->GetDimNum() << " dims=[";
+    for (int64_t i = 0; i < s->GetDimNum(); ++i) {
+        std::cout << s->GetDim(i);
+        if (i + 1 < s->GetDimNum()) std::cout << ", ";
+    }
+    std::cout << "]" << std::endl;
+}
 static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContext *context)
 {
+    printf("start infer Shape\n");
     if (context == nullptr) {
         OP_LOGE("FusedInferAttentionScore", "context is nullptr!");
         return ge::GRAPH_FAILED;
@@ -297,6 +305,7 @@ static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContex
 
     // value shape
     const gert::Shape *valueShape = context->GetDynamicInputShape(FIA_VALUE_INDEX, FIA_DYNAMIC_VALUE_INDEX);
+    // const gert::Shape *valueShape = context->GetInputShape(FIA_VALUE_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context, valueShape);
 
     // Page Attention
@@ -348,7 +357,9 @@ static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContex
     GetValueD(isPageAttention, valueD, valueShape, queryShape, queryLayout, numKeyValueHeads);
 
     InferAttentionOutShape(attentionOutLayout, attentionOutShape, queryShape, valueShape, queryLayout, numHeadsPtr, valueD);
-
+    PrintShape("attentionOutShape", attentionOutShape);
+    PrintShape("queryShape", queryShape);
+    PrintShape("valueShape", valueShape);
     const bool *softmaxLsePtr = attrs->GetAttrPointer<bool>(FIA_ATTR_INPUT_SOFTMAX_LSE_FLAG_INDEX);
     bool softmaxLseFlag = (softmaxLsePtr != nullptr) ? *softmaxLsePtr : false;
     if (softmaxLseFlag) {
@@ -364,6 +375,7 @@ static ge::graphStatus InferShapeFusedInferAttentionScore(gert::InferShapeContex
 
 static ge::graphStatus InferDataTypeFusedInferAttentionScore(gert::InferDataTypeContext *context)
 {
+    printf("start infer DataType\n");
     if (context == nullptr) {
         OP_LOGE("FusedInferAttentionScore", "context is nullptr!");
         return ge::GRAPH_FAILED;

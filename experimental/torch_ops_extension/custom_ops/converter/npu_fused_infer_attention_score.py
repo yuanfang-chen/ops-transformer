@@ -1,11 +1,3 @@
-# This program is free software, you can redistribute it and/or modify it.
-# Copyright (c) 2025 Huawei Technologies Co., Ltd.
-# This file is a part of the CANN Open Software.
-# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
-# Please refer to the License for details. You may not use this file except in compliance with the License.
-# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
-# See LICENSE in the root of the software repository for the full text of the License.
-
 from typing import (
     Any, Callable, ContextManager, Iterator, List, Literal, NamedTuple, Optional, Sequence, Tuple, TypeVar,
     Union, overload,
@@ -25,100 +17,159 @@ from torchair.ge import attr
 
 
 # 为自定义算子注册converter，用于torch.compile 场景成图
-
-# 注意： meta_outputs形参名为固定写法，若写错会影响ge节点的输出dtype与shape推导
 @register_fx_node_ge_converter(torch.ops.custom.npu_fused_infer_attention_score.default)
-def convert_npu_fused_infer_attention_score(  query: Tensor, 
-                                        key: Tensor, 
-                                        value: Tensor, 
-                                        *, 
-                                        query_rope: Tensor = None, 
-                                        key_rope: Tensor = None, 
-                                        pse_shift: Tensor= None, 
-                                        atten_mask: Tensor = None, 
-                                        actual_seq_qlen: Tensor = None, #不确定是tensor还是array
-                                        actual_seq_kvlen: Tensor = None, #不确定是tensor还是array
-                                        block_table: Tensor = None, 
-                                        dequant_scale_query: Tensor = None,
-                                        dequant_scale_key: Tensor = None, 
-                                        dequant_offset_key: Tensor = None,
-                                        dequant_scale_value: Tensor = None, 
-                                        dequant_offset_value: Tensor = None, 
-                                        dequant_scale_key_rope: Tensor = None, 
-                                        quant_scale_out: Tensor = None, 
-                                        quant_offset_out: Tensor = None, 
-                                        learnable_sink: Tensor = None, 
-                                        num_query_heads: int = 1, 
-                                        num_key_value_heads: int = 1, 
-                                        softmax_scale: float = 1.0, 
-                                        pre_tokens: int = 2147483647, 
-                                        next_tokens: int = 2147483647,  
-                                        input_layout: str = "BSH", 
-                                        sparse_mode: int = 0, 
-                                        block_size: int = 0, 
-                                        query_quant_mode: int = 0, 
-                                        key_quant_mode: int = 0, 
-                                        value_quant_mode: int = 0,
-                                        inner_precise: int = 0, 
-                                        return_softmax_lse: bool = False, 
-                                        query_dtype: int = None, 
-                                        key_dtype: int = None, 
-                                        value_dtype: int = None, 
-                                        query_rope_dtype: int = None, 
-                                        key_rope_dtype: int = None, 
-                                        key_shared_prefix_dtype: int = None, 
-                                        value_shared_prefix_dtype: int = None, 
-                                        dequant_scale_query_dtype: int = None, 
-                                        dequant_scale_key_dtype: int = None, 
-                                        dequant_scale_value_dtype: int = None, 
-                                        dequant_scale_key_rope_dtype: int = None):
+def convert_npu_fused_infer_attention_score(
+    query: Tensor,
+    key: Tensor,
+    value: Tensor,
+    *,
+    query_rope: Optional[Tensor] = None,
+    key_rope: Optional[Tensor] = None,
+    pse_shift: Optional[Tensor] = None,
+    atten_mask: Optional[Tensor] = None,
+    actual_seq_qlen: Optional[Union[List[int], Tensor]] = None,
+    actual_seq_kvlen: Optional[Union[List[int], Tensor]] = None,
+    block_table: Optional[Tensor] = None,
+    dequant_scale_query: Optional[Tensor] = None,
+    dequant_scale_key: Optional[Tensor] = None,
+    dequant_offset_key: Optional[Tensor] = None,
+    dequant_scale_value: Optional[Tensor] = None,
+    dequant_offset_value: Optional[Tensor] = None,
+    dequant_scale_key_rope: Optional[Tensor] = None,
+    quant_scale_out: Optional[Tensor] = None,
+    quant_offset_out: Optional[Tensor] = None,
+    learnable_sink: Optional[Tensor] = None,
+    num_query_heads: int = 1,
+    num_key_value_heads: int = 0,
+    softmax_scale: float = 1.0,
+    pre_tokens: int = 2147483647,
+    next_tokens: int = 2147483647,
+    input_layout: str = "BSH",
+    sparse_mode: int = 0,
+    block_size: int = 0,
+    query_quant_mode: int = 0,
+    key_quant_mode: int = 0,
+    value_quant_mode: int = 0,
+    inner_precise: int = 0,
+    return_softmax_lse: bool = False,
+    query_dtype: Optional[int] = None,
+    key_dtype: Optional[int] = None,
+    value_dtype: Optional[int] = None,
+    query_rope_dtype: Optional[int] = None,
+    key_rope_dtype: Optional[int] = None,
+    key_shared_prefix_dtype: Optional[int] = None,
+    value_shared_prefix_dtype: Optional[int] = None,
+    dequant_scale_query_dtype: Optional[int] = None,
+    dequant_scale_key_dtype: Optional[int] = None,
+    dequant_scale_value_dtype: Optional[int] = None,
+    dequant_scale_key_rope_dtype: Optional[int] = None,
+    out_dtype: Optional[int] = None,
+    meta_outputs: TensorSpec = None,):
+
+    print("convert_npu_fused_infer_attention_score")
+    def to_ge_int_tensor(x, name):
+        if x is None:
+            return None
+        # x 是 list[int]
+        vals = [int(v) for v in x]
+        # 下面函数名可能是 Const / const / make_const，请按你torchair版本替换
+        return torchair.ge.Const(vals, dtype=DataType.DT_INT64, node_name=name)
+    if isinstance(actual_seq_qlen, list):
+        actual_seq_qlen = to_ge_int_tensor(actual_seq_qlen, "actual_seq_qlen_const")
+    if isinstance(actual_seq_kvlen, list):
+        actual_seq_kvlen = to_ge_int_tensor(actual_seq_kvlen, "actual_seq_kvlen_const")
+
+    # dropped params
+    quant_scale1 = None
+    dequant_scale2 = None
+    dequant_scale1 = None
+    antiquant_scale = None
+    antiquant_offset = None
+    query_padding_size = None
+    kv_padding_size = None
+    key_shared_prefix = None
+    value_shared_prefix = None
+    actual_shared_prefix_len = None
+    q_start_idx=None
+    kv_start_idx=None
+    # 1) Tensor inputs only
+    inputs = {
+        "query": query,
+        "key": [key],
+        "value": [value],
+        "pse_shift": pse_shift,
+        "atten_mask": atten_mask,
+        "actual_seq_lengths": actual_seq_qlen,
+        "actual_seq_lengths_kv": actual_seq_kvlen,
+        "dequant_scale1": dequant_scale1,
+        "quant_scale1": quant_scale1,
+        "dequant_scale2": dequant_scale2,
+        "quant_scale2": quant_scale_out,
+        "quant_offset2": quant_offset_out,
+        "antiquant_scale": antiquant_scale,
+        "antiquant_offset": antiquant_offset,
+        "block_table": block_table,
+        "query_padding_size": query_padding_size,
+        "kv_padding_size": kv_padding_size,
+        "key_antiquant_scale": dequant_scale_key,
+        "key_antiquant_offset": dequant_offset_key,
+        "value_antiquant_scale": dequant_scale_value,
+        "value_antiquant_offset": dequant_offset_value,
+        "key_shared_prefix": key_shared_prefix,
+        "value_shared_prefix": value_shared_prefix,
+        "actual_shared_prefix_len": actual_shared_prefix_len,
+        "query_rope": query_rope,
+        "key_rope": key_rope,
+        "key_rope_antiquant_scale": dequant_scale_key_rope,
+        "dequant_scale_query": dequant_scale_query,
+        "learnable_sink": learnable_sink,
+        "q_start_idx": q_start_idx,
+        "kv_start_idx": kv_start_idx,      
+    }
+
+    # inputs = {k: v for k, v in inputs.items() if v is not None}
+    # 2) Required attrs
+    attrs = {
+        "num_heads": attr.Int(num_query_heads),
+        "scale": attr.Float(softmax_scale),
+        "pre_tokens": attr.Int(pre_tokens),
+        "next_tokens": attr.Int(next_tokens),
+        "input_layout": attr.Str(input_layout),
+        "num_key_value_heads": attr.Int(num_key_value_heads),
+        "sparse_mode": attr.Int(sparse_mode),
+        "inner_precise": attr.Int(inner_precise),
+        "block_size": attr.Int(block_size),
+        "antiquant_mode": attr.Int(0),
+        "softmax_lse_flag": attr.Bool(return_softmax_lse),
+        "query_quant_mode": attr.Int(query_quant_mode),
+        "key_quant_mode": attr.Int(key_quant_mode),
+        "value_quant_mode": attr.Int(value_quant_mode),
+        "key_antiquant_mode": attr.Int(0),
+        "value_antiquant_mode": attr.Int(0),
+        "query_quant_mode": attr.Int(0),
+        "pse_type": attr.Int(0),
+        "out_dtype": attr.Int(0),
+    }
+    # # 3) Optional int attrs (only when not None)
+    # def add_opt_int(name, v):
+    #     if v is not None:
+    #         attrs[name] = attr.Int(int(v))
+    # add_opt_int("query_dtype", query_dtype)
+    # add_opt_int("key_dtype", key_dtype)
+    # add_opt_int("value_dtype", value_dtype)
+    # add_opt_int("query_rope_dtype", query_rope_dtype)
+    # add_opt_int("key_rope_dtype", key_rope_dtype)
+    # add_opt_int("key_shared_prefix_dtype", key_shared_prefix_dtype)
+    # add_opt_int("value_shared_prefix_dtype", value_shared_prefix_dtype)
+    # add_opt_int("dequant_scale_query_dtype", dequant_scale_query_dtype)
+    # add_opt_int("dequant_scale_key_dtype", dequant_scale_key_dtype)
+    # add_opt_int("dequant_scale_value_dtype", dequant_scale_value_dtype)
+    # add_opt_int("dequant_scale_key_rope_dtype", dequant_scale_key_rope_dtype)
+
+    print("end convert_npu_fused_infer_attention_score")
     return torchair.ge.custom_op(
         "FusedInferAttentionScore",
-        inputs={"query": query,
-                "key": key,
-                "value": value,
-                "query_rope": query_rope,
-                "key_rope": key_rope,
-                "pse_shift": pse_shift,
-                "atten_mask": atten_mask,
-                "actual_seq_qlen": actual_seq_qlen,
-                "actual_seq_kvlen": actual_seq_kvlen,
-                "block_table": block_table,
-                "dequant_scale_query": dequant_scale_query,
-                "dequant_scale_key": dequant_scale_key,
-                "dequant_offset_key": dequant_offset_key,
-                "dequant_scale_value": dequant_scale_value,
-                "dequant_offset_value": dequant_offset_value,
-                "dequant_scale_key_rope": dequant_scale_key_rope,
-                "quant_scale_out": quant_scale_out,
-                "dequant_scale_key": dequant_scale_key,
-                "quant_offset_out": quant_offset_out,
-                "learnable_sink": learnable_sink,
-                },
-        attrs={"num_query_heads": attr.Int(num_query_heads),
-               "num_key_value_heads": attr.Int(num_key_value_heads),
-               "softmax_scale": attr.Float(softmax_scale),
-               "pre_tokens": attr.Int(pre_tokens),
-               "next_tokens": attr.Int(next_tokens),
-               "input_layout": attr.Str(input_layout),
-               "sparse_mode": attr.Int(sparse_mode),
-               "block_size": attr.Int(block_size),
-               "query_quant_mode": attr.Int(query_quant_mode),
-               "key_quant_mode": attr.Int(key_quant_mode),
-               "value_quant_mode": attr.Int(value_quant_mode),
-               "inner_precise": attr.Int(inner_precise),
-               "return_softmax_lse": attr.Bool(return_softmax_lse),
-               "query_dtype": attr.Int(query_dtype),
-               "key_dtype": attr.Int(key_dtype),
-               "value_dtype": attr.Int(value_dtype),
-               "query_rope_dtype": attr.Int(query_rope_dtype),
-               "key_rope_dtype": attr.Int(key_rope_dtype),
-               "key_shared_prefix_dtype": attr.Int(key_shared_prefix_dtype),
-               "value_shared_prefix_dtype": attr.Int(value_shared_prefix_dtype),
-               "dequant_scale_query_dtype": attr.Int(dequant_scale_query_dtype),
-               "dequant_scale_key_dtype": attr.Int(dequant_scale_key_dtype),
-               "dequant_scale_value_dtype": attr.Int(dequant_scale_value_dtype),
-               "dequant_scale_key_rope_dtype": attr.Int(dequant_scale_key_rope_dtype),
-               },
-        outputs=['attention_out', 'softmax_lse']
+        inputs=inputs,
+        attrs=attrs,
+        outputs=["attention_out", "softmax_lse"],
     )

@@ -150,40 +150,41 @@ std::tuple<at::Tensor, at::Tensor> construct_fia_output_tensor_v2(
         output = at::empty_like(tmp_output);
     }
 
+    auto lse_opts = output.options().dtype(c10::ScalarType::Float);
     at::Tensor softmax_lse;
     if (input_layout_str == "TND") {
         if (block_table.has_value()) { // IFA目前TND只支持PA场景，PFA目前TND只支持非PA场景
             if (query.size(DIM_2) == 0) { // 增加softmax lse的情况下，可能存在空tensor的分支
-                softmax_lse = at::empty({query.size(DIM_0), num_query_heads, 0},
-                    c10::dtype(c10::ScalarType::Float));
+                softmax_lse = at::empty({query.size(DIM_0), num_query_heads, 0,},
+                                         lse_opts);
             } else {
                 softmax_lse = at::empty({query.size(DIM_0), num_query_heads, 1},
-                    c10::dtype(c10::ScalarType::Float));
+                                         lse_opts);
             }
         } else {
             softmax_lse = at::empty({query.size(DIM_0), query.size(DIM_1), 1},
-                c10::dtype(c10::ScalarType::Float));
+                                     lse_opts);
         }
     } else if (input_layout_str == "NTD_TND") {
         if (block_table.has_value()) { // pa场景
             if (query.size(DIM_2) == 0) { // 增加softmax lse的情况下，可能存在空tensor的分支
                 softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 0},
-                    c10::dtype(c10::ScalarType::Float));
+                                         lse_opts);
             } else {
                 softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 1},
-                    c10::dtype(c10::ScalarType::Float));
+                                         lse_opts);
             }
         } else {
             softmax_lse = at::empty({query.size(DIM_1), query.size(DIM_0), 1},
-                c10::dtype(c10::ScalarType::Float));
+                                     lse_opts);
         }
     } else {
         softmax_lse = at::empty({batchSize, num_query_heads, qsSize, 1},
-            c10::dtype(c10::ScalarType::Float));
+                                 lse_opts);
     }
 
     if (!return_softmax_lse) {
-        softmax_lse = at::empty({0}, c10::dtype(c10::ScalarType::Float));
+        softmax_lse = at::empty({0}, lse_opts);
     }
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
@@ -217,6 +218,7 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
 {
+    printf("start npu\n");
     // convert str
     std::string input_layout_str = std::string(input_layout);
 
@@ -288,9 +290,9 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_meta(
     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
 {
+    printf("start meta\n");
     // convert str
     std::string input_layout_str = std::string(input_layout);
-
     // construct the output tensor
     std::tuple<at::Tensor, at::Tensor> fia_output = construct_fia_output_tensor_v2(query, value, input_layout_str,
                                                                                            quant_scale_out, block_table, num_query_heads,
@@ -298,7 +300,6 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_meta(
                                                                                            return_softmax_lse, query_rope);
     at::Tensor output = std::get<0>(fia_output);
     at::Tensor softmax_lse = std::get<1>(fia_output);
-
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
 }  // namespace custom
