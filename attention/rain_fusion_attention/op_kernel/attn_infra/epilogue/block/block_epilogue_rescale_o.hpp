@@ -350,7 +350,7 @@ public:
         AscendC::GlobalTensor<ElementOutput> gOutput,
         AscendC::GlobalTensor<ElementInput> gInput,
         AscendC::GlobalTensor<ElementUpdate> gUpdate,
-        AscendC::GlobalTensor<ElementLse> glse,
+        AscendC::GlobalTensor<ElementLse> gLse,
         const LayoutOutput &layoutOutput,
         const LayoutInput &layoutInput,
         const LayoutUpdate &layoutUpdate,
