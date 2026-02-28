@@ -326,7 +326,7 @@ extern "C" aclnnStatus aclnnMatmulAlltoAll(void *workspace, uint64_t workspaceSi
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         } else if (GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93) {
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-        }else if{
+        } else if (GetCurrentPlatformInfo().GetSocVersion() == SocVersion::ASCEND910B){
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_MTE);
         }
     }
