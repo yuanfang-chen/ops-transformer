@@ -214,7 +214,9 @@ aclnnStatus aclnnAlltoAllMatmul(
     <tr>
       <td>ACLNN_ERR_PARAM_INVALID</td>
       <td>161002</td>
-      <td>输入和输出的数据类型不在支持的范围内。</td>
+      <td>输入和输出的数据类型不在支持的范围内；输入Tensor为空Tensor；
+      alltoAllAxesOptional非法；transposeX1为true；通信域长度非法；输入输出Tensor维度不合法；
+      输入输出format不为ND。</td>
     </tr>
       </tbody>
   </table>
