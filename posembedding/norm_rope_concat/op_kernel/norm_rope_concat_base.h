@@ -101,6 +101,8 @@ public:
         
         sinGm_.SetGlobalBuffer((__gm__ DTYPE_ROPE_SIN *)sin);
         cosGm_.SetGlobalBuffer((__gm__ DTYPE_ROPE_SIN *)cos);
+        sinGm_.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
+        cosGm_.SetL2CacheHint(CacheMode::CACHE_MODE_DISABLE);
         pipe->InitBuffer(ropeQueue_, SINGLE_BUFFER, totalRopeDim_ * NUM_TWO * sizeof(DTYPE_ROPE_SIN));
         pipe->InitBuffer(buf_, (totalRopeDim_ * sizeof(int32_t) + totalRopeDim_ * NUM_TWO * sizeof(float)));
         sin_ = buf_.GetWithOffset<float>(totalRopeDim_, 0);
