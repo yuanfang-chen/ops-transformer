@@ -572,31 +572,31 @@ public:
     void CalcLocalRowMax(uint32_t sUbOffset, uint32_t rowNumCurLoopRound, uint32_t columnNum, uint32_t columnNumRound,
         uint32_t rowOffset)
     {
-        // if (columnNum == 1024U) {
-        //     RowmaxSPECTILE1024(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else if (columnNum == 512U) {
-        //     RowmaxSPECTILE512(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else {
-        //     RowmaxTAILTILE(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // }
+        if (columnNum == 1024U) {
+            RowmaxSPECTILE1024(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512U) {
+            RowmaxSPECTILE512(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else {
+            RowmaxTAILTILE(
+                computeUbTensor,
+                lmUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        }
 
         // if (columnNum == 1024U) {
         //     RowmaxSPECTILE1024(
@@ -616,13 +616,13 @@ public:
         //         columnNumRound);
         // }
 
-        RowmaxTAILTILE(
-            computeUbTensor,
-            lmUbTensor[rowOffset],
-            tvUbTensor,
-            rowNumCurLoopRound,
-            columnNum,
-            columnNumRound);
+        // RowmaxTAILTILE(
+        //     computeUbTensor,
+        //     lmUbTensor[rowOffset],
+        //     tvUbTensor,
+        //     rowNumCurLoopRound,
+        //     columnNum,
+        //     columnNumRound);
     }
 
     __aicore__ inline
@@ -722,33 +722,15 @@ public:
         uint32_t rowOffset)
     {
         // *** ll = rowsum(ls32)
-        // if (columnNum == 1024U) {
-        //     RowsumSPECTILE1024(
-        //         computeUbTensor,
-        //         llUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else if (columnNum == 512U) {
-        //     RowsumSPECTILE512(
-        //         computeUbTensor,
-        //         llUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else {
-        //     RowsumTAILTILE(
-        //         computeUbTensor,
-        //         llUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // }
-
-        if (columnNum == 512U) {
+        if (columnNum == 1024U) {
+            RowsumSPECTILE1024(
+                computeUbTensor,
+                llUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512U) {
             RowsumSPECTILE512(
                 computeUbTensor,
                 llUbTensor[rowOffset],
@@ -765,6 +747,24 @@ public:
                 columnNum,
                 columnNumRound);
         }
+
+        // if (columnNum == 512U) {
+        //     RowsumSPECTILE512(
+        //         computeUbTensor,
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else {
+        //     RowsumTAILTILE(
+        //         computeUbTensor,
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // }
     }
 
     __aicore__ inline
