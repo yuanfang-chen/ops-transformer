@@ -16,7 +16,11 @@
 #define MOE_V3_GATHER_HIF8_QUANT_H_REGBASE
 
 #include "moe_v3_common.h"
+#if ASC_DEVKITMAJOE >= 9
+#include "kernel_vec_intf.h"
+#else
 #include "kernel_operator.h"
+#endif
 
 namespace MoeInitRoutingV3 {
 using namespace AscendC;
