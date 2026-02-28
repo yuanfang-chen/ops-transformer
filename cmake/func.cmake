@@ -217,18 +217,21 @@ function(add_compile_cmd_target)
             ${base_aclnn_binary_dir}/aic-${CMD_COMPUTE_UNIT}-ops-info.ini
             ${GEN_OUT_DIR}
             ${CMD_COMPUTE_UNIT}
+            ${BISHENG_FLAGS}
             ${OP_TILING_KEY_OPTION}
             ${OP_DEBUG_CONFIG_OPTION}
         COMMAND ${HI_PYTHON} ${ASCENDC_CMAKE_UTIL_DIR}/ascendc_bin_param_build.py
             ${base_aclnn_binary_dir}/inner/aic-${CMD_COMPUTE_UNIT}-ops-info.ini
             ${GEN_OUT_DIR}
             ${CMD_COMPUTE_UNIT}
+            ${BISHENG_FLAGS}
             ${OP_TILING_KEY_OPTION}
             ${OP_DEBUG_CONFIG_OPTION}
         COMMAND ${HI_PYTHON} ${ASCENDC_CMAKE_UTIL_DIR}/ascendc_bin_param_build.py
             ${base_aclnn_binary_dir}/exc/aic-${CMD_COMPUTE_UNIT}-ops-info.ini
             ${GEN_OUT_DIR}
             ${CMD_COMPUTE_UNIT}
+            ${BISHENG_FLAGS}
             ${OP_TILING_KEY_OPTION}
             ${OP_DEBUG_CONFIG_OPTION}
         COMMAND bash ${SED_SCRIPT} ${GEN_OUT_DIR}
