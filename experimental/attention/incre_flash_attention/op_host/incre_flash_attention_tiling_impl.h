@@ -78,7 +78,7 @@ public:
     bool IsValidFlag560B();
     bool IsValidFlag();
 
-    IncreFlashAttentionTilingDataV2* ifaTilingData = nullptr;
+    IncreFlashAttentionTilingDataV2* ifaTilingData;
 private:
     ge::graphStatus GetNpuInfo();
     ge::graphStatus PreProcess();

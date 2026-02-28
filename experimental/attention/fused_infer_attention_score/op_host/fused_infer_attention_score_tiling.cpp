@@ -680,57 +680,59 @@ static ge::graphStatus CheckOutShape(gert::TilingContext *context, const string 
 
 ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
 {
-    if (context == nullptr) {
-        OP_LOGE("FusedInferAttentionScore", "tiling context is nullptr!");
-        return ge::GRAPH_FAILED;
-    }
-
-    if (RouteToFia(context)) {
-        return TilingFusedInferAttentionScoreV3(context);
-    }
-    OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
-    auto attrs = context->GetAttrs();
-    OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
-        "Attributes returned from GetAttrs() is a nullptr"), return ge::GRAPH_FAILED);
-    const string inputLayoutStr = string(attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
-    // 获取关键轴信息
-    int64_t b = 0;
-    int64_t queryN = 0;
-    int64_t queryS = 0;
-    int64_t queryT = 0;
-    int64_t queryD = 1;
-    int64_t valueD = 0;
-    bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
-    if ((GetB(context, inputLayoutStr, b) != ge::GRAPH_SUCCESS) ||
-        (GetQueryN(context, inputLayoutStr, queryN) != ge::GRAPH_SUCCESS) ||
-        (GetQueryS(context, inputLayoutStr, queryS) != ge::GRAPH_SUCCESS) ||
-        (GetQueryT(context, inputLayoutStr, queryT) != ge::GRAPH_SUCCESS) ||
-        (GetValueD(context, inputLayoutStr, valueD, isPageAttention) != ge::GRAPH_SUCCESS) ||
-        (GetQueryD(context, inputLayoutStr, queryD) != ge::GRAPH_SUCCESS)) {
-        return ge::GRAPH_FAILED;
-    }
-    // 校验intput
-    OP_CHECK_IF(CheckInputLayout(context, inputLayoutStr, queryS, queryD, isPageAttention) != ge::GRAPH_SUCCESS,
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check InputLayout failed"), return ge::GRAPH_FAILED);
-    // 校验OutShape
-    string outputLayoutStr = GetOutputLayoutStr(inputLayoutStr);
-    auto outShape = context->GetOutputShape(ATTENTION_OUT_INDEX)->GetStorageShape();
-    gert::Shape qkvShapeInfo{b, queryN, queryS, queryT, valueD};
-    OP_CHECK_IF(CheckOutShape(context, outputLayoutStr, outShape, qkvShapeInfo) != ge::GRAPH_SUCCESS,
-        OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check output shape failed"), return ge::GRAPH_FAILED);
-    // 是否路由到IFA
-    bool usingIFA = IsUsingIFA(*context, inputLayoutStr, queryD, queryS);
-    if (usingIFA) { // IFA tiling process
+    // if (context == nullptr) {
+    //     OP_LOGE("FusedInferAttentionScore", "tiling context is nullptr!");
+    //     return ge::GRAPH_FAILED;
+    // }
+    // printf("1111111111111111\n");
+    // if (RouteToFia(context)) {
+    //     return TilingFusedInferAttentionScoreV3(context);
+    // }
+    // printf("2111111111111111\n");
+    // OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
+    //     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
+    // auto attrs = context->GetAttrs();
+    // OP_CHECK_IF(attrs == nullptr, OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+    //     "Attributes returned from GetAttrs() is a nullptr"), return ge::GRAPH_FAILED);
+    // const string inputLayoutStr = string(attrs->GetAttrPointer<char>(ATTR_INPUT_LAYOUT_INDEX));
+    // // 获取关键轴信息
+    // int64_t b = 0;
+    // int64_t queryN = 0;
+    // int64_t queryS = 0;
+    // int64_t queryT = 0;
+    // int64_t queryD = 1;
+    // int64_t valueD = 0;
+    // bool isPageAttention = context->GetOptionalInputShape(BLOCK_TABLE_INDEX) != nullptr ? true : false;
+    // if ((GetB(context, inputLayoutStr, b) != ge::GRAPH_SUCCESS) ||
+    //     (GetQueryN(context, inputLayoutStr, queryN) != ge::GRAPH_SUCCESS) ||
+    //     (GetQueryS(context, inputLayoutStr, queryS) != ge::GRAPH_SUCCESS) ||
+    //     (GetQueryT(context, inputLayoutStr, queryT) != ge::GRAPH_SUCCESS) ||
+    //     (GetValueD(context, inputLayoutStr, valueD, isPageAttention) != ge::GRAPH_SUCCESS) ||
+    //     (GetQueryD(context, inputLayoutStr, queryD) != ge::GRAPH_SUCCESS)) {
+    //     return ge::GRAPH_FAILED;
+    // }
+    // // 校验intput
+    // OP_CHECK_IF(CheckInputLayout(context, inputLayoutStr, queryS, queryD, isPageAttention) != ge::GRAPH_SUCCESS,
+    //     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check InputLayout failed"), return ge::GRAPH_FAILED);
+    // // 校验OutShape
+    // string outputLayoutStr = GetOutputLayoutStr(inputLayoutStr);
+    // auto outShape = context->GetOutputShape(ATTENTION_OUT_INDEX)->GetStorageShape();
+    // gert::Shape qkvShapeInfo{b, queryN, queryS, queryT, valueD};
+    // OP_CHECK_IF(CheckOutShape(context, outputLayoutStr, outShape, qkvShapeInfo) != ge::GRAPH_SUCCESS,
+    //     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check output shape failed"), return ge::GRAPH_FAILED);
+    // // 是否路由到IFA
+    // bool usingIFA = IsUsingIFA(*context, inputLayoutStr, queryD, queryS);
+    // if (usingIFA) { // IFA tiling process
         OP_CHECK_IF(TilingProcess4IFA(context) != ge::GRAPH_SUCCESS,
                     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "tiling process for ifa failed"),
                     return ge::GRAPH_FAILED);
-    }
+    // }
     return ge::GRAPH_SUCCESS;
 }
 
 FIA_EXTERN_C ge::graphStatus DoOpTilingFusedInferAttentionScore(gert::TilingContext *context)
 {
+    printf("start fia tiling\n");
     OP_CHECK_IF(context == nullptr,
         OPS_REPORT_VECTOR_INNER_ERR("FusedInferAttentionScore", "Tiling context is null."),
         return ge::GRAPH_FAILED);

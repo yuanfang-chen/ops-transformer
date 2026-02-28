@@ -12,6 +12,7 @@
 #include <torch/library.h>
 #include "ops_common.h"
 #include <iostream>
+// #include "../../../incre_flash_attention/op_host/incre_flash_attention_tiling.h"
 
 namespace custom {
 const static int FLASH_THRESHOLD = 512;
@@ -189,6 +190,90 @@ std::tuple<at::Tensor, at::Tensor> construct_fia_output_tensor_v2(
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
 
+// void ConvertContextToParamsIFA(
+//     IFAContext &ifaContext, 
+//     const at::Tensor query, const at::Tensor key, const at::Tensor value,
+//     const c10::optional<at::Tensor> query_rope,
+//     const c10::optional<at::Tensor> key_rope,
+//     const c10::optional<at::Tensor> pse_shift,
+//     const c10::optional<at::Tensor> atten_mask,
+//     c10::OptionalIntArrayRef actual_seq_qlen,
+//     c10::OptionalIntArrayRef actual_seq_kvlen,
+//     const c10::optional<at::Tensor> block_table,
+//     const c10::optional<at::Tensor> dequant_scale_query,
+//     const c10::optional<at::Tensor> dequant_scale_key,
+//     const c10::optional<at::Tensor> dequant_offset_key,
+//     const c10::optional<at::Tensor> dequant_scale_value,
+//     const c10::optional<at::Tensor> dequant_offset_value,
+//     const c10::optional<at::Tensor> dequant_scale_key_rope,
+//     const c10::optional<at::Tensor> quant_scale_out,
+//     const c10::optional<at::Tensor> quant_offset_out,
+//     const c10::optional<at::Tensor> learnable_sink,
+//     int64_t num_query_heads, int64_t num_key_value_heads, double softmax_scale,
+//     int64_t pre_tokens, int64_t next_tokens, c10::string_view input_layout,
+//     int64_t sparse_mode, int64_t block_size,
+//     int64_t query_quant_mode, int64_t key_quant_mode, int64_t value_quant_mode,
+//     int64_t inner_precise, bool return_softmax_lse,
+//     c10::optional<int64_t> query_dtype, c10::optional<int64_t> key_dtype, c10::optional<int64_t> value_dtype,
+//     c10::optional<int64_t> query_rope_dtype, c10::optional<int64_t> key_rope_dtype,
+//     c10::optional<int64_t> key_shared_prefix_dtype, c10::optional<int64_t> value_shared_prefix_dtype,
+//     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
+//     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
+// {
+//     ifaContext.opName = "FusedInferAttentionScore"
+//     query = query;
+//     key = key;
+//     value = value;
+//     pseShift = pse_shift;
+//     attenMask = atten_mask;
+//     actualSeqLengthsQ = actual_seq_qlen;
+//     actualSeqLengths = actual_seq_kvlen;
+//     deqScale1 = c10::nullopt;
+//     quantScale1 = c10::nullopt;
+//     deqScale2 = c10::nullopt;
+//     quantScale2 = c10::nullopt;
+//     quantOffset2 = c10::nullopt;
+//     antiquantScale = c10::nullopt;
+//     antiquantOffset = c10::nullopt;
+//     blockTable = block_table;
+//     queryPaddingSize = 0;
+//     kvPaddingSize = 0;
+//     keyAntiquantScale = dequant_scale_key;
+//     keyAntiquantOffset = dequant_offset_key;
+//     valueAntiquantScale = dequant_scale_value;
+//     valueAntiquantOffset = dequant_offset_value;
+//     keySharedPrefix = c10::nullopt;
+//     valueSharedPrefix = c10::nullopt;
+//     actualSharedPrefixLen = c10::nullopt;
+//     queryRope = query_rope;
+//     keyRope = key_rope;
+//     keyRopeAntiquantScale = dequant_scale_key_rope;
+//     dequantScaleQuery = dequant_scale_query;
+//     qStartIdx = c10::nullopt;
+//     kvStartIdx = c10::nullopt;
+
+//     // at::Tensor attenOut;
+//     // at::Tensor lseOut;
+
+//     uint32_t numHeads = num_query_heads;
+//     int64_t preToken = pre_tokens;
+//     int64_t nextToken = next_tokens;
+//     float scaleValue= softmax_scale;
+//     uint32_t kvHeadNums = num_key_value_heads;
+//     char layOut = input_layout;
+//     uint32_t blockSize = block_size;
+//     uint32_t innerPrecise = inner_precise;
+//     int64_t antiquantMode = 0;
+//     bool softmaxLseFlag = return_softmax_lse;
+//     int64_t keyAntiquantMode = key_quant_mode;
+//     int64_t valueAntiquantMode value_quant_mode;
+//     uint32_t sparseMode = sparse_mode;
+//     int64_t queryQuantMode = query_quant_mode;
+//     int64_t pseType = 0;
+//     int64_t windowSize = 0;
+//     return ge::GRAPH_SUCCESS;
+// }
+
 std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     const at::Tensor &query, const at::Tensor &key, const at::Tensor &value,
     const c10::optional<at::Tensor> &query_rope,
@@ -218,6 +303,21 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
     c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
 {
+    // IFAContext ifaContext;
+    // ConvertContextToParamsIFA(ifaContext, query, key, value, query_rope, key_rope,
+    //                         pse_shift,atten_mask,actual_seq_qlen,actual_seq_kvlen, block_table,dequant_scale_query,
+    //                         dequant_scale_key, dequant_offset_key, dequant_scale_value, dequant_offset_value,
+    //                         dequant_scale_key_rope, quant_scale_out, quant_offset_out, learnable_sink,
+    //                         num_query_heads, num_key_value_heads, softmax_scale, pre_tokens, next_tokens, input_layout,
+    //                         sparse_mode,  block_size, query_quant_mode, key_quant_mode, value_quant_mode,
+    //                         inner_precise, return_softmax_lse, query_dtype, key_dtype, value_dtype,
+    //                         query_rope_dtype, key_rope_dtype, key_shared_prefix_dtype,  value_shared_prefix_dtype,
+    //                         dequant_scale_query_dtype, dequant_scale_key_dtype, dequant_scale_value_dtype, dequant_scale_key_rope_dtype)
+    // IFATiling ifaTiling();
+    // ifaTiling.DoSubOpTiling(ifaContext);
+
+
+    //----------------------------------------------------------------------------------------------
     printf("start npu\n");
     // convert str
     std::string input_layout_str = std::string(input_layout);
