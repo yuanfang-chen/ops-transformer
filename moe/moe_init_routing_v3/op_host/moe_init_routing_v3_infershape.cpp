@@ -60,7 +60,7 @@ enum QuantMode : int8_t {
     DYNAMIC_QUANT = 1,
     MXQUANT_FP8_E5M2 = 2,
     MXQUANT_FP8_E4M3FN = 3,
-    HIF8_CAST = 6
+    HIF8_CAST = 6,
     HIF8_PERTENSOR = 7,
     HIF8_PERTOKEN = 8
 };
@@ -253,7 +253,7 @@ static ge::graphStatus GetAndCheckAttrQuantMode(const gert::RuntimeAttrs *attrs,
     quantMode = *quantModePtr;
     if (validQuantModes.count(quantMode) == 0) {
         OP_LOGE(context, "The quant_mode should be in [%d, %d], %d, %d or %d. But it is %d.", QuantMode::NON_QUANT,
-                QuantMode::NON_QUANT, QuantMode::MXQUANT_FP8_E4M3FN, QuantMode::HIF8_CAST, QuantMode::HIF8_PERTENSOR
+                QuantMode::NON_QUANT, QuantMode::MXQUANT_FP8_E4M3FN, QuantMode::HIF8_CAST, QuantMode::HIF8_PERTENSOR,
                 QuantMode::HIF8_PERTOKEN, quantMode);
         return ge::GRAPH_FAILED;
     }
@@ -714,7 +714,7 @@ static ge::graphStatus InferDataType4MoeInitRoutingV3(gert::InferDataTypeContext
     const int64_t *quantModePtr = attrs->GetAttrPointer<int64_t>(MOE_INIT_ROUTING_V3_ATTR_QUANT_MODE);
     if (nullptr == quantModePtr) {
         OP_LOGE(context, "The quant_mode should be in range [%d, %d], %d, %d or %d. But it is none.",
-            QuantMode::NON_QUANT, QuantMode::MXQUANT_FP8_E4M3FN, QuantMode::HIF8_CAST, QuantMode::HIF8_PERTENSOR
+            QuantMode::NON_QUANT, QuantMode::MXQUANT_FP8_E4M3FN, QuantMode::HIF8_CAST, QuantMode::HIF8_PERTENSOR,
                 QuantMode::HIF8_PERTOKEN);
         return ge::GRAPH_FAILED;
     }
