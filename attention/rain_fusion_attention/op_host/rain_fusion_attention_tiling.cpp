@@ -925,7 +925,7 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
     }
     bool softmaxLseOut = (rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX) != nullptr);
     if (softmaxLseOut) {
-        tilingKey += 100000000000ULL // 1 for lse out
+        tilingKey += 100000000000ULL; // 1 for lse out
     }
     
     return tilingKey;

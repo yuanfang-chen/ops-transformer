@@ -323,7 +323,7 @@ public:
                     if (qNThisSubBlock == 0U) { // 不切头
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor,
-                            AscendC:DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
+                            AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
                     } else {
                         for(uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                             AscendC::DataCopyPad(
