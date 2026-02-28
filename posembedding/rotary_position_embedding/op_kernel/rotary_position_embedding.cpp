@@ -22,14 +22,13 @@
 #include "rotate_interleaved_split_s_pad.h"
 #include "rotate_interleaved_split_bs_pad.h"
 #include "rotate_interleaved_split_bsn_pad.h"
-<<<<<<< HEAD
+#endif
+
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 #include "rotate_matrix.h"
 using namespace RotateMatrix;
 using namespace matmul;
-=======
 using namespace RotateInterleavedN;
->>>>>>> 6bf23b5d (rope supports 310p compile.)
 #endif
 
 using namespace AscendC;
@@ -224,6 +223,7 @@ extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_AD
         interleavedSplitBSNPad.Init(x, cos, sin, y, tilingData, &pipe);
         interleavedSplitBSNPad.Process();
     }
+#endif
     
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
     if (TILING_KEY_IS(3011)) {
