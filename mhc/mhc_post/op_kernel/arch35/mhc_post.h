@@ -205,7 +205,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(int64
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
         // outF32 += sum_j(hRes[j,i] * x[j])
         for (int64_t j = 0; j < n_; j++) {
-            CopyInX(bsIdx, dIdx, i, j, outF32);
+            CopyInX(bsIdx, dIdx, j);
             LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
             Cast(xF32, xTile, RoundMode::CAST_NONE, dNum);
             Axpy(outF32, xF32, hResGm_.GetValue(hResBase + j * n_ + i), dNum);
