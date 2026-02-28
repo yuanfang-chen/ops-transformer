@@ -51,7 +51,6 @@ public:
     __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum);
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
-    __aicore__ inline void CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count);
     __aicore__ inline GM_ADDR GetWinDataAddrGm(uint32_t rankId);
     __aicore__ inline GM_ADDR GetWinStatusAddrGm(uint32_t rankId);
 
@@ -78,8 +77,6 @@ private:
     LocalTensor<float> stateResetTensor_;
     LocalTensor<OutputType> xOutTensor_;
 
-    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> xQueue_, scaleQueue_;
-    TQue<QuePosition::VECOUT, 1> xOutQueue_;
     TBuf<> writeStateBuf_;
     TBuf<> readStateBuf_;
     TBuf<> stateResetBuf_;
@@ -106,9 +103,6 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint6
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitBuffer(TPipe *tPipe)
 {
-    tPipe->InitBuffer(xQueue_, BUFFER_NUM, X_BLOCK_BYTES);    
-    tPipe->InitBuffer(scaleQueue_, BUFFER_NUM, UB_ALIGN_BYTES);     
-    tPipe->InitBuffer(xOutQueue_, BUFFER_NUM, xNumPerBlock_ * sizeof(OutputType)); // 用于输出的OutPutTensor
     tPipe->InitBuffer(writeStateBuf_, UB_ALIGN_BYTES); // 状态位每一个按32B对齐
     tPipe->InitBuffer(readStateBuf_, hcclContext_->rankSize * UB_ALIGN_BYTES); // 每次读 rankSize 个状态位
     tPipe->InitBuffer(stateResetBuf_, hcclContext_->rankSize * UB_ALIGN_BYTES); // 用于清理状态区
@@ -188,29 +182,6 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>();
     DataCopy<float>(selfStatusWinTensor[offset], stateResetTensor_, statusCnt); // 相关状态区重新置零
-}
-
-/**
- * @brief 将计算得到的UB上的结果Tensor的数据复制到GM上的OutPutTensor，并进行类型转换（如果需要）。
- * 
- * @param outputOffset 输出OutputTensor的GM偏移量，用于指定目标位置。
- * @param sourceTensor 本地UB上计算结果Tensor，包含计算完成的数据。
- * @param count 当前每次处理数据块的元素数量
- */
-template <AllGatherTemplateTypeClass>
-__aicore__ inline void MTECommunication<AllGatherTemplateType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint32_t count)
-{
-    // 将计算好的数据拷贝到输出tensor，如果是非float数据类型需要先转换成目标数据类型
-    xOutTensor_ = xOutQueue_.AllocTensor<OutputType>();
-    if constexpr (AscendC::IsSameType<OutputType, float>::value) {
-        DataCopy(xOutTensor_, localResultTensor, count);
-    } else {
-        Cast(xOutTensor_, localResultTensor, RoundMode::CAST_RINT, count);
-    }
-    xOutQueue_.EnQue(xOutTensor_);
-    xOutTensor_ = xOutQueue_.DeQue<OutputType>();
-    DataCopy(outputTensor_[outOffsetGM], xOutTensor_, count);
-    xOutQueue_.FreeTensor(xOutTensor_);
 }
 
 // 获取对应rank的Win区数据区的地址

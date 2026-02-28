@@ -34,11 +34,8 @@
 
 namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
-// TODO
 #define TemplateMC2TypeClass typename X1Type, bool IsScaleExist, bool IsSmoothScaleExist
 #define TemplateMC2TypeFunc X1Type, IsScaleExist, IsSmoothScaleExist
-// using namespace QuantMTECommImpl;
-// using namespace VectorComputeImpl;
 using namespace AscendC;
 using namespace AllGatherImpl;
 
@@ -200,7 +197,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         stateResetTensor = stateResetBuf_.Get<int32_t>();
         Duplicate<int32_t>(stateResetTensor, 0, sizeToBeCleaned / sizeof(int32_t));
         SyncFunc<AscendC::HardEvent::V_MTE3>();
-        GM_ADDR cvFlagAddr = (GM_ADDR)(winContext_->localWindowsExp + CV_SYNC_START_OFFSET);
+        GM_ADDR cvFlagAddr = (GM_ADDR)(winContext_->localWindowsExp) + CV_SYNC_START_OFFSET;
         GlobalTensor<int32_t> winCvExpTensor;
         winCvExpTensor.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
         DataCopy(winCvExpTensor, stateResetTensor, sizeToBeCleaned / sizeof(int32_t));
@@ -375,7 +372,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         }
         GammaWeightAndCopyOut(gmOffset);
         DynamicQuant(rowIdx - startRowId);
-        // copy out 到本卡win区?  TODO
+        // copy out 到本卡win区
         x1OutLocalTensor_ = x1OutQueue_.AllocTensor<int8_t>();
         RoundFloat2Int8(x1OutLocalTensor_, yLocalTensorFp32_, axisKa_);
         x1OutQueue_.EnQue(x1OutLocalTensor_);
@@ -387,7 +384,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         gmOffset += axisKa_;
     }
     SyncFunc<AscendC::HardEvent::S_MTE3>();
-    DataCopyEx(scaleWinGMTensor_[startRowId], dynamicScaleLocalTensor_, rowNum); //修改
+    DataCopyEx(scaleWinGMTensor_[startRowId], dynamicScaleLocalTensor_, rowNum);
 }
 
 template<TemplateMC2TypeClass>
@@ -427,7 +424,8 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         Add2RmsNormDynamicQuantProcess();
         SyncAll<true>();
         PipeBarrier<PIPE_MTE3>();
-        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
+        tpipe_->Reset();
+        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_, rankSize_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
         allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
@@ -436,10 +434,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     }
     
     if ASCEND_IS_AIC {        
-        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_);
+        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_, rankSize_);
         MatmulProcess();
     }
-    AscendC::PRINTF("[Kernel] Over!!!");
+    // AscendC::PRINTF("[Kernel] Over!!!");
 }
 } // AddRmsNormDynamicQuantAllGatherQbmmImpl
 #endif  // ADD_RMS_NORM_DYNAMIC_ALL_GATHER_QBMM_H

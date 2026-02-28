@@ -49,7 +49,7 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, addRmsNormOut, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
-        AscendC::PRINTF("kernel TILING_KEY_IS(1) !!!");
+        // AscendC::PRINTF("kernel TILING_KEY_IS(1) !!!");
     }
     // if (TILING_KEY_IS(0)) {
     //     // 0 Tiling, Do Nothing.
