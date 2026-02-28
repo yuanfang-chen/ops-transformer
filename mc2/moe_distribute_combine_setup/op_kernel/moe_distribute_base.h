@@ -321,6 +321,41 @@ __aicore__ inline void SendJFCDoorBell(const AscendC::LocalTensor<uint8_t> &jfcD
     st_dev(jfcDbValue, (__gm__ uint64_t *)(cqInfoU64(CQ_DBADDR_OFFSET)), 0); // Scalar操作
 }
 
+__aicore__ inline bool CheckCqeStatus(const AscendC::LocalTensor<uint8_t> &cqInfoTensor,
+                                      const AscendC::LocalTensor<uint8_t> &cqeTensor, uint32_t &outCqCi,
+                                      uint32_t &outCqCiLinear, uint32_t &newestCompletedPi)
+{
+    AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
+    AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
+
+    uint32_t cqeSize = cqInfoU32(CQ_CQESIZE_OFFSET);
+    AscendC::GlobalTensor<uint8_t> cqGlobalTensor;
+    cqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoU64(CQ_CQVA_OFFSET)));
+    AscendC::DataCopyExtParams cqeParams = {1U, 8U, 0U, 0U, 0U};
+    AscendC::DataCopyPadExtParams<uint8_t> cqePadParams{false, 0U, 0U, 0U};
+
+    AscendC::DataCopyPad(cqeTensor, cqGlobalTensor[cqeSize * outCqCi], cqeParams, cqePadParams);
+    AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
+    if (cqeTensor(CQE_STATUS_OFFSET) == 0xff) {
+        return true;
+    } else if (cqeTensor(CQE_STATUS_OFFSET) != 0) {
+        // 退出kernel并报错
+        ascendc_assert(false, "CQE status is abnormal! status is %d, substatus is %d.\n", cqeTensor(CQE_STATUS_OFFSET),
+                       cqeTensor(CQE_SUBSTATUS_OFFSET));
+    }
+
+    // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
+    newestCompletedPi = (static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_HIGH_OFFSET)) << UINT8_BITS_OFFSET) +
+                        static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_LOW_OFFSET));
+    // 把CQE的status设置为无效值，并写回CQ
+    cqeTensor(CQE_STATUS_OFFSET) = 0xff;
+    AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
+    AscendC::DataCopyPad(cqGlobalTensor[cqeSize * outCqCi], cqeTensor, cqeParams);
+    AscendC::SyncFunc<AscendC::HardEvent::MTE3_MTE2>(); // 防止cqeTensor被下一轮加载覆盖
+
+    return false;
+}
+
 __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> &sqInfoTensor,
                                             const AscendC::LocalTensor<uint8_t> &cqInfoTensor,
                                             const AscendC::LocalTensor<uint8_t> &cqeTensor,
@@ -329,38 +364,16 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
 {
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> cqInfoU32 = cqInfoTensor.ReinterpretCast<uint32_t>();
-    AscendC::LocalTensor<uint64_t> cqInfoU64 = cqInfoTensor.ReinterpretCast<uint64_t>();
 
     uint32_t sqDepth = sqInfoU32(WQ_SQDEPTH_OFFSET);
-    uint32_t cqeSize = cqInfoU32(CQ_CQESIZE_OFFSET);
     uint32_t cqDepth = cqInfoU32(CQ_CQDEPTH_OFFSET);
-    AscendC::GlobalTensor<uint8_t> cqGlobalTensor;
-    cqGlobalTensor.SetGlobalBuffer((__gm__ uint8_t *)(cqInfoU64(CQ_CQVA_OFFSET)));
-    AscendC::DataCopyExtParams cqeParams = {1U, 8U, 0U, 0U, 0U};
-    AscendC::DataCopyPadExtParams<uint8_t> cqePadParams{false, 0U, 0U, 0U};
 
     uint32_t pollTimes = 0;
     uint32_t newestCompletedPi = 0;
     while (pollTimes < cqDepth - 1) {
-        AscendC::DataCopyPad(cqeTensor, cqGlobalTensor[cqeSize * outCqCi], cqeParams, cqePadParams);
-        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
-        if (cqeTensor(CQE_STATUS_OFFSET) == 0xff) {
+        if (CheckCqeStatus(cqInfoTensor, cqeTensor, outCqCi, outCqCiLinear, newestCompletedPi)) {
             break;
-        } else if (cqeTensor(CQE_STATUS_OFFSET) != 0) {
-            // 退出kernel并报错
-            ascendc_assert(false, "CQE status is abnormal! status is %d, substatus is %d.\n",
-                           cqeTensor(CQE_STATUS_OFFSET), cqeTensor(CQE_SUBSTATUS_OFFSET));
         }
-
-        // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
-        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_HIGH_OFFSET)) << UINT8_BITS_OFFSET) +
-                            static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_LOW_OFFSET));
-        // 把CQE的status设置为无效值，并写回CQ
-        cqeTensor(CQE_STATUS_OFFSET) = 0xff;
-        AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
-        AscendC::DataCopyPad(cqGlobalTensor[cqeSize * outCqCi], cqeTensor, cqeParams);
-        // 防止cqeTensor被下一轮加载覆盖
-        AscendC::SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
 
         // 递增本地的outCqCi
         outCqCi = (outCqCi + 1) % cqDepth;
