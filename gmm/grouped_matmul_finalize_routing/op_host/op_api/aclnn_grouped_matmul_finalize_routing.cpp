@@ -756,6 +756,7 @@ static aclnnStatus WeightNZCaseProcessForMXScale(const aclTensor *&x2, bool &tra
 {
     // if weight is already in nz format, no need to set contiguous
     if (ge::GetPrimaryFormat(x2->GetStorageFormat()) == op::Format::FORMAT_FRACTAL_NZ) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "GroupedMatmulFinalizeRoutingWeightV3 weight scale only souuprt nz,now is nd");
         return ACLNN_ERR_PARAM_INVALID;
     } else {
         CHECK_RET(TransposeTensorContiguousProcessForMXScale(x2, transposeX2, executor), ACLNN_ERR_INNER_NULLPTR);
