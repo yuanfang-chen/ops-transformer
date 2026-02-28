@@ -218,7 +218,7 @@
      uint64_t qSize;
      uint64_t kSize;
      uint64_t vSize;
-     int64_t dropMaskSize;
+     uint64_t dropMaskSize;
      uint8_t dropMaskOuter;
  
      int64_t blockStarts[CORE_LIST_NUM];
