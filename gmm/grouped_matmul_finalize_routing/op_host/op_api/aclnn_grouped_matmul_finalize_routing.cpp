@@ -35,7 +35,6 @@ using namespace GmmFinalizeRouting;
 extern "C" {
 #endif
 
-
 namespace {
 
 static constexpr int INDEX_X1_IN_MANDTORY_TUPLE = 0;
