@@ -229,6 +229,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnRainFusionAttentionGetWo
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
+    int64_t softmaxLseFlag,
     const aclTensor *attentionOut,
     const aclTensor *softmaxLseOptional,
     uint64_t *workspaceSize,
@@ -248,7 +249,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnRainFusionAttentionGetWo
     L2_DFX_PHASE_1(aclnnRainFusionAttention,
                    DFX_IN(query, key, value, selectIdx, selectNumIdx, blockShape, attenMaskOptional, actualSeqLengthsOptional,
                           actualSeqLengthsKvOptional, blockTableOptional, qInputLayout, qInputLayout, numKeyValueHeads,
-                          maskType, scaleValue, innerPrecise, blockSize, attentionOut, softmaxLseOptional),
+                          maskType, scaleValue, innerPrecise, blockSize, softmaxLseFlag, attentionOut, softmaxLseOptional),
                    DFX_OUT(attentionOut, softmaxLseOptional));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -268,7 +269,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnRainFusionAttentionGetWo
                                              attenMaskOptional, actualSeqLengthsOptional, 
                                              actualSeqLengthsKvOptional, blockTableOptional,
                                              qInputLayoutStr.c_str(), kvInputLayoutStr.c_str(), numKeyValueHeads,
-                                             maskType, scaleValue, innerPrecise, blockSize, executorImpl);
+                                             maskType, scaleValue, innerPrecise, blockSize, softmaxLseFlag, executorImpl);
     if (outputs[0] == nullptr || outputs[1] == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "RainFusionAttention returned nullptr outputs.");
         return ACLNN_ERR_INNER_NULLPTR;

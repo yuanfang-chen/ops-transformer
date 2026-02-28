@@ -61,6 +61,7 @@ constexpr int MASK_TYPE_INDEX = 3;
 constexpr int SCALE_VALUE_INDEX = 4;
 constexpr int INNER_PRECISE_INDEX = 5;
 constexpr int BLOCK_SIZE_INDEX = 6;
+constexpr int SOFTMAX_LSE_FLAG_INDEX = 7;
 
 constexpr int VALID_EMBEDDING_SIZE_64 = 64;
 constexpr int VALID_EMBEDDING_SIZE_128 = 128;
@@ -735,6 +736,13 @@ ge::graphStatus RFATiling::CheckAttr(gert::TilingContext *rfaContext)
     if (rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX) != nullptr) {
         innerPrecise_ = *rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
     }
+
+    auto softmaxLsePtr = rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(SOFTMAX_LSE_FLAG_INDEX);
+    if (softmaxLsePtr == nullptr) {
+        softmaxLseFlag_ = false;
+    } else {
+        softmaxLseFlag_ = *softmaxLsePtr == 1 ? true : false;
+    }
     
     return ge::GRAPH_SUCCESS;
 }
@@ -923,8 +931,7 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
     } else if (qInputLayout_ == RFAQInputLayout::BNSD_Q) {
         tilingKey += 3;  // 3 for BNSD
     }
-    bool softmaxLseOut = (rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX) != nullptr);
-    if (softmaxLseOut) {
+    if (softmaxLseFlag_) {
         tilingKey += 100000000000ULL; // 1 for lse out
     }
     
