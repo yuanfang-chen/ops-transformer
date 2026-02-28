@@ -1006,8 +1006,8 @@ while [[ $# -gt 0 ]]; do
         ;;
     --PR_PKG)
         PR_CHANGED_FILES="$2"
-        ops_names=$(python3 "$CURRENT_DIR"/cmake/scripts/parse_changed_files.py -c "$CURRENT_DIR"/tests/test_config.yaml -f "$PR_CHANGED_FILES" get_related_examples)
-        echo "Operators that need custom package compilation:$ops_names"
+        ops_names=$(python3 "$CURRENT_DIR"/cmake/scripts/parse_changed_files.py -c "$CURRENT_DIR"/tests/test_config.yaml -f "$PR_CHANGED_FILES" get_related_examples)	 
+        echo "Operators that need custom package compilation:$ops_names"	 
         if [ -z "${ops_names}" ];then
             log "Info: No custom packages to build for this PR."
             # ops_names="incre_flash_attention"
@@ -1567,9 +1567,9 @@ function process_ci_smoke_with_changed_list()
 if [[ "$ENABLE_SMOKE" == "TRUE" ]]; then
     process_ci_smoke_with_changed_list
 fi
-
+pwd
 cd ${BUILD_DIR}
-
+pwd
 if [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
     build_example
     example_result=$?
