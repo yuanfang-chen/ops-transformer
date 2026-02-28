@@ -1514,7 +1514,7 @@
         {
           "name": "x",
           "index": 0,
-          "dtype": "hifloat8_t",
+          "dtype": "hifloat8",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1556,7 +1556,7 @@
         {
           "name": "expanded_x",
           "index": 0,
-          "dtype": "hifloat8_t",
+          "dtype": "hifloat8",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1693,7 +1693,7 @@
         {
           "name": "expanded_x",
           "index": 0,
-          "dtype": "hifloat8_t",
+          "dtype": "hifloat8",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1830,7 +1830,7 @@
         {
           "name": "expanded_x",
           "index": 0,
-          "dtype": "hifloat8_t",
+          "dtype": "hifloat8",
           "format": "ND",
           "paramType": "required",
           "shape": [
