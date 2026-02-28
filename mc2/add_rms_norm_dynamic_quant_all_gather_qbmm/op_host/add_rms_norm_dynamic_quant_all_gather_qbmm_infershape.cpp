@@ -69,11 +69,6 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     const gert::Shape *smoothScaleShape = context->GetOptionalInputShape(INPUT_SMOOTH_SCALE_INDEX);
     const gert::Shape *biasShape = context->GetOptionalInputShape(INPUT_BIAS_INDEX);
 
-    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
-    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
-
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const auto group = attrs->GetAttrPointer<char>(INPUT_ATTR_GROUP_INDEX);
@@ -129,12 +124,12 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
         rankSize = 1;
     }
 
-    gert::Shape* outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX0);
+    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
     outputShape->SetDimNum(OUTPUT_DIM_SIZE);
     outputShape->SetDim(0, dimM * rankSize);
     outputShape->SetDim(1, dimN);
-    gert::Shape* zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
+    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
     zShape->SetDimNum(OUTPUT_DIM_SIZE);
     zShape->SetDim(0, dimM);
@@ -165,19 +160,19 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
 
 static ge::graphStatus InferDataTypeAddRmsNormDynamicQuantAllGatherQbmm(gert::InferDataTypeContext* context)
 {
-    auto z_type = context->GetInputDataType(0);
+    auto z_dtype = context->GetInputDataType(0);
     auto output_dtype = context->GetInputDataType(0);
     context->SetOutputDataType(0, output_dtype);
-    context->SetOutputDataType(1, z_type);
+    context->SetOutputDataType(1, z_dtype);
 
-    auto addRmsNormOut_type = context->GetInputDataType(0);
+    auto addRmsNormOut_dtype = context->GetInputDataType(0);
     auto dynamicQuantOut_dtype = DT_INT8;
-    auto allGatherDataOut_type = DT_INT8;
+    auto allGatherDataOut_dtype = DT_INT8;
     auto allGatherScalesOut_dtype = DT_FLOAT;
     context->SetOutputDataType(2, addRmsNormOut_dtype);
-    context->SetOutputDataType(3, dynamicQuantOut_type);
+    context->SetOutputDataType(3, dynamicQuantOut_dtype);
     context->SetOutputDataType(4, allGatherDataOut_dtype);
-    context->SetOutputDataType(5, allGatherScalesOut_type);
+    context->SetOutputDataType(5, allGatherScalesOut_dtype);
 
     return ge::GRAPH_SUCCESS;
 }
