@@ -20,16 +20,9 @@
 // 量化模式宏定义
 #define QUANT_MODE_NONE 0 // 无量化
 #define QUANT_MODE_TT 1   // TT
-#define QUANT_MODE_2 2
-#define QUANT_MODE_3 3
-#define QUANT_MODE_4 4
-#define QUANT_MODE_5 5
-#define QUANT_MODE_6 6
 
 // 通信量化模式宏定义
 #define COMM_QUANT_MODE_NONE 0 // 不量化
-#define COMM_QUANT_MODE_INT8 1 // INT8 量化
-#define COMM_QUANT_MODE_INT4 2 // INT4 量化
 
 /**
  * TilingKey 定义
@@ -54,13 +47,11 @@ ASCENDC_TPL_ARGS_DECL(GroupedMatMulAlltoAllv,
 
                     // GMM 量化模式：0=NONE, 1=TT
                     ASCENDC_TPL_UINT_DECL(TILINGKEY_GMM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_2, QUANT_MODE_3, QUANT_MODE_4,
-                                            QUANT_MODE_5, QUANT_MODE_6),
+                                            QUANT_MODE_NONE, QUANT_MODE_TT),
 
                     // 共享专家 MM 量化模式: 0=NONE, 1=TT
                     ASCENDC_TPL_UINT_DECL(TILINGKEY_SHARED_MM_QUANT_MODE, ASCENDC_TPL_4_BW, ASCENDC_TPL_UI_LIST,
-                                            QUANT_MODE_NONE, QUANT_MODE_TT, QUANT_MODE_2, QUANT_MODE_3, QUANT_MODE_4,
-                                            QUANT_MODE_5, QUANT_MODE_6));
+                                            QUANT_MODE_NONE, QUANT_MODE_TT));
 
 /**
  * TilingKey 选择器定义
