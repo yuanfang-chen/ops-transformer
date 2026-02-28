@@ -39,12 +39,12 @@
 
 | 参数名                     | 输入/输出/属性 | 描述  | 数据类型       | 数据格式   |
 |----------------------------|-----------|----------------------------------------------------------------------|----------------|------------|
-| keyCache                     | 输入 | 当前层存储的key向量缓存 | INT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN | ND         |
-| valueCache                     | 输入 | 当前层存储的value向量缓存 | INT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN | FRACTAL_NZ |
+| keyCache                     | 输入 | 当前层存储的key向量缓存 | INT8, FLOAT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN | ND         |
+| valueCache                     | 输入 | 当前层存储的value向量缓存 | INT8, FLOAT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN | FRACTAL_NZ |
 | blockTables                     | 输入 | 每个batch中KV Cache的逻辑块到物理块的映射关系 | INT32、INT64       | ND         |
 | seqLens                     | 输入 | 每个batch对应的序列长度 | INT32、INT64       | ND         |
-| keyRef                     | 输入/输出 | 当前层的key向量 | INT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN       | ND         |
-| valueRef                     | 输入/输出 | 当前层的value向量 | INT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN       | ND         |
+| keyRef                     | 输入/输出 | 当前层的key向量 | INT8, FLOAT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN       | ND         |
+| valueRef                     | 输入/输出 | 当前层的value向量 | INT8, FLOAT8, FLOAT16, BFLOAT16, FLOAT, UINT8, INT16, UINT16, INT32, UINT32, HIFLOAT8, FLOAT8_E5M2, FLOAT8_E4M3FN       | ND         |
 | seqOffset                     | 输入 | blockTables获取blockId时存在的首偏移 | INT32、INT64       | ND         |
 | cacheMode                     | 输入 | 表示输入的数据排布格式，支持Norm、PA_NZ | String      | ND         |
 | isSeqLensCumsum                     | 输入 | 表示seqLens是否为累加和。false表示非累加和 | BOOL       | ND         |
