@@ -14,7 +14,7 @@ from typing import List, Optional, Tuple
 import torch
 from torch import Tensor
 
-__all__ = ["groupedmatmul", ]
+__all__ = ["groupedmatmul", "MoeDistributeDispatchV2", ]
 
 def groupedmatmul(
     x: List[Tensor],
