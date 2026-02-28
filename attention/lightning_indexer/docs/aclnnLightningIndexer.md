@@ -321,7 +321,7 @@ aclnnStatus aclnnLightningIndexer(
                 <li>不支持空tensor。</li>
           </ul>
       </td>
-      <td>INT32</td>
+      <td>FLOAT16、BFLOAT16</td>
       <td>ND</td>
       <td>shape与sparseIndices保持一致</td>
       <td>x</td>
@@ -423,7 +423,7 @@ aclnnStatus aclnnLightningIndexer(
 
 ## 约束说明
 
-- 参数query中的N支持648，key、value的N支持1。
+- 参数query中的N支持64，key、value的N支持1。
 - sparseCount支持[1, 2048]，以及3072、4096、5120、6144、7168、8192。
 - headdim支持128。
 - block_size取值为16的倍数，最大支持1024。
