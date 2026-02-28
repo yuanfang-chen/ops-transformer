@@ -18,16 +18,13 @@ inputs:
       values: [ fp16, bf16 ]
     shapes:
       dim_numbers:
-        values: [3]
+        values: [3, 4]
       max_length: 1048576
     ranges:
       valid:
         values: [ [-5, 5] ]
       invalid:
         values: [ [-5, 5] ]
-    boundary:
-      has_empty: false
-      has_scalar: false
   - name: key
     type: tensor
     required: true
@@ -35,16 +32,13 @@ inputs:
       values: [ fp16, bf16 ]
     shapes:
       dim_numbers:
-        values: [3]
+        values: [3, 4]
       max_length: 1048576
     ranges:
       valid:
         values: [ [-5, 5] ]
       invalid:
         values: [ [-5, 5] ]
-    boundary:
-      has_empty: false
-      has_scalar: false
   - name: value
     type: tensor
     required: true
@@ -52,16 +46,13 @@ inputs:
       values: [ fp16, bf16 ]
     shapes:
       dim_numbers:
-        values: [3]
+        values: [3, 4]
       max_length: 1048576
     ranges:
       valid:
         values: [ [-5, 5] ]
       invalid:
         values: [ [-5, 5] ]
-    boundary:
-      has_empty: false
-      has_scalar: false
   - name: selectIdx
     type: tensor
     required: true
@@ -71,12 +62,6 @@ inputs:
       dim_numbers:
         values: [3]
       max_length: 1048576
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false
   - name: selectNumIdx
     type: tensor
     required: true
@@ -91,12 +76,6 @@ inputs:
         values: [ 50, 80, [0, 100] ]
       invalid:
         values: [ 50, 80, [0, 100] ]
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false
   - name: blockShape
     type: attr_tuple
     required: true
@@ -119,12 +98,6 @@ inputs:
         values: [2]
       dim_values:
         values: [ [1, 50] ]
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false
   - name: actualSeqLengths
     type: attr_tuple
     required: true
@@ -160,12 +133,6 @@ inputs:
       dim_values:
         values: [ [1, 8] ]
       max_length: 1024000
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false
   - name: qInputLayout
     type: attr
     required: true
@@ -173,9 +140,9 @@ inputs:
       values: [ string ]
     ranges:
       valid:
-        values: [ "TND" ]
+        values: [ "TND", "BNSD" ]
       invalid:
-        values: [ "TND" ]
+        values: [ "TND", "BNSD" ]
   - name: kvInputLayout
     type: attr
     required: true
@@ -183,9 +150,9 @@ inputs:
       values: [ string ]
     ranges:
       valid:
-        values: [ "TND" ]
+        values: [ "TND", "BNSD" ]
       invalid:
-        values: [ "TND" ]
+        values: [ "TND", "BNSD" ]
   - name: numKeyValueHeads
     type: attr
     required: true
@@ -243,18 +210,12 @@ inputs:
       values: [ fp16, bf16 ]
     shapes:
       dim_numbers:
-        values: [3]
+        values: [3, 4]
     ranges:
       valid:
         values: [[-5, 5]]
       invalid:
         values: [[-5, 5]]
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false
   - name: softmaxLse
     type: tensor
     required: true
@@ -262,15 +223,9 @@ inputs:
       values: [ fp32 ]
     shapes:
       dim_numbers:
-        values: [3]
+        values: [3, 4]
     ranges:
       valid:
         values: [[-5, 5]]
       invalid:
         values: [[-5, 5]]
-    boundary:
-      has_empty: false
-      has_infnan: false
-      has_scalar: false
-      has_upper_border: false
-      has_lower_border: false

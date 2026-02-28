@@ -11,6 +11,7 @@ from atk.tasks.api_execute.base_api import BaseApi
 import numpy as np
 from atk.tasks.api_execute.aclnn_base_api import AclnnBaseApi
 from atk.tasks.backends.lib_interface.acl_wrapper import AclTensor
+from atk.tasks.backends.lib_interface.acl_wrapper import AclIntArray
 import ctypes
 from ml_dtypes import bfloat16
 
@@ -70,7 +71,24 @@ def safe_to_tensor(arr):
 class RainFusionAttentionInputProcess(AclnnBaseApi):
     def __init__(self, task_result: TaskResult, backend):
         super(RainFusionAttentionInputProcess, self).__init__(task_result, backend)
-
+        self.qSeqlenList = []
+        
+    @classmethod
+    def change_bnsd_to_tnd(self, tensor, seqlenList):
+        """
+        把BNSD格式的tensor转换成TND格式
+        """
+        headDim = tensor.shape[-1]
+        headNum = tensor.shape[1]
+        tokenNum = sum(seqlenList)
+        batch = len(seqlenList)
+        res = torch.zeros((tokenNum, headNum, headDim), dtype=tensor.dtype)
+        count = 0
+        for i in range(batch):
+            res[count:count + seqlenList[i], :, :] = tensor[i,:,:seqlenList[i], :].permute(1, 0, 2)
+            count = count + seqlenList[i]
+        return res
+    
     def init_by_input_data(self, input_data):
         np.random.seed(10)
         torch.npu.synchronize()
@@ -105,8 +123,9 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         input_args[3] = self.torch_tensor_to_acl(selectIdx)
         selectNumIdx = self.acl_tensor_to_torch(input_args[4]).to("npu")
         input_args[4] = self.torch_tensor_to_acl(selectNumIdx)
-        output_packages = [] 
+        output_packages = []
         input_args[6] = null_tensor_ptr # attenMask
+        self.qSeqlenList = input_data.kwargs['actualSeqLengths']
         input_args[9] = null_tensor_ptr # blockTable
         input_args[18] = null_tensor_ptr
 
@@ -125,7 +144,19 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         for output_pack in output_packages:
             temp_output_pack = self.acl_tensor_to_torch(output_pack).to(dtype=torch.float32)
             output.append(temp_output_pack)
-        return output
+        batch = len(self.qSeqlenList)
+        count = 0
+        tokenNum = sum(self.qSeqlenList)
+
+        if output[0].dim() == 4:
+            outputTemp = torch.zeros((tokenNum, output[0].shape[1], output[0].shape[-1]), dtype=output[0].dtype)
+            outputTensor = output[0]
+            for i in range(batch):
+                outputTemp[count:count+self.qSeqlenList[i], :, :] = outputTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
+                count += self.qSeqlenList[i]
+            return [outputTemp]
+        else:
+            return output
 
     def get_cpp_func_signature_type(self):
         return "aclnnStatus aclnnRainFusionAttentionGetWorkspaceSize(const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *selectIdx, const aclTensor *selectNumIdx, const aclIntArray *blockShape, const aclTensor *attenMaskOptional, const aclIntArray *actualSeqLengthsOptional, const aclIntArray *actualSeqLengthsKvOptional, const aclTensor *blockTableOptional, char *qInputLayout, char *kvInputLayout, int64_t numKeyValueHeads, int64_t maskType, double scaleValue, int64_t innerPrecise, int64_t blockSize, const aclTensor *attentionOut, const aclTensor *softmaxLseOptional, uint64_t *workspaceSize, aclOpExecutor **executor)"
@@ -298,8 +329,8 @@ class TestRainFusionAttentionTorch():
                 q_block_idx = t_local  # 当前batch内的Q块索引
                 
                 # 【关键修复】：batch内的相对位置
-                q_start_local = q_block_idx * s_block_x
-                q_end_local = min((q_block_idx + 1) * s_block_x, q_seqlen)
+                q_start_local = q_block_idx * s_block_x # 当前Q块起始位置
+                q_end_local = min((q_block_idx + 1) * s_block_x, q_seqlen) # 当前Q块结束位置
                 
                 # 【关键修复】：加上batch偏移得到全局位置
                 q_start_global = q_token_offset + q_start_local
@@ -310,15 +341,15 @@ class TestRainFusionAttentionTorch():
                     select_idx_offset = t_global * num_heads * max_kv_block_num + head * max_kv_block_num
                     select_num_offset = t_global * num_heads + head
                     
-                    select_num = select_num_idx_list[select_num_offset]
-                    selected_kv_blocks = select_idx_list[select_idx_offset:select_idx_offset + max_kv_block_num]
+                    select_num = select_num_idx_list[select_num_offset] # 稀疏块数量
+                    selected_kv_blocks = select_idx_list[select_idx_offset:select_idx_offset + max_kv_block_num] # 稀疏块索引列表
                     
                     # 【GQA修复】：在循环之前提取 q_block 和计算 GQA 参数（只需要一次）
                     q_block = query[head:head+1, q_start_global:q_end_global, :]  # (1, q_block_size, head_size)
                     
                     # 处理 group attention 的情况
-                    group_size = num_heads // kv_heads
-                    kv_head_idx = head // group_size
+                    group_size = num_heads // kv_heads # 每个组多少个Q头共享一个KV头
+                    kv_head_idx = head // group_size # 第几个kv头
                     
                     # 收集所有选中的KV块数据（作为 (K, V) 元组列表）
                     kv_blocks = []
@@ -327,7 +358,7 @@ class TestRainFusionAttentionTorch():
                     if select_num == 0:
                         continue
 
-                    for kv_block_idx in selected_kv_blocks[:select_num]:
+                    for kv_block_idx in selected_kv_blocks[:select_num]: # 当前得到了Q块，需要计算的KV块
                         if kv_block_idx == -1:  # 跳过填充的-1
                             continue
                         
@@ -391,6 +422,37 @@ class TestRainFusionAttentionTorch():
         #     out = out.to(query.dtype)
         return out
 
+    @classmethod
+    def change_bnsd_to_tnd(self, tensor, seqlenList):
+        """
+        把BNSD格式的tensor转换成TND格式
+        """
+        headDim = tensor.shape[-1]
+        headNum = tensor.shape[1]
+        tokenNum = sum(seqlenList)
+        batch = len(seqlenList)
+        res = torch.zeros((tokenNum, headNum, headDim), dtype=tensor.dtype)
+        count = 0
+        for i in range(batch):
+            res[count:count + seqlenList[i], :, :] = tensor[i,:,:seqlenList[i], :].permute(1, 0, 2)
+            count = count + seqlenList[i]
+        return res
+    
+    @classmethod
+    def change_tnd_to_bnsd(self, tensor, seqlenList, maxQSeqlen):
+        """
+        把TND格式的tensor转换成BNSD格式
+        """
+        headDim = tensor.shape[-1]
+        headNum = tensor.shape[1]
+        batch = len(seqlenList)
+        res = torch.zeros((batch, headNum, maxQSeqlen, headDim), dtype=tensor.dtype)
+        count = 0
+        for i in range(batch):
+            res[i, :, :seqlenList[i], :] = tensor[count:count+seqlenList[i], :, :].permute(1, 0, 2)
+            count = count + seqlenList[i]
+        return res
+        
     def calc_data(self, query_dtype, query, key, value, select_idx, select_num_idx, block_shape, q_seqlen_list, kv_seqlen_list, scale_value, q_input_layout, kv_input_layout, inner_precise):
         """
         PyTorch 版本的 calc_data
@@ -414,7 +476,12 @@ class TestRainFusionAttentionTorch():
         value = value.cpu()
         select_idx = select_idx.cpu()
         select_num_idx = select_num_idx.cpu()
-
+        maxQSeqlen = 0
+        if q_input_layout == "BNSD":
+            maxQSeqlen = query.shape[-2]
+            query = self.change_bnsd_to_tnd(query, q_seqlen_list)
+            key = self.change_bnsd_to_tnd(key, kv_seqlen_list)
+            value = self.change_bnsd_to_tnd(value, kv_seqlen_list)
         embedding_size = query.shape[2]
         num_heads = query.shape[1]
         batch_size = len(q_seqlen_list)
@@ -422,53 +489,52 @@ class TestRainFusionAttentionTorch():
         if inner_precise == 1 :
             scale_value = np.float16(scale_value)
 
-        if q_input_layout == 'TND' and kv_input_layout == 'TND':
-            # 使用 torch 计算总和
-            if isinstance(q_seqlen_list, (list, tuple)):
-                num_tokens = sum(q_seqlen_list)
-            else:
-                num_tokens = torch.tensor(q_seqlen_list).sum().item()
-            head_size_vo = embedding_size
+        # if q_input_layout == 'TND' and kv_input_layout == 'TND':
+        # 使用 torch 计算总和
+        if isinstance(q_seqlen_list, (list, tuple)):
+            num_tokens = sum(q_seqlen_list)
+        else:
+            num_tokens = torch.tensor(q_seqlen_list).sum().item()
+        head_size_vo = embedding_size
 
-            shape_out = (num_tokens, num_heads, head_size_vo)
-            # 根据 query_dtype 确定 torch dtype
-            if isinstance(query_dtype, torch.dtype):
-                torch_dtype = query_dtype
-            elif query_dtype == np.float32 or str(query_dtype) == 'float32':
-                torch_dtype = torch.float32
-            elif query_dtype == np.float16 or str(query_dtype) == 'float16':
-                torch_dtype = torch.float16
-            elif query_dtype == np.bfloat16 or str(query_dtype) == 'bfloat16':
-                torch_dtype = torch.bfloat16
-            else:
-                torch_dtype = torch.float32
+        shape_out = (num_tokens, num_heads, head_size_vo)
+        # 根据 query_dtype 确定 torch dtype
+        if isinstance(query_dtype, torch.dtype):
+            torch_dtype = query_dtype
+        elif query_dtype == np.float32 or str(query_dtype) == 'float32':
+            torch_dtype = torch.float32
+        elif query_dtype == np.float16 or str(query_dtype) == 'float16':
+            torch_dtype = torch.float16
+        elif query_dtype == np.bfloat16 or str(query_dtype) == 'bfloat16':
+            torch_dtype = torch.bfloat16
+        else:
+            torch_dtype = torch.float32
 
-            input_type = torch_dtype
-            if inner_precise == 1 :
-                torch_dtype = torch.float16
+        input_type = torch_dtype
+        if inner_precise == 1 :
+            torch_dtype = torch.float16
 
-            ref_output = torch.zeros(shape_out, dtype=torch_dtype, device=torch.device('cpu'))
-            ref_output_high = torch.zeros(shape_out, dtype=torch.float32, device=torch.device('cpu'))
+        ref_output = torch.zeros(shape_out, dtype=torch_dtype, device=torch.device('cpu'))
+        ref_output_high = torch.zeros(shape_out, dtype=torch.float32, device=torch.device('cpu'))
 
-            total_q_blocks = select_idx.shape[0]
-            max_kv_block_num = select_idx.shape[2]
-            s_block_x = block_shape[0]
-            s_block_y = block_shape[1]
-            select_idx_list = select_idx.flatten().tolist()
-            select_num_idx_list = select_num_idx.flatten().tolist()
-
-            ref_output = self.ref_select_idx_attention_torch(
-                query, key, value, scale_value,
-                select_idx_list, select_num_idx_list,
-                s_block_x, s_block_y,
-                total_q_blocks, max_kv_block_num,
-                q_seqlen_list, kv_seqlen_list, batch_size, torch_dtype, inner_precise
-            )
-            if query.dtype != torch.float32:
-                ref_output_h = ref_output.to(torch.float32)
-                return ref_output_h
-            else:
-                return ref_output
+        total_q_blocks = select_idx.shape[0]
+        max_kv_block_num = select_idx.shape[2]
+        s_block_x = block_shape[0]
+        s_block_y = block_shape[1]
+        select_idx_list = select_idx.flatten().tolist()
+        select_num_idx_list = select_num_idx.flatten().tolist()
+        ref_output = self.ref_select_idx_attention_torch(
+            query, key, value, scale_value,
+            select_idx_list, select_num_idx_list,
+            s_block_x, s_block_y,
+            total_q_blocks, max_kv_block_num,
+            q_seqlen_list, kv_seqlen_list, batch_size, torch_dtype, inner_precise
+        )
+        if query.dtype != torch.float32:
+            ref_output_h = ref_output.to(torch.float32)
+            return ref_output_h
+        else:
+            return ref_output
 
 @register("aclnn_rainfusionattention")
 class RainFusionAttentionApi(BaseApi):
@@ -476,8 +542,6 @@ class RainFusionAttentionApi(BaseApi):
         super(RainFusionAttentionApi, self).__init__(task_result)
 
     def __call__(self, input_data: InputDataset, with_output: bool = False):
-        if self.name == "perf_cpu" or "abnormal" in self.task_result.case_config.name:
-            return torch.Tensor([1])
         query = input_data.kwargs["query"]
         query_dtype = query.dtype
         key = input_data.kwargs["key"]
@@ -589,7 +653,6 @@ class RainFusionAttentionApi(BaseApi):
 
     def init_by_input_data(self, input_data: InputDataset):
         # if self.device == "pyaclnn":
-        
         np.random.seed(10)
         select_idx = input_data.kwargs["selectIdx"]
         select_idx_value = select_idx.cpu()
@@ -604,18 +667,8 @@ class RainFusionAttentionApi(BaseApi):
         max_kv_block_num = select_idx_value.shape[2]
 
         select_num_value = select_num_idx[0][0]
-        
-
 
         sparsity_ratio = min(select_num_value / 100.0, 1)
-        if self.name == "perf_npu":
-            # sparsity_ratio = 0 # 性能最差 不稀疏
-            if self.task_result.case_config.id % 3 == 0:
-                sparsity_ratio = 0  # 性能0.95倍
-            elif self.task_result.case_config.id % 3 == 1:
-                sparsity_ratio = 0.8 # 性能2.5*0.95=2.375倍
-            else :
-                sparsity_ratio = 0.5 # 性能1.25*0.95=1.1875倍
 
         select_idx_list, select_num_idx_list, total_q_blocks, max_kv_block_num = self.gen_select_idx_data(q_seqlen_list, kv_seqlen_list, block_shape[0], block_shape[1], batch, head_num, 1 - sparsity_ratio)
 

@@ -1,8 +1,8 @@
 nodes:
   - backend: pyaclnn
     task: ['accuracy']
-    devices: [0]
+    devices: [2]
   - backend: cpu
-    name: "perf_cpu"
+    name: gpu
     task: ['accuracy']
-    is_compare: 'False'
+    devices: [2]

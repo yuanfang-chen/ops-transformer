@@ -1,8 +1,0 @@
-nodes:
-   - backend: pyaclnn
-     task: ['accuracy_dc']
-     devices: [0]
-   - backend: cpu
-     name: gpu
-     task: ['accuracy_dc']
-     is_compare: False
