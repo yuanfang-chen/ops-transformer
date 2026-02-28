@@ -448,7 +448,7 @@ __aicore__ inline void QLIMatmul<QLIT>::LoadKeyToL0b(uint64_t s2L0RealSize)
     loadData2DParamsV2.mStartPosition = 0;
     loadData2DParamsV2.kStartPosition = 0;
     loadData2DParamsV2.mStep = CeilDiv(s2L0RealSize, BLOCK_CUBE);
-    loadData2DParamsV2.kStep = CeilDiv(constInfo_.headDim, S8_BLOCK_CUBE);
+    loadData2DParamsV2.kStep = CeilDiv(constInfo_.headDim, 32);
     loadData2DParamsV2.srcStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.dstStride = CeilDiv(s2L0RealSize, BLOCK_CUBE);
     loadData2DParamsV2.ifTranspose = false;
@@ -530,7 +530,7 @@ __aicore__ inline void QLIMatmul<QLIT>::FixpResToGm(uint64_t s1L0RealCount, uint
     intriParams.quantPre = QuantMode_t::NoQuant;
     intriParams.nz2ndEn = true;
     intriParams.reluPre = 0;
-    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * BLOCK_CUBE,
+    AscendC::SetFixpipeNz2ndFlag(s1L0RealCount, CeilDiv(constInfo_.gSize, BLOCK_CUBE) * S2_BASIC_BLOCK_L0 / BLOCK_CUBE * 1024 / 64,
                                  2048);
     AscendC::DataCopy(mm1ResGm_[(runInfo.loop % 2) * constInfo_.mBaseSize / constInfo_.gSize * constInfo_.s2BaseSize +
                                 s1GmOffset * intriParams.dstStride + s2GmOffset],
