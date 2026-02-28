@@ -41,6 +41,7 @@ constexpr uint32_t WIN_CQCI_OFFSET = 3U;
 constexpr uint32_t WIN_SQPILINEAR_OFFSET = 4U;
 constexpr uint32_t WIN_CQCILINEAR_OFFSET = 5U;
 constexpr uint32_t WIN_FIRST_TIME_CREATE_WIN_FLAG_OFFSET = 6U;
+constexpr uint32_t UINT8_BITS_OFFSET = 8U;
 
 // WQ 32bit offset
 constexpr uint32_t WQ_JETTYID_OFFSET = 0U;
@@ -217,10 +218,10 @@ __aicore__ inline void UpdateCommonSQE(const AscendC::LocalTensor<uint8_t> &sqeT
 
     AscendC::LocalTensor<uint32_t> sqInfoU32 = sqInfoTensor.ReinterpretCast<uint32_t>();
     AscendC::LocalTensor<uint32_t> templateSqeU32 = sqeTensor.ReinterpretCast<uint32_t>();
-    templateSqeU32(SQE_COMMON_UINT32_OFFSET_2) =
-        (1U << 24) + (sqInfoU32(WQ_TP_ID_OFFSET) & 0x00ffffff);                            // sge_num=1 tp_id
-    templateSqeU32(SQE_COMMON_RMT_JETTY_OR_SEG_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET); // rmt_jetty_or_seg_id
-    templateSqeU32(SQE_COMMON_RMT_EID_31_0_OFFSET) = sqInfoU32(WQ_RMTEID_0_3_OFFSET);      // rmt_eid
+    templateSqeU32(SQE_COMMON_UINT32_OFFSET_2) &= 0xff000000;                                // 保留sge_num
+    templateSqeU32(SQE_COMMON_UINT32_OFFSET_2) |= (sqInfoU32(WQ_TP_ID_OFFSET) & 0x00ffffff); // tp_id
+    templateSqeU32(SQE_COMMON_RMT_JETTY_OR_SEG_ID_OFFSET) = sqInfoU32(WQ_RMTOBJID_OFFSET);   // rmt_jetty_or_seg_id
+    templateSqeU32(SQE_COMMON_RMT_EID_31_0_OFFSET) = sqInfoU32(WQ_RMTEID_0_3_OFFSET);        // rmt_eid
     templateSqeU32(SQE_COMMON_RMT_EID_63_32_OFFSET) = sqInfoU32(WQ_RMTEID_4_7_OFFSET);
     templateSqeU32(SQE_COMMON_RMT_EID_95_64_OFFSET) = sqInfoU32(WQ_RMTEID_8_11_OFFSET);
     templateSqeU32(SQE_COMMON_RMT_EID_127_96_OFFSET) = sqInfoU32(WQ_RMTEID_12_15_OFFSET);
@@ -352,7 +353,7 @@ __aicore__ inline void PollCommCQUpdateSQCI(const AscendC::LocalTensor<uint8_t> 
         }
 
         // status==0，处理当前CQE，从entry_idx获取对应WQE的sqPi
-        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_HIGH_OFFSET)) << 8) +
+        newestCompletedPi = (static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_HIGH_OFFSET)) << UINT8_BITS_OFFSET) +
                             static_cast<uint32_t>(cqeTensor(CQE_ENTRY_IDX_LOW_OFFSET));
         // 把CQE的status设置为无效值，并写回CQ
         cqeTensor(CQE_STATUS_OFFSET) = 0xff;
