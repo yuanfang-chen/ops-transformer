@@ -555,12 +555,12 @@ ge::graphStatus RFATiling::ProcessActualSeqLengths(gert::TilingContext *rfaConte
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext)
-{
-    auto softmaxLse = rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX);
-    bool softmaxLseFlag = softmaxLse != nullptr;
-    return ge::GRAPH_SUCCESS;
-}
+// ge::graphStatus RFATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext) // 这里应该不需要
+// {
+//     auto softmaxLse = rfaContext->GetOptionalInputTensor(SOFTMAX_LSE_INDEX);
+//     bool softmaxLseFlag = softmaxLse != nullptr;
+//     return ge::GRAPH_SUCCESS;
+// }
 
 ge::graphStatus RFATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
 {
