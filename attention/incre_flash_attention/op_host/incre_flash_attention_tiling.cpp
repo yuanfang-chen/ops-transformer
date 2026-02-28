@@ -526,7 +526,7 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
         ropeFlag_ = true;
     }
 
-    // TODO 遗留问题：看路由条件放开的情况在做决定，现在先放开
+    // 遗留问题：看路由条件放开的情况在做决定，现在先放开
     if (sOfQuery > 1U && sOfQuery <= 16U && !ropeFlag_) {  // 投机推理场景，QS在1到32之间
         gqaMtpFlag_ = true;
     }

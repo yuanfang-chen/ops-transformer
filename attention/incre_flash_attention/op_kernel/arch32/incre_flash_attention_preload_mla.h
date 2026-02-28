@@ -1885,7 +1885,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyForSplitG(const ExtraInfo
     attenMaskUb = attenMaskUbDst.template ReinterpretCast<bool>();
 }
 
-// TODO 新增sparse9的处理
+// 新增sparse9的处理
 template <typename IFAT>
 __aicore__ inline void
 IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyNoFull(LocalTensor<bool> &attenMaskUb, const ExtraInfoMla &info, uint32_t s1StartIdx, uint32_t s1EndIdx)

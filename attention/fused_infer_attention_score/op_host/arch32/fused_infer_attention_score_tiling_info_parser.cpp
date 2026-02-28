@@ -817,7 +817,7 @@ ge::graphStatus FiaInfoParser::GetAttenMaskSparse9Info()
     auto *maskTensor = opParamInfo_.attenMask.tensor;
     uint32_t maskDimNum = maskTensor->GetStorageShape().GetDimNum();
 
-    // TODO TND传入的mask
+    // TND传入的mask
     if (qLayout_ == FiaLayout::TND || qLayout_ == FiaLayout::NTD) {
         if (maskDimNum == 1U) {
             attenMaskBatchStride_ = 1;

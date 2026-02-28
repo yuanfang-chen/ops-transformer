@@ -588,7 +588,7 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
 
         maskInfo.attenMaskType = fa_base_vector::MASK_BOOL; // compatible with int8/uint8
 
-        // TODO 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
+        // 添加Sparse9的处理，由于sparse9的mask拷贝只占最小块的一部分，所以需要对UB空间赋初值0，表示不被掩码覆盖
         // TND场景下mask传入∑s1²，其余场景传入[B,S1,S1]
         LocalTensor<bool> maskUb ;
         

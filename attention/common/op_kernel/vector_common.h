@@ -913,7 +913,7 @@ __aicore__ inline uint64_t ComputeAttenMaskOffset(MaskInfo &info, uint32_t s1Sta
 template <typename T>
 __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, uint32_t s1StartIdx, uint32_t s1EndIdx, bool isPre = false)
 {
-    // TODO 由于sparse9 mask只有一部分，不能合并处理
+    // 由于sparse9 mask只有一部分，不能合并处理
     uint32_t treeMaskStart = info.s2Size - info.s1Size;
     uint32_t curS2EnsPos = info.s2StartIdx + info.s2dealNum;
 
@@ -1053,7 +1053,7 @@ __aicore__ inline bool IsSkipAttentionmask(MaskInfo &info)
         return false;
     }
 
-    //TODO 增加sparse = 9的处理
+    // 增加sparse = 9的处理
     if (info.sparseMode == TREE) {
         // 由于分核时按照Batch进行划分，sparse9在每个batch的所有 S 跳过的范围固定，所以不区分跨g轴的情况
         if (static_cast<int64_t>(info.s2StartIdx + info.s2dealNum) > static_cast<int64_t>(info.s2Size - info.s1Size)) {
