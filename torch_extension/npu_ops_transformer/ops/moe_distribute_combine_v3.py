@@ -14,17 +14,17 @@ from npu_ops_transformer.op_builder.builder import OpBuilder
 from npu_ops_transformer.op_builder.builder import AS_LIBRARY
 
 
-class MoeDistributeCombineV2OpBuilder(OpBuilder):
+class MoeDistributeCombineV3OpBuilder(OpBuilder):
     def __init__(self):
-        super(MoeDistributeCombineV2OpBuilder, self).__init__("npu_moe_distribute_combine_v2")
+        super(MoeDistributeCombineV3OpBuilder, self).__init__("npu_moe_distribute_combine_v3")
 
     def sources(self):
         """Path to C++ source code."""
-        return ['ops/csrc/moe_distribute_combine_v2.cpp']
+        return ['ops/csrc/moe_distribute_combine_v3.cpp']
 
     def schema(self) -> str:
         """PyTorch operator signature."""
-        return "npu_moe_distribute_combine_v2(Tensor expand_x, Tensor expert_ids, Tensor assist_info_for_combine, " \
+        return "npu_moe_distribute_combine_v3(Tensor expand_x, Tensor expert_ids, Tensor assist_info_for_combine, " \
             "Tensor ep_send_counts, Tensor expert_scales, str group_ep, int ep_world_size, int ep_rank_id, " \
             "int moe_expert_num, *, Tensor? tp_send_counts=None, Tensor? x_active_mask=None, " \
             "Tensor? expand_scales=None, Tensor? shared_expert_x=None, Tensor? elastic_info=None, " \
@@ -40,7 +40,7 @@ class MoeDistributeCombineV2OpBuilder(OpBuilder):
         Essential for Autograd and FakeTensor support.
         """
         @impl(AS_LIBRARY, self.name, "Meta")
-        def npu_moe_distribute_combine_v2_meta(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
+        def npu_moe_distribute_combine_v3_meta(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
                                                expert_scales, group_ep, ep_world_size, ep_rank_id, moe_expert_num, 
                                                tp_send_counts=None, x_active_mask=None, expand_scales=None, 
                                                shared_expert_x=None, elastic_info=None, ori_x=None, 
@@ -52,12 +52,14 @@ class MoeDistributeCombineV2OpBuilder(OpBuilder):
             dim_tuple = (expert_ids.size(0), expand_x.size(1))
             return expand_x.new_empty(dim_tuple)
 
-# Instantiate the builder
-moe_distribute_combine_v2_op_builder = MoeDistributeCombineV2OpBuilder()
-op_module = moe_distribute_combine_v2_op_builder.load()  # Compiles/loads the .so file
 
-@impl(AS_LIBRARY, moe_distribute_combine_v2_op_builder.name, "PrivateUse1")
-def npu_moe_distribute_combine_v2(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
+# Instantiate the builder
+moe_distribute_combine_v3_op_builder = MoeDistributeCombineV3OpBuilder()
+op_module = moe_distribute_combine_v3_op_builder.load()  # Compiles/loads the .so file
+
+
+@impl(AS_LIBRARY, moe_distribute_combine_v3_op_builder.name, "PrivateUse1")
+def npu_moe_distribute_combine_v3(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
                                   expert_scales, group_ep, ep_world_size, ep_rank_id, moe_expert_num, 
                                   tp_send_counts=None, x_active_mask=None, expand_scales=None, 
                                   shared_expert_x=None, elastic_info=None, ori_x=None, 
@@ -70,7 +72,7 @@ def npu_moe_distribute_combine_v2(expand_x, expert_ids, assist_info_for_combine,
     dispatcher implementation for NPU.
     'PrivateUse1' is the combine key for custom NPU backends.
     """
-    return op_module.npu_moe_distribute_combine_v2(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
+    return op_module.npu_moe_distribute_combine_v3(expand_x, expert_ids, assist_info_for_combine, ep_send_counts, 
                                                   expert_scales, group_ep, ep_world_size, ep_rank_id, moe_expert_num, 
                                                   tp_send_counts, x_active_mask, expand_scales, 
                                                   shared_expert_x, elastic_info, ori_x, 
@@ -96,8 +98,8 @@ if _TORCHAIR_AVAILABLE:
         Support(torch.bfloat16, (8, 128)),
         Support(torch.float16, (8, 128)),
     ])
-    @register_fx_node_ge_converter(torch.ops.npu_ops_transformer.npu_moe_distribute_combine_v2.default)
-    def convert_npu_moe_distribute_combine_v2(
+    @register_fx_node_ge_converter(torch.ops.npu_ops_transformer.npu_moe_distribute_combine_v3.default)
+    def convert_npu_moe_distribute_combine_v3(
         expand_x: Tensor,
         expert_ids: Tensor,
         assist_info_for_combine: Tensor,
@@ -132,7 +134,7 @@ if _TORCHAIR_AVAILABLE:
         const_expert_num: int = 0,
         meta_outputs: TensorSpec = None):
 
-        return ge.MoeDistributeCombineV2(expand_x=expand_x,
+        return ge.MoeDistributeCombineV3(expand_x=expand_x,
                                     expert_ids=expert_ids,
                                     assist_info_for_combine=assist_info_for_combine,
                                     ep_send_counts=ep_send_counts,

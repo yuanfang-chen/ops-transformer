@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_combine_v2.cpp
+ * \file moe_distribute_combine_v3.cpp
  * \brief
  */
 
@@ -26,7 +26,8 @@ const int DIM_TWO = 2;
  * @param x Input Tensor (on NPU)
  * @return Result Tensor
  */
-at::Tensor npu_moe_distribute_combine_v2(const at::Tensor &expand_x, const at::Tensor &expert_ids,
+at::Tensor npu_moe_distribute_combine_v3(const at::Tensor &mc2_context, const at::Tensor &expand_x,
+                                         const at::Tensor &expert_ids,
                                          const at::Tensor &assist_info_for_combine,
                                          const at::Tensor &ep_send_counts, const at::Tensor &expert_scales,
                                          std::string group_ep, int64_t ep_world_size, int64_t ep_rank_id,
@@ -77,7 +78,7 @@ at::Tensor npu_moe_distribute_combine_v2(const at::Tensor &expand_x, const at::T
     std::string comm_alg_str = std::string(comm_alg);
     char *comm_alg_ptr = const_cast<char *>(comm_alg_str.c_str());
 
-    ACLNN_CMD(aclnnMoeDistributeCombineV4, expand_x, expert_ids, assist_info_for_combine, ep_send_counts, expert_scales, tp_send_counts, x_active_mask,
+    ACLNN_CMD(aclnnMoeDistributeCombineV5, mc2_context, expand_x, expert_ids, assist_info_for_combine, ep_send_counts, expert_scales, tp_send_counts, x_active_mask,
               nulltensor, nulltensor, nulltensor, expand_scales, shared_expert_x, elastic_info, ori_x, const_expert_alpha_1, const_expert_alpha_2, const_expert_v,
               performance_info, group_ep_ptr, ep_world_size, ep_rank_id, moe_expert_num, group_tp_ptr, tp_world_size, tp_rank_id,
               expert_shard_type, shared_expert_num, shared_expert_rank_num, global_bs_real, out_dtype, comm_quant_mode, group_list_type,
@@ -88,6 +89,6 @@ at::Tensor npu_moe_distribute_combine_v2(const at::Tensor &expand_x, const at::T
 // Bind the C++ function to Python module
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m)
 {
-    m.def("npu_moe_distribute_combine_v2", &npu_moe_distribute_combine_v2, "moe_distribute_combine_v2");
+    m.def("npu_moe_distribute_combine_v3", &npu_moe_distribute_combine_v3, "moe_distribute_combine_v3");
 }
 } // op_api
