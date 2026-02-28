@@ -28,6 +28,7 @@ struct MhcPostTilingData {
     int64_t dInner;
     int64_t dOuter;
     int64_t dTail;
+    int32_t canFullyCopyIn;
 };
 
 #endif

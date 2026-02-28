@@ -63,7 +63,7 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_fp16_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "4 5120 48 107 106 1 1024 1 256 20 256 1";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
                     expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
@@ -71,7 +71,7 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_fp16_success)
 
 TEST_F(MhcPostTiling, test_mhc_post_4d_fp16_success)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -89,7 +89,7 @@ TEST_F(MhcPostTiling, test_mhc_post_4d_fp16_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "4 5120 64 80 79 1 1024 1 256 20 256 1";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
                     expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
@@ -97,7 +97,7 @@ TEST_F(MhcPostTiling, test_mhc_post_4d_fp16_success)
 
 TEST_F(MhcPostTiling, test_mhc_post_3d_n6_success)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -115,7 +115,7 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_n6_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "6 2048 64 64 64 1 512 1 256 8 256 1";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
                     expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
@@ -124,7 +124,7 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_n6_success)
 // 测试异常情况：n不在{4,6,8}中
 TEST_F(MhcPostTiling, test_mhc_post_invalid_n)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -151,7 +151,7 @@ TEST_F(MhcPostTiling, test_mhc_post_invalid_n)
 // 测试异常情况：D超出范围
 TEST_F(MhcPostTiling, test_mhc_post_invalid_d)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
