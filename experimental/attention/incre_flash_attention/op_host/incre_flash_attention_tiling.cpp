@@ -118,24 +118,24 @@ void IFATiling::SetCoreNum()
 
 ge::graphStatus IFATiling::GetNpuInfo()
 {
-    OP_CHECK_IF(ifaContext_->platformInfo == nullptr,
-        OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "GetPlatformInfo is nullptr."), return ge::GRAPH_FAILED);
+    // OP_CHECK_IF(ifaContext_->platformInfo == nullptr,
+    //     OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "GetPlatformInfo is nullptr."), return ge::GRAPH_FAILED);
 
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
-    libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
+    auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+    libapiSize_ = ascendcPlatform->GetLibApiWorkSpaceSize();
 
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, l0cSize_);
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, l0bSize_);
+    ascendcPlatform->GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
+    ascendcPlatform->GetCoreMemSize(platform_ascendc::CoreMemType::L1, l1Size_);
+    ascendcPlatform->GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, l0cSize_);
+    ascendcPlatform->GetCoreMemSize(platform_ascendc::CoreMemType::L0_B, l0bSize_);
 
-    aivNum_ = ascendcPlatform.GetCoreNumAiv();
-    aicNum_ = ascendcPlatform.GetCoreNumAic();
+    aivNum_ = ascendcPlatform->GetCoreNumAiv();
+    aicNum_ = ascendcPlatform->GetCoreNumAic();
 
     OP_CHECK_IF(aicNum_ == 0 || aivNum_ == 0,
         OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName, "num of core obtained is 0."), return GRAPH_FAILED);
 
-    if (ascendcPlatform.GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
+    if (ascendcPlatform->GetSocVersion() == platform_ascendc::SocVersion::ASCEND310P) {
         socVersion_ = IfaSocVersion::SOC_ASCEND_310P;
     } else {
         socVersion_ = IfaSocVersion::SOC_ASCEND_910B;
@@ -682,15 +682,18 @@ ge::graphStatus IFATiling::SetQuantFlag()
 
 ge::graphStatus IFATiling::ProcessBaseInputs()
 {
-    if ((CheckBaseInputsNull() != ge::GRAPH_SUCCESS) ||
+    if (
+        // (CheckBaseInputsNull() != ge::GRAPH_SUCCESS) ||
         (QKVPreProcess() != ge::GRAPH_SUCCESS) ||
         (InputAttrsPreProcess() != ge::GRAPH_SUCCESS) ||
         (KvShapePostProcess() != ge::GRAPH_SUCCESS) ||
-        (CheckQKOutShape() != ge::GRAPH_SUCCESS) ||
-        (CheckInputFormatAndLimits() != ge::GRAPH_SUCCESS) ||
+        // (CheckQKOutShape() != ge::GRAPH_SUCCESS) ||
+        // (CheckInputFormatAndLimits() != ge::GRAPH_SUCCESS) ||
         (SetL2CacheFlag() != ge::GRAPH_SUCCESS) ||
-        (SetQuantFlag() != ge::GRAPH_SUCCESS) ||
-        (InitInOutMode() != ge::GRAPH_SUCCESS)) {
+        (SetQuantFlag() != ge::GRAPH_SUCCESS) 
+        // ||
+        // (InitInOutMode() != ge::GRAPH_SUCCESS)
+        ) {
             return ge::GRAPH_FAILED;
         }
     return ge::GRAPH_SUCCESS;
@@ -3454,15 +3457,6 @@ ge::graphStatus IFATiling::GenTilingKey() const
         cvRatioVal = (cvRatio_ == 1) ? 1 : 0; // CV1:1场景为1，其他场景为0
     }
 
-    uint64_t baseOffset =
-        modeVal * IFA_TILINGKEYOFFSET + (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
-    if (antiquantMode_ == PER_TOKEN_MODE || antiquantMode_ == PER_CHANNEL_MODE){
-        ifaContext_->tilingKey = baseOffset + IFA_GET_TILINGKEY(layoutVal, inputQVal, inputKvVal, outputVal, originVal,
-            (paVal + splitKvVal + antiquantModeVal), 0, kvLayoutInfo.kvLayoutVal, kvLayoutInfo.amlaMode, balanceMode, cvRatioVal);
-    } else {
-        ifaContext_->tilingKey = baseOffset + IFA_GET_TILINGKEY(layoutVal, inputQVal, inputKvVal, outputVal, originVal,
-            (paVal + splitKvVal), antiquantMode_, kvLayoutInfo.kvLayoutVal, kvLayoutInfo.amlaMode, balanceMode, cvRatioVal);
-    }
     ifaContext_->tilingKey = GET_TPL_TILING_KEY(splitKvVal, layoutVal, static_cast<uint8_t>(antiquantMode_));
     OP_LOGI(ifaContext_->opName, "IFA tilingKey: %lu.", ifaContext_->tilingKey);
     printf("IFA tilingKey: %lu.\n", ifaContext_->tilingKey);
@@ -3471,8 +3465,7 @@ ge::graphStatus IFATiling::GenTilingKey() const
 
 ge::graphStatus IFATiling::CalcNumBlocks()
 {
-    OP_LOGD(ifaContext_->opName, "ppppppppppppppppppp.");
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(ifaContext_->platformInfo);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     auto aicNum = aicNum_;
     auto aivNum = aivNum_;
     UpdatePerfMode();
@@ -3493,30 +3486,30 @@ ge::graphStatus IFATiling::CalcNumBlocks()
             }
         }
     }
-    ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
+    ifaContext_->numBlocks = ascendcPlatform->CalcTschBlockDim(aivNum, aicNum, aivNum); // 暂时与当前代码一致
     OP_LOGI(ifaContext_->opName, "IFA block dim: %u aiv Num: %u aic Num: %u.", ifaContext_->numBlocks, aivNum, aicNum);
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus IFATiling::SharedPrefixTiling()
 {
-    // 重新配置长度
-    isSysPrefixTiling_ = true;
-    splitKVFlag_ = false;
-    batchSizeQ_ = batchSize_;
-    batchSize_ = 1U;
-    maxActualseq_ = maxActualPrefixLen_;
-    sMax_ = sMaxPrefix_;
-    seqSize_ = sMax_;
-    batchContinuousFlag_ = true;
+    // // 重新配置长度
+    // isSysPrefixTiling_ = true;
+    // splitKVFlag_ = false;
+    // batchSizeQ_ = batchSize_;
+    // batchSize_ = 1U;
+    // maxActualseq_ = maxActualPrefixLen_;
+    // sMax_ = sMaxPrefix_;
+    // seqSize_ = sMax_;
+    // batchContinuousFlag_ = true;
 
-    (void)ZeroTensorProcess();
-    (void)Split();
-    (void)SplitForLseCombine();
-    (void)CalcSysPrefixWorkSpace();
-    (void)FillSysPrefixTiling();
-    (void)CalcSysPrefixNumBlocks();
-    return ge::GRAPH_SUCCESS;
+    // (void)ZeroTensorProcess();
+    // (void)Split();
+    // (void)SplitForLseCombine();
+    // (void)CalcSysPrefixWorkSpace();
+    // (void)FillSysPrefixTiling();
+    // (void)CalcSysPrefixNumBlocks();
+    // return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus IFATiling::FillSysPrefixTiling()
@@ -3561,10 +3554,10 @@ ge::graphStatus IFATiling::CalcSysPrefixWorkSpace()
 
 ge::graphStatus IFATiling::CalcSysPrefixNumBlocks()
 {
-    uint32_t numBlocks0 = ifaContext_->numBlocks;
-    CalcNumBlocks();
+    // uint32_t numBlocks0 = ifaContext_->numBlocks;
+    // CalcNumBlocks();
 
-    ifaContext_->numBlocks = std::max(numBlocks0, ifaContext_->numBlocks);
+    // ifaContext_->numBlocks = std::max(numBlocks0, ifaContext_->numBlocks);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -3688,15 +3681,15 @@ ge::graphStatus IFATiling::RunBigKernelTiling(IncreFlashAttentionContext &contex
     }
     this->isWorkspace_ = isWorkspace;
 
-    if ((this->ifaContext_->actualSeqLengths.tensor && !this->ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()) ||
-       (this->ifaContext_->actualSeqLengthsQ.tensor && !this->ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>())) {
-        this->isWorkspace_ = true;
-        OP_LOGI(ifaContext_->opName, "IFA tiling sink.");
-    }
+    // if ((this->ifaContext_->actualSeqLengths.tensor && !this->ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()) ||
+    //    (this->ifaContext_->actualSeqLengthsQ.tensor && !this->ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>())) {
+    //     this->isWorkspace_ = true;
+    //     OP_LOGI(ifaContext_->opName, "IFA tiling sink.");
+    // }
 
-    if (ProcessCheckAtbFormat() == ge::GRAPH_SUCCESS && atbRunFlag_) {
-        return AtbTilingProcess();
-    }
+    // if (ProcessCheckAtbFormat() == ge::GRAPH_SUCCESS && atbRunFlag_) {
+    //     return AtbTilingProcess();
+    // }
 
     if ((GetNpuInfo() != ge::GRAPH_SUCCESS) || (PreProcess() != ge::GRAPH_SUCCESS)) {
         return ge::GRAPH_FAILED;
@@ -4112,20 +4105,22 @@ ge::graphStatus IFATiling::DoOpTiling()
 }
 
 ge::graphStatus IFATiling::DoSubOpTiling(IncreFlashAttentionContext& ifaContext) {
+    auto q_gert = gert::GetTensorFromPytorchTensor(nullptr);
+
     ifaTilingData = context_->GetTilingData<IncreFlashAttentionTilingDataV2>();
-    if (ifaTilingData == nullptr){
-        OP_LOGD(ifaContext.opName, " ifaTilingData is nullptr.");
-    }
-    if (&ifaTilingData->tilingBase == nullptr){
-        OP_LOGI(ifaContext.opName, " ifaTilingData->tilingBase is nullptr.");
-    }
-    aaa* x = context_->GetTilingData<aaa>();
+    // if (ifaTilingData == nullptr){
+    //     OP_LOGD(ifaContext.opName, " ifaTilingData is nullptr.");
+    // }
+    // if (&ifaTilingData->tilingBase == nullptr){
+    //     OP_LOGI(ifaContext.opName, " ifaTilingData->tilingBase is nullptr.");
+    // }
+    // aaa* x = context_->GetTilingData<aaa>();
     
-    if (x == nullptr){
-        OP_LOGD(ifaContext.opName, " x is nullptr.");
-    } else {
-        OP_LOGD(ifaContext.opName, " x is not nullptr.");
-    }
+    // if (x == nullptr){
+    //     OP_LOGD(ifaContext.opName, " x is nullptr.");
+    // } else {
+    //     OP_LOGD(ifaContext.opName, " x is not nullptr.");
+    // }
     if (RunBigKernelTiling(ifaContext, ifaTilingData) == ge::SUCCESS) {
         context_->SetTilingKey(ifaContext.tilingKey);
         context_->SetBlockDim(ifaContext.numBlocks);

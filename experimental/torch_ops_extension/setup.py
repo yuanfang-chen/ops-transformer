@@ -28,6 +28,9 @@ ext = NpuExtension(
     extra_compile_args=[
         '-I' + os.path.join(PYTORCH_NPU_INSTALL_PATH, "include/third_party/acl/inc"),
     ],
+    include_dirs=[
+       os.path.join(BASE_DIR, "../attention/incre_flash_attention/op_host"),
+    ],
 )
 exts.append(ext)
 
