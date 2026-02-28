@@ -171,6 +171,7 @@ public:
         uint32_t curRowNumRound = RoundUp(curRowNum, FLOAT_BLOCK_SIZE);
         uint32_t qSBlockSize = layoutOutput.shape(0);
         uint32_t oHiddenSize = layoutOutput.shape(1);
+        uint32_t qHeads = layoutLse->layoutLse->shape(1);
         uint32_t dmUbOffsetCurStackTile = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffsetLoop;
 
         if (!isFirstStackTile) {
@@ -318,7 +319,6 @@ public:
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
-                    uint32_t qHeads = layoutLse->layoutLse->shape(1);
                     if (qNThisSubBlock == 0U) { // 不切头
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor,
@@ -379,6 +379,11 @@ public:
         uint32_t qSThisSubBlock = (qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize;
         int64_t outOffsetSubBlock =
             layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
+        
+        uint32_t outLseRowOffsetThisSubBlock = (qNBlockSize == 1U) ? inRowOffsetThisSubBlock : 0;
+        uint32_t outLseColOffsetThisSubBlock = (qNBlockSize == 1U) ? 0 : subBlockIdx * qNSplitSubBlock;
+        int64_t offsetLse = layoutLse.GetOffset(MatrixCoord(outLseRowOffsetThisSubBlock, outLseColOffsetThisSubBlock));
+        auto gLseThisSubBlock = gLse[offsetLse];
 
         if (inRowActualThisSubBlock > 0U) {
             uint32_t rowLoop = CeilDiv(inRowActualThisSubBlock, rowNumTile);
@@ -419,7 +424,7 @@ public:
                     gOutputCurLoop,
                     gInputCurLoop,
                     gUpdateCurLoop,
-                    glse,
+                    gLseThisSubBlock,
                     layoutOutputCurLoop,
                     layoutInputCurLoop,
                     layoutUpdateCurLoop,
