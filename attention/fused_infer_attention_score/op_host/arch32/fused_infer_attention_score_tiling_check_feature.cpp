@@ -371,6 +371,9 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
     const std::vector<std::string> noRopeLayoutSupportListC = {
         "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
     };
+    const std::vector<std::string> noRopeLayoutSupportListD = {
+        "TND"
+    };
     const std::vector<std::string> combineRopeLayoutSupportList = {
         "BSH", "BSND", "BNSD", "BNSD_BSND", "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
     };
@@ -410,6 +413,12 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         if (std::find(noRopeLayoutSupportListC.begin(), noRopeLayoutSupportListC.end(), layout) != noRopeLayoutSupportListC.end()) {
                 OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128,
                 OP_LOGE(opName_, "In %s %s situation, when input_layout is NTD, BSH_BNSD, BSND_BNSD, NTD_TND, only query|key|value headDim = 64/128 are supported, but got %u",
+                    QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
+                return ge::GRAPH_FAILED);
+        }
+        if (std::find(noRopeLayoutSupportListD.begin(), noRopeLayoutSupportListD.end(), layout) != noRopeLayoutSupportListD.end()) {
+                OP_CHECK_IF(vHeadDim_ != 64 && vHeadDim_ != 128 && vHeadDim_ != 192,
+                OP_LOGE(opName_, "In %s %s situation, when input_layout is TND, only query|key|value headDim = 64/128/192 are supported, but got %u",
                     QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_),
                 return ge::GRAPH_FAILED);
         }
