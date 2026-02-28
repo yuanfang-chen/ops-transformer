@@ -69,11 +69,6 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     const gert::Shape *smoothScaleShape = context->GetOptionalInputShape(INPUT_SMOOTH_SCALE_INDEX);
     const gert::Shape *biasShape = context->GetOptionalInputShape(INPUT_BIAS_INDEX);
 
-    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
-    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
-
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
     const auto group = attrs->GetAttrPointer<char>(INPUT_ATTR_GROUP_INDEX);
@@ -129,12 +124,12 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
         rankSize = 1;
     }
 
-    gert::Shape* outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX0);
+    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
     outputShape->SetDimNum(OUTPUT_DIM_SIZE);
     outputShape->SetDim(0, dimM * rankSize);
     outputShape->SetDim(1, dimN);
-    gert::Shape* zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
+    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
     zShape->SetDimNum(OUTPUT_DIM_SIZE);
     zShape->SetDim(0, dimM);
