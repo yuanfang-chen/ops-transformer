@@ -234,7 +234,7 @@ static aclnnStatus InvalidTensorDimCheck(const aclTensor *query, const aclTensor
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    if (sinkIn != nullptr && dsinkOut != nullptr) {
+    if (sinkIn != nullptr && dsinkOut != nullptr && !sinkIn->IsEmpty() && !dsinkOut->IsEmpty()) {
         auto sinkInDim = sinkIn->GetViewShape().GetDimNum();
         auto dsinkDim = dsinkOut->GetViewShape().GetDimNum();
         if (sinkInDim != DIM_NUM_1 || dsinkDim != DIM_NUM_1) {
@@ -325,33 +325,43 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     auto queryShape = query->GetViewShape();
     auto keyShape = key->GetViewShape();
     auto valueShape = value->GetViewShape();
-    auto queryDimSize = query->Size();
-    auto kvDimSize = key->Size();
+    auto queryDimSize = queryShape.GetShapeSize();
+    auto kvDimSize = keyShape.GetShapeSize();
     fagShape.inputLayoutStr = op::ToString(inputLayout).GetString();
-    fagShape.n1Dim = (fagShape.inputLayoutStr == "BNSD") ? queryShape.GetDim(1) : queryShape.GetDim(2); // 1 or 2:n1
-    fagShape.n2Dim = (fagShape.inputLayoutStr == "BNSD") ? keyShape.GetDim(1) : keyShape.GetDim(2);       // 1 or 2:n2
-    fagShape.s1Dim = (fagShape.inputLayoutStr == "BNSD") ? queryShape.GetDim(2) : queryShape.GetDim(1); // 1 or 2:s1
-    fagShape.s2Dim = (fagShape.inputLayoutStr == "BNSD") ? keyShape.GetDim(2) : keyShape.GetDim(1);       // 1 or 2:s2
-    if (fagShape.inputLayoutStr == "BSH" || fagShape.inputLayoutStr == "SBH") {
+    bool isLayoutBNSD = (fagShape.inputLayoutStr == "BNSD");
+    bool isLayoutBSND = (fagShape.inputLayoutStr == "BSND");
+    bool isLayoutBSH = (fagShape.inputLayoutStr == "BSH");
+    bool isLayoutSBH = (fagShape.inputLayoutStr == "SBH");
+    bool isLayoutTND = (fagShape.inputLayoutStr == "TND");
+    fagShape.n1Dim = isLayoutBNSD ? queryShape.GetDim(1) : queryShape.GetDim(2); // 1 or 2:n1
+    fagShape.n2Dim = isLayoutBNSD ? keyShape.GetDim(1) : keyShape.GetDim(2);       // 1 or 2:n2
+    fagShape.s1Dim = isLayoutBNSD ? queryShape.GetDim(2) : queryShape.GetDim(1); // 1 or 2:s1
+    fagShape.s2Dim = isLayoutBNSD ? keyShape.GetDim(2) : keyShape.GetDim(1);       // 1 or 2:s2
+    if (isLayoutBSH || isLayoutSBH) {
         fagShape.h1Dim = queryShape.GetDim(2); // 2:h1
         fagShape.h2Dim = keyShape.GetDim(2);    // 2:h2
+        auto h3Dim = valueShape.GetDim(2);    // 3:h3，h of v
         if (headNum == 0) {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The headNum is zero.");
             return ACLNN_ERR_PARAM_INVALID;
         }
         fagShape.dDim = fagShape.h1Dim / headNum; // q Head-dim
         if (fagShape.dDim == 0) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dimension of D is zero.");
-            return ACLNN_ERR_PARAM_INVALID;
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = headNum;
+            fagShape.s1Dim = isLayoutBSH ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = isLayoutBSH ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = fagShape.h2Dim;
+            fagShape.dvDim = h3Dim;
+        } else {
+            fagShape.n1Dim = headNum;
+            fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
+            fagShape.s1Dim = isLayoutBSH ? queryShape.GetDim(1) : queryShape.GetDim(0);
+            fagShape.s2Dim = isLayoutBSH ? keyShape.GetDim(1) : keyShape.GetDim(0);
+            fagShape.dkDim = fagShape.n2Dim == 0 ? fagShape.dDim : keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
+            fagShape.dvDim = fagShape.n2Dim == 0 ? 0 : valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
         }
-
-        fagShape.n1Dim = headNum;
-        fagShape.n2Dim = fagShape.h2Dim / fagShape.dDim;
-        fagShape.s1Dim = (fagShape.inputLayoutStr == "BSH") ? queryShape.GetDim(1) : queryShape.GetDim(0);
-        fagShape.s2Dim = (fagShape.inputLayoutStr == "BSH") ? keyShape.GetDim(1) : keyShape.GetDim(0);
-        fagShape.dkDim = keyShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
-        fagShape.dvDim = valueShape.GetDim(DIM_NUM_2) / fagShape.n2Dim;
-    } else if (fagShape.inputLayoutStr == "TND") {
+    } else if (isLayoutTND) {
         fagShape.dDim = queryShape.GetDim(2);  // 2:d
         fagShape.n1Dim = queryShape.GetDim(1); // 1:n1
         fagShape.n2Dim = keyShape.GetDim(1);    // 1:n2
@@ -366,8 +376,19 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    if (fagShape.dDim != fagShape.dkDim) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qD and kD should be same, but got qD=%ld kD=%ld", fagShape.dDim, fagShape.dkDim);
+    if (fagShape.dDim != fagShape.dkDim && queryShape.GetDimNum() == DIM_NUM_3) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "qD and kD should be same, q shape = [%ld, %ld, %ld], k shape = [%ld, %ld, %ld].",
+            queryShape.GetDim(0), queryShape.GetDim(1), queryShape.GetDim(DIM_NUM_2),
+            keyShape.GetDim(0), keyShape.GetDim(1), keyShape.GetDim(DIM_NUM_2));
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+
+    if (fagShape.dDim != fagShape.dkDim && queryShape.GetDimNum() == DIM_NUM_4) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+            "qD and kD should be same, q shape = [%ld, %ld, %ld, %ld], k shape = [%ld, %ld, %ld, %ld].",
+            queryShape.GetDim(0), queryShape.GetDim(1), queryShape.GetDim(DIM_NUM_2), queryShape.GetDim(DIM_NUM_3),
+            keyShape.GetDim(0), keyShape.GetDim(1), keyShape.GetDim(DIM_NUM_2), keyShape.GetDim(DIM_NUM_3));
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -394,13 +415,13 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     fagShape.querySDimStrideSize = 0;
     fagShape.kvSDimStrideSize = 0;
 
-    if (fagShape.inputLayoutStr == "BSND") { // stride is N * D
+    if (isLayoutBSND) { // stride is N * D
         fagShape.querySDimStrideSize = fagShape.n1Dim * fagShape.dDim;
         fagShape.kvSDimStrideSize = fagShape.n2Dim * fagShape.dDim;
-    } else if (fagShape.inputLayoutStr == "BSH") {           // stride is H
+    } else if (isLayoutBSH) {           // stride is H
         fagShape.querySDimStrideSize = queryShape.GetDim(2); // 2:dv
         fagShape.kvSDimStrideSize = keyShape.GetDim(2);       // 2:dv
-    } else if (fagShape.inputLayoutStr == "SBH") {           // stride is B * H
+    } else if (isLayoutSBH) {           // stride is B * H
         fagShape.querySDimStrideSize = fagShape.s1Dim == 0 ? 0 : (queryDimSize / fagShape.s1Dim);
         fagShape.kvSDimStrideSize = fagShape.s2Dim == 0 ? 0 : (kvDimSize / fagShape.s2Dim);
     }
@@ -412,21 +433,21 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
 
         // 判断是否需要PAD和transpose, 同时判断是否为如下特殊场景 (SBH下，只需要PAD不需要transpose)
         fagShape.needPadDimD =
-            (fagShape.dDim % fagShape.alignDim != 0 && queryShape.GetShapeSize() != 0 && keyShape.GetShapeSize() != 0) ?
+            (fagShape.dDim % fagShape.alignDim != 0 && queryDimSize != 0 && kvDimSize != 0) ?
                 true :
                 false;
 
         // 计算是否超过65535时，应该使用对齐以后的D值
         if (fagShape.needPadDimD) {
-            if (fagShape.inputLayoutStr == "BSND") { // stride is N * D
+            if (isLayoutBSND) { // stride is N * D
                 fagShape.querySDimStrideSize = fagShape.n1Dim * dDimAlignSize;
                 fagShape.kvSDimStrideSize = fagShape.n2Dim * dDimAlignSize;
-            } else if (fagShape.inputLayoutStr == "BSH") {           // stride is H
+            } else if (isLayoutBSH) {           // stride is H
                 fagShape.querySDimStrideSize = fagShape.dDim == 0 ? 0 :
                     (queryShape.GetDim(2) / fagShape.dDim * dDimAlignSize); // 2:dv
                 fagShape.kvSDimStrideSize = fagShape.dDim == 0 ? 0 :
                     (keyShape.GetDim(2) / fagShape.dDim * dDimAlignSize);       // 2:dv
-            } else if (fagShape.inputLayoutStr == "SBH") {           // stride is B * H
+            } else if (isLayoutSBH) {           // stride is B * H
                 int64_t queryBHSize = fagShape.s1Dim == 0 ? 0 : (queryDimSize / fagShape.s1Dim);
                 int64_t kvBHSize = fagShape.s2Dim == 0 ? 0 : (kvDimSize / fagShape.s2Dim);
                 fagShape.querySDimStrideSize = fagShape.dDim == 0 ? 0 : (queryBHSize / fagShape.dDim * dDimAlignSize);
@@ -435,7 +456,7 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
         }
 
         bool needTranspose =
-            queryShape.GetShapeSize() != 0 && keyShape.GetShapeSize() != 0 &&
+            queryDimSize != 0 && kvDimSize != 0 &&
             (fagShape.inputLayoutStr != "BNSD" && fagShape.inputLayoutStr != "TND" &&
             (fagShape.querySDimStrideSize > MAX_BSN_DIMS_SIZE || fagShape.kvSDimStrideSize > MAX_BSN_DIMS_SIZE));
         fagShape.needTranspose = needTranspose;
@@ -445,7 +466,7 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
             fagShape.needPadDimD = false;
         }
         // 特殊情况的TND的D不等长无需处理
-        if (fagShape.inputLayoutStr == "TND" && fagShape.dDim == HEAD_DIM_192 && fagShape.dvDim == HEAD_DIM_128 && deterministicValue == 0) {
+        if (isLayoutTND && fagShape.dDim == HEAD_DIM_192 && fagShape.dvDim == HEAD_DIM_128 && deterministicValue == 0) {
             fagShape.needPadDimD = false;
         }
     } else {
@@ -455,7 +476,7 @@ static aclnnStatus GetInputShapeInfo(const aclTensor *query, const aclTensor *ke
     
     fagShape.passThrowInnerFag = (!(fagShape.needPadDimD) && !(fagShape.needTranspose));
     fagShape.needBackwordReshape =
-        (fagShape.inputLayoutStr == "SBH" && fagShape.needPadDimD && !(fagShape.needTranspose));
+        (isLayoutSBH && fagShape.needPadDimD && !(fagShape.needTranspose));
     return ACLNN_SUCCESS;
 }
 
@@ -779,17 +800,27 @@ static aclnnStatus ReshapeInputTensor(const aclTensor **query, const aclTensor *
 
     // reshape input
     *query = l0op::Reshape(*query, queryShapeArray, executor);
-    CHECK_RET(*query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     *key = l0op::Reshape(*key, keyShapeArray, executor);
-    CHECK_RET(*key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*key != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *key cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     *value = l0op::Reshape(*value, keyShapeArray, executor);
-    CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     *dy = l0op::Reshape(*dy, queryShapeArray, executor);
-    CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     if (*attentionInOptional != nullptr && (*attentionInOptional)->GetViewShape().GetDimNum() != 0) {
         *attentionInOptional = l0op::Reshape(*attentionInOptional, queryShapeArray, executor);
-        CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*attentionInOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     return ACLNN_SUCCESS;
@@ -813,11 +844,17 @@ static aclnnStatus ReshapeOutputTensor(std::array<const aclTensor *, l0op::MAX_F
 
     // reshape
     fagOut[0] = l0op::Reshape(fagOut[0], dqShapeArray, executor);
-    CHECK_RET(fagOut[0] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[0] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[0] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     fagOut[1] = l0op::Reshape(fagOut[1], dkShapeArray, executor);
-    CHECK_RET(fagOut[1] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[1] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[1] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     fagOut[2] = l0op::Reshape(fagOut[2], dkShapeArray, executor); // 2:dv
-    CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR);     // 2:dv
+    OP_CHECK(fagOut[2] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[2] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);     // 2:dv
 
     return ACLNN_SUCCESS;
 }
@@ -847,24 +884,34 @@ static aclnnStatus PaddingInputTensorDdim(const aclTensor **query, const aclTens
     CHECK_RET(padTensor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
     *query = l0op::Pad(*query, padTensor, executor);
-    CHECK_RET(*query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // key
     *key = l0op::Pad(*key, padTensor, executor);
-    CHECK_RET(*key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*key != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *key cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // value
     *value = l0op::Pad(*value, padTensor, executor);
-    CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // dy
     *dy = l0op::Pad(*dy, padTensor, executor);
-    CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // attenmask_in
     if (*attentionInOptional != nullptr && (*attentionInOptional)->GetViewShape().GetDimNum() != 0) {
         *attentionInOptional = l0op::Pad(*attentionInOptional, padTensor, executor);
-        CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*attentionInOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     return ACLNN_SUCCESS;
@@ -903,14 +950,20 @@ static aclnnStatus SliceOutputTensorDdim(std::array<const aclTensor *, l0op::MAX
     dqOutSizeVector.emplace_back(fagShape.dDim);
     auto dqOutSize = executor->AllocIntArray(dqOutSizeVector.data(), dqOutSizeVector.size());
     fagOut[0] = l0op::Slice(fagOut[0], offsets, dqOutSize, executor); // 0: dq
-    CHECK_RET(fagOut[0] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[0] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[0] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     dkOutSizeVector.emplace_back(fagShape.dDim);
     auto dkOutSize = executor->AllocIntArray(dkOutSizeVector.data(), dkOutSizeVector.size());
     fagOut[1] = l0op::Slice(fagOut[1], offsets, dkOutSize, executor); // 1: dk
-    CHECK_RET(fagOut[1] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[1] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[1] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     fagOut[2] = l0op::Slice(fagOut[2], offsets, dkOutSize, executor); // 2: dv
-    CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[2] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *fagOut[2] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     return ACLNN_SUCCESS;
 }
@@ -940,31 +993,50 @@ static aclnnStatus PaddingValueDim(const aclTensor **value, const aclTensor **dy
  
     if (fagShape.inputLayoutStr == "SBH" || fagShape.inputLayoutStr == "BSH") {
         *value = l0op::Reshape(*value, fagShapeArray.valueReshapeBefore, executor);
-        CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*value != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         *dy = l0op::Reshape(*dy, fagShapeArray.attenInReshapeBefore, executor);
-        CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+
+        OP_CHECK(*dy != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         *attentionInOptional = l0op::Reshape(*attentionInOptional, fagShapeArray.attenInReshapeBefore, executor);
-        CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*attentionInOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
  
     int32_t dimNum = (fagShape.inputLayoutStr == "TND") ? DIM_NUM_3 : DIM_NUM_4;
     auto paddings = GeneratePaddings(dimNum, fagShape.dDim - fagShape.dvDim, executor);
     *value = l0op::Pad(*value, paddings, executor);
-    CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
  
     *dy = l0op::Pad(*dy, paddings, executor);
-    CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
  
     *attentionInOptional = l0op::Pad(*attentionInOptional, paddings, executor);
-    CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
  
     if (fagShape.inputLayoutStr == "SBH" || fagShape.inputLayoutStr == "BSH") {
         *value = l0op::Reshape(*value, fagShapeArray.valueReshapeAfter, executor);
-        CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*value != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         *dy = l0op::Reshape(*dy, fagShapeArray.attenInReshapeAfter, executor);
-        CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*dy != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         *attentionInOptional = l0op::Reshape(*attentionInOptional, fagShapeArray.attenInReshapeAfter, executor);
-        CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*attentionInOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
  
     return ACLNN_SUCCESS;
@@ -979,7 +1051,9 @@ static aclnnStatus SliceDvOut(std::array<const aclTensor *, l0op::MAX_FAG_OUTPUT
  
     if (fagShape.inputLayoutStr == "SBH" || fagShape.inputLayoutStr == "BSH") {
         fagOut[2] = l0op::Reshape(fagOut[2], fagShapeArray.dvReshapeBefore, executor);
-        CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR); // 2: dv
+        OP_CHECK(fagOut[2] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[2] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
  
     FVector<int64_t, MAX_DIM_NUM> dvOutSizeVector = ToShapeVector(fagOut[2]->GetViewShape());
@@ -989,17 +1063,23 @@ static aclnnStatus SliceDvOut(std::array<const aclTensor *, l0op::MAX_FAG_OUTPUT
         FVector<int64_t, DIM_NUM_4> offsets(DIM_NUM_4, 0);
         fagOut[2] = l0op::Slice(fagOut[2], executor->AllocIntArray(offsets.data(), offsets.size()),
                                 dvOutSize, executor); // 2: dv
-        CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(fagOut[2] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[2] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     } else {
         FVector<int64_t, DIM_NUM_3> offsets(DIM_NUM_3, 0);
         fagOut[2] = l0op::Slice(fagOut[2], executor->AllocIntArray(offsets.data(), offsets.size()),
                                 dvOutSize, executor); // 2: dv
-        CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(fagOut[2] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[2] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     
     if (fagShape.inputLayoutStr == "SBH" || fagShape.inputLayoutStr == "BSH") {
         fagOut[2] = l0op::Reshape(fagOut[2], fagShapeArray.dvReshapeAfter, executor);
-        CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR); // 2: dv
+        OP_CHECK(fagOut[2] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[2] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
  
     return ACLNN_SUCCESS;
@@ -1028,24 +1108,34 @@ static aclnnStatus TransposeInputTensor(const aclTensor **query, const aclTensor
 
     // query
     *query = l0op::Transpose(*query, perm, executor);
-    CHECK_RET(*query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // key
     *key = l0op::Transpose(*key, perm, executor);
-    CHECK_RET(*key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*key != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *key cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // value
     *value = l0op::Transpose(*value, perm, executor);
-    CHECK_RET(*value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // dy
     *dy = l0op::Transpose(*dy, perm, executor);
-    CHECK_RET(*dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(*dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     // attentionInOptional
     if (*attentionInOptional != nullptr && (*attentionInOptional)->GetViewShape().GetDimNum() != 0) {
         *attentionInOptional = l0op::Transpose(*attentionInOptional, perm, executor);
-        CHECK_RET(*attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(*attentionInOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the *attentionInOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     return ACLNN_SUCCESS;
@@ -1087,15 +1177,21 @@ static aclnnStatus TransposeOutputTensor(std::array<const aclTensor *, l0op::MAX
 
     // dqOut
     fagOut[0] = l0op::Transpose(fagOut[0], perm, executor);
-    CHECK_RET(fagOut[0] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[0] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[0] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
 
     // dkOut
     fagOut[1] = l0op::Transpose(fagOut[1], perm, executor);
-    CHECK_RET(fagOut[1] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(fagOut[1] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[1] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
 
     // dvOut
     fagOut[2] = l0op::Transpose(fagOut[2], perm, executor);   // 2:dvOut
-    CHECK_RET(fagOut[2] != nullptr, ACLNN_ERR_PARAM_NULLPTR); // 2:dvOut
+    OP_CHECK(fagOut[2] != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the fagOut[2] cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR); // 2:dvOut
 
     // dpseOut
     return ACLNN_SUCCESS;
@@ -1192,27 +1288,41 @@ static aclnnStatus PostFlashAttentionScoreGrad(std::array<const aclTensor *, l0o
     }
     // 如果出参是非连续Tensor，需要把计算完的连续Tensor转非连续
     auto dqOutViewCopyRes = l0op::ViewCopy(fagOut[0], *dqOut, executor);
-    CHECK_RET(dqOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOutViewCopyRes != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOutViewCopyRes cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto dkOutViewCopyRes = l0op::ViewCopy(fagOut[1], *dkOut, executor);
-    CHECK_RET(dkOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOutViewCopyRes != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOutViewCopyRes cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto dvOutViewCopyRes = l0op::ViewCopy(fagOut[2], *dvOut, executor);
-    CHECK_RET(dvOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOutViewCopyRes != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOutViewCopyRes cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (!(*dpseOut == nullptr || (*dpseOut)->GetDataType() == ge::DataType::DT_FLOAT)) {
         auto dpseOutViewCopyRes = l0op::ViewCopy(fagOut[3], *dpseOut, executor);
-        CHECK_RET(dpseOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(dpseOutViewCopyRes != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dpseOutViewCopyRes cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
  
     if (dqRopeOut != nullptr && *dqRopeOut != nullptr && !((*dqRopeOut)->GetViewShape().GetDimNum() == 1 && (*dqRopeOut)->GetViewShape()[0] == 0)) {
         auto dqRopeOutViewCopyRes = l0op::ViewCopy(fagOut[4], *dqRopeOut, executor);
-        CHECK_RET(dqRopeOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(dqRopeOutViewCopyRes != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqRopeOutViewCopyRes cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dkRopeOut != nullptr && *dkRopeOut != nullptr && !((*dkRopeOut)->GetViewShape().GetDimNum() == 1 && (*dkRopeOut)->GetViewShape()[0] == 0)) {
         auto dkRopeOutViewCopyRes = l0op::ViewCopy(fagOut[5], *dkRopeOut, executor);
-        CHECK_RET(dkRopeOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(dkRopeOutViewCopyRes != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkRopeOutViewCopyRes cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dsinkOut != nullptr && *dsinkOut != nullptr && !((*dsinkOut)->GetViewShape().GetDimNum() == 1 && (*dsinkOut)->GetViewShape()[0] == 0)) {
         auto dsinkOutViewCopyRes = l0op::ViewCopy(fagOut[6], *dsinkOut, executor);
-        CHECK_RET(dsinkOutViewCopyRes != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(dsinkOutViewCopyRes != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dsinkOutViewCopyRes cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     return ACLNN_SUCCESS;
 }
@@ -1318,16 +1428,36 @@ aclnnStatus aclnnFlashAttentionScoreGradGetWorkspaceSize(
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // 空Tensor处理
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
@@ -1394,16 +1524,36 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradGetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -1540,16 +1690,36 @@ aclnnStatus aclnnFlashAttentionScoreGradV2GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -1615,16 +1785,36 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -1778,16 +1968,36 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -2024,16 +2234,36 @@ aclnnStatus aclnnFlashAttentionScoreGradV3GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -2128,16 +2358,36 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
 
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");
@@ -2297,14 +2547,30 @@ aclnnStatus aclnnFlashAttentionScoreGradV4GetWorkspaceSize(
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
  
     // 空Tensor处理
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(keyIn != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dy != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionInOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dqOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dkOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(dvOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(keyIn != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the keyIn cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dy != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dy cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionInOptional != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attentionInOptional is present, the attentionInOptional cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dqOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dqOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dkOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dkOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(dvOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the dvOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (dqOut->IsEmpty() && dkOut->IsEmpty() && dvOut->IsEmpty()) {
         if (dpseOut == nullptr || dpseOut->IsEmpty()) {
             OP_LOGD("All out tensor is empty");

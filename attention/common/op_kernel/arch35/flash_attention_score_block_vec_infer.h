@@ -347,7 +347,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitUniqueLocalBuffer(Con
         }
     }
     if constexpr (isMlaFullQuant) {
-        constexpr uint32_t softmaxRowmaxBufSize = 256;
+        constexpr uint32_t softmaxRowmaxBufSize = 256; // s1 baseSize * 4b(fp32)
         this->tPipe->InitBuffer(BaseClass::queryScaleQue[0], 1, BaseClass::s1BaseSize / CV_RATIO * sizeof(float));
         this->tPipe->InitBuffer(BaseClass::queryScaleQue[1], 1, BaseClass::s1BaseSize / CV_RATIO * sizeof(float));
         this->tPipe->InitBuffer(BaseClass::pScaleBuf[0], softmaxRowmaxBufSize);
@@ -422,14 +422,9 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Vec1SinkCompute(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<float> &sumUb, LocalTensor<float> &maxUb) 
 {
-    int64_t sinkOffset = 0;
-    LocalTensor<float> sinkUb = sinkQue.AllocTensor<float>();
-    for (int64_t loop = 0; loop < runInfo.halfS1RealSize; ++loop) {
-        sinkOffset = runInfo.n2oIdx * constInfo.gSize + runInfo.goIdx;
-        sinkUb.SetValue(loop, ToFloat(this->sinkGm.GetValue(sinkOffset)));
-    }
-    SinkSubExpAddVF<float>(sinkUb, sumUb, maxUb, runInfo.halfS1RealSize);
-    sinkQue.FreeTensor<float>(sinkUb);
+    int64_t sinkOffset = runInfo.n2oIdx * constInfo.gSize + runInfo.goIdx;
+    float sinkValue = ToFloat(this->sinkGm.GetValue(sinkOffset));
+    SinkSubExpAddVF<float>(sumUb, maxUb, sinkValue, runInfo.halfS1RealSize);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
@@ -535,7 +530,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
             intriParams1.dstStride = 0;
         }
     }
-    if (isMlaNoQuant && layout == LayOutTypeEnum::LAYOUT_BSH && constInfo.gSize < 32) {
+    if (isMlaNoQuant && layout == LayOutTypeEnum::LAYOUT_BSH && constInfo.gSize < 32) { // 32:gSize限制
         int64_t currRowOffset = runInfo.sOuterOffset % constInfo.n2G;
         int64_t remainDataLen = runInfo.halfS1RealSize;
         int64_t dealDataLen = 0;
@@ -547,7 +542,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::SoftmaxLseCopyOut(
             intriParams1.blockCount = dealDataLen;
             DataCopyPad(this->softmaxLseGm[tmpSoftmaxLseOffset], lseUb[ubLseOffset], intriParams1);
             remainDataLen -= dealDataLen;
-            ubLseOffset += (dealDataLen * 8);
+            ubLseOffset += (dealDataLen * 8); // 8：fp32对齐
             currRowOffset = (currRowOffset + dealDataLen) % constInfo.n2G;
             tmpSoftmaxLseOffset = ++oSoftmaxLseOffset;
         }
@@ -561,7 +556,8 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::InitOutputSingleCore(ConstInfo<isInfer, hasRope> &constInfo)
 {
     auto &initParams = this->tilingData->initOutputParams;
-    uint32_t tailSize = initParams.totalOutputSize - constInfo.aivIdx * initParams.singleCoreSize;
+    uint32_t tailSize = (initParams.totalOutputSize - constInfo.aivIdx * initParams.singleCoreSize) > 0 ?
+        (initParams.totalOutputSize - constInfo.aivIdx * initParams.singleCoreSize) : 0;
     uint32_t singleInitOutputSize = tailSize < initParams.singleCoreSize ? tailSize : initParams.singleCoreSize;
     if constexpr (POST_QUANT) {
         InitOutput<half>(this->attentionOutInitGm[constInfo.aivIdx * initParams.singleCoreSize / 2], singleInitOutputSize / 2, 0.0);
@@ -717,7 +713,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::Bmm2FDOut(LocalTensor<T> 
     dataCopyParams.dstStride = 0;
 
     uint32_t mStart = constInfo.subBlockIdx * runInfo.firstHalfS1RealSize;
-    size_t base = (runInfo.boIdx * constInfo.n2Size * constInfo.gSize * constInfo.dSizeV +
+    uint64_t base = (runInfo.boIdx * constInfo.n2Size * constInfo.gSize * constInfo.dSizeV +
                    runInfo.n2oIdx * constInfo.gSize * constInfo.dSizeV) *
                       constInfo.splitKVNum +
                   mStart * constInfo.dSizeV + vec2S1Idx * runInfo.vec2S1BaseSize * constInfo.dSizeV;
@@ -747,8 +743,7 @@ __aicore__ inline void FABlockVecInfer<TEMPLATE_ARGS>::CopyLseIn(ConstInfo<isInf
 
     uint64_t combineLseOffset =
         ((uint64_t)bIdx * constInfo.n2Size * constInfo.splitKVNum + n2Idx * constInfo.splitKVNum) *
-            constInfo.gSize * fp32BaseSize +
-        startRow * fp32BaseSize;
+            constInfo.gSize * fp32BaseSize + startRow * fp32BaseSize;
 
     DataCopyPad(softmaxMaxLocal, softmaxFDMaxGm[combineLseOffset], copyInParams, copyInPadParams);
     DataCopyPad(softmaxSumLocal, softmaxFDSumGm[combineLseOffset], copyInParams, copyInPadParams);

@@ -21,6 +21,11 @@
 #include "../../3rd/template_linear_algebra/include/template_linear_algebra/numeric_size.hpp"
 #include <cstdint>
 
+#define MC2_NON_QUANT 0
+#define MC2_DYNAMIC_QUANT 1
+#define MC2_STATIC_QUANT 2
+#define MC2_UNKNOWN_QUANT 3
+
 using namespace AscendC;
 
 constexpr static uint32_t BUFFER_NUM = 2U;
@@ -34,6 +39,7 @@ constexpr static uint32_t UB_OFFSET = 97440;  // 根据类型变动这个值
 constexpr static uint32_t BLOCK_ALIGN_BYTES = 32U;
 constexpr static uint32_t BLOCK_NUM_OF_UB_OFFSET = UB_OFFSET / BLOCK_ALIGN_BYTES;
 constexpr static float MAX_INT8 = 127.0f;
+constexpr static float MAX_INT4 = 7.0f;
 
 template <typename T, size_t SIZE>
 struct BaseBlock {
@@ -96,7 +102,7 @@ public:
         mPerLoop = m0 * pValue;
         tokenSize = k * rankSize;
 
-        uint64_t x1DataSize = 1LL * m * k; // 矩阵A大小
+        x1DataSize = 1LL * m * k; // 矩阵A大小
         allToAllSizePerRank = x1DataSize / rankSize; // 搬运到每个rank的数据量
         allToAllSizePerRankPerLoop = mPerLoop * k; // 一次通信搬运到每个rank的数据量
         allToAllSizeAllRanksPerLoop = allToAllSizePerRankPerLoop * rankSize; // 一次通信搬运的数据量
@@ -128,6 +134,7 @@ public:
         quantScaleSize = info.allToAllMatmulInfo.quantScaleSize;
         isSegmentK = info.allToAllMatmulInfo.isSegmentK;
         isAlltoallOut = info.allToAllMatmulInfo.isAlltoallOut;
+        isSmoothQuant = info.allToAllMatmulInfo.isSmoothQuant;
         copyTimes = info.allToAllMatmulInfo.segmentsNum;
         copyTensorSize = info.allToAllMatmulInfo.copyTensorSize;
         allToAllSendCoreNum = info.cocTiling.allToAllSendCoreNum;
@@ -290,9 +297,11 @@ public:
     uint64_t quantSize;
     uint64_t dequantSize;
     uint64_t quantScaleSize;
+    uint64_t x1DataSize;
 
     bool isSegmentK;
     bool isAlltoallOut;
+    bool isSmoothQuant;
 };
 
 __aicore__ inline void SetAndWaitAivSync(uint64_t flagIdx, int32_t pipeDepth = 2)
@@ -304,5 +313,18 @@ __aicore__ inline void SetAndWaitAivSync(uint64_t flagIdx, int32_t pipeDepth = 2
 __aicore__ inline void SetAicSync(uint64_t flagIdx)
 {
     AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(flagIdx);
+}
+
+template <typename T>
+__aicore__ inline int64_t ElemNumToBytes(int64_t elemNum)
+{
+    return elemNum * sizeof(T);
+}
+
+// int4时，无法使用sizeof
+template <>
+__aicore__ inline int64_t ElemNumToBytes<AscendC::int4b_t>(int64_t elemNum)
+{
+    return elemNum / 2;
 }
 #endif

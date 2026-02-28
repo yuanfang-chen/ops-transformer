@@ -20,7 +20,6 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "tiling_base/tiling_type.h"
 #include "../../../op_kernel/arch35/quant_adaptive_sliding_window_templates/gqmm_tiling_key.h"
-#include "../../op_api/aclnn_grouped_matmul_v4.h"
 using namespace Ops::Transformer::OpTiling;
 using namespace GroupedMatmul;
 using namespace optiling::GmmConstant;
@@ -103,8 +102,7 @@ bool GroupedQbmmTiling::AnalyzeAttrs()
                 ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(), inputParams_.groupType),
         return false);
     OP_CHECK_IF(
-        (inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2) &&
-            inputParams_.groupType != SPLIT_M,
+        inputParams_.aDtype == ge::DT_FLOAT4_E2M1 && inputParams_.groupType != SPLIT_M,
         OP_LOGE(inputParams_.opName, "Only support group type to be 0 when the dtype of x is FLOAT4, actual is %d.",
                 inputParams_.groupType),
         return false);
@@ -130,7 +128,7 @@ bool GroupedQbmmTiling::AnalyzeAttrs()
 
 bool GroupedQbmmTiling::CheckBiasDtype() const
 {
-    if ((inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2)) {
+    if (inputParams_.aDtype == ge::DT_FLOAT4_E2M1) {
         OP_CHECK_IF(inputParams_.biasDtype != ge::DT_FLOAT,
                     OP_LOGE(inputParams_.opName,
                             "The dtype of bias should be FLOAT when the dtype of x is FLOAT4, actual is %s.",
@@ -153,6 +151,13 @@ dtype of output is BF16, actual is %s.",
 the dtype of output is FLOAT16, actual is %s.",
                                 ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
                         return false);
+        } else if (inputParams_.cDtype == ge::DT_INT8 || inputParams_.cDtype == ge::DT_INT32) {
+            OP_CHECK_IF(inputParams_.biasDtype != ge::DT_INT32,
+                        OP_LOGE(inputParams_.opName,
+                                "The dtype of bias should be INT32 when the dtype of x is INT8 and the dtype of output \
+is INT8 or INT32, actual is %s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.biasDtype).c_str()),
+                        return false);
         } else {
             OP_LOGE(inputParams_.opName, "Invalid dtype of output %s with the dtype of x being INT8",
                     ge::TypeUtils::DataTypeToSerialString(inputParams_.cDtype).c_str());
@@ -173,6 +178,9 @@ bool GroupedQbmmTiling::CheckDtypeForWeightNz(bool isPertokenScaleNull) const
                         "When the weight is in Nz format, the dtype of x/weight should be INT8, actual is %s, %s.",
                         ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
                         ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+                return false);
+    OP_CHECK_IF(inputParams_.cDtype == ge::DT_INT8,
+                OP_LOGE(context_->GetNodeName(), "When the weight is in Nz format, the dtype of y should not be INT8."),
                 return false);
     if (!isPertokenScaleNull) {
         OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
@@ -203,14 +211,14 @@ be in {UINT64, INT64, FLOAT, BF16}, actual is %s.",
 bool GroupedQbmmTiling::AnalyzeDtype()
 {
     static const std::vector<ge::DataType> legalInputDtypes = {
-        ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT4_E2M1, ge::DT_FLOAT4_E1M2};
+        ge::DT_INT8, ge::DT_HIFLOAT8, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2, ge::DT_FLOAT4_E2M1};
     auto xDesc = context_->GetDynamicInputDesc(X_INDEX, 0);
     OP_CHECK_IF(xDesc == nullptr, OP_LOGE(context_->GetNodeName(), "xDesc is nullptr."), return false);
     inputParams_.aDtype = xDesc->GetDataType();
     OP_CHECK_IF(
         std::find(legalInputDtypes.begin(), legalInputDtypes.end(), inputParams_.aDtype) == legalInputDtypes.end(),
         OP_LOGE(inputParams_.opName,
-                "The dtype of x should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1, FLOAT4_E1M2}, \
+                "The dtype of x should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1}, \
 actual is %s.",
                 ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str()),
         return false);
@@ -220,8 +228,7 @@ actual is %s.",
     OP_CHECK_IF(
         std::find(legalInputDtypes.begin(), legalInputDtypes.end(), inputParams_.bDtype) == legalInputDtypes.end(),
         OP_LOGE(inputParams_.opName,
-                "The dtype of weight should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1, \
-FLOAT4_E1M2}, actual is %s.",
+                "The dtype of weight should be in {INT8, HIFLOAT8, FLOAT8_E4M3, FLOAT8_E5M2, FLOAT4_E2M1}, actual is %s.",
                 ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
         return false);
     inputParams_.bFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(wDesc->GetStorageFormat()));
@@ -233,8 +240,12 @@ FLOAT4_E1M2}, actual is %s.",
                                          "Bias from tensor is not nullptr, but bias from desc is nullptr."),
                return false);
     inputParams_.biasDtype = inputParams_.hasBias ? biasDesc->GetDataType() : inputParams_.biasDtype;
+    auto yDesc = context_->GetOutputDesc(Y_INDEX);
+    OP_CHECK_IF(yDesc == nullptr, OP_LOGE(context_->GetNodeName(), "yDesc is nullptr."), return false);
+    inputParams_.cDtype = yDesc->GetDataType();
     auto scaleDesc = context_->GetDynamicInputDesc(SCALE_INDEX, 0);
-    inputParams_.scaleDtype = scaleDesc != nullptr ? scaleDesc->GetDataType() : inputParams_.scaleDtype;
+    inputParams_.scaleDtype = scaleDesc != nullptr && inputParams_.cDtype != ge::DT_INT32 ? scaleDesc->GetDataType()
+                                                                                          : inputParams_.scaleDtype;
     auto pertokenScaleDesc = context_->GetOptionalInputDesc(PER_TOKEN_SCALE_INDEX);
     inputParams_.perTokenScaleDtype =
         pertokenScaleDesc != nullptr ? pertokenScaleDesc->GetDataType() : inputParams_.perTokenScaleDtype;
@@ -243,9 +254,6 @@ FLOAT4_E1M2}, actual is %s.",
         OP_CHECK_IF(!CheckDtypeForWeightNz(nullptr == pertokenScaleDesc),
                     OP_LOGE(inputParams_.opName, "CheckDtypeForWeightNz failed."), return false);
     }
-    auto yDesc = context_->GetOutputDesc(Y_INDEX);
-    OP_CHECK_IF(yDesc == nullptr, OP_LOGE(context_->GetNodeName(), "yDesc is nullptr."), return false);
-    inputParams_.cDtype = yDesc->GetDataType();
     if (inputParams_.hasBias) {
         OP_CHECK_IF(!CheckBiasDtype(), OP_LOGE(inputParams_.opName, "CheckBiasDtype failed."), return false);
     }
@@ -366,6 +374,18 @@ bool GroupedQbmmTiling::CheckQuantParamsForNonKGroupQuantMode(const gert::Shape 
     OP_CHECK_IF(wScaleDimNum != 1 && wScaleDimNum != 2,
                OP_LOGE(inputParams_.opName, "In non k axis group quant mode, the dim num of scale \
 should be 1 or 2, but the actual dim num is %zu.", wScaleDimNum), return false);
+    if (inputParams_.cDtype == ge::DT_INT8) {
+        OP_CHECK_IF(
+            wScaleDimNum == 1,
+            OP_LOGE(inputParams_.opName, "When the dtype of output is INT8, the dim num of scale should not be 1."),
+            return false);
+        OP_CHECK_IF(wScaleShape.GetDim(0) != inputParams_.groupNum || wScaleShape.GetDim(1) != inputParams_.nSize,
+                    OP_LOGE(inputParams_.opName,
+                            "When the dtype of output is INT8, the expected shape of scale is (%ld, %ld) , but actual \
+shape is (%ld, %ld).",
+                            inputParams_.groupNum, inputParams_.nSize, wScaleShape.GetDim(0), wScaleShape.GetDim(1)),
+                    return false);
+    }
     return true;
 }
 
@@ -378,7 +398,8 @@ bool GroupedQbmmTiling::CheckFp4Shape() const
                 return false);
     // 2: mxfp4场景下不支持K轴为2
     OP_CHECK_IF(inputParams_.kSize == 2,
-                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should not be 2"),
+                OP_LOGE(inputParams_.opName, "When the dtype of x is FLOAT4, the k size should not be 2, \
+but actual is 2."),
                 return false);
     if (!inputParams_.transB) {
         OP_CHECK_IF(
@@ -517,7 +538,7 @@ bool GroupedQbmmTiling::CheckActiveModeDtype(const gert::StorageShape *xScaleSto
     return true;
 }
 
-bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape) const
+bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const gert::StorageShape *xScaleStorageShape)
 {
     OP_CHECK_IF(inputParams_.actType == GMMActType::GMM_ACT_TYPE_GELU_ERR_FUNC,
                 OP_LOGE(context_->GetNodeName(), "Activation function does not support GELU_ERR_FUNC now."), return false);
@@ -537,18 +558,18 @@ bool GroupedQbmmTiling::CheckActiveMode(const gert::Shape &wScaleShape, const ge
                     "the shape of perTokenScale should be (%d,), "
                     "actual is (%d,).", inputParams_.mSize, static_cast<uint64_t>(xScaleShape[0])), return false);
     }
-    
-    if (!(wScaleDims == 2 && wScaleShape[wScaleDims - 1] == 1 && inputParams_.nSize == 1)) { // scale为2维且shape为(g,1)时，不做拦截
-        OP_CHECK_IF(wScaleDims != 2, OP_LOGE(context_->GetNodeName(), // 在启用激活函数情景下，Scale应该为2维
-                    "When the activation function is enabled, the dim of Scale should be 2, "
-                    "actual is %d.", wScaleDims), return false);
-        OP_CHECK_IF(static_cast<uint64_t>(wScaleShape[0]) != inputParams_.groupNum ||
-                    static_cast<uint64_t>(wScaleShape[1]) != inputParams_.nSize,
-                    OP_LOGE(context_->GetNodeName(),
-                    "When the activation function is enabled, the shape of Scale should be (%d, %d), "
-                    "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
-                    static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
-                    return false);
+    OP_CHECK_IF(wScaleDims != 2, OP_LOGE(context_->GetNodeName(), // 在启用激活函数情景下，Scale应该为2维
+                "When the activation function is enabled, the dim of Scale should be 2, "
+                "actual is %d.", wScaleDims), return false);
+    OP_CHECK_IF(static_cast<uint64_t>(wScaleShape[0]) != inputParams_.groupNum ||
+                static_cast<uint64_t>(wScaleShape[1]) != inputParams_.nSize,
+                OP_LOGE(context_->GetNodeName(),
+                "When the activation function is enabled, the shape of Scale should be (%d, %d), "
+                "actual is (%d, %d).", inputParams_.groupNum, inputParams_.nSize,
+                static_cast<uint64_t>(wScaleShape[0]), static_cast<uint64_t>(wScaleShape[1])),
+                return false);
+    if (inputParams_.nSize == 1) {
+        inputParams_.bQuantMode = optiling::QuantMode::PERCHANNEL_MODE;
     }
     return true;
 }
@@ -565,9 +586,19 @@ bool GroupedQbmmTiling::AnalyzeInputs()
     const gert::Shape &wShape = wStorageShape->GetOriginShape();
     const gert::Shape &weightNzStorageShape = wStorageShape->GetStorageShape();
 
-    // 全量化scale必须有值，目前无输出int32等不需要scale的场景
+    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
+               return false);
+    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
+    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
+
+    if (inputParams_.cDtype == ge::DT_INT32) {
+        return true;
+    }
+
     auto scaleStorageShape = context_->GetDynamicInputShape(SCALE_INDEX, 0);
-    OP_CHECK_IF(scaleStorageShape == nullptr, OP_LOGE(context_->GetNodeName(), "scaleStorageShape is nullptr."), return false);
+    OP_CHECK_IF(scaleStorageShape == nullptr,
+                OP_LOGE(context_->GetNodeName(), "scaleStorageShape is nullptr when cDtype is not INT32."),
+                return false);
     const gert::Shape &wScaleShape = scaleStorageShape->GetOriginShape();
     auto scaleDimNum = wScaleShape.GetDimNum();
     OP_CHECK_IF(scaleDimNum < 1,
@@ -576,10 +607,6 @@ bool GroupedQbmmTiling::AnalyzeInputs()
                                          scaleDimNum),
                return false);
     auto xScaleStorageShape = context_->GetOptionalInputShape(PER_TOKEN_SCALE_INDEX);
-    OP_CHECK_IF(!SetGroupNum(GROUPLIST_INDEX), OP_LOGE(inputParams_.opName, "SetGroupNum failed."),
-               return false);
-    OP_CHECK_IF(!SetMKN(xShape, wShape), OP_LOGE(inputParams_.opName, "SetMKN failed."), return false);
-    OP_CHECK_IF(!SetMKNList(), OP_LOGE(inputParams_.opName, "SetMKNList failed."), return false);
     OP_CHECK_IF(!SetQuantMode(wScaleShape, xScaleStorageShape, wShape),
                OP_LOGE(inputParams_.opName, "SetQuantMode failed."), return false);
     OP_CHECK_IF(!CheckQuantParams(xScaleStorageShape, wScaleShape),
@@ -593,7 +620,7 @@ bool GroupedQbmmTiling::AnalyzeInputs()
         OP_CHECK_IF(!CheckActiveMode(wScaleShape, xScaleStorageShape), OP_LOGE(context_->GetNodeName(), "CheckActiveMode failed."),
                     return false);
     }   
-    if (inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2) {
+    if (inputParams_.aDtype == ge::DT_FLOAT4_E2M1) {
         OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(inputParams_.opName, "CheckFp4Shape failed."), return false);
         if (inputParams_.hasBias) {
             auto biasStorageShape = context_->GetDynamicInputShape(BIAS_INDEX, 0);
@@ -602,6 +629,25 @@ bool GroupedQbmmTiling::AnalyzeInputs()
         }
     }
     SetKernelType();
+    OP_CHECK_IF(!CheckCoreNum(),
+                OP_LOGE(inputParams_.opName, "CheckCoreNum failed."), return false);   
+    return true;
+}
+
+bool GroupedQbmmTiling::CheckCoreNum() const
+{
+    auto aicNum = context_->GetCompileInfo<GMMCompileInfo>()->aicNum;
+    auto aivNum = context_->GetCompileInfo<GMMCompileInfo>()->aivNum;
+    if (inputParams_.groupType == SPLIT_K) {
+        OP_CHECK_IF(aivNum != GmmConstant::CORE_RATIO * aicNum,
+                   OP_LOGE(inputParams_.opName, "When group type is 2 (mix template), aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
+                   return false);
+    }
+    if (inputParams_.kernelType == 1 || inputParams_.kernelType == 2) {
+        OP_CHECK_IF(aivNum != GmmConstant::CORE_RATIO * aicNum,
+                   OP_LOGE(inputParams_.opName, "Current scene, aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
+                   return false);
+    }
     return true;
 }
 
@@ -893,7 +939,7 @@ ge::graphStatus GroupedQbmmTiling::PostTiling()
 
 void GroupedQbmmTiling::PrintQuantParams()
 {
-    int32_t enable = AlogCheckDebugLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
+    int32_t enable = CheckLogLevel(static_cast<int32_t>(OP), DLOG_DEBUG);
     if (enable != 1) {
         return;
     }
@@ -938,7 +984,7 @@ void GroupedQbmmTiling::CalBasicBlock()
 
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         basicTiling_.baseK = CeilAlign(basicTiling_.baseK, MXFP_BASEK_FACTOR); // mx_mmad requires basek align to 64
-        bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1 || inputParams_.aDtype == ge::DT_FLOAT4_E1M2;
+        bool isFp4Input = inputParams_.aDtype == ge::DT_FLOAT4_E2M1;
         if (isFp4Input && !inputParams_.transB) {
             // 64: mx_mmad requires the inner axis to align to 64
             basicTiling_.baseN = CeilAlign(basicTiling_.baseN, static_cast<uint64_t>(64));
@@ -968,10 +1014,10 @@ ge::graphStatus GroupedQbmmTiling::CalL1Tiling()
     basicTiling_.dbL0c =
         (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
     uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
-    uint64_t singleCoreScaleSize =
-        inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE && inputParams_.kernelType == 0 ?
-            basicTiling_.baseN * scaleDtypeSize :
-            0;
+    uint64_t singleCoreScaleSize = inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE &&
+                                           inputParams_.kernelType == 0 && inputParams_.cDtype != ge::DT_INT32
+                                       ? basicTiling_.baseN * scaleDtypeSize
+                                       : 0;
     uint64_t usedSize = singleCoreBiasSize + singleCoreScaleSize;
     OP_CHECK_IF(totalL1Size <= usedSize,
                OP_LOGE(context_->GetNodeName(), "L1 space overflow. L1Size: %lu, used space: %lu",
@@ -1140,7 +1186,7 @@ void GroupedQbmmTiling::CalScaleFactors()
 uint64_t GroupedQbmmTiling::GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
 {
     // shapeSize应该是偶数
-    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_INT4);
+    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_INT4);
     if (is4BitInput) {
         // 2: 判断是否是偶数
         OP_CHECK_IF(shapeSize % 2 != 0,
@@ -1157,7 +1203,7 @@ uint64_t GroupedQbmmTiling::GetSizeWithDataType(uint64_t shapeSize, ge::DataType
 
 uint64_t GroupedQbmmTiling::GetShapeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
 {
-    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_FLOAT4_E1M2 || dtype == ge::DT_INT4);
+    bool is4BitInput = (dtype == ge::DT_FLOAT4_E2M1 || dtype == ge::DT_INT4);
     if (is4BitInput) {
         return shapeSize + shapeSize;
     } else {

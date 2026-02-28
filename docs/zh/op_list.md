@@ -1,8 +1,9 @@
 # 算子列表
 
 > 说明：
+>
 > - **算子目录**：目录名为算子名小写下划线形式，每个目录承载该算子所有交付件，包括代码实现、examples、文档等，目录介绍参见[项目目录](./context/dir_structure.md)。
-> - **算子执行硬件单元**：大部分算子运行在AI Core，少部分算子运行在AI CPU。默认情况下，项目中提到的算子一般指AI Core算子。关于AI Core和AI CPU详细介绍参见[《Ascend C算子开发》](https://hiascend.com/document/redirect/CannCommunityOpdevAscendC)中“概念原理和术语 > 硬件架构与数据处理原理”。
+> - **算子执行硬件单元**：大部分算子运行在AI Core，少部分算子运行在AI CPU。默认情况下，项目中提到的算子一般指AI Core算子。关于AI Core和AI CPU详细介绍参见[《Ascend C算子开发》](https://hiascend.com/document/redirect/CannCommunityOpdevAscendC)，其中版本号为8.5.0和8.5.0.alpha002中对应章节为“硬件实现”，其余版本中对应章节为“概念原理和术语 > 硬件架构与数据处理原理”。
 > - **算子接口列表**：为方便调用算子，CANN提供一套C API执行算子，一般以aclnn为前缀，全量接口参见[aclnn列表](op_api_list.md)。
 
 项目提供的所有算子分类和算子列表如下：
@@ -276,6 +277,16 @@
   </tr>
   <tr>
     <td>attention</td>
+    <td><a href="../../attention/scatter_pa_cache/README.md">scatter_pa_cache</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>更新KCache中指定位置的key。</td>
+  </tr>
+  <tr>
+    <td>attention</td>
     <td><a href="../../attention/sparse_flash_attention/README.md">sparse_flash_attention</a></td>
     <td>✓</td>
     <td>✓</td>
@@ -413,6 +424,16 @@
     <td>✓</td>
     <td>AI Core</td>
     <td>完成AllToAll、AllGather集合通信与BatchMatMul计算融合、并行。</td>
+  </tr>
+  <tr>
+    <td>mc2</td>
+    <td><a href="../../mc2/allto_all_matmul/README.md">allto_all_matmul</a></td>
+    <td>√</td>
+    <td>√</td>
+    <td>√</td>
+    <td>×</td>
+    <td>AI Core</td>
+    <td>完成AlltoAll通信与MatMul计算融合。</td>
   </tr>
   <tr>
     <td>mc2</td>
@@ -913,6 +934,16 @@
     <td>✓</td>
     <td>AI Core</td>
     <td>针对单输入 x 进行旋转位置编码。</td>
+  </tr>
+  <tr>
+    <td>posembedding</td>
+    <td><a href="../../posembedding/qkv_rms_norm_rope_cache/README.md">qkv_rms_norm_rope_cache</a></td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>✓</td>
+    <td>AI Core</td>
+    <td>输入qkv融合张量，通过SplitVD拆分q、k、v张量，执行RmsNorm、ApplyRotaryPosEmb、Quant、Scatter融合操作，输出q_out、k_cache、v_cache、q_out_before_quant(可选)、k_out_before_quant(可选)、v_out_before_quant(可选)。</td>
   </tr>
   <tr>
     <td>posembedding</td>

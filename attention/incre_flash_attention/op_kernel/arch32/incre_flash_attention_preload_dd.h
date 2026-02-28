@@ -15,8 +15,12 @@
 #ifndef INCRE_FLASH_ATTENTION_PRELOAD_DD
 #define INCRE_FLASH_ATTENTION_PRELOAD_DD
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -746,7 +750,7 @@ __aicore__ inline void IncreFlashAttentionAttenPreloadDD<IFAT>::InitAllZeroOutpu
         InitAllZeroInt8Output(bIdx, n2Idx);
     } else {
         if constexpr (LAYOUT_T == LAYOUT::BNSD) {
-            uint64_t attenOutOffset = bIdx *kvHeadNum * gSize * qSeqSize * headDim +           //B轴偏移
+            uint64_t attenOutOffset = bIdx * kvHeadNum * gSize * qSeqSize * headDim +           //B轴偏移
                                       n2Idx * gSize * qSeqSize * headDim;     //N2轴偏移
             matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], gSize * qSeqSize * headDim, 0);
         } else if constexpr (LAYOUT_T == LAYOUT::BSND || LAYOUT_T == LAYOUT::BSH || LAYOUT_T == LAYOUT::TND) {

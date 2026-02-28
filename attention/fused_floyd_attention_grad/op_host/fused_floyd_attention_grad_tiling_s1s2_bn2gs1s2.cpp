@@ -17,7 +17,7 @@
 using namespace Ops::Transformer::OpTiling;
 
 namespace optiling {
-
+namespace FFAG {
 constexpr uint32_t INITIAL_S1_SPLIT_NUM = 128; // to avoid repeat max value 255
 constexpr uint32_t INITIAL_S2_SPLIT_NUM = 64;
 constexpr uint32_t MUL_CORE_SYNC_BUFFER = 16 * 1024;
@@ -240,8 +240,7 @@ ge::graphStatus FusedFloydAttentionGradTilingS1s2Bn2gs1s2::GetShapeAttrsInfo()
     }
 
     fBaseParams.mm1IsNZOut = false; // 先支持ND
-    fBaseParams.mm2IsNZOut =  queryType != ge::DT_FLOAT && ((fBaseParams.d == 72) || (fBaseParams.d == 80)
-        || (fBaseParams.d == 88) || (fBaseParams.d == 96));  // d为72, 80, 88, 96时支持NZ输出
+    fBaseParams.mm2IsNZOut = false; // 支持ND
     fBaseParams.dataBlockNum = BYTE_BLOCK / fBaseParams.dataTypeSize;
     fBaseParams.calBlockNum = BYTE_BLOCK / fBaseParams.calTypeSize;
 
@@ -1012,5 +1011,5 @@ void FusedFloydAttentionGradTilingS1s2Bn2gs1s2::DetermineMode()
 }
 
 REGISTER_OPS_TILING_TEMPLATE(FusedFloydAttentionGrad, FusedFloydAttentionGradTilingS1s2Bn2gs1s2, 16000);
-
+} // namespace FFAG
 } // namespace optiling

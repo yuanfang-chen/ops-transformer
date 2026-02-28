@@ -13,6 +13,7 @@
 
 #include "tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
+#include "mc2_log.h"
 
 namespace MC2Tiling {
 
@@ -83,7 +84,7 @@ struct TilingRunInfo {
 
 class QuantReduceScatterUtilTiling {
 public:
-    static ge::graphStatus CheckSocVersion(const gert::TilingContext *context);
+    static ge::graphStatus CheckNpuArch(const gert::TilingContext *context);
     static ge::graphStatus CheckTilingFunc(gert::TilingContext *context, TilingRunInfo &runInfo, const OpType opType);
 };
 

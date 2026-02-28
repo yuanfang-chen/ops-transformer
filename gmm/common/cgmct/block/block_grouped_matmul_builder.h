@@ -17,7 +17,11 @@
 #define MATMUL_BLOCK_BLOCK_GROUPED_MATMUL_BUILDER_H
 
 #define ASCENDC_CUBE_ONLY
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "block_mmad_multi_block_bias.h"
 
 #include "../utils/common_utils.h"
@@ -75,7 +79,7 @@ public:
 
     using BlockMmadOp =
         Block::BlockMmad<BlockMatmulPolicy, L1TileShape, L0TileShape, AMatmulType, BMatmulType, CMatmulType,
-                         BiasMatmulType, Tile::TileCopy<Arch::Ascend950, Tile::CopyWithParams>>;
+                         BiasMatmulType, Tile::TileCopy<Arch::DAV3510, Tile::CopyWithParams>>;
 
     static constexpr int64_t l1M = GetIntegralConstant<MNK_M, L1TileShape>();
     static constexpr int64_t l1N = GetIntegralConstant<MNK_N, L1TileShape>();

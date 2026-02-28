@@ -15,8 +15,12 @@
 #ifndef VECTOR_COMMON_H
 #define VECTOR_COMMON_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 using namespace AttentionCommon;
 using namespace AscendC;
@@ -672,7 +676,7 @@ __aicore__ inline void ComputeSoftMaxLse(LocalTensor<T> &softmaxlseUb, LocalTens
                                         uint32_t dealRowCount)
 {
     uint32_t blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
-    if (std::is_same<T, half>::value) {
+    if constexpr (std::is_same<T, half>::value) {
         blockNum = fa_base_vector::FP32_BLOCK_ELEMENT_NUM * 2;
     }
     uint64_t dealRowCountAlign = dealRowCount * fa_base_vector::FP32_BLOCK_ELEMENT_NUM;
@@ -1081,7 +1085,7 @@ __aicore__ inline void AttentionmaskCopyIn(LocalTensor<T> &attenMaskUb, GlobalTe
 }
 
 template <typename T, typename M, typename U>
-__aicore__ inline void AttentionmaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
+__aicore__ inline void AttentionMaskCompute(LocalTensor<T> &dstUb, LocalTensor<T> &srcUb, LocalTensor<M> &attenMaskUb, LocalTensor<U> &tmpBuf, MaskInfo &info, bool isPre = false)
 {
     uint32_t dealRowCount = info.gs1dealNum;
     uint32_t columnCount = Align(info.s2dealNum, 32U);
@@ -1180,32 +1184,24 @@ __aicore__ inline void InvalidRows<T, UB_INPUTFORMAT>::DealInvalidRowsBelow(Loca
         int32_t s1BottomTok = params.actS1Size + params.preTokensPerBatch;
         uint32_t s1 = params.gS1Idx / params.gSize;
         uint32_t gIdx = params.gS1Idx % params.gSize;
-        
-        uint8_t s1Stride = params.dealRowCount / params.gSize;
-
-        for (uint32_t i = 0; i < params.dealRowCount;) {
-            while (s1 + s1Stride > s1BottomTok && s1 < s1BottomTok) {
-                if (s1 == s1BottomTok) {
-                    break;
-                }
-                s1++;
-                i += params.gSize;
+        uint64_t dealRowOffset = 0;
+        if (s1 < s1BottomTok) {
+            // 如果s1 < 行无效开始行，偏移s1到行无效开始行
+            s1 = s1BottomTok;
+            dealRowOffset = s1BottomTok * params.gSize - params.gS1Idx;
+            gIdx = 0;
+        }
+        while (s1 < params.actS1Size && dealRowOffset < params.dealRowCount) {
+            uint32_t gNum = params.gSize - gIdx;
+            if (dealRowOffset + gNum > params.dealRowCount) {
+                gNum = params.dealRowCount - dealRowOffset;
             }
-
-            if (s1 >= s1BottomTok && s1 < params.actS1Size)
-            {
-                uint32_t gNum = params.gSize - gIdx;
-                if (i + gNum > params.dealRowCount) {
-                    gNum = params.dealRowCount - i;
-                }
-                Duplicate(attenOutUb[i * params.columnCount], static_cast<T>(FLOAT_ZERO), params.columnCount * gNum);
-                AscendC::PipeBarrier<PIPE_V>();
-                i += gNum;
-                s1++;
-                gIdx = 0;
-                continue;
-            }
-            break;
+            Duplicate(attenOutUb[dealRowOffset * params.columnCount],
+                      static_cast<T>(FLOAT_ZERO), params.columnCount * gNum);
+            AscendC::PipeBarrier<PIPE_V>();
+            dealRowOffset += gNum;
+            s1++;
+            gIdx = 0;
         }
     }
 }

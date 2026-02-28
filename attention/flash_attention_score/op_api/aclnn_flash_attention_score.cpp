@@ -110,17 +110,13 @@ static void AnalysisAxisForBsh(const Shape &qShape, const Shape &kShape, const S
 {
     shapeInfo.inputLayout = InputLayout::BSH;
     shapeInfo.l0InputLayoutStr = "BSH";
-    uint64_t dSize = qShape[2] / shapeInfo.axes.n1;
-    shapeInfo.axes.d = dSize;
-    if (dSize == 0) {
-        return;
-    }
+    shapeInfo.axes.d = qShape[2] / shapeInfo.axes.n1;
     shapeInfo.axes.b = qShape[0];
-    shapeInfo.axes.n2 = kShape[2] / dSize;
+    shapeInfo.axes.n2 = shapeInfo.axes.d == 0 ? 0 : kShape[2] / shapeInfo.axes.d;
     shapeInfo.axes.s1 = qShape[1];
     shapeInfo.axes.s2 = kShape[1];
-    shapeInfo.axes.dk = kShape[2] / shapeInfo.axes.n2;
-    shapeInfo.axes.dv = vShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dk = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : kShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dv = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : vShape[2] / shapeInfo.axes.n2;
 }
 
 static void AnalysisAxisForBsnd(const Shape &qShape, const Shape &kShape, const Shape &vShape, FaShapeInfo &shapeInfo)
@@ -150,17 +146,13 @@ static void AnalysisAxisForSbh(const Shape &qShape, const Shape &kShape, const S
 {
     shapeInfo.inputLayout = InputLayout::SBH;
     shapeInfo.l0InputLayoutStr = "SBH";
-    uint64_t dSize = qShape[2] / shapeInfo.axes.n1;
-    shapeInfo.axes.d = dSize;
-    if (dSize == 0) {
-        return;
-    }
+    shapeInfo.axes.d = qShape[2] / shapeInfo.axes.n1;
     shapeInfo.axes.b = qShape[1];
-    shapeInfo.axes.n2 = kShape[2] / dSize;
+    shapeInfo.axes.n2 = shapeInfo.axes.d == 0 ? 0 : kShape[2] / shapeInfo.axes.d;
     shapeInfo.axes.s1 = qShape[0];
     shapeInfo.axes.s2 = kShape[0];
-    shapeInfo.axes.dk = kShape[2] / shapeInfo.axes.n2;
-    shapeInfo.axes.dv = vShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dk = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : kShape[2] / shapeInfo.axes.n2;
+    shapeInfo.axes.dv = shapeInfo.axes.n2 == 0 ? shapeInfo.axes.d : vShape[2] / shapeInfo.axes.n2;
 }
 
 static void AnalysisAxisForBnsd(const Shape &qShape, const Shape &kShape, const Shape &vShape, FaShapeInfo &shapeInfo)
@@ -623,50 +615,76 @@ static aclnnStatus Contiguous(const aclTensor *&query, const aclTensor *&key, co
                               const aclTensor *&dScaleVOptional, aclOpExecutor *executor)
 {
     query = l0op::Contiguous(query, executor);
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     key = l0op::Contiguous(key, executor);
-    CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(key != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     value = l0op::Contiguous(value, executor);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     if (realShiftOptional) {
         realShiftOptional = l0op::Contiguous(realShiftOptional, executor);
-        CHECK_RET(realShiftOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(realShiftOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if realShiftOptional is present, the realShiftOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dropMaskOptional) {
         dropMaskOptional = l0op::Contiguous(dropMaskOptional, executor);
-        CHECK_RET(dropMaskOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(dropMaskOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dropMaskOptional is present, the dropMaskOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (paddingMaskOptional) {
         paddingMaskOptional = l0op::Contiguous(paddingMaskOptional, executor);
-        CHECK_RET(paddingMaskOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(paddingMaskOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if paddingMaskOptional is present, the paddingMaskOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (attenMaskOptional) {
         attenMaskOptional = l0op::Contiguous(attenMaskOptional, executor);
-        CHECK_RET(attenMaskOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(attenMaskOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if attenMaskOptional is present, the attenMaskOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (queryRope != nullptr) {
         queryRope = l0op::Contiguous(queryRope, executor);
-        CHECK_RET(queryRope != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(queryRope != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if queryRope is present, the queryRope cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (keyRope != nullptr) {
         keyRope = l0op::Contiguous(keyRope, executor);
-        CHECK_RET(keyRope != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(keyRope != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if keyRope is present, the keyRope cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (sinkOptional != nullptr) {
         sinkOptional = l0op::Contiguous(sinkOptional, executor);
-        CHECK_RET(sinkOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(sinkOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if sinkOptional is present, the sinkOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dScaleQOptional) {
         dScaleQOptional = l0op::Contiguous(dScaleQOptional, executor);
-        CHECK_RET(dScaleQOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_CHECK(dScaleQOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleQOptional is present, the dScaleQOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dScaleKOptional) {
         dScaleKOptional = l0op::Contiguous(dScaleKOptional, executor);
-        CHECK_RET(dScaleKOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_CHECK(dScaleKOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleKOptional is present, the dScaleKOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     if (dScaleVOptional) {
         dScaleVOptional = l0op::Contiguous(dScaleVOptional, executor);
-        CHECK_RET(dScaleVOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
+        OP_CHECK(dScaleVOptional != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if dScaleVOptional is present, the dScaleVOptional cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     return ACLNN_SUCCESS;
 }
@@ -681,17 +699,23 @@ static aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key,
         query = l0op::Reshape(
             query, executor->AllocIntArray(shapeInfo.reshapedQueryShape.data(), shapeInfo.reshapedQueryShape.size()),
             executor);
-        CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(query != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         key = l0op::Reshape(
             key,
             executor->AllocIntArray(shapeInfo.reshapedKeyShape.data(), shapeInfo.reshapedKeyShape.size()),
             executor);
-        CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(key != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         value = l0op::Reshape(
             value,
             executor->AllocIntArray(shapeInfo.reshapedValueBefore.data(), shapeInfo.reshapedValueBefore.size()),
             executor);
-        CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(value != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     if (shapeInfo.needPad) {
@@ -700,13 +724,19 @@ static aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key,
         auto vPaddings = GeneratePaddings(dimNum, shapeInfo.padNumv, executor);
         if (shapeInfo.padNum != 0) {
             query = l0op::Pad(query, qkPaddings, executor);
-            CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+            OP_CHECK(query != nullptr,
+                OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+                return ACLNN_ERR_PARAM_NULLPTR);
             key = l0op::Pad(key, qkPaddings, executor);
-            CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+            OP_CHECK(key != nullptr,
+                OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+                return ACLNN_ERR_PARAM_NULLPTR);
         }
         if (shapeInfo.padNumv != 0) {
             value = l0op::Pad(value, vPaddings, executor);
-            CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+            OP_CHECK(value != nullptr,
+                OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+                return ACLNN_ERR_PARAM_NULLPTR);
         }
     }
     if (shapeInfo.needTranspose) {
@@ -714,11 +744,17 @@ static aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key,
         // S,B,N,D -> B,N,S,D
         auto perm = executor->AllocIntArray(shapeInfo.perm_in.data(), shapeInfo.perm_in.size());
         query = l0op::Transpose(query, perm, executor);
-        CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(query != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         key = l0op::Transpose(key, perm, executor);
-        CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(key != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         value = l0op::Transpose(value, perm, executor);
-        CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(value != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     if (shapeInfo.inputLayout == InputLayout::SBH && shapeInfo.needPad && !shapeInfo.needTranspose) {
@@ -734,11 +770,17 @@ static aclnnStatus PreprocessQKV(const aclTensor *&query, const aclTensor *&key,
                                                   static_cast<int64_t>(shapeInfo.padNumv))};
 
         query = l0op::Reshape(query, executor->AllocIntArray(queryShape.data(), queryShape.size()), executor);
-        CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(query != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         key = l0op::Reshape(key, executor->AllocIntArray(keyShape.data(), keyShape.size()), executor);
-        CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(key != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
         value = l0op::Reshape(value, executor->AllocIntArray(ValueShape.data(), ValueShape.size()), executor);
-        CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(value != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
     return ACLNN_SUCCESS;
 }
@@ -755,13 +797,17 @@ static aclnnStatus Postprocess(const aclTensor *&l0AttentionOutOut, const aclTen
                                                     shapeInfo.axes.dv + static_cast<int64_t>(shapeInfo.padNumv)};
         l0AttentionOutOut = l0op::Reshape(
             l0AttentionOutOut, executor->AllocIntArray(paddedSBNDShape.data(), paddedSBNDShape.size()), executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(l0AttentionOutOut != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if l0AttentionOutOut is present, the l0AttentionOutOut cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     if (shapeInfo.needTranspose) {
         auto perm = executor->AllocIntArray(shapeInfo.perm_out.data(), shapeInfo.perm_out.size());
         l0AttentionOutOut = l0op::Transpose(l0AttentionOutOut, perm, executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(l0AttentionOutOut != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if l0AttentionOutOut is present, the l0AttentionOutOut cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     if (shapeInfo.needPad && shapeInfo.padNumv !=0) {
@@ -782,7 +828,9 @@ static aclnnStatus Postprocess(const aclTensor *&l0AttentionOutOut, const aclTen
                 l0op::Slice(l0AttentionOutOut, executor->AllocIntArray(offsetVec.data(), offsetVec.size()),
                             executor->AllocIntArray(sizeVec.data(), sizeVec.size()), executor);
         }
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(l0AttentionOutOut != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if l0AttentionOutOut is present, the l0AttentionOutOut cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
     }
 
     if (shapeInfo.needReshape) {
@@ -790,7 +838,10 @@ static aclnnStatus Postprocess(const aclTensor *&l0AttentionOutOut, const aclTen
         l0AttentionOutOut =
             l0op::Reshape(l0AttentionOutOut,
                           executor->AllocIntArray(attentionOutOutShape.data(), attentionOutOutShape.size()), executor);
-        CHECK_RET(l0AttentionOutOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+        OP_CHECK(l0AttentionOutOut != nullptr,
+            OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "if l0AttentionOutOut is present, the l0AttentionOutOut cannot be nullptr"),
+            return ACLNN_ERR_PARAM_NULLPTR);
+        
     }
     return ACLNN_SUCCESS;
 }
@@ -800,15 +851,33 @@ static aclnnStatus CheckFaParam(const aclTensor *query, const aclTensor *key, co
     const aclTensor *attentionOutOut, const uint64_t *workspaceSize, aclOpExecutor **executor)
 {
     // 必须的参数指针判空
-    CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(inputLayout != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(executor != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(softmaxMaxOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(softmaxSumOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(attentionOutOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(query != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The query cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(key != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The key cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(value != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The value cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(inputLayout != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The inputLayout cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(executor != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The executor cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(workspaceSize != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The workspaceSize cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(softmaxMaxOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The softmaxMaxOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(softmaxSumOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The softmaxSumOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(attentionOutOut != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "The attentionOutOut cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     return ACLNN_SUCCESS;
 }
 
@@ -931,9 +1000,15 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, keepProb, preTokens, nextTokens,
         headNum, shapeInfo.l0InputLayoutStr.c_str(), innerPrecise, sparseMode, PSE_TYPE_V1, 0, 0, 0, "", l0Executor);
 
-    CHECK_RET(l0FlashAttentionScoreOuts[0] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(l0FlashAttentionScoreOuts[1] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(l0FlashAttentionScoreOuts[DIM_NUM_3] != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(l0FlashAttentionScoreOuts[0] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the l0FlashAttentionScoreOuts[0] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(l0FlashAttentionScoreOuts[1] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the l0FlashAttentionScoreOuts[1] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(l0FlashAttentionScoreOuts[DIM_NUM_3] != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the l0FlashAttentionScoreOuts[3] cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto l0SoftmaxMaxOut = l0FlashAttentionScoreOuts[0];
     auto l0SoftmaxSumOut = l0FlashAttentionScoreOuts[1];
     // l0SoftmaxOutOut not used now
@@ -948,12 +1023,18 @@ aclnnStatus aclnnFlashAttentionScoreGetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1046,12 +1127,18 @@ aclnnStatus aclnnFlashAttentionVarLenScoreGetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1138,12 +1225,18 @@ aclnnStatus aclnnFlashAttentionScoreV2GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1235,12 +1328,18 @@ aclnnStatus aclnnFlashAttentionScoreV3GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1329,12 +1428,18 @@ aclnnStatus aclnnFlashAttentionScoreV4GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1430,12 +1535,18 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV2GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1534,12 +1645,18 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV3GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1632,12 +1749,18 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV4GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -1738,12 +1861,18 @@ aclnnStatus aclnnFlashAttentionVarLenScoreV5GetWorkspaceSize(
               ACLNN_ERR_PARAM_NULLPTR);
 
     auto viewCopyResult0 = l0op::ViewCopy(l0SoftmaxMaxOut, softmaxMaxOut, l0Executor);
-    CHECK_RET(viewCopyResult0 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult0 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult0 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     auto viewCopyResult1 = l0op::ViewCopy(l0SoftmaxSumOut, softmaxSumOut, l0Executor);
-    CHECK_RET(viewCopyResult1 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult1 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult1 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
     // l0SoftmaxOutOut not used now
     auto viewCopyResult3 = l0op::ViewCopy(l0AttentionOutOut, attentionOutOut, l0Executor);
-    CHECK_RET(viewCopyResult3 != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    OP_CHECK(viewCopyResult3 != nullptr,
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "the viewCopyResult3 cannot be nullptr"),
+        return ACLNN_ERR_PARAM_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);

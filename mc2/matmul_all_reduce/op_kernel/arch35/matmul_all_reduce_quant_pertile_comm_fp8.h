@@ -15,7 +15,11 @@
 #ifndef MATMUL_ALL_REDUCE_QUANT_PERTILE_COMM_FP8_H
 #define MATMUL_ALL_REDUCE_QUANT_PERTILE_COMM_FP8_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
@@ -120,7 +124,9 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
 {
     __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
     OOMInit(context);
-    hccl_.Init(GetHcclContext<0>());
+    hccl_.InitV2(GetHcclContext<0>(), tilingData);
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTiling));
+    hccl_.SetCcTilingV2(offsetof(Mc2Tiling::QuantMatmulAllReduceTilingDataA5, mc2CcTilingCommQuant));
     tilingData_ = tilingData;
     rankNum_ = tilingData_->param.rankDim;
     tPipe_ = tPipe;

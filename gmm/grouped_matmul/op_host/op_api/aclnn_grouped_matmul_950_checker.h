@@ -16,11 +16,11 @@
 
 namespace gmm {
 template<typename T>
-class AclnnGroupedMatmul91095Checker {
+class AclnnGroupedMatmulDAV3510Checker {
 public:
-    explicit AclnnGroupedMatmul91095Checker(const GroupedMatmulParamsBase<T> &gmmParams) : gmmParams_(gmmParams){};
-    ~AclnnGroupedMatmul91095Checker(){};
-    aclnnStatus CheckGroupedMatmul91095() const;
+    explicit AclnnGroupedMatmulDAV3510Checker(const GroupedMatmulParamsBase<T> &gmmParams) : gmmParams_(gmmParams){};
+    ~AclnnGroupedMatmulDAV3510Checker(){};
+    aclnnStatus CheckGroupedMatmulDAV3510() const;
     bool IsPerTileQuantMode() const;
     void SetInputName(const std::string& xName, const std::string& weightName, const std::string& perTokenScaleName,
                         const std::string& scaleName, const std::string& groupTensorName);
@@ -35,7 +35,6 @@ private:
         size_t biasDimNum = 0;
     };
 
-    bool IsQuant(DataType &xDtype, DataType &weightDtype) const;
     aclnnStatus CheckGeneralQuantShape() const;
     aclnnStatus CheckQuantCasesFormat() const;
     aclnnStatus CheckWeightNzSpecialParams() const;
@@ -60,6 +59,9 @@ private:
     aclnnStatus CheckFp8Params(const DataType &scaleDtype) const;
     aclnnStatus CheckFp4Params(const DataType &scaleDtype) const;
     aclnnStatus CheckNonMxQuantTransposeStatus() const;
+    aclnnStatus CheckInputParamsForV3Version() const;
+    aclnnStatus CheckInputShapeForV3Version() const;
+    aclnnStatus CheckInputAndOutputDtypeForV3Version() const;
     bool CheckTensorListSizeForEachInput() const;
     bool IsSpecialMXCase(const T *tensorList) const;
     aclnnStatus CheckMxFp8TypeKCaseInputShape(const TensorDimInfo &dimInfo, size_t index) const;
@@ -78,8 +80,7 @@ private:
     std::string groupTensorName_ = "groupTensor";
     std::string biasName_ = "bias";
     std::string yName_ = "y";
-    const std::vector<op::DataType> SPECIAL_QUANT_DTYPES = {DataType::DT_FLOAT4_E1M2, DataType::DT_FLOAT4_E2M1,
-                                                            DataType::DT_INT4};
+    const std::vector<op::DataType> SPECIAL_QUANT_DTYPES = {DataType::DT_FLOAT4_E2M1, DataType::DT_INT4};
 };
 } // namespace gmm
 #endif

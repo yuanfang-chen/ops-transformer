@@ -40,7 +40,7 @@ private:
     bool DealSameSeqEachBatch() const;
 
     void ZeroTensorProcess() const;
-    bool IsHighPerformanceTemplate();
+    bool IsHighPerformanceTemplate() const;
     void InitParams();
 
     void Split();
@@ -72,10 +72,10 @@ private:
     void CalcScheduleMode();
     void CalcWorkspaceSize();
     void CalcMaxWorkspaceSize();
-    void CalcBlockDim(uint32_t coreNum);
+    void CalcNumBlocks(uint32_t coreNum);
     void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv,
                          int64_t &safePreToken, int64_t &safeNextToken) const;
-    bool IsExistRowInvalid(const BaseInfo &baseInfo);
+    bool IsExistRowInvalid(const BaseInfo &baseInfo) const;
 
     bool splitKVFlag_ = false;
 
@@ -100,7 +100,7 @@ private:
 
     // set info to context
     FusedInferAttentionScoreTilingData tilingData_;
-    uint32_t blockDim_{0};
+    uint32_t numBlocks_{0};
     ScheduleMode scheduleMode_{ScheduleMode::NORMAL_MODE};
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};

@@ -18,35 +18,39 @@
 
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        x1_{quant}, x1_{scale} = Quant(permutedOut) \\
-        output_{quant} = x1_{quant} @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      permutedOut_{quant}, x1_{scale} = Quant(permutedOut * x1ScaleOptional) \\
+      output_{quant} = permutedOut_{quant} @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
+
     - **全量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        output_{quant} = x1 @ x2 \\
-        output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-        output = output + bias
-        $$
+
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      output_{quant} = x1 @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
 
   - <term>Ascend 950PR/Ascend 950DT</term>：
     - **动态量化场景：**
-        $$
-        commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
-        output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
-        $$
+    
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
+      output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+      $$
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnAlltoAllQuantMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllQuantMatmul”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnAlltoAllQuantMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllQuantMatmul”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnAlltoAllQuantMatmulGetWorkspaceSize(
@@ -122,11 +126,11 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>x2</td>
     <td>输入</td>
     <td>融合算子的右矩阵输入，也是MatMul计算的右矩阵，对应公式中的x2。</td>
-    <td>作为MatMul计算的右矩阵输入。根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
+    <td>作为MatMul计算的右矩阵输入。根据设备型号对数据类型和非连续有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT8_E4M3FN、FLOAT8_E5M2、INT8、INT4</td>
     <td>ND</td>
     <td>2维，shape为(H*rankSize, N)</td>
-    <td>x</td>
+    <td>√</td>
     </tr>
     <tr>
     <td>biasOptional</td>
@@ -142,10 +146,10 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>x1ScaleOptional</td>
     <td>输入</td>
     <td>可选输入，左矩阵的量化系数。</td>
-    <td>当前仅在全量化场景下需要配置。</td>
-    <td>FLOAT32</td>
+    <td>在全量化场景下需要配置，支持类型仅为FLOAT32。在动态量化场景且x1QuantMode为pertoken动态量化时，x1ScaleOptional可以作为smoothScale传入，此时类型需与x1一致。</td>
+    <td>FLOAT32、FLOAT16、BFLOAT16</td>
     <td>ND</td>
-    <td>1维，shape为(BS / rankSize,)</td>
+    <td>1维。全量化场景时shape为(BS / rankSize)。动态量化场景时，shape为(H * rankSize)</td>
     <td>x</td>
     </tr>
     <tr>
@@ -155,7 +159,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>对应公式中的x2Scale。</td>
     <td>FLOAT32</td>
     <td>ND</td>
-    <td>1维, shape为(N,)</td>
+    <td>1维, shape为(N)</td>
     <td>x</td>
     </tr>
     <tr>
@@ -340,7 +344,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 
 - **返回值**
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -411,7 +415,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
 
 * **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
@@ -420,12 +424,21 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持2、4、8卡。
   - <term>Ascend 950PR/Ascend 950DT</term>：支持2、4、8、16卡。
 * 参数说明中shape使用的变量BS必须整除rankSize。
-* 该算子的biasOptional对于<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>当前不支持传入nullptr。
-* 该算子输入输出的数据类型和数据维度根据不同设备型号有不同的限制：
+* BS和N的值不得超过2147483647（INT32_MAX），BS的值不得小于2，N的值不得小于1。
+* 不支持空tensor。
+* 非连续tensor的支持度根据不同设备型号有不同的限制：
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：不支持任何非连续tensor。
+  - <term>Ascend 950PR/Ascend 950DT</term>：仅支持x2为非连续tensor，其它非连续tensor均不支持。
+* 传入的x1、x2、x2Scale和output不为空指针，且
+  - <term>Ascend 950PR/Ascend 950DT</term>：在x1QuantMode为pertoken动态量化场景下，不支持传入x1ScaleOptional。
+* 该算子输入输出的数据类型、数据维度和量化模式根据不同设备型号有不同的限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    * 量化模式：
+      * 目前支持左矩阵perToken量化和perToken动态量化，x1QuantMode=3或7；右矩阵perChannel量化，x2QuantMode=2。
     * 类型约束：
       * x1、alltoAllOutOptional的数据类型必须一致。
-      * x1QuantDtype仅支持配置2（表示aclDataType.ACL_INT8）。
+      * 若x1、x2、alltoallout输入int32类型，则视作8个int4打包，会被重新解释为int4。
+      * A16W8和A16W4时，smoothQuant场景，x1ScaleOptional与x1的数据类型必须一致。
       * A16W8时，x1、x2、biasOptional和output支持的数据类型组合有：
         | x1 | x2 | biasOptional | output |
         | :------: | :------: | :------: | :------: |
@@ -433,6 +446,13 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         | FLOAT16 | INT8 | FLOAT32 | FLOAT16 |
         | BFLOAT16 | INT8 | BFLOAT16 | BFLOAT16 |
         | BFLOAT16 | INT8 | FLOAT32 | BFLOAT16 |
+      * A16W4时，x1、x2、biasOptional和output支持的数据类型组合有：
+        | x1 | x2 | biasOptional | output |
+        | :------: | :------: | :------: | :------: |
+        | FLOAT16 | INT4 | FLOAT16 | FLOAT16 |
+        | FLOAT16 | INT4 | FLOAT32 | FLOAT16 |
+        | BFLOAT16 | INT4 | BFLOAT16 | BFLOAT16 |
+        | BFLOAT16 | INT4 | FLOAT32 | BFLOAT16 |
       * A4W4时，x1、x2、biasOptional和output支持的数据类型组合有：
         | x1 | x2 | biasOptional | output |
         | :------: | :------: | :------: | :------: |
@@ -441,9 +461,12 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         | INT4 | INT4 | BFLOAT16 | BFLOAT16 |
         | INT4 | INT4 | FLOAT32 | BFLOAT16 |
     * 维度约束：
-      * A16W8时，rankSize * H必须整除32；rankSize * H取值范围：[1, 6144]。
+      * A16W8时，rankSize * H必须整除16；rankSize * H取值范围：[1, 35000]。
+      * A16W4时，rankSize * H必须整除16；N必须为偶数; rankSize * H取值范围：[1, 35000]。
       * A4W4时，H与N必须为偶数；rankSize * H取值范围：[1, 35000]。
   - <term>Ascend 950PR/Ascend 950DT</term>：
+    * 量化模式：
+      * 目前仅支持左矩阵perToken动态量化，x1QuantMode=7；右矩阵perChannel量化，x2QuantMode=2。
     * 类型约束：
       * x1、alltoAllOutOptional的数据类型必须一致。
       * x1QuantDtype支持配置35（表示aclDataType.ACL_FLOAT8_E5M2）和36（表示aclDataType.ACL_FLOAT8_E4M3FN）。
@@ -464,9 +487,6 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
         | BFLOAT16 | FLOAT8_E5M2 | FLOAT32 | FLOAT32 |
     * 维度约束：
       * rankSize * H范围仅支持[1, 65535]。
-* BS和N的值不得超过2147483647（INT32_MAX）。
-* 不支持空tensor。
-* 传入的x1、x2、x2Scale和output不为空指针。
 * 通算融合算子不支持并发调用，不同的通算融合算子也不支持并发调用。
 * 不支持跨超节点通信，只支持超节点内。
 

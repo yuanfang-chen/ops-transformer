@@ -37,6 +37,7 @@ ENABLE_OPKERNEL=FALSE
 ENABLE_BUILD_PKG=FALSE
 ENABLE_BUILT_IN=FALSE
 ENABLE_BUILT_JIT=FALSE
+ENABLE_AICPU=TRUE
 ENABLE_BUILT_CUSTOM=FALSE
 ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
@@ -335,6 +336,10 @@ function set_env()
     export BISHENG_REAL_PATH=$(which bisheng || true)
 
     if [ -z "${BISHENG_REAL_PATH}" ];then
+        if [[ "$ENABLE_BUILT_JIT" == "TRUE" ]] && [[ "$ENABLE_AICPU" == "FALSE" ]] ; then
+            log "Warning: bisheng compilation tool not found, but --jit --noaicpu is enabled, so continue."
+            return
+        fi
         log "Error: bisheng compilation tool not found, Please check whether the cann package or environment variables are set."
         exit 1
     fi
@@ -461,11 +466,13 @@ function build_example()
             return 2
         fi
         ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2) # mc2目录绝对路径
+        ABSOLUTE_EXAMPLES_MC2_PATH=$(realpath ${BUILD_PATH}/../examples/mc2)
+        ABSOLUTE_EXPERIMENTAL_MC2_PATH=$(realpath ${BUILD_PATH}/../experimental/mc2)
         for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
             REAL_FILE_PATH=$(realpath "$file")
             MC2_APPEND_INCLUDE_AND_LIBRARY=""
-            if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* ]]; then
+            if [[ "$REAL_FILE_PATH" == "${ABSOLUTE_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXAMPLES_MC2_PATH}"* || "$REAL_FILE_PATH" == "${ABSOLUTE_EXPERIMENTAL_MC2_PATH}"* ]]; then
                 MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk"
             fi
             if [[ "${PKG_MODE}" == "" ]]; then
@@ -482,7 +489,7 @@ function build_example()
                     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
                     CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
-                g++ ${file} -I ${INCLUDE_PATH} -I ${CUST_INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                g++ ${file} -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
@@ -671,6 +678,7 @@ package_static() {
     # Create compressed package and restore directory name
     local new_filename="${static_name}.tar.gz"
     if tar -czf "$BUILD_OUT_DIR/$new_filename" -C "$BUILD_PATH" "$static_name"; then
+        echo "[SUCCESS] Build static lib success!"
         echo "Successfully created compressed package: $BUILD_OUT_DIR/$new_filename"
         # Restore original directory name
         echo "Restoring original directory name: $new_dir_path -> $static_files_dir"
@@ -690,6 +698,19 @@ function process_soc_input(){
     input_string=$(echo "$input_string" | sed 's/ascend950/ascend950/g')
     local value_part="${input_string#*=}"
     ASCEND_SOC_UNITS="${value_part//,/;}"
+
+    declare -A SOC_HARDWARE_MAP=(
+        [ascend910b]="Atlas A2"
+        [ascend910_93]="Atlas A3"
+        [ascend310p]="Atlas Inference"
+        [ascend950]="Ascend 950PR/Ascend 950DT"
+    )
+
+    if [[ ${SOC_HARDWARE_MAP[$ASCEND_SOC_UNITS]} ]]; then
+        echo "Warning: The current environment is configured for $ASCEND_SOC_UNITS, Please use ${SOC_HARDWARE_MAP[$ASCEND_SOC_UNITS]} series hardware for optimal performance."
+    else
+        echo "Warning: Hardware type '$ASCEND_SOC_UNITS' detected. Please ensure you are using compatible hardware."
+    fi
 }
 
   process_genop() {
@@ -906,6 +927,10 @@ while [[ $# -gt 0 ]]; do
         shift
         BUILD="jit"
         ;;
+    --noaicpu)
+        ENABLE_AICPU=FALSE
+        shift
+        ;;
     -n|--op-name)
         ascend_op_name="$2"
         shift 2
@@ -976,7 +1001,7 @@ while [[ $# -gt 0 ]]; do
     --PR_UT)
         PR_CHANGED_FILES="$2"
         ENABLE_TEST=TRUE
-        process_soc_input "ascend910b,ascend950"
+        process_soc_input "ascend310p,ascend910b,ascend950"
         shift 2
         ;;
     --PR_PKG)
@@ -1337,6 +1362,10 @@ CUSTOM_OPTION="${CUSTOM_OPTION} -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH}"
 
 if [[ "$ENABLE_STATIC" == "TRUE" ]]; then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_STATIC=${ENABLE_STATIC}"
+fi
+
+if [[ "$ENABLE_AICPU" == "FALSE" ]]; then
+ 	CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_AICPU=OFF -DENABLE_TILING_SINK=OFF"
 fi
 
 if [ -n "${ascend_package_path}" ];then

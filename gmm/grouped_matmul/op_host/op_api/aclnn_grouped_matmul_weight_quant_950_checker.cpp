@@ -21,44 +21,46 @@ static constexpr int64_t NO_SEPARATED = 3L;   // x,y split
 static constexpr int64_t MAX_GROUP_LIST_SIZE_ARRAY = 128L;
 }  // namespace
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsA16MxFp4NZ() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsA16MxFp4NZ() const
 {
     return (xDtype_ == ge::DT_FLOAT16 || xDtype_ == ge::DT_BF16) && weightDtype_ == ge::DT_FLOAT4_E2M1;
 }
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsMxA8W4NZ() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsMxA8W4NZ() const
 {
     return xDtype_ == ge::DT_FLOAT8_E4M3FN && weightDtype_ == ge::DT_FLOAT4_E2M1;
 }
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsA16W8ND() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsA16W8ND() const
 {
     return (xDtype_ == ge::DT_FLOAT16 || xDtype_ == ge::DT_BF16) && weightDtype_ == ge::DT_INT8;
 }
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsA16F8ND() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsA16F8ND() const
 {
     return (xDtype_ == ge::DT_FLOAT16 || xDtype_ == ge::DT_BF16) &&
            FP8_SUPPORT_SET.find(weightDtype_) != FP8_SUPPORT_SET.end();
 }
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsS8S4NZ() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsS8S4NZ() const
 {
     return xDtype_ == ge::DT_INT8 && weightDtype_ == ge::DT_INT4;
 }
 
-bool AclnnGroupedMatmulWeightQuant91095Checker::IsA16W4() const
+bool AclnnGroupedMatmulWeightQuantDAV3510Checker::IsA16W4() const
 {
     return (xDtype_ == ge::DT_FLOAT16 || xDtype_ == ge::DT_BF16) && weightDtype_ == ge::DT_INT4;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorNotNull(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTensorNotNull(size_t idx) const
 {
     CHECK_RET(CheckTensorNotNullPtr(gmmParams_.x, idx, "x") == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckTensorNotNullPtr(gmmParams_.weight, idx, "weight") == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(CheckTensorNotNullPtr(gmmParams_.y, idx, "y") == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(CheckTensorNotNullPtr(gmmParams_.antiquantScaleOptional, idx, "antiquantScale") == ACLNN_SUCCESS,
-              ACLNN_ERR_PARAM_NULLPTR);
+    if (gmmParams_.antiquantScaleOptional != nullptr) {
+        CHECK_RET(CheckTensorNotNullPtr(gmmParams_.antiquantScaleOptional, idx, "antiquantScale") == ACLNN_SUCCESS,
+                  ACLNN_ERR_PARAM_NULLPTR);
+    }
 
     if (gmmParams_.antiquantOffsetOptional != nullptr) {
         CHECK_RET(CheckTensorNotNullPtr(gmmParams_.antiquantOffsetOptional, idx, "antiquantOffset") == ACLNN_SUCCESS,
@@ -73,9 +75,9 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorNotNull(size_t
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorNotNullPtr(const aclTensorList *tensorList,
-                                                                             size_t idx,
-                                                                             const std::string &tensorType) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTensorNotNullPtr(const aclTensorList *tensorList,
+                                                                               size_t idx,
+                                                                               const std::string &tensorType) const
 {
     const aclTensor *tensor = (*tensorList)[idx];
     CHECK_COND(tensor != nullptr, ACLNN_ERR_PARAM_NULLPTR, "%s[%lu] is null, which is not supported.",
@@ -83,9 +85,9 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorNotNullPtr(con
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorDtype(const aclTensorList *tensorList,
-                                                                        const DataType &tensorDtype, size_t idx,
-                                                                        const std::string &tensorType) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTensorDtype(const aclTensorList *tensorList,
+                                                                          const DataType &tensorDtype, size_t idx,
+                                                                          const std::string &tensorType) const
 {
     const aclTensor *tensor = (*tensorList)[idx];
     CHECK_COND(
@@ -97,8 +99,8 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorDtype(const ac
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorShape(const aclTensorList *tensorList, size_t idx,
-                                                                        const std::string &tensorType) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTensorShape(const aclTensorList *tensorList, size_t idx,
+                                                                          const std::string &tensorType) const
 {
     // 校验bias、antiquantScale和antiquantOffset的dim和shape
     auto tensorShape = (*tensorList)[idx]->GetViewShape();
@@ -107,8 +109,14 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorShape(const ac
     size_t tensorDimNum = tensorShape.GetDimNum();
     size_t expectedDimNum = gmmParams_.groupType == SPLIT_M ? 2 : 1;  // 单单单场景默认维度为2，多多多场景默认维度为1
 
-    if ((IsA16MxFp4NZ() || IsMxA8W4NZ() || IsS8S4NZ()) && tensorType.find("antiquant") != std::string::npos) {
-        expectedDimNum = 3;  // Mx / PerGroup量化，仅支持antiquantSacle/antiquantOffset维度为3
+    if ((IsA16MxFp4NZ() || IsS8S4NZ()) && tensorType.find("antiquant") != std::string::npos) {
+        expectedDimNum = 3; // Mx / PerGroup量化，仅支持antiquantSacle/antiquantOffset维度为3
+    } else if (IsMxA8W4NZ()) {
+        if (tensorType.find("antiquant") != std::string::npos) {
+            expectedDimNum = 4; // MxA8W4场景，antiquantScale维度为4
+        } else if (tensorType.find("token") != std::string::npos) {
+            expectedDimNum = 3; // MxA8W4场景，perTokenScale维度为3
+        }
     }
 
     CHECK_COND(tensorDimNum == expectedDimNum, ACLNN_ERR_PARAM_INVALID, "%s Dim must be [%zu], but now is [%zu].",
@@ -126,7 +134,12 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorShape(const ac
     // Check tensor’s Ndim must match weight’s Ndim.
     uint64_t weightNDimIdx = wShape.GetDimNum() - 1;
     int64_t weightNDimValue = wShape.GetDim(weightNDimIdx);
-    int64_t tensorNDimValue = tensorShape.GetDim(tensorDimNum - 1);
+    int64_t tensorNDimValue;
+    if (IsMxA8W4NZ() && tensorType.find("antiquant") != std::string::npos) { // viewShape,所以是-2
+        tensorNDimValue = tensorShape.GetDim(tensorDimNum - 2);
+    } else {
+        tensorNDimValue = tensorShape.GetDim(tensorDimNum - 1);
+    }
     CHECK_COND(tensorNDimValue == weightNDimValue, ACLNN_ERR_PARAM_INVALID,
                "NDim[%ld] of %s should be equal to NDim[%ld] of weight.", tensorNDimValue, tensorType.c_str(),
                weightNDimValue);
@@ -134,7 +147,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorShape(const ac
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckWeightInnerAxisEven(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckWeightInnerAxisEven(size_t idx) const
 {
     if (weightDtype_ == ge::DT_INT4) {
         auto wShape = (*gmmParams_.weight)[idx]->GetViewShape();
@@ -149,10 +162,18 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckWeightInnerAxisEven(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckAntiQuantParams() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantParams() const
 {
-    CHECK_COND(gmmParams_.antiquantScaleOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR,
-               "AntiquantScale must not be nullptr in antiquant, but now is nullptr.");
+    // 单单单场景antiquantScale为[(g, n)]或[(g, k/gs, n)]，g不为0所以一定不为nullptr
+    // 多多多场景antiQuantScale可能为[(0)]，此时会被aclnn_grouped_matmul.cpp中的CheckOptionalTensorListEmpty置为nullptr
+    auto w0Shape = (*gmmParams_.weight)[0]->GetViewShape();
+    int64_t w0NDim = w0Shape.GetDim(w0Shape.GetDimNum() - 1);
+    bool antiquantScaleNullFlag =
+        gmmParams_.groupType == NO_SPLIT && gmmParams_.weight->Size() == 1 && w0NDim == 0;
+    if (!antiquantScaleNullFlag) {
+        CHECK_COND(gmmParams_.antiquantScaleOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR,
+                   "AntiquantScale must not be nullptr in antiquant, but now is nullptr.");
+    }
 
     if (IsA16F8ND() || IsA16MxFp4NZ() || IsMxA8W4NZ() || IsS8S4NZ()) {
         CHECK_COND(gmmParams_.antiquantOffsetOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
@@ -163,7 +184,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckAntiQuantParams() co
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantParams() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckQuantParams() const
 {
     if (!IsS8S4NZ()) {
         CHECK_COND(gmmParams_.scaleOptional == nullptr, ACLNN_ERR_PARAM_INVALID,
@@ -188,7 +209,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantParams() const
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimNumAndFormat(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckDimNumAndFormat(size_t idx) const
 {
     // check format
     CHECK_COND(!op::IsPrivateFormat((*gmmParams_.x)[idx]->GetStorageFormat()), ACLNN_ERR_PARAM_INVALID,
@@ -229,7 +250,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimNumAndFormat(size
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTransposeStatus() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTransposeStatus() const
 {
     CHECK_COND(!gmmParams_.transposeX, ACLNN_ERR_PARAM_INVALID, "In weight quant case, x must not be transposed.");
 
@@ -250,7 +271,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTransposeStatus() co
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimValue(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckDimValue(size_t idx) const
 {
     // 校验x, weight, y的各轴匹配
     size_t xDimNum = (*gmmParams_.x)[idx]->GetViewShape().GetDimNum();
@@ -276,11 +297,6 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimValue(size_t idx)
     CHECK_COND(yNDim == weightNDim, ACLNN_ERR_PARAM_INVALID,
                "y[%zu] dim n value %zu should equal to weight[%zu] dim n value %zu.", idx, yNDim, idx, weightNDim);
 
-    CHECK_COND(weightNDim > 0, ACLNN_ERR_PARAM_INVALID,
-               "The n dim value should be positive, but the actual value is [%zu].", weightNDim);
-    CHECK_COND(weightKDim > 0, ACLNN_ERR_PARAM_INVALID,
-               "The k dim value should be positive, but the actual value is [%zu].", weightKDim);
-
     if (IsA16MxFp4NZ() || IsMxA8W4NZ() || IsS8S4NZ()) {
         CHECK_COND((weightNDim % N_K_ALIGN_VALUE_WEIGHT_QUANT_4BIT == 0) &&
                        (weightKDim % N_K_ALIGN_VALUE_WEIGHT_QUANT_4BIT == 0),
@@ -292,7 +308,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckDimValue(size_t idx)
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckV1GroupList(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckV1GroupList(size_t idx) const
 {
     // 多多多 V1接口校验groupList
     if (gmmParams_.groupType != NO_SPLIT || gmmParams_.apiVersion != GMMApiVersion::V1) {
@@ -320,7 +336,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckV1GroupList(size_t i
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckYDtype() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckYDtype() const
 {
     if (IsMxA8W4NZ() || IsS8S4NZ()) {
         CHECK_COND(yDtype_ == DataType::DT_BF16 || yDtype_ == DataType::DT_FLOAT16, ACLNN_ERR_PARAM_INVALID,
@@ -337,7 +353,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckYDtype() const
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckBiasDtype()
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckBiasDtype()
 {
     if (gmmParams_.biasOptional != nullptr) {
         biasDtype_ = (*gmmParams_.biasOptional)[0]->GetDataType();
@@ -366,20 +382,23 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckBiasDtype()
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckAntiQuantDtype(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantDtype(size_t idx) const
 {
-    if (IsA16W8ND() || IsA16F8ND() || IsA16W4()) {
-        CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, xDtype_, idx, "antiquantScale") == ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
-    } else if (IsA16MxFp4NZ() || IsMxA8W4NZ()) {
-        CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, ge::DT_FLOAT8_E8M0, idx, "antiquantScale") ==
-                      ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
-    } else {
-        // S8S4的antiquantScale类型为FP16
-        CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, DataType::DT_FLOAT16, idx, "antiquantScale") ==
-                      ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
+    if (gmmParams_.antiquantScaleOptional != nullptr) {
+        if (IsA16W8ND() || IsA16F8ND() || IsA16W4()) {
+            CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, xDtype_, idx, "antiquantScale") ==
+                          ACLNN_SUCCESS,
+                      ACLNN_ERR_PARAM_INVALID);
+        } else if (IsA16MxFp4NZ() || IsMxA8W4NZ()) {
+            CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, ge::DT_FLOAT8_E8M0, idx, "antiquantScale") ==
+                          ACLNN_SUCCESS,
+                      ACLNN_ERR_PARAM_INVALID);
+        } else {
+            // S8S4的antiquantScale类型为FP16
+            CHECK_RET(CheckTensorDtype(gmmParams_.antiquantScaleOptional, DataType::DT_FLOAT16, idx,
+                                       "antiquantScale") == ACLNN_SUCCESS,
+                      ACLNN_ERR_PARAM_INVALID);
+        }
     }
 
     if (gmmParams_.antiquantOffsetOptional != nullptr) {
@@ -391,7 +410,22 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckAntiQuantDtype(size_
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantDtype() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckAntiQuantShape(size_t idx) const
+{
+    if (gmmParams_.antiquantScaleOptional != nullptr) {
+        CHECK_RET(CheckTensorShape(gmmParams_.antiquantScaleOptional, idx, "antiquantScale") == ACLNN_SUCCESS,
+                  ACLNN_ERR_PARAM_INVALID);
+    }
+
+    if (gmmParams_.antiquantOffsetOptional != nullptr) {
+        CHECK_RET(CheckTensorShape(gmmParams_.antiquantOffsetOptional, idx, "antiquantOffset") == ACLNN_SUCCESS,
+                  ACLNN_ERR_PARAM_INVALID);
+    }
+
+    return ACLNN_SUCCESS;
+}
+
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckQuantDtype() const
 {
     // check pertokenScaleDtype for MxA8W4
     if (IsMxA8W4NZ()) {
@@ -411,16 +445,16 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckQuantDtype() const
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckScaleAndPerTokenScaleShape() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckScaleAndPerTokenScaleShape() const
 {
     if (IsMxA8W4NZ()) {
         // check pertokenscale shape for MxA8W4
         auto perTokenScaleShape = (*gmmParams_.perTokenScaleOptional)[0]->GetViewShape();
         auto perTokenScaleShapeDimNum = perTokenScaleShape.GetDimNum();
-        // MxA8W4NZ仅支持perTokenScale维度为2
-        size_t perTokenScaleSupportDimNum = 2;
+        // MxA8W4NZ仅支持perTokenScale维度为3
+        size_t perTokenScaleSupportDimNum = 3;
         CHECK_COND(perTokenScaleShapeDimNum == perTokenScaleSupportDimNum, ACLNN_ERR_PARAM_INVALID,
-                   "The dim of pertokenscale must be 2!");
+                   "The dim of pertokenscale must be 3!");
         auto xShape = (*gmmParams_.x)[0]->GetViewShape();
         auto perTokenScaleShapeMDim = perTokenScaleShape.GetDim(0);
         auto perTokenScaleShapeKDim = perTokenScaleShape.GetDim(1);
@@ -428,9 +462,9 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckScaleAndPerTokenScal
         auto xShapeMDim = xShape.GetDim(0);
         CHECK_COND(xShapeMDim == perTokenScaleShapeMDim, ACLNN_ERR_PARAM_INVALID,
                    "The first dim of pertokenscale must be equal to the first dim of x!");
-        // 32含义：pertokenscale的shape应为(m,k/32)
-        CHECK_COND(xShapeKDim == perTokenScaleShapeKDim * 32, ACLNN_ERR_PARAM_INVALID,
-                   "The second dim of x must be 32 times the second dim of pertokenscale!");
+        // 64含义：pertokenscale的shape应为(m,k/64,2)
+        CHECK_COND(xShapeKDim == perTokenScaleShapeKDim * 64, ACLNN_ERR_PARAM_INVALID,
+                   "The second dim of x must be 64 times the second dim of pertokenscale!");
     } else if (IsS8S4NZ()) {
         auto perTokenScaleShape = (*gmmParams_.perTokenScaleOptional)[0]->GetViewShape();
         auto perTokenScaleShapeDimNum = perTokenScaleShape.GetDimNum();
@@ -454,7 +488,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckScaleAndPerTokenScal
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckUnsupportedApi() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckUnsupportedApi() const
 {
     if (IsA16W8ND()) {
         if (gmmParams_.groupType == NO_SPLIT) {
@@ -484,7 +518,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckUnsupportedApi() con
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupSize(size_t idx) const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupSize(size_t idx) const
 {
     if (!(IsA16MxFp4NZ() || IsMxA8W4NZ() || IsS8S4NZ())) {
         return ACLNN_SUCCESS;
@@ -498,14 +532,18 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupSize(size_t idx
     // 2含义: (g,k,n)的k轴索引
     int64_t kSize = weightShape.GetDim(weightShape.GetDimNum() - 2);
     // 2含义: (g,k/groupSize,n)的k轴索引
-    int64_t groupNum = antiquantScaleShape.GetDim(antiquantScaleDimNum - 2);
+    int64_t groupNum = IsMxA8W4NZ() ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) * 2:
+                                      antiquantScaleShape.GetDim(antiquantScaleDimNum - 2);
     CHECK_COND(groupNum > 0, ACLNN_ERR_PARAM_INVALID,
                "GroupNum must be greater than 0, but the actual groupNum is [%ld].", groupNum);
     CHECK_COND(kSize % groupNum == 0, ACLNN_ERR_PARAM_INVALID,
                "kSize must be a multiple of groupNum, but the actual kSize is [%ld], groupNum is [%ld].", kSize,
                groupNum);
     groupSize = kSize / groupNum;
-
+    if (IsMxA8W4NZ()) {
+        // 2：MxA8W4NZ的antiquantScaleViewShape: (g, k / groupSIze / 2, n, 2)
+        groupSize = kSize / groupNum;
+    }
     // 当前伪量化仅支持groupsize为32整数倍
     if (IsS8S4NZ()) {
         // 伪量化S8S4场景支持groupsize为128/192/256/512
@@ -520,7 +558,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupSize(size_t idx
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupTypeScenario() const
 {
     std::string errorMessage;
 
@@ -561,7 +599,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupTypeScenario() 
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupListAndSplitItem() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupListAndSplitItem() const
 {
     if (gmmParams_.groupType == NO_SPLIT) {
         if (gmmParams_.apiVersion == GMMApiVersion::V2) {
@@ -590,11 +628,13 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupListAndSplitIte
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorListSize() const
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckTensorListSize() const
 {
-    CHECK_COND(gmmParams_.antiquantScaleOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
-               "AntiquantScaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
-               gmmParams_.antiquantScaleOptional->Size(), gmmParams_.weight->Size());
+    if (gmmParams_.antiquantScaleOptional != nullptr) {
+        CHECK_COND(gmmParams_.antiquantScaleOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
+                   "AntiquantScaleOptional size should be equal to weight size, actual sizes are [%zu], [%zu]",
+                   gmmParams_.antiquantScaleOptional->Size(), gmmParams_.weight->Size());
+    }
 
     if (gmmParams_.antiquantOffsetOptional != nullptr) {
         CHECK_COND(gmmParams_.antiquantOffsetOptional->Size() == gmmParams_.weight->Size(), ACLNN_ERR_PARAM_INVALID,
@@ -623,7 +663,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckTensorListSize() con
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupedMatmulWeightQuant91095()
+aclnnStatus AclnnGroupedMatmulWeightQuantDAV3510Checker::CheckGroupedMatmulWeightQuantDAV3510()
 {
     xDtype_ = gmmParams_.xDtype;
     weightDtype_ = (*gmmParams_.weight)[0]->GetDataType();
@@ -658,6 +698,7 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupedMatmulWeightQ
         CHECK_COND(IsTransposeLastTwoDims((*gmmParams_.weight)[i]) == gmmParams_.transposeWeight,
                    ACLNN_ERR_PARAM_INVALID, "The transpose state must be the same for each tensor in weight.");
         CHECK_RET(CheckDimValue(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+        CHECK_RET(CheckWeightInnerAxisEven(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
         CHECK_RET(CheckV1GroupList(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
 
@@ -668,13 +709,8 @@ aclnnStatus AclnnGroupedMatmulWeightQuant91095Checker::CheckGroupedMatmulWeightQ
         }
 
         CHECK_RET(CheckAntiQuantDtype(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-        CHECK_RET(CheckTensorShape(gmmParams_.antiquantScaleOptional, i, "antiquantScale") == ACLNN_SUCCESS,
-                  ACLNN_ERR_PARAM_INVALID);
-        CHECK_RET(CheckWeightInnerAxisEven(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-        if (gmmParams_.antiquantOffsetOptional != nullptr) {
-            CHECK_RET(CheckTensorShape(gmmParams_.antiquantOffsetOptional, i, "antiquantOffset") == ACLNN_SUCCESS,
-                      ACLNN_ERR_PARAM_INVALID);
-        }
+        CHECK_RET(CheckAntiQuantShape(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
+
         CHECK_COND(CheckGroupSize(i) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "CheckGroupSize failed");
     }
     return ACLNN_SUCCESS;

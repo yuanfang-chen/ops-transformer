@@ -24,13 +24,15 @@ using namespace gert;
 const std::set<int> SUPPORT_RANK_SIZE{2, 4, 8, 16};
 constexpr uint64_t K_MAX_VALUE = 65535UL;
 constexpr uint64_t MAX_INT32_VALUE = 2147483647UL;
-constexpr size_t MAX_GROUP_NAME_LEN = 128;
+constexpr size_t MAX_GROUP_NAME_LEN = 127;
 constexpr int64_t RANK_DEFAULT_NUM = -1;
 // FOR NON_QUANT
 const std::vector<uint32_t> NON_QUANT_X_DTYPE_LIST = {ge::DT_BF16, ge::DT_FLOAT16};
 // FOR QUANT
 const std::vector<uint32_t> KC_QUANT_X_DTYPE_LIST = {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2};
 const std::vector<uint32_t> KC_QUANT_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT};
+const std::vector<uint32_t> MX_QUANT_X_DTYPE_LIST = {ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E5M2};
+const std::vector<uint32_t> MX_QUANT_Y_DTYPE_LIST = {ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT};
 // 维度范围
 constexpr uint32_t TWO_DIMS = 2;
 constexpr size_t DIM_ZERO = 0;

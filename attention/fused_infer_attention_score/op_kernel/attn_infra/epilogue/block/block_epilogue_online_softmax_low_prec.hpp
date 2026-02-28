@@ -18,6 +18,7 @@
 #include "../../../attn_infra/epilogue/tile_common/tile_copy.hpp"
 #include "../../../attn_infra/gemm_coord.hpp"
 #include "../../../attn_infra/matrix_coord.hpp"
+#include "utils/std/algorithm.h"
 
 namespace NpuArch::Epilogue::Block {
 
@@ -363,7 +364,7 @@ public:
     }
 
     template<typename ElementMaskDst, typename ElementMaskSrc>
-    __aicore__ inline 
+    __aicore__ inline
     void UpCastMask(
         const AscendC::LocalTensor<ElementMaskDst> &maskUbTensorDst,
         const AscendC::LocalTensor<ElementMaskSrc> &maskUbTensorSrc,
@@ -669,7 +670,7 @@ public:
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<half> gInput, AscendC::GlobalTensor<ElementSink> gSink,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
         uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
-        uint32_t qSBlockSize, uint32_t qNBlockSize, uint32_t curStackTileMod, bool isSplitKV = false)
+        uint32_t qSBlockSize, uint32_t qNBlockSize, uint32_t curStackTileMod, bool isLastStackTile, bool isSplitKV = false)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
@@ -728,7 +729,7 @@ public:
         AscendC::GlobalTensor<ElementMask> gMask, const LayoutOutput &layoutOutput, const LayoutInput &layoutInput,
         const LayoutInput &layoutMask, GemmCoord actualBlockShape, uint32_t isFirstStackTile, uint32_t qSBlockSize,
         uint32_t qNBlockSize, uint32_t curStackTileMod, Arch::CrossCoreFlag qkReady, uint32_t triUp, uint32_t triDown,
-        uint32_t kvSStartIdx, uint32_t kvSEndIdx, bool isSplitKV = false)
+        uint32_t kvSStartIdx, uint32_t kvSEndIdx, bool isLastStackTile, bool isSplitKV = false)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
@@ -803,7 +804,7 @@ public:
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
             ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
-            
+
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID3);
             CopyMaskGmToUb(
                 gMaskThisSubBlock,

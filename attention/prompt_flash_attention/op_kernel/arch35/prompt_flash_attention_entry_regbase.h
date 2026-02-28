@@ -20,9 +20,15 @@
 #include "prompt_flash_attention_zero_output.h"
 #include "prompt_flash_attention_tiling_regbase.h"
 #include "prompt_flash_attention_template_tiling_key_enum.h"
+#if __has_include("../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h")
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
 #include "../../../common/op_kernel/arch35/flash_attention_kernel_noquant_mla.h"
+#else
+#include "../../common/arch35/flash_attention_score_kernel_infer.h"
+#include "../../common/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
+#include "../../common/arch35/flash_attention_kernel_noquant_mla.h"
+#endif
 
 using namespace regbaseutil;
 
@@ -30,7 +36,7 @@ using namespace regbaseutil;
 
 #define REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling)                                                    \
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                  \
+    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn
 
 #define INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(templateClass, ...)                                               \
     do {                                                                                                                \
@@ -91,7 +97,7 @@ using namespace regbaseutil;
     TilingDataCopy(tiling_data_in, tiling_data_in_new);                                                               \
     const PromptFlashAttentionTilingData* __restrict tiling_data = &tiling_data_in;                                   \
     const TCubeTiling* __restrict bmm1tiling = &(tiling_data->bmm1TilingDataRect);                                    \
-    const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect);
+    const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect)
 
 #define INVOKE_PFA_TILING_DATA_95(tiling)           \
     INVOKE_PFA_TILING_DATA_V2(tiling)
@@ -228,7 +234,8 @@ inline __aicore__ void prompt_flash_attention_FIAS_regbase(__gm__ uint8_t* query
 #if (__CCE_AICORE__ == 310) && (!defined (__DAV_310R6__))
     KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     REGISTER_TILING_DEFAULT(PFAFullQuantTilingData);
-    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 31", FlashAttentionScoreSimplifiedTilingData);
+    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) != 30", FlashAttentionScoreSimplifiedTilingData);
+    REGISTER_TILING_FOR_TILINGKEY("((TILING_KEY_VAR >> 22) & 0x1f) == 30", PFAFullQuantTilingData);
     if constexpr (emptyTensor == true) {
         # if (ORIG_DTYPE_ATTENTION_OUT != DT_FLOAT16 && ORIG_DTYPE_ATTENTION_OUT != DT_BF16)
             INVOKE_PFA_ZERO_OP_IMPL_V2(fp8_e4m3fn_t);
