@@ -24,6 +24,7 @@
 #include "../../common/new_mc2_mm/kernel/mc2_quant_batch_matmul.h"
 #include "../../common/inc/kernel/qbmm_mix_perblock_noncontiguous.h"
 #include "matmul_reduce_scatter_v2_c_tiling.h"
+#include "../../common/inc/kernel/reduce_sum.h"
 
 #define TEMPLATE_CLASS_PARAMS template <typename AType, typename BType, typename CType, typename ScaleType, \
                                         class MMClass, bool IsPerBlock, bool ATrans, bool BTrans>
@@ -31,6 +32,7 @@
 
 namespace MatmulReduceScatterV2Impl {
 using namespace AscendC;
+using namespace AiVReduceSumImpl;
 
 TEMPLATE_CLASS_PARAMS
 class QuantBMMReduceScatter {
@@ -45,18 +47,20 @@ public:
 private:
     __aicore__ inline void InnerProcess();
     __aicore__ inline void MatMulReduceScatterSerial();
-    __aicore__ inline void MatMulComputReduceScatter(GM_ADDR aGM, GM_ADDR cGM, GM_ADDR x1ScaleGM,
+    __aicore__ inline void MatMulComputReduceScatter(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM,
                                                      DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling, uint32_t tileCnt,
-                                                     GM_ADDR gmToFloat, bool isLast, bool isTail);
-    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR aGM, GM_ADDR cGM,
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling, uint32_t tileCnt,
-                                                     GM_ADDR gmToFloat, bool isLast, bool isTail);
-    __aicore__ inline void MatMulComputReduceScatterPerblock(GM_ADDR aGM, GM_ADDR cGM, GM_ADDR x1ScaleGM,
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling, uint32_t tileCnt,
-                                                     GM_ADDR gmToFloat, bool isTail);
+                                                     GM_ADDR sendGM, bool isLast, bool isTail);
+    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR aGM, GM_ADDR recvGM, 
+                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t tileCnt,
+                                                     GM_ADDR sendGM, bool isLast, bool isTail);
+    __aicore__ inline void MatMulComputReduceScatterPerblock(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM, 
+                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t tileCnt,
+                                                     GM_ADDR sendGM, bool isTail);
     __aicore__ inline void PostProcess();  // 计算后处理，等待通信结束，并终止hcclserver
 
 private:
+    ReduceSumForAlltoAll<CType> reduceSum_; // AIV ReduceSum 相关实现
+
     Mc2Tiling::QuantBatchMatmulV3ReduceScatterTilingData* tilingData_;
     TPipe* tPipe_{nullptr};
     GM_ADDR aGM_{nullptr};
@@ -66,7 +70,8 @@ private:
     GM_ADDR x1ScaleGM_{nullptr};
     GM_ADDR x2ScaleGM_{nullptr};
     GM_ADDR workspaceGM_{nullptr};
-    GM_ADDR gmToFloat_{nullptr};
+    GM_ADDR sendBuf_{nullptr};    // 存放 MatMul 输出（All2All send buffer）
+    GM_ADDR recvBuf_{nullptr};    // 存放 All2All 接收的 slices（内容为 [slice_r_from_rank0][slice_r_from_rank1]...[slice_r_from_rankR-1]）
     __gm__ HcclCombinOpParam* context_{nullptr};
     uint32_t rankId_{0};
     AscendC::HcclDataType dataType_{HCCL_DATA_TYPE_INT8};
@@ -101,9 +106,16 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::Init(
     for (uint32_t j = 0; j < cfg.rankDim; j++) {
         batchWeight_[j] = j;
     }
-    // 划分workspace
-    gmToFloat_ = workspaceGM;
-    workspaceGM_ = gmToFloat_ + cfg.cToFloatLen;
+    // all2all 通信相关参数, 划分workspace
+    uint64_t fullMN = static_cast<uint64_t>(cfg.rankM) * static_cast<uint64_t>(cfg.rankN);  // M * N
+    sendBuf_ = workspaceGM; // [0, fullMN)
+    recvBuf_ = sendBuf_ + cfg.cToFloatLen; // [fullMN, 2*fullMN)
+    workspaceGM_ = recvBuf_ + cfg.cToFloatLen; // [2*fullMN, 3*fullMN) 
+
+    // === AIV ReudceSum 相关参数计算与初始化 ===
+    auto&& tiling = tilingData_->quantBmmV3TileTiling.matmulTiling;
+    uint64_t aivNum = tiling.usedCoreNum * GetTaskRation(); // 启用的AIV 数量
+    reduceSum_.Init(fullMN, cfg.rankDim, aivNum, recvBuf_, cGM_, tPipe_);
 }
 
 TEMPLATE_CLASS_PARAMS
@@ -113,18 +125,24 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::PostProcess(
     // 等待reducescatter执行完成
     if ((GetBlockIdx() == 0) && (g_coreType == AIC)) {
         for (uint32_t i = 0; i < cfg.tileCnt + cfg.tailCnt; i++) {
-            hccl_.Wait(handles_[i]);
+            hccl_.Wait(handles_[i]); // 等待所有通信完成
         }
         // 终止hcclserver
         hccl_.Finalize();
+    }
+    SyncAll<false>(); // 全核同步, 等待mm和hccl通信结束
+
+    // Vector操作，reduce sum
+    if ASCEND_IS_AIV {
+        reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
     }
 }
 
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::Process()
 {
-    InnerProcess();
-    PostProcess();
+    InnerProcess(); // 核心计算+通信
+    PostProcess(); // 等待通信完成 + ReduceSum
 }
 
 // perblock量化场景当rankM不满足128*ranksize，走计算通信串行
@@ -134,24 +152,25 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulReduce
     auto&& qBMmtiling = tilingData_->quantBmmV3TileTiling;
     auto&& tiling = qBMmtiling.matmulTiling;
     auto&& cfg = tilingData_->param;
-    auto cWork = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? cGM_ : gmToFloat_;
-    auto recvBuffer = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? gmToFloat_ : cGM_;
+    
+    auto matmulOutSendBuf = sendBuf_; // 既作为 MatMul 的输出地址，也作为 AlltoAll 的发送缓冲地址
+    auto recvBuffer = recvBuf_; // AlltoAll 的接收缓冲地址
 
     uint64_t recvCount = static_cast<uint64_t>(tiling.M / cfg.rankDim) * static_cast<uint64_t>(tiling.N);
     this->tPipe_->Destroy();
     this->tPipe_->Init();
     MMClass op;
     uint32_t strideCount = cfg.rankM / cfg.rankDim;
-    op.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, cWork, workspaceGM_, &qBMmtiling, tPipe_,
+    op.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, matmulOutSendBuf, workspaceGM_, &qBMmtiling, tPipe_,
             batchWeight_, strideCount, false);
     op.Process();
     SyncAll<false>();
     uint64_t stride = 0;
     uint8_t repeat = 1;
     if ASCEND_IS_AIC {
-        recvCount = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? 1 : recvCount;
-        handles_[0] = hccl_.ReduceScatter<true>(
-            cWork, recvBuffer, recvCount, dataType_, HcclReduceOp::HCCL_REDUCE_SUM, stride, repeat);
+        recvCount = recvCount;
+        handles_[0] = hccl_.AlltoAll<true>(
+            matmulOutSendBuf, recvBuffer, recvCount, dataType_, stride, repeat);
     }
 }
 
@@ -173,7 +192,7 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::InnerProcess
 
     // fullmesh算法
     // 计算主块
-    MatMulComputReduceScatter(aGM_, cGM_, x1ScaleGM_, tilingData_->quantBmmV3TileTiling, cfg.tileCnt, gmToFloat_,
+    MatMulComputReduceScatter(aGM_, recvBuf_, x1ScaleGM_, tilingData_->quantBmmV3TileTiling, cfg.tileCnt, sendBuf_,
         (cfg.tailM ? false : true), false);
     // 计算尾块
     if (cfg.tailM) {
@@ -181,36 +200,45 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::InnerProcess
             cSize = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim;
             auto aGMTail = aGM_;
             uint64_t tileOffset = static_cast<uint64_t>(cfg.tileCnt) * cSize * sizeof(CType);
-            auto cGMTail = cGM_ + tileOffset;
-            auto gmToFloatTail = gmToFloat_ + tileOffset;
-            MatMulComputReduceScatter(aGMTail, cGMTail, nullptr, tilingData_->quantBmmV3TailTiling, cfg.tailCnt,
-                gmToFloatTail, true, true);
+            auto recvGMTail = recvBuf_ + tileOffset;
+            auto sendGMTail = sendBuf_ + tileOffset;
+            MatMulComputReduceScatter(aGMTail, recvGMTail, nullptr, tilingData_->quantBmmV3TailTiling, cfg.tailCnt,
+                sendGMTail, true, true);
             return;
         }
 
         auto aGMTail = aGM_ + aSize * sizeof(AType) * static_cast<uint64_t>(cfg.tileCnt);
-        auto cGMTail = cGM_ + cSize * sizeof(CType) * static_cast<uint64_t>(cfg.tileCnt);
-        auto gmToFloatTail = gmToFloat_ +
+        auto recvGMTail = recvBuf_ + cSize * sizeof(CType) * static_cast<uint64_t>(cfg.tileCnt);
+        auto sendGMTail = sendBuf_ +
             static_cast<uint64_t>(cfg.tileCnt) * static_cast<uint64_t>(cfg.rankDim) * cSize * sizeof(CType);
         auto x1ScaleTail = x1ScaleGM_ + static_cast<uint64_t>(tiling.M) / BLOCK_SIZE *
                                             CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) * sizeof(ScaleType) *
                                             static_cast<uint64_t>(cfg.tileCnt);
-        MatMulComputReduceScatter(aGMTail, cGMTail, x1ScaleTail, tilingData_->quantBmmV3TailTiling, cfg.tailCnt,
-                                  gmToFloatTail, true, true);
+        MatMulComputReduceScatter(aGMTail, recvGMTail, x1ScaleTail, tilingData_->quantBmmV3TailTiling, cfg.tailCnt,
+                                  sendGMTail, true, true);
     }
 }
 
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
-    GM_ADDR aGM, GM_ADDR cGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling, uint32_t tileCnt,
-    GM_ADDR gmToFloat, bool isLast, bool isTail)
+    GM_ADDR aGM, 
+    GM_ADDR recvGM, 
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
+    uint32_t tileCnt,
+    GM_ADDR sendGM, 
+    bool isLast, 
+    bool isTail)
 {
     if ASCEND_IS_AIV {
         return;
     }
+
+    // 获取配置与 Tiling 数据
     auto&& cfg = tilingData_->param;
-    auto&& tiling = qBMmtiling.matmulTiling;
+    auto&& tiling = qBmmTiling.matmulTiling;
+
+    // 空闲核处理：仅执行核间同步，不执行计算
     if (GetBlockIdx() >= tiling.usedCoreNum) {
         for (uint32_t i = 0; i < tileCnt; i++) {
             AscendC::CrossCoreSetFlag<0, PIPE_FIX>(3);
@@ -218,7 +246,9 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
         }
         return;
     }
-    // 如果尾块的当前核数大于主块使用核数，计算尾块当前核的preCoreNum_
+
+    // 尾块特殊逻辑：计算 preCoreNum_
+    // 如果尾块的当前核索引大于主块使用的核数，需要重新计算 preCoreNum_
     if (isTail && (GetBlockIdx() >= tilingData_->quantBmmV3TileTiling.matmulTiling.usedCoreNum)) {
         auto&& tileTiling = tilingData_->quantBmmV3TileTiling.matmulTiling;
         uint64_t headSliceM = (cfg.rankM / cfg.rankDim - cfg.tailM * cfg.tailCnt) / cfg.tileCnt;
@@ -226,91 +256,146 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
         uint64_t nCnt = DequantBmm::CeilDiv(tileTiling.N, tileTiling.baseN);
         preCoreNum_ = (mCnt * nCnt * cfg.tileCnt) % tileTiling.usedCoreNum;
     }
-    auto recvCount = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim;
-    auto cOffset = recvCount * sizeof(CType);
-    // 归一化Matmul计算类，负责MC2的Matmul计算
-    auto cWork = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? cGM : gmToFloat;
-    auto recvBuffer = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? gmToFloat : cGM;
-    auto shift = isTail ? cfg.tileCnt : 0;
-    uint64_t stride = static_cast<uint64_t>(cfg.rankM / cfg.rankDim) * static_cast<uint64_t>(cfg.rankN);
-    uint8_t repeat = 1;
+
+    // 预计算通信常量
+    // 单个 Rank 接收的元素数量 (M * N / rankDim)
+    const uint64_t rankSliceElems = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim;
+    // 单个 Rank 接收的字节偏移
+    const uint64_t rankSliceBytes = rankSliceElems * sizeof(CType);
+    // All2All 步长 (元素数): (rankM / rankDim) * rankN
+    const uint64_t stride = static_cast<uint64_t>(cfg.rankM / cfg.rankDim) * static_cast<uint64_t>(cfg.rankN);
+    const uint8_t repeat = 1;
+    const uint32_t handleShift = isTail ? cfg.tileCnt : 0;
+
+    // 初始化指针
+    GM_ADDR currSendPtr = sendGM;      // MatMul 输出缓冲区, All2All 发送缓冲区
+    GM_ADDR currRecvPtr = recvGM;      // All2All 接收缓冲区
+
+    // 初始化 MatMul 计算对象
     tPipe_->Reset();
     Mc2MatmulV3::Mc2QuantBatchMatmulASWKernel<AType, BType, ScaleType, float, CType, CubeFormat::ND, CubeFormat::ND,
         CubeFormat::ND, ATrans, BTrans> mmv3;
-    auto tempGM = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? cGM : gmToFloat_;
-    mmv3.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, tempGM, workspaceGM_, &qBMmtiling, GetTPipePtr(),
-        cfg, isTail, false, preCoreNum_);
+    mmv3.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, sendBuf_, workspaceGM_, 
+              &qBmmTiling, GetTPipePtr(), cfg, isTail, false, preCoreNum_);
+
     for (uint32_t i = 0; i < tileCnt; i++) {
+        // 更新 Slice 并执行 MatMul
         mmv3.UpdateSlice(i, isTail);
         mmv3.Process(isLast && (i == (tileCnt - 1)));
+
+        // 确保 MatMul 计算完成后再启动通信
         AscendC::CrossCoreSetFlag<0, PIPE_FIX>(3);
         AscendC::CrossCoreWaitFlag(3);
-        recvCount = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? 1 : recvCount;
-        handles_[i + shift] = hccl_.ReduceScatter<true>(
-            cWork, recvBuffer, recvCount, dataType_, HcclReduceOp::HCCL_REDUCE_SUM, stride, repeat);
-        cWork += cOffset;
-        recvBuffer += cOffset;
+
+        // All2All 通信
+        handles_[i + handleShift] = hccl_.AlltoAll<true>(
+            currSendPtr,    // 发送缓冲区 
+            currRecvPtr,    // 接收缓冲区
+            rankSliceElems, // 元素数量
+            dataType_,      // 数据类型
+            stride,         // 步长
+            repeat          // 重复次数
+        );
+
+        //  更新指针至下一个 Tile
+        currSendPtr += rankSliceBytes;
+        currRecvPtr += rankSliceBytes;
     }
+
+    // 更新 preCoreNum_
     preCoreNum_ = mmv3.GetPreCoreNum();
 }
 
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
-    GM_ADDR aGM, GM_ADDR cGM, GM_ADDR x1ScaleGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling, uint32_t tileCnt,
-    GM_ADDR gmToFloat, bool isTail)
+    GM_ADDR aGM, 
+    GM_ADDR recvGM, 
+    GM_ADDR x1ScaleGM, 
+    DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
+    uint32_t tileCnt,
+    GM_ADDR sendGM, 
+    bool isTail)
 {
+    // 获取配置与 Tiling 数据
     auto&& cfg = tilingData_->param;
-    auto&& tiling = qBMmtiling.matmulTiling;
-    auto recvCount = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N);
-    auto aOffset = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.Ka) * sizeof(AType);
-    auto cOffset = recvCount * sizeof(CType);
-    auto raOffset = static_cast<uint64_t>(cfg.rankM) * static_cast<uint64_t>(cfg.rankK) / cfg.rankDim * sizeof(AType);
-    // 归一化Matmul计算类，负责MC2的Matmul计算
+    auto&& tiling = qBmmTiling.matmulTiling;
 
-    auto aAddr = aGM;
-    auto x1ScaleAddr = x1ScaleGM;
-    auto cWork = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? cGM : gmToFloat;
-    auto recvBuffer = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? gmToFloat : cGM;
-    auto shift = isTail ? cfg.tileCnt : 0;
-    uint64_t stride = 0;
-    uint8_t repeat = 1;
-    uint32_t strideCount = cfg.rankM / cfg.rankDim;
+    // 单次通信的元素数量 (M * N)
+    const uint64_t recvCount = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N);
+    // A 矩阵单个 Tile 的字节偏移 (M * Ka * sizeof(AType))
+    const uint64_t aTileBytes = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.Ka) * sizeof(AType);
+    // C 矩阵单个 Tile 的字节偏移 (M * N * sizeof(CType))
+    const uint64_t cTileBytes = recvCount * sizeof(CType);
+    // Rank 分片相关的 A 矩阵偏移 (保持原逻辑: rankM * rankK / rankDim * sizeof)
+    const uint64_t rankABytes = static_cast<uint64_t>(cfg.rankM) * static_cast<uint64_t>(cfg.rankK) / cfg.rankDim * sizeof(AType);
+    
+    // Scale 矩阵单个 Tile 的字节偏移
+    const uint64_t scaleBlockM = tiling.M / BLOCK_SIZE;
+    const uint64_t scaleBlockK = CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE);
+    const uint64_t scaleTileBytes = scaleBlockM * scaleBlockK * sizeof(ScaleType);
 
-     // 卡内偏移
-     uint64_t x1ScaleOffset = static_cast<uint64_t>(tiling.M / BLOCK_SIZE) *
-                              CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) * sizeof(ScaleType);
+    // 初始化指针 
+    GM_ADDR currAPtr = aGM;
+    GM_ADDR currScalePtr = x1ScaleGM;
+    GM_ADDR currSendPtr = sendGM;   // MatMul 输出缓冲区, All2All 发送缓冲区
+    GM_ADDR currRecvPtr = recvGM;   // All2All 接收缓冲区
+
+    // 通信参数配置
+    const uint32_t handleShift = isTail ? cfg.tileCnt : 0;
+    const uint64_t stride = 0;
+    const uint8_t repeat = 1;       // 通信重复次数
+    const uint32_t strideCount = cfg.rankM / cfg.rankDim; // 传递给 MMClass 的步长参数
+
     for (uint32_t i = 0; i < tileCnt; i++) {
         this->tPipe_->Destroy();
         this->tPipe_->Init();
+
+        // 执行 MatMul 计算
         MMClass op;
-        op.Init(aAddr, bGM_, biasGM_, x2ScaleGM_, x1ScaleAddr, cWork, workspaceGM_, &qBMmtiling, tPipe_,
-                batchWeight_, strideCount, false);
+        op.Init(currAPtr, bGM_, biasGM_, x2ScaleGM_, currScalePtr, currSendPtr, workspaceGM_, &qBmmTiling, tPipe_, batchWeight_, strideCount, false);
         op.Process();
+
+        // 同步保证 MatMul 计算完成
         PipeBarrier<PIPE_V>();
         SyncAll<false>();
+
+        // All2All 通信
         if ASCEND_IS_AIC {
-            recvCount = (debugMode_ == MC2_DEBUG_ONLY_CUBE) ? 1 : recvCount;
-            handles_[i + shift] = hccl_.ReduceScatter<true>(
-                cWork, recvBuffer, recvCount, dataType_, HcclReduceOp::HCCL_REDUCE_SUM, stride, repeat);
+            handles_[i + handleShift] = hccl_.AlltoAll<true>(
+                currSendPtr,    // 发送缓冲区
+                currRecvPtr,    // 接收缓冲区
+                recvCount,      // 元素数量
+                dataType_,      // 数据类型
+                stride,         // 步长
+                repeat          // 重复次数
+            );
         }
-        aAddr += aOffset;
-        cWork += cfg.rankDim * cOffset;
-        x1ScaleAddr += x1ScaleOffset;
-        recvBuffer += cOffset;
+
+        // A 矩阵指针偏移
+        currAPtr += aTileBytes;
+        
+        // Send 缓冲区指针偏移
+        currSendPtr += cfg.rankDim * cTileBytes;
+        
+        // Scale 矩阵指针偏移
+        currScalePtr += scaleTileBytes;
+        
+        // Recv 缓冲区指针偏移
+        currRecvPtr += cTileBytes;
     }
 }
 
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatter(
-    GM_ADDR aGM, GM_ADDR cGM, GM_ADDR x1ScaleGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling,
-    uint32_t tileCnt, GM_ADDR gmToFloat, bool isLast, bool isTail)
+    GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBMmtiling,
+    uint32_t tileCnt, GM_ADDR sendGM, bool isLast, bool isTail)
 {
     if constexpr (IsPerBlock) {
-        MatMulComputReduceScatterPerblock(aGM, cGM, x1ScaleGM, qBMmtiling, tileCnt, gmToFloat, isTail);
+        MatMulComputReduceScatterPerblock(aGM, recvGM, x1ScaleGM, qBMmtiling, tileCnt, sendGM, isTail);
     } else {
-        MatMulComputReduceScatterPertensor(aGM, cGM, qBMmtiling, tileCnt, gmToFloat, isLast, isTail);
+        MatMulComputReduceScatterPertensor(aGM, recvGM, qBMmtiling, tileCnt, sendGM, isLast, isTail);
     }
 }
 }  // namespace MatmulReduceScatterV2Impl
