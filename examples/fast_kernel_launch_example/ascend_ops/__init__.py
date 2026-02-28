@@ -22,3 +22,5 @@ except ImportError as e:
     ) from e
 
 from . import ops
+from .moe_distribute import MoeDistributeBuffer
+from .moe_distribute_dispatch_v2 import npu_moe_distribute_dispatch_v2
