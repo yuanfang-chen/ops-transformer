@@ -42,13 +42,13 @@ namespace ge {
  * @li ep_world_size: Input ep comm world size, dtype: Int64.
  * @li ep_rank_id: Input ep comm rank Id, dtype: Int64.
  * @li moe_expert_num: Input moe expert num, dtype: Int64.
- * @li expert_shard_type: Input moe shard type, dtype: Int64.
- * @li shared_expert_num: Input shared expert num, dtype: Int64.
- * @li shared_expert_rank_num: Input shared expert rank num, dtype: Int64.
- * @li global_bs: Input global batch size, dtype: Int64.
- * @li comm_quant_mode: communication quantization mode, 1 for enable, 0 for disable, dtype: Int64.
- * @li comm_type: type of communication, dtype: Int64.
- * @li comm_alg: Input comm alg type, dtype: String.
+ * @li expert_shard_type: Input moe shard type, dtype: Int64. Default: 0.
+ * @li shared_expert_num: Input shared expert num, dtype: Int64. Default: 1.
+ * @li shared_expert_rank_num: Input shared expert rank num, dtype: Int64. Default: 0.
+ * @li global_bs: Input global batch size, dtype: Int64. Default: 0.
+ * @li comm_quant_mode: communication quantization mode, 1 for enable, 0 for disable, dtype: Int64. Default: 0.
+ * @li comm_type: type of communication, dtype: Int64. Default: 0.
+ * @li comm_alg: Input comm alg type, dtype: String. Default: "".
 
  * @par Outputs
  * One outputs, including:
