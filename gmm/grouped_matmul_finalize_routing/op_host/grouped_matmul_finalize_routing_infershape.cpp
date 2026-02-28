@@ -118,13 +118,9 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
     OP_CHECK_IF(params.shape_x2->GetDimNum() != threeDimNum, OPS_REPORT_CUBE_INNER_ERR(op_name, "W dim is not 3."),
         return ge::GRAPH_FAILED);
     if (!params.weightTrans) {
-        // OP_CHECK_IF(params.shape_x2->GetDim(wIndex) != params.k,
-        //             OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different. %d %d",params.shape_x2->GetDim(wIndex),params.k), return ge::GRAPH_FAILED);
         params.n = params.shape_x2->GetDim(twoDimNum);
     }
     else{
-        // OP_CHECK_IF(params.shape_x2->GetDim(DIM_TWO) != params.k,
-        //             OPS_REPORT_CUBE_INNER_ERR(op_name, "K in x and w are different.%d %d",params.shape_x2->GetDim(DIM_TWO),params.k), return ge::GRAPH_FAILED);
         params.n = params.shape_x2->GetDim(DIM_ONE);
     }
     params.e = params.shape_x2->GetDim(xIndex);
