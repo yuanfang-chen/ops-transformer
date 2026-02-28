@@ -51,9 +51,11 @@ protected:
 
     int64_t b;
     int64_t n1;
+    int64_t s1;
     int64_t t1;
     int64_t d;
     int64_t dAlign;
+    int32_t layout{0};
     GM_ADDR actual_seq_qlen_addr;
 
     int64_t bIdx = 0;
@@ -88,8 +90,10 @@ VectorSoftmaxGradDet<TYPE, TILING_TYPE>::Init(TPipe *pipe_in, __gm__ uint8_t *dy
 
     b = batchIn;
     t1 = tilingData->basicDetTensorTilingData.t1;
+    s1 = tilingData->basicDetTensorTilingData.s1;
     n1 = tilingData->basicDetTensorTilingData.n2 * tilingData->basicDetTensorTilingData.g;
     d = tilingData->basicDetTensorTilingData.d;
+    layout = tilingData->basicDetTensorTilingData.layout;
     dAlign = (d + 15) / 16 * 16;
     actual_seq_qlen_addr = actual_seq_qlen;
 
@@ -135,19 +139,29 @@ VectorSoftmaxGradDet<TYPE, TILING_TYPE>::Init(TPipe *pipe_in, __gm__ uint8_t *dy
 template <typename TYPE, class TILING_TYPE>
 __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::InitIndex(int64_t startIdx, int64_t &curS, GM_ADDR seqS)
 {
-    int64_t totalLen = 0;
-    for (int64_t bDimIdx = bIdx; bDimIdx < b; bDimIdx++) {
-        totalLen = n1 * ((__gm__ int64_t *)seqS)[bDimIdx] * d;
-        if (totalLen > startIdx) {
-            bIdx = bDimIdx;
-            curS = (bIdx == 0) ? ((__gm__ int64_t *)seqS)[bIdx] :
-                                 (((__gm__ int64_t *)seqS)[bIdx] - ((__gm__ int64_t *)seqS)[bIdx - 1]);
-            int64_t bTail = startIdx - (totalLen - n1 * curS * d);
-            nIdx = bTail / (curS * d);
-            int64_t nTail = bTail % (curS * d);
-            sIdx = nTail / d;
-            break;
+    if (layout != 0) {
+        int64_t totalLen = 0;
+        for (int64_t bDimIdx = bIdx; bDimIdx < b; bDimIdx++) {
+            totalLen = n1 * ((__gm__ int64_t *)seqS)[bDimIdx] * d;
+            if (totalLen > startIdx) {
+                bIdx = bDimIdx;
+                curS = (bIdx == 0) ? ((__gm__ int64_t *)seqS)[bIdx] :
+                                     (((__gm__ int64_t *)seqS)[bIdx] - ((__gm__ int64_t *)seqS)[bIdx - 1]);
+                int64_t bTail = startIdx - (totalLen - n1 * curS * d);
+                nIdx = bTail / (curS * d);
+                int64_t nTail = bTail % (curS * d);
+                sIdx = nTail / d;
+                break;
+            }
         }
+    } else {
+        bIdx = startIdx / (n1 * s1 * d);
+        int64_t bTail = startIdx % (n1 * s1 * d);
+        nIdx = bTail / (s1 * d);
+        int64_t nTail = bTail % (s1 * d);
+        sIdx = nTail / d;
+        AscendC::PRINTF("InitIndex\n");
+        AscendC::PRINTF("curS:%d\n", curS);
     }
 }
 
@@ -156,8 +170,17 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::DoCopyIn(int64_t
                                                                       int64_t dstOffset, GM_ADDR seqS)
 {
     int64_t srcOffset = 0;
-    int64_t bOffset = bIdx == 0 ? 0 : n1 * ((__gm__ int64_t *)seqS)[bIdx - 1] * d;
-    srcOffset = bOffset + (sIdx * n1 + nIdx) * d;
+    
+    if (layout == 0)
+    {
+        srcOffset = bIdx * (s1 * n1 * d) + sIdx * (n1 * d) + nIdx * d;
+    }
+    else{
+        int64_t bOffset = 0;
+        bOffset = bIdx == 0 ? 0 : n1 * ((__gm__ int64_t *)seqS)[bIdx - 1] * d;
+        srcOffset = bOffset + (sIdx * n1 + nIdx) * d;
+    }
+    
 
     DataCopyPad(input1Buf[dstOffset], dyGm[srcOffset],
                 {static_cast<uint16_t>(curNBurst), static_cast<uint32_t>(d * sizeof(TYPE)),
@@ -167,11 +190,15 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::DoCopyIn(int64_t
                 {static_cast<uint16_t>(curNBurst), static_cast<uint32_t>(d * sizeof(TYPE)),
                  static_cast<uint32_t>(n_stride), 0, 0},
                 {true, 0, static_cast<uint8_t>((dAlign - d)), 0});
+    AscendC::PRINTF("DoCopyIn\n");
+
 }
 
 template <typename TYPE, class TILING_TYPE>
 __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::CopyInSfmg(int64_t leftNburst, int64_t &curS, GM_ADDR seqS)
 {
+    
+    AscendC::PRINTF("CopyInSfmg\n");
     int64_t dstOffset = 0;
     while (leftNburst > 0) {
         int64_t curNburst = 0;
@@ -186,7 +213,11 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::CopyInSfmg(int64
                 nIdx = 0;
                 if (bIdx < b - 1) { // 需要借B
                     bIdx += 1;
-                    curS = ((__gm__ int64_t *)seqS)[bIdx] - ((__gm__ int64_t *)seqS)[bIdx - 1];
+                    if (layout != 0) {
+                        curS = ((__gm__ int64_t *)seqS)[bIdx] - ((__gm__ int64_t *)seqS)[bIdx - 1];
+                    } else {
+                        curS = s1;
+                    }
                 } else { // 没有轴可以借了，end
                     leftNburst = 0;
                 }
@@ -221,6 +252,9 @@ template <typename TYPE, class TILING_TYPE> __aicore__ inline void VectorSoftmax
         int64_t startIdx = cBlockIdx * normalCoreSize;
         int64_t nBurst = singleLoopNBurstNum;
         int64_t curS = 0;
+        if (layout == 0){
+            curS = s1;
+        }
 
         for (int64_t i = 0; i < singleCoreLoopTimes; i++) {
             if (i == singleCoreLoopTimes - 1) {

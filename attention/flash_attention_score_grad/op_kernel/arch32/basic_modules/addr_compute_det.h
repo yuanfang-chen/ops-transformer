@@ -1,12 +1,12 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
  * \file addr_compute_det.h
@@ -83,7 +83,17 @@ public:
         this->preToken = tilingData->basicDetTensorTilingData.preTockens;
         this->nextToken = tilingData->basicDetTensorTilingData.nextTockens;
         this->dqPostAbsorb = tilingData->basicDetTensorTilingData.dqPostAbsorb;
+        this->layout = tilingData->basicDetTensorTilingData.layout;  // 新增：0=BSH, 1=TND
+        
+        // BSH格式需要固定的序列长度
+        if (layout == 0) {  // BSH格式
+            this->dimS1Fixed = tilingData->basicDetTensorTilingData.s1;
+            this->dimS2Fixed = tilingData->basicDetTensorTilingData.s2;
+            AscendC::PRINTF("dimS1Fixed:%d, dimS2Fixed:%d", this->dimS1Fixed, this->dimS2Fixed);
+        }
+        
         UpdateSeqLen();
+        
         if (sparseMode == 1) {
             for (int32_t i = 0; i < dimB; i++) {
                 maxSeqK = max(maxSeqK, getSeqLen(i, seqLenK));
@@ -106,11 +116,14 @@ private:
     VecAddrInfoDet *globalVecAddr;    // 用于存储Vector计算相关的地址信息
     uint32_t cubeCoreIdx{0};          // 当前核所对应的Cube核的下标
     uint32_t cubeCoreNum{0};          // Cube核的数量
+    int32_t layout{0};                 // 新增：数据布局格式，0=BSH, 1=TND
 
     SEQLEN_TYPE maxSeqK{0};
     int32_t dimB{0};               // batch
     SEQLEN_TYPE dimS1{0};          // 当前处理的batch的s1
     SEQLEN_TYPE dimS2{0};          // 当前处理的batch的s2
+    int32_t dimS1Fixed{0};          // BSH格式：固定的Q序列长度
+    int32_t dimS2Fixed{0};          // BSH格式：固定的K序列长度
     int32_t dimN1{0};              // query的HeadNum
     int32_t dimN2{0};              // key/vaule的HeadNum
     int32_t dimG{0};               // group，dimN1=dimN2*dimG
@@ -136,22 +149,38 @@ private:
     int32_t s2GroupNum{0};  // 当前s2方向计算到需要累加的分组个数
 
     __aicore__ inline void UpdateSeqLen() {
-        dimS1 = getSeqLen(bIdx, seqLenQ);
-        dimS2 = getSeqLen(bIdx, seqLenK);
-        while ((dimS1 == 0 || dimS2 == 0) && bIdx < dimB - 1) {
-            bIdx++;
+        if (layout == 0) {  // BSH格式：使用固定长度
+            dimS1 = dimS1Fixed;
+            dimS2 = dimS2Fixed;
+            
+            // BSH格式的lastBatchSum基于batch索引和固定长度计算
+            if (bIdx > 0) {
+                lastBatchQSum = bIdx * dimS1Fixed;
+                lastBatchKSum = bIdx * dimS2Fixed;
+            }
+        } else {  // TND格式：从seqLen数组获取
             dimS1 = getSeqLen(bIdx, seqLenQ);
             dimS2 = getSeqLen(bIdx, seqLenK);
+            while ((dimS1 == 0 || dimS2 == 0) && bIdx < dimB - 1) {
+                bIdx++;
+                dimS1 = getSeqLen(bIdx, seqLenQ);
+                dimS2 = getSeqLen(bIdx, seqLenK);
+            }
+            if (bIdx > 0) {
+                lastBatchQSum = getTotalLen(bIdx - 1, seqLenQ);
+                lastBatchKSum = getTotalLen(bIdx - 1, seqLenK);
+            }
         }
+        
         sparseLeftBound = dimS1 - dimS2 + preToken + 1;
         sparseRightBound = dimS1 - dimS2 - nextToken;
-        if (bIdx > 0) {
-            lastBatchQSum = getTotalLen(bIdx - 1, seqLenQ);
-            lastBatchKSum = getTotalLen(bIdx - 1, seqLenK);
-        }
     }
 
     __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len) {
+        if (layout == 0) {  // BSH格式：返回固定长度
+            return dimS1Fixed;  // 对于Q，返回固定长度
+        }
+        
         SEQLEN_TYPE actualSeqlen;
         if (i == 0) {
             actualSeqlen = ((__gm__ SEQLEN_TYPE *)seq_Len)[0];
@@ -162,16 +191,32 @@ private:
     }
 
     __aicore__ inline SEQLEN_TYPE getTotalLen(int32_t i, __gm__ uint8_t *seq_Len) {
+        if (layout == 0) {  // BSH格式：返回基于固定长度的累积
+            return (i + 1) * dimS1Fixed;  // 对于Q
+        }
+        
         SEQLEN_TYPE actualTotalSeqlen = ((__gm__ SEQLEN_TYPE *)seq_Len)[i];
         return actualTotalSeqlen;
     }
 
     __aicore__ inline uint64_t getLeftAddr(int32_t lastBatchSum, int32_t s1Idx, int32_t n1Idx) {
-        return lastBatchSum * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
+        if (layout == 0) {  // BSH格式
+            // BSH: bIdx * dimS1Fixed * dimN1 * dimD + s1Idx * dimN1 * dimD + n1Idx * dimD
+            return bIdx * dimS1Fixed * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
+        } else {  // TND格式
+            // TND: lastBatchSum * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD)
+            return lastBatchSum * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
+        }
     }
 
     __aicore__ inline uint64_t getRightAddr(int32_t lastBatchSum, int32_t s2Idx, int32_t n1Idx) {
-        return lastBatchSum * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
+        if (layout == 0) {  // BSH格式
+            // BSH: bIdx * dimS2Fixed * dimN2 * dimD + s2Idx * dimN2 * dimD + (n1Idx / dimG) * dimD
+            return bIdx * dimS2Fixed * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
+        } else {  // TND格式
+            // TND: lastBatchSum * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD)
+            return lastBatchSum * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
+        }
     }
 
     __aicore__ inline int32_t GetRecoderS(int32_t sIdx, int32_t sLen) { return sIdx + 512 < sLen ? 512 : (sLen - sIdx); }
