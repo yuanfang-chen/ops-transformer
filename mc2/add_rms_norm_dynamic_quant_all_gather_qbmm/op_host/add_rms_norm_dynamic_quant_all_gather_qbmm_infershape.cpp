@@ -37,7 +37,7 @@ static constexpr size_t OUTPUT_ADD_RMS_NORM_OUT_INDEX = 2;
 static constexpr size_t OUTPUT_DYNAMIC_QUANT_OUT_INDEX = 3;
 static constexpr size_t OUTPUT_ALL_GATHER_DATA_OUT_INDEX = 4;
 static constexpr size_t OUTPUT_ALL_GATHER_SCALES_OUT_INDEX = 5;
-static constexpr size_t INPUT_ATTR_GROUP_INDEX = 1;
+static constexpr size_t INPUT_ATTR_GROUP_INDEX = 0;
 static constexpr size_t INPUT_ATTR_RANKSIZE_INDEX = 1;
 static constexpr size_t INPUT_ATTR_TRANSPOSE_X2_INDEX = 2;
 static constexpr size_t INPUT_ATTR_DTYPE_INDEX = 3;
@@ -69,26 +69,19 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     const gert::Shape *smoothScaleShape = context->GetOptionalInputShape(INPUT_SMOOTH_SCALE_INDEX);
     const gert::Shape *biasShape = context->GetOptionalInputShape(INPUT_BIAS_INDEX);
 
-    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
-    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
-
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const auto group = attrs->GetAttrPointer<char>(INPUT_ATTR_GROUP_INDEX);
-    OPS_CHECK_NULL_WITH_CONTEXT(context, group);
-    const auto ranksize = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RANKSIZE_INDEX);
+    const char *groupStr = attrs->GetAttrPointer<char>(INPUT_ATTR_GROUP_INDEX);
+    const int64_t *ranksize = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RANKSIZE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, ranksize);
-    const auto transposeX2 = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_TRANSPOSE_X2_INDEX);
+    const bool *transposeX2 = attrs->GetAttrPointer<bool>(INPUT_ATTR_TRANSPOSE_X2_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, transposeX2);
-    const auto dtype = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_DTYPE_INDEX);
+    const int64_t *dtype = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_DTYPE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, dtype);
-    const auto residualNormMode = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX);
+    const int64_t *residualNormMode = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, residualNormMode);
 
     // TODO 强校验 待后续修改
-    char groupStr = *group;
     int64_t rankSize = *ranksize;
     bool isTransX2 = *transposeX2;
     OP_CHECK_IF(groupStr == nullptr, OP_LOGE(context->GetNodeName(), "Get group failed."), return ge::GRAPH_FAILED);
@@ -99,8 +92,9 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     OP_CHECK_IF(*residualNormMode != 0, OP_LOGE(context->GetNodeName(),
         "residualNormMode shoule be 0, but got", *residualNormMode), return ge::GRAPH_FAILED);
 
-    auto x2Desc = context->GetInputDesc(INPUT_X2_INDEX);
-    bool isX2NZ = static_cast<ge::Format>(ge::GetPrimaryFormat(x2Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ;
+    // auto x2Desc = context->GetInputDesc(INPUT_X2_INDEX);
+    // bool isX2NZ = static_cast<ge::Format>(ge::GetPrimaryFormat(x2Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ;
+    bool isX2NZ = true;
     int64_t x2DimK = !(isX2NZ) ? x2Shape->GetDim(0) : x2Shape->GetDim(1) * x2Shape->GetDim(2);
     int64_t x2DimN = !(isX2NZ) ? x2Shape->GetDim(1) : x2Shape->GetDim(0) * x2Shape->GetDim(3);
 
@@ -110,8 +104,8 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     // int64_t dimN = ((x2Shape->GetDimNum() == 1U) ? NEG_ONE : x2DimN);
     int64_t dimM = x1Shape->GetDim(0);
     int64_t dimKX1 = x1Shape->GetDim(1);
-    int64_t dimKX2 = !(isX2NZ) ? x2DimK : x2DimN;
-    int64_t dimN = !(isX2NZ) ? x2DimN : x2DimK;
+    int64_t dimKX2 = !(isTransX2) ? x2DimK : x2DimN;
+    int64_t dimN = !(isTransX2) ? x2DimN : x2DimK;
 
     OP_LOGI(context->GetNodeName(), "group = %s isTransX2 %d x1.M = [%ld] x1.K = [%ld]"
         " x2.K = [%ld] x2.N = [%ld] rankSize = [%ld].", groupStr, isTransX2,
@@ -129,12 +123,12 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
         rankSize = 1;
     }
 
-    gert::Shape* outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX0);
+    gert::Shape *outputShape = context->GetOutputShape(OUTPUT_OUTPUT_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, outputShape);
     outputShape->SetDimNum(OUTPUT_DIM_SIZE);
     outputShape->SetDim(0, dimM * rankSize);
     outputShape->SetDim(1, dimN);
-    gert::Shape* zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
+    gert::Shape *zShape = context->GetOutputShape(OUTPUT_Z_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, zShape);
     zShape->SetDimNum(OUTPUT_DIM_SIZE);
     zShape->SetDim(0, dimM);
@@ -165,19 +159,19 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
 
 static ge::graphStatus InferDataTypeAddRmsNormDynamicQuantAllGatherQbmm(gert::InferDataTypeContext* context)
 {
-    auto z_type = context->GetInputDataType(0);
+    auto z_dtype = context->GetInputDataType(0);
     auto output_dtype = context->GetInputDataType(0);
     context->SetOutputDataType(0, output_dtype);
-    context->SetOutputDataType(1, z_type);
+    context->SetOutputDataType(1, z_dtype);
 
-    auto addRmsNormOut_type = context->GetInputDataType(0);
+    auto addRmsNormOut_dtype = context->GetInputDataType(0);
     auto dynamicQuantOut_dtype = DT_INT8;
-    auto allGatherDataOut_type = DT_INT8;
+    auto allGatherDataOut_dtype = DT_INT8;
     auto allGatherScalesOut_dtype = DT_FLOAT;
     context->SetOutputDataType(2, addRmsNormOut_dtype);
-    context->SetOutputDataType(3, dynamicQuantOut_type);
+    context->SetOutputDataType(3, dynamicQuantOut_dtype);
     context->SetOutputDataType(4, allGatherDataOut_dtype);
-    context->SetOutputDataType(5, allGatherScalesOut_type);
+    context->SetOutputDataType(5, allGatherScalesOut_dtype);
 
     return ge::GRAPH_SUCCESS;
 }
