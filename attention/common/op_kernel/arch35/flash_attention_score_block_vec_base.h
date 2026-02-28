@@ -1404,19 +1404,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::Bmm2DataCopyOut(
     }
 
     if constexpr (isInfer && !isMlaNoQuant) {
-        if (constInfo.isPfaGS1Merge && dSizeAligned64 - constInfo.dSizeV != 0 && (constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_BSH) || constInfo.layoutType == static_cast<uint8_t>(LayOutTypeEnum::LAYOUT_TND))) {
-            for(int64_t i = 0; i < runInfo.vec2S1BaseSize / constInfo.gSize; i++){
-                attenOutOffset = i * constInfo.dSizeV * constInfo.gSize * constInfo.n2Size;
-                dataCopyParams.blockLen = constInfo.dSizeV * sizeof(OUTPUT_T);
-                dataCopyParams.blockCount = constInfo.gSize;
-                dataCopyParams.dstStride = 0;
-                DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + attenOutOffset],
-                    attenOut[i * constInfo.gSize * dSizeAligned64], dataCopyParams);
-            }
-        } else {
-            DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
+        DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + vec2S1Idx * runInfo.vec2S1BaseSize * attenOutOffset],
                 attenOut, dataCopyParams);
-        }
     } else if constexpr (isInfer && isMlaNoQuant) {
         if (constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_NBSD) ||
             constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_NBSD) ||
