@@ -108,7 +108,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>不支持空Tensor。</td>
         <td>INT8</td>
         <td>ND</td>
-        <td>(A&nbsp;&nbsp;&nbsp;, tokenMsgSize)</td>
+        <td>(A, tokenMsgSize)</td>
         <td>√</td>
     </tr>
     <tr>
@@ -126,7 +126,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>不支持空Tensor。</td>
         <td>INT32</td>
         <td>ND</td>
-        <td>(BS&nbsp;&nbsp;&nbsp;* K, )</td>
+        <td>(BS * K, )</td>
         <td>√</td>
     </tr>
     <tr>
@@ -136,7 +136,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>不支持空Tensor。</td>
         <td>FLOAT32</td>
         <td>ND</td>
-        <td>(BS,&nbsp;&nbsp;&nbsp;K)</td>
+        <td>(BS, K)</td>
         <td>√</td>
     </tr>
     <tr>
@@ -156,17 +156,17 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>不支持空Tensor。可选择传入有效数据或填空指针，传空指针时表示所有token都参与通信。</td>
         <td>BOOL</td>
         <td>ND</td>
-        <td>(BS,&nbsp;&nbsp;&nbsp;)</td>
+        <td>(BS, )</td>
         <td>√</td>
     </tr>
     <tr>
         <td>sharedExpertXOptional（aclTensor*）</td>
         <td>可选输入</td>
-        <td>示共享专家计算后的Token</td>
-        <td>不支持空Tensor。要求是一个2D或3D的Tensor，当Tesnor为2D时，shape为 (BS,&nbsp;&nbsp;&nbsp;H)；当Tensor为3D时，前两位的乘积需等于BS，第三维需等于H。数据类型需跟expandX保持一致。可选择传入有效数据或填空指针，传入有效数据时，sharedExpertNum需为0。</td>
+        <td>表示共享专家计算后的Token</td>
+        <td>不支持空Tensor。要求是一个2D或3D的Tensor，当Tesnor为2D时，shape为 (BS,H)；当Tensor为3D时，前两位的乘积需等于BS，第三维需等于H。数据类型需跟expandX保持一致。可选择传入有效数据或填空指针，传入有效数据时，sharedExpertNum需为0。</td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
-        <td>(BS, H)或(a, b,&nbsp;&nbsp;&nbsp;H)</td>
+        <td>(BS, H)或(a, b, H)</td>
         <td>√</td>
     </tr>
     <tr>
@@ -193,7 +193,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>epRankId</td>
         <td>输入</td>
         <td>EP域本卡Id</td>
-        <td>取值范围[0, epWorldSize)。<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;同一个EP通信域中各卡的epRankId不重复。</td>
+        <td>取值范围[0, epWorldSize)。<br>同一个EP通信域中各卡的epRankId不重复。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -203,7 +203,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>moeExpertNum</td>
         <td>输入</td>
         <td>MoE专家数量</td>
-        <td>取值范围(0, 512]。<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;满足moeExpertNum % (epWorldSize - sharedExpertRankNum) = 0。</td>
+        <td>取值范围(0, 512]。<br>满足moeExpertNum % (epWorldSize - sharedExpertRankNum) = 0。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -242,8 +242,8 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
     <tr>
         <td>globalBs</td>
         <td>输入</td>
-        <td>EP域全局的batch&nbsp;&nbsp;&nbsp;size大小</td>
-        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs =&nbsp;&nbsp;&nbsp;0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
+        <td>EP域全局的batch size大小</td>
+        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs = 0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -286,7 +286,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>不支持空Tensor。数据类型与expandX保持一致。</td>
         <td>FLOAT16、BFLOAT16</td>
         <td>ND</td>
-        <td>(BS,&nbsp;&nbsp;&nbsp;H)</td>
+        <td>(BS, H)</td>
         <td>√</td>
     </tr>
     <tr>
