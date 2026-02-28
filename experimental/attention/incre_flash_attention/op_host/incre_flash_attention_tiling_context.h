@@ -15,7 +15,6 @@
 #ifndef AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_
 
-
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else
@@ -92,5 +91,67 @@ struct IncreFlashAttentionContext {
     uint64_t tilingKey = 0;
     uint32_t numBlocks = 0;
 };
+
+// struct IFAContext {
+//     const char *opName = nullptr;
+//     at::Tensor query;
+    // at::Tensor key;
+    // at::Tensor value;
+    // c10::optional<at::Tensor> pseShift;
+    // c10::optional<at::Tensor> attenMask;
+    // c10::optional<at::Tensor> actualSeqLengthsQ;
+    // c10::optional<at::Tensor> actualSeqLengths;
+    // c10::optional<at::Tensor> deqScale1;
+    // c10::optional<at::Tensor> quantScale1;
+    // c10::optional<at::Tensor> deqScale2;
+    // c10::optional<at::Tensor> quantScale2;
+    // c10::optional<at::Tensor> quantOffset2;
+    // c10::optional<at::Tensor> antiquantScale;
+    // c10::optional<at::Tensor> antiquantOffset;
+    // c10::optional<at::Tensor> blockTable;
+    // c10::optional<at::Tensor> queryPaddingSize;
+    // c10::optional<at::Tensor> kvPaddingSize;
+    // c10::optional<at::Tensor> keyAntiquantScale;
+    // c10::optional<at::Tensor> keyAntiquantOffset;
+    // c10::optional<at::Tensor> valueAntiquantScale ;
+    // c10::optional<at::Tensor> valueAntiquantOffset;
+    // c10::optional<at::Tensor> keySharedPrefix;
+    // c10::optional<at::Tensor> valueSharedPrefix;
+    // c10::optional<at::Tensor> actualSharedPrefixLen;
+    // c10::optional<at::Tensor> queryRope;
+    // c10::optional<at::Tensor> keyRope;
+    // c10::optional<at::Tensor> keyRopeAntiquantScale;
+    // c10::optional<at::Tensor> dequantScaleQuery;
+    // c10::optional<at::Tensor> qStartIdx;
+    // c10::optional<at::Tensor> kvStartIdx;
+
+    // // at::Tensor attenOut;
+    // // at::Tensor lseOut;
+
+    // uint32_t numHeads;
+    // int64_t preToken;
+    // int64_t nextToken;
+    // float scaleValue;
+    // uint32_t kvHeadNums;
+    // char layOut;
+    // uint32_t blockSize;
+    // uint32_t innerPrecise;
+    // int64_t antiquantMode;
+    // bool softmaxLseFlag;
+    // int64_t keyAntiquantMode;
+    // int64_t valueAntiquantMode;
+    // uint32_t sparseMode;
+    // int64_t queryQuantMode;
+    // int64_t pseType;
+    // int64_t windowSize;
+
+    // size_t workSpaceSize;
+    // // std::vector<gert::StorageShape *> kCache = {nullptr};
+    // // std::vector<gert::StorageShape *> vCache = {nullptr};
+    // IncreFlashAttentionTilingDataV2 ifaTilingData;
+    // uint64_t tilingKey = 0;
+    // uint32_t numBlocks = 0;
+// };
+
 } // namespace optiling
 #endif // AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_CONTEXT_H_

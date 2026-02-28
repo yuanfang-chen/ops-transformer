@@ -20,6 +20,11 @@ USE_NINJA = os.getenv('USE_NINJA') == '1'
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 source_files = glob.glob(os.path.join(BASE_DIR, "custom_ops/csrc", "*.cpp"), recursive=True)
+source_files.append(os.path.join(BASE_DIR, "../attention/incre_flash_attention/op_host/incre_flash_attention_tiling_test.cpp"))
+
+include_dirs = [
+    os.path.join(BASE_DIR, "../attention/incre_flash_attention/op_host"),
+]
 
 exts = []
 ext = NpuExtension(
@@ -28,6 +33,7 @@ ext = NpuExtension(
     extra_compile_args=[
         '-I' + os.path.join(PYTORCH_NPU_INSTALL_PATH, "include/third_party/acl/inc"),
     ],
+    include_dirs=include_dirs,
 )
 exts.append(ext)
 

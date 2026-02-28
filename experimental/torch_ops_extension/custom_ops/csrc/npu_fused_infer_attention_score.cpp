@@ -12,7 +12,7 @@
 #include <torch/library.h>
 #include "ops_common.h"
 #include <iostream>
-
+#include "incre_flash_attention_tiling_impl_test.h"
 namespace custom {
 const static int FLASH_THRESHOLD = 512;
 const static int64_t PFA_SPARSE_HIGH_PRECISION_NO_MASK = 10;
@@ -26,6 +26,7 @@ const static int64_t PA_BBH_DIMS = 3;
 const static int64_t PA_BNBD_DIMS = 4;
 const static int64_t PA_NZ_DIMS = 5;
 using namespace at_npu::native;
+using namespace optiling;
 using npu_preparation = at_npu::native::OpPreparation;
 
 std::tuple<at::Tensor, at::Tensor> construct_fia_output_tensor_v2(
@@ -189,6 +190,117 @@ std::tuple<at::Tensor, at::Tensor> construct_fia_output_tensor_v2(
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }
 
+RequiredParaInfo ToRequiredParaInfo(const at::Tensor& t) {
+    return RequiredParaInfo{
+        .data = t.defined() ? t.data_ptr() : nullptr,
+        .shape = t.sizes(),
+        .dType = t.scalar_type()
+    };
+}
+OptionalParaInfo ToOptionalParaInfo(const c10::optional<at::Tensor>& ot) {
+    OptionalParaInfo info;
+    info.hasValue = ot.has_value();
+    if (info.hasValue && ot->defined()) {
+        info.data = ot->data_ptr();
+        info.shape = ot->sizes();
+        info.dType = ot->scalar_type();
+    } else {
+        info.data = nullptr;
+        // shape 保持默认空；dType 保持默认 Float（或按你需求改）
+    }
+    return info;
+}
+
+void ConvertContextToParamsIFA(
+    IFAContext &ifaContext, 
+    const at::Tensor query, const at::Tensor key, const at::Tensor value,
+    const c10::optional<at::Tensor> query_rope,
+    const c10::optional<at::Tensor> key_rope,
+    const c10::optional<at::Tensor> pse_shift,
+    const c10::optional<at::Tensor> atten_mask,
+    c10::OptionalIntArrayRef actual_seq_qlen,
+    c10::OptionalIntArrayRef actual_seq_kvlen,
+    const c10::optional<at::Tensor> block_table,
+    const c10::optional<at::Tensor> dequant_scale_query,
+    const c10::optional<at::Tensor> dequant_scale_key,
+    const c10::optional<at::Tensor> dequant_offset_key,
+    const c10::optional<at::Tensor> dequant_scale_value,
+    const c10::optional<at::Tensor> dequant_offset_value,
+    const c10::optional<at::Tensor> dequant_scale_key_rope,
+    const c10::optional<at::Tensor> quant_scale_out,
+    const c10::optional<at::Tensor> quant_offset_out,
+    const c10::optional<at::Tensor> learnable_sink,
+    int64_t num_query_heads, int64_t num_key_value_heads, double softmax_scale,
+    int64_t pre_tokens, int64_t next_tokens, c10::string_view input_layout,
+    int64_t sparse_mode, int64_t block_size,
+    int64_t query_quant_mode, int64_t key_quant_mode, int64_t value_quant_mode,
+    int64_t inner_precise, bool return_softmax_lse,
+    c10::optional<int64_t> query_dtype, c10::optional<int64_t> key_dtype, c10::optional<int64_t> value_dtype,
+    c10::optional<int64_t> query_rope_dtype, c10::optional<int64_t> key_rope_dtype,
+    c10::optional<int64_t> key_shared_prefix_dtype, c10::optional<int64_t> value_shared_prefix_dtype,
+    c10::optional<int64_t> dequant_scale_query_dtype, c10::optional<int64_t> dequant_scale_key_dtype,
+    c10::optional<int64_t> dequant_scale_value_dtype, c10::optional<int64_t> dequant_scale_key_rope_dtype)
+{
+    //required input
+    ifaContext.opName = "FusedInferAttentionScore";
+    ifaContext.query = ToRequiredParaInfo(query);
+    ifaContext.key = ToRequiredParaInfo(key);
+    ifaContext.value = ToRequiredParaInfo(value);
+    //optional input
+    ifaContext.pseShift = ToOptionalParaInfo(pseShift);
+    ifaContext.attenMask = ToOptionalParaInfo(attenMask);
+    ifaContext.actualSeqLengthsQ = ToOptionalParaInfo(actualSeqLengthsQ);
+    ifaContext.actualSeqLengths = ToOptionalParaInfo(actualSeqLengths);
+    ifaContext.deqScale1 = ToOptionalParaInfo(deqScale1);
+    ifaContext.quantScale1 = ToOptionalParaInfo(quantScale1);
+    ifaContext.deqScale2 = ToOptionalParaInfo(deqScale2);
+    ifaContext.quantScale2 = ToOptionalParaInfo(quantScale2);
+    ifaContext.quantOffset2 = ToOptionalParaInfo(quantOffset2);
+    ifaContext.antiquantScale = ToOptionalParaInfo(antiquantScale);
+    ifaContext.antiquantOffset = ToOptionalParaInfo(antiquantOffset);
+    ifaContext.blockTable = ToOptionalParaInfo(blockTable);
+    ifaContext.queryPaddingSize =  ToOptionalParaInfo(c10::nullopt);
+    ifaContext.kvPaddingSize = ToOptionalParaInfo(kvPaddingSize);
+    ifaContext.keyAntiquantScale = ToOptionalParaInfo(keyAntiquantScale);
+    ifaContext.keyAntiquantOffset = ToOptionalParaInfo(keyAntiquantOffset);
+    ifaContext.valueAntiquantScale = ToOptionalParaInfo(valueAntiquantScale);
+    ifaContext.valueAntiquantOffset = ToOptionalParaInfo(valueAntiquantOffset);
+    ifaContext.keySharedPrefix =  ToOptionalParaInfo(keySharedPrefix);
+    ifaContext.valueSharedPrefix = ToOptionalParaInfo(valueSharedPrefix);
+    ifaContext.actualSharedPrefixLen = ToOptionalParaInfo(actualSharedPrefixLen);
+    ifaContext.queryRope = ToOptionalParaInfo(queryRope);
+    ifaContext.keyRope = ToOptionalParaInfo(keyRope);
+    ifaContext.keyRopeAntiquantScale = ToOptionalParaInfo(keyRopeAntiquantScale);
+    ifaContext.dequantScaleQuery = ToOptionalParaInfo(dequantScaleQuery);
+    ifaContext.qStartIdx = ToOptionalParaInfo(c10::nullopt);
+    ifaContext.kvStartIdx = ToOptionalParaInfo(c10::nullopt);
+    //attr
+    ifaContext.numHeads = num_query_heads;
+    ifaContext.preToken = pre_tokens;
+    ifaContext.nextToken = next_tokens;
+    ifaContext.scaleValue= softmax_scale;
+    ifaContext.kvHeadNums = num_key_value_heads;
+    ifaContext.layOut = input_layout;
+    ifaContext.blockSize = block_size;
+    ifaContext.innerPrecise = inner_precise;
+    ifaContext.antiquantMode = 0;
+    ifaContext.softmaxLseFlag = return_softmax_lse;
+    ifaContext.keyAntiquantMode = key_quant_mode;
+    ifaContext.valueAntiquantMode = value_quant_mode;
+    ifaContext.sparseMode = sparse_mode;
+    ifaContext.queryQuantMode = query_quant_mode;
+    ifaContext.pseType = 0;
+    ifaContext.windowSize = 0;
+    // output
+    ifaContext.attenOut = ToRequiredParaInfo(attenOut);
+    ifaContext.lseOut = ToRequiredParaInfo(lseOut);  
+
+    ifaContext.kCache.resize(1);
+    ifaContext.vCache.resize(1);
+    ifaContext.kCache[0] = &key.sizes();
+    ifaContext.vCache[0] = &value.sizes();
+}
+
 std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     const at::Tensor &query, const at::Tensor &key, const at::Tensor &value,
     const c10::optional<at::Tensor> &query_rope,
@@ -251,11 +363,27 @@ std::tuple<at::Tensor, at::Tensor> npu_fused_infer_attention_score_npu(
     auto actual_seq_qlen_ = actual_seq_qlen.value_or(at::IntArrayRef{});
     auto actual_seq_kvlen_ = actual_seq_kvlen.value_or(at::IntArrayRef{});
 
-    EXEC_NPU_CMD_V1(aclnnFusedInferAttentionScoreV4, query, keyTensors, valueTensors, pse_shift, atten_mask, actual_seq_qlen_, actual_seq_kvlen_, dequant_scale1, quant_scale1, dequant_scale2,
-        quant_scale_out, quant_offset_out, antiquant_scale, antiquant_offset, block_table, query_padding_size, kv_padding_size, dequant_scale_key, dequant_offset_key, dequant_scale_value,
-        dequant_offset_value, key_shared_prefix, value_shared_prefix, actual_shared_prefix_len, query_rope, key_rope, dequant_scale_key_rope, 
-        dequant_scale_query, learnable_sink, num_query_heads, softmax_scale, pre_tokens, next_tokens, input_layout_ptr,
-        num_key_value_heads, sparse_mode, inner_precise, block_size, antiquant_mode, return_softmax_lse, key_quant_mode, value_quant_mode, query_quant_mode, output, softmax_lse);
+    IFAContext ifaContext;
+
+    ConvertContextToParamsIFA(ifaContext, query, key, value, query_rope, key_rope,
+                            pse_shift,atten_mask,actual_seq_qlen,actual_seq_kvlen, block_table,dequant_scale_query,
+                            dequant_scale_key, dequant_offset_key, dequant_scale_value, dequant_offset_value,
+                            dequant_scale_key_rope, quant_scale_out, quant_offset_out, learnable_sink,
+                            num_query_heads, num_key_value_heads, softmax_scale, pre_tokens, next_tokens, input_layout_ptr,
+                            sparse_mode,  block_size, query_quant_mode, key_quant_mode, value_quant_mode,
+                            inner_precise, return_softmax_lse, query_dtype, key_dtype, value_dtype,
+                            query_rope_dtype, key_rope_dtype, key_shared_prefix_dtype,  value_shared_prefix_dtype,
+                            dequant_scale_query_dtype, dequant_scale_key_dtype, dequant_scale_value_dtype, 
+                            dequant_scale_key_rope_dtype, output, softmax_lse);
+                            
+    IFATiling ifaTiling;
+    ifaTiling.DoSubOpTiling(ifaContext);
+
+    // EXEC_NPU_CMD_V1(aclnnFusedInferAttentionScoreV4, query, keyTensors, valueTensors, pse_shift, atten_mask, actual_seq_qlen_, actual_seq_kvlen_, dequant_scale1, quant_scale1, dequant_scale2,
+    //     quant_scale_out, quant_offset_out, antiquant_scale, antiquant_offset, block_table, query_padding_size, kv_padding_size, dequant_scale_key, dequant_offset_key, dequant_scale_value,
+    //     dequant_offset_value, key_shared_prefix, value_shared_prefix, actual_shared_prefix_len, query_rope, key_rope, dequant_scale_key_rope, 
+    //     dequant_scale_query, learnable_sink, num_query_heads, softmax_scale, pre_tokens, next_tokens, input_layout_ptr,
+    //     num_key_value_heads, sparse_mode, inner_precise, block_size, antiquant_mode, return_softmax_lse, key_quant_mode, value_quant_mode, query_quant_mode, output, softmax_lse);
 
     return std::tuple<at::Tensor, at::Tensor>(output, softmax_lse);
 }

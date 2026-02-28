@@ -12,7 +12,7 @@ add_op_to_compiled_list()
 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
 if (BUILD_OPEN_PROJECT)
    
-    set(fused_infer_attention_score_depends  attention/incre_flash_attention attention/common CACHE INTERNAL "Dependencies for fused_infer_attention_score")
+    set(fused_infer_attention_score_depends  attention/common CACHE INTERNAL "Dependencies for fused_infer_attention_score")
     target_sources(op_host_aclnnInner PRIVATE
         fused_infer_attention_score_def.cpp
     )

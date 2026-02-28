@@ -25,112 +25,27 @@ public:
     {
         this->Input("query")
             .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("key")
             .ParamType(DYNAMIC)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16, // key datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,
-                       ge::DT_INT4,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("value")
             .ParamType(DYNAMIC)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16, // value datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,
-                       ge::DT_INT4,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("pse_shift")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("atten_mask")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_UINT8,   ge::DT_UINT8, ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_FLOAT16, ge::DT_BOOL,  ge::DT_UINT8,
-                       ge::DT_UINT8,   ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_FLOAT16,
-                       ge::DT_BOOL,    ge::DT_UINT8, ge::DT_UINT8,   ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_UINT8,   ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_INT8,  ge::DT_BOOL,    ge::DT_FLOAT16, ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_UINT8,   ge::DT_UINT8, ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_FLOAT16, ge::DT_BOOL,  ge::DT_UINT8,   ge::DT_UINT8,   ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_FLOAT16, ge::DT_BOOL,    ge::DT_UINT8, ge::DT_UINT8,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_UINT8,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_INT8,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_INT8,  ge::DT_INT8,
-                       ge::DT_BOOL,    ge::DT_UINT8, ge::DT_BOOL,    ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_INT8,  ge::DT_UINT8,   ge::DT_BOOL,    ge::DT_BOOL,  ge::DT_BOOL,
-                       ge::DT_BOOL,    ge::DT_INT8,  ge::DT_UINT8,   ge::DT_UINT8,   ge::DT_INT8,  ge::DT_UINT8,
-                       ge::DT_INT8,    ge::DT_INT8,  ge::DT_UINT8})
+            .DataType({ge::DT_FLOAT16,  ge::DT_BOOL})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("actual_seq_lengths")
@@ -147,24 +62,7 @@ public:
             .AutoContiguous();
         this->Input("dequant_scale1")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT, // dequant scale1 datatype
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_UINT64, ge::DT_UINT64})
+            .DataType({ge::DT_UINT64, ge::DT_UINT64})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("quant_scale1")
@@ -174,108 +72,27 @@ public:
             .AutoContiguous();
         this->Input("dequant_scale2")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT, // dequant scale2 datatype
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_UINT64,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_UINT64, ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_FLOAT,  ge::DT_UINT64, ge::DT_UINT64, ge::DT_FLOAT,
-                       ge::DT_FLOAT,  ge::DT_UINT64, ge::DT_UINT64})
+            .DataType({ge::DT_UINT64, ge::DT_UINT64})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("quant_scale2")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16, // quant scale2 datatype
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_BF16,  ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16, ge::DT_BF16,   ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16})
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("quant_offset2")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16, // quant offset2 datatype
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_BF16,  ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_FLOAT, ge::DT_BF16, ge::DT_BF16,   ge::DT_FLOAT,
-                       ge::DT_FLOAT, ge::DT_BF16,  ge::DT_BF16})
+            .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("antiquant_scale")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // antiquant scale datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("antiquant_offset")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // antiquant offset datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("block_table")
@@ -295,134 +112,32 @@ public:
             .AutoContiguous();
         this->Input("key_antiquant_scale")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // key antiquant scale datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("key_antiquant_offset")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // key antiquant offset datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("value_antiquant_scale")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // value antiquant scale datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("value_antiquant_offset")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // value antiquant offset datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("key_shared_prefix")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16, // key shared prefix datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,
-                       ge::DT_INT4,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("value_shared_prefix")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16, // value shared prefix datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,
-                       ge::DT_INT4,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("actual_shared_prefix_len")
@@ -433,68 +148,17 @@ public:
             .AutoContiguous();
         this->Input("query_rope")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("key_rope")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16, // key datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,    ge::DT_INT4,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT4,
-                       ge::DT_INT4,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_INT8})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("key_rope_antiquant_scale")
             .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, // key rope antiquant scale datatype
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_FLOAT,
-                       ge::DT_FLOAT,   ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT,   ge::DT_FLOAT,   ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT16, ge::DT_BF16,   ge::DT_BF16,     ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_FLOAT,   ge::DT_FLOAT})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("dequant_scale_query")
@@ -504,7 +168,7 @@ public:
             .AutoContiguous();
         this->Input("learnable_sink")
             .ParamType(OPTIONAL)
-            .DataTypeList({ge::DT_BF16, ge::DT_FLOAT16})
+            .DataTypeList({ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("q_start_idx")
@@ -521,41 +185,13 @@ public:
             .AutoContiguous();
         this->Output("attention_out")
             .ParamType(REQUIRED)
-            .DataType({ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_INT8,    ge::DT_FLOAT16,
-                       ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_INT8,
-                       ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_BF16,    ge::DT_INT8,    ge::DT_BF16,    ge::DT_FLOAT16,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_INT8,
-                       ge::DT_INT8,    ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_FLOAT16, ge::DT_FLOAT16,
-                       ge::DT_BF16,    ge::DT_FLOAT16, ge::DT_INT8,    ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16,
-                       ge::DT_BF16,    ge::DT_BF16,    ge::DT_BF16})
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         this->Output("softmax_lse").ParamType(REQUIRED).DataTypeList({ge::DT_FLOAT}).FormatList({ge::FORMAT_ND});
         this->Attr("num_heads").AttrType(REQUIRED).Int(1);
         this->Attr("scale").AttrType(OPTIONAL).Float(1.0);
-        this->Attr("pre_tokens").AttrType(OPTIONAL).Int(2147483647); // 2147483647: Maximum value of int32_t.
-        this->Attr("next_tokens").AttrType(OPTIONAL).Int(2147483647); // 2147483647: Maximum value of int32_t.
         this->Attr("input_layout").AttrType(OPTIONAL).String("BSH");
         this->Attr("num_key_value_heads").AttrType(OPTIONAL).Int(0);
-        this->Attr("sparse_mode").AttrType(OPTIONAL).Int(0);
-        this->Attr("inner_precise").AttrType(OPTIONAL).Int(1);
-        this->Attr("block_size").AttrType(OPTIONAL).Int(0);
-        this->Attr("antiquant_mode").AttrType(OPTIONAL).Int(0);
-        this->Attr("softmax_lse_flag").AttrType(OPTIONAL).Bool(false);
-        this->Attr("key_antiquant_mode").AttrType(OPTIONAL).Int(0);
-        this->Attr("value_antiquant_mode").AttrType(OPTIONAL).Int(0);
-        this->Attr("query_quant_mode").AttrType(OPTIONAL).Int(0);
-        this->Attr("pse_type").AttrType(OPTIONAL).Int(0);
         this->Attr("out_dtype").AttrType(OPTIONAL).Int(0);
         OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
