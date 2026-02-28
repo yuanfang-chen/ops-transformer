@@ -2,7 +2,7 @@
   "op_type": "RotaryPositionEmbedding",
   "op_list": [
     {
-      "bin_filename": "RotaryPositionEmbedding_4",
+      "bin_filename": "RotaryPositionEmbedding_1",
       "inputs": [
         {
           "name": "x",
@@ -30,6 +30,16 @@
           "dtype": "float16",
           "format": "ND",
           "paramType": "required",
+          "shape": [
+            -2
+          ]
+        },
+        {
+          "name": "rotate",
+          "index": 3,
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "optional",
           "shape": [
             -2
           ]
@@ -56,7 +66,7 @@
       ]
     },
     {
-      "bin_filename": "RotaryPositionEmbedding_6",
+      "bin_filename": "RotaryPositionEmbedding_2",
       "inputs": [
         {
           "name": "x",
@@ -84,6 +94,16 @@
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
+          "shape": [
+            -2
+          ]
+        },
+        {
+          "name": "rotate",
+          "index": 3,
+          "dtype": "float32",
+          "format": "ND",
+          "paramType": "optional",
           "shape": [
             -2
           ]
