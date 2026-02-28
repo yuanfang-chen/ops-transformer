@@ -571,6 +571,61 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
     </tbody>
     </table>
 
+    <details>
+    <summary><term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：</summary>
+
+    - commAlg 当前版本不支持，传空指针即可。
+    - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
+    - 有TP域通信时 tpSendCountsOptional 为1D shape Tensor，shape为 (tpWorldSize, )。
+    - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
+    - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+    - sharedExpertXOptional 要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
+    - epWorldSize 取值支持[2, 768]。
+    - moeExpertNum 取值范围(0, 1024]。
+    - groupTp 字符串长度范围为[0, 128)，不能和groupEp相同，仅在无tp域通信时支持传空。
+    - tpWorldSize 取值范围[0, 2]，0和1表示无TP域通信，有TP域通信时仅支持2。
+    - tpRankId 取值范围[0, 1]，同一个TP通信域中各卡的tpRankId不重复；无TP域通信时传0即可。
+    - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
+    - sharedExpertNum 当前版本不支持，传0即可。
+    - sharedExpertRankNum 当前版本不支持，传0即可。
+    - commQuantMode 当前版本不支持，传0即可。
+    - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+    - elasticInfoOptional 可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 <code>(4 + 2 * epWorldSize, )</code>。Tensor中的前四个数字分别表示（是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数），后2 * epWorldSize表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为<code>Table1[epRankId]=localEpRankId或-1</code>，localEpRankId表示新EP通信域中的rank Index，-1表示epRankId这张卡从通信域中被剔除，第二个Table映射关系为<code>Table2[localEpRankId] = epRankId</code>。
+    - constExpertAlpha1Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - constExpertAlpha2Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - constExpertVOptional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为 <code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - zeroExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的零专家的ID的值是[<code>moeExpertNum</code>, <code>moeExpertNum + zeroExpertNum</code>)。
+    - copyExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的拷贝专家的ID的值是[<code>moeExpertNum + zeroExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum</code>)。
+    - constExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1, 合法的常量专家的ID的值是[<code>moeExpertNum + zeroExpertNum + copyExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum</code>)。
+    </details>
+
+    <summary><term>Ascend 950PR/Ascend 950DT</term>：</summary>
+
+    - commAlg 当前版本不支持，传空指针即可。
+    - epSendCounts 的shape为 (epWorldSize * max(tpWorldSize, 1) * localExpertNum, )。
+    - 不支持TP通信域。
+    - xActiveMaskOptional 要求为1D或2D Tensor（1D时shape为(BS, )，2D时shape为(BS, K)）；1D时true需排在false前，2D时token对应K个值全为false则不参与通信。
+    - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+    - sharedExpertXOptional 要求为2D或3D Tensor（2D时shape为 (Bs, H)；3D时前两位乘积等于Bs、第三维等于H）；可传或不传，传入时sharedExpertRankNum需为0。
+    - epWorldSize 取值支持[2, 768]。
+    - moeExpertNum 取值范围(0, 1024]。
+    - groupTp 当前版本不支持，传空字符即可。
+    - tpWorldSize 当前版本不支持，传0即可。
+    - tpRankId 当前版本不支持，传0即可。
+    - expertShardType 当前仅支持传0，表示共享专家卡排在MoE专家卡前面。
+    - sharedExpertNum 当前版本不支持，传0即可。
+    - sharedExpertRankNum 当前版本不支持，传0即可。
+    - commQuantMode 当前版本不支持，传0即可。
+    - expandScalesOptional 预留参数，当前版本不支持，传空指针即可。
+    - elasticInfoOptional 可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 <code>(4 + 2 * epWorldSize, )</code>。Tensor中的前四个数字分别表示（是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数），后2 * epWorldSize表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为<code>Table1[epRankId]=localEpRankId或-1</code>，localEpRankId表示新EP通信域中的rank Index，-1表示epRankId这张卡从通信域中被剔除，第二个Table映射关系为<code>Table2[localEpRankId] = epRankId</code>。
+    - constExpertAlpha1Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - constExpertAlpha2Optional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为<code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - constExpertVOptional 可选择传入有效数据或填空指针，当constExpertNum不为0时必须传入有效输入；当传入有效数据时，要求是一个2D的Tensor，shape为 <code>(constExpertNum, H)</code>，数据类型需跟expandX保持一致。
+    - zeroExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的零专家的ID的值是[<code>moeExpertNum</code>, <code>moeExpertNum + zeroExpertNum</code>)。
+    - copyExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1，合法的拷贝专家的ID的值是[<code>moeExpertNum + zeroExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum</code>)。
+    - constExpertNum 取值范围:[0, MAX_INT32)，MAX_INT32 = 2^31 - 1, 合法的常量专家的ID的值是[<code>moeExpertNum + zeroExpertNum + copyExpertNum</code>, <code>moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum</code>)。
+    </details>
+
 - **返回值**
 
     aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -655,22 +710,21 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
 
 ## 约束说明
 
-1. 确定性计算：
+- 确定性计算：
   - aclnnMoeDistributeCombineAddRmsNormV2默认确定性实现。
 
-2. aclnnMoeDistributeDispatchV3接口与aclnnMoeDistributeCombineAddRmsNormV2接口必须配套使用，具体参考[调用示例](#调用示例)。
+- 接口配套约束：
+  - aclnnMoeDistributeDispatchV3接口与aclnnMoeDistributeCombineAddRmsNormV2接口必须配套使用，具体参考[调用示例](#调用示例)。
 
-3. 调用接口过程中使用的expertIds、xActiveMaskOptional、elasticInfoOptional、groupEp、epWorldSize、moeExpertNum、groupTp、tpWorldSize、expertShardType、sharedExpertNum、sharedExpertRankNum、globalBs、commAlg、zeroExpertNum、copyExpertNum、constExpertNum参数、HCCL_BUFFSIZE取值所有卡需保持一致，网络中不同层中也需保持一致，且和DispatchV3对应参数也保持一致。
+- 参数一致性约束
+  - 调用接口过程中使用的expertIds、xActiveMaskOptional、elasticInfoOptional、groupEp、epWorldSize、moeExpertNum、groupTp、tpWorldSize、expertShardType、sharedExpertNum、sharedExpertRankNum、globalBs、commAlg、zeroExpertNum、     copyExpertNum、constExpertNum参数、HCCL_BUFFSIZE取值所有卡需保持一致，网络中不同层中也需保持一致，且和DispatchV3对应参数也保持一致。
+  - 动态缩容后的部署信息通过elasticInfoOptional参数传递给算子，无需修改其他参数。动态缩容后，MOE专家卡上的本卡部署MOE专家数需与缩容前保持一致。
 
-4. 动态缩容后的部署信息通过elasticInfoOptional参数传递给算子，无需修改其他参数。动态缩容后，MOE专家卡上的本卡部署MOE专家数需与缩容前保持一致。
+- 产品特定约束 
+  - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明里的“本卡”均表示单DIE。
+  - 动态缩容功能不支持在TP并行场景下使能。
 
-5. <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明里的“本卡”均表示单DIE。
-
-6. moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum < MAX_INT32，其中MAX_INT32值为2147483647。
-
-7. 动态缩容功能不支持在TP并行场景下使能。
-
-8. 参数说明里shape格式说明：
+- Shape变量约束：
     - A：表示本卡需要分发的最大token数量，取值范围如下：
         - 当globalBs为0时，要满足A >= BS * epWorldSize * min(localExpertNum, K)；
         - 当globalBs非0时，要满足A >= globalBs * min(localExpertNum, K)。
@@ -682,15 +736,19 @@ aclnnStatus aclnnMoeDistributeCombineAddRmsNormV2(
         - 对于共享专家卡，localExpertNum = 1
         - 对于MoE专家卡，localExpertNum = moeExpertNum / (epWorldSize - sharedExpertRankNum)，localExpertNum > 1时，不支持TP域通信。
   
-9. HCCL_BUFFSIZE：
+- 环境变量约束：
     调用本接口前需检查HCCL_BUFFSIZE环境变量取值是否合理，该环境变量表示单个通信域占用内存大小，单位MB，不配置时默认为200MB。
     -   ep通信域内：设置大小要求 >= 2且满足1024 ^ 2 * (HCCL_BUFFSIZE - 2) / 2 >= BS * 2 * (H + 128) * (epWorldSize * localExpertNum + K + 1)，localExpertNum表示MoE专家卡的本卡专家数。
     -   tp通信域内：设置大小要求 \>= (A \* Align512(Align32(h \* 2) + 44) + A \* Align512(h \* 2)) \* 2。
 
-10. 通信域使用约束：
+- 通信域使用约束：
     - 一个模型中的aclnnMoeDistributeCombineAddRmsNormV2和aclnnMoeDistributeDispatchV3仅支持相同EP通信域，且该通信域中不允许有其他算子。
     - 一个模型中的aclnnMoeDistributeCombineAddRmsNormV2和aclnnMoeDistributeDispatchV3仅支持相同TP通信域或都不支持TP通信域，有TP通信域时该通信域中不允许有其他算子。
     - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：一个通信域内的节点需在一个超节点内，不支持跨超节点。
+
+- 其他约束：
+    - moeExpertNum + zeroExpertNum + copyExpertNum + constExpertNum < MAX_INT32，其中MAX_INT32值为2147483647。
+    - <term>Ascend 950PR/Ascend 950DT</term>：暂不支持动态缩容。
 
 ## 调用示例
 
