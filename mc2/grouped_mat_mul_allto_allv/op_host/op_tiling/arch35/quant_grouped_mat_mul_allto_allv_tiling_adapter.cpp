@@ -32,6 +32,16 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetCommonInputParams(const Q
     // 输出是否切分，0/1代表输出多tensor， 2/3代表输出单tensor
     inputParams_.splitItem = 2;
     inputParams_.actType = 0;
+    // common
+    inputParams_.aFormat = ge::FORMAT_ND;
+    inputParams_.bFormat = ge::FORMAT_ND;
+    inputParams_.cFormat = ge::FORMAT_ND;
+    inputParams_.transA = false;
+    inputParams_.hasBias = false;
+    inputParams_.isSingleX = true;
+    inputParams_.isSingleW = true;
+    inputParams_.isSingleY = true;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -40,9 +50,7 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameter
     inputParams_.mSize = gmmX;
     inputParams_.kSize = params.H1;
     inputParams_.nSize = params.N1;
-    // inputParams_.groupNum = params.ep;
     inputParams_.groupNum = 1;
-    // quantMode bit position: 1 << mode
     inputParams_.aQuantMode = static_cast<QuantMode>(1U << (params.gmmXQuantMode - 1));
     inputParams_.bQuantMode = static_cast<QuantMode>(1U << (params.gmmWeightQuantMode - 1));
     // 是否做切分
@@ -54,19 +62,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetGroupExpertInputParameter
     inputParams_.biasDtype = ge::DT_INT32;
     inputParams_.scaleDtype = params.gmmXScaleDtype;
     inputParams_.perTokenScaleDtype = params.gmmXScaleDtype;
-    inputParams_.aFormat = ge::FORMAT_ND;
-    inputParams_.bFormat = ge::FORMAT_ND;
-    inputParams_.cFormat = ge::FORMAT_ND;
-    inputParams_.transA = false;
+
     inputParams_.transB = params.isGmmWeightTrans;
-    inputParams_.hasBias = false;
-    inputParams_.isSingleX = true;
-    inputParams_.isSingleW = true;
-    inputParams_.isSingleY = true;
-    mList_[0] = static_cast<int32_t>(inputParams_.mSize);
-    kList_[0] = static_cast<int32_t>(inputParams_.kSize);
-    nList_[0] = static_cast<int32_t>(inputParams_.nSize);
+    mList_[0] = static_cast<int32_t>(gmmX);
+    kList_[0] = static_cast<int32_t>(params.H1);
+    nList_[0] = static_cast<int32_t>(params.N1);
     SetKernelType();
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -75,13 +77,10 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.mSize = params.Bs;
     inputParams_.kSize = params.H2;
     inputParams_.nSize = params.N2;
-    // inputParams_.groupNum = 0;
     inputParams_.groupNum = 1;
-    // quantMode bit position: 1 << mode
     inputParams_.aQuantMode = static_cast<QuantMode>(1U << (params.mmXQuantMode - 1));
     inputParams_.bQuantMode = static_cast<QuantMode>(1U << (params.mmWeightQuantMode - 1));
     // 是否做切分
-    // inputParams_.groupType = optiling::Mc2GroupedMatmul::NO_SPLIT;
     inputParams_.groupType = optiling::Mc2GroupedMatmul::SPLIT_M;
     // 非负递增为0，非负数列为1
     inputParams_.groupListType = 1;
@@ -91,19 +90,13 @@ ge::graphStatus QuantGroupedMatmulAllToAllvAdapter::SetSharedExpertInputParamete
     inputParams_.biasDtype = ge::DT_INT32;
     inputParams_.scaleDtype = params.mmXScaleDtype;
     inputParams_.perTokenScaleDtype = params.mmXScaleDtype;
-    inputParams_.aFormat = ge::FORMAT_ND;
-    inputParams_.bFormat = ge::FORMAT_ND;
-    inputParams_.cFormat = ge::FORMAT_ND;
-    inputParams_.transA = false;
+
     inputParams_.transB = params.isMmWeightTrans;
-    inputParams_.hasBias = false;
-    inputParams_.isSingleX = true;
-    inputParams_.isSingleW = true;
-    inputParams_.isSingleY = true;
-    mList_[0] = static_cast<int32_t>(inputParams_.mSize);
-    kList_[0] = static_cast<int32_t>(inputParams_.kSize);
-    nList_[0] = static_cast<int32_t>(inputParams_.nSize);
+    mList_[0] = static_cast<int32_t>(params.Bs);
+    kList_[0] = static_cast<int32_t>(params.H2);
+    nList_[0] = static_cast<int32_t>(params.N2);
     SetKernelType();
+
     return ge::GRAPH_SUCCESS;
 }
 
