@@ -351,10 +351,6 @@ bool GroupedMatmulFinalizeRoutingQuantTiling::CheckInputsShape(const gert::Shape
                 OP_LOGE(context_->GetNodeName(), "CheckDim failed."), return false);
     if (IsMicroScaling()) {
         OP_CHECK_IF(!CheckFp4Shape(), OP_LOGE(context_->GetNodeName(), "CheckFp4Shape failed."), return false);
-    } else {
-        const gert::Shape &weightStorageShape = wStorageShape->GetStorageShape();
-        OP_CHECK_IF(!CheckShapeForWeightNz(weightStorageShape),
-                    OP_LOGE(context_->GetNodeName(), "CheckShapeForWeightNz failed."), return false);
     }
     return true;
 }
