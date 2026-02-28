@@ -3,7 +3,6 @@
 [📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/lightning_indexer)
 
 ## 产品支持情况
-
 | 产品                                                         | 是否支持 |
 | ------------------------------------------------------------ | :------: |
 |<term>Atlas A2 推理系列产品</term>   | √  |
@@ -11,321 +10,72 @@
 
 ## 功能说明
 
-- 接口功能：`lightning_indexer`基于一系列操作得到每一个token对应的Top-$k$个位置。
+-   API功能：`lightning_indexer`基于一系列操作得到每一个token对应的Top-$k$个位置。
 
-- 计算公式：
-
-$$
-Indices=\text{Top-}k\left\{[1]_{1\times g}@\left[(W@[1]_{1\times S_{k}})\odot\text{ReLU}\left(Q_{index}@K_{index}^T\right)\right]\right\}
-$$
-
-对于某个token对应的Index Query $Q_{index}\in\R^{g\times d}$，给定上下文Index Key $K_{index}\in\R^{S_{k}\times d},W\in\R^{g\times 1}$，其中$g$为GQA对应的group size，$d$为每一个头的维度，$S_{k}$是上下文的长度。
+-   计算公式：
+     $$
+     Indices=\text{Top-}k\left\{[1]_{1\times g}@\left[(W@[1]_{1\times S_{k}})\odot\text{ReLU}\left(Q_{index}@K_{index}^T\right)\right]\right\}
+     $$
+     对于某个token对应的Index Query $Q_{index}\in\R^{g\times d}$，给定上下文Index Key $K_{index}\in\R^{S_{k}\times d},W\in\R^{g\times 1}$，其中$g$为GQA对应的group size，$d$为每一个头的维度，$S_{k}$是上下文的长度。
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用“aclnnLightningIndexerGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnLightningIndexer”接口执行计算。
-```Cpp
-aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
-    const aclTensor     *query,
-    const aclTensor     *key,
-    const aclTensor     *weights, 
-    const aclTensor     *actualSeqLengthsQuery,
-    const aclTensor     *actualSeqLengthsKey,
-    const aclTensor     *blockTable,
-    char                *layoutQuery,
-    char                *layoutKey,
-    int64_t             sparseCount,
-    int64_t             sparseMode,
-    bool                returnValue,
-    const aclTensor     *sparseIndices,
-    const aclTensor     *sparseValues,
-    uint64_t            *workspaceSize,
-    aclOpExecutor       **executor)
 ```
-```Cpp
-aclnnStatus aclnnLightningIndexer(
-    void             *workspace, 
-    uint64_t          workspaceSize, 
-    aclOpExecutor    *executor, 
-    const aclrtStream stream)
+torch_npu.npu_lightning_indexer(query, key, weights, *, actual_seq_lengths_query=None, actual_seq_lengths_key=None, block_table=None, layout_query="BSND", layout_key="BSND", sparse_count=2048, sparse_mode=3, pre_tokens=2^63-1, next_tokens=2^63-1, return_value=False) -> (Tensor, Tensor)
 ```
 
-## aclnnLightningIndexerGetWorkspaceSize
+## 参数说明
 
-- **参数说明：**
+> [!NOTE]
+> - query、key、weights参数维度含义：B（Batch Size）表示输入样本批量大小、S（Sequence Length）表示输入样本序列长度、H（Head Size）表示hidden层的大小、N（Head Num）表示多头数、D（Head Dim）表示hidden层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
+> - S1表示query shape中的S，S2表示key shape中的S，T1表示query shape中的T，T2表示key shape中的T，N1表示query shape中的N，N2表示key shape中的N。
 
-  <table style="undefined;table-layout: fixed; width: 1494px"><colgroup>
-  <col style="width: 146px">
-  <col style="width: 110px">
-  <col style="width: 301px">
-  <col style="width: 219px">
-  <col style="width: 328px">
-  <col style="width: 101px">
-  <col style="width: 143px">
-  <col style="width: 146px">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>参数名</th>
-      <th>输入/输出</th>
-      <th>描述</th>
-      <th>使用说明</th>
-      <th>数据类型</th>
-      <th>数据格式</th>
-      <th>维度(shape)</th>
-      <th>非连续Tensor</th>
-    </tr></thead>
-  <tbody>
-    <tr>
-      <td>query</td>
-      <td>输入</td>
-      <td>公式中的输入Q。</td>
-      <td>shape支持(B,S1,Nidx1,D)和(T1,Nidx1,D)。</td>
-      <td>FLOAT16、BFLOAT16</td>
-      <td>ND</td>
-      <td>3、4</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>key</td>
-      <td>输入</td>
-      <td>公式中的输入K。</td>
-      <td>shape支持(block_num,block_size,Nidx2,D)、(B,S2,Nidx2,D)和(T2,Nidx2,D)。</td>
-      <td>FLOAT16、BFLOAT16</td>
-      <td>ND</td>
-      <td>3、4</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>weights</td>
-      <td>输入</td>
-      <td>公式中的输入W。</td>
-      <td>shape支持(B,S1,Nidx1)和(T1,Nidx1)。</td>
-      <td>FLOAT16、BFLOAT16、FLOAT</td>
-      <td>ND</td>
-      <td>2、3</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>actualSeqLengthsQuery</td>
-      <td>输入</td>
-      <td>每个Batch中，Query的有效token数。</td>
-      <td>shape支持(B,)。</td>
-      <td>INT32</td>
-      <td>ND</td>
-      <td>1</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>actualSeqLengthsKey</td>
-      <td>输入</td>
-      <td>每个Batch中，Key的有效token数。</td>
-      <td>shape支持(B,)。</td>
-      <td>INT32</td>
-      <td>ND</td>
-      <td>1</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>blockTable</td>
-      <td>输入</td>
-      <td>表示PageAttention中KV存储使用的block映射表。</td>
-      <td>shape支持(B,S2/block_size)。</td>
-      <td>INT32</td>
-      <td>ND</td>
-      <td>2</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>layoutQuery</td>
-      <td>输入</td>
-      <td>用于标识输入Query的数据排布格式。</td>
-      <td>-</td>
-      <td>STRING</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>layoutKey</td>
-      <td>输入</td>
-      <td>用于标识输入Key的数据排布格式。</td>
-      <td>-</td>
-      <td>STRING</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>sparseCount</td>
-      <td>输入</td>
-      <td>topK阶段需要保留的block数量。</td>
-      <td>-</td>
-      <td>INT</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>sparseMode</td>
-      <td>输入</td>
-      <td>表示sparse的模式。</td>
-      <td>-</td>
-      <td>INT</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>preTokens</td>
-      <td>输入</td>
-      <td>用于稀疏计算，表示attention需要和前几个Token计算关联。</td>
-      <td>-</td>
-      <td>INT</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>nextTokens</td>
-      <td>输入</td>
-      <td>用于稀疏计算，表示attention需要和后几个Token计算关联。</td>
-      <td>-</td>
-      <td>INT</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>returnValue</td>
-      <td>输入</td>
-      <td>表示是否输出`sparseValues`。</td>
-      <td>-</td>
-      <td>BOOL</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>sparseIndices</td>
-      <td>输出</td>
-      <td>公式中的Indices输出。</td>
-      <td>shape支持(B,S1,Nidx2,k)和(T1,Nidx2,k)。</td>
-      <td>INT32</td>
-      <td>-</td>
-      <td>3、4</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>sparseValues</td>
-      <td>输出</td>
-      <td>公式中的Indices输出对应的value值。</td>
-      <td>shape支持(B,S1,Nidx2,k)和(T1,Nidx2,k)。</td>
-      <td>INT32</td>
-      <td>ND</td>
-      <td>3、4</td>
-      <td>x</td>
-    </tr>
-    <tr>
-      <td>workspaceSize</td>
-      <td>输出</td>
-      <td>返回需要在Device侧申请的workspace大小。</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-    <tr>
-      <td>executor</td>
-      <td>输出</td>
-      <td>返回op执行器，包含了算子计算流程。</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-      <td>-</td>
-    </tr>
-  </tbody>
-  </table>
+-   **query**（`Tensor`）：必选参数，不支持非连续，数据格式支持$ND$，数据类型支持`bfloat16`和`float16`。`layout_query`为BSND时shape为[B,S1,N1,D]，当`layout_query`为TND时shape为[T1,N1,D]，N1仅支持64。
+    
+-   **key**（`Tensor`）：必选参数，不支持非连续，数据格式支持$ND$，数据类型支持`bfloat16`和`float16`，layout\_key为PA_BSND时shape为[block\_count, block\_size, N2, D]，其中block\_count为PageAttention时block总数，block\_size为一个block的token数，block\_size取值为16的整数倍，最大支持到1024。`layout_key`为BSND时shape为[B, S2, N2, D]，`layout_key`为TND时shape为[T2, N2, D]，N2仅支持1。
+    
+-   **weights**（`Tensor`）：必选参数，不支持非连续，数据格式支持$ND$，数据类型支持`bfloat16`和`float16`，支持输入shape[B,S1,N1]、[T,N1]。
+    
+- <strong>*</strong>：必选参数，代表其之前的变量是位置相关的，必须按照顺序输入；之后的变量是可选参数，位置无关，需要使用键值对赋值，不赋值会使用默认值。
 
-- **返回值：**
+-   **actual\_seq\_lengths\_query**（`Tensor`）：可选参数，表示不同Batch中`query`的有效token数，数据类型支持`int32`。如果不指定seqlen可传入None，表示和`query`的shape的S长度相同。
+    -   该入参中每个Batch的有效token数不超过`query`中的维度S大小且不小于0。支持长度为B的一维tensor。当`layout_query`为TND时，该入参必须传入，且以该入参元素的数量作为B值，该入参中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+-   **actual\_seq\_lengths\_key**（`Tensor`）：可选参数，表示不同Batch中`key`的有效token数，数据类型支持`int32`。如果不指定seqlen可传入None，表示和key的shape的S长度相同。
+    -   该参数中每个Batch的有效token数不超过`key/value`中的维度S大小且不小于0。支持长度为B的一维tensor。当`layout_key`为TND或PA_BSND时，该入参必须传入，`layout_key`为TND，该参数中每个元素的值表示当前batch与之前所有batch的token数总和，即前缀和，因此后一个元素的值必须大于等于前一个元素的值。
 
-  第一段接口会完成入参校验，出现以下场景时报错：
-  
+-   **block\_table**（`Tensor`）：可选参数，表示PageAttention中KV存储使用的block映射表，数据格式支持$ND$，数据类型支持`int32`。
+    -   PageAttention场景下，block\_table必须为二维，第一维长度需要等于B，第二维长度不能小于maxBlockNumPerSeq（maxBlockNumPerSeq为每个batch中最大actual\_seq\_lengths\_key对应的block数量）
 
-    <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-    <col style="width: 319px">
-    <col style="width: 144px">
-    <col style="width: 671px">
-    </colgroup>
-        <thead>
-            <th>返回值</th>
-            <th>错误码</th>
-            <th>描述</th>
-        </thead>
-        <tbody>
-            <tr>
-                <td>ACLNN_ERR_PARAM_NULLPTR</td>
-                <td>161001</td>
-                <td>如果传入参数是必选输入，输出或者必选属性，且是空指针，则返回161001。</td>
-            </tr>
-            <tr>
-                <td>ACLNN_ERR_PARAM_INVALID</td>
-                <td>161002</td>
-                <td>query、key、weights、actualSeqLengthsQuery、actualSeqLengthsKey、layoutQuery、layoutKey、sparseCount、sparseMode、returnValue、sparseIndices、sparseValues的数据类型和数据格式不在支持的范围内。</td>
-            </tr>
-        </tbody>
-    </table>
+-   **layout\_query**（`str`）：可选参数，用于标识输入`query`的数据排布格式，当前支持BSND、TND，默认值"BSND"。
 
-## aclnnLightningIndexer
+-   **layout\_key**（`str`）：可选参数，用于标识输入`key`的数据排布格式，当前支持PA_BSND、BSND、TND，默认值"BSND"，在非PageAttention场景下，该参数值应与**layout\_query**值保持一致。
 
-  <table style="undefined;table-layout: fixed; width: 953px"><colgroup>
-  <col style="width: 173px">
-  <col style="width: 112px">
-  <col style="width: 668px">
-  </colgroup>
-  <thead>
-    <tr>
-      <th>参数名</th>
-      <th>输入/输出</th>
-      <th>描述</th>
-    </tr></thead>
-  <tbody>
-    <tr>
-      <td>workspace</td>
-      <td>输入</td>
-      <td>在Device侧申请的workspace内存地址。</td>
-    </tr>
-    <tr>
-      <td>workspaceSize</td>
-      <td>输入</td>
-      <td>在Device侧申请的workspace大小，由第一段接口aclnnLightningIndexerGetWorkspaceSize获取。</td>
-    </tr>
-    <tr>
-      <td>executor</td>
-      <td>输入</td>
-      <td>op执行器，包含了算子计算流程。</td>
-    </tr>
-    <tr>
-      <td>stream</td>
-      <td>输入</td>
-      <td>指定执行任务的Stream。</td>
-    </tr>
-  </tbody>
-  </table>
+-   **sparse\_count**（`int`）：可选参数，代表topK阶段需要保留的block数量，支持[1, 2048]，数据类型支持`int32`。
 
-- **返回值：**
+-   **sparse\_mode**（`int`）：可选参数，表示sparse的模式，支持0/3，数据类型支持`int32`。
+    
+    -   sparse\_mode为0时，代表defaultMask模式。
+    -   sparse\_mode为3时，代表rightDownCausal模式的mask，对应以右顶点为划分的下三角场景。
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
+-   **pre\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和前几个Token计算关联。数据类型支持`int64`。仅支持默认值2^63-1。
+
+-   **next\_tokens**（`int`）：可选参数，用于稀疏计算，表示attention需要和后几个Token计算关联。数据类型支持`int64`。仅支持默认值2^63-1。
+
+-   **return\_value**（`bool`）：可选参数，表示是否输出`sparse_values`。True表示输出，但图模式下不支持，False表示不输出；默认值为False。该参数仅在训练且`layout_key`不为PA_BSND场景支持。
+
+## 返回值说明
+
+-   **sparse\_indices**（`Tensor`）：公式中的Indices输出，数据类型支持`int32`,数据格式支持$ND$，当`layout_query`为"BSND"时输出shape为[B, S1, N2, sparse\_count]，当layout\_query为"TND"时输出shape为[T1, N2, sparse\_count]。
+
+-   **sparse\_values**（`Tensor`）：公式中的Indices输出对应的value值，数据类型支持`int32`,数据格式支持$ND$，输出shape与`sparse_indices`保持一致。
 
 ## 约束说明
 
-- 参数query中的N支持648，key、value的N支持1。
-- sparseCount不大于2K。
-- headdim支持128。
+-   该接口支持图模式。
+-   参数query中的N支持64，key中的N支持1。
+-   参数query中的D和参数key中的D值相等为128。
+-   参数query、key、weights的数据类型应保持一致。
 
 ## 调用示例
 
