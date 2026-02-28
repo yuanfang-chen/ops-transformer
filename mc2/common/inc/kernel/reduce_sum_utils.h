@@ -27,7 +27,7 @@ __aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
         return 0;
     }
     return (a + b - 1) / b;
-};
+}
 
 // 向下取整除法：计算a除以b的向下取整结果（整数除法）
 __aicore__ inline uint64_t FloorDiv(uint64_t a, uint32_t b) {
@@ -35,14 +35,14 @@ __aicore__ inline uint64_t FloorDiv(uint64_t a, uint32_t b) {
         return 0; // 安全处理除零错误
     }
     return a / b; // 整数除法天然向下取整（当a,b为正数时）
-};
+}
 
 // 向上对齐：将a向上对齐到b的倍数
 __aicore__ inline uint64_t CeilAlign(uint64_t a, uint32_t b)
 {
     uint64_t bTemp = static_cast<uint64_t>(b);
     return (bTemp == 0) ? a : CeilDiv(a, bTemp) * bTemp;
-};
+}
 
 // 向下对齐：将a向下对齐到b的倍数
 __aicore__ inline uint64_t FloorAlign(uint64_t a, uint32_t b)
@@ -63,4 +63,4 @@ __aicore__ inline uint64_t BlockAlignMod(uint64_t a, uint32_t b)
 }
 }  // namespace AscendC
 
-#endif
+#endif // REDUCE_SUM_UTILS_H
