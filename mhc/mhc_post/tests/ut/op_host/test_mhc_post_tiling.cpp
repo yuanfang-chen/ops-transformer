@@ -45,7 +45,7 @@ static string TilingData2Str(const gert::TilingData *tiling_data)
 
 TEST_F(MhcPostTiling, test_mhc_post_3d_fp16_success)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -63,15 +63,15 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_fp16_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "4 5120 64 16 16 1 1024 1 5120 1 5120 0 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
-                    expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
+                    expectTilingDataStr, expectWorkspaces);
 }
 
 TEST_F(MhcPostTiling, test_mhc_post_4d_fp16_success)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -89,15 +89,15 @@ TEST_F(MhcPostTiling, test_mhc_post_4d_fp16_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "4 5120 64 16 16 1 1024 1 5120 1 5120 0 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
-                    expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
+                    expectTilingDataStr, expectWorkspaces);
 }
 
 TEST_F(MhcPostTiling, test_mhc_post_3d_n6_success)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -115,16 +115,15 @@ TEST_F(MhcPostTiling, test_mhc_post_3d_n6_success)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
+    string expectTilingDataStr = "6 2048 64 8 8 1 512 1 2048 1 2048 1 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
-                    expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
+                    expectTilingDataStr, expectWorkspaces);
 }
 
-// 测试异常情况：n不在{4,6,8}中
 TEST_F(MhcPostTiling, test_mhc_post_invalid_n)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -142,16 +141,15 @@ TEST_F(MhcPostTiling, test_mhc_post_invalid_n)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
-    std::vector<size_t> expectWorkspaces = {0};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey,
-                    expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
+    string expectTilingDataStr = "7 2048 64 8 8 1 512 1 2048 1 2048 1 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
+                    expectTilingDataStr, expectWorkspaces);
 }
 
-// 测试异常情况：D超出范围
 TEST_F(MhcPostTiling, test_mhc_post_invalid_d)
 {
-    MhcPostCompileInfo compileInfo = {48, 48};
+    MhcPostCompileInfo compileInfo = {64, 64};
     gert::TilingContextPara tilingContextPara("MhcPost",
         {
             // input info: x, h_res, h_out, h_post
@@ -169,8 +167,8 @@ TEST_F(MhcPostTiling, test_mhc_post_invalid_d)
         },
         &compileInfo);
     uint64_t expectTilingKey = 0;
-    string expectTilingDataStr = "";
-    std::vector<size_t> expectWorkspaces = {0};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_FAILED, expectTilingKey,
-                    expectTilingDataStr, expectWorkspaces, 0, TilingData2Str<int64_t>);
+    string expectTilingDataStr = "4 30000 64 32 32 1 512 1 7500 4 7500 0 ";
+    std::vector<size_t> expectWorkspaces = {16777216};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey,
+                    expectTilingDataStr, expectWorkspaces);
 }
