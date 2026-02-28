@@ -2,27 +2,27 @@
 
 ## 产品支持情况
 
-|产品      | 是否支持 |
-|:----------------------------|:-----------:|
-|<term>昇腾950 AI处理器</term>|      √     |
-|<term>Atlas A5 训练系列产品</term>|      √     |
+|产品             |  是否支持  |
+|:-------------------------|:----------:|
+|  <term>Ascend 950PR/Ascend 950DT</term>   |     √    |
+|  <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>   |     ×    |
+|  <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>     |     ×    |
+|  <term>Atlas 200I/500 A2 推理产品</term>    |     ×    |
+|  <term>Atlas 推理系列产品</term>    |     ×    |
+|  <term>Atlas 训练系列产品</term>    |     ×    |
 
 ## 功能说明
 
-- 算子功能：mhc_post基于一系列计算对mHC架构中上一层输出$h_{t}^{out}$进行Post Mapping，对上一层的输入$x_l$进行ResMapping，然后对二者进行残差连接，得到下一层的输入$x_{l+1}$。
+- 算子功能：mhc_post基于一系列计算对mHC架构中上一层输出$h_{t}^{out}$进行Post Mapping，对上一层的输入$x_l$进行Res Mapping，然后对二者进行残差连接，得到下一层的输入$x_{l+1}$。
 
 - 计算公式：
   $$
   x_{l+1} = (H_{l}^{res})^{T} \times x_l + h_{l}^{out} \otimes H_{t}^{post}
   $$
 
-  其中：
-  - $(H_{l}^{res})^{T} \times x_l$ 表示对$x_l$使用转置后的组合矩阵进行变换
-  - $h_{l}^{out} \otimes H_{t}^{post}$ 表示逐元素相乘后广播
-
 ## 函数原型
 
-算子执行接口为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用"aclnnMhcPostGetWorkspaceSize"接口获取入参并根据计算流程计算所需workspace大小，再调用"aclnnMhcPost"接口执行计算。
+算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnMhcPostGetWorkspaceSize"接口获取入参并根据计算流程计算所需workspace大小，再调用"aclnnMhcPost"接口执行计算。
 
 ```c++
 aclnnStatus aclnnMhcPostGetWorkspaceSize(
@@ -48,11 +48,6 @@ aclnnStatus aclnnMhcPost(
 
 - **参数说明：**
 
-  > 列表中的列项详细信息可以参考：<br>
-  > [非连续的Tensor](../../../docs/context/非连续的Tensor.md)<br>
-  > [数据格式](../../../docs/context/数据格式.md)<br>
-  > [约束说明](#约束说明)
-
   <table style="undefined;table-layout: fixed; width: 1550px">
       <colgroup>
           <col style="width: 220px">
@@ -61,7 +56,7 @@ aclnnStatus aclnnMhcPost(
           <col style="width: 212px">
           <col style="width: 100px">
           <col style="width: 190px">
-          </colgroup>
+      </colgroup>
       <thead>
           <tr>
               <th>参数名</th>
@@ -133,7 +128,7 @@ aclnnStatus aclnnMhcPost(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -207,20 +202,15 @@ aclnnStatus aclnnMhcPost(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 
 - 公共约束
 
-- Shape约束：
-  - n 的取值范围：{4, 6, 8}
-  - D 的取值范围：[384, 24576]
-  - totalItems (B*S 或 T) 的取值范围：(0, 512K]
-
 ## 调用示例
 
-示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/context/编译与运行样例.md)。
+示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
 ```c++
 #include <iostream>
