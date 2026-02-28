@@ -202,7 +202,7 @@ function(add_compile_cmd_target)
         if(OP_DEBUG_CONFIG)
             set(OP_DEBUG_CONFIG_OPTION --op-debug-config ${OP_DEBUG_CONFIG})
         endif()
-        set(OP_TILING_KEY_OPTION --tiling-keys ${ASCEND_CUSTOM_TILING_KEYS})
+        set(OP_TILING_KEY_OPTION --kernel_template_input ${ASCEND_CUSTOM_TILING_KEYS})
     endif()
 
     set(_OUT_DIR           ${ASCEND_BINARY_OUT_DIR}/${CMD_COMPUTE_UNIT})

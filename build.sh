@@ -1067,13 +1067,13 @@ while [[ $# -gt 0 ]]; do
         CLANG="true"
         shift
         ;;
-    --tiling-key|--tiling_key)
-        TILING_KEY="$2"
+    --kernel_template_input)
+        KERNEL_TEMPLATE_INPUT="$2"
         shift 2
         ;;
-    --tiling_key=*)
+    --kernel_template_input=*)
         OPTARG=$1
-        TILING_KEY=${OPTARG#*=}
+        KERNEL_TEMPLATE_INPUT=${OPTARG#*=}
         shift
         ;;
     --op_debug_config)
@@ -1327,8 +1327,8 @@ if [ -n "${EXAMPLE}" ];then
     BUILD=ops_test_example
 fi
 
-if [ -n "${TILING_KEY}" ];then
-    CUSTOM_OPTION="${CUSTOM_OPTION} -DTILING_KEY=${TILING_KEY}"
+if [ -n "${KERNEL_TEMPLATE_INPUT}" ];then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DKERNEL_TEMPLATE_INPUT=${KERNEL_TEMPLATE_INPUT}"
 fi
 
 if [ -n "${OP_DEBUG_CONFIG}" ];then
