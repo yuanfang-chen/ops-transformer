@@ -130,7 +130,7 @@ private:
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
 
-    MhcPostTilingData* tilingData_ = context_->GetTilingData<MhcPostTilingData>();;
+    MhcPostTilingData* tilingData_ = context_->GetTilingData<MhcPostTilingData>();
 };
 
 ge::graphStatus MhcPostTilingBase::GetPlatformInfo()
