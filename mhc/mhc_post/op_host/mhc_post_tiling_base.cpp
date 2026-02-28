@@ -26,7 +26,7 @@ static ge::graphStatus TilingForMhcPost(gert::TilingContext *context)
     return Ops::Transformer::OpTiling::TilingRegistry::GetInstance().DoTilingImpl(context);
 }
 
-static ge::graphStatus TilingPrepareForMhcPost(gert::TilingParseContext *context)
+static ge::graphStatus TilingPrepareForMhcPost([[maybe_unused]] gert::TilingParseContext *context)
 {
     return ge::GRAPH_SUCCESS;
 }

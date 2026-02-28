@@ -21,6 +21,7 @@
 #include "tiling_base/tiling_base.h"
 #include "platform/platform_info.h"
 #include "log/log.h"
+#include "util/math_util.h"
 #include "mhc_post_tiling.h"
 
 namespace optiling {
@@ -32,6 +33,10 @@ constexpr uint64_t TILING_KEY_GENERALIZED = 0;
 // Memory alignment constants (in elements)
 constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
 constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
+constexpr uint32_t ALIGN_SIZE_512B = 256;     // 256 elements = 512 bytes for bf16/fp16
+
+constexpr uint32_t SIZE_OF_16BIT = 2;
+constexpr uint32_t SIZE_OF_32BIT = 4;
 
 // Double Buffer configuration
 constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;    // Double Buffer depth for data tiles
@@ -41,12 +46,6 @@ constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;    // Single Buffer depth for weight
 constexpr uint32_t MAX_TOTAL_ITEMS = 512 * 1024;  // BS max 512K
 constexpr uint32_t MIN_D = 384;                    // D min = 192 * 2
 constexpr uint32_t MAX_D = 24576;                  // D max = 192 * 128
-
-// Ceiling division
-inline int64_t CeilDiv(int64_t a, int64_t b)
-{
-    return (b == 0) ? 0 : (a + b - 1) / b;
-}
 
 // Align value up to the nearest multiple of align
 inline uint32_t AlignUp(uint32_t value, uint32_t align)
@@ -107,11 +106,9 @@ private:
     ge::graphStatus CheckShapeAllPositive();
     ge::graphStatus CheckDataType();
     ge::graphStatus CheckShapeConsistency();
-    ge::graphStatus CheckSpecConstraints();
     ge::graphStatus CheckParam();
 
     void ComputeTiling();
-
     const gert::Shape *xShape_ = nullptr;
 
     uint32_t B_ = 0;
@@ -119,11 +116,16 @@ private:
     uint32_t n_ = 0;
     uint32_t D_ = 0;
     uint32_t totalItems_ = 0;
-    uint32_t usedCores_ = 0;
-    uint32_t itemsPerCore_ = 0;
-    uint32_t remainderItems_ = 0;
-    uint32_t tileD_ = 0;
-    uint32_t nTilesD_ = 0;
+    int64_t usedCoreNum_ = 0;
+    int64_t normalCoreProcessNum_ = 0;
+    int64_t tailCoreProcessNum_ = 0;
+    int64_t bsInner_ = 0;
+    int64_t bsOuter_ = 0;
+    int64_t bsTail_ = 0;
+    int64_t dInner_ = 0;
+    int64_t dOuter_ = 0;
+    int64_t dTail_ = 0;
+    int64_t isNotFullCore_ = 0;
 
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
@@ -438,29 +440,6 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus MhcPostTilingBase::CheckSpecConstraints()
-{
-    // 1. Check totalItems (BS or T) <= 512K
-    OP_CHECK_IF(totalItems_ == 0,
-                OP_LOGE(context_, "totalItems cannot be zero"),
-                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(totalItems_ > MAX_TOTAL_ITEMS,
-                OP_LOGE(context_, "totalItems (%u) exceeds max allowed (%u)", totalItems_, MAX_TOTAL_ITEMS),
-                return ge::GRAPH_FAILED);
-
-    // 2. Check n in {4, 6, 8}
-    OP_CHECK_IF(n_ != 4 && n_ != 6 && n_ != 8,
-                OP_LOGE(context_, "n (%u) must be 4, 6, or 8", n_),
-                return ge::GRAPH_FAILED);
-
-    // 3. Check D in [384, 24576]
-    OP_CHECK_IF(D_ < MIN_D || D_ > MAX_D,
-                OP_LOGE(context_, "D (%u) must be in range [%u, %u]", D_, MIN_D, MAX_D),
-                return ge::GRAPH_FAILED);
-
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus MhcPostTilingBase::CheckParam()
 {
     OP_CHECK_IF(CheckNullptr() != ge::GRAPH_SUCCESS,
@@ -475,10 +454,6 @@ ge::graphStatus MhcPostTilingBase::CheckParam()
                 OP_LOGE(context_, "CheckShapeConsistency failed"),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(CheckSpecConstraints() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_, "CheckSpecConstraints failed"),
-                return ge::GRAPH_FAILED);
-
     OP_CHECK_IF(CheckShapeAllPositive() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_, "CheckShapeAllPositive failed"),
                 return ge::GRAPH_FAILED);
@@ -490,94 +465,56 @@ void MhcPostTilingBase::ComputeTiling()
 {
     // Core Partitioning - handle remainder properly
     uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.numBlocks);
-    usedCores_ = (totalItems_ < coreNum) ? totalItems_ : coreNum;
-    itemsPerCore_ = totalItems_ / usedCores_;
-    remainderItems_ = totalItems_ % usedCores_;
 
-    // Dynamic Tiling Strategy - maximize tileD based on UB size
-    // UB usage formula (generalized for any n):
-    // TQue (bf16): (2n+2) * tileD * 2 bytes
-    //   - hOutTile: tileD, xTile: n*tileD
-    //   - outputTile: n*tileD
-    // TQue (f32): (2n+2) * sizeof(float) bytes (small, n-related buffers)
-    //   - hPost: n, hRes: n*n
-    // TBuf (f32): (2n+4) * tileD * 4 bytes
-    //   - hOutF32: tileD, xF32: n*tileD
-    //   - outF32: tileD, temp: tileD
-    // Simplified formula: bytesPerTileD = (2n+2)*2 + (2n+4)*4 = 4n+4 + 8n+16 = 12n+20
-    // More accurate: include n-related small buffers separately
+    bsOuter_ = (totalItems_ < coreNum) ? totalItems_ : coreNum; // useCore
+    bsInner_ = totalItems_ / bsOuter_;  // perCoreNum
+    bsTail_ = totalItems_ - (bsOuter_ - 1) * bsInner_;
+    isNotFullCore_ = (bsOuter_ < coreNum) ? 1 : 0;
+ 
     const uint32_t UB_SIZE = static_cast<uint32_t>(aicoreParams_.ubSize);
 
-    // Calculate aligned n and n*n for float32 vector operations
-    uint32_t alignedN = AlignUp(n_, FLOAT32_ALIGN_SIZE);
-    uint32_t alignedNN = AlignUp(n_ * n_, FLOAT32_ALIGN_SIZE);
-
     // Calculate bytes per tileD element based on actual n
-    // TQue bf16: (2n+2) * 2 bytes (hOut:1, x:n, output:n)
-    // TBuf f32:  (2n+4) * 4 bytes (hOutF32:1, xF32:n, outF32:1, temp:1)
-    // Small buffers (fixed, not per-tileD):
-    //   - TQue f32: (alignedN + alignedNN) * 4 for hPost, hRes
-    uint32_t bytesPerTileD = (2 * n_ + 2) * 2 + (2 * n_ + 4) * 4;  // = 12n + 20
-    uint32_t smallBufferBytes = (alignedN + alignedNN) * 4;  // aligned sizes
+    // TQue bf16: 3 * 2 bytes (hOut:1, x:1, output:1)
+    // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
+    uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
+    uint32_t maxTileD = UB_SIZE / bytesPerTileD;
 
-    // Reserve space for small buffers, then calculate max tileD
-    uint32_t availableUB = UB_SIZE - smallBufferBytes;
-    uint32_t maxTileD = availableUB / bytesPerTileD;
-    maxTileD = AlignDown(maxTileD, BF16_FP16_ALIGN_SIZE);  // Align to 16 elements
-
-    // Align D to BF16_FP16_ALIGN_SIZE for proper memory access
-    uint32_t alignedD = AlignUp(D_, BF16_FP16_ALIGN_SIZE);
-
-    // Determine optimal tileD:
-    if (alignedD <= maxTileD) {
-        tileD_ = alignedD;
-        nTilesD_ = 1;
+    if (isNotFullCore_ == 1) {
+        // dInner <= (bsOuter * D_) / coreNum
+        int64_t fullCoreTileD = (bsOuter_ * D_) / coreNum;
+        fullCoreTileD = (fullCoreTileD < maxTileD) ? fullCoreTileD : maxTileD;
+        dInner_ = AlignDown(fullCoreTileD, ALIGN_SIZE_512B);
+        dInner_ = (dInner_ == 0) ? ALIGN_SIZE_512B : dInner_;
     } else {
-        // Find largest aligned value that fits in UB
-        tileD_ = maxTileD;
-        // Try to find a divisor of alignedD for even splitting
-        while (tileD_ >= BF16_FP16_ALIGN_SIZE) {
-            if (alignedD % tileD_ == 0) {
-                break;  // 找到可以整除的tileD
-            }
-            tileD_ -= BF16_FP16_ALIGN_SIZE;
-        }
-        // Fallback: if no exact divisor found, use maxTileD
-        if (tileD_ < BF16_FP16_ALIGN_SIZE) {
-            tileD_ = maxTileD;
-        }
-        nTilesD_ = CeilDiv(alignedD, tileD_);
+        dInner_ = ALIGN_SIZE_512B;
+    }
+    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
+    dTail_ = D_ - (dOuter_ - 1) * dInner_;
+
+    if (isNotFullCore_ == 1) {
+        int64_t totalCount = bsOuter_ * dOuter_;
+        usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
+        normalCoreProcessNum_ = totalCount / usedCoreNum_;
+        tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
+        isNotFullCore_ = 1;
+    } else {
+        usedCoreNum_ = bsOuter_;
+        normalCoreProcessNum_ = dOuter_;
+        tailCoreProcessNum_ = dTail_;
+        isNotFullCore_ = 0;
     }
 
-    // Calculate last tile size
-    uint32_t lastTileD = alignedD - (nTilesD_ - 1) * tileD_;
-    // Ensure lastTileD doesn't exceed tileD
-    if (lastTileD > tileD_) {
-        lastTileD = tileD_;
-    }
-
-    // Set tiling data
-    tilingData_->totalItems = totalItems_;
-    tilingData_->itemsPerCore = itemsPerCore_;
-    tilingData_->remainderItems = remainderItems_;
-    tilingData_->usedCores = usedCores_;
-    tilingData_->S = S_;
     tilingData_->n = n_;
     tilingData_->D = D_;
-    tilingData_->tileD = tileD_;
-    tilingData_->nTilesD = nTilesD_;
-    tilingData_->alignedD = alignedD;
-    tilingData_->lastTileD = lastTileD;
-    tilingData_->alignedN = alignedN;
-    tilingData_->alignedNN = alignedNN;
-
-    OP_LOGI(context_,
-        "Tiling: n=%u, D=%u, alignedD=%u, tileD=%u, lastTileD=%u, nTilesD=%u",
-        n_, D_, alignedD, tileD_, lastTileD, nTilesD_);
-    OP_LOGI(context_, "Tiling: alignedN=%u, alignedNN=%u", alignedN, alignedNN);
-    OP_LOGI(context_,
-        "Tiling: usedCores=%u, itemsPerCore=%u, remainderItems=%u, UB=%u, bytesPerTileD=%u",
-        usedCores_, itemsPerCore_, remainderItems_, UB_SIZE, bytesPerTileD);
+    tilingData_->usedCoreNum = usedCoreNum_;
+    tilingData_->normalCoreProcessNum = normalCoreProcessNum_;
+    tilingData_->tailCoreProcessNum = tailCoreProcessNum_;
+    tilingData_->bsInner = bsInner_;
+    tilingData_->bsOuter = bsOuter_;
+    tilingData_->bsTail = bsTail_;
+    tilingData_->dInner = dInner_;
+    tilingData_->dOuter = dOuter_;
+    tilingData_->dTail = dTail_;
 }
 
 ge::graphStatus MhcPostTilingBase::DoOpTiling()
@@ -616,7 +553,7 @@ ge::graphStatus MhcPostTilingBase::GetWorkspaceSize()
 
 ge::graphStatus MhcPostTilingBase::PostTiling()
 {
-    context_->SetBlockDim(usedCores_);
+    context_->SetBlockDim(usedCoreNum_);
     size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
     currentWorkspace[0] = workspaceSize_;
     return ge::GRAPH_SUCCESS;
@@ -624,18 +561,10 @@ ge::graphStatus MhcPostTilingBase::PostTiling()
 
 uint64_t MhcPostTilingBase::GetTilingKey() const
 {
-    // Calculate fast path flags
-    // For n: n=4 (16 bytes) and n=8 (32 bytes) are 8-aligned for float32
-    // n=6 (24 bytes) is not 8-aligned
-    uint16_t isNAligned = (n_ % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
-    // For n*n: 16 (n=4) and 64 (n=8) are 8-aligned, 36 (n=6) is not
-    uint16_t isNNAligned = ((n_ * n_) % FLOAT32_ALIGN_SIZE == 0) ? 1 : 0;
-    // D is aligned if D % 16 == 0 and single tile
-    uint16_t isDAligned = ((D_ % BF16_FP16_ALIGN_SIZE == 0) && (nTilesD_ == 1)) ? 1 : 0;
-    OP_LOGI(context_,
-        "Tiling:isNAligned=%u, isNNAligned=%u, isDAligned=%u", isNAligned, isNNAligned, isDAligned);
+    uint16_t usePermanentX = 0;
+    OP_LOGI(context_, "Tiling: usePermanentX=%u", usePermanentX);
 
-    return GET_TPL_TILING_KEY(isNAligned, isNNAligned, isDAligned);
+    return GET_TPL_TILING_KEY(usePermanentX);
 }
 
 void MhcPostTilingBase::Reset()
@@ -647,11 +576,16 @@ void MhcPostTilingBase::Reset()
     n_ = 0;
     D_ = 0;
     totalItems_ = 0;
-    usedCores_ = 0;
-    itemsPerCore_ = 0;
-    remainderItems_ = 0;
-    tileD_ = 0;
-    nTilesD_ = 0;
+    usedCoreNum_ = 0;
+    normalCoreProcessNum_ = 0;
+    tailCoreProcessNum_ = 0;
+    bsInner_ = 0;
+    bsOuter_ = 0;
+    bsTail_ = 0;
+    dInner_ = 0;
+    dOuter_ = 0;
+    dTail_ = 0;
+    isNotFullCore_ = 0;
 }
 
 REGISTER_OPS_TILING_TEMPLATE(MhcPost, MhcPostTilingBase, 2000);
