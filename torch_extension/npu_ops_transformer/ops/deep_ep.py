@@ -12,9 +12,9 @@ import torch_npu
 from torch.library import impl
 from npu_ops_transformer.op_builder.builder import OpBuilder
 from npu_ops_transformer.op_builder.builder import AS_LIBRARY
-from .moe_distribute_combine_v2 import npu_moe_distribute_combine_v2
-from .moe_distribute_dispatch_v2 import npu_moe_distribute_dispatch_v2
-
+from .moe_distribute_combine_v3 import npu_moe_distribute_combine_v3
+from .moe_distribute_dispatch_v3 import npu_moe_distribute_dispatch_v3
+from .update_context import update_context
 
 class MoeDistributeBuffer:
     def __init__(self, group, ccl_buffer_size: int = 0, comm_alg: int = 0):
@@ -23,6 +23,10 @@ class MoeDistributeBuffer:
         self.world_size = torch.distributed.get_world_size(group)
         self.group_name = group._get_backend(torch.device("npu")).get_hccl_comm_name(self.rank_id, init_comm=False)
         self.mc2_ccl_buffer_size = ccl_buffer_size
+        context_struct_size = (2 + 1024) * 2
+        context_tensor_size = ((context_struct_size * 8) + 3) // 4
+        self.mc2_context = torch.zeros(context_tensor_size, type=torch.int32).npu()
+        update_context(self.group_ep, self.world_size, self.mc2_context)
 
     def get_low_latency_ccl_buffer_size_hint(self, num_max_dispatch_tokens_per_rank: int, hidden: int,
                                              num_moe_expert: int, num_shared_expert: int = 0,
@@ -30,14 +34,26 @@ class MoeDistributeBuffer:
         total_buffsize = self.world_size
         return 0
 
-
+    def update_ctx(self, new_group) -> bool:
+        self.group = new_group
+        self.rank_id = torch.distributed.get_rank(new_group)
+        self.group_name = new_group._get_backend(torch.device("npu")).get_hccl_comm_name(self.rank_id, init_comm=False)
+        new_world_size = torch.distributed.get_world_size(new_group)
+        torch._check(new_world_size != self.world_size,
+                    lambda:(f"New world size should be the same as orginal world size,"
+                            f"but got {new_world_size=}, orginial={self.world_size}."
+                            f"{ops_error(ErrCode.VALUE)}."),)
+        return update_context(self.group_name, self.world_size, self.mc2_context)
+        
     def npu_low_latency_dispatch(self, x, topk_idx, num_experts: int, *,
                              quant_mode=0, comm_alg="", x_smooth_scale=None,
                              x_active_mask=None, topk_weights=None, zero_expert_num=0, copy_expert_num=0,
                              const_expert_num=0, elastic_info=None, expert_shard_type=0, shared_expert_num=1,
                              shared_expert_rank_num=0, expert_token_nums_type=1, num_max_dispatch_tokens_per_rank=0):
         (expand_x, dynamic_scales, expand_idx, expert_token_nums, ep_recv_counts, tp_recv_counts, expand_scales) \
-            = torch.ops.npu_ops_transformer.npu_moe_distribute_dispatch_v2(x=x,
+            = torch.ops.npu_ops_transformer.npu_moe_distribute_dispatch_v3(
+                                             mc2_context = mc2_context,
+                                             x=x,
                                              expert_ids=topk_idx,
                                              group_ep=self.group_name,
                                              ep_world_size=self.world_size,
@@ -66,7 +82,9 @@ class MoeDistributeBuffer:
                             const_expert_alpha_2=None, const_expert_v=None, zero_expert_num=0, copy_expert_num=0,
                             const_expert_num=0, expert_shared_type=0, shared_expert_num=1, shared_expert_rank_num=0,
                             num_max_dispatch_tokens_per_rank=0):
-        return torch.ops.npu_ops_transformer.npu_moe_distribute_combine_v2(expand_x=x,
+        return torch.ops.npu_ops_transformer.npu_moe_distribute_combine_v3(
+                                             mc2_context = mc2_context,
+                                             expand_x=x,
                                              expert_ids=topk_idx,
                                              assist_info_for_combine=assist_info_for_combine,
                                              ep_send_counts=ep_send_counts,
