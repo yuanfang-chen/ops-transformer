@@ -722,15 +722,33 @@ public:
         uint32_t rowOffset)
     {
         // *** ll = rowsum(ls32)
-        if (columnNum == 1024U) {
-            RowsumSPECTILE1024(
-                computeUbTensor,
-                llUbTensor[rowOffset],
-                tvUbTensor,
-                rowNumCurLoopRound,
-                columnNum,
-                columnNumRound);
-        } else if (columnNum == 512U) {
+        // if (columnNum == 1024U) {
+        //     RowsumSPECTILE1024(
+        //         computeUbTensor,
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else if (columnNum == 512U) {
+        //     RowsumSPECTILE512(
+        //         computeUbTensor,
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // } else {
+        //     RowsumTAILTILE(
+        //         computeUbTensor,
+        //         llUbTensor[rowOffset],
+        //         tvUbTensor,
+        //         rowNumCurLoopRound,
+        //         columnNum,
+        //         columnNumRound);
+        // }
+
+        if (columnNum == 512U) {
             RowsumSPECTILE512(
                 computeUbTensor,
                 llUbTensor[rowOffset],
