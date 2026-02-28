@@ -654,6 +654,7 @@ __aicore__ inline void MoeDistributeCombineA2<TemplateMC2TypeA2Func>::LocalWindo
     for (uint32_t ti = 0; ti < tileNum; ++ti) {
         uint32_t tileEleCount = (ti == tileNum - 1) ? lastTileEleCount : maxTokenNumPerTile;
         uint32_t tileStart = tokenTaskInfo_.startTaskId + ti * maxTokenNumPerTile;
+        SyncFunc<HardEvent::S_MTE2>();
         DataCopyPad(topkWeightsLocal_, topkWeightsGlobal_[tileStart * axisK_],
                     {1, static_cast<uint32_t>(tileEleCount * axisK_ * sizeof(float)), 0, 0, 0}, {false, 0, 0, 0});
         DataCopyPad(expandIdxLocal_, expandIdxGlobal_[tileStart * axisK_],
