@@ -175,7 +175,7 @@ ge::graphStatus MatmulReduceScatterTilingBase::GetWorkspaceSize()
         workspaces == nullptr, VECTOR_INNER_ERR_REPORT_TILING(opName_, "get workspace failed"),
         return ge::GRAPH_FAILED);
 
-    workspaceSize_ = libApiWorkSpaceSize_ + mmResultLen_;
+    workspaceSize_ = libApiWorkSpaceSize_ + mmResultLen_ + mmResultLen_; // 第一个 M*N 为 senBuf, 第二个 M*N 为 recvBuf
     workspaces[0] = workspaceSize_;
     OP_LOGD(opName_, "workspaces[0] size %ld.", workspaces[0]);
 

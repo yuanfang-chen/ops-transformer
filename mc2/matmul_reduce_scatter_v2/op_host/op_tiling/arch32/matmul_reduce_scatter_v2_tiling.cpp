@@ -92,11 +92,12 @@ ge::graphStatus MatmulReduceScatterV2Tiling::CheckInput()
 
 ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm()
 {
-    const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
+    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+    const uint32_t opType = static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL);
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
-    const std::string rsConfig = "ReduceScatter=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 0,
+    const std::string rsConfig = "AlltoAll=level0:fullmesh";
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, reduceType,
                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2InitTiling) != 0,
