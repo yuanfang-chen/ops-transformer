@@ -1,0 +1,8 @@
+nodes:
+  - backend: pyaclnn
+    task: ['accuracy']
+    devices: [0]
+  - backend: cpu
+    name: "perf_cpu"
+    task: ['accuracy']
+    is_compare: 'False'
