@@ -364,9 +364,9 @@ public:
                     dataBlockStride,
                     dataBlockStride,
                     dataBlockStride,
-                    repeatStride,
-                    repeatStride,
-                    repeatStride));
+                    blockNumPerRow,
+                    blockNumPerRow,
+                    blockNumPerRow));
         }
         AscendC::PipeBarrier<PIPE_V>();
     }
