@@ -287,21 +287,21 @@ public:
                     AscendC::Ln<half, false>(
                         lse16_ubuf_tensor,
                         glUbTensor,
-                        (uint64_t)0, NpuArch::Detail::Alignment::CeilDiv(totalRowNum, HALF_VECTOR_SIZE),
+                        (uint64_t)0, CeilDiv(totalRowNum, HALF_VECTOR_SIZE),
                         AscendC::UnaryRepeatParams(1, 1, 8, 8));
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Add<half, false>(
                         lse16_ubuf_tensor,
                         lse16_ubuf_tensor,
                         gmUbTensor,
-                        (uint64_t)0, NpuArch::Detail::Alignment::CeilDiv(totalRowNum, HALF_VECTOR_SIZE),
+                        (uint64_t)0, CeilDiv(totalRowNum, HALF_VECTOR_SIZE),
                         AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Cast<float, half, false>(
                         lse32_ubuf_tensor,
                         lse16_ubuf_tensor,
                         AscendC::RoundMode::CAST_NONE,
-                        (uint64_t)0, NpuArch::Detail::Alignment::CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
+                        (uint64_t)0, CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::UnaryRepeatParams(1, 1, 8, 4));
                     AscendC::PipeBarrier<PIPE_V>();
 
@@ -309,7 +309,7 @@ public:
                     AscendC::Brcb(
                         tvUbTensor32.ReinterpretCast<uint32_t>(),
                         lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
-                        NpuArch::Detail::Alignment::CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
+                        CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
                         AscendC::BrcbRepeatParams(1, 8));
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
