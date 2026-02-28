@@ -161,7 +161,7 @@ aclnnStatus aclnnSparseFlashAttention(
       <td>
           <ul>
                 <li>layout_query为BSND时，shape为(B, Q_S, KV_N, sparse_size)。</li>
-                <li>layout_query为TND时，shape需要传入(Q_T, KV_N, sparse_size)。</li>
+                <li>layout_query为TND时，shape为(Q_T, KV_N, sparse_size)。</li>
           </ul>
       </td>
       <td>x</td>
