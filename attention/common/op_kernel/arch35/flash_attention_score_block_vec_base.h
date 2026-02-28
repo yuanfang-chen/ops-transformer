@@ -118,7 +118,7 @@ public:
     quantGmType deScaleVGm;
     using vec2ResGmType = typename std::conditional<splitD, GlobalTensor<float>, int8_t>::type;
     vec2ResGmType vec2ResGm[3];
-    GlobalTensor<bfloat16_t> sinkGm;
+    GlobalTensor<INPUT_T> sinkGm;
 
     /* =====================V侧UB变量==================== */
     TBuf<> commonTBuf; // common的复用空间
@@ -232,7 +232,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::InitCommonGlobalBuffe
             bmm2SubBlockOffset = constInfo.subBlockIdx * mm2ResultSize >> 1; // s1BaseSize一定可以被2整除
         }
         if (learnableSink != nullptr) {
-            sinkGm.SetGlobalBuffer((__gm__ bfloat16_t *)learnableSink);
+            sinkGm.SetGlobalBuffer((__gm__ INPUT_T *)learnableSink);
             constInfo.learnableSinkFlag = true;
         }
     }
