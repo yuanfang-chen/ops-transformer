@@ -139,10 +139,18 @@ public:
         .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
 
+<<<<<<< HEAD
     this->Attr("ep_world_size").AttrType(REQUIRED).Int();
     this->Attr("ep_rank_id").AttrType(REQUIRED).Int();
     this->Attr("moe_expert_num").AttrType(REQUIRED).Int();
     this->Attr("ccl_buffer_size").AttrType(REQUIRED).Int();
+=======
+    this->Attr("group_ep").AttrType(REQUIRED).String();
+    this->Attr("ep_world_size").AttrType(REQUIRED).Int();
+    this->Attr("ep_rank_id").AttrType(REQUIRED).Int();
+    this->Attr("moe_expert_num").AttrType(REQUIRED).Int();
+    this->Attr("group_tp").AttrType(OPTIONAL).String("");
+>>>>>>> 9c822fb7 (op kernel of mc2Context)
     this->Attr("tp_world_size").AttrType(OPTIONAL).Int(0);
     this->Attr("tp_rank_id").AttrType(OPTIONAL).Int(0);
     this->Attr("expert_shard_type").AttrType(OPTIONAL).Int(0);
