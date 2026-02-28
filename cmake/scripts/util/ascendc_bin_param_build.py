@@ -400,7 +400,7 @@ grep -q \"None of the given tiling keys are in the supported list\"; then\n"
         if self.tiling_keys:
             tiling_keys_list = sorted(list(self.tiling_keys))
             tiling_key_str = ','.join([str(_key) for _key in tiling_keys_list])
-            build_cmd_var += f' --tiling_key="{tiling_key_str}"'
+            build_cmd_var += f' --kernel_template_input="{tiling_key_str}"'
             enable_tiling_keys = True
 
         if self.op_debug_config:
@@ -491,7 +491,7 @@ def parse_op_debug_confg(opc_config_file: str, soc: str) -> Dict:
                 continue
 
         for options in opc_configs[2:]:
-            if "--tiling_key" in options:
+            if "--kernel_template_input" in options:
                 format_tiling_keys = get_tiling_keys(options.split('=')[1])
                 if format_tiling_keys:
                     tiling_key_info[op_type].update(format_tiling_keys)

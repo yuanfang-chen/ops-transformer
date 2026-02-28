@@ -49,7 +49,7 @@ def gen_compile_options(compile_options_file: str, op_type: str, \
             opc_debug_config.append(opts)
         elif opts.startswith("--op_super_kernel_options"):
             opc_debug_config.append(opts)
-        elif "--tiling_key" in opts:
+        elif "--kernel_template_input" in opts:
             keys = opts.strip().split('=')[1].split(',')
             keys_str = ";".join([key for key in keys])
             opc_tiling_keys = keys_str
@@ -64,7 +64,7 @@ def gen_compile_options(compile_options_file: str, op_type: str, \
     if len(opc_tiling_keys) > 0:
         if opc_config_str != "":
             opc_config_str += "@"
-        opc_config_str += "--tiling_key=" + opc_tiling_keys
+        opc_config_str += "--kernel_template_input=" + opc_tiling_keys
 
     if opc_config_str != "":
         write_options_to_file(opc_config_file, opc_config_str, op_type, compute_unit, "@") 
