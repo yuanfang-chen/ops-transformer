@@ -1,0 +1,5 @@
+n file included from /home/h00808442/ops-transformer_personal2026/build/binary/ascend910b/src/rain_fusion_attention/op_kernel/rain_fusion_attention_interface.cpp:16:
+/home/h00808442/ops-transformer_personal2026/build/binary/ascend910b/src/rain_fusion_attention/op_kernel/rain_fusion_attention_kernel.h:527:25: error: no matching function for call to object of type
+      'NpuArch::Epilogue::Block::BlockEpilogue<NpuArch::Epilogue::EpilogueAtlasA2RescaleO<NpuArch::Epilogue::LseMode::NONE, half>, NpuArch::Gemm::GemmType<half, NpuArch::layout::RowMajor, AscendC::TPosition::GM>, NpuArch::Gemm::GemmType<half,
+      NpuArch::layout::RowMajor, AscendC::TPosition::GM>, NpuArch::Gemm::GemmType<half, NpuArch::layout::RowMajor, AscendC::TPosition::GM>, NpuArch::Gemm::GemmType<float, NpuArch::layout::RowMajor, AscendC::TPosition::GM>>'
+                        epilogueRescaleO(
