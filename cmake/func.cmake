@@ -198,11 +198,12 @@ function(add_compile_cmd_target)
 
     if(ADD_OPS_COMPILE_OPTION_V2)
         set(OP_DEBUG_CONFIG_OPTION --opc-config-file ${ASCEND_CUSTOM_OPC_OPTIONS})
+        set(OP_TILING_KEY_OPTION --kernel-template-input ${KERNEL_TEMPLATE_INPUT})
     else()
         if(OP_DEBUG_CONFIG)
             set(OP_DEBUG_CONFIG_OPTION --op-debug-config ${OP_DEBUG_CONFIG})
         endif()
-        set(OP_TILING_KEY_OPTION --tiling-keys ${ASCEND_CUSTOM_TILING_KEYS})
+        set(OP_TILING_KEY_OPTION --kernel-template-input ${ASCEND_CUSTOM_TILING_KEYS})
     endif()
 
     set(_OUT_DIR           ${ASCEND_BINARY_OUT_DIR}/${CMD_COMPUTE_UNIT})
@@ -318,7 +319,7 @@ function(add_ops_tiling_keys)
         list(JOIN OP_COMPILE_TILING_KEYS "," STRING_TILING_KEYS)
         add_ops_compile_options(
                 OP_NAME ${OP_COMPILE_OP_NAME}
-                OPTIONS --tiling_key=${STRING_TILING_KEYS}
+                OPTIONS --kernel-template-input=${STRING_TILING_KEYS}
         )
     else()
         file(APPEND ${ASCEND_CUSTOM_TILING_KEYS}
