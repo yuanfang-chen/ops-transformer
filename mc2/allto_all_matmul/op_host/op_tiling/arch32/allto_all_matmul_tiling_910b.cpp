@@ -1189,6 +1189,10 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingDat
         AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
     }
+    if (info.rankSize == 4 && quantType == TILINGKEY_TPL_A16W8) {
+        AlltoAllMatmulNPU910BFourRankA16W8Tiling(cocTilingData, info);
+        return ge::GRAPH_SUCCESS;
+    }
     if (info.rankSize == 8 && quantType == TILINGKEY_TPL_A16W8) {
         AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
         return ge::GRAPH_SUCCESS;
