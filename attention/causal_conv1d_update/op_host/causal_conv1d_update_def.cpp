@@ -30,11 +30,6 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("bias")
-            .ParamType(OPTIONAL)
-            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
-            .FormatList({ge::FORMAT_ND})
-            .AutoContiguous();
         this->Input("convStates")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
@@ -53,6 +48,11 @@ public:
         this->Input("hasInitialState")
             .ParamType((REQUIRED))
             .DataTypeList({ge::DT_INT32})
+            .FormatList({ge::FORMAT_ND})
+            .AutoContiguous();
+        this->Input("bias")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("numAcceptedTokens")
