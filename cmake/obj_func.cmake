@@ -230,12 +230,18 @@ macro(add_modules_sources_with_soc)
     file(GLOB_RECURSE files ${SOURCE_DIR}/${ARCH}/*_tiling*.cpp)
     list(APPEND SUB_OPTILING_SRC ${files})
   endforeach()
+  message(STATUS "SOURCE_DIR:${SOURCE_DIR}")
+  message(STATUS "CMAKE_CURRENT_SOURCE_DIR:${CMAKE_CURRENT_SOURCE_DIR}")
   file(GLOB OPTILING_SRCS
       ${SOURCE_DIR}/*fallback*.cpp
       ${SOURCE_DIR}/*_tiling*.cpp
       ${SOURCE_DIR}/../op_graph/fallback_*.cpp
       ${SOURCE_DIR}/../graph_plugin/fallback_*.cpp)
   if (OPTILING_SRCS OR SUB_OPTILING_SRC)
+    message(STATUS "===================")
+ 	  message(STATUS "OPTILING_SRCS:${OPTILING_SRCS}")
+ 	  message(STATUS "SUB_OPTILING_SRC:${SUB_OPTILING_SRC}")
+ 	  message(STATUS "===================")
     # tiling
     add_tiling_modules()
     target_sources(${OPHOST_NAME}_tiling_obj PRIVATE ${OPTILING_SRCS} ${SUB_OPTILING_SRC})
