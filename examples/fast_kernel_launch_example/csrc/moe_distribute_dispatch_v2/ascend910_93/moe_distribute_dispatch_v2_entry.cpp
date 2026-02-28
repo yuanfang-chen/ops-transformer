@@ -1,0 +1,225 @@
+/**
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+/*!
+ * \file moe_distribute_dispatch_v2.cpp
+ * \brief
+ */
+#if ASC_DEVKIT_MAJOR >= 9
+#include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
+#include "op_kernel/moe_distribute_dispatch_v2.h"
+#include "op_kernel/moe_distribute_dispatch_v2_tiling.h"
+
+// #if defined(__DAV_C310__)
+// using namespace MoeDistributeDispatchA5Impl;
+// #else
+// using namespace MoeDistributeDispatchA2Impl;
+// #endif
+
+using namespace MoeDistributeDispatchV2Impl;
+using namespace Mc2Kernel;
+// using namespace MoeDistributeDispatchV2FullMeshImpl;
+// using namespace Mc2Tiling;
+using namespace AscendC;
+
+/*
+* A3 tilingkey说明
+* 5位的十进制数
+* 第1位（个位）：quantMode:
+*     0: 不量化, 1: 静态量化, 2: 动态量化
+* 第2位（十位）：是否有smoothScale:
+*     0: 无, 1: 有
+* 第3位（百位）：是否走fullmesh_v2模板:
+*     0: 不做, 1: 做
+* 第4位（千位）：无实际含义
+*/
+
+template<typename XType, typename ExpandxType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
+__attribute__((always_inline)) __aicore__ __inline__ void moe_distribute_dispatch_v2(
+    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
+    GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
+    GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
+    GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR mc2Context, GM_ADDR tilingData)
+{
+// REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+
+    TPipe pipe;
+    MoeDistributeDispatchV2<XType, ExpandxType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> op;
+    op.InitWithMc2Context(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut, epSendCountsOut, 
+        tpSendCountsOut, workspaceGM, mc2Context, tilingData, &pipe);
+        
+    op.Process();
+    return;
+}
+
+template<typename XType, typename ExpandxType, int32_t QuantMode, bool IsSmoothScaleExist, bool IsNeedAllgather>
+__attribute__((always_inline)) __aicore__ __inline__ void moe_distribute_dispatch_v2_full_mesh(
+    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
+    GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
+    GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
+    GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR mc2Context, GM_ADDR tilingData)
+{
+// REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
+
+    TPipe pipe;
+    MoeDistributeDispatchV2FullMesh<XType, ExpandxType, QuantMode, IsSmoothScaleExist, IsNeedAllgather> op;
+    op.InitWithMc2Context(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut, epSendCountsOut, 
+        tpSendCountsOut, workspaceGM, mc2Context, tilingData, &pipe);
+        
+    op.Process();
+    return;
+}
+
+
+extern "C" __global__ __aicore__ void moe_distribute_dispatch_v2_Generic(
+    int32_t tilingKey,
+    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR expertScales, 
+    GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, 
+    GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
+    GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR mc2Context, GM_ADDR tilingData)
+{
+    // 根据不同的数据类型调用不同的模板
+    switch (tilingKey) {
+
+    case 10000:
+        moe_distribute_dispatch_v2<float16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10002:
+        moe_distribute_dispatch_v2<float16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10010:
+        moe_distribute_dispatch_v2<bfloat16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10012:
+        moe_distribute_dispatch_v2<bfloat16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10100:
+        moe_distribute_dispatch_v2<float16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10102:
+        moe_distribute_dispatch_v2<float16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10110:
+        moe_distribute_dispatch_v2<bfloat16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 10112:
+        moe_distribute_dispatch_v2<bfloat16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    /* ---------- FullMesh ---------- */
+
+    case 11000:
+        moe_distribute_dispatch_v2_full_mesh<float16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11002:
+        moe_distribute_dispatch_v2_full_mesh<float16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11010:
+        moe_distribute_dispatch_v2_full_mesh<bfloat16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11012:
+        moe_distribute_dispatch_v2_full_mesh<bfloat16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, false, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11100:
+        moe_distribute_dispatch_v2_full_mesh<float16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11102:
+        moe_distribute_dispatch_v2_full_mesh<float16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11110:
+        moe_distribute_dispatch_v2_full_mesh<bfloat16_t, float16_t, MoeDistributeDispatchV2Impl::UNQUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    case 11112:
+        moe_distribute_dispatch_v2_full_mesh<bfloat16_t, int8_t, MoeDistributeDispatchV2Impl::PERTOKEN_DYNAMIC_QUANT, true, false>(
+            x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo,
+            expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+            epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData);
+        break;
+
+    default:
+        AscendC::PRINTF("moe_distribute_dispatch_v2 Error: invalid tilingKey = %d\n", tilingKey);
+        return;
+    }
+}
+
+
+// <<<>>>调用函数
+void moe_distribute_dispatch_v2_demo(int32_t tilingKey, uint32_t blockDim, void* stream, GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales,
+    GM_ADDR xActiveMask, GM_ADDR expertScales, GM_ADDR elasticInfo, GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR assistInfoOut,
+    GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR mc2Context, GM_ADDR tilingData)
+{
+    moe_distribute_dispatch_v2_Generic<<<blockDim, nullptr, stream>>>(
+        tilingKey, 
+        x, expertIds, scales, xActiveMask, expertScales, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, expertTokenNumsOut,
+                    epSendCountsOut, tpSendCountsOut, expandScalesOut, workspaceGM, mc2Context, tilingData
+    );
+}
