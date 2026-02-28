@@ -349,18 +349,17 @@ bool SparseLightningIndexerGradKLLossTilingBase::AnalyzeDtype()
     bool same16 = false; // 判断输入为fp16或者部分16的是否一致
     bool same32 = false; // 判断输入为int32或者fp32的类型是否正确
     if (queryDtype == ge::DT_FLOAT16 && keyDtype == ge::DT_FLOAT16 && queryIndexDtype == ge::DT_FLOAT16 && 
-                            keyIndexDtype == ge::DT_FLOAT16 && weightsDtype == ge::DT_FLOAT16) {
+        keyIndexDtype == ge::DT_FLOAT16 && (weightsDtype == ge::DT_FLOAT16 || weightsDtype == ge::DT_FLOAT)) {
         same16 = true;
     } else if (queryDtype == ge::DT_BF16 && keyDtype == ge::DT_BF16 && queryIndexDtype == ge::DT_BF16 && 
-                            keyIndexDtype == ge::DT_BF16 && weightsDtype == ge::DT_BF16) {
+               keyIndexDtype == ge::DT_BF16 && (weightsDtype == ge::DT_BF16 || weightsDtype == ge::DT_FLOAT)) {
         same16 = true;
     } else {
         OP_LOGW(context_, "InputDtype is not same.: queryDtype[%s], keyDtype[%s], queryIndexDtype[%s], keyIndexDtype[%s], weightsDtype[%s]",
             ge::TypeUtils::DataTypeToSerialString(queryDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyDtype).c_str(),
             ge::TypeUtils::DataTypeToSerialString(queryIndexDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(keyIndexDtype).c_str(),
             ge::TypeUtils::DataTypeToSerialString(weightsDtype).c_str());
-        // weightsDtype在float输入时，可不与q和k的输入dtype一致
-        same16 = (weightsDtype == ge::DT_FLOAT);
+        same16 = false;
     } 
     if (sparseIndicesDtype == ge::DT_INT32 && softmaxMaxDtype == ge::DT_FLOAT && softmaxSumDtype == ge::DT_FLOAT) {
         same32 = true;
