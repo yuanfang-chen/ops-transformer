@@ -72,7 +72,7 @@ public:
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
 
-        this->Attr("activationMode").AttrType(OPTIONAL).String("None");
+        this->Attr("activationMode").AttrType(OPTIONAL).Int(0);
         this->Attr("padSlotId").AttrType(OPTIONAL).Int(-1);
         this->Attr("residualConnMode").AttrType(OPTIONAL).Int(0);
         this->Attr("runMode").AttrType(OPTIONAL).Int(0);
