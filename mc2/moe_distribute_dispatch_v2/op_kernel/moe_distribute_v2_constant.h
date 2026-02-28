@@ -96,6 +96,15 @@ constexpr uint32_t NUM_PER_REP_FP32 = 64U;  // ONE_REPEAT_BYTE_SIZE / sizeof(flo
 constexpr float ZERO = 0;
 constexpr float ONE = 1;
 
+// context额外所需常量段
+constexpr uint64_t WINDOWS_ADDR_OFFSET = 1024 * 1024;  // 使用mc2Context时，前1M对应winExp，后续对应winIn
+constexpr uint64_t WINDOWS_IN_OFFSET = 780U;
+constexpr uint64_t EP_WIN_SIZE_OFFSET = 1U;
+constexpr uint64_t TP_WIN_SIZE_OFFSET = 2U;
+constexpr uint64_t EP_STATUS_DATA_SPACE_OFFSET = 3U;
+constexpr uint64_t EP_RANK_ID_OFFSET = 4U;
+constexpr uint64_t EP_WORLD_SIZE_OFFSET = 5U;
+
 // 其他
 constexpr uint32_t JUMP_WRITE = sizeof(int64_t) / sizeof(int32_t);
 constexpr uint32_t FLAG_OFFSET = STATE_OFFSET / sizeof(float);
