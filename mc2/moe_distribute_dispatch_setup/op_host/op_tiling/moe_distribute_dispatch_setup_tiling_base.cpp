@@ -339,11 +339,11 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOneTensorDim(
     std::string name, TensorType tensortype, uint32_t index, uint32_t dims)
 {
     const gert::StorageShape* shape;
-    if (tensortype == INPUT) {
+    if (tensortype == TensorType::INPUT) {
         shape = context_->GetInputShape(index);
-    } else if (tensortype == OUTPUT) {
+    } else if (tensortype == TensorType::OUTPUT) {
         shape = context_->GetOutputShape(index);
-    } else if (tensortype == OPTIONINPUT) {
+    } else if (tensortype == TensorType::OPTIONINPUT) {
         shape = context_->GetOptionalInputShape(index);
     } else {
         OP_LOGE(
@@ -367,10 +367,10 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOneTensorDim(
 const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckInputTensorDim()
 {
     OP_TILING_CHECK(
-        CheckOneTensorDim("x", INPUT, X_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS, OP_LOGE(nodeName_, "x checkdim failed."),
+        CheckOneTensorDim("x", TensorType::INPUT, X_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS, OP_LOGE(nodeName_, "x checkdim failed."),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        CheckOneTensorDim("expertIds", INPUT, EXPERT_IDS_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS,
+        CheckOneTensorDim("expertIds", TensorType::INPUT, EXPERT_IDS_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName_, "expertIds checkdim failed."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -400,13 +400,13 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOptionalInputTe
 const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOutputTensorDim()
 {
     OP_TILING_CHECK(
-        CheckOneTensorDim("yOut", OUTPUT, OUTPUT_Y_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS,
+        CheckOneTensorDim("yOut", TensorType::OUTPUT, OUTPUT_Y_INDEX, TWO_DIMS) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName_, "yOut checkdim failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        CheckOneTensorDim("expandIdxOut", OUTPUT, OUTPUT_EXPAND_IDX_INDEX, ONE_DIMS) != ge::GRAPH_SUCCESS,
+        CheckOneTensorDim("expandIdxOut", TensorType::OUTPUT, OUTPUT_EXPAND_IDX_INDEX, ONE_DIMS) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName_, "expandIdxOut checkdim failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        CheckOneTensorDim("commCmdInfoOut", OUTPUT, OUTPUT_COMM_CMD_INFO_INDEX, ONE_DIMS) != ge::GRAPH_SUCCESS,
+        CheckOneTensorDim("commCmdInfoOut", TensorType::OUTPUT, OUTPUT_COMM_CMD_INFO_INDEX, ONE_DIMS) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName_, "commCmdInfoOut checkdim failed."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
