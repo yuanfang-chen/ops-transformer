@@ -51,7 +51,7 @@ public:
             .AutoContiguous();
         this->Input("hasInitialState")
             .ParamType((REQUIRED))
-            .DataTypeList({ge::DT_BOOL})
+            .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("numAcceptedTokens")
