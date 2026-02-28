@@ -17,7 +17,7 @@
 #define AIR_CXX_RUNTIME_V2_OP_IMPL_INCREFLASHATTENTIONSCORE_TILINGDATA_H_
 
 #include <cstdint>
-#include "kernel_tiling/kernel_tiling.h"
+// #include "kernel_tiling/kernel_tiling.h"
 #ifdef ASCENDC_OP_TEST
 #define IFA_EXTERN_C extern "C"
 #else

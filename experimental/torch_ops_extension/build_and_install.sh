@@ -11,7 +11,7 @@ BASE_DIR=$(pwd)
 
 # 移除历史编译结果
 rm -rf build
-
+rm -rf dist/*
 # 编译wheel包
 python3 setup.py build bdist_wheel
 
