@@ -227,7 +227,7 @@ class BinParamBuilder(opdesc_parser.OpDesc):
         self.rm_cprs_cmb(param_info.dtype_list, param_info.format_list, input_size, output_size)
 
 
-    def gen_input_json(self: any, auto_gen_path: str):
+    def gen_input_json(self: any, auto_gen_path: str, kernel_template_input: str):
         key_map = {}
         self.for_bin_list_match()
         if len(self.input_dtype) == 0:
@@ -335,7 +335,7 @@ class BinParamBuilder(opdesc_parser.OpDesc):
             param_file = os.path.realpath(param_file)
 
             self._write_build_json(param_file, param)
-            self._write_build_cmd(param_file, bin_file, index_value, auto_gen_path)
+            self._write_build_cmd(param_file, bin_file, index_value, auto_gen_path, kernel_template_input=kernel_template_input)
             if self.op_super_config:
                 bin_file += "_relocatable"
                 op_node['bin_filename'] = bin_file
@@ -343,7 +343,7 @@ class BinParamBuilder(opdesc_parser.OpDesc):
                 param_file = os.path.realpath(param_file)
                 self._write_build_json(param_file, param)
                 index_value += 1
-                self._write_build_cmd(param_file, bin_file, index_value, auto_gen_path, True)
+                self._write_build_cmd(param_file, bin_file, index_value, auto_gen_path, True, kernel_template_input)
 
     def _write_build_json(self: any, param_file: str, param):
         with os.fdopen(os.open(param_file, const_var.WFLAGS, const_var.WMODES), 'w') as fd:
@@ -371,7 +371,8 @@ grep -q \"None of the given tiling keys are in the supported list\"; then\n"
             check_result += "fi\n"
         return check_result
 
-    def _write_build_cmd(self: any, param_file: str, bin_file: str, index: int, auto_gen_path: str, super_mode=False):
+    def _write_build_cmd(self: any, param_file: str, bin_file: str, index: int, auto_gen_path: str, super_mode=False, 
+                         kernel_template_input=""):
         hard_soc = const_var.conv_soc_ver(self.soc)
         if not hard_soc:
             hard_soc = self.soc.capitalize()
@@ -397,6 +398,11 @@ grep -q \"None of the given tiling keys are in the supported list\"; then\n"
         build_cmd_var += bin_cmd_str.format(fun=self.op_intf, soc=hard_soc, param=param_file,
                                            impl='high_performance,optional')
         enable_tiling_keys = False
+        
+        if kernel_template_input:
+            kernel_template_input = kernel_template_input.replace(',', ';')
+            build_cmd_var += f' --kernel_template_input="{kernel_template_input}"'
+
         if self.tiling_keys:
             tiling_keys_list = sorted(list(self.tiling_keys))
             tiling_key_str = ','.join([str(_key) for _key in tiling_keys_list])
@@ -508,8 +514,8 @@ def parse_op_debug_confg(opc_config_file: str, soc: str) -> Dict:
     return tiling_key_info, op_debug_config
 
 
-def gen_bin_param_file(cfgfile: str, out_dir: str, soc: str,
-                        opc_config_file: str = '', ops: list = None):
+def gen_bin_param_file(cfgfile: str, out_dir: str, soc: str, kernel_template_input: str,
+                       opc_config_file: str = '', ops: list = None):
     if not os.path.exists(cfgfile):
         print(f'INFO: {cfgfile} does not exists in this project, skip generating compile commands.')
         return
@@ -542,13 +548,14 @@ def gen_bin_param_file(cfgfile: str, out_dir: str, soc: str,
             op_desc.set_tiling_key(tiling_key_info[op_desc.op_type])
         if all_soc_key in tiling_key_info:
             op_desc.set_tiling_key(tiling_key_info[all_soc_key])
-        op_desc.gen_input_json(auto_gen_path_dir)
+        op_desc.gen_input_json(auto_gen_path_dir, kernel_template_input)
 
 
 def parse_args(argv):
     """Command line parameter parsing"""
     parser = argparse.ArgumentParser()
     parser.add_argument('argv', nargs='+')
+    parser.add_argument('--kernel_template_input', nargs='?', const='', default='')
     parser.add_argument('--opc-config-file', nargs='?', const='', default='')
     return parser.parse_args(argv)
 
@@ -560,4 +567,5 @@ if __name__ == '__main__':
     gen_bin_param_file(args.argv[1],
                     args.argv[2],
                     args.argv[3],
+                    kernel_template_input=args.kernel_template_input,
                     opc_config_file=args.opc_config_file)
