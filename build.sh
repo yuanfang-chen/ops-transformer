@@ -41,6 +41,7 @@ ENABLE_AICPU=TRUE
 ENABLE_BUILT_CUSTOM=FALSE
 ENABLE_STATIC=FALSE
 ENABLE_EXPERIMENTAL=FALSE
+KERNEL_TEMPLATE_INPUT=""
 ASCEND_SOC_UNITS="ascend910b"
 SUPPORT_COMPUTE_UNIT_SHORT=("ascend910b" "ascend910_93" "ascend950" "ascend310p" "kirinx90" "kirin9030" "mc62cm12a")
 CMAKE_BUILD_MODE=""
@@ -98,6 +99,8 @@ function help_info() {
                 echo "    --cann_3rd_lib_path=<PATH>"
                 echo "                           Set ascend third_party package install path, default ./third_party"
                 echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
+                echo "    --kernel_template_input=args0,args1"
+                echo "                           Specify kernel template input arguments (comma-separated for multiple)"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --pkg --soc=ascend910b --vendor_name=customize -j16 -O3"
@@ -196,6 +199,8 @@ function help_info() {
                 echo "    --soc=soc_version      Compile for specified Ascend SoC (comma-separated for multiple)"
                 echo "    --ops=op1,op2,...      Compile specified operators (comma-separated for multiple)"
                 echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
+                echo "    --kernel_template_input=args0,args1"
+ 	            echo "                           Specify kernel template input arguments (comma-separated for multiple)"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --opkernel --soc=ascend310p --ops=add,sub"
@@ -1112,13 +1117,9 @@ while [[ $# -gt 0 ]]; do
         CLANG="true"
         shift
         ;;
-    --tiling-key|--tiling_key)
-        TILING_KEY="$2"
-        shift 2
-        ;;
-    --tiling_key=*)
+    --kernel-template-input=*)
         OPTARG=$1
-        TILING_KEY=${OPTARG#*=}
+        KERNEL_TEMPLATE_INPUT=${OPTARG#*=}
         shift
         ;;
     --op_debug_config)
@@ -1247,6 +1248,13 @@ while [[ $# -gt 0 ]]; do
 done
 set_ut_mode
 
+if [ -n "$KERNEL_TEMPLATE_INPUT" ]; then
+    if [[ -z "${ascend_op_name}" || "$ascend_op_name" == *","* ]]; then
+        echo "[ERROR] --kernel_template_input must be used with --ops= and can only specify a single operator"
+        exit 1
+    fi
+fi
+
 if [ -n "${vendor_name}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DVENDOR_NAME=${vendor_name}"
 fi
@@ -1372,8 +1380,8 @@ if [ -n "${EXAMPLE}" ];then
     BUILD=ops_test_example
 fi
 
-if [ -n "${TILING_KEY}" ];then
-    CUSTOM_OPTION="${CUSTOM_OPTION} -DTILING_KEY=${TILING_KEY}"
+if [ -n "${KERNEL_TEMPLATE_INPUT}" ];then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DKERNEL_TEMPLATE_INPUT=${KERNEL_TEMPLATE_INPUT}"
 fi
 
 if [ -n "${OP_DEBUG_CONFIG}" ];then
