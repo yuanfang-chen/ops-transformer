@@ -72,6 +72,7 @@ else
     DEFAULT_TOOLKIT_INSTALL_DIR="/usr/local/Ascend/ascend-toolkit/latest"
     DEFAULT_INSTALL_DIR="/usr/local/Ascend/latest"
 fi
+BISHENG_FLAGS=""
 CANN_3RD_LIB_PATH="${CURRENT_DIR}/third_party"
 CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON"
 
@@ -101,12 +102,14 @@ function help_info() {
                 echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
                 echo "    --kernel_template_input=args0,args1"
                 echo "                           Specify kernel template input arguments (comma-separated for multiple)"
+                echo "    --bisheng_flags        Specify bisheng compiler flags (comma-separated for multiple)"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --pkg --soc=ascend910b --vendor_name=customize -j16 -O3"
                 echo "    bash build.sh --pkg --ops=add,sub"
                 echo "    bash build.sh --pkg --experimental --soc=ascend910b"
                 echo "    bash build.sh --pkg --experimental --soc=ascend910b --ops=abs --oom"
+                echo "    bash build.sh --pkg --experimental --soc=ascend910b --ops=abs --bisheng_flags=dumc_cce"
                 return
                 ;;
             test)
@@ -201,10 +204,12 @@ function help_info() {
                 echo "    --oom                  Build with oom mode on the kernel side, with options: '-g --cce-enable-oom'"
                 echo "    --kernel_template_input=args0,args1"
  	            echo "                           Specify kernel template input arguments (comma-separated for multiple)"
+                echo "    --bisheng_flags        Specify bisheng compiler flags (comma-separated for multiple)"
                 echo $dotted_line
                 echo "Examples:"
                 echo "    bash build.sh --opkernel --soc=ascend310p --ops=add,sub"
                 echo "    bash build.sh --opkernel --soc=ascend310p --ops=add,sub --oom"
+                echo "    bash build.sh --pkg --experimental --soc=ascend910b --ops=abs --bisheng_flags=dumc_cce"
                 return
                 ;;
             ophost_test)
@@ -319,6 +324,7 @@ function help_info() {
     echo "    --opgraph_test build and run opgraph unit tests"
     echo "    --opkernel_test build and run opkernel unit tests"
     echo "    --run_example Compile and execute the test_aclnn_xxx.cpp/test_geir_xxx.cpp"
+    echo "    --simulator    Enable simulator mode for run_example (requires --soc parameter)"
     echo "    --genop Create the initial directory for op"
     echo "to be continued ..."
 }
@@ -418,6 +424,7 @@ export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
 export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 
+
 function build_example()
 {
     log "Start to run example,name:${EXAMPLE_NAME} mode:${EXAMPLE_MODE}"
@@ -481,7 +488,12 @@ function build_example()
                 MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk"
             fi
             if [[ "${PKG_MODE}" == "" ]]; then
-                g++ ${file} -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lopapi_transformer -lascendcl -lnnopbase -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME}
+                g++ ${file} \
+                    -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                    -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} \
+                    -lopapi_math -lopapi_transformer -lascendcl -lnnopbase \
+                    -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                    -o test_aclnn_${EXAMPLE_NAME}
             elif [[ "${PKG_MODE}" == "cust" ]]; then
                 if [[ "${vendor_name}" == "" ]]; then
                     vendor_name="custom"
@@ -494,13 +506,24 @@ function build_example()
                     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
                     CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
-                g++ ${file} -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                g++ ${file} \
+                    -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} \
+                    -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} \
+                    -lopapi_math -lcust_opapi -lascendcl -lnnopbase \
+                    -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                    -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                    -o test_aclnn_${EXAMPLE_NAME} \
+                    -Wl,-rpath=${CUST_LIBRARY_PATH}
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
                 return 1
             fi
-            ./test_aclnn_${EXAMPLE_NAME}
+            if [[ "${SIMULATOR}" == "camodel" && "${ASCEND_SOC_UNITS} == "ascend950"" ]]; then
+                cannsim record -s Ascend950 ./test_aclnn_${EXAMPLE_NAME} --gen-report
+            else 
+                ./test_aclnn_${EXAMPLE_NAME}
+            fi
             run_result=$?
             if [ $run_result -ne 0 ]; then
                 echo "run test_aclnn_${EXAMPLE_NAME}, execute samples failed"
@@ -988,6 +1011,11 @@ while [[ $# -gt 0 ]]; do
         ENABLE_BUILT_IN=FALSE
         shift
         ;;
+    --bisheng_flags=*)
+        OPTARG=$1
+        BISHENG_FLAGS=${OPTARG#*=}
+        shift
+        ;;
     -c|--compute-unit)
         ascend_compute_unit="$2"
         shift 2
@@ -1010,6 +1038,11 @@ while [[ $# -gt 0 ]]; do
         ;;
     -u|--test)
         ENABLE_TEST=TRUE
+        shift
+        ;;
+    --simulator=*)
+        OPTARG=$1
+        SIMULATOR=${OPTARG#*=}
         shift
         ;;
     --run_example)
@@ -1412,6 +1445,10 @@ if [ -n "${CMAKE_BUILD_MODE}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DCMAKE_BUILD_MODE=${CMAKE_BUILD_MODE}"
 fi
 CUSTOM_OPTION="${CUSTOM_OPTION} -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH}"
+
+if [ -n "${BISHENG_FLAGS}" ];then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DBISHENG_FLAGS=${BISHENG_FLAGS}"
+fi
 
 if [[ "$ENABLE_STATIC" == "TRUE" ]]; then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_STATIC=${ENABLE_STATIC}"
