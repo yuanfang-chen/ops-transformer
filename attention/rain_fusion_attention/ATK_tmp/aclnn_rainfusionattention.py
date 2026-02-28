@@ -128,7 +128,7 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         self.qSeqlenList = input_data.kwargs['actualSeqLengths']
         input_args[9] = null_tensor_ptr # blockTable
         # input_args[18] = null_tensor_ptr
-        if not input_data.kwargs['softmaxLse']:
+        if input_data.kwargs['softmaxLseFlag']:
             input_args.pop()
             input_args.pop()
             output_packages.append(input_args[-2])
@@ -136,7 +136,6 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         else:
             input_args.pop()
             output_packages.append(input_args[-2])
-
         return input_args, output_packages
 
     def __call__(self):
@@ -144,7 +143,7 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         self.backend.aclnn_x_get_workspace_size()
         self.backend.aclnn_x()
 
-    def after_call(self, output_packages):
+    def after_call(self, output_packages): # 这里应该不需要转成TND输出？
         output = []
         for output_pack in output_packages:
             temp_output_pack = self.acl_tensor_to_torch(output_pack).to(dtype=torch.float32)
@@ -570,6 +569,7 @@ class RainFusionAttentionApi(BaseApi):
         scale_value = input_data.kwargs["scaleValue"]
         inner_precise = input_data.kwargs["innerPrecise"]
         block_size = input_data.kwargs["blockSize"]
+        softmax_lse_flag = input_data.kwargs["softmaxLseFlag"]
 
         q_input_value = query.cpu()
         k_input_value = key.cpu()
@@ -578,8 +578,11 @@ class RainFusionAttentionApi(BaseApi):
         select_num_idx_input = select_num_idx.cpu()
 
         testObj = TestRainFusionAttentionTorch()
-        atten_out_golden = testObj.calc_data(query_dtype, q_input_value, k_input_value, v_input_value, select_idx_input, select_num_idx_input, block_shape, q_seqlen_list, kv_seqlen_list, scale_value, q_input_layout, kv_input_layout, inner_precise)
-        return atten_out_golden
+        atten_out_golden, lse_golden = testObj.calc_data(query_dtype, q_input_value, k_input_value, v_input_value, select_idx_input, select_num_idx_input, block_shape, q_seqlen_list, kv_seqlen_list, scale_value, q_input_layout, kv_input_layout, inner_precise)
+        if softmax_lse_flag:
+            return atten_out_golden, lse_golden
+        else:
+            return atten_out_golden
 
     def gen_select_idx_data(self, q_seqlen_list, kv_seqlen_list, s_block_x, s_block_y, batch, num_heads, select_ratio):
         """
