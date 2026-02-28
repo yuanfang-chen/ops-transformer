@@ -792,7 +792,7 @@ namespace SplitFuse {
                                         nextTokenEndLen,
                                         isLastStackTile);
                                 } else {
-                                    bool isLastNoMaskStackTile = (nextTokenStartLen > kvSeqlen) || (nextTokenStartLen < 0);
+                                    bool isLastNoMaskStackTile = (nextTokenStartLen >= kvSeqlen) || (nextTokenStartLen < 0);
                                     uint32_t alignedKvSeqlenLimit = isLastNoMaskStackTile ? kvSeqlen : nextTokenStartLen;
                                     alignedKvSeqlenLimit = NpuArch::Detail::Alignment::RoundDown(alignedKvSeqlenLimit, MAX_KV_STACK_LEN);
                                     uint32_t noMaskStackSeqNum = (alignedKvSeqlenLimit - startIdx * MAX_KV_STACK_LEN) / MAX_KV_STACK_LEN;
@@ -805,7 +805,7 @@ namespace SplitFuse {
                                         layOutS,
                                         actualBlockShapeQK,
                                         (stackSeqCount == 0),
-                                        (stackSeqCount == noMaskStackSeqNum - 1),
+                                        ((isLastNoMaskStackTile && kvSIdx == 1 && kvSLoopNumTotal == 2)? (stackSeqCount == noMaskStackSeqNum) : (stackSeqCount == noMaskStackSeqNum - 1)),
                                         qSBlockSize,
                                         qNBlockSize,
                                         curStackTileMod,
