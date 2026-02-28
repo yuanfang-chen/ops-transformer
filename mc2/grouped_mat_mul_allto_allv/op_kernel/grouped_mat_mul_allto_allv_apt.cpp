@@ -15,7 +15,8 @@
 #include "basic_api/kernel_basic_intf.h"
 #include "arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "grouped_mat_mul_allto_allv_tiling.h"
-#include "arch35/grouped_mat_mul_allto_allv_tiling_key.h"
+#include "grouped_mat_mul_allto_allv_tiling_key.h"
+#include "grouped_mat_mul_allto_allv.h"
 #if __CCE_AICORE__ == 310
     #if __has_include("../../allto_allv_grouped_mat_mul_apt/op_kernel/mc2_templates/mc2_templates.h")
     #include "../../allto_allv_grouped_mat_mul_apt/op_kernel/mc2_templates/mc2_templates.h"
@@ -39,13 +40,6 @@
     size_t outerOffset##var = (size_t)(&((outerType *)0)->outerMember);                                 \
     size_t innerOffset##var = (size_t)(&((innerType *)0)->innerMember);                                 \
     __gm__ int32_t *(var) = (__gm__ int32_t *)((__gm__ uint8_t *)(tiling) + outerOffset##var + innerOffset##var)
-#endif
-
-#if defined(ORIG_DTYPE_GMM_X) && defined(DT_BFLOAT16) && defined(DT_FLOAT16)&& \
-    (ORIG_DTYPE_GMM_X == DT_BFLOAT16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
-    #define GMM_ALLTO_ALLV
-#else
-    #define QUANT_GMM_ALLTO_ALLV
 #endif
 
 using namespace AscendC;
@@ -106,7 +100,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         return;
     }
     TPipe pipe;
-#ifdef GMM_ALLTO_ALLV
+#if (ORIG_DTYPE_GMM_X == DT_BF16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
     REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData);
     auto tiling = (__gm__ GroupedMatMulAlltoAllvTilingData*)tilingGM;
     __gm__ void* hcclInitTiling = (__gm__ void*)(&(tiling->hcclInitTiling));
@@ -121,7 +115,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
                             TILINGKEY_GROUPED_MATMUL_TRANS, TILINGKEY_MATMUL_TRANS);
 #endif
 
-#elif defined(QUANT_GMM_ALLTO_ALLV)
+#else
     REGISTER_TILING_DEFAULT(QuantGmmA2avTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
     const QuantGmmA2avTilingData* tilingData_ = &tilingData;
