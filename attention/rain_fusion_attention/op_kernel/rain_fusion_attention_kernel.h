@@ -521,7 +521,7 @@ namespace RainFusion {
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-                        LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认
+                        LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认，这里可能是qHeads，qSeqlen
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(

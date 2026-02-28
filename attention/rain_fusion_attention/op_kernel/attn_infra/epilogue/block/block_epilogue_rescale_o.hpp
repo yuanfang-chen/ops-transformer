@@ -312,10 +312,10 @@ public:
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
                     AscendC::PipeBarrier<PIPE_V>();
-                    AscendC::Brcb(
+                    AscendC::Brcb( // 每次取8个数放到8个datablock中=256字节
                         tvUbTensor.ReinterpretCast<uint32_t>(),
                         lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
-                        CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
+                        CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE), // 每次取8个数，一共多少次？
                         AscendC::BrcbRepeatParams(1, 8));
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
@@ -325,7 +325,7 @@ public:
                             gLse, tvUbTensor,
                             AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
                     } else {
-                        for(uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
+                        for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                             AscendC::DataCopyPad(
                                 gLse[qNIdx],
                                 tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
