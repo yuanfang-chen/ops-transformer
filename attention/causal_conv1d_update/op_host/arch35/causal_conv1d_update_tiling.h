@@ -25,40 +25,61 @@
 
 namespace optiling {
 
+// CompileInfo structure for platform information
+struct CausalConv1dUpdateCompileInfo {
+    uint64_t coreNum = 0;
+    uint64_t ubSize = 0;
+};
+
 // Input tensor indices
 constexpr int32_t X_INDEX = 0;
-constexpr int32_t FILTER_INDEX = 1;
-constexpr int32_t CACHE_STATE_INDEX = 2;
-constexpr int32_t CACHE_INDICES_INDEX = 3;
-constexpr int32_t ACCEPT_TOKEN_NUM_INDEX = 4;
+constexpr int32_t WEIGHT_INDEX = 1;
+constexpr int32_t CONV_STATES_INDEX = 2;
+constexpr int32_t QUERY_START_LOC_INDEX = 3;
+constexpr int32_t CACHE_INDICES_INDEX = 4;
+constexpr int32_t HAS_INITIAL_STATE_INDEX = 5;
+constexpr int32_t BIAS_INDEX = 6;
+constexpr int32_t NUM_ACCEPTED_TOKENS_INDEX = 7;
 
 // Output tensor indices
 constexpr int32_t Y_INDEX = 0;
-constexpr int32_t OUTPUT_CACHE_STATE_INDEX = 1;
+constexpr int32_t OUTPUT_CONV_STATES_INDEX = 1;
 
 // Attribute indices
-constexpr int32_t ATTR_PAD_SLOT_INDEX_INDEX = 0;
+constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
+constexpr int32_t ATTR_RESIDUAL_CONN_MODE_INDEX = 2;
+constexpr int32_t ATTR_RUN_MODE_INDEX = 3;
 
 // TilingData structure definition
 BEGIN_TILING_DATA_DEF(CausalConv1dUpdateTilingData)
-TILING_DATA_FIELD_DEF(int64_t, blockFactor);              // Block factor for core distribution
-TILING_DATA_FIELD_DEF(int64_t, blockTailFactor);          // Tail block factor
-TILING_DATA_FIELD_DEF(int64_t, loopNumBS);                // Number of loops in BS direction
-TILING_DATA_FIELD_DEF(int64_t, loopNumDim);               // Number of loops in Dim direction
-TILING_DATA_FIELD_DEF(int64_t, ubFactorBS);               // UB factor for BS per loop
-TILING_DATA_FIELD_DEF(int64_t, ubTailFactorBS);           // UB tail factor for BS
-TILING_DATA_FIELD_DEF(int64_t, ubFactorDim);              // UB factor for Dim per loop
-TILING_DATA_FIELD_DEF(int64_t, ubTailFactorDim);          // UB tail factor for Dim
-TILING_DATA_FIELD_DEF(int64_t, tailBlockloopNumBS);       // Tail block loop count for BS
-TILING_DATA_FIELD_DEF(int64_t, tailBlockloopNumDim);      // Tail block loop count for Dim
-TILING_DATA_FIELD_DEF(int64_t, tailBlockubFactorBS);      // Tail block UB factor for BS
-TILING_DATA_FIELD_DEF(int64_t, tailBlockubTailFactorBS);  // Tail block UB tail factor for BS
-TILING_DATA_FIELD_DEF(int64_t, tailBlockubFactorDim);     // Tail block UB factor for Dim
-TILING_DATA_FIELD_DEF(int64_t, tailBlockubTailFactorDim); // Tail block UB tail factor for Dim
+// Core distribution parameters
+TILING_DATA_FIELD_DEF(int64_t, usedCoreNum);              // Total used core number
+TILING_DATA_FIELD_DEF(int64_t, dimCoreCnt);               // Number of cores for dim direction
+TILING_DATA_FIELD_DEF(int64_t, batchCoreCnt);             // Number of cores for batch direction
+
+// Dim tiling parameters (inter-core)
+TILING_DATA_FIELD_DEF(int64_t, dimChunkSize);             // Dim chunk size per core (256B aligned)
+TILING_DATA_FIELD_DEF(int64_t, dimTailSize);              // Dim tail size for last core
+
+// Batch tiling parameters (inter-core)
+TILING_DATA_FIELD_DEF(int64_t, batchPerCore);             // Batches per core (regular)
+TILING_DATA_FIELD_DEF(int64_t, batchTailPerCore);         // Batches for tail core
+TILING_DATA_FIELD_DEF(int64_t, validBatchStart);          // First valid batch index
+TILING_DATA_FIELD_DEF(int64_t, validBatchEnd);            // Last valid batch index (inclusive)
+
+// Intra-core tiling parameters (UB loop)
+TILING_DATA_FIELD_DEF(int64_t, ubBatchSize);              // Batch size per UB iteration
+TILING_DATA_FIELD_DEF(int64_t, ubDimSize);                // Dim size per UB iteration (elements)
+TILING_DATA_FIELD_DEF(int64_t, batchLoopCnt);             // Batch loop count within core
+TILING_DATA_FIELD_DEF(int64_t, dimLoopCnt);               // Dim loop count within core
+
+// Shape information for kernel use
 TILING_DATA_FIELD_DEF(int64_t, batchSize);                // Batch size
-TILING_DATA_FIELD_DEF(int64_t, seqLen);                   // Sequence length
+TILING_DATA_FIELD_DEF(int64_t, seqLen);                   // Sequence length (for 3D input)
+TILING_DATA_FIELD_DEF(int64_t, cuSeqLen);                 // Cumulative sequence length (for 2D input)
 TILING_DATA_FIELD_DEF(int64_t, dim);                      // Dimension size
 TILING_DATA_FIELD_DEF(int64_t, kernelSize);               // Kernel size (K)
+TILING_DATA_FIELD_DEF(int64_t, xInputMode);               // Input mode: 0 for 3D, 1 for 2D
 END_TILING_DATA_DEF;
 
 REGISTER_TILING_DATA_CLASS(CausalConv1dUpdate, CausalConv1dUpdateTilingData)
@@ -78,25 +99,29 @@ protected:
 
     // Shape validation functions for each tensor
     ge::graphStatus ValidateXShape();
-    ge::graphStatus ValidateFilterShape();
-    ge::graphStatus ValidateCacheStateShape();
+    ge::graphStatus ValidateWeightShape();
+    ge::graphStatus ValidateConvStatesShape();
+    ge::graphStatus ValidateQueryStartLocShape();
     ge::graphStatus ValidateCacheIndicesShape();
-    ge::graphStatus ValidateAcceptTokenNumShape();
+    ge::graphStatus ValidateNumAcceptedTokensShape();
 
     // Type validation functions for each tensor
     ge::graphStatus ValidateXType();
-    ge::graphStatus ValidateFilterType();
-    ge::graphStatus ValidateCacheStateType();
+    ge::graphStatus ValidateWeightType();
+    ge::graphStatus ValidateConvStatesType();
+    ge::graphStatus ValidateQueryStartLocType();
     ge::graphStatus ValidateCacheIndicesType();
-    ge::graphStatus ValidateAcceptTokenNumType();
+    ge::graphStatus ValidateNumAcceptedTokensType();
 
     // Overall validation
     ge::graphStatus CheckInputParams();
 
 private:
     // Tiling calculation functions
-    void CalculateCoreParams(int64_t validBatch);
-    void CalculateLoopParams(bool isTailBlock);
+    int64_t CalculateLimitedCoreNum();
+    int64_t ComputeOptimalDimChunk(int64_t dim, int64_t batch, int64_t coreNum);
+    void CalculateTilingParams(int64_t validBatch);
+    void CalculateIntraCoreTiling();
 
     // Hardware information
     uint64_t ubSize_ = 0;
@@ -106,41 +131,43 @@ private:
     // Input tensor shape information
     int64_t batchSize_ = 0;
     int64_t seqLen_ = 0;
+    int64_t cuSeqLen_ = 0;  // For 2D input: first dimension of x, equals batch * seq_len
     int64_t dim_ = 0;
     int64_t kernelSize_ = 0;
 
     // Data type information
     ge::DataType xDtype_;
-    ge::DataType filterDtype_;
-    ge::DataType cacheStateDtype_;
+    ge::DataType weightDtype_;
+    ge::DataType convStatesDtype_;
+    ge::DataType queryStartLocDtype_;
     ge::DataType cacheIndicesDtype_;
-    ge::DataType acceptTokenNumDtype_;
+    ge::DataType numAcceptedTokensDtype_;
     size_t xDtypeSize_ = 0;
 
     // Attribute values
-    int64_t padSlotIndex_ = 0;
+    int64_t padSlotId_ = -1;
+    int64_t residualConnMode_ = 0;
+    int64_t runMode_ = 0;
     int64_t inValidBatchNum_ = 0;
+    int64_t xInputMode_ = 0;  // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
 
     // Tiling parameters
-    int64_t usedCoreNum_ = 0;
-    int64_t blockFactor_ = 0;
-    int64_t blockTailFactor_ = 0;
+    int64_t limitedCoreNum_ = 0;      // Limited core number based on data size
+    int64_t usedCoreNum_ = 0;         // Actually used core number
+    int64_t dimCoreCnt_ = 0;          // Number of cores for dim direction
+    int64_t batchCoreCnt_ = 0;        // Number of cores for batch direction
+    int64_t dimChunkSize_ = 0;        // Dim chunk size per core (256 * N)
+    int64_t dimTailSize_ = 0;         // Dim tail size for last core
+    int64_t batchPerCore_ = 0;        // Batches per core (regular)
+    int64_t batchTailPerCore_ = 0;    // Batches for tail core
+    int64_t validBatchStart_ = 0;     // First valid batch index
+    int64_t validBatchEnd_ = 0;       // Last valid batch index (inclusive)
 
-    // Loop parameters for regular block
-    int64_t loopNumBS_ = 0;
-    int64_t loopNumDim_ = 0;
-    int64_t ubFactorBS_ = 0;
-    int64_t ubTailFactorBS_ = 0;
-    int64_t ubFactorDim_ = 0;
-    int64_t ubTailFactorDim_ = 0;
-
-    // Loop parameters for tail block
-    int64_t tailBlockloopNumBS_ = 0;
-    int64_t tailBlockloopNumDim_ = 0;
-    int64_t tailBlockubFactorBS_ = 0;
-    int64_t tailBlockubTailFactorBS_ = 0;
-    int64_t tailBlockubFactorDim_ = 0;
-    int64_t tailBlockubTailFactorDim_ = 0;
+    // Intra-core tiling parameters
+    int64_t ubBatchSize_ = 0;         // Batch size per UB iteration
+    int64_t ubDimSize_ = 0;           // Dim size per UB iteration (elements)
+    int64_t batchLoopCnt_ = 0;        // Batch loop count within core
+    int64_t dimLoopCnt_ = 0;          // Dim loop count within core
 
     // TilingData object
     CausalConv1dUpdateTilingData tilingData_;
