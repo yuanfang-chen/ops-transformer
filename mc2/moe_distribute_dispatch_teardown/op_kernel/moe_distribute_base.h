@@ -23,6 +23,7 @@
 #endif
 
 #include "basic_api/kernel_basic_intf.h"
+#include "adv_api/hccl/hccl.h"
 
 constexpr uint32_t MAX_RANK_NUM = 64U; // 最大卡数
 constexpr uint32_t WRITE_SQE_SIZE = 64U;

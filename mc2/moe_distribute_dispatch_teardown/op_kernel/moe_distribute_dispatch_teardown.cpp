@@ -12,7 +12,6 @@
  * \file moe_distribute_dispatch_setup.cpp
  * \brief
  */
-#include "kernel_operator.h"
 #include "basic_api/kernel_basic_intf.h"
 #include "arch35/moe_distribute_dispatch_teardown_arch35.h"
 #include "moe_distribute_dispatch_teardown_tiling.h"

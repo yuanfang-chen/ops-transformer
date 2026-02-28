@@ -13,7 +13,6 @@
  * \brief
  */
 
-#include "kernel_operator.h"
 #include "basic_api/kernel_basic_intf.h"
  #include "arch35/moe_distribute_dispatch_setup_arch35.h"
  #include "moe_distribute_dispatch_setup_tiling.h"

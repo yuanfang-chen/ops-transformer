@@ -16,7 +16,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_TEARDOWN_H
 #define MOE_DISTRIBUTE_DISPATCH_TEARDOWN_H
 
-#include "kernel_operator.h"
+#include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../moe_distribute_base.h"
 #include "../moe_distribute_dispatch_teardown_tiling.h"
