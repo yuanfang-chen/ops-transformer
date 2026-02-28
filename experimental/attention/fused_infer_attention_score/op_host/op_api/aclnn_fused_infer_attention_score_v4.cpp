@@ -15,7 +15,7 @@
 #include "opdev/op_def.h"
 #include "opdev/op_log.h"
 #include "aclnn_fused_infer_attention_score_inner.h"
-#include <iostream>
+
 using namespace op;
 
 #ifdef __cplusplus
