@@ -40,6 +40,14 @@ TORCH_LIBRARY(ascend_ops, m)
     m.def("groupedmatmul(Tensor[] x, Tensor[] weight, Tensor[]? bias, Tensor[]? scale, Tensor[]? offset, Tensor[]? "
           "antiquantScale, Tensor[]? antiquantOffset, Tensor? groupList, Tensor[]? perTokenScale, int splitItem, int "
           "groupType, int groupListType, int actType,int[]? tuningConfigOptional) -> Tensor");
+    m.def("MoeDistributeDispatchV2(Tensor x, Tensor expert_ids, "
+          "str group_ep, int ep_world_size, int ep_rank_id, int moe_expert_num, int total_winsize_ep, "
+          "Tensor? scales=None, Tensor? x_active_mask=None, Tensor? expert_scales=None, Tensor? elastic_info=None, "
+          "Tensor? performance_info=None, str? group_tp, int tp_world_size=0, int tp_rank_id=0, "
+          "int expert_shard_type=0, int shared_expert_num=1, int shared_expert_rank_num=0, int quant_mode=0, "
+          "int global_bs=0, int expert_token_nums_type=1, "
+          "str comm_alg=\"\", int zero_expert_num=0, int copy_expert_num=0, int const_expert_num=0) "
+          "-> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor)");
 }
 
 } // namespace ascend_ops
