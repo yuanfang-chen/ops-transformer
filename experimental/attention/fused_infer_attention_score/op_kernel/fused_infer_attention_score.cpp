@@ -12,24 +12,17 @@
  * \file fused_infer_attention_score.cpp
  * \brief
  */
-#include "kernel_vec_intf.h"
-#include "kernel_cube_intf.h"
-#include "adv_api/quantization/ascend_quant.h"
+#include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa
 #define FIA_ENABLE_MLA
-#ifdef NOT_DYNAMIC_COMPILE
-#include "../../incre_flash_attention/op_kernel/incre_flash_attention_arch32.h"
-#else
-#include "../incre_flash_attention/incre_flash_attention.cpp"
-#endif
+
 #include "fused_infer_attention_score_tilingkey.h"
-// #include "fused_infer_attention_score_v3.cpp"
+#include "fused_infer_attention_score_v3.cpp"
 
-// #define FullQuantTiling 15
 
-template <uint8_t FLASH_DECODE, uint8_t LAYOUT_T, uint8_t ANTIQUANT_MODE>
-__global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
+#define FullQuantTiling 15
+extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __gm__ uint8_t* key, __gm__ uint8_t* value,
                                                                 __gm__ uint8_t* pse_shift, __gm__ uint8_t* attenMask,
                                                                 __gm__ uint8_t* actualSeqLengths, __gm__ uint8_t* actualSeqLengthsKV,
                                                                 __gm__ uint8_t* deq_scale1, __gm__ uint8_t* quant_scale1,
@@ -46,18 +39,11 @@ __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t* query, __
                                                                 __gm__ uint8_t* attentionOut, __gm__ uint8_t* softmaxLse, __gm__ uint8_t* workspace, __gm__ uint8_t* tiling)
 {
     if (TILING_KEY_VAR >= FIA_FLAG_TILING) {
-        // fused_infer_attention(query, key, value, pse_shift, attenMask, actualSeqLengths,
-        //                     actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
-        //                     quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
-        //                     keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
-        //                     keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale,
-        //                     learnableSink, attentionOut, softmaxLse, workspace, tiling);
-    } else {
-        incre_flash_attention_FIAS_arch32<FLASH_DECODE, LAYOUT_T, ANTIQUANT_MODE>(query, key, value, pse_shift, attenMask, actualSeqLengths,
-                                actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
-                                quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
-                                keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
-                                keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale, dequantScaleQuery,
-                                attentionOut, softmaxLse, workspace, tiling);
+        fused_infer_attention(query, key, value, pse_shift, attenMask, actualSeqLengths,
+                            actualSeqLengthsKV, deq_scale1, quant_scale1, deq_scale2, quant_scale2,
+                            quant_offset2, antiquantScale, antiquantOffset, blocktable, queryPaddingSize, kvPaddingSize,
+                            keyAntiquantScale, keyAntiquantOffset, valueAntiquantScale, valueAntiquantOffset,
+                            keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, keyRopeAntiquantScale,
+                            learnableSink, attentionOut, softmaxLse, workspace, tiling);
     }
 }
