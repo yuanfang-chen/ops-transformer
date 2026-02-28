@@ -1094,12 +1094,17 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
         LocalTensor<INPUT_T> mm1BTensor = mm1B.GetTensor<INPUT_T>();
         uint64_t gmOffset = this->queryGm.offsetCalculator.GetOffset(runInfo.boIdx, runInfo.n2oIdx, runInfo.goIdx,
             coordInfo[runInfo.taskIdMod3].s1Coord, 0);
-        if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	  
-            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
-                constInfo.mm1Ka);	 
-        } else { 
-            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
-                constInfo.mm1Ka); 
+        if constexpr(isInfer) {
+            if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	  
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,	 
+                    constInfo.mm1Ka);	 
+            } else { 
+                CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[runInfo.queryOffset], runInfo.s1RealSize, constInfo.dSize, 
+                 constInfo.mm1Ka); 
+            }
+        } else {
+            CopyToL1Nd2Nz<INPUT_T>(mm1BTensor, this->queryGm.gmTensor[gmOffset], runInfo.s1RealSize, constInfo.dSize,
+                constInfo.mm1Ka);
         }
         mm1B.Set<HardEvent::MTE2_MTE1>(); // 通知
     } else { // 非s2的第一次循环直接复用Q
@@ -1629,10 +1634,10 @@ __aicore__ inline void FABlockCube<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
                         constInfo.n2Size * constInfo.gSize * constInfo.dSize, constInfo.dSize, runInfo.s1RealSize);
                 } else {
                     if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {	 
-                        CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset], runInfo.s1RealSize, constInfo.dSize,	 
+                        CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[gmOffset + gmKOffset], runInfo.s1RealSize, realK,	 
                             constInfo.mm1Ka);	 
                     } else { 
-                        CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[runInfo.queryOffset + + gmKOffset], runInfo.s1RealSize, constInfo.dSize, 
+                        CopyToL1Nd2Nz<INPUT_T>(mm1ATensor[k * l1BaseKOffset], this->queryGm.gmTensor[runInfo.queryOffset + gmKOffset], runInfo.s1RealSize, realK,
                             constInfo.mm1Ka); 
                     }
                 }
