@@ -26,10 +26,6 @@
 
 namespace optiling {
 
-// Constants for memory alignment and buffer configuration
-constexpr int64_t DEFAULT_WORKSPACE_SIZE = 0;
-constexpr uint64_t TILING_KEY_GENERALIZED = 0;
-
 // Memory alignment constants (in elements)
 constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
 constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
@@ -42,32 +38,26 @@ constexpr uint32_t SIZE_OF_32BIT = 4;
 constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;    // Double Buffer depth for data tiles
 constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;    // Single Buffer depth for weights
 
-// Spec constraints
-constexpr uint32_t MAX_TOTAL_ITEMS = 512 * 1024;  // BS max 512K
-constexpr uint32_t MIN_D = 384;                    // D min = 192 * 2
-constexpr uint32_t MAX_D = 24576;                  // D max = 192 * 128
+// Input indices
+const static int64_t X_INPUT_INDEX = 0;           // x (B, S, n, D)
+const static int64_t H_RES_INPUT_INDEX = 1;       // h_res (B, S, n, n)
+const static int64_t H_OUT_INPUT_INDEX = 2;       // h_out (B, S, D)
+const static int64_t H_POST_INPUT_INDEX = 3;      // h_post (B, S, n)
+
+// Output indices
+const static int64_t OUTPUT_INDEX = 0;            // output (B, S, n, D)
 
 // Align value up to the nearest multiple of align
-inline uint32_t AlignUp(uint32_t value, uint32_t align)
+inline int64_t AlignUp(int64_t value, int64_t align)
 {
     return (align == 0) ? 0 : ((value + align - 1) / align) * align;
 }
 
 // Align value down to the nearest multiple of align
-inline uint32_t AlignDown(uint32_t value, uint32_t align)
+inline int64_t AlignDown(int64_t value, int64_t align)
 {
     return (align == 0) ? 0 : (value / align) * align;
 }
-
-// Input indices - 按照OpDef定义的顺序
-// Input: x, h_res, h_out, h_post
-const static int64_t X_INPUT_INDEX = 0;           // residual (B, S, n, D)
-const static int64_t H_RES_INPUT_INDEX = 1;       // comb (B, S, n, n)
-const static int64_t H_OUT_INPUT_INDEX = 2;       // x (B, S, D)
-const static int64_t H_POST_INPUT_INDEX = 3;      // post (B, S, n)
-
-// Output indices
-const static int64_t OUTPUT_INDEX = 0;            // output (B, S, n, D)
 
 class MhcPostTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
@@ -111,11 +101,11 @@ private:
     void ComputeTiling();
     const gert::Shape *xShape_ = nullptr;
 
-    uint32_t B_ = 0;
-    uint32_t S_ = 0;
-    uint32_t n_ = 0;
-    uint32_t D_ = 0;
-    uint32_t totalItems_ = 0;
+    int64_t B_ = 0;
+    int64_t S_ = 0;
+    int64_t n_ = 0;
+    int64_t D_ = 0;
+    int64_t totalItems_ = 0;
     int64_t usedCoreNum_ = 0;
     int64_t normalCoreProcessNum_ = 0;
     int64_t tailCoreProcessNum_ = 0;
@@ -282,29 +272,20 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
 
     if (dimNum == 4) {
         // BSND format: (B, S, n, D)
-        int64_t B_int = xShape_->GetDim(0);
-        int64_t S_int = xShape_->GetDim(1);
-        int64_t n_int = xShape_->GetDim(2);
-        int64_t D_int = xShape_->GetDim(3);
-
-        B_ = static_cast<uint32_t>(B_int);
-        S_ = static_cast<uint32_t>(S_int);
-        n_ = static_cast<uint32_t>(n_int);
-        D_ = static_cast<uint32_t>(D_int);
+        B_ = xShape_->GetDim(0);
+        S_ = xShape_->GetDim(1);
+        n_ = xShape_->GetDim(2);
+        D_ = xShape_->GetDim(3);
         totalItems_ = B_ * S_;
-        OP_LOGI(context_, "BSND format: B=%u, S=%u, n=%u, D=%u, totalItems=%u", B_, S_, n_, D_, totalItems_);
+        OP_LOGI(context_, "BSND format: B=%ld, S=%ld, n=%ld, D=%ld, totalItems=%ld", B_, S_, n_, D_, totalItems_);
     } else if (dimNum == 3) {
         // TND format: (T, n, D)
-        int64_t T_int = xShape_->GetDim(0);
-        int64_t n_int = xShape_->GetDim(1);
-        int64_t D_int = xShape_->GetDim(2);
-
         B_ = 1;  // Not used in TND format
         S_ = 1;  // Not used in TND format
-        totalItems_ = static_cast<uint32_t>(T_int);
-        n_ = static_cast<uint32_t>(n_int);
-        D_ = static_cast<uint32_t>(D_int);
-        OP_LOGI(context_, "TND format: T=%u, n=%u, D=%u", totalItems_, n_, D_);
+        totalItems_ = xShape_->GetDim(0);
+        n_ = xShape_->GetDim(1);
+        D_ = xShape_->GetDim(2);
+        OP_LOGI(context_, "TND format: T=%ld, n=%ld, D=%ld", totalItems_, n_, D_);
     } else {
         OP_LOGE(context_, "Unsupported input dimension: %u (expected 3 for TND or 4 for BSND)", dimNum);
         return ge::GRAPH_FAILED;
@@ -465,18 +446,17 @@ void MhcPostTilingBase::ComputeTiling()
 {
     // Core Partitioning - handle remainder properly
     uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.numBlocks);
-
-    bsOuter_ = (totalItems_ < coreNum) ? totalItems_ : coreNum; // useCore
-    bsInner_ = totalItems_ / bsOuter_;  // perCoreNum
+    bsInner_ = 1;
+    bsOuter_ = totalItems_ / bsInner_;
     bsTail_ = totalItems_ - (bsOuter_ - 1) * bsInner_;
     isNotFullCore_ = (bsOuter_ < coreNum) ? 1 : 0;
  
     const uint32_t UB_SIZE = static_cast<uint32_t>(aicoreParams_.ubSize);
 
-    // Calculate bytes per tileD element based on actual n
+    // Calculate bytes per tileD element
     // TQue bf16: 3 * 2 bytes (hOut:1, x:1, output:1)
     // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
-    uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
+    uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SINGLE_BUFFER_DEPTH * SIZE_OF_32BIT);
     uint32_t maxTileD = UB_SIZE / bytesPerTileD;
 
     if (isNotFullCore_ == 1) {
@@ -488,17 +468,17 @@ void MhcPostTilingBase::ComputeTiling()
     } else {
         dInner_ = ALIGN_SIZE_512B;
     }
-    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
+    dOuter_ = Ops::Base::CeilDiv(D_, dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
 
     if (isNotFullCore_ == 1) {
         int64_t totalCount = bsOuter_ * dOuter_;
-        usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
-        normalCoreProcessNum_ = totalCount / usedCoreNum_;
+        normalCoreProcessNum_ = Ops::Base::CeilDiv(totalCount, static_cast<int64_t>(coreNum));
+        usedCoreNum_ = Ops::Base::CeilDiv(totalCount, normalCoreProcessNum_);
         tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
         isNotFullCore_ = 1;
     } else {
-        usedCoreNum_ = bsOuter_;
+        usedCoreNum_ = coreNum;
         normalCoreProcessNum_ = dOuter_;
         tailCoreProcessNum_ = dTail_;
         isNotFullCore_ = 0;

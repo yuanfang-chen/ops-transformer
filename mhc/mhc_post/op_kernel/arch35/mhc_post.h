@@ -28,10 +28,6 @@
 namespace MhcPost {
 using namespace AscendC;
 
-// Constants for memory alignment and buffer configuration
-constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;     // 16 elements = 32 bytes for bf16/fp16
-constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;         // 8 elements = 32 bytes for float32
-
 // Double Buffer configuration - Double Buffer提升Memory Bound算子性能
 constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;       // Double Buffer depth for data tiles
 constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;       // Single Buffer depth for weights
@@ -48,11 +44,10 @@ public:
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void CopyInTile(uint32_t bsIdx, uint32_t dIdx);
-    __aicore__ inline void ComputeAndCopyOutTile(uint32_t bsIdx, uint32_t dIdx);
-    __aicore__ inline void CopyOutTile(uint32_t bsIdx, uint32_t dIdx, uint32_t nI);
-    __aicore__ inline void CopyInX(uint32_t bsIdx, uint32_t dIdx, uint32_t nI, uint32_t nJ,
-                                         LocalTensor<float> outF32);
+    __aicore__ inline void CopyInTile(int64_t bsIdx, int64_t dIdx);
+    __aicore__ inline void ComputeAndCopyOutTile(int64_t bsIdx, int64_t dIdx);
+    __aicore__ inline void CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI);
+    __aicore__ inline void CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ);
 
 private:
     TPipe *pipe_;
@@ -92,8 +87,8 @@ private:
     int64_t dOuter_;
     int64_t dTail_;
 
-    uint32_t myItemCount_;
-    uint32_t itemStart_;
+    int64_t myItemCount_;
+    int64_t itemStart_;
     uint32_t blockIdx_;
 };
 
@@ -119,6 +114,9 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
     dTail_ = tilingData->dTail;
 
     blockIdx_ = GetBlockIdx();
+    if (blockIdx_ >= usedCoreNum_) {
+        return;
+    }
 
     // Calculate work distribution with remainder handling
     if (blockIdx_ < usedCoreNum_ - 1) {
@@ -151,10 +149,14 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
 TEMPLATE_DECLARE
 __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
 {
-    for (uint32_t itemIdx = 0; itemIdx < myItemCount_; itemIdx++) {
-        uint32_t globalItemIdx = itemStart_ + itemIdx;
-        uint32_t bsIdx = globalItemIdx / dOuter_;
-        uint32_t dIdx = globalItemIdx - bsIdx * dOuter_;
+    if (blockIdx_ >= usedCoreNum_) {
+        return;
+    }
+
+    for (int64_t itemIdx = 0; itemIdx < myItemCount_; itemIdx++) {
+        int64_t globalItemIdx = itemStart_ + itemIdx;
+        int64_t bsIdx = globalItemIdx / dOuter_;
+        int64_t dIdx = globalItemIdx - bsIdx * dOuter_;
 
         CopyInTile(bsIdx, dIdx);
         ComputeAndCopyOutTile(bsIdx, dIdx);
@@ -162,9 +164,9 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t bsIdx, uint32_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(int64_t bsIdx, int64_t dIdx)
 {
-    uint32_t hOutOffset = bsIdx * D_ + dIdx * dInner_;
+    int64_t hOutOffset = bsIdx * D_ + dIdx * dInner_;
     LocalTensor<T> hOutTileLocal = hOutTileQueue_.AllocTensor<T>();
 
     if (dIdx < dOuter_ - 1) {
@@ -178,10 +180,10 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(uint32_t bsIdx, 
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint32_t bsIdx, uint32_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(int64_t bsIdx, int64_t dIdx)
 {
-    uint32_t hPostBase = bsIdx * n_;
-    uint32_t hResBase = bsIdx * n_ * n_;
+    int64_t hPostBase = bsIdx * n_;
+    int64_t hResBase = bsIdx * n_ * n_;
     int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
 
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
@@ -198,11 +200,11 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint3
     // Compute output for each head: output[i] = hPost[i] * hOut + sum_j(hRes[j,i] * x[j])
     // This implements: x_{l+1}[i] = h_{l}^{out} * H_{t}^{post}[i] + sum_j((H_{l}^{res})^{T}[j,i] * x_l[j])
     // Note: hRes indexing is [j,i] to access transposed matrix element (H_res)^T[j,i]
-    for (uint32_t i = 0; i < n_; i++) {
+    for (int64_t i = 0; i < n_; i++) {
         // outF32 = hPost[i] * hOut
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
         // outF32 += sum_j(hRes[j,i] * x[j])
-        for (uint32_t j = 0; j < n_; j++) {
+        for (int64_t j = 0; j < n_; j++) {
             CopyInX(bsIdx, dIdx, i, j, outF32);
             LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
             Cast(xF32, xTile, RoundMode::CAST_NONE, dNum);
@@ -220,12 +222,11 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(uint3
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(uint32_t bsIdx, uint32_t dIdx, uint32_t nI,
-                                                                   uint32_t nJ, LocalTensor<float> outF32)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ)
 {
-    uint32_t dStart = dIdx * dInner_;
-    uint32_t xBase = bsIdx * n_ * D_ + nJ * D_;
-    uint32_t xOffset = xBase + dStart;
+    int64_t dStart = dIdx * dInner_;
+    int64_t xBase = bsIdx * n_ * D_ + nJ * D_;
+    int64_t xOffset = xBase + dStart;
 
     LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
 
@@ -240,11 +241,11 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(uint32_t bsIdx, uin
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(uint32_t bsIdx, uint32_t dIdx, uint32_t nI)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI)
 {
-    uint32_t dStart = dIdx * dInner_;
-    uint32_t outputBase = bsIdx * n_ * D_ + nI * D_;
-    uint32_t outputOffset = outputBase + dStart;
+    int64_t dStart = dIdx * dInner_;
+    int64_t outputBase = bsIdx * n_ * D_ + nI * D_;
+    int64_t outputOffset = outputBase + dStart;
 
     LocalTensor<T> outputTile = outputTileQueue_.DeQue<T>();
 
