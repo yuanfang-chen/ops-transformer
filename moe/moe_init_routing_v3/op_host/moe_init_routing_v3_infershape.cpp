@@ -60,7 +60,7 @@ enum QuantMode : int8_t {
     DYNAMIC_QUANT = 1,
     MXQUANT_FP8_E5M2 = 2,
     MXQUANT_FP8_E4M3FN = 3,
-    HIF8_CAST = 6
+    HIF8_CAST = 6,
     HIF8_PERTENSOR = 7,
     HIF8_PERTOKEN = 8
 };
