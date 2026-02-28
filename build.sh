@@ -71,8 +71,10 @@ else
     DEFAULT_TOOLKIT_INSTALL_DIR="/usr/local/Ascend/ascend-toolkit/latest"
     DEFAULT_INSTALL_DIR="/usr/local/Ascend/latest"
 fi
+BISHENG_FLAGS=""
 CANN_3RD_LIB_PATH="${CURRENT_DIR}/third_party"
 CUSTOM_OPTION="-DBUILD_OPEN_PROJECT=ON"
+ENABLE_SIMULATOR=FALSE
 
 dotted_line="---------------------------------------------------------------------------------------------------------------------"
 ########################################################################################################################
@@ -413,6 +415,51 @@ export GRAPH_LIBRARY_PATH="${ASCEND_HOME_PATH}/lib64"
 
 export EAGER_INCLUDE_OPP_ACLNNOP_PATH="${ASCEND_HOME_PATH}/${ARCH_INFO}-linux/include/aclnnop"
 
+USER_SET_SLOG=${ASCEND_SLOG_PRINT_TO_STDOUT:+true}
+USER_SET_LOG_LEVEL=${ASCEND_GLOBAL_LOG_LEVEL:+true}
+
+# Helper function to get simulator chip version from soc_version
+get_simulator_chip_version() {
+    local soc=$1
+    case "$soc" in
+        ascend910) echo "dav_1001" ;;
+        ascend910_93|ascend910b) echo "dav_2201" ;;
+        ascend310p) echo "dav_2002" ;;
+        ascend310b) echo "dav_3002" ;;
+        ascend950) echo "dav_3510" ;;
+        *)
+        echo "[ERROR] Unsupported soc version for simulator: $soc" >&2
+        return 1
+        ;;
+    esac
+}
+ 	 
+# Helper function to get simulator compile arguments
+get_simulator_args() {
+    if [[ "$ENABLE_SIMULATOR" == "FALSE" ]];then
+        return 0
+    fi
+    if [[ "$ENABLE_SIMULATOR" == "TRUE" ]] && [[ -n "$COMPUTE_UNIT" ]]; then
+        local chip_version=$(get_simulator_chip_version "$COMPUTE_UNIT")
+        if [[ $? -ne 0 ]]; then
+        exit 1
+        fi
+        if [[ -n "$chip_version" ]]; then
+        local sim_lib_path="${ASCEND_HOME_PATH}/tools/simulator/${chip_version}/lib"
+        if [[ ! -d "$sim_lib_path" ]]; then
+            echo "[ERROR] Simulator lib path not found: $sim_lib_path" >&2
+            exit 1
+        else
+            echo "[INFO] Successfully linked simulator libraries: ${sim_lib_path}/libruntime_camodel.so, ${sim_lib_path}/libnpu_drv_camodel.so" >&2
+            fi
+            echo "$sim_lib_path"
+            return 0
+        fi
+    fi
+    echo ""
+    return 1
+}
+
 function build_example()
 {
     log "Start to run example,name:${EXAMPLE_NAME} mode:${EXAMPLE_MODE}"
@@ -468,6 +515,12 @@ function build_example()
         ABSOLUTE_MC2_PATH=$(realpath ${BUILD_PATH}/../mc2) # mc2目录绝对路径
         ABSOLUTE_EXAMPLES_MC2_PATH=$(realpath ${BUILD_PATH}/../examples/mc2)
         ABSOLUTE_EXPERIMENTAL_MC2_PATH=$(realpath ${BUILD_PATH}/../experimental/mc2)
+        local sim_lib_path
+        sim_lib_path=$(get_simulator_args)
+        local ret=$?
+        if [ $ret -ne 0 ]; then
+            exit 1
+        fi
         for file in "${files[@]}"; do
             echo "Start compile and run example file: $file"
             REAL_FILE_PATH=$(realpath "$file")
@@ -476,7 +529,33 @@ function build_example()
                 MC2_APPEND_INCLUDE_AND_LIBRARY="-lpthread -Wl,--no-as-needed -lhccl -lhccl_fwk"
             fi
             if [[ "${PKG_MODE}" == "" ]]; then
-                g++ ${file} -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lopapi_transformer -lascendcl -lnnopbase -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME}
+                if [[ -n "$sim_lib_path" ]]; then
+                    if [[ "$USER_SET_SLOG" != "true" ]]; then
+                        export ASCEND_SLOG_PRINT_TO_STDOUT=0
+                    fi
+                    if [[ "$USER_SET_LOG_LEVEL" != "true" ]]; then
+                        export ASCEND_GLOBAL_LOG_LEVEL=3
+                    fi
+                    export LD_LIBRARY_PATH=${sim_lib_path}:${LD_LIBRARY_PATH}
+                    ln -sf ${sim_lib_path}/libruntime_camodel.so ${sim_lib_path}/libruntime.so
+                    ln -sf ${sim_lib_path}/libnpu_drv_camodel.so ${sim_lib_path}/libascend_hal.so
+                    g++ ${file} \
+                        -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                        -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} \
+                        -lopapi_math -lopapi_transformer -lascendcl -lnnopbase \
+                        -L ${sim_lib_path} \
+                        -lruntime_camodel -lnpu_drv_camodel \
+                        -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                        -o test_aclnn_${EXAMPLE_NAME} \
+                        -Wl,-rpath=${sim_lib_path}
+                else
+                    g++ ${file} \
+                        -I ${INCLUDE_PATH} -I ${ACLNN_INCLUDE_PATH} -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                        -L ${EAGER_LIBRARY_OPP_PATH} -L ${EAGER_LIBRARY_PATH} \
+                        -lopapi_math -lopapi_transformer -lascendcl -lnnopbase \
+                        -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                        -o test_aclnn_${EXAMPLE_NAME}
+                fi
             elif [[ "${PKG_MODE}" == "cust" ]]; then
                 if [[ "${vendor_name}" == "" ]]; then
                     vendor_name="custom"
@@ -489,7 +568,37 @@ function build_example()
                     CUST_LIBRARY_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/lib"
                     CUST_INCLUDE_PATH="${CUST_VENDORS_PATH}/${vendor_name}_transformer/op_api/include"
                 fi
-                g++ ${file} -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} -lopapi_math -lcust_opapi -lascendcl -lnnopbase -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} -o test_aclnn_${EXAMPLE_NAME} -Wl,-rpath=${CUST_LIBRARY_PATH}
+                # Compile with custom paths
+                if [[ -n "$sim_lib_path" ]]; then
+                    if [[ "$USER_SET_SLOG" != "true" ]]; then
+                        export ASCEND_SLOG_PRINT_TO_STDOUT=0
+                    fi
+                    if [[ "$USER_SET_LOG_LEVEL" != "true" ]]; then
+                        export ASCEND_GLOBAL_LOG_LEVEL=3
+                    fi
+                    export LD_LIBRARY_PATH=${sim_lib_path}:${LD_LIBRARY_PATH}
+                    ln -sf ${sim_lib_path}/libruntime_camodel.so ${sim_lib_path}/libruntime.so
+                    ln -sf ${sim_lib_path}/libnpu_drv_camodel.so ${sim_lib_path}/libascend_hal.so
+                    g++ ${file} \
+                        -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} \
+                        -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} \
+                        -lopapi_math -lcust_opapi -lascendcl -lnnopbase \
+                        -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                        -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                        -L ${sim_lib_path} \
+                        -lruntime_camodel -lnpu_drv_camodel \
+                        -o test_aclnn_${EXAMPLE_NAME} \
+                        -Wl,-rpath=${CUST_LIBRARY_PATH}:${sim_lib_path}
+                else
+                    g++ ${file} \
+                        -I ${CUST_INCLUDE_PATH} -I ${INCLUDE_PATH} \
+                        -L ${CUST_LIBRARY_PATH} -L ${EAGER_LIBRARY_PATH} \
+                        -lopapi_math -lcust_opapi -lascendcl -lnnopbase \
+                        -I ${EAGER_INCLUDE_OPP_ACLNNOP_PATH} \
+                        -lc_sec ${MC2_APPEND_INCLUDE_AND_LIBRARY} \
+                        -o test_aclnn_${EXAMPLE_NAME} \
+                        -Wl,-rpath=${CUST_LIBRARY_PATH}
+                fi
             else
                 echo "Error: pkg_mode(${PKG_MODE}) must be cust."
                 help_info "run_example"
@@ -942,6 +1051,11 @@ while [[ $# -gt 0 ]]; do
         ENABLE_BUILT_IN=FALSE
         shift
         ;;
+    --bisheng_flags=*)
+        OPTARG=$1
+        BISHENG_FLAGS=${OPTARG#*=}
+        shift
+        ;;
     -c|--compute-unit)
         ascend_compute_unit="$2"
         shift 2
@@ -965,6 +1079,9 @@ while [[ $# -gt 0 ]]; do
     -u|--test)
         ENABLE_TEST=TRUE
         shift
+        ;;
+    --simulator)
+        ENABLE_SIMULATOR=TRUE
         ;;
     --run_example)
         ENABLE_RUN_EXAMPLE=TRUE
@@ -1359,6 +1476,10 @@ if [ -n "${CMAKE_BUILD_MODE}" ];then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DCMAKE_BUILD_MODE=${CMAKE_BUILD_MODE}"
 fi
 CUSTOM_OPTION="${CUSTOM_OPTION} -DCANN_3RD_LIB_PATH=${CANN_3RD_LIB_PATH}"
+
+if [ -n "${BISHENG_FLAGS}" ];then
+    CUSTOM_OPTION="${CUSTOM_OPTION} -DBISHENG_FLAGS=${BISHENG_FLAGS}"
+fi
 
 if [[ "$ENABLE_STATIC" == "TRUE" ]]; then
     CUSTOM_OPTION="${CUSTOM_OPTION} -DENABLE_STATIC=${ENABLE_STATIC}"
