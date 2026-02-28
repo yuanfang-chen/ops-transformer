@@ -1567,9 +1567,7 @@ function process_ci_smoke_with_changed_list()
 if [[ "$ENABLE_SMOKE" == "TRUE" ]]; then
     process_ci_smoke_with_changed_list
 fi
-
 cd ${BUILD_DIR}
-
 if [[ "$ENABLE_RUN_EXAMPLE" == "TRUE" ]];then
     build_example
     example_result=$?
