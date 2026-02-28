@@ -28,6 +28,7 @@ using namespace MoeDistributeDispatchV2FullMeshImpl;
 using namespace Mc2Context;
 using namespace Mc2Tiling;
 using namespace AscendC;
+using namespace Mc2Context;
 
 template<bool HasTp, uint8_t QuantMode, bool ScaleMode, uint8_t FullMesh, uint8_t CommMode, uint8_t ArchTag>
 __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
