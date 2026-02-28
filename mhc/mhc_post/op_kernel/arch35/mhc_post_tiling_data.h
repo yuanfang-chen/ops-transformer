@@ -17,19 +17,17 @@
 #define __MHC_POST_TILLING_DATA_H__
  
 struct MhcPostTilingData {
-    uint32_t totalItems;
-    uint32_t itemsPerCore;
-    uint32_t remainderItems;
-    uint32_t usedCores;
-    uint32_t S;
-    uint32_t n;
-    uint32_t D;
-    uint32_t tileD;
-    uint32_t nTilesD;
-    uint32_t alignedD;
-    uint32_t lastTileD;
-    uint32_t alignedN;      // n aligned to 8 for float32 vector ops
-    uint32_t alignedNN;     // n*n aligned to 8 for float32 vector ops
+    int64_t n;
+    int64_t D;
+    int64_t usedCoreNum;
+    int64_t normalCoreProcessNum;
+    int64_t tailCoreProcessNum;
+    int64_t bsInner;
+    int64_t bsOuter;
+    int64_t bsTail;
+    int64_t dInner;
+    int64_t dOuter;
+    int64_t dTail;
 };
 
 #endif
