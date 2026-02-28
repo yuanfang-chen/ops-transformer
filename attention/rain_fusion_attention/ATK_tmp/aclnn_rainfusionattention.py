@@ -127,10 +127,15 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
         input_args[6] = null_tensor_ptr # attenMask
         self.qSeqlenList = input_data.kwargs['actualSeqLengths']
         input_args[9] = null_tensor_ptr # blockTable
-        input_args[18] = null_tensor_ptr
-
-        input_args.pop()
-        output_packages.append(input_args[-2])
+        # input_args[18] = null_tensor_ptr
+        if not input_data.kwargs['softmaxLse']:
+            input_args.pop()
+            input_args.pop()
+            output_packages.append(input_args[-2])
+            output_packages.append(input_args[-1])
+        else:
+            input_args.pop()
+            output_packages.append(input_args[-2])
 
         return input_args, output_packages
 
@@ -154,7 +159,7 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
             for i in range(batch):
                 outputTemp[count:count+self.qSeqlenList[i], :, :] = outputTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
                 count += self.qSeqlenList[i]
-            return [outputTemp]
+            return [outputTemp] # 为什么转成TND输出
         else:
             return output
 
@@ -211,8 +216,10 @@ class TestRainFusionAttentionTorch():
         
         # 最终归一化
         O_final = O_i / l_i  # (1, q_len, head_size)
-        
-        return O_final
+        #  LSE = m + log(l)
+        lse = m_i + torch.log(l_i)
+
+        return O_final, lse
 
 
     @classmethod
@@ -263,8 +270,10 @@ class TestRainFusionAttentionTorch():
         
         # 最终归一化
         O_final = O_i / l_i  # (1, q_len, head_size)
-        
-        return O_final
+        # LSE = m + log(l)，shape: (1, q_len, 1)
+        lse = m_i + torch.log(l_i)
+
+        return O_final, lse
 
 
     def ref_select_idx_attention_torch(self,
@@ -310,6 +319,7 @@ class TestRainFusionAttentionTorch():
         head_size = query.shape[2]
         out_high = torch.zeros((num_heads, total_q_tokens, head_size), dtype=torch.float32, device=device)
         out = torch.zeros((num_heads, total_q_tokens, head_size), dtype=query.dtype, device=device)
+        lse_out = torch.full((num_heads, total_q_tokens, 1), -float('inf'), dtype=torch.float32, device=device)
         
         # 【关键修复】：添加batch级别的累计偏移量
         q_token_offset = 0   # Q方向token累计偏移
@@ -402,14 +412,14 @@ class TestRainFusionAttentionTorch():
 
                     # 使用 Online Softmax 计算注意力（FlashAttention 风格）
                     if query.dtype == torch.float32:
-                        out_block = self.online_softmax_attention_torch_high(q_block, kv_blocks, scale)  # (1, q_block_size, head_size)
+                        out_block, lse_block = self.online_softmax_attention_torch_high(q_block, kv_blocks, scale)  # (1, q_block_size, head_size)
                     else:
-                        out_block = self.online_softmax_attention_torch(q_block, kv_blocks, scale, torch_dtype, query.dtype, inner_precise)
+                        out_block, lse_block = self.online_softmax_attention_torch(q_block, kv_blocks, scale, torch_dtype, query.dtype, inner_precise)
                     
                     # 【修复】：输出到全局位置
                     # out_high[head:head+1, q_start_global:q_end_global, :] = out_block_high
                     out[head:head+1, q_start_global:q_end_global, :] = out_block
-            
+                    lse_out[head:head+1, q_start_global:q_end_global, :] = lse_block.to(torch.float32)
             # 【关键修复】：更新累计偏移量，为下一个batch做准备
             q_token_offset += q_seqlen
             kv_token_offset += kv_seqlen
@@ -420,7 +430,7 @@ class TestRainFusionAttentionTorch():
         out = out.permute(1, 0, 2)
         # if query.dtype != torch.float32:
         #     out = out.to(query.dtype)
-        return out
+        return out, lse_out
 
     @classmethod
     def change_bnsd_to_tnd(self, tensor, seqlenList):
@@ -523,18 +533,18 @@ class TestRainFusionAttentionTorch():
         s_block_y = block_shape[1]
         select_idx_list = select_idx.flatten().tolist()
         select_num_idx_list = select_num_idx.flatten().tolist()
-        ref_output = self.ref_select_idx_attention_torch(
+        ref_output, ref_lse = self.ref_select_idx_attention_torch(
             query, key, value, scale_value,
             select_idx_list, select_num_idx_list,
             s_block_x, s_block_y,
             total_q_blocks, max_kv_block_num,
             q_seqlen_list, kv_seqlen_list, batch_size, torch_dtype, inner_precise
         )
-        if query.dtype != torch.float32:
+        if query.dtype != torch.float32: # 这里要区分lse
             ref_output_h = ref_output.to(torch.float32)
-            return ref_output_h
+            return ref_output_h, ref_lse
         else:
-            return ref_output
+            return ref_output, ref_lse
 
 @register("aclnn_rainfusionattention")
 class RainFusionAttentionApi(BaseApi):
