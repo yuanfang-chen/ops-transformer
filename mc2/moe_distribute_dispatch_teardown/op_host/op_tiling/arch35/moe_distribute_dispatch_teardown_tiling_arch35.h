@@ -28,8 +28,8 @@ public:
     }
 
 private:
-    ge::graphStatus DoOpTiling() override final;
-    bool IsCapable() override final;
+    ge::graphStatus DoOpTiling() final;
+    bool IsCapable() final;
 };
 } // namespace optiling
 #endif // MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_ARCH35_H_
