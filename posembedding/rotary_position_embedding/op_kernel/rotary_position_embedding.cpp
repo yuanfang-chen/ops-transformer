@@ -23,12 +23,12 @@
 #if defined(__CCE_AICORE__) && __CCE_AICORE__ == 220
 #include "rotate_matrix.h"
 using namespace RotateMatrix;
+using namespace matmul;
 #endif
 
 using namespace AscendC;
 using namespace RotateHalfN;
 using namespace RotateInterleavedN;
-using namespace matmul;
 
 extern "C" __global__ __aicore__ void rotary_position_embedding(GM_ADDR x, GM_ADDR cos, GM_ADDR sin, GM_ADDR rotate,
                                                                 GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)

@@ -25,6 +25,8 @@ namespace ge {
  * float or bfloat16.
  * @li cos: A 4D tensor which is "cos" in rotary position embedding, format supports ND, data type must be the same as
  * "x", and shape must be the same as "sin".
+ * @li sin: A 4D tensor which is "sin" in rotary position embedding, format supports ND, data type must be the same as	 
+ * "x", and shape must be the same as "cos".
  * @li rotate: An optional 2D tensor which is the transformation matrix for position transformation of the "x" in rotary
  * position embedding, format supports ND, data type must be the same as "x", both dimensions are the same and equal to
  * the last dimension of "x".
