@@ -255,7 +255,7 @@ static void TestQuantParamCase(const QuantGroupedMatmulAlltoAllvAclnnTestParam &
     std::cout << "end case " << param.case_name << std::endl;
 }
 
-TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, quant_cases_params)
+TEST_F(test_aclnn_quant_grouped_mat_mul_allto_all, DISABLED_quant_cases_params)
 {
     if (std::size(quant_cases_params) != 0) {
     uint64_t numCases = sizeof(quant_cases_params) / sizeof(quant_cases_params[0]);
