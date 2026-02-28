@@ -46,10 +46,8 @@ public:
     bool AnalyzeAttrs() override { return true; }
     bool AnalyzeDtype() override { return true; }
     bool AnalyzeInputs() override { return true; }
-    // void PrintQuantParams() override {}
     void Reset() override {}
 
-    // void PrintMatmulParams();
     ge::graphStatus Process();
     ge::graphStatus SetCommonInputParams(const QuantGmmAlltoAllvParamsInfo& params);
     ge::graphStatus SetGroupExpertInputParameters(const QuantGmmAlltoAllvParamsInfo& params, uint64_t gmmX);
