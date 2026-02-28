@@ -521,43 +521,6 @@ ge::graphStatus FiaTilingCheck::CheckSystemPrefixShape()
     return ge::GRAPH_SUCCESS;
 }
 
-// 增加拦截判断，确保在sparse9场景，s1 <= s2
-ge::graphStatus FiaTilingCheck::CheckSparseMode()
-{
-    // tiling下沉场景 由于actualSeqlen得不到，所以不进行校验
-    if (fiaInfo_.isMaxWorkspace) {
-        return ge::GRAPH_SUCCESS;
-    }
-
-    int32_t sparseMode = *opParamInfo_.sparseMode;
-    if (sparseMode == SPARSE_MODE_TREE) {
-        // qSize在feature文件中可以获得每个batch实际大小
-        // CheckActualSeqLensQ、CheckActualSeqLensKv保证了长度的一致性
-        // 在入图场景，请求没有打满时，actualseqQ会padding为1，actualseqKv padding为0，此时不校验
-        int32_t NonpaddingZeroIndex = -1;
-        for (int32_t i = qSize.size() - 1; i >= 0; i--) {
-            if (kvSize[i] != 0) {
-                NonpaddingZeroIndex = i;
-                break;
-            }
-        }
-        
-        if (NonpaddingZeroIndex == -1) {
-            return ge::GRAPH_SUCCESS;
-        }
-
-        for (uint32_t i = 0; i <= NonpaddingZeroIndex; i++) {
-            OP_CHECK_IF(qSize[i] > kvSize[i], 
-                OP_LOGE(opName_, 
-                        "In %s situation, when sparse is %d, qSize[%d] should less than or equal to kvSize[%d],"
-                        "but got qSize %d and kvSize %d.", 
-                        QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]),
-            return ge::GRAPH_FAILED);
-        }
-    }
-    return ge::GRAPH_SUCCESS;
-}
-
 ge::graphStatus FiaTilingCheck::CheckMask()
 {
     if (opParamInfo_.attenMask.tensor == nullptr || opParamInfo_.attenMask.desc == nullptr) {

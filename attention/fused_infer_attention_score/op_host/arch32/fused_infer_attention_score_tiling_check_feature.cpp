@@ -165,8 +165,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMla()
 ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
 {
     int32_t sparseMode = fiaInfo_.sparseMode;
-    // sparse9 仅在rope分离场景下存在，不支持左padding、PSE、公共前缀、后量化等特性
-    // 待补充s2 >= s1的拦截， mask shape拦截
+    // sparse9 仅在rope分离场景下存在，不支持左padding、PSE、公共前缀、后量化等特性 拦截s2 >= s1
     if (sparseMode == SPARSE_MODE_TREE) {
         // 特性校验
         OP_CHECK_IF(ropeMode_ != RopeMode::ROPE_SPLIT,
@@ -198,6 +197,35 @@ ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
                     "In %s situation, when sparse is %d, output dtype %d is not currently supported.", 
                     QuantModeToSerialString(quantMode_).c_str(), sparseMode, static_cast<int32_t>(outputType_)),
             return ge::GRAPH_FAILED);
+
+        // s2 >= s1拦截
+        // tiling下沉场景 由于actualSeqlen得不到，所以不进行校验
+        if (fiaInfo_.isMaxWorkspace) {
+            return ge::GRAPH_SUCCESS;
+        }
+        // qSize在feature文件中可以获得每个batch实际大小
+        // CheckActualSeqLensQ、CheckActualSeqLensKv保证了长度的一致性
+        // 在入图场景，请求没有打满时，actualseqQ会padding为1，actualseqKv padding为0，此时不校验
+        int32_t NonpaddingZeroIndex = -1;
+        for (int32_t i = qSize.size() - 1; i >= 0; i--) {
+            if (kvSize[i] != 0) {
+                NonpaddingZeroIndex = i;
+                break;
+            }
+        }
+        
+        if (NonpaddingZeroIndex == -1) {
+            return ge::GRAPH_SUCCESS;
+        }
+
+        for (uint32_t i = 0; i <= NonpaddingZeroIndex; i++) {
+            OP_CHECK_IF(qSize[i] > kvSize[i], 
+                OP_LOGE(opName_, 
+                        "In %s situation, when sparse is %d, qSize[%d] should less than or equal to kvSize[%d],"
+                        "but got qSize %d and kvSize %d.", 
+                        QuantModeToSerialString(quantMode_).c_str(), sparseMode, i, i, qSize[i], kvSize[i]),
+            return ge::GRAPH_FAILED);
+        }
     }
     return ge::GRAPH_SUCCESS;
 }

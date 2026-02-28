@@ -242,7 +242,6 @@ private:
     ge::graphStatus SetAttenMaskCompare();
     ge::graphStatus CheckAttentionMask();
     ge::graphStatus CheckTokens();
-    ge::graphStatus CheckSparseMode();
     ge::graphStatus CheckMask();
     ge::graphStatus CheckSoftmaxLseShape();
     ge::graphStatus CheckSoftmaxLseDType();
