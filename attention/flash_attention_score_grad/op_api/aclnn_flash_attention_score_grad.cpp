@@ -1957,7 +1957,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3GetWorkspaceSize(
                sparseMode, pseType),
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut));
 
-    // layout检查1
+    // layout检查
     if (strcmp(inputLayout, "TND") != 0) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
         return ACLNN_ERR_PARAM_INVALID;
@@ -2052,9 +2052,9 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV4GetWorkspaceSize(
                           inputLayout, innerPrecise, sparseMode, softmaxInLayout),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(inputLayout, "TND") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
-        return ACLNN_ERR_PARAM_INVALID;
+    if (strcmp(inputLayout, "TND") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
     }
 
     if (strcmp(softmaxInLayout, "same_as_input") != 0 && strcmp(softmaxInLayout, "") != 0 ) {
@@ -2348,9 +2348,9 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
                sparseMode, pseType, softmaxInLayout), 
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut, dsinkOut)); 
     
-    if (strcmp(inputLayout, "TND") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
-        return ACLNN_ERR_PARAM_INVALID;
+    if (strcmp(inputLayout, "TND") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
     }
     
     // 固定写法，创建OpExecutor
