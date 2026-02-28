@@ -778,7 +778,6 @@ ge::graphStatus FiaTilingCheck::CheckMultiParaConsistency()
         ge::GRAPH_SUCCESS != CheckKV() ||
         ge::GRAPH_SUCCESS != CheckAttenOut() ||
         ge::GRAPH_SUCCESS != CheckPseShift() ||
-        ge::GRAPH_SUCCESS != CheckSparseMode() ||
         ge::GRAPH_SUCCESS != CheckMask() ||
         ge::GRAPH_SUCCESS != CheckSoftmaxLse()||
         ge::GRAPH_SUCCESS != CheckSystemPrefix() ||
