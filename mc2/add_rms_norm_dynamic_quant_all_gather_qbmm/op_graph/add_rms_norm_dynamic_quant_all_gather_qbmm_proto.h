@@ -19,34 +19,45 @@
 
 namespace ge {
 /**
- * @brief Fusion op of quant and reduce scatter.
+ * @brief Fusion op of AddRmsNormDynamicQuant, AllGather and QuantBatchMatmul.
  * @par Inputs:
- * two inputs, including:
- * @li x1: A matrix Tensor. The type support int8, hifloat8, float8_e4m3fn, float8_e5m2, float4_e1m2, float4_e2m1. The
- * format supports ND.
- * @li scale: A matrix Tensor. The type support float, float8_e8m0. The format supports ND.
+ * eight inputs, including:
+ * @li x1: A matrix Tensor. The type support float16, bfloat16. The format supports ND.
+ * @li x2: A matrix Tensor. The type support int8. The format supports ND and FRACTAL_NZ.
+ * @li residual: A matrix Tensor. The type support float16, bfloat16. The format supports ND.
+ * @li y: A matrix Tensor. The type support float16, bfloat16. The format supports ND.
+ * @li gamma": A Tensor. The type support float. The format supports ND.
+ * @li scale: An optional Tensor. The type support float, bfloat16. The format supports ND.
+ * @li smooth_scale: An optional Tensor. The type support float. The format supports ND.
+ * @li bias: An optional Tensor. The type support int32. The format supports ND.
  *
  * @par Outputs:
- * out_put: A matrix Tensor. The type support float16, bfloat16, float. The format supports ND.
+ * @li output: A matrix Tensor. The type support float16, bfloat16. The format supports ND.
+ * @li z: A matrix Tensor. The type support float16, bfloat16. The format supports ND.
  *
  * @par Attributes:
  * @li group: A required string identifying the group of ranks participating in the op.
- * @li reduce_op: An optional string identifying the reduction operation to perform. Default: "sum".
- * @li output_dtype: An optional int identifying the data type of output. The type support 0(float), 1(float16),
+ * @li ranksize: A required int identifying the rank size. Default: 0.
+ * @li transpose_x2: An optional bool identifying the transpose of x2. Default: "false".
+ * @li dtype: An optional int identifying the data type of output. The type support 0(float), 1(float16),
  * 27(bfloat16). Default: 27(bfloat16).
- * @li world_size: A required int identifying the rank size.
+ * @li residual_norm_mode: A required int identifying the norm mode. Default: 0.
  */
 REG_OP(AddRmsNormDynamicQuantAllGatherQbmm)
-    .INPUT(x1, TensorType({DT_BF16}))
+    .INPUT(x1, TensorType({DT_BF16, DT_FLOAT16}))
     .INPUT(x2, TensorType({DT_INT8}))
-    .INPUT(residual, TensorType({DT_BF16}))
-    .INPUT(y, TensorType({DT_BF16}))
+    .INPUT(residual, TensorType({DT_BF16, DT_FLOAT16}))
+    .INPUT(y, TensorType({DT_BF16, DT_FLOAT16}))
     .INPUT(gamma, TensorType({DT_FLOAT}))
-    .INPUT(scale, TensorType({DT_BF16}))
-    .INPUT(smooth_scale, TensorType({DT_FLOAT}))
-    .INPUT(bias, TensorType({DT_BF16}))
-    .OUTPUT(output, TensorType({DT_BF16}))
-    .OUTPUT(z, TensorType({DT_BF16}))
+    .INPUT(scale, TensorType({DT_BF16, DT_FLOAT}))
+    .OPTIONAL_INPUT(smooth_scale, TensorType({DT_FLOAT}))
+    .OPTIONAL_INPUT(bias, TensorType({DT_INT32}))
+    .OUTPUT(output, TensorType({DT_BF16, DT_FLOAT}))
+    .OUTPUT(z, TensorType({DT_BF16, DT_FLOAT}))
+    .OUTPUT(addRmsNormOut, TensorType({DT_BF16, DT_FLOAT}))
+    .OUTPUT(dynamicQuantOut, TensorType({DT_INT8}))
+    .OUTPUT(allGatherDataOut, TensorType({DT_INT8}))
+    .OUTPUT(allGatherScalesOut, TensorType({DT_FLOAT}))
     .REQUIRED_ATTR(group, String)
     .ATTR(ranksize, Int, 0)
     .ATTR(transpose_x2, Bool, false)
