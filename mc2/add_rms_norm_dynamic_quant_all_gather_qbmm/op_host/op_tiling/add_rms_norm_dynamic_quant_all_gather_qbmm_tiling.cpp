@@ -352,27 +352,24 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
     const char *nodeName = context->GetNodeName();
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(x1Desc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(x1Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "x1 format is invalid."), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((x2Format != ge::FORMAT_FRACTAL_NZ) && (x2Format != ge::FORMAT_ND),
- 	    OP_LOGE(nodeName, "x2 format should be ND or NZ, but current x2 format is %s.",
- 	    Ops::Base::ToString(x2Format).c_str()), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(residualDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(residualDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "residual format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(yDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(yDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "y format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(gammaDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(gammaDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "gamma format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scaleDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scaleDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "scale format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "smooth format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(biasDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(biasDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "bias format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "output format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) != ge::FORMAT_ND,
+    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "z format is invalid."), return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
