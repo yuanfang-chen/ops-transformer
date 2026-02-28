@@ -190,7 +190,7 @@ private:
     uint32_t maxBs_{0};
 
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
-    MoeDistributeA2Base::MoeDistributeA2DispatchAddrInfo<XType> addrInfo_;
+    MoeDistributeA2Base::MoeDistributeA2DispatchAddrInfo addrInfo_;
 };
 
 template <TemplateMC2TypeA2layeredClass>

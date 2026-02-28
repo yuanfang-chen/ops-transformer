@@ -190,7 +190,7 @@ private:
     uint32_t scaleNumAlign;
     uint32_t SCALE_GRANU;
 
-    MoeDistributeA2Base::MoeDistributeA2CombineAddrInfo<ExpandXType> addrInfo_;
+    MoeDistributeA2Base::MoeDistributeA2CombineAddrInfo addrInfo_;
 };
 
 template <TemplateMC2TypeA2layeredClass>
