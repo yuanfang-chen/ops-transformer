@@ -483,7 +483,7 @@ void MhcPostTilingBase::ComputeTiling()
     dTail_ = D_;
 
     while(bsOuter_ * dOuter_ <= halfCoreNum || dInner_ >= maxTileD) {
-        if (dInner <= ALIGN_SIZE_512B) {
+        if (dInner_ <= ALIGN_SIZE_512B) {
             break;
         }
         dOuter_ = dOuter_ * 2;
@@ -497,7 +497,7 @@ void MhcPostTilingBase::ComputeTiling()
     normalCoreProcessNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), usedCoreNum_);
     usedCoreNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), normalCoreProcessNum_);
     tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
-    canFullyCopyIn_ = 0;
+    int32_t canFullyCopyIn_ = 0;
     uint64_t fullyBytesPerTileD = (n_ + 4) * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
     if (fullyBytesPerTileD * dInner_ <= UB_SIZE) {
         canFullyCopyIn_ = 1;
