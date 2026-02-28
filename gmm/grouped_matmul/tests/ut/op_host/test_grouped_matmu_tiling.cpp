@@ -2925,7 +2925,7 @@ TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_trans_dynamic_tiling_1aic2aiv)
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces,230);
 }
 
-TEST_F(GroupedMatmulTiling, test_tiling_a4w4ofp16_trans_dynamic_tiling_1aic2aiv)
+TEST_F(GroupedMatmulTiling, test_tiling_a4w4obf16_trans_dynamic_tiling_1aic2aiv)
 {
     size_t M = 8000;
     size_t K = 1024;
