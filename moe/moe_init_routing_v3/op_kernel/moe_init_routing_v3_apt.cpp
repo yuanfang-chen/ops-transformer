@@ -21,8 +21,12 @@
 #include "arch35/moe_v3_gather_out.h"
 #include "arch35/moe_v3_gather_dynamic_quant.h"
 #include "arch35/moe_v3_gather_mxfp8_quant.h"
+<<<<<<< Updated upstream
 #include "arch35/moe_v3_gather_hif8_pertensor_quant.h"
 #include "arch35/moe_v3_gather_hif8_pertoken_quant.h"
+=======
+#include "arch35/moe_v3_gather_mxfp4_quant.h"
+>>>>>>> Stashed changes
 
 /*
  * 非量化
@@ -49,6 +53,7 @@
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP8QUANT_SCATTER 1131000 // 多核排序、MXFP8量化、SCATTER索引
 
 /*
+<<<<<<< Updated upstream
  * HIF8 PENTENSOR量化
  */
 #define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_GATHER 1080000    // 单核排序、HIF8 PENTENSOR量化、GATHER索引
@@ -63,6 +68,14 @@
 #define MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTOKEN_QUANT_SCATTER 1091000   // 单核排序、HIF8 PENTEOKEN量化、SCATTER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_GATHER 1190000  // 多核排序、HIF8 PENTEOKEN量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_SCATTER 1191000 // 多核排序、HIF8 PENTEOKEN量化、SCATTER索引
+=======
+ * MXFP4量化
+ */
+#define MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_GATHER 1090000    // 单核排序、MXFP4量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_SCATTER 1091000   // 单核排序、MXFP4量化、SCATTER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_GATHER 1190000  // 多核排序、MXFP4量化、GATHER索引
+#define MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_SCATTER 1191000 // 多核排序、MXFP4量化、SCATTER索引
+>>>>>>> Stashed changes
 
 using namespace AscendC;
 using namespace MoeInitRoutingV3;
@@ -188,6 +201,7 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
             gatherMxfp8QuantOp.Process();
             gatherPipe.Destroy();
         }
+<<<<<<< Updated upstream
     } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_GATHER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_HIF8_PERTENSOR_QUANT_SCATTER) ||
                TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTENSOR_QUANT_GATHER) ||
@@ -211,6 +225,22 @@ extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR exp
             gatherHif8PerTokenQuantOp.Init(x, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
             gatherHif8PerTokenQuantOp.Process();
             gatherPipe.Destroy();
+=======
+    } else if (TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTONECORE_MXFP4QUANT_SCATTER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_GATHER) ||
+               TILING_KEY_IS(MOE_INIT_ROUTING_V3_SORTMULTICORE_MXFP4QUANT_SCATTER)) {
+        // MXFP4量化
+        if constexpr (IsSameType<DTYPE_X, bfloat16_t>::value || IsSameType<DTYPE_X, half>::value ||  IsSameType<DTYPE_X, float>::value) {
+            // TPipe gatherPipe;
+            // MoeGatherOutMxfp4Quant<DTYPE_X, DTYPE_EXPANDED_X> gatherMxfp4QuantOp;
+            // gatherMxfp4QuantOp.Init(x, scale, userWS, expandedRowIdx, expandedX, expandedScale, t, &gatherPipe);
+            // gatherMxfp4QuantOp.Process();
+            // gatherPipe.Destroy();
+            printf("----------------------------------\n");
+            printf("Enter the MXFP4 Kernel!\n");
+            printf("----------------------------------\n");
+>>>>>>> Stashed changes
         }
     }
 
