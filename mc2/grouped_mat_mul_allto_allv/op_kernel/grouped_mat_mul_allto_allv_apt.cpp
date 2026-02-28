@@ -99,7 +99,6 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
     if (userWorkspace == nullptr) {
         return;
     }
-    TPipe pipe;
 #if (ORIG_DTYPE_GMM_X == DT_BF16 || ORIG_DTYPE_GMM_X == DT_FLOAT16)
     REGISTER_TILING_DEFAULT(GroupedMatMulAlltoAllvTilingData);
     auto tiling = (__gm__ GroupedMatMulAlltoAllvTilingData*)tilingGM;
@@ -116,6 +115,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
 #endif
 
 #else
+    TPipe pipe;
     REGISTER_TILING_DEFAULT(QuantGmmA2avTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
     const QuantGmmA2avTilingData* tilingData_ = &tilingData;
