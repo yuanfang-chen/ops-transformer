@@ -27,7 +27,7 @@ static constexpr int INDEX_OUTPUT_KEY_OUT = 1;
 
 using namespace ge;
 namespace ops {
-static ge::graphStatus InferShapeForRopeWithSinCosCache(gert::InferShapeContext* context)
+static ge::graphStatus InferShapeForRopeWithSinCosCache(gert::InferShapeContext* context) 
 {
     if (context == nullptr) {
         OP_LOGE("InferShape4RopeWithSinCosCache", "Context is nullptr, check failed.");
