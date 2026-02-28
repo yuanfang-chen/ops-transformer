@@ -115,6 +115,50 @@
             -2
           ],
           "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
         }
       ],
       "attrs": [
@@ -163,7 +207,7 @@
           "name": "x2",
           "index": 1,
           "dtype": "int8",
-          "format": "NZ",
+          "format": "FRACTAL_NZ",
           "paramType": "required",
           "shape": [
             -2
@@ -253,6 +297,50 @@
           "name": "z",
           "index": 1,
           "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -403,6 +491,50 @@
             -2
           ],
           "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
         }
       ],
       "attrs": [
@@ -451,7 +583,7 @@
           "name": "x2",
           "index": 1,
           "dtype": "int8",
-          "format": "NZ",
+          "format": "FRACTAL_NZ",
           "paramType": "required",
           "shape": [
             -2
@@ -541,6 +673,50 @@
           "name": "z",
           "index": 1,
           "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "bfloat16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -605,7 +781,7 @@
         {
           "name": "residual",
           "index": 2,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -616,7 +792,7 @@
         {
           "name": "y",
           "index": 3,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -673,7 +849,7 @@
         {
           "name": "output",
           "index": 0,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -684,7 +860,51 @@
         {
           "name": "z",
           "index": 1,
-          "dtype": "bfloat16",
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -739,7 +959,7 @@
           "name": "x2",
           "index": 1,
           "dtype": "int8",
-          "format": "NZ",
+          "format": "FRACTAL_NZ",
           "paramType": "required",
           "shape": [
             -2
@@ -749,7 +969,7 @@
         {
           "name": "residual",
           "index": 2,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -760,7 +980,7 @@
         {
           "name": "y",
           "index": 3,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -817,7 +1037,7 @@
         {
           "name": "output",
           "index": 0,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -828,7 +1048,51 @@
         {
           "name": "z",
           "index": 1,
-          "dtype": "bfloat16",
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -893,7 +1157,7 @@
         {
           "name": "residual",
           "index": 2,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -904,7 +1168,7 @@
         {
           "name": "y",
           "index": 3,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -961,7 +1225,7 @@
         {
           "name": "output",
           "index": 0,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -972,7 +1236,51 @@
         {
           "name": "z",
           "index": 1,
-          "dtype": "bfloat16",
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1027,7 +1335,7 @@
           "name": "x2",
           "index": 1,
           "dtype": "int8",
-          "format": "NZ",
+          "format": "FRACTAL_NZ",
           "paramType": "required",
           "shape": [
             -2
@@ -1037,7 +1345,7 @@
         {
           "name": "residual",
           "index": 2,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1048,7 +1356,7 @@
         {
           "name": "y",
           "index": 3,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1105,7 +1413,7 @@
         {
           "name": "output",
           "index": 0,
-          "dtype": "bfloat16",
+          "dtype": "float16",
           "format": "ND",
           "paramType": "required",
           "shape": [
@@ -1116,7 +1424,51 @@
         {
           "name": "z",
           "index": 1,
-          "dtype": "bfloat16",
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "addRmsNormOut",
+          "index": 2,
+          "dtype": "float16",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "dynamicQuantOut",
+          "index": 3,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherDataOut",
+          "index": 4,
+          "dtype": "int8",
+          "format": "ND",
+          "paramType": "required",
+          "shape": [
+            -2
+          ],
+          "format_match_mode": "FormatAgnostic"
+        },
+        {
+          "name": "allGatherScalesOut",
+          "index": 5,
+          "dtype": "float32",
           "format": "ND",
           "paramType": "required",
           "shape": [
