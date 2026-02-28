@@ -110,6 +110,13 @@ aclnnStatus aclnnRotaryPositionEmbeddingV2GetWorkspaceSize(const aclTensor* x, c
         DFX_IN(x, cos, sin, mode, rotate),
         DFX_OUT(out));
 
+    // 如果rotate有值但芯片不是DAV_2201，报错
+    if (rotate != nullptr) {
+        auto npuArch = op::GetCurrentPlatformInfo().GetCurNpuArch();
+        CHECK_COND(op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_2201, 
+                   ACLNN_ERR_PARAM_INVALID, "the soc verison is not support");
+    }
+
     auto uniqueExecutor = CREATE_EXECUTOR();
     auto ret = RotaryPositionEmbeddingCommonProcess(x, cos, sin, rotate, mode, out, uniqueExecutor.get());
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
