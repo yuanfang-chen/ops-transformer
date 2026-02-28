@@ -339,11 +339,11 @@ const ge::graphStatus MoeDistributeDispatchSetupTilingBase::CheckOneTensorDim(
     std::string name, TensorType tensortype, uint32_t index, uint32_t dims)
 {
     const gert::StorageShape* shape;
-    if (tensortype == INPUT) {
+    if (tensortype == TensorType::INPUT) {
         shape = context_->GetInputShape(index);
-    } else if (tensortype == OUTPUT) {
+    } else if (tensortype == TensorType::OUTPUT) {
         shape = context_->GetOutputShape(index);
-    } else if (tensortype == OPTIONINPUT) {
+    } else if (tensortype == TensorType::OPTIONINPUT) {
         shape = context_->GetOptionalInputShape(index);
     } else {
         OP_LOGE(
