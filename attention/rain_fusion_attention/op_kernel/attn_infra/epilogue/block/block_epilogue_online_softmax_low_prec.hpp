@@ -320,24 +320,54 @@ public:
         // 1024个元素，以128为单位分治求最大值，1024->512->256->128
         uint32_t columnStrideIndex = 2;
         // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        columnStrideIndex *= 2;
-        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
+        // ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        // AscendC::PipeBarrier<PIPE_V>();
+        // columnStrideIndex *= 2;
+        // for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
 
-        //每行128个元素分别规约求最大值
-        AscendC::WholeReduceMax<half, false>(
-            rowmaxUb,
-            lsUbTensor,
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            dataBlockStride,
-            dataBlockStride,
-            blockNumPerRow,
-            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        // //每行128个元素分别规约求最大值
+        // AscendC::WholeReduceMax<half, false>(
+        //     rowmaxUb,
+        //     lsUbTensor,
+        //     AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+        //     numRowsRound,
+        //     dataBlockStride,
+        //     dataBlockStride,
+        //     blockNumPerRow,
+        //     AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        // AscendC::PipeBarrier<PIPE_V>();
+
+        for (uint64_t i = 0; i < 8; i++) {
+            AscendC::WholeReduceMax<half, false>(
+                lsUbTensor[i * HALF_VECTOR_SIZE],
+                srcUb[i * HALF_VECTOR_SIZE],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                dataBlockStride,
+                dataBlockStride,
+                blockNumPerRow,
+                AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        }
+        AscendC::PipeBarrier<PIPE_V>();
+
+        for (uint64_t i = 1; i < 8; i++) {
+            AscendC::Max<half, false>(
+                rowmaxUb,
+                rowmaxUb,
+                lsUbTensor[i * HALF_VECTOR_SIZE],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
         AscendC::PipeBarrier<PIPE_V>();
     }
 
