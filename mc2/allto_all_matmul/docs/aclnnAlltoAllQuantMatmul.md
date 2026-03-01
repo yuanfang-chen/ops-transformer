@@ -14,19 +14,22 @@
 ## 功能说明
 
 - 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)、Quant、Matmul和Dequant计算的融合，**先通信后计算**，支持K-C量化、K-C动态量化和mx[量化模式](../../../docs/zh/context/量化介绍.md)。
-- 计算公式：假设x1输入shape为(BS, H)
+- 计算公式：假设x1输入shape为(BS, H)，mx量化场景下x1Scale输入shape为(BS, ceil(H/64), 2)，rankSize为NPU卡数
 
-  - **K-C量化、mx量化场景：**
-    $$
-    commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-    permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-    output_{quant} = x1 @ x2 \\
-    output = output_{quant} \times x1_{scale} \times x2_{scale} \\
-    output = output + bias
-    $$
+  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
-  - **K-C动态量化场景：**
-    - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    - K-C量化场景：
+
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      output_{quant} = x1 @ x2 \\
+      output = output_{quant} \times x1_{scale} \times x2_{scale} \\
+      output = output + bias
+      $$
+
+    - K-C动态量化场景：
+
       $$
       commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
       permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
@@ -35,12 +38,26 @@
       output = output_{quant} \times x1_{scale} \times x2_{scale} \\
       output = output + bias
       $$
-    - <term>Ascend 950PR/Ascend 950DT</term>：
+
+  - <term>Ascend 950PR/Ascend 950DT</term>：
+
+    - K-C动态量化场景：
+
       $$
       commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
       permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
       dynQuantX1, dynQuantX1Scale = dynamicQuant(permutedOut) \\
       output = (dynQuantX1@x2 + bias) \times dynQuantX1Scale \times x2Scale
+      $$
+
+    - mx量化场景：
+
+      $$
+      commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
+      permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+      commX1Scale = AlltoAll(x1Scale.view(rankSize, BS/rankSize, ceil(H/64), 2)) \\
+      permutedX1Scale = commX1Scale.permute(1, 0, 2, 3).view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
+      output = (permutedOut* permutedX1Scale)@(x2* x2Scale) + bias
       $$
 
 ## 函数原型
