@@ -33,6 +33,7 @@ extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
     const aclTensor *gmmWeightOffsetOptional, const aclTensor *mmXScaleOptional, const aclTensor *mmWeightScaleOptional,
+
     const aclTensor *mmXOffsetOptional, const aclTensor *mmWeightOffsetOptional,
     const aclTensor *commQuantScaleOptional, const char *group, int64_t epWorldSize, const aclIntArray *sendCounts,
     const aclIntArray *recvCounts, bool transGmmWeight, bool transMmWeight, int64_t gmmXQuantMode,
