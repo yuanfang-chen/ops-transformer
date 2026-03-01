@@ -138,8 +138,8 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         float,
         DTYPE_Y,
         CubeFormat::ND,
+        false,  // 左矩阵不支持转置
         TILINGKEY_GROUPED_MATMUL_TRANS,
-        TILINGKEY_MATMUL_TRANS,
         false,  // isShared
         false>; // isA2avGmm
     using SharedGmmExpertOpType = QuantGroupedMatmul<
@@ -150,7 +150,7 @@ __global__ __aicore__ void grouped_mat_mul_allto_allv(
         float,
         DTYPE_Y,
         CubeFormat::ND,
-        TILINGKEY_GROUPED_MATMUL_TRANS,
+        false,  // 左矩阵不支持转置
         TILINGKEY_MATMUL_TRANS,
         true,   // isShared
         false>; // isA2avGmm
