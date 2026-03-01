@@ -158,7 +158,11 @@ class RainFusionAttentionInputProcess(AclnnBaseApi):
             for i in range(batch):
                 outputTemp[count:count+self.qSeqlenList[i], :, :] = outputTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
                 count += self.qSeqlenList[i]
-            return [outputTemp] # 为什么转成TND输出
+            
+            if len(output) == 2:
+                return [outputTemp, output[1]]  # 返回 attentionOut 和 softmaxLse
+            else:
+                return [outputTemp]  # 为什么转成TND输出
         else:
             return output
 
