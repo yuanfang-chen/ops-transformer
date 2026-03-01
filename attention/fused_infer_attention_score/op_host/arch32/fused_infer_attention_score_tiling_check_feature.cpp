@@ -369,7 +369,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
         "BNSD_BSND"
     };
     const std::vector<std::string> noRopeLayoutSupportListC = {
-        "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
+        "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
     };
     const std::vector<std::string> noRopeLayoutSupportListD = {
         "TND"
