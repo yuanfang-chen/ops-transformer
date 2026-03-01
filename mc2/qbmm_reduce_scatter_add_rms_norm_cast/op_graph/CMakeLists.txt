@@ -8,3 +8,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 message(STATUS "=== Debug: start ops.transformer.qbmm_reduce_scatter_add_rms_norm_cast.CMakeLists.txt ")
+
+if (BUILD_OPEN_PROJECT)
+    add_graph_plugin_sources()
+endif()

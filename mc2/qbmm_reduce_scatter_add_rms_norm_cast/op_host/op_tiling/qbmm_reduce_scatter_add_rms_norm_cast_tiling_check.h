@@ -7,8 +7,8 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#ifndef QBMM_REDECE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H
-#define QBMM_REDECE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H
+#ifndef QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H
+#define QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H
 #include "tiling/mc2_tiling_utils.h"
 namespace MC2Tiling {
 class QbmmReduceScatterAddRmsNormCastCheckTiling {
@@ -21,4 +21,4 @@ public:
     static ge::graphStatus TilingCheckQbmmReduceScatterAddRmsNormCast(const gert::TilingContext *context);
 };
 }; // namespace MC2Tiling
-#endif //__QBMM_REDECE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H__
+#endif //__QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H__
