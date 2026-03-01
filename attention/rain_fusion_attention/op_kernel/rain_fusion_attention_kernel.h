@@ -242,7 +242,7 @@ namespace RainFusion {
             uint32_t preTotalQBlockNum = 0;
             uint32_t curBatch = 0;
             // 根据useUniformQSeqlen标志位决定使用actualSeqLengths数组还是maxQSeqlen
-            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen : 
+            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen : // TODO 这里BNSD和TND的actualSeqLens数组应该是不一样的，为什么能混用？
                               static_cast<uint32_t>(static_cast<int64_t>(gActualQseqlen.GetValue(curBatch)));
             // 根据useUniformKvSeqlen标志位决定使用actualSeqLengthsKv数组还是maxKvSeqlen
             uint32_t kvSeqlen = useUniformKvSeqlen ? maxKvSeqlen : 
@@ -274,7 +274,7 @@ namespace RainFusion {
                         // TND
                         qBOffset += qSeqlen * strideQO;
                         oBOffset += qSeqlen * strideQO;
-                        lseBOffset = curBatch * qHeads;
+                        lseBOffset += qSeqlen * qHeads;
                     }
                     
                     if constexpr (!PAGED_CACHE_FLAG) {
@@ -512,16 +512,19 @@ namespace RainFusion {
 #ifdef __DAV_C220_VEC__
                         // Setup layoutO based on data format
                         LayoutO layoutO;
+                        LayoutLse layoutLse;
                         if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
                             // BNSD format: stride[0] = embed (strideQOS)
                             layoutO = LayoutO(qSeqlen, embed);
+                            layoutLse = LayoutLse(qSeqlen, 1); // 1为了适配尾块DataCopy LSE时目的偏移
                         } else {  // TND: [T, N, D]
                             // TND format: stride[0] = qHeads * embed (strideQO)
                             layoutO = LayoutO(qSeqlen, qHeads * embed);
+                            layoutLse = LayoutLse(qSeqlen, qHeads);
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
-                        LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认，这里可能是qHeads，qSeqlen
+                        // LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认，BNSD情况qSeqlen是S，TND是前边所有token？这里可能是qHeads，qSeqlen
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
                         // rescale O
                         epilogueRescaleO(
