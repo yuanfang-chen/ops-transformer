@@ -208,9 +208,9 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
         CHECK_RET(CheckAllDtypesValid(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
     } else if{
-        GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93;
-    } else if (GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93) {
-        GetCurrentPlatformInfo().GetSocVersion()== SocVersion::ASCEND910_93
+       
+
+        CHECK_RET(CheckAllDtypesValid910B(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
     }
     // 5. 检查输入的数据格式是否为ND
     CHECK_RET(CheckFormat(x1, x2, biasOptional, output), ACLNN_ERR_PARAM_INVALID);
