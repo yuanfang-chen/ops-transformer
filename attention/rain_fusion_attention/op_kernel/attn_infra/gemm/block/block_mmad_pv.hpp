@@ -136,7 +136,9 @@ public:
 
         // load V
         LayoutBInL1 layoutBInL1 = LayoutBInL1::template MakeLayout<ElementB>(stackSeqTile, embed);
+        AscendC::printf("hxb 11111");
         AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+        AscendC::printf("hxb 11111");
         uint32_t nL1Loop = CeilDiv<L1TileShape::N>(stackSeqTile);
 
         for (uint32_t blockStackIdx = 0; blockStackIdx < nL1Loop; ++blockStackIdx) {
@@ -187,8 +189,9 @@ public:
 
         AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
-
+        AscendC::printf("hxb pv wait softmaxFlag");
         Arch::CrossCoreWaitFlag(softmaxFlag);
+        AscendC::printf("hxb pv wait softmaxFlag okokok");
 
         uint32_t mL1Loop = CeilDiv<L1TileShape::M>(rowNum);
         uint32_t kL1Loop = CeilDiv<L1TileShape::K>(stackSeqTile);
@@ -196,6 +199,7 @@ public:
             uint32_t mL1Actual = (mL1Idx < mL1Loop - 1) ? L1TileShape::M : (rowNum - mL1Idx * L1TileShape::M);
             uint32_t mRound = RoundUp<L1AAlignHelper::M_ALIGNED>(mL1Actual);
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
+
             for (uint32_t kL1Idx = 0; kL1Idx < kL1Loop; kL1Idx++) {
                 uint32_t kL1Actual = (kL1Idx < kL1Loop - 1) ? L1TileShape::K : (stackSeqTile - kL1Idx * L1TileShape::K);
 
@@ -229,10 +233,8 @@ public:
                     LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kL0Actual, embed);
                     MatrixCoord l1BTileCoord{kL1Idx * L1TileShape::K + kL0Idx * L0TileShape::K, 0};
                     auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BTileCoord)];
-
                     AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2);
                     copyL1ToL0B(l0BTensor[l0ABPingPongFlag], l1BTile, layoutBInL0, layoutBInL1);
-
                     AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                     AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                     bool initMmad = kL1Idx == 0 && kL0Idx == 0;

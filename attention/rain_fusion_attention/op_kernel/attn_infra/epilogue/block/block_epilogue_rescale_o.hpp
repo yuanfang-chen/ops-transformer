@@ -295,6 +295,7 @@ public:
             CopyOToGm(
                 gOutput, proTokenIdx, proTokenNum, epiTokenNum, integralHeadNum, qSThisSubBlock, embed, oHiddenSize);
             if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
+                AscendC::printf("hxb rescale lse out");
                 if (isLastRowLoop) {
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Ln<float, false>(
