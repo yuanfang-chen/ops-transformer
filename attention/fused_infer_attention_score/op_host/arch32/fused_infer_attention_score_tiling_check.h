@@ -207,6 +207,7 @@ private:
     ge::graphStatus CheckFeatureMask() const;
     ge::graphStatus CheckFeatureLearnableSink() const;
     ge::graphStatus CheckFeatureLayout() const;
+    ge::graphStatus CheckExtraFeatureLayout() const;
     ge::graphStatus CheckFeatureGqaNoQuantShape() const;
     ge::graphStatus CheckFeatureGqaNoquant();
     ge::graphStatus CheckFeatureGqaAntiquant() const;
