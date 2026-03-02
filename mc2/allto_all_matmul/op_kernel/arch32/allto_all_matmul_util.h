@@ -40,11 +40,6 @@ constexpr static uint32_t BLOCK_ALIGN_BYTES = 32U;
 constexpr static uint32_t BLOCK_NUM_OF_UB_OFFSET = UB_OFFSET / BLOCK_ALIGN_BYTES;
 constexpr static float MAX_INT8 = 127.0f;
 constexpr static float MAX_INT4 = 7.0f;
-constexpr uint32_t TILE_SHAPE_64 = 64;
-constexpr uint32_t TILE_SHAPE_128 = 128;
-constexpr uint32_t TILE_SHAPE_256 = 256;
-constexpr uint32_t TILE_SHAPE_512 = 512;
-constexpr uint32_t TILE_SHAPE_1024 = 1024;
 
 template <typename T, size_t SIZE>
 struct BaseBlock {

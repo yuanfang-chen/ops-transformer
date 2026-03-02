@@ -232,10 +232,10 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
 
         GM_ADDR srcGM = (QuantType == MC2_DYNAMIC_QUANT) ? reinterpret_cast<GM_ADDR>(quantAGM_) : reinterpret_cast<GM_ADDR>(gmPeerMem_);  // 动态量化时，需要更改左矩阵读取位置
         GM_ADDR matmulResultGM = (QuantType == MC2_NON_QUANT) ? cGM_ : reinterpret_cast<GM_ADDR>(dequantCGM_);  // 量化矩阵乘法时，需要修改c矩阵存放地址
-        constexpr uint32_t L1TileShapeK = std::is_same<BType, int4b_t>::value ? TILE_SHAPE_1024 :
-            std::is_same<BType, int8_t>::value ? TILE_SHAPE_512 : TILE_SHAPE_256;
-        constexpr uint32_t L0TileShapeK = std::is_same<BType, int4b_t>::value ? TILE_SHAPE_256 :
-            std::is_same<BType, int8_t>::value ? TILE_SHAPE_128 : TILE_SHAPE_64;
+        constexpr uint32_t L1TileShapeK = std::is_same<BType, int4b_t>::value ? 1024 :
+            std::is_same<BType, int8_t>::value ? 512 : 256;  // 不同的matmul数据类型对应的L1TileShape不同
+        constexpr uint32_t L0TileShapeK = std::is_same<BType, int4b_t>::value ? 256 :
+            std::is_same<BType, int8_t>::value ? 128 : 64;  // 不同的matmul数据类型对应的L0TileShape不同
         
         if (m0 == 128) {
             using L1TileShape = GemmShape<128, 256, L1TileShapeK>;

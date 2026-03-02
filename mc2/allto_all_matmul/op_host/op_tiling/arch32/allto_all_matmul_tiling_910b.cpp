@@ -1167,44 +1167,35 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W4Tiling(CoCTili
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
-    // A16W8 tiling策略
-    if (info.rankSize == 2 && quantType == TILINGKEY_TPL_A16W8) {
-        AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    }
-    if (info.rankSize == 4 && quantType == TILINGKEY_TPL_A16W8) {
-        AlltoAllMatmulNPU910BFourRankA16W8Tiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    }
-    if (info.rankSize == 8 && quantType == TILINGKEY_TPL_A16W8) {
-        AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    }
-    // A16W4 tiling策略
-    if (quantType == TILINGKEY_TPL_A16W4) {
+    if (quantType == TILINGKEY_TPL_A16W8) {
+        // A16W8 tiling策略
+        if (info.rankSize == 2) {
+            AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {
+            AlltoAllMatmulNPU910BFourRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
+        }
+    } else if (quantType == TILINGKEY_TPL_A16W4) {
+        // A16W4 tiling策略
         if (info.rankSize == 2) {
             AlltoAllMatmulNPU910BTwoRankA16W4Tiling(cocTilingData, info);
-            return ge::GRAPH_SUCCESS;
         } else if (info.rankSize == 4) {
-            AlltoAllMatmulNPU910BFourRankA16W4Tiling(cocTilingData, info);
-            return ge::GRAPH_SUCCESS;            
+            AlltoAllMatmulNPU910BFourRankA16W4Tiling(cocTilingData, info);         
         } else if (info.rankSize == 8) {
-            AlltoAllMatmulNPU910BEightRankA16W4Tiling(cocTilingData, info);
-            return ge::GRAPH_SUCCESS;                
+            AlltoAllMatmulNPU910BEightRankA16W4Tiling(cocTilingData, info);                
+        }
+    } else {
+        // basic、A4W4
+        if (info.rankSize == 2) {  // 若2卡
+            DoTwoRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {  // 若4卡
+            DoFourRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            DoEightRankTiling(cocTilingData, info);  // 若8卡
         }
     }
-
-    // basic
-    if (info.rankSize == 2) {  // 若2卡
-        DoTwoRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    } else if (info.rankSize == 4) {  // 若4卡
-        DoFourRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    } else if (info.rankSize == 8) {
-        DoEightRankTiling(cocTilingData, info);  // 若8卡
-        return ge::GRAPH_SUCCESS;
-    }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
