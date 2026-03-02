@@ -339,36 +339,6 @@ public:
             blockNumPerRow,
             AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
-
-        // for (uint64_t i = 0; i < 8; i++) {
-        //     AscendC::WholeReduceMax<half, false>(
-        //         lsUbTensor[i * HALF_VECTOR_SIZE],
-        //         srcUb[i * HALF_VECTOR_SIZE],
-        //         AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-        //         numRowsRound,
-        //         dataBlockStride,
-        //         dataBlockStride,
-        //         blockNumPerRow,
-        //         AscendC::ReduceOrder::ORDER_ONLY_VALUE);
-        // }
-        // AscendC::PipeBarrier<PIPE_V>();
-
-        // for (uint64_t i = 1; i < 8; i++) {
-        //     AscendC::Max<half, false>(
-        //         rowmaxUb,
-        //         rowmaxUb,
-        //         lsUbTensor[i * HALF_VECTOR_SIZE],
-        //         AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-        //         numRowsRound,
-        //         AscendC::BinaryRepeatParams(
-        //             dataBlockStride,
-        //             dataBlockStride,
-        //             dataBlockStride,
-        //             blockNumPerRow,
-        //             blockNumPerRow,
-        //             blockNumPerRow));
-        // }
-        // AscendC::PipeBarrier<PIPE_V>();
     }
 
     __aicore__ inline

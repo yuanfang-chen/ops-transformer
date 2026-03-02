@@ -139,6 +139,33 @@ public:
     }
 
     __aicore__ inline
+    void RowsumSPECTILE1024(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+        uint32_t numElemsAligned)
+    {
+        AscendC::BlockReduceSum<float, false>(
+            tvUbTensor,
+            srcUb,
+            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::BlockReduceSum<float, false>(
+            tvUbTensor[REDUCE_UB_SIZE],
+            tvUbTensor,
+            numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+        SetVecMask(16);
+        AscendC::WholeReduceSum<float, false>(
+            rowsumUb,
+            tvUbTensor[REDUCE_UB_SIZE],
+            0, numRowsRound, 1, 1, 2);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1. (uint64_t)-1);
+    }
+
+    __aicore__ inline
     void RowsumSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
@@ -271,6 +298,33 @@ public:
             AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
         }
     }
+
+    __aicore__ inline
+    void RowmaxSPECTILE1024(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+        uint32_t numElemsAligned)
+    {
+        AscendC::BlockReduceMax<float, false>(
+            tvUbTensor,
+            srcUb,
+            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::BlockReduceSum<float, false>(
+            tvUbTensor[REDUCE_UB_SIZE],
+            tvUbTensor,
+            numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+        SetVecMask(16);
+        AscendC::WholeReduceMax<float, false>(
+            rowmaxUb,
+            tvUbTensor[REDUCE_UB_SIZE],
+            0, numRowsRound, 1, 1, 2, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1. (uint64_t)-1);
+    }    
 
     __aicore__ inline
     void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
@@ -539,7 +593,15 @@ public:
     void CalcLocalRowMax(uint32_t sUbOffset, uint32_t rowNumCurLoopRound, uint32_t columnNum, uint32_t columnNumRound,
         uint32_t rowOffset)
     {
-        if (columnNum == 512) {
+        if (columnNum == 1024) {
+            RowsumSPECTILE512(
+                lsUbTensor[sUbOffset],
+                llUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512) {
             RowmaxSPECTILE512(
                 lsUbTensor[sUbOffset],
                 lmUbTensor[rowOffset],
@@ -664,7 +726,15 @@ public:
         uint32_t rowOffset)
     {
         // *** ll = rowsum(ls32)
-        if (columnNum == 512) {
+        if (columnNum == 1024) {
+            RowsumSPECTILE512(
+                lsUbTensor[sUbOffset],
+                llUbTensor[rowOffset],
+                tvUbTensor,
+                rowNumCurLoopRound,
+                columnNum,
+                columnNumRound);
+        } else if (columnNum == 512) {
             RowsumSPECTILE512(
                 lsUbTensor[sUbOffset],
                 llUbTensor[rowOffset],
