@@ -9,13 +9,13 @@
 # -----------------------------------------------------------------------------------------------------------
 add_op_to_compiled_list()
 if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnn PRIVATE
+    target_sources(op_host_aclnnExc PRIVATE
         prepare_wy_repr_bwd_full_def.cpp
     )
 endif()
 
 
-add_modules_sources(OPTYPE prepare_wy_repr_bwd_full ACLNNTYPE aclnn)
+add_modules_sources(OPTYPE prepare_wy_repr_bwd_full ACLNNTYPE aclnn_exclude)
 add_ops_compile_options(
     OP_NAME PrepareWyReprBwdFull
     OPTIONS --cce-auto-sync=off

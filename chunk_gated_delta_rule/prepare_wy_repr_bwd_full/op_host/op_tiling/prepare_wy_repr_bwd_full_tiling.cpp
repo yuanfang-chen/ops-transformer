@@ -404,17 +404,16 @@ public:
     {
         const gert::StorageShape *chunkIndicesShape = context_->GetOptionalInputShape(INPUT_CHUNK_INDICES_IDX);
         OP_CHECK_NULL_WITH_CONTEXT(context_, chunkIndicesShape);
-        OP_CHECK_IF(RequiredInputDimNumCheck(chunkIndicesShape, DIM_2, INPUT_CHUNK_INDICES_NAME) != ge::GRAPH_SUCCESS, ,
+        OP_CHECK_IF(RequiredInputDimNumCheck(chunkIndicesShape, DIM_1, INPUT_CHUNK_INDICES_NAME) != ge::GRAPH_SUCCESS, ,
                     return ge::GRAPH_FAILED);
         const gert::Shape chunkIndicesStorageShape = chunkIndicesShape->GetStorageShape();
-        int64_t chunkIndicesDim1 = chunkIndicesStorageShape.GetDim(DIM_1);
-        OP_CHECK_IF(chunkIndicesDim1 != CHUNK_INDICES_DIM_1_SIZE,
+        int64_t chunkIndicesDim0 = chunkIndicesStorageShape.GetDim(DIM_0);
+        OP_CHECK_IF(chunkIndicesDim0 % 2 != 0,
                     OP_LOGE(context_->GetNodeName(),
-                            "Check chunk_indices shape failed, the dim 1 of chunk_indices should be 2, but get %ld.",
-                            chunkIndicesDim1),
+                            "Check chunk_indices shape failed, the dim 0 of chunk_indices should be even, but get %ld.",
+                            chunkIndicesDim0),
                     return ge::GRAPH_FAILED);
-        tiling_.set_chunkNum(chunkIndicesStorageShape.GetDim(DIM_0));
-
+        tiling_.set_chunkNum(chunkIndicesStorageShape.GetDim(DIM_0) / 2);
         return ge::GRAPH_SUCCESS;
     }
 };
@@ -446,6 +445,7 @@ ge::graphStatus Tiling4PrepareWyReprBwdFull(gert::TilingContext *context)
         OP_CHECK_IF(processor.FixLenTiling() != ge::GRAPH_SUCCESS, , return ge::GRAPH_FAILED);
         tiling.set_isVariable(0);
     } else {
+        const int64_t* cuSeqlens = cuSeqlensTensor->GetData<int64_t>();
         OP_CHECK_IF(tiling.get_B() != VAR_LEN_B_DIM_1,
                     OP_LOGE(context->GetNodeName(),
                             "If cu_seqlens is not nullptr, the dim 0 of q needs to be 1, but now is %ld.",
