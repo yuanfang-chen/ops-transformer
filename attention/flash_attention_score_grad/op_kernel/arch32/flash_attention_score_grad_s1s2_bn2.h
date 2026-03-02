@@ -275,6 +275,7 @@ protected:
                                       GM_ADDR actual_seq_qlen, GM_ADDR actual_seq_kvlen, GM_ADDR prefixN);
     __aicore__ inline void InitUB(TPipe *pipe_in);
     __aicore__ inline void InitL1BufferCustom(TPipe *pipe_in);
+    __aicore__ inline void InitL0BufferCustom(TPipe *pipe_in);
     __aicore__ inline void InitBmmWorkspace(GM_ADDR workspace);
     __aicore__ inline void InitCastWorkspace(GM_ADDR workspace);
     __aicore__ inline void InitDropWorkspace(GM_ADDR workspace);
@@ -381,6 +382,26 @@ protected:
                                     const GlobalTensor<T1> &globalTensor,
                                     int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
                                     int32_t posL1, int32_t baseBlockSize, int32_t orgWidth, bool reuse);
+    __aicore__ inline void LoadDataBToL0(LocalTensor<TYPE> dstTensor,
+                                         LocalTensor<TYPE> srcTensor,
+                                         const int32_t k0,
+                                         const int32_t nSize);
+    __aicore__ inline void LoadDataAToL0(LocalTensor<TYPE> dstTensor,
+                                         LocalTensor<TYPE> srcTensor,
+                                         const int32_t m0,
+                                         const int32_t k0,
+                                         const int32_t mSize,
+                                         const bool skip);
+    __aicore__ inline void Cube1Mmad(LocalTensor<float> dstCTensor,
+                                     LocalTensor<TYPE> srcATensor,
+                                     LocalTensor<TYPE> srcBTensor,
+                                     const int32_t m_mad_,
+                                     const int32_t n_mad_,
+                                     const bool skip);
+    __aicore__ inline void Cube1CopyOut(GlobalTensor<float> dstTensor,
+                                        LocalTensor<float> srcTensor,
+                                        const int32_t mSize,
+                                        const int32_t nSize);
     __aicore__ inline void LoadBaseDataB(LocalTensor<T1> &tscmTensor,
                                     const GlobalTensor<T1> &globalTensor,
                                     int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
@@ -483,6 +504,45 @@ protected:
     LocalTensor<T2> dyT2Tensor;        // 32K~64K
     LocalTensor<T2> attentionT2Tensor; // 64K~96K
     LocalTensor<uint8_t> helpTensor;           // 96K~160K
+
+    // L0 tensor
+    LocalTensor<TYPE> l0_a_ping_tensor;
+    LocalTensor<TYPE> l0_a_pong_tensor;
+    LocalTensor<TYPE> l0_b_ping_tensor;
+    LocalTensor<TYPE> l0_b_pong_tensor;
+    LocalTensor<float> l0_c_ping_tensor;
+    LocalTensor<float> l0_c_pong_tensor;
+
+    TBuf<AscendC::TPosition::CO1> L0CBuffer;
+    AsdopsBuffer<ArchType::ASCEND_V220> asdopsBuf;
+
+    // ping pong flag
+    uint32_t ping_pong_flag_l1_a_{0};
+    uint32_t ping_pong_flag_l1_b_{0};
+    uint32_t ping_pong_flag_l0_a_{0};
+    uint32_t ping_pong_flag_l0_b_{0};
+    uint32_t ping_pong_flag_l0_c_{0};
+
+    AscendC::MmadParams commonMadParams {
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        3,
+        false,
+        true
+    };
+
+    AscendC::FixpipeParamsV220 commonFixpipeParamsV220 {
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        false
+    };
+
+    // 定义LoadData2d参数
+    AscendC::LoadData2dParams commonLoadData2dParamsNoTranspose {0, MMAD_BASE_SIZE, MMAD_BASE_SIZE, 0, 0, false, 0};
+    // AscendC::LoadData2dParams loadL0BParams {0, MMAD_BASE_SIZE, MMAD_BASE_SIZE, 0, 0, false, 0};
 
     // core
     int64_t usedCoreNum;
@@ -810,6 +870,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     InitUB(pipe_in);
     if constexpr (L1CUSTOM) {
         InitL1BufferCustom(pipe_in);
+        InitL0BufferCustom(pipe_in);
     }
 
     if constexpr (PSE_CFG != 0) {
@@ -865,6 +926,20 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
             auto l1Tensor = TscmGlobal[i].scm.Get<T1>();
             TscmGlobal[i].srcAddr = l1Tensor.address_;
         }
+    }
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG, LAYOUT,
+    MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL0BufferCustom(TPipe *pipe_in)
+{
+    if ASCEND_IS_AIC {
+        pipe_in->InitBuffer(L0CBuffer, HardwareInfo<ArchType::ASCEND_V220>::l0CSize);
+
+
     }
 }
 
@@ -1353,6 +1428,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     nd2nzPara.dstNzMatrixStride = 0;
     AscendC::DataCopy(l1Tensor, gmSrcTensor, nd2nzPara);
 }
+
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
@@ -1381,6 +1457,58 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
 
     TscmGlobal[tscmIndex].cacheSize += 1;
     return;
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                                LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::LoadDataAToL0(LocalTensor<TYPE> dstTensor,
+                                    LocalTensor<TYPE> srcTensor,
+                                    const int32_t m0,
+                                    const int32_t k0,
+                                    const int32_t mSize,
+                                    const bool skip)
+{
+    int32_t mSizeAlign = RoundUp(mSize, C0_SIZE);
+
+    WAIT_FLAG(M, MTE1, 3 + ping_pong_flag_l0_a_);
+    if (!skip) {
+        commonLoa.repeatTimes = k0 / SIZE_16;
+        commonLoadData2dParamsNoTranspose.srcStride = mSizeAlign / SIZE_16;
+        for (int32_t i = 0; i < m0 / SIZE_16; i++) {
+            AscendC::LoadData(dstTensor[i * headDim * SIZE_16], srcTensor[i * SIZE_256],
+                commonLoadData2dParamsNoTranspose);
+        }
+    }
+    SET_FLAG(MTE1, M, ping_pong_flag_l0_a_);
+    WAIT_FLAG(MTE1, M, ping_pong_flag_l0_a_);
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                                LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::LoadDataBToL0(LocalTensor<TYPE> dstTensor,
+                                LocalTensor<TYPE> srcTensor,
+                                const int32_t k0,
+                                const int32_t nSize)
+{
+    int32_t nSizeAlign = RoundUp(nSize, C0_SIZE);
+
+    WAIT_FLAG(M, MTE1, 3 + ping_pong_flag_l0_b_ + 2);
+
+    commonLoadData2dParamsNoTranspose.repeatTimes = nSizeAlign / SIZE_16;
+    commonLoadData2dParamsNoTranspose.srcStride = 1;
+    for (int i = 0; i < k0 / SIZE_16; i++) {
+        AscendC::LoadData(dstTensor[i * nSizeAlign * SIZE_16], srcTensor[i * nSizeAlign * SIZE_16],
+            commonLoadData2dParamsNoTranspose);
+    }
+
+    SET_FLAG(MTE1, M, ping_pong_flag_l0_b_ + 2);
+    WAIT_FLAG(MTE1, M, ping_pong_flag_l0_b_ + 2);
 }
 
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
@@ -1429,6 +1557,48 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     }
 }
 
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::Cube1Mmad(LocalTensor<float> dstCTensor,
+                                                                                  LocalTensor<TYPE> srcATensor,
+                                                                                  LocalTensor<TYPE> srcBTensor,
+                                                                                  const int32_t m_mad_,
+                                                                                  const int32_t n_mad_,
+                                                                                  const bool skip)
+{
+    if (skip) {
+        return;
+    }
+
+    uint16_t m_modify = (m_mad_ == 1) ? 2 : m_mad_;
+    commonMadParams.m = m_modify;
+    commonMadParams.n = n_mad_;
+    commonMadParams.k = headDim;
+    commonMadParams.unitFlag = 3;
+    commonMadParams.cmatrixInitVal = true;
+    AscendC::Mmad(dstCTensor, srcATensor, srcBTensor, commonMadParams);
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::Cube1CopyOut(GlobalTensor<float> dstTensor,
+                                                                                     LocalTensor<float> srcTensor,
+                                                                                     const int32_t mSize,
+                                                                                     const int32_t nSize)
+{
+    int32_t mSizeAlign = RoundUp(mSize, C0_SIZE);
+    commonFixpipeParamsV220.mSize = mSize;
+    commonFixpipeParamsV220.nSize = nSize;
+    commonFixpipeParamsV220.srcStride = mSizeAlign;
+    commonFixpipeParamsV220.dstStride = SIZE_128;
+    AscendC::Fixpipe<float, float, AscendC::CFG_ROW_MAJOR>(dstTensor, srcTensor, commonFixpipeParamsV220);
+}
 
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
@@ -1499,9 +1669,9 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     int32_t cOffset = 0;
     event_t eventIdMte1ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE1_MTE2));
     event_t eventIdMte2ToMte1 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE1));
-    for (int32_t curCol = 0;curCol < colNum;++curCol) {
+    for (int32_t curCol = 0; curCol < colNum; ++curCol) {
         int32_t subNAct = curCol == (colNum - 1) ? mm1BaseNTail : mm1BaseN;
-        for (int32_t curRow = 0;curRow < rowNum;++curRow) {
+        for (int32_t curRow = 0; curRow < rowNum; ++curRow) {
             int32_t subMAct = curRow == (rowNum - 1) ? mm1BaseMTail : mm1BaseM;
             posA = curRow;
             posB = curCol;
@@ -1511,10 +1681,15 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                         subNAct, mm1BaseK, bIndex, posB, mm1BBaseSize, srcStrideN2, reuseK);
             AscendC::SetFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
             AscendC::WaitFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
-            mm1.SetTensorA(scmATensor);
-            mm1.SetTensorB(scmBTensor, true);
-            mm1.SetTail(subMAct, subNAct, dimD);
-            mm1.template Iterate<false>();
+            // load data into L0A/B
+            LocalTensor<T1> *l0_a_tensor = ping_pong_flag_l0_a_ ? &l0_a_pong_tensor : &l0_a_ping_tensor;
+            LocalTensor<T1> *l0_b_tensor = ping_pong_flag_l0_b_ ? &l0_b_pong_tensor : &l0_b_ping_tensor;
+            LocalTensor<float> *l0_c_tensor = ping_pong_flag_l0_c_ ? &l0_c_pong_tensor : &l0_c_ping_tensor;
+            LoadDataAToL0(*l0_a_tensor, scmATensor, MMAD_BASE_SIZE, dimDAlign, subMAct, false);
+            LoadDataBToL0(*l0_b_tensor, scmBTensor, dimDAlign, subNAct);
+            
+            Cube1Mmad(*l0_c_tensor, *l0_a_tensor, *l0_b_tensor, subMAct, subNAct, false);
+
             AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
@@ -1522,7 +1697,8 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
             } else {
                 cOffset = curCol * mm1BaseN + curRow * n * mm1BaseM;
             }
-            mm1.GetTensorC(globalCTensor[cOffset]);
+            // mm1.GetTensorC(globalCTensor[cOffset]);
+            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct);
         }
     }
     mm1.End();
