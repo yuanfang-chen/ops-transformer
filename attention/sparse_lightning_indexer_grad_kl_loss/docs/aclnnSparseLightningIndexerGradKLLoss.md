@@ -542,7 +542,7 @@ aclnnStatus aclnnSparseLightningIndexerGradKLLoss(
         </tr>
         <tr>
             <td>N1</td>
-            <td>64、128</td>
+            <td>32、64、128</td>
             <td>SparseFA为MQA。</td>
         </tr>
         <tr>
