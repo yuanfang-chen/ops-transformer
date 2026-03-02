@@ -36,35 +36,29 @@ enum class NnopbaseHcclServerType : uint32_t {
     NNOPBASE_HCCL_SERVER_TYPE_END
 };
 
-// static constexpr size_t HCCL_GROUP_NAME_LENGTH_MAX = 128U; // group长度小于128字符
+static constexpr size_t HCCL_GROUP_NAME_LENGTH_MAX = 128U; // group长度小于128字符
 
-// // 根据API定义，列出T-G量化所能支持的所有dtype
-// const std::initializer_list<op::DataType> X_DTYPE_TG_SUPPORT_LIST = {
-//     op::DataType::DT_INT8, op::DataType::DT_HIFLOAT8, op::DataType::DT_FLOAT8_E4M3FN,
-//     op::DataType::DT_FLOAT8_E5M2
-// };
-// const std::initializer_list<op::DataType> SCALES_DTYPE_TG_SUPPORT_LIST = {
-//     op::DataType::DT_FLOAT
-// };
-
-// // 根据API定义，列出MX量化所能支持的所有dtype
-// const std::initializer_list<op::DataType> X_DTYPE_MX_SUPPORT_LIST = {
-//     op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2
-// };
-// const std::initializer_list<op::DataType> SCALES_DTYPE_MX_SUPPORT_LIST = {
-//     op::DataType::DT_FLOAT8_E8M0
-// };
-
-// const std::initializer_list<op::DataType> OUTPUT_DTYPE_SUPPORT_LIST = {
-//     op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_FLOAT
-// };
+// 根据API定义，列出支持的所有dtype
+const std::initializer_list<op::DataType> ARN_DTYPE_SUPPORT_LIST = {
+    op::DataType::DT_BF16, op::DataType::DT_FLOAT16
+};
+const std::initializer_list<op::DataType> X2_DTYPE_SUPPORT_LIST = {
+    op::DataType::DT_INT8
+};
+const std::initializer_list<op::DataType> GAMMA_DTYPE_SUPPORT_LIST = {
+    op::DataType::DT_FLOAT
+};
+const std::initializer_list<op::DataType> SCALES_DTYPE_SUPPORT_LIST = {
+    op::DataType::DT_BF16, op::DataType::DT_FLOAT
+};
 
 // 检查入参是否为nullptr
-static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* output, const aclTensor* z)
+static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y,
+    const aclTensor* gamma, const aclTensor* scale, const aclTensor* output, const aclTensor* z)
 {
     OP_CHECK_NULL(x1, return false);
     OP_CHECK_NULL(x2, return false);
+    OP_CHECK_NULL(residual, return false);
     OP_CHECK_NULL(y, return false);
     OP_CHECK_NULL(gamma, return false);
     OP_CHECK_NULL(scale, return false);
@@ -73,72 +67,72 @@ static bool CheckNotNull(const aclTensor* x1, const aclTensor* x2, const aclTens
     return true;
 }
 
-// // 检查x、scales、output的数据类型是否在算子的支持列表之内
-// static bool CheckTGAllDtypesValid(const aclTensor* x, const aclTensor* scales, const aclTensor* output)
-// {
-//     if (CheckType(x->GetDataType(), X_DTYPE_TG_SUPPORT_LIST) && CheckType(scales->GetDataType(), SCALES_DTYPE_TG_SUPPORT_LIST) &&
-//         CheckType(output->GetDataType(), OUTPUT_DTYPE_SUPPORT_LIST)) {
-//             return true;
-//     } else {
-//         return false;
-//     }
-// }
+static bool CheckAllDtypesValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y,
+    const aclTensor* gamma, const aclTensor* scale, const aclTensor* output, const aclTensor* z)
+{
 
-// static bool CheckMXAllDtypesValid(const aclTensor* x, const aclTensor* scales, const aclTensor* output)
-// {
-//     if (CheckType(x->GetDataType(), X_DTYPE_MX_SUPPORT_LIST) && CheckType(scales->GetDataType(), SCALES_DTYPE_MX_SUPPORT_LIST) &&
-//         CheckType(output->GetDataType(), OUTPUT_DTYPE_SUPPORT_LIST)) {
-//             return true;
-//     } else {
-//         return false;
-//     }
-// }
+    if (!CheckType(x1->GetDataType(), ARN_DTYPE_SUPPORT_LIST)
+        || !CheckType(residual->GetDataType(), ARN_DTYPE_SUPPORT_LIST)
+        || !CheckType(y->GetDataType(), ARN_DTYPE_SUPPORT_LIST)
+        || !CheckType(output->GetDataType(), ARN_DTYPE_SUPPORT_LIST)
+        || !CheckType(z->GetDataType(), ARN_DTYPE_SUPPORT_LIST)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x1, residual, y, output, and z support only [DT_BF16, DT_FLOAT16]."
+                "While tensors x1: %s, residual: %s, y: %s, output: %d, and z:%d are not simultaneously supported.",
+                op::ToString(x1->GetDataType()).GetString(),
+                op::ToString(residual->GetDataType()).GetString(),
+                op::ToString(y->GetDataType()).GetString(),
+                op::ToString(output->GetDataType()).GetString(),
+                op::ToString(z->GetDataType()).GetString());
+            return false;
+    }
 
-// static bool CheckAllDtypesValid(const aclTensor* x, const aclTensor* scales, const aclTensor* output)
-// {
-//     bool isAllDtypesValid = false;
-//     isAllDtypesValid = CheckTGAllDtypesValid(x, scales, output) || CheckMXAllDtypesValid(x, scales, output);
-//     if (!isAllDtypesValid) {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID,
-//             "In TG quantMode, x support [DT_INT8/DT_HIFLOAT8/DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2], scales support [DT_FLOAT]"
-//             "and output support [DT_FLOAT16/DT_BF16/DT_FLOAT]."
-//             "In MX quantMode, x support [DT_FLOAT8_E4M3FN/DT_FLOAT8_E5M2], scales support [DT_FLOAT8_E8M0]"
-//             "and output support [DT_FLOAT16/DT_BF16/DT_FLOAT]."
-//             "Input tensors x: %s, scales: %s and output: %s are not simultaneously supported.",
-//             op::ToString(x->GetDataType()).GetString(),
-//             op::ToString(scales->GetDataType()).GetString(),
-//             op::ToString(output->GetDataType()).GetString());
-//     }
-//     return isAllDtypesValid;
-// }
+    if (!CheckType(x2->GetDataType(), X2_DTYPE_SUPPORT_LIST)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "x2 support only [DT_INT8]."
+            "While tensor x2: %s is not supported.", op::ToString(x2->GetDataType()).GetString());
+        return false;
+    }
 
-// static bool CheckGroupLength(const char* group)
-// {
-//     if (group == nullptr) {
-//         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "AddRmsNormDynamicQuantAllGatherQbmm, group is nullptr !");
-//         return false;
-//     }
+    if (!CheckType(gamma->GetDataType(), GAMMA_DTYPE_SUPPORT_LIST)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "gamma support only [DT_FLOAT]."
+            "While tensor gamma: %s is not supported.", op::ToString(gamma->GetDataType()).GetString());
+        return false;
+    }
 
-//     size_t groupLen = strnlen(group, HCCL_GROUP_NAME_LENGTH_MAX); // group长度≥128字符, 返回HCCL_GROUP_NAME_LENGTH_MAX
-//     if (groupLen >= HCCL_GROUP_NAME_LENGTH_MAX) {
-//         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "AddRmsNormDynamicQuantAllGatherQbmm, Limit the length of the group to less than %lu characters.",
-//                 HCCL_GROUP_NAME_LENGTH_MAX);
-//         return false;
-//     }
+    if (!CheckType(scale->GetDataType(), SCALES_DTYPE_SUPPORT_LIST)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "scale support only [DT_BF16, DT_FLOAT]."
+            "While tensor scale: %s is not supported.", op::ToString(scale->GetDataType()).GetString());
+        return false;
+    }
 
-//     return true;
-// }
+    return true;
+}
 
-static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const aclTensor* y, const aclTensor* gamma,
-    const aclTensor* scale, const aclTensor* output, const aclTensor* z)
+static bool CheckGroupLength(const char* group)
+{
+    if (group == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "AddRmsNormDynamicQuantAllGatherQbmm, group is nullptr !");
+        return false;
+    }
+
+    size_t groupLen = strnlen(group, HCCL_GROUP_NAME_LENGTH_MAX); // group长度≥128字符, 返回HCCL_GROUP_NAME_LENGTH_MAX
+    if (groupLen >= HCCL_GROUP_NAME_LENGTH_MAX) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "AddRmsNormDynamicQuantAllGatherQbmm, Limit the length of the group to less than %lu characters.",
+                HCCL_GROUP_NAME_LENGTH_MAX);
+        return false;
+    }
+
+    return true;
+}
+
+static aclnnStatus CheckParams(const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y,
+    const aclTensor* gamma, const aclTensor* scale, const aclTensor* output, const aclTensor* z, const char* group)
 {
     // 1. 检查参数是否为空指针
-    CHECK_RET(CheckNotNull(x1, x2, y, gamma, scale, output, z), ACLNN_ERR_PARAM_NULLPTR);
-    // TODO: need to figure out the api definition
-    // // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
-    // CHECK_RET(CheckAllDtypesValid(x, scales, output), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckNotNull(x1, x2, residual, y, gamma, scale, output, z), ACLNN_ERR_PARAM_NULLPTR);
+    // 2. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据api定义校验
+    CHECK_RET(CheckAllDtypesValid(x1, x2, residual, y, gamma, scale, output, z), ACLNN_ERR_PARAM_INVALID);
     // // 3. 检查group参数是否在要求范围之内
-    // CHECK_RET(CheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckGroupLength(group), ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
@@ -161,8 +155,7 @@ extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
-    // TODO: Complete the code for checking params
-    aclnnStatus retParam = CheckParams(x1, x2, y, gamma, scale, output, z);
+    aclnnStatus retParam = CheckParams(x1, x2, residual, y, gamma, scale, output, z, group);
     CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
     OP_LOGD("Invoking aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize...");
     aclnnStatus ret = aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
