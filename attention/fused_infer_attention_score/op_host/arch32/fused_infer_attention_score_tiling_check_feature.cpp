@@ -300,7 +300,27 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLearnableSink() const
     OP_CHECK_IF((opParamInfo_.learnableSink.desc->GetDataType() != ge::DT_BF16),
             OP_LOGE(opName_, "When learnable_sink enable, sink dtype must be bf16!"),
             return ge::GRAPH_FAILED);
-            
+
+    OP_CHECK_IF(fiaInfo_.vHeadDim != 128U && fiaInfo_.vHeadDim != 64U,
+        OP_LOGE(opName_, "When learnable sink is used, value headdim must be 128 or 64, now is %u!", fiaInfo_.vHeadDim),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(fiaInfo_.pseShiftFlag,
+        OP_LOGE(opName_, "When learnable sink is used, pse is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(fiaInfo_.qPaddingSizeFlag || fiaInfo_.kvPaddingSizeFlag,
+        OP_LOGE(opName_, "When learnable sink is used, left padding is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(fiaInfo_.sysPrefixFlag,
+        OP_LOGE(opName_, "When learnable sink is used, system prefix is not supported!"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(fiaInfo_.isOutQuantEnable,
+        OP_LOGE(opName_, "When learnable sink is used, post quant is not supported!"),
+        return ge::GRAPH_FAILED);
+
     return ge::GRAPH_SUCCESS;
 }
 

@@ -1989,7 +1989,16 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     if (RouteToFia(context)) {
         return TilingFusedInferAttentionScoreV3(context);
     }
-    
+    // LearnableSink 量化拦截：老模板IFA/PFA无独立 learnablesink 检查，在此统一拦截
+    if (context->GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr) {
+        OP_CHECK_IF(context->GetOptionalInputTensor(ANTIQUANT_SCALE_INDEX) != nullptr ||
+                    context->GetOptionalInputTensor(KEY_ANTIQUANT_SCALE_INDEX) != nullptr ||
+                    context->GetOptionalInputTensor(VALUE_ANTIQUANT_SCALE_INDEX) != nullptr ||
+                    context->GetOptionalInputTensor(DEQUANT_SCALE1_INDEX) != nullptr,
+            OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+                "Learnable sink only supports no-quantized GQA mode!"),
+            return ge::GRAPH_FAILED);
+    }
     OP_CHECK_IF(CheckQKV(*context) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check query/key/value failed"), return ge::GRAPH_FAILED);
     auto attrs = context->GetAttrs();
