@@ -195,15 +195,18 @@ ge::graphStatus CheckAttrs(
     const int64_t *rankSizePtr = attrs->GetAttrPointer<int64_t>(RANK_SIZE_INDEX);
     OP_TILING_CHECK(rankSizePtr == nullptr, OP_LOGE(nodeName, "rankSizePtr is nullptr."), return ge::GRAPH_FAILED);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize = *rankSizePtr;
-    // transpose校验
+    // transpose校验，当前只支持false
     const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
     OP_TILING_CHECK(transposeX2Ptr == nullptr, OP_LOGE(nodeName, "transposeX2Ptr is nullptr."), return ge::GRAPH_FAILED);
-    // 输出type校验
+    OP_TILING_CHECK(*transposeX2Ptr, OP_LOGE(nodeName, "transposeX2 only supports false currently."), return ge::GRAPH_FAILED);
+    // 输出type校验，当前只支持-1
     const int64_t *outputTypePtr = attrs->GetAttrPointer<int64_t>(DTYPE_INDEX);
     OP_TILING_CHECK(outputTypePtr == nullptr, OP_LOGE(nodeName, "outputTypePtr is nullptr."), return ge::GRAPH_FAILED);
-    // residual_norm_mode校验
-    const float *residualNormModePtr = attrs->GetAttrPointer<float>(RESIDUAL_NORM_MODE_INDEX);
+    OP_TILING_CHECK(*outputTypePtr != -1, OP_LOGE(nodeName, "outputType only supports -1 currently."), return ge::GRAPH_FAILED);
+    // residual_norm_mode校验，当前只支持0
+    const int64_t *residualNormModePtr = attrs->GetAttrPointer<int64_t>(RESIDUAL_NORM_MODE_INDEX);
     OP_TILING_CHECK(residualNormModePtr == nullptr, OP_LOGE(nodeName, "residualNormModePtr is nullptr."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(*residualNormModePtr != 0, OP_LOGE(nodeName, "residualNormMode only supports 0 currently."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -245,19 +248,35 @@ ge::graphStatus CheckInputOutputTensorDim(
     size_t biasDimNum = biasShape->GetStorageShape().GetDimNum();
     uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
+    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
-    OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(1) * x2Shape->GetStorageShape().GetDim(2)),
-        OP_LOGE(context->GetNodeName(), "x1dim1 is not same to x2dim1 * x2dim2."), return ge::GRAPH_FAILED);
+    uint32_t expectedX2DimNum = (x2Format == ge::FORMAT_FRACTAL_NZ) ? FOUR_DIMS : TWO_DIMS;
+    if (expectedX2DimNum == FOUR_DIMS) {
+        OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(1) * x2Shape->GetStorageShape().GetDim(2)),
+            OP_LOGE(context->GetNodeName(), 
+                "Expect x1dim1 to be the same as x2dim1 * x2dim2, but got x1dim1=%d, x2dim1=%d, x2dim2=%d.",
+                x1Shape->GetStorageShape().GetDim(1),
+                x2Shape->GetStorageShape().GetDim(1),
+                x2Shape->GetStorageShape().GetDim(2)),
+            return ge::GRAPH_FAILED);
+    } else {
+        OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(0)),
+            OP_LOGE(context->GetNodeName(),
+                "Expect x1dim1 to be the same as x2dim0, but got x1dim1=%d, x2dim0=%d.",
+                x1Shape->GetStorageShape().GetDim(1),
+                x2Shape->GetStorageShape().GetDim(0)),
+            return ge::GRAPH_FAILED);
+    }
     OP_CHECK_IF((x1Shape->GetStorageShape() != residualShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to residualShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF((x1Shape->GetStorageShape() != yShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1Dim1Value != gammaValue)),
         OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != FOUR_DIMS) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
+    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != expectedX2DimNum) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
         OP_LOGE(context->GetNodeName(),
-        "The dim of x1, residual, y should be 2, and the dim of x2 should be 4, but current x1DimNum=%lu, x2DimNum=%lu, residualDimNum=%lu, yDimNum=%lu.",
-        x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
+        "The dim of x1, residual, y should be 2, and the dim of x2 should be %lu, but current x1DimNum=%lu, x2DimNum=%lu, residualDimNum=%lu, yDimNum=%lu.",
+        expectedX2DimNum, x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1DimNum != residualDimNum)),
@@ -358,7 +377,6 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
     auto outputDesc = context->GetOutputDesc(OUTPUT_INDEX);
     auto zDesc = context->GetOutputDesc(Z_INDEX);
     const char *nodeName = context->GetNodeName();
-    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(x1Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "x1 format is invalid."), return ge::GRAPH_FAILED);
@@ -397,7 +415,7 @@ static ge::graphStatus SetTCubeTiling(
 
     uint32_t blockDim = context->GetBlockDim();
     const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
-    bool isAtrans = true;
+    bool isAtrans = false;
     bool isBtrans = *transposeX2Ptr;
     auto biasDesc = context->GetOptionalInputDesc(BIAS_INDEX);
     bool hasBias = (biasDesc != nullptr);
