@@ -214,7 +214,6 @@ float8_e8m0, but scale dtype is %s, pertokenScale dtype is %s",
     auto yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     CHECK_COND(yDtype != DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
                "When format of weight is FRACTAL_NZ, the y dtype should not be int8.");
-
     auto weightViewShapeDim = GetInputTensor(gmmParams_.weight)->GetViewShape().GetDimNum();
     auto kDimValue =
         GetInputTensor(gmmParams_.weight)->GetViewShape().GetDim(weightViewShapeDim - LAST_SECOND_DIM_INDEX);
