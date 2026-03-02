@@ -659,9 +659,15 @@ static inline bool TransposeTensorContiguousProcessForMx(const aclTensor *&conti
     auto transposeFlag = IsLastTwoDimsTranspose(contiguousTensor);
     // swap tensor if its viewshape not satisfy request shape without adding a transpose node
     if (transposeFlag) {
+        auto nZShape = contiguousTensor->GetStorageShape();
         contiguousTensor = executor->CreateView(contiguousTensor, SwapLastTwoDimValue(contiguousTensor->GetViewShape()),
             contiguousTensor->GetViewOffset());
         transpose = true;
+        // FORMAT_FRACTAL_NZ的情况下，将storageshape写回
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+            contiguousTensor->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
+            contiguousTensor->SetStorageShape(nZShape);
+        }
     } else {
         contiguousTensor = l0op::Contiguous(contiguousTensor, executor);
     }
