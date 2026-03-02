@@ -34,6 +34,11 @@
 #else 
 #include "../../common/inc/kernel/moe_distribute_base.h"
 #endif
+#if __has_include("../common/inc/kernel/moe_distribute_base.h")
+#include "../common/inc/mc2_moe_context.h"
+#else 
+#include "../../common/inc/mc2_moe_context.h"
+#endif
 
 #define FLOAT_OVERFLOW_MODE_CTRL 60
 namespace MoeDistributeDispatchV2Impl {
@@ -43,11 +48,13 @@ namespace MoeDistributeDispatchV2Impl {
 using namespace AscendC;
 using namespace MoeDistributeV2Base;
 using namespace Mc2Kernel;
+using namespace Mc2Context;
+
 template <TemplateDispatchV2TypeClass>
 class MoeDistributeDispatchV2 {
 public:
     __aicore__ inline MoeDistributeDispatchV2() {};
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, 
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR expertIds, GM_ADDR mc2Context, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, 
                                 GM_ADDR performanceInfo, GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, 
                                 GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, GM_ADDR tpSendCountsOut,
                                 GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData);
@@ -90,13 +97,15 @@ private:
     {
         uint32_t curRankId = ((ctxIdx == COMM_EP_IDX) ? epRankIdOriginal_ : tpRankId_);
         uint64_t winDataSizeOffset = (ctxIdx == COMM_EP_IDX)? winDataSizeOffsetEp_ : winDataSizeOffsetTp_;
-        return Mc2Kernel::GetBaseWindAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + winDataSizeOffset;
+        return mc2ContextPtr->epHcclBuffer[curRankId] + A5_MTE_STATE_WIN_SIZE + winDataSizeOffset;
+        //return Mc2Kernel::GetBaseWindAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + winDataSizeOffset;
     }
 
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(uint8_t ctxIdx, const int32_t rankId)
     {
         uint32_t curRankId = ((ctxIdx == COMM_EP_IDX) ? epRankIdOriginal_ : tpRankId_);
-        return Mc2Kernel::GetBaseWindStateAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + dataState_ * WIN_STATE_OFFSET;
+        return mc2ContextPtr->epHcclBuffer[curRankId] + dataState_ * WIN_STATE_OFFSET;
+        //return Mc2Kernel::GetBaseWindStateAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + dataState_ * WIN_STATE_OFFSET;
     }
 
     __aicore__ inline uint32_t MIN(uint32_t x, uint32_t y)
@@ -261,7 +270,8 @@ private:
     uint32_t sendToSharedExpTokenCnt_{0};
     uint32_t maxSize_{0};
     uint32_t bufferNum_{0};
-    __gm__ Mc2Kernel::HcclOpParam *winContext_[COMM_NUM]{nullptr, nullptr};
+    __gm__ Mc2Kernel::HcclOpParam* winContext_[COMM_NUM]{nullptr, nullptr};
+    __gm__ Mc2Context::Mc2MoeContext* mc2ContextPtr{nullptr};
 
     DataCopyParams expandXCopyParams_;
     DataCopyParams xCopyParams_;
@@ -274,22 +284,24 @@ private:
 
 template <TemplateDispatchV2TypeClass>
 __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init(
-    GM_ADDR x, GM_ADDR expertIds, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR performanceInfo, 
+    GM_ADDR x, GM_ADDR expertIds, GM_ADDR mc2Context, GM_ADDR scales, GM_ADDR xActiveMask, GM_ADDR elasticInfo, GM_ADDR performanceInfo, 
     GM_ADDR expandXOut, GM_ADDR dynamicScalesOut, GM_ADDR expandIdxOut, GM_ADDR expertTokenNumsOut, GM_ADDR sendCountsOut, 
     GM_ADDR tpSendCountsOut, GM_ADDR workspaceGM, TPipe *pipe, const MoeDistributeDispatchV2TilingData *tilingData)
 {
 #if defined(__DAV_C310__) // A3不支持MX量化，无需使能饱和模式
     AscendC::SetCtrlSpr<FLOAT_OVERFLOW_MODE_CTRL, FLOAT_OVERFLOW_MODE_CTRL>(0);
 #endif
+    mc2ContextPtr = (__gm__ Mc2Context::Mc2MoeContext*)mc2Context;
     tpipe_ = pipe;
     aivId_ = GetBlockIdx();
-    epRankId_ = tilingData->moeDistributeDispatchV2Info.epRankId;
-    epRankIdOriginal_ = tilingData->moeDistributeDispatchV2Info.epRankId;
+    epRankId_ = mc2ContextPtr->epRankId; //tilingData->moeDistributeDispatchV2Info.epRankId;
+    epRankIdOriginal_ = mc2ContextPtr->epRankId; //tilingData->moeDistributeDispatchV2Info.epRankId;
     winContext_[COMM_EP_IDX] = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
 
     // 检查hcclwinsize是否越界
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
+    CheckWindowSize(totalWinSizeEp_, mc2ContextPtr->winSize, tpipe_, expandXOut);
     //CheckWindowSize(totalWinSizeEp_, Mc2Kernel::GetWinSize(winContext_[COMM_EP_IDX]), tpipe_, expandXOut);
     if constexpr (IsNeedAllgather) {
         winContext_[COMM_TP_IDX] = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<1>();  // 没有相关公共宏
@@ -298,7 +310,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
 
     axisBS_ = tilingData->moeDistributeDispatchV2Info.bs;
     axisH_ = tilingData->moeDistributeDispatchV2Info.h;
-    epWorldSizeOriginal_ = tilingData->moeDistributeDispatchV2Info.epWorldSize;
+    epWorldSizeOriginal_ = mc2ContextPtr->epRankSize; //tilingData->moeDistributeDispatchV2Info.epWorldSize;
     hasElasticInfoFlag_ = tilingData->moeDistributeDispatchV2Info.hasElasticInfo;
     isPerformanceFlag_ = tilingData->moeDistributeDispatchV2Info.isPerformance;
     epWorldSize_ = tilingData->moeDistributeDispatchV2Info.epWorldSize;
@@ -307,11 +319,11 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     globalBS_ = tilingData->moeDistributeDispatchV2Info.globalBs;
     scaleInBytes_ = tilingData->moeDistributeDispatchV2Info.scalesCol * tilingData->moeDistributeDispatchV2Info.scalesTypeSize;
     scalesCount_ = tilingData->moeDistributeDispatchV2Info.scalesCount;
-    //statusDataSpaceGm_ = Mc2Kernel::GetStatusDataSpaceGm(winContext_[COMM_EP_IDX]);
+    statusDataSpaceGm_ = mc2ContextPtr->epHcclBuffer[epRankId_]; //Mc2Kernel::GetStatusDataSpaceGm(winContext_[COMM_EP_IDX]);
     selfDataStatusGMTensor_.SetGlobalBuffer((__gm__ uint32_t*)(statusDataSpaceGm_ + DISPATCH_STATE_WIN_OFFSET + aivId_ * WIN_ADDR_ALIGN));
     TBuf<> dataStateBuf;
     tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
-    //dataState_ = InitWinState(selfDataStatusGMTensor_, winContext_[COMM_EP_IDX], epRankIdOriginal_, moeExpertNum_, epWorldSizeOriginal_, globalBS_, dataStateBuf);
+    dataState_ = InitWinState(selfDataStatusGMTensor_, winContext_[COMM_EP_IDX], epRankIdOriginal_, moeExpertNum_, epWorldSizeOriginal_, globalBS_, dataStateBuf, mc2ContextPtr);
     elasticInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t*)(elasticInfo));
     performanceInfoGMTensor_.SetGlobalBuffer((__gm__ int32_t*)(performanceInfo));
     elasticInst_.SetElasticInitParams(tpipe_, elasticInfoGMTensor_);

@@ -598,7 +598,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
     LocalTensor<uint8_t> expertMaskTensorU8 = expertMaskBuf.Get<uint8_t>();
     LocalTensor<uint32_t> expertMaskTensorU32 = expertMaskBuf.Get<uint32_t>();
     LocalTensor<int32_t> gatherTempTensor = outBuf.Get<int32_t>();
-    for (int32_t expertIndex = 0; expertIndex < sendNum_; expertIndex++) {
+    for (int32_t expertIndex = 0; expertIndex < sendNum_; expertIndex++) { // 每个核只计算自己的
         int32_t dstExpertId = expertIndex + startId_;
         if ((expertIndex == sendNum_ - 1) && (remainderExpertNum_ != 0)) {
             dstExpertId = delLastExpertId_;
@@ -608,7 +608,7 @@ __aicore__ inline void MoeDistributeDispatchV2FullMesh<TemplateMC2TypeFullmeshFu
         GatherMask(gatherTempTensor, validExpertIdsTensor_, expertMaskTensorU32[maskSizePerExpert_ * expertIndex / sizeof(uint32_t)],
             true, mask, {1, 1, 0, 0}, maskCnt); // 是否可以简化计算
         SyncFunc<AscendC::HardEvent::V_S>();
-        tokenNumToExpertTensor_.SetValue(expertIndex, static_cast<uint32_t>(maskCnt));
+        tokenNumToExpertTensor_.SetValue(expertIndex, static_cast<uint32_t>(maskCnt)); //计算当前专家的发送cnt
     }
     LocalTensor<float> outTensorFp32 = outBuf.Get<float>();
     Duplicate<float>(outTensorFp32, float(1), hCommuSize_ * BUFFER_NUM / sizeof(float));

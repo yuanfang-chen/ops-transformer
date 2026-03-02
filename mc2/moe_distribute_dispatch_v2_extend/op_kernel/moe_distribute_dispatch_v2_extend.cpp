@@ -37,11 +37,6 @@ __global__ __aicore__ void moe_distribute_dispatch_v2_extend(
     GM_ADDR assistInfoOut, GM_ADDR expertTokenNumsOut, GM_ADDR epSendCountsOut, GM_ADDR tpSendCountsOut, 
     GM_ADDR expandScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    AscendC::printf("PRINT start kernel\n");
-    __gm__ Mc2MoeContext * ptr = (__gm__ Mc2MoeContext *)(mc2Context);
-    AscendC::printf("rankid %d\n",ptr->epRankId);
-    AscendC::printf("epRankSize: %d\n",ptr->epRankSize);
-    AscendC::printf("winSize: %d\n",ptr->winSize);
 REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
 
 #if defined(__DAV_C310__)
@@ -57,17 +52,16 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         if constexpr (CommMode == TILINGKEY_TPL_MTE) {
             if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
-                AscendC::printf("PRINT start fullmesh\n");
+
                 MoeDistributeDispatchV2FullMesh<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
                 op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
                 op.Process();
             } else {
-                AscendC::printf("PRINT start fullmesh else \n");
                 MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, MoeDistributeDispatchV2Impl::UNQUANT, false, false> op;
-                op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                op.Init(x, expertIds, scales, mc2Context, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
                         expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-                //op.Process();
+                op.Process();
             }
         }  
     } 
