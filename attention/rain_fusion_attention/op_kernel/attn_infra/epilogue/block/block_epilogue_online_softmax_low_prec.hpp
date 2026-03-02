@@ -642,32 +642,6 @@ public:
                 columnNum,
                 columnNumRound);
         }
-
-        // if (columnNum == 1024U) {
-        //     RowmaxSPECTILE1024(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else {
-        //     RowmaxTAILTILE(
-        //         computeUbTensor,
-        //         lmUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // }
-
-        // RowmaxTAILTILE(
-        //     computeUbTensor,
-        //     lmUbTensor[rowOffset],
-        //     tvUbTensor,
-        //     rowNumCurLoopRound,
-        //     columnNum,
-        //     columnNumRound);
     }
 
     __aicore__ inline
@@ -792,24 +766,6 @@ public:
                 columnNum,
                 columnNumRound);
         }
-
-        // if (columnNum == 512U) {
-        //     RowsumSPECTILE512(
-        //         computeUbTensor,
-        //         llUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // } else {
-        //     RowsumTAILTILE(
-        //         computeUbTensor,
-        //         llUbTensor[rowOffset],
-        //         tvUbTensor,
-        //         rowNumCurLoopRound,
-        //         columnNum,
-        //         columnNumRound);
-        // }
     }
 
     __aicore__ inline
