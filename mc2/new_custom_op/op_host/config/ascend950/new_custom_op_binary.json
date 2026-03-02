@@ -1,0 +1,67 @@
+{
+    "op_type": "NewCustomOp",
+    "op_list": [
+        {
+            "bin_filename": "NewCustomOp_ND_ND_ND_INT8_FP_FP16",
+            "inputs": [
+                {
+                    "name": "x",
+                    "index": 0,
+                    "dtype": "int8",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                },
+                {
+                    "name": "scales",
+                    "index": 1,
+                    "dtype": "float32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "out_put",
+                    "index": 0,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ],
+                    "format_match_mode": "FormatAgnostic"
+                }
+            ],
+            "attrs": [
+                {
+                    "name": "group",
+                    "dtype": "string",
+                    "value": ""
+                },
+                {
+                    "name": "reduce_op",
+                    "dtype": "string",
+                    "value": "sum"
+                },
+                {
+                    "name": "output_dtype",
+                    "dtype": "int",
+                    "value": 27
+                },
+                {
+                    "name": "world_size",
+                    "dtype": "int",
+                    "value": -1
+                }
+            ]
+        }
+    ]
+}
