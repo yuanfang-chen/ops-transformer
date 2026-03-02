@@ -42,6 +42,8 @@ constexpr uint64_t MX_SCALE_OFFSET = 64;
 constexpr uint64_t EVEN_ALIGN = 2;
 constexpr uint64_t PERTENSOR_SCALE_DIM = 1;
 constexpr uint64_t PERBLOCK_SCALE_DIM = 2;
+constexpr uint64_t PERTOKEN_SCALE_DIM = 2;
+constexpr uint64_t PERCHANNEL_SCALE_DIM = 2;
 constexpr uint64_t MX_SCALE_DIM = 3;
 constexpr uint64_t GROUP_M_OFFSET = 32;
 constexpr uint64_t GROUP_N_OFFSET = 16;
@@ -80,6 +82,11 @@ bool QuantBmmReduceScatterTiling::IsCapable()
     // geAType 和 geBType 为fp8e4m3/fp8e5m2/hif8时, 走该tiling流程
     if (mc2tiling::CheckDataTypeVaild(args_.geAType, mc2tiling::FP8DTYPE_SUPPORT_LIST) &&
         mc2tiling::CheckDataTypeVaild(args_.geBType, mc2tiling::FP8DTYPE_SUPPORT_LIST)) {
+        OP_LOGI(opName_, "start with quantbmm reducescatter tiling.");
+        return true;
+    }
+    if (args_.geAType == ge::DataType::DT_INT8 && args_.geBType == ge::DataType::DT_INT8) {
+        isA8W8_ = true;
         OP_LOGI(opName_, "start with quantbmm reducescatter tiling.");
         return true;
     }
@@ -298,13 +305,44 @@ bool QuantBmmReduceScatterTiling::MxfpSceneParamCheck(const gert::StorageShape* 
     return true;
 }
 
+bool QuantBmmReduceScatterTiling::A8W8SceneParamCheck(const gert::StorageShape* x1ScaleShape,
+                                                           const gert::StorageShape* x2ScaleShape)
+{
+    OP_TILING_CHECK(!isA8W8_, CUBE_INNER_ERR_REPORT(opName_, "x dtype should be int8, "
+                    "but got x1 dtype: %s, x2 dtype: %s",
+                    Ops::Base::ToString(args_.geAType).c_str(), Ops::Base::ToString(args_.geBType).c_str()), return false);
+    auto x1shape = context_->GetInputShape(X1_INDEX);
+    auto x2shape = context_->GetInputShape(X2_INDEX);
+    uint64_t x1Dim0 = x1shape->GetStorageShape().GetDim(0);
+    uint64_t x2Dim1 = x2shape->GetStorageShape().GetDim(1);
+    if (x1ScaleShape != nullptr) {
+        uint64_t x1ScaleDim0 = static_cast<uint64_t>(x1ScaleShape->GetStorageShape().GetDim(0));
+        uint64_t x1ScaleDim1 = static_cast<uint64_t>(x1ScaleShape->GetStorageShape().GetDim(1));
+        OP_TILING_CHECK((x1ScaleDim0 != x1Dim0) || (x1ScaleDim1 != 1),
+            CUBE_INNER_ERR_REPORT(opName_,
+                "Wrong shape of x1Scale! x1ScaleDim0 should be equal to x1Dim0(%lu), x2scaleDim1 should be 1"
+                "Actual Shape of x1Scale = (%lu, %lu)",
+                x1Dim0, x1ScaleDim0, x1ScaleDim1),
+            return false);
+    }
+    uint64_t x2ScaleDim0 = static_cast<uint64_t>(x2ScaleShape->GetStorageShape().GetDim(0));
+    uint64_t x2ScaleDim1 = static_cast<uint64_t>(x2ScaleShape->GetStorageShape().GetDim(1));
+    OP_TILING_CHECK((x2ScaleDim1 != x2Dim1) || (x2ScaleDim0 != 1),
+        CUBE_INNER_ERR_REPORT(opName_,
+            "Wrong shape of x2Scale! x2ScaleDim1 should be equal to x2Dim1(%lu), x2scaleDim0 should be 0"
+            "Actual Shape of x2Scale = (%lu, %lu)",
+            x2Dim1, x2ScaleDim0, x2ScaleDim1),
+        return false);
+    return true;
+}
+
 ge::graphStatus QuantBmmReduceScatterTiling::CheckScale() const
 {
     // x1scale x2scale判空
     auto x1ScaleShape = context_->GetOptionalInputShape(X1SCALE_INDEX);
     auto x2ScaleShape = context_->GetOptionalInputShape(X2SCALE_INDEX);
-    OP_TILING_CHECK(((x1ScaleShape == nullptr)),
-                    CUBE_INNER_ERR_REPORT(opName_, "x1Scale shape can't be nullptr"),
+    OP_TILING_CHECK(((x1ScaleShape == nullptr && !isA8W8_)),
+                    CUBE_INNER_ERR_REPORT(opName_, "when input is fp8, x1Scale shape can't be nullptr"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(((x2ScaleShape == nullptr)),
                     CUBE_INNER_ERR_REPORT(opName_, "x2Scale shape can't be nullptr"),
@@ -312,28 +350,48 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckScale() const
 
     auto x1ScaleDesc = context_->GetOptionalInputDesc(X1SCALE_INDEX);
     auto x2ScaleDesc = context_->GetOptionalInputDesc(X2SCALE_INDEX);
-    OP_TILING_CHECK(((x1ScaleDesc == nullptr)),
-                    CUBE_INNER_ERR_REPORT(opName_, "x1Scale desc can't be nullptr"),
+    OP_TILING_CHECK(((x1ScaleDesc == nullptr && !isA8W8_)),
+                    CUBE_INNER_ERR_REPORT(opName_, "when input is fp8, x1Scale desc can't be nullptr"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(((x2ScaleDesc == nullptr)),
                     CUBE_INNER_ERR_REPORT(opName_, "x2Scale desc can't be nullptr"),
                     return ge::GRAPH_FAILED);
+    // 当输入为int8时，x1scale和x2scale组合校验
+    if (isA8W8_) {
+        OP_TILING_CHECK(((x1ScaleShape != nullptr) && (x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT)), 
+                        CUBE_INNER_ERR_REPORT(opName_, "when input is int8 and x1scale is null, x1Scaledtype should be float32, "
+                        "but got x1Scale dtype = %s", Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str()),
+                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(((x2ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT) &&
+                        (x2ScaleDesc->GetDataType() != ge::DataType::DT_INT64) &&
+                        (x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT)),
+                        CUBE_INNER_ERR_REPORT(opName_, "when input is int8 and x1scale is not null, x1Scaledtype should be float32, "
+                        "x2Scaledtype should be float32 or int64, but got x1Scale dtype = %s, x2Scale dtype = %s", 
+                        Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str(), Ops::Base::ToString(x2ScaleDesc->GetDataType()).c_str()),
+                        return ge::GRAPH_FAILED);
+        auto yDesc = context_->GetOutputDesc(Y_INDEX);
+        OP_TILING_CHECK(((x2ScaleDesc->GetDataType() == ge::DataType::DT_INT64) &&
+                (yDesc->GetDataType() == ge::DataType::DT_BF16)), 
+                CUBE_INNER_ERR_REPORT(opName_, "when input is int8 and x2Scaledtype is int64, ydtype should be float16"
+                "but got y dtype = %s", Ops::Base::ToString(yDesc->GetDataType()).c_str()),
+                return ge::GRAPH_FAILED);        
+    } else {
+        // 低精度x1scale x2scale 数据类型为fp32或fp8_e8m0
+        OP_TILING_CHECK(((x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT) &&
+                        (x2ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT)) &&
+                        ((x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT8_E8M0) &&
+                        (x2ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT8_E8M0)),
+                        CUBE_INNER_ERR_REPORT(opName_, "x1Scaledtype and x2Scaledtype should be float32 or float8_e8m0, "
+                        "but got x1Scale dtype = %s, x2Scale dtype = %s", Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str(),
+                        Ops::Base::ToString(x2ScaleDesc->GetDataType()).c_str()),
+                        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((x1ScaleDesc->GetDataType() != x2ScaleDesc->GetDataType()),
+                        CUBE_INNER_ERR_REPORT(opName_, "x1Scaledtype and x2Scaledtype should be same"
+                        "but got x1Scale dtype = %s, x2Scale dtype = %s", Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str(),
+                        Ops::Base::ToString(x2ScaleDesc->GetDataType()).c_str()),
+                        return ge::GRAPH_FAILED);
 
-    // 低精度x1scale x2scale 数据类型为fp32或fp8_e8m0
-    OP_TILING_CHECK(((x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT) &&
-                    (x2ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT)) &&
-                    ((x1ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT8_E8M0) &&
-                    (x2ScaleDesc->GetDataType() != ge::DataType::DT_FLOAT8_E8M0)),
-                    CUBE_INNER_ERR_REPORT(opName_, "x1Scaledtype and x2Scaledtype should be float32 or float8_e8m0, "
-                    "but got x1Scale dtype = %s, x2Scale dtype = %s", Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str(),
-                    Ops::Base::ToString(x2ScaleDesc->GetDataType()).c_str()),
-                    return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((x1ScaleDesc->GetDataType() != x2ScaleDesc->GetDataType()),
-                    CUBE_INNER_ERR_REPORT(opName_, "x1Scaledtype and x2Scaledtype should be same"
-                    "but got x1Scale dtype = %s, x2Scale dtype = %s", Ops::Base::ToString(x1ScaleDesc->GetDataType()).c_str(),
-                    Ops::Base::ToString(x2ScaleDesc->GetDataType()).c_str()),
-                    return ge::GRAPH_FAILED);
-
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -345,21 +403,28 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
     auto x2ScaleShape = context_->GetOptionalInputShape(X2SCALE_INDEX);
     // 目前只有pertensor和perblock和mxfp场景
     SetScene();
-    OP_TILING_CHECK(((quantMode_ != mc2tiling::Mc2QuantMode::PERBLOCK_MODE) &&
+    OP_TILING_CHECK(((!isA8W8_) && (quantMode_ != mc2tiling::Mc2QuantMode::PERBLOCK_MODE) &&
                     (quantMode_ != mc2tiling::Mc2QuantMode::PERTENSOR_MODE) &&
                     (quantMode_ != mc2tiling::Mc2QuantMode::MXFP_MODE)),
                     CUBE_INNER_ERR_REPORT(opName_,
-                    "Quantmode must be pertensor or perblock or mxfp, actually x1scale is %ld and x2scale is %ld",
+                    "When input is fp8, Quantmode must be pertensor or perblock or mxfp, actually x1scale is %ld and x2scale is %ld",
                     x1ScaleShape->GetStorageShape().GetDimNum(), x2ScaleShape->GetStorageShape().GetDimNum()),
+                    return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(((isA8W8_) && (quantMode_ != mc2tiling::Mc2QuantMode::PERCHANNEL_MODE) &&
+                    (quantMode_ != mc2tiling::Mc2QuantMode::PERTOKEN_MODE)),
+                    CUBE_INNER_ERR_REPORT(opName_,
+                    "When input is int8, Quantmode must be perchannel or pertoken-perchannel"),
                     return ge::GRAPH_FAILED);
     OP_TILING_CHECK(((args_.geAType == ge::DataType::DT_HIFLOAT8) && (args_.geAType != args_.geBType)),
                     CUBE_INNER_ERR_REPORT(opName_, "BType must equal AType when AType is hifp8 in pertensor"),
                     return ge::GRAPH_FAILED);
-
+    OP_TILING_CHECK(((args_.geAType == ge::DataType::DT_INT8) && (args_.geAType != args_.geBType)),
+                CUBE_INNER_ERR_REPORT(opName_, "BType must equal AType when AType is int8"),
+                return ge::GRAPH_FAILED);
     OP_TILING_CHECK((!CommonParamCheck()), CUBE_INNER_ERR_REPORT(opName_, "Common params check failed"),
                     return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK(CheckGroupSize() == ge::GRAPH_FAILED,
+    OP_TILING_CHECK((!isA8W8_) && (CheckGroupSize() == ge::GRAPH_FAILED),
                     CUBE_INNER_ERR_REPORT(opName_, "Check block size and axis failed!"), return ge::GRAPH_FAILED);
     if (quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) {
         OP_TILING_CHECK((!PertensorSceneParamCheck(x1ScaleShape, x2ScaleShape)),
@@ -370,6 +435,9 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
     } else if (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) {
         OP_TILING_CHECK((!MxfpSceneParamCheck(x1ScaleShape, x2ScaleShape)),
                         CUBE_INNER_ERR_REPORT(opName_, "Mxfp8 scene params check failed"), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK((!A8W8SceneParamCheck(x1ScaleShape, x2ScaleShape)),
+                        CUBE_INNER_ERR_REPORT(opName_, "A8W8 scene params check failed"), return ge::GRAPH_FAILED);
     }
 
     return ge::GRAPH_SUCCESS;
@@ -400,12 +468,18 @@ void QuantBmmReduceScatterTiling::SetScene()
     auto x1ScaleDesc = context_->GetOptionalInputDesc(X1SCALE_INDEX);
     auto x2ScaleDesc = context_->GetOptionalInputDesc(X2SCALE_INDEX);
 
-    OP_TILING_CHECK((x1ScaleShape->GetStorageShape().GetDimNum() != x2ScaleShape->GetStorageShape().GetDimNum()),
-                    CUBE_INNER_ERR_REPORT(opName_, "Expected both scale shapes to be equal, but got x1scale is %ld and x2scale is %ld",
-                    x1ScaleShape->GetStorageShape().GetDimNum(), x2ScaleShape->GetStorageShape().GetDimNum()), 
-                    return );
-
-    if ((x1ScaleShape->GetStorageShape().GetDimNum() == PERTENSOR_SCALE_DIM) &&
+    OP_TILING_CHECK((!isA8W8_ && x1ScaleShape->GetStorageShape().GetDimNum() != x2ScaleShape->GetStorageShape().GetDimNum()),
+                CUBE_INNER_ERR_REPORT(opName_, "Expected both scale shapes to be equal, but got x1scale is %ld and x2scale is %ld",
+                x1ScaleShape->GetStorageShape().GetDimNum(), x2ScaleShape->GetStorageShape().GetDimNum()), 
+                return );
+    if ((isA8W8_ && x1ScaleShape != nullptr) &&
+        (x1ScaleShape->GetStorageShape().GetDimNum() == PERTOKEN_SCALE_DIM) &&
+        (x2ScaleShape->GetStorageShape().GetDimNum() == PERCHANNEL_SCALE_DIM)) {
+        quantMode_ = mc2tiling::Mc2QuantMode::PERTOKEN_MODE;
+    } else if ((isA8W8_ && x1ScaleShape == nullptr) &&
+        (x2ScaleShape->GetStorageShape().GetDimNum() == PERCHANNEL_SCALE_DIM)) {
+        quantMode_ = mc2tiling::Mc2QuantMode::PERCHANNEL_MODE;
+    } else if ((x1ScaleShape->GetStorageShape().GetDimNum() == PERTENSOR_SCALE_DIM) &&
         (x2ScaleShape->GetStorageShape().GetDimNum() == PERTENSOR_SCALE_DIM)) {
         quantMode_ = mc2tiling::Mc2QuantMode::PERTENSOR_MODE;
     } else if ((x1ScaleShape->GetStorageShape().GetDimNum() == MX_SCALE_DIM) &&
@@ -438,7 +512,9 @@ ge::graphStatus QuantBmmReduceScatterTiling::DoOpTiling()
     // 在perblock量化场景，orgMValue不满足PERBLOCK_SIZE * args_.rankDim整数倍时，不做公式化切分，走计算通信串行
     if ((quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) ||
         (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) ||
-        (quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE && CheckPerblockM())) {
+        (quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE && CheckPerblockM()) ||
+        (quantMode_ == mc2tiling::Mc2QuantMode::PERCHANNEL_MODE) ||
+        (quantMode_ == mc2tiling::Mc2QuantMode::PERTOKEN_MODE)) {
             GE_ASSERT_GRAPH_SUCCESS(DoSplitMTiling(MutableRCSTilingDataA5()));
     }
     GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingDataA5(), GetQuantMode()));
@@ -465,10 +541,27 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
         outputType = static_cast<uint8_t>(0);
     }
 
+    uint8_t inputType = INPUT_TYPE_IS_FP8;
+    if (isA8W8_) {
+        inputType = INPUT_TYPE_IS_INT8;
+    }
+
     uint8_t scaleType = 0;
     auto x1ScaleDesc = context_->GetOptionalInputDesc(X1SCALE_INDEX);
     auto x2ScaleDesc = context_->GetOptionalInputDesc(X2SCALE_INDEX);
-    if ((x1ScaleDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) &&
+    if (isA8W8_ && x1ScaleDesc != nullptr && x2ScaleDesc != nullptr) {
+        if (x2ScaleDesc->GetDataType() == ge::DataType::DT_FLOAT) {
+            scaleType = static_cast<uint8_t>(2);
+        } else if (x2ScaleDesc->GetDataType() == ge::DataType::DT_INT64) {
+            scaleType = static_cast<uint8_t>(3);
+        }
+    } else if (isA8W8_ && x1ScaleDesc == nullptr && x2ScaleDesc != nullptr){
+        if (x2ScaleDesc->GetDataType() == ge::DataType::DT_FLOAT) {
+            scaleType = static_cast<uint8_t>(4);
+        } else if (x2ScaleDesc->GetDataType() == ge::DataType::DT_INT64) {
+            scaleType = static_cast<uint8_t>(5);
+        }
+    } else if ((x1ScaleDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0) &&
         (x2ScaleDesc->GetDataType() == ge::DataType::DT_FLOAT8_E8M0)) {
         scaleType = static_cast<uint8_t>(1);
     } else {
@@ -477,7 +570,7 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
 
     bool isPerBlock = quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE;
     uint64_t tilingKey = GET_TPL_TILING_KEY(   \
-        isPerBlock, args_.isATrans, args_.isBTrans, INPUT_TYPE_IS_FP8, outputType, scaleType);
+        isPerBlock, args_.isATrans, args_.isBTrans, inputType, outputType, scaleType);
     OP_LOGD(opName_, "isPerBlock, transA, transB is: [%d, %d, %d]", isPerBlock, args_.isATrans, args_.isBTrans);
     OP_LOGD(opName_, "outputType, scaleType is: [%u, %u]", outputType, scaleType);
     return tilingKey;
@@ -628,7 +721,8 @@ ge::graphStatus QuantBmmReduceScatterTiling::DoAdaptSlidWindowTiling()
     // 主块切分
     uint32_t tempMValue = tileMValue_ == 0 ? MutableRCSTilingDataA5().rankM : tileMValue_;
     args_.mValue = ((quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) ||
-                    (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE)) ? (tempMValue * args_.rankDim) : tempMValue;
+                    (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) ||
+                    (quantMode_ == mc2tiling::Mc2QuantMode::PERCHANNEL_MODE)) ? (tempMValue * args_.rankDim) : tempMValue;
 
     QuantBmmReduceScatterHelper mmTile(*this, quantBmmMatmulReducescatterTilingData_->quantBmmV3TileTiling);
     GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
@@ -639,7 +733,8 @@ ge::graphStatus QuantBmmReduceScatterTiling::DoAdaptSlidWindowTiling()
     // 尾块切分
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tailQuantBatchMatmulParams;
     args_.mValue = ((quantMode_ == mc2tiling::Mc2QuantMode::PERTENSOR_MODE) ||
-                    (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE)) ? (tailMValue_ * args_.rankDim) : tailMValue_;
+                    (quantMode_ == mc2tiling::Mc2QuantMode::MXFP_MODE) ||
+                    (quantMode_ == mc2tiling::Mc2QuantMode::PERCHANNEL_MODE)) ? (tailMValue_ * args_.rankDim) : tailMValue_;
     QuantBmmReduceScatterHelper mmTail(*this, quantBmmMatmulReducescatterTilingData_->quantBmmV3TailTiling);
     GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
     return ge::GRAPH_SUCCESS;
