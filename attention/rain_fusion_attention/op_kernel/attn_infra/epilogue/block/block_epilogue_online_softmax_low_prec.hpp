@@ -190,7 +190,7 @@ public:
             tvUbTensor,
             srcUb,
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
+            0, 1, 1, 16);
         AscendC::PipeBarrier<PIPE_V>();
 
         SetVecMask(64);
@@ -359,7 +359,7 @@ public:
             tvUbTensor,
             srcUb,
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
+            0, 1, 1, 16);
         AscendC::PipeBarrier<PIPE_V>();
 
         SetVecMask(64);
