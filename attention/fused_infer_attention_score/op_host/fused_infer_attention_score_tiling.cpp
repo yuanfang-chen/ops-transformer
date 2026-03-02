@@ -1371,7 +1371,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
     bool isLearnableSinkFlag = true;
     if (isLearnableSink) {
-        auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+        auto sinkDataType = context.GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
         if (tempQD == 64 && sinkDataType == ge::DT_BF16) {
             isLearnableSinkFlag = false;
         }
