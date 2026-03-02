@@ -802,6 +802,16 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }
 
+ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
+{
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus CausalConv1dUpdateTiling::GetWorkspaceSize()
+{
+    return ge::GRAPH_SUCCESS;
+}
+
 REGISTER_OPS_TILING_TEMPLATE(CausalConv1dUpdate, CausalConv1dUpdateTiling, 1);
 
 } // namespace optiling

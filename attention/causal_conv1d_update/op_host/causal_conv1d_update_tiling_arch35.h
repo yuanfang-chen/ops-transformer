@@ -18,6 +18,8 @@
 #include "log/log.h"
 #include "platform/platform_info.h"
 #include "register/op_impl_registry.h"
+#include "register/tilingdata_base.h"
+#include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "util/math_util.h"
 #include "util/platform_util.h"
@@ -93,7 +95,9 @@ protected:
     ge::graphStatus GetShapeAttrsInfo() override;
     ge::graphStatus GetPlatformInfo() override;
     ge::graphStatus DoOpTiling() override;
+    ge::graphStatus DoLibApiTiling() override;
     uint64_t GetTilingKey() const override;
+    ge::graphStatus GetWorkspaceSize() override;
     ge::graphStatus PostTiling() override;
     void DumpTilingInfo() override;
 
