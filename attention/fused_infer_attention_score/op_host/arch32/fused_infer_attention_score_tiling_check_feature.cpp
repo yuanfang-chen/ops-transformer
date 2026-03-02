@@ -531,7 +531,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
 
     if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
         if (!fiaInfo_.isLegacyIfa) {
-            OP_CHECK_IF(vHeadDim_ % 16 != 0,
+            OP_CHECK_IF((!fiaInfo_.isOutQuantEnable && (vHeadDim_ % 16 != 0)),
             OP_LOGE(opName_, "In %s %s situation, when Qs>1, headDim of query|key|value should be align to 16, but got value headDim:%u, query|key headDim:%u",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
             return ge::GRAPH_FAILED);
