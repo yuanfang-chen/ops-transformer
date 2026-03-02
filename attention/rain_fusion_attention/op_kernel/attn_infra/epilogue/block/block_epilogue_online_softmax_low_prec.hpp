@@ -186,20 +186,20 @@ public:
         //     blockNumPerRow);
         // AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceSum<float, false>(
+        AscendC::BlockReduceSum<half, false>(
             tvUbTensor,
             srcUb,
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceSum<float, false>(
+        AscendC::BlockReduceSum<half, false>(
             tvUbTensor[REDUCE_UB_SIZE],
             tvUbTensor,
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceSum<float, false>(
+        AscendC::BlockReduceSum<half, false>(
             rowsumUb,
             tvUbTensor[REDUCE_UB_SIZE],
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE / HALF_VECTOR_SIZE,
@@ -360,19 +360,19 @@ public:
         //     AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         // AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceMax<float, false>(
+        AscendC::BlockReduceMax<half, false>(
             tvUbTensor,
             srcUb,
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
+        AscendC::BlockReduceMax<half, false>(
             tvUbTensor[REDUCE_UB_SIZE],
             tvUbTensor,
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
+        AscendC::BlockReduceMax<half, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE / HALF_VECTOR_SIZE,
