@@ -531,6 +531,46 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     // tmpTokenIdxLocal 和后续的Ub使用不冲突，可被复用
     LocalTensor<uint32_t> tmpTokenIdxLocal = tBuf.GetWithOffset<uint32_t>(RoundUp(realBS, B32_PER_BLOCK), baseBuffOffset);
     baseBuffOffset += sizeof(uint32_t) * RoundUp(realBS, B32_PER_BLOCK);
+
+    DataCopy(countReduceLocal,
+             countInnerGlobal_[globalBs_ * targetServerId + 1], RoundUp(realBS, B16_PER_BLOCK));
+    DataCopy(offsetReduceLocal,
+             offsetInnerGlobal_[globalBs_ * axisK_ * targetServerId], RoundUp(realBS * axisK_, B32_PER_BLOCK));
+    SyncFunc<AscendC::HardEvent::MTE2_S>();
+    uint32_t totalCopyLen = 0;
+    uint32_t processNum = 0;
+    uint32_t tokenNum = 0;
+
+    for (uint32_t i = 0U; i < realBS; i++) {
+        uint32_t copyNum = static_cast<uint32_t>(countReduceLocal.GetValue(i));
+        if (copyNum > 0) {
+            tmpTokenIdxLocal(tokenNum) = i;
+            ++tokenNum;
+        }
+    }
+    // 计算offsetIndex, copyNum, dataOffset
+    uint32_t listLen = RoundUp(maxBs_ / coreNumPerServer + 1, B32_PER_BLOCK); // maxBs_ / coreNumPerServer;
+    AscendC::LocalTensor<uint32_t> offsetIndexs = tBuf.GetWithOffset<uint32_t>(listLen, baseBuffOffset);
+    baseBuffOffset += listLen * sizeof(uint32_t);
+    AscendC::LocalTensor<uint32_t> copyNums = tBuf.GetWithOffset<uint32_t>(listLen, baseBuffOffset);
+    baseBuffOffset += listLen * sizeof(uint32_t);
+    AscendC::LocalTensor<uint32_t> dataOffsets = tBuf.GetWithOffset<uint32_t>(listLen, baseBuffOffset);
+    baseBuffOffset += listLen * sizeof(uint32_t);
+
+    // 每个核使用的链路要岔开，不能有冲突
+    for (uint32_t i = 0U; i < tokenNum; i++) {
+        if ((i % coreNumPerServer) == (coreIdx_ % coreNumPerServer)){
+            uint32_t index = tmpTokenIdxLocal(i);
+            int copyNum = static_cast<int32_t>(countReduceLocal.GetValue(index));
+            uint32_t dataOffset = i * (axisH_ / 2U + scaleNumAlign); // uint8的数据
+            copyNums(processNum) = static_cast<uint32_t>(copyNum);
+            offsetIndexs(processNum) = index * axisK_;
+            dataOffsets(processNum) = dataOffset;
+            totalCopyLen += static_cast<uint32_t>(copyNum);
+            processNum++;
+        }
+    }
+
     // 量化和不量化都要用
 
     LocalTensor<ExpandXType> dataInLocal = tBuf.GetWithOffset<ExpandXType>(axisH_ + WEIGHT_VALUE_NUM, baseBuffOffset);
@@ -542,6 +582,9 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     // 量化和不量化都要用 同时也为bf16的Brcb函数扩充复用，扩充到H个，至少要256B对齐
     LocalTensor<float> castInFloatLocal = tBuf.GetWithOffset<float>(
         RoundUp(axisHFloatSize_, VEC_LEN) / sizeof(float), baseBuffOffset);
+    if constexpr (DynamicQuant && std::is_same<ExpandXTransType, int8_t>::value && std::is_same<ExpandXType, bfloat16_t>::value) {
+        Duplicate<float>(castInFloatLocal, 0.0, castInFloatLocal.GetSize());
+    }
     baseBuffOffset += RoundUp(axisHFloatSize_, VEC_LEN);
 
     // 量化和不量化都要用
@@ -565,6 +608,9 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     // 将scale利用Brcb函数扩充到H个，至少要256B对齐   复用reduceMaxOutTensor
     LocalTensor<ExpandXType> absScaleTensor = tBuf.GetWithOffset<ExpandXType>(
         RoundUp(axisHExpandXTypeSize_, VEC_LEN) / sizeof(ExpandXType), fp16baseBuffOffset);
+    if constexpr (DynamicQuant && std::is_same<ExpandXTransType, int8_t>::value && std::is_same<ExpandXType, half>::value) {
+        Duplicate<ExpandXType>(absScaleTensor, 0.0, absScaleTensor.GetSize());
+    }
     fp16baseBuffOffset += Std::max(scaleNum * static_cast<uint32_t>(sizeof(ExpandXType)), RoundUp(axisHExpandXTypeSize_, VEC_LEN));
 
     // 量化 bf16 复用sumFloatLocal
@@ -574,49 +620,9 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     LocalTensor<float> reduceMaxTensorFloat = tBuf.GetWithOffset<float>(scaleNum, baseBuffOffset);
     baseBuffOffset += sizeof(float) * (scaleNum);
 
-    DataCopy(countReduceLocal,
-             countInnerGlobal_[globalBs_ * targetServerId + 1], RoundUp(realBS, B16_PER_BLOCK));
-    DataCopy(offsetReduceLocal,
-             offsetInnerGlobal_[globalBs_ * axisK_ * targetServerId], RoundUp(realBS * axisK_, B32_PER_BLOCK));
-    PipeBarrier<PIPE_ALL>();
-    SyncFunc<AscendC::HardEvent::MTE2_S>();
     localOutWindow_.SetGlobalBuffer((__gm__ ExpandXType*)(addrInfo_.GetLocalSendBuffDataAddr(targetRankId)));
     LocalTensor<uint64_t> rdmaFlagLocal = statusBuf_.Get<uint64_t>();
     rdmaFlagLocal(0) = RDMA_TOKEN_ARRIVED_FLAG + magicValue_;
-    PipeBarrier<PIPE_ALL>();
-    offsetIndex = 0U;
-
-    // 计算offsetIndex,copyNum,dataOffset,scaleOffset
-    uint32_t listLen = RoundUp(maxBs_ / coreNumPerServer + 1, B32_PER_BLOCK); // maxBs_ / coreNumPerServer;
-    uint32_t bufferOffset = Std::max(fp16baseBuffOffset, baseBuffOffset);
-    AscendC::LocalTensor<uint32_t> offsetIndexs = tBuf.GetWithOffset<uint32_t>(listLen, bufferOffset);
-    bufferOffset += listLen * sizeof(uint32_t);
-    AscendC::LocalTensor<uint32_t> copyNums = tBuf.GetWithOffset<uint32_t>(listLen, bufferOffset);
-    bufferOffset += listLen * sizeof(uint32_t);
-    AscendC::LocalTensor<uint32_t> dataOffsets = tBuf.GetWithOffset<uint32_t>(listLen, bufferOffset);
-    uint32_t totalCopyLen = 0;
-    uint32_t processNum = 0;
-    uint32_t tokenNum = 0;
-    for (uint32_t i = 0U; i < realBS; i++) {
-        uint32_t copyNum = static_cast<uint32_t>(countReduceLocal.GetValue(i));
-        if (copyNum > 0) {
-            tmpTokenIdxLocal(tokenNum) = i;
-            ++tokenNum;
-        }
-    }
-    // 每个核使用的链路要岔开，不能有冲突
-    for (uint32_t i = 0U; i < tokenNum; i++) {
-        if ((i % coreNumPerServer) == (coreIdx_ % coreNumPerServer)){
-            uint32_t index = tmpTokenIdxLocal(i);
-            int copyNum = static_cast<int32_t>(countReduceLocal.GetValue(index));
-            uint32_t dataOffset = i * (axisH_ / 2U + scaleNumAlign); // uint8的数据
-            copyNums(processNum) = static_cast<uint32_t>(copyNum);
-            offsetIndexs(processNum) = index * axisK_;
-            dataOffsets(processNum) = dataOffset;
-            totalCopyLen += static_cast<uint32_t>(copyNum);
-            processNum++;
-        }
-    }
     uint32_t processTokenNum = 0;
     uint32_t offsetIndexStart = offsetIndexs(processTokenNum);
     offsetIndex = offsetIndexs(processTokenNum);
@@ -625,6 +631,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
     uint32_t tokenOffset = 0;
     auto flagDataCopyParams = DataCopyParams{1U, static_cast<uint16_t>(sizeof(uint64_t)), 0, 0};
     shareFlagGlobal_.SetGlobalBuffer((__gm__ uint64_t *)addrInfo_.GetIpcTokenFlagAddr(targetServerId));
+    PipeBarrier<PIPE_ALL>();
     for (uint32_t i = 0U; i < totalCopyLen; i++) {
         uint32_t targetLocalServerExpertId = offsetReduceLocal.GetValue(offsetIndex) / offsetNumPerExpert;
         uint32_t targetIpcRank = (targetLocalServerExpertId / localMoeExpertNum_) + (rankId_ / SERVER_RANK_SIZE) * SERVER_RANK_SIZE;
