@@ -2438,10 +2438,15 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant with condition: query/key/value d(%d) must be 64 or 128 or mla",
                 *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT, queryShapeInfo.d),
             return false);
-        OP_CHECK_IF(!(!enableIFAMLA && !enablePFARope && !enablePFAMLA && queryShapeInfo.s == 1 && queryShapeInfo.d != 64 && queryShapeInfo != 128) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX),
+        OP_CHECK_IF(!(!enableIFAMLA && !enablePFARope && !enablePFAMLA && queryShapeInfo.d == 64 && queryShapeInfo.d == 128) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT),
+            OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+                "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and GQA no quant with condition: query/key/value d(%d) should not be 64 or 128",
+                *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX_FOR_NO_QUANT, queryShapeInfo.d),
+            return false);
+        OP_CHECK_IF(!(!enableIFAMLA && !enablePFARope && !enablePFAMLA && queryShapeInfo.d != 64 && queryShapeInfo.d != 128 && queryShapeInfo.s == 1) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and GQA no quant with condition: q_s(%d) is must be 1 and query/key/value d(%d) should not be 64 or 128",
-                *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX, queryShapeInfo.s ,queryShapeInfo.d),
+                *blockSize, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_BASE_FOR_NO_QUANT, BLOCK_SIZE_MAX, queryShapeInfo.s, queryShapeInfo.d),
             return false);
 
         OP_CHECK_IF(((enableIFAMLA || enableIFA || (queryShapeInfo.s == 1 && enableAlibiPse)) && (*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT)),
