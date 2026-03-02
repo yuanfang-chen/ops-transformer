@@ -160,8 +160,6 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::InitIndex(int64_
         nIdx = bTail / (s1 * d);
         int64_t nTail = bTail % (s1 * d);
         sIdx = nTail / d;
-        AscendC::PRINTF("InitIndex\n");
-        AscendC::PRINTF("curS:%d\n", curS);
     }
 }
 
@@ -190,15 +188,11 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::DoCopyIn(int64_t
                 {static_cast<uint16_t>(curNBurst), static_cast<uint32_t>(d * sizeof(TYPE)),
                  static_cast<uint32_t>(n_stride), 0, 0},
                 {true, 0, static_cast<uint8_t>((dAlign - d)), 0});
-    AscendC::PRINTF("DoCopyIn\n");
-
 }
 
 template <typename TYPE, class TILING_TYPE>
 __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::CopyInSfmg(int64_t leftNburst, int64_t &curS, GM_ADDR seqS)
 {
-    
-    AscendC::PRINTF("CopyInSfmg\n");
     int64_t dstOffset = 0;
     while (leftNburst > 0) {
         int64_t curNburst = 0;
