@@ -193,13 +193,7 @@ public:
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceSum<half, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(8);
+        SetVecMask(64);
         AscendC::WholeReduceSum<half, false>(
             rowsumUb,
             tvUbTensor[REDUCE_UB_SIZE],
@@ -368,13 +362,7 @@ public:
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceMax<half, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(8);
+        SetVecMask(64);
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
