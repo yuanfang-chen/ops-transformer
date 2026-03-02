@@ -1075,7 +1075,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td>N</td>
-                <td><ul><li>GQA非量化场景(D=64或者D=128)，和Prefill MLA非量化场景下N轴无限制</li>
+                <td><ul><li>GQA非量化场景和Prefill MLA非量化场景下N轴无限制</li>
                     <li>其余场景仅支持N轴小于等于256</li></ul>
                 </td>
             </tr>
