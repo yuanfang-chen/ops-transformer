@@ -594,9 +594,9 @@ public:
         uint32_t rowOffset)
     {
         if (columnNum == 1024) {
-            RowsumSPECTILE512(
+            RowmaxSPECTILE1024(
                 lsUbTensor[sUbOffset],
-                llUbTensor[rowOffset],
+                lmUbTensor[rowOffset],
                 tvUbTensor,
                 rowNumCurLoopRound,
                 columnNum,
@@ -727,7 +727,7 @@ public:
     {
         // *** ll = rowsum(ls32)
         if (columnNum == 1024) {
-            RowsumSPECTILE512(
+            RowsumSPECTILE1024(
                 lsUbTensor[sUbOffset],
                 llUbTensor[rowOffset],
                 tvUbTensor,
