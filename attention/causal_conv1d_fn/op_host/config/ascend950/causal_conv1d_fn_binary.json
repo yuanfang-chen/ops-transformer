@@ -26,7 +26,7 @@
                     ]
                 },
                 {
-                    "name": "cacheStates",
+                    "name": "convStates",
                     "index": 2,
                     "dtype": "float16",
                     "format": "ND",
@@ -36,9 +36,9 @@
                     ]
                 },
                 {
-                    "name": "cacheIndices",
+                    "name": "queryStartLoc",
                     "index": 3,
-                    "dtype": "int64",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -46,9 +46,9 @@
                     ]
                 },
                 {
-                    "name": "seqStartIndex",
+                    "name": "cacheIndices",
                     "index": 4,
-                    "dtype": "int64",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -58,7 +58,27 @@
                 {
                     "name": "hasInitialState",
                     "index": 5,
-                    "dtype": "bool",
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ]
+                },
+                {
+                    "name": "bias",
+                    "index": 6,
+                    "dtype": "float16",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ]
+                },
+                {
+                    "name": "numAcceptedTokens",
+                    "index": 7,
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -67,6 +87,26 @@
                 }
             ],
             "attrs": [
+                {
+                    "name": "activationMode",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "padSlotId",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "residualConnMode",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "runMode",
+                    "dtype": "int",
+                    "value": null
+                }
             ],
             "outputs": [
                 {
@@ -80,7 +120,7 @@
                     ]
                 },
                 {
-                    "name": "cacheStates",
+                    "name": "convStates",
                     "index": 1,
                     "dtype": "float16",
                     "format": "ND",
@@ -115,7 +155,7 @@
                     ]
                 },
                 {
-                    "name": "cacheStates",
+                    "name": "convStates",
                     "index": 2,
                     "dtype": "bfloat16",
                     "format": "ND",
@@ -125,9 +165,9 @@
                     ]
                 },
                 {
-                    "name": "cacheIndices",
+                    "name": "queryStartLoc",
                     "index": 3,
-                    "dtype": "int64",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -135,9 +175,9 @@
                     ]
                 },
                 {
-                    "name": "seqStartIndex",
+                    "name": "cacheIndices",
                     "index": 4,
-                    "dtype": "int64",
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "required",
                     "shape": [
@@ -147,7 +187,27 @@
                 {
                     "name": "hasInitialState",
                     "index": 5,
-                    "dtype": "bool",
+                    "dtype": "int32",
+                    "format": "ND",
+                    "paramType": "required",
+                    "shape": [
+                        -2
+                    ]
+                },
+                {
+                    "name": "bias",
+                    "index": 6,
+                    "dtype": "bfloat16",
+                    "format": "ND",
+                    "paramType": "optional",
+                    "shape": [
+                        -2
+                    ]
+                },
+                {
+                    "name": "numAcceptedTokens",
+                    "index": 7,
+                    "dtype": "int32",
                     "format": "ND",
                     "paramType": "optional",
                     "shape": [
@@ -156,6 +216,26 @@
                 }
             ],
             "attrs": [
+                {
+                    "name": "activationMode",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "padSlotId",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "residualConnMode",
+                    "dtype": "int",
+                    "value": null
+                },
+                {
+                    "name": "runMode",
+                    "dtype": "int",
+                    "value": null
+                }
             ],
             "outputs": [
                 {
@@ -169,7 +249,7 @@
                     ]
                 },
                 {
-                    "name": "cacheStates",
+                    "name": "convStates",
                     "index": 1,
                     "dtype": "bfloat16",
                     "format": "ND",
