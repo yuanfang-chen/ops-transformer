@@ -122,6 +122,7 @@ public:
     uint32_t usedCoreNum = 0;
     int64_t dkSize = 0;
     int64_t dkWorkSpaceOffset = 0;
+    int64_t dkCoreWorkspaceOffset = 0;
     int64_t keyGatherWorkspaceOffset = 0;
     int64_t reluInWorkspaceOffset = 0;
     int64_t reluGradWorkspaceOffset = 0;
