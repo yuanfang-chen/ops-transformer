@@ -84,13 +84,12 @@ public:
         this->nextToken = tilingData->basicDetTensorTilingData.nextTockens;
         this->dqPostAbsorb = tilingData->basicDetTensorTilingData.dqPostAbsorb;
         this->layout = tilingData->basicDetTensorTilingData.layout;  // 新增：0=BSH, 1=TND
-        
-        // BSH格式需要固定的序列长度
-        if (layout == 0) {  // BSH格式
-            this->dimS1Fixed = tilingData->basicDetTensorTilingData.s1;
-            this->dimS2Fixed = tilingData->basicDetTensorTilingData.s2;
-            AscendC::PRINTF("dimS1Fixed:%d, dimS2Fixed:%d", this->dimS1Fixed, this->dimS2Fixed);
+        if (layout == 0)
+        {
+            dimS1 = tilingData->basicDetTensorTilingData.s1;
+            dimS2 = tilingData->basicDetTensorTilingData.s2;
         }
+        
         
         UpdateSeqLen();
         
@@ -122,8 +121,6 @@ private:
     int32_t dimB{0};               // batch
     SEQLEN_TYPE dimS1{0};          // 当前处理的batch的s1
     SEQLEN_TYPE dimS2{0};          // 当前处理的batch的s2
-    int32_t dimS1Fixed{0};          // BSH格式：固定的Q序列长度
-    int32_t dimS2Fixed{0};          // BSH格式：固定的K序列长度
     int32_t dimN1{0};              // query的HeadNum
     int32_t dimN2{0};              // key/vaule的HeadNum
     int32_t dimG{0};               // group，dimN1=dimN2*dimG
@@ -150,13 +147,10 @@ private:
 
     __aicore__ inline void UpdateSeqLen() {
         if (layout == 0) {  // BSH格式：使用固定长度
-            dimS1 = dimS1Fixed;
-            dimS2 = dimS2Fixed;
-            
             // BSH格式的lastBatchSum基于batch索引和固定长度计算
             if (bIdx > 0) {
-                lastBatchQSum = bIdx * dimS1Fixed;
-                lastBatchKSum = bIdx * dimS2Fixed;
+                lastBatchQSum = bIdx * dimS1;
+                lastBatchKSum = bIdx * dimS2;
             }
         } else {  // TND格式：从seqLen数组获取
             dimS1 = getSeqLen(bIdx, seqLenQ);
@@ -178,7 +172,7 @@ private:
 
     __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len) {
         if (layout == 0) {  // BSH格式：返回固定长度
-            return dimS1Fixed;  // 对于Q，返回固定长度
+            return dimS1;  // 对于Q，返回固定长度
         }
         
         SEQLEN_TYPE actualSeqlen;
@@ -192,7 +186,7 @@ private:
 
     __aicore__ inline SEQLEN_TYPE getTotalLen(int32_t i, __gm__ uint8_t *seq_Len) {
         if (layout == 0) {  // BSH格式：返回基于固定长度的累积
-            return (i + 1) * dimS1Fixed;  // 对于Q
+            return (i + 1) * dimS1;  // 对于Q
         }
         
         SEQLEN_TYPE actualTotalSeqlen = ((__gm__ SEQLEN_TYPE *)seq_Len)[i];
@@ -201,8 +195,8 @@ private:
 
     __aicore__ inline uint64_t getLeftAddr(int32_t lastBatchSum, int32_t s1Idx, int32_t n1Idx) {
         if (layout == 0) {  // BSH格式
-            // BSH: bIdx * dimS1Fixed * dimN1 * dimD + s1Idx * dimN1 * dimD + n1Idx * dimD
-            return bIdx * dimS1Fixed * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
+            // BSH: bIdx * dimS1 * dimN1 * dimD + s1Idx * dimN1 * dimD + n1Idx * dimD
+            return bIdx * dimS1 * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
         } else {  // TND格式
             // TND: lastBatchSum * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD)
             return lastBatchSum * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
@@ -211,8 +205,8 @@ private:
 
     __aicore__ inline uint64_t getRightAddr(int32_t lastBatchSum, int32_t s2Idx, int32_t n1Idx) {
         if (layout == 0) {  // BSH格式
-            // BSH: bIdx * dimS2Fixed * dimN2 * dimD + s2Idx * dimN2 * dimD + (n1Idx / dimG) * dimD
-            return bIdx * dimS2Fixed * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
+            // BSH: bIdx * dimS2 * dimN2 * dimD + s2Idx * dimN2 * dimD + (n1Idx / dimG) * dimD
+            return bIdx * dimS2 * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
         } else {  // TND格式
             // TND: lastBatchSum * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD)
             return lastBatchSum * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);

@@ -4775,6 +4775,15 @@ public:
         this->sparseMode = sparseMode_val;
     }
 
+    uint32_t get_layout() const
+    {
+        return layout;
+    }
+    void set_layout(uint32_t layout_val)
+    {
+        this->layout = layout_val;
+    }
+
     uint64_t get_dqWorkSpaceOffset() const
     {
         return dqWorkSpaceOffset;

@@ -79,13 +79,6 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetAttrsInfo()
 
 ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
 {
-    // 暂时注释
-    // if (strcmp(fBaseParams.inputLayout, TND_STR) != 0) {
-    //     OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet only support TND inputLayout, now is %s.",
-    //               fBaseParams.inputLayout);
-    //     return ge ::GRAPH_PARAM_INVALID;
-    // }
-    
     int64_t headNum = *context_->GetAttrs()->GetAttrPointer<int>(HEAD_NUM);
     const gert::StorageShape *queryShape = context_->GetInputShape(0);
     const gert::StorageShape *keyShape = context_->GetInputShape(1);
@@ -113,7 +106,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         std::cout << "fBaseParams.t1 " << fBaseParams.t1  << std::endl;
         return ge::GRAPH_SUCCESS;
     }
-    else {
+    else if(strcmp(fBaseParams.inputLayout, TND_STR) == 0){
         auto actualSeqQLenTensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_Q_LEN);
         auto actualSeqKvLenTensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_KV_LEN);
         auto qStartTensor = context_->GetOptionalInputTensor(Q_START_IDX);
@@ -173,6 +166,13 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         fBaseParams.s2 = *std::max_element(fBaseParams.actualSeqKvlen.begin(), fBaseParams.actualSeqKvlen.end());
         return CheckTndShapeValid(context_, fBaseParams.t1, fBaseParams.n1, fBaseParams.d);
     }
+    else
+    {
+        OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet only support TND, BSH inputLayout, now is %s.",
+                  fBaseParams.inputLayout);
+        return ge ::GRAPH_PARAM_INVALID;
+    }
+    
 }
 
 bool FlashAttentionScoreGraTilingBasicDet::IsCapable()
@@ -193,7 +193,11 @@ bool FlashAttentionScoreGraTilingBasicDet::IsCapable()
     else if (fBaseParams.queryType == ge::DT_FLOAT) {
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support float32.");
         return false;
-    } else if (fBaseParams.pseEnable) {
+    } else if (strcmp(fBaseParams.inputLayout, TND_STR) != 0 && strcmp(fBaseParams.inputLayout, BSH_STR) != 0) {
+         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support Layouts other than TND BSH, now is %s.",
+                   fBaseParams.inputLayout);
+         return false;
+     }else if (fBaseParams.pseEnable) {
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support PSE feature.");
         return false;
     } else if (!IsAttenMskCapable()) {
