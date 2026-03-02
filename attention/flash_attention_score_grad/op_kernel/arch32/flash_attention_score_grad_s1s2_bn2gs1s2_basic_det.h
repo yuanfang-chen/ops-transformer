@@ -81,13 +81,7 @@ private:
     GM_ADDR dkDetWorkSpaceAddr;
     GM_ADDR dvDetWorkSpaceAddr;
 };
-enum InputLayout{
-    BSH = 0,
-    SBH = 1,
-    BNSD = 2,
-    BSND = 3,
-    TND
-}
+
 
 template <typename FAGT>
 __aicore__ inline void FlashAttentionScoreGradBasicDet<FAGT>::Process(
