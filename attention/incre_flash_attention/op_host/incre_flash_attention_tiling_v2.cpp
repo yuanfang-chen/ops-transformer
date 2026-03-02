@@ -1695,28 +1695,6 @@ bool IFATilingV2::CheckSparseMode(bool isDefaultSparseMode, bool enableMask) {
       preToken_, nextToken_),
     return false);
 
-  if (!CheckBandMode(isBandMode)) {
-    return false;
-  }
-  return true;
-}
-
-bool IFATilingV2::CheckBandMode(bool isBandMode) {
-  if (!isBandMode) {
-    return true;
-  }
-  if (ifaContext_->actualSeqLengths.tensor != nullptr) {
-    const gert::Tensor* actSeqLen = ifaContext_->actualSeqLengths.tensor;
-    uint32_t actualLenKvDims = actSeqLen->GetShapeSize();
-    uint32_t actSeqLengthKvSize = std::min(actualLenKvDims, batchSize_);
-    for (uint32_t i = 0; i < actSeqLengthKvSize; ++i) {
-      int64_t actSeqTmp = actSeqLen->GetData<int64_t>()[i];
-      OP_CHECK_IF(nextToken_ <= -actSeqTmp,
-        OPS_REPORT_VECTOR_INNER_ERR(ifaContext_->opName,
-        "In SparseMode 4(band mode), nextToken must be greater than -actualSeqLengthsKv, but nextToken got %ld while actualSeqLengthsKv[%u] got %ld.", nextToken_, i, actSeqTmp),
-        return false);
-    }
-  }
   return true;
 }
 
@@ -1931,16 +1909,30 @@ ge::graphStatus IFATilingV2::CheckActualSeqLens()
         OP_LOGE(ifaContext_->opName, "TND actualLenDims_ is 0!");
         return ge::GRAPH_FAILED;
     }
-    if (actualLenQDims_ != actualLenDims_) {
-        OP_LOGE(ifaContext_->opName, "When layout is TND, the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
-          actualLenQDims_, actualLenDims_);
+    if (!pageAttentionFlag_ && (actualLenQDims_ != actualLenDims_)) {
+        OP_LOGE(ifaContext_->opName, "When layout is TND and page attention is not enable, "
+                "the length of actualSequenceLengthQ (%u) and actualSequenceLengthKV (%u) must be equal",
+                actualLenQDims_, actualLenDims_);
+        return ge::GRAPH_FAILED;
+    }
+    // layout为TND, kv PA管理场景 actualSequenceLengthKV size可以为1或者>=B
+    if (pageAttentionFlag_ && (actualLenDims_ != 1 && actualLenDims_ < actualLenQDims_)) {
+        OP_LOGE(ifaContext_->opName, "When layout is TND and page attention is enable, "
+                "the length of actualSequenceLengthKV (%u) should be greater than or equal to "
+                "the length of actualSequenceLengthQ(%u) or equal to 1 ",
+                actualLenDims_, actualLenQDims_);
         return ge::GRAPH_FAILED;
     }
     int64_t lastActSeq = 0;
     int64_t lastActSeqKV = 0;
+    int64_t curActSeqKV = 0;
     for (uint32_t i = 0; i < actualLenQDims_; i++) {
         int64_t curActSeq = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>()[i];
-        int64_t curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[i];
+        if (pageAttentionFlag_ && actualLenDims_ == 1) {
+            curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[0];
+        } else {
+            curActSeqKV = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>()[i];
+        }
         if (curActSeq < 0) {
             OP_LOGE(ifaContext_->opName, "actualSeqLengths[%u] = %ld, should >= 0", i, curActSeq);
             return ge::GRAPH_FAILED;
@@ -2633,6 +2625,9 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   auto valueAntiquantScaleDesc = ifaContext_->valueAntiquantScale.desc;
   auto valueAntiquantOffsetTensor = ifaContext_->valueAntiquantOffset.tensor;
   auto valueAntiquantOffsetDesc = ifaContext_->valueAntiquantOffset.desc;
+  auto queryRopeInputShape = ifaContext_->queryRopeInputShape;
+  auto keyRopeInputShape = ifaContext_->keyRopeInputShape;
+
   if (!antiQuantFlag_ && (antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr
     || keyAntiquantScaleTensor != nullptr || keyAntiquantOffsetTensor != nullptr
     || valueAntiquantScaleTensor != nullptr || valueAntiquantOffsetTensor != nullptr)) {
@@ -2644,7 +2639,9 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
     return ge::GRAPH_SUCCESS;
   }
   kvAntiParamSplitFlag_ = false;
-
+  OP_CHECK_IF(antiQuantFlag_ && (queryRopeInputShape != nullptr || keyRopeInputShape != nullptr),
+    OP_LOGE(ifaContext_->opName, "Rope is not supported in antiquant scenario."),
+      return ge::GRAPH_FAILED);
   OP_CHECK_IF((keyAntiquantScaleTensor != nullptr && valueAntiquantScaleTensor == nullptr),
     OP_LOGE(ifaContext_->opName, "ValueAntiquantScaleTensor is null, but keyAntiquantScaleTensor exists."),
       return ge::GRAPH_FAILED);
@@ -4244,6 +4241,7 @@ void IFATilingV2::IFATilingDataconvert() {
   inputParams.set_fromFused(1);   //伪量化模板没有用到，设置为默认值
   std::string layout(ifaContext_->layOut);
   inputParams.set_isBSNDOut(layout == "BNSD_BSND");
+  inputParams.set_transposeLayout(ifaContext_->transposeLayout);
   //关于合轴
   inputParams.set_isGqa(isGqa_);
   inputParams.set_isSoftMaxLseEnable(softmaxLseFlag_ );
