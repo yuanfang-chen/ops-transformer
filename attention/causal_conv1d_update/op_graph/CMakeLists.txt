@@ -7,31 +7,5 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
-add_op_to_compiled_list()
-if (BUILD_OPEN_PROJECT)
-    target_sources(op_host_aclnnExc PRIVATE
-    causal_conv1d_update_def.cpp
-    )
-    if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
-        add_ops_compile_options(
-            OP_NAME CausalConv1dUpdate
-            COMPUTE_UNIT Ascend950PR_9599
-            OPTIONS --cce-auto-sync=off
-                    -mllvm 
-                    -cce-aicore-dcci-before-kernel-end=false
-                    -Wno-deprecated-declarations
-                    -Werror
-        )
-    else()
-        add_ops_compile_options(
-            OP_NAME CausalConv1dUpdate
-            OPTIONS --cce-auto-sync=off
-                    -Wno-deprecated-declarations
-                    -Werror
-        )
-    endif()
-endif()
 
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE causal_conv1d_update ACLNNTYPE aclnn)
-endif()
+message(STATUS "=== Debug: start ops.attention.causal_conv1d_update.op_graph.CMakeLists.txt ")
