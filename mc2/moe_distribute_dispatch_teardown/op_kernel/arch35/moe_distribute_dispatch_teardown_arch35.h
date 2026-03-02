@@ -18,7 +18,11 @@
 
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "../moe_distribute_base.h"
+#if __has_include("../../moe_distribute_combine_setup/moe_distribute_base.h")
+#include "../../moe_distribute_combine_setup/moe_distribute_base.h"
+#else
+#include "../../moe_distribute_combine_setup/op_kernel/moe_distribute_base.h"
+#endif
 #include "../moe_distribute_dispatch_teardown_tiling.h"
 
 namespace MoeDistributeDispatchTeardownImpl {
@@ -441,9 +445,7 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::WaitD
     DataCopyParams intriParams{
         static_cast<uint16_t>(recStatusNumPerCore_), 1, static_cast<uint16_t>((recvWinBlockNum_ > 512) ? 7 : 15), 0};
     SyncFunc<AscendC::HardEvent::S_V>();
-    int exit_i = 0;
     while (sumOfFlag != compareTarget * 2) {
-        exit_i++;
         DataCopy(
             statusFp32Tensor_, windowInstatusFp32Tensor_[startStatusIndex_ * stateOffset_ / sizeof(float)],
             intriParams);
@@ -451,7 +453,6 @@ __aicore__ inline void MoeDistributeDispatchTeardown<TemplateMC2TypeFunc>::WaitD
         ReduceSum(statusSumOutTensor, statusFp32Tensor_, gatherMaskOutTensor, mask, recStatusNumPerCore_, 1);
         SyncFunc<AscendC::HardEvent::V_S>();
         sumOfFlag = statusSumOutTensor.GetValue(0);
-        // AscendC::printf("td sumOfFlag is %f",sumOfFlag);
     }
     // 清状态
     SyncFunc<AscendC::HardEvent::MTE3_S>();
