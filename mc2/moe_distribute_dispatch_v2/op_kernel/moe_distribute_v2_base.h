@@ -26,10 +26,16 @@
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
 #endif
 
+#include "../common/inc/mc2_moe_context.h"
+#else 
+#include "../../common/inc/mc2_moe_context.h"
+#endif
+
 namespace MoeDistributeV2Base {
 
 using namespace AscendC;
 using namespace Mc2Kernel;
+using namespace Mc2Context;
 
 __aicore__ inline uint32_t InitWinState(GlobalTensor<uint32_t> selfDataStatusGMTensor, __gm__ Mc2Kernel::HcclOpParam * winContext, uint32_t epRankIdOriginal,
                                            uint32_t moeExpertNum, uint32_t epWorldSizeOriginal, uint32_t globalBS, TBuf<> dataStateBuf, __gm__ Mc2Context::Mc2MoeContext* mc2ContextPtr = nullptr)
