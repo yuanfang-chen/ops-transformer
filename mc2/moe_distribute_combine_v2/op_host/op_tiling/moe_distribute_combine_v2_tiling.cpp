@@ -987,8 +987,11 @@ static bool CheckTensorShape(const gert::TilingContext *context, MoeDistributeCo
     int64_t localEpSendCountSize = (isShared) ? epWorldSize : epWorldSize * moeExpertPerRankNum;
 
     if (hasElasticInfo) {
-        localEpSendCountSize = std::max(epWorldSize,epWorldSize * moeExpertPerRankNum);
+        localEpSendCountSize = std::max(epWorldSize, epWorldSize * moeExpertPerRankNum);
     }
+    if (isLayered) {
+        localEpSendCountSize = epWorldSize * localMoeExpertNum + globalBs * 2 * expertIdsDim1 * epWorldSize / RANK_NUM_PER_NODE_A2;
+    } 
     OP_TILING_CHECK(epSendCountDim0 < localEpSendCountSize * tpWorldSize, OP_LOGE(nodeName,
         "epSendCount's dim0 not greater than or equal to localEpSendCountSize * tpWorldSize, "
         "epSendCount's dim0 is %ld, localEpSendCountSize is %ld, tpWorldSize is %ld.",
