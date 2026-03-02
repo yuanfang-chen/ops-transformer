@@ -199,12 +199,13 @@ public:
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceSum<half, false>(
+        SetVecMask(16);
+        AscendC::WholeReduceSum<half, false>(
             rowsumUb,
             tvUbTensor[REDUCE_UB_SIZE],
-            numRowsRound * numElemsAligned / HALF_VECTOR_SIZE / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();        
+            0, numRowsRound, 1, 1, 2);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);       
     }
 
     __aicore__ inline
@@ -366,18 +367,20 @@ public:
             numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
+
         AscendC::BlockReduceMax<half, false>(
             tvUbTensor[REDUCE_UB_SIZE],
             tvUbTensor,
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<half, false>(
+        SetVecMask(16);
+        AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
-            numRowsRound * numElemsAligned / HALF_VECTOR_SIZE / HALF_VECTOR_SIZE,
-            0, 1, 1, 8);
+            (int32_t)0, numRowsRound, 1, 1, 2, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
     }
 
     __aicore__ inline
@@ -411,6 +414,25 @@ public:
             blockNumPerRow,
             AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
+
+        // AscendC::BlockReduceMax<half, false>(
+        //     tvUbTensor,
+        //     srcUb,
+        //     numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
+        //     0, 1, 1, 8);
+        // AscendC::PipeBarrier<PIPE_V>();
+        // AscendC::BlockReduceMax<half, false>(
+        //     tvUbTensor[REDUCE_UB_SIZE],
+        //     tvUbTensor,
+        //     numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
+        //     0, 1, 1, 8);
+        // AscendC::PipeBarrier<PIPE_V>();
+        // AscendC::BlockReduceMax<half, false>(
+        //     rowmaxUb,
+        //     tvUbTensor[REDUCE_UB_SIZE],
+        //     numRowsRound * numElemsAligned / HALF_VECTOR_SIZE / HALF_VECTOR_SIZE,
+        //     0, 1, 1, 8);
+        // AscendC::PipeBarrier<PIPE_V>();       
     }
 
     __aicore__ inline
