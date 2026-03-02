@@ -97,14 +97,14 @@ private:
     {
         uint32_t curRankId = ((ctxIdx == COMM_EP_IDX) ? epRankIdOriginal_ : tpRankId_);
         uint64_t winDataSizeOffset = (ctxIdx == COMM_EP_IDX)? winDataSizeOffsetEp_ : winDataSizeOffsetTp_;
-        return mc2ContextPtr->epHcclBuffer[curRankId] + A5_MTE_STATE_WIN_SIZE + winDataSizeOffset;
+        return (GM_ADDR)mc2ContextPtr->epHcclBuffer[curRankId] + A5_MTE_STATE_WIN_SIZE + winDataSizeOffset;
         //return Mc2Kernel::GetBaseWindAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + winDataSizeOffset;
     }
 
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(uint8_t ctxIdx, const int32_t rankId)
     {
         uint32_t curRankId = ((ctxIdx == COMM_EP_IDX) ? epRankIdOriginal_ : tpRankId_);
-        return mc2ContextPtr->epHcclBuffer[curRankId] + dataState_ * WIN_STATE_OFFSET;
+        return (GM_ADDR)mc2ContextPtr->epHcclBuffer[curRankId] + dataState_ * WIN_STATE_OFFSET;
         //return Mc2Kernel::GetBaseWindStateAddrByRankId(winContext_[ctxIdx], rankId, curRankId) + dataState_ * WIN_STATE_OFFSET;
     }
 
