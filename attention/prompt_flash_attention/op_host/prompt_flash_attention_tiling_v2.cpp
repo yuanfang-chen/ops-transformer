@@ -2858,6 +2858,10 @@ bool PromptFlashAttentionTilingV2::CheckLearnSink(ContextParamsForPFATiling &con
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "When learnable sink is used, shape of learnable sink(%ld) must be same with query's N(%ld).", 
             contextKeyParams.learnableSink->GetStorageShape().GetDim(0), queryShapeInfo.n),
         return false);
+    OP_CHECK_IF(contextKeyParams.learnableSinkDataType != contextKeyParams.inputDataType, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
+            "DataType of learnable sink(%s) is not equal to datatype of query(%s).", GetPfaDataTypeStr(contextKeyParams.learnableSinkDataType).c_str(), 
+            GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str),
+        return false);
     OP_CHECK_IF(contextKeyParams.learnableSinkDataType != ge::DT_BF16 && contextKeyParams.learnableSinkDataType != ge::DT_FLOAT16, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, 
             "When learnable sink is used, dataType of learnable sink(%s) must be bf16 or fp16.", GetPfaDataTypeStr(contextKeyParams.learnableSinkDataType).c_str()),
         return false);
