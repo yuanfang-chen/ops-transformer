@@ -1,5 +1,7 @@
 # aclnnMhcPost
 
+[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/mhc/mhc_post)
+
 ## 产品支持情况
 
 |产品             |  是否支持  |
@@ -16,115 +18,131 @@
 - 算子功能：MhcPost基于一系列计算对mHC架构中上一层输出$h_{t}^{out}$进行Post Mapping，对上一层的输入$x_l$进行Res Mapping，然后对二者进行残差连接，得到下一层的输入$x_{l+1}$。
 
 - 计算公式：
+
   $$
   x_{l+1} = (H_{l}^{res})^{T} \times x_l + h_{l}^{out} \otimes H_{t}^{post}
   $$
 
 ## 函数原型
 
-算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnMhcPostGetWorkspaceSize"接口获取入参并根据计算流程计算所需workspace大小，再调用"aclnnMhcPost"接口执行计算。
+算子执行接口为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用"aclnnMhcPostGetWorkspaceSize"接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用"aclnnMhcPost"接口执行计算。
 
 ```c++
 aclnnStatus aclnnMhcPostGetWorkspaceSize(
-    const aclTensor     *x,
-    const aclTensor     *h_res,
-    const aclTensor     *h_out,
-    const aclTensor     *h_post,
-    const aclTensor     *output,
-
-    uint64_t            *workspaceSize,
-    aclOpExecutor      **executor)
+    const aclTensor  *x,
+    const aclTensor  *h_res,
+    const aclTensor  *h_out,
+    const aclTensor  *h_post,
+    aclTensor        *out,
+    uint64_t         *workspaceSize,
+    aclOpExecutor    **executor)
 ```
 
 ```c++
 aclnnStatus aclnnMhcPost(
-    void             *workspace,
-    uint64_t          workspaceSize,
-    aclOpExecutor    *executor,
-    const aclrtStream stream)
+    void           *workspace,
+    uint64_t        workspaceSize,
+    aclOpExecutor  *executor,
+    aclrtStream     stream)
 ```
 
 ## aclnnMhcPostGetWorkspaceSize
 
 - **参数说明：**
 
-  <table style="undefined;table-layout: fixed; width: 1550px">
-      <colgroup>
-          <col style="width: 220px">
-          <col style="width: 120px">
-          <col style="width: 600px">
-          <col style="width: 212px">
-          <col style="width: 100px">
-          <col style="width: 190px">
-      </colgroup>
-      <thead>
-          <tr>
-              <th>参数名</th>
-              <th>输入/输出</th>
-              <th>描述说明</th>
-              <th>数据类型</th>
-              <th>数据格式</th>
-              <th>非连续Tensor</th>
-          </tr></thead>
-      <tbody>
-          <tr>
-              <td>x</td>
-              <td>输入</td>
-              <td>待计算的数据，表示网络中mHC层的输入数据。<br>维度shape支持[B,S,n,D]，或者为[T,n,D]。</td>
-              <td>FLOAT16、BFLOAT16</td>
-              <td>ND</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>h_res</td>
-              <td>输入</td>
-              <td>mHC的h_res变换矩阵，是做完sinkhorn变换后的双随机矩阵。<br>维度shape支持[B,S,n,n]，或者为[T,n,n]。</td>
-              <td>FLOAT32</td>
-              <td>ND</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>h_out</td>
-              <td>输入</td>
-              <td>Atten/MLP层的输出。<br>维度shape支持[B,S,D]，或者为[T,D]。</td>
-              <td>FLOAT16、BFLOAT16</td>
-              <td>ND</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>h_post</td>
-              <td>输入</td>
-              <td>mHC的h_post变换矩阵。<br>维度shape支持[B,S,n]，或者为[T,n]。</td>
-              <td>FLOAT32</td>
-              <td>ND</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>output</td>
-              <td>输出</td>
-              <td>网络中mHC层的输出数据，作为下一层的输入。<br>维度shape支持[B,S,n,D]，或者为[T,n,D]。</td>
-              <td>FLOAT16、BFLOAT16</td>
-              <td>ND</td>
-              <td>√</td>
-          </tr>
-          <tr>
-              <td>workspaceSize</td>
-              <td>输出</td>
-              <td>返回用户需要在Device侧申请的workspace大小</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-          <tr>
-              <td>executor</td>
-              <td>输出</td>
-              <td>返回op执行器，包含了算子计算流程</td>
-              <td>-</td>
-              <td>-</td>
-              <td>-</td>
-          </tr>
-      </tbody>
-  </table>
+  <table style="undefined;table-layout: fixed; width: 1400px"><colgroup>
+  <col style="width: 145px">
+  <col style="width: 90px">
+  <col style="width: 441px">
+  <col style="width: 158px">
+  <col style="width: 186px">
+  <col style="width: 80px">
+  <col style="width: 155px">
+  <col style="width: 145px">
+  </colgroup>
+  <thead>
+    <tr>
+      <th>参数名</th>
+      <th>输入/输出</th>
+      <th>描述</th>
+      <th>使用说明</th>
+      <th>数据类型</th>
+      <th>数据格式</th>
+      <th>维度(shape)</th>
+      <th>非连续Tensor</th>
+    </tr></thead>
+  <tbody>
+    <tr>
+      <td>x</td>
+      <td>输入</td>
+      <td>待计算的张量，表示网络中mHC层的输入数据。</td>
+      <td>-</td>
+      <td>FLOAT16、BFLOAT16</td>
+      <td>ND</td>
+      <td>[B,S,N,D]、[T,N,D]</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>h_res</td>
+      <td>输入</td>
+      <td>mHC的h_res变换矩阵，是做完sinkhorn变换后的双随机矩阵。</td>
+      <td>-</td>
+      <td>FLOAT32</td>
+      <td>ND</td>
+      <td>[B,S,N,N]、[T,N,N]</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>h_out</td>
+      <td>输入</td>
+      <td>Atten/MLP层的输出。</td>
+      <td>数据类型与x相同。</td>
+      <td>FLOAT16、BFLOAT16</td>
+      <td>ND</td>
+      <td>[B,S,D]、[T,D]</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>h_post</td>
+      <td>输入</td>
+      <td>mHC的h_post变换矩阵。</td>
+      <td>-</td>
+      <td>FLOAT32</td>
+      <td>ND</td>
+      <td>[B,S,N]、[T,N]</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>out</td>
+      <td>输出</td>
+      <td>网络中mHC层的输出数据，作为下一层的输入。</td>
+      <td>数据类型与x相同。</td>
+      <td>FLOAT16、BFLOAT16</td>
+      <td>ND</td>
+      <td>[B,S,N,D]、[T,N,D]</td>
+      <td>√</td>
+    </tr>
+    <tr>
+      <td>workspaceSize</td>
+      <td>输出</td>
+      <td>返回需要在Device侧申请的workspace大小。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>executor</td>
+      <td>输出</td>
+      <td>返回op执行器，包含了算子计算流程。</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+  </tbody></table>
 
 - **返回值：**
 
@@ -132,10 +150,10 @@ aclnnStatus aclnnMhcPost(
 
   第一段接口完成入参校验，出现以下场景时报错：
 
-  <table style="undefined;table-layout: fixed;width: 1155px"><colgroup>
-    <col style="width: 319px">
-    <col style="width: 144px">
-    <col style="width: 671px">
+  <table style="undefined;table-layout: fixed;width: 1000px"><colgroup>
+    <col style="width: 300px">
+    <col style="width: 150px">
+    <col style="width: 550px">
     </colgroup>
       <thead>
           <th>返回值</th>
@@ -146,17 +164,18 @@ aclnnStatus aclnnMhcPost(
           <tr>
               <td>ACLNN_ERR_PARAM_NULLPTR</td>
               <td>161001</td>
-              <td>传入的参数是空指针。</td>
+              <td>x、h_res、h_out、h_post、out存在空指针。</td>
           </tr>
           <tr>
-              <td>ACLNN_ERR_PARAM_INVALID</td>
-              <td>161002</td>
-              <td>输入输出数据类型和数据格式不在支持的范围内。</td>
+              <td rowspan="3">ACLNN_ERR_PARAM_INVALID</td>
+              <td rowspan="3">161002</td>
+              <td>x、h_res、h_out、h_post、out的数据类型不在支持的范围内。</td>
+          </tr>
+            <tr>
+              <td>x、h_res、h_out、h_post、out的shape维度不在支持的范围内。</td>
           </tr>
           <tr>
-              <td>ACLNN_ERR_RUNTIME_ERROR</td>
-              <td>361001</td>
-              <td>API内存调用npu runtime的接口异常。</td>
+              <td>x、h_res、h_out、h_post、out的数据类型或shape不匹配。</td>
           </tr>
       </tbody>
   </table>

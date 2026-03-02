@@ -31,7 +31,7 @@ extern "C" {
  * @domain aclnn_ops_infer
  */
 aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                         const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                                         const aclTensor *h_post, aclTensor *out, uint64_t *workspaceSize,
                                          aclOpExecutor **executor);
 
 /**

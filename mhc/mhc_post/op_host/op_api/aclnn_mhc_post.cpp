@@ -46,17 +46,17 @@ struct MhcPostParams {
     const aclTensor *h_res = nullptr;
     const aclTensor *h_out = nullptr;
     const aclTensor *h_post = nullptr;
-    const aclTensor *y = nullptr;
+    aclTensor *out = nullptr;
 };
 
 static aclnnStatus CheckNotNull(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                const aclTensor *h_post, const aclTensor *y)
+                                const aclTensor *h_post, aclTensor *out)
 {
     CHECK_COND(x != nullptr, ACLNN_ERR_PARAM_NULLPTR, "x must not be nullptr.");
     CHECK_COND(h_res != nullptr, ACLNN_ERR_PARAM_NULLPTR, "h_res must not be nullptr.");
     CHECK_COND(h_out != nullptr, ACLNN_ERR_PARAM_NULLPTR, "h_out must not be nullptr.");
     CHECK_COND(h_post != nullptr, ACLNN_ERR_PARAM_NULLPTR, "h_post must not be nullptr.");
-    CHECK_COND(y != nullptr, ACLNN_ERR_PARAM_NULLPTR, "y must not be nullptr.");
+    CHECK_COND(out != nullptr, ACLNN_ERR_PARAM_NULLPTR, "out must not be nullptr.");
     return ACLNN_SUCCESS;
 }
 
@@ -77,8 +77,8 @@ static aclnnStatus CheckDtype(const MhcPostParams &params)
     // h_post: FP32 only
     OP_CHECK_DTYPE_NOT_MATCH(params.h_post, op::DataType::DT_FLOAT, return ACLNN_ERR_PARAM_INVALID);
 
-    // y: must be same as x
-    OP_CHECK_DTYPE_NOT_SAME(params.x, params.y, return ACLNN_ERR_PARAM_INVALID);
+    // out: must be same as x
+    OP_CHECK_DTYPE_NOT_SAME(params.x, params.out, return ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
@@ -133,16 +133,16 @@ static aclnnStatus CheckShape3D(const MhcPostParams &params)
     CHECK_COND(hPostDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
                "h_post dim[1] %ld is not equal to x dim[1] %ld", hPostDim1, xDim1);
 
-    // y shape: [T, n, D]
-    auto yDim0 = params.y->GetViewShape().GetDim(0);
-    auto yDim1 = params.y->GetViewShape().GetDim(1);
-    auto yDim2 = params.y->GetViewShape().GetDim(2);
-    CHECK_COND(yDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
-               "y dim[0] %ld is not equal to x dim[0] %ld", yDim0, xDim0);
-    CHECK_COND(yDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
-               "y dim[1] %ld is not equal to x dim[1] %ld", yDim1, xDim1);
-    CHECK_COND(yDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
-               "y dim[2] %ld is not equal to x dim[2] %ld", yDim2, xDim2);
+    // out shape: [T, n, D]
+    auto outDim0 = params.out->GetViewShape().GetDim(0);
+    auto outDim1 = params.out->GetViewShape().GetDim(1);
+    auto outDim2 = params.out->GetViewShape().GetDim(2);
+    CHECK_COND(outDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "out dim[0] %ld is not equal to x dim[0] %ld", outDim0, xDim0);
+    CHECK_COND(outDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "out dim[1] %ld is not equal to x dim[1] %ld", outDim1, xDim1);
+    CHECK_COND(outDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "out dim[2] %ld is not equal to x dim[2] %ld", outDim2, xDim2);
 
     return ACLNN_SUCCESS;
 }
@@ -200,19 +200,19 @@ static aclnnStatus CheckShape4D(const MhcPostParams &params)
     CHECK_COND(hPostDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
                "h_post dim[2] %ld is not equal to x dim[2] %ld", hPostDim2, xDim2);
 
-    // y shape: [B, S, n, D]
-    auto yDim0 = params.y->GetViewShape().GetDim(0);
-    auto yDim1 = params.y->GetViewShape().GetDim(1);
-    auto yDim2 = params.y->GetViewShape().GetDim(2);
-    auto yDim3 = params.y->GetViewShape().GetDim(3);
-    CHECK_COND(yDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
-               "y dim[0] %ld is not equal to x dim[0] %ld", yDim0, xDim0);
-    CHECK_COND(yDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
-               "y dim[1] %ld is not equal to x dim[1] %ld", yDim1, xDim1);
-    CHECK_COND(yDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
-               "y dim[2] %ld is not equal to x dim[2] %ld", yDim2, xDim2);
-    CHECK_COND(yDim3 == xDim3, ACLNN_ERR_PARAM_INVALID,
-               "y dim[3] %ld is not equal to x dim[3] %ld", yDim3, xDim3);
+    // out shape: [B, S, n, D]
+    auto outDim0 = params.out->GetViewShape().GetDim(0);
+    auto outDim1 = params.out->GetViewShape().GetDim(1);
+    auto outDim2 = params.out->GetViewShape().GetDim(2);
+    auto outDim3 = params.out->GetViewShape().GetDim(3);
+    CHECK_COND(outDim0 == xDim0, ACLNN_ERR_PARAM_INVALID,
+               "out dim[0] %ld is not equal to x dim[0] %ld", outDim0, xDim0);
+    CHECK_COND(outDim1 == xDim1, ACLNN_ERR_PARAM_INVALID,
+               "out dim[1] %ld is not equal to x dim[1] %ld", outDim1, xDim1);
+    CHECK_COND(outDim2 == xDim2, ACLNN_ERR_PARAM_INVALID,
+               "out dim[2] %ld is not equal to x dim[2] %ld", outDim2, xDim2);
+    CHECK_COND(outDim3 == xDim3, ACLNN_ERR_PARAM_INVALID,
+               "out dim[3] %ld is not equal to x dim[3] %ld", outDim3, xDim3);
 
     return ACLNN_SUCCESS;
 }
@@ -235,15 +235,15 @@ static aclnnStatus CheckShape(const MhcPostParams &params)
 static aclnnStatus CheckFormat(const MhcPostParams &params)
 {
     op::Format xFormat = params.x->GetStorageFormat();
-    op::Format yFormat = params.y->GetStorageFormat();
+    op::Format outFormat = params.out->GetStorageFormat();
 
     bool isXFormatValid = xFormat < Format::FORMAT_END && !op::IsPrivateFormat(xFormat);
     CHECK_COND(isXFormatValid, ACLNN_ERR_PARAM_INVALID, "format of x %s is invalid.",
                op::ToString(xFormat).GetString());
 
-    bool isYFormatValid = yFormat < Format::FORMAT_END && !op::IsPrivateFormat(yFormat);
-    CHECK_COND(isYFormatValid, ACLNN_ERR_PARAM_INVALID, "format of y %s is invalid.",
-               op::ToString(yFormat).GetString());
+    bool isOutFormatValid = outFormat < Format::FORMAT_END && !op::IsPrivateFormat(outFormat);
+    CHECK_COND(isOutFormatValid, ACLNN_ERR_PARAM_INVALID, "format of out %s is invalid.",
+               op::ToString(outFormat).GetString());
 
     return ACLNN_SUCCESS;
 }
@@ -269,19 +269,19 @@ static aclnnStatus InputsContiguousAndTransFormat(const aclTensor *tensor, const
 }
 
 aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                         const aclTensor *h_post, const aclTensor *y, uint64_t *workspaceSize,
+                                         const aclTensor *h_post, aclTensor *out, uint64_t *workspaceSize,
                                          aclOpExecutor **executor)
 {
-    CHECK_COND(CheckNotNull(x, h_res, h_out, h_post, y) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
+    CHECK_COND(CheckNotNull(x, h_res, h_out, h_post, out) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_NULLPTR,
                "one of required inputs for aclnnMhcPostGetWorkspaceSize is nullptr.");
 
-    MhcPostParams params{x, h_res, h_out, h_post, y};
+    MhcPostParams params{x, h_res, h_out, h_post, out};
 
     aclnnStatus ret = CheckParam(params);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     // Check if input tensors are empty
-    if (x->IsEmpty()) {
+    if (x->IsEmpty() || h_res->IsEmpty() || h_out->IsEmpty() || h_post->IsEmpty()) {
         *workspaceSize = 0;
         auto uniqueExecutor = CREATE_EXECUTOR();
         CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
@@ -295,7 +295,7 @@ aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_
 
     L2_DFX_PHASE_1(aclnnMhcPost,
                    DFX_IN(params.x, params.h_res, params.h_out, params.h_post),
-                   DFX_OUT(params.y));
+                   DFX_OUT(params.out));
 
     // Convert input tensors to contiguous
     const aclTensor *reformatedX = nullptr;
@@ -319,7 +319,7 @@ aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_
     CHECK_RET(mhcPostResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // Convert output tensor to contiguous tensor and copy to output
-    auto viewCopyResult = l0op::ViewCopy(mhcPostResult, y, uniqueExecutor.get());
+    auto viewCopyResult = l0op::ViewCopy(mhcPostResult, out, uniqueExecutor.get());
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     // Get workspace size
