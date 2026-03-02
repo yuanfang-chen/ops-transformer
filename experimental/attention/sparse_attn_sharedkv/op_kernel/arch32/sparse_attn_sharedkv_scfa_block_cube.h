@@ -348,14 +348,14 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
     uint32_t ka = 0, kb = 0;
 
     // L1 切n切k
-    for (uint32_t nL1 = 0; nL1 < nL1Loops; nL1++) { // 切s
+    for (uint32_t nL1 = 0; nL1 < nL1Loops; nL1++) {
         if (nL1 == (nL1Loops - 1)) {
             // 尾块重新计算size
             nL1Size = nSize - (nL1Loops - 1) * N_SPLIT_SIZE;
             nL1SizeAlign = SASAlign(nL1Size, 16);
         }
 
-        for (uint32_t kL1 = 0; kL1 < kL1Loops; kL1++) { // 切D
+        for (uint32_t kL1 = 0; kL1 < kL1Loops; kL1++) {
             kvL1BufIter++;
             uint32_t kb = kvL1BufIter % 3;
             WaitFlag<HardEvent::MTE1_MTE2>(mte21KVIds[kb]);
@@ -446,7 +446,6 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm1(const RunInfo &info, const
                              nd2nzPara);
                 }
             }
-            int tmp = kb * L1_BLOCK_OFFSET;
             SetFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             WaitFlag<HardEvent::MTE2_MTE1>(mte21KVIds[kb]);
             mL1Size = M_SPLIT_SIZE;
@@ -585,7 +584,7 @@ __aicore__ inline void SASCubeBlock<SAST>::ComputeMm2(const RunInfo &info, const
             uint32_t kb = kvL1BufIter % 3;
             WaitFlag<HardEvent::MTE1_MTE2>(mte21KVIds[kb]);
             bL1Tensor = l1KVTensor[kb * L1_BLOCK_OFFSET];
-            uint32_t kOffset = k1 * kL0Loops; // kL0Loops =  2
+            uint32_t kOffset = k1 * kL0Loops;
             kL0Size = 128;
             // 此处必须先初始化kL0Size, 再求kL0Loops, 否则由于循环会改变kL0Size大小, 导致kL0Loops错误
             kL0Loops = (kL1Size + kL0Size - 1) / kL0Size;
