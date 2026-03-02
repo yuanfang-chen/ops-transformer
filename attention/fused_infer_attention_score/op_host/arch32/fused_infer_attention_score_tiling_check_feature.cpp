@@ -327,7 +327,8 @@ ge::graphStatus FiaTilingCheck::CheckExtraFeatureLayout() const
     const std::vector<std::string> combineRopeLayoutSupportList = {
         "BSH", "BSND", "BNSD", "BNSD_BSND", "TND", "NTD", "BSH_BNSD", "BSND_BNSD", "NTD_TND"
     };
-
+    
+    std::string layout = opParamInfo_.layOut;
     if (fiaInfo_.ropeMode == RopeMode::ROPE_SPLIT) {
         if (vHeadDim_ == 512) {
             OP_CHECK_IF(std::find(splitRopeLayoutSupportListA.begin(), splitRopeLayoutSupportListA.end(), layout) == splitRopeLayoutSupportListA.end(),
