@@ -163,49 +163,49 @@ public:
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
-        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理
-        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock
-        uint8_t dataBlockStride = 1;
+        // // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
+        // uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理
+        // // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
+        // uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock
+        // uint8_t dataBlockStride = 1;
 
-        // 1024个元素，以128为单位分治求和，1024->512->256->128
-        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
+        // // 1024个元素，以128为单位分治求和，1024->512->256->128
+        // for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
 
-        //每行128个元素分别规约求和
-        AscendC::WholeReduceSum<half, false>(
-            rowsumUb,
-            srcUb,
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            dataBlockStride,
-            dataBlockStride,
-            blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::BlockReduceSum<half, false>(
-        //     tvUbTensor,
-        //     srcUb,
-        //     numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
-        //     0, 1, 1, 8);
-        // AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::BlockReduceSum<half, false>(
-        //     tvUbTensor[REDUCE_UB_SIZE],
-        //     tvUbTensor,
-        //     numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
-        //     0, 1, 1, 8);
-        // AscendC::PipeBarrier<PIPE_V>();
-        // SetVecMask(16);
+        // //每行128个元素分别规约求和
         // AscendC::WholeReduceSum<half, false>(
         //     rowsumUb,
-        //     tvUbTensor[REDUCE_UB_SIZE],
-        //     0, numRowsRound, 1, 1, 2);
+        //     srcUb,
+        //     AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+        //     numRowsRound,
+        //     dataBlockStride,
+        //     dataBlockStride,
+        //     blockNumPerRow);
         // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);       
+
+        AscendC::BlockReduceSum<half, false>(
+            tvUbTensor,
+            srcUb,
+            numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::BlockReduceSum<half, false>(
+            tvUbTensor[REDUCE_UB_SIZE],
+            tvUbTensor,
+            numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+        SetVecMask(16);
+        AscendC::WholeReduceSum<half, false>(
+            rowsumUb,
+            tvUbTensor[REDUCE_UB_SIZE],
+            0, numRowsRound, 1, 1, numElemsAligned / BLOCK_SIZE);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);       
     }
 
     __aicore__ inline
@@ -332,55 +332,55 @@ public:
                             const AscendC::LocalTensor<half> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
                             uint32_t numElemsAligned)
     {
-        // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
-        uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理
-        // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
-        uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock
-        uint8_t dataBlockStride = 1;
+        // // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
+        // uint32_t loopCount = numElemsAligned / HALF_VECTOR_SIZE; // half低精度场景，每行需要1024/128=8次循环处理
+        // // 每个datablock长度32Byte，因此half低精度场景，每个datablock内有32/2=16个元素
+        // uint8_t blockNumPerRow = numElemsAligned / BLOCK_SIZE; // half低精度场景，每行共有1024/16=64个datablock
+        // uint8_t dataBlockStride = 1;
 
-        // 1024个元素，以128为单位分治求最大值，1024->512->256->128
-        uint32_t columnStrideIndex = 2;
-        // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-        ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-        AscendC::PipeBarrier<PIPE_V>();
-        columnStrideIndex *= 2;
-        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(tvUbTensor, tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-            AscendC::PipeBarrier<PIPE_V>();
-        }
-
-        //每行128个元素分别规约求最大值
-        AscendC::WholeReduceMax<half, false>(
-            rowmaxUb,
-            tvUbTensor,
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            dataBlockStride,
-            dataBlockStride,
-            blockNumPerRow,
-            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
-        AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::BlockReduceMax<half, false>(
-        //     tvUbTensor,
-        //     srcUb,
-        //     numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
-        //     0, 1, 1, 8);
+        // // 1024个元素，以128为单位分治求最大值，1024->512->256->128
+        // uint32_t columnStrideIndex = 2;
+        // // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
+        // ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
         // AscendC::PipeBarrier<PIPE_V>();
+        // columnStrideIndex *= 2;
+        // for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+        //     ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        //     AscendC::PipeBarrier<PIPE_V>();
+        // }
 
-        // AscendC::BlockReduceMax<half, false>(
-        //     tvUbTensor[REDUCE_UB_SIZE],
-        //     tvUbTensor,
-        //     numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
-        //     0, 1, 1, 8);
-        // AscendC::PipeBarrier<PIPE_V>();
-        // SetVecMask(16);
+        // //每行128个元素分别规约求最大值
         // AscendC::WholeReduceMax<half, false>(
         //     rowmaxUb,
-        //     tvUbTensor[REDUCE_UB_SIZE],
-        //     (int32_t)0, numRowsRound, 1, 1, 2, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        //     lsUbTensor,
+        //     AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+        //     numRowsRound,
+        //     dataBlockStride,
+        //     dataBlockStride,
+        //     blockNumPerRow,
+        //     AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+
+        AscendC::BlockReduceMax<half, false>(
+            tvUbTensor,
+            srcUb,
+            numRowsRound * numElemsAligned / HALF_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+
+        AscendC::BlockReduceMax<half, false>(
+            tvUbTensor[REDUCE_UB_SIZE],
+            tvUbTensor,
+            numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
+            0, 1, 1, 8);
+        AscendC::PipeBarrier<PIPE_V>();
+        SetVecMask(16);
+        AscendC::WholeReduceMax<half, false>(
+            rowmaxUb,
+            tvUbTensor[REDUCE_UB_SIZE],
+            (int32_t)0, numRowsRound, 1, 1, numElemsAligned / BLOCK_SIZE, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        AscendC::PipeBarrier<PIPE_V>();
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
     }
 
     __aicore__ inline
