@@ -31,6 +31,7 @@ public:
     uint32_t usedCoreNum;
     int64_t dkSize;
     int64_t dkWorkSpaceOffset;
+    int64_t dkCoreWorkspaceOffset;
     int64_t keyGatherWorkspaceOffset;
     int64_t reluInWorkspaceOffset;
     int64_t reluGradWorkspaceOffset;
@@ -72,6 +73,9 @@ public:
     uint32_t get_dkWorkSpaceOffset() const { return dkWorkSpaceOffset; }
     void set_dkWorkSpaceOffset(uint32_t dkWorkSpaceOffset) { this->dkWorkSpaceOffset = dkWorkSpaceOffset; }
 
+    uint32_t get_dkCoreWorkspaceOffset() const { return dkCoreWorkspaceOffset; }
+    void set_dkCoreWorkspaceOffset(uint32_t dkCoreWorkspaceOffset) { this->dkCoreWorkspaceOffset = dkCoreWorkspaceOffset; }
+
     uint32_t get_keyGatherWorkspaceOffset() const { return keyGatherWorkspaceOffset; }
     void set_keyGatherWorkspaceOffset(uint32_t keyGatherWorkspaceOffset) { this->keyGatherWorkspaceOffset = keyGatherWorkspaceOffset; }
 
@@ -99,6 +103,7 @@ public:
         set_reluInWorkspaceOffset(0);
         set_keyGatherWorkspaceOffset(0);
         set_dkWorkSpaceOffset(0);
+        set_dkCoreWorkspaceOffset(0);
         set_dkSize(0);
         set_usedCoreNum(0);
         set_headDim(0);
