@@ -321,7 +321,7 @@ public:
         AscendC::WholeReduceMax<float, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
-            0, numRowsRound, 1, 1, 2, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+            (int32_t)0, numRowsRound, 1, 1, 2, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
     }    
