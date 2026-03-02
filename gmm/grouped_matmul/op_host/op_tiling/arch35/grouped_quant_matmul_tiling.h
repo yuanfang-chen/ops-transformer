@@ -148,15 +148,16 @@ struct GQmmInputInfo {
     bool isSingleX = false;
     bool isSingleW = false;
     bool isSingleY = false;
+    bool initFlag = false; // 避免重复解析flag
 };
 
-class GroupedQbmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class GroupedQmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit GroupedQbmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
+    explicit GroupedQmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
     {
         Reset();
     }
-    ~GroupedQbmmTiling() override = default;
+    ~GroupedQmmTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
     {
