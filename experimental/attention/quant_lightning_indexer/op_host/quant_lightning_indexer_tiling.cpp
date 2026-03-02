@@ -512,6 +512,9 @@ ge::graphStatus QLIInfoParser::GetBatchSize()
                 return ge::GRAPH_FAILED);
             bSize_ = bSizeQuery;
         } else {
+            if (bSizeQuery != bSizeKey) {
+                batchSupperFlag_ = true;
+            }
             bSize_ = bSizeKey; // Q为TND，batch从Key中获取
         }
         return ge::GRAPH_SUCCESS;
@@ -790,6 +793,7 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     QLIInfo.maxBlockNumPerBatch = maxBlockNumPerBatch_;
 
     QLIInfo.pageAttentionFlag = (kLayout_ == DataLayout::PA_BSND);
+    QLIInfo.batchSupperFlag = batchSupperFlag_;
     QLIInfo.sparseMode = *opParamInfo_.sparseMode;
     QLIInfo.sparseCount = *opParamInfo_.sparseCount;
     QLIInfo.preTokens = *opParamInfo_.preTokens;
@@ -883,6 +887,7 @@ ge::graphStatus QuantLightningIndexerTiling::DoTiling(QLITilingInfo *tilingInfo)
     tilingData_.set_cmpRatio(tilingInfo->cmpRatio);
     tilingData_.set_returnValues(tilingInfo->returnValues);
     tilingData_.set_usedCoreNum(blockDim);
+    tilingData_.set_batchSupperFlag(tilingInfo->batchSupperFlag);
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
 
