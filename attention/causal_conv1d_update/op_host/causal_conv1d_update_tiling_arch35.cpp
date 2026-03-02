@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file causal_conv1d_update_tiling.cpp
+ * \file causal_conv1d_update_tiling_arch35.cpp
  * \brief CausalConv1dUpdate tiling implementation
  */
 
-#include "causal_conv1d_update_tiling.h"
+#include "causal_conv1d_update_tiling_arch35.h"
 #include <algorithm>
 
 namespace optiling {

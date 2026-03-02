@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file causal_conv1d_update_tiling.h
+ * \file causal_conv1d_update_tiling_arch35.h
  * \brief CausalConv1dUpdate tiling implementation
  */
 #ifndef CAUSAL_CONV1D_UPDATE_TILING_H
