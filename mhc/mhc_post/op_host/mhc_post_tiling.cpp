@@ -117,6 +117,8 @@ private:
     int64_t dTail_ = 0;
     int64_t isNotFullCore_ = 0;
 
+    uint16_t usePermanentX_ = 0;
+
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
 
@@ -446,10 +448,10 @@ void MhcPostTilingBase::ComputeTiling()
 {
     // Core Partitioning - handle remainder properly
     uint32_t coreNum = static_cast<uint32_t>(aicoreParams_.numBlocks);
+    uint32_t halfCoreNum = coreNum / 2;
+    bsOuter_ = totalItems_;
     bsInner_ = 1;
-    bsOuter_ = totalItems_ / bsInner_;
-    bsTail_ = totalItems_ - (bsOuter_ - 1) * bsInner_;
-    isNotFullCore_ = (bsOuter_ < coreNum) ? 1 : 0;
+    bsTail_ = 1;
  
     const uint32_t UB_SIZE = static_cast<uint32_t>(aicoreParams_.ubSize);
 
@@ -458,30 +460,29 @@ void MhcPostTilingBase::ComputeTiling()
     // TBuf f32:  3 * 4 bytes (hOutF32:1, xF32:1, outF32:1)
     uint32_t bytesPerTileD = 3 * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SINGLE_BUFFER_DEPTH * SIZE_OF_32BIT);
     uint32_t maxTileD = UB_SIZE / bytesPerTileD;
+    dOuter_ = 1;
+    dInner_ = D_;
+    dTail_ = D_;
 
-    if (isNotFullCore_ == 1) {
-        // dInner <= (bsOuter * D_) / coreNum
-        int64_t fullCoreTileD = (bsOuter_ * D_) / coreNum;
-        fullCoreTileD = (fullCoreTileD < maxTileD) ? fullCoreTileD : maxTileD;
-        dInner_ = AlignDown(fullCoreTileD, ALIGN_SIZE_512B);
-        dInner_ = (dInner_ == 0) ? ALIGN_SIZE_512B : dInner_;
-    } else {
-        dInner_ = ALIGN_SIZE_512B;
+    while(bsOuter_ * dOuter_ <= halfCoreNum || dInner_ >= maxTileD) {
+        if (dInner_ <= ALIGN_SIZE_512B) {
+            break;
+        }
+        dOuter_ = dOuter_ * 2;
+        dInner_ = D_ / dOuter_;
     }
-    dOuter_ = Ops::Base::CeilDiv(D_, dInner_);
+    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
 
-    if (isNotFullCore_ == 1) {
-        int64_t totalCount = bsOuter_ * dOuter_;
-        normalCoreProcessNum_ = Ops::Base::CeilDiv(totalCount, static_cast<int64_t>(coreNum));
-        usedCoreNum_ = Ops::Base::CeilDiv(totalCount, normalCoreProcessNum_);
-        tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
-        isNotFullCore_ = 1;
-    } else {
-        usedCoreNum_ = coreNum;
-        normalCoreProcessNum_ = dOuter_;
-        tailCoreProcessNum_ = dTail_;
-        isNotFullCore_ = 0;
+    int64_t totalCount = bsOuter_ * dOuter_;
+    usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
+    normalCoreProcessNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), usedCoreNum_);
+    usedCoreNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), normalCoreProcessNum_);
+    tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
+    usePermanentX_ = 0;
+    uint64_t fullyBytesPerTileD = (n_ + 4) * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
+    if (fullyBytesPerTileD * dInner_ <= UB_SIZE) {
+        usePermanentX_ = 1;
     }
 
     tilingData_->n = n_;
@@ -541,10 +542,9 @@ ge::graphStatus MhcPostTilingBase::PostTiling()
 
 uint64_t MhcPostTilingBase::GetTilingKey() const
 {
-    uint16_t usePermanentX = 0;
-    OP_LOGI(context_, "Tiling: usePermanentX=%u", usePermanentX);
+    OP_LOGI(context_, "Tiling: usePermanentX_=%u", usePermanentX_);
 
-    return GET_TPL_TILING_KEY(usePermanentX);
+    return GET_TPL_TILING_KEY(usePermanentX_);
 }
 
 void MhcPostTilingBase::Reset()

@@ -45,7 +45,8 @@ public:
 
 private:
     __aicore__ inline void CopyInTile(int64_t bsIdx, int64_t dIdx);
-    __aicore__ inline void ComputeAndCopyOutTile(int64_t bsIdx, int64_t dIdx);
+    __aicore__ inline void ComputeCopyOut(int64_t bsIdx, int64_t dIdx);
+    __aicore__ inline void ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx);
     __aicore__ inline void CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI);
     __aicore__ inline void CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ);
 
@@ -87,6 +88,7 @@ private:
     int64_t dOuter_;
     int64_t dTail_;
 
+    int64_t xFactor_;
     int64_t myItemCount_;
     int64_t itemStart_;
     uint32_t blockIdx_;
@@ -126,6 +128,11 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
     }
     itemStart_ = blockIdx_ * normalCoreProcessNum_;
 
+    xFactor_ = 1;
+    if constexpr (USE_PERMANENT_X == 1) {
+        xFactor_ = n_;
+    }
+
     // Set global memory buffers
     xGm_.SetGlobalBuffer((__gm__ T *)x);
     hOutGm_.SetGlobalBuffer((__gm__ T *)hOut);
@@ -135,14 +142,14 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
 
     // Initialize input queues - Double Buffer with depth=DOUBLE_BUFFER_DEPTH for data tiles
     pipe_->InitBuffer(hOutTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
-    pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
+    pipe_->InitBuffer(xTileQueue_, DOUBLE_BUFFER_DEPTH, xFactor_ * dInner_ * sizeof(T));
 
     // Initialize output queues - Double Buffer with depth=DOUBLE_BUFFER_DEPTH
     pipe_->InitBuffer(outputTileQueue_, DOUBLE_BUFFER_DEPTH, dInner_ * sizeof(T));
 
     // Initialize intermediate buffers
     pipe_->InitBuffer(hOutF32Buf_, dInner_ * sizeof(float));
-    pipe_->InitBuffer(xF32Buf_, dInner_ * sizeof(float));
+    pipe_->InitBuffer(xF32Buf_, xFactor_ * dInner_ * sizeof(float));
     pipe_->InitBuffer(outF32Buf_, dInner_ * sizeof(float));
 }
 
@@ -159,7 +166,12 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
         int64_t dIdx = globalItemIdx - bsIdx * dOuter_;
 
         CopyInTile(bsIdx, dIdx);
-        ComputeAndCopyOutTile(bsIdx, dIdx);
+        if constexpr (USE_PERMANENT_X == 1) {
+            CopyInX(bsIdx, dIdx, 0);
+            ComputeCopyOutAllX(bsIdx, dIdx);
+        } else {
+            ComputeCopyOut(bsIdx, dIdx);
+        }
     }
 }
 
@@ -180,7 +192,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(int64_t bsIdx, i
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(int64_t bsIdx, int64_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsIdx, int64_t dIdx)
 {
     int64_t hPostBase = bsIdx * n_;
     int64_t hResBase = bsIdx * n_ * n_;
@@ -189,21 +201,14 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(int64
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
     LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
 
-    // Get float32 work buffers
     LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
     LocalTensor<float> xF32 = xF32Buf_.Get<float>();
 
-    // Convert inputs to float32
     Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, dNum);
 
-    // Compute output for each head: output[i] = hPost[i] * hOut + sum_j(hRes[j,i] * x[j])
-    // This implements: x_{l+1}[i] = h_{l}^{out} * H_{t}^{post}[i] + sum_j((H_{l}^{res})^{T}[j,i] * x_l[j])
-    // Note: hRes indexing is [j,i] to access transposed matrix element (H_res)^T[j,i]
     for (int64_t i = 0; i < n_; i++) {
-        // outF32 = hPost[i] * hOut
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
-        // outF32 += sum_j(hRes[j,i] * x[j])
         for (int64_t j = 0; j < n_; j++) {
             CopyInX(bsIdx, dIdx, j);
             LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
@@ -212,13 +217,45 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeAndCopyOutTile(int64
             xTileQueue_.FreeTensor(xTile);
         }
 
-        // Convert to bf16/fp16 and store
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
         CopyOutTile(bsIdx, dIdx, i);
     }
 
     hOutTileQueue_.FreeTensor(hOutTile);
+}
+
+TEMPLATE_DECLARE
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx)
+{
+    int64_t hPostBase = bsIdx * n_;
+    int64_t hResBase = bsIdx * n_ * n_;
+    int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
+
+    LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
+    LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
+    LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
+
+    LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
+    LocalTensor<float> xF32 = xF32Buf_.Get<float>();
+    LocalTensor<float> outF32 = outF32Buf_.Get<float>();
+
+    Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, dNum);
+    Cast(xF32, xTile, RoundMode::CAST_NONE, n_ * dNum);
+
+    for (int64_t i = 0; i < n_; i++) {
+        Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
+        for (int64_t j = 0; j < n_; j++) {
+            Axpy(outF32, xF32[j * dNum], hResGm_.GetValue(hResBase + j * n_ + i), dNum);
+        }
+
+        Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
+        outputTileQueue_.EnQue(outputTile);
+        CopyOutTile(bsIdx, dIdx, i);
+    }
+
+    hOutTileQueue_.FreeTensor(hOutTile);
+    xTileQueue_.FreeTensor(xTile);
 }
 
 TEMPLATE_DECLARE
@@ -230,11 +267,18 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(int64_t bsIdx, int6
 
     LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
 
-    if (dIdx < dOuter_ - 1) {
-        DataCopy(xTileLocal, xGm_[xOffset], dInner_);
-    } else {
-        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+    if constexpr (USE_PERMANENT_X == 1) {
+        int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
+        DataCopyExtParams copyParams = {static_cast<uint16_t>(n_), static_cast<uint32_t>(dNum * sizeof(T)),
+                                        static_cast<uint32_t>(D_ * sizeof(T)), 0, 0};
         DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
+    } else {
+        if (dIdx < dOuter_ - 1) {
+            DataCopy(xTileLocal, xGm_[xOffset], dInner_);
+        } else {
+            DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+            DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
+        }       
     }
 
     xTileQueue_.EnQue(xTileLocal);
