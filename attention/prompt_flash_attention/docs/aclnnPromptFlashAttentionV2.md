@@ -1,12 +1,12 @@
 # aclnnPromptFlashAttentionV2
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/attention/prompt_flash_attention)
+**该接口后续版本会废弃，请使用最新接口[aclnnPromptFlashAttentionV3](./aclnnPromptFlashAttentionV3.md)。
 
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      ×     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
@@ -485,7 +485,7 @@ aclnnStatus aclnnPromptFlashAttentionV2(
     - 支持D轴小于等于512。inputLayout为BSH或者BSND时，要求N*D小于65535。
     
   - Atlas 推理系列加速卡产品：
-      - 支持B轴小于等于128；
+      - 在inputLayout为BSH时，支持B轴小于等于300，其余情况B轴小于等于128；
       - 支持N轴小于等于256；
       - 支持S轴小于等于65535(64k), Q_S或KV_S非128对齐，Q_S和KV_S不等长的场景不支持配置atten_mask；
       - 支持D轴小于等于512。
@@ -557,7 +557,7 @@ aclnnStatus aclnnPromptFlashAttentionV2(
   
 - numKeyValueHeads输入，功能使用限制如下：
   
-  - Host侧的int，代表key、value中head个数，用于支持GQA（Grouped-Query Attention，分组查询注意力）场景。用户不特意指定时建议传入0，表示key/value和query的head个数相等。限制：需要满足numHeads整除numKeyValueHeads，numHeads与numKeyValueHeads的比值不能大于64，且在BSND、BNSD、BNSD_BSND场景下，需要与shape中的key/value的N轴shape值相同，否则报错。
+  - Host侧的int，代表key、value中head个数，用于支持GQA（Grouped-Query Attention，分组查询注意力）场景。用户不特意指定时建议传入0，表示key/value和query的head个数相等。限制：需要满足numHeads整除numKeyValueHeads，且在BSND、BNSD、BNSD_BSND场景下，需要与shape中的key/value的N轴shape值相同，否则报错。
   - 输入数据类型限制：
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Ascend 950PR/Ascend 950DT</term>：数据类型支持INT64。
     - Atlas 推理系列加速卡产品：仅支持取值0。

@@ -16,7 +16,11 @@
 #define ASCENDC_GROUPED_MATMUL_UTILS_H
 
 #if ((defined(__CCE_AICORE__) && (__CCE_AICORE__ == 310)) && !(defined(__NPU_ARCH__) && __NPU_ARCH__ == 3113))
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #else
 #include "kernel_operator.h"
 #endif
@@ -292,7 +296,7 @@ __aicore__ inline __gm__ T* GetTensorAddr(uint16_t index, GM_ADDR tensorPtr) {
     return reinterpret_cast<__gm__ T*>(*(retPtr + index));
 }
 
-#if defined(__CCE_AICORE__) && __CCE_AICORE__ != 310
+#if (defined(__CCE_AICORE__) && __CCE_AICORE__ != 310) || (defined(__NPU_ARCH__) && __NPU_ARCH__ == 3113)
 __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx, int32_t &preOffset,
                                                      const GMMBaseParams* __restrict &gmmBaseParams,
                                                      const GlobalTensor<int64_t> &groupListGm) {

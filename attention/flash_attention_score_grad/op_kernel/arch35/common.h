@@ -15,7 +15,11 @@
 
 #pragma once
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../../../common/op_kernel/arch35/util_regbase.h"
 #include <cstdint>
 
@@ -152,6 +156,7 @@ constexpr uint32_t PSE_1_N2_G_SLOPE = 6;
 constexpr uint32_t PSE_COMPRESS_H = 1024;
 constexpr uint32_t VREG_SIZE = 256;
 constexpr uint32_t MAX_CONTINUOUS_BLOCK_NUM = 6;
+constexpr uint16_t UNROLL_FACTOR = 2;
 
 struct DeterConstInfo {
     uint8_t usedCubeCoreNum;
@@ -191,6 +196,15 @@ struct FagConstInfo {
     float scaleValue;
     float attenMaskMinValue;
 
+    // quant
+    float pScale; // 量化参数
+    float dsScale; // 量化参数
+    float pScaleD; // 反量化参数
+    float dsScaleD; // 反量化参数
+    float pScaleLog; // log(pScale)
+
+    int64_t copyOutDStride;
+
     // 轴的乘积
     int64_t gS1o;
     int64_t n2GS1o;
@@ -228,10 +242,38 @@ struct QuantScaleInfo {
 	float deqScaleDyValue = 1.0f;
 	float deqScaleOValue = 1.0f;
 };
+// FP8场景字段
+struct QuantRunInfo {
+    uint32_t s1ProcessSize;
+    uint32_t s2ProcessSize;
+    uint32_t s1Idx;
+    uint32_t s2Idx;
+    bool isDqFixOut;
+    bool isDkFixOut;
+    bool isDvFixOut;
 
+    float qkDScale; // qDScale * kDScale
+    float vdyDScale; // dyDScale * vDScale
+    float dsScaleDMulDeqScaleK; // dsScaleD * deqScaleKValue
+    float dsScaleDMulDeqScaleQ; // pScaleD * deqScaleDyValue
+    float pScaleDMulDeqScaleDy; // dsScaleD * deqScaleQValue
+
+    bool isDkvCompleted = true;
+    bool isDqCompleted = true;
+
+    // 512基本块内部，再切128
+    int64_t innerS1RealSize[4];
+    int64_t innerS2RealSize[4];
+    int64_t innerS1LoopNum;
+    int64_t innerS2LoopNum;
+
+    int64_t qInnerOffset[4];
+    int64_t kvInnerOffset[4];
+};
 struct FagRunInfo {
     RunInfo<false> commonRunInfo{0};
 	QuantScaleInfo quantScaleInfo;
+    QuantRunInfo quantRunInfo;
     int64_t s2oIdx;
     int64_t s2CvBegin;
     int64_t s2CvEnd;
@@ -271,7 +313,13 @@ struct FagRunInfo {
     int64_t queryOffsetWithRopeForMm12;
     int64_t keyOffsetWithRopeForMm12;
     int8_t specialS2Index = -1;
+
     bool isFirstBlock = true;
+    bool isKeyReuse = false;
+    bool isValueReuse = false;
+    bool isNextKeyReuse = true;
+    
+    int64_t maxsumOffset;
 };
 
 constexpr SyncAllConfig syncAllConfigMte2ToMte2 = {PIPE_MTE2, PIPE_MTE2};
@@ -302,15 +350,15 @@ __aicore__ inline uint32_t AlignTo(uint32_t num1, uint32_t num2)
     return (num1 + num2 - 1) / num2 * num2;
 }
 
-__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 15) >> 4 << 4; }
+__aicore__ inline int64_t AlignTo16(int64_t num) { return (num + 16 - 1) >> 4 << 4; }
 
-__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 31) >> 5 << 5; }
+__aicore__ inline int64_t AlignTo32(int64_t num) { return (num + 32 - 1) >> 5 << 5; }
 
-__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 63) >> 6 << 6; }
+__aicore__ inline int64_t AlignTo64(int64_t num) { return (num + 64 - 1) >> 6 << 6; }
 
-__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 127) >> 7 << 7; }
+__aicore__ inline int64_t AlignTo128(int64_t num) { return (num + 128 - 1) >> 7 << 7; }
 
-__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 511) >> 9 << 9; }
+__aicore__ inline int64_t AlignTo512(int64_t num) { return (num + 512 - 1) >> 9 << 9; }
 
 __aicore__ constexpr bool IS_DETER_OLD(const uint8_t deterSparseType) 
 {

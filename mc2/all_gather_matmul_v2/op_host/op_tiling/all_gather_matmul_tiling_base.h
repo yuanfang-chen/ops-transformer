@@ -84,6 +84,7 @@ protected:
                            ::TCubeTiling& tailTiling, uint32_t& debugMode, uint32_t& dataType);
     void SetRcsTilingData(Mc2Tiling::RCSTiling& rcsCfg);
     void DoSplitMTiling(Mc2Tiling::RCSTiling& rcfCfg);
+    CutResult GetTilingResult();
     virtual ge::graphStatus CheckInput()
     {
         return ge::GRAPH_SUCCESS;
@@ -108,6 +109,8 @@ protected:
     void SetTilingArgsGatherStatus();
     void SetMC2AllGatherDataInfo(Mc2Tiling::RCSTiling& rcsCfg, ::TCubeTiling& mmTiling, 
                                  ::TCubeTiling& tailTiling, uint32_t debugMode);
+    ge::graphStatus CheckHCCLSize();
+    ge::graphStatus AdjustHCCLLimit(Mc2Tiling::RCSTiling& rcsCfg, mc2tiling::Mc2QuantMode quantMmMode);
 
     mc2tiling::TilingArgs args_;
     NpuArch npuArch_;
@@ -128,4 +131,5 @@ protected:
     uint32_t gatherIndex_{0};
 };
 }  // namespace optiling
+
 #endif  // __ALL_GATHER_MATMUL_TILING_BASE__
