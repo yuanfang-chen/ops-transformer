@@ -341,18 +341,18 @@ public:
         // 1024个元素，以128为单位分治求最大值，1024->512->256->128
         uint32_t columnStrideIndex = 2;
         // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
         columnStrideIndex *= 2;
         for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceMaxByPair(tvUbTensor, tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
 
         //每行128个元素分别规约求最大值
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
-            lsUbTensor,
+            tvUbTensor,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
             numRowsRound,
             dataBlockStride,
