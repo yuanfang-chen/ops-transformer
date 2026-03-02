@@ -20,6 +20,7 @@
 #include "kernel_operator.h"
 #include "pse.h"
 #include "dropmask.h"
+#include "./basic_modules/common_header.h"
 
 using matmul::Matmul;
 using matmul::MatmulType;
@@ -153,12 +154,12 @@ struct PostIndices {
 };
 
 __aicore__ inline void DataCopyOutLocal(const __gm__ void *gm, const LocalTensor<int8_t> &co1Local,
-                                   const void *dataCopyOutParams, const uint64_t tilingPtr, const uint64_t dataPtr)
+                                const void *dataCopyOutParams, const uint64_t tilingPtr, const uint64_t dataPtr)
 {
     const DataCopyOutParams *param = reinterpret_cast<const DataCopyOutParams *>(dataCopyOutParams);
     uint64_t dstStride = tilingPtr * 16 / 8 - param->burstLen;
     FixpipeParams<float> fixpipeParams(param->cBurstNum, param->burstLen, param->srcStride,
-                                       static_cast<uint32_t>(dstStride));
+                                    static_cast<uint32_t>(dstStride));
 
     if (param->enUnitFlag) {
         fixpipeParams.unitFlag = 3;
@@ -264,7 +265,7 @@ public:
 
     modeTypeDv mm4; // dv
 
-protected:
+    protected:
     // init
     __aicore__ inline void InitOutputBuffer(GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR dpse);
     __aicore__ inline void InitRequireInputBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy);
@@ -275,6 +276,7 @@ protected:
                                       GM_ADDR actual_seq_qlen, GM_ADDR actual_seq_kvlen, GM_ADDR prefixN);
     __aicore__ inline void InitUB(TPipe *pipe_in);
     __aicore__ inline void InitL1BufferCustom(TPipe *pipe_in);
+    __aicore__ inline void InitL0BufferCustom(TPipe *pipe_in);
     __aicore__ inline void InitBmmWorkspace(GM_ADDR workspace);
     __aicore__ inline void InitCastWorkspace(GM_ADDR workspace);
     __aicore__ inline void InitDropWorkspace(GM_ADDR workspace);
@@ -360,17 +362,17 @@ protected:
                                      const uint64_t &SIdx, const uint32_t &type);
     __aicore__ inline uint64_t InitL1Idx(const uint32_t &aIdx, const uint32_t &bIdx, const uint32_t matmulIdx, const bool& reuseA, const bool& reuseB);
     __aicore__ inline void SendMatmulDKL1Tscm(const uint32_t real_n, const uint32_t align_n,
-                                                     const uint32_t s1_inner, const int64_t a_in_addr,
-                                                     const int64_t b_in_addr, const int64_t out_addr,
-                                                     const bool is_sync, const uint8_t kvAtomic);
+                                              const uint32_t s1_inner, const int64_t a_in_addr,
+                                              const int64_t b_in_addr, const int64_t out_addr,
+                                              const bool is_sync, const uint8_t kvAtomic);
     __aicore__ inline void SendMatmulDVL1Tscm(const uint32_t real_n, const uint32_t align_n,
-                                                     const uint32_t s1_inner, const int64_t a_in_addr,
-                                                     const int64_t b_in_addr, const int64_t out_addr,
-                                                     const bool is_sync, const uint8_t kvAtomic);
+                                              const uint32_t s1_inner, const int64_t a_in_addr,
+                                              const int64_t b_in_addr, const int64_t out_addr,
+                                              const bool is_sync, const uint8_t kvAtomic);
     __aicore__ inline void SendMatmulDQL1Tscm(const uint32_t real_n, const uint32_t align_n,
-                                                     const uint32_t s1_inner, const int64_t a_in_addr,
-                                                     const int64_t b_in_addr, const int64_t out_addr,
-                                                     const bool is_sync, const uint8_t qAtomic);
+                                              const uint32_t s1_inner, const int64_t a_in_addr,
+                                              const int64_t b_in_addr, const int64_t out_addr,
+                                              const bool is_sync, const uint8_t qAtomic);
     __aicore__ inline void SendMatmul2L1Tscm(const int64_t m, const int64_t n, const int64_t a_addr,
                                                     const int64_t b_addr, const int64_t org_m);
     __aicore__ inline void SendMatmul1L1Tscm(const int64_t m, const int64_t n, const int64_t a_addr,
@@ -381,6 +383,24 @@ protected:
                                     const GlobalTensor<T1> &globalTensor,
                                     int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
                                     int32_t posL1, int32_t baseBlockSize, int32_t orgWidth, bool reuse);
+    __aicore__ inline void LoadDataBToL0(LocalTensor<T1> dstTensor,
+                                         LocalTensor<T1> srcTensor,
+                                         const int32_t k0,
+                                         const int32_t nSize);
+    __aicore__ inline void LoadDataAToL0(LocalTensor<T1> dstTensor,
+                                         LocalTensor<T1> srcTensor,
+                                         const int32_t m0,
+                                         const int32_t k0,
+                                         const int32_t mSize);
+    __aicore__ inline void Cube1Mmad(LocalTensor<float> dstCTensor,
+                                     LocalTensor<T1> srcATensor,
+                                     LocalTensor<T1> srcBTensor,
+                                     const int32_t m_mad_,
+                                     const int32_t n_mad_);
+    __aicore__ inline void Cube1CopyOut(GlobalTensor<float> dstTensor,
+                                        LocalTensor<float> srcTensor,
+                                        const int32_t mSize,
+                                        const int32_t nSize);
     __aicore__ inline void LoadBaseDataB(LocalTensor<T1> &tscmTensor,
                                     const GlobalTensor<T1> &globalTensor,
                                     int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
@@ -483,6 +503,44 @@ protected:
     LocalTensor<T2> dyT2Tensor;        // 32K~64K
     LocalTensor<T2> attentionT2Tensor; // 64K~96K
     LocalTensor<uint8_t> helpTensor;           // 96K~160K
+
+    // L0 tensor
+    LocalTensor<T1> l0_a_ping_tensor;
+    LocalTensor<T1> l0_a_pong_tensor;
+    LocalTensor<T1> l0_b_ping_tensor;
+    LocalTensor<T1> l0_b_pong_tensor;
+    LocalTensor<float> l0_c_ping_tensor;
+    LocalTensor<float> l0_c_pong_tensor;
+
+    TBuf<AscendC::TPosition::CO1> L0CBuffer;
+    AsdopsBuffer<ArchType::ASCEND_V220> asdopsBuf;
+
+    // ping pong flag
+    uint32_t ping_pong_flag_l1_a_{0};
+    uint32_t ping_pong_flag_l1_b_{0};
+    uint32_t ping_pong_flag_l0_a_{0};
+    uint32_t ping_pong_flag_l0_b_{0};
+    uint32_t ping_pong_flag_l0_c_{0};
+
+    AscendC::MmadParams commonMadParams {
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        3,
+        false,
+        true
+    };
+
+    AscendC::FixpipeParamsV220 commonFixpipeParamsV220 {
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        MMAD_BASE_SIZE,
+        false
+    };
+
+    // 定义LoadData2d参数
+    AscendC::LoadData2dParams commonLoadData2dParamsNoTranspose {0, MMAD_BASE_SIZE, MMAD_BASE_SIZE, 0, 0, false, 0};
 
     // core
     int64_t usedCoreNum;
@@ -810,6 +868,9 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     InitUB(pipe_in);
     if constexpr (L1CUSTOM) {
         InitL1BufferCustom(pipe_in);
+        InitL0BufferCustom(pipe_in);
+        commonFixpipeParamsV220.quantPre = QuantMode_t::NoQuant;
+        commonFixpipeParamsV220.unitFlag = 3;
     }
 
     if constexpr (PSE_CFG != 0) {
@@ -857,7 +918,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG, LAYOUT,
-     MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL1BufferCustom(
+    MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL1BufferCustom(
     TPipe *pipe_in)
 {
     if ASCEND_IS_AIC {
@@ -865,6 +926,25 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
             auto l1Tensor = TscmGlobal[i].scm.Get<T1>();
             TscmGlobal[i].srcAddr = l1Tensor.address_;
         }
+    }
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG, LAYOUT,
+    MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL0BufferCustom(TPipe *pipe_in)
+{
+    if ASCEND_IS_AIC {
+        pipe_in->InitBuffer(L0CBuffer, HardwareInfo<ArchType::ASCEND_V220>::l0CSize);
+        // init L0A/L0B/L0C tensor
+        l0_a_ping_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0A, T1>(0);
+        l0_a_pong_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0A, T1>(SIZE_32 * SIZE_ONE_K);
+        l0_b_ping_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0B, T1>(0);
+        l0_b_pong_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0B, T1>(SIZE_32 * SIZE_ONE_K);
+        l0_c_ping_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0C, float>(0);
+        l0_c_pong_tensor = asdopsBuf.GetBuffer<BufferType::ASCEND_L0C, float>(SIZE_64 * SIZE_ONE_K);
     }
 }
 
@@ -887,10 +967,10 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
-               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitOptionInputBuffer(GM_ADDR pse_shift, GM_ADDR drop_mask,
-                                                              GM_ADDR padding_mask, GM_ADDR atten_mask,
-                                                              GM_ADDR softmax_max, GM_ADDR softmax_sum,
-                                                              GM_ADDR attention_in)
+            LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitOptionInputBuffer(GM_ADDR pse_shift, GM_ADDR drop_mask,
+                                                            GM_ADDR padding_mask, GM_ADDR atten_mask,
+                                                            GM_ADDR softmax_max, GM_ADDR softmax_sum,
+                                                            GM_ADDR attention_in)
 {
     // 可选输入初始化
     pseSlope = pse_shift;
@@ -909,7 +989,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG,
                                         DROPOUT_CFG, LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitOutputBuffer(GM_ADDR dq, GM_ADDR dk,
-                                                                                             GM_ADDR dv, GM_ADDR dpse)
+                                                                                            GM_ADDR dv, GM_ADDR dpse)
 {
     // 输出初始化
     dqGm.SetGlobalBuffer((__gm__ T1*)dq);
@@ -1078,7 +1158,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
         keySize = dimB * dimN2 * dimS2 * dimD;
     } else {
         processBNByCore = tilingData->tndSplitCoreParams.bN2idxEnds[(L1CUSTOM ? cubeBlockIdx : blockIdx)] -
-                          tilingData->tndSplitCoreParams.bN2idxStarts[(L1CUSTOM ? cubeBlockIdx : blockIdx)] + 1;
+                        tilingData->tndSplitCoreParams.bN2idxStarts[(L1CUSTOM ? cubeBlockIdx : blockIdx)] + 1;
         keySize = dimT_kv * dimN2 * dimD;
     }
     if(POST){
@@ -1092,7 +1172,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG, LAYOUT,
-     MM2_OUT_FORMAT, POST, L1CUSTOM>::InitUB(
+    MM2_OUT_FORMAT, POST, L1CUSTOM>::InitUB(
     TPipe *pipe_in)
 {
     pipe = pipe_in;
@@ -1123,7 +1203,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG, LAYOUT,
-     MM2_OUT_FORMAT, POST, L1CUSTOM>::DumpGmZero(GlobalTensor<float> &gm, int64_t num)
+    MM2_OUT_FORMAT, POST, L1CUSTOM>::DumpGmZero(GlobalTensor<float> &gm, int64_t num)
 {
     // dump 0 to gm by blockIdx
     int64_t perSize = (num + tilingData->opInfo.castUsedCoreNum - 1) / tilingData->opInfo.castUsedCoreNum;
@@ -1144,7 +1224,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG,
-                                                      DROPOUT_CFG, LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::AtomicClean()
+                                                    DROPOUT_CFG, LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::AtomicClean()
 {
     // FP32 clean
     // Input is B16 clean workspace
@@ -1177,7 +1257,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG,
-                                             DROPOUT_CFG, LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitDropWorkspace(GM_ADDR workspace)
+                                            DROPOUT_CFG, LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitDropWorkspace(GM_ADDR workspace)
 {
     if (dropBitMode) {
         return;
@@ -1270,8 +1350,8 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
-                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::CopyoutWorkspace(const GlobalTensor<T1> &dstGm,
-                                                         const LocalTensor<T1> &srcTensor, PingPongEmitInsn &insn)
+                            LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::CopyoutWorkspace(const GlobalTensor<T1> &dstGm,
+                                                        const LocalTensor<T1> &srcTensor, PingPongEmitInsn &insn)
 {
     // send data to workspace which used as bmm's input
     // send shape is [rp.vS1Inner, rp.vS2Inner]
@@ -1303,9 +1383,9 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
 __aicore__ inline uint64_t
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
-                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL1Idx(const uint32_t &aIdx, const uint32_t &bIdx, 
-                                                                                  const uint32_t matmulIdx,
-                                                                                  const bool& reuseA, const bool& reuseB)
+                            LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::InitL1Idx(const uint32_t &aIdx, const uint32_t &bIdx, 
+                                                                                const uint32_t matmulIdx,
+                                                                                const bool& reuseA, const bool& reuseB)
 {    
     uint32_t AIdx = reuseA ? aIdx+5 : aIdx;
     uint32_t BIdx = reuseB ? bIdx+5 : bIdx;
@@ -1340,7 +1420,7 @@ template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat
 __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
                             LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::CopyGmToL1(const LocalTensor<T1> &l1Tensor, const GlobalTensor<T1> &gmSrcTensor,
-                                                     uint32_t srcN, uint32_t srcD, uint32_t srcDstride)
+                                                    uint32_t srcN, uint32_t srcD, uint32_t srcDstride)
 {
     Nd2NzParams nd2nzPara;
     nd2nzPara.ndNum = 1;
@@ -1353,6 +1433,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     nd2nzPara.dstNzMatrixStride = 0;
     AscendC::DataCopy(l1Tensor, gmSrcTensor, nd2nzPara);
 }
+
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
           const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
@@ -1381,6 +1462,57 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
 
     TscmGlobal[tscmIndex].cacheSize += 1;
     return;
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                                LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::LoadDataAToL0(LocalTensor<T1> dstTensor,
+                                    LocalTensor<T1> srcTensor,
+                                    const int32_t m0,
+                                    const int32_t k0,
+                                    const int32_t mSize)
+{
+    int32_t mSizeAlign = RoundUp(mSize, SIZE_16);
+
+    WAIT_FLAG(M, MTE1, 3 + ping_pong_flag_l0_a_);
+    
+    commonLoadData2dParamsNoTranspose.repeatTimes = k0 / C0_SIZE;
+    commonLoadData2dParamsNoTranspose.srcStride = mSizeAlign / C0_SIZE;
+    for (int32_t i = 0; i < m0 / C0_SIZE; i++) {
+        AscendC::LoadData(dstTensor[i * dimDAlign * C0_SIZE], srcTensor[i * SIZE_256],
+            commonLoadData2dParamsNoTranspose);
+    }
+
+    SET_FLAG(MTE1, M, ping_pong_flag_l0_a_);
+    WAIT_FLAG(MTE1, M, ping_pong_flag_l0_a_);
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                                LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::LoadDataBToL0(LocalTensor<T1> dstTensor,
+                                LocalTensor<T1> srcTensor,
+                                const int32_t k0,
+                                const int32_t nSize)
+{
+    int32_t nSizeAlign = RoundUp(nSize, SIZE_16);
+
+    WAIT_FLAG(M, MTE1, 3 + ping_pong_flag_l0_b_ + 2);
+
+    commonLoadData2dParamsNoTranspose.repeatTimes = nSizeAlign / C0_SIZE;
+    commonLoadData2dParamsNoTranspose.srcStride = 1;
+    for (int i = 0; i < k0 / C0_SIZE; i++) {
+        AscendC::LoadData(dstTensor[i * nSizeAlign * C0_SIZE], srcTensor[i * nSizeAlign * C0_SIZE],
+            commonLoadData2dParamsNoTranspose);
+    }
+
+    SET_FLAG(MTE1, M, ping_pong_flag_l0_b_ + 2);
+    WAIT_FLAG(MTE1, M, ping_pong_flag_l0_b_ + 2);
 }
 
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
@@ -1429,6 +1561,45 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     }
 }
 
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::Cube1Mmad(LocalTensor<float> dstCTensor,
+                                                                                  LocalTensor<T1> srcATensor,
+                                                                                  LocalTensor<T1> srcBTensor,
+                                                                                  const int32_t m_mad_,
+                                                                                  const int32_t n_mad_)
+{
+    uint16_t m_modify = (m_mad_ == 1) ? 2 : m_mad_;
+    commonMadParams.m = m_modify;
+    commonMadParams.n = n_mad_;
+    commonMadParams.k = dimD;
+    commonMadParams.unitFlag = 3;
+    commonMadParams.cmatrixInitVal = true;
+    AscendC::Mmad(dstCTensor, srcATensor, srcBTensor, commonMadParams);
+}
+
+template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
+          const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
+          const CubeFormat MM2_OUT_FORMAT, const bool POST, const bool L1CUSTOM>
+__aicore__ inline void
+FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
+                               LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::Cube1CopyOut(GlobalTensor<float> dstTensor,
+                                                                                     LocalTensor<float> srcTensor,
+                                                                                     const int32_t mSize,
+                                                                                     const int32_t nSize,
+                                                                                     const int32_t singleMSize)
+{
+    int32_t mSizeAlign = RoundUp(mSize, SIZE_16);
+    int32_t nSizeAlign = RoundUp(nSize, SIZE_16);
+    commonFixpipeParamsV220.mSize = mSize;
+    commonFixpipeParamsV220.nSize = nSizeAlign;
+    commonFixpipeParamsV220.srcStride = mSizeAlign;
+    commonFixpipeParamsV220.dstStride = singleMSize * 2;
+    AscendC::Fixpipe<float, float, AscendC::CFG_NZ>(dstTensor, srcTensor, commonFixpipeParamsV220);
+}
 
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
           const uint64_t ATTEN_MASK_CFG, const uint64_t DROPOUT_CFG, const uint32_t LAYOUT,
@@ -1437,7 +1608,7 @@ __aicore__ inline void
 FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MASK_CFG, DROPOUT_CFG,
                             LAYOUT, MM2_OUT_FORMAT, POST, L1CUSTOM>::SendMatmul2L1Tscm(const int64_t m, const int64_t n, const int64_t a_addr,
                                                     const int64_t b_addr, const int64_t org_m)
-{   
+{
     // 走入条件，custom
     // s1 m, s2 n
     bool reuseQ = false;
@@ -1492,6 +1663,7 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     LocalTensor<T1> scmATensor;
     LocalTensor<T1> scmBTensor;
     GlobalTensor<T2> globalCTensor = mm2WorkspaceGm[mmPingpongIdx * mm2WorkspaceLen / sizeof(T2) + mm2WorkspaceAddr];
+
     TscmGlobal[aIndex].cacheSize = 0;
     TscmGlobal[bIndex].cacheSize = 0;
     int32_t posA = 0;
@@ -1499,9 +1671,9 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
     int32_t cOffset = 0;
     event_t eventIdMte1ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE1_MTE2));
     event_t eventIdMte2ToMte1 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE1));
-    for (int32_t curCol = 0;curCol < colNum;++curCol) {
+    for (int32_t curCol = 0; curCol < colNum; ++curCol) {
         int32_t subNAct = curCol == (colNum - 1) ? mm1BaseNTail : mm1BaseN;
-        for (int32_t curRow = 0;curRow < rowNum;++curRow) {
+        for (int32_t curRow = 0; curRow < rowNum; ++curRow) {
             int32_t subMAct = curRow == (rowNum - 1) ? mm1BaseMTail : mm1BaseM;
             posA = curRow;
             posB = curCol;
@@ -1511,10 +1683,19 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                         subNAct, mm1BaseK, bIndex, posB, mm1BBaseSize, srcStrideN2, reuseK);
             AscendC::SetFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
             AscendC::WaitFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
-            mm1.SetTensorA(scmATensor);
-            mm1.SetTensorB(scmBTensor, true);
-            mm1.SetTail(subMAct, subNAct, dimD);
-            mm1.template Iterate<false>();
+
+            // load data into L0A/B
+            LocalTensor<T1> *l0_a_tensor = ping_pong_flag_l0_a_ ? &l0_a_pong_tensor : &l0_a_ping_tensor;
+            LocalTensor<T1> *l0_b_tensor = ping_pong_flag_l0_b_ ? &l0_b_pong_tensor : &l0_b_ping_tensor;
+            LocalTensor<float> *l0_c_tensor = ping_pong_flag_l0_c_ ? &l0_c_pong_tensor : &l0_c_ping_tensor;
+
+            LoadDataAToL0(*l0_a_tensor, scmATensor, MMAD_BASE_SIZE, dimDAlign, subMAct);
+            LoadDataBToL0(*l0_b_tensor, scmBTensor, dimDAlign, subNAct);
+
+            Cube1Mmad(*l0_c_tensor, *l0_a_tensor, *l0_b_tensor, subMAct, subNAct);
+
+            SET_FLAG(M, MTE1, 3 + ping_pong_flag_l0_a_);
+            SET_FLAG(M, MTE1, 3 + ping_pong_flag_l0_b_ + 2);
             AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
@@ -1522,10 +1703,14 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
             } else {
                 cOffset = curCol * mm1BaseN + curRow * n * mm1BaseM;
             }
-            mm1.GetTensorC(globalCTensor[cOffset]);
+
+            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct, org_m);
+
+            ping_pong_flag_l0_a_ = 1 - ping_pong_flag_l0_a_;
+            ping_pong_flag_l0_b_ = 1 - ping_pong_flag_l0_b_;
+            ping_pong_flag_l0_c_ = 1 - ping_pong_flag_l0_c_;
         }
     }
-    mm1.End();
 }
 
 template <typename T1, typename T2, const MatmulConfig &MM_CFG, const CubeFormat MM_OUT_FORMAT, const uint64_t PSE_CFG,
@@ -1824,10 +2009,17 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                         subNAct, mm1BaseK, bIndex, posB, mm1BBaseSize, srcStrideN2);
             AscendC::SetFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
             AscendC::WaitFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
-            mm1.SetTensorA(scmATensor);
-            mm1.SetTensorB(scmBTensor, true);
-            mm1.SetTail(subMAct, subNAct, dimD);
-            mm1.template Iterate<false>();
+
+            // load data into L0A/B
+            LocalTensor<T1> *l0_a_tensor = ping_pong_flag_l0_a_ ? &l0_a_pong_tensor : &l0_a_ping_tensor;
+            LocalTensor<T1> *l0_b_tensor = ping_pong_flag_l0_b_ ? &l0_b_pong_tensor : &l0_b_ping_tensor;
+            LocalTensor<float> *l0_c_tensor = ping_pong_flag_l0_c_ ? &l0_c_pong_tensor : &l0_c_ping_tensor;
+            LoadDataAToL0(*l0_a_tensor, scmATensor, MMAD_BASE_SIZE, dimDAlign, subMAct);
+            LoadDataBToL0(*l0_b_tensor, scmBTensor, dimDAlign, subNAct);
+            Cube1Mmad(*l0_c_tensor, *l0_a_tensor, *l0_b_tensor, subMAct, subNAct);
+            SET_FLAG(M, MTE1, 3 + ping_pong_flag_l0_a_);
+            SET_FLAG(M, MTE1, 3 + ping_pong_flag_l0_b_ + 2);
+
             AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
             if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
@@ -1835,7 +2027,11 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
             } else {
                 cOffset = curCol * mm1BaseN + curRow * n * mm1BaseM;
             }
-            mm1.GetTensorC(globalCTensor[cOffset]);
+
+            Cube1CopyOut(globalCTensor[cOffset], *l0_c_tensor, subMAct, subNAct, org_m);
+            ping_pong_flag_l0_a_ = 1 - ping_pong_flag_l0_a_;
+            ping_pong_flag_l0_b_ = 1 - ping_pong_flag_l0_b_;
+            ping_pong_flag_l0_c_ = 1 - ping_pong_flag_l0_c_;
         }
     }
 }
@@ -4468,6 +4664,10 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
         }
         if constexpr (L1CUSTOM) {
             if ASCEND_IS_AIC {
+                SET_FLAG(M, MTE1, 3);
+                SET_FLAG(M, MTE1, 4);
+                SET_FLAG(M, MTE1, 5);
+                SET_FLAG(M, MTE1, 6);
                 SendMatmul2L1Tscm(rp.processM, realProcessN, inputMMLeftMatrixAddr, inputMMRighMatrixtAddr, rp.mm1mm2OrgM);
                 CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_C1_V1_FLAG[(currentLoop + 1) % 3]);
                 SendMatmul1L1Tscm(rp.processM, realProcessN, inputMMLeftMatrixAddr, inputMMRighMatrixtAddr, rp.mm1mm2OrgM);
@@ -4475,6 +4675,10 @@ FlashAttentionScoreGradS1s2Bn2<T1, T2, MM_CFG, MM_OUT_FORMAT, PSE_CFG, ATTEN_MAS
                 if (currentLoop > 0) {
                     AscendC::SetFlag<HardEvent::FIX_MTE2>(static_cast<int32_t>(eventIdFixToMte2));
                 }
+                WAIT_FLAG(M, MTE1, 3);
+                WAIT_FLAG(M, MTE1, 4);
+                WAIT_FLAG(M, MTE1, 5);
+                WAIT_FLAG(M, MTE1, 6);
             }
         } else {
             SendMatmul2(rp.processM, realProcessN, inputMMLeftMatrixAddr, inputMMRighMatrixtAddr, rp.mm1mm2OrgM);
