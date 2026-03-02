@@ -137,8 +137,10 @@ ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.oriKv.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_Kv is nullptr"),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
-                return ge::GRAPH_FAILED);
+    if (kvLayout_ == SASLayout::PA_ND) {
+        OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
+            return ge::GRAPH_FAILED);
+    }
     if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE){
         OP_CHECK_IF(opParamInfo_.cmpKv.tensor == nullptr, OP_LOGE(opName_, "tensor of cmp_kv is nullptr"),
                     return ge::GRAPH_FAILED);
@@ -666,6 +668,10 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
             actualLenDimsQ_ = opParamInfo_.seqUsedQ.tensor->GetShapeSize();
         }
     }
+    if (kvLayout_ != SASLayout::PA_ND && kvLayout_ != SASLayout::BSND) {
+        OP_LOGE(opName_, "ori_kv and cmp_kv only support PA_ND and BSND layout.");
+        return ge::GRAPH_FAILED;
+    }
     if (kvLayout_ == SASLayout::PA_ND) {
         if (opParamInfo_.sequsedKv.tensor != nullptr) {
             if (qLayout_ == SASLayout::BSND){
@@ -691,9 +697,6 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
         } else {
             actualLenDimsKV_ = opParamInfo_.cmpKv.tensor->GetShapeSize();
         }
-    } else {
-        OP_LOGE(opName_, "ori_kv and cmp_kv only support PA_ND layout.");
-        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
