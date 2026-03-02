@@ -84,6 +84,12 @@ public:
         this->nextToken = tilingData->basicDetTensorTilingData.nextTockens;
         this->dqPostAbsorb = tilingData->basicDetTensorTilingData.dqPostAbsorb;
         this->layout = tilingData->basicDetTensorTilingData.layout;  // 新增：0=BSH, 1=TND
+        if (layout == 0)
+        {
+            dimS1 = tilingData->basicDetTensorTilingData.s1;
+            dimS2 = tilingData->basicDetTensorTilingData.s2;
+        }
+        
         
         UpdateSeqLen();
         
@@ -141,9 +147,6 @@ private:
 
     __aicore__ inline void UpdateSeqLen() {
         if (layout == 0) {  // BSH格式：使用固定长度
-            dimS1 = tilingData->basicDetTensorTilingData.s1;
-            dimS2 = tilingData->basicDetTensorTilingData.s2;
-            
             // BSH格式的lastBatchSum基于batch索引和固定长度计算
             if (bIdx > 0) {
                 lastBatchQSum = bIdx * dimS1;
