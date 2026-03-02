@@ -141,10 +141,6 @@ __aicore__ inline void ScatterPaKvCacheNormalFullyLoad<T, IndexDtype, InOutMode>
         static_cast<uint16_t>(1), static_cast<uint32_t>(tilingData_->kHandleNumPerCore * sizeof(T)),
         static_cast<uint32_t>(0), static_cast<uint32_t>(0), static_cast<uint32_t>(0)};
 
-    event_t eventIdV2ToS = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_S));
-    SetFlag<HardEvent::V_S>(eventIdV2ToS);
-    WaitFlag<HardEvent::V_S>(eventIdV2ToS);
-
     for (int64_t i = 0; i < curBlockFactor; i++) {
         int64_t kStartIdx = kSlotMappingLocal.GetValue(i);
         if (kStartIdx < 0 || kStartIdx >= maxTokens_) {
