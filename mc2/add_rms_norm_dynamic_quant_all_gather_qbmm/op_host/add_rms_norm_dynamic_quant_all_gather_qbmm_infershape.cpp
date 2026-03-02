@@ -86,22 +86,16 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     bool isTransX2 = *transposeX2;
     OP_CHECK_IF(groupStr == nullptr, OP_LOGE(context->GetNodeName(), "Get group failed."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(rankSize != 4, OP_LOGE(context->GetNodeName(),
-        "ranksize shoule be 4, but got", rankSize), return ge::GRAPH_FAILED);
+        "ranksize shoule be 4, but got %ld", rankSize), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*dtype != -1, OP_LOGE(context->GetNodeName(),
-        "dtype shoule be -1, but got", *dtype), return ge::GRAPH_FAILED);
+        "dtype shoule be -1, but got %ld", *dtype), return ge::GRAPH_FAILED);
     OP_CHECK_IF(*residualNormMode != 0, OP_LOGE(context->GetNodeName(),
-        "residualNormMode shoule be 0, but got", *residualNormMode), return ge::GRAPH_FAILED);
+        "residualNormMode shoule be 0, but got %ld", *residualNormMode), return ge::GRAPH_FAILED);
+    OP_CHECK_IF(isTransX2, OP_LOGE(context->GetNodeName(),
+        "isTransX2 only supports false currently, but got %d", isTransX2), return ge::GRAPH_FAILED);
 
-    // auto x2Desc = context->GetInputDesc(INPUT_X2_INDEX);
-    // bool isX2NZ = static_cast<ge::Format>(ge::GetPrimaryFormat(x2Desc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ;
-    bool isX2NZ = true;
-    int64_t x2DimK = !(isX2NZ) ? x2Shape->GetDim(0) : x2Shape->GetDim(1) * x2Shape->GetDim(2);
-    int64_t x2DimN = !(isX2NZ) ? x2Shape->GetDim(1) : x2Shape->GetDim(0) * x2Shape->GetDim(3);
-
-    // int64_t dimM = ((x1Shape->GetDimNum() == 1U) ? NEG_ONE : x1Shape->GetDim(0));
-    // int64_t dimKX1 = ((x1Shape->GetDimNum() == 1U) ? NEG_ONE : x1Shape->GetDim(1));
-    // int64_t dimKX2 = ((x2Shape->GetDimNum() == 1U) ? NEG_ONE : x2DimK);
-    // int64_t dimN = ((x2Shape->GetDimNum() == 1U) ? NEG_ONE : x2DimN);
+    int64_t x2DimK = x2Shape->GetDim(0);
+    int64_t x2DimN = x2Shape->GetDim(1);
     int64_t dimM = x1Shape->GetDim(0);
     int64_t dimKX1 = x1Shape->GetDim(1);
     int64_t dimKX2 = !(isTransX2) ? x2DimK : x2DimN;
