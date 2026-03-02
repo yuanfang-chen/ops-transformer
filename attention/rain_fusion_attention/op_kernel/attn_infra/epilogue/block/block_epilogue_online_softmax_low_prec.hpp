@@ -199,11 +199,11 @@ public:
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(16);
+        SetVecMask(8);
         AscendC::WholeReduceSum<half, false>(
             rowsumUb,
             tvUbTensor[REDUCE_UB_SIZE],
-            0, numRowsRound, 1, 1, numElemsAligned / BLOCK_SIZE);
+            0, numRowsRound, 1, 1, 4);
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);       
     }
@@ -374,11 +374,11 @@ public:
             numRowsRound * numElemsAligned / BLOCK_SIZE / HALF_VECTOR_SIZE,
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(16);
+        SetVecMask(8);
         AscendC::WholeReduceMax<half, false>(
             rowmaxUb,
             tvUbTensor[REDUCE_UB_SIZE],
-            (int32_t)0, numRowsRound, 1, 1, numElemsAligned / BLOCK_SIZE, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+            (int32_t)0, numRowsRound, 1, 1, 4, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
     }
