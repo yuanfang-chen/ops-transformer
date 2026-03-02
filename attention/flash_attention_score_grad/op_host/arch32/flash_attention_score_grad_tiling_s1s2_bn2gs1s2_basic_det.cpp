@@ -79,13 +79,6 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetAttrsInfo()
 
 ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
 {
-    // 暂时注释
-    // if (strcmp(fBaseParams.inputLayout, TND_STR) != 0) {
-    //     OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet only support TND inputLayout, now is %s.",
-    //               fBaseParams.inputLayout);
-    //     return ge ::GRAPH_PARAM_INVALID;
-    // }
-    
     int64_t headNum = *context_->GetAttrs()->GetAttrPointer<int>(HEAD_NUM);
     const gert::StorageShape *queryShape = context_->GetInputShape(0);
     const gert::StorageShape *keyShape = context_->GetInputShape(1);
@@ -102,18 +95,12 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         fBaseParams.n2 = headNum / fBaseParams.g;
         fBaseParams.s1 = queryShape->GetStorageShape().GetDim(DIM_1);
         fBaseParams.d = queryShape->GetStorageShape().GetDim(DIM_2) / headNum; // H=N*D
+        fBaseParams.dv = valueShape->GetStorageShape().GetDim(DIM_NUM_2) / headNum;
         fBaseParams.s2 = keyShape->GetStorageShape().GetDim(DIM_1);
         fBaseParams.t1 = fBaseParams.b * fBaseParams.s1;
-        std::cout << "fBaseParams.b " << fBaseParams.b  << std::endl;
-        std::cout << "fBaseParams.s1 " << fBaseParams.s1  << std::endl;
-        std::cout << "fBaseParams.s2 " << fBaseParams.s2  << std::endl;
-        std::cout << "fBaseParams.n1 " << fBaseParams.n1  << std::endl;
-        std::cout << "fBaseParams.n2 " << fBaseParams.n2  << std::endl;
-        std::cout << "fBaseParams.d " << fBaseParams.d  << std::endl;
-        std::cout << "fBaseParams.t1 " << fBaseParams.t1  << std::endl;
         return ge::GRAPH_SUCCESS;
     }
-    else {
+    else if(strcmp(fBaseParams.inputLayout, TND_STR) == 0){
         auto actualSeqQLenTensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_Q_LEN);
         auto actualSeqKvLenTensor = context_->GetOptionalInputTensor(ACTUAL_SEQ_KV_LEN);
         auto qStartTensor = context_->GetOptionalInputTensor(Q_START_IDX);
@@ -173,6 +160,13 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         fBaseParams.s2 = *std::max_element(fBaseParams.actualSeqKvlen.begin(), fBaseParams.actualSeqKvlen.end());
         return CheckTndShapeValid(context_, fBaseParams.t1, fBaseParams.n1, fBaseParams.d);
     }
+    else
+    {
+        OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet only support TND, BSH inputLayout, now is %s.",
+                  fBaseParams.inputLayout);
+        return ge ::GRAPH_PARAM_INVALID;
+    }
+    
 }
 
 bool FlashAttentionScoreGraTilingBasicDet::IsCapable()
@@ -193,7 +187,11 @@ bool FlashAttentionScoreGraTilingBasicDet::IsCapable()
     else if (fBaseParams.queryType == ge::DT_FLOAT) {
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support float32.");
         return false;
-    } else if (fBaseParams.pseEnable) {
+    } else if (strcmp(fBaseParams.inputLayout, TND_STR) != 0 && strcmp(fBaseParams.inputLayout, BSH_STR) != 0) {
+         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support Layouts other than TND BSH, now is %s.",
+                   fBaseParams.inputLayout);
+         return false;
+     }else if (fBaseParams.pseEnable) {
         OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet does not support PSE feature.");
         return false;
     } else if (!IsAttenMskCapable()) {
@@ -314,9 +312,9 @@ bool FlashAttentionScoreGraTilingBasicDet::IsDropMskCapable()
 
 bool FlashAttentionScoreGraTilingBasicDet::IsShapeCapable()
 {
-    // if (fBaseParams.d != fBaseParams.dv || fBaseParams.d > SPECIAL_HEADDIM_128 || fBaseParams.d % C0_SIZE != 0) {
-    //     return false;
-    // }
+    if (fBaseParams.d != fBaseParams.dv || fBaseParams.d > SPECIAL_HEADDIM_128 || fBaseParams.d % C0_SIZE != 0) {
+        return false;
+    }
     return true;
 }
 
@@ -368,10 +366,9 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
     } else if (strcmp(inputLayout, TND_STR) == 0) {
         tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::TND));
     } else {
-        //OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
+        OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
         return ge::GRAPH_PARAM_INVALID;
     }
-    std::cout << "BasicDet inputLayout" << fBaseParams.inputLayout << "id" << tilingData->basicDetTensorTilingData.layout << std::endl;
     bool tndSoftmaxIn = context_->GetAttrs()->GetAttrNum() > static_cast<size_t>(TND_SOFTMAX_IN) ?
                             *(context_->GetAttrs()->GetAttrPointer<bool>(TND_SOFTMAX_IN)) :
                             false;
@@ -527,5 +524,5 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::GetPlatformInfo()
 REGISTER_TILING_TEMPLATE_WITH_ARCH(
     FlashAttentionScoreGrad, FlashAttentionScoreGraTilingBasicDet,
     std::vector<int32_t>({static_cast<int32_t>(NpuArch::DAV_2201)}),
-    100);
+    1002);
 } // namespace optiling
