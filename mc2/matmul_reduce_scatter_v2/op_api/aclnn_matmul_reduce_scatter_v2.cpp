@@ -93,19 +93,21 @@ enum class CaseOption {
     LOW_ACCURACY_PER_TENSOR_WITHOUT_QUANT_AMAX,
     LOW_ACCURACY_PER_TENSOR_WITH_QUANT_AMAX,
     LOW_ACCURACY_PER_BLOCK,
+    LOW_ACCURACY_PER_CHANNEL,
+    LOW_ACCURACY_PER_TOKEN_PER_CHANNEL,
     INVALID,
 };
 
 // 根据API定义，需要列出所能支持的所有dtype
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {
     op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_FLOAT8_E5M2,
-    op::DataType::DT_HIFLOAT8};
+    op::DataType::DT_HIFLOAT8, op::DataType::DT_INT8};
 static const std::initializer_list<op::DataType> BIAS_OUTPUT_SUPPORT_TYPE = {
     op::DataType::DT_BF16, op::DataType::DT_FLOAT16, op::DataType::DT_FLOAT};
 static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_HIGH_ACCURACY = {
     op::DataType::DT_FLOAT16, op::DataType::DT_BF16};
 static const std::initializer_list<op::DataType> INPUT_SUPPORT_TYPE_LOW_ACCURACY = {
-    op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_HIFLOAT8};
+    op::DataType::DT_FLOAT8_E5M2, op::DataType::DT_FLOAT8_E4M3FN, op::DataType::DT_HIFLOAT8, op::DataType::DT_INT8};
 
 static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclTensor* bias, const aclTensor* output)
 {
@@ -115,6 +117,9 @@ static bool CheckDtypeValid(const aclTensor* x1, const aclTensor* x2, const aclT
     OP_CHECK_DTYPE_NOT_SUPPORT(output, BIAS_OUTPUT_SUPPORT_TYPE, return false);
     // 检查bias的数据类型是否在算子的支持列表内
     if (bias != nullptr) {
+        if ((x1->GetDataType() == op::DataType::DT_INT8) && (x2->GetDataType() == op::DataType::DT_INT8)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When input is int8, bias should be nullptr.");         
+        }
         OP_CHECK_DTYPE_NOT_SUPPORT(bias, BIAS_OUTPUT_SUPPORT_TYPE, return false);
     }
     return true;
@@ -241,12 +246,23 @@ static enum CaseOption CheckLowAccuracyCase(const aclTensor* x1, const aclTensor
         return CaseOption::INVALID;
     }
     // 矩阵入参为Hifloat8时，x1x2必须类型相同。
-    if (x1->GetDataType() == op::DataType::DT_HIFLOAT8) {
+    if (x1->GetDataType() == op::DataType::DT_HIFLOAT8 || x2->GetDataType() == op::DataType::DT_INT8) {
         OP_CHECK_DTYPE_NOT_SAME(x1, x2, return CaseOption::INVALID);
     }
     
-    if (!CheckEmptyTensor(x1Scale, "x1Scale") || !CheckEmptyTensor(x2Scale, "x2Scale")) {
+    if (x1->GetDataType() == op::DataType::DT_INT8 && !CheckEmptyTensor(x2Scale, "x2Scale")) {
         return CaseOption::INVALID;
+    } else if ((x1->GetDataType() != op::DataType::DT_INT8) && 
+                (!CheckEmptyTensor(x1Scale, "x1Scale") || !CheckEmptyTensor(x2Scale, "x2Scale"))) {
+        return CaseOption::INVALID;
+    }
+    if (x1->GetDataType() == op::DataType::DT_INT8) {
+        if ((x1Scale == nullptr) && (x2Scale->GetViewShape().GetDimNum() == DIM_NUM_TWO)) {
+            return  CaseOption::LOW_ACCURACY_PER_CHANNEL;
+        } else if ((x1Scale->GetViewShape().GetDimNum() == DIM_NUM_TWO) &&
+                    x2Scale->GetViewShape().GetDimNum() == DIM_NUM_TWO) {
+            return CaseOption::LOW_ACCURACY_PER_TOKEN_PER_CHANNEL;
+        }
     }
     if ((x1Scale->GetViewShape().GetDimNum() == DIM_NUM_ONE) ||
         ((x1Scale->GetViewShape().GetDimNum() == DIM_NUM_THREE) &&
