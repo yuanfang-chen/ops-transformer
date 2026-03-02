@@ -138,8 +138,8 @@ ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
     OP_CHECK_IF(opParamInfo_.oriKv.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_Kv is nullptr"),
                 return ge::GRAPH_FAILED);
     if (kvLayout_ == SASLayout::PA_ND) {
-        OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
-            return ge::GRAPH_FAILED);
+            OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
+                return ge::GRAPH_FAILED);
     }
     if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE){
         OP_CHECK_IF(opParamInfo_.cmpKv.tensor == nullptr, OP_LOGE(opName_, "tensor of cmp_kv is nullptr"),
@@ -767,7 +767,8 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 
     if (ge::GRAPH_SUCCESS != GetOpName() ||
         ge::GRAPH_SUCCESS != GetNpuInfo() ||
-        ge::GRAPH_SUCCESS != GetOpParaInfo() ||
+        ge::GRAPH_SUCCESS != GetOpParaInfo() || 
+        ge::GRAPH_SUCCESS != GetKvLayout() ||
         ge::GRAPH_SUCCESS != CheckRequiredParaExistence() ||
         ge::GRAPH_SUCCESS != CheckUnrequiredParaExistence()) {
         return ge::GRAPH_FAILED;
@@ -775,7 +776,6 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 
     if (ge::GRAPH_SUCCESS != GetInOutDataType() ||
         ge::GRAPH_SUCCESS != GetQueryAndOutLayout() ||
-        ge::GRAPH_SUCCESS != GetKvLayout() ||
         ge::GRAPH_SUCCESS != GetSASTemplateMode(sasInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -1035,6 +1035,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaOriBlockTable() const
 {
+    if (kvLayout_ == SASLayout::BSND) {
+        return ge::GRAPH_SUCCESS; // BSND 场景不需要使用oriBlockTable
+    }
     OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetShapeSize() == 0,
                 OP_LOGE(opName_, "ori_block_table cannot be empty tensor."),
                 return ge::GRAPH_FAILED);
@@ -1158,6 +1161,7 @@ ge::graphStatus SASTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaOriWinRight()) {
         return ge::GRAPH_FAILED;
     }
+    
     return ge::GRAPH_SUCCESS;
 }
 
