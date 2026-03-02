@@ -659,9 +659,15 @@ static inline bool TransposeTensorContiguousProcessForMx(const aclTensor *&conti
     auto transposeFlag = IsLastTwoDimsTranspose(contiguousTensor);
     // swap tensor if its viewshape not satisfy request shape without adding a transpose node
     if (transposeFlag) {
+        auto nZShape = contiguousTensor->GetStorageShape();
         contiguousTensor = executor->CreateView(contiguousTensor, SwapLastTwoDimValue(contiguousTensor->GetViewShape()),
             contiguousTensor->GetViewOffset());
         transpose = true;
+        // FORMAT_FRACTAL_NZ的情况下，将storageshape写回
+        if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+            contiguousTensor->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
+            contiguousTensor->SetStorageShape(nZShape);
+        }
     } else {
         contiguousTensor = l0op::Contiguous(contiguousTensor, executor);
     }
@@ -1043,10 +1049,15 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2GetWorkspaceSize(const ac
     (void) antiquantOffsetOptional;
     auto viewShape = x2->GetViewShape();
     auto uniqueExecutor = CREATE_EXECUTOR();
+    auto nZShape = x2->GetStorageShape();
     // unpack int32 to int4
     auto tmpWeight = uniqueExecutor.get()->CreateView(x2, viewShape, x2->GetViewOffset());
+    if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+        tmpWeight->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
+        tmpWeight->SetStorageShape(nZShape);
+    }
     if(op::GetCurrentPlatformInfo().GetCurNpuArch() != NpuArch::DAV_3510){
-        auto storageShape = x2->GetStorageShape();
+        auto storageShape = nZShape;
         if (tmpWeight->GetDataType() == DataType::DT_INT32) {
             tmpWeight->SetStorageFormat(op::Format::FORMAT_FRACTAL_NZ);
             auto viewShapeDim = viewShape.GetDimNum();
