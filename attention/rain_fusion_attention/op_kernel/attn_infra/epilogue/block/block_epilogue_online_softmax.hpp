@@ -786,24 +786,28 @@ public:
             }
         }
         CalcLocalRowMax(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
+        AscendC::printf("softmax 6666");
         UpdateGlobalRowMax(
             rowNumCurLoop, rowNumCurLoopRound,
             columnNum, columnNumRound,
             dmUbOffsetCurCycle,
             rowOffset,
             isFirstStackTile);
-
+        AscendC::printf("softmax 77777");
         CalcExp(sUbOffset, rowNumCurLoop, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
         if constexpr (!doTriUMask) {
+            AscendC::printf("softmax 88888 before");
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
+            AscendC::printf("softmax 88888 after");
         }
 
+        AscendC::printf("softmax 9999");
         DownCastP(sUbOffset, rowNumCurLoop, columnNumRound);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
-
+        AscendC::printf("softmax 123123");
         CalcLocalRowSum(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
-
+        AscendC::printf("softmax 456456");
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
         CopyPUbToGm(gOutput, sUbOffset, rowNumCurLoop, columnNumRound, columnNumPad);
         if constexpr (!doTriUMask) {
@@ -815,6 +819,7 @@ public:
         } else {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
         }
+        AscendC::printf("softmax 789789");
         UpdateGlobalRowSum(
             sUbOffset, rowNumCurLoop, rowNumCurLoopRound, dmUbOffsetCurCycle, rowOffset, isFirstStackTile);
     }
@@ -856,7 +861,7 @@ public:
 
                 int64_t offsetInput = layoutInput.GetOffset(MatrixCoord(rowOffsetIoGm, 0));
                 auto gInputCurLoop = gInput[offsetInput];
-
+                AscendC::printf("softmax 1111");
                 AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
                 CopySGmToUb(
                     gInputCurLoop, (pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound, columnNumPad);
@@ -874,6 +879,7 @@ public:
                 auto gOutputCurLoop = gOutput[offsetOutput];
                 auto layoutOutputCurLoop = layoutOutput.GetTileLayout(MatrixCoord(rowNumCurLoop, columnNum));
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
+                AscendC::printf("softmax 222222");
                 ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
                 SubCoreCompute<false>(
                     gOutputCurLoop,
@@ -923,7 +929,7 @@ public:
         uint32_t gmOffsetMaskColumn;
         uint32_t maskColumn;
         uint32_t addMaskUbOffset;
-        AscendC::printf("softmax 1111");
+        
         if (triUp >= kvSStartIdx) {
             AscendC::printf("softmax triup >=");
             uint32_t triUpRoundDown = RoundDown(triUp, BLOCK_SIZE_IN_BYTE);
@@ -950,7 +956,7 @@ public:
         rowNumTile = AscendC::Std::min(rowNumTile, FLOAT_VECTOR_SIZE);
         uint32_t rowLoopNum = CeilDiv(rowActualThisSubBlock, rowNumTile);
         uint32_t preLoad = 1;
-        AscendC::printf("softmax 222222");
+        
         if (rowActualThisSubBlock == 0) {
             AscendC::printf("softmax owActualThisSubBlock == 0");
             Arch::CrossCoreWaitFlag(qkReady);
