@@ -311,7 +311,7 @@ public:
             0, 1, 1, 8);
         AscendC::PipeBarrier<PIPE_V>();
 
-        AscendC::BlockReduceSum<float, false>(
+        AscendC::BlockReduceMax<float, false>(
             tvUbTensor[REDUCE_UB_SIZE],
             tvUbTensor,
             numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
