@@ -1027,7 +1027,7 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
     bool specConditionFlag = false;
     bool quantScale2Flag = context->GetOptionalInputTensor(QUANT_SCALE2_INDEX) != nullptr ? true : false;
-    if (isLayoutSupported && !isRopeSplitMla && sparseModeSupported &&
+    if (isLayoutSupported && isLearnableSinkFlag && !isRopeSplitMla && sparseModeSupported &&
         (nonMhaConditions || mhaConditions) && !quantScale2Flag) {
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         if (!isPageAttention) {
