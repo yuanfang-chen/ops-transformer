@@ -979,23 +979,6 @@ void AlltoAllMatmulTiling910b::CalTilingParam(CoCTiling &cocTilingData, const st
     }
 }
 
-void AlltoAllMatmulTiling910b::SetTilingParam(CoCTiling &cocTilingData, const std::map<int*, AlltoAllMatmulTilingValue>& TilingParamMap, AlltoAllMatmulInfo &info)
-{
-    int32_t m = info.M;
-    int32_t k = info.K;
-    int32_t n = info.N;
-
-    for (auto &item : TilingParamMap) {
-        auto value = item.second.value;
-        auto conditionMap = item.second.conditionMap;
-        if (!conditionMap.empty()) {
-            *item.first = GetValueFromMKNConditionMap(m, k, n, value, conditionMap);
-        } else if (value != -1) {
-            *item.first = value;
-        }
-    }
-}
-
 void AlltoAllMatmulTiling910b::DecodeTilingData(int32_t code, CoCTiling &cocTilingData)
 {
     cocTilingData.allToAllRecvCoreNum = (code & 31) + 1;
@@ -1092,7 +1075,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
     
@@ -1108,7 +1091,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W8Tiling(CoCTilin
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BFourRankA16W8tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
 
@@ -1124,7 +1107,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W8Tiling(CoCTili
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
 
@@ -1141,7 +1124,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W4Tiling(CoCTiling
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BTwoRankA16W4tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
 
@@ -1157,7 +1140,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W4Tiling(CoCTilin
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BFourRankA16W4tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
 
@@ -1174,7 +1157,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W4Tiling(CoCTili
             AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT,
             g_alltoAllMatmulNPU910BEightRankA16W4tilingCodeMap)}
     };
-    SetTilingParam(cocTilingData, TilingParamMap, info);
+    CalTilingParam(cocTilingData, TilingParamMap, info);
 
     DecodeTilingData(code, cocTilingData);
 
