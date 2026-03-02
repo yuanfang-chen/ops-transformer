@@ -31,9 +31,20 @@ namespace ChunkGatedDeltaRule {
         int64_t b;
         int64_t hasGamma;
         int64_t chunkSize;
+        int64_t maxGroupLength;    // maxGroupLength = p * chunkSize
+        int64_t interWorkspaceSz;
+        int64_t stageWorkspaceSz;
         float scale;
     };
     #pragma pack(pop)
+
+    struct ChunkGroup {
+        int64_t startPos = 0;    // 该ChunkGroup在T上的起始位置
+        int64_t length = 0;      // 该ChunkGroup的长度
+        int64_t chunkSize = 0;   // 每个chunk的长度
+        int64_t coreStart = 0;   // 预留
+        int64_t coreEnd = 0;     // 预留
+    }
 }  // ChunkGatedDeltaRule
 
 #endif  // CHUNK_GATED_DELTA_RULE_TILING_DATA_H

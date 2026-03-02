@@ -45,8 +45,6 @@ namespace optiling {
     const size_t DIM_2 = 2;
     const size_t DIM_3 = 3;
 
-    constexpr int64_t CHUNK_SIZE = 64;
-
     // 固定系统 workspace 大小（16 MB）
     constexpr int64_t SYS_WORKSPACE_SIZE = 16777216;
 
@@ -96,6 +94,30 @@ namespace optiling {
     }
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::DoOpTiling() {
+        int64_t c = 64;  // chunk size取64
+        int64_t p = 2;  // 一个chunk组中，单核最大chunk数
+        tilingData_.chunkSize = c;   // chunk size取64
+        tilingData_.maxGroupLength = p * tilingData_.aiCoreNum * tilingData_.chunkSize;
+        
+        tilingData_.interWorkspaceSz = 0;
+        int64_t sizeLow = ge::GetSizeByDataType(ge::DT_BF16);
+        int64_t sizeHigh = ge::GetSizeByDataType(ge::DT_FLOAT);
+        int64_t nv = tilingData_.nv;
+        int64_t dv = tilingData_.dv;
+        int64_t dk = tilingData_.dk;
+        int64_t s = tilingData_.maxGroupLength;
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s;  // gCumExp
+        tilingData_.interWorkspaceSz += sizeLow * nv * s * dk;  // kCumDecay
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // vInner
+        tilingData_.interWorkspaceSz += sizeLow * nv * s * dk;  // qPrime
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // attnInter
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dv;  // vNew
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kg
+        tilingData_.interWorkspaceSz += sizeHigh * nv * s * tilingData_.chunkSize;  // qkt
+
+        tilingData_.stageWorkspaceSz = sizeHigh * c * (3 * c + dk + dv);  // stage1需要3份(c, c)的临时变量
+        tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;
+
         PrintTilingData();
         return ge::GRAPH_SUCCESS;
     }
@@ -113,6 +135,8 @@ namespace optiling {
     // 计算 workspace 大小
     ge::graphStatus ChunkGatedDeltaRuleTiling::GetWorkspaceSize() {
         workspaceSize_ = SYS_WORKSPACE_SIZE;
+        workspaceSize_ += tilingData_.interWorkspaceSz;
+        workspaceSize_ += tilingData_.stageWorkspaceSz;
         return ge::GRAPH_SUCCESS;
     };
 
@@ -267,7 +291,6 @@ namespace optiling {
         tilingData_.nv = valueShape.GetDim(DIM_1);
         tilingData_.dv = valueShape.GetDim(DIM_2);
         tilingData_.b = cuSeqlensShape.GetDim(DIM_0);
-        tilingData_.chunkSize = CHUNK_SIZE;
 
         OP_CHECK_IF(tilingData_.nk == 0,  // 防止 nk == 0 造成取模除零
                 OP_LOGE(inputParams_.opName, "nk should be greater than 0"),
@@ -337,15 +360,18 @@ namespace optiling {
     }
 
      void ChunkGatedDeltaRuleTiling::PrintTilingData() {
-        OP_LOGD(context_->GetNodeName(), "aiCoreNum: [%u]", tilingData_.aiCoreNum);
-        OP_LOGD(context_->GetNodeName(), "t: [%u]", tilingData_.t);
-        OP_LOGD(context_->GetNodeName(), "nk: [%u]", tilingData_.nk);
-        OP_LOGD(context_->GetNodeName(), "dk: [%u]", tilingData_.dk);
-        OP_LOGD(context_->GetNodeName(), "nv: [%u]", tilingData_.nv);
-        OP_LOGD(context_->GetNodeName(), "dv: [%u]", tilingData_.dv);
-        OP_LOGD(context_->GetNodeName(), "b: [%u]", tilingData_.b);
-        OP_LOGD(context_->GetNodeName(), "hasGamma: [%u]", tilingData_.hasGamma);
-        OP_LOGD(context_->GetNodeName(), "chunkSize: [%u]", tilingData_.chunkSize);
+        OP_LOGD(context_->GetNodeName(), "aiCoreNum: [%ld]", tilingData_.aiCoreNum);
+        OP_LOGD(context_->GetNodeName(), "t: [%ld]", tilingData_.t);
+        OP_LOGD(context_->GetNodeName(), "nk: [%ld]", tilingData_.nk);
+        OP_LOGD(context_->GetNodeName(), "dk: [%ld]", tilingData_.dk);
+        OP_LOGD(context_->GetNodeName(), "nv: [%ld]", tilingData_.nv);
+        OP_LOGD(context_->GetNodeName(), "dv: [%ld]", tilingData_.dv);
+        OP_LOGD(context_->GetNodeName(), "b: [%ld]", tilingData_.b);
+        OP_LOGD(context_->GetNodeName(), "hasGamma: [%ld]", tilingData_.hasGamma);
+        OP_LOGD(context_->GetNodeName(), "chunkSize: [%ld]", tilingData_.chunkSize);
+        OP_LOGD(context_->GetNodeName(), "maxGroupLength: [%ld]", tilingData_.maxGroupLength);
+        OP_LOGD(context_->GetNodeName(), "interWorkspaceSz: [%ld]", tilingData_.interWorkspaceSz);
+        OP_LOGD(context_->GetNodeName(), "stageWorkspaceSz: [%ld]", tilingData_.stageWorkspaceSz);
         OP_LOGD(context_->GetNodeName(), "scale: [%f]", tilingData_.scale);
     }
 

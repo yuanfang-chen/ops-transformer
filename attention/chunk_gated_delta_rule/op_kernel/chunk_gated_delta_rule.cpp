@@ -21,26 +21,21 @@ using namespace AscendC;
 using namespace matmul;
 using namespace ChunkGatedDeltaRule;
 
-extern "C" __global__ __aicore__ void 
-chunk_gated_delta_rule(
-    GM_ADDR query, 
-    GM_ADDR key, 
-    GM_ADDR value, 
-    GM_ADDR beta, 
-    GM_ADDR initialState, 
-    GM_ADDR cuSeqlens, 
-    GM_ADDR gOptional, 
-    GM_ADDR out, 
-    GM_ADDR finalState, 
-    GM_ADDR workspaceGM, 
-    GM_ADDR tilingGM)
+extern "C" __global__ __aicore__ void chunk_gated_delta_rule(
+    GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR beta, GM_ADDR initialState, GM_ADDR seqlens, GM_ADDR gOptional,
+    GM_ADDR out, GM_ADDR finalState, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     REGISTER_TILING_DEFAULT(ChunkGatedDeltaRuleTilingData);
     GET_TILING_DATA(tilingData, tilingGM);
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
     TPipe pipe;
 
     __gm__ uint8_t *user = GetUserWorkspace(workspaceGM);
     
-    PRINTF("Welcome to chunk_gated_delta_rule\n");
+    ChunkGatedDeltaRule<bfloat16_t, float> op(&pipe, &tilingData);
+    ChunkGatedDeltaRuleInitParams initParams{
+        query, key, value, beta, initialState, seqlens, gOptional,
+        out, finalState};
+    op.Init(initParams, user);
+    op.Process();
 }
