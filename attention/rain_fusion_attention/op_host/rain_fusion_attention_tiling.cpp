@@ -932,7 +932,7 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
         tilingKey += 3;  // 3 for BNSD
     }
     if (softmaxLseFlag_) {
-        tilingKey += 100000000000ULL; // 1 for lse out
+        tilingKey += 100000000ULL; // 1 for lse out
     }
     
     return tilingKey;
