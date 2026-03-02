@@ -1014,11 +1014,12 @@ bool CheckSpecConditions(const gert::TilingContext *context)
     
     bool isMha = (kvHeadNum == 0) || (headNum == kvHeadNum);
     bool mhaConditions = isMha && !((qDataType == ge::DT_BF16) && (innerPrecise == 1)) && 
-        (tempAttnMaskShape == nullptr);
+        !((sparseMode == 0) && (tempAttnMaskShape != nullptr));
     bool nonMhaConditions = !isMha && (innerPrecise == 0);
     bool specConditionFlag = false;
+    bool quantScale2Flag = context->GetOptionalInputTensor(QUANT_SCALE2_INDEX) != nullptr ? true : false;
     if (isLayoutSupported && !isRopeSplitMla && sparseModeSupported &&
-        (nonMhaConditions || mhaConditions)) {
+        (nonMhaConditions || mhaConditions) && !quantScale2Flag) {
         int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);

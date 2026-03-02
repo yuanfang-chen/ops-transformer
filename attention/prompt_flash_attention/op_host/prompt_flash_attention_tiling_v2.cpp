@@ -884,19 +884,12 @@ bool PromptFlashAttentionTilingV2::SetAndCheckHeadNumRatio(ContextParamsForPFATi
             OP_LOGE(contextKeyParams.opName, "In antiquant and fullquant scenario, the G(numHeads / numKeyValueHeads) connot be larger than 64, but G = %d", nQ / nKV);	 
             return false; 
         } 
-     } else if (enableIFAMLA || enablePFAMLA || enableIFAMLAFullQuant) { 
+     } else { 
         if ((enableIFAMLA || enableIFAMLAFullQuant) && (nQ / nKV > GLIMIT_128)) { // G cannot be greater than 128. 
             OP_LOGE(contextKeyParams.opName, "In mla decode (non quant and fullquant) scenario, the G(numHeads / numKeyValueHeads) connot be larger than 128, but G = %d", nQ / nKV); 
             return false; 
         } 
-     } else { 
-        if ((nQ / nKV > GLIMIT_64 || nQ > NLIMIT) && CHECK_D_LIMITED_SCENARIO(queryShapeInfo.d)) {
-            OP_LOGE(contextKeyParams.opName, "In gqa non quant scenario, when dSize is not 64 or 128, the G(numHeads / numKeyValueHeads) "
-                "connot be larger than %d or the numHeads cannot be larger than %d, but numHeads = %d, numKeyValueHeads = %d.",
-                GLIMIT_64, NLIMIT, nQ, nKV); 
-            return false; 
-        } 
-    }
+     } 
 
     if (enableIFAMLA || enableIFA) {
         tilingData.promptAttentionBaseParams.set_headNumRatio(1);
@@ -981,7 +974,7 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const ge::DataType inputParamsType = contextKeyParams.inputDataType;
 
     OP_CHECK_IF((inputParamsType != ge::DT_INT8), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "inputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
+            "InputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
         return false);
     std::string layoutStr(contextKeyParams.layout);
@@ -993,13 +986,13 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
         return false);
     OP_CHECK_IF((deqScale1Shape == nullptr) || (quantScale1Shape == nullptr) || (deqScale2Shape == nullptr),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "deqScale1, quantScale1 or deqScale2 is nullptr in per-tensor quant scenario."),
+            "DeqScale1, quantScale1 or deqScale2 is nullptr in per-tensor quant scenario."),
         return false);
     OP_CHECK_IF((deqScale1Shape != nullptr && deqScale1Shape->GetStorageShape().GetShapeSize() == 0) ||
                 (quantScale1Shape != nullptr && quantScale1Shape->GetStorageShape().GetShapeSize() == 0) ||
                 (deqScale2Shape != nullptr && deqScale2Shape->GetStorageShape().GetShapeSize() == 0),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-            "deqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."),
+            "DeqScale1, quantScale1 or deqScale2 is empty tensor in per-tensor quant scenario."),
         return false);
     OP_CHECK_IF(enablePFARope, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "Rope is not supported in per-tensor quant scenario."), return false);
@@ -1682,6 +1675,10 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
 
     if (queryShapeInfo.s <= 1U) {
+        return false;
+    }
+
+    if (queryShapeInfo.s > 256U && (queryShapeInfo.d % 64) != 0) {
         return false;
     }
 
@@ -2572,10 +2569,6 @@ bool PromptFlashAttentionTilingV2::CheckMaskTypeAndShape(ContextParamsForPFATili
     // 1: last frist dim, 2: last second dim
     maskKVsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 1);
     maskQsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 2); // 2 for Q dim index
-    
-    if (enableIFAMask) {
-        maskQsSize = 1;
-    }
 
     tilingData.promptAttentionBaseParams.set_maskKVsSize(maskKVsSize);
     tilingData.promptAttentionBaseParams.set_maskQsSize(maskQsSize);
@@ -4275,6 +4268,9 @@ ge::graphStatus PromptFlashAttentionTilingV2::SetAttributeInfo(ContextParamsForP
     if (contextKeyParams.blockTable != nullptr) {
         OP_CHECK_IF(contextKeyParams.blockSize == nullptr, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "blockSize can't be null when PA enable"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(contextKeyParams.inputDataType == ge::DT_INT8, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Query dataType can't be INT8 when PA enable."),
             return ge::GRAPH_FAILED);
         enablePA = true;
     }

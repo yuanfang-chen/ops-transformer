@@ -20,13 +20,15 @@ namespace MC2KernelTemplate {
 struct MC2TransposeContext;
 struct MC2AlltoAllContext;
 struct MC2PertokenDQuantContext;
-// todo 后续可以按节点拆成对应的上下文复用
+// 后续可以按节点拆成对应的上下文复用
 template <typename ComputationContextType>
 struct PipelineContext {
     // computation
     ComputationContextType* computationContext;
     // transpose
     MC2TransposeContext* transposeContext;
+    // scaleTranspose
+    MC2TransposeContext* scaleTransposeContext;
     // communication
     MC2AlltoAllContext* communicationContext;
     // quantization
