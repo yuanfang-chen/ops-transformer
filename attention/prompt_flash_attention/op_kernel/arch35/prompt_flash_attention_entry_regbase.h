@@ -144,7 +144,7 @@ using namespace regbaseutil;
 #else // VECTOR 实现
 #define PFA_REGBASE_COPY_TILING_DATA(tiling)                                                                                                \
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
+    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn
 
 #define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA(templateClass, vec1ResultSize, qkvSize, ...)\
     do {                                                                                                 \
@@ -205,15 +205,13 @@ using namespace regbaseutil;
     PFA_REGBASE_COPY_TILING_DATA(tiling);                                                               \
     PromptFlashAttentionZeroOutPut<T> op;                                                               \
     op.Init(attentionOut, softmaxLse, tilingData);                                                      \
-    op.Process();                                                                                       \
-    return
+    op.Process()
 #define INVOKE_PFA_DUMMY(templateClass, ...)                                                            \
     TPipe tPipe;                                                                                        \
     PFA_REGBASE_COPY_TILING_DATA(tiling);                                                               \
     PromptFlashAttentionDummy<half> op;                                                                 \
     op.Init(attentionOut, tilingData);                                                                  \
-    op.Process();                                                                                       \
-    return
+    op.Process()
 
 constexpr uint32_t L1BUFSIZE = 65536; // D最大支持256, 65536: 128 * 256 * 2
 
