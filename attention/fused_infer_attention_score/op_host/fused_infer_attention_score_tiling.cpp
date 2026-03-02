@@ -1369,7 +1369,13 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     bool isLearnableSink = context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
     auto tempQ = context.GetInputShape(QUERY_INDEX);
     int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
-    bool isLearnableSinkFlag = (!isLearnableSink) || (isLearnableSink && tempQD != 64);
+    bool isLearnableSinkFlag = true;
+    if (isLearnableSink) {
+        auto sinkDataType = context->GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+        if (tempQD == 64 && sinkDataType == ge::DT_BF16) {
+            isLearnableSinkFlag = false;
+        }
+    }
 
     auto qRope = context.GetOptionalInputTensor(QUERY_ROPE_INDEX);
     auto kRope = context.GetOptionalInputTensor(KEY_ROPE_INDEX);
