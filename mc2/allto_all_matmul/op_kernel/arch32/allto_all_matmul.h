@@ -311,15 +311,7 @@ template <TemplateA2AMMClass>
 __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ AType *dataSrc, int32_t dataOffset,
     int32_t coreTokenOffset, int32_t dataLen, int32_t commIdx)
 {
-    int32_t ubTokenAlignedPingPongSize = ubPingPongSize / tokenSize * tokenSize;
-    int32_t pingPongMoveCount = (dataLen + ubTokenAlignedPingPongSize - 1) / ubTokenAlignedPingPongSize;
-    int32_t actualMoveSize = ubTokenAlignedPingPongSize;
-    int32_t tokenPerMove = actualMoveSize / tokenSize;
-    int32_t actualMoveToken = tokenPerMove; /* ub_ping_pong_size已经与tokenSize对齐，因此必然每次搬运整数倍token */
     int32_t tokenNum = dataLen / tokenSize;
-    //动态量化为INT8场景，每个元素1字节；量化为INT4场景，每两个元素1字节
-    uint32_t actualMoveBytes = std::is_same_v<BType, int8_t> ? actualMoveSize : actualMoveSize / 2;
-    uint32_t sizeScale = std::is_same_v<BType, int8_t> ? 1 : 2;
     LocalTensor<float> ubTensor = uBuf_.Get<float>();
     /* 用于存储计算完成的量化系数 */
     LocalTensor<float> quantScaleTensor = ubTensor;
@@ -335,6 +327,16 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::QuantToken(__gm__ ATyp
     uint32_t ub_offset = Block32B<float>::AlignUp(midElementCnt);
     LocalTensor<float> copyTensor0 = smoothScaleTensor[copyTensorOffset];
     LocalTensor<float> copyTensor1 = smoothScaleTensor[ub_offset];
+
+    int32_t copyTensorRemainUbSize = midElementCnt - Block32B<float>::AlignUp(tokenSize) - BLOCK_ALIGN_BYTES / sizeof(float);
+    int32_t ubTokenAlignedPingPongSize = copyTensorRemainUbSize / tokenSize * tokenSize;
+    int32_t pingPongMoveCount = (dataLen + ubTokenAlignedPingPongSize - 1) / ubTokenAlignedPingPongSize;
+    int32_t actualMoveSize = ubTokenAlignedPingPongSize;
+    int32_t tokenPerMove = tokenNum < actualMoveSize / tokenSize ? tokenNum : actualMoveSize / tokenSize;
+    int32_t actualMoveToken = tokenPerMove; /* ub_ping_pong_size已经与tokenSize对齐，因此必然每次搬运整数倍token */
+    //动态量化为INT8场景，每个元素1字节；量化为INT4场景，每两个元素1字节
+    uint32_t actualMoveBytes = std::is_same_v<BType, int8_t> ? actualMoveSize : actualMoveSize / 2;
+    uint32_t sizeScale = std::is_same_v<BType, int8_t> ? 1 : 2;
 
     /* 用于存储计算quantScale的token取abs的结果 */
     int32_t absOffset = Block32B<float>::AlignUp(ubTokenAlignedPingPongSize); /* 从GM拷贝的数据用abs_offset_a大小空间，case为float后用abs_offset大小的空间 */
@@ -574,7 +576,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Quant(uint64_t flagIdx
         dataLen = dataSrcCoreOffset + quantSizePerCore > totalDataSize ? totalDataSize - dataSrcCoreOffset : quantSizePerCore;
         coreTokenOffset = remainTokenNum * (tokenPercore + 1) + (globalAivIdx % quantCoreNum - remainTokenNum) * tokenPercore;
     }
-    if (dataLen < 0) {
+    if (dataLen <= 0) {
         return;
     }
     int64_t dataSrcOffset = flagIdx * pingPongBlockSize;
