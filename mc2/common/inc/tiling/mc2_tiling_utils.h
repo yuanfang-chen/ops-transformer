@@ -39,7 +39,7 @@ constexpr uint32_t COMM_PAIRWISE = (COMM_MESH << 3U);
 constexpr uint32_t COMM_UNDEFINED = 0xFFFFFFFFU;
 constexpr uint8_t COMM_ALG_FULL_MESH_HOST = 6;
 constexpr uint64_t CHECK_VALUE_ODD = 2;
-constexpr uint32_t AIC_NUM_910D = 32;
+constexpr uint32_t AIC_NUM_950 = 32;
 constexpr uint64_t MC2_TILINGKEY_OFFSET =
     uint64_t(1000000000000000000UL);  // 10^18
 constexpr size_t RES_LEN = 64;
@@ -84,6 +84,9 @@ constexpr uint64_t GROUP_N_OFFSET = 16;
 constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
 
 constexpr auto DEFAULT_KEY_FOR_FITTING_MAP = "0_0";
+
+constexpr static uint64_t ALL_GATHER_HCCL_MEM_LIMIT = 256 * 1024 * 1024;
+constexpr static uint64_t ALL_GATHER_HCCL_NUM_LIMIT = 16;
 
 enum class Mc2QuantMode {
   DEFAULT = 0,

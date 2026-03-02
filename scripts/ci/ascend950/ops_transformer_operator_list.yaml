@@ -39,6 +39,7 @@ operator_group_4:
   - moe_init_routing_v2
   - moe_init_routing_v2_grad
   - moe_init_routing_v3
+  - moe_token_permute_with_routing_map_grad
   - rope_with_sin_cos_cache
   - moe_re_routing
   - moe_compute_expert_tokens
@@ -55,6 +56,7 @@ operator_group_6:
   - sparse_lightning_indexer_grad_kl_loss
   - prompt_flash_attention
   - kv_quant_sparse_flash_attention
+  - quant_lightning_indexer
 operator_group_7:
   - fused_infer_attention_score,10-0
 operator_group_8:
