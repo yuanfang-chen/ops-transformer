@@ -132,7 +132,7 @@
 <col style="width: 320px"> <!-- 使用说明列宽：自行调整列宽--> 
 <col style="width: 250px"> <!-- 数据类型列宽：自行调整列宽--> 
 <col style="width: 120px"> <!--数据格式：自行调整列宽--> 
-<col style="width: 140px"> <!-- 维度(shape)：自行调整列宽，内容较少时可以适当缩小列宽--> 
+<col style="width: 240px"> <!-- 维度(shape)：自行调整列宽，内容较少时可以适当缩小列宽--> 
 <col style="width: 140px"> <!--非连续Tensor：自行调整列宽，必须不要修改这个数值--> 
 </colgroup> 
 <thead> 
