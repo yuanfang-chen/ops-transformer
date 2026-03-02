@@ -319,7 +319,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     globalBS_ = tilingData->moeDistributeDispatchV2Info.globalBs;
     scaleInBytes_ = tilingData->moeDistributeDispatchV2Info.scalesCol * tilingData->moeDistributeDispatchV2Info.scalesTypeSize;
     scalesCount_ = tilingData->moeDistributeDispatchV2Info.scalesCount;
-    statusDataSpaceGm_ = mc2ContextPtr->epHcclBuffer[epRankId_]; //Mc2Kernel::GetStatusDataSpaceGm(winContext_[COMM_EP_IDX]);
+    statusDataSpaceGm_ = (GM_ADDR)mc2ContextPtr->epHcclBuffer[epRankId_]; //Mc2Kernel::GetStatusDataSpaceGm(winContext_[COMM_EP_IDX]);
     selfDataStatusGMTensor_.SetGlobalBuffer((__gm__ uint32_t*)(statusDataSpaceGm_ + DISPATCH_STATE_WIN_OFFSET + aivId_ * WIN_ADDR_ALIGN));
     TBuf<> dataStateBuf;
     tpipe_->InitBuffer(dataStateBuf, UB_ALIGN);
