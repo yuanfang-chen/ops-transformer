@@ -1367,6 +1367,16 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
     int32_t sparseMode = *(attrs->GetAttrPointer<int32_t>(ATTR_SPARSE_MODE_INDEX));
     int32_t innerPrecise = *(attrs->GetAttrPointer<int32_t>(ATTR_INNER_PRECISE_INDEX));
     bool isLearnableSink = context.GetOptionalInputTensor(LEARNABLE_SINK_INDEX) != nullptr ? true : false;
+    bool isLearnableSinkFlag = true;
+    if (isLearnableSink && inputLayoutStr == "TND") {
+        auto tempQ = context.GetInputShape(QUERY_INDEX);
+        int64_t tempQD = tempQ->GetStorageShape().GetDim(DIM_2);
+        auto sinkDataType = context.GetOptionalInputDesc(LEARNABLE_SINK_INDEX)->GetDataType();
+        if (tempQD == 64 && sinkDataType == ge::DT_BF16) {
+            isLearnableSinkFlag = false;
+        }
+    }
+
     auto qRope = context.GetOptionalInputTensor(QUERY_ROPE_INDEX);
     auto kRope = context.GetOptionalInputTensor(KEY_ROPE_INDEX);
     bool isRopeSplitMla = (qRope != nullptr) && (kRope != nullptr);
@@ -1378,7 +1388,7 @@ static bool IsUsingFAI(gert::TilingContext &context, const string inputLayoutStr
 
     bool usingFAI = false;
     constexpr int64_t BLOCK_SIZE_ALIGN_16 = 16;
-    if (inputLayoutStr == "TND" && !isRopeSplitMla &&
+    if (inputLayoutStr == "TND" && isLearnableSinkFlag && !isRopeSplitMla &&
         sparseModeSupported && (nonMhaConditions || mhaConditions)) {
         if (!isPageAttention) {
             int64_t tempKD = tempK->GetStorageShape().GetDim(DIM_2);
