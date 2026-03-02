@@ -173,27 +173,39 @@ is INT8 or INT32, actual is %s.",
 
 bool GroupedQbmmTiling::CheckDtypeForWeightNz(bool isPertokenScaleNull) const
 {
-    OP_CHECK_IF(inputParams_.aDtype != ge::DT_INT8 || inputParams_.bDtype != ge::DT_INT8,
+    bool isA8W8Int = inputParams_.aDtype == ge::DT_INT8 && inputParams_.bDtype == ge::DT_INT8;
+    bool isA8W8Fp = inputParams_.aDtype == ge::DT_FLOAT8_E4M3FN && inputParams_.bDtype == ge::DT_FLOAT8_E4M3FN;
+    OP_CHECK_IF(
+        !(isA8W8Int || isA8W8Fp),
+        OP_LOGE(
+            context_->GetNodeName(),
+            "When the weight is in Nz format, the dtype of x/weight should be INT8 or FLOAT8_E4M3FN, actual are %s/%s.",
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
+            ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
+        return false);
+    OP_CHECK_IF(isA8W8Int && inputParams_.cDtype == ge::DT_INT8,
                 OP_LOGE(context_->GetNodeName(),
-                        "When the weight is in Nz format, the dtype of x/weight should be INT8, actual is %s, %s.",
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(),
-                        ge::TypeUtils::DataTypeToSerialString(inputParams_.bDtype).c_str()),
-                return false);
-    OP_CHECK_IF(inputParams_.cDtype == ge::DT_INT8,
-                OP_LOGE(context_->GetNodeName(), "When the weight is in Nz format, the dtype of y should not be INT8."),
+                        "When the weight is in Nz format and x is INT8, the dtype of y should not be INT8."),
                 return false);
     if (!isPertokenScaleNull) {
-        OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT,
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format and the pertokenScale should be FLOAT, actual is %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str()),
-                    return false);
-        OP_CHECK_IF(inputParams_.scaleDtype != ge::DT_BF16 && inputParams_.scaleDtype != ge::DT_FLOAT,
-                    OP_LOGE(context_->GetNodeName(),
-                            "When the weight is in Nz format and the pertokenScale is FLOAT, the dtype of scale \
-should be in {BF16, FLOAT}, actual is %s.",
-                            ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
-                    return false);
+        if (isA8W8Int) {
+            OP_CHECK_IF(inputParams_.perTokenScaleDtype != ge::DT_FLOAT ||
+                            (inputParams_.scaleDtype != ge::DT_BF16 && inputParams_.scaleDtype != ge::DT_FLOAT),
+                        OP_LOGE(context_->GetNodeName(),
+                                "When the weight is Nz format and x/weight's dtype are INT8 and pertokenScale exists, \
+the dtype of pertokenScale should be FLOAT and the dtype of scale should be in {BF16, FLOAT}, actual are %s/%s.",
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str(),
+                                ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
+                        return false);
+        } else if (isA8W8Fp) {
+            OP_CHECK_IF(
+                inputParams_.perTokenScaleDtype != ge::DT_FLOAT8_E8M0 || inputParams_.scaleDtype != ge::DT_FLOAT8_E8M0,
+                OP_LOGE(context_->GetNodeName(), "When the weight is Nz format and x/weight's dtype are FLOAT8_E4M3, \
+the dtype of pertokenScaleand and scale should be FLOAT8_E8M0, actual are %s/%s.",
+                        ge::TypeUtils::DataTypeToSerialString(inputParams_.perTokenScaleDtype).c_str(),
+                        ge::TypeUtils::DataTypeToSerialString(inputParams_.scaleDtype).c_str()),
+                return false);
+        }
     } else {
         static const std::vector<ge::DataType> legalScaleDtypes = {ge::DT_UINT64, ge::DT_INT64, ge::DT_FLOAT,
                                                                    ge::DT_BF16};
@@ -1035,23 +1047,12 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
     uint64_t baseScaleASize = 0;
     uint64_t baseScaleBSize = 0;
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        if (inputParams_.groupType == SPLIT_M) {
-            baseScaleASize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseM,
-                                    inputParams_.perTokenScaleDtype);
-            baseScaleBSize =
-                GetSizeWithDataType(CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), 2UL) * basicTiling_.baseN,
-                                    inputParams_.scaleDtype);
-        } else {
-            baseScaleASize = GetSizeWithDataType(
-                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
-                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseM, // 2 is dim value of last scale dim
-                inputParams_.perTokenScaleDtype);
-            baseScaleBSize = GetSizeWithDataType(
-                (basicTiling_.baseK / (MX_GROUP_SIZE * MXFP_MULTI_BASE_SIZE) + inputParams_.groupNum) *
-                    MXFP_MULTI_BASE_SIZE * basicTiling_.baseN, // 2 is dim value of last pertokenScale dim
-                inputParams_.scaleDtype);
-        }
+        baseScaleASize = GetSizeWithDataType(
+            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseM,
+            inputParams_.perTokenScaleDtype);
+        baseScaleBSize = GetSizeWithDataType(
+            CeilAlign(CeilDiv(basicTiling_.baseK, MX_GROUP_SIZE), MXFP_MULTI_BASE_SIZE) * basicTiling_.baseN,
+            inputParams_.scaleDtype);
     }
     uint64_t baseL1Size = baseASize + baseBSize + baseScaleASize + baseScaleBSize;
     OP_CHECK_IF(leftL1Size < baseL1Size,
@@ -1059,21 +1060,80 @@ ge::graphStatus GroupedQbmmTiling::CalL1Depth(uint64_t leftL1Size)
                                          "L1 space overflow. Free L1Size : %lu, used space: %lu", leftL1Size,
                                          baseL1Size),
                return ge::GRAPH_FAILED);
-    uint64_t depthInit = GetDepthA1B1(leftL1Size, baseL1Size, 1UL);
-    uint64_t leftL1SizeByDepthInit = leftL1Size - depthInit * (baseL1Size);
-    uint64_t depthASec = GetDepthA1B1(leftL1SizeByDepthInit, (baseASize + baseScaleASize) * depthInit, depthInit);
-    uint64_t depthBSec = GetDepthA1B1(leftL1SizeByDepthInit, (baseBSize + baseScaleBSize) * depthInit, depthInit);
-    basicTiling_.depthA1 = std::max(depthASec, depthBSec);
-    basicTiling_.depthB1 = basicTiling_.depthA1;
-    if (basicTiling_.depthA1 * baseL1Size > leftL1Size) {
-        basicTiling_.depthA1 = depthASec >= depthBSec ? depthASec : depthInit;
-        basicTiling_.depthB1 = depthASec < depthBSec ? depthBSec : depthInit;
+    uint64_t depthInit = GetDepthA1B1(leftL1Size, baseL1Size, 1UL); // 求A+B和的平均depth
+    // 根据一条指令带宽要求的数据量求取A,B各自的depth
+    basicTiling_.depthA1 = GetDepthWithHighBW(std::min(inputParams_.mSize, basicTiling_.baseM));
+    basicTiling_.depthB1 = GetDepthWithHighBW(std::min(inputParams_.nSize, basicTiling_.baseN));
+    // 如果按照满足带宽的L1数据量超过了L1Size，进行下调整到平均depth;适配mx低阶api scaleKAL1=scaleKBL1的约束
+    if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+            std::max(basicTiling_.depthA1, basicTiling_.depthB1) * (baseScaleASize + baseScaleBSize) >
+        leftL1Size) {
+        basicTiling_.depthA1 = depthInit;
+        basicTiling_.depthB1 = depthInit;
     }
+    // 用剩余L1空间对内轴ND非对齐场景进行调整depth
+    ModifyDepthForUnalign(leftL1Size, baseASize, baseBSize, baseScaleASize + baseScaleBSize);
     CalStepKs();
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
-        CalScaleFactors();
+        return CalScaleFactors();
     }
     return ge::GRAPH_SUCCESS;
+}
+
+uint64_t GroupedQbmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
+{
+    // 只需要满足读GM数据大于64KB即可获得较高的带宽，不一定要把L1用满，同时减少MTE2头开销
+    uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
+    uint64_t depth =
+        CeilAlign(CeilDiv(MTE2_MIN_LOAD_SIZE_V120, mnL1), static_cast<uint64_t>(GmmConstant::BASIC_BLOCK_SIZE_256)) /
+        baseKSize * DB_SIZE;
+    uint64_t pow2Depth = POWER_OF_TWO;
+    while (pow2Depth < depth) {
+        pow2Depth *= POWER_OF_TWO;
+    }
+    // 对齐2次幂或者实际最大depth大小
+    return std::min(pow2Depth, CeilDiv(inputParams_.kSize, basicTiling_.baseK) * DB_SIZE);
+}
+
+void GroupedQbmmTiling::ModifyDepthForUnalign(uint64_t leftL1Size, uint64_t baseASize, uint64_t baseBSize,
+                                              uint64_t baseScaleABSize)
+{
+    // 只调整K轴非对齐场景
+    if (inputParams_.kSize % GmmConstant::BASIC_BLOCK_SIZE_128 == 0) {
+        return;
+    }
+    // m，n在内轴且ND时，修改stepk无法改变ND2NZ小包数量
+    if (inputParams_.transA && (!inputParams_.transB || inputParams_.bFormat == ge::FORMAT_FRACTAL_NZ)) {
+        return;
+    }
+    if (!inputParams_.transA) {
+        if (basicTiling_.depthA1 <= basicTiling_.depthB1) {
+            uint64_t leftASize = leftL1Size - basicTiling_.depthB1 * baseBSize - basicTiling_.depthB1 * baseScaleABSize;
+            while (basicTiling_.depthA1 * POWER_OF_TWO * baseASize <= leftASize) {
+                basicTiling_.depthA1 *= POWER_OF_TWO;
+            }
+            if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+                    std::max(basicTiling_.depthA1, basicTiling_.depthB1) * baseScaleABSize >
+                leftL1Size) {
+                basicTiling_.depthA1 = basicTiling_.depthB1;
+            }
+        } else if (inputParams_.transB && inputParams_.bFormat == ge::FORMAT_ND) {
+            uint64_t leftBSize = leftL1Size - basicTiling_.depthA1 * baseASize - basicTiling_.depthA1 * baseScaleABSize;
+            while (basicTiling_.depthB1 * POWER_OF_TWO * baseBSize <= leftBSize) {
+                basicTiling_.depthB1 *= POWER_OF_TWO;
+            }
+            if (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize +
+                    std::max(basicTiling_.depthA1, basicTiling_.depthB1) * baseScaleABSize >
+                leftL1Size) {
+                basicTiling_.depthB1 = basicTiling_.depthA1;
+            }
+        }
+    } else { // transA = true, transB = true, 仅考虑B depth
+        while ((basicTiling_.depthA1 * baseASize -
+                std::max(basicTiling_.depthA1, basicTiling_.depthB1 * POWER_OF_TWO) * baseScaleABSize) < leftL1Size) {
+            basicTiling_.depthB1 *= POWER_OF_TWO;
+        }
+    }
 }
 
 uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)
@@ -1134,7 +1194,7 @@ void GroupedQbmmTiling::CalStepKs()
     basicTiling_.depthB1 = basicTiling_.stepKb * DB_SIZE;
 }
 
-void GroupedQbmmTiling::CalScaleFactors()
+ge::graphStatus GroupedQbmmTiling::CalScaleFactors()
 {
     uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
     uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
@@ -1146,41 +1206,38 @@ void GroupedQbmmTiling::CalScaleFactors()
     uint64_t baseBiasSize = inputParams_.hasBias ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t leftL1Size =
         aicoreParams_.l1Size - (basicTiling_.depthA1 * baseASize + basicTiling_.depthB1 * baseBSize + baseBiasSize);
-    uint32_t scaleInit = static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize +
-                                                            basicTiling_.depthB1 * baseScaleBSize));
-
+    uint32_t scaleInit = static_cast<uint32_t>(
+        leftL1Size / (std::max(basicTiling_.depthA1, basicTiling_.depthB1) * (baseScaleASize + baseScaleBSize)));
+    OP_CHECK_IF(
+        scaleInit == 0,
+        OP_LOGE(context_->GetNodeName(),
+                "When m(%lu)/n(%lu)/k(%lu)/groupNum(%lu) in mx quant mode, scaleFactor should not be equal to 0.",
+                inputParams_.mSize, inputParams_.nSize, inputParams_.kSize, inputParams_.groupNum),
+        return ge::GRAPH_FAILED);
     // 计算scaleFactorA, scaleFactorB
     // 来自K轴的约束
     uint32_t scaleFactorAMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleASize), SCALER_FACTOR_MAX);
     uint32_t scaleFactorBMax =
         std::min(static_cast<uint32_t>(MTE2_MIN_LOAD_SIZE_V120 / baseScaleBSize), SCALER_FACTOR_MAX);
-    uint32_t scaleFactorA = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKa * basicTiling_.baseK));
-    uint32_t scaleFactorB = static_cast<uint32_t>(inputParams_.kSize / (basicTiling_.stepKb * basicTiling_.baseK));
+    uint32_t scaleFactorA = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKa * basicTiling_.baseK));
+    uint32_t scaleFactorB = static_cast<uint32_t>(CeilDiv(inputParams_.kSize, basicTiling_.stepKb * basicTiling_.baseK));
     basicTiling_.scaleFactorA = std::max(SCALER_FACTOR_MIN, scaleFactorA);
     basicTiling_.scaleFactorB = std::max(SCALER_FACTOR_MIN, scaleFactorB);
     basicTiling_.scaleFactorA = std::min(scaleFactorAMax, basicTiling_.scaleFactorA);
     basicTiling_.scaleFactorB = std::min(scaleFactorBMax, basicTiling_.scaleFactorB);
 
     // 来自L1 size 的约束
-    if (basicTiling_.scaleFactorA <= scaleInit && basicTiling_.scaleFactorB > scaleInit) {
-        leftL1Size -= (basicTiling_.scaleFactorA * basicTiling_.depthA1 * baseScaleASize);
-        basicTiling_.scaleFactorB = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
-                                             basicTiling_.scaleFactorB);
-    } else if (basicTiling_.scaleFactorB <= scaleInit && basicTiling_.scaleFactorA > scaleInit) {
-        leftL1Size -= (basicTiling_.scaleFactorB * basicTiling_.depthB1 * baseScaleBSize);
-        basicTiling_.scaleFactorA = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
-                                             basicTiling_.scaleFactorA);
-    } else if (basicTiling_.scaleFactorA > scaleInit && basicTiling_.scaleFactorB > scaleInit) {
-        leftL1Size -=
-            (scaleInit * basicTiling_.depthB1 * baseScaleBSize + scaleInit * basicTiling_.depthA1 * baseScaleASize);
-        uint32_t scaleASec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthA1 * baseScaleASize)),
-                                      basicTiling_.scaleFactorA - scaleInit);
-        uint32_t scaleBSec = std::min(static_cast<uint32_t>(leftL1Size / (basicTiling_.depthB1 * baseScaleBSize)),
-                                      basicTiling_.scaleFactorB - scaleInit);
-        basicTiling_.scaleFactorA = scaleASec >= scaleBSec ? (scaleASec + scaleInit) : scaleInit;
-        basicTiling_.scaleFactorB = scaleASec < scaleBSec ? (scaleBSec + scaleInit) : scaleInit;
+    if (basicTiling_.scaleFactorA > scaleInit && basicTiling_.scaleFactorB > scaleInit) { // 非scalek全载，ka/kb倍数
+        if (basicTiling_.depthA1 >= basicTiling_.depthB1) {
+            basicTiling_.scaleFactorA = scaleInit;
+            basicTiling_.scaleFactorB = scaleInit * basicTiling_.depthA1 / basicTiling_.depthB1;
+        } else {
+            basicTiling_.scaleFactorA = scaleInit * basicTiling_.depthB1 / basicTiling_.depthA1;
+            basicTiling_.scaleFactorB = scaleInit;
+        }
     }
+    return ge::GRAPH_SUCCESS;
 }
 
 uint64_t GroupedQbmmTiling::GetSizeWithDataType(uint64_t shapeSize, ge::DataType dtype) const
