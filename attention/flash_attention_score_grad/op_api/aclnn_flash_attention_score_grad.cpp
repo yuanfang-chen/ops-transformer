@@ -2052,10 +2052,9 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV4GetWorkspaceSize(
                           inputLayout, innerPrecise, sparseMode, softmaxInLayout),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(fBaseParams.inputLayout, TND_STR) != 0 && strcmp(fBaseParams.inputLayout, BSH_STR) != 0) {
-        OP_LOGI(context_, "FlashAttentionScoreGraTilingBasicDet only support TND, BSH inputLayout, now is %s.",
-                  fBaseParams.inputLayout);
-        return ge ::GRAPH_PARAM_INVALID;
+    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
     }
 
     if (strcmp(softmaxInLayout, "same_as_input") != 0 && strcmp(softmaxInLayout, "") != 0 ) {
@@ -2349,10 +2348,10 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
                sparseMode, pseType, softmaxInLayout), 
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut, dsinkOut)); 
     
-    // if (strcmp(inputLayout, "TND") != 0) {
-    //     OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
-    //     return ACLNN_ERR_PARAM_INVALID;
-    // }
+    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);	 
+         return ACLNN_ERR_PARAM_INVALID;	 
+    }
     
     // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
