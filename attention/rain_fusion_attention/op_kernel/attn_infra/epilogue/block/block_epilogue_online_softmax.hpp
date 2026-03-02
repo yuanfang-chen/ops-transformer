@@ -775,11 +775,14 @@ public:
         uint32_t columnNumPad = layoutOutput.stride(0);
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
-
+        AscendC::printf("softmax 33333");
         if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) { // 同步等待LSE
+            AscendC::printf("softmax 444444");
             // In lse out-only mode, tv is used in the last stack tile to transport lse
             if (isFirstStackTile && isFirstRowLoop) {
+                AscendC::printf("softmax 555555 before");
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+                AscendC::printf("softmax 555555 after");
             }
         }
         CalcLocalRowMax(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
@@ -920,13 +923,16 @@ public:
         uint32_t gmOffsetMaskColumn;
         uint32_t maskColumn;
         uint32_t addMaskUbOffset;
+        AscendC::printf("softmax 1111");
         if (triUp >= kvSStartIdx) {
+            AscendC::printf("softmax triup >=");
             uint32_t triUpRoundDown = RoundDown(triUp, BLOCK_SIZE_IN_BYTE);
             gmOffsetMaskRow = triUp - triUpRoundDown;
             gmOffsetMaskColumn = 0;
             maskColumn = kvSEndIdx - triUpRoundDown;
             addMaskUbOffset = triUpRoundDown - kvSStartIdx;
         } else {
+            AscendC::printf("softmax triup <");
             gmOffsetMaskRow = 0;
             gmOffsetMaskColumn = kvSStartIdx - triUp;
             maskColumn = columnNum;
@@ -944,9 +950,11 @@ public:
         rowNumTile = AscendC::Std::min(rowNumTile, FLOAT_VECTOR_SIZE);
         uint32_t rowLoopNum = CeilDiv(rowActualThisSubBlock, rowNumTile);
         uint32_t preLoad = 1;
-
+        AscendC::printf("softmax 222222");
         if (rowActualThisSubBlock == 0) {
+            AscendC::printf("softmax owActualThisSubBlock == 0");
             Arch::CrossCoreWaitFlag(qkReady);
+            AscendC::printf("softmax owActualThisSubBlock == 0");
             return;
         }
 

@@ -408,7 +408,7 @@ namespace RainFusion {
                 // Main computation loop: QK matmul -> Softmax -> PV matmul
                 for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
                     // Stage 1: QK matmul (computed on CUBE core)
-                    if (kvSIdx < kvSLoopNumTotal + preKVNum) {
+                    if (kvSIdx < kvSLoopNumTotal) {
                         stackSeqTile = noSkipKvS - kvSIdx * pagedBlockSize;
                         if (stackSeqTile >= pagedBlockSize * blockStackNum) {
                             stackSeqTile = pagedBlockSize * blockStackNum;
