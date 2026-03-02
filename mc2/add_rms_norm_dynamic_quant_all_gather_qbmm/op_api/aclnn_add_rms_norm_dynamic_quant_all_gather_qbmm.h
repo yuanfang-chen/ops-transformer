@@ -30,19 +30,25 @@ extern "C" {
  * 算子功能：实现add + rmsNorm + dynamicQuant + allGather + qbmm融合计算
  * @brief aclnnAddRmsNormDynamicQuantAllGatherQbmm的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
- * @param [in] x1: 公式中的输入x1，不支持空Tensor，xxx。
- * @param [in] x2: 公式中的输入x2，不支持空Tensor，xxx。
- * @param [in] y: 公式中的输入y，不支持空Tensor，xxx。
- * @param [in] gamma: 公式中的输入gamma，不支持空Tensor，xxx。
- * @param [in] scale: 公式中的输入scale，不支持空Tensor，xxx.
- * @param [in] smoothScale: 公式中的输入smoothScale，不支持空Tensor，xxx.
+ * @param [in] x1: AddRmsNorm的输入x1，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [in] x2: QBMM的输入x2，不支持空Tensor，数据类型支持INT8，数据格式支持ND、FRACTAL_NZ。
+ * @param [in] residual: AddRmsNorm的输入residual，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [in] y: AddRmsNorm的输入y，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [in] gamma: AddRmsNorm的输入gamma，不支持空Tensor，数据类型支持FLOAT，数据格式支持ND。
+ * @param [in] scale: QBMM的输入scale，不支持空Tensor，数据类型支持BFLOAT16、FLOAT，数据格式支持ND。
+ * @param [in] smoothScale: AddRmsNorm的输入smoothScale，支持空Tensor，数据类型支持FLOAT，数据格式支持ND。
+ * @param [in] bias: QBMM的输入bias，支持空Tensor，数据类型支持INT32，数据格式支持ND。
  * @param [in] group: 通信域标识，数据类型支持：string。
- * @param [in] rankSize: xxx。
- * @param [in] transposeX2: xxx。
- * @param [in] dtype: xxx。
- * @param [in] residualNormMode: xxx。
- * @param [out] output: 公式中的输出output，不支持空Tensor，xxx。
- * @param [out] z: 公式中的输出output，不支持空Tensor，xxx。
+ * @param [in] rankSize: 通信域大小，数据类型支持：int64。
+ * @param [in] transposeX2: x2是否转置，数据类型支持：bool，当前只支持false。
+ * @param [in] dtype: 输出类型，数据类型支持：int64，当前只支持-1，即int8。
+ * @param [in] residualNormMode: 暂未使用，数据类型支持：int64，当前只支持0。
+ * @param [out] output: 整体输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [out] z: x1+y+residual的输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [out] addRmsNormOut: ARN的输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
+ * @param [out] dynamicQuantOut: ARN+dynamic quant的输出，不支持空Tensor，数据类型支持INT8，数据格式支持ND。
+ * @param [out] allGatherDataOut: AllGather后的数据，不支持空Tensor，数据类型支持INT8，数据格式支持ND。
+ * @param [out] allGatherScalesOut: AllGather后的scales，不支持空Tensor，数据类型支持FLOAT，数据格式支持ND。
  * @param [out] workspaceSize: 返回需要在Device侧申请的workspace大小。
  * @param [out] executor: 返回op执行器，包含了算子计算流程。
  * @return aclnnStatus: 返回状态码
