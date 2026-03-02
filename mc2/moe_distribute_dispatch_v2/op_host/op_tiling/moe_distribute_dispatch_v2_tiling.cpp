@@ -1227,10 +1227,18 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     if (tpWorldSize == MAX_TP_WORLD_SIZE) {
         epRecvCount *= tpWorldSize;
     }
-    OP_TILING_CHECK(epRecvCountDim0 < epRecvCount, OP_LOGE(nodeName,
+    if (isLayered) {
+        epRecvCount = epWorldSize * localMoeExpertNum + globalBs * 2 * expertIdsDim1 * epWorldSize / RANK_NUM_PER_NODE_A2;
+        OP_TILING_CHECK(epRecvCountDim0 < epRecvCount, OP_LOGE(nodeName,
+        "dimension 0 of epRecvCount should be greater than or equal to epWorldSize * localMoeExpertNum + globalBs * 2 * k * epWorldSize / 8, "
+        "but dimension 0 of epRecvCount is %ld, epWorldSize is %ld, localMoeExpertNum is %ld, k is %ld.",
+        epRecvCountDim0, epWorldSize, localMoeExpertNum, expertIdsDim1), return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(epRecvCountDim0 < epRecvCount, OP_LOGE(nodeName,
         "dimension 0 of epRecvCount should be greater than or equal to epWorldSize * localMoeExpertNum * tpWorldSize, "
         "but dimension 0 of epRecvCount is %ld, epWorldSize is %ld, localMoeExpertNum is %ld, tpWorldSize is %ld.",
         epRecvCountDim0, epWorldSize, localMoeExpertNum, tpWorldSize), return ge::GRAPH_FAILED);
+    }
     OP_TILING_CHECK(tpRecvCountDim0 != tpWorldSize, OP_LOGE(nodeName,
         "dimension 0 of tpRecvCount should be equal to tpWorldSize, but dimension 0 of tpRecvCount is %ld, "
         "tpWorldSize is %ld.", tpRecvCountDim0, tpWorldSize), return ge::GRAPH_FAILED);
