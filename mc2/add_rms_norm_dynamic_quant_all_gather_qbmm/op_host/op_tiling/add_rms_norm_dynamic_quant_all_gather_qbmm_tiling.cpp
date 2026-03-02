@@ -53,10 +53,16 @@ constexpr size_t NUM_THREE = 3;
 constexpr size_t TWO_DIMS = 2;
 constexpr size_t FOUR_DIMS = 4;
 
+constexpr uint64_t BASE_WORKSPACE_SIZE = 16UL * 1024UL * 1024UL;
+
 // matmul tiling 切分
 constexpr int32_t SINGLE_CORE_M = 126;
 constexpr int32_t SINGLE_CORE_N = 128;
 constexpr int32_t SINGLE_CORE_K = 512;
+
+// addRmsNorm 参数设置
+constexpr float EPSILON = 1e-6;
+constexpr float AVG_FACTOR = 1.0 / (float)5120.0;
 
 /**
  * @brief 打印tilingData, addrms  and mamtul tcubetiling
@@ -71,6 +77,8 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "N is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.N);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "aivNum is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.aivNum);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "rankSize is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.rankSize);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "epsilon is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.epsilon);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "avgFactor is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.avgFactor);
     
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.M is %u.", tilingData.matmulTiling.M);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.Ka is %u.", tilingData.matmulTiling.Ka);
@@ -460,10 +468,9 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     numBlocks = ascendcPlatform.CalcTschBlockDim(aicNum, aicNum, aicNum);
     context->SetBlockDim(numBlocks);
     
-    // addrmsnormdynamicquantallgatherqbmm 部分tiling切分
-    // OP_TILING_CHECK(GetAddRmsNormDynamicQuantAllGatherQbmm(context, *tilingData) != ge::GRAPH_SUCCESS,
-    //     OP_LOGE(nodeName, "GetAddRmsNormDynamicQuantAllGatherQbmm failed."),
-    //     return ge::GRAPH_FAILED);
+    // 设置 AddRmsNorm 所需参数
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon = EPSILON;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor = AVG_FACTOR;
 
     // 调用matmul做tiling切分
     OP_TILING_CHECK(SetTCubeTiling(context, tilingData) != ge::GRAPH_SUCCESS,
@@ -475,7 +482,7 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
-    currentWorkspace[0] = 16 * 1024 * 1024 + \
+    currentWorkspace[0] = BASE_WORKSPACE_SIZE + \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.N * \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize * \

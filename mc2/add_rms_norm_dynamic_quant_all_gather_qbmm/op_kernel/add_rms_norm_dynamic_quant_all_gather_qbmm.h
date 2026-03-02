@@ -42,10 +42,11 @@ using namespace AllGatherImpl;
 // 之后可修改成从tiling侧获取数据切块大小
 constexpr static uint32_t X_PRE_BLOCK_NUM = 1024U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 1024个x数据. 对于fp4需要另外算
 constexpr static uint64_t MX_SCALES_LAST_DIM = 2U; // MX量化scales最后一维的大小
-constexpr uint8_t BUFFER_NUM = 2; // 多Buf
-constexpr uint32_t UB_ALIGN = 32; // UB按32字节对齐
-constexpr uint32_t WIN_ALIGN = 512; // win offset 512字节对齐
-constexpr uint64_t SYNC_AIC_TO_AIV = 5;
+constexpr static uint8_t BUFFER_NUM = 2; // 多Buf
+constexpr static uint32_t UB_ALIGN = 32; // UB按32字节对齐
+constexpr static uint32_t WIN_ALIGN = 512; // win offset 512字节对齐
+constexpr static uint32_t SINGLE_CORE_K = 512; // Matmul切K轴后每份长度
+constexpr static uint64_t SYNC_AIC_TO_AIV = 5;
 
 template<TemplateMC2TypeClass>
 class AddRmsNormDynamicQuantAllGatherQbmm {
@@ -120,7 +121,6 @@ private:
     uint32_t axisN_{0};
     uint32_t aivNum_{0};
     uint32_t rankSize_{0};
-    uint32_t tileM_{0};
     uint32_t tileK_{0};
     uint32_t sendCoreNumPerRank_{0};
     float eps_{0};
@@ -213,25 +213,15 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     winContext_ = (__gm__ HcclOpResParam *)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
 
-    // axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
-    // axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
-    // axisN_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
-    // aivNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
-    // rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
-    // eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
-    // aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
+    axisM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
+    axisKa_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
+    axisN_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.N;
+    aivNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
+    rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
+    eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
+    aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
 
-    // 传值失败，先打桩输入
-    axisM_ = 63;
-    axisKa_ = 5120;
-    tileM_ = 6;
-    tileK_ = 10;
-    axisN_ = 0;
-    aivNum_ = 24;
-    rankSize_ = 4;
-    eps_ = 1e-6;
-    aveNum_ = 1.0f / 5120.0f;
-
+    tileK_ = Ceil(axisKa_, SINGLE_CORE_K);
     axisKaAlignSize_ = Ceil(axisKa_ * sizeof(X1Type), UB_ALIGN) * UB_ALIGN;
     axisKaAlignFloatSize_ = Ceil(axisKa_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
     axisKaAlignInt8Size_ = Ceil(axisKa_ * sizeof(int8_t), UB_ALIGN) * UB_ALIGN;
