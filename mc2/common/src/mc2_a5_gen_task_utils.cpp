@@ -17,7 +17,7 @@
 #include "mc2_a5_gen_task_utils.h"
 #include "mc2_gen_task_utils.h"
 #include "runtime/rt_model.h"
-#include "checker.h"
+#include "matmul_allto_all_util.h"
 #include "error/ops_error.h"
 #include "error_util.h"
 #include "proto/task.pb.h"
@@ -146,7 +146,7 @@ ge::Status Mc2A5GenTaskUtils::InsertContextForCcuFusion(const gert::ExeResGenera
   // is_all_kernel为true表示优先进行二进制复用，如果没有匹配到则进行在线编译
   aicore_fusion_task_info->set_is_all_kernel(isAllKernel);
   OPS_LOG_I(context->GetNodeName(), "set is all kernel to %u.", isAllKernel);
-  // 设置attribute中的numBlocks 
+  // 设置attribute中的numBlocks
   auto config = aicore_fusion_task_info->mutable_config();
   GE_ASSERT_NOTNULL(config);
   config->add_launch_attribute();

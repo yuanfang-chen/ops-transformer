@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "checker.h"
+#include "matmul_allto_all_util.h"
 #include "securec.h"
 #include "acl/acl.h"
 #include "op_mc2.h"
