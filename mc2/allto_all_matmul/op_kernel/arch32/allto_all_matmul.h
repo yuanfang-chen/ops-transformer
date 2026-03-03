@@ -180,7 +180,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::CatlassMatmul()
         using ArchTag = Arch::AtlasA2;
 
         constexpr bool ENABLE_UNIT_FLAG = false;
-        constexpr bool ENABLE_SHUFFLE_K = false;
+        constexpr bool ENABLE_SHUFFLE_K = true;
         constexpr bool aicCalBias = (QuantType == MC2_NON_QUANT) && hasBias;  // 计算量化后的矩阵乘，bias不由CatlassMatmul负责
 
         using ElementA = BType; // 非量化场景、量化场景，A、B的入参类型一致；伪量化场景，A需要动态量化成BType
@@ -723,7 +723,7 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::AlltoAll()
         ResetIpcFlags(BUFFER_NUM);
         PipeBarrier<PIPE_ALL>();
         int64_t src_offset = 0;
-        uint32_t elemBytes = sizeof(AType);  // 将int4归入该文件时，需要修改
+        uint32_t elemBytes = sizeof(AType);
         for (int32_t commIdx = 0; commIdx <= commCount; ++commIdx) {
             uint64_t flagIdx = commIdx % MAX_BLOCK_COUNT;
 

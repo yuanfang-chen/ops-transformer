@@ -101,7 +101,11 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITH_BIAS = {
     {ge::DT_BF16, ge::DT_INT4, ge::DT_FLOAT, ge::DT_BF16},
     {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16, ge::DT_BF16},
     {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT, ge::DT_FLOAT16},
-    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT, ge::DT_BF16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_BF16, ge::DT_BF16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT, ge::DT_FLOAT16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT16, ge::DT_FLOAT16}
 };
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
@@ -111,7 +115,9 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_INT4, ge::DT_INT4, ge::DT_BF16},
     {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16},
     {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16},
-    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_BF16},
+    {ge::DT_INT8, ge::DT_INT8, ge::DT_FLOAT16}
 };
 }
 
@@ -701,8 +707,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
 
     auto x1ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
     auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
-    // 校验 scale 张量，量化模式
-    if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT8) {
+    // 校验 scale 张量，动态量化
+    if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && (x2Dtype == ge::DT_INT8 || x2Dtype == ge::DT_INT4)) {
         OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
                         OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
@@ -717,42 +723,25 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
                 OP_LOGE(opName_, "x1Scale tensors Dtype should be same with x1 tensor in smoothQuant mode, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
                 return ge::GRAPH_FAILED);
         }
-        quantType = TILINGKEY_TPL_A16W8;
+        quantType = (x2Dtype == ge::DT_INT8) ? ActWeightQuantType::A16W8 : ActWeightQuantType::A16W4;
     }
 
-    if (x1Dtype == ge::DT_INT4 && x2Dtype == ge::DT_INT4) {  // A4W4检测
+    // 校验 scale 张量，静态量化
+    if (x1Dtype == x2Dtype && (x2Dtype == ge::DT_INT4 || x2Dtype == ge::DT_INT8)) {
         OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x1Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
+                        OP_LOGE(opName_, "x1Scale should not be null in static quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x1ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
         
         OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
+                        OP_LOGE(opName_, "x2Scale should not be null in static quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
-        quantType = TILINGKEY_TPL_A4W4;
-    }
-    // A16W4检测
-    if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT4) {  
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
-        ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
-        OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
-                        OP_LOGE(opName_, "x2Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
-                        return ge::GRAPH_FAILED);
-        if (info.isSmoothQuant) {
-            OP_TILING_CHECK((x1ScaleTensorDesc == nullptr),
-                OP_LOGE(opName_, "x1Scale tensors should not be null in smoothQuant mode."), return ge::GRAPH_FAILED);
-            ge::DataType x1ScaleDtype = x1ScaleTensorDesc->GetDataType();
-            OP_TILING_CHECK(x1ScaleDtype != x1Dtype,
-                OP_LOGE(opName_, "x1Scale tensors Dtype should be same with x1 tensor in smoothQuant mode, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
-                return ge::GRAPH_FAILED);
-        }
-        quantType = TILINGKEY_TPL_A16W4;
+        quantType = (x2Dtype == ge::DT_INT8) ? ActWeightQuantType::A8W8 : ActWeightQuantType::A4W4;
     }
 
     // 校验类型组合
@@ -761,7 +750,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
         ge::DataType biasDtype = biasTensorDesc->GetDataType();
         vector<uint32_t> paramsType = {x1Dtype, x2Dtype, biasDtype, yDtype};
 
-        if (quantType != TILINGKEY_TPL_NOQUANT) {  // 仅在quant时，才需要区分bias的类别；如果非quant模式，还设置该变量，那么非quant模式的tilingkey的数量会翻3倍
+        if (quantType != ActWeightQuantType::NOQUANT) {  // 仅在quant时，才需要区分bias的类别；如果非quant模式，还设置该变量，那么非quant模式的tilingkey的数量会翻3倍
             if (biasDtype == ge::DT_FLOAT16) {
                 biasDtype_ = TILINGKEY_TPL_FP16;
             } else if (biasDtype == ge::DT_BF16) {
@@ -842,12 +831,12 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
         return status;
     // info.K * info.rankSize限制：A16W8时不超过6144，其余情况不超过35000；A16W8要为32倍数，A4W4要为偶数
     uint32_t tokenSize = info.K * info.rankSize;
-    if (quantType == TILINGKEY_TPL_A16W8) {
+    if (quantType == ActWeightQuantType::A16W8) {
         OP_TILING_CHECK((tokenSize % 16 != 0), 
                     OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
                     return ge::GRAPH_FAILED);
-    } else if (quantType == TILINGKEY_TPL_A16W4) {
+    } else if (quantType == ActWeightQuantType::A16W4) {
         OP_TILING_CHECK((tokenSize % 16 != 0),
                     OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be a multiple of 16, but it is %lu.",
                         info.rankSize, tokenSize),
@@ -865,7 +854,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
         return ge::GRAPH_FAILED);
 
     // INT4计算时，需要额外验证维度为偶数
-    if (quantType == TILINGKEY_TPL_A4W4) {
+    if (quantType == ActWeightQuantType::A4W4) {
         OP_TILING_CHECK((info.K % 2 == 1), 
                         OP_LOGE(opName_, "The x1 second dim should be an even number, but it is %lu.", info.K),
                         return ge::GRAPH_FAILED);
@@ -880,7 +869,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
     orgM = info.M;
     orgN = info.N;
     orgK = info.K;
-    if (quantType == TILINGKEY_TPL_A16W8 || quantType == TILINGKEY_TPL_A16W4) {
+    // 动态量化
+    if (quantType == ActWeightQuantType::A16W8 || quantType == ActWeightQuantType::A16W4) {
         const gert::StorageShape *x2ScaleShape = context_->GetOptionalInputShape(INPUT_X2_SCALE_INDEX);
         uint64_t x2ScaleShapeDimNum = x2ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x2ScaleDim0 = x2ScaleShape->GetStorageShape().GetDim(0);
@@ -888,7 +878,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
                         OP_LOGE(opName_, "The x2Scale dimNum0 should be %u, but actual value is %lu.", info.N, x2ScaleDim0),
                         return ge::GRAPH_FAILED);
     }
-    if (quantType == TILINGKEY_TPL_A4W4) {
+    // 静态量化
+    if (quantType == ActWeightQuantType::A4W4 || quantType == ActWeightQuantType::A8W8) {
         const gert::StorageShape *x1ScaleShape = context_->GetOptionalInputShape(INPUT_X1_SCALE_INDEX);
         uint64_t x1ScaleShapeDimNum = x1ScaleShape->GetStorageShape().GetDimNum();
         uint64_t x1ScaleDim0 = x1ScaleShape->GetStorageShape().GetDim(0);
@@ -1019,9 +1010,6 @@ void AlltoAllMatmulTiling910b::DoTwoRankTiling(CoCTiling &cocTilingData, AlltoAl
     TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_FOUR);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
-    if (quantType == TILINGKEY_TPL_A4W4) {
-        cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
-    }
 }
 
 void AlltoAllMatmulTiling910b::DoFourRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
@@ -1038,9 +1026,6 @@ void AlltoAllMatmulTiling910b::DoFourRankTiling(CoCTiling &cocTilingData, AlltoA
     TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
-    if (quantType == TILINGKEY_TPL_A4W4) {
-        cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
-    }
 }
 
 void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
@@ -1056,12 +1041,10 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     TilingParamMap[&cocTilingData.allToAllRecvCoreNum] = AlltoAllMatmulTilingValue(CORE_NUM_EIGHT);
     CalTilingParam(cocTilingData, TilingParamMap, info);
     TilingParamDeal(cocTilingData, info, ubSize);
-    if (quantType == TILINGKEY_TPL_A4W4) {
-        if (cocTilingData.m0 == 256) {
-            cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
-            cocTilingData.allToAllRecvCoreNum = CORE_NUM_FOUR;
-        }
-        cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
+    // 量化场景核心分配不合理，需额外配置，后续决策树跑完更新tiling策略
+    if ((quantType == ActWeightQuantType::A4W4 || quantType == ActWeightQuantType::A8W8) && cocTilingData.m0 == 256) {
+        cocTilingData.allToAllSendCoreNum = CORE_NUM_SIXTEEN;
+        cocTilingData.allToAllRecvCoreNum = CORE_NUM_FOUR;
     }
 }
 
@@ -1167,7 +1150,7 @@ void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W4Tiling(CoCTili
 
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
-    if (quantType == TILINGKEY_TPL_A16W8) {
+    if (quantType == ActWeightQuantType::A16W8) {
         // A16W8 tiling策略
         if (info.rankSize == 2) {
             AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
@@ -1176,7 +1159,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingDat
         } else if (info.rankSize == 8) {
             AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
         }
-    } else if (quantType == TILINGKEY_TPL_A16W4) {
+    } else if (quantType == ActWeightQuantType::A16W4) {
         // A16W4 tiling策略
         if (info.rankSize == 2) {
             AlltoAllMatmulNPU910BTwoRankA16W4Tiling(cocTilingData, info);
@@ -1186,13 +1169,18 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingDat
             AlltoAllMatmulNPU910BEightRankA16W4Tiling(cocTilingData, info);                
         }
     } else {
-        // basic、A4W4
+        // basic、A4W4、A8W8
         if (info.rankSize == 2) {  // 若2卡
             DoTwoRankTiling(cocTilingData, info);
         } else if (info.rankSize == 4) {  // 若4卡
             DoFourRankTiling(cocTilingData, info);
         } else if (info.rankSize == 8) {
             DoEightRankTiling(cocTilingData, info);  // 若8卡
+        }
+        if (quantType == ActWeightQuantType::A4W4) {
+            cocTilingData.pValue = cocTilingData.pValue * 4;  // int4时，peermem相较于fp16/bf16可以容纳4倍的元素数量
+        } else if (quantType == ActWeightQuantType::A8W8) {
+            cocTilingData.pValue = cocTilingData.pValue * 2;  // int8时，peermem相较于fp16/bf16可以容纳2倍的元素数量
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -1233,7 +1221,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
  */
 uint64_t AlltoAllMatmulTiling910b::GetTilingKey() const
 {
-    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, x2Transpose, quantType, biasDtype_);
+    uint64_t tilingKey = GET_TPL_TILING_KEY(hasBias, x2Transpose, biasDtype_);
     OP_LOGD(opName_, "TilingKey is [%lu] in AllToAllMatmul.", tilingKey);
     return tilingKey;
 }
@@ -1289,18 +1277,20 @@ void AlltoAllMatmulTiling910b::CalcQuantTokenNumPerUb(const CoCTiling &cocTiling
 }
 
 void AlltoAllMatmulTiling910b::CalcQuantWorkspaceSize(const CoCTiling &cocTilingData, AlltoAllMatmulInfo &info) {
-    info.dequantSize = orgM * orgN * sizeof(int32_t);  // 量化则需要空间存放中间结果
-    if (quantType == TILINGKEY_TPL_A16W8 || quantType == TILINGKEY_TPL_A16W4) {
+    info.dequantSize = orgM * orgN * sizeof(int32_t);  // 量化则需要空间存放矩阵乘中间结果
+    // 动态量化需要额外存放左矩阵量化结果与量化系数
+    if (quantType == ActWeightQuantType::A16W8 || quantType == ActWeightQuantType::A16W4) {
         CalcQuantTokenNumPerUb(cocTilingData, info);
         uint32_t numPerRankM = cocTilingData.m0 * cocTilingData.pValue;
         uint32_t midOutputKSize = orgK * rankSize;
         uint32_t quantSize = numPerRankM * midOutputKSize * MAX_BLOCK_COUNT;
-        info.quantSize = quantType == TILINGKEY_TPL_A16W8 ? quantSize : (quantSize + 1) / 2; // int8类型每个元素占用1个字节，int4类型每两个元素占用1个字节
+        info.quantSize = quantType == ActWeightQuantType::A16W8 ? quantSize : (quantSize + 1) / 2; // int8类型每个元素占用1个字节，int4类型每两个元素占用1个字节
         info.quantScaleSize = Block32B<float>::AlignUp(orgM) * sizeof(float) / rankSize;  // A反量化参数所需要的空间大小
 
         quantWorkspaceSize = info.quantSize + info.quantScaleSize + info.dequantSize;
     }
-    if (quantType == TILINGKEY_TPL_A4W4) {
+    // 静态量化
+    if (quantType == ActWeightQuantType::A4W4 || quantType == ActWeightQuantType::A8W8) {
         quantWorkspaceSize = info.dequantSize;
     }
 }
@@ -1315,7 +1305,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::GetWorkspaceSize()
     size_t *workspaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
     size_t wsSize = SYSTEM_NEED_WORKSPACE;
-    if (quantType != TILINGKEY_TPL_NOQUANT) {  // int4不必加这个
+    if (quantType != ActWeightQuantType::NOQUANT) {  // 非量化不必加这个
         wsSize += quantWorkspaceSize;
     }
     workspaces[0] = wsSize;

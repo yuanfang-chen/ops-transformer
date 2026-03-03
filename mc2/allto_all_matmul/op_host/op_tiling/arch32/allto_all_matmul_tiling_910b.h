@@ -37,6 +37,15 @@ struct AlltoAllMatmulTilingValue {
         : value(v), conditionMap(std::move(m)) {}
 };
 
+// 算子量化类型
+enum class ActWeightQuantType : uint32_t {
+    NOQUANT = 0,
+    A16W8 = 1,
+    A16W4 = 2,
+    A8W8 = 3,
+    A4W4 = 4
+};
+
 class AlltoAllMatmulTiling910b : public AllToAllMatmulTilingBase {
 public:
     explicit AlltoAllMatmulTiling910b(gert::TilingContext *context);
@@ -78,7 +87,7 @@ protected:
 private:
     bool x2Transpose = false;
     bool hasBias = false;
-    uint32_t quantType = TILINGKEY_TPL_NOQUANT;
+    ActWeightQuantType quantType;
     uint32_t biasDtype_ = 0;
     uint32_t rankSize = 0;
     uint32_t orgM = 0;
