@@ -333,7 +333,7 @@ public:
                                     qSBlockSize, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
                         }
                     }
-                    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+                    // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
                 }
             }
         } else if (needRowLoop) {
