@@ -38,6 +38,7 @@ public:
         mc2TilingData_ = (Mc2Tiling::MatmulAllReduce910TilingDataA5*)tilingData;
         this->tileInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TileTilingData.tCubeTiling;
         this->tailInfo_.mmTiling = &mc2TilingData_->mC2Mmv3TailTilingData.tCubeTiling;
+        this->allReduceBasedAtaSumAg_ = &mc2TilingData_->allReduceBasedAtaSumAg;
     }
 
     __aicore__ inline void Process()
@@ -46,7 +47,7 @@ public:
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
         }
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (this->allReduceBasedAtaSumAg_){
             this->ReduceSumAndAllGather();
         }
         this->HcclFinalize();
@@ -71,7 +72,7 @@ protected:
             const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
             this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
         }
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (this->allReduceBasedAtaSumAg_){
             this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
