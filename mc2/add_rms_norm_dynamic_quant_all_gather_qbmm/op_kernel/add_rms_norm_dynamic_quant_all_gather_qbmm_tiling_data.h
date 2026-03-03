@@ -30,13 +30,13 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint64_t lastDimSliceLen = 0;
     uint64_t lastDimSliceLenTail = 0;
     uint32_t smoothNum = 0;
-    float epsilon = 1e-6;
-    float avgFactor = 1.0 / (float)5120.0;
-    uint32_t M = 63;
-    uint32_t Ka = 5120;
-    uint32_t N = 3072;
-    uint32_t aivNum = 24;
-    uint32_t rankSize = 4;
+    float epsilon = 0;
+    float avgFactor = 0;
+    uint32_t M = 0;
+    uint32_t Ka = 0;
+    uint32_t N = 0;
+    uint32_t aivNum = 0;
+    uint32_t rankSize = 0;
 };
 
 // tiling struct待完善
