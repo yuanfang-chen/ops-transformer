@@ -737,12 +737,12 @@ ge::graphStatus RFATiling::CheckAttr(gert::TilingContext *rfaContext)
         innerPrecise_ = *rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(INNER_PRECISE_INDEX);
     }
 
-    // auto softmaxLsePtr = rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(SOFTMAX_LSE_FLAG_INDEX);
-    // if (softmaxLsePtr == nullptr) {
-    //     softmaxLseFlag_ = false;
-    // } else {
-    //     softmaxLseFlag_ = *softmaxLsePtr == 1 ? true : false;
-    // }
+    auto softmaxLsePtr = rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(SOFTMAX_LSE_FLAG_INDEX);
+    if (softmaxLsePtr == nullptr) {
+        softmaxLseFlag_ = false;
+    } else {
+        softmaxLseFlag_ = *softmaxLsePtr == 1 ? true : false;
+    }
     
     return ge::GRAPH_SUCCESS;
 }
