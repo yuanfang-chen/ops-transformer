@@ -15,7 +15,6 @@ operator_group_1:
   - scatter_pa_cache
   - scatter_pa_kv_cache
   - attention_update
-  - fused_infer_attention_score,10-7
 operator_group_2:
   - grouped_matmul
   - grouped_matmul_add
@@ -23,9 +22,8 @@ operator_group_2:
   - grouped_matmul_finalize_routing
   - grouped_matmul_swiglu_quant_v2
   - quant_grouped_matmul_inplace_add
-  - fused_infer_attention_score,10-8
 operator_group_3:
-  - incre_flash_attention,2-0
+  - fused_infer_attention_score,10-7
 operator_group_4:
   - moe_token_unpermute_with_routing_map_grad
   - moe_finalize_routing
@@ -55,7 +53,6 @@ operator_group_5:
   - flash_attention_score,3-0
 operator_group_6:
   - sparse_lightning_indexer_grad_kl_loss
-  - prompt_flash_attention
   - kv_quant_sparse_flash_attention
   - quant_lightning_indexer
 operator_group_7:
@@ -94,7 +91,7 @@ operator_group_13:
 operator_group_14:
   - fused_infer_attention_score,10-6
 operator_group_15:
-  - incre_flash_attention,2-1
+  - fused_infer_attention_score,10-8
 operator_group_16:
   - flash_attention_score_grad,3-0
 operator_group_17:
