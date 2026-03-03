@@ -1,0 +1,84 @@
+[2026-03-02 21:44:27,675] [INFO] [MainProcess] [4096222] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:44:27,675] [INFO] [MainProcess] [4096222] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:46:47,267] [INFO] [MainProcess] [4111972] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:46:47,268] [INFO] [MainProcess] [4111972] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:51:23,291] [INFO] [MainProcess] [2987] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:51:23,291] [INFO] [MainProcess] [2987] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:51:42,717] [INFO] [MainProcess] [62850] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:51:42,718] [INFO] [MainProcess] [62850] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:52:01,260] [INFO] [MainProcess] [65629] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:52:01,261] [INFO] [MainProcess] [65629] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:53:14,341] [INFO] [MainProcess] [71928] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:53:14,342] [INFO] [MainProcess] [71928] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:53:33,549] [INFO] [MainProcess] [73424] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:53:33,550] [INFO] [MainProcess] [73424] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:53:33,597] [INFO] [MainProcess] [73424] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-02 21:53:33,599] [INFO] [MainProcess] [73424] [reports.py:311]  Generate Case cost time: 0.0062 s
+[2026-03-02 21:53:33,599] [INFO] [MainProcess] [73424] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 1.0], [100000000, 1.0], [10000000, 1.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-02 21:53:33,608] [INFO] [MainProcess] [73424] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-02 21:53:33,792] [INFO] [MainProcess] [73424] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260302215333.xlsx
+[2026-03-02 21:54:08,319] [INFO] [MainProcess] [76160] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-02 21:54:08,319] [INFO] [MainProcess] [76160] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-02 21:54:08,367] [INFO] [MainProcess] [76160] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-02 21:54:08,368] [INFO] [MainProcess] [76160] [reports.py:311]  Generate Case cost time: 0.0063 s
+[2026-03-02 21:54:08,368] [INFO] [MainProcess] [76160] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 1.0], [10000000, 1.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-02 21:54:08,377] [INFO] [MainProcess] [76160] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-02 21:54:08,559] [INFO] [MainProcess] [76160] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260302215408.xlsx
+[2026-03-03 10:37:43,263] [INFO] [MainProcess] [1464678] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 10:37:43,263] [INFO] [MainProcess] [1464678] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-03 10:37:43,454] [INFO] [MainProcess] [1464678] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 10:37:43,460] [INFO] [MainProcess] [1464678] [reports.py:311]  Generate Case cost time: 0.1495 s
+[2026-03-03 10:37:43,461] [INFO] [MainProcess] [1464678] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 1.0], [10000000, 1.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 10:37:43,522] [INFO] [MainProcess] [1464678] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 10:37:43,745] [INFO] [MainProcess] [1464678] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303103743.xlsx
+[2026-03-03 10:39:29,930] [INFO] [MainProcess] [1473322] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 10:39:29,931] [INFO] [MainProcess] [1473322] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-03 10:39:30,140] [INFO] [MainProcess] [1473322] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 10:39:30,147] [INFO] [MainProcess] [1473322] [reports.py:311]  Generate Case cost time: 0.1628 s
+[2026-03-03 10:39:30,147] [INFO] [MainProcess] [1473322] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 1.0], [10000000, 1.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 10:39:30,213] [INFO] [MainProcess] [1473322] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 10:39:30,437] [INFO] [MainProcess] [1473322] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303103929.xlsx
+[2026-03-03 12:02:02,493] [INFO] [MainProcess] [2418420] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 12:02:02,494] [INFO] [MainProcess] [2418420] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-03 12:02:02,703] [INFO] [MainProcess] [2418420] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 12:02:02,710] [INFO] [MainProcess] [2418420] [reports.py:311]  Generate Case cost time: 0.1616 s
+[2026-03-03 12:02:02,710] [INFO] [MainProcess] [2418420] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 1.0], [10000000, 1.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 12:02:02,778] [INFO] [MainProcess] [2418420] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 12:02:03,016] [INFO] [MainProcess] [2418420] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303120202.xlsx
+[2026-03-03 14:47:29,906] [INFO] [MainProcess] [2982155] [registry.py:90]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 14:47:29,906] [INFO] [MainProcess] [2982155] [registry.py:162]  Module generator_prepare_wy_repr_bwd_full has been registered.
+[2026-03-03 14:47:30,113] [INFO] [MainProcess] [2982155] [reports.py:302]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 14:47:30,120] [INFO] [MainProcess] [2982155] [reports.py:311]  Generate Case cost time: 0.1618 s
+[2026-03-03 14:47:30,120] [INFO] [MainProcess] [2982155] [reports.py:312]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 0.0], [10000000, 0.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 14:47:30,186] [INFO] [MainProcess] [2982155] [reports.py:226]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 14:47:30,414] [INFO] [MainProcess] [2982155] [reports.py:256]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303144729.xlsx
+[2026-03-03 16:40:39,437] [INFO] [MainProcess] [3018161] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 16:40:39,557] [INFO] [MainProcess] [3018161] [decorators.py:33]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 16:40:39,560] [INFO] [MainProcess] [3018161] [decorators.py:33]  Generate Case cost time: 0.0893 s
+[2026-03-03 16:40:39,560] [INFO] [MainProcess] [3018161] [decorators.py:33]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 0.0], [10000000, 0.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 16:40:39,577] [INFO] [MainProcess] [3018161] [decorators.py:33]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 16:40:39,745] [INFO] [MainProcess] [3018161] [decorators.py:33]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303164039.xlsx
+[2026-03-03 16:40:39,759] [INFO] [MainProcess] [3018161] [decorators.py:33]  save case csv file: result/aclnn_prepare_wy_repr_bwd_full/csv/aclnn_prepare_wy_repr_bwd_full20260303164039.csv
+[2026-03-03 16:40:58,277] [INFO] [MainProcess] [3024728] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 16:40:58,400] [INFO] [MainProcess] [3024728] [decorators.py:33]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 16:40:58,403] [INFO] [MainProcess] [3024728] [decorators.py:33]  Generate Case cost time: 0.0914 s
+[2026-03-03 16:40:58,404] [INFO] [MainProcess] [3024728] [decorators.py:33]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 0.0], [10000000, 0.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 16:40:58,420] [INFO] [MainProcess] [3024728] [decorators.py:33]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 16:40:58,599] [INFO] [MainProcess] [3024728] [decorators.py:33]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303164058.xlsx
+[2026-03-03 16:40:58,614] [INFO] [MainProcess] [3024728] [decorators.py:33]  save case csv file: result/aclnn_prepare_wy_repr_bwd_full/csv/aclnn_prepare_wy_repr_bwd_full20260303164058.csv
+[2026-03-03 18:54:09,676] [INFO] [MainProcess] [1851873] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 18:54:41,821] [INFO] [MainProcess] [1855340] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 18:56:27,025] [INFO] [MainProcess] [1865068] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 18:56:27,147] [INFO] [MainProcess] [1865068] [decorators.py:33]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 18:56:27,150] [INFO] [MainProcess] [1865068] [decorators.py:33]  Generate Case cost time: 0.0907 s
+[2026-03-03 18:56:27,151] [INFO] [MainProcess] [1865068] [decorators.py:33]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 0.0], [10000000, 0.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 18:56:27,167] [INFO] [MainProcess] [1865068] [decorators.py:33]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 18:56:27,632] [INFO] [MainProcess] [1865068] [decorators.py:33]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303185627.xlsx
+[2026-03-03 18:56:27,646] [INFO] [MainProcess] [1865068] [decorators.py:33]  save case csv file: result/aclnn_prepare_wy_repr_bwd_full/csv/aclnn_prepare_wy_repr_bwd_full20260303185627.csv
+[2026-03-03 20:11:13,137] [INFO] [MainProcess] [2395342] [decorators.py:33]  generator_prepare_wy_repr_bwd_full is already registered, repeated registration will coverage it, new module path is generator_prepare_wy_repr_bwd_full
+[2026-03-03 20:11:13,259] [INFO] [MainProcess] [2395342] [decorators.py:33]  Extra cases with amount: {'scalar': 0, 'lower_border': 0, 'upper_border': 0, 'empty': 0, 'infnan': 0}
+[2026-03-03 20:11:13,262] [INFO] [MainProcess] [2395342] [decorators.py:33]  Generate Case cost time: 0.0909 s
+[2026-03-03 20:11:13,263] [INFO] [MainProcess] [2395342] [decorators.py:33]  Case Metrics: {'oversize_case': False, 'shape_intervals': [[1000000000, 0.0], [100000000, 0.0], [10000000, 0.0]], 'case_repetition_rate': 0.0, 'result': False}
+[2026-03-03 20:11:13,279] [INFO] [MainProcess] [2395342] [decorators.py:33]  save case json file: result/aclnn_prepare_wy_repr_bwd_full/json/all_aclnn_prepare_wy_repr_bwd_full.json
+[2026-03-03 20:11:13,702] [INFO] [MainProcess] [2395342] [decorators.py:33]  save case excel file: result/aclnn_prepare_wy_repr_bwd_full/excel/aclnn_prepare_wy_repr_bwd_full20260303201113.xlsx
+[2026-03-03 20:11:13,716] [INFO] [MainProcess] [2395342] [decorators.py:33]  save case csv file: result/aclnn_prepare_wy_repr_bwd_full/csv/aclnn_prepare_wy_repr_bwd_full20260303201113.csv

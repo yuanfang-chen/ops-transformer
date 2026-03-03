@@ -1,11 +1,11 @@
 api: pytorch
 api_type: executor_prepare_wy_repr_bwd_full
 version: v2.1
-name: aclnn.chunk.bwd.dv.local
-aclnn_name: ChunkBwdDvLocal
+name: aclnn.PrepareWyReprBwdFull
+aclnn_name: PrepareWyReprBwdFull
 # aclnn_api_type: aclnn_prepare_wy_repr_bwd_full
 generate: generator_prepare_wy_repr_bwd_full
-dtype_numbers: 1
+dtype_numbers: 10
 extra_numbers: 0
 standard:
   acc: cv_fused_double_benchmark
@@ -74,7 +74,7 @@ inputs:
     type: tensor
     required: true
     dtypes:
-      values: [fbf16, fp162]
+      values: [bf16, fp16]
     ranges:
       valid:
         values: [ [ -5, 5 ] ]
@@ -85,22 +85,7 @@ inputs:
         values: [ 4 ]
       dim_values:
         values: [ [ 1, 100 ], [ 1, 32 ], [ 1, 100 ], [ 1, 100 ] ]
-  - name: g_gamma
-    type: tensor
-    required: true
-    dtypes:
-      values: [fp32]
-    ranges:
-      valid:
-        values: [ [ -5, 5 ] ]
-      invalid:
-        values: []
-    shapes:
-      dim_numbers:
-        values: [ 2 ]
-      dim_values:
-        values: [ [ 1, 2 ], [ 1, 2 ]]
-  - name: A
+  - name: dw
     type: tensor
     required: true
     dtypes:
@@ -112,49 +97,63 @@ inputs:
         values: []
     shapes:
       dim_numbers:
-        values: [ 2 ]
+        values: [ 4 ]
       dim_values:
-        values: [[ 1, 2 ], [ 1, 2 ] ]
+        values: [[ 1, 100 ], [ 1, 32 ], [ 1, 100 ], [ 1, 100 ] ]
+  - name: du
+    type: tensor
+    required: true
+    dtypes:
+      values: [bf16, fp16]
+    ranges:
+      valid:
+        values: [ [ -5, 5 ] ]
+      invalid:
+        values: []
+    shapes:
+      dim_numbers:
+        values: [ 4 ]
+      dim_values:
+        values: [[ 1, 100 ], [ 1, 32 ], [ 1, 100 ], [ 1, 100 ] ]
+  - name: g
+    type: tensor
+    required: true
+    dtypes:
+      values: [bf16, fp16, fp32]
+    ranges:
+      valid:
+        values: [ [ -5, 5 ] ]
+      invalid:
+        values: []
+    shapes:
+      dim_numbers:
+        values: [ 3 ]
+      dim_values:
+        values: [ [ 1, 100 ], [ 1, 32 ], [ 1, 100 ] ]
   - name: cu_seqlens
-    type: tensor
-    required: true
+    type: attrs
+    required: false
     dtypes:
-      values: [int64]
+      values: [ int ]
+    tuple_numbers:
+      values: [ 1 ]
     ranges:
       valid:
-        values: [ [ 1, 100 ] ]
+        values: [ [1, 512] ]  
       invalid:
-        values: []
-    shapes:
-      dim_numbers:
-        values: [ 1 ]
-      dim_values:
-        values: [ [ 1, 100 ]]
+        values: [ ]
   - name: chunk_indices
-    type: tensor
-    required: true
+    type: attrs
+    required: false
     dtypes:
-      values: [int64]
+      values: [ int ]
+    tuple_numbers:
+      values: [ 1 ]
     ranges:
       valid:
-        values: [ [ 1, 100 ] ]
+        values: [ [1, 512] ]  
       invalid:
-        values: []
-    shapes:
-      dim_numbers:
-        values: [ 2 ]
-      dim_values:
-        values: [ [ 1, 100 ], 2]
-  - name: scale
-    type: attr
-    required: true
-    dtypes:
-      values: [float]
-    ranges:
-      valid:
-        values: [1.0]
-      invalid:
-        values: []
+        values: [ ]
   - name: chunk_size
     type: attr
     required: true
@@ -163,6 +162,16 @@ inputs:
     ranges:
       valid:
         values: [64,128]
+      invalid:
+        values: []
+  - name: qkv_type
+    type: attr
+    required: true
+    dtypes:
+      values: [string]
+    ranges:
+      valid:
+        values: ["bf16", "fp16"]
       invalid:
         values: []
   - name: is_mix
@@ -183,15 +192,5 @@ inputs:
     ranges:
       valid:
         values: [true,false]
-      invalid:
-        values: []
-  - name: qkv_type
-    type: attr
-    required: true
-    dtypes:
-      values: [string]
-    ranges:
-      valid:
-        values: ["bf16", "fp16"]
       invalid:
         values: []
