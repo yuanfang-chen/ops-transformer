@@ -15,7 +15,7 @@
 #include <cmath>
 
 #include "mc2_log.h"
-#include "tiling/mc2_fit_based_balance_tiling.h"
+#include "op_tiling/mc2_fit_based_balance_tiling.h"
 
 CutResult Mc2FitBasedBalanceTiling::GetTiling()
 {
