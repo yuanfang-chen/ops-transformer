@@ -44,7 +44,7 @@ namespace ChunkGatedDeltaRule {
         int64_t chunkSize = 0;   // 每个chunk的长度
         int64_t coreStart = 0;   // 预留
         int64_t coreEnd = 0;     // 预留
-    }
+    };
 }  // ChunkGatedDeltaRule
 
 #endif  // CHUNK_GATED_DELTA_RULE_TILING_DATA_H

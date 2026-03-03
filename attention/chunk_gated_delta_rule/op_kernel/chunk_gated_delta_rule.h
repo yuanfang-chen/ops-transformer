@@ -43,7 +43,7 @@ struct ChunkGatedDeltaRuleInitParams {
 template <typename lowType, typename highType>
 class ChunkGatedDeltaRule {
 public:
-    __aicore__ inline ChunkGatedDeltaRule(TPipe *pipe, const RecurrentGatedDeltaRuleTilingData *tilingData)
+    __aicore__ inline ChunkGatedDeltaRule(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -51,50 +51,50 @@ public:
 
     __aicore__ inline void Init(const ChunkGatedDeltaRuleInitParams &initParams, GM_ADDR user)
     {
-        uint64_t dataSize = tiling_.t * tiling_.nk * tiling_.dk;
+        uint64_t dataSize = tiling_->t * tiling_->nk * tiling_->dk;
         query_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.query), dataSize);
         key_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.key), dataSize);
 
-        dataSize = tiling_.t * tiling_.nv * tiling_.dv;
+        dataSize = tiling_->t * tiling_->nv * tiling_->dv;
         value_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.value), dataSize);
         out_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.attnOut), dataSize);
 
-        dataSize = tiling_.t * tiling_.nv;
+        dataSize = tiling_->t * tiling_->nv;
         beta_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.beta), dataSize);
         if (initParams.gOptional != nullptr) {
             g_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.gOptional), dataSize);
         }
 
-        dataSize = tiling_.b * tiling_.nv * tiling_.dv * tiling_.dk;
+        dataSize = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
         initState_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.initState), dataSize);
         finalState_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.finalState), dataSize);
 
-        actualSeqLens_.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(initParams.seqlens), tiling_.b);
+        actualSeqLens_.SetGlobalBuffer(reinterpret_cast<__gm__ int32_t *>(initParams.seqlens), tiling_->b);
 
         uint64_t offset = 0;
         gCumExp_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength;
 
         kCumDecay_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dk;
+        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         vInner_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dv;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
         qPrime_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(user + offset));
-        offset += sizeof(lowType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dk;
+        offset += sizeof(lowType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         attnInter_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dv;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
         vNew_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dv;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dv;
 
         kg_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength * tiling_.dk;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->dk;
 
         qkt_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(user + offset));
-        offset += sizeof(highType) * tiling_.nv * tiling_.maxGroupLength * tiling_.chunkSize;
+        offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->chunkSize;
 
         stageWsAddr_ = user + offset;
     }
@@ -104,19 +104,19 @@ public:
         int64_t seqStart = 0;
         int64_t seqEnd = 0;
         ChunkGroup cg;
-        cg.chunkSize = tiling_.chunkSize;
-        for (int64_t bid = 0; bid < tiling_.b; bid++) {
+        cg.chunkSize = tiling_->chunkSize;
+        for (int64_t bid = 0; bid < tiling_->b; bid++) {
             int32_t length = actualSeqLens_.GetValue(bid);
             seqEnd = seqStart + (int64_t)length;
-            GlobalTensor<lowType> curInitState = initState_[bid * tiling_.nv * tiling_.dv * tiling_.dk];
-            GlobalTensor<lowType> curFinalState = finalState_[bid * tiling_.nv * tiling_.dv * tiling_.dk];
-            for (int64_t pos = seqStart; pos < seqEnd; pos += tiling_.maxGroupLength) {
+            GlobalTensor<lowType> curInitState = initState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
+            GlobalTensor<lowType> curFinalState = finalState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
+            for (int64_t pos = seqStart; pos < seqEnd; pos += tiling_->maxGroupLength) {
                 // set chunk group
                 cg.startPos = pos;
-                if (pos + tiling_.maxGroupLength > seqEnd) {
+                if (pos + tiling_->maxGroupLength > seqEnd) {
                     cg.length = seqEnd - pos;
                 } else {
-                    cg.length = tiling_.maxGroupLength;
+                    cg.length = tiling_->maxGroupLength;
                 }
 
                 // compute this chunk group
@@ -153,7 +153,7 @@ private:
 
 private:
     TPipe *pipe_;
-    const RecurrentGatedDeltaRuleTilingData *tiling_;
+    const ChunkGatedDeltaRuleTilingData *tiling_;
     GlobalTensor<lowType> query_;
     GlobalTensor<lowType> key_;
     GlobalTensor<lowType> value_;

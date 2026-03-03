@@ -298,13 +298,13 @@ namespace optiling {
 
         OP_CHECK_IF(tilingData_.nk > 64 || tilingData_.nv > 64,  // 约束 nk/nv 不超过 64
                 OP_LOGE(inputParams_.opName,
-                        "nk and nv should no bigger than 64, but nk is %u, nv is %u",
+                        "nk and nv should no bigger than 64, but nk is %ld, nv is %ld",
                         tilingData_.nk, tilingData_.nv),
                 return ge::GRAPH_FAILED);
 
         OP_CHECK_IF(tilingData_.nv % tilingData_.nk != 0,  // 约束 nv 是 nk 的整数倍
                 OP_LOGE(inputParams_.opName,
-                        "nv should be an integer multiple of nk, but nv is %u, nk is %u",
+                        "nv should be an integer multiple of nk, but nv is %ld, nk is %ld",
                         tilingData_.nv, tilingData_.nk),
                 return ge::GRAPH_FAILED);
 
