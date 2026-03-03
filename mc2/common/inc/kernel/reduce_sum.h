@@ -19,7 +19,6 @@
 #include "reduce_sum_utils.h"
 
 namespace AiVReduceSumImpl {
-
 using namespace AscendC;
 
 constexpr static uint32_t UB_BUFFER_NUM = 3;                     // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
@@ -114,22 +113,22 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(
     aivNum_ = aivNum; // AIV数量
 
     // 计算理论UB每块可搬运的最大容量（向下 32B 对齐）
-    uint64_t maxPerBlockNum_ = FloorAlign(
+    uint64_t maxPerBlockNum_ = AiVReduceSumImplUtil::FloorAlign(
         TOTAL_UB_SIZE / UB_BUFFER_NUM,
         UB_ALIGN_BYTES
     ) / sizeof(DataType);
 
     // 限制UB每次搬运数据块大小。
-    perBlockNum_ = MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
+    perBlockNum_ = AiVReduceSumImplUtil::MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
 
     // 分片大小与总块数
     sliceSize_ = outputSize; // 每张卡分片的数据大小，与输出大小一致
     strideSize_ = (stride == 0U) ? sliceSize_ : stride; // 累加数据块间的数据量偏移，即卡间偏移
-    totalBlockNums_ = CeilDiv(sliceSize_, perBlockNum_); // 1/rank 数据需要搬运的总块数
+    totalBlockNums_ = AiVReduceSumImplUtil::CeilDiv(sliceSize_, perBlockNum_); // 1/rank 数据需要搬运的总块数
 
     // 尾块搬运大小
-    uint64_t tailBytes = BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType);
-    tailBlockNum_ = CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
+    uint64_t tailBytes = AiVReduceSumImplUtil::BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType);
+    tailBlockNum_ = AiVReduceSumImplUtil::CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
