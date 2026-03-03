@@ -65,7 +65,7 @@ public:
     __aicore__ inline void Init(const TCubeTiling* __restrict &tilingData, uint32_t blockIdx);
     // 每一个group需要更新mm的group偏移和MNK
     template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat = CubeFormat::ND>
-    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx);
+    __aicore__ inline void UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx, uint32_t loopIdx);
     template <bool isGmm>
     __aicore__ inline void UpdateGroupParams(); // 每一个group需要更新mm的参数
     __aicore__ inline void UpdateTailTile();
@@ -123,11 +123,13 @@ __aicore__ inline void QuantASWBlockSch::Init(const TCubeTiling* __restrict &til
     }
 }
 
+// zzzlogtodo 这里还需要改，暂时没思路
 template <bool aTrans, bool bTrans, class xType, class scaleType, CubeFormat wFormat>
-__aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx)
+__aicore__ inline void QuantASWBlockSch::UpdateGroupOffset(int32_t m, int32_t n, int32_t k, uint32_t groupIdx,
+                                                           uint32_t loopIdx)
 {
     // 用初始化或上个group的mm的m,k,n值更新group矩阵的偏移量。group内2维mm。
-    if (groupIdx > 0) { // groupIdx==0时，起始点均为0，无需计算，减少scalar
+    if (loopIdx > 0) { // loopIdx==0时，起始点均为0，无需计算，减少scalar
         if constexpr (QuantUtils::IsFp4<xType>()) { // 2: fp4为半个字节
             params_.aGroupAddrOffset += params_.m * params_.k / 2;
             params_.bGroupAddrOffset += params_.n * params_.k / 2;
