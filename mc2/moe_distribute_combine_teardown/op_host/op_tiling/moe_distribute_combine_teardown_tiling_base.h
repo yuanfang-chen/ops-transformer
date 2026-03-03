@@ -17,7 +17,7 @@
 #define MOE_DISTRIBUTE_COMBINE_TEARDOWN_TILING_BASE_H_
 
 #include "op_tiling/mc2_tiling_utils.h"
-#include "tiling/moe_tiling_base.h"
+#include "op_tiling/moe_tiling_base.h"
 #include "../../op_kernel/moe_distribute_combine_teardown_tiling_key.h"
 #include "../../op_kernel/moe_distribute_combine_teardown_tiling_data.h"
 
