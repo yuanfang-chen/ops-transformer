@@ -276,7 +276,7 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
 }
 
 inline bool IsStandardCard4P(uint64_t rankDim, uint32_t aicCoreNum){
-    const uint32_t rankNum = static_cast<uint32_t>(rankSize);
+    const uint32_t rankNum = static_cast<uint32_t>(rankDim);
     return (rankDim==STANDARDCARD4P_RANKDIM && aicCoreNum==STANDARDCARD4P_AIC_CORE_NUM);
 }
 }  // namespace mc2tiling
