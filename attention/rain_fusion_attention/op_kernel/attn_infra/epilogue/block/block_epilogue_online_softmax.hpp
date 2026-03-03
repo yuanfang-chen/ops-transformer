@@ -802,8 +802,10 @@ public:
         DownCastP(sUbOffset, rowNumCurLoop, columnNumRound);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
         CalcLocalRowSum(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
+        AscendC::printf("softmax HardEvent::V_MTE2>(pingpongFlag before");
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
+        AscendC::printf("softmax HardEvent::V_MTE2>(pingpongFlag after");
         CopyPUbToGm(gOutput, sUbOffset, rowNumCurLoop, columnNumRound, columnNumPad);
         if constexpr (!doTriUMask) {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
