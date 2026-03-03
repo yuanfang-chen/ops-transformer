@@ -2342,7 +2342,6 @@ aclnnStatus CheckCommonParam(const aclTensorList *x , const aclTensorList *weigh
     CHECK_COND(actType < END_ACT_TYPE_ENUM, ACLNN_ERR_PARAM_INVALID,
                "Activation function only support RELU/GELU_TANH/FASTGELU/SILU.");
   }
-
   if (groupListType == gmm::GROUP_LIST_SPARSE_M) {
     CHECK_COND(npuArch == NpuArch::DAV_2201, ACLNN_ERR_PARAM_INVALID,
       "This platform not support groupListType is 2.");

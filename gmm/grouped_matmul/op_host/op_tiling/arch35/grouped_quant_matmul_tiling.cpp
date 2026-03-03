@@ -97,8 +97,14 @@ bool GroupedQbmmTiling::AnalyzeAttrs()
         inputParams_.groupListType = groupListTypePtr != nullptr ? *groupListTypePtr : inputParams_.groupListType;
     }
     OP_CHECK_IF(
+        inputParams_.groupListType != GROUPLIST_TYPE_CUMSUM && inputParams_.groupListType != GROUPLIST_TYPE_COUNT &&
+            inputParams_.groupListType != GROUPLIST_TYPE_SPARSE_M,
+        OP_LOGE(inputParams_.opName, "Only support groupListType is 0(cumsum), 1(count), 2(sparse), actual is %d.",
+                inputParams_.groupListType),
+        return false);
+    OP_CHECK_IF(
         inputParams_.groupType != SPLIT_M && inputParams_.groupType != SPLIT_K,
-        OP_LOGE(inputParams_.opName, "Only support group type is 0 or 2 when the dtype of x is %s, actual is %d",
+        OP_LOGE(inputParams_.opName, "Only support group type is 0 or 2 when the dtype of x is %s, actual is %d.",
                 ge::TypeUtils::DataTypeToSerialString(inputParams_.aDtype).c_str(), inputParams_.groupType),
         return false);
     OP_CHECK_IF(
