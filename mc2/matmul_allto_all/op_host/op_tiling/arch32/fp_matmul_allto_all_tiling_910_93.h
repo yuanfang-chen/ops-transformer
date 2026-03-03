@@ -37,8 +37,10 @@ class FpMatmulAllToAllTilingBaseA3 : public MatmulAllToAllTilingBase {
 public:
     explicit FpMatmulAllToAllTilingBaseA3(gert::TilingContext *context);
     ~FpMatmulAllToAllTilingBaseA3() override = default;
+    ge::graphStatus GetWorkspaceSize() override;
 
 protected:
+    void SetUserWorkSpace(); 
     bool IsCapable() override;
     ge::graphStatus DoOpTiling() override;
     ge::graphStatus PostTiling() override;

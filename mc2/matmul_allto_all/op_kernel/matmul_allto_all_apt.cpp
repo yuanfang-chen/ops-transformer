@@ -87,7 +87,6 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     TPipe pipe;
 
 #if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
-    AscendC::PRINTF("qiziy");
  	REGISTER_TILING_DEFAULT(MatmulAlltoAllTilingDataA3);
  	GET_TILING_DATA_WITH_STRUCT(MatmulAlltoAllTilingDataA3, tilingData, tilingGM);
  	 
