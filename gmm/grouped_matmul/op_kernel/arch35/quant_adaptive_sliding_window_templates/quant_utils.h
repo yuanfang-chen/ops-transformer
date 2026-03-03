@@ -38,6 +38,7 @@ const uint32_t FP32_OUTPUT_TIMES = 4;
 constexpr uint8_t BUFFER_SWITCH = 2;
 constexpr uint8_t SPLIT_M = 0;
 constexpr uint8_t SPLIT_K = 2;
+constexpr uint8_t GROUP_LIST_TYPE_SPARSE = 2;
 constexpr uint64_t CUBE_BLOCK = 16;
 constexpr uint64_t INNER_AXIS_MIN_SPLIT_VAL = 128; // ND2NZ cacheline 128
 
@@ -141,8 +142,12 @@ __aicore__ inline int32_t GetSplitValueFromGroupList(uint32_t groupIdx, int32_t 
             int32_t offset = static_cast<int32_t>(groupListGm.GetValue(groupIdx));
             splitValue = offset - preOffset;
             preOffset = offset;
-        } else {
+        } else if (groupListType == 1){
             splitValue = static_cast<int32_t>(groupListGm.GetValue(groupIdx));
+        }
+        else {
+            // groupListType 为2的情况, shape为[e,2]
+            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx * 2 + 1));
         }
     }
     return splitValue;

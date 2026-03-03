@@ -285,7 +285,7 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Upd
     }
     yGlobal_.SetGlobalBuffer(GROUPED_MATMUL::GetTensorAddr<yType>(0, yTensorPtr_) + block_.params_.cGroupAddrOffset);
 }
-
+// zzznote : mListGm_是写在哪里呢？这里可能要求确认哪里写了mListGm_
 LOCAL_TEMPLATE_CLASS_MIX_PARAMS
 __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::SetMNK(uint32_t groupIdx, int32_t &mSize,
                                                                                     int32_t &nSize, int32_t &kSize)
@@ -380,14 +380,21 @@ __aicore__ inline void GQmmMixRegbaseKernel<LOCAL_TEMPLATE_FUNC_MIX_PARAMS>::Pro
     }
     preOffset_ = 0;
     bool isKZeroInit = false;
-    for (uint32_t groupIdx = 0; groupIdx < groupNum_; ++groupIdx) {
+    for (uint32_t loopIdx = 0; loopIdx < groupNum_; ++loopIdx) {
+        uint32_t groupIdx = loopIdx;
+        if (groupListType_ == GROUP_LIST_TYPE_SPARSE) {
+            groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(loopIdx * 2));
+        }
         int32_t mSize;
         int32_t nSize;
         int32_t kSize;
         // 更新group内的输入参数M,N,K
-        SetMNK(groupIdx, mSize, nSize, kSize);
-        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx);
+        SetMNK(loopIdx, mSize, nSize, kSize);
+        block_.template UpdateGroupOffset<aTrans, bTrans, xType, scaleType, wFormat>(mSize, nSize, kSize, groupIdx,loopIdx);
         if (mSize <= 0 || nSize <= 0) {
+            if (groupListType_ == GROUP_LIST_TYPE_SPARSE && mSize <= 0) {
+                break;
+            }
             continue;
         }
         if (kSize <= 0) {
