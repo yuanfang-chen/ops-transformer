@@ -44,7 +44,8 @@ void MMReduceScatterFitBalanceTiling::SetShortTileLen()
 {
     uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
         mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
-    if (l2UseSize > L2_CACHE_SIZE && mmInfo_.mValue > 512) { // 512 ===================
+    isLargerThanL2Cache_ = l2UseSize > L2_CACHE_SIZE;
+    if (isLargerThanL2Cache_ && mmInfo_.mValue > tilingM_.GetMinLen() * 4) { // 512 ===================
         tilingM_.SetMinLenByMax(tilingM_.GetMinLen() * TWO);
     }
 
@@ -52,6 +53,24 @@ void MMReduceScatterFitBalanceTiling::SetShortTileLen()
     tilingM_.cutRes.numShortTile = 1U;
 }
 
+void MMReduceScatterFitBalanceTiling::SetLongTileLen()
+{
+    // balancing the pipeline
+    if (tilingM_.cutRes.shortTileAtBack) {
+        double targetTime =
+            matmulPerf_.MatmulTime(tilingM_.cutRes.shortTileLen, rankTileNum_);
+        tilingM_.cutRes.longTileLen = commPerf_.InverseCommTime(targetTime);
+    } else {
+        double targetTime = commPerf_.CommTime(tilingM_.cutRes.shortTileLen);
+        tilingM_.cutRes.longTileLen =
+            matmulPerf_.InverseMatmulTime(targetTime, rankTileNum_);
+    }
+    OPS_LOG_D("MMReduceScatterFitBalanceTiling", "longTileLen %lu", tilingM_.cutRes.longTileLen);
+    if (isLargerThanL2Cache_ && mmInfo_.mValue % tilingM_.cutRes.shortTileLen == 0 &&
+        (mmInfo_.nValue >= TWO * mmInfo_.mValue * rankDim_)) {
+        tilingM_.cutRes.longTileLen = tilingM_.cutRes.shortTileLen;
+    }
+}
 
 void MMReduceScatterFitBalanceTiling::AdjustLongShortTileLen()
 {

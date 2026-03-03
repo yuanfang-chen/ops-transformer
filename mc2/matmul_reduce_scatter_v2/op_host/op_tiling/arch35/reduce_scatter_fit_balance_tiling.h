@@ -33,7 +33,11 @@ public:
 
     void EstimateMMCommTime() override;
     void SetShortTileLen() override;
+    void SetLongTileLen() override;
     void AdjustLongShortTileLen() override;
+
+private:
+    bool isLargerThanL2Cache_ = false;
 };
 
 #endif // __REDUCE_SCATTER_FIT_BALANCE_TILING_H__
