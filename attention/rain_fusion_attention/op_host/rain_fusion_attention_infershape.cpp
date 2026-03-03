@@ -214,7 +214,7 @@ static ge::graphStatus InferShapeRainFusionAttention(gert::InferShapeContext *co
 }
 
 IMPL_OP_INFERSHAPE(RainFusionAttention)
-    .InferShape(InferShapeRainFusionAttention);
+    .InferShape(InferShapeRainFusionAttention)
     .InferDataType(InferDataTypeBlockSparseAttention);
 
 }  // namespace ops
