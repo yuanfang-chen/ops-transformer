@@ -29,7 +29,7 @@
 
 #include "moe_distribute_v2_base.h"
 #include "check_winsize.h"
-#include "../common/inc/kernel/mc2_moe_context.h"
+#include "../../common/inc/kernel/mc2_moe_context.h"
 #if __has_include("../common/inc/kernel/moe_distribute_base.h")
 #include "../common/inc/kernel/moe_distribute_base.h"
 #else 
