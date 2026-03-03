@@ -708,36 +708,52 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     OP_CHECK_NULL_WITH_CONTEXT(context_, workspaces);
     workspaces[0] = workspaceSize_;
 
+    // Set block dimension (number of cores to use)
     context_->SetBlockDim(realCoreNum_);
 
-    // 设置tiling数据
-    tilingData_.set_loopNumBS(loopNumBS_);
-    tilingData_.set_loopNumDim(loopNumDim_);
-    tilingData_.set_ubFactorBS(ubFactorBS_);
-    tilingData_.set_ubTailFactorBS(ubTailFactorBS_);
-    tilingData_.set_ubFactorDim(ubFactorDim_);
-    tilingData_.set_ubTailFactorDim(ubTailFactorDim_);
-    tilingData_.set_blockFactor(blockFactor_);
-    tilingData_.set_blockIndex(blockIndex_);
-    tilingData_.set_blockTailFactor(blockTailFactor_);
-    tilingData_.set_tailBlockloopNumBS(tailBlockloopNumBS_);
-    tilingData_.set_tailBlockloopNumDim(tailBlockloopNumDim_);
-    tilingData_.set_tailBlockubFactorBS(tailBlockubFactorBS_);
-    tilingData_.set_tailBlockubTailFactorBS(tailBlockubTailFactorBS_);
-    tilingData_.set_tailBlockubFactorDim(tailBlockubFactorDim_);
-    tilingData_.set_tailBlockubTailFactorDim(tailBlockubTailFactorDim_);
-    tilingData_.set_realCoreNum(static_cast<uint32_t>(realCoreNum_));
-    tilingData_.set_kernelWidth(kernelWidth_);
-    tilingData_.set_cuSeqLen(cuSeqLen_);
-    tilingData_.set_dim(dim_);
-    tilingData_.set_batch(batch_);
-    tilingData_.set_validBatchStart(validBatchStart_);
-    tilingData_.set_validBatchCount(validBatchCount_);
-    tilingData_.set_validSeqStart(validSeqStart_);
-    tilingData_.set_validSeqLen(validSeqLen_);
+    // Clear tiling data to avoid uninitialized padding bytes
+    errno_t ret = memset_s(&tilingData_, sizeof(tilingData_), 0, sizeof(tilingData_));
+    if (ret != EOK) {
+        OP_LOGE(context_->GetNodeName(), "memset_s failed, ret=%d", ret);
+        return ge::GRAPH_FAILED;
+    }
 
-    tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
+    // Populate tiling data
+    tilingData_.loopNumBS = loopNumBS_;
+    tilingData_.loopNumDim = loopNumDim_;
+    tilingData_.ubFactorBS = ubFactorBS_;
+    tilingData_.ubTailFactorBS = ubTailFactorBS_;
+    tilingData_.ubFactorDim = ubFactorDim_;
+    tilingData_.ubTailFactorDim = ubTailFactorDim_;
+    tilingData_.blockFactor = blockFactor_;
+    tilingData_.blockIndex = blockIndex_;
+    tilingData_.blockTailFactor = blockTailFactor_;
+    tilingData_.tailBlockloopNumBS = tailBlockloopNumBS_;
+    tilingData_.tailBlockloopNumDim = tailBlockloopNumDim_;
+    tilingData_.tailBlockubFactorBS = tailBlockubFactorBS_;
+    tilingData_.tailBlockubTailFactorBS = tailBlockubTailFactorBS_;
+    tilingData_.tailBlockubFactorDim = tailBlockubFactorDim_;
+    tilingData_.tailBlockubTailFactorDim = tailBlockubTailFactorDim_;
+    tilingData_.realCoreNum = static_cast<uint32_t>(realCoreNum_);
+    tilingData_.kernelWidth = kernelWidth_;
+    tilingData_.cuSeqLen = cuSeqLen_;
+    tilingData_.dim = dim_;
+    tilingData_.batch = batch_;
+    tilingData_.validBatchStart = validBatchStart_;
+    tilingData_.validBatchCount = validBatchCount_;
+    tilingData_.validSeqStart = validSeqStart_;
+    tilingData_.validSeqLen = validSeqLen_;
+
+    // Save tiling data to buffer
+    auto tilingDataSize = sizeof(CausalConv1dFnTilingData);
+    ret = memcpy_s(context_->GetRawTilingData()->GetData(),
+                    context_->GetRawTilingData()->GetCapacity(),
+                    reinterpret_cast<void *>(&tilingData_), tilingDataSize);
+    if (ret != EOK) {
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
+        return ge::GRAPH_FAILED;
+    }
+    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
 
     return ge::GRAPH_SUCCESS;
 }
