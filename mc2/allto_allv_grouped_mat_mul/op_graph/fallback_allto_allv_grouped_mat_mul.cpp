@@ -18,6 +18,40 @@
 
 namespace fallback
 {
+enum class AlltoAllvQuantGroupedMatMulInputIdx : size_t {
+    K_GMM_X,
+    K_GMM_WEIGHT,
+    K_SEND_COUNTS_TENSOR,
+    K_RECV_COUNTS_TENSOR,
+    K_MM_X,
+    K_MM_WEIGHT,
+    K_GMM_X_SCALE,
+    K_GMM_WEIGHT_SCALE,
+    K_GMM_X_OFFSET,
+    K_GMM_WEIGHT_OFFSET,
+    K_MM_X_SCALE,
+    K_MM_WEIGHT_SCALE,
+    K_MM_X_OFFSET,
+    K_MM_WEIGHT_OFFSET
+};
+
+enum class AlltoAllvQuantGroupedMatMulAttrIdx : size_t {
+    K_GROUP,
+    K_EP_WORLD_SIZE,
+    K_SEND_COUNTS,
+    K_RECV_COUNTS,
+    K_TRANS_GMM_WEIGHT,
+    K_TRANS_MM_WEIGHT,
+    K_PERMUTE_OUT_FLAG,
+    K_GMM_X_QUANT_MODE,
+    K_GMM_WEIGHT_QUANT_MODE,
+    K_MM_X_QUANT_MODE,
+    K_MM_WEIGHT_QUANT_MODE,
+    K_GROUP_SIZE,
+    K_Y_DTYPE,
+    K_MM_DTYPE
+};
+
 // 输入参数和属性的校验
 static ge::graphStatus CheckInputsAndAttrs(
     const gert::Tensor* gmmX,
@@ -148,12 +182,51 @@ static ge::graphStatus AlltoAllvGroupedMatMulExecuteFunc(gert::OpExecuteContext*
     }
 
     // 计算
-    const auto apiRet = EXEC_OPAPI_CMD(aclnnAlltoAllvGroupedMatMul,
-                                       gmmX, gmmWeight, sendCountsTensor, recvCountsTensor, mmX, mmWeight,
-                                       group, *epWorldSize, actSendCountsSeqArray, actRecvCountsSeqArray,
-                                       *transGmmWeight, *transMmWeight, *permuteOutFlag, gmmY, mmY, permuteOut);
-    OPS_ERR_IF(apiRet != ge::GRAPH_SUCCESS,
-        OP_LOGE("AlltoAllvGroupedMatMulFallback", "Aclnn api error code %u", apiRet), return ge::GRAPH_FAILED);
+    const bool* gmmXQuantMode = attrs->
+        GetBool(static_cast<size_t>(AlltoAllvQuantGroupedMatMulAttrIdx::K_GMM_X_QUANT_MODE));
+    // 如果mode为空指针或0则调用非量化接口
+    if (gmmXQuantMode == nullptr || *gmmXQuantMode == 0) {
+        const auto apiRet = EXEC_OPAPI_CMD(aclnnAlltoAllvGroupedMatMul,
+                                        gmmX, gmmWeight, sendCountsTensor, recvCountsTensor, mmX, mmWeight,
+                                        group, *epWorldSize, actSendCountsSeqArray, actRecvCountsSeqArray,
+                                        *transGmmWeight, *transMmWeight, *permuteOutFlag, gmmY, mmY, permuteOut);
+        OPS_ERR_IF(apiRet != ge::GRAPH_SUCCESS,
+            OP_LOGE("AlltoAllvGroupedMatMulFallback", "Aclnn api error code %u", apiRet), return ge::GRAPH_FAILED);
+    } else {
+        const gert::Tensor* gmmXScale = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_X_SCALE));
+        const gert::Tensor* gmmWeightScale = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_WEIGHT_SCALE));
+        const gert::Tensor* gmmXOffset = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_X_OFFSET));
+        const gert::Tensor* gmmWeightOffset = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_GMM_WEIGHT_OFFSET));
+        const gert::Tensor* mmXScale = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_X_SCALE));
+        const gert::Tensor* mmWeightScale = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_WEIGHT_SCALE));
+        const gert::Tensor* mmXOffset = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_X_OFFSET));
+        const gert::Tensor* mmWeightOffset = host_api_ctx->
+            GetOptionalInputTensor(static_cast<size_t>(AlltoAllvQuantGroupedMatMulInputIdx::K_MM_WEIGHT_OFFSET));
+        const int64_t* gmmWeightQuantMode = attrs->
+            GetInt(static_cast<size_t>(AlltoAllvQuantGroupedMatMulAttrIdx::K_GMM_WEIGHT_QUANT_MODE));
+        const int64_t* mmXQuantMode = attrs->
+            GetInt(static_cast<size_t>(AlltoAllvQuantGroupedMatMulAttrIdx::K_MM_X_QUANT_MODE));
+        const int64_t* mmWeightQuantMode = attrs->
+            GetInt(static_cast<size_t>(AlltoAllvQuantGroupedMatMulAttrIdx::K_MM_WEIGHT_QUANT_MODE));
+        const int64_t* groupSize = attrs->
+            GetInt(static_cast<size_t>(AlltoAllvQuantGroupedMatMulAttrIdx::K_GROUP_SIZE));
+        const auto apiRet = EXEC_OPAPI_CMD(aclnnAlltoAllvQuantGroupedMatMul,
+                                        gmmX, gmmWeight, gmmXScale, gmmWeightScale, gmmXOffset, gmmWeightOffset,
+                                        sendCountsTensor, recvCountsTensor, mmX, mmWeight, mmXScale, mmWeightScale,
+                                        mmXOffset, mmWeightOffset, *gmmXQuantMode, *gmmWeightQuantMode,
+                                        *mmXQuantMode, *mmWeightQuantMode, group, *epWorldSize, actSendCountsSeqArray,
+                                        actRecvCountsSeqArray, *transGmmWeight, *transMmWeight, *groupSize,
+                                        *permuteOutFlag, gmmY, mmY, permuteOut);
+        OPS_ERR_IF(apiRet != ge::GRAPH_SUCCESS,
+            OP_LOGE("AlltoAllvQuantGroupedMatMulFallback", "Aclnn api error code %u", apiRet), return ge::GRAPH_FAILED);
+    }
     return ge::GRAPH_SUCCESS;
 }
 IMPL_OP(AlltoAllvGroupedMatMul).OpExecuteFunc(AlltoAllvGroupedMatMulExecuteFunc);
