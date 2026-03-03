@@ -60,6 +60,7 @@ struct alignas(8) QuantMatmulAllReduceTilingDataA5 {
 struct alignas(8) MatmulAllReduce910TilingDataA5 {
     Mc2InitTiling mc2InitTiling;
  	Mc2CcTiling mc2CcTiling;
+ 	Mc2CcTiling mc2CcTilingComm;
     Mc2Tiling::RCSTiling param;
     Mc2MatMulV3TilingData mC2Mmv3TileTilingData;
     Mc2MatMulV3TilingData mC2Mmv3TailTilingData;
