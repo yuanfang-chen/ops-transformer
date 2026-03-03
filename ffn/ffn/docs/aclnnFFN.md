@@ -89,7 +89,7 @@ G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数�
 
 - **参数说明**
 
-  <table style="undefined;table-layout: fixed; width: 1630px">
+  <table style="undefined;table-layout: fixed; width: 1650px">
   <colgroup>
   <col style="width: 200px"> <!-- 参数名 -->
   <col style="width: 120px"> <!-- 输入/输出 -->
@@ -97,7 +97,7 @@ G表示伪量化per-group场景下，antiquantOffset、antiquantScale的组数�
   <col style="width: 300px">  <!-- 使用说明 -->
   <col style="width: 250px">  <!-- 数据类型 -->
   <col style="width: 120px">  <!-- 数据格式 -->
-  <col style="width: 220px"> <!-- 维度(shape) -->
+  <col style="width: 240px"> <!-- 维度(shape) -->
   <col style="width: 140px">  <!-- 非连续Tensor -->
   </colgroup>
   <thead>

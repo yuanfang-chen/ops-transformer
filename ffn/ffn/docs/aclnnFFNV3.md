@@ -246,11 +246,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT32</td> 
   <td>ND</td> 
-  <td>
-  <ul>
-  <li><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：per-tensor下输入在有/无专家时均为一维向量，输入元素个数在有/无专家时分别为[E]/[1]；per-channel下输入在有/无专家时为二维向量/一维向量，输入元素个数在有/无专家时分别为[E, N1]/[N1]</li>
-  </ul>
-  </td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<ul><li>per-tensor下输入在有/无专家时均为一维向量，输入元素个数在有/无专家时分别为[E]/[1]</li><li>per-channel下输入在有/无专家时为二维向量/一维向量，输入元素个数在有/无专家时分别为[E, N1]/[N1]</li></ul></td> 
   <td>√</td> 
   </tr> 
   <tr> 
@@ -260,11 +256,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT32</td> 
   <td>ND</td> 
-  <td>
-  <ul>
-  <li><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：一维向量，输入元素个数在有/无专家时分别为[E]/[1]</li>
-  </ul>
-  </td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：一维向量，输入元素个数在有/无专家时分别为[E]/[1]</td> 
   <td>-</td> 
   </tr> 
   <tr> 
@@ -294,7 +286,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT16、BFLOAT16</td> 
   <td>ND</td> 
-  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]</td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<ul><li>per-channel下输入在有/无专家时分别为[E, N1]/[N1]</li><li>per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]</li></ul></td> 
   <td>√</td> 
   </tr> 
   <tr> 
@@ -304,7 +296,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT16、BFLOAT16</td> 
   <td>ND</td> 
-  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]</td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<ul><li>per-channel下输入在有/无专家时分别为[E, N2]/[N2]</li><li>per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]</li></ul></td> 
   <td>√</td> 
   </tr> 
   <tr> 
@@ -314,7 +306,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT16、BFLOAT16</td> 
   <td>ND</td> 
-  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：per-channel下输入在有/无专家时分别为[E, N1]/[N1]，per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]</td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<ul><li>per-channel下输入在有/无专家时分别为[E, N1]/[N1]</li><li>per-group下输入在有/无专家时分别为[E, G, N1]/[G, N1]</li></ul></td> 
   <td>√</td> 
   </tr> 
   <tr> 
@@ -324,7 +316,7 @@ aclnnStatus aclnnFFNV3(
   <td><term>Atlas 推理系列加速卡产品</term>：只支持传空指针。</td> 
   <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：FLOAT16、BFLOAT16</td> 
   <td>ND</td> 
-  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：per-channel下输入在有/无专家时分别为[E, N2]/[N2]，per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]</td> 
+  <td><term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：<ul><li>per-channel下输入在有/无专家时分别为[E, N2]/[N2]</li><li>per-group下输入在有/无专家时分别为[E, G, N2]/[G, N2]</li></ul></td> 
   <td>√</td> 
   </tr> 
   <tr> 

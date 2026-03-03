@@ -89,7 +89,7 @@ N2表示第二个matmul的输出通道数，对应transform中的H。
 
 - **参数说明**
 
-  <table style="undefined;table-layout: fixed; width: 1620px">
+  <table style="undefined;table-layout: fixed; width: 1640px">
   <colgroup> <!--工具调整列宽时，所列宽总和最大不要超过1550--> 
   <col style="width: 180px"> <!-- 参数名：自行调整列宽，原则：不能换行展示--> 
   <col style="width: 120px"> <!-- 输入/输出：固定列宽--> 
@@ -97,7 +97,7 @@ N2表示第二个matmul的输出通道数，对应transform中的H。
   <col style="width: 290px"> <!-- 使用说明列宽：自行调整列宽--> 
   <col style="width: 290px"> <!-- 数据类型列宽：自行调整列宽--> 
   <col style="width: 120px"> <!--数据格式：自行调整列宽--> 
-  <col style="width: 300px"> <!-- 维度(shape)：自行调整列宽，内容较少时可以适当缩小列宽--> 
+  <col style="width: 320px"> <!-- 维度(shape)：自行调整列宽，内容较少时可以适当缩小列宽--> 
   <col style="width: 140px"> <!--非连续Tensor：自行调整列宽，必须不要修改这个数值--> 
   </colgroup> 
   <thead> 
