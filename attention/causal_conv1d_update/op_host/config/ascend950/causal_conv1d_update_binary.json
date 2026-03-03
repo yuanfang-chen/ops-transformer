@@ -98,11 +98,6 @@
                     "value": null
                 },
                 {
-                    "name": "residualConnMode",
-                    "dtype": "int",
-                    "value": null
-                },
-                {
                     "name": "runMode",
                     "dtype": "int",
                     "value": null
@@ -223,11 +218,6 @@
                 },
                 {
                     "name": "padSlotId",
-                    "dtype": "int",
-                    "value": null
-                },
-                {
-                    "name": "residualConnMode",
                     "dtype": "int",
                     "value": null
                 },
