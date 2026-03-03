@@ -46,9 +46,9 @@ constexpr int VALUE_INDEX = 3;
 constexpr int OUT_INDEX = 4;
 constexpr int SOFTMAX_LSE_INDEX = 5;
 constexpr int BLOCK_SPARSE_MASK_INDEX = 6;
-constexpr int BLOCK_SHAPE_INDEX = 7;
+constexpr int BLOCK_SHAPE_INDEX = 8;
 
-constexpr int ATTENTION_MASK_INDEX = 8;
+constexpr int ATTENTION_MASK_INDEX = 7;
 constexpr int ACTUAL_SEQ_LENGTHS_INDEX = 9;
 constexpr int ACTUAL_SEQ_LENGTHS_KV_INDEX = 10;
 
@@ -168,12 +168,12 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
         maxKvSeqlen_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_S));
     }
 
-    auto blockShape = context->GetInputTensor(BLOCK_SHAPE_INDEX);
-    if (blockShape == nullptr) {
+    auto blockShapeOptional = context->GetInputTensor(BLOCK_SHAPE_INDEX);
+    if (blockShapeOptional == nullptr) {
         OP_LOGE(context->GetNodeName(), "Block shape tensor is null");
         return ge::GRAPH_FAILED;
     }
-    blockShapeList = blockShape->GetData<int64_t>();
+    blockShapeList = blockShapeOptional->GetData<int64_t>();
     if (blockShapeList == nullptr) {
         OP_LOGE(context->GetNodeName(), "Block shape GetData is nullptr");
         return ge::GRAPH_FAILED;

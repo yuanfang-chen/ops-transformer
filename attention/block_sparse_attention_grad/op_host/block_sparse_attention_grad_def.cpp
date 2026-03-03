@@ -32,7 +32,7 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
-        this->Input("out")
+        this->Input("attentionOut")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
@@ -40,23 +40,23 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND});
-        this->Input("blockSparseMask")
-            .ParamType(REQUIRED)
+        this->Input("blockSparseMaskOptional")
+            .ParamType(OPTIONAL)
             .DataType({ge::DT_UINT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
-        this->Input("blockShape")
-            .ParamType(REQUIRED)
+         this->Input("attenMaskOptional")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_UINT8, ge::DT_UINT8})
+            .FormatList({ge::FORMAT_ND});
+        this->Input("blockShapeOptional")
+            .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .FormatList({ge::FORMAT_ND}); 
-        this->Input("attenMask")
-            .ParamType(OPTIONAL)
-            .DataType({ge::DT_UINT8, ge::DT_UINT8})
-            .FormatList({ge::FORMAT_ND});
-        this->Input("actualSeqLengths")
+        this->Input("actualSeqLengthsOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .FormatList({ge::FORMAT_ND});
-        this->Input("actualSeqLengthsKv")
+        this->Input("actualSeqLengthsKvOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_INT64, ge::DT_INT64})
             .FormatList({ge::FORMAT_ND});
@@ -73,8 +73,8 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         
-        this->Attr("qInputLayout").AttrType(OPTIONAL).String("TND");
-        this->Attr("kvInputLayout").AttrType(OPTIONAL).String("TND");
+        this->Attr("qInputLayout").AttrType(OPTIONAL);
+        this->Attr("kvInputLayout").AttrType(OPTIONAL);
         this->Attr("numKeyValueHeads").AttrType(OPTIONAL).Int(1);
         this->Attr("maskType").AttrType(OPTIONAL).Int(0);
         this->Attr("scaleValue").AttrType(OPTIONAL).Float(0.0);

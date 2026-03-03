@@ -25,11 +25,11 @@ extern "C" {
  * @param [in] query: Query tensor输入
  * @param [in] key: Key tensor输入
  * @param [in] value: Value tensor输入
- * @param [in] out: attention out tensor输入
+ * @param [in] attentionOut: attention out tensor输入
  * @param [in] softmaxLse: softmax tensor输入
- * @param [in] blockSparseMask: 稀疏块索引 [T, headNum, maxKvBlockNum]
- * @param [in] blockShape: 稀疏块形状数组 [blockShapeX, blockShapeY]
+ * @param [in] blockSparseMaskOptional: 稀疏块索引 [T, headNum, maxKvBlockNum]
  * @param [in] attenMaskOptional: Attention mask (可选)
+ * @param [in] blockShapeOptional: 稀疏块形状数组 [blockShapeX, blockShapeY]
  * @param [in] actualSeqLengthsOptional: 实际序列长度Q (可选)
  * @param [in] actualSeqLengthsKvOptional: 实际序列长度KV (可选)
  * @param [in] qInputLayout: Query输入layout ("TND", "BNSD")
@@ -51,11 +51,11 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
-    const aclTensor *out,
+    const aclTensor *attentionOut,
     const aclTensor *softmaxLse,
-    const aclTensor *blockSparseMask,
-    const aclIntArray *blockShape,
+    const aclTensor *blockSparseMaskOptional,
     const aclTensor *attenMaskOptional,
+    const aclIntArray *blockShapeOptional,
     const aclIntArray *actualSeqLengthsOptional,
     const aclIntArray *actualSeqLengthsKvOptional,
     char *qInputLayout,
@@ -65,9 +65,9 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     double scaleValue,
     int64_t preTokens,
     int64_t nextTokens,
-    const aclTensor *dq,
-    const aclTensor *dk,
-    const aclTensor *dv,
+    aclTensor *dq,
+    aclTensor *dk,
+    aclTensor *dv,
     uint64_t *workspaceSize,
     aclOpExecutor **executor);
 

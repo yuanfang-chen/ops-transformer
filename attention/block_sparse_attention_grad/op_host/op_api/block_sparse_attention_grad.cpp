@@ -45,15 +45,15 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
-    const aclTensor *out,
+    const aclTensor *attentionOut,
     const aclTensor *softmaxLse,
-    const aclTensor *blockSparseMask,
-    const aclIntArray *blockShape,
+    const aclTensor *blockSparseMaskOptional,
     const aclTensor *attenMaskOptional,
+    const aclIntArray *blockShapeOptional,
     const aclIntArray *actualSeqLengthsOptional,
     const aclIntArray *actualSeqLengthsKvOptional,
-    const char *qInputLayout,
-    const char *kvInputLayout,
+    char *qInputLayout,
+    char *kvInputLayout,
     int64_t numKeyValueHeads,
     int64_t maskType,
     double scaleValue,
@@ -63,13 +63,12 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
 {
     const char *safeKvInputLayout = (kvInputLayout != nullptr) ? kvInputLayout : qInputLayout;
     
-    L0_DFX(BlockSparseAttentionGrad, dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape,
-           attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional, qInputLayout, safeKvInputLayout,
+    L0_DFX(BlockSparseAttentionGrad, dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional, 
+           attenMaskOptional, blockShapeOptional,actualSeqLengthsOptional, actualSeqLengthsKvOptional, qInputLayout, safeKvInputLayout,
            numKeyValueHeads, maskType, scaleValue, preTokens, nextTokens);
-
-    const aclTensor *blockShapeTensor = ConvertIntArrayToTensor(blockShape, executor, DataType::DT_INT64);
     const aclTensor *attenMaskTensor = (attenMaskOptional != nullptr) ? attenMaskOptional :
                                        executor->AllocTensor(DataType::DT_BOOL, Format::FORMAT_ND, Format::FORMAT_ND);
+    const aclTensor *blockShapeTensor = ConvertIntArrayToTensor(blockShapeOptional, executor, DataType::DT_INT64);
     const aclTensor *actualSeqTensor = ConvertIntArrayToTensor(actualSeqLengthsOptional, executor, DataType::DT_INT64);
     const aclTensor *actualSeqKvTensor = ConvertIntArrayToTensor(actualSeqLengthsKvOptional, executor, DataType::DT_INT64);
 
@@ -79,8 +78,8 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
 
     // scaleValue is already float type, no need for cast
     auto ret = INFER_SHAPE(BlockSparseAttentionGrad,
-                           OP_INPUT(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShapeTensor,
-                                    attenMaskTensor, actualSeqTensor, actualSeqKvTensor),
+                           OP_INPUT(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional,
+                                    attenMaskTensor,  blockShapeTensor,actualSeqTensor, actualSeqKvTensor),
                            OP_OUTPUT(dqTensor, dkTensor, dvTensor),
                            OP_ATTR(qInputLayout, safeKvInputLayout,
                                    static_cast<uint32_t>(numKeyValueHeads), static_cast<uint32_t>(maskType),
@@ -92,8 +91,8 @@ const std::array<const aclTensor *, 3> BlockSparseAttentionGrad(
     }
     
     ADD_TO_LAUNCHER_LIST_AICORE(BlockSparseAttentionGrad,
-                                OP_INPUT(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShapeTensor,
-                                         attenMaskTensor, actualSeqTensor, actualSeqKvTensor),
+                                OP_INPUT(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional, 
+                                         attenMaskTensor, blockShapeTensor,actualSeqTensor, actualSeqKvTensor),
                                 OP_OUTPUT(dqTensor, dkTensor, dvTensor),
                                 OP_ATTR(qInputLayout, safeKvInputLayout, static_cast<uint32_t>(numKeyValueHeads),
                                         static_cast<uint32_t>(maskType), static_cast<float>(scaleValue),

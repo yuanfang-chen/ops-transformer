@@ -64,41 +64,41 @@ static aclnnStatus CheckMandatoryTensors(const aclTensor *dout,
                                          const aclTensor *query,
                                          const aclTensor *key,
                                          const aclTensor *value,
-                                         const aclTensor *out,
+                                         const aclTensor *attentionOut,
                                          const aclTensor *softmaxLse,
-                                         const aclTensor *blockSparseMask)
+                                         const aclTensor *blockSparseMaskOptional)
 {
     CHECK_RET(dout != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(query != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(key != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(out != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(attentionOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     CHECK_RET(softmaxLse != nullptr, ACLNN_ERR_PARAM_NULLPTR);
-    CHECK_RET(blockSparseMask != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(blockSparseMaskOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
     return ACLNN_SUCCESS;
 }
 
-static aclnnStatus ParseBlockShape(const aclIntArray *blockShape)
+static aclnnStatus ParseBlockShape(const aclIntArray *blockShapeOptional)
 {
-    if (blockShape == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "blockShape is null.");
+    if (blockShapeOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "blockShapeOptional is null.");
         return ACLNN_ERR_PARAM_NULLPTR;
     }
 
-    uint64_t size = blockShape->Size();
+    uint64_t size = blockShapeOptional->Size();
     if (size < 2) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShape must contain at least two elements [x, y].");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShapeOptional must contain at least two elements [x, y].");
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    const int64_t *data = blockShape->GetData();
+    const int64_t *data = blockShapeOptional->GetData();
     if (data == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShape data is null.");
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShapeOptional data is null.");
         return ACLNN_ERR_PARAM_INVALID;
     }
 
     if (data[0] <= 0 || data[1] <= 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShape values must be positive, got [%ld, %ld].", data[0], data[1]);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockShapeOptional values must be positive, got [%ld, %ld].", data[0], data[1]);
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -109,14 +109,14 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
                                   const aclTensor *query,
                                   const aclTensor *key,
                                   const aclTensor *value,
-                                  const aclTensor *out,
+                                  const aclTensor *attentionOut,
                                   const aclTensor *softmaxLse,
-                                  const aclTensor *blockSparseMask,
+                                  const aclTensor *blockSparseMaskOptional,
                                   char *qInputLayout,
                                   char *kvInputLayout,
-                                  const aclIntArray *blockShape)
+                                  const aclIntArray *blockShapeOptional)
 {
-    CHECK_RET(CheckMandatoryTensors(dout, query, key, value, out, softmaxLse, blockSparseMask) == ACLNN_SUCCESS,
+    CHECK_RET(CheckMandatoryTensors(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional) == ACLNN_SUCCESS,
               ACLNN_ERR_PARAM_NULLPTR);
 
     if (!CheckDataType(query, key, value)) {
@@ -152,17 +152,17 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
         return ACLNN_ERR_PARAM_INVALID;
     }
 
-    return ParseBlockShape(blockShape);
+    return ParseBlockShape(blockShapeOptional);
 }
 
 static aclnnStatus MakeContiguous(const aclTensor *&dout,
                                   const aclTensor *&query,
                                   const aclTensor *&key,
                                   const aclTensor *&value,
-                                  const aclTensor *&out,
+                                  const aclTensor *&attentionOut,
                                   const aclTensor *&softmaxLse,
+                                  const aclTensor *&blockSparseMaskOptional,
                                   const aclTensor *&attenMaskOptional,
-                                  const aclTensor *&blockSparseMask,
                                   aclOpExecutor *executor)
 {
     dout = l0op::Contiguous(dout, executor);
@@ -177,14 +177,14 @@ static aclnnStatus MakeContiguous(const aclTensor *&dout,
     value = l0op::Contiguous(value, executor);
     CHECK_RET(value != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
-    out = l0op::Contiguous(out, executor);
-    CHECK_RET(out != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    attentionOut = l0op::Contiguous(attentionOut, executor);
+    CHECK_RET(attentionOut != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
     softmaxLse = l0op::Contiguous(softmaxLse, executor);
     CHECK_RET(softmaxLse != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
-    blockSparseMask = l0op::Contiguous(blockSparseMask, executor);
-    CHECK_RET(blockSparseMask != nullptr, ACLNN_ERR_PARAM_NULLPTR);
+    blockSparseMaskOptional = l0op::Contiguous(blockSparseMaskOptional, executor);
+    CHECK_RET(blockSparseMaskOptional != nullptr, ACLNN_ERR_PARAM_NULLPTR);
 
     if (attenMaskOptional != nullptr) {
         attenMaskOptional = l0op::Contiguous(attenMaskOptional, executor);
@@ -206,11 +206,11 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     const aclTensor *query,
     const aclTensor *key,
     const aclTensor *value,
-    const aclTensor *out,
+    const aclTensor *attentionOut,
     const aclTensor *softmaxLse,
-    const aclTensor *blockSparseMask,
-    const aclIntArray *blockShape,
+    const aclTensor *blockSparseMaskOptional,
     const aclTensor *attenMaskOptional,
+    const aclIntArray *blockShapeOptional,
     const aclIntArray *actualSeqLengthsOptional,
     const aclIntArray *actualSeqLengthsKvOptional,
     char *qInputLayout,
@@ -220,20 +220,20 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     double scaleValue,
     int64_t preTokens,
     int64_t nextTokens,
-    const aclTensor *dq,
-    const aclTensor *dk,
-    const aclTensor *dv,
+    aclTensor *dq,
+    aclTensor *dk,
+    aclTensor *dv,
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
-    aclnnStatus ret = ValidateParams(dout, query, key, value, out, softmaxLse, blockSparseMask,
-                                     qInputLayout, kvInputLayout, blockShape);
+    aclnnStatus ret = ValidateParams(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional,
+                                     qInputLayout, kvInputLayout, blockShapeOptional);
     if (ret != ACLNN_SUCCESS) {
         return ret;
     }
     
     L2_DFX_PHASE_1(aclnnBlockSparseAttentionGrad,
-                   DFX_IN(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape, attenMaskOptional,
+                   DFX_IN(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional, attenMaskOptional, blockShapeOptional,
                           actualSeqLengthsOptional, actualSeqLengthsKvOptional, qInputLayout, qInputLayout, numKeyValueHeads,
                           maskType, scaleValue, preTokens, nextTokens),
                    DFX_OUT(dq, dk, dv));
@@ -242,7 +242,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_NULLPTR);
     auto *executorImpl = uniqueExecutor.get();
 
-    ret = MakeContiguous(dout, query, key, value, out, softmaxLse, attenMaskOptional, blockSparseMask, executorImpl);
+    ret = MakeContiguous(dout, query, key, value, attentionOut, softmaxLse,blockSparseMaskOptional, attenMaskOptional, executorImpl);
     if (ret != ACLNN_SUCCESS) {
         return ret;
     }
@@ -250,9 +250,10 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     string qInputLayoutStr = ConvertLayoutString(qInputLayout);
     string kvInputLayoutStr = ConvertLayoutString(kvInputLayout);
     
-    auto outputs = l0op::BlockSparseAttentionGrad(dout, query, key, value, out, softmaxLse, blockSparseMask, blockShape,
-                                                  attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional,
-                                                  qInputLayoutStr.c_str(), kvInputLayoutStr.c_str(), numKeyValueHeads,
+    auto outputs = l0op::BlockSparseAttentionGrad(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional, 
+                                                  attenMaskOptional, blockShapeOptional,actualSeqLengthsOptional, actualSeqLengthsKvOptional,
+                                                  const_cast<char*>(qInputLayoutStr.c_str()), 
+                                                  const_cast<char*>(kvInputLayoutStr.c_str()), numKeyValueHeads,
                                                   maskType, scaleValue, preTokens, nextTokens, executorImpl);
     if (outputs[0] == nullptr || outputs[1] == nullptr || outputs[2] == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "BlockSparseAttentionGrad returned nullptr outputs.");
