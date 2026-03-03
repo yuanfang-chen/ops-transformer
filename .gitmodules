@@ -1,0 +1,9 @@
+[submodule "code/zhangzijie/ops-cv"]
+	path = code/zhangzijie/ops-cv
+	url = https://gitcode.com/zhangzijie/ops-cv.git
+[submodule "code/zhangzijie/ops-math"]
+	path = code/zhangzijie/ops-math
+	url = https://gitcode.com/zhangzijie/ops-math.git
+[submodule "code/zhangzijie/ops-nn"]
+	path = code/zhangzijie/ops-nn
+	url = https://gitcode.com/zhangzijie/ops-nn.git
