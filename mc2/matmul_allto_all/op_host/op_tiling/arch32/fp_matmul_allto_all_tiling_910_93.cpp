@@ -39,7 +39,7 @@ bool FpMatmulAllToAllTilingBaseA3::IsCapable()
 {
  	fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
  	OP_TILING_CHECK(platformInfoPtr == nullptr,         \
- 	    OP_LOGE(opName_, "fail to get platform info"),  \
+ 	    OP_LOGE(opName_, "fail to get platfoem info"),  \
  	    return ge::GRAPH_FAILED);
  	fe::PlatFormInfos &platformInfo = *platformInfoPtr;
  	(void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr_);
@@ -340,6 +340,43 @@ uint64_t FpMatmulAllToAllTilingBaseA3::GetTilingKey() const
 }
 
 /**
+ * @brief 设置额外需要的空间，包括计算结果地址，重排地址，偏移地址等
+ *
+ */
+void FpMatmulAllToAllTilingBaseA3::SetUserWorkSpace()
+{
+    constexpr uint64_t alignAddrLen = 512;
+    // MatmulAlltoAll先进行计算，需要有对应的空间先存放结果，假设x1(m,k),
+    // x2(k,n),那么计算结果大小为m*n,这里申请的是一块总的空间，通算切分的头尾块偏移由kernel侧自行计算
+    inferredInfo.mmResultLen = mc2tiling::AlignUp(
+        contextInfo.args_.orgMValue * contextInfo.args_.nValue * contextInfo.args_.outputDtypeSize, alignAddrLen);
+    // 重排空间等于mm计算结果空间
+    inferredInfo.permuteLen = inferredInfo.mmResultLen;
+    if (contextInfo.args_.isBias) {
+        inferredInfo.biasLen =
+            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
+    }
+}
+
+/**
+ * @brief 获取额外申请的空间
+ *
+ * @return ge::graphStatus
+ */
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::GetWorkspaceSize()
+{
+    size_t *workspaces = context_->GetWorkspaceSizes(1);
+    OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
+    SetUserWorkSpace();
+    uint64_t workspaceSize_ =
+        libApiWorkSpaceSize_ + inferredInfo.mmResultLen + inferredInfo.permuteLen + inferredInfo.biasLen;
+    workspaces[0] = workspaceSize_;
+    OP_LOGD(opName_, "Workspaces[0] size=%ld, biasLen=%d, mmResultLen=%d", workspaces[0], inferredInfo.biasLen,
+            inferredInfo.mmResultLen);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
  * @brief 保存tiling数据到context
  *
  * @return ge::graphStatus
@@ -383,9 +420,9 @@ void FpMatmulAllToAllTilingBaseA3::SetTilingInfo(MatmulAlltoAllTilingInfoA3 &til
     tilingInfo.tileCnt = inferredInfo.tileCnt;
     tilingInfo.tailM = inferredInfo.tailM;
     tilingInfo.tailCnt = inferredInfo.tailCnt;
-    tilingInfo.rankM = contextInfo.args_.mValue;
+    tilingInfo.rankM = contextInfo.args_.orgMValue;
     tilingInfo.rankN = contextInfo.args_.nValue;
-    tilingInfo.rankK = contextInfo.args_.kValue;
+    tilingInfo.rankK = contextInfo.args_.orgKValue;
     tilingInfo.mmResultLen = inferredInfo.mmResultLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.biasLen = inferredInfo.biasLen;

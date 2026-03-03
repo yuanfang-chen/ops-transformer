@@ -61,8 +61,6 @@ template <typename SchedulerType, typename SchedulerContextType, typename Matmul
 __aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataType>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR y,
     GM_ADDR workspaceGM, MatmulAlltoAllTilingDataType* tilingData,TPipe* tPipe)
 {   
-    AscendC::PRINTF("qiziyu");
-    // 获取tilingdata数据
     tilingData_ = tilingData;
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     // 数据初始化
@@ -84,21 +82,15 @@ __aicore__ inline void MatmulAlltoAllA3<SchedulerType, SchedulerContextType, Mat
 {
     auto&& mc2Tiling_ = tilingData_->matmulAlltoAllTilingInfo;
     // 启动主块流水
-    AscendC::PRINTF("zhukuai");
     if(mc2Tiling_.tileCnt>0) {
         ProcessTile(mc2Tiling_.tileCnt);
     }
 
-    // 启动尾块流水
-    AscendC::PRINTF("weikuai");
     if(mc2Tiling_.tailCnt>0) {
         ProcessTail(mc2Tiling_.tailCnt);
     }
 
-    // 结束流水线
-    AscendC::PRINTF("kaishi");
-    pipeLine_->End();
-    AscendC::PRINTF("jieshu");
+    pipeLine_->End();  
 }
 
 template <typename SchedulerType, typename SchedulerContextType, typename MatmulAlltoAllTilingDataType>
