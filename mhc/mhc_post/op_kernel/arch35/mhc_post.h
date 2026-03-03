@@ -44,11 +44,11 @@ public:
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void CopyInTile(int64_t bsIdx, int64_t dIdx);
-    __aicore__ inline void ComputeCopyOut(int64_t bsIdx, int64_t dIdx);
-    __aicore__ inline void ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx);
-    __aicore__ inline void CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI);
-    __aicore__ inline void CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ);
+    __aicore__ inline void CopyInHOut(int64_t bsIdx, int64_t dIdx, int64_t dNum);
+    __aicore__ inline void ComputeCopyOut(int64_t bsIdx, int64_t dIdx, int64_t dNum);
+    __aicore__ inline void ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx, int64_t dNum);
+    __aicore__ inline void CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI, int64_t dNum);
+    __aicore__ inline void CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ, int64_t dNum);
 
 private:
     TPipe *pipe_;
@@ -164,39 +164,35 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Process()
         int64_t globalItemIdx = itemStart_ + itemIdx;
         int64_t bsIdx = globalItemIdx / dOuter_;
         int64_t dIdx = globalItemIdx - bsIdx * dOuter_;
+        int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
 
-        CopyInTile(bsIdx, dIdx);
+        CopyInHOut(bsIdx, dIdx, dNum);
         if constexpr (USE_PERMANENT_X == 1) {
-            CopyInX(bsIdx, dIdx, 0);
-            ComputeCopyOutAllX(bsIdx, dIdx);
+            CopyInX(bsIdx, dIdx, 0, dNum);
+            ComputeCopyOutAllX(bsIdx, dIdx, dNum);
         } else {
-            ComputeCopyOut(bsIdx, dIdx);
+            ComputeCopyOut(bsIdx, dIdx, dNum);
         }
     }
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInTile(int64_t bsIdx, int64_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInHOut(int64_t bsIdx, int64_t dIdx, int64_t dNum)
 {
     int64_t hOutOffset = bsIdx * D_ + dIdx * dInner_;
     LocalTensor<T> hOutTileLocal = hOutTileQueue_.AllocTensor<T>();
 
-    if (dIdx < dOuter_ - 1) {
-        DataCopy(hOutTileLocal, hOutGm_[hOutOffset], dInner_);
-    } else {
-        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
-        DataCopyPad(hOutTileLocal, hOutGm_[hOutOffset], copyParams, {false, 0, 0, 0});
-    }
+    DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dNum * sizeof(T)), 0, 0, 0};
+    DataCopyPad(hOutTileLocal, hOutGm_[hOutOffset], copyParams, {false, 0, 0, 0});
 
     hOutTileQueue_.EnQue(hOutTileLocal);
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsIdx, int64_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsIdx, int64_t dIdx, int64_t dNum)
 {
     int64_t hPostBase = bsIdx * n_;
     int64_t hResBase = bsIdx * n_ * n_;
-    int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
 
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
     LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
@@ -210,7 +206,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsId
     for (int64_t i = 0; i < n_; i++) {
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
         for (int64_t j = 0; j < n_; j++) {
-            CopyInX(bsIdx, dIdx, j);
+            CopyInX(bsIdx, dIdx, j, dNum);
             LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
             Cast(xF32, xTile, RoundMode::CAST_NONE, dNum);
             Axpy(outF32, xF32, hResGm_.GetValue(hResBase + j * n_ + i), dNum);
@@ -219,19 +215,17 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsId
 
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
-        CopyOutTile(bsIdx, dIdx, i);
+        CopyOutTile(bsIdx, dIdx, i, dNum);
     }
 
     hOutTileQueue_.FreeTensor(hOutTile);
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t bsIdx, int64_t dIdx, int64_t dNum)
 {
     int64_t hPostBase = bsIdx * n_;
     int64_t hResBase = bsIdx * n_ * n_;
-    int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
-
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
     LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
     LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
@@ -251,7 +245,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
 
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
-        CopyOutTile(bsIdx, dIdx, i);
+        CopyOutTile(bsIdx, dIdx, i, dNum);
     }
 
     hOutTileQueue_.FreeTensor(hOutTile);
@@ -259,46 +253,35 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(int64_t bsIdx, int64_t dIdx, int64_t nJ, int64_t dNum)
 {
     int64_t dStart = dIdx * dInner_;
     int64_t xBase = bsIdx * n_ * D_ + nJ * D_;
     int64_t xOffset = xBase + dStart;
-
     LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
 
     if constexpr (USE_PERMANENT_X == 1) {
-        int64_t dNum = (dIdx < dOuter_ - 1) ? dInner_ : dTail_;
         DataCopyExtParams copyParams = {static_cast<uint16_t>(n_), static_cast<uint32_t>(dNum * sizeof(T)),
-                                        static_cast<uint32_t>(D_ * sizeof(T)), 0, 0};
+                                        static_cast<uint32_t>((D_ - dNum) * sizeof(T)), 0, 0};
         DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
     } else {
-        if (dIdx < dOuter_ - 1) {
-            DataCopy(xTileLocal, xGm_[xOffset], dInner_);
-        } else {
-            DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
-            DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
-        }       
+        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dNum * sizeof(T)), 0, 0, 0};
+        DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
     }
 
     xTileQueue_.EnQue(xTileLocal);
 }
 
 TEMPLATE_DECLARE
-__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI)
+__aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyOutTile(int64_t bsIdx, int64_t dIdx, int64_t nI, int64_t dNum)
 {
     int64_t dStart = dIdx * dInner_;
     int64_t outputBase = bsIdx * n_ * D_ + nI * D_;
     int64_t outputOffset = outputBase + dStart;
-
     LocalTensor<T> outputTile = outputTileQueue_.DeQue<T>();
 
-    if (dIdx < dOuter_ - 1) {
-        DataCopy(outputGm_[outputOffset], outputTile, dInner_);
-    } else {
-        DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
-        DataCopyPad(outputGm_[outputOffset], outputTile, copyParams);
-    }
+    DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dTail_ * sizeof(T)), 0, 0, 0};
+    DataCopyPad(outputGm_[outputOffset], outputTile, copyParams);
 
     outputTileQueue_.FreeTensor(outputTile);
 }

@@ -47,18 +47,6 @@ const static int64_t H_POST_INPUT_INDEX = 3;      // h_post (B, S, n)
 // Output indices
 const static int64_t OUTPUT_INDEX = 0;            // output (B, S, n, D)
 
-// Align value up to the nearest multiple of align
-inline int64_t AlignUp(int64_t value, int64_t align)
-{
-    return (align == 0) ? 0 : ((value + align - 1) / align) * align;
-}
-
-// Align value down to the nearest multiple of align
-inline int64_t AlignDown(int64_t value, int64_t align)
-{
-    return (align == 0) ? 0 : (value / align) * align;
-}
-
 class MhcPostTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
     explicit MhcPostTilingBase(gert::TilingContext *context)
@@ -471,13 +459,14 @@ void MhcPostTilingBase::ComputeTiling()
         dOuter_ = dOuter_ * 2;
         dInner_ = D_ / dOuter_;
     }
-    dOuter_ = Ops::Base::CeilDiv(static_cast<int64_t>(D_), dInner_);
+    dInner_ = Ops::Base::CeilAlign(dInner_, static_cast<int64_t>(BF16_FP16_ALIGN_SIZE));
+    dOuter_ = Ops::Base::CeilDiv(D_, dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
 
     int64_t totalCount = bsOuter_ * dOuter_;
     usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
-    normalCoreProcessNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), usedCoreNum_);
-    usedCoreNum_ = Ops::Base::CeilDiv(static_cast<int64_t>(totalCount), normalCoreProcessNum_);
+    normalCoreProcessNum_ = Ops::Base::CeilDiv(totalCount, usedCoreNum_);
+    usedCoreNum_ = Ops::Base::CeilDiv(totalCount, normalCoreProcessNum_);
     tailCoreProcessNum_ = totalCount - (usedCoreNum_ - 1) * normalCoreProcessNum_;
     usePermanentX_ = 0;
     uint64_t fullyBytesPerTileD = (n_ + 4) * (DOUBLE_BUFFER_DEPTH * SIZE_OF_16BIT + SIZE_OF_32BIT);
