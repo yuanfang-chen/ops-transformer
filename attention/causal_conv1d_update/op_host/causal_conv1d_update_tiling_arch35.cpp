@@ -14,7 +14,6 @@
  */
 
 #include "causal_conv1d_update_tiling_arch35.h"
-#include "../op_kernal/arch35/causal_conv1d_update_struct.h"
 #include <algorithm>
 
 namespace optiling {
@@ -717,42 +716,44 @@ uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 {
+    // tilingData_ = context_->GetTilingData<CausalConv1dUpdateTilingData>();
+
     // Set block dimension (number of cores to use)
     context_->SetBlockDim(usedCoreNum_);
 
     // Populate tiling data - core distribution
-    tilingData_.set_usedCoreNum(usedCoreNum_);
-    tilingData_.set_dimCoreCnt(dimCoreCnt_);
-    tilingData_.set_batchCoreCnt(batchCoreCnt_);
+    tilingData_.usedCoreNum = usedCoreNum_;
+    tilingData_.dimCoreCnt = dimCoreCnt_;
+    tilingData_.batchCoreCnt = batchCoreCnt_;
 
     // Dim tiling parameters
-    tilingData_.set_dimChunkSize(dimChunkSize_);
-    tilingData_.set_dimTailSize(dimTailSize_);
+    tilingData_.dimChunkSize = dimChunkSize_;
+    tilingData_.dimTailSize = dimTailSize_;
 
     // Batch tiling parameters
-    tilingData_.set_batchPerCore(batchPerCore_);
-    tilingData_.set_batchTailPerCore(batchTailPerCore_);
-    tilingData_.set_validBatchStart(validBatchStart_);
-    tilingData_.set_validBatchEnd(validBatchEnd_);
+    tilingData_.batchPerCore = batchPerCore_;
+    tilingData_.batchTailPerCore = batchTailPerCore_;
+    tilingData_.validBatchStart = validBatchStart_;
+    tilingData_.validBatchEnd = validBatchEnd_;
 
     // Intra-core tiling parameters (UB loop)
-    tilingData_.set_ubBatchSize(ubBatchSize_);
-    tilingData_.set_ubDimSize(ubDimSize_);
-    tilingData_.set_batchLoopCnt(batchLoopCnt_);
-    tilingData_.set_dimLoopCnt(dimLoopCnt_);
+    tilingData_.ubBatchSize = ubBatchSize_;
+    tilingData_.ubDimSize = ubDimSize_;
+    tilingData_.batchLoopCnt = batchLoopCnt_;
+    tilingData_.dimLoopCnt = dimLoopCnt_;
 
     // Shape information for kernel use
-    tilingData_.set_batchSize(batchSize_);
-    tilingData_.set_seqLen(seqLen_);
-    tilingData_.set_cuSeqLen(cuSeqLen_);
-    tilingData_.set_dim(dim_);
-    tilingData_.set_kernelSize(kernelSize_);
-    tilingData_.set_xInputMode(xInputMode_);
+    tilingData_.batchSize = batchSize_;
+    tilingData_.seqLen = seqLen_;
+    tilingData_.cuSeqLen = cuSeqLen_;
+    tilingData_.dim = dim_;
+    tilingData_.kernelSize = kernelSize_;
+    tilingData_.xInputMode = xInputMode_;
 
     // Save tiling data to buffer
-    tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(),
-                             context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());
+    // tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(),
+    //                          context_->GetRawTilingData()->GetCapacity());
+    context_->GetRawTilingData()->SetDataSize(sizeof(CausalConv1dUpdateTilingData));
 
     return ge::GRAPH_SUCCESS;
 }

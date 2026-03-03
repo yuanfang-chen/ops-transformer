@@ -24,7 +24,7 @@
 #include "util/math_util.h"
 #include "util/platform_util.h"
 #include "util/shape_util.h"
-#include "../op_kernal/arch35/causal_conv1d_update_struct.h"
+#include "../op_kernel/arch35/causal_conv1d_update_struct.h"
 
 namespace optiling {
 
