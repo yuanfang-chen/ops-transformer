@@ -29,7 +29,7 @@
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
 using namespace AiVReduceSumImpl;
-constexpr uint32_t PERTILE_MIXED_MAX_HANDLE_ID_NUM = 16;
+constexpr uint32_t A2A_VSUM_AG_MAX_HANDLE_ID_NUM = 16;
 template <typename XType, typename YType, Mc2CoreType CoreType>
 class MatmulAllReduceBase
 {
@@ -43,7 +43,7 @@ public:
         } else {
             notifyFlag_ = (g_coreType == AscendC::AIV && GetBlockIdx() == 0);
         }
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             notifyFlag_ = (g_coreType == AscendC::AIV && GetBlockIdx() == 0);
         }
         paramInTiling_ = &tilingData->param;
@@ -54,7 +54,7 @@ public:
     {
         hccl_.InitV2(GetHcclContext<0>(), tilingData_);
         hccl_.SetCcTilingV2(offsetof(MC2TilingHeader, mc2CcTiling));
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             hccl_.SetCcTilingV2(offsetof(MC2TilingHeader, mc2CcTilingComm));
         }
         __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
@@ -92,7 +92,7 @@ public:
             tailInfo_.cOffset = (uint64_t)tailInfo_.mmTiling->M * (uint64_t)tailInfo_.mmTiling->N;
             tailInfo_.cAddrOffset = tailInfo_.cOffset * sizeof(YType);
         }
-        if (!tilingData->allReduceBasedAtaSumAg){
+        if (!allReduceBasedAtaSumAg_){
             if (notifyFlag_) {
                 tileInfo_.hcclHandleId = hccl_.AllReduce(
                     addrs_->cGM, addrs_->outputGM, tileInfo_.cOffset, HCCL_DATA_TYPE, AscendC::HCCL_REDUCE_SUM,
@@ -112,8 +112,8 @@ public:
             all2allOutGM_ = all2allInGM_ + cgmAddr_;
             reduceSumInGM_ = all2allOutGM_;
             reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_;
-            allGatherInGM_ = reduceSumOutGM_;
-            allGatherOutGM_ = addrs->outputGM;
+            allgatherInGM_ = reduceSumOutGM_;
+            allgatherOutGM_ = addrs_->outputGM;
             PrePareHCCL();
         }
     }
@@ -124,7 +124,7 @@ public:
             const uint64_t allgatherIndexOffsetTile = alltoallIndexOffsetTile;
             all2allSendGM_[i] = all2allInGM_ + alltoallIndexOffsetTile;
             all2allRecvGM_[i] = all2allOutGM_ + alltoallIndexOffsetTile;
-            allgatherSendGM_[i] = allGatherInGM_ + allgatherIndexOffsetTile / rankNum_;
+            allgatherSendGM_[i] = allgatherInGM_ + allgatherIndexOffsetTile / rankNum_;
             allgatherRecvGM_[i] = allgatherOutGM_ + allgatherIndexOffsetTile;
 
             all2allHandleId_[i] = hccl_.AlltoAll<false>(
@@ -137,7 +137,7 @@ public:
             const uint64_t index = paramInTiling_->tileCnt + i;
             all2allSendGM_[index] = all2allInGM_ + alltoallIndexOffsetTile;
             all2allRecvGM_[index] = all2allOutGM_ + alltoallIndexOffsetTile;
-            allgatherSendGM_[index] = allGatherInGM_ + allgatherIndexOffsetTile / rankNum_;
+            allgatherSendGM_[index] = allgatherInGM_ + allgatherIndexOffsetTile / rankNum_;
             allgatherRecvGM_[index] = allgatherOutGM_ + allgatherIndexOffsetTile;
 
             all2allHandleId_[index] = hccl_.AlltoAll<false>(
@@ -176,7 +176,7 @@ protected:
     __aicore__ inline void PostProcEachTurn(AscendC::HcclHandle handleId, uint64_t aOffset, uint64_t cOffset, const uint64_t index)
     {
         if (addFlag_ && addrs_->cGM != addrs_->addGM) {
-            if (tilingData->allReduceBasedAtaSumAg){
+            if (allReduceBasedAtaSumAg_){
                 SyncAll<false>();
             } else {
                 Mc2SyncAll<CoreType>();
@@ -188,7 +188,7 @@ protected:
 
         addrs_->aGM += aOffset;
         addrs_->cGM += cOffset;
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             SyncAll<false>();
             if (notifyFlag_) {
                 hccl_.Commit(all2allHandleId_[index]);
@@ -214,6 +214,7 @@ protected:
     __aicore__ inline void ReduceSumAndAllGather()
     {
         if ASCEND_IS_AIV {
+            uint64_t aivNum = GetBlockNum() * GetTaskRation();
             for (int i = 0; i < paramInTiling_->tileCnt; i++){
                 tPipe_->Reset();
                 reduceSum_.Init(tileInfo_.cOffset, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
@@ -244,7 +245,7 @@ protected:
     {
 
         if (notifyFlag_) {
-            if (tilingData->allReduceBasedAtaSumAg){
+            if (allReduceBasedAtaSumAg_){
                 for (int i = 0; i < paramInTiling_->tileCnt + paramInTiling_->tailCnt; i++) {
                     hccl_.Wait(allgatherHandleId_[i]);
                 }
@@ -260,7 +261,7 @@ protected:
             }
         }
 
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             SyncAll();
         } else {
             Mc2SyncAll<CoreType>();
@@ -287,18 +288,21 @@ protected:
     bool tailFlag_;
     bool isOneTileFlag_;
     
-    AscendC::HcclHandle all2allHandleId_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
-    AscendC::HcclHandle allgatherHandleId_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
-    GM_ADDR all2allSendGM_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
-    GM_ADDR all2allRecvGM_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
-    GM_ADDR allgatherSendGM_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
-    GM_ADDR allgatherRecvGM_[PERTILE_MIXED_MAX_HANDLE_ID_NUM] = {0};
+    AscendC::HcclHandle all2allHandleId_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
+    AscendC::HcclHandle allgatherHandleId_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
+    GM_ADDR all2allSendGM_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
+    GM_ADDR all2allRecvGM_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
+    GM_ADDR allgatherSendGM_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
+    GM_ADDR allgatherRecvGM_[A2A_VSUM_AG_MAX_HANDLE_ID_NUM] = {0};
     GM_ADDR all2allInGM_;
     GM_ADDR all2allOutGM_;
     GM_ADDR reduceSumInGM_;
     GM_ADDR reduceSumOutGM_;
-    GM_ADDR allGatherInGM_;
-    GM_ADDR allGatherOutGM_;
+    GM_ADDR allgatherInGM_;
+    GM_ADDR allgatherOutGM_;
+    bool allReduceBasedAtaSumAg_ = false;
+private:
+    ReduceSumForAlltoAll<YType> reduceSum_;     // AIV ReduceSum相关实现
 };
 } // namespace MatmulAllReduceImpl
 #endif // MATMUL_ALL_REDUCE_BASE_H
