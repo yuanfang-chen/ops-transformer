@@ -39,7 +39,7 @@ constexpr uint32_t COMM_PAIRWISE = (COMM_MESH << 3U);
 constexpr uint32_t COMM_UNDEFINED = 0xFFFFFFFFU;
 constexpr uint8_t COMM_ALG_FULL_MESH_HOST = 6;
 constexpr uint64_t CHECK_VALUE_ODD = 2;
-constexpr uint32_t AIC_NUM_910D = 32;
+constexpr uint32_t AIC_NUM_950 = 32;
 constexpr uint64_t MC2_TILINGKEY_OFFSET =
     uint64_t(1000000000000000000UL);  // 10^18
 constexpr size_t RES_LEN = 64;
@@ -79,7 +79,14 @@ constexpr double SCATTER_LARGERNK_COMM_GROW_RATIO2 = 1.2;
 constexpr double CUBE_UTIL_THRESH = 0.85;
 constexpr uint32_t AICPU_NUM_BLOCKS_A2 = 6U;
 
+constexpr uint64_t GROUP_M_OFFSET = 32;
+constexpr uint64_t GROUP_N_OFFSET = 16;
+constexpr uint64_t GROUP_MNK_BIT_SIZE = 0xFFFF;
+
 constexpr auto DEFAULT_KEY_FOR_FITTING_MAP = "0_0";
+
+constexpr static uint64_t ALL_GATHER_HCCL_MEM_LIMIT = 256 * 1024 * 1024;
+constexpr static uint64_t ALL_GATHER_HCCL_NUM_LIMIT = 16;
 
 enum class Mc2QuantMode {
   DEFAULT = 0,
@@ -91,6 +98,16 @@ enum class Mc2QuantMode {
 
 struct HcclAicpuOpParam {
   uint8_t res[RES_LEN];
+};
+
+struct Mc2MatmulShapeInfo {
+    const gert::StorageShape *x1Shape{nullptr};
+    const gert::StorageShape *x2Shape{nullptr};
+    const gert::StorageShape *x1ScaleShape{nullptr};
+    const gert::StorageShape *x2ScaleShape{nullptr};
+    bool isMxfp{false};
+    bool isBTrans{false};
+    const char* opName{nullptr};
 };
 
 struct KFCMsgBody {
@@ -161,7 +178,8 @@ class Mc2TilingUtils {
   static bool CheckRankSize(NpuArch npuArch, uint32_t rankSize);
   static HcclDataType ConvertGeTypeToHcclType(const std::string &opName,
                                               ge::DataType type);
-
+  static bool InferGroupSize(Mc2MatmulShapeInfo &mmInfo, uint64_t &groupSizeM,
+                             uint64_t &groupSizeN, uint64_t &groupSizeK);
   template <typename T>
   static uint64_t GetTilingKey(T &tilingData, bool isFullMeshHost = false) {
     uint8_t commAlg =
@@ -202,6 +220,7 @@ const std::map<ge::DataType, mc2tiling::HcclDataType> HCCL_DATA_TYPE = {
     {ge::DataType::DT_FLOAT16, mc2tiling::HcclDataType::HCCL_DATA_TYPE_FP16},
     {ge::DataType::DT_FLOAT, mc2tiling::HcclDataType::HCCL_DATA_TYPE_FP32},
     {ge::DataType::DT_BF16, mc2tiling::HcclDataType::HCCL_DATA_TYPE_BFP16},
+    {ge::DataType::DT_HIFLOAT8, mc2tiling::HcclDataType::HCCL_DATA_TYPE_HIF8}
 };
 
  const std::map<NpuArch, std::set<uint32_t>> supportedRankSizeSet = {

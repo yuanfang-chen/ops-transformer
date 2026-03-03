@@ -1,6 +1,6 @@
 # aclnnGroupedMatmulV3
 
-[📄 查看源码](https://gitcode.com/cann/ops-transformer/tree/master/gmm/grouped_matmul)
+**须知：该接口后续版本会废弃，请使用最新aclnnGroupedMatmulV5接口。**
 
 ## 产品支持情况
 
@@ -24,7 +24,7 @@
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
       - 非量化场景，支持weight转置（转置指若shape为[M,K]时，则stride为[1,M],数据排布为[K,M]的场景）。
       - 支持m轴和k轴分组，由groupType表示。
-      - x、weight、y都为单tensor非量化场景支持x，weight输入都为float32类型。
+      - x、weight、y都为单tensor，非量化场景下，支持x、weight输入都为float32类型。
       - 量化、伪量化场景，支持weight转置，支持weight为单tensor。
       - 对于[aclnnGroupedMatmulGetWorkspaceSize](aclnnGroupedMatmul.md)接口支持的特性，该接口不支持x为单tensor，weight/y为多tensor场景。
     - <term>Ascend 950PR/Ascend 950DT</term>：
@@ -151,7 +151,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <td>输入</td>
       <td>代表量化参数中的缩放因子。</td>
       <td>一般情况下，长度与weight相同。</td>
-      <td>UINT64</td>
+      <td>UINT64、INT64</td>
       <td>ND</td>
       <td>-</td>
       <td>-</td>
@@ -258,13 +258,13 @@ aclnnStatus aclnnGroupedMatmulV3(
     - y支持FLOAT16、BFLOAT16、INT8、FLOAT32
     - 输入参数x、weight，输出参数y支持最多128个tensor。
   - <term>Ascend 950PR/Ascend 950DT</term>：
-    - x支持FLOAT16、BFLOAT16、FLOAT32
+    - x支持FLOAT16、BFLOAT16、FLOAT32、INT8
     - weight支持FLOAT16、BFLOAT16、FLOAT32、INT8
-    - biasOptional支持FLOAT16、BFLOAT16、FLOAT32
-    - y支持FLOAT16、BFLOAT16、FLOAT32
-    - 不支持scaleOptional、offsetOptional
+    - biasOptional支持FLOAT16、BFLOAT16、FLOAT32、INT32
+    - y支持FLOAT16、BFLOAT16、FLOAT32、INT8
+    - 不支持offsetOptional
     - groupType支持m轴分组和不分组，仅非量化支持k轴分组。
-    - 输入参数x、weight，输出参数y在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor。
+    - 输入参数x、weight，输出参数y在非量化场景支持最多1024个tensor，在伪量化场景支持最多128个tensor，在量化场景支持最多1个tensor。
 
 - **返回值：**
 
@@ -336,7 +336,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <tr>
         <td>workspaceSize</td>
         <td>输入</td>
-        <td>在Device侧申请的workspace大小，由第一段接口aclnnGroupedMatmulV3GetWorkspaceSize获取。</ td>
+        <td>在Device侧申请的workspace大小，由第一段接口aclnnGroupedMatmulV3GetWorkspaceSize获取。</td>
       </tr>
       <tr>
         <td>executor</td>
@@ -428,9 +428,23 @@ aclnnStatus aclnnGroupedMatmulV3(
     - 仅支持单单单和多多多场景
   </details>
 
-    <details>
-    <summary><term>groupType场景约束</term></summary>
-      <a id="groupType场景约束"></a>
+  <details>
+  <summary>量化场景约束</summary>
+
+  - 以下入参为空：offsetOptional、antiquantScaleOptional、antiquantOffsetOptional
+  - 仅支持单单单场景
+
+  - 不为空的参数支持的数据类型和维度组合要满足下表（其中g为matmul组数即分组数）：
+
+      |groupType| x dtype     | x shape | weight dtype |weight shape| biasOptional dtype |biasOptional shape| scaleOptional dtpye |scaleOptional shape| out dtpye    |out shape|
+      |:-------:|:-------:|:-------:|:-------:|:-------:| :------      | :------      |:-------       | :------ |:-------       | :------ |
+      |0|INT8     |(M,K)|INT8     |(g,K,N)/(g,N,K)|INT32/null    | (g,N)|UINT64/INT64  |(g,N)/null|INT8|(M,N)|
+
+  </details>
+
+  <details>
+  <summary><term>groupType场景约束</term></summary>
+  <a id="groupType场景约束"></a>
 
   - 不同groupType支持场景：
     - 支持场景中单表示单tensor，多表示多tensor，表示顺序为x，weight，y，例如单多单表示支持x为单tensor，weight多tensor，y单tensor的场景。
@@ -539,12 +553,12 @@ int CreateAclTensor(const std::vector<int64_t>& shape, void** deviceAddr,
 int CreateAclTensorList(const std::vector<std::vector<int64_t>>& shapes, void** deviceAddr,
                         aclDataType dataType, aclTensorList** tensor) {
     int size = shapes.size();
-    aclTensor* tensors[size];
+    std::vector<aclTensor*> tensors(size);
     for (int i = 0; i < size; i++) {
-        int ret = CreateAclTensor<uint16_t>(shapes[i], deviceAddr + i, dataType, tensors + i);
+        int ret = CreateAclTensor<uint16_t>(shapes[i], deviceAddr + i, dataType, tensors.data() + i);
         CHECK_RET(ret == ACL_SUCCESS, return ret);
     }
-    *tensor = aclCreateTensorList(tensors, size);
+    *tensor = aclCreateTensorList(tensors.data(), size);
     return ACL_SUCCESS;
 }
 

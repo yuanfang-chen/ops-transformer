@@ -257,11 +257,9 @@ public:
     __aicore__ inline void InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm);
     __aicore__ inline void ComputeMm1(const RunInfo &info);
     __aicore__ inline void ComputeMm2(const RunInfo &info);
-
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void AllocEventID();
     __aicore__ inline void FreeEventID();
-
 };
 
 template <typename FIAT>

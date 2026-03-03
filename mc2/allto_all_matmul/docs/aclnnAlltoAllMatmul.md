@@ -24,7 +24,7 @@
 
 ## 函数原型
 
-每个算子分为[两段式接口](../../../docs/context/两段式接口.md)，必须先调用 “aclnnAlltoAllMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllMatmul”接口执行计算。
+每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnAlltoAllMatmulGetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnAlltoAllMatmul”接口执行计算。
 
 ```cpp
 aclnnStatus aclnnAlltoAllMatmulGetWorkspaceSize(
@@ -189,7 +189,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 
 - **返回值**
 
-  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
   第一段接口完成入参校验，出现以下场景时报错：
 
@@ -212,9 +212,27 @@ aclnnStatus aclnnAlltoAllMatmul(
       <td>输入和输出的必选参数Tensor是空指针。</td>
     </tr>
     <tr>
-      <td>ACLNN_ERR_PARAM_INVALID</td>
-      <td>161002</td>
-      <td>输入和输出的数据类型不在支持的范围内。</td>
+        <td rowspan="7">ACLNN_ERR_PARAM_INVALID</td>
+        <td rowspan="7">161002</td>
+        <td>输入和输出的数据类型不在支持的范围内。</td>
+    </tr>
+    <tr>
+        <td>输入Tensor为空Tensor。</td>
+    </tr>
+    <tr>
+        <td>alltoAllAxesOptional非法。</td>
+    </tr>
+    <tr>
+        <td>transposeX1为true。</td>
+    </tr>
+    <tr>
+        <td>通信域长度非法。</td>
+    </tr>
+    <tr>
+        <td>输入输出Tensor维度不合法。</td>
+    </tr>
+    <tr>
+        <td>输入输出format为私有格式。</td>
     </tr>
       </tbody>
   </table>
@@ -260,7 +278,7 @@ aclnnStatus aclnnAlltoAllMatmul(
 
 - **返回值：**
 
-  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。
+  返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
 
 ## 约束说明
 

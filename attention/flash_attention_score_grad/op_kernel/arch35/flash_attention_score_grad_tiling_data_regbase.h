@@ -28,6 +28,8 @@ public:
     uint32_t formerDkNum;
     uint32_t formerDvNum;
     uint32_t formerDpseNum;
+    uint32_t formerDqRopeNum;
+    uint32_t formerDkRopeNum;
     uint64_t singleCoreDqNum;
     uint64_t tailCoreDqNum;
     uint64_t singleCoreDkNum;
@@ -36,11 +38,18 @@ public:
     uint64_t tailCoreDvNum;
     uint64_t singleCoreDpseNum;
     uint64_t tailCoreDpseNum;
+    uint64_t singleCoreDqRopeNum;
+    uint64_t tailCoreDqRopeNum;
+    uint64_t singleCoreDkRopeNum;
+    uint64_t tailCoreDkRopeNum;
+    uint64_t isRope = 0; 
 
     uint32_t get_formerDqNum() const { return formerDqNum; }
     uint32_t get_formerDkNum() const { return formerDkNum; }
     uint32_t get_formerDvNum() const { return formerDvNum; }
     uint32_t get_formerDpseNum() const { return formerDpseNum; }
+    uint32_t get_formerDqRopeNum() const { return formerDqRopeNum; }
+    uint32_t get_formerDkRopeNum() const { return formerDkRopeNum; }
     uint64_t get_singleCoreDqNum() const { return singleCoreDqNum; }
     uint64_t get_tailCoreDqNum() const { return tailCoreDqNum; }
     uint64_t get_singleCoreDkNum() const { return singleCoreDkNum; }
@@ -49,11 +58,17 @@ public:
     uint64_t get_tailCoreDvNum() const { return tailCoreDvNum; }
     uint64_t get_singleCoreDpseNum() const { return singleCoreDpseNum; }
     uint64_t get_tailCoreDpseNum() const { return tailCoreDpseNum; }
+    uint64_t get_singleCoreDqRopeNum() const { return singleCoreDqRopeNum; }
+    uint64_t get_tailCoreDqRopeNum() const { return tailCoreDqRopeNum; }
+    uint64_t get_singleCoreDkRopeNum() const { return singleCoreDkRopeNum; }
+    uint64_t get_tailCoreDkRopeNum() const { return tailCoreDkRopeNum; }
 
     void set_formerDqNum(uint32_t formerDqNumParam) { this->formerDqNum = formerDqNumParam; }
     void set_formerDkNum(uint32_t formerDkNumParam) { this->formerDkNum = formerDkNumParam; }
     void set_formerDvNum(uint32_t formerDvNumParam) { this->formerDvNum = formerDvNumParam; }
     void set_formerDpseNum(uint32_t formerDpseNumParam) { this->formerDpseNum = formerDpseNumParam; }
+    void set_formerDqRopeNum(uint32_t formerDqRopeNumParam) { this->formerDqRopeNum = formerDqRopeNumParam; }
+    void set_formerDkRopeNum(uint32_t formerDkRopeNumParam) { this->formerDkRopeNum = formerDkRopeNumParam; }
     void set_singleCoreDqNum(uint64_t singleCoreDqNumParam) { this->singleCoreDqNum = singleCoreDqNumParam; }
     void set_tailCoreDqNum(uint64_t tailCoreDqNumParam) { this->tailCoreDqNum = tailCoreDqNumParam; }
     void set_singleCoreDkNum(uint64_t singleCoreDkNumParam) { this->singleCoreDkNum = singleCoreDkNumParam; }
@@ -62,6 +77,10 @@ public:
     void set_tailCoreDvNum(uint64_t tailCoreDvNumParam) { this->tailCoreDvNum = tailCoreDvNumParam; }
     void set_singleCoreDpseNum(uint64_t singleCoreDpseNumParam) { this->singleCoreDpseNum = singleCoreDpseNumParam; }
     void set_tailCoreDpseNum(uint64_t tailCoreDpseNumParam) { this->tailCoreDpseNum = tailCoreDpseNumParam; }
+    void set_singleCoreDqRopeNum(uint64_t singleCoreDqRopeNumParam) { this->singleCoreDqRopeNum = singleCoreDqRopeNumParam; }
+    void set_tailCoreDqRopeNum(uint64_t tailCoreDqRopeNumParam) { this->tailCoreDqRopeNum = tailCoreDqRopeNumParam; }
+    void set_singleCoreDkRopeNum(uint64_t singleCoreDkRopeNumParam) { this->singleCoreDkRopeNum = singleCoreDkRopeNumParam; }
+    void set_tailCoreDkRopeNum(uint64_t tailCoreDkRopeNumParam) { this->tailCoreDkRopeNum = tailCoreDkRopeNumParam; }
 };
 
 class FlashAttentionScoreGradS1S2BNGS1S2BaseParamsRegbase {
@@ -259,93 +278,130 @@ class PreParamsRegbase {
 public:
     uint64_t maskPreBlockTotal;
     uint64_t maskSingleCoreNum;
-    uint32_t qPreBlockFactor;
+    uint64_t qPreBlockFactor;
     uint64_t qPreBlockTotal;
-    uint32_t qPreBlockTail;
-    uint32_t kPreBlockFactor;
+    uint64_t qPreBlockTail;
+    uint64_t kPreBlockFactor;
     uint64_t kPreBlockTotal;
-    uint32_t kPreBlockTail;
-    uint32_t vPreBlockFactor;
+    uint64_t kPreBlockTail;
+    uint64_t vPreBlockFactor;
     uint64_t vPreBlockTotal;
-    uint32_t vPreBlockTail;
-    uint32_t maskCoreNum;
-    uint32_t castBufferLen;
-    uint32_t outputBufferLen;
-    uint32_t inputBufferLen;
-    uint32_t singleUBProcessNum;
-    uint32_t maskSingleCoreLoop;
-    uint32_t maskLastLoopNum;
-    uint32_t maskTailCoreLoop;
-    uint32_t maskTailCoreLastLoopNum;
+    uint64_t vPreBlockTail;
+    uint64_t maskCoreNum;
+    uint64_t castBufferLen;
+    uint64_t outputBufferLen;
+    uint64_t inputBufferLen;
+    uint64_t singleUBProcessNum;
+    uint64_t maskSingleCoreLoop;
+    uint64_t maskLastLoopNum;
+    uint64_t maskTailCoreLoop;
+    uint64_t maskTailCoreLastLoopNum;
     uint32_t dropoutIsDivisibleBy8;
     bool sValueZeroUnderTND;
     uint8_t reserved1; // tilingData需要8字节对齐
     uint8_t reserved2; // tilingData需要8字节对齐
     uint8_t reserved3; // tilingData需要8字节对齐
     uint32_t reserved4; // tilingData需要8字节对齐
+    // softmax grad
+    uint32_t sfmgUsedCoreNum;
+    uint32_t sfmgDyBufferLen;
+    uint32_t sfmgYBufferLen;
+    uint32_t sfmgOutputBufferLen;
+    int64_t singleLoopNBurstNum;
+    int64_t normalCoreLoopTimes;
+    int64_t tailCoreLoopTimes;
+    int64_t normalCoreLastLoopNBurstNum;
+    int64_t tailCoreLastLoopNBurstNum;
+    int64_t normalCoreNBurstNums;
+    int64_t tailCoreNBurstNums;
+    int64_t normalAxisSize;
 
     uint64_t get_maskPreBlockTotal() const { return maskPreBlockTotal; }
     uint64_t get_maskSingleCoreNum() const { return maskSingleCoreNum; }
-    uint32_t get_qPreBlockFactor() const { return qPreBlockFactor; }
+    uint64_t get_qPreBlockFactor() const { return qPreBlockFactor; }
     uint64_t get_qPreBlockTotal() const { return qPreBlockTotal; }
-    uint32_t get_qPreBlockTail() const { return qPreBlockTail; }
-    uint32_t get_kPreBlockFactor() const { return kPreBlockFactor; }
+    uint64_t get_qPreBlockTail() const { return qPreBlockTail; }
+    uint64_t get_kPreBlockFactor() const { return kPreBlockFactor; }
     uint64_t get_kPreBlockTotal() const { return kPreBlockTotal; }
-    uint32_t get_kPreBlockTail() const { return kPreBlockTail; }
-    uint32_t get_vPreBlockFactor() const { return vPreBlockFactor; }
+    uint64_t get_kPreBlockTail() const { return kPreBlockTail; }
+    uint64_t get_vPreBlockFactor() const { return vPreBlockFactor; }
     uint64_t get_vPreBlockTotal() const { return vPreBlockTotal; }
-    uint32_t get_vPreBlockTail() const { return vPreBlockTail; }
-    uint32_t get_maskCoreNum() const { return maskCoreNum; }
-    uint32_t get_castBufferLen() const { return castBufferLen; }
-    uint32_t get_outputBufferLen() const { return outputBufferLen; }
-    uint32_t get_inputBufferLen() const { return inputBufferLen; }
-    uint32_t get_singleUBProcessNum() const { return singleUBProcessNum; }
-    uint32_t get_maskSingleCoreLoop() const { return maskSingleCoreLoop; }
-    uint32_t get_maskLastLoopNum() const { return maskLastLoopNum; }
-    uint32_t get_maskTailCoreLoop() const { return maskTailCoreLoop; }
-    uint32_t get_maskTailCoreLastLoopNum() const { return maskTailCoreLastLoopNum; }
+    uint64_t get_vPreBlockTail() const { return vPreBlockTail; }
+    uint64_t get_maskCoreNum() const { return maskCoreNum; }
+    uint64_t get_castBufferLen() const { return castBufferLen; }
+    uint64_t get_outputBufferLen() const { return outputBufferLen; }
+    uint64_t get_inputBufferLen() const { return inputBufferLen; }
+    uint64_t get_singleUBProcessNum() const { return singleUBProcessNum; }
+    uint64_t get_maskSingleCoreLoop() const { return maskSingleCoreLoop; }
+    uint64_t get_maskLastLoopNum() const { return maskLastLoopNum; }
+    uint64_t get_maskTailCoreLoop() const { return maskTailCoreLoop; }
+    uint64_t get_maskTailCoreLastLoopNum() const { return maskTailCoreLastLoopNum; }
     uint32_t get_dropoutIsDivisibleBy8() const { return dropoutIsDivisibleBy8; }
     bool get_sValueZeroUnderTND() const { return sValueZeroUnderTND; }
+    uint32_t get_sfmgUsedCoreNum() const {return sfmgUsedCoreNum;}
+    uint32_t get_sfmgDyBufferLen() const {return sfmgDyBufferLen;}
+    uint32_t get_sfmgYBufferLen() const {return sfmgYBufferLen;}
+    uint32_t get_sfmgOutputBufferLen() const {return sfmgOutputBufferLen;}
+    int64_t get_singleLoopNBurstNum() const {return singleLoopNBurstNum;}
+    int64_t get_normalCoreLoopTimes() const {return normalCoreLoopTimes;}
+    int64_t get_tailCoreLoopTimes() const {return tailCoreLoopTimes;}
+    int64_t get_normalCoreLastLoopNBurstNum() const {return normalCoreLastLoopNBurstNum;}
+    int64_t get_tailCoreLastLoopNBurstNum() const {return tailCoreLastLoopNBurstNum;}
+    int64_t get_normalCoreNBurstNums() const {return normalCoreNBurstNums;}
+    int64_t get_tailCoreNBurstNums() const {return tailCoreNBurstNums;}
+    int64_t get_normalAxisSize() const {return normalAxisSize;}
 
     void set_maskPreBlockTotal(uint64_t val) { maskPreBlockTotal = val; }
     void set_maskSingleCoreNum(uint64_t val) { maskSingleCoreNum = val; }
-    void set_qPreBlockFactor(uint32_t val) { qPreBlockFactor = val; }
+    void set_qPreBlockFactor(uint64_t val) { qPreBlockFactor = val; }
     void set_qPreBlockTotal(uint64_t val) { qPreBlockTotal = val; }
-    void set_qPreBlockTail(uint32_t val) { qPreBlockTail = val; }
-    void set_kPreBlockFactor(uint32_t val) { kPreBlockFactor = val; }
+    void set_qPreBlockTail(uint64_t val) { qPreBlockTail = val; }
+    void set_kPreBlockFactor(uint64_t val) { kPreBlockFactor = val; }
     void set_kPreBlockTotal(uint64_t val) { kPreBlockTotal = val; }
-    void set_kPreBlockTail(uint32_t val) { kPreBlockTail = val; }
-    void set_vPreBlockFactor(uint32_t val) { vPreBlockFactor = val; }
+    void set_kPreBlockTail(uint64_t val) { kPreBlockTail = val; }
+    void set_vPreBlockFactor(uint64_t val) { vPreBlockFactor = val; }
     void set_vPreBlockTotal(uint64_t val) { vPreBlockTotal = val; }
-    void set_vPreBlockTail(uint32_t val) { vPreBlockTail = val; }
-    void set_maskCoreNum(uint32_t val) { maskCoreNum = val; }
-    void set_castBufferLen(uint32_t val) { castBufferLen = val; }
-    void set_outputBufferLen(uint32_t val) { outputBufferLen = val; }
-    void set_inputBufferLen(uint32_t val) { inputBufferLen = val; }
-    void set_singleUBProcessNum(uint32_t val) { singleUBProcessNum = val; }
-    void set_maskSingleCoreLoop(uint32_t val) { maskSingleCoreLoop = val; }
-    void set_maskLastLoopNum(uint32_t val) { maskLastLoopNum = val; }
-    void set_maskTailCoreLoop(uint32_t val) { maskTailCoreLoop = val; }
-    void set_maskTailCoreLastLoopNum(uint32_t val) { maskTailCoreLastLoopNum = val; }
+    void set_vPreBlockTail(uint64_t val) { vPreBlockTail = val; }
+    void set_maskCoreNum(uint64_t val) { maskCoreNum = val; }
+    void set_castBufferLen(uint64_t val) { castBufferLen = val; }
+    void set_outputBufferLen(uint64_t val) { outputBufferLen = val; }
+    void set_inputBufferLen(uint64_t val) { inputBufferLen = val; }
+    void set_singleUBProcessNum(uint64_t val) { singleUBProcessNum = val; }
+    void set_maskSingleCoreLoop(uint64_t val) { maskSingleCoreLoop = val; }
+    void set_maskLastLoopNum(uint64_t val) { maskLastLoopNum = val; }
+    void set_maskTailCoreLoop(uint64_t val) { maskTailCoreLoop = val; }
+    void set_maskTailCoreLastLoopNum(uint64_t val) { maskTailCoreLastLoopNum = val; }
     void set_dropoutIsDivisibleBy8(uint32_t val) { dropoutIsDivisibleBy8 = val; }
     void set_sValueZeroUnderTND(bool val) { sValueZeroUnderTND = val; }
+    void set_sfmgUsedCoreNum(uint32_t val) { sfmgUsedCoreNum = val; }
+    void set_sfmgDyBufferLen(uint32_t val) { sfmgDyBufferLen = val; }
+    void set_sfmgYBufferLen(uint32_t val) { sfmgYBufferLen = val; }
+    void set_sfmgOutputBufferLen(uint32_t val) {sfmgOutputBufferLen = val;}
+    void set_singleLoopNBurstNum(int64_t val) { singleLoopNBurstNum = val; }
+    void set_normalCoreLoopTimes(int64_t val) { normalCoreLoopTimes = val; }
+    void set_tailCoreLoopTimes(int64_t val) { tailCoreLoopTimes = val; }
+    void set_normalCoreLastLoopNBurstNum(int64_t val) { normalCoreLastLoopNBurstNum = val; }
+    void set_tailCoreLastLoopNBurstNum(int64_t val) { tailCoreLastLoopNBurstNum = val; }
+    void set_normalCoreNBurstNums(int64_t val) { normalCoreNBurstNums = val; }
+    void set_tailCoreNBurstNums(int64_t val) { tailCoreNBurstNums = val; }
+    void set_normalAxisSize(int64_t val) { normalAxisSize = val; }
 };
 
 class PostParamsRegbase {
 public:
-    uint32_t postUbBaseSize;
-    uint32_t qPostBlockFactor;
+    uint64_t postUbBaseSize;
+    uint64_t qPostBlockFactor;
     uint64_t qPostBlockTotal;
-    uint32_t qPostBaseNum;
-    uint32_t qPostTailNum;
-    uint32_t kPostBlockFactor;
+    uint64_t qPostBaseNum;
+    uint64_t qPostTailNum;
+    uint64_t kPostBlockFactor;
     uint64_t kPostBlockTotal;
-    uint32_t kPostBaseNum;
-    uint32_t kPostTailNum;
-    uint32_t vPostBlockFactor;
+    uint64_t kPostBaseNum;
+    uint64_t kPostTailNum;
+    uint64_t vPostBlockFactor;
     uint64_t vPostBlockTotal;
-    uint32_t vPostBaseNum;
-    uint32_t vPostTailNum;
+    uint64_t vPostBaseNum;
+    uint64_t vPostTailNum;
     uint64_t dqWorkSpaceOffset;
     uint64_t dkWorkSpaceOffset;
     uint64_t dvWorkSpaceOffset;
@@ -353,20 +409,21 @@ public:
     uint64_t dropMaskGmOffset;
     uint64_t deterGmOffset;
     uint64_t deterWorkSpaceOffset;
+    uint64_t sfmgWorkSpaceOffset;
 
-    uint32_t get_postUbBaseSize() const { return postUbBaseSize; }
-    uint32_t get_qPostBlockFactor() const { return qPostBlockFactor; }
+    uint64_t get_postUbBaseSize() const { return postUbBaseSize; }
+    uint64_t get_qPostBlockFactor() const { return qPostBlockFactor; }
     uint64_t get_qPostBlockTotal() const { return qPostBlockTotal; }
-    uint32_t get_qPostBaseNum() const { return qPostBaseNum; }
-    uint32_t get_qPostTailNum() const { return qPostTailNum; }
-    uint32_t get_kPostBlockFactor() const { return kPostBlockFactor; }
+    uint64_t get_qPostBaseNum() const { return qPostBaseNum; }
+    uint64_t get_qPostTailNum() const { return qPostTailNum; }
+    uint64_t get_kPostBlockFactor() const { return kPostBlockFactor; }
     uint64_t get_kPostBlockTotal() const { return kPostBlockTotal; }
-    uint32_t get_kPostBaseNum() const { return kPostBaseNum; }
-    uint32_t get_kPostTailNum() const { return kPostTailNum; }
-    uint32_t get_vPostBlockFactor() const { return vPostBlockFactor; }
+    uint64_t get_kPostBaseNum() const { return kPostBaseNum; }
+    uint64_t get_kPostTailNum() const { return kPostTailNum; }
+    uint64_t get_vPostBlockFactor() const { return vPostBlockFactor; }
     uint64_t get_vPostBlockTotal() const { return vPostBlockTotal; }
-    uint32_t get_vPostBaseNum() const { return vPostBaseNum; }
-    uint32_t get_vPostTailNum() const { return vPostTailNum; }
+    uint64_t get_vPostBaseNum() const { return vPostBaseNum; }
+    uint64_t get_vPostTailNum() const { return vPostTailNum; }
     uint64_t get_dqWorkSpaceOffset() const { return dqWorkSpaceOffset; }
     uint64_t get_dkWorkSpaceOffset() const { return dkWorkSpaceOffset; }
     uint64_t get_dvWorkSpaceOffset() const { return dvWorkSpaceOffset; }
@@ -374,20 +431,21 @@ public:
     uint64_t get_dropMaskGmOffset() const { return dropMaskGmOffset; }
     uint64_t get_deterGmOffset() const { return deterGmOffset; }
     uint64_t get_deterWorkSpaceOffset() const { return deterWorkSpaceOffset; }
+    uint64_t get_sfmgWorkSpaceOffset() const {return sfmgWorkSpaceOffset;}
 
-    void set_postUbBaseSize(uint32_t value) { postUbBaseSize = value; }
-    void set_qPostBlockFactor(uint32_t value) { qPostBlockFactor = value; }
+    void set_postUbBaseSize(uint64_t value) { postUbBaseSize = value; }
+    void set_qPostBlockFactor(uint64_t value) { qPostBlockFactor = value; }
     void set_qPostBlockTotal(uint64_t value) { qPostBlockTotal = value; }
-    void set_qPostBaseNum(uint32_t value) { qPostBaseNum = value; }
-    void set_qPostTailNum(uint32_t value) { qPostTailNum = value; }
-    void set_kPostBlockFactor(uint32_t value) { kPostBlockFactor = value; }
+    void set_qPostBaseNum(uint64_t value) { qPostBaseNum = value; }
+    void set_qPostTailNum(uint64_t value) { qPostTailNum = value; }
+    void set_kPostBlockFactor(uint64_t value) { kPostBlockFactor = value; }
     void set_kPostBlockTotal(uint64_t value) { kPostBlockTotal = value; }
-    void set_kPostBaseNum(uint32_t value) { kPostBaseNum = value; }
-    void set_kPostTailNum(uint32_t value) { kPostTailNum = value; }
-    void set_vPostBlockFactor(uint32_t value) { vPostBlockFactor = value; }
+    void set_kPostBaseNum(uint64_t value) { kPostBaseNum = value; }
+    void set_kPostTailNum(uint64_t value) { kPostTailNum = value; }
+    void set_vPostBlockFactor(uint64_t value) { vPostBlockFactor = value; }
     void set_vPostBlockTotal(uint64_t value) { vPostBlockTotal = value; }
-    void set_vPostBaseNum(uint32_t value) { vPostBaseNum = value; }
-    void set_vPostTailNum(uint32_t value) { vPostTailNum = value; }
+    void set_vPostBaseNum(uint64_t value) { vPostBaseNum = value; }
+    void set_vPostTailNum(uint64_t value) { vPostTailNum = value; }
     void set_dqWorkSpaceOffset(uint64_t value) { dqWorkSpaceOffset = value; }
     void set_dkWorkSpaceOffset(uint64_t value) { dkWorkSpaceOffset = value; }
     void set_dvWorkSpaceOffset(uint64_t value) { dvWorkSpaceOffset = value; }
@@ -395,6 +453,7 @@ public:
     void set_dropMaskGmOffset(uint64_t value) { dropMaskGmOffset = value; }
     void set_deterGmOffset(uint64_t value) { deterGmOffset = value; }
     void set_deterWorkSpaceOffset(uint64_t value) { deterWorkSpaceOffset = value; }
+    void set_sfmgWorkSpaceOffset(uint64_t value) { sfmgWorkSpaceOffset = value; }
 };
 
 class DeterParamRegbase {

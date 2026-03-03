@@ -40,7 +40,8 @@ __global__ __aicore__ void flash_attention_score_grad(
     __gm__ uint8_t *softmax_sum, __gm__ uint8_t *softmax_in, __gm__ uint8_t *attention_in, __gm__ uint8_t *prefix,
     __gm__ uint8_t *actual_seq_qlen, __gm__ uint8_t *actual_seq_kvlen, __gm__ uint8_t *q_start_idx, __gm__ uint8_t *kv_start_idx, 
     __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV, __gm__ uint8_t *deqScaleDy, __gm__ uint8_t *deqScaleO,
-    __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope,  __gm__ uint8_t *sink ,__gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dpse,
+    __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope, __gm__ uint8_t *sink, __gm__ uint8_t *dsScale, __gm__ uint8_t *pScale, 
+    __gm__ uint8_t *dq, __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *dpse,
     __gm__ uint8_t *dqRope, __gm__ uint8_t *dkRope, __gm__ uint8_t *dsink, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling_data)
 
 {
@@ -54,17 +55,17 @@ __global__ __aicore__ void flash_attention_score_grad(
         const FlashAttentionScoreGradEmptyTensorTilingDataRegbase *__restrict empty_tensor_tiling_data = &tiling_data_in;
         #if (ORIG_DTYPE_QUERY == DT_FLOAT16)
             FlashAttentionScoreGradEmptyTensorRegbase<half> op;
-            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Init(dq, dk, dv, dpse, dqRope, dkRope, empty_tensor_tiling_data);
             op.Process();
         #endif
         #if (ORIG_DTYPE_QUERY == DT_FLOAT)
             FlashAttentionScoreGradEmptyTensorRegbase<float> op;
-            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Init(dq, dk, dv, dpse, dqRope, dkRope, empty_tensor_tiling_data);
             op.Process();
         #endif
         #if (ORIG_DTYPE_QUERY == DT_BF16)
             FlashAttentionScoreGradEmptyTensorRegbase<bfloat16_t> op;
-            op.Init(dq, dk, dv, dpse, empty_tensor_tiling_data);
+            op.Init(dq, dk, dv, dpse, dqRope, dkRope, empty_tensor_tiling_data);
             op.Process();
         #endif
         return;
@@ -73,7 +74,7 @@ __global__ __aicore__ void flash_attention_score_grad(
             IsDNoEqual, IsRope, OutDType, FP8_OPEN_TSCM, IsTndSwizzle, IsRegbase>(
                 query, key, value, dy, pse_shift, drop_mask, padding_mask, atten_mask, softmax_max, softmax_sum,
                 softmax_in, attention_in, prefix, actual_seq_qlen, actual_seq_kvlen,
-                deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, queryRope, keyRope,
+                deqScaleQ, deqScaleK, deqScaleV, deqScaleDy, dsScale, pScale, queryRope, keyRope,
                 dq, dk, dv, dpse, dqRope, dkRope, workspace, tiling_data);
     }
 }

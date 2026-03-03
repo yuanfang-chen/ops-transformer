@@ -8,7 +8,7 @@
 | <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>     |    √     |
 | <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term> |    ×     |
 | <term>Atlas 200I/500 A2 推理产品</term>                      |    ×     |
-| <term>Atlas 推理系列产品 </term>                             |    ×     |
+| <term>Atlas 推理系列产品</term>                             |    ×     |
 | <term>Atlas 训练系列产品</term>                              |    ×     |
 
 ## 功能说明
@@ -452,7 +452,7 @@ aclnnStatus aclnnFFNToAttention(
         std::vector<int64_t> tokenIdsShape{Y};
         std::vector<int64_t> expertOffsetsShape{Y};
         std::vector<int64_t> actualTokenNumShape{1};
-        std::vector<int64_t> attnRankTableShape{attention_worker_num};   // todo
+        std::vector<int64_t> attnRankTableShape{attention_worker_num};
 
 
         int64_t xShapeSize = GetShapeSize(xShape);

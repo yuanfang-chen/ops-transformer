@@ -157,7 +157,7 @@ aclnnStatus aclnnQuantAllReduce(
 
 - **返回值**
 
-    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/context/aclnn返回码.md)。  
+    aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。  
 
     第一段接口完成入参校验，出现以下场景时报错：
 
@@ -240,7 +240,7 @@ aclnnStatus aclnnQuantAllReduce(
 
 - 当x的数据类型为FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT8_E8M0时，输入数据的量化方式为mx量化。
 - 当x的数据类型为INT8、HIFLOAT8、FLOAT8_E4M3FN、FLOAT8_E5M2并且scales的数据类型为FLOAT时，输入数据的量化方式为pertoken-pergroup量化（groupSize=128）。
-- 只在Ascend910D系列平台使能。
+- 只在Ascend950系列平台使能。
 - 不支持空Tensor输入。
 - 通信域大小支持2, 4, 8。
 - 通信域使用约束：同一通信域内仅允许连续执行`aclnnQuantAllReduce`和`aclnnQuantReduceScatter`算子,且该通信域中不允许有其他通信算子。

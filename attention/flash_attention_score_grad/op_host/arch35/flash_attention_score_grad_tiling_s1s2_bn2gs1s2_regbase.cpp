@@ -49,8 +49,8 @@ constexpr uint32_t INPUT_DIM_0 = 0;          // BSH  BSND
 constexpr uint32_t INPUT_DIM_1 = 1;
 constexpr uint32_t INPUT_DIM_2 = 2;
 constexpr uint32_t INPUT_DIM_3 = 3;
-constexpr uint32_t QUANT_BLOCK_S1_SIZE = 128;
-constexpr uint32_t QUANT_BLOCK_S2_SIZE = 256;
+constexpr uint32_t QUANT_BLOCK_S1_SIZE = 512;
+constexpr uint32_t QUANT_BLOCK_S2_SIZE = 512;
 constexpr uint32_t DEQUANT_SCALE_SHAPE_DIM = 4;
 
 constexpr uint32_t CORE_INIT_NUM = 40;
@@ -67,6 +67,8 @@ constexpr uint32_t LAYOUT_ATTR_IDX = 5;
 constexpr uint32_t SEED_ATTR_IDX = 9;
 constexpr uint32_t OFFSET_ATTR_IDX = 10;
 constexpr uint32_t OUTDTYPE_ATTR_IDX = 11;
+constexpr uint32_t DS_SCALE_ATTR_IDX = 13;
+constexpr uint32_t P_SCALE_ATTR_IDX = 14;
 
 constexpr uint32_t GM_ALIGN = 512;
 
@@ -111,6 +113,7 @@ constexpr int64_t INT64_NUM = 32;
 constexpr uint32_t DKDV_OUT = 2;
 constexpr uint32_t NUM_TWO = 2;
 constexpr uint32_t NUM_THREE = 3;
+constexpr uint32_t UB_RESERVE_SPACE = 8 * 1024;
 
 constexpr int64_t LARGE_INVALID_NUM = 3072;
 
@@ -143,13 +146,17 @@ std::pair<uint32_t, uint32_t> FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetS
         fBaseParams.s2TemplateType = ConstAxisTemplateNum::NUM128;
         return std::make_pair(static_cast<uint32_t>(ConstAxisTemplateNum::NUM64),
             static_cast<uint32_t>(ConstAxisTemplateNum::NUM128));
-    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
-        fBaseParams.queryType == ge::DT_HIFLOAT8) {
+    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN) {
         // FP8场景基本块修改
         fBaseParams.s1TemplateType = ConstAxisTemplateNum::NUM64;
         fBaseParams.s2TemplateType = ConstAxisTemplateNum::NUM256;
         return std::make_pair(static_cast<uint32_t>(ConstAxisTemplateNum::NUM64),
             static_cast<uint32_t>(ConstAxisTemplateNum::NUM256));
+    } else if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        fBaseParams.s1TemplateType = ConstAxisTemplateNum::NUM512;
+        fBaseParams.s2TemplateType = ConstAxisTemplateNum::NUM512;
+        return std::make_pair(static_cast<uint32_t>(ConstAxisTemplateNum::NUM512),
+            static_cast<uint32_t>(ConstAxisTemplateNum::NUM512));
     } else if ((AlignTo(fBaseParams.s1, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) >
                 static_cast<int64_t>(ConstAxisTemplateNum::NUM16) ||
                 AlignTo(fBaseParams.s2, static_cast<int64_t>(ConstAxisTemplateNum::NUM16)) >
@@ -246,16 +253,22 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessDropoutIsDivisibleBy8(
 ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessQuantInfo()
 {
     DetermineMode();
+    if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
+        fBaseParams.queryType == ge::DT_UINT8 || fBaseParams.queryType == ge::DT_INT8 ||
+        fBaseParams.queryType == ge::DT_QINT8) {
+        auto queryDType = context_->GetInputDesc(0)->GetDataType();
+        OP_LOGE("ProcessQuantInfo", "In the 8-bit scenario, only HIFP8 is supported, but got %s",
+                ge::TypeUtils::DataTypeToSerialString(queryDType).c_str());
+        return ge::GRAPH_FAILED;
+    }
     fBaseParams.outDtype = fBaseParams.inputDtype;
     if (context_->GetAttrs()->GetAttrNum() > OUTDTYPE_ATTR_IDX &&
-        (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN || fBaseParams.queryType == ge::DT_HIFLOAT8)) {
+        (fBaseParams.queryType == ge::DT_HIFLOAT8)) {
         int64_t outDType = *(context_->GetAttrs()->GetAttrPointer<int>(OUTDTYPE_ATTR_IDX));
-        if (outDType == 0) {
-            fBaseParams.outDtype = DtypeEnum::FLOAT16_PRECISION;
-        } else if (outDType == 1) {
+        if (outDType == 1) {
             fBaseParams.outDtype = DtypeEnum::BFLOAT16;
         } else {
-            OP_LOGE("GetOutDType", "outDType value is not valid, got %ld, try setting it to 0(fp16) or 1(bf16)",
+            OP_LOGE("ProcessQuantInfo", "Scenario HIFP8, outDType value only support bf16, but got %ld, try setting it to 1(bf16)",
                 outDType);
             return ge::GRAPH_FAILED;
         }
@@ -297,13 +310,13 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::ProcessDropoutInfo
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "FAG invalid dropMask dtype[%s], only support uint8.",
                 ge::TypeUtils::DataTypeToSerialString(dropMaskDType).c_str()),
             return ge::GRAPH_FAILED);
-        int64_t dropMaskDim = dropMaskShape->GetStorageShape().GetDimNum();
-        int64_t dropMaskShapeSize = 1;
-        for (int64_t i = 0; i < dropMaskDim; ++i) {
-            int64_t dimValue = dropMaskShape->GetStorageShape().GetDim(i);
+        uint64_t dropMaskDim = dropMaskShape->GetStorageShape().GetDimNum();
+        uint64_t dropMaskShapeSize = 1;
+        for (uint64_t i = 0; i < dropMaskDim; ++i) {
+            uint64_t dimValue = dropMaskShape->GetStorageShape().GetDim(i);
             dropMaskShapeSize *= dimValue;
         }
-        auto shapeSize = AlignUp(fBaseParams.dropMaskSize, static_cast<int64_t>(BIT_NUMS)) / BIT_NUMS;
+        auto shapeSize = AlignUp(fBaseParams.dropMaskSize, static_cast<uint64_t>(BIT_NUMS)) / BIT_NUMS;
         if (dropMaskShapeSize < shapeSize) {
             OP_LOGE(context_, "FAG input dropMask shapeSize is invalid, it should not be less than %ld, but got %ld.",
                 shapeSize, dropMaskShapeSize);
@@ -472,10 +485,13 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
     auto deqScaleQShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_Q));
     auto deqScaleKShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_K));
     auto deqScaleVShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_V));
-    if (deqScaleQShape != nullptr && deqScaleKShape != nullptr && deqScaleVShape != nullptr) {
+    auto deqScaleDyShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_DY));
+    if (deqScaleQShape != nullptr && deqScaleKShape != nullptr
+        && deqScaleVShape != nullptr && deqScaleDyShape != nullptr) {
         auto deqScaleQStorageShape = deqScaleQShape->GetStorageShape();
         auto deqScaleKStorageShape = deqScaleKShape->GetStorageShape();
         auto deqScaleVStorageShape = deqScaleVShape->GetStorageShape();
+        auto deqScaleDyStorageShape = deqScaleDyShape->GetStorageShape();
 
         int64_t deqScaleQDimNum = deqScaleQStorageShape.GetDimNum();
         if (deqScaleQDimNum != 0) {
@@ -488,7 +504,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
             int64_t deqScaleQDim3 = deqScaleQStorageShape.GetDim(INPUT_DIM_3);
             OP_CHECK_IF(deqScaleQDim0 != fBaseParams.b || deqScaleQDim1 != fBaseParams.n1 ||
                 deqScaleQDim2 != (fBaseParams.s1 + QUANT_BLOCK_S1_SIZE - 1) / QUANT_BLOCK_S1_SIZE || deqScaleQDim3 != 1,
-                OP_LOGE(context_,"Invalid deqScaleQ shape [%ld,%ld,%ld,%ld], only support [B,N1,ceil(S1/128),1].",
+                OP_LOGE(context_,"Invalid deqScaleQ shape [%ld,%ld,%ld,%ld], only support [B,N1,ceil(S1/512),1].",
                     deqScaleQDim0, deqScaleQDim1, deqScaleQDim2, deqScaleQDim3),
                 return ge::GRAPH_FAILED);
         }
@@ -503,32 +519,94 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleShapeVal
             int64_t deqScaleKDim3 = deqScaleKStorageShape.GetDim(INPUT_DIM_3);
             OP_CHECK_IF(deqScaleKDim0 != fBaseParams.b || deqScaleKDim1 != fBaseParams.n2 ||
                 deqScaleKDim2 != (fBaseParams.s2 + QUANT_BLOCK_S2_SIZE - 1) / QUANT_BLOCK_S2_SIZE || deqScaleKDim3 != 1,
-                OP_LOGE(context_, "Invalid deqScaleK shape [%ld,%ld,%ld,%ld], only support [B,N2,ceil(S2/256),1].",
+                OP_LOGE(context_, "Invalid deqScaleK shape [%ld,%ld,%ld,%ld], only support [B,N2,ceil(S2/512),1].",
                     deqScaleKDim0, deqScaleKDim1, deqScaleKDim2, deqScaleKDim3),
                 return ge::GRAPH_FAILED);
         }
 
         OP_CHECK_IF(deqScaleKStorageShape != deqScaleVStorageShape,
-            OP_LOGE(context_, "deqScaleKShape and deqScaleVShape are not equal, only support [B,N2,ceil(S2/256),1]"),
+            OP_LOGE(context_, "deqScaleKShape and deqScaleVShape are not equal, only support [B,N2,ceil(S2/512),1]"),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(deqScaleQStorageShape != deqScaleDyStorageShape,
+            OP_LOGE(context_, "deqScaleQShape and deqScaleDyShape are not equal, only support [B,N1,ceil(S1/512),1]"),
             return ge::GRAPH_FAILED);
     }
+
+    // new intercept
+    if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        OP_CHECK_IF(fBaseParams.d != ALIGN128,
+            OP_LOGE(context_, "Scenario HIFP8, headDim must be 128."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(fBaseParams.n1 != fBaseParams.n2,
+            OP_LOGE(context_, "Scenario HIFP8, Nq and Nkv must be equal."),
+            return ge::GRAPH_FAILED);
+        OP_CHECK_IF(fBaseParams.layoutType != INPUT_FORMAT_BS2N2GD,
+            OP_LOGE(context_, "Scenario HIFP8, layout must be BSND."),
+            return ge::GRAPH_FAILED);
+        auto deqScaleDsShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_DS_IDX));
+        auto deqScalePShape = context_->GetOptionalInputShape(static_cast<size_t>(InputIndex::D_SCALE_P_IDX));
+        bool tmpDsNull = deqScaleDsShape == nullptr;
+        bool tmpPNull = deqScalePShape == nullptr;
+        OP_LOGD(context_, "tmpDsNull = %d, tmpPNull = %d.", tmpDsNull, tmpPNull);
+        OP_CHECK_IF((deqScaleDsShape == nullptr || deqScalePShape == nullptr),
+            OP_LOGE(context_, "Scenario HIFP8, ds_scale or p_scale must not be null."),
+            return ge::GRAPH_FAILED);
+        auto deqScaleDsStorageShape = deqScaleDsShape->GetStorageShape();
+        auto deqScalePStorageShape = deqScalePShape->GetStorageShape();
+        int64_t deqScaleDsDimNum = deqScaleDsStorageShape.GetDimNum();
+        int64_t deqScalePDimNum = deqScalePStorageShape.GetDimNum();
+        if (deqScaleDsDimNum == 1) {
+            int64_t deqScaleDsDim0 = deqScaleDsStorageShape.GetDim(INPUT_DIM_0);
+            OP_CHECK_IF((deqScaleDsDim0 != 1),
+                OP_LOGE(context_, "Scenario HIFP8, ds_scale shape must be [1]."),
+                return ge::GRAPH_FAILED);
+        } else {
+            OP_LOGE(context_, "Scenario HIFP8, ds_scale shape must be [1].");
+            return ge::GRAPH_FAILED;
+        }
+        if (deqScalePDimNum == 1) {
+            int64_t deqScalePDim0 = deqScalePStorageShape.GetDim(INPUT_DIM_0);
+            OP_CHECK_IF((deqScalePDim0 != 1),
+                OP_LOGE(context_, "Scenario HIFP8, p_scale shape must be [1]."),
+                return ge::GRAPH_FAILED);
+        } else {
+            OP_LOGE(context_, "Scenario HIFP8, p_scale shape must be [1].");
+            return ge::GRAPH_FAILED;
+        }
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::QuantScaleDtypeValidCheck()
 {
+    auto yInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::ATTENTION_IN));
     auto deqScaleQInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_Q));
     auto deqScaleKInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_K));
     auto deqScaleVInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_V));
-    if (deqScaleQInput != nullptr && deqScaleKInput != nullptr && deqScaleVInput != nullptr) {
+    auto deqScaleDyInput = context_->GetOptionalInputDesc(static_cast<size_t>(InputIndex::D_SCALE_DY));
+    if (yInput != nullptr) {
+        auto yInputDtype = yInput->GetDataType();
+        bool isYInputNotValid = (fBaseParams.queryType == ge::DT_HIFLOAT8 && yInputDtype != ge::DT_BF16);
+        OP_CHECK_IF(isYInputNotValid,
+            OP_LOGE(context_,
+            "Scenario HIFP8, Invalid attentionIn Datatype:%s, only support BF16", 
+            ge::TypeUtils::DataTypeToSerialString(yInputDtype).c_str()),
+            return ge::GRAPH_FAILED);
+    }
+    if (deqScaleQInput != nullptr && deqScaleKInput != nullptr
+        && deqScaleVInput != nullptr && deqScaleDyInput != nullptr) {
         auto deqScaleQDtype = deqScaleQInput->GetDataType();
         auto deqScaleKDtype = deqScaleKInput->GetDataType();
         auto deqScaleVDtype = deqScaleVInput->GetDataType();
+        auto deqScaleDyDtype = deqScaleDyInput->GetDataType();
         OP_CHECK_IF(deqScaleQDtype != ge::DT_FLOAT || deqScaleKDtype != ge::DT_FLOAT ||
-            deqScaleVDtype != ge::DT_FLOAT,
-            OP_LOGE(context_, "Invalid deqScaleDType [deqScaleQDtype:%s, deqScaleKDtype:%s, deqScaleVDtype:%s], only support FLOAT32.", 
+            deqScaleVDtype != ge::DT_FLOAT || deqScaleDyDtype != ge::DT_FLOAT,
+            OP_LOGE(context_, 
+                "Invalid deqScaleDType [deqScaleQDtype:%s, deqScaleKDtype:%s, deqScaleVDtype:%s, deqScaleDyDtype:%s], only support FLOAT32.", 
                 ge::TypeUtils::DataTypeToSerialString(deqScaleQDtype).c_str(), ge::TypeUtils::DataTypeToSerialString(deqScaleKDtype).c_str(),
-                ge::TypeUtils::DataTypeToSerialString(deqScaleVDtype).c_str()),
+                ge::TypeUtils::DataTypeToSerialString(deqScaleVDtype).c_str(),
+                ge::TypeUtils::DataTypeToSerialString(deqScaleDyDtype).c_str()),
             return ge::GRAPH_FAILED);
     }
     return ge::GRAPH_SUCCESS;
@@ -553,7 +631,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
     bool hasKeyRope = keyRope != nullptr && keyRopeShape->GetDimNum() != 0;
     if (hasQueryRope ^ hasKeyRope) {
         OP_LOGE(context_, "query_rope and key_rope should be present or absent at the same time, check this.");
-        return false;
+        return ge::GRAPH_PARAM_INVALID;
     }
     fBaseParams.hasRope = hasQueryRope && hasKeyRope;
     int64_t qRopeD = 0;
@@ -647,7 +725,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
                 if (qLen < 0 || kvLen < 0) {
                     isEOD = true;
                 } 
-                tndBaseInfo.isSeqExistZero = (qLen == 0 || kvLen == 0);
+                tndBaseInfo.isSeqExistZero = (tndBaseInfo.isSeqExistZero || (qLen == 0 || kvLen == 0));
                 if (isEOD && (qValue[i] == 0 || kvValue[i] == 0)) {
                     ++fBaseParams.tailZeroCount;
                     fBaseParams.sValueZeroUnderTND = true;
@@ -696,7 +774,7 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetShapeAttrsInfo(
     if (fBaseParams.hasRope) {
         if (qRopeD != kRopeD || qRopeD != ROPE_D_64) {
             OP_LOGE(context_, "query_rope and key_rope only support 64D, check this.");
-            return false;
+            return ge::GRAPH_PARAM_INVALID;
         }
     }
 
@@ -2478,25 +2556,104 @@ bool FlashAttentionScoreGradTilingUs1s2Bs2Regbase::CheckExceedL2Cache()
     return isExceed;
 }
 
+uint64_t FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoPreSfmgTiling()
+{
+    uint32_t valueDAlign = fBaseParams.sfmgdInner;
+ 
+    int64_t normalAxisSize = 0;
+    if (fBaseParams.layoutType == INPUT_FORMAT_TND) {
+        normalAxisSize = fBaseParams.t1 * fBaseParams.n2 * fBaseParams.g;
+    } else {
+        normalAxisSize = fBaseParams.b * fBaseParams.n2 * fBaseParams.g * fBaseParams.s1;
+    }
+ 
+    int32_t inputSize = FP16_BYTES;
+    int32_t outDtypeSize = FP16_BYTES;
+    if (fBaseParams.queryType == ge::DT_FLOAT) {
+        inputSize = FP32_BYTES;
+        outDtypeSize = FP32_BYTES;
+    } else if (fBaseParams.queryType == ge::DT_BF16) {
+        inputSize = FP16_BYTES;
+        outDtypeSize = FP16_BYTES;
+    } else if (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 ||
+        fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
+        fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        inputSize = 1;
+        outDtypeSize = FP16_BYTES;
+    }
+    uint32_t availUbSize = fBaseParams.ubSize - UB_RESERVE_SPACE;
+    // valueDAlign * inputSize * sizeof(dtype) * 2 * 2 --  dy, y size is valueDAlign * inputSize
+    // first 2 is dy + y total size, second 2 is double buffer, then get max split s1
+    uint32_t sfmgDyBufferLen = availUbSize /
+        (valueDAlign * (inputSize * 2 + outDtypeSize * 2) + 2 * 8 * FP32_BYTES) * valueDAlign * inputSize;
+    uint32_t sfmgYBufferLen = availUbSize /
+        (valueDAlign * (inputSize * 2 + outDtypeSize * 2) + 2 * 8 * FP32_BYTES) * valueDAlign * outDtypeSize;
+    uint32_t sfmgOutputBufferLen = availUbSize /
+        (valueDAlign * (inputSize * 2 + outDtypeSize * 2) + 2 * 8 * FP32_BYTES) * 8 * FP32_BYTES;
+ 
+    // 计算单核的计算量
+    uint32_t sfmgUsedCoreNum = fBaseParams.blockOuter * 2; // blockOuter is used cube core num, 2 is cv ratio
+    int64_t normalCoreSize = CeilCommon(normalAxisSize, sfmgUsedCoreNum);
+    sfmgUsedCoreNum = CeilCommon(normalAxisSize, normalCoreSize);
+    int64_t tailCoreSize = normalAxisSize - (sfmgUsedCoreNum - 1) * normalCoreSize;
+ 
+    // 计算单loop的计算量及loop次数, hifp8场景按128对齐, quantblock大小为128 * 4, 目前仅支持D <= 256
+    int64_t singleLoopNBurstNum = 128;
+    int64_t normalCoreLoopTimes = CeilCommon(normalCoreSize, singleLoopNBurstNum);
+    int64_t normalCoreLastLoopNBurstNum = normalCoreSize - (normalCoreLoopTimes - 1) * singleLoopNBurstNum;
+    int64_t tailCoreLoopTimes = CeilCommon(tailCoreSize, singleLoopNBurstNum);
+    int64_t tailCoreLastLoopNBurstNum = tailCoreSize - (tailCoreLoopTimes - 1) * singleLoopNBurstNum;
+ 
+    OP_LOGI("DoPreSfmgTiling", "DoPreSfmgTiling, sfmgUsedCoreNum = %d, ubsize = %d, valueDAlign = %d,"
+        "normalAxisSize = %d, reals1percore = %d, sfmgDyBufferLen is %d, sfmgYBufferLen is %d, sfmgOutputBufferLen is %d."
+        "singleLoopNBurstNum = %d, normalCoreLoopTimes is %d, normalCoreLastLoopNBurstNum is %d."
+        "tailCoreLoopTimes = %d, tailCoreLastLoopNBurstNum is %d.",
+        sfmgUsedCoreNum, availUbSize, valueDAlign, normalAxisSize, normalCoreSize,
+        sfmgDyBufferLen, sfmgYBufferLen, sfmgOutputBufferLen,
+        singleLoopNBurstNum, normalCoreLoopTimes, normalCoreLastLoopNBurstNum,
+        tailCoreLoopTimes, tailCoreLastLoopNBurstNum);
+    preTilingData_->set_sfmgUsedCoreNum(sfmgUsedCoreNum);
+    preTilingData_->set_sfmgDyBufferLen(sfmgDyBufferLen);
+    preTilingData_->set_sfmgYBufferLen(sfmgYBufferLen);
+    preTilingData_->set_sfmgOutputBufferLen(sfmgOutputBufferLen);
+ 
+    preTilingData_->set_singleLoopNBurstNum(singleLoopNBurstNum);
+    preTilingData_->set_normalCoreLoopTimes(normalCoreLoopTimes);
+    preTilingData_->set_tailCoreLoopTimes(tailCoreLoopTimes);
+    preTilingData_->set_normalCoreLastLoopNBurstNum(normalCoreLastLoopNBurstNum);
+    preTilingData_->set_tailCoreLastLoopNBurstNum(tailCoreLastLoopNBurstNum);
+    preTilingData_->set_normalCoreNBurstNums(normalCoreSize);
+    preTilingData_->set_tailCoreNBurstNums(tailCoreSize);
+
+    preTilingData_->set_normalAxisSize(normalAxisSize);
+    return sfmgUsedCoreNum;
+}
+
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoPreTiling()
 {
-    uint32_t inputBufferLen = PRE_BUFFER_SIZE; // x / 8 + 2 * x + 32 = fBaseParams.ubSize
-    int64_t singleUBProcessNum = static_cast<int64_t>(CAST_BUFFER_LEN) / 2;
+    uint64_t inputBufferLen = PRE_BUFFER_SIZE; // x / 8 + 2 * x + 32 = fBaseParams.ubSize
+    uint64_t singleUBProcessNum = static_cast<uint64_t>(CAST_BUFFER_LEN) / 2;
 
-    int64_t maskSize = AlignTo(fBaseParams.dropMaskSize, static_cast<int64_t>(BOOL_BLOCK_NUMS));
-    int64_t singleCoreNum = AlignTo(CeilDivideBy(maskSize, static_cast<int64_t>(fBaseParams.blockOuter)),
-                                     static_cast<int64_t>(BOOL_BLOCK_NUMS));
-    int64_t maskUsedCoreNum = static_cast<int64_t>(CeilDivideBy(maskSize, singleCoreNum));
+    uint64_t maskSize = AlignTo(fBaseParams.dropMaskSize, static_cast<uint64_t>(BOOL_BLOCK_NUMS));
+    uint64_t singleCoreNum = AlignTo(CeilDivideBy(maskSize, static_cast<uint64_t>(fBaseParams.blockOuter)),
+                                     static_cast<uint64_t>(BOOL_BLOCK_NUMS));
+    uint64_t maskUsedCoreNum = 0;
+    if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        maskUsedCoreNum = static_cast<uint64_t>(DoPreSfmgTiling());
+    } else {
+        maskUsedCoreNum = static_cast<uint64_t>(CeilDivideBy(maskSize, singleCoreNum));
+    }
+    OP_LOGI("DoPreTiling", "maskUsedCoreNum = %ld", maskUsedCoreNum);
 
-    int64_t tailCoreNum = maskSize - (maskUsedCoreNum - 1) * singleCoreNum;
-    tailCoreNum = AlignTo(tailCoreNum, static_cast<int64_t>(BOOL_BLOCK_NUMS));
+    uint64_t tailCoreNum = maskSize - (maskUsedCoreNum - 1) * singleCoreNum;
+    tailCoreNum = AlignTo(tailCoreNum, static_cast<uint64_t>(BOOL_BLOCK_NUMS));
 
-    int64_t singleCoreUBLoop = static_cast<int64_t>(CeilDivideBy(singleCoreNum, singleUBProcessNum));
-    int64_t tailCoreUBLoop = static_cast<int64_t>(CeilDivideBy(tailCoreNum, singleUBProcessNum));
+    uint64_t singleCoreUBLoop = static_cast<uint64_t>(CeilDivideBy(singleCoreNum, singleUBProcessNum));
+    uint64_t tailCoreUBLoop = static_cast<uint64_t>(CeilDivideBy(tailCoreNum, singleUBProcessNum));
 
-    int64_t singleCoreUBLastLoopNum =
-        static_cast<int64_t>(singleCoreNum - (singleCoreUBLoop - 1) * singleUBProcessNum);
-    int64_t tailCoreUBLastLoopNum = static_cast<int64_t>(tailCoreNum - (tailCoreUBLoop - 1) * singleUBProcessNum);
+    uint64_t singleCoreUBLastLoopNum =
+        static_cast<uint64_t>(singleCoreNum - (singleCoreUBLoop - 1) * singleUBProcessNum);
+    uint64_t tailCoreUBLastLoopNum = static_cast<uint64_t>(tailCoreNum - (tailCoreUBLoop - 1) * singleUBProcessNum);
 
     preTilingData_->set_maskCoreNum(maskUsedCoreNum);
     preTilingData_->set_castBufferLen(CAST_BUFFER_LEN);
@@ -2509,20 +2666,20 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoPreTiling()
     preTilingData_->set_maskTailCoreLoop(tailCoreUBLoop);
     preTilingData_->set_maskTailCoreLastLoopNum(tailCoreUBLastLoopNum);
 
-    uint32_t qPreBlockFactor = (static_cast<uint32_t>(fBaseParams.qSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
-    uint32_t qPreBlockTotal = (static_cast<uint32_t>(fBaseParams.qSize) + qPreBlockFactor - 1) / qPreBlockFactor;
-    uint32_t qPreTailNumTmp = static_cast<uint32_t>(fBaseParams.qSize) % qPreBlockFactor;
-    uint32_t qPreTailNum = qPreTailNumTmp == static_cast<uint32_t>(0) ? qPreBlockFactor : qPreTailNumTmp;
+    uint64_t qPreBlockFactor = (static_cast<uint64_t>(fBaseParams.qSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
+    uint64_t qPreBlockTotal = (static_cast<uint64_t>(fBaseParams.qSize) + qPreBlockFactor - 1) / qPreBlockFactor;
+    uint64_t qPreTailNumTmp = static_cast<uint64_t>(fBaseParams.qSize) % qPreBlockFactor;
+    uint64_t qPreTailNum = qPreTailNumTmp == static_cast<uint64_t>(0) ? qPreBlockFactor : qPreTailNumTmp;
 
-    uint32_t kPreBlockFactor = (static_cast<uint32_t>(fBaseParams.kSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
-    uint32_t kPreBlockTotal = (static_cast<uint32_t>(fBaseParams.kSize) + kPreBlockFactor - 1) / kPreBlockFactor;
-    uint32_t kPreTailNumTmp = static_cast<uint32_t>(fBaseParams.kSize) % kPreBlockFactor;
-    uint32_t kPreTailNum = kPreTailNumTmp == static_cast<uint32_t>(0) ? kPreBlockFactor : kPreTailNumTmp;
+    uint64_t kPreBlockFactor = (static_cast<uint64_t>(fBaseParams.kSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
+    uint64_t kPreBlockTotal = (static_cast<uint64_t>(fBaseParams.kSize) + kPreBlockFactor - 1) / kPreBlockFactor;
+    uint64_t kPreTailNumTmp = static_cast<uint64_t>(fBaseParams.kSize) % kPreBlockFactor;
+    uint64_t kPreTailNum = kPreTailNumTmp == static_cast<uint64_t>(0) ? kPreBlockFactor : kPreTailNumTmp;
 
-    uint32_t vPreBlockFactor = (static_cast<uint32_t>(fBaseParams.vSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
-    uint32_t vPreBlockTotal = (static_cast<uint32_t>(fBaseParams.vSize) + vPreBlockFactor - 1) / vPreBlockFactor;
-    uint32_t vPreTailNumTmp = static_cast<uint32_t>(fBaseParams.vSize) % vPreBlockFactor;
-    uint32_t vPreTailNum = vPreTailNumTmp == static_cast<uint32_t>(0) ? vPreBlockFactor : vPreTailNumTmp;
+    uint64_t vPreBlockFactor = (static_cast<uint64_t>(fBaseParams.vSize) + maskUsedCoreNum - 1) / maskUsedCoreNum;
+    uint64_t vPreBlockTotal = (static_cast<uint64_t>(fBaseParams.vSize) + vPreBlockFactor - 1) / vPreBlockFactor;
+    uint64_t vPreTailNumTmp = static_cast<uint64_t>(fBaseParams.vSize) % vPreBlockFactor;
+    uint64_t vPreTailNum = vPreTailNumTmp == static_cast<uint64_t>(0) ? vPreBlockFactor : vPreTailNumTmp;
 
     uint64_t maskPreBlockTotal = fBaseParams.dropMaskSize;
     preTilingData_->set_qPreBlockFactor(qPreBlockFactor);
@@ -2541,28 +2698,28 @@ void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoPreTiling()
 
 void FlashAttentionScoreGradTilingUs1s2Bs2Regbase::DoPostTiling()
 {
-    uint32_t postUbBaseSize = fBaseParams.hasRope ? ROPE_POST_BASE * FP16_BYTES : REGBASE_POST_BASE * FP16_BYTES;
-    uint32_t qPostBaseNum = fBaseParams.hasRope ? ROPE_POST_BASE : REGBASE_POST_BASE;
-    uint32_t qPostBlockTotal = static_cast<uint32_t>(fBaseParams.qSize);
-    uint32_t qPostTailNumTmp = qPostBlockTotal % qPostBaseNum;
-    uint32_t qPostTailNum = qPostTailNumTmp == static_cast<uint32_t>(0) ? qPostBaseNum : qPostTailNumTmp;
-    uint32_t qPostBlockOuterTotal = (qPostBlockTotal + qPostBaseNum - static_cast<uint32_t>(1)) / qPostBaseNum;
-    uint32_t qPostBlockFactor = (qPostBlockOuterTotal + fBaseParams.blockOuter * AICV_RATIO_DEFAULT - 1) / (fBaseParams.blockOuter * AICV_RATIO_DEFAULT);
+    uint64_t postUbBaseSize = fBaseParams.hasRope ? ROPE_POST_BASE * FP16_BYTES : REGBASE_POST_BASE * FP16_BYTES;
+    uint64_t qPostBaseNum = fBaseParams.hasRope ? ROPE_POST_BASE : REGBASE_POST_BASE;
+    uint64_t qPostBlockTotal = static_cast<uint64_t>(fBaseParams.qSize);
+    uint64_t qPostTailNumTmp = qPostBlockTotal % qPostBaseNum;
+    uint64_t qPostTailNum = qPostTailNumTmp == static_cast<uint64_t>(0) ? qPostBaseNum : qPostTailNumTmp;
+    uint64_t qPostBlockOuterTotal = (qPostBlockTotal + qPostBaseNum - static_cast<uint64_t>(1)) / qPostBaseNum;
+    uint64_t qPostBlockFactor = (qPostBlockOuterTotal + fBaseParams.blockOuter * AICV_RATIO_DEFAULT - 1) / (fBaseParams.blockOuter * AICV_RATIO_DEFAULT);
 
-    uint32_t kPostBaseNum = postUbBaseSize / FP16_BYTES;
-    uint32_t kPostBlockTotal = static_cast<uint32_t>(fBaseParams.kSize);
-    uint32_t kPostTailNumTmp = kPostBlockTotal % kPostBaseNum;
-    uint32_t kPostTailNum = kPostTailNumTmp == static_cast<uint32_t>(0) ? kPostBaseNum : kPostTailNumTmp;
-    uint32_t kPostBlockOuterTotal = (kPostBlockTotal + kPostBaseNum - static_cast<uint32_t>(1)) / kPostBaseNum;
-    uint32_t kPostBlockFactor =
+    uint64_t kPostBaseNum = postUbBaseSize / FP16_BYTES;
+    uint64_t kPostBlockTotal = static_cast<uint64_t>(fBaseParams.kSize);
+    uint64_t kPostTailNumTmp = kPostBlockTotal % kPostBaseNum;
+    uint64_t kPostTailNum = kPostTailNumTmp == static_cast<uint64_t>(0) ? kPostBaseNum : kPostTailNumTmp;
+    uint64_t kPostBlockOuterTotal = (kPostBlockTotal + kPostBaseNum - static_cast<uint64_t>(1)) / kPostBaseNum;
+    uint64_t kPostBlockFactor =
         (kPostBlockOuterTotal + fBaseParams.blockOuter * AICV_RATIO_DEFAULT - 1) / (fBaseParams.blockOuter * AICV_RATIO_DEFAULT);
 
-    uint32_t vPostBaseNum = postUbBaseSize / FP16_BYTES;
-    uint32_t vPostBlockTotal = static_cast<uint32_t>(fBaseParams.vSize);
-    uint32_t vPostTailNumTmp = vPostBlockTotal % vPostBaseNum;
-    uint32_t vPostTailNum = vPostTailNumTmp == static_cast<uint32_t>(0) ? vPostBaseNum : vPostTailNumTmp;
-    uint32_t vPostBlockOuterTotal = (vPostBlockTotal + vPostBaseNum - static_cast<uint32_t>(1)) / vPostBaseNum;
-    uint32_t vPostBlockFactor =
+    uint64_t vPostBaseNum = postUbBaseSize / FP16_BYTES;
+    uint64_t vPostBlockTotal = static_cast<uint64_t>(fBaseParams.vSize);
+    uint64_t vPostTailNumTmp = vPostBlockTotal % vPostBaseNum;
+    uint64_t vPostTailNum = vPostTailNumTmp == static_cast<uint64_t>(0) ? vPostBaseNum : vPostTailNumTmp;
+    uint64_t vPostBlockOuterTotal = (vPostBlockTotal + vPostBaseNum - static_cast<uint64_t>(1)) / vPostBaseNum;
+    uint64_t vPostBlockFactor =
         (vPostBlockOuterTotal + fBaseParams.blockOuter * AICV_RATIO_DEFAULT - 1) / (fBaseParams.blockOuter * AICV_RATIO_DEFAULT);
 
     postTilingData_->set_postUbBaseSize(postUbBaseSize);
@@ -2676,6 +2833,15 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::GetWorkspaceSize()
         workspaceSize =
             (workspaceSize + static_cast<size_t>(fBaseParams.dropMaskSize) + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
     }
+
+    if (fBaseParams.queryType == ge::DT_HIFLOAT8) {
+        // softmax grad workspace size
+        postTilingData_->set_sfmgWorkSpaceOffset(workspaceSize);
+        uint64_t sfmgSize = ((fBaseParams.b * fBaseParams.n2 * fBaseParams.g - 1) * fBaseParams.s1 +
+                            AlignTo(fBaseParams.s1, ALIGN128)) * BIT_NUMS;
+        workspaceSize = (workspaceSize + static_cast<size_t>(sfmgSize) * FP32_BYTES + GM_ALIGN) / GM_ALIGN * GM_ALIGN;
+    }
+    
     GetWorkspaceSize4Deter(workspaceSize);
 
     workspaceSize += WORKSPACE_BUFFER;
@@ -3135,7 +3301,8 @@ ge::graphStatus FlashAttentionScoreGradTilingUs1s2Bs2Regbase::PostTiling()
 {
     SaveToTilingData();
     auto numBlocks = 0;
-    if (fBaseParams.isDeterministic) {
+    if (fBaseParams.isDeterministic || (fBaseParams.queryType == ge::DT_FLOAT8_E5M2 || fBaseParams.queryType == ge::DT_FLOAT8_E4M3FN ||
+            fBaseParams.queryType == ge::DT_HIFLOAT8)) {
         numBlocks = fBaseParams.aicNum;
     } else {
         numBlocks = CalcTschBlockDim(s1s2BNGS1S2SplitCoreParams_->get_blockOuter() * AICV_RATIO_DEFAULT, fBaseParams.aicNum,

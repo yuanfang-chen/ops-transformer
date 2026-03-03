@@ -19,6 +19,7 @@
 #include "opdev/common_types.h"
 #include "opdev/fast_vector.h"
 #include "opdev/op_executor.h"
+#include "opdev/op_log.h"
 
 using namespace op;
 
@@ -42,7 +43,18 @@ aclnnStatus aclnnPromptFlashAttentionGetWorkspaceSize(
     int64_t numKeyValueHeads,
     const aclTensor *attentionOut,
     uint64_t *workspaceSize,
-    aclOpExecutor **executor) {   
+    aclOpExecutor **executor) {
+        if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V2 are no longer supported on Ascend950.");
+            return ACLNN_ERR_RUNTIME_ERROR;
+        }
+        static bool isFirstCall = true;
+        if (isFirstCall) {
+            OP_LOGW("aclnnPromptFlashAttentionGetWorkspaceSize is scheduled to be deprecated in December 2026, "
+                    "and will be replaced by the aclnnPromptFlashAttentionV3GetWorkspaceSize. "
+                    "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.");
+            isFirstCall = false;
+        }   
         (void) pseShift;    
         const aclIntArray *actualSeqLengthsKv = nullptr;
         int64_t sparseMode = 0;
@@ -66,7 +78,18 @@ aclnnStatus aclnnPromptFlashAttention(
     uint64_t workspaceSize,
     aclOpExecutor *executor,
     const aclrtStream stream) {
+        static bool isFirstCall = true;
+        if (isFirstCall) {
+            OP_LOGW("aclnnPromptFlashAttention is scheduled to be deprecated in December 2026, "
+                    "and will be replaced by the aclnnPromptFlashAttentionV3. "
+                    "We apologize for any inconvenience caused and appreciate your timely migration to the new interface.");
+            isFirstCall = false;
+        }
         // perform attention computations.
+        if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V2 are no longer supported on Ascend950.");
+            return ACLNN_ERR_RUNTIME_ERROR;
+        }
         return InnerPromptFlashAttention(workspace, workspaceSize, executor, stream);
     }
 
