@@ -14,7 +14,7 @@
  */
 #include "allto_all_formulaic_tiling.h"
 #include <iostream>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 /**
  * @brief 时间估算

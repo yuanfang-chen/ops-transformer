@@ -12,7 +12,7 @@
  * \file moe_distribute_combine_add_rms_norm_infershape.cpp
  * \brief
  */
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_impl_registry.h"
 
 using namespace ge;

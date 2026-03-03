@@ -20,13 +20,13 @@
 #include <cstdint>
 #include <vector>
 
-#include "mc2_hcom_topo_info.h"
-#include "mc2_log.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_log.h"
+#include "op_tiling/matmul_formulaic_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
+#include "op_tiling/new_mc2_tiling_utils.h"
 #include "tiling_base/tiling_templates_registry.h"
 
 using namespace AscendC;

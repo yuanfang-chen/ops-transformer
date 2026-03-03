@@ -16,7 +16,7 @@
 #include <string>
 #include <numeric>
 #include <climits>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "register/op_impl_registry.h"

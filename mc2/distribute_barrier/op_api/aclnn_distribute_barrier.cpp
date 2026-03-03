@@ -11,7 +11,7 @@
 
 #include "aclnn_distribute_barrier.h"
 #include "aclnn_kernels/common/op_error_check.h"
-#include "op_mc2_def.h"
+#include "common/op_tiling/op_mc2_def.h"
 #include "opdev/common_types.h"
 #include "opdev/op_log.h"
 #include "aclnn_distribute_barrier_base.h"

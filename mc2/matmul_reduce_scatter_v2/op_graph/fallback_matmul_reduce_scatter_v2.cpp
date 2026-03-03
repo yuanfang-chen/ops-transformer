@@ -14,8 +14,8 @@
  */
 
 #include "fallback/fallback.h"
-#include "op_mc2.h"
-#include "mc2_log.h"
+#include "common/op_tiling/op_mc2.h"
+#include "op_tiling/mc2_log.h"
 
 namespace fallback {
 const char* reduceScatterV2Info = "MmReduceScatterV2Fallback";

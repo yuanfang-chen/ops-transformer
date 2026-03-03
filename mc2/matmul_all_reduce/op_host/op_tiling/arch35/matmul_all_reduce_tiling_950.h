@@ -22,7 +22,7 @@
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_common_advanced.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_tiling_registry.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
-#include "mc2_matmul_tiling_cfg.h"
+#include "op_tiling/mc2_matmul_tiling_cfg.h"
 #include "../../../op_kernel/arch35/matmul_all_reduce_tiling_struct_ar35.h"
 
 namespace optiling {

@@ -15,7 +15,7 @@
 
 #include "quant_batch_matmul_v3_tiling_base.h"
 #include "quant_batch_matmul_info_factory.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "common/op_host/op_tiling/debug_tiling.h"
 #include "platform/platform_infos_def.h"
 

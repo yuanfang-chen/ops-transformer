@@ -14,7 +14,7 @@
  */
 
 #include "all_gather_matmul_tiling_v2.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"

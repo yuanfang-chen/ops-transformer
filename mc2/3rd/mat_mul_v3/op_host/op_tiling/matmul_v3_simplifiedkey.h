@@ -17,7 +17,7 @@
 #define __OP_HOST_MATMUL_V3_SIMPILIFIEDKEY_H__
 
 #include "exe_graph/runtime/tiling_context.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace optiling {
 inline ge::graphStatus Mc2GenSimplifiedKey(gert::TilingContext *context, ge::char_t *simplifiedKey)

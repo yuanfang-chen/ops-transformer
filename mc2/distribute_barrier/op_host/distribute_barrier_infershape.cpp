@@ -12,7 +12,7 @@
  * \file distribute_barrier_infer.cc
  * \brief
  */
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "platform/platform_info.h"
 #include "register/op_impl_registry.h"
 using namespace ge;

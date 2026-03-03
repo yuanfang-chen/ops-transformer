@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
 #include "mc2_hcom_topology_mocker.h"
 namespace Mc2Hcom {
 MC2HcomTopologyMocker& MC2HcomTopologyMocker::GetInstance()

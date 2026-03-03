@@ -28,10 +28,10 @@
 #include <string>
 #include <sys/types.h>
 #include "tiling/tiling_api.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "../../../op_kernel/moe_distribute_dispatch_v2_tiling.h"
 #include "../../../op_kernel/moe_distribute_dispatch_v2_tiling_key.h"
 using namespace Mc2Tiling;

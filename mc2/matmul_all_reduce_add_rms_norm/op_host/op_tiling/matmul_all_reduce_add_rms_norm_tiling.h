@@ -17,7 +17,7 @@
 #define _MATMUL_ALL_REDUCE_ADD_RMS_NORM_TILING_H_
 #include "../../../matmul_all_reduce/op_host/op_tiling/arch32/matmul_all_reduce_tiling_910.h"
 #include "common_add_rms_norm_tiling.h"
-#include "context_transfer.h"
+#include "op_tiling/context_transfer.h"
 #include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 
 namespace optiling {

@@ -27,14 +27,14 @@
 
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "../../op_kernel/ffn_to_attention_tiling.h"
 #include "../../op_kernel/ffn_to_attention_tilling_key.h"
 #include "platform/platform_infos_def.h"
-#include "mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
 
 using namespace AscendC;
 using namespace ge;

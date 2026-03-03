@@ -14,7 +14,7 @@
  */
 #include "all_reduce_formulaic_tiling.h"
 #include <cmath>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 using namespace std;
 
 void MMPlusAllReduce::SetCommTimeFactorForA5()

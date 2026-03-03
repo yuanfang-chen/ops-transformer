@@ -12,7 +12,7 @@
  * \file grouped_mat_mul_all_reduce_infershape.cpp
  * \brief
  */
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_impl_registry.h"
 #include "exe_graph/runtime/infer_shape_context.h"
 #include "exe_graph/runtime/infer_datatype_context.h"

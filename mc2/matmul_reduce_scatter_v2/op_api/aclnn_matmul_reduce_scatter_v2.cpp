@@ -14,8 +14,8 @@
  */
 #include "securec.h"
 #include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/op_tiling/op_mc2.h"
+#include "common/op_tiling/op_mc2_def.h"
 #include "hccl_util.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
@@ -25,7 +25,7 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "common/op_host/op_api/matmul_util.h"
-#include "mc2_aclnn_util.h"
+#include "common/op_tiling/mc2_aclnn_util.h"
 #include "aclnn_matmul_reduce_scatter_v2.h"
 
 using namespace op;

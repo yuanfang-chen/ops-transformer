@@ -16,7 +16,7 @@
 #include "common/op_host/op_tiling/tiling_type.h"
 #include "log/log.h"
 #include "quant_batch_matmul_v3_checker.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace {
 constexpr uint64_t MX_GROUP_SIZE = 32;

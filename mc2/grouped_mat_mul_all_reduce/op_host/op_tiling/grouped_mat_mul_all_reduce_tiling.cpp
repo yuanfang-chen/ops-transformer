@@ -16,10 +16,10 @@
 
 #include <climits>
 
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_impl_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 
 using namespace ge;
 using namespace AscendC;

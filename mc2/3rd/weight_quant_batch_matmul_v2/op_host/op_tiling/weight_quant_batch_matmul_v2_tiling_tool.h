@@ -17,7 +17,7 @@
 
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 using AscendC::BLOCK_CUBE;
 using AscendC::ONE_BLK_SIZE;

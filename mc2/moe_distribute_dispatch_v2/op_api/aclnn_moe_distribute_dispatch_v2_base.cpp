@@ -14,8 +14,8 @@
  */
 
 #include <algorithm>
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/op_tiling/op_mc2.h"
+#include "common/op_tiling/op_mc2_def.h"
 #include "opdev/op_log.h"
 #include "opdev/common_types.h"
 #include "aclnn_kernels/common/op_error_check.h"

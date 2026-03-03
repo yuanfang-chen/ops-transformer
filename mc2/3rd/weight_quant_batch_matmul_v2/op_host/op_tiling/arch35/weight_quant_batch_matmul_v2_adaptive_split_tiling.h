@@ -18,7 +18,7 @@
 
 #include "../weight_quant_batch_matmul_v2_tiling.h"
 #include "../../../op_kernel/weight_quant_batch_matmul_v2_tiling_data.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace optiling {
 namespace Mc2weight_quant_batch_matmul_v2 {

@@ -17,7 +17,7 @@
 #include <memory>
 #include "../../../matmul_all_reduce/op_host/op_tiling/arch32/weight_quant_matmul_all_reduce_tiling.h"
 #include "common_add_rms_norm_tiling.h"
-#include "context_transfer.h"
+#include "op_tiling/context_transfer.h"
 #include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 namespace optiling {
 class WeightQuantMMNTilingTransferHelper;

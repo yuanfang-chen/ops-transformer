@@ -13,7 +13,7 @@
  * \brief
  */
 #include <iostream>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "all_gather_formulaic_tiling.h"
 
 void AllGatherPlusMMV2::PrintEstimateKernelTimeResult(double totalMatmulTime, double totalTpTime)

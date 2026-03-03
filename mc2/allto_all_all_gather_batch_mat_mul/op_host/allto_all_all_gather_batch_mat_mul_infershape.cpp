@@ -14,10 +14,10 @@
  */
 #include <algorithm>
 
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_impl_registry.h"
-#include "op_mc2.h"
-#include "mc2_moe_utils.h"
+#include "common/op_tiling/op_mc2.h"
+#include "op_tiling/mc2_moe_utils.h"
 
 using namespace ge;
 using namespace Mc2Moe;

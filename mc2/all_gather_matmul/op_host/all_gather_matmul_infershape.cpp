@@ -12,11 +12,11 @@
  * \file all_gather_matmul_infershape.cc
  * \brief
  */
-#include "mc2_log.h"
-#include "context_util.h"
+#include "op_tiling/mc2_log.h"
+#include "op_tiling/context_util.h"
 #include "register/op_impl_registry.h"
-#include "mc2_hcom_topo_info.h"
-#include "mc2_common_infershape.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_common_infershape.h"
 
 using namespace ge;
 namespace ops {

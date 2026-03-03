@@ -17,7 +17,7 @@
 #include "ops_legacy/op_tiling/op_cache_tiling.h"
 #include "log/log.h"
 #include "adaptive_sliding_window_tiling.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 using Ops::Transformer::MathUtil;
 

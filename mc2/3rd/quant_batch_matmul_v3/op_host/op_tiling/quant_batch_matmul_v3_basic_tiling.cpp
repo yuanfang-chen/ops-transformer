@@ -26,7 +26,7 @@
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "common/op_host/op_tiling/tiling_type.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "../../op_kernel/quant_batch_matmul_v3_tiling_key.h"
 
 using AscendC::BLOCK_CUBE;    // uint32_t 16

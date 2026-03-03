@@ -17,11 +17,11 @@
 #include <iostream>
 
 #include "add_rms_norm/op_host/add_rms_norm_tiling.h"
-#include "context_transfer.h"
+#include "op_tiling/context_transfer.h"
 #include "register/op_def_registry.h"
 #include "tiling/tiling_api.h"
 #include "util/math_util.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "../../op_kernel/matmul_all_reduce_add_rms_norm_tiling_data.h"
 
 namespace optiling {

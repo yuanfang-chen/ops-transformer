@@ -13,8 +13,8 @@
  * \brief
  */
 #include "matmul_all_reduce_tiling_950.h"
-#include "tiling/new_mc2_tiling_utils.h"
-#include "op_mc2.h"
+#include "op_tiling/new_mc2_tiling_utils.h"
+#include "common/op_tiling/op_mc2.h"
 #include "mc2/matmul_all_reduce/op_kernel/matmul_all_reduce_apt_tiling_key.h"
 
 using namespace Mc2Tiling;

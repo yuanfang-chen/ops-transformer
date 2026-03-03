@@ -18,7 +18,7 @@
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "register/op_def_registry.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "tiling_func.h"
 #include "all_gather_matmul_tiling_v2.h"
 #include "../../../op_kernel/all_gather_matmul_aiv_mode_tiling.h"

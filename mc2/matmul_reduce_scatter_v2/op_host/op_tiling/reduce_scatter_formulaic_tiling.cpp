@@ -13,7 +13,7 @@
  * \brief
  */
 #include <iostream>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "reduce_scatter_formulaic_tiling.h"
 
 void MMPlusReduceScatter::SetCommTimeFactorForA5()

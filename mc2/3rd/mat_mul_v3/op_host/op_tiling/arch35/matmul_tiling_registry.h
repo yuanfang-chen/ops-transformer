@@ -23,7 +23,7 @@
 
 #include "exe_graph/runtime/tiling_context.h"
 #include "tiling/platform/platform_ascendc.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 #include "matmul_base_tiling.h"
 #include "matmul_tiling_cfg.h"

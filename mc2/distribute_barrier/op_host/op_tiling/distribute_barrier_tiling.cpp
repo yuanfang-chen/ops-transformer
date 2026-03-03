@@ -29,10 +29,10 @@
 #include "../../op_kernel/distribute_barrier_tiling.h"
 // #include "graph/utils/op_desc_utils.h"   // 依赖 ge
 #include "graph/utils/type_utils.h"
-#include "mc2_hcom_topo_info.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 
 using namespace AscendC;
 using namespace ge;

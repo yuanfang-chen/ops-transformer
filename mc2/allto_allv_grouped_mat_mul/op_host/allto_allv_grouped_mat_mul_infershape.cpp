@@ -12,7 +12,7 @@
  * \file allto_allv_grouped_mat_mul_infershape.cc
  * \brief
  */
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "platform/platform_info.h"
 #include "register/op_impl_registry.h"
 #include "graph/utils/type_utils.h"

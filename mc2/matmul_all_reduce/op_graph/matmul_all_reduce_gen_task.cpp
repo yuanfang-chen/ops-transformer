@@ -15,13 +15,13 @@
 #include <vector>
 
 #ifdef BUILD_OPEN_PROJECT
-#include "mc2_gen_task_ops_utils.h"
-#include "matmul_all_reduce_gen_task_ops_utils.h" //in transformer dev
-#include "mc2_gen_task_ops_utils_arch35.h"
+#include "op_kernel/mc2_gen_task_ops_utils.h"
+#include "op_kernel/matmul_all_reduce_gen_task_ops_utils.h" //in transformer dev
+#include "op_kernel/mc2_gen_task_ops_utils_arch35.h"
 #include "register/op_impl_registry.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #else
-#include "matmul_all_reduce_gen_task_utils.h" //in canndev
+#include "op_kernel/matmul_all_reduce_gen_task_utils.h" //in canndev
 #include "mc2_gen_task_utils.h"
 #include "mc2_a5_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"

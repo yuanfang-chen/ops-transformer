@@ -20,7 +20,7 @@
 #include "util/math_util.h"
 #include "log/log.h"
 #include "tiling_base/tiling_key.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "ops_legacy/op_tiling/op_cache_tiling.h"
 #include "runtime_kb_api.h"
 #include "matmul_v3_tuning.h"

@@ -23,8 +23,8 @@
 #include <cmath>
 #include <cstdint>
 
-#include "mc2_log.h"
-#include "op_mc2.h"
+#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/op_mc2.h"
 #include "all_reduce_formulaic_tiling.h"
 #include "util/math_util.h"
 

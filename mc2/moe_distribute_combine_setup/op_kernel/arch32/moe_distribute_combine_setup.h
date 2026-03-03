@@ -17,7 +17,7 @@
 
 #include "basic_api/kernel_basic_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../../common/inc/kernel/moe_distribute_base.h"
+#include "../../common/op_kernel/moe_distribute_base.h"
 #include "moe_distribute_combine_setup_tiling.h"
 
 namespace MoeDistributeCombineSetupImpl {

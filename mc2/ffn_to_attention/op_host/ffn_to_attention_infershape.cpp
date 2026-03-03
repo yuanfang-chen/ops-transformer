@@ -13,7 +13,7 @@
  * \brief
  */
 #include "runtime_util.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 using namespace ge;
 namespace ops {
 static ge::graphStatus InferShapeFFNToAttention(gert::InferShapeContext *context)

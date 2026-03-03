@@ -12,8 +12,8 @@
  * \file allto_all_fp_matmul_tiling_base.cpp
  * \brief
  */
-#include "op_mc2.h"
-#include "mc2_log.h"
+#include "common/op_tiling/op_mc2.h"
+#include "op_tiling/mc2_log.h"
 #include "allto_all_fp_matmul_tiling_base.h"
 
 using namespace Mc2Log;

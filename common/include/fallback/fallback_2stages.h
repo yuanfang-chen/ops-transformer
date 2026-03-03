@@ -24,7 +24,7 @@
 #include "fallback_comm.h"
 #include "fallback_comm_2stages.h"
 #include "log/log.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace fallback {
 using namespace std;

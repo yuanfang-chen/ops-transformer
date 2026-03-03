@@ -15,10 +15,10 @@
 #include <vector>
 
 #ifdef BUILD_OPEN_PROJECT
-#include "mc2_gen_task_ops_utils.h"
-#include "mc2_moe_gen_task_ops_utils.h"
+#include "op_kernel/mc2_gen_task_ops_utils.h"
+#include "op_tiling/mc2_moe_gen_task_ops_utils.h"
 #include "register/op_impl_registry.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #else
 #include "ops_error.h"
 #include "mc2_gen_task_moe.h"

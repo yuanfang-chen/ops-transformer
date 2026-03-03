@@ -24,7 +24,7 @@
 #include "log/log.h"
 #include "register/op_impl_registry.h"
 #include "arch35/adaptive_sliding_window_tiling.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "platform/platform_infos_def.h"
 #include "../../op_kernel/quant_batch_matmul_v3_tiling_key.h"
 
