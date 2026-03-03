@@ -34,7 +34,7 @@
 #include "platform/platform_infos_def.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "tiling/tiling_api.h"
 
 using namespace AscendC;
