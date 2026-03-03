@@ -61,6 +61,12 @@ __aicore__ inline uint64_t BlockAlignMod(uint64_t a, uint32_t b)
     uint64_t c = a % b;
     return c ? c : b;
 }
+
+// 比较取最小值
+__aicore__ inline uint64_t MIN(uint64_t x, uint64_t y)
+{
+    return (x < y) ? x : y;
+}
 }  // namespace AscendC
 
 #endif // REDUCE_SUM_UTILS_H

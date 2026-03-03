@@ -22,9 +22,10 @@ namespace AiVReduceSumImpl {
 
 using namespace AscendC;
 
-constexpr static uint32_t UB_BUFFER_NUM = 3;    // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
-constexpr static uint32_t UB_ALIGN_BYTES = 32U;     // UB搬运需按32B对齐
-constexpr uint32_t BUFFER_NUM = 2U;                 // 用于double buffer
+constexpr static uint32_t UB_BUFFER_NUM = 3;                     // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
+constexpr static uint32_t MAX_PER_BLOCK_NUM = 1024UL * 15UL;     // 经验最优上限, 限制UB每块最大可搬运的元素数
+constexpr static uint32_t UB_ALIGN_BYTES = 32U;                  // UB搬运需按32B对齐
+constexpr uint32_t BUFFER_NUM = 2U;                              // 用于double buffer
 
 template <typename DataType>
 class ReduceSumForAlltoAll {
@@ -112,11 +113,14 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(
     rankDim_ = rankDim; // 卡数
     aivNum_ = aivNum; // AIV数量
 
-    // 计算UB每块可搬运的元素数（32B 对齐）
-    perBlockNum_ = FloorAlign(
+    // 计算理论UB每块可搬运的最大容量（向下 32B 对齐）
+    uint64_t maxPerBlockNum_ = FloorAlign(
         TOTAL_UB_SIZE / UB_BUFFER_NUM,
         UB_ALIGN_BYTES
     ) / sizeof(DataType);
+
+    // 限制UB每次搬运数据块大小。
+    perBlockNum_ = MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
 
     // 分片大小与总块数
     sliceSize_ = outputSize; // 每张卡分片的数据大小，与输出大小一致
@@ -125,7 +129,7 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(
 
     // 尾块搬运大小
     uint64_t tailBytes = BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType);
-    tailBlockNum_ = CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 32B对齐
+    tailBlockNum_ = CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
