@@ -15,6 +15,7 @@
 
 #include "causal_conv1d_update_tiling_arch35.h"
 #include <algorithm>
+#include "securec.h"
 
 namespace optiling {
 
@@ -26,6 +27,8 @@ constexpr int64_t MIN_BATCH = 1;
 constexpr int64_t MAX_BATCH = 256;
 constexpr int64_t MIN_M = 0;
 constexpr int64_t MAX_M = 5;
+constexpr int64_t DIM_3 = 3;
+constexpr int64_t DIM_2 = 2;
 
 constexpr uint64_t TILING_KEY_BASE = 30000UL;
 
@@ -73,12 +76,12 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     auto xOriginShape = xShape->GetOriginShape();
 
     // Support both 3D [batch, seq_len, dim] and 2D [cu_seq_len, dim] input
-    if (xOriginShape.GetDimNum() == 3) {
+    if (xOriginShape.GetDimNum() == DIM_3) {
         xInputMode_ = 0;  // 3D input mode
         batchSize_ = xOriginShape.GetDim(0);
         seqLen_ = xOriginShape.GetDim(1);
         dim_ = xOriginShape.GetDim(2);
-    } else if (xOriginShape.GetDimNum() == 2) {
+    } else if (xOriginShape.GetDimNum() == DIM_2) {
         xInputMode_ = 1;  // 2D input mode
         cuSeqLen_ = xOriginShape.GetDim(0);  // cu_seq_len = batch * seq_len
         dim_ = xOriginShape.GetDim(1);
@@ -101,7 +104,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, weightShape);
     auto weightOriginShape = weightShape->GetOriginShape();
 
-    if (weightOriginShape.GetDimNum() != 2) {
+    if (weightOriginShape.GetDimNum() != DIM_2) {
         OP_LOGE(context_->GetNodeName(), "Weight dimension number must be 2, but got %lu",
                 weightOriginShape.GetDimNum());
         return ge::GRAPH_FAILED;
@@ -120,6 +123,9 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     auto numAcceptedTokensDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKENS_INDEX);
     if (numAcceptedTokensDesc != nullptr) {
         numAcceptedTokensDtype_ = numAcceptedTokensDesc->GetDataType();
+        hasAcceptTokenNum_ = 1;  // true
+    } else {
+        hasAcceptTokenNum_ = 0;  // false
     }
 
     // Get dtype size
@@ -163,7 +169,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
     OP_CHECK_IF(batchSize_ < MIN_BATCH || batchSize_ > MAX_BATCH,
                 OP_LOGE(context_->GetNodeName(),
                         "X batch size must be in [%ld, %ld], but got %ld",
-                        MIN_BATCH, MAX_BATCH, batchSize_),
+                        MIN_BATCH, MAX_BATCH, batch),
                 return ge::GRAPH_FAILED);
 
     // For 3D input, validate sequence length
@@ -214,7 +220,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
     auto convStatesOriginShape = convStatesShape->GetOriginShape();
 
     // Validate dimension number
-    OP_CHECK_IF(convStatesOriginShape.GetDimNum() != 3,
+    OP_CHECK_IF(convStatesOriginShape.GetDimNum() != DIM_3,
                 OP_LOGE(context_->GetNodeName(),
                         "ConvStates dimension number must be 3, but got %lu",
                         convStatesOriginShape.GetDimNum()),
@@ -277,7 +283,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokensShape()
         return ge::GRAPH_SUCCESS;
     }
 
-    auto acceptShape = context_->GetInputShape(NUM_ACCEPTED_TOKENS_INDEX);
+    auto acceptShape = context_->GetOptionalInputShape(NUM_ACCEPTED_TOKENS_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, acceptShape);
     auto acceptOriginShape = acceptShape->GetOriginShape();
 
@@ -749,11 +755,18 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.dim = dim_;
     tilingData_.kernelSize = kernelSize_;
     tilingData_.xInputMode = xInputMode_;
+    tilingData_.hasAcceptTokenNum = hasAcceptTokenNum_;
 
     // Save tiling data to buffer
-    // tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(),
-    //                          context_->GetRawTilingData()->GetCapacity());
-    context_->GetRawTilingData()->SetDataSize(sizeof(CausalConv1dUpdateTilingData));
+    auto tilingDataSize = sizeof(CausalConv1dUpdateTilingData);
+    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(),
+                           context_->GetRawTilingData()->GetCapacity(),
+                           reinterpret_cast<void *>(&tilingData_), tilingDataSize);
+    if (ret != EOK) {
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret=%d", ret);
+        return ge::GRAPH_FAILED;
+    }
+    context_->GetRawTilingData()->SetDataSize(tilingDataSize);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -762,44 +775,43 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
 {
     std::ostringstream info;
 
-    // Input shape information
+    // Tiling data in the order of struct members
     info << "=== CausalConv1dUpdate Tiling Info ===" << std::endl;
-    info << "X Input Mode: " << (xInputMode_ == 0 ? "3D [batch, seq_len, dim]" : "2D [cu_seq_len, dim]") << std::endl;
-    info << "Batch Size: " << batchSize_ << std::endl;
-    if (xInputMode_ == 0) {
-        info << "Sequence Length: " << seqLen_ << std::endl;
-    } else {
-        info << "CuSeqLen: " << cuSeqLen_ << std::endl;
-    }
-    info << "Dimension: " << dim_ << std::endl;
-    info << "Kernel Size: " << kernelSize_ << std::endl;
-    info << "Invalid Batch Number: " << inValidBatchNum_ << std::endl;
+    // Core distribution parameters
+    info << "usedCoreNum: " << usedCoreNum_ << std::endl;
+    info << "dimCoreCnt: " << dimCoreCnt_ << std::endl;
+    info << "batchCoreCnt: " << batchCoreCnt_ << std::endl;
 
-    // Hardware information
+    // Dim tiling parameters inter-core
+    info << "dimChunkSize: " << dimChunkSize_ << std::endl;
+    info << "dimTailSize: " << dimTailSize_ << std::endl;
+
+    // Batch tiling parameters inter-core
+    info << "batchPerCore: " << batchPerCore_ << std::endl;
+    info << "batchTailPerCore: " << batchTailPerCore_ << std::endl;
+    info << "validBatchStart: " << validBatchStart_ << std::endl;
+    info << "validBatchEnd: " << validBatchEnd_ << std::endl;
+
+    // Intra-core tiling parameters UB loop
+    info << "ubBatchSize: " << ubBatchSize_ << std::endl;
+    info << "ubDimSize: " << ubDimSize_ << std::endl;
+    info << "batchLoopCnt: " << batchLoopCnt_ << std::endl;
+    info << "dimLoopCnt: " << dimLoopCnt_ << std::endl;
+
+    // Shape information for kernel use
+    info << "batchSize: " << batchSize_ << std::endl;
+    info << "seqLen: " << seqLen_ << std::endl;
+    info << "cuSeqLen: " << cuSeqLen_ << std::endl;
+    info << "dim: " << dim_ << std::endl;
+    info << "kernelSize: " << kernelSize_ << std::endl;
+    info << "xInputMode: " << xInputMode_ << std::endl;
+    info << "hasAcceptTokenNum: " << hasAcceptTokenNum_ << std::endl;
+
+    // Additional debug information (not in struct)
+    info << "Invalid Batch Number: " << inValidBatchNum_ << std::endl;
     info << "Total Core Number: " << totalCoreNum_ << std::endl;
     info << "Limited Core Number: " << limitedCoreNum_ << std::endl;
-    info << "Used Core Number: " << usedCoreNum_ << std::endl;
     info << "UB Size: " << ubSize_ << " bytes" << std::endl;
-
-    // Core distribution
-    info << "Dim Core Count: " << dimCoreCnt_ << std::endl;
-    info << "Batch Core Count: " << batchCoreCnt_ << std::endl;
-
-    // Dim tiling parameters
-    info << "Dim Chunk Size: " << dimChunkSize_ << std::endl;
-    info << "Dim Tail Size: " << dimTailSize_ << std::endl;
-
-    // Batch tiling parameters
-    info << "Batch Per Core: " << batchPerCore_ << std::endl;
-    info << "Batch Tail Per Core: " << batchTailPerCore_ << std::endl;
-    info << "Valid Batch Start: " << validBatchStart_ << std::endl;
-    info << "Valid Batch End: " << validBatchEnd_ << std::endl;
-
-    // Intra-core tiling parameters
-    info << "UB Batch Size: " << ubBatchSize_ << std::endl;
-    info << "UB Dim Size: " << ubDimSize_ << std::endl;
-    info << "Batch Loop Count: " << batchLoopCnt_ << std::endl;
-    info << "Dim Loop Count: " << dimLoopCnt_ << std::endl;
 
     OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
 }

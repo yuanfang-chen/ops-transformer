@@ -41,7 +41,6 @@ constexpr int32_t CONV_STATES_INDEX = 2;
 constexpr int32_t QUERY_START_LOC_INDEX = 3;
 constexpr int32_t CACHE_INDICES_INDEX = 4;
 constexpr int32_t HAS_INITIAL_STATE_INDEX = 5;
-constexpr int32_t BIAS_INDEX = 6;
 constexpr int32_t NUM_ACCEPTED_TOKENS_INDEX = 7;
 
 // Output tensor indices
@@ -122,6 +121,7 @@ private:
     int64_t runMode_ = 0;
     int64_t inValidBatchNum_ = 0;
     int64_t xInputMode_ = 0;  // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
+    int64_t hasAcceptTokenNum_ = 0;  // Whether acceptTokenNum input is provided: 0 for false, 1 for true
 
     // Tiling parameters
     int64_t limitedCoreNum_ = 0;      // Limited core number based on data size

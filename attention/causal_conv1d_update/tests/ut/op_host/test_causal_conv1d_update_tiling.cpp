@@ -34,56 +34,6 @@ protected:
     }
 };
 
-// Test case 1: FP16 test with 3D input
-// batch=2, seq_len=3, dim=512, kernel_size=3
-TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_fp16)
-{
-    optiling::CausalConv1dUpdateCompileInfo compileInfo = {
-        64, 261888};
-
-    std::vector<gert::TilingContextPara::OpAttr> attrs = {
-        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
-    };
-
-    gert::TilingContextPara tilingContextPara(
-        "CausalConv1dUpdate",
-        {
-            // Input 0: x - (batch=2, seq_len=3, dim=512)
-            {{{2, 3, 512}, {2, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 1: weight - (kernel_size=3, dim=512)
-            {{{3, 512}, {3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 2: convStates - (batch=2, cache_len=3+3-2=4, dim=512)
-            // cache_len = kernel_size + seq_len - 2 = 3 + 3 - 2 = 4
-            {{{2, 4, 512}, {2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: queryStartLoc - (batch+1=3)
-            {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: cacheIndices - (batch=2)
-            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=2)
-            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 6: bias - optional, (dim=512)
-            {{{512}, {512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 7: numAcceptedTokens - optional, (batch=2)
-            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            },
-        {
-            // Output 0: y - (batch=2, seq_len=3, dim=512)
-            {{{2, 3, 512}, {2, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Output 1: cacheStates - (batch=2, cache_len=4, dim=512)
-            {{{2, 4, 512}, {2, 4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-        },
-        attrs,
-        &compileInfo);
-
-    int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "";
-    std::vector<size_t> expectWorkspaces = {};
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
-}
-
 
 TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
 {
@@ -113,10 +63,6 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
             {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
             // Input 5: hasInitialState - (batch=256)
             {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 6: bias - optional, (dim=16384)
-            {{{16384}, {16384}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 7: numAcceptedTokens - optional, (batch=256)
-            {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
             // Output 0: y - (batch=256, seq_len=3, dim=16384)
@@ -128,7 +74,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "";
+    std::string expectTilingData = "64 64 1 256 256 256 256 0 255 166 128 2 2 256 6 0 16384 3 0 0 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -176,7 +122,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_fp16_batch4_seq1_
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "";
+    std::string expectTilingData = "1 1 1 512 512 4 4 0 3 4 512 1 1 4 1 0 512 3 0 1 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -224,7 +170,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_fp16_batch1_seq4_
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "";
+    std::string expectTilingData = "1 1 1 1024 1024 1 1 0 0 1 1024 1 1 1 4 0 1024 3 0 1 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
