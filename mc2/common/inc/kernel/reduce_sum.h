@@ -19,7 +19,7 @@
 #include "reduce_sum_utils.h"
 
 namespace AiVReduceSumImpl {
-
+using namespace AiVReduceSumImplUtil;
 using namespace AscendC;
 
 constexpr static uint32_t UB_BUFFER_NUM = 3;                     // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
