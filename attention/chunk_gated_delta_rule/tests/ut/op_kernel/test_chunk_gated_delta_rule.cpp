@@ -98,7 +98,8 @@ void InitInputData(uint8_t* queryGm, size_t shapeQ,
                    uint8_t* stateGm, size_t shapeState,
                    uint8_t* gammaGm, size_t shapeGamma,
                    uint8_t* seqlensGm, size_t b,
-                   uint8_t* outGm, size_t shapeOut) {
+                   uint8_t* outGm, size_t shapeOut,
+                   uint8_t* finalState, size_t shapeFs) {
     memset(queryGm, 0, shapeQ);
     memset(keyGm, 0, shapeK);
     memset(valueGm, 0, shapeV);
@@ -106,6 +107,7 @@ void InitInputData(uint8_t* queryGm, size_t shapeQ,
     memset(stateGm, 0, shapeState);
     memset(gammaGm, 0, shapeGamma);
     memset(outGm, 0, shapeOut);
+    memset(finalState, 0, shapeFs);
 
     int32_t* seqlens = reinterpret_cast<int32_t*>(seqlensGm);
     for (size_t i = 0; i < b; ++i) {
@@ -133,6 +135,7 @@ protected:
     size_t shapeValue = t * nv * dv * sizeof(bfloat16_t);
     size_t shapeBeta = t * nv * sizeof(bfloat16_t);
     size_t shapeState = b * nv * dv * dk * sizeof(bfloat16_t);
+    size_t shapeFinalState = b * nv * dv * dk * sizeof(bfloat16_t);
     size_t shapeGamma = t * nv * sizeof(float);
     size_t shapeSeqlens = b * sizeof(int32_t);
     size_t shapeOut = t * nv * dv * sizeof(bfloat16_t);
@@ -143,6 +146,7 @@ protected:
     uint8_t* valueGm = nullptr;
     uint8_t* betaGm = nullptr;
     uint8_t* stateGm = nullptr;
+    uint8_t* finalStateGm = nullptr;
     uint8_t* gammaGm = nullptr;
     uint8_t* seqlensGm = nullptr;
     uint8_t* outGm = nullptr;
@@ -156,6 +160,7 @@ protected:
         valueGm = GmAllocWrapper<uint8_t>(shapeValue);
         betaGm = GmAllocWrapper<uint8_t>(shapeBeta);
         stateGm = GmAllocWrapper<uint8_t>(shapeState);
+        finalStateGm = GmAllocWrapper<uint8_t>(shapeFinalState);
         gammaGm = GmAllocWrapper<uint8_t>(shapeGamma);
         seqlensGm = GmAllocWrapper<uint8_t>(shapeSeqlens);
         outGm = GmAllocWrapper<uint8_t>(shapeOut);
@@ -177,7 +182,8 @@ protected:
                       stateGm, shapeState,
                       gammaGm, shapeGamma,
                       seqlensGm, b,
-                      outGm, shapeOut);
+                      outGm, shapeOut,
+                      finalStateGm, shapeFinalState);
 
         ChunkGatedDeltaRuleTilingData* tilingData = reinterpret_cast<ChunkGatedDeltaRuleTilingData*>(tiling);
         InitTilingData(tilingData, b, t, nk, nv, dk, dv, params.hasGamma, chunkSize, maxGroupLength);
@@ -189,6 +195,7 @@ protected:
         AscendC::GmFree(valueGm);
         AscendC::GmFree(betaGm);
         AscendC::GmFree(stateGm);
+        AscendC::GmFree(finalStateGm);
         AscendC::GmFree(gammaGm);
         AscendC::GmFree(seqlensGm);
         AscendC::GmFree(outGm);
@@ -215,5 +222,5 @@ TEST_P(ChunkGatedDeltaRuleTest, RunTest) {
     ICPU_RUN_KF(chunk_gated_delta_rule, blockDim,
                 queryGm, keyGm, valueGm, betaGm, stateGm, seqlensGm,
                 (params.hasGamma ? gammaGm : nullptr),
-                outGm, stateGm, workspace, tiling);
+                outGm, finalStateGm, workspace, tiling);
 }

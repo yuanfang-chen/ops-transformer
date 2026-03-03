@@ -62,7 +62,7 @@ public:
         dataSize = tiling_->t * tiling_->nv;
         beta_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.beta), dataSize);
         if (initParams.gOptional != nullptr) {
-            g_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.gOptional), dataSize);
+            g_.SetGlobalBuffer(reinterpret_cast<__gm__ highType *>(initParams.gOptional), dataSize);
         }
 
         dataSize = tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk;
