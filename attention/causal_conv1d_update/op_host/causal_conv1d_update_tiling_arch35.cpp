@@ -14,6 +14,7 @@
  */
 
 #include "causal_conv1d_update_tiling_arch35.h"
+#include "../op_kernal/arch35/causal_conv1d_update_struct.h"
 #include <algorithm>
 
 namespace optiling {

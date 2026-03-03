@@ -24,6 +24,7 @@
 #include "util/math_util.h"
 #include "util/platform_util.h"
 #include "util/shape_util.h"
+#include "../op_kernal/arch35/causal_conv1d_update_struct.h"
 
 namespace optiling {
 
@@ -52,39 +53,6 @@ constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
 constexpr int32_t ATTR_RESIDUAL_CONN_MODE_INDEX = 2;
 constexpr int32_t ATTR_RUN_MODE_INDEX = 3;
 
-// TilingData structure definition
-BEGIN_TILING_DATA_DEF(CausalConv1dUpdateTilingData)
-// Core distribution parameters
-TILING_DATA_FIELD_DEF(int64_t, usedCoreNum);              // Total used core number
-TILING_DATA_FIELD_DEF(int64_t, dimCoreCnt);               // Number of cores for dim direction
-TILING_DATA_FIELD_DEF(int64_t, batchCoreCnt);             // Number of cores for batch direction
-
-// Dim tiling parameters (inter-core)
-TILING_DATA_FIELD_DEF(int64_t, dimChunkSize);             // Dim chunk size per core (256B aligned)
-TILING_DATA_FIELD_DEF(int64_t, dimTailSize);              // Dim tail size for last core
-
-// Batch tiling parameters (inter-core)
-TILING_DATA_FIELD_DEF(int64_t, batchPerCore);             // Batches per core (regular)
-TILING_DATA_FIELD_DEF(int64_t, batchTailPerCore);         // Batches for tail core
-TILING_DATA_FIELD_DEF(int64_t, validBatchStart);          // First valid batch index
-TILING_DATA_FIELD_DEF(int64_t, validBatchEnd);            // Last valid batch index (inclusive)
-
-// Intra-core tiling parameters (UB loop)
-TILING_DATA_FIELD_DEF(int64_t, ubBatchSize);              // Batch size per UB iteration
-TILING_DATA_FIELD_DEF(int64_t, ubDimSize);                // Dim size per UB iteration (elements)
-TILING_DATA_FIELD_DEF(int64_t, batchLoopCnt);             // Batch loop count within core
-TILING_DATA_FIELD_DEF(int64_t, dimLoopCnt);               // Dim loop count within core
-
-// Shape information for kernel use
-TILING_DATA_FIELD_DEF(int64_t, batchSize);                // Batch size
-TILING_DATA_FIELD_DEF(int64_t, seqLen);                   // Sequence length (for 3D input)
-TILING_DATA_FIELD_DEF(int64_t, cuSeqLen);                 // Cumulative sequence length (for 2D input)
-TILING_DATA_FIELD_DEF(int64_t, dim);                      // Dimension size
-TILING_DATA_FIELD_DEF(int64_t, kernelSize);               // Kernel size (K)
-TILING_DATA_FIELD_DEF(int64_t, xInputMode);               // Input mode: 0 for 3D, 1 for 2D
-END_TILING_DATA_DEF;
-
-REGISTER_TILING_DATA_CLASS(CausalConv1dUpdate, CausalConv1dUpdateTilingData)
 
 class CausalConv1dUpdateTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
