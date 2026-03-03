@@ -52,6 +52,7 @@ enum class KernelType {
     ALL_GATHER,
     REDUCE_SCATTER,
     ALL_TO_ALL,
+    REDUCE_SCATTER_VIA_ALL_TO_ALL,
 };
 
 enum class MatmulCalcType {
