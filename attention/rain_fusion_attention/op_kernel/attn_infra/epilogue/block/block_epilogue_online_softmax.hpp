@@ -776,12 +776,12 @@ public:
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
         if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) { // 同步等待LSE
-            AscendC::printf("softmax subcore lse out only curLoop:%d", rowNumCurLoop);
+            AscendC::printf("=====hxb softmax subcore lse out only curLoop:%d", rowNumCurLoop);
             // In lse out-only mode, tv is used in the last stack tile to transport lse
             if (isFirstStackTile && isFirstRowLoop) {
-                AscendC::printf("softmax 555555 before");
+                AscendC::printf("=====hxb softmax 555555 before");
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
-                AscendC::printf("softmax 555555 after");
+                AscendC::printf("=====hxb softmax 555555 after");
             }
         }
         CalcLocalRowMax(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
@@ -794,34 +794,34 @@ public:
 
         CalcExp(sUbOffset, rowNumCurLoop, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
         if constexpr (!doTriUMask) {
-            AscendC::printf("softmax !doTriUMask before");
+            AscendC::printf("=====hxb softmax !doTriUMask before");
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
-            AscendC::printf("softmax !doTriUMask after");
+            AscendC::printf("=====hxb softmax !doTriUMask after");
         }
 
         DownCastP(sUbOffset, rowNumCurLoop, columnNumRound);
         AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
         CalcLocalRowSum(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
-        AscendC::printf("softmax HardEvent::V_MTE2>(pingpongFlag before");
+        AscendC::printf("=====hxb softmax HardEvent::V_MTE2>(pingpongFlag before");
         AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
         AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
-        AscendC::printf("softmax HardEvent::V_MTE2>(pingpongFlag after");
+        AscendC::printf("=====hxb softmax HardEvent::V_MTE2>(pingpongFlag after");
         CopyPUbToGm(gOutput, sUbOffset, rowNumCurLoop, columnNumRound, columnNumPad);
         if constexpr (!doTriUMask) {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
             if (isLastNoMaskStackTile && isLastRowLoop) {
-                AscendC::printf("softmax  isLastNoMaskStackTile && isLastRowLoop start");
+                AscendC::printf("=====hxb softmax  isLastNoMaskStackTile && isLastRowLoop start");
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
                 AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
-                AscendC::printf("softmax  isLastNoMaskStackTile && isLastRowLoop end");
+                AscendC::printf("=====hxb softmax  isLastNoMaskStackTile && isLastRowLoop end");
             }
         } else {
-            AscendC::printf("softmax  no mask");
+            AscendC::printf("=====hxb softmax  no mask");
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
         }
         UpdateGlobalRowSum(
             sUbOffset, rowNumCurLoop, rowNumCurLoopRound, dmUbOffsetCurCycle, rowOffset, isFirstStackTile);
-        AscendC::printf("softmax UpdateGlobalRowSum end");
+        AscendC::printf("=====hxb softmax UpdateGlobalRowSum end");
     }
 
     __aicore__ inline
