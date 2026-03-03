@@ -17,7 +17,6 @@
 // #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_key.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
 #include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
-#include "add_rms_norm_dynamic_quant_v2_tiling.h"
 #include "mc2_log.h"
 #include "tiling/mc2_tiling_utils.h"
 
@@ -96,18 +95,6 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.stepN is %u.", tilingData.matmulTiling.stepN);
 
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Tiling end");
-}
-
-// addrmsNormdynamicquantallgatherqbmm tiling
-static ge::graphStatus GetAddRmsNormDynamicQuantAllGatherQbmm(
-    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
-{   
-    AddRmsNormDynamicQuantV2TilingHelper instanceNormV3TilingHelper(context);
-    bool status = instanceNormV3TilingHelper.DoTiling();
-    OP_CHECK_IF(!status, OP_LOGE(context, "DoTiling Failed, return Failed."), return ge::GRAPH_FAILED);
-
-    instanceNormV3TilingHelper.SetTilingData(&tilingData.addRmsNormDynamicQuantAllGatherTilingData);
-    return ge::GRAPH_SUCCESS;
 }
 
 // matmul切分

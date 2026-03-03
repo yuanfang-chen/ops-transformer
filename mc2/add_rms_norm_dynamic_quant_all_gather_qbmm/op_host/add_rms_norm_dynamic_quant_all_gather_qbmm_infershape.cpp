@@ -21,7 +21,6 @@ namespace ops {
 static constexpr size_t DIM_ONE = 1UL;
 static constexpr size_t DIM_TWO = 2UL;
 static constexpr size_t OUTPUT_DIM_SIZE = 2;
-static constexpr int64_t NEG_ONE = -1;
 
 static constexpr size_t INPUT_X1_INDEX = 0;
 static constexpr size_t INPUT_X2_INDEX = 1;
@@ -42,10 +41,6 @@ static constexpr size_t INPUT_ATTR_RANKSIZE_INDEX = 1;
 static constexpr size_t INPUT_ATTR_TRANSPOSE_X2_INDEX = 2;
 static constexpr size_t INPUT_ATTR_DTYPE_INDEX = 3;
 static constexpr size_t INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX = 4;
-
-constexpr size_t GROUP = 0;
-constexpr size_t RANK_SIZE = 1;
-constexpr size_t TRANSPOSE_X2 = 2;
 
 static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::InferShapeContext* context)
 {
@@ -81,7 +76,7 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     const int64_t *residualNormMode = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, residualNormMode);
 
-    // TODO 强校验 待后续修改
+    // 参数校验
     int64_t rankSize = *ranksize;
     bool isTransX2 = *transposeX2;
     OP_CHECK_IF(groupStr == nullptr, OP_LOGE(context->GetNodeName(), "Get group failed."), return ge::GRAPH_FAILED);
@@ -94,12 +89,10 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     OP_CHECK_IF(isTransX2, OP_LOGE(context->GetNodeName(),
         "isTransX2 only supports false currently, but got %d", isTransX2), return ge::GRAPH_FAILED);
 
-    int64_t x2DimK = x2Shape->GetDim(0);
-    int64_t x2DimN = x2Shape->GetDim(1);
     int64_t dimM = x1Shape->GetDim(0);
     int64_t dimKX1 = x1Shape->GetDim(1);
-    int64_t dimKX2 = !(isTransX2) ? x2DimK : x2DimN;
-    int64_t dimN = !(isTransX2) ? x2DimN : x2DimK;
+    int64_t dimKX2 = !(isTransX2) ? x2Shape->GetDim(0) : x2Shape->GetDim(1);
+    int64_t dimN = !(isTransX2) ? x2Shape->GetDim(1) : x2Shape->GetDim(0);
 
     OP_LOGI(context->GetNodeName(), "group = %s isTransX2 %d x1.M = [%ld] x1.K = [%ld]"
         " x2.K = [%ld] x2.N = [%ld] rankSize = [%ld].", groupStr, isTransX2,
