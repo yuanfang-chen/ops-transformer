@@ -33,14 +33,15 @@ public:
         lock_.lock_shared();
         auto it = inst_.find(threadId);
         if (it == inst_.end()) {
-            lock_.unlock();
+            lock_.unlock_shared();
             lock_.lock();
             ptr = &(inst_[threadId]);
+            lock_.unlock();
         } else {
             ptr = &(it->second);
+            lock_.unlock_shared();
         }
 
-        lock_.unlock();
         return ptr;
     }
 
