@@ -131,28 +131,32 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,
                        ge::DT_BF16,     ge::DT_INT4,  ge::DT_INT4,     ge::DT_INT4,  ge::DT_INT4,
-                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16})
+                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_INT8,
+                       ge::DT_INT8,     ge::DT_INT8,  ge::DT_INT8})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         aicore_config_910b.Input("x2")
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_INT8,  ge::DT_INT8,  ge::DT_INT8,
                        ge::DT_INT8,     ge::DT_INT4,  ge::DT_INT4,  ge::DT_INT4,  ge::DT_INT4,
-                       ge::DT_INT4,     ge::DT_INT4,  ge::DT_INT4,  ge::DT_INT4})
+                       ge::DT_INT4,     ge::DT_INT4,  ge::DT_INT4,  ge::DT_INT4,  ge::DT_INT8,
+                       ge::DT_INT8,     ge::DT_INT8,  ge::DT_INT8})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         aicore_config_910b.Input("bias")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16,  ge::DT_FLOAT,    ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT,
                        ge::DT_FLOAT,    ge::DT_FLOAT16,  ge::DT_FLOAT,    ge::DT_BF16,  ge::DT_FLOAT,
-                       ge::DT_FLOAT16,  ge::DT_BF16,     ge::DT_FLOAT,    ge::DT_FLOAT})
+                       ge::DT_FLOAT16,  ge::DT_BF16,     ge::DT_FLOAT,    ge::DT_FLOAT, ge::DT_FLOAT16,
+                       ge::DT_FLOAT,    ge::DT_BF16,     ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         aicore_config_910b.Input("x1_scale")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT,    ge::DT_FLOAT, ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,
                        ge::DT_BF16,     ge::DT_FLOAT, ge::DT_FLOAT,    ge::DT_FLOAT, ge::DT_FLOAT,
-                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16})
+                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT,
+                       ge::DT_FLOAT,    ge::DT_FLOAT, ge::DT_FLOAT})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         aicore_config_910b.Input("x2_scale")
@@ -179,13 +183,15 @@ public:
             .ParamType(REQUIRED)
             .DataType({ge::DT_FLOAT16,  ge::DT_BF16,     ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,
                        ge::DT_BF16,     ge::DT_FLOAT16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_BF16,
-                       ge::DT_FLOAT16, ge::DT_BF16, ge::DT_FLOAT16, ge::DT_BF16})
+                       ge::DT_FLOAT16,  ge::DT_BF16,     ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,
+                       ge::DT_FLOAT16,  ge::DT_BF16,     ge::DT_BF16})
             .FormatList({ge::FORMAT_ND});
         aicore_config_910b.Output("all2all_out")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,
-                       ge::DT_BF16,     ge::DT_INT4,  ge::DT_INT4,     ge::DT_INT4,     ge::DT_INT4,
-                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16})
+                       ge::DT_BF16,     ge::DT_INT4,  ge::DT_INT4,     ge::DT_INT4,  ge::DT_INT4,
+                       ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_FLOAT16,  ge::DT_BF16,  ge::DT_INT8,
+                       ge::DT_INT8,     ge::DT_INT8,  ge::DT_INT8})
             .FormatList({ge::FORMAT_ND});
 
         aicore_config_910b.DynamicCompileStaticFlag(true)

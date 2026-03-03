@@ -177,7 +177,7 @@ static bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclT
 
 // 根据API定义，列出allto_all_quant_matmul量化输入X1所能支持的所有dtype(A2)
 static const std::initializer_list<op::DataType> X1_DTYPE_SUPPORT_LIST = {
-    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_INT4, op::DataType::DT_INT32
+    op::DataType::DT_FLOAT16, op::DataType::DT_BF16, op::DataType::DT_INT4, op::DataType::DT_INT32, op::DataType::DT_INT8
 };
 // 根据API定义，列出allto_all_quant_matmul量化输入X2所能支持的所有dtype(A2)
 static const std::initializer_list<op::DataType> X2_DTYPE_SUPPORT_LIST = {
