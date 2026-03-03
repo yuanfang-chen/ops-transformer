@@ -42,7 +42,7 @@ public:
 private:
     __aicore__ inline void MMCompute(uint32_t groupIdx, MNConfig &mnConfig, WorkSpaceSplitConfig &workspaceSplitConfig);
     __aicore__ inline void SetMNConfig(const int32_t splitValue, MNConfig &mnConfig);
-    __aicore__ inline void UpdateMnConfig(MNConfig &mnConfig);
+    __aicore__ inline void UpdateMnConfig(MNConfig &mnConfig, bool resetOutputOffset);
 
 private:
     typename mmType::MT &mm;
@@ -94,7 +94,7 @@ GMMA4W4MidProcess<mmType>::Init(const GMAddrParams gmAddrParams,
 }
 
 template <typename mmType>
-__aicore__ inline void GMMA4W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnConfig)
+__aicore__ inline void GMMA4W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnConfig, bool resetOutputOffset)
 {
     if constexpr (bT::format == CubeFormat::NZ) {
         mnConfig.wBaseOffset += AlignUp<16>(mnConfig.k) * AlignUp<32>(mnConfig.n); // 16: nz format last two dim size
@@ -104,7 +104,11 @@ __aicore__ inline void GMMA4W4MidProcess<mmType>::UpdateMnConfig(MNConfig &mnCon
     mnConfig.nAxisBaseOffset += mnConfig.n;
     mnConfig.mAxisBaseOffset += mnConfig.m;
     mnConfig.xBaseOffset += mnConfig.m * mnConfig.k;
-    mnConfig.yBaseOffset += mnConfig.m * mnConfig.n;
+    if (resetOutputOffset) {
+        mnConfig.yBaseOffset = 0;
+    } else {
+        mnConfig.yBaseOffset += mnConfig.m * mnConfig.n;
+    }
 }
 
 template <typename mmType>
@@ -135,6 +139,7 @@ __aicore__ inline void GMMA4W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &
         mnConfig.k = gmmSwigluQuantV2BaseParams->K; // tilingData
         mnConfig.n = gmmSwigluQuantV2BaseParams->N; // tilingData
         mnConfig.blockDimN = Ceil(mnConfig.n, mnConfig.singleN);
+        mnConfig.yBaseOffset = 0;
         int32_t prevSplitValue = workspaceSplitLoopIdx * workspaceSplitConfig.notLastTaskSize;
         int32_t totalTmp = 0;
         if (gmmSwigluQuantV2BaseParams->groupListType == 1) {
@@ -142,9 +147,12 @@ __aicore__ inline void GMMA4W4MidProcess<mmType>::Process(WorkSpaceSplitConfig &
                 totalTmp += groupListGM.GetValue(i);
             }
         }
+        // 当workspace切换时,需要将输出的地址偏移初始化为0,使用resetOutputOffset控制
+        bool resetOutputOffset = true;
         for (uint32_t groupIdx = workspaceSplitConfig.rightMatrixExpertStartIndex, preCount = 0;
              groupIdx <= workspaceSplitConfig.rightMatrixExpertEndIndex; ++groupIdx) {
-            UpdateMnConfig(mnConfig);
+            UpdateMnConfig(mnConfig, resetOutputOffset);
+            resetOutputOffset = false;
             int32_t currSplitValue = 0;
             if (gmmSwigluQuantV2BaseParams->groupListType == 0) {
                 currSplitValue = static_cast<int32_t>(groupListGM.GetValue(groupIdx));
