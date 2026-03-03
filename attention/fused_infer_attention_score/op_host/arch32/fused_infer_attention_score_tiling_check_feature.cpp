@@ -204,7 +204,61 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
     }
     return ge::GRAPH_SUCCESS;
 }
-
+// constexpr int32_t SPARSE_MODE_NO_MASK = 0;
+// constexpr int32_t SPARSE_MODE_ALL_MASK = 1;
+// constexpr int32_t SPARSE_MODE_LEFT_UP = 2;
+// constexpr int32_t SPARSE_MODE_RIGHT_DOWN = 3;
+// constexpr int32_t SPARSE_MODE_BAND = 4;
+ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
+{
+    if (!fiaInfo_.isOutQuantEnable || fiaInfo_.s1Size == 1) {
+        return ge::GRAPH_SUCCESS;
+    }
+    OP_CHECK_IF(
+        (fiaInfo_.sparseMode == SPARSE_MODE_BAND && (fiaInfo_.preToken < 0 || fiaInfo_.nextToken < 0)),
+        OPS_REPORT_VECTOR_INNER_ERR(
+            opName_,
+            "When output type is int8, sparse mode = 4, preTokens (%ld) or nextTokens (%ld) cannot be negative.",
+            fiaInfo_.preToken, fiaInfo_.nextToken),
+        return ge::GRAPH_FAILED);
+    bool checkPostQuantOffset =
+        (fiaInfo_.outputType == ge::DT_INT8) &&
+        (opParamInfo_.quantOffset2.tensor != nullptr && opParamInfo_.quantOffset2.desc != nullptr) &&
+        (opParamInfo_.quantOffset2.tensor->GetStorageShape().GetShapeSize() != 0);
+    if (!fiaInfo_.isMaxWorkspace) {
+        std::vector<int64_t> actualSeqS2Size{};
+        if (fiaInfo_.opParamInfo.actualSeqLengths.tensor != nullptr) {
+            const int64_t *s2Ptr = fiaInfo_.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>();
+            int64_t tmpS = 0;
+            for (uint32_t i = 0; i < fiaInfo_.bSize; ++i) {
+                if (fiaInfo_.isAccumKVSeq) {
+                    tmpS = (i == 0U) ? s2Ptr[0] : (s2Ptr[i] - s2Ptr[i - 1U]);
+                } else {
+                    tmpS = s2Ptr[i];
+                }
+                actualSeqS2Size.emplace_back(tmpS);
+            }
+        } else {
+            if ((fiaInfo_.kvStorageMode == KvStorageMode::TENSOR_LIST) && (fiaInfo_.kvListSeqLens.size() != 0)) {
+                actualSeqS2Size = fiaInfo_.kvListSeqLens;
+            }
+        }
+        for (uint32_t i = 0; i < actualSeqS2Size.size(); i++) {
+            OP_CHECK_IF(
+                (checkPostQuantOffset && ((fiaInfo_.preToken + actualSeqS2Size[i] + static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqS2Size[i] < 0) ||
+                                          (fiaInfo_.nextToken < 0))),
+                OPS_REPORT_VECTOR_INNER_ERR(opName_,
+                                            "When sparse mode = %d, output dtype is int8, the output's dequant offset "
+                                            "is not null or empty tensor, "
+                                            "preTokens = %ld and nextTokens = %ld, some rows of the matrix do not "
+                                            "participate in the calculation, "
+                                            "the accuracy of the final result will be incorrect. Please see the "
+                                            "documentation for more details.",
+                                            fiaInfo_.sparseMode, fiaInfo_.preToken, fiaInfo_.nextToken),
+                return ge::GRAPH_FAILED);
+        }
+    }
+}
 ge::graphStatus FiaTilingCheck::CheckFeatureLeftPadding() const
 {
     if (fiaInfo_.qPaddingSizeFlag || fiaInfo_.kvPaddingSizeFlag) {
