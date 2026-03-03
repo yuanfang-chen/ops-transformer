@@ -82,8 +82,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
         mc2CcTilingConfig.SetAlgConfig(algConfig2);
         mc2CcTilingConfig.SetReduceType(reduceType, dataType1, dataType1);
         OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingCommQuant),
-            OP_LOGE(opName_, "Get mc2CcTilingCommQuant from quantMatmulAllReduceTilingData failed."),
+            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
+            OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
             return ge::GRAPH_FAILED);
     } else if (MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8) {
         uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
@@ -105,8 +105,8 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
         mc2CcTilingConfig.SetAlgConfig(algConfig2);
         mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
         OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingCommQuant),
-            OP_LOGE(opName_, "Get mc2CcTilingCommQuant from quantMatmulAllReduceTilingData failed."),
+            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
+            OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
             return ge::GRAPH_FAILED);
     } else {
         uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
