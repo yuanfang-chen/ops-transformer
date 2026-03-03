@@ -26,7 +26,7 @@ if (BUILD_OPEN_PROJECT)  # custom
     if("${CONDITION_UNIT}" STREQUAL "ascend950") 
         add_ops_compile_options( 
             OP_NAME MoeDistributeDispatchSetup
-            OPTIONS --cce-auto-sync=off 
+            OPTIONS --cce-auto-sync=on 
         ) 
     endif()
 endif()
