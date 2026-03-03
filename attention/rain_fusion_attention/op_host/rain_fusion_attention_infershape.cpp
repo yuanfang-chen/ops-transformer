@@ -201,8 +201,21 @@ static ge::graphStatus InferShapeRainFusionAttention(gert::InferShapeContext *co
     return ge::GRAPH_SUCCESS;
 }
 
+ ge::graphStatus InferDataTypeBlockSparseAttention(gert::InferDataTypeContext *context)
+{
+    if (context == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
+    auto dtype = context->GetInputDataType(0);
+    context->SetOutputDataType(0, dtype);
+    context->SetOutputDataType(1, DT_FLOAT);
+
+    return GRAPH_SUCCESS;
+}
+
 IMPL_OP_INFERSHAPE(RainFusionAttention)
     .InferShape(InferShapeRainFusionAttention);
+    .InferDataType(InferDataTypeBlockSparseAttention);
 
 }  // namespace ops
 
