@@ -48,7 +48,7 @@ void MC2HcomTopologyMocker::Reset()
     mockValue_.clear();
 }
 
-// mock mc2/common/inc/mc2_hcom_topo_info.h ----------------------------------------------------------------------------
+// mock mc2/op_tiling/mc2_hcom_topo_info.h ----------------------------------------------------------------------------
 constexpr static uint64_t DEFAULT_RANK_NUM = 8;
 constexpr static uint64_t DEFAULT_CCL_BUFFER_SIZE = 6000ULL * 1024ULL * 1024ULL;
 

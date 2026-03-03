@@ -531,7 +531,8 @@ mc2_infer@ops-transformer:
                 - ops/ops-transformer/mc2/3rd/common/
                 - ops/ops-transformer/mc2/3rd/ops_legacy/
                 - ops/ops-transformer/mc2/3rd/CMakeLists.txt
-                - ops/ops-transformer/mc2/common/inc/
+                - ops/ops-transformer/mc2/common/op_kernel
+                - ops/ops-transformer/mc2/common/op_tiling
                 - ops/ops-transformer/mc2/common/src/
             opensource_style: null 
             kernel_style: null  
