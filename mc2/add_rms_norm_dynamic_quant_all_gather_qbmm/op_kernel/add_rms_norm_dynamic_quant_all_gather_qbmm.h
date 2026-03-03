@@ -58,6 +58,16 @@ public:
                                 GM_ADDR workspaceGM, TPipe *pipe,
                                 const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
     __aicore__ inline void Process();
+
+    using AMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
+    using BMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::NZ, int8_t, false>;
+    using BiasMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int32_t>;
+    // notice: the TPos of ctype must be ub given by mm api when iterate<false>,
+    // but actually we can move data to gm then to ub.
+    using CMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int32_t>;
+    matmul::MatmulImpl<AMatmulType, BMatmulType, CMatmulType, BiasMatmulType, MM_DEFAULT_MDL_CFG> mm_;
+
+
 private:
     __aicore__ inline void InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
     __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
@@ -67,6 +77,7 @@ private:
     __aicore__ inline void Add2RmsNormDynamicQuantProcess();
     __aicore__ inline void CheckCvFlagReady(uint32_t mBlockIdx, uint32_t kBlockIdx);
     __aicore__ inline void MatmulProcess();
+    __aicore__ inline void InitTilingData(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
     
     TPipe *tpipe_{nullptr};
     AllGatherMte<int8_t, float, int8_t> allGatherMte_;  // allGather 相关实现
@@ -80,12 +91,15 @@ private:
     GlobalTensor<int32_t> biasGMTensor_; // 类型确定
     GlobalTensor<int8_t> x1WinGMTensor_; // 类型确定
     GlobalTensor<float> scaleWinGMTensor_; // 类型确定
+    GlobalTensor<int32_t> mmOutGm_;
+    GlobalTensor<int32_t> workspaceGm_;
     GlobalTensor<X1Type> outputGMTensor_;
     GlobalTensor<X1Type> zGMTensor_;
     GlobalTensor<X1Type> addRmsNormOutGMTensor_;   // TODO: 仅调试用
     GlobalTensor<int8_t> dynamicQuantOutGMTensor_;   // TODO: 仅调试用
     GlobalTensor<int8_t> allGatherDataOutGMTensor_;   // TODO: 仅调试用
     GlobalTensor<float> allGatherScalesOutGMTensor_;   // TODO: 仅调试用
+    GM_ADDR workspaceAddr_;
     GM_ADDR allGatherDataOutAddr_;    // TODO: 仅调试用
     GM_ADDR allGatherScalesOutAddr_;    // TODO: 仅调试用
     
@@ -99,6 +113,7 @@ private:
     LocalTensor<float> xLocalTensorFp32_;
     LocalTensor<float> yLocalTensorFp32_;
     LocalTensor<int8_t> x1OutLocalTensor_;
+    LocalTensor<int32_t> l0cTensor_;
 
     TBuf<> smoothScaleBuf_;    // 搬入smoothScale
     TBuf<> gammaBuf_;
@@ -107,11 +122,22 @@ private:
     TBuf<> weightTempBuf_;
     TBuf<> dynamicScaleBuf_;
     TBuf<> stateResetBuf_;
+    TBuf<TPosition::VECCALC> vecQueTmp_;
+    TBuf<TPosition::VECCALC> broadcastFp32Tmp_;
+    // used when bias type is bf16/fp16/fp32, dequant result should be fp32
+    TBuf<TPosition::VECCALC> biasFp32Tmp_;
+    TBuf<TPosition::VECCALC> outFp32Tmp_;
 
     TQue<QuePosition::VECIN, 1> inQueue_;
     TQue<QuePosition::VECOUT, 1> x1OutQueue_;
     TQue<QuePosition::VECOUT, 1> zOutQueue_;
     TQue<QuePosition::VECOUT, 1> addRmsNormOutQueue_;
+    TQue<QuePosition::CO1, 1> co1Queue_;
+    TQue<QuePosition::VECIN, 1> vecQueSrc_;
+    TQue<QuePosition::VECIN, 1> vecQueScale_;
+    TQue<QuePosition::VECIN, 1> vecQuePertokenScale_;
+    TQue<QuePosition::VECIN, 1> vecQueBias_;
+    TQue<QuePosition::VECOUT, 1> vecQueOut_;
 
     uint32_t aivId_{0};
     uint32_t aicId_{0};
@@ -129,8 +155,35 @@ private:
     uint64_t axisKaAlignFloatSize_{0};
     uint64_t axisKaAlignInt8Size_{0};
 
+    // matmul
+    uint32_t blockIdx_;
+    uint32_t m_;
+    uint32_t n_;
+    uint32_t k_;
+    uint32_t singleCoreM_;
+    uint32_t singleCoreN_;
+    uint32_t singleCoreK_;
+    uint32_t singleTimeM_;
+    uint32_t singleTimeN_;
+    uint32_t usedCoreNum_;
+    uint32_t baseM_;
+    uint32_t baseN_;
+    uint32_t baseK_;
+
+    // vector dequant
+    uint32_t ubCalcM_;
+    uint32_t ubCalcN_;
+    uint32_t ubTmpBuffer_;
+
+    uint64_t offsetA_ = 0;
+    uint64_t offsetB_ = 0;
+    uint64_t offsetC_ = 0;
+    uint64_t offsetBias_ = 0;
+    uint64_t offsetScale_ = 0;
+    uint64_t offsetPertokenScale_ = 0;
+
     __gm__ HcclOpResParam *winContext_{nullptr};
-    
+    const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData_;
 };
 
 template<TemplateMC2TypeClass>
@@ -183,6 +236,12 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
     scaleWinGMTensor_.SetGlobalBuffer((__gm__ float*)dynamicScaleWinGM);
+
+    InitTilingData(tilingData);
+    tilingData_ = tilingData;
+    workspaceAddr_ = workspaceGM;
+    mmOutGm_.SetGlobalBuffer((__gm__ int32_t*)output);
+    workspaceGm_.SetGlobalBuffer((__gm__ int32_t*)workspaceAddr_);
 
     if ASCEND_IS_AIC {
         return;
@@ -396,16 +455,107 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::CalcOffset(
+    uint32_t nDimStartIdx, uint32_t mCoreIdx, uint32_t nCoreIdx)
+{
+    uint64_t mOffset = static_cast<uint64_t>(mCoreIdx * singleCoreM_);
+    uint64_t nOffset = static_cast<uint64_t>(nCoreIdx * singleCoreN_);
+
+    // AMatmulType::format == CubeFormat::ND
+    offsetA_ = mOffset * k_;
+
+    // BMatmulType::format == CubeFormat::NZ
+    offsetB_ = DequantBmm::Align(nOffset, K0_INT8) * DequantBmm::Align(k_, BMM_BLOCK_NUM) +
+        nDimStartIdx * DequantBmm::Align(singleCoreN_, K0_INT8) * DequantBmm::Align(k_, BMM_BLOCK_NUM);
+    
+    // the output of mm only support ND/ND_ALIGN for vector
+    offsetC_ = nDimStartIdx * static_cast<uint64_t>(singleCoreN_) + mOffset * n_ + nOffset;
+
+    offsetPertokenScale_ = mOffset;
+    offsetScale_ = nDimStartIdx * static_cast<uint64_t>(singleCoreN_) + nOffset;
+}
+
+template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MMCompute(
+    uint32_t singleCoreM, uint32_t singleCoreN, uint32_t kBlockIdx)
+{
+    // mm 计算：x和pertoken_scale在本端win区，weight和scale在inputGM
+    GlobalTensor<int8_t> x1WinGlobalTensor;
+    GM_ADDR localDataGm = (GM_ADDR)(winContext_->localWindowsIn);
+    x1WinGlobalTensor.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
+    
+    mm_.SetTail(singleCoreM, singleCoreN, singleCoreK_);
+    mm_.SetSingleShape(singleCoreM, singleCoreN, singleCoreK_);
+    mm_.SetTensorA(x1WinGlobalTensor[offsetA_], false);
+    mm_.SetTensorB(x2GMTensor_[offsetB_], false);
+    mm_.DisableBias();
+
+    if (kBlockIdx == 0) {
+        mm_.template Iterate<false>(false); // <sync=false>(enPartialSum=false)
+    } else {
+        mm_.template Iterate<false>(true); // <sync=false>(enPartialSum=true)
+    }
+}
+
+template<TemplateMC2TypeClass>
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MMGetCo1Result(
+    uint32_t singleCoreM, uint32_t singleCoreN)
+{
+    FixpipeParamsV220 fixpipeParams;
+    fixpipeParams.nSize = singleCoreN;
+    fixpipeParams.mSize = singleCoreM;
+    fixpipeParams.srcStride = DequantBmm::CeilDiv(singleCoreM, 16) << 4; // CeilAlign16
+    fixpipeParams.dstStride = n_;
+    fixpipeParams.quantPre = QuantMode_t::NoQuant;
+    fixpipeParams.ndNum = 1; // 1: ND, 2: NZ, 3: FRACTAL_NZ, 4: ND_FRACTAL_NZ, 5: FRACTAL_Z, 6: ND_FRACTAL_Z
+    fixpipeParams.reluEn = 0;
+    Fixpipe<int32_t, int32_t, CFG_ROW_MAJOR>(mmOutGm_[offsetC_], l0cTensor_, fixpipeParams);
+}
+
+template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
 {
+    if (rankId_ != 0) {
+        return;
+    }
+    uint32_t mDim = DequantBmm::CeilDiv(m_, singleCoreM_);
+    uint32_t nDimNeed = DequantBmm::CeilDiv(n_, singleCoreN_);
+    uint32_t nDimReal = usedCoreNum_ / mDim;
+    uint32_t nDimLoops = DequantBmm::CeilDiv(nDimNeed, nDimReal);
+
+    uint32_t mCoreIdx = blockIdx_ % mDim;   // 必须沿着 N 轴方向输出
+    uint32_t nCoreIdx = blockIdx_ / mDim;
+
+    uint32_t gmUseM = m_ - mCoreIdx * singleCoreM_;
+    uint32_t singleCoreMUpdate = gmUseM < singleCoreM_ ? gmUseM : singleCoreM_;
+    uint32_t gmUseN = n_ - nCoreIdx * singleCoreN_;
+    uint32_t singleCoreNUpdate = gmUseN < singleCoreN_ ? gmUseN : singleCoreN_;
+
+    mm_.SetOrgShape(m_, n_, k_);
+
+    CalcOffset(0, mCoreIdx, nCoreIdx);
+    SetWorkspace();
     uint32_t mBlockIdx = aicId_ % CV_STATE_ROW_NUM;
+    l0cTensor_ = co1Queue_.AllocTensor<int32_t>();
+
     for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
         CheckCvFlagReady(mBlockIdx, kBlockIdx);
-        // TODO: mm计算
+        MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
+        offsetA_ += singleCoreK_;
+        offsetB_ += (singleCoreK_ * K0_INT8);
+        PipeBarrier<PIPE_ALL>();
     }
+    SyncFunc<AscendC::HardEvent::M_FIX>();
+    co1Queue_.Enque(l0cTensor_);
+    co1Queue_.Deque<int32_t>();
+    mm_.GetTensor<false>(mmOutGm_[offsetC_]); // 获取异步场景用于缓存结果的Workspace上的C矩阵
+    co1Queue_.FreeTensor(l0cTensor_);
+    // TODO
     // 通知AIV
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
 }
+
+
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Process()

@@ -292,7 +292,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             kIdx++;
         }
     }
-    PipeBarrier<PIPE_MTE3>;
+    PipeBarrier<PIPE_MTE3>();
 }
 } // AllGatherImpl
 #endif  // ALL_GATHER_MTE_H

@@ -55,7 +55,7 @@ constexpr size_t FOUR_DIMS = 4;
 constexpr uint64_t BASE_WORKSPACE_SIZE = 16UL * 1024UL * 1024UL;
 
 // matmul tiling 切分
-constexpr int32_t SINGLE_CORE_M = 126;
+constexpr int32_t SINGLE_CORE_M = 128;
 constexpr int32_t SINGLE_CORE_N = 128;
 constexpr int32_t SINGLE_CORE_K = 512;
 
@@ -392,7 +392,7 @@ static ge::graphStatus SetTCubeTiling(
     gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
-    matmul_tiling::MatmulApiTiling mmTiling(*ascendcPlatform);
+    matmul_tiling::MultiCoreMatmulTiling mmTiling(*ascendcPlatform);
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
     uint32_t M = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
@@ -406,7 +406,7 @@ static ge::graphStatus SetTCubeTiling(
     bool isBtrans = *transposeX2Ptr;
     auto biasDesc = context->GetOptionalInputDesc(BIAS_INDEX);
     bool hasBias = (biasDesc != nullptr);
-    
+    mmTiling.SetDim(1);
     mmTiling.SetAType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isAtrans);
     mmTiling.SetBType(matmul_tiling::TPosition::GM,
@@ -416,7 +416,8 @@ static ge::graphStatus SetTCubeTiling(
     mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
         matmul_tiling::DataType::DT_INT32);
     mmTiling.SetOrgShape(M, N, K);
-    mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, K);
+    mmTiling.SetSingleShape(SINGLE_CORE_M, SINGLE_CORE_N, K);
     mmTiling.SetFixSplit(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
     mmTiling.EnableBias(hasBias);
     mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
