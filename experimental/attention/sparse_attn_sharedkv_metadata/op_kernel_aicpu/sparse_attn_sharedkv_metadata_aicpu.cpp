@@ -259,7 +259,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     }
     ValidSocVersion validSocVersion = ProcessSocVersion();
     if (validSocVersion == ValidSocVersion::ASCEND910) {
-        uint32_t MBaseBlockLen = 128U;
+        uint32_t MBaseBlockLen = 64U;
         uint32_t s1BlockLen = MBaseBlockLen / groupSize_;
         if (isSCFA) {
             s1BlockLen = 1U;
