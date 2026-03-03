@@ -32,8 +32,8 @@ extern "C" __global__ __aicore__ void chunk_gated_delta_rule(
 
     __gm__ uint8_t *user = GetUserWorkspace(workspaceGM);
     
-    ChunkGatedDeltaRule<bfloat16_t, float> op(&pipe, &tilingData);
-    ChunkGatedDeltaRuleInitParams initParams{
+    CGDR<bfloat16_t, float> op(&pipe, &tilingData);
+    CGDRInitParams initParams{
         query, key, value, beta, initialState, seqlens, gOptional,
         out, finalState};
     op.Init(initParams, user);

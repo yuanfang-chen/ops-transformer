@@ -27,7 +27,7 @@ using namespace AscendC;
     
 constexpr int32_t BUFFER_NUM = 2;
 
-struct ChunkGatedDeltaRuleInitParams {
+struct CGDRInitParams {
     GM_ADDR query;
     GM_ADDR key;
     GM_ADDR value;
@@ -41,15 +41,15 @@ struct ChunkGatedDeltaRuleInitParams {
 
 
 template <typename lowType, typename highType>
-class ChunkGatedDeltaRule {
+class CGDR {
 public:
-    __aicore__ inline ChunkGatedDeltaRule(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
+    __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
     };
 
-    __aicore__ inline void Init(const ChunkGatedDeltaRuleInitParams &initParams, GM_ADDR user)
+    __aicore__ inline void Init(const CGDRInitParams &initParams, GM_ADDR user)
     {
         uint64_t dataSize = tiling_->t * tiling_->nk * tiling_->dk;
         query_.SetGlobalBuffer(reinterpret_cast<__gm__ lowType *>(initParams.query), dataSize);
