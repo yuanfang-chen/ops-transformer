@@ -29,6 +29,7 @@ namespace Mc2Tiling {
 struct alignas(8) WeightQuantMatmulAllReduceA5TilingData {
     Mc2InitTiling mc2InitTiling;
  	Mc2CcTiling mc2CcTiling;
+ 	Mc2CcTiling mc2CcTilingComm;
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tileRegBaseMmTiling;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tailRegBaseMmTiling;
