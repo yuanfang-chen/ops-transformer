@@ -110,10 +110,10 @@ enum RFAQInputLayout : uint32_t {
 };
 
 // Tiling类
-class RFATiling {
+class BSATiling {
 public:
-    RFATiling() = default;
-    ~RFATiling() = default;
+    BSATiling() = default;
+    ~BSATiling() = default;
     
     ge::graphStatus GetRFATiling(gert::TilingContext *rfaContext,
                                   BlockSparseAttentionTilingData &tilingData);

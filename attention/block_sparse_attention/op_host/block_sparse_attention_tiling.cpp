@@ -94,7 +94,7 @@ static inline uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize)
     return qNBlockTile;
 }
 
-ge::graphStatus RFATiling::GetNpuInfo(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::GetNpuInfo(gert::TilingContext *rfaContext)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(rfaContext->GetPlatformInfo());
     
@@ -106,7 +106,7 @@ ge::graphStatus RFATiling::GetNpuInfo(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ParseKvInputLayout(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ParseKvInputLayout(gert::TilingContext *rfaContext)
 {
     if (rfaContext->GetAttrs()->GetAttrPointer<char>(KV_INPUT_LAYOUT_INDEX) == nullptr) {
         return ge::GRAPH_FAILED;
@@ -126,7 +126,7 @@ ge::graphStatus RFATiling::ParseKvInputLayout(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ParseQInputLayout(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ParseQInputLayout(gert::TilingContext *rfaContext)
 {
     if (rfaContext->GetAttrs()->GetAttrPointer<char>(Q_INPUT_LAYOUT_INDEX) == nullptr) {
         return ge::GRAPH_FAILED;
@@ -146,7 +146,7 @@ ge::graphStatus RFATiling::ParseQInputLayout(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 //新增校验blockSparseMask合法
-ge::graphStatus RFATiling::ValidateBlockSparseMask(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateBlockSparseMask(gert::TilingContext *rfaContext)
 {   
     const auto *blockSparseMaskShape = rfaContext->GetInputShape(BLOCK_SPARSE_MASK_INDEX);
     //验证每一维的数据是否合法
@@ -174,7 +174,7 @@ ge::graphStatus RFATiling::ValidateBlockSparseMask(gert::TilingContext *rfaConte
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateTNDFormat(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateTNDFormat(gert::TilingContext *rfaContext)
 {
     const auto *kvShape = rfaContext->GetInputShape(KEY_INDEX);
     if (kvShape == nullptr || kvShape->GetStorageShape().GetDimNum() != TND_DIM_NUM) {
@@ -200,7 +200,7 @@ ge::graphStatus RFATiling::ValidateTNDFormat(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateBNSDFormat(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateBNSDFormat(gert::TilingContext *rfaContext)
 {
     const auto *kvShape = rfaContext->GetInputShape(KEY_INDEX);
     if (kvShape == nullptr || kvShape->GetStorageShape().GetDimNum() != BNSD_DIM_NUM) {
@@ -250,7 +250,7 @@ ge::graphStatus RFATiling::ValidateBNSDFormat(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::CheckKvCacheLayout(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::CheckKvCacheLayout(gert::TilingContext *rfaContext)
 {
     ge::graphStatus ret = ParseKvInputLayout(rfaContext);
     if (ret != ge::GRAPH_SUCCESS) {
@@ -282,7 +282,7 @@ ge::graphStatus RFATiling::CheckKvCacheLayout(gert::TilingContext *rfaContext)
     return ret;
 }
 
-ge::graphStatus RFATiling::ProcessQueryShape(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ProcessQueryShape(gert::TilingContext *rfaContext)
 {
     const auto *queryShape = rfaContext->GetInputShape(QUERY_INDEX);
     if (queryShape == nullptr) {
@@ -320,7 +320,7 @@ ge::graphStatus RFATiling::ProcessQueryShape(gert::TilingContext *rfaContext)
 
 
 
-ge::graphStatus RFATiling::GetKvSeqlenFromShape(gert::TilingContext *rfaContext, uint32_t &kvSeqlen)
+ge::graphStatus BSATiling::GetKvSeqlenFromShape(gert::TilingContext *rfaContext, uint32_t &kvSeqlen)
 {
     const auto *kvShape = rfaContext->GetInputShape(KEY_INDEX);
     if (kvShape == nullptr || kvShape->GetStorageShape().GetDimNum() != BNSD_DIM_NUM) {
@@ -336,7 +336,7 @@ ge::graphStatus RFATiling::GetKvSeqlenFromShape(gert::TilingContext *rfaContext,
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateBNSDQSeqlen(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateBNSDQSeqlen(gert::TilingContext *rfaContext)
 {
     if (qInputLayout_ != RFAQInputLayout::BNSD_Q || qSeqLenList == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -358,7 +358,7 @@ ge::graphStatus RFATiling::ValidateBNSDQSeqlen(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateBNSDKvSeqlen(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateBNSDKvSeqlen(gert::TilingContext *rfaContext)
 {
     if (kvCacheLayout_ != RFAKvCacheLayout::BNSD || kvSeqLenList == nullptr) {
         return ge::GRAPH_SUCCESS;
@@ -380,7 +380,7 @@ ge::graphStatus RFATiling::ValidateBNSDKvSeqlen(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessQSeqLengths(gert::TilingContext *rfaContext, 
+ge::graphStatus BSATiling::ProcessQSeqLengths(gert::TilingContext *rfaContext, 
                                               const gert::Tensor *actualSeqLengths)
 {
     // BNSD格式下，actualSeqLengths可以为nullptr，使用BNSD中的S值
@@ -439,7 +439,7 @@ ge::graphStatus RFATiling::ProcessQSeqLengths(gert::TilingContext *rfaContext,
     return ValidateBNSDQSeqlen(rfaContext);
 }
 
-bool RFATiling::CheckShouldUseUniformKvSeqlen(const gert::Tensor *actualSeqLengthsKv)
+bool BSATiling::CheckShouldUseUniformKvSeqlen(const gert::Tensor *actualSeqLengthsKv)
 {
     if (actualSeqLengthsKv == nullptr) {
         return true;
@@ -448,7 +448,7 @@ bool RFATiling::CheckShouldUseUniformKvSeqlen(const gert::Tensor *actualSeqLengt
     return (kvBatch != batch_);
 }
 
-ge::graphStatus RFATiling::SetupUniformKvSeqlen(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::SetupUniformKvSeqlen(gert::TilingContext *rfaContext)
 {
     if (batch_ == 0) {
         OP_LOGE(rfaContext->GetNodeName(), "BNSD format: batch_ is 0, cannot process kv seq lengths");
@@ -467,7 +467,7 @@ ge::graphStatus RFATiling::SetupUniformKvSeqlen(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessKvSeqLengthsBNSD(gert::TilingContext *rfaContext, 
+ge::graphStatus BSATiling::ProcessKvSeqLengthsBNSD(gert::TilingContext *rfaContext, 
                                                    const gert::Tensor *actualSeqLengthsKv)
 {
     // BNSD格式下，如果actualSeqLengthsKv为nullptr或batch不匹配，都视为nullptr处理
@@ -479,7 +479,7 @@ ge::graphStatus RFATiling::ProcessKvSeqLengthsBNSD(gert::TilingContext *rfaConte
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessKvSeqLengthsTND(gert::TilingContext *rfaContext, 
+ge::graphStatus BSATiling::ProcessKvSeqLengthsTND(gert::TilingContext *rfaContext, 
                                                   const gert::Tensor *actualSeqLengthsKv)
 {
     if (actualSeqLengthsKv == nullptr) {
@@ -497,7 +497,7 @@ ge::graphStatus RFATiling::ProcessKvSeqLengthsTND(gert::TilingContext *rfaContex
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessKvSeqLengthsWithArray(gert::TilingContext *rfaContext, 
+ge::graphStatus BSATiling::ProcessKvSeqLengthsWithArray(gert::TilingContext *rfaContext, 
                                                         const gert::Tensor *actualSeqLengthsKv)
 {
     // BNSD格式下，如果maxKvSeqlen_还没有设置，从KV shape中获取
@@ -521,7 +521,7 @@ ge::graphStatus RFATiling::ProcessKvSeqLengthsWithArray(gert::TilingContext *rfa
     return ValidateBNSDKvSeqlen(rfaContext);
 }
 
-ge::graphStatus RFATiling::ProcessKvSeqLengths(gert::TilingContext *rfaContext, 
+ge::graphStatus BSATiling::ProcessKvSeqLengths(gert::TilingContext *rfaContext, 
                                                const gert::Tensor *actualSeqLengthsKv)
 {
     // BNSD格式下，actualSeqLengthsKv可以为nullptr，使用BNSD中的S值
@@ -546,7 +546,7 @@ ge::graphStatus RFATiling::ProcessKvSeqLengths(gert::TilingContext *rfaContext,
     return ProcessKvSeqLengthsWithArray(rfaContext, actualSeqLengthsKv);
 }
 
-ge::graphStatus RFATiling::ProcessActualSeqLengths(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ProcessActualSeqLengths(gert::TilingContext *rfaContext)
 {
     // 先解析KV layout（用于判断是否需要处理BNSD格式的nullptr情况）
     ge::graphStatus ret = ParseKvInputLayout(rfaContext);
@@ -571,7 +571,7 @@ ge::graphStatus RFATiling::ProcessActualSeqLengths(gert::TilingContext *rfaConte
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
 {
     auto blockShape = rfaContext->GetInputTensor(BLOCK_SHAPE_INDEX);
     if (blockShape == nullptr) {
@@ -591,7 +591,7 @@ ge::graphStatus RFATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
 {
     // 只在TND格式时进行校验
     if (qInputLayout_ != RFAQInputLayout::TND_Q || kvCacheLayout_ != RFAKvCacheLayout::TND) {
@@ -649,7 +649,7 @@ ge::graphStatus RFATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ValidateConfiguration(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ValidateConfiguration(gert::TilingContext *rfaContext)
 {
     if (embeddingSize_ == 0 || numHeads_ == 0) {
         OP_LOGE(rfaContext->GetNodeName(), "Invalid head or embedding configuration");
@@ -679,7 +679,7 @@ ge::graphStatus RFATiling::ValidateConfiguration(gert::TilingContext *rfaContext
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessInput(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::ProcessInput(gert::TilingContext *rfaContext)
 {
     ge::graphStatus ret;
     
@@ -715,7 +715,7 @@ ge::graphStatus RFATiling::ProcessInput(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::CheckAttr(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::CheckAttr(gert::TilingContext *rfaContext)
 {
     if (rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(NUM_KEY_VALUE_HEADS_INDEX) == nullptr) {
         OP_LOGE(rfaContext->GetNodeName(), "numKeyValueHeads is null");
@@ -741,7 +741,7 @@ ge::graphStatus RFATiling::CheckAttr(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-void RFATiling::CalculateBatchTaskSplit(uint32_t batchIdx, int64_t qSeqlen, uint32_t groupSize,
+void BSATiling::CalculateBatchTaskSplit(uint32_t batchIdx, int64_t qSeqlen, uint32_t groupSize,
                                         uint32_t &curTaskNum, uint32_t &curQBlockNum)
 {
     uint32_t curQBlockTile = GetQNBlockTile(qSeqlen, groupSize);
@@ -751,7 +751,7 @@ void RFATiling::CalculateBatchTaskSplit(uint32_t batchIdx, int64_t qSeqlen, uint
     curQBlockNum = CeilDiv(qSeqlen, blockShapeX_) * numHeads_;
 }
 
-ge::graphStatus RFATiling::CalculateTaskSplit(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::CalculateTaskSplit(gert::TilingContext *rfaContext)
 {
     // 计算总的Q块数量和最大KV块数量
     totalQBlocks_ = 0;
@@ -799,7 +799,7 @@ ge::graphStatus RFATiling::CalculateTaskSplit(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::CalculateWorkSpace(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *rfaContext)
 {
     if (blockDim_ == 0) {
         OP_LOGE(rfaContext->GetNodeName(), "blockDim is 0");
@@ -824,7 +824,7 @@ ge::graphStatus RFATiling::CalculateWorkSpace(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::FillTilingData(gert::TilingContext *rfaContext)
+ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *rfaContext)
 {
     if (tilingData_ == nullptr) {
         return ge::GRAPH_FAILED;
@@ -875,7 +875,7 @@ ge::graphStatus RFATiling::FillTilingData(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
+uint64_t BSATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
 {
     /**
      * 64位整数，使用十进制位域表示：
@@ -937,7 +937,7 @@ uint64_t RFATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
     return tilingKey;
 }
 
-ge::graphStatus RFATiling::GetRFATiling(gert::TilingContext *rfaContext,
+ge::graphStatus BSATiling::GetRFATiling(gert::TilingContext *rfaContext,
                                          BlockSparseAttentionTilingData &tilingData)
 {
     tilingData_ = &tilingData;
@@ -992,7 +992,7 @@ ge::graphStatus RFATiling::GetRFATiling(gert::TilingContext *rfaContext,
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::RFASetTilingData(gert::TilingContext *context,
+ge::graphStatus BSATiling::RFASetTilingData(gert::TilingContext *context,
     BlockSparseAttentionTilingData &tilingData)
 {
     OP_CHECK_IF(context->GetRawTilingData() == nullptr,
