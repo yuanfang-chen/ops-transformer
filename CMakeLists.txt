@@ -98,6 +98,7 @@ set_directory_properties(PROPERTIES
     ADDITIONAL_MAKE_CLEAN_FILES "${CMAKE_BINARY_DIR}/_CPack_Packages"
 )
 
+include(cmake/third_party/opbase.cmake)
 include(cmake/config.cmake)
 include(cmake/func.cmake)
 include(cmake/third_party/json.cmake)
