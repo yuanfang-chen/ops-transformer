@@ -75,65 +75,47 @@ static bool IsContains(const std::vector<uint32_t> &list, uint32_t value)
 ge::graphStatus FpMatmulAllToAllTilingBaseA3::CheckA3NonQuantTensorDataType(const gert::TilingContext *context,
  	                                                                           const char *opName)
 {
- 	// 获取并校验输入张量描述符
+	// 获取并校验输入张量描述符
  	auto x1TensorDesc = context->GetInputDesc(INPUT_X1_INDEX);
- 	OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x1 is invalid."),
- 	                return ge::GRAPH_FAILED);
+ 	OP_TILING_CHECK((x1TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x1 is invalid."), return ge::GRAPH_FAILED);
  	auto x2TensorDesc = context->GetInputDesc(INPUT_X2_INDEX);
- 	OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x2 is invalid."),
- 	                return ge::GRAPH_FAILED);
- 	     // 获取数据类型并校验一致性与范围
+ 	OP_TILING_CHECK((x2TensorDesc == nullptr), OP_LOGE(opName, "The input tensor x2 is invalid."), return ge::GRAPH_FAILED);
  	ge::DataType x1Dtype = x1TensorDesc->GetDataType();
  	ge::DataType x2Dtype = x2TensorDesc->GetDataType();
- 	OP_TILING_CHECK((x1Dtype != x2Dtype),
- 	                OP_LOGE(opName, "The Input x1 and x2 Dtype should be same, but x1 is %s, x2 is %s.",
- 	                        Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
- 	                return ge::GRAPH_FAILED);
+ 	OP_TILING_CHECK((x1Dtype != x2Dtype), OP_LOGE(opName, "The Input x1 and x2 Dtype should be same, but x1 is %s, x2 is %s.",
+ 	                        Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()), return ge::GRAPH_FAILED);
  	OP_TILING_CHECK(!IsContains(NON_QUANT_X_DTYPE_LIST, x1Dtype),
- 	                OP_LOGE(opName,
- 	                        "The Input x Dtype should be in non-quant range (float16/bf16), but x1 is %s, x2 is %s.",
- 	                        Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()),
- 	                return ge::GRAPH_FAILED);
- 	 
- 	     // 校验 bias 数据类型（如果存在）
- 	auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
+ 	                OP_LOGE(opName, "The Input x Dtype should be in non-quant range (float16/bf16), but x1 is %s, x2 is %s.",
+ 	                        Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()), return ge::GRAPH_FAILED);
+ 	// 校验 bias 数据类型（如果存在
+	auto biasTensorDesc = context->GetOptionalInputDesc(INPUT_BIAS_INDEX);
  	if (biasTensorDesc != nullptr) {
  	    ge::DataType biasDtype = biasTensorDesc->GetDataType();
  	    if (x1Dtype == ge::DT_BF16) {
  	        OP_TILING_CHECK((biasDtype != ge::DT_FLOAT),
- 	            OP_LOGE(opName,
- 	                    "When x1 Dtype is FP16, bias Dtype must be FLOAT32 DType, but bias is %s.",
- 	                    Ops::Base::ToString(biasDtype).c_str()),
- 	            return ge::GRAPH_FAILED);
+ 	            OP_LOGE(opName, "When x1 Dtype is FP16, bias Dtype must be FLOAT32 DType, but bias is %s.",
+ 	                    Ops::Base::ToString(biasDtype).c_str()), return ge::GRAPH_FAILED);
  	    } else if (x1Dtype == ge::DT_FLOAT16) {
  	        OP_TILING_CHECK((x1Dtype != biasDtype),
- 	                OP_LOGE(opName,
- 	                        "When x1 Dtype is FLOAT16, bias Dtype should be same as x Dtype, but bias is %s.",
- 	                        Ops::Base::ToString(biasDtype).c_str()),
- 	                return ge::GRAPH_FAILED);
+ 	                OP_LOGE(opName, "When x1 Dtype is FLOAT16, bias Dtype should be same as x Dtype, but bias is %s.", 
+						Ops::Base::ToString(biasDtype).c_str()), return ge::GRAPH_FAILED);
  	    } else {
- 	        OP_LOGE(opName,
- 	                "The non-quantized scene bias Dtype currently only supports FLOAT16 and FP16, but bias is %s.",
- 	                Ops::Base::ToString(biasDtype).c_str());
- 	            return ge::GRAPH_FAILED;
+ 	        OP_LOGE(opName, "The non-quantized scene bias Dtype currently only supports FLOAT16 and FP16, but bias is %s.",
+ 	                Ops::Base::ToString(biasDtype).c_str()); return ge::GRAPH_FAILED;
  	    }
  	}
- 	 
- 	// 校验 scale 张量为空（非量化场景）
+	 // 校验 scale 张量为空（非量化场景
  	auto x1ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X1_SCALE_INDEX);
  	auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
  	OP_TILING_CHECK((x1ScaleTensorDesc != nullptr || x2ScaleTensorDesc != nullptr),
  	                OP_LOGE(opName, "Scale tensors should be null in non-quant mode."), return ge::GRAPH_FAILED);
- 	 
- 	// 校验输出张量数据类型
+	// 校验输出张量数据类型
  	auto yDesc = context->GetOutputDesc(OUTPUT_Y_INDEX);
  	OP_TILING_CHECK((yDesc == nullptr), OP_LOGE(opName, "Output tensor y is nullptr."), return ge::GRAPH_FAILED);
  	ge::DataType yDtype = yDesc->GetDataType();
  	OP_TILING_CHECK((yDtype != x1Dtype),
  	                OP_LOGE(opName, "Output y Dtype should be same as input x Dtype, but y is %s.",
- 	                        Ops::Base::ToString(yDtype).c_str()),
- 	                return ge::GRAPH_FAILED);
- 	 
+ 	                        Ops::Base::ToString(yDtype).c_str()), return ge::GRAPH_FAILED);
  	return ge::GRAPH_SUCCESS;
 }
 
@@ -340,6 +322,43 @@ uint64_t FpMatmulAllToAllTilingBaseA3::GetTilingKey() const
 }
 
 /**
+ * @brief 设置额外需要的空间，包括计算结果地址，重排地址，偏移地址等
+ *
+ */
+void FpMatmulAllToAllTilingBaseA3::SetUserWorkSpace()
+{
+    constexpr uint64_t alignAddrLen = 512;
+    // MatmulAlltoAll先进行计算，需要有对应的空间先存放结果，假设x1(m,k),
+    // x2(k,n),那么计算结果大小为m*n,这里申请的是一块总的空间，通算切分的头尾块偏移由kernel侧自行计算
+    inferredInfo.mmResultLen = mc2tiling::AlignUp(
+        contextInfo.args_.orgMValue * contextInfo.args_.nValue * contextInfo.args_.outputDtypeSize, alignAddrLen);
+    // 重排空间等于mm计算结果空间
+    inferredInfo.permuteLen = inferredInfo.mmResultLen;
+    if (contextInfo.args_.isBias) {
+        inferredInfo.biasLen =
+            mc2tiling::AlignUp(contextInfo.args_.nValue, mc2tiling::SHAPE_ALIGN_SIZE) * sizeof(float);
+    }
+}
+
+/**
+ * @brief 获取额外申请的空间
+ *
+ * @return ge::graphStatus
+ */
+ge::graphStatus FpMatmulAllToAllTilingBaseA3::GetWorkspaceSize()
+{
+    size_t *workspaces = context_->GetWorkspaceSizes(1);
+    OP_TILING_CHECK(workspaces == nullptr, OP_LOGE(opName_, "Get workspace failed"), return ge::GRAPH_FAILED);
+    SetUserWorkSpace();
+    uint64_t workspaceSize_ =
+        libApiWorkSpaceSize_ + inferredInfo.mmResultLen + inferredInfo.permuteLen + inferredInfo.biasLen;
+    workspaces[0] = workspaceSize_;
+    OP_LOGD(opName_, "Workspaces[0] size=%ld, biasLen=%d, mmResultLen=%d", workspaces[0], inferredInfo.biasLen,
+            inferredInfo.mmResultLen);
+    return ge::GRAPH_SUCCESS;
+}
+
+/**
  * @brief 保存tiling数据到context
  *
  * @return ge::graphStatus
@@ -383,9 +402,9 @@ void FpMatmulAllToAllTilingBaseA3::SetTilingInfo(MatmulAlltoAllTilingInfoA3 &til
     tilingInfo.tileCnt = inferredInfo.tileCnt;
     tilingInfo.tailM = inferredInfo.tailM;
     tilingInfo.tailCnt = inferredInfo.tailCnt;
-    tilingInfo.rankM = contextInfo.args_.mValue;
+    tilingInfo.rankM = contextInfo.args_.orgMValue;
     tilingInfo.rankN = contextInfo.args_.nValue;
-    tilingInfo.rankK = contextInfo.args_.kValue;
+    tilingInfo.rankK = contextInfo.args_.orgKValue;
     tilingInfo.mmResultLen = inferredInfo.mmResultLen;
     tilingInfo.permuteLen = inferredInfo.permuteLen;
     tilingInfo.biasLen = inferredInfo.biasLen;
