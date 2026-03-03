@@ -153,10 +153,7 @@ struct GQmmInputInfo {
 
 class GroupedQmmTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit GroupedQmmTiling(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
-    {
-        Reset();
-    }
+    explicit GroupedQmmTiling(gert::TilingContext *context);
     ~GroupedQmmTiling() override = default;
 
     void Reset(gert::TilingContext *context) override
@@ -196,7 +193,7 @@ protected:
     bool CheckQuantParamsForMXTypeM(const gert::Shape &xScaleShape, const gert::Shape &wScaleShape) const;
     bool CheckShapeForWeightNz(const gert::Shape &wShape) const;
     GQmmBasicTiling basicTiling_;
-    GQmmInputInfo inputParams_;
+    GQmmInputInfo &inputParams_;
 
 private:
     uint64_t GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit);

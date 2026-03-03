@@ -33,6 +33,7 @@ namespace optiling {
 GroupedQmmTiling::GroupedQmmTiling(gert::TilingContext *context)
     : TilingBaseClass(context), inputParams_(*(g_groupedQuantMatmulInfoFactory.Get()))
 {
+    Reset();
 }
 
 bool GroupedQmmTiling::IsCapable()

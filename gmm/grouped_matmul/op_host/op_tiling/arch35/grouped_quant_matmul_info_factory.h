@@ -17,25 +17,24 @@
 #define GROUPED_QUANT_MATMUL_INFO_FACTORY_H
 
 #include <pthread.h>
+#include <shared_mutex>
 
-#include "common/op_host/op_tiling/lock.h"
 #include "grouped_quant_matmul_tiling.h"
-
 namespace optiling {
 class GroupedQuantMatmulInfoFactory {
 public:
     GroupedQuantMatmulInfoFactory() = default;
     ~GroupedQuantMatmulInfoFactory() = default;
 
-    GQmmInputInfo* Get()
+    GQmmInputInfo *Get()
     {
         GQmmInputInfo *ptr = nullptr;
         auto threadId = pthread_self();
-        lock_.rdlock();
+        lock_.lock_shared();
         auto it = inst_.find(threadId);
         if (it == inst_.end()) {
             lock_.unlock();
-            lock_.wrlock();
+            lock_.lock();
             ptr = &(inst_[threadId]);
         } else {
             ptr = &(it->second);
@@ -47,8 +46,8 @@ public:
 
 private:
     std::map<pthread_t, GQmmInputInfo> inst_;
-    RWLock lock_;
+    std::shared_mutex lock_;
 };
 
-}  // namespace optiling
-#endif  // GROUPED_QUANT_MATMUL_INFO_FACTORY_H
+} // namespace optiling
+#endif // GROUPED_QUANT_MATMUL_INFO_FACTORY_H
