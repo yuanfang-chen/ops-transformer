@@ -98,18 +98,6 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Tiling end");
 }
 
-// addrmsNormdynamicquantallgatherqbmm tiling
-static ge::graphStatus GetAddRmsNormDynamicQuantAllGatherQbmm(
-    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
-{   
-    AddRmsNormDynamicQuantV2TilingHelper instanceNormV3TilingHelper(context);
-    bool status = instanceNormV3TilingHelper.DoTiling();
-    OP_CHECK_IF(!status, OP_LOGE(context, "DoTiling Failed, return Failed."), return ge::GRAPH_FAILED);
-
-    instanceNormV3TilingHelper.SetTilingData(&tilingData.addRmsNormDynamicQuantAllGatherTilingData);
-    return ge::GRAPH_SUCCESS;
-}
-
 // matmul切分
 static ge::graphStatus GetMatmultiling(
     gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
