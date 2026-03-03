@@ -31,6 +31,11 @@ namespace MatmulReduceScatterV2Impl {
 using namespace AscendC;
 using namespace AiVReduceSumImpl;
 
+static constexpr uint16_t SYNC_AIC_ONLY_ALL_DET_FLAG = 4; // 用于 AIC 核间同步的 flagId
+static constexpr uint16_t SYNC_AIC_AIV_DET_FLAG = 8; // 用于 AIC 与 AIV 核间同步的 flagId
+static constexpr uint64_t SYNC_MODE0 = 0; // 核间同步模式 0
+static constexpr uint64_t SYNC_MODE2 = 2; // 核间同步模式 2
+
 template <typename AType, typename BType, typename BiasType, typename CType>
 class MatmulReduceScatterFP16BF16 {
 public:
@@ -46,7 +51,9 @@ private:
                                    GM_ADDR gmToFloat, bool isLast, bool isTail);
     __aicore__ inline void MatMulV3Compute(GM_ADDR cGM, Mc2MatMulV3TilingData& tiling, uint32_t count,
                                            GM_ADDR gmToFloat, bool isLast, bool isTail);
-    __aicore__ inline void PostProcess();    // 计算后处理，等待通信结束，并终止hcclserver, 尾调用 ReduceSum
+    __aicore__ inline void PostProcess();
+    __aicore__ inline void CubeNotifyVector();
+    __aicore__ inline void VecWaitCube();
 
 private:
     ReduceSumForAlltoAll<C_DTYPE> reduceSum_; // AIV ReduceSum 相关实现
@@ -58,13 +65,16 @@ private:
     GM_ADDR cGM_;
     GM_ADDR biasGM_;
     __gm__ HcclCombinOpParam* context_;
-    uint32_t rankId_;
     AscendC::HcclDataType dataType_;
     uint8_t debugMode_;
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;              // CCU模式
     AscendC::HcclHandle handles_[MAX_HANDLE];        // 最大支持64个handleId
     GM_ADDR sendBuf_;    // 存放 MatMul 输出（All2All send buffer）
     GM_ADDR recvBuf_;    // 存放 All2All 接收的 slices（内容为 [slice_r_from_rank0][slice_r_from_rank1]...[slice_r_from_rankR-1]）
+    uint32_t rankId_{0};
+    uint64_t aivNum_{0};
+    uint64_t fullMN_{0};
+    uint64_t tileOffset_{0};
 };
 
 template <typename AType, typename BType, typename BiasType, typename CType>
@@ -82,7 +92,6 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     // 读取上下文和配置
     context_ = (__gm__ HcclCombinOpParam *)(contextGM);
     tPipe_ = tPipe;
-    tPipe_->Reset();
     dataType_ = static_cast<AscendC::HcclDataType>(tilingData_->dataType);
     debugMode_ = tilingData_->debugMode;
     aGM_ = aGM;
@@ -90,35 +99,20 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     cGM_ = cGM;
     biasGM_ = biasGM;
     rankId_ = context_->rankId;
+    aivNum_ = cfg.aicCoreNum * GetTaskRation(); // 启用的AIV 数量, 此模板会全启用
 
     // all2all 通信相关参数, 划分workspace
-    uint64_t fullMN = static_cast<uint64_t>(cfg.rankM) * static_cast<uint64_t>(cfg.rankN);  // M * N
+    fullMN_ = static_cast<uint64_t>(cfg.rankM) * static_cast<uint64_t>(cfg.rankN);  // M * N
     sendBuf_ = workspaceGM;                                      // [0, fullMN)
-    recvBuf_ = sendBuf_ + fullMN * sizeof(C_DTYPE);            // [fullMN, 2*fullMN)
-
-    // === AIV ReudceSum 相关参数计算与初始化 ===
-    auto&& tiling = tilingData_->mC2Mmv3TileTilingData.tCubeTiling;
-    uint64_t aivNum = tiling.usedCoreNum * GetTaskRation(); // 启用的AIV 数量
-    reduceSum_.Init(fullMN, cfg.rankDim, aivNum, recvBuf_, cGM_, tPipe_);
+    recvBuf_ = sendBuf_ + fullMN_ * sizeof(C_DTYPE);            // [fullMN, 2*fullMN)
 }
 
 template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::PostProcess()
 {
-    auto&& cfg = tilingData_->param;
-    // 等待reducescatter执行完成
-    if ((GetBlockIdx() == 0) && (g_coreType == AIC)) {
-        for (uint32_t i = 0; i < cfg.tileCnt + cfg.tailCnt; i++) {
-            hccl_.Wait(handles_[i]); // 等待所有通信完成
-        }
-        // 终止hcclserver
+    // 等待执行完成后，最后终止hcclserver
+    if ((GetBlockIdx() == 0) && (g_coreType == AIV)) {
         hccl_.Finalize();
-    }
-    SyncAll<false>(); // 全核同步, 等待mm和hccl通信结束
-
-    // Vector操作，reduce sum
-    if ASCEND_IS_AIV {
-        reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
     }
 }
 
@@ -126,7 +120,7 @@ template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::Process()
 {
     InnerProcess(); // 核心计算+通信
-    PostProcess(); // 等待通信完成 + ReduceSum
+    PostProcess(); // 等计算与待通信完成, 终止hcclserver
 }
 
 template <typename AType, typename BType, typename BiasType, typename CType>
@@ -141,9 +135,9 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     // 计算尾块（非整除部分）
     if (cfg.tailM) {
         uint64_t tileSize = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim;
-        uint64_t tileOffset = tileSize * static_cast<uint64_t>(cfg.tileCnt) * sizeof(C_DTYPE);
-        auto recvGMTail = recvBuf_ + tileOffset;
-        auto sendBufTail = sendBuf_ + tileOffset;
+        tileOffset_ = tileSize * static_cast<uint64_t>(cfg.tileCnt) * sizeof(C_DTYPE);
+        auto recvGMTail = recvBuf_ + tileOffset_;
+        auto sendBufTail = sendBuf_ + tileOffset_;
         Compute(recvGMTail, tilingData_->mC2Mmv3TailTilingData, cfg.tailCnt, sendBufTail, true, true);
     }
 }
@@ -157,20 +151,7 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     bool isLast,
     bool isTail)
 {
-    if ASCEND_IS_AIV {
-        return;
-    }
-
-    if (block_idx >= tiling.tCubeTiling.usedCoreNum) {
-        // 非活跃核：仅同步，不参与计算
-        for (uint32_t i = 0; i < count; i++) {
-            AscendC::CrossCoreSetFlag<0, PIPE_FIX>(3);
-            AscendC::CrossCoreWaitFlag(3);
-        }
-        return;
-    }
-
-    // Cube 核执行：MatMul + All2All
+    // Cube 核执行 MatMul, Vector 核执行 all2all + reduceSum
     MatMulV3Compute(recvGMAddr, tiling, count, sendGMAddr, isLast, isTail);
 }
 
@@ -183,14 +164,9 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     bool isLast,
     bool isTail)
 {
+    // 公共参数计算
     auto&& cfg = tilingData_->param;
     cfg.rankID = rankId_;
-
-    MC2MatmulV3::MC2MatmulAswKernelDerive<AType, BType, CType, BiasType, MC2MatmulV3::MC2MatmulAswBlockDerive> mmv3;
-    
-    // MatMul 结果先写入 send buffer（即 sendBuf_）
-    auto tempGM = sendBuf_;
-    mmv3.Init(aGM_, bGM_, tempGM, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, false);
 
     // 每个 rank 应得的 M 维度大小
     uint64_t sliceM = static_cast<uint64_t>(tiling.tCubeTiling.M) / cfg.rankDim;
@@ -199,43 +175,128 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     // 每个 rank 分片的字节数
     uint64_t rankSliceBytes = rankSliceElems * sizeof(C_DTYPE);
 
-    // 当前发送缓冲区起始地址（从 sendGMAddr 开始逐 rank 偏移）
-    GM_ADDR currSendPtr = sendGMAddr;
-    // 当前接收缓冲区起始地址（All2All 写入目标）
-    GM_ADDR currRecvPtr = recvGMAddr;
-
-    // 若是尾块，通信 handle 起始偏移为 tileCnt
+    // All2All 的 stride（单位：元素数），即每张卡数据在全局中的间隔
+    uint64_t stride = static_cast<uint64_t>(cfg.rankM / cfg.rankDim) * static_cast<uint64_t>(cfg.rankN);
+    // 通信重复次数, 1次
+    uint8_t repeat = 1;
+    // 若是尾块，通信 handleId 存放的起始偏移为 tileCnt
     uint32_t handleShift = isTail ? cfg.tileCnt : 0;
 
-    // All2All 的 stride（单位：元素数），即每张卡数据在全局中的间隔
-    uint64_t all2allStrideElems = static_cast<uint64_t>(cfg.rankM / cfg.rankDim) * static_cast<uint64_t>(cfg.rankN);
-    uint8_t repeat = 1; // 通信重复次数（通常为1）
-
-    for (uint32_t i = 0; i < count; i++) {
-        mmv3.UpdateSlice(i, isTail); // 更新当前 MatMul slice 偏移
-        mmv3.Process(isLast && (i == (count - 1))); // 执行 MatMul，结果写入 tempGM (sendBuf_)
-
-        // 核间同步：确保 MatMul 完成后再启动通信
-        AscendC::CrossCoreSetFlag<0, PIPE_FIX>(3);
-        AscendC::CrossCoreWaitFlag(3);
-
-        // 启动 All2All 通信：从 sendBuf_ 片段发往 recvGMAddr 对应位置
-        handles_[i + handleShift] = hccl_.AlltoAll<true>(
-            currSendPtr,           // send buffer
-            currRecvPtr,           // recv buffer  
-            rankSliceElems,        // 元素数量（注意：HCCL 接口通常传元素数，非字节数）
-            dataType_,
-            all2allStrideElems,    // stride in elements
-            repeat
-        );
-
-        // 移动到下一个 rank 的分片位置
-        currSendPtr += rankSliceBytes;
-        currRecvPtr += rankSliceBytes;
+    // AIC 执行 MatMul；初始化 -> 循环计算 -> 清理
+    if ASCEND_IS_AIC {
+        MC2MatmulV3::MC2MatmulAswKernelDerive<AType, BType, CType, BiasType, MC2MatmulV3::MC2MatmulAswBlockDerive> mmv3;
+        mmv3.Init(aGM_, bGM_, sendBuf_, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, false);
+        for (uint32_t i = 0; i < count; i++) {
+            mmv3.UpdateSlice(i, isTail);                  // 更新 slice 偏移
+            mmv3.Process(isLast && (i == (count - 1)));   // 执行 MatMul
+            // CV 同步，确保 MatMul 完成后再启动通信
+            // AIC侧做完Matmul计算后通知AIV进行后处理
+            CubeNotifyVector();
+        }
+        mmv3.End();
     }
 
-    mmv3.End();
+    // AIV 执行 All2All 通信 + reduceSum；流水线模式：通信 -> (等待+归约+通信) -> 等待+归约
+    if ASCEND_IS_AIV {
+        // 当前发送缓冲区起始地址
+        GM_ADDR currSendPtr = sendGMAddr;
+        // 当前接收缓冲区起始地址
+        GM_ADDR currRecvPtr = recvGMAddr;
+        // 当前 reduceSum 输出的起始地址
+        GM_ADDR curOutPtr = isTail ? cGM_ + tileOffset_ : cGM_;
+
+        // [循环外] 提前启动第 0 轮通信 (Prologue, 双发)
+        VecWaitCube(); // 确保 MatMul 完成后再启动第一次通信
+        handles_[0 + handleShift] = hccl_.AlltoAll<true>(
+            currSendPtr,       
+            currRecvPtr,       
+            rankSliceElems,    
+            dataType_,
+            stride,            
+            repeat
+        );
+        
+        // 移动指针准备下一轮
+        currSendPtr += rankSliceBytes;
+        currRecvPtr += rankSliceBytes;
+        curOutPtr += rankSliceBytes;
+
+        // [循环内] 启动下一轮通信 ,并处理上一轮的数据
+        // 循环次数为 count - 1，最后一轮通信在循环内启动，但计算在循环外
+        for (uint32_t i = 0; i < count - 1; i++) {
+            // 等待上一轮 (i - 1) 通信结束
+            if (GetBlockIdx() == 0) {
+                hccl_.Wait(handles_[i + handleShift]); 
+            }
+
+            // V同步，确保数据到达
+            SyncAll<true>();
+
+            // 启动本轮 (i) 通信
+            // 此时 currSendPtr/currRecvPtr 已经指向了 i+1 的位置
+            VecWaitCube(); 
+            handles_[i + 1 + handleShift] = hccl_.AlltoAll<true>(
+                currSendPtr,       
+                currRecvPtr,       
+                rankSliceElems,    
+                dataType_,
+                stride,            
+                repeat
+            );
+
+            // Vector 操作：执行上一轮 (i - 1) 数据的 reduceSum
+            GM_ADDR calcRecvPtr = currRecvPtr - rankSliceBytes;
+            GM_ADDR calcOutPtr  = curOutPtr - rankSliceBytes;
+
+            tPipe_->Reset();
+            reduceSum_.Init(rankSliceElems, stride, cfg.rankDim, aivNum_, calcRecvPtr, calcOutPtr, tPipe_);
+            reduceSum_.ExecuteReduceSum();
+
+            // 移动指针准备再下一轮
+            currSendPtr += rankSliceBytes;
+            currRecvPtr += rankSliceBytes;
+            curOutPtr += rankSliceBytes;
+        }
+
+        // [循环外] 处理最后一轮 (count-1) 的数据
+        uint32_t lastIdx = count - 1;
+        
+        // 等待最后一轮通信结束
+        if (GetBlockIdx() == 0) {
+            hccl_.Wait(handles_[lastIdx + handleShift]); 
+        }
+
+        // V同步
+        SyncAll<true>();
+
+        // 执行最后一轮数据的 reduceSum
+        // 此时的计算地址同样是 "当前指针 - 偏移量"
+        GM_ADDR calcRecvPtr = currRecvPtr - rankSliceBytes;
+        GM_ADDR calcOutPtr  = curOutPtr - rankSliceBytes;
+
+        tPipe_->Reset();
+        reduceSum_.Init(rankSliceElems, stride, cfg.rankDim, aivNum_, calcRecvPtr, calcOutPtr, tPipe_);
+        reduceSum_.ExecuteReduceSum();
+    }
 }
-} // namespace MatmulReduceScatterImpl
+
+template <typename AType, typename BType, typename BiasType, typename CType>
+__aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::CubeNotifyVector()
+{
+    // 先全 AIC 同步一次
+    CrossCoreSetFlag<SYNC_MODE0, PIPE_FIX>(SYNC_AIC_ONLY_ALL_DET_FLAG);
+    CrossCoreWaitFlag(SYNC_AIC_ONLY_ALL_DET_FLAG);
+    // 通知 AIV
+    CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_AIC_AIV_DET_FLAG);
+}
+
+template <typename AType, typename BType, typename BiasType, typename CType>
+__aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::VecWaitCube()
+{
+    // 等待 AIC 完成
+    CrossCoreWaitFlag<SYNC_MODE2, PIPE_MTE2>(SYNC_AIC_AIV_DET_FLAG);
+}
+
+} // namespace MatmulReduceScatterV2Impl
 
 #endif  // MATMUL_REDUCE_SCATTER_FP16_BF16_H
