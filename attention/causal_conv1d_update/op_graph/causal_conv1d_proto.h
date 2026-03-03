@@ -77,9 +77,6 @@ namespace ge {
 * @li pad_slot_id: An optional int attribute. Pad slot ID. Defaults to -1.
 * @li run_mode: An optional int attribute. Running mode. Defaults to 0.
 *               0: prefill-fn, 1: decode-update.
-* @li residual_conn_mode: An optional int attribute. Residual connection mode. Defaults to 0.
-*                         0: Return computation result directly.
-*                         1: Add computation result with input x before returning.
 
 * @par Outputs:
 * @li y: Output sequence tensor. Same shape as x.
@@ -108,7 +105,6 @@ REG_OP(CausalConv1d)
     .ATTR(activation_mode, Int, 0)
     .ATTR(pad_slot_id, Int, -1)
     .ATTR(run_mode, Int, 0)
-    .ATTR(residual_conn_mode, Int, 0)
     .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16}))
     .OUTPUT(conv_states, TensorType({DT_BF16, DT_FLOAT16}))
     .OP_END_FACTORY_REG(CausalConv1d)
