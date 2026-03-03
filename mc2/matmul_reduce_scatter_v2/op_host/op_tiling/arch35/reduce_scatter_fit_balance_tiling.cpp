@@ -44,9 +44,8 @@ void MMReduceScatterFitBalanceTiling::SetShortTileLen()
 {
     uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
         mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
-    if (l2UseSize > L2_CACHE_SIZE && mmInfo_.mValue > 512) {
+    if (l2UseSize > L2_CACHE_SIZE && mmInfo_.mValue > 512) { // 512 ===================
         tilingM_.SetMinLenByMax(tilingM_.GetMinLen() * TWO);
-        isLargerThanL2_ = true;
     }
 
     tilingM_.cutRes.shortTileLen = tilingM_.GetMinLen();
