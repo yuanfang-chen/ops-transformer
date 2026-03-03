@@ -554,7 +554,7 @@ aclnnStatus aclnnFlashAttentionScoreGradV3(
 - 输入key/value的shape除D外必须一致，在query/key/value的D大小相同的情况下，query/dy的shape必须一致。
 - 支持输入query/dy的N和key/value的N不相等，但必须成比例关系，即Nq/Nkv必须是非0整数，Nq取值范围1~256。
 - 关于数据shape的约束，以inputLayout的BSND、BNSD为例（BSH、SBH下H=N\*D），其中：
-    - B：取值范围为1\~20000。带prefixOptional的时候B最大支持2K。
+    - B：取值范围为1\~2M。带prefixOptional的时候B最大支持2K。
     - N：取值范围为1\~256。
     - S：取值范围为1\~1M。
     - D：取值范围为1\~768。
