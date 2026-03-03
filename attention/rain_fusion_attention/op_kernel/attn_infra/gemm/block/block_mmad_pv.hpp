@@ -189,9 +189,9 @@ public:
 
         AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
-        AscendC::printf("hxb 222222");
+        AscendC::printf("hxb pv wait softmaxFlag");
         Arch::CrossCoreWaitFlag(softmaxFlag);
-        AscendC::printf("hxb 2222222");
+        AscendC::printf("hxb pv wait softmaxFlag okokok");
 
         uint32_t mL1Loop = CeilDiv<L1TileShape::M>(rowNum);
         uint32_t kL1Loop = CeilDiv<L1TileShape::K>(stackSeqTile);
@@ -199,13 +199,12 @@ public:
             uint32_t mL1Actual = (mL1Idx < mL1Loop - 1) ? L1TileShape::M : (rowNum - mL1Idx * L1TileShape::M);
             uint32_t mRound = RoundUp<L1AAlignHelper::M_ALIGNED>(mL1Actual);
             AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
-            AscendC::printf("hxb 333333");
+
             for (uint32_t kL1Idx = 0; kL1Idx < kL1Loop; kL1Idx++) {
                 uint32_t kL1Actual = (kL1Idx < kL1Loop - 1) ? L1TileShape::K : (stackSeqTile - kL1Idx * L1TileShape::K);
 
                 // load P
                 AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1PPingPongFlag);
-                AscendC::printf("hxb 4444444");
                 MatrixCoord gmATileCoord{mL1Idx * L1TileShape::M, kL1Idx * L1TileShape::K};
                 auto gmTileA = gA[layoutA.GetOffset(gmATileCoord)];
                 auto layoutTileA = layoutA.GetTileLayout(MakeCoord(mL1Actual, kL1Actual));
@@ -223,10 +222,8 @@ public:
                     auto l1ATile = l1ATensor[l1PPingPongFlag][layoutAInL1.GetOffset(l1ATileCoord)];
 
                     AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag);
-                    AscendC::printf("hxb 55555555");
                     if (kL0Idx == 0) {
                         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1PPingPongFlag);
-                        AscendC::printf("hxb 666666666");
                     }
                     copyL1ToL0A(l0ATensor[l0ABPingPongFlag], l1ATile, layoutAInL0, layoutAInL1);
                     if (kL0Idx == kL0Loop - 1) {
@@ -236,10 +233,8 @@ public:
                     LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kL0Actual, embed);
                     MatrixCoord l1BTileCoord{kL1Idx * L1TileShape::K + kL0Idx * L0TileShape::K, 0};
                     auto l1BTile = l1BTensor[layoutBInL1.GetOffset(l1BTileCoord)];
-                    AscendC::printf("hxb 777777777777777");
                     AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2);
                     copyL1ToL0B(l0BTensor[l0ABPingPongFlag], l1BTile, layoutBInL0, layoutBInL1);
-                    AscendC::printf("hxb 88888888");
                     AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                     AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                     bool initMmad = kL1Idx == 0 && kL0Idx == 0;
@@ -256,7 +251,6 @@ public:
                 }
                 l1PPingPongFlag = 1 - l1PPingPongFlag;
             }
-            AscendC::printf("hxb 99999999999999");
             AscendC::SetFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
             MatrixCoord gmCTileCoord{mL1Idx * L0TileShape::M, 0};

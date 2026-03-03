@@ -255,7 +255,6 @@ namespace RainFusion {
             uint32_t curTotalTaskNum = firstBatchTaskNum;
             uint32_t curQXBlockNum = (qSeqlen + qBlockX - 1) / qBlockX; // CeilDiv
             uint32_t curTotalQBlockNum = firstQBlockNum;
-            AscendC::printf("===========11111111111111===========");
             // Go through each task
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
                 // Get the offset of each core on the GM
@@ -426,7 +425,7 @@ namespace RainFusion {
                         } else {
                             actualStrideKVForQK = strideKV;
                         }
-                        AscendC::printf("===========222222222222222===========");
+                        AscendC::printf("======hxb blockMmadQK start=====");
                         blockMmadQK(gQ[gmOffsetQ],
                             gK[gmOffsetK],
                             gS[gmOffsetS],
@@ -445,16 +444,17 @@ namespace RainFusion {
                             kvYBlockNum,
                             kvSeqlen);
                         NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(qkReady);
-                        AscendC::printf("===========33333333333333333===========");
+                        AscendC::printf("======hxb blockMmadQK end=====");
 #endif
 #ifdef __DAV_C220_VEC__
                         // Stage 2: Online softmax (computed on VECTOR core)
                         LayoutP layOutP(rowNum, stackSeqTile, stackSeqTilePad);
                         uint64_t gmOffsetP = gmOffsetS;
-                        AscendC::printf("===========44444444444444444===========");
+                        AscendC::printf("======hxb wait qkReady=====");
                         NpuArch::Arch::CrossCoreWaitFlag(qkReady);
+                        AscendC::printf("======hxb qkReady!!!=====");
                         // online softmax
-                        AscendC::printf("===========5555555555555555555555===========");
+                        AscendC::printf("======hxb start softmax=====");
                         epilogueOnlineSoftmax(gP[gmOffsetP],
                             gS[gmOffsetS],
                             layOutP,
@@ -465,8 +465,8 @@ namespace RainFusion {
                             qSBlockSize,
                             qNBlockSize,
                             curStackTileMod);
-                        AscendC::printf("===========666666666666666666666===========");
                         NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
+                        AscendC::printf("======hxb end softmax=====");
 #endif
                     }
                     // Stage 3: PV matmul and output rescaling
@@ -492,7 +492,7 @@ namespace RainFusion {
                         } else {
                             actualStrideKVForPV = strideKV;
                         }
-                        AscendC::printf("===========77777777777777777===========");
+                        AscendC::printf("======hxb blockMmadPV start=====");
                         blockMmadPV(gP[gmOffsetP],
                             gV[gmOffsetV],
                             gOTmp[gmOffsetOTmp],
@@ -513,7 +513,7 @@ namespace RainFusion {
                             curSelectNum,
                             kvYBlockNum);
                         NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(pvReady);
-                        AscendC::printf("===========888888888888===========");
+                        AscendC::printf("======hxb blockMmadPV end=====");
 #endif
 #ifdef __DAV_C220_VEC__
                         // Setup layoutO based on data format
@@ -531,10 +531,11 @@ namespace RainFusion {
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
                         // LayoutLse layoutLse(qSeqlen, qHeads); // todo这里需要确认，BNSD情况qSeqlen是S，TND是前边所有token？这里可能是qHeads，qSeqlen
-                        AscendC::printf("===========999999999999999999999999===========");
+                        AscendC::printf("=======hxb wait pvReady======");
                         NpuArch::Arch::CrossCoreWaitFlag(pvReady);
+                        AscendC::printf("=======hxb pvReady!!!======");
                         // rescale O
-                        AscendC::printf("===========123123123123123===========");
+                        AscendC::printf("=======hxb epilogueRescaleO start======");
                         epilogueRescaleO(
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
@@ -550,7 +551,7 @@ namespace RainFusion {
                             (stackSeqCount - PRE_LAUNCH == 0),
                             nowkvSIdx + blockStackNum >= kvSLoopNumTotal,
                             curStackTileMod);
-                        AscendC::printf("===========4564564566===========");
+                        AscendC::printf("=======hxb epilogueRescaleO end=======");
 #endif
                     }
                     stackSeqCount++;
