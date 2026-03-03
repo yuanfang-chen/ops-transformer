@@ -852,6 +852,7 @@ public:
         uint32_t preLoad = 1;
 
         for (uint32_t rowLoopIdx = 0; rowLoopIdx < rowLoopNum + preLoad; rowLoopIdx++) {
+            AscendC::printf("softmax rowLoopIdx %d", rowLoopIdx);
             if (rowLoopIdx < rowLoopNum) {
                 uint32_t pingpongFlag = rowLoopIdx % 2;
                 uint32_t rowOffsetCurLoop = rowLoopIdx * rowNumTile;
