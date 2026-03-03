@@ -39,11 +39,18 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t rankSize = 4;
 };
 
+struct QbmmParams {
+    uint32_t ubCalcM;
+    uint32_t ubCalcN;
+    uint32_t needUbBuffer;
+};
+
 // tiling struct待完善
 struct AddRmsNormDynamicQuantAllGatherQbmmTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
     AddRmsNormDynamicQuantAllGatherTilingData addRmsNormDynamicQuantAllGatherTilingData;
+    QbmmParams qbmmParams;
     TCubeTiling matmulTiling;
 };
 

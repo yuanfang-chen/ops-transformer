@@ -32,7 +32,7 @@ __aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
 };
 
 // 向上对齐：将a向上对齐到b的倍数
-__aicore__ inline uint64_t CeilAlign(uint64_t a, uint32_t b)
+__aicore__ inline uint64_t CeilAlignU64(uint64_t a, uint32_t b)
 {
     uint64_t bTemp = static_cast<uint64_t>(b);
     return (bTemp == 0) ? a : CeilDiv(a, bTemp) * bTemp;
