@@ -63,17 +63,21 @@ def grouped(gen_path, soc, group_size):
     op_counts = count_opnames(sh_files)
 
     all_rows = []
+    added_op_levels = set()
     for op_name, count in op_counts.items():
         if op_name in black_list:
             continue
         for i in range(count):
             if op_name in op_level_list:
-                if op_name in all_rows:
+                if op_name in added_op_levels:
                     continue
                 else:
+                    added_op_levels.add(op_name)
                     row_string = f"{op_name}"
             else:
                 row_string = f"{op_name},{count}-{i}"
+            if soc == 'ascend950':
+                row_string = row_string.replace('_apt,', ',')
             all_rows.append(row_string)
 
     for idx, row in enumerate(all_rows):
