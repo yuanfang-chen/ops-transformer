@@ -1008,7 +1008,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingBlockSparseAttention(gert::TilingContext*
     OP_CHECK_IF(context == nullptr, OPS_REPORT_VECTOR_INNER_ERR("BlockSparseAttention",
         "Context is nullptr."), return ge::GRAPH_FAILED);
     BlockSparseAttentionTilingData tilingData;
-    RFATiling rfiTiling;
+    BSATiling rfiTiling;
     if (rfiTiling.GetRFATiling(context, tilingData) == ge::GRAPH_SUCCESS) {
         rfiTiling.RFASetTilingData(context, tilingData);
         return ge::GRAPH_SUCCESS;
