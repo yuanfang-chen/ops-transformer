@@ -531,11 +531,11 @@ namespace RainFusion {
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
-                            // gLse[gmOffsetLse], // todo 这里便宜计算正确吗？
+                            gLse[gmOffsetLse], // todo 这里便宜计算正确吗？
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
-                            // layoutLse,
+                            layoutLse,
                             actualBlockShapePV,
                             qSBlockSize,
                             qNBlockSize,
