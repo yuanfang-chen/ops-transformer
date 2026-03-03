@@ -25,7 +25,6 @@ if(UT_TEST_ALL OR OP_KERNEL_UT)
     target_link_libraries(${OP_KERNEL_MODULE_NAME}_tiling PRIVATE
             $<BUILD_INTERFACE:intf_llt_pub_asan_cxx17>
             -Wl,--no-as-needed
-                $<$<TARGET_EXISTS:opsbase>:opsbase>
             -Wl,--as-needed
             -Wl,--whole-archive
                 rt2_registry_static
