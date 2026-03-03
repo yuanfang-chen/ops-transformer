@@ -22,52 +22,22 @@
 #include "util/math_util.h"
 #include "util/platform_util.h"
 #include "util/shape_util.h"
+#include "attention/causal_conv1d_fn/op_kernel/arch35/causal_conv1d_fn_struct.h"
+#include "platform/platform_ascendc.h"
 
 namespace optiling {
+using namespace Ops::Transformer::OpTiling;
 
-struct CausalConv1dFnCompileInfo {
-    uint32_t aivNum;
-    uint32_t aicNum;
-    uint64_t ubSize;
-    uint64_t l1Size;
-    uint64_t l0cSize;
-    uint64_t l2CacheSize;
+struct CausalConv1dFnCompileInfoArch35 {
+    int32_t core_num;
+    int32_t ub_size;
+    int32_t ub_num;
+    bool is_ascendc{false};
     platform_ascendc::SocVersion socVersion;
-    NpuArch npuArch;
 };
 
-BEGIN_TILING_DATA_DEF(CausalConv1dFnTilingData)
-TILING_DATA_FIELD_DEF(uint32_t, loopNumBS);         // 每个核内BS方向的loop循环数
-TILING_DATA_FIELD_DEF(uint32_t, loopNumDim);        // 每个核内Dim方向的loop循环数
-TILING_DATA_FIELD_DEF(uint32_t, ubFactorBS);        // 每个核内BS方向单次循环载入的大小
-TILING_DATA_FIELD_DEF(uint32_t, ubTailFactorBS);    // 每个核内BS方向尾次循环载入的大小
-TILING_DATA_FIELD_DEF(uint32_t, ubFactorDim);       // 每个核内Dim方向单次循环载入的大小
-TILING_DATA_FIELD_DEF(uint32_t, ubTailFactorDim);   // 每个核内Dim方向尾次循环载入的大小
-TILING_DATA_FIELD_DEF(uint64_t, blockFactor);       // 切核的切分因子
-TILING_DATA_FIELD_DEF(uint64_t, blockIndex);        // 切核的切分轴 (0: cu_seq_len, 1: dim)
-TILING_DATA_FIELD_DEF(uint64_t, blockTailFactor);   // 切核的尾核切分因子
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockloopNumBS);      // 尾核内BS方向的loop循环数
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockloopNumDim);     // 尾核内Dim方向的loop循环数
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockubFactorBS);     // 尾核内BS方向单次循环载入的大小
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockubTailFactorBS); // 尾核内BS方向尾次循环载入的大小
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockubFactorDim);    // 尾核内Dim方向单次循环载入大小
-TILING_DATA_FIELD_DEF(uint32_t, tailBlockubTailFactorDim);// 尾核内Dim方向尾次循环载入大小
-TILING_DATA_FIELD_DEF(uint32_t, realCoreNum);       // 实际使用核数
-TILING_DATA_FIELD_DEF(uint32_t, kernelWidth);       // 卷积核宽度 K
-TILING_DATA_FIELD_DEF(uint64_t, cuSeqLen);          // cu_seq_len 大小
-TILING_DATA_FIELD_DEF(uint64_t, dim);               // 特征维度大小
-TILING_DATA_FIELD_DEF(uint32_t, batch);             // batch大小
-TILING_DATA_FIELD_DEF(uint32_t, validBatchStart);   // 有效 batch 的起始索引（在原始 cacheIndices 中）
-TILING_DATA_FIELD_DEF(uint32_t, validBatchCount);   // 有效 batch 的数量
-TILING_DATA_FIELD_DEF(uint64_t, validSeqStart);     // 有效序列的起始位置（在原始 x 中的行偏移）
-TILING_DATA_FIELD_DEF(uint64_t, validSeqLen);       // 有效序列的总长度
 
-END_TILING_DATA_DEF
-
-REGISTER_TILING_DATA_CLASS(CausalConv1dFn, CausalConv1dFnTilingData)
-
-
-class CausalConv1dFnTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
+class CausalConv1dFnTiling : public TilingBaseClass {
 public:
     explicit CausalConv1dFnTiling(gert::TilingContext *context) : TilingBaseClass(context)
     {
