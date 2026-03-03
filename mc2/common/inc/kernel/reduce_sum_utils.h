@@ -18,7 +18,7 @@
 
 #include "mc2_kernel_utils.h"
 
-namespace AscendC {
+namespace AiVReduceSumImpl {
     
 // 向上取整除法：计算a除以b的向上取整结果
 __aicore__ inline uint64_t CeilDiv(uint64_t a, uint32_t b)
