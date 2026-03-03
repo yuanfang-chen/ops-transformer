@@ -55,7 +55,7 @@ constexpr size_t FOUR_DIMS = 4;
 constexpr uint64_t BASE_WORKSPACE_SIZE = 16UL * 1024UL * 1024UL;
 
 // matmul tiling 切分
-constexpr int32_t SINGLE_CORE_M = 126;
+constexpr int32_t SINGLE_CORE_M = 128;
 constexpr int32_t SINGLE_CORE_N = 128;
 constexpr int32_t SINGLE_CORE_K = 512;
 
@@ -392,7 +392,7 @@ static ge::graphStatus SetTCubeTiling(
     gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
-    matmul_tiling::MatmulApiTiling mmTiling(*ascendcPlatform);
+    matmul_tiling::MultiCoreMatmulTiling mmTiling(*ascendcPlatform);
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
     uint32_t M = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
@@ -420,7 +420,6 @@ static ge::graphStatus SetTCubeTiling(
     mmTiling.SetFixSplit(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
     mmTiling.EnableBias(hasBias);
     mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
-    // mmTiling.EnableMultiCoreSplitK(true);
 
     OP_TILING_CHECK(mmTiling.GetTiling(tilingData->matmulTiling) == -1,
                     OP_LOGE(nodeName, "failed to get tiling matmulTiling."),
@@ -487,11 +486,11 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
+    uint32_t mAlign = ((tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
+        tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize) + \
+        SINGLE_CORE_M - 1) / SINGLE_CORE_M * SINGLE_CORE_M;
     currentWorkspace[0] = BASE_WORKSPACE_SIZE + \
-        tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
-        tilingData->addRmsNormDynamicQuantAllGatherTilingData.N * \
-        tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize * \
-        sizeof(int32_t);
+        mAlign * tilingData->addRmsNormDynamicQuantAllGatherTilingData.N * sizeof(int32_t);
 
     PrintTilingDataInfo(context, *tilingData);
     return ge::GRAPH_SUCCESS;

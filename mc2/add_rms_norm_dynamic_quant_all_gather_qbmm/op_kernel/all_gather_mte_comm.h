@@ -94,7 +94,7 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint6
     aivId_ = GetBlockIdx(); // 获取当前核Id
     assignedBlockNums_ = aivId_ < tailBlockNums_ ? round_ + 1 : round_; // 当前核分配到的数据块数量，顺序分核，序号小的核多搬一轮
     uint64_t blockIdx = aivId_ * round_ + (aivId_ < tailBlockNums_ ? aivId_ : tailBlockNums_); // 计算当前核分派到的首个数据块序列号
-    winDataSize_ = CeilAlign(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
+    winDataSize_ = CeilAlignU64(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
     curRankId_ = hcclContext_->localUsrRankId;
     sendCoreNumPerRank_ = CeilDiv(aivNum_, hcclContext_->rankSize);
     curDstId_ = aivId_ / sendCoreNumPerRank_;
