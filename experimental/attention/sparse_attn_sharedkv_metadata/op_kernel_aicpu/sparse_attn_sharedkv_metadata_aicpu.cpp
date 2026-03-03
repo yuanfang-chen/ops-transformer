@@ -210,16 +210,9 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckFeature()
  	    KERNEL_LOG_ERROR("cmp_topk should be 0 or 512, but got %d", cmpTopK_);
         return false;
         }
-        if (cmpTopK_ == 0) {// CFA 
-            if (cmpRatio_ != 128) {
-            KERNEL_LOG_ERROR("In CFA, cmpRatio_ should only be 128, but got %d", cmpRatio_);
+        if (cmpRatio_ != 4 && cmpRatio_ != 128) {
+            KERNEL_LOG_ERROR("In CFA or SCFA, cmpRatio_ should only be 4 or 128, but got %d", cmpRatio_);
             return false;
-            }
-        } else {//SCFA
-            if (cmpRatio_ != 4) {
-            KERNEL_LOG_ERROR("In SCFA, cmpRatio_ should only be 4, but got %d", cmpRatio_);
-            return false;
-            }
         }
     }
     return true;
