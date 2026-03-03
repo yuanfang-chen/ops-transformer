@@ -1041,8 +1041,9 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
         int64_t s1s2OuterTmp = s1OuterTmpCur * s2OuterTmpCur;
         int64_t preTotalCur = preTotal;
         int64_t totalBaseIdxTmp = totalBaseIdx;
+        int64_t bIdx = bDimIdx;
         if (resbaseIdx >= totalBaseIdx) {
-            for (int64_t bIdx = bDimIdx + 1; bIdx < b; bIdx++) {
+            for (bIdx = bDimIdx + 1; bIdx < b; bIdx++) {
                 GetSeqQlenKvlenByBidx(bIdx, actualS1LenCur, actualS2LenCur);
                 s1OuterTmpCur = (actualS1LenCur + s1CvInner - 1) / s1CvInner;
                 s2OuterTmpCur = (actualS2LenCur + s2CvInner - 1) / s2CvInner;
@@ -1064,9 +1065,9 @@ FlashAttentionScoreGradS1s2Bn2gs1s2<T1, T2, IS_ATTEN_MASK, IS_PSE, IS_DROP, MM_O
 
         // 6: prefix压缩，unpad只支持prefix压缩，不支持prefix
         if (sparseMode == 6) {
-            return CheckIsValidBlock(baseIdx, s1oDimIdx, s2oCvDimIdx, bDimIdx);
+            return CheckIsValidBlock(baseIdx, s1oDimIdx, s2oCvDimIdx, bIdx);
         }
-        UpdateToken(bDimIdx);
+        UpdateToken(bIdx);
         int64_t s2SparseLeftPre = int64_t(s1CvInner * s1oDimIdx) - actualCalcS1Token;
         int64_t s2SparseLeft = s2SparseLeftPre < 0 ?
                                 0 : s2SparseLeftPre;
