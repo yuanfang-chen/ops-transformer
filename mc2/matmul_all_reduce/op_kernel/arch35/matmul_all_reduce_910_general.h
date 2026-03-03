@@ -46,7 +46,9 @@ public:
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
         }
-
+        if (tilingData->allReduceBasedAtaSumAg){
+            this->ReduceSumAndAllGather();
+        }
         this->HcclFinalize();
     }
 
@@ -66,7 +68,11 @@ protected:
                 mmOp.Process();
                 mmOp.End();
             }
-            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset);
+            const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
+            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
+        }
+        if (tilingData->allReduceBasedAtaSumAg){
+            this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
 
