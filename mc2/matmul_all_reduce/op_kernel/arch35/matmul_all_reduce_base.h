@@ -43,7 +43,7 @@ public:
         } else {
             notifyFlag_ = (g_coreType == AscendC::AIV && GetBlockIdx() == 0);
         }
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             notifyFlag_ = (g_coreType == AscendC::AIV && GetBlockIdx() == 0);
         }
         paramInTiling_ = &tilingData->param;
@@ -54,7 +54,7 @@ public:
     {
         hccl_.InitV2(GetHcclContext<0>(), tilingData_);
         hccl_.SetCcTilingV2(offsetof(MC2TilingHeader, mc2CcTiling));
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             hccl_.SetCcTilingV2(offsetof(MC2TilingHeader, mc2CcTilingComm));
         }
         __gm__ HcclCombinOpParam* context = (__gm__ HcclCombinOpParam*)(GetHcclContext<0>());
@@ -92,7 +92,7 @@ public:
             tailInfo_.cOffset = (uint64_t)tailInfo_.mmTiling->M * (uint64_t)tailInfo_.mmTiling->N;
             tailInfo_.cAddrOffset = tailInfo_.cOffset * sizeof(YType);
         }
-        if (!tilingData->allReduceBasedAtaSumAg){
+        if (!allReduceBasedAtaSumAg_){
             if (notifyFlag_) {
                 tileInfo_.hcclHandleId = hccl_.AllReduce(
                     addrs_->cGM, addrs_->outputGM, tileInfo_.cOffset, HCCL_DATA_TYPE, AscendC::HCCL_REDUCE_SUM,
@@ -176,7 +176,7 @@ protected:
     __aicore__ inline void PostProcEachTurn(AscendC::HcclHandle handleId, uint64_t aOffset, uint64_t cOffset, const uint64_t index)
     {
         if (addFlag_ && addrs_->cGM != addrs_->addGM) {
-            if (tilingData->allReduceBasedAtaSumAg){
+            if (allReduceBasedAtaSumAg_){
                 SyncAll<false>();
             } else {
                 Mc2SyncAll<CoreType>();
@@ -188,7 +188,7 @@ protected:
 
         addrs_->aGM += aOffset;
         addrs_->cGM += cOffset;
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             SyncAll<false>();
             if (notifyFlag_) {
                 hccl_.Commit(all2allHandleId_[index]);
@@ -244,7 +244,7 @@ protected:
     {
 
         if (notifyFlag_) {
-            if (tilingData->allReduceBasedAtaSumAg){
+            if (allReduceBasedAtaSumAg_){
                 for (int i = 0; i < paramInTiling_->tileCnt + paramInTiling_->tailCnt; i++) {
                     hccl_.Wait(allgatherHandleId_[i]);
                 }
@@ -260,7 +260,7 @@ protected:
             }
         }
 
-        if (tilingData->allReduceBasedAtaSumAg){
+        if (allReduceBasedAtaSumAg_){
             SyncAll();
         } else {
             Mc2SyncAll<CoreType>();
@@ -299,6 +299,7 @@ protected:
     GM_ADDR reduceSumOutGM_;
     GM_ADDR allGatherInGM_;
     GM_ADDR allGatherOutGM_;
+    bool allReduceBasedAtaSumAg_ = false;
 };
 } // namespace MatmulAllReduceImpl
 #endif // MATMUL_ALL_REDUCE_BASE_H
