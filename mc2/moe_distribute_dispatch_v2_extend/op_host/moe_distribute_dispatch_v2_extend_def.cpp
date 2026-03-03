@@ -104,7 +104,7 @@ public:
     this->Attr("ep_rank_id").AttrType(REQUIRED).Int();
     this->Attr("moe_expert_num").AttrType(REQUIRED).Int();
     this->Attr("hccl_buff_size").AttrType(REQUIRED).Int();
-    this->Attr("hccl_topo_type").AttrType(REQUIRED).String("");
+    this->Attr("hccl_topo_type").AttrType(REQUIRED).Int();
     this->Attr("group_tp").AttrType(OPTIONAL).String("");
     this->Attr("tp_world_size").AttrType(OPTIONAL).Int(0);
     this->Attr("tp_rank_id").AttrType(OPTIONAL).Int(0);

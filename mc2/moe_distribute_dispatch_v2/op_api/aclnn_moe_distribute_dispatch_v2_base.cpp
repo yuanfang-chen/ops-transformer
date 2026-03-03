@@ -103,7 +103,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 }
 
 
-aclnnStatus GetCommMode(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
+aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
 {
     OP_LOGD("PRINT GetCommMode start");
     OP_LOGD("PRINT hcclHandle START :%p",hcclHandle);
@@ -147,53 +147,36 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
     OP_LOGD("PRINT HcclChannelDescInit success");
 
     for (uint32_t index = 0; index < rankDim; index++) {
+        if (index == srcRankId) {
+            continue;
+        }
+        ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum);
+        if(ret != HCCL_SUCCESS) {
+            OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed."); //打印错误码，入参之类的。
+            return ACLNN_ERR_INNER;
+        }
+        if(linkNum == 0) {
+            OP_LOGE(ACLNN_ERR_INNER, "The Rank LiNK Is nullptr.");
+            return ACLNN_ERR_INNER;
+        }
+        OP_LOGD("PRINT Get linkNum %d",linkNum);
+        OP_LOGD("PRINT CommLink ptr %p", links);
 
-        if(index != srcRankId) {
-            ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum);
-            if(ret != HCCL_SUCCESS) {
-                OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed.");
-                return ACLNN_ERR_INNER;
-            }
-            if(linkNum == 0) {
-                OP_LOGE(ACLNN_ERR_INNER, "The Rank LiNK Is nullptr.");
-                return ACLNN_ERR_INNER;
-            }
-            OP_LOGD("PRINT Get linkNum %d",linkNum);
-            OP_LOGD("PRINT CommLink ptr %p", links);
-
-            if (index < srcRankId) {
-                channelDesc[index].remoteRank = index;
-                channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-                channelDesc[index].notifyNum =3;
-                channelDesc[index].localEndpoint = links->srcEndpointDesc;
-                channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
-                //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
-                if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
-                    OP_LOGD("PRINT <INDEX IS ==");
-                }
-                else{
-                    OP_LOGD("PRINT <INDEX IS !=");
-
-                }
-                OP_LOGD("PRINT PRINT <INDEX inks->linkAttr.linkProtocol: %d",links->linkAttr.linkProtocol);
-            }
-            else{
-                channelDesc[index-1].remoteRank = index;
-                channelDesc[index-1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
-                channelDesc[index-1].notifyNum =3;
-                channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
-                channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
-                //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
-                if(CommProtocol::COMM_PROTOCOL_UB_MEM == links->linkAttr.linkProtocol) {
-                    OP_LOGD("PRINT >INDEX IS ==");
-                }
-                else{
-                    OP_LOGD("PRINT >INDEX IS !=");
-
-                }
-                OP_LOGD("PRINT PRINT >INDEX inks->linkAttr.linkProtocol: %d",links->linkAttr.linkProtocol);
-            }
-
+        if (index < srcRankId) {
+            channelDesc[index].remoteRank = index;
+            channelDesc[index].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+            channelDesc[index].notifyNum =3;
+            channelDesc[index].localEndpoint = links->srcEndpointDesc;
+            channelDesc[index].remoteEndpoint = links->dstEndpointDesc;
+            //channelDesc[index].channelProtocol = links->linkAttr.linkProtocol;
+        }
+        else{
+            channelDesc[index-1].remoteRank = index;
+            channelDesc[index-1].channelProtocol = CommProtocol::COMM_PROTOCOL_UB_MEM;
+            channelDesc[index-1].notifyNum =3;
+            channelDesc[index -1].localEndpoint = links->srcEndpointDesc;
+            channelDesc[index -1].remoteEndpoint = links->dstEndpointDesc;
+            //channelDesc[index -1].channelProtocol = links->linkAttr.linkProtocol;
         }
     }
 
@@ -275,7 +258,6 @@ aclnnStatus CreatMc2Context(HcclComm hcclHandle, std::string mc2Ctxtag, CommEngi
 aclnnStatus CreatMc2ContextTensor(void* ctx, aclTensor* &mc2Context)
 {
     OP_LOGD("PRINT inter to the CreatMc2ContextTensor");
-    // OP_CHECK_NULL(ctx, return ACLNN_ERR_INNER);
     if(ctx == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
         return ACLNN_ERR_INNER;
@@ -315,12 +297,10 @@ aclnnStatus GetMc2Context(HcclComm hcclHandle, const char* groupEp, aclTensor* &
         //如果资源不存在则进行context结构体创建
         auto retParam = CreatMc2Context(hcclHandle, mc2Ctxtag, engine, ctx, &mc2_context);
         CHECK_RET(retParam == ACLNN_SUCCESS, retParam);
-    } else {
-        OP_LOGD("PRINT in else");
     }
     OP_LOGD("PRINT HcclEngineCtxGet success");
     hcclBuffSize = mc2_context.winSize;
-    hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。
+    hcclTopoType = "MTE"; //TODO:目前未找到对应的通讯方式。（与HCCL保持一致）
     if(ctx == nullptr) {
         OP_LOGE(ACLNN_ERR_INNER, "PRINT Get MC2 Context failed ctx is nullptr.");
         return ACLNN_ERR_INNER;
@@ -341,10 +321,10 @@ void SetCommArgs(const bool is950, const bool is910B, const char* commAlg, aclOp
         NnopbaseSetUserHandle(*executor, arg);
     }
     
-    if (NnopbaseSetHcclServerType) {
+    if (NnopbaseSetHcclServerType) {  //给ACLnn框架指定通讯方式。
         if (is910B) {
             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_AICPU);
-        } else if (is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
+        } else if ( is950 && commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0) {
             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_CCU);
         } else {
             NnopbaseSetHcclServerType(*executor, NNOPBASE_HCCL_SERVER_TYPE_MTE);
@@ -384,7 +364,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     }
     int64_t ydtype = expandXOut->GetDataType();
 
-    ret = GetCommMode(groupEp, hcclHandle, netLayerNum);
+    ret = GetCommHandle(groupEp, hcclHandle, netLayerNum);
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
     OP_LOGD("PRINT commAlg:%s",commAlg);
     if(!is950 || (commAlg != nullptr && std::strcmp(commAlg, "ccu") == 0)) { //ccu暂时不支持新方案
@@ -398,7 +378,7 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
     } else {
         OP_LOGD("PRINT inter to the 950");
         int64_t hcclBuffSize = 0;
-        std::string hcclTopoType;
+        std::string hcclTopoType; //TODO:改为int值，
         ret =GetMc2Context(hcclHandle, groupEp, mc2Context, hcclBuffSize, hcclTopoType);
         CHECK_RET(ret == ACLNN_SUCCESS, ret);
         if(scalesOptional == nullptr) {
@@ -420,10 +400,8 @@ aclnnStatus aclnnMoeDistributeDispatchGetWorkspaceSizeBase(
 
 aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream) 
 {
-    OP_LOGD("PRINT inter to the 2 aclnnMoeDistributeDispatchBase");
     const static bool is950 = GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510;
     if(is950) {
-        OP_LOGD("PRINT is950");
         void *arg = NnopbaseGetUserHandle(executor);
         uintptr_t handleVal = reinterpret_cast<uintptr_t>(arg);
         if(handleVal == 0) {
@@ -431,7 +409,7 @@ aclnnStatus  aclnnMoeDistributeDispatchBase(void* workspace, uint64_t workspaceS
             return aclnnInnerMoeDistributeDispatchV2Extend(workspace, workspaceSize, executor, stream); //mte走新模版
         }
     }
-    OP_LOGD("PRINT inter to the  aclnnInnerMoeDistributeDispatchV2");
+    // OP_LOGD("PRINT inter to the  aclnnInnerMoeDistributeDispatchV2");
     return aclnnInnerMoeDistributeDispatchV2(workspace, workspaceSize, executor, stream);
 }
 
