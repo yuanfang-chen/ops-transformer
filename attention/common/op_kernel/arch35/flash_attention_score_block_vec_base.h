@@ -678,7 +678,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 this->attenMaskGmInt, runInfo, constInfo, *attenMaskInfoPtr);
             attenMaskUb = this->attenMaskInQue[runInfo.taskIdMod2].template DeQue<uint8_t>();
         } else if constexpr (isGqaNoQuant) {
-            if (constInfo.isGqa) {
+            if (constInfo.isPfaGS1Merge) {
                 MaskInfo maskInfo;
                 maskInfo.gs1StartIdx = (constInfo.subBlockIdx == 0) ? 0 : runInfo.firstHalfS1RealSize;
                 if constexpr (layout == LayOutTypeEnum::LAYOUT_TND ||
@@ -700,9 +700,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::ProcessVec1Nd(
                 maskInfo.attenMaskBatchStride = runInfo.boIdx * attenMaskInfoPtr->attenMaskS1Size * attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskStride = attenMaskInfoPtr->attenMaskS2Size;
                 maskInfo.attenMaskDstStride = (s2BaseSize - Align(maskInfo.s2dealNum, 32U)) / 32;
-                if (runInfo.actualS1Size == 1) {
-                    maskInfo.layout = LAYOUT_Q::S1_EQUAL1;
-                } else if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
+                if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_BSH) {
                     maskInfo.layout = LAYOUT_Q::SG;
                 } else {
                     maskInfo.layout = LAYOUT_Q::GS;
