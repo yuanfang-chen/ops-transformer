@@ -162,10 +162,17 @@ __aicore__ inline void QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>
     Init(params);
     bool isKZeroInit = false;
     BlockSchedulerOp bs(params.gmmParams.baseM, params.gmmParams.baseN, params.gmmParams.baseK);
-    for (uint32_t groupIdx = 0; groupIdx < groupNum_; ++groupIdx) {
+    for (uint32_t idx = 0; idx < groupNum_; ++idx) {
+        uint32_t groupIdx = idx;
+        if (groupListType_ == 2) {
+            groupIdx = static_cast<int32_t>(groupListGlobal_.GetValue(Idx * 2))
+        }
         UpdateOffset(groupIdx);
         // Update input parameters M, N, K within the group
         SetMNK(groupIdx);
+        if (groupListType_ == 2 && Get<MNK_M>(problemShape_) <= 0) {
+            break;
+        }
         if (Get<MNK_M>(problemShape_) <= 0 || Get<MNK_N>(problemShape_) <= 0) {
             continue;
         }
@@ -354,8 +361,11 @@ QuantMmGroupedPerTile<QGMM_PERTILE_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGrou
             int32_t offset = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx));
             splitValue = offset - preOffset_;
             preOffset_ = offset;
-        } else {
+        } else if (groupListType_ == 1) {
             splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx));
+        } else {
+            // groupListType 为2的情况, shape为[e,2]
+            splitValue = static_cast<int32_t>(groupListGlobal_.GetValue(groupIdx * 2 + 1));
         }
     }
     return splitValue;
