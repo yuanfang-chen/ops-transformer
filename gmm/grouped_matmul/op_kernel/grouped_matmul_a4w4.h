@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_matmul_a4w4.h 
+ * \file grouped_matmul_a4w4.h
  * \brief
  */
 
