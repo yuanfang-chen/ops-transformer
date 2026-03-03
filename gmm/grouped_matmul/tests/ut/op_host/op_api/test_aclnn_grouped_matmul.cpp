@@ -11,8 +11,9 @@
 #include <array>
 #include <float.h>
 #include "gtest/gtest.h"
-#include "../../../../op_host/op_api/aclnn_grouped_matmul_v5.h"
+#include "../../../../op_host/op_api/aclnn_grouped_matmul_v3.h"
 #include "../../../../op_host/op_api/aclnn_grouped_matmul_v4.h"
+#include "../../../../op_host/op_api/aclnn_grouped_matmul_v5.h"
 #include "../../../../op_host/op_api/aclnn_grouped_matmul_weight_nz.h"
 
 #include "op_api_ut_common/tensor_desc.h"
@@ -78,7 +79,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910B2_grouped_matmul_fp16)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_static)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_weightNz_static)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -119,7 +120,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_stat
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pertoken)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_weightNz_pertoken)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -160,7 +161,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_weightNz_pert
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_staticTC)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_nd_staticTC)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -202,7 +203,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_staticTC)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_staticTC)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_nz_staticTC)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -244,7 +245,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_staticTC)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_dynamicKC)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_nd_dynamicKC)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -285,7 +286,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nd_dynamicKC)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_dynamicKC)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8ofp16_nz_dynamicKC)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -326,7 +327,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8ofp16_nz_dynamicKC)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8o_nz_dynamicKC_scale_bf16_y_bf16)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o_nz_dynamicKC_scale_bf16_y_bf16)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -367,7 +368,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8o_nz_dynamicKC_scal
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_dtype)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_dtype)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -408,7 +409,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_shape)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_shape)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -449,7 +450,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_dims)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_scale_dims)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -490,7 +491,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dims)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dims)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -531,7 +532,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_shape)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_shape)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -574,7 +575,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
 
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dtype)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8obf16_nz_dynamicKC_unsupport_pertokenscale_dtype)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -615,7 +616,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_a8w8obf16_nz_dynamicKC_
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_m0_empty_tensor)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_m0_empty_tensor)
 {
     size_t M = 0;
     size_t K = 1280;
@@ -656,7 +657,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_m0_empty_tensor)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_n0_empty_tensor)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_n0_empty_tensor)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -697,7 +698,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_n0_empty_tensor)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_k0_empty_tensor)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_k0_empty_tensor)
 {
     size_t M = 345;
     size_t K = 0;
@@ -738,7 +739,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_k0_empty_tensor)
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_a8w8o_nz_dynamicKC_scale_bf16_y_bf16)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_V5_a8w8o_nz_dynamicKC_scale_bf16_y_bf16)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -779,7 +780,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_a8w8o_nz_dynamicKC_s
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_a8w8ofp16_nz_dynamicKC)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_V5_a8w8ofp16_nz_dynamicKC)
 {
     size_t M = 345;
     size_t K = 1280;
@@ -820,7 +821,7 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_a8w8ofp16_nz_dynamic
     EXPECT_EQ(getWorkspaceResult, 161002);
 }
 
-TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_k0_empty_tensor)
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_V5_k0_empty_tensor)
 {
     size_t M = 345;
     size_t K = 0;
@@ -856,6 +857,576 @@ TEST_F(l2_grouped_matmul_test, Ascend910D_grouped_matmul_V5_k0_empty_tensor)
                             activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
                             splitItem, groupType, groupListType, actType, tuningConfigOptional),
                         OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_v3_no_bias_case)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1, TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1, TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1, TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptionsl = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M, N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV3,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                              antiquantOffsetOptional, groupListOptional, splitItem, groupType),
+                        OUTPUT(out));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_v3_has_bias_case)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1, TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1, TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-10, 10));
+    auto biasOptional = TensorListDesc(1, TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto scaleOptional = TensorListDesc(1, TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptionsl = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M, N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV3,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptionsl, antiquantScaleOptional,
+                              antiquantOffsetOptional, groupListOptional, splitItem, groupType),
+                        OUTPUT(out));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_nd)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o32_nd)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT32, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o32_weightNz)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, K, N}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, 1}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(0, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1,TensorDesc({M,N}, ACL_INT32, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(
+        aclnnGroupedMatmulWeightNz,
+        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional, antiquantOffsetOptional,
+            perTokenScaleOptional, groupListOptional, activationInputOptional, activationQuantScaleOptional,
+            activationQuantOffsetOptional, splitItem, groupType, groupListType, actType, tuningConfigOptional, 0),
+        OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_nd_v5)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV5,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType, tuningConfigOptional),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o32_nd_v5)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT32, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV5,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType, tuningConfigOptional),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_pertoken_not_null_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = TensorListDesc(1,TensorDesc({M}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o32_pertoken_not_null_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = TensorListDesc(1,TensorDesc({M}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT32, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_bias_not_int32_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o32_bias_not_int32_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT32, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_scale_not_int64_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_INT32, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_scale_not_perchannel_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, N, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto biasOptional = TensorListDesc(1,TensorDesc({E, N}, ACL_INT32, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, 1}, ACL_FLOAT, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1, TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(aclnnGroupedMatmulV4,
+                        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional,
+                            antiquantOffsetOptional, perTokenScaleOptional, groupListOptional,
+                            activationInputOptional, activationQuantScaleOptional, activationQuantOffsetOptional,
+                            splitItem, groupType, groupListType, actType),
+                        OUTPUT(out,activationFeatureOutOptional, dynQuantScaleOutOptional));
+    uint64_t workspaceSize = 0;
+    aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
+    EXPECT_EQ(getWorkspaceResult, 161002);
+}
+
+TEST_F(l2_grouped_matmul_test, Ascend950_grouped_matmul_a8w8o8_weightNz_error)
+{
+    size_t M = 345;
+    size_t K = 1280;
+    size_t N = 567;
+    size_t E = 2;
+    auto x = TensorListDesc(1,TensorDesc({M, K}, ACL_INT8, ACL_FORMAT_ND).ValueRange(-10, 10));
+    auto weight = TensorListDesc(1,TensorDesc({E, K, N}, ACL_INT8, ACL_FORMAT_FRACTAL_NZ).ValueRange(-10, 10));
+    auto biasOptional = nullptr;
+    auto scaleOptional = TensorListDesc(1,TensorDesc({E, 1}, ACL_UINT64, ACL_FORMAT_ND).ValueRange(0, 10));
+    auto offsetOptional = nullptr;
+    auto antiquantScaleOptional = nullptr;
+    auto antiquantOffsetOptional = nullptr;
+    auto perTokenScaleOptional = nullptr;
+    auto groupListOptional = TensorDesc({E}, ACL_INT64, ACL_FORMAT_ND);
+    auto activationInputOptional = nullptr;
+    auto activationQuantScaleOptional = nullptr;
+    auto activationQuantOffsetOptional = nullptr;
+    int64_t splitItem = 3;
+    int64_t groupType = 0;
+    int64_t groupListType = 0;
+    int64_t actType = 0;
+    auto tuningConfigOptional = nullptr; //
+    auto activationFeatureOutOptional = nullptr;
+    auto dynQuantScaleOutOptional = nullptr;
+
+    auto out = TensorListDesc(1,TensorDesc({M,N}, ACL_INT8, ACL_FORMAT_ND));
+    int64_t split_item = 3;
+    int64_t dtype = 0;
+    bool paddedNum = true;
+    auto ut = OP_API_UT(
+        aclnnGroupedMatmulWeightNz,
+        INPUT(x, weight, biasOptional, scaleOptional, offsetOptional, antiquantScaleOptional, antiquantOffsetOptional,
+            perTokenScaleOptional, groupListOptional, activationInputOptional, activationQuantScaleOptional,
+            activationQuantOffsetOptional, splitItem, groupType, groupListType, actType, tuningConfigOptional, 0),
+        OUTPUT(out, activationFeatureOutOptional, dynQuantScaleOutOptional));
     uint64_t workspaceSize = 0;
     aclnnStatus getWorkspaceResult = ut.TestGetWorkspaceSize(&workspaceSize);
     EXPECT_EQ(getWorkspaceResult, 161002);

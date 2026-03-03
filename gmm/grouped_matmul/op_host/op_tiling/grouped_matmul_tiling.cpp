@@ -557,7 +557,9 @@ void GMMTiling::DivideUbAndSetWorkspaceAntiquant(size_t* workspaces, const uint3
 }
 
 int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
-  if(maxN_ < baseN_ || tuningConfig_ <= 0|| xDType_ != ge::DT_INT8 || weightDtype_ != ge::DT_INT8) {
+  uint64_t quantGroupNum = tilingData.gmmBaseParams.get_quantGroupNum();
+  // A8W8模式以及A4W4 Perchannel模式支持动态分块
+  if(maxN_ < baseN_ || tuningConfig_ <= 0|| !(isA8W8_ || (isA4W4_ && quantGroupNum == 1)) ) {
     return baseN_;
   }
   int32_t mDim = CeilDiv(tuningConfig_ , baseM_);
@@ -594,9 +596,10 @@ int32_t GMMTiling::FindBestSingleN(const uint32_t& aicNum) {
 
 bool GMMTiling::TryFullLoadA(int32_t baseM,const GMMCompileInfo *compileInfoPtr) {
   auto l1Size = compileInfoPtr->l1Size;
-  //暂时只支持A8W8
-  float sizeofweightDtype = 1.0f;
-  float sizeofxDtype = 1.0f;
+  //暂时只支持A8W8和A4W4Perchannel模式
+  float sizeofweightDtype = weightDtype_ == ge::DT_INT4 ? 0.5f : 1.0f;
+  float sizeofxDtype = xDType_ == ge::DT_INT4 ? 0.5f : 1.0f;
+
   auto matBl1Size = static_cast<int32_t>(tilingData.mmTilingData.get_depthB1() * baseN_ * baseK_ * sizeofweightDtype);
   auto remainL1Size = l1Size - matBl1Size;
   if(hasBias_) {
@@ -2097,7 +2100,14 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMM(gert::TilingParseContext* c
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L0_C, compileInfoPtr->l0CSize);
   ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::L2, compileInfoPtr->l2Size);
 
-  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->aivNum == 0 || compileInfoPtr->ubSize == 0 || \
+  OP_CHECK_IF((compileInfoPtr->npuArch != NpuArch::DAV_3510 && compileInfoPtr->aivNum == 0),
+             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
+             "platform info is invalid, aicNum=%u, aivNum=%u, ubSize=%lu, l1Size=%lu, l0CSize=%lu, l0ASize=%lu, l0BSize=%lu",
+             compileInfoPtr->aicNum, compileInfoPtr->aivNum, compileInfoPtr->ubSize, compileInfoPtr->l1Size,
+             compileInfoPtr->l0CSize, compileInfoPtr->l0ASize, compileInfoPtr->l0BSize),
+             return ge::GRAPH_FAILED);
+
+  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->ubSize == 0 || \
              compileInfoPtr->l1Size == 0 || compileInfoPtr->l0CSize == 0 || compileInfoPtr->l0ASize == 0 || \
              compileInfoPtr->l0BSize == 0),
              OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),

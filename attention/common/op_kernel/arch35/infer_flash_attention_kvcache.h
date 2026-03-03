@@ -61,6 +61,7 @@ __aicore__ inline void InitKVLeftPaddingSize(RunParamStr<isInfer>& runParam, con
     }
 }
 
+static constexpr uint32_t DIM_NUM2 = 2;
 TEMPLATE_INTF
 __aicore__ inline void GetKVSeqLengthForTensorList(RunParamStr<isInfer>& runParam,
     const ConstInfo<isInfer, hasRope>& constInfo, int32_t bIdx, GlobalTensor<INPUT_T>& keyGm)
@@ -72,7 +73,7 @@ __aicore__ inline void GetKVSeqLengthForTensorList(RunParamStr<isInfer>& runPara
         kvTensorDesc.SetShapeAddr(&dimInfo[0]);
         keyListTensorDesc.GetDesc(kvTensorDesc, bIdx);
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
-            runParam.s2InCurrentBatch = kvTensorDesc.GetShape(2);
+            runParam.s2InCurrentBatch = kvTensorDesc.GetShape(DIM_NUM2);
         } else {
             runParam.s2InCurrentBatch = kvTensorDesc.GetShape(1);
         }
@@ -133,7 +134,8 @@ __aicore__ inline int64_t CalculateActualS2Size(RunParamStr<isInfer>& runParam,
             runParam.s2InCurrentBatch;
     } else {
         if constexpr (layout == LayOutTypeEnum::LAYOUT_TND || layout == LayOutTypeEnum::LAYOUT_NTD) {
-            actualS2Size = actualSeqKvlenAddr[bIdx];
+            actualS2Size = (isPa && constInfo.actualSeqLenKVSize == actualSeqKVMin) ? 
+                actualSeqKvlenAddr[0] : actualSeqKvlenAddr[bIdx];
             if ((bIdx > 0) && (!isPa)) {
                 actualS2Size -= actualSeqKvlenAddr[bIdx - 1];
             }
@@ -176,8 +178,13 @@ __aicore__ inline void AdjustActualS1Size(RunParamStr<isInfer>& runParam,
             }
 
             // 计算S1的尾块大小，非对齐
-            runParam.actualS1Size = (runParam.nextTokensPerBatch >= 0) ? runParam.actualS1Size :
-                (runParam.actualS1Size + runParam.nextTokensPerBatch);
+            if (runParam.nextTokensPerBatch >= 0) {
+                runParam.actualS1Size = runParam.actualS1Size;
+            } else if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+                runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch * constInfo.gSize;
+            } else {
+                runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch;
+            }
         }
     }
 

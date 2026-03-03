@@ -20,9 +20,15 @@
 #include "prompt_flash_attention_zero_output.h"
 #include "prompt_flash_attention_tiling_regbase.h"
 #include "prompt_flash_attention_template_tiling_key_enum.h"
+#if __has_include("../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h")
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer.h"
 #include "../../../common/op_kernel/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
 #include "../../../common/op_kernel/arch35/flash_attention_kernel_noquant_mla.h"
+#else
+#include "../../common/arch35/flash_attention_score_kernel_infer.h"
+#include "../../common/arch35/flash_attention_score_kernel_infer_mla_fullquant.h"
+#include "../../common/arch35/flash_attention_kernel_noquant_mla.h"
+#endif
 
 using namespace regbaseutil;
 
@@ -30,7 +36,7 @@ using namespace regbaseutil;
 
 #define REGBASE_COPY_TILING_DATA_ASCEND950_KVSAME_BASEAPI(tiling)                                                    \
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                  \
+    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn
 
 #define INVOKE_FA_OP_IMPL_ASCEND950_KVSAME_BASEAPI(templateClass, ...)                                               \
     do {                                                                                                                \
@@ -91,7 +97,7 @@ using namespace regbaseutil;
     TilingDataCopy(tiling_data_in, tiling_data_in_new);                                                               \
     const PromptFlashAttentionTilingData* __restrict tiling_data = &tiling_data_in;                                   \
     const TCubeTiling* __restrict bmm1tiling = &(tiling_data->bmm1TilingDataRect);                                    \
-    const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect);
+    const TCubeTiling* __restrict bmm2tiling = &(tiling_data->bmm2TilingDataRect)
 
 #define INVOKE_PFA_TILING_DATA_95(tiling)           \
     INVOKE_PFA_TILING_DATA_V2(tiling)
@@ -131,14 +137,14 @@ using namespace regbaseutil;
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FABlockVecDummy<__VA_ARGS__>, BaseApi::FABlockVecInfer<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
-            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, postQuantScale,                 \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, nullptr, &tPipe);            \
         op.Process();                                                                                                                   \
     } while (0)
 #else // VECTOR 实现
 #define PFA_REGBASE_COPY_TILING_DATA(tiling)                                                                                                \
     GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreSimplifiedTilingData, tilingDataIn, tiling);                                           \
-    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn;                                                 \
+    const FlashAttentionScoreSimplifiedTilingData *__restrict tilingData = &tilingDataIn
 
 #define INVOKE_PFA_GENERAL_OP_IMPL_ASCEND950_FA(templateClass, vec1ResultSize, qkvSize, ...)\
     do {                                                                                                 \
@@ -164,7 +170,7 @@ using namespace regbaseutil;
         using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FABlockVecDummy<__VA_ARGS__>, BaseApi::FABlockVecInfer<__VA_ARGS__>>::type; \
         templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
         op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
-            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, postQuantScale,                 \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
         op.Process();                                                                                                                   \
     } while (0)
