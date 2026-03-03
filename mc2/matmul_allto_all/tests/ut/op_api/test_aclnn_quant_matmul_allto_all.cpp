@@ -48,7 +48,7 @@ struct QuantMatmulAlltoAllAclnnTestParam {
     vector<int64_t> x2Shape; // x2数据shape，正常为（H1，H2）
     vector<int64_t> biasShape; // bias数据shape，正常为（H2）
     vector<int64_t> x1ScaleShape; // x1scales数据shape，正常为（BS），mx量化为（BS，ceil(H1/64)，2）
-    vector<int64_t> x2ScaleShape; // x2scales数据shape，正常为（H2），mx量化为（ceil(H1/64)，H2，2）
+    vector<int64_t> x2ScaleShape; // x2scales数据shape，正常为（H2），mx量化为（H2，ceil(H1/64)，2）
     vector<int64_t> outputShape; // output数据shape，正常为（BS * world_size，H2 / world_size）
     // 数据类型
     aclDataType x1Dtype; // x1数据dtype，仅支持float8_e5m2和float8_e4m3fn
