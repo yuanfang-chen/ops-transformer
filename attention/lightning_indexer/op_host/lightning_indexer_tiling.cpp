@@ -385,6 +385,7 @@ ge::graphStatus LIInfoParser::GetGSize()
         OP_LOGE(opName_, "input query's head_num %u can not be a multiple of key's head_num %u.", n1Size_, n2Size_);
         return ge::GRAPH_FAILED;
     }
+    gSize_ = n1Size_ / n2Size_;
 
     return ge::GRAPH_SUCCESS;
 }
