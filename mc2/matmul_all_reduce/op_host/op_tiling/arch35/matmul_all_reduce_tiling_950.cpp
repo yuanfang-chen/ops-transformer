@@ -27,26 +27,52 @@ bool MatmulAllReduceTilingA5::IsCapable()
 
 ge::graphStatus MatmulAllReduceTilingA5::SetMc2Hcomm()
 {
-    OP_TILING_CHECK(
-        mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
-        VECTOR_INNER_ERR_REPORT_TILING(
-            opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
-        return ge::GRAPH_FAILED);
-    const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-    const uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
-    const uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
-    OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return ge::GRAPH_FAILED);
-    const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
-    const std::string algConfig = "AllReduce=level0:fullmesh";
-    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
-    OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2InitTiling),
-            OP_LOGE(opName_, "Get mc2InitTiling from matmulAllReduce910TilingData failed."),
+    if (mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum)) {
+        uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
+        uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
+        uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+        const std::string algConfig1 = "AlltoAll=level0:fullmesh";
+        const std::string algConfig2 = "AllGather=level0:fullmesh";
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
+        OP_TILING_CHECK(
+            mc2CcTilingConfig.GetTiling(MatmulAllReduce910TilingDataA5.mc2InitTiling),
+            OP_LOGE(opName_, "Get mc2InitTiling from MatmulAllReduce910TilingDataA5 failed."),
             return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(
-        mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2CcTiling),
-        OP_LOGE(opName_, "Get mc2CcTiling from matmulAllReduce910TilingData failed."),
-        return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            mc2CcTilingConfig.GetTiling(MatmulAllReduce910TilingDataA5.mc2CcTiling),
+            OP_LOGE(opName_, "Get mc2CcTiling from MatmulAllReduce910TilingDataA5 failed."),
+            return ge::GRAPH_FAILED);
+        mc2CcTilingConfig.SetGroupName(groupName);
+        mc2CcTilingConfig.SetOpType(opType2);
+        mc2CcTilingConfig.SetAlgConfig(algConfig2);
+        mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
+        OP_TILING_CHECK(
+            mc2CcTilingConfig.GetTiling(MatmulAllReduce910TilingDataA5.mc2CcTilingComm),
+            OP_LOGE(opName_, "Get mc2CcTilingComm from MatmulAllReduce910TilingDataA5 failed."),
+            return ge::GRAPH_FAILED);
+    } else {
+        OP_TILING_CHECK(
+            mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
+            VECTOR_INNER_ERR_REPORT_TILING(
+                opName_, "cannot find HcclDataType according to ge datatype = %d.", static_cast<int32_t>(args_.geCType)),
+            return ge::GRAPH_FAILED);
+        const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
+        const uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
+        const uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+        OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return ge::GRAPH_FAILED);
+        const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
+        const std::string algConfig = "AllReduce=level0:fullmesh";
+        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
+        OP_TILING_CHECK(
+                mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2InitTiling),
+                OP_LOGE(opName_, "Get mc2InitTiling from matmulAllReduce910TilingData failed."),
+                return ge::GRAPH_FAILED);
+        OP_TILING_CHECK(
+            mc2CcTilingConfig.GetTiling(matmulAllReduce910TilingData_.mc2CcTiling),
+            OP_LOGE(opName_, "Get mc2CcTiling from matmulAllReduce910TilingData failed."),
+            return ge::GRAPH_FAILED);
+    }
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -128,6 +154,21 @@ ge::graphStatus MatmulAllReduceTilingA5::GetWorkspaceSize()
         workspaceSize_);
     myWorkSpaceSize_ = std::max(myWorkSpaceSize_, workspaceSize_);
     size_t* workspaces = context_->GetWorkspaceSizes(1);
+    if(mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum)){
+        uint64_t commFp16WorkSpace = 0UL;
+        uint64_t tileM = MutableTCubeTileTilingData().M;
+        uint64_t tailM = MutableTCubeTailTilingData().M;
+        uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
+        uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
+
+        commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
+                             tempTailSize * MutableRCSTilingData().tailCnt) * 
+                             static_cast<uint64_t>(args_.outputDtypeSize);
+        OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+        
+        // MatMul输出存储+alltoall输出存储+reduceSum输出存储
+        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
+    }
     workspaces[0] = myWorkSpaceSize_;
     return ge::GRAPH_SUCCESS;
 }
