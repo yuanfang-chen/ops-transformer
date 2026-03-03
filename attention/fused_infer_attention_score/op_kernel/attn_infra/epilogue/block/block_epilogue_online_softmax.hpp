@@ -1757,6 +1757,7 @@ public:
                     curStackTileMod,
                     curSinkLoop,
                     isLastStackTile,
+                    false,
                     false);
                 if (rowLoopIdx < rowLoopNum) {
                     uint32_t rowOffsetCurLoop = rowLoopIdx * rowNumTile;
