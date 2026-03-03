@@ -530,12 +530,6 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckMmYShapeInfo()
         return ge::GRAPH_FAILED;
     }
     if (context_->GetOutputShape(OUTPUT_MM_Y_INDEX) != nullptr) {
-        // check dim
-        if (context_->GetOutputShape(OUTPUT_MM_Y_INDEX)->GetStorageShape().GetDimNum() != DIM_TWO) {
-            OP_LOGE(context_->GetNodeName(), "The dim of mmY(BS, N2) should be 2, but got %lu!",
-                context_->GetOutputShape(OUTPUT_MM_Y_INDEX)->GetStorageShape().GetDimNum());
-            return ge::GRAPH_FAILED;
-        }
         // check BS equal
         uint64_t mmYBS = context_->GetOutputShape(OUTPUT_MM_Y_INDEX)->GetStorageShape().GetDim(DIM_ZERO);
         OP_TILING_CHECK(bs_ != mmYBS,
