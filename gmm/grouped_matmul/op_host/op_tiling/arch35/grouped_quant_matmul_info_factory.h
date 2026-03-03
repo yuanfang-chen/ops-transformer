@@ -18,7 +18,7 @@
 
 #include <pthread.h>
 
-#include "lock.h"
+#include "common/op_host/op_tiling/lock.h"
 #include "grouped_quant_matmul_tiling.h"
 
 namespace optiling {
