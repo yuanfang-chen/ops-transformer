@@ -120,7 +120,7 @@ template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::Process()
 {
     InnerProcess(); // 核心计算+通信
-    PostProcess(); // 等计算与待通信完成, 终止hcclserver
+    PostProcess(); // 等待计算与通信完成, 终止hcclserver
 }
 
 template <typename AType, typename BType, typename BiasType, typename CType>
@@ -196,7 +196,7 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
         mmv3.End();
     }
 
-    // AIV 执行 All2All 通信 + reduceSum；流水线模式：通信 -> (等待+归约+通信) -> 等待+归约
+    // AIV 执行 All2All 通信 + reduceSum；采用Cube双发流水线模式：通信 -> (等待+归约+通信) -> 等待+归约
     if ASCEND_IS_AIV {
         // 当前发送缓冲区起始地址
         GM_ADDR currSendPtr = sendGMAddr;
