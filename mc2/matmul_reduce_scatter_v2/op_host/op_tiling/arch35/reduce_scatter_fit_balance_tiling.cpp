@@ -16,7 +16,7 @@
 #include "mc2_log.h"
 #include "reduce_scatter_fit_balance_tiling.h"
 
-constexpr static double L2_CACHE_SIZE = 128 * ONE_MBYTE;
+constexpr static uint64_t L2_CACHE_SIZE = 128 * ONE_MBYTE;
 
 void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 {
@@ -31,7 +31,7 @@ void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
         tilingM_.cutRes.shortTileAtBack = true;
     }
 
-    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.nValue * commPerf_.GetCommDTypeSize() / ONE_MBYTE;
+    uint64_t sizeOfComm = mmInfo_.mValue * mmInfo_.nValue * commPerf_.GetCommDTypeSize() * rankDim_ / ONE_MBYTE;
     OP_LOGD("MatmulReduceScatter", "Input shape {M, N, K} = {%lu, %lu, %lu}, cubeUtil_ %f, sizeOfComm %lu, "
         "totalMatmulTime %f, totalCommTime %f, minTileSize %lu, mAlignLen %lu, commTimeFactor_ %f, "
         "rankDim_ %lu, rankTile %lu",
