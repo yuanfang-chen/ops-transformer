@@ -189,7 +189,7 @@ public:
 
         AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
-        AscendC::printf("hxb pv wait softmaxFlag");
+        AscendC::printf("hxb pv wait softmaxFlag, flagId:%d", softmaxFlag);
         Arch::CrossCoreWaitFlag(softmaxFlag);
         AscendC::printf("hxb pv wait softmaxFlag okokok");
 
