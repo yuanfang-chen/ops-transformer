@@ -60,8 +60,11 @@ constexpr int64_t MAX_SHARED_EXPERT_NUM = 4;
 constexpr int64_t MIN_SHARED_EXPERT_RANK_NUM = 0;
 constexpr int64_t MIN_GROUP_EP_SIZE = 2;
 constexpr int64_t MAX_GROUP_EP_SIZE = 384;
-constexpr int64_t NON_QUANT = 0;
-constexpr int64_t DYNAMIC_QUANT = 2U;
+constexpr int64_t UNQUANT = 0;
+constexpr int64_t STATIC_QUANT = 1;
+constexpr int64_t PERTOKEN_DYNAMIC_QUANT = 2;
+constexpr int64_t PERGROUP_DYNAMIC_QUANT = 3;
+constexpr int64_t MX_QUANT = 4;
 constexpr int64_t MAX_MOE_EXPERT_NUM = 512;
 constexpr int64_t SDMA_COMM = 0;
 constexpr int64_t URMA_COMM = 0;
@@ -78,6 +81,7 @@ constexpr int64_t MAX_BS = 512;
 constexpr int64_t MAX_K = 16;
 
 constexpr uint32_t LOCAL_STREAM_MAX_NUM = 40U;
+constexpr uint32_t USED_AIV_NUMS = 40U;
 constexpr uint32_t TILINGKEY_SCALES = 10U;
 constexpr int64_t MOE_EXPERT_MAX_NUM = 512U;
 constexpr uint32_t SYSTEM_NEED_WORKSAPCE = 16 * 1024 * 1024U;
@@ -86,8 +90,10 @@ constexpr int64_t WIN_ADDR_ALIGN = 512UL;
 constexpr int64_t SCALE_EXPAND_IDX_BUFFER = 44UL;
 constexpr int64_t DOUBLE_DATA_BUFFER = 2UL;
 constexpr int64_t MAX_OUT_DTYPE_SIZE = 2UL;
+constexpr int64_t EVEN_ALIGN = 2;
 constexpr int64_t UB_ALIGN = 32UL;
 constexpr int64_t ALIGN_32 = 32UL;
+constexpr int64_t ALIGN_128 = 128UL;
 constexpr int64_t ALIGN_256 = 256UL;
 constexpr int64_t ALIGN_512 = 512UL;
 
@@ -98,6 +104,22 @@ constexpr uint64_t DIM_ZERO = 0;
 constexpr uint64_t DIM_ONE = 1;
 constexpr uint64_t DIM_TWO = 2;
 constexpr uint64_t DIM_THREE = 3;
+
+struct Mc2CcTilingInner {
+    uint8_t skipLocalRankCopy;
+    uint8_t skipBufferWindowCopy;
+    uint8_t stepSize;
+    uint8_t version;
+    char reserved[8];
+    uint8_t protocal;
+    uint8_t communicationEngine;
+    uint8_t srcDataType;
+    uint8_t dstDataType;
+    char groupName[128];
+    char algConfig[128];
+    uint32_t opType;
+    uint32_t reduceType;
+};
 } // namespace
 
 namespace optiling {
@@ -132,8 +154,8 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckRequiredAttr
     OP_TILING_CHECK(
         ((*epRankIdPtr < 0) || (*epRankIdPtr >= *epWorldSizePtr)),
         OP_LOGE(
-            nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu], but get %lu", *epWorldSizePtr,
-            *epRankIdPtr),
+            nodeName_, "ep_rankId shoud be within the range of epWorldSize[0, %lu], but get %lu", *epRankIdPtr,
+            *epWorldSizePtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         ((*moeExpertNumPtr <= 0) || (*moeExpertNumPtr > MAX_MOE_EXPERT_NUM)),
@@ -147,6 +169,7 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckRequiredAttr
 
 ge::graphStatus MoeDistributeDispatchTeardownTilingBase::GetRequiredAttrAndSetTilingData()
 {
+    OP_LOGD("GetRequiredAttrAndSetTilingData");
     auto attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName_, "attrs is null."), return ge::GRAPH_FAILED);
 
@@ -179,7 +202,7 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckOptionalAttr
     OP_TILING_CHECK((xShape == nullptr), OP_LOGE(nodeName_, "Get input x is null"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         xShape->GetStorageShape().GetDimNum() != TWO_DIMS,
-        OP_LOGE(nodeName_, "x's dim is %lu but should be 2!", xShape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+        OP_LOGE(nodeName_, "x's dim is %lu but should be 2!", xShape->GetStorageShape().GetDimNum()), return false);
     auto bs = xShape->GetStorageShape().GetDim(0);
     auto attrs = context_->GetAttrs();
     auto epWorldSizePtr = attrs->GetAttrPointer<int64_t>(ATTR_EP_WORLD_SIZE_INDEX);
@@ -209,9 +232,9 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckOptionalAttr
             *epWorldSizePtr / 2, *sharedExpertRankNumPtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
-        ((*quantModePtr != NON_QUANT) && (*quantModePtr != DYNAMIC_QUANT)),
+        ((*quantModePtr < UNQUANT) && (*quantModePtr > MX_QUANT)),
         OP_LOGE(
-            nodeName_, "quantMode only support %ld or %ld for now, but get %ld.", NON_QUANT, DYNAMIC_QUANT,
+            nodeName_, "quantMode only support 0 to 4 for now, but get %ld.",
             *quantModePtr),
         return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
@@ -236,6 +259,7 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckOptionalAttr
 
 ge::graphStatus MoeDistributeDispatchTeardownTilingBase::GetOptionalAttrAndSetTilingData()
 {
+    OP_LOGD("GetOptionalAttrAndSetTilingData");
     auto attrs = context_->GetAttrs();
     OP_TILING_CHECK(attrs == nullptr, OP_LOGE(nodeName_, "attrs is null."), return ge::GRAPH_FAILED);
 
@@ -278,7 +302,7 @@ ge::graphStatus MoeDistributeDispatchTeardownTilingBase::GetOptionalAttrAndSetTi
     tilingData_->moeDistributeDispatchTeardownInfo.quantMode = static_cast<uint32_t>(*quantModePtr);
     tilingData_->moeDistributeDispatchTeardownInfo.globalBs = static_cast<uint32_t>(*globalBsPtr);
     tilingData_->moeDistributeDispatchTeardownInfo.expertTokenNumsType = static_cast<uint32_t>(*expertTokenNumsType);
-    tilingData_->moeDistributeDispatchTeardownInfo.isQuant = (*quantModePtr != NON_QUANT);
+    tilingData_->moeDistributeDispatchTeardownInfo.isQuant = (*quantModePtr != UNQUANT);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -299,12 +323,13 @@ const ge::graphStatus MoeDistributeDispatchTeardownTilingBase::CheckTensorShape(
     OP_TILING_CHECK((yShape == nullptr), OP_LOGE(nodeName_, "Get input y is null"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         (expertIdsShape == nullptr), OP_LOGE(nodeName_, "Get input expertIds is null"), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK((commCmdInfoShape == nullptr), OP_LOGE(nodeName_, "Get input commCmdInfo is null"), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((commCmdInfoShape == nullptr), OP_LOGE(nodeName_, "Get input x is null"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         (expandXOutShape == nullptr), OP_LOGE(nodeName_, "Get output expandXOut is null"), return ge::GRAPH_FAILED);
     auto quantMode = static_cast<int64_t>(tilingData_->moeDistributeDispatchTeardownInfo.quantMode);
+
     OP_TILING_CHECK(
-        ((quantMode == DYNAMIC_QUANT) && (dynamicScalesOutShape == nullptr)),
+        ((quantMode != UNQUANT) && (quantMode != STATIC_QUANT) && (dynamicScalesOutShape == nullptr)),
         OP_LOGE(nodeName_, "Get output dynamicScalesOut is null"), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(
         (assitInfoForCombineOutShape == nullptr), OP_LOGE(nodeName_, "Get output assitInfoForCombineOut is null"),
@@ -360,11 +385,18 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckOutputTensorShapeDim()
         OP_LOGE(nodeName_, "expandXOut's dim is %lu but should be 2!", expandXOutShape->GetStorageShape().GetDimNum()),
         return false);
     auto quantMode = static_cast<int64_t>(tilingData_->moeDistributeDispatchTeardownInfo.quantMode);
-    if (quantMode == DYNAMIC_QUANT) {
+    if (quantMode == PERTOKEN_DYNAMIC_QUANT) {
         OP_TILING_CHECK(
             dynamicScalesOutShape->GetStorageShape().GetDimNum() != ONE_DIMS,
             OP_LOGE(
                 nodeName_, "dynamicScalesOut's dim is %lu but should be 1!",
+                dynamicScalesOutShape->GetStorageShape().GetDimNum()),
+            return false);
+    } else if ((quantMode == PERGROUP_DYNAMIC_QUANT) && (quantMode == MX_QUANT)) {
+        OP_TILING_CHECK(
+            dynamicScalesOutShape->GetStorageShape().GetDimNum() != TWO_DIMS,
+            OP_LOGE(
+                nodeName_, "dynamicScalesOut's dim is %lu but should be 2!",
                 dynamicScalesOutShape->GetStorageShape().GetDimNum()),
             return false);
     }
@@ -408,7 +440,7 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckTensorShapeRelation()
             h1, h2),
         return false);
     auto quantMode = static_cast<int64_t>(tilingData_->moeDistributeDispatchTeardownInfo.quantMode);
-    if (quantMode == DYNAMIC_QUANT) {
+    if ((quantMode != UNQUANT) && (quantMode != STATIC_QUANT)) {
         auto a1 = expandXOutShape->GetStorageShape().GetDim(DIM_ZERO);
         auto a2 = dynamicScalesOutShape->GetStorageShape().GetDim(DIM_ZERO);
         OP_TILING_CHECK(
@@ -460,10 +492,16 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckTensorShapeSize()
         return false);
     int64_t tokenMsgSize1;
     auto quantMode = static_cast<int64_t>(tilingData_->moeDistributeDispatchTeardownInfo.quantMode);
-    if (quantMode == NON_QUANT) {
+    if (quantMode == UNQUANT) {
         tokenMsgSize1 = ops::CeilAlign(h, ALIGN_256);
-    } else {
+    } else if (quantMode == STATIC_QUANT) {
+        tokenMsgSize1 = ops::CeilAlign(h, ALIGN_512);
+    } else if (quantMode == PERTOKEN_DYNAMIC_QUANT) {
         tokenMsgSize1 = ops::CeilAlign(ops::CeilAlign(h, ALIGN_32) + QUANT_ALIGN_OFFSET, ALIGN_512);
+    } else if (quantMode == PERGROUP_DYNAMIC_QUANT) {
+        tokenMsgSize1 = ops::CeilAlign(ops::CeilAlign(h, ALIGN_128) + ops::CeilDiv(h, ALIGN_128), ALIGN_512);
+    } else if (quantMode == MX_QUANT) {
+        tokenMsgSize1 = ops::CeilAlign(ops::CeilAlign(h, ALIGN_256) + ops::CeilAlign(ops::CeilDiv(h, ALIGN_32), EVEN_ALIGN), ALIGN_512);
     }
     auto tokenMsgSize2 = yShape->GetStorageShape().GetDim(DIM_ONE);
     OP_TILING_CHECK(
@@ -492,16 +530,24 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckTensorShapeSize()
         return false);
 
     auto a2 = expandXOutShape->GetStorageShape().GetDim(DIM_ZERO);
+    OP_LOGD(nodeName_,"expect dim 0 is %lld",a1);
+    OP_LOGD(nodeName_,"expandXOut dim 0 is %d",a2);
     OP_TILING_CHECK(
         (a1 != a2), OP_LOGE(nodeName_, "expandXOut's dim 0 should be %ld, but get %ld", a1, a2), return false);
 
-    if (quantMode == DYNAMIC_QUANT) {
+    if ((quantMode != UNQUANT) && (quantMode != STATIC_QUANT)) {
         auto a3 = dynamicScalesOutShape->GetStorageShape().GetDim(DIM_ZERO);
         OP_TILING_CHECK(
             (a1 != a3), OP_LOGE(nodeName_, "dynamicScalesOut's dim 0 should be %ld, but get %ld", a1, a3),
             return false);
     }
-
+    auto dynamicScalesDim1 = dynamicScalesOutShape->GetStorageShape().GetDim(DIM_ONE);
+    OP_TILING_CHECK((quantMode == PERGROUP_DYNAMIC_QUANT) && (dynamicScalesDim1 != ops::CeilDiv(h, ALIGN_128)),
+        OP_LOGE(nodeName_, "dynamicScales's dim1 should be equal to %lu when quantMode=%u, but got %lu.",
+        ops::CeilDiv(h, ALIGN_128), quantMode, dynamicScalesDim1), return false);
+    OP_TILING_CHECK((quantMode == MX_QUANT) && (dynamicScalesDim1 != ops::CeilAlign(ops::CeilDiv(h, ALIGN_32), EVEN_ALIGN)),
+        OP_LOGE(nodeName_, "dynamicScales's dim1 should be equal to %lu when quantMode=%u, but got %lu.",
+        ops::CeilAlign(ops::CeilDiv(h, ALIGN_32), EVEN_ALIGN), quantMode, dynamicScalesDim1), return false);
     auto localExpertNum2 = expertTokenNumsOutShape->GetStorageShape().GetDim(DIM_ZERO);
     OP_TILING_CHECK(
         (localExpertNum1 != localExpertNum2),
@@ -548,7 +594,9 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckInputTensorDataType()
     OP_TILING_CHECK(
         ((context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_FLOAT16) &&
          (context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_BF16) &&
-         (context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_INT8)),
+         (context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_INT8) &&
+         (context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_FLOAT8_E4M3FN) &&
+         (context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType() != ge::DT_FLOAT8_E5M2)),
         OP_LOGE(
             nodeName_, "Unsupported dataType, y only support float16 or bfloat16 or int8, but is %s!",
             Ops::Base::ToString(context_->GetInputDesc(INPUT_Y_INDEX)->GetDataType()).c_str()),
@@ -592,7 +640,7 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckRelationTensorDataType(
         (context_->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX) == nullptr),
         OP_LOGE(nodeName_, "Get output dynamicScalesOut is null!"), return false);
     auto quantMode = static_cast<int64_t>(tilingData_->moeDistributeDispatchTeardownInfo.quantMode);
-    if (quantMode == DYNAMIC_QUANT) {
+    if ((quantMode != UNQUANT) && (quantMode != STATIC_QUANT)) {
         OP_TILING_CHECK(
             (context_->GetOutputDesc(OUTPUT_ASSIST_INFO_FOR_COMBINE_INDEX) == nullptr),
             OP_LOGE(nodeName_, "Get output assistInfoForCombineOut is null, when quantMode is 2."), return false);
@@ -608,7 +656,7 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckRelationTensorDataType(
             nodeName_, "Unsupported dataType, expandXOut only support float16 or bfloat16 or int8, but is %s!",
             Ops::Base::ToString(context_->GetInputDesc(OUTPUT_EXPAND_X_INDEX)->GetDataType()).c_str()),
         return false);
-    if (quantMode == DYNAMIC_QUANT) {
+    if ((quantMode != UNQUANT) && (quantMode != STATIC_QUANT)) {
         OP_TILING_CHECK(
             (context_->GetOutputDesc(OUTPUT_DYNAMIC_SCALES_INDEX)->GetDataType() != ge::DT_FLOAT),
             OP_LOGE(
@@ -696,19 +744,20 @@ void MoeDistributeDispatchTeardownTilingBase::SetTilingKey()
 
 void MoeDistributeDispatchTeardownTilingBase::SetHcommCfg()
 {
-    OP_LOGD(nodeName_, "MoeDistributeDispatchTeardown groupEp = %s.", groupEp_.c_str());
+    OP_LOGD(nodeName_, "MoeDistributeDispatchV2 groupEp = %s.", groupEp_.c_str());
     uint32_t opType = OP_TYPE_ALL_TO_ALL;
     std::string algConfigAllToAllStr = "AlltoAll=level0:fullmesh;level1:pairwise";
-
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupEp_, opType, algConfigAllToAllStr);
+    mc2CcTilingConfig.SetCommEngine(3); // AIV_UB-MEM or AIV_URMA
     mc2CcTilingConfig.GetTiling(tilingData_->mc2InitTiling);
     mc2CcTilingConfig.GetTiling(tilingData_->mc2CcTiling);
+    reinterpret_cast<Mc2CcTilingInner *>(&tilingData_->mc2CcTiling)->protocal = 1; // 0: UB-MEM, 1: URMA
 }
 
 void MoeDistributeDispatchTeardownTilingBase::SetPlatformInfo()
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context_->GetPlatformInfo());
-    uint32_t aivNum = ascendcPlatform.GetCoreNumAic();
+    uint32_t aivNum = USED_AIV_NUMS;
     uint64_t ubSize = 0UL;
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
     uint32_t blockDim = ascendcPlatform.CalcTschBlockDim(aivNum, 0, aivNum);
@@ -723,7 +772,7 @@ ge::graphStatus MoeDistributeDispatchTeardownTilingBase::SetWorkSpace()
 {
     size_t* workSpaces = context_->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName_, "workSpaces is nullptr."), return ge::GRAPH_FAILED);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE;
+    workSpaces[0] = static_cast<uint64_t>(SYSTEM_NEED_WORKSPACE);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -751,10 +800,10 @@ const void MoeDistributeDispatchTeardownTilingBase::PrintTilingDataInfo()
 
 ge::graphStatus MoeDistributeDispatchTeardownTilingBase::MoeDistributeDispatchTeardownTilingFuncImpl()
 {
-    OP_LOGD(nodeName_, "Start MoeDistributeDispatchTeardown tiling");
+    OP_LOGD(nodeName_, "MoeDistributeDispatchTeardownTilingFunc start");
     tilingData_ = context_->GetTilingData<MoeDistributeDispatchTeardownTilingData>();
 
-    // 实现 A5 Tiling 拦截
+    // 实现 A3 Tiling 拦截
     if (!((GetRequiredAttrAndSetTilingData() == ge::GRAPH_SUCCESS) &&
           (GetOptionalAttrAndSetTilingData() == ge::GRAPH_SUCCESS) && (CheckTensorShape() == ge::GRAPH_SUCCESS) &&
           (CheckTensorDataType() == ge::GRAPH_SUCCESS))) {
@@ -771,7 +820,7 @@ ge::graphStatus MoeDistributeDispatchTeardownTilingBase::MoeDistributeDispatchTe
     SetTilingKey();
     SetPlatformInfo();
     PrintTilingDataInfo();
-    OP_LOGD(nodeName_, "Finish MoeDistributeDispatchTeardown tiling");
+    OP_LOGD(nodeName_, "MoeDistributeDispatchTeardownTilingFunc success");
     return ge::GRAPH_SUCCESS;
 }
 
