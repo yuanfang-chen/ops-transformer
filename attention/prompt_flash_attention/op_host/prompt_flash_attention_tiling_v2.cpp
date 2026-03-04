@@ -2501,6 +2501,15 @@ bool PromptFlashAttentionTilingV2::CheckPseShiftTypeAndShape(ContextParamsForPFA
             "pse shift shape must be [1 or %u, %u, >=%u, >=%u], but now it is [%ld, %ld, %ld, %ld], the layout is %s",
             b, n ,s1, s2, pseShiftBatch, pseShiftN, pseShiftS1, pseShiftS2, layoutStr.c_str()),
         return false);
+
+    const gert::StorageShape* blockTableShape = contextKeyParams.blockTableShape;
+    blockTableDim2 = static_cast<int32_t>(blockTableShape->GetStorageShape().GetDim(1));
+    const int32_t* blockSize = contextKeyParams.blockSize;
+    OP_CHECK_IF((pseShiftS2 < blockTableDim2 * (*blockSize)),
+        OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "When Paged Attention and PSE are enabled, the S2 of input pseshift (%d) should >= blocksize(%d) * maxBlockNumPerBatch(%d)",
+            pseShiftS2, *blockSize, blockTableDim2),
+        return false);
     return true;
 }
 
