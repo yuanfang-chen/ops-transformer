@@ -619,6 +619,7 @@ public:
         uint32_t columnNum = layoutOutput.shape(1);
         uint32_t columnNumPad = layoutOutput.stride(0);
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
+        AscendC::printf("tkd sUbOffset: %u\n", sUbOffset);
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
 
         if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) {
