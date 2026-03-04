@@ -82,6 +82,15 @@ private:
     std::string name_;
 };
 
+static bool CheckNotNull(const aclTensor* query, const aclTensor* key, const aclTensor* weights,
+                         const aclTensor *sparseIndicesOut) {
+    OP_CHECK_NULL(query, return false);
+    OP_CHECK_NULL(key, return false);
+    OP_CHECK_NULL(weights, return false);
+    OP_CHECK_NULL(sparseIndicesOut, return false);
+    return true;
+}
+
 aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
         const aclTensor *query,
         const aclTensor *key,
@@ -101,8 +110,10 @@ aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
         uint64_t *workspaceSize,
         aclOpExecutor **executor)
 {
-    if (query == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Query pointer is null, cannot get data type!");
+    CHECK_RET(CheckNotNull(query, key, weights, sparseIndicesOut), ACLNN_ERR_PARAM_NULLPTR);
+    
+    if (!returnValues && sparseValuesOut != nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "when return value is false, input sparse_values must be null!");
         return ge::GRAPH_FAILED;
     }
     DataType queryDataType = query->GetDataType();
