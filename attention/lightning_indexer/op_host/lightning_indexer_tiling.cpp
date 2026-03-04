@@ -347,10 +347,6 @@ ge::graphStatus LIInfoParser::CheckShapeDim()
                OP_LOGE(opName_, "the dim num of weights's shape should be %u, but now is %u", qExpectShapeDim - 1,
                 weightsShapeDim),
                return ge::GRAPH_FAILED);
-    OP_CHECK_IF(valuesOutShapeDim != 1 && (!(*opParamInfo_.returnValue)),
-               OP_LOGE(opName_, "when return value is false, input sparse_values must be null"),
-               return ge::GRAPH_FAILED);
-    
 
     return ge::GRAPH_SUCCESS;
 }
@@ -652,11 +648,6 @@ ge::graphStatus LIInfoParser::ValidateInputShapesMatch()
                OP_LOGE(opName_, "output sparse_values shape last dim must be same as attr sparse_count,"
                        "but now they are %u, %ld respectively.", *opParamInfo_.sparseCount,
                        opParamInfo_.valuesOut.shape->GetStorageShape().GetDim(outN2Dim + 1)),
-               return ge::GRAPH_FAILED);
-    // -----------------------check sparse_values-------------------
-    OP_CHECK_IF((!(*opParamInfo_.returnValue)) &&
-                (opParamInfo_.valuesOut.shape->GetStorageShape().GetDim(0) != 0),
-                 OP_LOGE(opName_, "when return value is false, input sparse_values must be null"),
                return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;

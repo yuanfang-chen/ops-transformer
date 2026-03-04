@@ -101,9 +101,9 @@ aclnnStatus aclnnLightningIndexerGetWorkspaceSize(
         uint64_t *workspaceSize,
         aclOpExecutor **executor)
 {
-    if (query == nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Query pointer is null, cannot get data type!");
-        return ge::GRAPH_FAILED;
+    if (query == nullptr) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Query pointer is null, cannot get data type!");
+         return ge::GRAPH_FAILED;	 
     }
     DataType queryDataType = query->GetDataType();
     aclDataType queryAclDataType = ToAclDataType(queryDataType);
