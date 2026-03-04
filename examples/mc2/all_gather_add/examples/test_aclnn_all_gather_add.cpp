@@ -29,6 +29,7 @@
 #define CHECK_RET(cond, return_expr) \
     do {                             \
         if (!(cond)) {               \
+            LOG_PRINT("Example failed.\n"); \
             return_expr;             \
         }                            \
     } while (0)
