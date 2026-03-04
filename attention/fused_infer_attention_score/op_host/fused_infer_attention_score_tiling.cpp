@@ -1704,6 +1704,18 @@ static ge::graphStatus CheckOutShapeInDim3(const gert::TilingContext *context, c
 static ge::graphStatus CheckOutShapeInDim4(const gert::TilingContext *context, const string &outputLayoutStr, const gert::Shape outShape,
     const gert::Shape exceptOutShape)
 {
+    printf("tkd CheckOutShapeInDim4\n");
+    printf("tkd outputLayout: %s\n", outputLayoutStr.c_str());
+    printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDim(DIM_0): %ld\n", exceptOutShape.GetDim(DIM_0));
+    printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDim(DIM_1): %ld\n", exceptOutShape.GetDim(DIM_1));
+    printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDim(DIM_2): %ld\n", exceptOutShape.GetDim(DIM_2));
+    printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDim(DIM_3): %ld\n", exceptOutShape.GetDim(DIM_3));
+
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0)); 
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+
     OP_CHECK_IF((outShape.GetDimNum() != DIM_NUM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "OutputLayout is %s, Attention out shape dim should be 4, but got %zu!",
             outputLayoutStr.c_str(), outShape.GetDimNum()), return ge::GRAPH_FAILED);
@@ -1727,11 +1739,19 @@ static ge::graphStatus CheckOutShapeInDim4(const gert::TilingContext *context, c
 
 static ge::graphStatus CheckOutShape(gert::TilingContext *context, const string &outputLayoutStr, const gert::Shape outShape, const gert::Shape qkvShapeInfo)
 {
+    printf("tkd CheckOutShape\n");
+
     int64_t b = qkvShapeInfo.GetDim(DIM_0);
     int64_t queryN = qkvShapeInfo.GetDim(DIM_1);
     int64_t queryS = qkvShapeInfo.GetDim(DIM_2);
     int64_t queryT = qkvShapeInfo.GetDim(DIM_3);
     int64_t valueD = qkvShapeInfo.GetDim(DIM_4);
+
+    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0)); 
+    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+
     ge::graphStatus ret = ge::GRAPH_SUCCESS;
     if (outputLayoutStr == "NSD") {
         ret = CheckOutShapeInDim3(context, outputLayoutStr, outShape, gert::Shape{queryN, queryS, valueD});
@@ -2044,6 +2064,14 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     string outputLayoutStr = GetOutputLayoutStr(inputLayoutStr);
     auto outShape = context->GetOutputShape(ATTENTION_OUT_INDEX)->GetStorageShape();
     gert::Shape qkvShapeInfo{b, queryN, queryS, queryT, valueD};
+
+    printf("tkd TilingFusedInferAttentionScore\n");
+    printf("tkd b: %ld\n", b);
+    printf("tkd queryN: %ld\n", queryN); 
+    printf("tkd queryS: %ld\n", queryS);
+    printf("tkd queryT: %ld\n", queryT);    
+    printf("tkd valueD: %ld\n", valueD);   
+
     OP_CHECK_IF(CheckOutShape(context, outputLayoutStr, outShape, qkvShapeInfo) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check output shape failed"), return ge::GRAPH_FAILED);
     // 是否路由到IFA
