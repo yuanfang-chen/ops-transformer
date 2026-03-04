@@ -184,7 +184,7 @@ static void TestOneParamCase(const MatmulAlltoAllTestParam &param)
     //
     struct MatmulAlltoAllCompileInfo {} compileInfoInstance; // 创建一个实例
     void* pCompileInfo = &compileInfoInstance;
-    gert::TilingContextPara tilingContextPara(OP_NAME, inputTensorDesc_, outputTensorDesc_, attrs_, &compileInfo,
+    gert::TilingContextPara tilingContextPara(OP_NAME, inputTensorDesc_, outputTensorDesc_, attrs_, pCompileInfo,
                                               param.socVersion);
     ExecuteTestCase(tilingContextPara, param.status, param.expectTilingKey, param.expectTilingData,
                         param.expectWorkspaces, param.mc2TilingDataReservedLen);                                          
