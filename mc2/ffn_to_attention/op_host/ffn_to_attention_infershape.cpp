@@ -12,7 +12,7 @@
  * \file ffn_to_attention_infershape.cpp
  * \brief
  */
-#include "runtime_util.h"
+#include "op_tiling/runtime_util.h"
 #include "op_tiling/mc2_log.h"
 using namespace ge;
 namespace ops {
