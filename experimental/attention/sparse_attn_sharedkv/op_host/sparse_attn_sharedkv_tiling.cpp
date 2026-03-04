@@ -304,7 +304,7 @@ ge::graphStatus SASInfoParser::GetSASTemplateMode(SASTilingInfo &sasInfo)
     if (opParamInfo_.oriKv.desc != nullptr) {
         if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor != nullptr) {
             sasInfo.perfMode = SASTemplateMode::SCFA_TEMPLATE_MODE;
-        } else if (opParamInfo_.cmpKv.desc != nullptr) {
+        } else if (opParamInfo_.cmpKv.desc != nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::CFA_TEMPLATE_MODE;
         } else if (opParamInfo_.cmpKv.desc == nullptr && opParamInfo_.cmpSparseIndices.tensor == nullptr) {
             sasInfo.perfMode = SASTemplateMode::SWA_TEMPLATE_MODE;
@@ -695,7 +695,8 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
                         OP_LOGE(opName_, "seqused_kv cannot be empty tensor."),
                         return ge::GRAPH_FAILED);
         } else {
-            actualLenDimsKV_ = opParamInfo_.cmpKv.tensor->GetShapeSize();
+            OP_LOGE(opName_, "Input seqused_kv must be provided");
+            return ge::GRAPH_FAILED;
         }
     }
     return ge::GRAPH_SUCCESS;
@@ -1014,8 +1015,8 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
         if (
             ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.cmpSparseIndices.desc, CMP_SPARSE_INDICES) ||
             ge::GRAPH_SUCCESS != CheckLayoutSupport(cmpSparseIndicesLayout_, CMP_SPARSE_INDICES) ||
-            ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpSparseIndices.tensor->GetShape(), cmpSparseIndicesDimNumList, CMP_SPARSE_INDICES)) {
-            return ge::GRAPH_FAILED;
+            ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpSparseIndices.tensor->GetShape(), cmpSparseIndicesDimNumList, CMP_SPARSE_INDICES) ||
+            ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(cmpSparseIndicesLayout_, &opParamInfo_.cmpSparseIndices.tensor->GetShape(), CMP_SPARSE_INDICES)) {            return ge::GRAPH_FAILED;
         }
         if (cmpSparseIndicesLayout_ == SASLayout::TND)
         {
@@ -1215,6 +1216,9 @@ ge::graphStatus SASTilingCheck::CheckExistenceByMap(std::map<std::string, const 
 
 ge::graphStatus SASTilingCheck::CheckParaExistence() const
 {
+    if (kvLayout_ != SASLayout::PA_ND) { 
+        return ge::GRAPH_SUCCESS;
+    }
     std::map<std::string, const void *> ParamExistMap = {
         {"actualSeqLengths", opParamInfo_.sequsedKv.tensor},
         {"oriBlockTable", opParamInfo_.oriBlockTable.tensor},
@@ -1237,7 +1241,7 @@ ge::graphStatus SASTilingCheck::CheckFeatureShape() const
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(n1Size_ != 64 && n1Size_ != 32,
-                OP_LOGE(opName_, "q_head_num should be 64, but got %u", n1Size_),
+                OP_LOGE(opName_, "q_head_num should be 64 or 32, but got %u", n1Size_),
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(n2Size_ != 1,
@@ -1248,8 +1252,8 @@ ge::graphStatus SASTilingCheck::CheckFeatureShape() const
                 OP_LOGE(opName_, "q_head_num(%u) must be divisible by kv_head_num(%u)", n1Size_, n2Size_),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(gSize_ !=64 && n1Size_ != 32,
-                OP_LOGE(opName_, "group num should be 64, but got %u", gSize_),
+    OP_CHECK_IF(gSize_ !=64 && gSize_ != 32,
+                OP_LOGE(opName_, "group num should be 64 or 32, but got %u", gSize_),
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(qHeadDim_ != DIM_LIMIT,
@@ -1426,6 +1430,7 @@ ge::graphStatus SASTilingCheck::Process()
     Init();
     if (
         CheckSinglePara() != ge::GRAPH_SUCCESS ||
+        CheckParaExistence() != ge::GRAPH_SUCCESS ||
         CheckFeature() != ge::GRAPH_SUCCESS ||
         CheckMultiParaConsistency() != ge::GRAPH_SUCCESS
         ) 
