@@ -835,7 +835,11 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     CHECK_RET(TensorContiguousProcess(params.rowIndex, executor), ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(TensorContiguousProcess(params.groupList, executor), ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(TensorContiguousProcess(params.logit, executor), ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(TensorContiguousProcess(params.pertokenScaleOptional, executor), ACLNN_ERR_INNER_NULLPTR);
+    OP_LOGI("ZZZtestlog");
+    if(params.pertokenScaleOptional != nullptr) {
+        CHECK_RET(TensorContiguousProcess(params.pertokenScaleOptional, executor), ACLNN_ERR_INNER_NULLPTR);
+    }
+    OP_LOGI("ZZZtestlog2");
     auto reformatedX1 = SetTensorToNDFormat(params.x1);
     const aclTensor *reformatedX2 = SetTensorToNDFormat(params.x2);
     const aclTensor *reformatedScale = GetNDFormat(params.scale);
@@ -857,9 +861,9 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     params2.logit = reformatedLogit;
     params2.rowIndex = reformatedRowIndex;
     params2.offset = reformatedOffset;
-    
+    OP_LOGI("ZZZtestlog3");
     ret = CheckParams(params2);
-    
+    OP_LOGI("ZZZtestlog4");
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
 
     int64_t outDimNum = params.out->GetViewShape().GetDimNum();
