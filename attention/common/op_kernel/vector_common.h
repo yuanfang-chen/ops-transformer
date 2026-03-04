@@ -133,6 +133,40 @@ __aicore__ inline void VecMulMatForBigRowCount(LocalTensor<float> dstUb, LocalTe
     }
 }
 
+__aicore__ inline void VecRowMulsForBigRowCount(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
+                                 uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
+{
+    // muls by row, 每行的元素乘以相同的元素
+    // dstUb[i, (j * 8) : (j * 8 + 7)] = src0Ub[i, (j * 8) : (j * 8 + 7)] * src1Ub[i, 0 : 7]
+    // src0Ub:[dealRowCount, columnCount], src1Ub:[dealRowCount, FP32_BLOCK_ELEMENT_NUM] dstUb:[dealRowCount,
+    // columnCount]
+    // dealRowCount 可以大于255
+    uint32_t repeatTimes = MAX_REPEAT_TIMES;
+    for (uint32_t i = 0; i < dealRowCount; i += MAX_REPEAT_TIMES) {
+        if (i + MAX_REPEAT_TIMES > dealRowCount) {
+            repeatTimes = dealRowCount - i;
+        }
+        RowMuls(dstUb[i * columnCount], src0Ub[i * columnCount], src1Ub[i * 8], repeatTimes, columnCount, actualColumnCount);
+    }
+}
+
+__aicore__ inline void VecRowDivsForBigRowCount(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
+                                 uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
+{
+    // divs by row, 每行的元素除以相同的元素
+    // dstUb[i, (j * 8) : (j * 8 + 7)] = src0Ub[i, (j * 8) : (j * 8 + 7)] / src1Ub[i, 0 : 7]
+    // src0Ub:[dealRowCount, columnCount], src1Ub:[dealRowCount, FP32_BLOCK_ELEMENT_NUM] dstUb:[dealRowCount,
+    // columnCount]
+    // dealRowCount 可以大于255
+    uint32_t repeatTimes = MAX_REPEAT_TIMES;
+    for (uint32_t i = 0; i < dealRowCount; i += MAX_REPEAT_TIMES) {
+        if (i + MAX_REPEAT_TIMES > dealRowCount) {
+            repeatTimes = dealRowCount - i;
+        }
+        RowDivs(dstUb[i * columnCount], src0Ub[i * columnCount], src1Ub[i * 8], repeatTimes, columnCount, actualColumnCount);
+    }
+}
+
 __aicore__ inline void MatDivVec(LocalTensor<float> dstUb, LocalTensor<float> src0Ub, LocalTensor<float> src1Ub,
                                  uint32_t dealRowCount, uint32_t columnCount, uint32_t actualColumnCount)
 {
