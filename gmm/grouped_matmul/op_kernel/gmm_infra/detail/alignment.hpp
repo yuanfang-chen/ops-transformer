@@ -13,6 +13,7 @@
 
 #include "../../gmm_infra/detail/macros.hpp"
 
+namespace Catlass {
 template <uint32_t ALIGN, typename T>
 CATLASS_HOST_DEVICE
 constexpr T RoundUp(const T &val)
@@ -58,4 +59,24 @@ constexpr T CeilDiv(const T dividend, const T divisor)
     return (dividend + divisor - 1) / divisor;
 }
 
+template <class T, class U>
+CATLASS_HOST_DEVICE
+constexpr auto Max(T const &a, U const &b) {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
+template <class T, class U>
+CATLASS_HOST_DEVICE
+constexpr auto Min(T const &a, U const &b) {
+    if (a < b) {
+        return a;
+    } else {
+        return b;
+    }
+}
+}
 #endif  // CATLASS_ALIGNMENT_HPP
