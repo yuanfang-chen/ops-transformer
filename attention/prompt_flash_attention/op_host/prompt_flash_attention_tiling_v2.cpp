@@ -971,8 +971,13 @@ bool PromptFlashAttentionTilingV2::CheckPerTensorQuantParams(const ContextParams
     const gert::StorageShape* deqScale1Shape = contextKeyParams.deqScale1Shape;
     const gert::StorageShape* quantScale1Shape = contextKeyParams.scale1Shape;
     const gert::StorageShape* deqScale2Shape = contextKeyParams.deqScale2Shape;
+    const gert::StorageShape* quantScale2Shape = contextKeyParams.scale2Shape;
     const ge::DataType inputParamsType = contextKeyParams.inputDataType;
 
+    OP_CHECK_IF((quantScale2Shape != nullptr), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
+            "Postquant is not supported in per-tensor quant scenario, now is %s", 
+            GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
+        return false);
     OP_CHECK_IF((inputParamsType != ge::DT_INT8), OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "InputParamsType must be INT8 in per-tensor quant scenario, now is %s", 
             GetPfaDataTypeStr(contextKeyParams.inputDataType).c_str()),
