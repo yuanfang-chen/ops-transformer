@@ -29,28 +29,27 @@ namespace optiling {
 // Memory alignment constants (in elements)
 constexpr uint32_t BF16_FP16_ALIGN_SIZE = 16;  // 16 elements = 32 bytes for bf16/fp16
 constexpr uint32_t FLOAT32_ALIGN_SIZE = 8;     // 8 elements = 32 bytes for float32
-constexpr uint32_t ALIGN_SIZE_512B = 256;     // 256 elements = 512 bytes for bf16/fp16
+constexpr uint32_t ALIGN_SIZE_512B = 256;      // 256 elements = 512 bytes for bf16/fp16
 
 constexpr uint32_t SIZE_OF_16BIT = 2;
 constexpr uint32_t SIZE_OF_32BIT = 4;
 
 // Double Buffer configuration
-constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;    // Double Buffer depth for data tiles
-constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;    // Single Buffer depth for weights
+constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;  // Double Buffer depth for data tiles
+constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;  // Single Buffer depth for weights
 
 // Input indices
-const static int64_t X_INPUT_INDEX = 0;           // x (B, S, n, D)
-const static int64_t H_RES_INPUT_INDEX = 1;       // h_res (B, S, n, n)
-const static int64_t H_OUT_INPUT_INDEX = 2;       // h_out (B, S, D)
-const static int64_t H_POST_INPUT_INDEX = 3;      // h_post (B, S, n)
+const static int64_t X_INPUT_INDEX = 0;       // x (B, S, n, D)
+const static int64_t H_RES_INPUT_INDEX = 1;   // h_res (B, S, n, n)
+const static int64_t H_OUT_INPUT_INDEX = 2;   // h_out (B, S, D)
+const static int64_t H_POST_INPUT_INDEX = 3;  // h_post (B, S, n)
 
 // Output indices
-const static int64_t OUTPUT_INDEX = 0;            // output (B, S, n, D)
+const static int64_t OUTPUT_INDEX = 0;  // output (B, S, n, D)
 
 class MhcPostTilingBase : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
-    explicit MhcPostTilingBase(gert::TilingContext *context)
-        : Ops::Transformer::OpTiling::TilingBaseClass(context)
+    explicit MhcPostTilingBase(gert::TilingContext *context) : Ops::Transformer::OpTiling::TilingBaseClass(context)
     {
         Reset();
     }
@@ -103,14 +102,14 @@ private:
     int64_t dInner_ = 0;
     int64_t dOuter_ = 0;
     int64_t dTail_ = 0;
-    int64_t isNotFullCore_ = 0;
+    int64_t dTailAlign_ = 0;
 
     uint16_t usePermanentX_ = 0;
 
     const char *opName_ = "";
     ge::DataType dtype_ = ge::DT_UNDEFINED;
 
-    MhcPostTilingData* tilingData_ = context_->GetTilingData<MhcPostTilingData>();;
+    MhcPostTilingData* tilingData_ = context_->GetTilingData<MhcPostTilingData>();
 };
 
 ge::graphStatus MhcPostTilingBase::GetPlatformInfo()
@@ -289,11 +288,6 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
 
     if (dimNum == 4) {
         // BSND format validation
-        int64_t B = static_cast<int64_t>(B_);
-        int64_t S = static_cast<int64_t>(S_);
-        int64_t n = static_cast<int64_t>(n_);
-        int64_t D = static_cast<int64_t>(D_);
-
         // Validate h_res: (B, S, n, n)
         auto hResShapePtr = context_->GetInputShape(H_RES_INPUT_INDEX);
         const gert::Shape* hResShape = &hResShapePtr->GetStorageShape();
@@ -301,11 +295,11 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_res has %u dimensions, expected %u (format mismatch)",
                             hResShape->GetDimNum(), dimNum),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hResShape->GetDim(0) != B || hResShape->GetDim(1) != S ||
-                    hResShape->GetDim(2) != n || hResShape->GetDim(3) != n,
+        OP_CHECK_IF(hResShape->GetDim(0) != B_ || hResShape->GetDim(1) != S_ ||
+                    hResShape->GetDim(2) != n_ || hResShape->GetDim(3) != n_,
                     OP_LOGE(context_, "h_res shape (%ld,%ld,%ld,%ld) != expected (%ld,%ld,%ld,%ld)",
                             hResShape->GetDim(0), hResShape->GetDim(1), hResShape->GetDim(2), hResShape->GetDim(3),
-                            B, S, n, n),
+                            B_, S_, n_, n_),
                     return ge::GRAPH_FAILED);
 
         // Validate h_out: (B, S, D)
@@ -315,10 +309,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_out has %u dimensions, expected 3",
                             hOutShape->GetDimNum()),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hOutShape->GetDim(0) != B || hOutShape->GetDim(1) != S || hOutShape->GetDim(2) != D,
+        OP_CHECK_IF(hOutShape->GetDim(0) != B_ || hOutShape->GetDim(1) != S_ || hOutShape->GetDim(2) != D_,
                     OP_LOGE(context_, "h_out shape (%ld,%ld,%ld) != expected (%ld,%ld,%ld)",
                             hOutShape->GetDim(0), hOutShape->GetDim(1), hOutShape->GetDim(2),
-                            B, S, D),
+                            B_, S_, D_),
                     return ge::GRAPH_FAILED);
 
         // Validate h_post: (B, S, n)
@@ -328,10 +322,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_post has %u dimensions, expected 3",
                             hPostShape->GetDimNum()),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hPostShape->GetDim(0) != B || hPostShape->GetDim(1) != S || hPostShape->GetDim(2) != n,
+        OP_CHECK_IF(hPostShape->GetDim(0) != B_ || hPostShape->GetDim(1) != S_ || hPostShape->GetDim(2) != n_,
                     OP_LOGE(context_, "h_post shape (%ld,%ld,%ld) != expected (%ld,%ld,%ld)",
                             hPostShape->GetDim(0), hPostShape->GetDim(1), hPostShape->GetDim(2),
-                            B, S, n),
+                            B_, S_, n_),
                     return ge::GRAPH_FAILED);
 
         // Validate output: (B, S, n, D)
@@ -341,19 +335,16 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "output has %u dimensions, expected %u (format mismatch)",
                             outputShape->GetDimNum(), dimNum),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(outputShape->GetDim(0) != B || outputShape->GetDim(1) != S ||
-                    outputShape->GetDim(2) != n || outputShape->GetDim(3) != D,
+        OP_CHECK_IF(outputShape->GetDim(0) != B_ || outputShape->GetDim(1) != S_ ||
+                    outputShape->GetDim(2) != n_ || outputShape->GetDim(3) != D_,
                     OP_LOGE(context_, "output shape (%ld,%ld,%ld,%ld) != expected (%ld,%ld,%ld,%ld)",
                             outputShape->GetDim(0), outputShape->GetDim(1), outputShape->GetDim(2), outputShape->GetDim(3),
-                            B, S, n, D),
+                            B_, S_, n_, D_),
                     return ge::GRAPH_FAILED);
 
     } else {  // dimNum == 3
         // TND format validation
         int64_t T = static_cast<int64_t>(totalItems_);
-        int64_t n = static_cast<int64_t>(n_);
-        int64_t D = static_cast<int64_t>(D_);
-
         // Validate h_res: (T, n, n)
         auto hResShapePtr = context_->GetInputShape(H_RES_INPUT_INDEX);
         const gert::Shape* hResShape = &hResShapePtr->GetStorageShape();
@@ -361,10 +352,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_res has %u dimensions, expected %u (format mismatch)",
                             hResShape->GetDimNum(), dimNum),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hResShape->GetDim(0) != T || hResShape->GetDim(1) != n || hResShape->GetDim(2) != n,
+        OP_CHECK_IF(hResShape->GetDim(0) != T || hResShape->GetDim(1) != n_ || hResShape->GetDim(2) != n_,
                     OP_LOGE(context_, "h_res shape (%ld,%ld,%ld) != expected (%ld,%ld,%ld)",
                             hResShape->GetDim(0), hResShape->GetDim(1), hResShape->GetDim(2),
-                            T, n, n),
+                            T, n_, n_),
                     return ge::GRAPH_FAILED);
 
         // Validate h_out: (T, D)
@@ -374,10 +365,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_out has %u dimensions, expected 2",
                             hOutShape->GetDimNum()),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hOutShape->GetDim(0) != T || hOutShape->GetDim(1) != D,
+        OP_CHECK_IF(hOutShape->GetDim(0) != T || hOutShape->GetDim(1) != D_,
                     OP_LOGE(context_, "h_out shape (%ld,%ld) != expected (%ld,%ld)",
                             hOutShape->GetDim(0), hOutShape->GetDim(1),
-                            T, D),
+                            T, D_),
                     return ge::GRAPH_FAILED);
 
         // Validate h_post: (T, n)
@@ -387,10 +378,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "h_post has %u dimensions, expected 2",
                             hPostShape->GetDimNum()),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(hPostShape->GetDim(0) != T || hPostShape->GetDim(1) != n,
+        OP_CHECK_IF(hPostShape->GetDim(0) != T || hPostShape->GetDim(1) != n_,
                     OP_LOGE(context_, "h_post shape (%ld,%ld) != expected (%ld,%ld)",
                             hPostShape->GetDim(0), hPostShape->GetDim(1),
-                            T, n),
+                            T, n_),
                     return ge::GRAPH_FAILED);
 
         // Validate output: (T, n, D)
@@ -400,10 +391,10 @@ ge::graphStatus MhcPostTilingBase::CheckShapeConsistency()
                     OP_LOGE(context_, "output has %u dimensions, expected %u (format mismatch)",
                             outputShape->GetDimNum(), dimNum),
                     return ge::GRAPH_FAILED);
-        OP_CHECK_IF(outputShape->GetDim(0) != T || outputShape->GetDim(1) != n || outputShape->GetDim(2) != D,
+        OP_CHECK_IF(outputShape->GetDim(0) != T || outputShape->GetDim(1) != n_ || outputShape->GetDim(2) != D_,
                     OP_LOGE(context_, "output shape (%ld,%ld,%ld) != expected (%ld,%ld,%ld)",
                             outputShape->GetDim(0), outputShape->GetDim(1), outputShape->GetDim(2),
-                            T, n, D),
+                            T, n_, D_),
                     return ge::GRAPH_FAILED);
     }
 
@@ -462,6 +453,7 @@ void MhcPostTilingBase::ComputeTiling()
     dInner_ = Ops::Base::CeilAlign(dInner_, static_cast<int64_t>(BF16_FP16_ALIGN_SIZE));
     dOuter_ = Ops::Base::CeilDiv(D_, dInner_);
     dTail_ = D_ - (dOuter_ - 1) * dInner_;
+    dTailAlign_ = Ops::Base::CeilAlign(dTail_, static_cast<int64_t>(BF16_FP16_ALIGN_SIZE));
 
     int64_t totalCount = bsOuter_ * dOuter_;
     usedCoreNum_ = (totalCount < coreNum) ? totalCount : coreNum;
@@ -485,6 +477,7 @@ void MhcPostTilingBase::ComputeTiling()
     tilingData_->dInner = dInner_;
     tilingData_->dOuter = dOuter_;
     tilingData_->dTail = dTail_;
+    tilingData_->dTailAlign = dTailAlign_;
 }
 
 ge::graphStatus MhcPostTilingBase::DoOpTiling()
@@ -532,7 +525,6 @@ ge::graphStatus MhcPostTilingBase::PostTiling()
 uint64_t MhcPostTilingBase::GetTilingKey() const
 {
     OP_LOGI(context_, "Tiling: usePermanentX_=%u", usePermanentX_);
-
     return GET_TPL_TILING_KEY(usePermanentX_);
 }
 
@@ -554,8 +546,8 @@ void MhcPostTilingBase::Reset()
     dInner_ = 0;
     dOuter_ = 0;
     dTail_ = 0;
-    isNotFullCore_ = 0;
+    dTailAlign_ = 0;
 }
 
-REGISTER_OPS_TILING_TEMPLATE(MhcPost, MhcPostTilingBase, 2000);
+REGISTER_OPS_TILING_TEMPLATE(MhcPost, MhcPostTilingBase, 0);
 } // namespace optiling
