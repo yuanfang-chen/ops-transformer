@@ -157,18 +157,26 @@ ge::graphStatus MatmulAllReduceTilingA5::GetWorkspaceSize()
     size_t* workspaces = context_->GetWorkspaceSizes(1);
     if(mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum)){
         uint64_t commFp16WorkSpace = 0UL;
+        uint64_t commFp16Len = 0UL;
+        uint64_t cgmPadLen = 0UL;
         uint64_t tileM = MutableTCubeTileTilingData().M;
         uint64_t tailM = MutableTCubeTailTilingData().M;
         uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
         uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
 
+        commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
+        cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
         commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
-                             tempTailSize * MutableRCSTilingData().tailCnt) * 
-                             static_cast<uint64_t>(args_.outputDtypeSize);
+                             tempTailSize * MutableRCSTilingData().tailCnt +
+                             cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
         OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
         
         // MatMul输出存储+alltoall输出存储+reduceSum输出存储
-        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
+        if (cgmPadLen == 0) {
+            myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
+        } else {
+            myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
+        }
     }
     workspaces[0] = myWorkSpaceSize_;
     return ge::GRAPH_SUCCESS;
