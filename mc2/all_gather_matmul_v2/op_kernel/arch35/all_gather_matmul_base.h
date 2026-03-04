@@ -173,17 +173,17 @@ private:
     __aicore__ inline void UpdateMC2TileInfo()
     {
         tileInfo_.aOffset =
-            (uint64_t)tileInfo_.mmTiling->matmulTiling.M * (uint64_t)tileInfo_.mmTiling->matmulTiling.Ka;
+            (uint64_t)tileInfo_.mmTiling->matmulTiling.M * (uint64_t)tileInfo_.mmTiling->matmulTiling.Ka / (paramInTiling_->rankDim - 1);
         tileInfo_.aAddrOffset = tileInfo_.aOffset * sizeof(AType);
-        tileInfo_.cOffset = (uint64_t)tileInfo_.mmTiling->matmulTiling.M * (uint64_t)tileInfo_.mmTiling->matmulTiling.N;
+        tileInfo_.cOffset = (uint64_t)tileInfo_.mmTiling->matmulTiling.M * (uint64_t)tileInfo_.mmTiling->matmulTiling.N / (paramInTiling_->rankDim - 1);
         tileInfo_.cAddrOffset = tileInfo_.cOffset * sizeof(CType);
         uint32_t tailCnt = paramInTiling_->tailCnt;
         if (tailCnt) {
             tailInfo_.aOffset =
-                (uint64_t)tailInfo_.mmTiling->matmulTiling.M * (uint64_t)tailInfo_.mmTiling->matmulTiling.Ka;
+                (uint64_t)tailInfo_.mmTiling->matmulTiling.M * (uint64_t)tailInfo_.mmTiling->matmulTiling.Ka / (paramInTiling_->rankDim - 1);
             tailInfo_.aAddrOffset = tailInfo_.aOffset * sizeof(AType);
             tailInfo_.cOffset =
-                (uint64_t)tailInfo_.mmTiling->matmulTiling.M * (uint64_t)tailInfo_.mmTiling->matmulTiling.N;
+                (uint64_t)tailInfo_.mmTiling->matmulTiling.M * (uint64_t)tailInfo_.mmTiling->matmulTiling.N / (paramInTiling_->rankDim - 1);
             tailInfo_.cAddrOffset = tailInfo_.cOffset * sizeof(CType);
         }
     }
