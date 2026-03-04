@@ -135,9 +135,6 @@ protected:
     }
 };
 
-struct MatmulAlltoAllCompileInfo {
-} compileInfo;
-
 // ut
 static void TestOneParamCase(const MatmulAlltoAllTestParam &param)
 {
@@ -185,6 +182,8 @@ static void TestOneParamCase(const MatmulAlltoAllTestParam &param)
          {"transpose_x2", Ops::Transformer::AnyValue::CreateFrom<bool>(param.transposex2Attr)},
          {"group_size", Ops::Transformer::AnyValue::CreateFrom<int64_t>(param.groupSizeAttr)}});
     //
+    struct MatmulAlltoAllCompileInfo {} compileInfoInstance; // 创建一个实例
+    void* pCompileInfo = &compileInfoInstance;
     gert::TilingContextPara tilingContextPara(OP_NAME, inputTensorDesc_, outputTensorDesc_, attrs_, &compileInfo,
                                               param.socVersion);
     ExecuteTestCase(tilingContextPara, param.status, param.expectTilingKey, param.expectTilingData,
