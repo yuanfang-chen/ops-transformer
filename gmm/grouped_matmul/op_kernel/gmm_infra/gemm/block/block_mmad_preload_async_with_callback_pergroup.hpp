@@ -172,39 +172,18 @@ public:
     {
         SynchronizeBlock();
         for (uint32_t i = 0; i < L1_STAGES; ++i) {
-            if (MTE1_MTE2_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[i]);
-            } else {
-                // AscendC::printf("~BlockMmad WaitFlag MTE1_MTE2 l1AEventList[i] %d\n", l1AEventList[i]);
-                // AscendC::printf("~BlockMmad WaitFlag MTE1_MTE2 l1BEventList[i] %d\n", l1BEventList[i]);
-            }
-            if (FIX_MTE2_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[i]);
-            } else {
-                // AscendC::printf("~BlockMmad WaitFlag FIX_MTE2 l1ScaleEventList[i] %d\n", l1ScaleEventList[i]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[i]);
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[i]);
         }
         for (uint32_t i = 0; i < L0A_STAGES; ++i) {
-            if (M_MTE1_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[i]);
-            } else {
-                // AscendC::printf("~BlockMmad WaitFlag M_MTE1 l0AEventList[i] %d\n", l0AEventList[i]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[i]);
         }
         for (uint32_t i = 0; i < L0B_STAGES; ++i) {
-            if (M_MTE1_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[i]);
-            } else {
-                // AscendC::printf("~BlockMmad WaitFlag M_MTE1 l0BEventList[i] %d\n", l0BEventList[i]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[i]);
         }
         for (uint32_t i = 0; i < L0C_STAGES; ++i) {
-            if (FIX_M_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CEventList[i]);
-            } else {
-                // AscendC::printf("~BlockMmad WaitFlag FIX_M l0CEventList[i] %d\n", l0CEventList[i]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CEventList[i]);
         }
     }
 
@@ -222,17 +201,9 @@ public:
         auto layoutScaleInL1 = layout::VectorLayout(L1TileShape::N);
         auto scaleTileShape = actualShape.template GetCoordByAxis<1>();
         LayoutScale layoutScaleInGm = layoutScale.GetTileLayout(scaleTileShape);
-        if (FIX_MTE2_FLAG) {
-            AscendC::WaitFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[l1ScaleListId]);
-        } else {
-            // AscendC::printf("operator WaitFlag FIX_MTE2 l1ScaleEventList[l1ScaleListId] %d\n", l1ScaleEventList[l1ScaleListId]);
-        }
+        AscendC::WaitFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[l1ScaleListId]);
         copyGmToL1Scale(l1ScaleTensorList[l1ScaleListId], gmBlockScale, layoutScaleInL1, layoutScaleInGm);
-        if (MTE2_FIX_FLAG) {
-            AscendC::SetFlag<AscendC::HardEvent::MTE2_FIX>(l1ScaleEventList[l1ScaleListId]);
-        } else {
-            // AscendC::printf("operator SetFlag MTE2_FIX l1ScaleEventList[l1ScaleListId] %d\n", l1ScaleEventList[l1ScaleListId]);
-        }
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_FIX>(l1ScaleEventList[l1ScaleListId]);
 
         uint32_t kTileCount = CeilDiv<L1TileShape::K>(actualShape.k());
 
@@ -257,31 +228,15 @@ public:
             auto gmTileA = gmBlockA[layoutA.GetOffset(gmTileAOffset)];
             auto gmTileB = gmBlockB[layoutB.GetOffset(gmTileBOffset)];
             // Load first matrix A tile from GM to L1
-            if (MTE1_MTE2_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[l1ListId]);
-            } else {
-                // AscendC::printf("operator WaitFlag MTE1_MTE2 l1AEventList[l1ListId] %d\n", l1AEventList[l1ListId]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[l1ListId]);
             auto layoutTileA = layoutA.GetTileLayout(MakeCoord(actualShape.m(), kActual));
             copyGmToL1A(l1ATensorList[l1ListId], gmTileA, L1A_LAYOUT, layoutTileA);
-            if (MTE2_MTE1_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1AEventList[l1ListId]);
-            } else {
-                // AscendC::printf("operator SetFlag MTE2_MTE1 l1AEventList[l1ListId] %d\n", l1AEventList[l1ListId]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1AEventList[l1ListId]);
             // Load first matrix B tile from GM to L1
-            if (MTE1_MTE2_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[l1ListId]);
-            } else {
-                // AscendC::printf("operator WaitFlag MTE1_MTE2 l1BEventList[l1ListId] %d\n", l1BEventList[l1ListId]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[l1ListId]);
             auto layoutTileB = layoutB.GetTileLayout(MakeCoord(kActual, actualShape.n()));
             copyGmToL1B(l1BTensorList[l1ListId], gmTileB, L1B_LAYOUT, layoutTileB);
-            if (MTE2_MTE1_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1BEventList[l1ListId]);
-            } else {
-                // AscendC::printf("operator SetFlag MTE2_MTE1 l1BEventList[l1ListId] %d\n", l1BEventList[l1ListId]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1BEventList[l1ListId]);
 
             // If the number of preload instructions reaches the upper limit, perform an mmad calculation on L1 tile
             if (preloadCount == PRELOAD_STAGES) {
@@ -368,20 +323,11 @@ private:
             l1BTensorList[i] = resource.l1Buf.template GetBufferByByte<ElementB>(l1BOffset + L1B_TILE_SIZE * i); 
             l1AEventList[i] = i;
             l1BEventList[i] = i + L1_STAGES;
-            if (MTE1_MTE2_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
-                AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[i]); 
-            } else {
-                // AscendC::printf("InitL1 SetFlag MTE1_MTE2 l1AEventList[i] %d\n", l1AEventList[i]);
-                // AscendC::printf("InitL1 SetFlag MTE1_MTE2 l1BEventList[i] %d\n", l1BEventList[i]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[i]);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[i]); 
             l1ScaleTensorList[i] = resource.l1Buf.template GetBufferByByte<ElementScale>(l1ScaleOffset + L1SCALE_TILE_SIZE * i);
             l1ScaleEventList[i] = i + L1_STAGES + L1_STAGES;
-            if (FIX_MTE2_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[i]);
-            } else {
-                // AscendC::printf("InitL1 SetFlag FIX_MTE2 l1ScaleEventList[i] %d\n", l1ScaleEventList[i]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[i]);
         }
     }
 
@@ -391,11 +337,7 @@ private:
         for (uint32_t i = 0; i < L0A_STAGES; ++i) {
             l0ATensorList[i] = resource.l0ABuf.template GetBufferByByte<ElementA>(L0A_TILE_SIZE * i);
             l0AEventList[i] = i;
-            if (M_MTE1_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[i]);
-            } else {
-                // AscendC::printf("InitL0A SetFlag M_MTE1 l0AEventList[i] %d\n", l0AEventList[i]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[i]);
         }
     }
 
@@ -405,11 +347,7 @@ private:
         for (uint32_t i = 0; i < L0B_STAGES; ++i) {
             l0BTensorList[i] = resource.l0BBuf.template GetBufferByByte<ElementB>(L0B_TILE_SIZE * i);
             l0BEventList[i] = i + L0A_STAGES;
-            if (M_MTE1_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[i]);
-            } else {
-                // AscendC::printf("InitL0B SetFlag M_MTE1 l0BEventList[i] %d\n", l0BEventList[i]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[i]);
         }
     }
 
@@ -419,11 +357,7 @@ private:
         for (uint32_t i = 0; i < L0C_STAGES; ++i) {
             l0CTensorList[i] = resource.l0CBuf.template GetBufferByByte<ElementAccumulator>(L0C_TILE_SIZE * i);
             l0CEventList[i] = i;
-            if (FIX_M_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CEventList[i]);
-            } else {
-                // AscendC::printf("InitL0C SetFlag FIX_M l0CEventList[i] %d\n", l0CEventList[i]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CEventList[i]);
         }
     }
 
@@ -442,17 +376,9 @@ private:
         auto layoutScaleInFP = layout::VectorLayout(L0TileShape::N);
         if (params.isKLoopFirst) {
             auto l1ScaleTile = l1ScaleTensorList[params.l1ScaleListId];
-            if (MTE2_FIX_FLAG) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE2_FIX>(l1ScaleEventList[params.l1ScaleListId]);
-            } else {
-                // AscendC::printf("L1TileMmad WaitFlag MTE2_FIX l1ScaleEventList[params.l1ScaleListId] %d\n", l1ScaleEventList[params.l1ScaleListId]);
-            }
+            AscendC::WaitFlag<AscendC::HardEvent::MTE2_FIX>(l1ScaleEventList[params.l1ScaleListId]);
             copyL1ToFP(FPScaleTensor, l1ScaleTile, layoutScaleInFP, layoutScaleInL1);
-            if (FIX_MTE2_FLAG) {
-                AscendC::SetFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[params.l1ScaleListId]);
-            } else {
-                // AscendC::printf("L1TileMmad SetFlag FIX_MTE2 l1ScaleEventList[params.l1ScaleListId] %d\n", l1ScaleEventList[params.l1ScaleListId]);
-            }
+            AscendC::SetFlag<AscendC::HardEvent::FIX_MTE2>(l1ScaleEventList[params.l1ScaleListId]);
         }
 
         uint32_t mPartLoop = CeilDiv<L0TileShape::M>(params.mRound);
@@ -466,11 +392,7 @@ private:
 
         if constexpr (!ENABLE_UNIT_FLAG) {
             if (params.isKLoopFirst) {
-                if (FIX_M_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CEventList[l0CListId]);
-                } else {
-                    // AscendC::printf("L1TileMmad WaitFlag FIX_M l0CEventList[l0CListId] %d\n", l0CEventList[l0CListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CEventList[l0CListId]);
             }
         }
         LayoutCInL0 layoutCInL0Copy = LayoutCInL0::MakeLayoutInL0C(MakeCoord(params.mRound, L0TileShape::N));
@@ -488,25 +410,13 @@ private:
                 auto l1AOffset = MakeCoord(mPartIdx, kPartIdx) * L0TileShape::ToCoordMK();
                 auto l1ATile = l1ATensor[L1A_LAYOUT.GetOffset(l1AOffset)];
 
-                if (M_MTE1_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0AListId]);
-                } else {
-                    // AscendC::printf("L1TileMmad WaitFlag M_MTE1 l0AEventList[l0AListId] %d\n", l0AEventList[l0AListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0AListId]);
                 if ((mPartIdx == 0) && (kPartIdx == 0)) {
-                    if (MTE2_MTE1_FLAG) {
-                        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1AEventList[params.l1ListId]);
-                    } else {
-                        // AscendC::printf("L1TileMmad WaitFlag MTE2_MTE1 l1AEventList[params.l1ListId] %d\n", l1AEventList[params.l1ListId]);
-                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1AEventList[params.l1ListId]);
                 }
                 copyL1ToL0A(l0ATile, l1ATile, layoutAInL0, L1A_LAYOUT);
                 if ((mPartIdx == mPartLoop - 1) && (kPartIdx == kPartLoop - 1)) {
-                    if (MTE1_MTE2_FLAG) {
-                        AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[params.l1ListId]);
-                    } else {
-                        // AscendC::printf("L1TileMmad SetFlag MTE1_MTE2 l1AEventList[params.l1ListId] %d\n", l1AEventList[params.l1ListId]);
-                    }
+                    AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1AEventList[params.l1ListId]);
                 }
 
                 for (uint32_t nPartIdx = 0; nPartIdx < nPartLoop; ++nPartIdx) {
@@ -518,41 +428,21 @@ private:
                     auto l1BOffset = MakeCoord(kPartIdx, nPartIdx) * L0TileShape::ToCoordKN();
                     auto l1BTile = l1BTensor[L1B_LAYOUT.GetOffset(l1BOffset)];
 
-                    if (M_MTE1_FLAG) {
-                        AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[l0BListId]);
-                    } else {
-                        // AscendC::printf("L1TileMmad WaitFlag M_MTE1 l0BEventList[l0BListId] %d\n", l0BEventList[l0BListId]);
-                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[l0BListId]);
                     if ((kPartIdx == 0) && (nPartIdx == 0)) {
-                        if (MTE2_MTE1_FLAG) {
-                            AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1BEventList[params.l1ListId]);
-                        } else {
-                            // AscendC::printf("L1TileMmad WaitFlag MTE2_MTE1 l1BEventList[params.l1ListId] %d\n", l1BEventList[params.l1ListId]);
-                        }
+                        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1BEventList[params.l1ListId]);
                     }
                     copyL1ToL0B(l0BTile, l1BTile, layoutBInL0, L1B_LAYOUT);
                     if ((kPartIdx == kPartLoop - 1) && (nPartIdx == nPartLoop - 1)) {
-                        if (MTE1_MTE2_FLAG) {
-                            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[params.l1ListId]);
-                        } else {
-                            // AscendC::printf("L1TileMmad SetFlag MTE1_MTE2 l1BEventList[params.l1ListId] %d\n", l1BEventList[params.l1ListId]);
-                        }
+                        AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1BEventList[params.l1ListId]);
                     }
 
-                    if (MTE1_M_FLAG) {
-                        AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
-                    } else {
-                        // AscendC::printf("L1TileMmad SetFlag MTE1_M EVENT_ID0 %d\n", EVENT_ID0);
-                    }
+                    AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
 
                     auto l0COffset = MakeCoord(mPartIdx, nPartIdx) * L0TileShape::ToCoordMN();
                     auto l0CTile = l0CTensor[layoutCInL0.GetOffset(l0COffset)];
 
-                    if (MTE1_M_FLAG) {
-                        AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
-                    } else {
-                        // AscendC::printf("L1TileMmad WaitFlag MTE1_M EVENT_ID0 %d\n", EVENT_ID0);
-                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
                     // If the current tile is the first tile on the k axis, the accumulator needs to be reset to 0
                     bool initC = (params.isKLoopFirst && (kPartIdx == 0));
                     // If the unit flag is enabled, the unit flag is set according to the calculation progress
@@ -567,18 +457,10 @@ private:
                     }
                     tileMmad(l0CTile, l0ATile, l0BTile, mPartActual, nPartActual, kPartActual, initC, unitFlag);
 
-                    if (M_MTE1_FLAG) {
-                        AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[l0BListId]);
-                    } else {
-                        // AscendC::printf("L1TileMmad SetFlag M_MTE1 l0BEventList[l0BListId] %d\n", l0BEventList[l0BListId]);
-                    }
+                    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0BEventList[l0BListId]);
                     l0BListId = (l0BListId + 1 < L0B_STAGES) ? (l0BListId + 1) : 0;
                 }
-                if (M_MTE1_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0AListId]);
-                } else {
-                    // AscendC::printf("L1TileMmad SetFlag M_MTE1 l0AEventList[l0AListId] %d\n", l0AEventList[l0AListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0AEventList[l0AListId]);
                 l0AListId = (l0AListId + 1 < L0A_STAGES) ? (l0AListId + 1) : 0;
             }
         }
@@ -590,13 +472,8 @@ private:
             }
 
             if constexpr (!ENABLE_UNIT_FLAG) {
-                if (M_FIX_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::M_FIX>(l0CEventList[l0CListId]);
-                    AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(l0CEventList[l0CListId]);
-                } else {
-                    // AscendC::printf("L1TileMmad SetFlag M_FIX l0CEventList[l0CListId] %d\n", l0CEventList[l0CListId]);
-                    // AscendC::printf("L1TileMmad WaitFlag M_FIX l0CEventList[l0CListId] %d\n", l0CEventList[l0CListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::M_FIX>(l0CEventList[l0CListId]);
+                AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(l0CEventList[l0CListId]);
 
                 if (params.isAtomicAdd) {
                     AscendC::SetAtomicAdd<ElementC>();
@@ -605,11 +482,7 @@ private:
                 if (params.isAtomicAdd) {
                     AscendC::SetAtomicNone();
                 }
-                if (FIX_M_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CEventList[l0CListId]);
-                } else {
-                    // AscendC::printf("L1TileMmad SetFlag FIX_M l0CEventList[l0CListId] %d\n", l0CEventList[l0CListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CEventList[l0CListId]);
             } else {
                 if (params.isAtomicAdd) {
                     AscendC::SetAtomicAdd<ElementC>();
