@@ -45,6 +45,7 @@ int64_t seqLen;                   // Sequence length for 3D input
 int64_t cuSeqLen;                 // Cumulative sequence length for 2D input
 int64_t dim;                      // Dimension size
 int64_t kernelSize;               // Kernel size K
+int64_t stateLen;                 // State length: second dimension of cacheState (K-1+m)
 int64_t xInputMode;               // Input mode: 0 for 3D 1 for 2D
 };
 
