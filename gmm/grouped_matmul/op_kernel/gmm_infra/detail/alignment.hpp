@@ -58,7 +58,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto CeilDiv(T const &dividend, U const &divisor)
 {
-	if (divisor == 0) return val;
+	if (divisor == 0) return dividend;
     return (dividend + divisor - 1) / divisor;
 }
 
