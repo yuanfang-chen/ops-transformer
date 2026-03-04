@@ -2052,7 +2052,7 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV4GetWorkspaceSize(
                           inputLayout, innerPrecise, sparseMode, softmaxInLayout),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(inputLayout, "TND")) {	 
+    if (strcmp(inputLayout, "TND") != 0) {	 
          OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
          return ACLNN_ERR_PARAM_INVALID;	 
     }
