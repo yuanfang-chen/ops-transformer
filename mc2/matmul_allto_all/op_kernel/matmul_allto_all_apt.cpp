@@ -26,7 +26,7 @@
 #include "./arch32/matmul_allto_all_tiling_key_910_93.h"
 #include "./arch32/matmul_allto_all_910_93.h"
 #endif
-#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3101
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3510
 #include "./arch35/matmul_allto_all_tiling_key.h"
 #include "./arch35/matmul_allto_all_arch35.h"
 #include "./arch35/kc_quant_matmul_allto_all_arch35.h"
@@ -149,7 +149,7 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     MATMUL_ALLTO_ALL_A3_BODY(x1, x2, bias, y, workspaceGM, tilingGM);
 #endif
 
-#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3101
+#if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3510
 #if ((ORIG_DTYPE_X1 == ORIG_DTYPE_X2) && ((ORIG_DTYPE_X1 == DT_FLOAT16) || (ORIG_DTYPE_X1 == DT_BF16)))
     TPipe pipe;
     // 注册默认的tilingdata，需要保证有且只有一个默认tilingdata被注册
