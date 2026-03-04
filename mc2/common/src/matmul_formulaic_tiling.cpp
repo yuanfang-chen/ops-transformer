@@ -340,8 +340,8 @@ void MatmulFormulaicTiling::InitTilingArgs(TilingArgs &args) {
   args_.cDtypeSize = args.outputDtypeSize;
   args_.rankDim = args.rankDim;
   args_.rankM = args.mValue * args.rankDim;
-  if (args.commAlg == optiling::COMM_ALG_DOUBLE_RING && !args.isLocal) {
-    args_.rankM *= optiling::DOUBLE_RING_FACTOR;
+  if (args.commAlg == Mc2Tiling::COMM_ALG_DOUBLE_RING && !args.isLocal) {
+    args_.rankM *= Mc2Tiling::DOUBLE_RING_FACTOR;
   }
   OP_LOGD(opName_, " args_.rankM: %u.", args_.rankM);
   args_.rankTileM = args.rankTileNum * args.mValue;

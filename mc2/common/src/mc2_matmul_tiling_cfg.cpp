@@ -1,26 +1,21 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
-
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 /* !
  * \file mc2_matmul_tiling_cfg.cpp
  * \brief
  */
 
-#include "mc2_matmul_tiling_cfg.h"
-#include "util/math_util.h"
+#include "tiling/mc2_matmul_tiling_cfg.h"
 
 namespace Mc2MatmulHelper {
-
-constexpr int32_t BASEM_ALIGN_SIZE = 16;
-
-void Mc2MatmulTilingCfg::SetMatMulV3TilingData(Mc2MatMulV3TilingData& tilingData)
+void Mc2MatmulTilingCfg::SetMatMulV3TilingData(optiling::MC2MatmulV3TilingData& tilingData)
 {
     mc2MmV3TilingData_ = &tilingData;
 }
@@ -42,86 +37,83 @@ void Mc2MatmulTilingCfg::Update(const optiling::Mc2TilingResult& result)
 void Mc2MatmulTilingCfg::SetMMTilingData() const
 {
     DealBaseBlock();
-    mc2MmV3TilingData_->tCubeTiling.usedCoreNum = mmv3TilingData_->tCubeTiling.usedCoreNum;
-    mc2MmV3TilingData_->tCubeTiling.M = mmv3TilingData_->tCubeTiling.M;
-    mc2MmV3TilingData_->tCubeTiling.N = mmv3TilingData_->tCubeTiling.N;
-    mc2MmV3TilingData_->tCubeTiling.Ka = mmv3TilingData_->tCubeTiling.Ka;
-    mc2MmV3TilingData_->tCubeTiling.Kb = mmv3TilingData_->tCubeTiling.Kb;
-    mc2MmV3TilingData_->tCubeTiling.depthA1 = mmv3TilingData_->tCubeTiling.depthA1;
-    mc2MmV3TilingData_->tCubeTiling.depthB1 = mmv3TilingData_->tCubeTiling.depthB1;
-    mc2MmV3TilingData_->tCubeTiling.stepM = mmv3TilingData_->tCubeTiling.stepM;
-    mc2MmV3TilingData_->tCubeTiling.stepN = mmv3TilingData_->tCubeTiling.stepN;
-    mc2MmV3TilingData_->tCubeTiling.isBias = mmv3TilingData_->tCubeTiling.isBias;
-    mc2MmV3TilingData_->tCubeTiling.transLength = mmv3TilingData_->tCubeTiling.transLength;
-    mc2MmV3TilingData_->tCubeTiling.iterateOrder = mmv3TilingData_->tCubeTiling.iterateOrder;
-    mc2MmV3TilingData_->tCubeTiling.shareMode = mmv3TilingData_->tCubeTiling.shareMode;
-    mc2MmV3TilingData_->tCubeTiling.shareL1Size = mmv3TilingData_->tCubeTiling.shareL1Size;
-    mc2MmV3TilingData_->tCubeTiling.shareL0CSize = mmv3TilingData_->tCubeTiling.shareL0CSize;
-    mc2MmV3TilingData_->tCubeTiling.shareUbSize = mmv3TilingData_->tCubeTiling.shareUbSize;
-    mc2MmV3TilingData_->tCubeTiling.batchM = mmv3TilingData_->tCubeTiling.batchM;
-    mc2MmV3TilingData_->tCubeTiling.batchN = mmv3TilingData_->tCubeTiling.batchN;
-    mc2MmV3TilingData_->tCubeTiling.singleBatchM = mmv3TilingData_->tCubeTiling.singleBatchM;
-    mc2MmV3TilingData_->tCubeTiling.singleBatchN = mmv3TilingData_->tCubeTiling.singleBatchN;
-    mc2MmV3TilingData_->tCubeTiling.stepKa = mmv3TilingData_->tCubeTiling.stepKa;
-    mc2MmV3TilingData_->tCubeTiling.stepKb = mmv3TilingData_->tCubeTiling.stepKb;
-    mc2MmV3TilingData_->tCubeTiling.depthAL1CacheUB = mmv3TilingData_->tCubeTiling.depthAL1CacheUB;
-    mc2MmV3TilingData_->tCubeTiling.depthBL1CacheUB = mmv3TilingData_->tCubeTiling.depthBL1CacheUB;
-    mc2MmV3TilingData_->tCubeTiling.dbL0A = mmv3TilingData_->tCubeTiling.dbL0A;
-    mc2MmV3TilingData_->tCubeTiling.dbL0B = mmv3TilingData_->tCubeTiling.dbL0B;
-    mc2MmV3TilingData_->tCubeTiling.dbL0C = mmv3TilingData_->tCubeTiling.dbL0C;
-    mc2MmV3TilingData_->tCubeTiling.ALayoutInfoB = mmv3TilingData_->tCubeTiling.ALayoutInfoB;
-    mc2MmV3TilingData_->tCubeTiling.ALayoutInfoS = mmv3TilingData_->tCubeTiling.ALayoutInfoS;
-    mc2MmV3TilingData_->tCubeTiling.ALayoutInfoN = mmv3TilingData_->tCubeTiling.ALayoutInfoN;
-    mc2MmV3TilingData_->tCubeTiling.ALayoutInfoG = mmv3TilingData_->tCubeTiling.ALayoutInfoG;
-    mc2MmV3TilingData_->tCubeTiling.ALayoutInfoD = mmv3TilingData_->tCubeTiling.ALayoutInfoD;
-    mc2MmV3TilingData_->tCubeTiling.BLayoutInfoB = mmv3TilingData_->tCubeTiling.BLayoutInfoB;
-    mc2MmV3TilingData_->tCubeTiling.BLayoutInfoS = mmv3TilingData_->tCubeTiling.BLayoutInfoS;
-    mc2MmV3TilingData_->tCubeTiling.BLayoutInfoN = mmv3TilingData_->tCubeTiling.BLayoutInfoN;
-    mc2MmV3TilingData_->tCubeTiling.BLayoutInfoG = mmv3TilingData_->tCubeTiling.BLayoutInfoG;
-    mc2MmV3TilingData_->tCubeTiling.BLayoutInfoD = mmv3TilingData_->tCubeTiling.BLayoutInfoD;
-    mc2MmV3TilingData_->tCubeTiling.CLayoutInfoB = mmv3TilingData_->tCubeTiling.CLayoutInfoB;
-    mc2MmV3TilingData_->tCubeTiling.CLayoutInfoS1 = mmv3TilingData_->tCubeTiling.CLayoutInfoS1;
-    mc2MmV3TilingData_->tCubeTiling.CLayoutInfoS2 = mmv3TilingData_->tCubeTiling.CLayoutInfoS2;
-    mc2MmV3TilingData_->tCubeTiling.CLayoutInfoN = mmv3TilingData_->tCubeTiling.CLayoutInfoN;
-    mc2MmV3TilingData_->tCubeTiling.CLayoutInfoG = mmv3TilingData_->tCubeTiling.CLayoutInfoG;
-    mc2MmV3TilingData_->tCubeTiling.BatchNum = mmv3TilingData_->tCubeTiling.BatchNum;
-    mc2MmV3TilingData_->tCubeTiling.mxTypePara = mmv3TilingData_->tCubeTiling.mxTypePara;
+    mc2MmV3TilingData_->matmulTiling.set_usedCoreNum(mmv3TilingData_->tCubeTiling.usedCoreNum);
+    mc2MmV3TilingData_->matmulTiling.set_M(mmv3TilingData_->tCubeTiling.M);
+    mc2MmV3TilingData_->matmulTiling.set_N(mmv3TilingData_->tCubeTiling.N);
+    mc2MmV3TilingData_->matmulTiling.set_Ka(mmv3TilingData_->tCubeTiling.Ka);
+    mc2MmV3TilingData_->matmulTiling.set_Kb(mmv3TilingData_->tCubeTiling.Kb);
+    mc2MmV3TilingData_->matmulTiling.set_depthA1(mmv3TilingData_->tCubeTiling.depthA1);
+    mc2MmV3TilingData_->matmulTiling.set_depthB1(mmv3TilingData_->tCubeTiling.depthB1);
+    mc2MmV3TilingData_->matmulTiling.set_stepM(mmv3TilingData_->tCubeTiling.stepM);
+    mc2MmV3TilingData_->matmulTiling.set_stepN(mmv3TilingData_->tCubeTiling.stepN);
+    mc2MmV3TilingData_->matmulTiling.set_isBias(mmv3TilingData_->tCubeTiling.isBias);
+    mc2MmV3TilingData_->matmulTiling.set_transLength(mmv3TilingData_->tCubeTiling.transLength);
+    mc2MmV3TilingData_->matmulTiling.set_iterateOrder(mmv3TilingData_->tCubeTiling.iterateOrder);
+    mc2MmV3TilingData_->matmulTiling.set_shareMode(mmv3TilingData_->tCubeTiling.shareMode);
+    mc2MmV3TilingData_->matmulTiling.set_shareL1Size(mmv3TilingData_->tCubeTiling.shareL1Size);
+    mc2MmV3TilingData_->matmulTiling.set_shareL0CSize(mmv3TilingData_->tCubeTiling.shareL0CSize);
+    mc2MmV3TilingData_->matmulTiling.set_shareUbSize(mmv3TilingData_->tCubeTiling.shareUbSize);
+    mc2MmV3TilingData_->matmulTiling.set_batchM(mmv3TilingData_->tCubeTiling.batchM);
+    mc2MmV3TilingData_->matmulTiling.set_batchN(mmv3TilingData_->tCubeTiling.batchN);
+    mc2MmV3TilingData_->matmulTiling.set_singleBatchM(mmv3TilingData_->tCubeTiling.singleBatchM);
+    mc2MmV3TilingData_->matmulTiling.set_singleBatchN(mmv3TilingData_->tCubeTiling.singleBatchN);
+    mc2MmV3TilingData_->matmulTiling.set_stepKa(mmv3TilingData_->tCubeTiling.stepKa);
+    mc2MmV3TilingData_->matmulTiling.set_stepKb(mmv3TilingData_->tCubeTiling.stepKb);
+    mc2MmV3TilingData_->matmulTiling.set_depthAL1CacheUB(mmv3TilingData_->tCubeTiling.depthAL1CacheUB);
+    mc2MmV3TilingData_->matmulTiling.set_depthBL1CacheUB(mmv3TilingData_->tCubeTiling.depthBL1CacheUB);
+    mc2MmV3TilingData_->matmulTiling.set_dbL0A(mmv3TilingData_->tCubeTiling.dbL0A);
+    mc2MmV3TilingData_->matmulTiling.set_dbL0B(mmv3TilingData_->tCubeTiling.dbL0B);
+    mc2MmV3TilingData_->matmulTiling.set_dbL0C(mmv3TilingData_->tCubeTiling.dbL0C);
+    mc2MmV3TilingData_->matmulTiling.set_ALayoutInfoB(mmv3TilingData_->tCubeTiling.ALayoutInfoB);
+    mc2MmV3TilingData_->matmulTiling.set_ALayoutInfoS(mmv3TilingData_->tCubeTiling.ALayoutInfoS);
+    mc2MmV3TilingData_->matmulTiling.set_ALayoutInfoN(mmv3TilingData_->tCubeTiling.ALayoutInfoN);
+    mc2MmV3TilingData_->matmulTiling.set_ALayoutInfoG(mmv3TilingData_->tCubeTiling.ALayoutInfoG);
+    mc2MmV3TilingData_->matmulTiling.set_ALayoutInfoD(mmv3TilingData_->tCubeTiling.ALayoutInfoD);
+    mc2MmV3TilingData_->matmulTiling.set_BLayoutInfoB(mmv3TilingData_->tCubeTiling.BLayoutInfoB);
+    mc2MmV3TilingData_->matmulTiling.set_BLayoutInfoS(mmv3TilingData_->tCubeTiling.BLayoutInfoS);
+    mc2MmV3TilingData_->matmulTiling.set_BLayoutInfoN(mmv3TilingData_->tCubeTiling.BLayoutInfoN);
+    mc2MmV3TilingData_->matmulTiling.set_BLayoutInfoG(mmv3TilingData_->tCubeTiling.BLayoutInfoG);
+    mc2MmV3TilingData_->matmulTiling.set_BLayoutInfoD(mmv3TilingData_->tCubeTiling.BLayoutInfoD);
+    mc2MmV3TilingData_->matmulTiling.set_CLayoutInfoB(mmv3TilingData_->tCubeTiling.CLayoutInfoB);
+    mc2MmV3TilingData_->matmulTiling.set_CLayoutInfoS1(mmv3TilingData_->tCubeTiling.CLayoutInfoS1);
+    mc2MmV3TilingData_->matmulTiling.set_CLayoutInfoS2(mmv3TilingData_->tCubeTiling.CLayoutInfoS2);
+    mc2MmV3TilingData_->matmulTiling.set_CLayoutInfoN(mmv3TilingData_->tCubeTiling.CLayoutInfoN);
+    mc2MmV3TilingData_->matmulTiling.set_CLayoutInfoG(mmv3TilingData_->tCubeTiling.CLayoutInfoG);
+    mc2MmV3TilingData_->matmulTiling.set_BatchNum(mmv3TilingData_->tCubeTiling.BatchNum);
+    mc2MmV3TilingData_->matmulTiling.set_mxTypePara(mmv3TilingData_->tCubeTiling.mxTypePara);
 }
 
 void Mc2MatmulTilingCfg::SetTailCntAndType() const
 {
-    mc2MmV3TilingData_->kTailCnt = mmv3TilingData_->kTailCnt;
+    mc2MmV3TilingData_->set_kTailCnt(mmv3TilingData_->kTailCnt);
     if (baseMLimit_ < 0) {
         OP_LOGE("Mc2MatmulTilingCfg", "baseMLimit_ is %d!", baseMLimit_);
         return;
     } else if (baseMLimit_ == 0) {
-        mc2MmV3TilingData_->mTailCnt = mmv3TilingData_->mTailCnt;
-        mc2MmV3TilingData_->nTailCnt = mmv3TilingData_->nTailCnt;
-        mc2MmV3TilingData_->mBaseTailSplitCnt = mmv3TilingData_->mBaseTailSplitCnt;
-        mc2MmV3TilingData_->nBaseTailSplitCnt = mmv3TilingData_->nBaseTailSplitCnt;
-        mc2MmV3TilingData_->mTailMain = mmv3TilingData_->mTailMain;
-        mc2MmV3TilingData_->nTailMain = mmv3TilingData_->nTailMain;
-        mc2MmV3TilingData_->isHf32 = mmv3TilingData_->isHf32;
-        mc2MmV3TilingData_->aswWindowLen = mmv3TilingData_->aswWindowLen;
+        mc2MmV3TilingData_->set_mTailCnt(mmv3TilingData_->mTailCnt);
+        mc2MmV3TilingData_->set_nTailCnt(mmv3TilingData_->nTailCnt);
+        mc2MmV3TilingData_->set_mBaseTailSplitCnt(mmv3TilingData_->mBaseTailSplitCnt);
+        mc2MmV3TilingData_->set_nBaseTailSplitCnt(mmv3TilingData_->nBaseTailSplitCnt);
+        mc2MmV3TilingData_->set_mTailMain(mmv3TilingData_->mTailMain);
+        mc2MmV3TilingData_->set_nTailMain(mmv3TilingData_->nTailMain);
         return;
     }
 
-    int64_t baseM = static_cast<int64_t>(mc2MmV3TilingData_->tCubeTiling.baseM);
-    int64_t baseN = static_cast<int64_t>(mc2MmV3TilingData_->tCubeTiling.baseN);
-    int64_t nValue = static_cast<int64_t>(mc2MmV3TilingData_->tCubeTiling.N);
-    int64_t coreNum = static_cast<int64_t>(mc2MmV3TilingData_->tCubeTiling.usedCoreNum);
+    uint64_t baseM = static_cast<uint64_t>(mc2MmV3TilingData_->matmulTiling.get_baseM());
+    uint64_t baseN = static_cast<uint64_t>(mc2MmV3TilingData_->matmulTiling.get_baseN());
+    uint64_t nValue = static_cast<uint64_t>(mc2MmV3TilingData_->matmulTiling.get_N());
+    uint64_t coreNum = static_cast<uint64_t>(mc2MmV3TilingData_->matmulTiling.get_usedCoreNum());
     if ((baseM == 0) || (baseN == 0) || (coreNum == 0)) {
         OP_LOGE("Mc2MatmulTilingCfg", "baseM is %lu, baseN is %lu coreNum is %lu!", baseM, baseN, coreNum);
         return;
     }
-    int64_t mCnt = static_cast<int64_t>(((static_cast<int64_t>(baseMLimit_) + baseM - 1) / baseM) * 
-                   static_cast<int64_t>(rankDim_) * static_cast<int64_t>(commCnt_));
-    int64_t nCnt = static_cast<int64_t>((nValue + baseN - 1) / baseN);
-    int64_t mnCnt = static_cast<int64_t>(mCnt * nCnt);
-    int64_t tailCnt = static_cast<int64_t>(mnCnt % coreNum);
+    uint64_t mCnt = ((baseMLimit_ + baseM - 1) / baseM) * rankDim_ * commCnt_;
+    uint64_t nCnt = (nValue + baseN - 1) / baseN;
+    uint64_t mnCnt = mCnt * nCnt;
+    uint64_t tailCnt = mnCnt % coreNum;
 
-    int64_t mTailCnt = 1;
-    int64_t nTailCnt = 1;
+    uint64_t mTailCnt = 1;
+    uint64_t nTailCnt = 1;
 
     if (tailCnt != 0) {
         while ((mTailCnt + 1) * nTailCnt * tailCnt <= coreNum) {
@@ -132,14 +124,13 @@ void Mc2MatmulTilingCfg::SetTailCntAndType() const
         }
     }
 
-    mc2MmV3TilingData_->mTailCnt = static_cast<unsigned int>(mTailCnt);
-    mc2MmV3TilingData_->nTailCnt = static_cast<unsigned int>(nTailCnt);
-    mc2MmV3TilingData_->mBaseTailSplitCnt = mmv3TilingData_->mBaseTailSplitCnt;
-    mc2MmV3TilingData_->nBaseTailSplitCnt = mmv3TilingData_->nBaseTailSplitCnt;
-    mc2MmV3TilingData_->mTailMain = mmv3TilingData_->mTailMain;
-    mc2MmV3TilingData_->nTailMain = mmv3TilingData_->nTailMain;
-    mc2MmV3TilingData_->isHf32 = mmv3TilingData_->isHf32;
-    mc2MmV3TilingData_->aswWindowLen = mmv3TilingData_->aswWindowLen;
+    mc2MmV3TilingData_->set_mTailCnt(mTailCnt);
+    mc2MmV3TilingData_->set_nTailCnt(nTailCnt);
+    mc2MmV3TilingData_->set_mBaseTailSplitCnt(mmv3TilingData_->mBaseTailSplitCnt);
+    mc2MmV3TilingData_->set_nBaseTailSplitCnt(mmv3TilingData_->nBaseTailSplitCnt);
+    mc2MmV3TilingData_->set_mTailMain(mmv3TilingData_->mTailMain);
+    mc2MmV3TilingData_->set_nTailMain(mmv3TilingData_->nTailMain);
+    mc2MmV3TilingData_->set_isHf32(mmv3TilingData_->isHf32);
 }
 
 void Mc2MatmulTilingCfg::DealBaseBlock() const
@@ -148,17 +139,17 @@ void Mc2MatmulTilingCfg::DealBaseBlock() const
         OP_LOGE("Mc2MatmulTilingCfg", "baseMLimit_ is %d!", baseMLimit_);
         return;
     } else if ((baseMLimit_ > 0) && (mmv3TilingData_->tCubeTiling.baseM > baseMLimit_)) {
-        mc2MmV3TilingData_->tCubeTiling.singleCoreM = baseMLimit_;
-        mc2MmV3TilingData_->tCubeTiling.baseM = Ops::Base::CeilAlign(baseMLimit_, BASEM_ALIGN_SIZE);
+        mc2MmV3TilingData_->matmulTiling.set_singleCoreM(baseMLimit_);
+        mc2MmV3TilingData_->matmulTiling.set_baseM(baseMLimit_);
     } else {
-        mc2MmV3TilingData_->tCubeTiling.singleCoreM = mmv3TilingData_->tCubeTiling.singleCoreM;
-        mc2MmV3TilingData_->tCubeTiling.baseM = mmv3TilingData_->tCubeTiling.baseM;
+        mc2MmV3TilingData_->matmulTiling.set_singleCoreM(mmv3TilingData_->tCubeTiling.singleCoreM);
+        mc2MmV3TilingData_->matmulTiling.set_baseM(mmv3TilingData_->tCubeTiling.baseM);
     }
 
-    mc2MmV3TilingData_->tCubeTiling.singleCoreN = mmv3TilingData_->tCubeTiling.singleCoreN;
-    mc2MmV3TilingData_->tCubeTiling.singleCoreK = mmv3TilingData_->tCubeTiling.singleCoreK;
-    mc2MmV3TilingData_->tCubeTiling.baseN = mmv3TilingData_->tCubeTiling.baseN;
-    mc2MmV3TilingData_->tCubeTiling.baseK = mmv3TilingData_->tCubeTiling.baseK;
+    mc2MmV3TilingData_->matmulTiling.set_singleCoreN(mmv3TilingData_->tCubeTiling.singleCoreN);
+    mc2MmV3TilingData_->matmulTiling.set_singleCoreK(mmv3TilingData_->tCubeTiling.singleCoreK);
+    mc2MmV3TilingData_->matmulTiling.set_baseN(mmv3TilingData_->tCubeTiling.baseN);
+    mc2MmV3TilingData_->matmulTiling.set_baseK(mmv3TilingData_->tCubeTiling.baseK);
 }
 
 void Mc2MatmulTilingCfg::SetRankDim(uint64_t rankDim)

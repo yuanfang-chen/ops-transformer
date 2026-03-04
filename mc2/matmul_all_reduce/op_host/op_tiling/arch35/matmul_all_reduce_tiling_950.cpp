@@ -13,7 +13,7 @@
  * \brief
  */
 #include "matmul_all_reduce_tiling_950.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "tiling/mc2_matmul_tiling_utils.h"
 #include "op_mc2.h"
 #include "mc2/matmul_all_reduce/op_kernel/matmul_all_reduce_apt_tiling_key.h"
 
@@ -172,11 +172,11 @@ ge::graphStatus MatmulAllReduceTilingA5::Do910Tiling()
 
     // 根据芯片型号获取策略模板
     std::vector<int32_t> priorities;
-    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(mc2tiling::GetMatmulV3PriorityPolicy(npuArch_, priorities, opName_) != ge::GRAPH_SUCCESS,
                     VECTOR_INNER_ERR_REPORT_TILING(opName_, "Get mmv3 priority policy failed."),
                     return ge::GRAPH_FAILED);
     Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", npuArch_, priorities};
-    mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
+    mc2tiling::UpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 获取tileTiling
     mmV3Args_.mValue = tileMValue_;
