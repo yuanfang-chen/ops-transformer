@@ -27,7 +27,6 @@ ge::graphStatus AlltoAllvGmmTilingBase::GetCommonPlatformInfo()
         VECTOR_INNER_ERR_REPORT_TILING(context_->GetNodeName(), "can not get platform info."), return ge::GRAPH_FAILED);
 
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-    socVersion_ = ascendcPlatform.GetSocVersion();
     aicCoreNum_ = ascendcPlatform.GetCoreNumAic();
     aivCoreNum_ = ascendcPlatform.GetCoreNumAiv();
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
@@ -164,7 +163,7 @@ ge::graphStatus AlltoAllvGmmTilingBase::CheckEpWorldSizeValue()
     // check epWorldSize in socVersion
     std::vector<int64_t> epWorldSizeValueList;
     std::string epWorldSizeValueStr = "";
-    if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
+    if (ascendcPlatform.GetCurNpuArch() == NpuArch::DAV_3510) {
         epWorldSizeValueList = { 2, 4, 8, 16, 32, 64, 128, 256 }; // epWorldSize value only support 2, 4, 8, 16, 32, 64, 128, 256
     } else {
         epWorldSizeValueList = { 8, 16, 32, 64, 128 }; // epWorldSize value only support 8, 16, 32, 64, 128
