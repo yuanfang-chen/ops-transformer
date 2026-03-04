@@ -312,7 +312,7 @@ protected:
     bool enableIFAMLAFullQuant = false;
     // MLPerf合轴优化
     bool enablePFAMerge = false;
-    uint32_t pfaMergeGLimit = 32;
+    uint32_t pfaMergeGLimit = 16;
     uint32_t pfaMergeQsLimit = 4;
     bool enablePFAMLA = false;
     bool enablePFARope = false;
