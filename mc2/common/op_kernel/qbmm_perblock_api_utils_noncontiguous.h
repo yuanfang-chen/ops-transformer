@@ -15,7 +15,7 @@
 #ifndef QBMM_PERBLOCK_API_UTILS_NONCONTIGUOUS_H
 #define QBMM_PERBLOCK_API_UTILS_NONCONTIGUOUS_H
 
-#include "qbmm_mix_perblock_noncontiguous.h"
+#include "op_kernel/qbmm_mix_perblock_noncontiguous.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_api_utils.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_asw_block.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_base.h"
