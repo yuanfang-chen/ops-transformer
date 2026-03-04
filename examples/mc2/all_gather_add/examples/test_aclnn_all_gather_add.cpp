@@ -165,7 +165,7 @@ int LaunchOneThreadAllGatherAdd(Args &args, TestData &testData)
     ret = aclnnAllGatherAddGetWorkspaceSize(
         a, b, hcomName, RANK_DIM, out, gatherOut, &workspaceSize, &executor);
     CHECK_RET(ret == ACL_SUCCESS,
-        LOG_PRINT("[ERROR] aclnnAllGatherAddGetWorkspaceSize failed. ret = %d \n", ret); return ret);
+        LOG_PRINT("[ERROR] aclnnAllGatherAddGetWorkspaceSize failed, all_gather_add Example failed. ret = %d \n", ret); return ret);
     // 根据第一阶段接口计算出的workspaceSize申请device内存
     if (workspaceSize > 0) {
         ret = aclrtMalloc(&workspaceAddr, workspaceSize, ACL_MEM_MALLOC_HUGE_FIRST);
