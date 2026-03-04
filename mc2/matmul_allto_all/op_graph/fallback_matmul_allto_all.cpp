@@ -13,7 +13,7 @@
  * \brief 动态shape图回调aclnn
  */
 #include "fallback/fallback.h"
-#include "op_mc2.h"
+#include "common/op_tiling/op_mc2.h"
 #include "op_tiling/mc2_log.h"
 
 namespace fallback {

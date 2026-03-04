@@ -12,7 +12,7 @@
  * \file mx_quant_matmul_allto_all_tiling_base.cpp
  * \brief
  */
-#include "op_mc2.h"
+#include "common/op_tiling/op_mc2.h"
 #include "op_tiling/mc2_log.h"
 #include "mx_quant_matmul_allto_all_tiling_base.h"
 

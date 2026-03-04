@@ -15,7 +15,7 @@
 #include "allto_all_fp_matmul_tiling_910_93.h"
 #include <string>
 #include <vector>
-#include "op_mc2.h"
+#include "common/op_tiling/op_mc2.h"
 #include "op_tiling/mc2_log.h"
 #include "platform/platform_infos_def.h"
 #include "hccl/hccl_types.h"
