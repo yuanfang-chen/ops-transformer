@@ -230,8 +230,8 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGetW
     int64_t preTokens, //新增参数
     int64_t nextTokens, //新增参数
     int64_t softmaxLseFlag, //新增参数
-    const aclTensor *attentionOut,
-    const aclTensor *softmaxLseOptional,
+    aclTensor *attentionOut,
+    aclTensor *softmaxLseOptional,
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
@@ -287,7 +287,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttention(
     void *workspace,
     uint64_t workspaceSize,
     aclOpExecutor *executor,
-    const aclrtStream stream)
+    aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnBlockSparseAttention);
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);

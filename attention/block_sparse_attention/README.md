@@ -22,7 +22,9 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
     const aclTensor *query,                    // Query输入 [B, S, H] or [T, N, D] or [B, N, S, D]
     const aclTensor *key,                      // Key输入 (TND or BNSD格式)
     const aclTensor *value,                    // Value输入 (TND or BNSD格式)
+    const aclTensor *blockSparseMask,          // 稀疏Mask
     const aclTensor *attenMask,                // Attention mask (可选)
+    const aclIntArray *blockShape,             // Attention mask (可选)
     const aclIntArray *actualSeqLengths,       // 实际Q序列长度 (可选)
     const aclIntArray *actualSeqLengthsKv,     // 实际KV序列长度 (可选)
     const aclTensor *blockTable,               // Block表 (可选,用于PagedAttention)
@@ -33,6 +35,9 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
     int64_t numKeyValueHeads,                  // KV头数
     int64_t maskType,                          // Mask类型
     double scaleValue,                         // 缩放因子
+    int64_t preTokens,                         // 滑窗参数
+    int64_t nextTokens,                        // 滑窗参数
+    int64_t softmaxLseFlag,                    // 是否输出LSE
     const aclIntArray *blockShape,             // 块形状 [blockShapeX, blockShapeY]
     const aclTensor *attentionOut,             // 输出tensor
     const aclTensor *softmaxLse,               // Softmax LSE输出 (可选)
