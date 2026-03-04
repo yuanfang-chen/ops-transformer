@@ -29,7 +29,7 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "mc2_log.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "tiling/mc2_matmul_tiling_utils.h"
 #include "all_gather_matmul_tiling_v2.h"
 
 using namespace Mc2Log;
@@ -71,12 +71,12 @@ ge::graphStatus AllGatherMatmulTilingV2::DoOpTiling()
     GE_ASSERT_GRAPH_SUCCESS(AdjustHCCLLimit(MutableRCSTilingData(), mc2tiling::Mc2QuantMode::DEFAULT));
     GE_ASSERT_GRAPH_SUCCESS(DoVersion2Tiling());
     DoAllGatherTiling(MutableRCSTilingData(), MutableMC2MatmulV3TileTilingData().tCubeTiling,
-                      MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingDataV2_->debugMode, 
+                      MutableMC2MatmulV3TailTilingData().tCubeTiling, allGatherMatmulTilingDataV2_->debugMode,
                       allGatherMatmulTilingDataV2_->dataType);
     return ge::GRAPH_SUCCESS;
 }
 
-void Mc2PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling) 
+void Mc2PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling)
 {
     PrintTCubeTilingData(opName, tiling.tCubeTiling);
     OP_LOGD(opName, " tiling.mTailCnt %d", tiling.mTailCnt);
@@ -156,11 +156,11 @@ ge::graphStatus AllGatherMatmulTilingV2::DoVersion2Tiling()
     NpuArch npuArch = ascendcPlatForm.GetCurNpuArch();
 
     std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch, priorities, opName_));
+    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::GetMatmulV3PriorityPolicy(npuArch, priorities, opName_));
 
     Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", npuArch, priorities};
 
-    mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
+    mc2tiling::UpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 计算 local 块 tiling
     Mc2MatmulHelper::Mc2MatmulTilingCfg localTilingCfg(reinterpret_cast<const void*>(&compileInfo_),
@@ -193,11 +193,11 @@ ge::graphStatus AllGatherMatmulTilingV2::SetMc2Hcomm(Mc2Tiling::RCSTiling& rcsCf
     int index = 0;
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     std::string algConfig = "AllGather=level0:fullmesh";
-    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER), 
-                                        algConfig, 0, 
-                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+    Mc2CcTilingConfig mc2CcTilingConfig(group, static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLGATHER),
+                                        algConfig, 0,
+                                        static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)),
                                         static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
-    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingDataV2_->param.gatherLen == 0) ? 
+    uint8_t skipBufferWindowCopy = (allGatherMatmulTilingDataV2_->param.gatherLen == 0) ?
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_DEFAULT) :
                                     static_cast<uint8_t>(mc2tiling::MC2_BUFFER_TYPE::MC2_BUFFER_TYPE_OUTPUT);
     mc2CcTilingConfig.SetSkipBufferWindowCopy(skipBufferWindowCopy);
