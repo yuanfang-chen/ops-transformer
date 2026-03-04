@@ -26,7 +26,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto RoundUp(T const &val, U const &align)
 {
-	if (align == 0) return val;
+	if (align == 0) return (val + align - 1);
     return (val + align - 1) / align * align;
 }
 
@@ -58,7 +58,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto CeilDiv(T const &dividend, U const &divisor)
 {
-	if (divisor == 0) return dividend;
+	if (divisor == 0) return (dividend + divisor - 1);
     return (dividend + divisor - 1) / divisor;
 }
 
