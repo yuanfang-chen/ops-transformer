@@ -139,29 +139,55 @@ public:
     }
 
     __aicore__ inline
+    void ReduceSumByPair(const AscendC::LocalTensor<float> &srcUb, uint32_t numRowsRound, uint32_t loopCount,
+                                uint32_t columnStrideIndex, uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
+            uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+            AscendC::Add<float, false>(
+                srcUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
+
+    __aicore__ inline
     void RowsumSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float高精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要512/64=8次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有512/8=64个datablock
+        uint8_t dataBlockStride = 1;
 
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceSum<float, false>(
+        // 512个元素，以64为单位分治求和，512->256->128->64
+        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+
+        //每行64个元素分别规约求和
+        AscendC::WholeReduceSum<float, false>(
             rowsumUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
+            srcUb,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();  
     }
 
     __aicore__ inline
@@ -169,237 +195,491 @@ public:
         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(ROW_OPS_SPEC_MASK_32);
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound,
-            0, 1, 1, 4);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
-        AscendC::BlockReduceSum<float, false>(
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float高精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要256/64=4次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有256/8=32个datablock
+        uint8_t dataBlockStride = 1;
+
+        // 512个元素，以64为单位分治求和，256->128->64
+        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+
+        //每行64个元素分别规约求和
+        AscendC::WholeReduceSum<float, false>(
             rowsumUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-    }
+            srcUb,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();  
+    }    
 
     __aicore__ inline
     void RowsumTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
-        if (numElems >= FLOAT_VECTOR_SIZE) {
-            AscendC::BlockReduceSum<float, false>(
-                tvUbTensor,
-                srcUb,
-                numRowsRound,
-                0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-            AscendC::PipeBarrier<PIPE_V>();
-            AscendC::BlockReduceSum<float, false>(
-                rowsumUb,
-                tvUbTensor,
-                CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                0, 1, 1, 8);
-            AscendC::PipeBarrier<PIPE_V>();
-            for (uint64_t rowSumIdx = 1; rowSumIdx < (uint64_t)numElems / FLOAT_VECTOR_SIZE; ++rowSumIdx) {
-                AscendC::BlockReduceSum<float, false>(
-                    tvUbTensor,
-                    srcUb[rowSumIdx * FLOAT_VECTOR_SIZE],
-                    numRowsRound,
-                    0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-                AscendC::PipeBarrier<PIPE_V>();
-                AscendC::BlockReduceSum<float, false>(
-                    tvUbTensor[REDUCE_UB_SIZE],
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-                SetVecMask(numRowsRound);
+        if (numElems <= FLOAT_VECTOR_SIZE) {
+            SetVecMask(numElems);
+            AscendC::WholeReduceSum<float, false>(
+                rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+                numElemsAligned / FLOAT_BLOCK_SIZE);
+            AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+        } else {
+            for (uint32_t vmaxIdx = 1; vmaxIdx < numElems / FLOAT_VECTOR_SIZE; vmaxIdx++) {
                 AscendC::Add<float, false>(
-                    rowsumUb,
-                    rowsumUb,
-                    tvUbTensor[REDUCE_UB_SIZE],
+                    srcUb,
+                    srcUb,
+                    srcUb[vmaxIdx * FLOAT_VECTOR_SIZE],
                     (uint64_t)0,
-                    1,
-                    AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+                    numRowsRound,
+                    AscendC::BinaryRepeatParams(
+                        1, 1, 1,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE));
+                AscendC::PipeBarrier<PIPE_V>();
+            }
+            if (numElems % FLOAT_VECTOR_SIZE > 0) {
+                SetVecMask(numElems % FLOAT_VECTOR_SIZE);
+                AscendC::Add<float, false>(
+                    srcUb,
+                    srcUb,
+                    srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
+                    (uint64_t)0,
+                    numRowsRound,
+                    AscendC::BinaryRepeatParams(
+                        1, 1, 1,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE));
                 AscendC::PipeBarrier<PIPE_V>();
                 AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
             }
+            AscendC::WholeReduceSum<float, false>(
+                rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+                numElemsAligned / FLOAT_BLOCK_SIZE);
         }
-        if (numElems % FLOAT_VECTOR_SIZE > 0) {
-            SetVecMask(numElems % FLOAT_VECTOR_SIZE);
-            AscendC::BlockReduceSum<float, false>(
-                tvUbTensor,
-                srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
-                numRowsRound,
-                0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-            AscendC::PipeBarrier<PIPE_V>();
-            SetBlockReduceMask(CeilDiv(numElems % FLOAT_VECTOR_SIZE, FLOAT_BLOCK_SIZE));
-            if (numElems < FLOAT_VECTOR_SIZE) {
-                AscendC::BlockReduceSum<float, false>(
-                    rowsumUb,
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-            } else {
-                AscendC::BlockReduceSum<float, false>(
-                    tvUbTensor[REDUCE_UB_SIZE],
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-                SetVecMask(numRowsRound);
-                AscendC::Add<float, false>(
-                    rowsumUb,
-                    rowsumUb,
-                    tvUbTensor[REDUCE_UB_SIZE],
-                    (uint64_t)0,
-                    1,
-                    AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-                AscendC::PipeBarrier<PIPE_V>();
-            }
-            AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-        }
-    }
+        AscendC::PipeBarrier<PIPE_V>();
+    }    
+
+
+    // __aicore__ inline
+    // void RowsumSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::BlockReduceSum<float, false>(
+    //         rowsumUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    // }
+
+    // __aicore__ inline
+    // void RowsumSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetVecMask(ROW_OPS_SPEC_MASK_32);
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound,
+    //         0, 1, 1, 4);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
+    //     AscendC::BlockReduceSum<float, false>(
+    //         rowsumUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    // }
+
+    // __aicore__ inline
+    // void RowsumTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     if (numElems >= FLOAT_VECTOR_SIZE) {
+    //         AscendC::BlockReduceSum<float, false>(
+    //             tvUbTensor,
+    //             srcUb,
+    //             numRowsRound,
+    //             0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         AscendC::BlockReduceSum<float, false>(
+    //             rowsumUb,
+    //             tvUbTensor,
+    //             CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //             0, 1, 1, 8);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         for (uint64_t rowSumIdx = 1; rowSumIdx < (uint64_t)numElems / FLOAT_VECTOR_SIZE; ++rowSumIdx) {
+    //             AscendC::BlockReduceSum<float, false>(
+    //                 tvUbTensor,
+    //                 srcUb[rowSumIdx * FLOAT_VECTOR_SIZE],
+    //                 numRowsRound,
+    //                 0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             AscendC::BlockReduceSum<float, false>(
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             SetVecMask(numRowsRound);
+    //             AscendC::Add<float, false>(
+    //                 rowsumUb,
+    //                 rowsumUb,
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 (uint64_t)0,
+    //                 1,
+    //                 AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    //         }
+    //     }
+    //     if (numElems % FLOAT_VECTOR_SIZE > 0) {
+    //         SetVecMask(numElems % FLOAT_VECTOR_SIZE);
+    //         AscendC::BlockReduceSum<float, false>(
+    //             tvUbTensor,
+    //             srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
+    //             numRowsRound,
+    //             0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         SetBlockReduceMask(CeilDiv(numElems % FLOAT_VECTOR_SIZE, FLOAT_BLOCK_SIZE));
+    //         if (numElems < FLOAT_VECTOR_SIZE) {
+    //             AscendC::BlockReduceSum<float, false>(
+    //                 rowsumUb,
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //         } else {
+    //             AscendC::BlockReduceSum<float, false>(
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             SetVecMask(numRowsRound);
+    //             AscendC::Add<float, false>(
+    //                 rowsumUb,
+    //                 rowsumUb,
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 (uint64_t)0,
+    //                 1,
+    //                 AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //         }
+    //         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    //     }
+    // }
 
     __aicore__ inline
-    void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
-        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-        uint32_t numElemsAligned)
+    void ReduceMaxByPair(const AscendC::LocalTensor<float> &dstUb, const AscendC::LocalTensor<float> &srcUb,
+                                           uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
+                                           uint8_t dataBlockStride, uint8_t repeatStride)
     {
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
+            uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+            AscendC::Max<float, false>(
+                dstUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
+    
+    __aicore__ inline
+    void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+                            const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+                            uint32_t numElemsAligned)
+    {
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float低精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要512/64=8次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有512/8=64个datablock
+        uint8_t dataBlockStride = 1;
+
+        // 512个元素，以64为单位分治求最大值，512->256->128->64
+        uint32_t columnStrideIndex = 2;
+        // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
+        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
+        columnStrideIndex *= 2;
+        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+        //每行64个元素分别规约求最大值
+        AscendC::WholeReduceMax<float, false>(
             rowmaxUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
+            lsUbTensor,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow,
+            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         AscendC::PipeBarrier<PIPE_V>();
     }
 
     __aicore__ inline
     void RowmaxSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
-        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-        uint32_t numElemsAligned)
+                            const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+                            uint32_t numElemsAligned)
     {
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(ROW_OPS_SPEC_MASK_32);
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound,
-            0, 1, 1, 4);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
-        AscendC::BlockReduceMax<float, false>(
-            rowmaxUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-    }
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float高精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要256/64=4次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有256/8=32个datablock
+        uint8_t dataBlockStride = 1;
 
+        // 256个元素，以128为单位分治求最大值，256->128->64
+        uint32_t columnStrideIndex = 2;
+        // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
+        ReduceMaxByPair(lsUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+        columnStrideIndex *= 2;
+        ReduceMaxByPair(lsUbTensor, lsUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();
+
+        //每行128个元素分别规约求最大值
+        AscendC::WholeReduceMax<float, false>(
+            rowmaxUb,
+            lsUbTensor,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow,
+            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        AscendC::PipeBarrier<PIPE_V>();
+    }
+    
     __aicore__ inline
     void RowmaxTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
         uint32_t numElemsAligned)
     {
-        if (numElems >= FLOAT_VECTOR_SIZE) {
-            AscendC::BlockReduceMax<float, false>(
-                tvUbTensor,
+        if (numElems <= FLOAT_VECTOR_SIZE) {
+            SetVecMask(numElems);
+            AscendC::WholeReduceMax<float, false>(
+                rowmaxUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
+                numElemsAligned / FLOAT_BLOCK_SIZE, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+            AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+        } else {
+            AscendC::DataCopy(
+                lsUbTensor,
                 srcUb,
-                numRowsRound,
-                0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-            AscendC::PipeBarrier<PIPE_V>();
-            AscendC::BlockReduceMax<float, false>(
-                rowmaxUb,
-                tvUbTensor,
-                CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                0, 1, 1, 8);
-            AscendC::PipeBarrier<PIPE_V>();
-            for (uint64_t rowmax_idx = 1; rowmax_idx < (uint64_t)numElems / FLOAT_VECTOR_SIZE; ++rowmax_idx) {
-                AscendC::BlockReduceMax<float, false>(
-                    tvUbTensor,
-                    srcUb[rowmax_idx * FLOAT_VECTOR_SIZE],
+                AscendC::DataCopyParams(
                     numRowsRound,
-                    0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-                AscendC::PipeBarrier<PIPE_V>();
-                AscendC::BlockReduceMax<float, false>(
-                    tvUbTensor[REDUCE_UB_SIZE],
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-                SetVecMask(numRowsRound);
-                AscendC::Max<float, false>(rowmaxUb,
-                    rowmaxUb,
-                    tvUbTensor[REDUCE_UB_SIZE],
+                    FLOAT_VECTOR_SIZE / FLOAT_BLOCK_SIZE,
+                    (numElemsAligned - FLOAT_VECTOR_SIZE) / FLOAT_BLOCK_SIZE,
+                    (numElemsAligned - FLOAT_VECTOR_SIZE) / FLOAT_BLOCK_SIZE));
+            AscendC::PipeBarrier<PIPE_V>();
+            for (uint32_t vmaxIdx = 1; vmaxIdx < numElems / FLOAT_VECTOR_SIZE; vmaxIdx++) {
+                AscendC::Max<float, false>(
+                    lsUbTensor,
+                    lsUbTensor,
+                    srcUb[vmaxIdx * FLOAT_VECTOR_SIZE],
                     (uint64_t)0,
-                    1,
-                    AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+                    numRowsRound,
+                    AscendC::BinaryRepeatParams(
+                        1, 1, 1,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE));
+                AscendC::PipeBarrier<PIPE_V>();
+            }
+            if (numElems % FLOAT_VECTOR_SIZE > 0) {
+                SetVecMask(numElems % FLOAT_VECTOR_SIZE);
+                AscendC::Max<float, false>(
+                    lsUbTensor,
+                    lsUbTensor,
+                    srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
+                    (uint64_t)0,
+                    numRowsRound,
+                    AscendC::BinaryRepeatParams(
+                        1, 1, 1,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE,
+                        numElemsAligned / FLOAT_BLOCK_SIZE));
                 AscendC::PipeBarrier<PIPE_V>();
                 AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
             }
+            AscendC::WholeReduceMax<float, false>(
+                rowmaxUb, lsUbTensor, (int32_t)0, numRowsRound, 1, 1,
+                numElemsAligned / FLOAT_BLOCK_SIZE, AscendC::ReduceOrder::ORDER_ONLY_VALUE);
         }
-        if (numElems % FLOAT_VECTOR_SIZE > 0) {
-            SetVecMask(numElems % FLOAT_VECTOR_SIZE);
-            AscendC::BlockReduceMax<float, false>(
-                tvUbTensor,
-                srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
-                numRowsRound,
-                0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
-            AscendC::PipeBarrier<PIPE_V>();
-            SetBlockReduceMask(CeilDiv(numElems % FLOAT_VECTOR_SIZE, FLOAT_BLOCK_SIZE));
-            if (numElems < FLOAT_VECTOR_SIZE) {
-                AscendC::BlockReduceMax<float, false>(rowmaxUb,
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-            } else {
-                AscendC::BlockReduceMax<float, false>(tvUbTensor[REDUCE_UB_SIZE],
-                    tvUbTensor,
-                    CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-                    0, 1, 1, 8);
-                AscendC::PipeBarrier<PIPE_V>();
-                SetVecMask(numRowsRound);
-                AscendC::Max<float, false>(rowmaxUb,
-                    rowmaxUb,
-                    tvUbTensor[REDUCE_UB_SIZE],
-                    (uint64_t)0,
-                    1,
-                    AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-                AscendC::PipeBarrier<PIPE_V>();
-            }
-            AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-        }
+        AscendC::PipeBarrier<PIPE_V>();
     }
+
+    // __aicore__ inline
+    // void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::BlockReduceMax<float, false>(
+    //         rowmaxUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    // }
+
+    // __aicore__ inline
+    // void RowmaxSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetVecMask(ROW_OPS_SPEC_MASK_32);
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound,
+    //         0, 1, 1, 4);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
+    //     AscendC::BlockReduceMax<float, false>(
+    //         rowmaxUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    // }
+
+    // __aicore__ inline
+    // void RowmaxTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     if (numElems >= FLOAT_VECTOR_SIZE) {
+    //         AscendC::BlockReduceMax<float, false>(
+    //             tvUbTensor,
+    //             srcUb,
+    //             numRowsRound,
+    //             0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         AscendC::BlockReduceMax<float, false>(
+    //             rowmaxUb,
+    //             tvUbTensor,
+    //             CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //             0, 1, 1, 8);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         for (uint64_t rowmax_idx = 1; rowmax_idx < (uint64_t)numElems / FLOAT_VECTOR_SIZE; ++rowmax_idx) {
+    //             AscendC::BlockReduceMax<float, false>(
+    //                 tvUbTensor,
+    //                 srcUb[rowmax_idx * FLOAT_VECTOR_SIZE],
+    //                 numRowsRound,
+    //                 0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             AscendC::BlockReduceMax<float, false>(
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             SetVecMask(numRowsRound);
+    //             AscendC::Max<float, false>(rowmaxUb,
+    //                 rowmaxUb,
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 (uint64_t)0,
+    //                 1,
+    //                 AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    //         }
+    //     }
+    //     if (numElems % FLOAT_VECTOR_SIZE > 0) {
+    //         SetVecMask(numElems % FLOAT_VECTOR_SIZE);
+    //         AscendC::BlockReduceMax<float, false>(
+    //             tvUbTensor,
+    //             srcUb[numElems / FLOAT_VECTOR_SIZE * FLOAT_VECTOR_SIZE],
+    //             numRowsRound,
+    //             0, 1, 1, numElemsAligned / FLOAT_BLOCK_SIZE);
+    //         AscendC::PipeBarrier<PIPE_V>();
+    //         SetBlockReduceMask(CeilDiv(numElems % FLOAT_VECTOR_SIZE, FLOAT_BLOCK_SIZE));
+    //         if (numElems < FLOAT_VECTOR_SIZE) {
+    //             AscendC::BlockReduceMax<float, false>(rowmaxUb,
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //         } else {
+    //             AscendC::BlockReduceMax<float, false>(tvUbTensor[REDUCE_UB_SIZE],
+    //                 tvUbTensor,
+    //                 CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //                 0, 1, 1, 8);
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //             SetVecMask(numRowsRound);
+    //             AscendC::Max<float, false>(rowmaxUb,
+    //                 rowmaxUb,
+    //                 tvUbTensor[REDUCE_UB_SIZE],
+    //                 (uint64_t)0,
+    //                 1,
+    //                 AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+    //             AscendC::PipeBarrier<PIPE_V>();
+    //         }
+    //         AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    //     }
+    // }
 
     __aicore__ inline
     void CopySGmToUb(
