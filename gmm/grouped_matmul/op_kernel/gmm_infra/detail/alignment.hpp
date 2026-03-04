@@ -26,7 +26,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto RoundUp(T const &val, U const &align)
 {
-	static_assert(static_cast<U>(align) != 0, "align must not be 0");
+	if (align == 0) return val;
     return (val + align - 1) / align * align;
 }
 
@@ -42,7 +42,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto RoundDown(T const &val, U const &align)
 {
-	static_assert(static_cast<U>(align) != 0, "align must not be 0");
+	if (align == 0) return val;
     return val / align * align;
 }
 
@@ -58,7 +58,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto CeilDiv(T const &dividend, U const &divisor)
 {
-	static_assert(static_cast<U>(divisor) != 0, "divisor must not be 0");
+	if (divisor == 0) return val;
     return (dividend + divisor - 1) / divisor;
 }
 
