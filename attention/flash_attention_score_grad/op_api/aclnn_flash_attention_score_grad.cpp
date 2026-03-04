@@ -1514,8 +1514,8 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradGetWorkspaceSize(
                           inputLayout, innerPrecise, sparseMode),
                    DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);
+    if (strcmp(inputLayout, "TND") != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -1775,8 +1775,8 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV2GetWorkspaceSize(
                sparseMode, pseType),
         DFX_OUT(dqOut, dkOut, dvOut, dpseOut));
     // layout检查
-    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);
+    if (strcmp(inputLayout, "TND") != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -1958,8 +1958,8 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV3GetWorkspaceSize(
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut));
 
     // layout检查
-    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);
+    if (strcmp(inputLayout, "TND") != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);
         return ACLNN_ERR_PARAM_INVALID;
     }
 
@@ -2348,8 +2348,8 @@ aclnnStatus aclnnFlashAttentionUnpaddingScoreGradV5GetWorkspaceSize(
                sparseMode, pseType, softmaxInLayout), 
         DFX_OUT(dqOut, dqRopeOut, dkOut, dkRopeOut, dvOut, dpseOut, dsinkOut)); 
     
-    if (strcmp(inputLayout, "TND") != 0 && strcmp(inputLayout, "BSH") != 0) {	 
-         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND or BSH, invalid shape, pls check", inputLayout);	 
+    if (strcmp(inputLayout, "TND") != 0) {	 
+         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "layout %s is not TND, invalid shape, pls check", inputLayout);	 
          return ACLNN_ERR_PARAM_INVALID;	 
     }
     
