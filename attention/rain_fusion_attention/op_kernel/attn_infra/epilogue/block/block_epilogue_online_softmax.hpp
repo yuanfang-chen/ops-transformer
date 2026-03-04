@@ -775,8 +775,8 @@ public:
         uint32_t columnNumPad = layoutOutput.stride(0);
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
-
-        if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) {
+        // 这里相当于下一轮的首块的首次Vector的计算需要等上一次rescale用完UB空间，第一次怎么考虑的？
+        if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) { // 同步等待LSE
             // In lse out-only mode, tv is used in the last stack tile to transport lse
             if (isFirstStackTile && isFirstRowLoop) {
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
