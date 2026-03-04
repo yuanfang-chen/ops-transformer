@@ -14,7 +14,7 @@
  */
 #include <platform/platform_info.h>
 #include <register/op_impl_registry.h>
-#include "mc2_common_infershape.h"
+#include "op_tiling/mc2_common_infershape.h"
 #include "mc2_log.h"
 #include "op_tiling/mc2_log.h"
 #include "util/math_util.h"

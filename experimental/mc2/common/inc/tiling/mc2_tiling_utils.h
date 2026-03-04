@@ -23,7 +23,7 @@
 #include "exe_graph/runtime/tiling_context.h"
 #include "op_tiling/formulaic_tiling_datatype.h"
 #include "graph/utils/type_utils.h"
-#include "mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "tiling/tiling_api.h"

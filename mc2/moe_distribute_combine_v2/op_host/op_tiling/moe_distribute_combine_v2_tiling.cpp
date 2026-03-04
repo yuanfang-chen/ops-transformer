@@ -40,7 +40,7 @@
 #include "op_tiling/mc2_hcom_topo_info.h"
 
 #ifdef MC2_EXCEPTION_HANDLER
-#include "mc2_exception_dump.h"
+#include "op_tiling/mc2_exception_dump.h"
 #endif
 #ifdef MC2_EXCEPTION_HANDLER
 using namespace Mc2Exception;
