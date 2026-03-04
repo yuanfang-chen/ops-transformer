@@ -143,20 +143,20 @@ __aicore__ inline void AllGatherAdd::CalcAddGmAddr(int32_t commTurn)
 
 __aicore__ inline void AllGatherAdd::Process()
 {
-    HcclPrepare();
-    int addLoop = tileNum_ * ADD_BUFFER_NUM;
-    for (int i = 0; i < tilingData_->commTurn; i++) {
-        hccl_.Wait(handleId_); 
-        // 根据通信轮次和rankSize计算本核需要处理数据的起始地址
-        CalcAddGmAddr(i);
-        // 对前一轮的通信结果进行Add计算
-        for (int j = 0; j < addLoop; j++) {
-            CopyIn(j);
-            Compute();
-            CopyOut(j);
-        }
-    }
-    HcclFinalize();
+    // HcclPrepare();
+    // int addLoop = tileNum_ * ADD_BUFFER_NUM;
+    // for (int i = 0; i < tilingData_->commTurn; i++) {
+    //     hccl_.Wait(handleId_); 
+    //     // 根据通信轮次和rankSize计算本核需要处理数据的起始地址
+    //     CalcAddGmAddr(i);
+    //     // 对前一轮的通信结果进行Add计算
+    //     for (int j = 0; j < addLoop; j++) {
+    //         CopyIn(j);
+    //         Compute();
+    //         CopyOut(j);
+    //     }
+    // }
+    // HcclFinalize();
 }
 }
 #endif
