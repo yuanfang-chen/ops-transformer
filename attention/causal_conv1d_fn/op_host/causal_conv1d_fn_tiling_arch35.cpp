@@ -110,18 +110,26 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDtype()
         return ge::GRAPH_FAILED;
     }
 
-    auto cacheIndicesType = context_->GetInputDesc(INPUT_CACHE_INDICES_INDEX)->GetDataType();
-    if (cacheIndicesType != ge::DataType::DT_INT32) {
-        OP_LOGE(context_->GetNodeName(), "CacheIndices dtype must be INT32, but got: %s",
-                Ops::Base::ToString(cacheIndicesType).c_str());
-        return ge::GRAPH_FAILED;
+    // 检查 cacheIndices (OPTIONAL)
+    auto cacheIndicesDesc = context_->GetOptionalInputDesc(INPUT_CACHE_INDICES_INDEX);
+    if (cacheIndicesDesc != nullptr) {
+        auto cacheIndicesType = cacheIndicesDesc->GetDataType();
+        if (cacheIndicesType != ge::DataType::DT_INT32) {
+            OP_LOGE(context_->GetNodeName(), "CacheIndices dtype must be INT32, but got: %s",
+                    Ops::Base::ToString(cacheIndicesType).c_str());
+            return ge::GRAPH_FAILED;
+        }
     }
 
-    auto seqStartIndexType = context_->GetInputDesc(INPUT_QUERY_START_LOC_INDEX)->GetDataType();
-    if (seqStartIndexType != ge::DataType::DT_INT32) {
-        OP_LOGE(context_->GetNodeName(), "SeqStartIndex dtype must be INT32, but got: %s",
-                Ops::Base::ToString(seqStartIndexType).c_str());
-        return ge::GRAPH_FAILED;
+    // 检查 queryStartLoc (OPTIONAL)
+    auto seqStartIndexDesc = context_->GetOptionalInputDesc(INPUT_QUERY_START_LOC_INDEX);
+    if (seqStartIndexDesc != nullptr) {
+        auto seqStartIndexType = seqStartIndexDesc->GetDataType();
+        if (seqStartIndexType != ge::DataType::DT_INT32) {
+            OP_LOGE(context_->GetNodeName(), "SeqStartIndex dtype must be INT32, but got: %s",
+                    Ops::Base::ToString(seqStartIndexType).c_str());
+            return ge::GRAPH_FAILED;
+        }
     }
 
     return ge::GRAPH_SUCCESS;
@@ -184,17 +192,23 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDim()
                         dim_, cacheStatesDim2),
                 return ge::GRAPH_FAILED);
 
-    // 检查seqStartIndex的维度
-    uint64_t seqStartIndexDimNum = seqStartIndexShape_.GetDimNum();
-    OP_CHECK_IF(seqStartIndexDimNum != SEQ_START_INDEX_DIM_NUM,
-                OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim must be 1, but got: %lu", seqStartIndexDimNum),
-                return ge::GRAPH_FAILED);
+    // 检查seqStartIndex的维度 (OPTIONAL)
+    // 注意：seqStartIndexShape_ 已在 GetShapeAttrsInfo 中处理，这里只做验证
+    auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
+    if (seqStartIndexStorageShape != nullptr) {
+        // 如果提供了 queryStartLoc，检查维度
+        auto seqStartIndexShape = seqStartIndexStorageShape->GetStorageShape();
+        uint64_t seqStartIndexDimNum = seqStartIndexShape.GetDimNum();
+        OP_CHECK_IF(seqStartIndexDimNum != SEQ_START_INDEX_DIM_NUM,
+                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim must be 1, but got: %lu", seqStartIndexDimNum),
+                    return ge::GRAPH_FAILED);
 
-    uint64_t seqStartIndexDim0 = seqStartIndexShape_.GetDim(DIM_0);
-    OP_CHECK_IF(seqStartIndexDim0 != (batch_ + 1),
-                OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%u, but got: %lu",
-                        batch_ + 1, seqStartIndexDim0),
-                return ge::GRAPH_FAILED);
+        uint64_t seqStartIndexDim0 = seqStartIndexShape.GetDim(DIM_0);
+        OP_CHECK_IF(seqStartIndexDim0 != (batch_ + 1),
+                    OP_LOGE(context_->GetNodeName(), "SeqStartIndex dim[0] must equal to batch+1=%u, but got: %lu",
+                            batch_ + 1, seqStartIndexDim0),
+                    return ge::GRAPH_FAILED);
+    }
 
     // 检查batch范围
     OP_CHECK_IF(!(batch_ >= BATCH_MIN && batch_ <= BATCH_MAX),
@@ -256,9 +270,17 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_CACHE_STATES_INDEX));
     cacheStatesShape_ = context_->GetInputShape(INPUT_CACHE_STATES_INDEX)->GetOriginShape();
 
-    OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_QUERY_START_LOC_INDEX));
-    seqStartIndexShape_ = context_->GetInputShape(INPUT_QUERY_START_LOC_INDEX)->GetOriginShape();
-    batch_ = static_cast<uint32_t>(seqStartIndexShape_.GetDim(DIM_0) - 1);
+    // 获取 queryStartLoc (OPTIONAL)
+    auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
+    if (seqStartIndexStorageShape != nullptr) {
+        seqStartIndexShape_ = seqStartIndexStorageShape->GetOriginShape();
+        batch_ = static_cast<uint32_t>(seqStartIndexShape_.GetDim(DIM_0) - 1);
+    } else {
+        // 没有提供 queryStartLoc，默认 batch = 1，处理全部序列
+        batch_ = 1;
+        // 创建一个默认的 gert::Shape，表示没有分批的情况
+        seqStartIndexShape_ = gert::Shape({0, cuSeqLen_});
+    }
 
     // 获取输入数据类型
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputDesc(INPUT_X_INDEX));
@@ -288,7 +310,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     // 如果有 padSlotId，需要读取 cacheIndices 来确定有效 batch 范围
     if (padSlotId_ >= 0) {
         // 尝试读取 cacheIndices 数据
-        const gert::Tensor* cacheIndicesTensor = context_->GetInputTensor(INPUT_CACHE_INDICES_INDEX);
+        const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(INPUT_CACHE_INDICES_INDEX);
         if (cacheIndicesTensor != nullptr && cacheIndicesTensor->GetData<int32_t>() != nullptr) {
             // 获取 cacheIndices tensor (batch 个 int32 元素)
             const int32_t* cacheIndices = cacheIndicesTensor->GetData<int32_t>();
@@ -317,7 +339,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
                 validBatchCount_ = validEnd - validStart + 1;
 
                 // 读取 queryStartLoc 计算有效序列范围
-                const gert::Tensor* queryStartLocTensor = context_->GetInputTensor(INPUT_QUERY_START_LOC_INDEX);
+                const gert::Tensor* queryStartLocTensor = context_->GetOptionalInputTensor(INPUT_QUERY_START_LOC_INDEX);
                 if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
                     const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
                     validSeqStart_ = static_cast<uint64_t>(queryStartLoc[validBatchStart_]);
