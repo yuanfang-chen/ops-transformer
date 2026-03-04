@@ -133,7 +133,6 @@ __aicore__ inline void AlltoAllMatmul<TemplateA2AMMFunc>::Init(GM_ADDR aGM, GM_A
     workspaceGM_ = GetUserWorkspace(workspaceGM);
 
     CommBase::SetArgs<AType>(rank, rankSize, tilingData);
-    this->ub_offset = Catlass::BytesToBits(UB_OFFSET) / Catlass::SizeOfBits<int8_t>::value;
 
     if constexpr (QuantType == MC2_DYNAMIC_QUANT) {
         quantAGM_ = reinterpret_cast<__gm__ int8_t *>(workspaceGM_);
