@@ -97,8 +97,8 @@ protected:
     uint32_t sparseMode;
     uint32_t dqPostAbsorb;
     int32_t layout{0};
-    int32_t dimS1Fixed{0};          // BSH格式：固定的Q序列长度
-    int32_t dimS2Fixed{0};          // BSH格式：固定的K序列长度
+    int32_t dimS1{0};          // BSH格式：固定的Q序列长度
+ 	int32_t dimS2{0};          // BSH格式：固定的K序列长度
     int32_t enableCausalOpt;
 
     bool tndSoftmaxIn;
@@ -171,10 +171,8 @@ __aicore__ void VecOpDet<FAGT>::Init(
     actual_seq_kvlen_addr = actual_seq_kvlen;
     layout = tilingData->basicDetTensorTilingData.layout;
     if (layout == 0) {  // BSH格式
-            AscendC::PRINTF("vectorOp\n");
-            dimS1Fixed = tilingData->basicDetTensorTilingData.s1;
-            dimS2Fixed = tilingData->basicDetTensorTilingData.s2;
-            AscendC::PRINTF("dimS1Fixed:%d, dimS2Fixed:%d", this->dimS1Fixed, this->dimS2Fixed);
+            dimS1 = tilingData->basicDetTensorTilingData.s1;
+            dimS2 = tilingData->basicDetTensorTilingData.s2;
         }
 
     pipe->InitBuffer(unifiedBuffer, TOTAL_SIZE);
@@ -255,8 +253,8 @@ __aicore__ inline void VecOpDet<FAGT>::GetSeqQlenKvlenByBidx(
 {
     
     if (layout == 0){
-        actualSeqQlen = dimS1Fixed;
-        actualSeqKvlen = dimS2Fixed;
+        actualSeqQlen = dimS1;
+        actualSeqKvlen = dimS2
     }
     else{
         if (unlikely(bIdx == 0)) {
@@ -399,16 +397,19 @@ __aicore__ inline void VecOpDet<FAGT>::SubGrapA(int64_t curIdx,
 
     if (blockInfo.calNextToken) {
         LocalTensor<uint8_t> tmpAttenMaskTensor = attenMaskTensor[subIdx * s1VecSize * 128];
+        int32_t firstAxisOfAttnMask = sparseMode == 1 ? s1Extend : 64; 
+        int32_t lastAxisOfAttnMask = sparseMode == 1 ? s2Extend : 128; 
+        int32_t lastAxisOfAttnMaskAlign = (lastAxisOfAttnMask + 32 - 1) / 32 * 32;
         if(!enableCausalOpt){
             tmpAttenMaskTensor = attenMaskTensor;
             int32_t offset = blockInfo.nextTokenOffset + subIdx * s1VecSize * attenMaskDimS2;
-            CopyInAttenMaskBool(tmpAttenMaskTensor, offset, 64, 128);
+            CopyInAttenMaskBool(tmpAttenMaskTensor, offset, firstAxisOfAttnMask, lastAxisOfAttnMask);
 
             SET_FLAG(MTE2, V, EVENT_ID0);
             WAIT_FLAG(MTE2, V, EVENT_ID0);
         }
 
-        CalcAttenMaskBool(mm2OutTensor, tmpAttenMaskTensor, s1Extend, s2ExtendAlign, 128, 0);
+        CalcAttenMaskBool(mm2OutTensor, tmpAttenMaskTensor, s1Extend, s2ExtendAlign, lastAxisOfAttnMaskAlign, 0);
         AscendC::PipeBarrier<PIPE_V>();
     }
 
@@ -566,7 +567,7 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
         sfmgOffset = 0;
         if (batchIdx > 0) {
             if (layout == 0){
-                sfmgOffset = dimS1Fixed * n2 * g * 8;  
+                sfmgOffset = dimS1 * n2 * g * 8;  
             }
             else{
                 sfmgOffset = ((__gm__ SEQLEN_TYPE *)actual_seq_qlen_addr)[batchIdx- 1] * n2 * g * 8;  
@@ -584,9 +585,9 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
                 innerRowOffsetLeft =
                 unlikely(batchIdx == 0) ?
                     0 :
-                    dimS1Fixed * 32 / sizeof(float);
+                    dimS1 * 32 / sizeof(float);
             
-                softMaxOffset = ((dimS1Fixed * 32 / sizeof(float)) *
+                softMaxOffset = ((dimS1 * 32 / sizeof(float)) *
                                     (blockInfo.n2Idx * g + blockInfo.gIdx) +
                                 innerRowOffsetLeft + originInnerBatchOffset % (actualS1Len * 32 / sizeof(float)));
             }
