@@ -23,9 +23,9 @@ constexpr uint64_t DIM_2 = 2;
 constexpr uint64_t INPUT_X_INDEX = 0;
 constexpr uint64_t INPUT_WEIGHT_INDEX = 1;
 constexpr uint64_t INPUT_CACHE_STATES_INDEX = 2;
-constexpr uint64_t INPUT_CACHE_INDICES_INDEX = 3;
-constexpr uint64_t INPUT_SEQ_START_INDEX = 4;
-constexpr uint64_t INPUT_HAS_INITIAL_STATE_INDEX = 5;
+constexpr uint64_t INPUT_QUERY_START_LOC_INDEX = 3;
+constexpr uint64_t INPUT_CACHE_INDICES_INDEX = 4;
+constexpr uint64_t INPUT_INITIAL_STATE_MODE_INDEX = 5;
 
 constexpr uint64_t OUTPUT_Y_INDEX = 0;
 constexpr uint64_t OUTPUT_CACHE_STATES_INDEX = 1;
@@ -117,7 +117,7 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDtype()
         return ge::GRAPH_FAILED;
     }
 
-    auto seqStartIndexType = context_->GetInputDesc(INPUT_SEQ_START_INDEX)->GetDataType();
+    auto seqStartIndexType = context_->GetInputDesc(INPUT_QUERY_START_LOC_INDEX)->GetDataType();
     if (seqStartIndexType != ge::DataType::DT_INT32) {
         OP_LOGE(context_->GetNodeName(), "SeqStartIndex dtype must be INT32, but got: %s",
                 Ops::Base::ToString(seqStartIndexType).c_str());
@@ -256,8 +256,8 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_CACHE_STATES_INDEX));
     cacheStatesShape_ = context_->GetInputShape(INPUT_CACHE_STATES_INDEX)->GetOriginShape();
 
-    OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_SEQ_START_INDEX));
-    seqStartIndexShape_ = context_->GetInputShape(INPUT_SEQ_START_INDEX)->GetOriginShape();
+    OP_CHECK_NULL_WITH_CONTEXT(context_, context_->GetInputShape(INPUT_QUERY_START_LOC_INDEX));
+    seqStartIndexShape_ = context_->GetInputShape(INPUT_QUERY_START_LOC_INDEX)->GetOriginShape();
     batch_ = static_cast<uint32_t>(seqStartIndexShape_.GetDim(DIM_0) - 1);
 
     // 获取输入数据类型
@@ -317,7 +317,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
                 validBatchCount_ = validEnd - validStart + 1;
 
                 // 读取 queryStartLoc 计算有效序列范围
-                const gert::Tensor* queryStartLocTensor = context_->GetInputTensor(INPUT_SEQ_START_INDEX);
+                const gert::Tensor* queryStartLocTensor = context_->GetInputTensor(INPUT_QUERY_START_LOC_INDEX);
                 if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
                     const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
                     validSeqStart_ = static_cast<uint64_t>(queryStartLoc[validBatchStart_]);
@@ -743,6 +743,8 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.validBatchCount = validBatchCount_;
     tilingData_.validSeqStart = validSeqStart_;
     tilingData_.validSeqLen = validSeqLen_;
+    tilingData_.xStride = dim_;
+    tilingData_.cacheStride = dim_;
 
     // Save tiling data to buffer
     auto tilingDataSize = sizeof(CausalConv1dFnTilingData);

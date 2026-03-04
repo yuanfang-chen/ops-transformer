@@ -48,7 +48,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_basic_fp16)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -62,11 +61,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_basic_fp16)
             // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=3, dim=512)
             // cache_max_size must be > batch, here 4 > 2
             {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=2)
-            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=3)
+            // Input 3: queryStartLoc - (batch+1=3)
             {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=2)
+            // Input 4: cacheIndices - (batch=2)
+            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=2)
             {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -79,7 +78,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_basic_fp16)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 7 7 512 512 7 0 6 1 1 7 6 512 512 64 4 256 512 2 0 2 0 256 ";
+    std::string expectTilingData = "1 1 7 7 512 512 7 0 6 1 1 7 6 512 512 64 4 256 512 2 0 2 0 256 512 512 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -96,7 +95,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_single_batch)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -110,11 +108,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_single_batch)
             // Input 2: convStates/cacheStates - (cache_max_size=2, cache_width=3, dim=256)
             // cache_max_size must be > batch, here 2 > 1
             {{{2, 3, 256}, {2, 3, 256}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=1)
-            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=2)
+            // Input 3: queryStartLoc - (batch+1=2)
             {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=1)
+            // Input 4: cacheIndices - (batch=1)
+            {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=1)
             {{{1}, {1}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -127,8 +125,8 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_single_batch)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 4 4 256 256 4 0 4 1 1 4 4 256 256 61 4 64 256 1 0 1 0 64 ";
-    std::vector<size_t> expectWorkspaces = {16777216};
+    std::string expectTilingData = "1 1 4 4 256 256 4 0 4 1 1 4 4 256 256 61 4 64 256 1 0 1 0 64 256 256 ";
+    std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -144,7 +142,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_medium_fp16)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -158,11 +155,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_medium_fp16)
             // Input 2: convStates/cacheStates - (cache_max_size=16, cache_width=3, dim=768)
             // cache_max_size must be > batch, here 16 > 8
             {{{16, 3, 768}, {16, 3, 768}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=8)
-            {{{8}, {8}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=9)
+            // Input 3: queryStartLoc - (batch+1=9)
             {{{9}, {9}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=8)
+            // Input 4: cacheIndices - (batch=8)
+            {{{8}, {8}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=8)
             {{{8}, {8}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -175,7 +172,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_medium_fp16)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 67 67 768 768 67 0 66 1 1 67 66 768 768 64 4 4096 768 8 0 8 0 4096 ";
+    std::string expectTilingData = "1 1 67 67 768 768 67 0 66 1 1 67 66 768 768 64 4 4096 768 8 0 8 0 4096 768 768 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -192,7 +189,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_variable_seqlen)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -206,11 +202,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_variable_seqlen)
             // Input 2: convStates/cacheStates - (cache_max_size=6, cache_width=3, dim=512)
             // cache_max_size must be > batch, here 6 > 3
             {{{6, 3, 512}, {6, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=3)
-            {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=4) = [0, 128, 384, 448]
+            // Input 3: queryStartLoc - (batch+1=4)
             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=3)
+            // Input 4: cacheIndices - (batch=3)
+            {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=3)
             {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -223,7 +219,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_variable_seqlen)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 10 10 512 512 10 0 9 1 1 10 9 512 512 64 4 448 512 3 0 3 0 448 ";
+    std::string expectTilingData = "1 1 10 10 512 512 10 0 9 1 1 10 9 512 512 64 4 448 512 3 0 3 0 448 512 512 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -240,7 +236,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_large_bf16)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -254,11 +249,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_large_bf16)
             // Input 2: convStates/cacheStates - (cache_max_size=256, cache_width=3, dim=512)
             // cache_max_size must be > batch, here 256 > 4
             {{{256, 3, 512}, {256, 3, 512}}, ge::DT_BF16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=4)
-            {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=5)
+            // Input 3: queryStartLoc - (batch+1=5)
             {{{5}, {5}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=4)
+            // Input 4: cacheIndices - (batch=4)
+            {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=4)
             {{{4}, {4}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -271,7 +266,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_large_bf16)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "2 4 502 16 128 128 515 0 514 2 4 502 15 128 128 64 4 32768 512 4 0 4 0 32768 ";
+    std::string expectTilingData = "2 4 502 16 128 128 515 0 514 2 4 502 15 128 128 64 4 32768 512 4 0 4 0 32768 512 512 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -287,7 +282,6 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_xlarge_fp16)
     std::vector<gert::TilingContextPara::OpAttr> attrs = {
         {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"residualConnMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
     };
 
@@ -301,11 +295,11 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_xlarge_fp16)
             // Input 2: convStates/cacheStates - (cache_max_size=1024, cache_width=2, dim=8192)
             // cache_max_size must be > batch, here 1024 > 256
             {{{1024, 2, 8192}, {1024, 2, 8192}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-            // Input 3: cacheIndices - (batch=256)
-            {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 4: queryStartLoc/seqStartIndex - (batch+1=257)
+            // Input 3: queryStartLoc - (batch+1=257)
             {{{257}, {257}}, ge::DT_INT32, ge::FORMAT_ND},
-            // Input 5: hasInitialState - (batch=256)
+            // Input 4: cacheIndices - (batch=256)
+            {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=256)
             {{{256}, {256}}, ge::DT_INT32, ge::FORMAT_ND},
             },
         {
@@ -318,7 +312,7 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_xlarge_fp16)
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
     int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "3 64 503 24 128 128 1026 0 1025 3 64 503 23 128 128 64 3 65536 8192 256 0 256 0 65536 ";
+    std::string expectTilingData = "3 64 503 24 128 128 1026 0 1025 3 64 503 23 128 128 64 3 65536 8192 256 0 256 0 65536 8192 8192 ";
     std::vector<size_t> expectWorkspaces = {16777216};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }

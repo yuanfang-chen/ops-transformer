@@ -42,6 +42,8 @@ struct CausalConv1dFnTilingData {
     uint64_t validBatchCount;   // 有效 batch 的数量
     uint64_t validSeqStart;     // 有效序列的起始位置（在原始 x 中的行偏移）
     uint64_t validSeqLen;       // 有效序列的总长度
+    uint64_t xStride;           // x 的 stride（即 dim）
+    uint64_t cacheStride;       // convStates 的 stride（即 dim）
 };
 
 #endif
