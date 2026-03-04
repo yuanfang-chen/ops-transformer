@@ -127,7 +127,8 @@ protected:
     ge::graphStatus GetWorkspaceSize() override;
     ge::graphStatus PostTiling() override;
     int64_t batchCount_ = 0;
-    uint32_t cacheDTypeByteSize_ = 0;
+    uint32_t cacheDTypeByteSizeK_ = 0;
+    uint32_t cacheDTypeByteSizeV_ = 0;
     uint32_t indexByteSize_ = 0;
     int64_t blockTableWidth_ = 0;
     int64_t blockSize_ = 0;

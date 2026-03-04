@@ -117,7 +117,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
                         " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
                 return ge::GRAPH_FAILED);
 
-    cacheDTypeByteSize_ = tilingDataTypeByteTable.find(kCacheDType_)->second;
+    cacheDTypeByteSizeK_ = tilingDataTypeByteTable.find(kCacheDType_)->second;
 
     auto kCacheStoreShape = context_->GetInputShape(INDEX_INPUT_KEY_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, kCacheStoreShape);
@@ -137,7 +137,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
     blockSize_ = kCacheShape_.GetDim(1);
     // 当数据格式为NZ时
     if (!isCacheModeNorm_) {
-        uint32_t kCacheByteAlign = BLOCK_SIZE / cacheDTypeByteSize_;
+        uint32_t kCacheByteAlign = BLOCK_SIZE / cacheDTypeByteSizeK_;
         OP_CHECK_IF(kCacheShape_.GetDim(kCacheDimNum_ - 1) != kCacheByteAlign,
                     OP_LOGE(context_, "key_cache.shape[3](%ld) must align and equal to 32B, please check.",
                             kCacheShape_.GetDim(kCacheDimNum_ - 1)),
@@ -160,15 +160,17 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
 {
     auto vCacheDesc = context_->GetInputDesc(INDEX_INPUT_VALUE_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, vCacheDesc);
-    ge::DataType vCacheDType = vCacheDesc->GetDataType();
+    ge::DataType vCacheDType_ = vCacheDesc->GetDataType();
     ge::Format vCacheFormat = vCacheDesc->GetFormat().GetStorageFormat();
 
     // 校验数据类型是否合法
-    OP_CHECK_IF((KV_SUPPORT_DTYPE.find(vCacheDType) == KV_SUPPORT_DTYPE.end()),
+    OP_CHECK_IF((KV_SUPPORT_DTYPE.find(vCacheDType_) == KV_SUPPORT_DTYPE.end()),
                 OP_LOGE(context_,
                         "value_cache dtype only support [float32, float16, bf16,"
                         " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
                 return ge::GRAPH_FAILED);
+
+    cacheDTypeByteSizeV_ = tilingDataTypeByteTable.find(vCacheDType_)->second;
 
     auto vCacheStoreShape = context_->GetInputShape(INDEX_INPUT_VALUE_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, vCacheStoreShape);
@@ -182,9 +184,9 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
     // 当数据格式为NZ时，需要检查尾轴是否与32B对齐。kcache和vcache除第1维，其他轴必须相等。
     // 当数据格式为ND时，kcache和vcache的shape的非尾轴必须相等。
     size_t skipAxis = vCacheDimNum_ - 1;
-    if (!isCacheModeNorm_) {
+    if (!isCacheModeNorm_) { // NZ
         skipAxis = 1;
-        uint32_t vCacheDtypeSize = static_cast<uint32_t>(tilingDataTypeByteTable.find(vCacheDType)->second);
+        uint32_t vCacheDtypeSize = static_cast<uint32_t>(tilingDataTypeByteTable.find(vCacheDType_)->second);
         uint32_t vCacheByteAlign = BLOCK_SIZE / vCacheDtypeSize;
         OP_CHECK_IF(vCacheShape_.GetDim(vCacheDimNum_ - 1) != vCacheByteAlign,
                     OP_LOGE(context_, "value_cache last dimension must align and equal to 32B, please check."),
@@ -193,7 +195,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
             vCacheFormat != ge::Format::FORMAT_FRACTAL_NZ,
             OP_LOGE(context_, "value_cache format should be FRACTAL_NZ when cache_mode is PA_NZ, please check."),
             return ge::GRAPH_FAILED);
-    } else {
+    } else { // ND
         OP_CHECK_IF(vCacheFormat != ge::Format::FORMAT_ND,
                     OP_LOGE(context_, "value_cache format should be ND when cache_mode is Norm, please check."),
                     return ge::GRAPH_FAILED);
@@ -464,12 +466,12 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     int64_t batchPerCore = Ops::Base::CeilDiv(batchCount_, coreNum_);
     needCoreNum_ = static_cast<uint32_t>(std::min(Ops::Base::CeilDiv(batchCount_, batchPerCore), coreNum_));
     // uint32_t batchTail = batchCount_ - batchPerCore * (needCoreNum - 1);
-    uint32_t tileBase = BLOCK_SIZE / cacheDTypeByteSize_;
+    uint32_t tileBase = BLOCK_SIZE / std::max(cacheDTypeByteSizeK_, cacheDTypeByteSizeV_);
 
     // 计算UB最大能放下的KV Cache大小
     uint32_t seqLenAccumSize = 1024;
     uint32_t factor = (ubSize_ - UB_REVERSE - seqLenAccumSize * DOUBLE_BUFFER * indexByteSize_ - BLOCK_SIZE) /
-                      (tileBase * DOUBLE_BUFFER * cacheDTypeByteSize_);
+                      (BLOCK_SIZE * DOUBLE_BUFFER);
     uint64_t cacheBlockK = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeK_);
     uint64_t cacheBlockV = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeV_);
     uint64_t maxUbHiddenSizeK =
@@ -482,7 +484,7 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     // 动态调整: 如果有多余空间，就用于累加和的计算
     if (maxUbHiddenSizeK == cacheBlockK || maxUbHiddenSizeV == cacheBlockV) {
         uint32_t spareBuffer =
-            ubSize_ - UB_REVERSE - maxUbHiddenSize * DOUBLE_BUFFER * cacheDTypeByteSize_ - BLOCK_SIZE;
+            ubSize_ - UB_REVERSE - maxUbHiddenSize * DOUBLE_BUFFER * + std::max(cacheDTypeByteSizeK_, cacheDTypeByteSizeV_) - BLOCK_SIZE;
         seqLenAccumSize = Ops::Base::CeilDiv(spareBuffer / DOUBLE_BUFFER, BLOCK_SIZE) * BLOCK_SIZE / indexByteSize_;
     }
 
