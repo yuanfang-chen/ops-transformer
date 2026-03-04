@@ -74,7 +74,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "64 64 1 256 256 256 256 0 255 166 128 2 2 256 6 0 16384 3 7 0 0 ";
+    std::string expectTilingData = "64 64 1 256 256 256 256 0 255 166 128 2 2 256 6 0 16384 3 7 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -122,7 +122,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_fp16_batch4_seq1_
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "1 1 1 512 512 4 4 0 3 4 512 1 1 4 1 0 512 3 2 0 1 ";
+    std::string expectTilingData = "1 1 1 512 512 4 4 0 3 4 512 1 1 4 1 0 512 3 2 0 0 0 1 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
@@ -170,7 +170,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_fp16_batch1_seq4_
         &compileInfo);
 
     int64_t expectTilingKey = 30000;
-    std::string expectTilingData = "1 1 1 1024 1024 1 1 0 0 1 1024 1 1 1 4 0 1024 3 5 0 1 ";
+    std::string expectTilingData = "1 1 1 1024 1024 1 1 0 0 1 1024 1 1 1 4 0 1024 3 5 0 0 0 1 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }

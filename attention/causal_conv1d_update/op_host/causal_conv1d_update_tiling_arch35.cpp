@@ -762,6 +762,8 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.dim = dim_;
     tilingData_.kernelSize = kernelSize_;
     tilingData_.stateLen = stateLen_;
+    tilingData_.xStride = 0;
+    tilingData_.cacheStride = 0;
     tilingData_.xInputMode = xInputMode_;
     tilingData_.hasAcceptTokenNum = hasAcceptTokenNum_;
 
