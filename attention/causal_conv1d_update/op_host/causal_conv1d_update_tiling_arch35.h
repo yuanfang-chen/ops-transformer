@@ -105,6 +105,7 @@ private:
     int64_t cuSeqLen_ = 0;  // For 2D input: first dimension of x, equals batch * seq_len
     int64_t dim_ = 0;
     int64_t kernelSize_ = 0;
+    int64_t stateLen_ = 0;   // State length: second dimension of cacheState (K-1+m)
 
     // Data type information
     ge::DataType xDtype_;

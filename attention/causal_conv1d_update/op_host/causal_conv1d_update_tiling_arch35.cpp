@@ -154,6 +154,13 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         runMode_ = *runModePtr;
     }
 
+    // Get convStates shape to retrieve stateLen
+    auto convStatesShape = context_->GetInputShape(CONV_STATES_INDEX);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
+    auto convStatesOriginShape = convStatesShape->GetOriginShape();
+    // stateLen is the second dimension of convStates [-1, stateLen, dim]
+    stateLen_ = convStatesOriginShape.GetDim(1);
+
     // Perform all validations
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
                 OP_LOGE(context_->GetNodeName(), "CausalConv1dUpdate CheckInputParams FAILED."),
@@ -169,7 +176,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
     OP_CHECK_IF(batchSize_ < MIN_BATCH || batchSize_ > MAX_BATCH,
                 OP_LOGE(context_->GetNodeName(),
                         "X batch size must be in [%ld, %ld], but got %ld",
-                        MIN_BATCH, MAX_BATCH, batch),
+                        MIN_BATCH, MAX_BATCH, batchSize_),
                 return ge::GRAPH_FAILED);
 
     // For 3D input, validate sequence length
@@ -754,6 +761,7 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
     tilingData_.cuSeqLen = cuSeqLen_;
     tilingData_.dim = dim_;
     tilingData_.kernelSize = kernelSize_;
+    tilingData_.stateLen = stateLen_;
     tilingData_.xInputMode = xInputMode_;
     tilingData_.hasAcceptTokenNum = hasAcceptTokenNum_;
 
@@ -804,6 +812,7 @@ void CausalConv1dUpdateTiling::DumpTilingInfo()
     info << "cuSeqLen: " << cuSeqLen_ << std::endl;
     info << "dim: " << dim_ << std::endl;
     info << "kernelSize: " << kernelSize_ << std::endl;
+    info << "stateLen: " << stateLen_ << std::endl;
     info << "xInputMode: " << xInputMode_ << std::endl;
     info << "hasAcceptTokenNum: " << hasAcceptTokenNum_ << std::endl;
 
