@@ -38,9 +38,8 @@ aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(
     int64_t preTokens,                         // 滑窗参数
     int64_t nextTokens,                        // 滑窗参数
     int64_t softmaxLseFlag,                    // 是否输出LSE
-    const aclIntArray *blockShape,             // 块形状 [blockShapeX, blockShapeY]
-    const aclTensor *attentionOut,             // 输出tensor
-    const aclTensor *softmaxLse,               // Softmax LSE输出 (可选)
+    aclTensor *attentionOut,                   // 输出tensor
+    aclTensor *softmaxLse,                     // Softmax LSE输出 (可选)
     uint64_t *workspaceSize,                   // 返回workspace大小
     aclOpExecutor **executor);                 // 返回executor
 ```
@@ -52,7 +51,7 @@ aclnnStatus aclnnBlockSparseAttention(
     void *workspace,                           // workspace地址
     uint64_t workspaceSize,                    // workspace大小
     aclOpExecutor *executor,                   // executor
-    const aclrtStream stream);                 // ACL stream
+    aclrtStream stream);                       // ACL stream
 ```
 
 ## 参数说明
