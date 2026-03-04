@@ -65,7 +65,7 @@ extern "C" __global__ __aicore__ void block_sparse_attention(__gm__ uint8_t* que
             actualSeqLengths, actualSeqLengthsKv, blockShape, user, softmaxLse, tiling);
     #elif TILING_KEY_VAR == QF16_KVF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT
         BlockSparse::BlockSparseAttentionInfer<half, float, Epilogue::LseMode::OUT_ONLY, 0, 0>(
-            qquery, key, value, blockSparseMask, mask, blockTable, attentionOut,
+            query, key, value, blockSparseMask, mask, blockTable, attentionOut,
             actualSeqLengths, actualSeqLengthsKv, blockShape, user, softmaxLse, tiling);
     #elif TILING_KEY_VAR == QF16_KVF16_TND_TND_NOCACHE_HALFSM_NOMASK_RFA_TILING_LSE_OUT
         BlockSparse::BlockSparseAttentionInfer<half, half, Epilogue::LseMode::OUT_ONLY, 0, 0>(
