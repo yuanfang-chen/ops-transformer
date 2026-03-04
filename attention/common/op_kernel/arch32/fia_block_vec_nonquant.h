@@ -652,7 +652,7 @@ template <typename FIAT> __aicore__ inline void FiaBlockVecNonQuant<FIAT>::Proce
     }
     uint32_t mSplitSize = BASE_BLOCK_MAX_ELEMENT_NUM / constInfo.headDimAlign;
     if (mSplitSize > fa_base_vector::MAX_REPEAT_TIMES) {
-        mSplitSize = mSplitSize;
+        mSplitSize = fa_base_vector::MAX_REPEAT_TIMES;
     }
     if constexpr (!SOFTMAX_WITH_BRC) {
         uint32_t alignVal = fa_base_vector::BYTE_BLOCK / sizeof(COMPUTE_T);
