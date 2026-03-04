@@ -402,29 +402,29 @@ public:
     //     }
     // }
 
-    // __aicore__ inline
-    // void ReduceMaxByPair(const AscendC::LocalTensor<float> &dstUb, const AscendC::LocalTensor<float> &srcUb,
-    //                                        uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
-    //                                        uint8_t dataBlockStride, uint8_t repeatStride)
-    // {
-    //     for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
-    //         uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
-    //         uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
-    //         AscendC::Max<float, false>(
-    //             dstUb[src0Start],
-    //             srcUb[src0Start],
-    //             srcUb[src1Start],
-    //             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-    //             numRowsRound,
-    //             AscendC::BinaryRepeatParams(
-    //                 dataBlockStride,
-    //                 dataBlockStride,
-    //                 dataBlockStride,
-    //                 repeatStride,
-    //                 repeatStride,
-    //                 repeatStride));
-    //     }
-    // }
+    __aicore__ inline
+    void ReduceMaxByPair(const AscendC::LocalTensor<float> &dstUb, const AscendC::LocalTensor<float> &srcUb,
+                                           uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
+                                           uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
+            uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+            AscendC::Max<float, false>(
+                dstUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
     
     __aicore__ inline
     void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
