@@ -44,6 +44,15 @@ YELLOW_RESET = "\033[0m"  # 重置黄色
 COLOR_GREEN = "\033[32m"
 GREEN_RESET = "\033[0m"
 
+WEIGHT_QUANT_MODE_FULL_INT8 = 2
+WEIGHT_QUANT_MODE_MXFP8_FULL = 3
+WEIGHT_QUANT_MODE_FULL_FP8_E4M3 = 4
+WEIGHT_QUANT_MODE_FULL_HIF8 = 5
+
+INT8_DTYPE_MAX = 127.0
+FP8_E4M3_DTYPE_MAX = 448.0
+HIF8_DTYPE_MAX = 32768.0
+
 
 def str_to_bool_list(s: str):
     bool_list = []
@@ -355,10 +364,29 @@ def quant_ckv_per_tensor(input, quant_scale_ckv):
     return scaled_value
 
 
-def dynamic_quant(inputs, smooth_scale):
+def _get_mode_dtype_max(weight_quant_mode):
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_FP8_E4M3:
+        return FP8_E4M3_DTYPE_MAX
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_HIF8:
+        return HIF8_DTYPE_MAX
+    return INT8_DTYPE_MAX
+
+
+def _dynamic_quant_clip_range(dtype_max, quant_dtype):
+    if quant_dtype == torch.int8:
+        return -128.0, 127.0
+    return -float(dtype_max), float(dtype_max)
+
+
+def _clamp_to_dtype_range_float(inputs, dtype_max):
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, torch.float32)
+    return torch.clamp(inputs.to(torch.float32), min=clip_min, max=clip_max)
+
+
+def dynamic_quant(inputs, smooth_scale, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int32):
     T = inputs.size(0)
     H = inputs.size(1)
-    y = torch.zeros(T, H).to(torch.int32)
+    y = torch.zeros(T, H).to(torch.float32)
     scale = torch.zeros(T).to(torch.float32)
     inputs = inputs.reshape(T, H).to(torch.float32)
     if smooth_scale!=None:
@@ -368,15 +396,20 @@ def dynamic_quant(inputs, smooth_scale):
         smooth_scale = smooth_scale.to(torch.float32)
         for bs_index in range(T):
             abs_bs_tensor = torch.abs(inputs[bs_index, :] * smooth_scale[0, :])
-            scale_bs = abs_bs_tensor.max() / 127
+            scale_bs = abs_bs_tensor.max() / float(dtype_max)
             scale[bs_index] = scale_bs
             y[bs_index:] = torch.round(inputs[bs_index:] * smooth_scale[0, :] / scale_bs)
     else:
         for bs_index in range(T):
             abs_bs_tensor = torch.abs(inputs[bs_index, :])
-            scale_bs = abs_bs_tensor.max() / 127
+            scale_bs = abs_bs_tensor.max() / float(dtype_max)
             scale[bs_index] = scale_bs
             y[bs_index:] = torch.round(inputs[bs_index:]/ scale_bs)
+    if quant_dtype == torch.int32:
+        y = y.to(torch.int32)
+    else:
+        clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+        y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     return y, scale
 
 
@@ -669,7 +702,7 @@ def dynamic_quant_ckv_with_amax(inputs: torch.Tensor, amax: torch.Tensor, smooth
 
 
 # quant_type: ['per_token', 'per_token_head'], input shape: [T,N1,Hckv]
-def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape):
+def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int8):
     T = inputs.size(0)
     N = inputs.size(1)
     H = inputs.size(2)
@@ -679,13 +712,14 @@ def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape):
         quant_loops = inputs.size(0) * inputs.size(1)
         eles_with_one_scale = inputs.size(2)
 
-    y = torch.zeros(quant_loops, eles_with_one_scale).to(torch.int32)
+    y = torch.zeros(quant_loops, eles_with_one_scale).to(torch.float32)
     scale = torch.zeros(quant_loops).to(torch.float32)
     inputs = inputs.reshape(quant_loops, eles_with_one_scale).to(torch.float32)
     max_values, _ = torch.max(torch.abs(inputs), dim=-1, keepdim=True)
-    scale = max_values / 127
+    scale = max_values / float(dtype_max)
     y = torch.round(inputs/scale)
-    y = s8_saturation(y)
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+    y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     if len(out_deqq_shape_shape) == 2:  # [BS, 1], per_token
         print(f"[INFO]dynamic_quant_without_smooth_scale in per_token mode")
         return y.reshape(T, N, H), scale.reshape(quant_loops, 1).to(torch.float64)
@@ -1029,7 +1063,16 @@ def cal_mlaprolog(mla_param):
     deq_scale_qcqr = None
     out_qnorm = None
     out_deq_qnorm = None
-    enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (mla_param["weight_quant_mode"] == 2 or mla_param["weight_quant_mode"] == 3) else False
+    mode45_full_quant = mla_param["weight_quant_mode"] in (
+        WEIGHT_QUANT_MODE_FULL_FP8_E4M3, WEIGHT_QUANT_MODE_FULL_HIF8)
+    mode45_dtype_max = _get_mode_dtype_max(mla_param["weight_quant_mode"])
+    enable_quant_output = True if mla_param["query_quant_mode"] == 1 and (
+        mla_param["weight_quant_mode"] in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_MXFP8_FULL,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8,
+        )) else False
     # enable_quant_output =  mla_param["enable_quant_output"]
     quant_scale_ckv = mla_param["quant_scale_ckv_tensor"]
     actual_seq_lengths = mla_param["actual_seq_len"]
@@ -1059,7 +1102,7 @@ def cal_mlaprolog(mla_param):
     # matmul1预处理
     print(f"[TEST]====================token: {token_x}")
     token_x_new = token_x
-    if x_dtype == 'int8':
+    if mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_FULL_INT8 and x_dtype == 'int8':
         token_x_new = token_x_new.to(torch.int32)
         token_x = token_x.to(torch.int32)
         w_dq = w_dq.to(torch.int32)
@@ -1067,7 +1110,7 @@ def cal_mlaprolog(mla_param):
         if mla_param["device"] == "gpu":
             token_x = token_x.to('cpu')
             w_dq = w_dq.to('cpu')
-    elif x_dtype == 'float8_e4m3fn':
+    elif mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_MXFP8_FULL and x_dtype == 'float8_e4m3fn':
         # token_x类型转换
         token_x_new = token_x_new.to(torch.bfloat16)
         token_x = token_x.to(torch.bfloat16)
@@ -1113,9 +1156,15 @@ def cal_mlaprolog(mla_param):
         f"[INFO]matmul1 start. token_x{x_shape}:{tuple(token_x.shape)}|{token_x.dtype} w_dq(He,Hcq):{tuple(w_dq.shape)}|{w_dq.dtype} matmul1_dtype:{matmul1_dtype}")
     token_x_new = token_x_new.to(torch.float32)
     w_dq = w_dq.to(torch.float32)
+    if mode45_full_quant:
+        token_x_new = _clamp_to_dtype_range_float(token_x_new, mode45_dtype_max)
+        w_dq = _clamp_to_dtype_range_float(w_dq, mode45_dtype_max)
     matmul1_res = torch.matmul(token_x_new, w_dq).to(matmul1_dtype)
     # matmul1后处理
-    if mla_param["weight_quant_mode"] == 2: # x_dtype == 'int8':
+    if mla_param["weight_quant_mode"] in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8): # x_dtype == 'int8':
         if mla_param["device"] == "gpu":
             matmul1_res = matmul1_res.to('cuda')
         deq_scale_x = mla_param["deq_scale_x_tensor"]
@@ -1151,7 +1200,7 @@ def cal_mlaprolog(mla_param):
     w_uq_qr = mla_param["w_uq_qr_tensor"]
     # matmul2预处理
     matmul2_dtype = torch.float32
-    if mla_param["weight_quant_mode"] == 1 or mla_param["weight_quant_mode"] == 2: # uqqr_dtype == 'int8':
+    if mla_param["weight_quant_mode"] == 1 or mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_FULL_INT8: # uqqr_dtype == 'int8':
         w_uq_qr = w_uq_qr.to(torch.int32)
         matmul2_dtype = torch.int32
         smo_scale_cq = mla_param["smo_scale_cq_tensor"]
@@ -1167,7 +1216,19 @@ def cal_mlaprolog(mla_param):
             w_uq_qr = w_uq_qr.to('cpu')
             deq_scale_qcqr = deq_scale_qcqr.to('cuda')
         print(f"[INFO]dynamic_quant end. norm1_res dtype trans to {norm1_res.dtype}")
-    elif mla_param["weight_quant_mode"] == 3:
+    elif mode45_full_quant:
+        smo_scale_cq = mla_param["smo_scale_cq_tensor"]
+        norm1_res, deq_scale_qcqr = dynamic_quant(
+            norm1_res,
+            smo_scale_cq,
+            dtype_max=mode45_dtype_max,
+            quant_dtype=torch.float32,
+        )
+        if qnorm_flag:
+            out_qnorm = norm1_res
+            out_deq_qnorm = deq_scale_qcqr
+        print(f"[INFO]dynamic_quant end. norm1_res dtype trans to {norm1_res.dtype}")
+    elif mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_MXFP8_FULL:
 		# w_uq_qr类型转换
         w_uq_qr = w_uq_qr.to(torch.bfloat16)
         # deq_scale_uqqr类型转换
@@ -1215,9 +1276,16 @@ def cal_mlaprolog(mla_param):
         f"[INFO]matmul2 start. norm1_res{matmul1_res_shape}:{tuple(norm1_res.shape)}|{norm1_res.dtype} w_uq_qr(Hcq,N*(D+Dr)):{tuple(w_uq_qr.shape)}|{w_uq_qr.dtype} matmul2_dtype:{matmul2_dtype}")
     norm1_res = norm1_res.to(torch.float32)
     w_uq_qr = w_uq_qr.to(torch.float32)
+    if mode45_full_quant:
+        norm1_res = _clamp_to_dtype_range_float(norm1_res, mode45_dtype_max)
+        w_uq_qr = _clamp_to_dtype_range_float(w_uq_qr, mode45_dtype_max)
     matmul2_res = torch.matmul(norm1_res, w_uq_qr).to(matmul2_dtype)
     # matmul2后处理
-    if mla_param["weight_quant_mode"] == 1 or mla_param["weight_quant_mode"] == 2: # uqqr_dtype == 'int8':
+    if mla_param["weight_quant_mode"] in (
+            1,
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8): # uqqr_dtype == 'int8':
         if mla_param["device"] == "gpu":
             matmul2_res = matmul2_res.to('cuda')
         deq_scale_uqqr = mla_param["deq_scale_w_uqqr_tensor"]
@@ -1269,7 +1337,7 @@ def cal_mlaprolog(mla_param):
     out1 = out1.transpose(0, 1)
     # torch.save(out1, 'out1.pt')
     if enable_quant_output:
-        if mla_param["weight_quant_mode"] == 3:
+        if mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_MXFP8_FULL:
             out1 = out1.to(torch.bfloat16).to(torch.float32)
             deq_scale_q_nope_np, out1_np = dynamic_mx_quant_qn(out1.numpy(), mla_param)
             if mla_param['action_type'] == 'bm_output_gold':
@@ -1278,6 +1346,14 @@ def cal_mlaprolog(mla_param):
             else:
                 out1 = torch.tensor(out1_np.astype(np.float32)).to(torch.float8_e4m3fn)
                 deq_scale_q_nope = torch.from_numpy(deq_scale_q_nope_np)
+        elif mode45_full_quant:
+            out1 = out1.to(torch.bfloat16).to(torch.float32)
+            out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(
+                out1,
+                out_deqq_shape_shape,
+                dtype_max=mode45_dtype_max,
+                quant_dtype=torch.float32,
+            )
         else:
             out1 = out1.to(torch.bfloat16).to(torch.float32)
             out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
@@ -1310,12 +1386,12 @@ def cal_mlaprolog(mla_param):
     print(f"===========================w_kv_kr:{w_kv_kr}")
     # matmul4预处理
     matmul4_dtype = torch.float32
-    if mla_param["weight_quant_mode"] == 2: # x_dtype == 'int8':
+    if mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_FULL_INT8: # x_dtype == 'int8':
         w_kv_kr = w_kv_kr.to(torch.int32)
         matmul4_dtype = torch.int32
         if mla_param["device"] == "gpu":
             w_kv_kr = w_kv_kr.to('cpu')
-    elif mla_param["weight_quant_mode"] == 3:
+    elif mla_param["weight_quant_mode"] == WEIGHT_QUANT_MODE_MXFP8_FULL:
         # w_kv_kr反量化
         w_kv_kr = w_kv_kr.to(torch.bfloat16)
         # deq_scale_dkvkr 类型转换
@@ -1332,10 +1408,18 @@ def cal_mlaprolog(mla_param):
         f"[INFO]matmul4 start. token_x{x_shape}:{tuple(token_x.shape)}|{token_x.dtype} w_kv_kr(He,Hckv+Dr):{tuple(w_kv_kr.shape)}|{w_kv_kr.dtype} matmul4_dtype:{matmul4_dtype}")
     print(f"======================token_new: {token_x_new}")
     print(f"======================w_kv_kr:{w_kv_kr}")
-    matmul4_res = torch.matmul(token_x_new.to(torch.float32), w_kv_kr.to(torch.float32)).to(matmul4_dtype)
+    token_x_matmul4 = token_x_new.to(torch.float32)
+    w_kv_kr = w_kv_kr.to(torch.float32)
+    if mode45_full_quant:
+        token_x_matmul4 = _clamp_to_dtype_range_float(token_x_matmul4, mode45_dtype_max)
+        w_kv_kr = _clamp_to_dtype_range_float(w_kv_kr, mode45_dtype_max)
+    matmul4_res = torch.matmul(token_x_matmul4, w_kv_kr).to(matmul4_dtype)
     print(f"===============================================mm4:{matmul4_res}")
     # matmul4后处理
-    if mla_param["weight_quant_mode"] == 2: # x_dtype == 'int8':
+    if mla_param["weight_quant_mode"] in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8): # x_dtype == 'int8':
         if mla_param["device"] == "gpu":
             matmul4_res = matmul4_res.to('cuda')
         deq_scale_x = mla_param["deq_scale_x_tensor"]

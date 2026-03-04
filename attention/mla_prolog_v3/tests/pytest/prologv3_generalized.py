@@ -25,6 +25,15 @@ YELLOW_RESET = "\033[0m"
 COLOR_GREEN = "\033[32m"
 GREEN_RESET = "\033[0m"
 
+WEIGHT_QUANT_MODE_FULL_INT8 = 2
+WEIGHT_QUANT_MODE_MXFP8_FULL = 3
+WEIGHT_QUANT_MODE_FULL_FP8_E4M3 = 4
+WEIGHT_QUANT_MODE_FULL_HIF8 = 5
+
+INT8_DTYPE_MAX = 127.0
+FP8_E4M3_DTYPE_MAX = 448.0
+HIF8_DTYPE_MAX = 32768.0
+
 
 def _info_log_enabled():
     return os.getenv("MLA_PROLOG_V3_CPU_INFO_LOG", "0").strip().lower() in ("1", "true", "yes", "on")
@@ -36,6 +45,52 @@ INFO_LOG_ENABLED = _info_log_enabled()
 def info_log(message):
     if INFO_LOG_ENABLED:
         print(message)
+
+
+def _get_hif8_dtype():
+    return getattr(torch_npu, "hifloat8", None)
+
+
+def has_hif8_dtype():
+    return _get_hif8_dtype() is not None
+
+
+def _get_full_quant_mode_config(weight_quant_mode):
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
+        return {
+            "input_dtype": torch.int8,
+            "dtype_max": INT8_DTYPE_MAX,
+            "query_quant_dtype": torch.int8,
+        }
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_FP8_E4M3:
+        if not hasattr(torch, "float8_e4m3fn"):
+            return None
+        return {
+            "input_dtype": torch.float8_e4m3fn,
+            "dtype_max": FP8_E4M3_DTYPE_MAX,
+            "query_quant_dtype": torch.float8_e4m3fn,
+        }
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_HIF8:
+        hif8_dtype = _get_hif8_dtype()
+        if hif8_dtype is None:
+            return None
+        return {
+            "input_dtype": hif8_dtype,
+            "dtype_max": HIF8_DTYPE_MAX,
+            "query_quant_dtype": hif8_dtype,
+        }
+    return None
+
+
+def _dynamic_quant_clip_range(dtype_max, quant_dtype):
+    if quant_dtype == torch.int8:
+        return -128.0, 127.0
+    return -float(dtype_max), float(dtype_max)
+
+
+def _clamp_to_dtype_range_float(inputs, dtype_max):
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, torch.float32)
+    return torch.clamp(inputs.to(torch.float32), min=clip_min, max=clip_max)
 
 
 # ===================== Helper Functions =====================
@@ -83,11 +138,11 @@ def quant_ckv_per_tensor(input_data, quant_scale_ckv):
     return scaled_value
 
 
-def dynamic_quant(inputs, smooth_scale):
-    """Dynamic quantization with optional smooth scale. Returns (quantized_int8, scale)."""
+def dynamic_quant(inputs, smooth_scale, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int32):
+    """Dynamic quantization with optional smooth scale. Returns (quantized, scale)."""
     T = inputs.size(0)
     H = inputs.size(1)
-    y = torch.zeros(T, H).to(torch.int32)
+    y = torch.zeros(T, H).to(torch.float32)
     scale = torch.zeros(T).to(torch.float32)
     inputs = inputs.reshape(T, H).to(torch.float32)
     if smooth_scale is not None:
@@ -97,20 +152,25 @@ def dynamic_quant(inputs, smooth_scale):
         smooth_scale = smooth_scale.to(torch.float32)
         for bs_index in range(T):
             abs_bs_tensor = torch.abs(inputs[bs_index, :] * smooth_scale[0, :])
-            scale_bs = abs_bs_tensor.max() / 127
+            scale_bs = abs_bs_tensor.max() / float(dtype_max)
             scale[bs_index] = scale_bs
             y[bs_index:] = torch.round(inputs[bs_index:] * smooth_scale[0, :] / scale_bs)
     else:
         for bs_index in range(T):
             abs_bs_tensor = torch.abs(inputs[bs_index, :])
-            scale_bs = abs_bs_tensor.max() / 127
+            scale_bs = abs_bs_tensor.max() / float(dtype_max)
             scale[bs_index] = scale_bs
             y[bs_index:] = torch.round(inputs[bs_index:] / scale_bs)
+    if quant_dtype == torch.int32:
+        y = y.to(torch.int32)
+    else:
+        clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+        y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     return y, scale
 
 
-def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape):
-    """Dynamic quantization for query output. Returns (quantized_int8, scale)."""
+def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int8):
+    """Dynamic quantization for query output. Returns (quantized, scale)."""
     T = inputs.size(0)
     N = inputs.size(1)
     H = inputs.size(2)
@@ -123,9 +183,10 @@ def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape):
     scale = torch.zeros(quant_loops).to(torch.float32)
     inputs = inputs.reshape(quant_loops, eles_with_one_scale).to(torch.float32)
     max_values, _ = torch.max(torch.abs(inputs), dim=-1, keepdim=True)
-    scale = max_values / 127
+    scale = max_values / float(dtype_max)
     y = torch.round(inputs / scale)
-    y = s8_saturation(y)
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+    y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     if len(out_deqq_shape_shape) == 2:  # [BS, 1], per_token
         return y.reshape(T, N, H), scale.reshape(quant_loops, 1).to(torch.float64)
     else:
@@ -356,7 +417,36 @@ class GeneralizedPrologV3:
         qc_qr_scale = self.qc_qr_scale
         kc_scale = self.kc_scale
 
-        enable_quant_output = (query_quant_mode == 1 and weight_quant_mode in (2, 3))
+        full_quant_mode_config = _get_full_quant_mode_config(weight_quant_mode)
+        if weight_quant_mode in (WEIGHT_QUANT_MODE_FULL_FP8_E4M3, WEIGHT_QUANT_MODE_FULL_HIF8) and \
+                full_quant_mode_config is None:
+            raise ValueError(f"weight_quant_mode={weight_quant_mode} requires unavailable quant dtype support")
+
+        mode2_family_full_quant = weight_quant_mode in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8,
+        )
+        mode45_full_quant = weight_quant_mode in (
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8,
+        )
+        enable_quant_output = (query_quant_mode == 1 and weight_quant_mode in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_MXFP8_FULL,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8,
+        ))
+        query_quant_dtype = torch.int8
+        query_dtype_max = INT8_DTYPE_MAX
+        matmul_input_dtype_max = None
+        if mode2_family_full_quant and full_quant_mode_config is not None:
+            query_dtype_max = full_quant_mode_config["dtype_max"]
+            if mode45_full_quant:
+                query_quant_dtype = torch.float32
+                matmul_input_dtype_max = full_quant_mode_config["dtype_max"]
+            else:
+                query_quant_dtype = full_quant_mode_config["query_quant_dtype"]
         deq_scale_q_nope = None
 
         def _build_expected_kernel_outputs(query, query_rope, deq_scale_q_nope_tensor):
@@ -436,19 +526,26 @@ class GeneralizedPrologV3:
         # -------------------------------------------------------------------
         matmul1_dtype = torch.float32
         token_x_new = token_x.clone()
-        if weight_quant_mode == 2:
-            token_x_new = token_x_new.to(torch.int32)
-            w_dq = w_dq.to(torch.int32)
-            matmul1_dtype = torch.int32
+        if mode2_family_full_quant:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
+                token_x_new = token_x_new.to(torch.int32)
+                w_dq = w_dq.to(torch.int32)
+                matmul1_dtype = torch.int32
+            else:
+                token_x_new = token_x_new.to(full_quant_mode_config["input_dtype"])
+                w_dq = w_dq.to(full_quant_mode_config["input_dtype"])
 
         info_log(f"[INFO]matmul1 start. token_x:{tuple(token_x.shape)}|{token_x.dtype}"
                  f" w_dq:{tuple(w_dq.shape)}|{w_dq.dtype}")
         token_x_new = token_x_new.to(torch.float32)
         w_dq = w_dq.to(torch.float32)
+        if mode45_full_quant:
+            token_x_new = _clamp_to_dtype_range_float(token_x_new, matmul_input_dtype_max)
+            w_dq = _clamp_to_dtype_range_float(w_dq, matmul_input_dtype_max)
         matmul1_res = torch.matmul(token_x_new, w_dq).to(matmul1_dtype)
 
         # matmul1 post-processing
-        if weight_quant_mode == 2:
+        if mode2_family_full_quant:
             matmul1_res = matmul1_res.to(torch.float32)
             for t_index in range(T):
                 matmul1_res[t_index, :] = matmul1_res[t_index, :] * deq_scale_x[t_index, 0]
@@ -473,20 +570,42 @@ class GeneralizedPrologV3:
         # ----------------------------------------------------------------------------------
         matmul2_dtype = torch.float32
         deq_scale_qcqr = None
-        if weight_quant_mode in (1, 2):
+        if weight_quant_mode == 1:
             w_uq_qr = w_uq_qr.to(torch.int32)
             matmul2_dtype = torch.int32
-            norm1_res, deq_scale_qcqr = dynamic_quant(norm1_res, smooth_scale_cq)
+            norm1_res, deq_scale_qcqr = dynamic_quant(
+                norm1_res, smooth_scale_cq, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int32
+            )
+            info_log(f"[INFO]dynamic_quant end. norm1_res dtype={norm1_res.dtype}")
+        elif mode2_family_full_quant:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
+                w_uq_qr = w_uq_qr.to(torch.int32)
+                matmul2_dtype = torch.int32
+                norm1_res, deq_scale_qcqr = dynamic_quant(
+                    norm1_res, smooth_scale_cq, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int32
+                )
+            else:
+                w_uq_qr = w_uq_qr.to(full_quant_mode_config["input_dtype"])
+                matmul2_dtype = torch.float32
+                norm1_res, deq_scale_qcqr = dynamic_quant(
+                    norm1_res,
+                    smooth_scale_cq,
+                    dtype_max=full_quant_mode_config["dtype_max"],
+                    quant_dtype=torch.float32
+                )
             info_log(f"[INFO]dynamic_quant end. norm1_res dtype={norm1_res.dtype}")
         else:
             norm1_res = norm1_res.to(torch.bfloat16).to(torch.float32)
 
         norm1_res = norm1_res.to(torch.float32)
         w_uq_qr = w_uq_qr.to(torch.float32)
+        if mode45_full_quant:
+            norm1_res = _clamp_to_dtype_range_float(norm1_res, matmul_input_dtype_max)
+            w_uq_qr = _clamp_to_dtype_range_float(w_uq_qr, matmul_input_dtype_max)
         matmul2_res = torch.matmul(norm1_res, w_uq_qr).to(matmul2_dtype)
 
         # matmul2 post-processing
-        if weight_quant_mode in (1, 2):
+        if weight_quant_mode == 1 or mode2_family_full_quant:
             matmul2_res = matmul2_res.to(torch.float32)
             for t_index in range(T):
                 matmul2_res[t_index, :] = matmul2_res[t_index, :] * deq_scale_qcqr[t_index]
@@ -522,7 +641,15 @@ class GeneralizedPrologV3:
         if enable_quant_output:
             out_deqq_shape_shape = [T, N1, 1]  # per_token_head
             out1 = out1.to(torch.bfloat16).to(torch.float32)
-            out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
+            if mode2_family_full_quant:
+                out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(
+                    out1,
+                    out_deqq_shape_shape,
+                    dtype_max=query_dtype_max,
+                    quant_dtype=query_quant_dtype
+                )
+            else:
+                out1, deq_scale_q_nope = dynamic_quant_without_smooth_scale(out1, out_deqq_shape_shape)
         out1 = out1 if t_flag else out1.reshape(B, S1, N1, Hckv)
         info_log(f"[INFO]matmul3 end. {COLOR_YELLOW}out1:{out1.shape}|{out1.dtype}{YELLOW_RESET}")
 
@@ -543,14 +670,22 @@ class GeneralizedPrologV3:
         # matmul4 : token_x(B*S1,He) * w_dkv_kr(He,Hckv+Dr) -> matmul4_res(B*S1,Hckv+Dr)
         # -------------------------------------------------------------------------------
         matmul4_dtype = torch.float32
-        if weight_quant_mode == 2:
-            w_dkv_kr = w_dkv_kr.to(torch.int32)
-            matmul4_dtype = torch.int32
+        if mode2_family_full_quant:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
+                w_dkv_kr = w_dkv_kr.to(torch.int32)
+                matmul4_dtype = torch.int32
+            else:
+                w_dkv_kr = w_dkv_kr.to(full_quant_mode_config["input_dtype"])
 
-        matmul4_res = torch.matmul(token_x_new.to(torch.float32), w_dkv_kr.to(torch.float32)).to(matmul4_dtype)
+        token_x_matmul4 = token_x_new.to(torch.float32)
+        w_dkv_kr = w_dkv_kr.to(torch.float32)
+        if mode45_full_quant:
+            token_x_matmul4 = _clamp_to_dtype_range_float(token_x_matmul4, matmul_input_dtype_max)
+            w_dkv_kr = _clamp_to_dtype_range_float(w_dkv_kr, matmul_input_dtype_max)
+        matmul4_res = torch.matmul(token_x_matmul4, w_dkv_kr).to(matmul4_dtype)
 
         # matmul4 post-processing
-        if weight_quant_mode == 2:
+        if mode2_family_full_quant:
             matmul4_res = matmul4_res.to(torch.float32)
             for t_index in range(T):
                 matmul4_res[t_index, :] = matmul4_res[t_index, :] * deq_scale_x[t_index, 0]
@@ -790,15 +925,21 @@ def validate_quant_cache_combo(cache_mode,
                                query_quant_mode,
                                ckvkr_repo_mode,
                                quant_scale_repo_mode):
+    if weight_quant_mode not in (0, 1, 2, 3, 4, 5):
+        return False, "weight_quant_mode should be in {0,1,2,3,4,5}"
     if weight_quant_mode == 0 and kv_quant_mode != 0:
         return False, "weight_quant_mode=0 only supports kv_quant_mode=0"
     if weight_quant_mode == 1 and kv_quant_mode not in (0, 2, 3):
         return False, "weight_quant_mode=1 only supports kv_quant_mode in {0,2,3}"
-    if weight_quant_mode in (2, 3) and kv_quant_mode not in (0, 1, 3):
-        return False, "weight_quant_mode in {2,3} only supports kv_quant_mode in {0,1,3}"
+    if weight_quant_mode in (2, 3, 4, 5) and kv_quant_mode not in (0, 1, 3):
+        return False, "weight_quant_mode in {2,3,4,5} only supports kv_quant_mode in {0,1,3}"
 
-    if weight_quant_mode == 3 and not is_mxfp8_runtime_supported():
+    if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL and not is_mxfp8_runtime_supported():
         return False, "mxfp8 full quant needs float8 support on Ascend 950"
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_FP8_E4M3 and not hasattr(torch, "float8_e4m3fn"):
+        return False, "fp8_e4m3 full quant needs torch.float8_e4m3fn support"
+    if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_HIF8 and not has_hif8_dtype():
+        return False, "hif8 full quant needs torch_npu.hifloat8 support"
 
     if kv_quant_mode == 3:
         if cache_mode in ("PA_NZ", "PA_BLK_BSND", "PA_BLK_NZ"):
@@ -809,7 +950,7 @@ def validate_quant_cache_combo(cache_mode,
         if ckvkr_repo_mode != 0 or quant_scale_repo_mode != 0:
             return False, "non per-tile kv quant requires ckvkr_repo_mode=0 and quant_scale_repo_mode=0"
 
-    expect_query_quant = int(weight_quant_mode in (2, 3) and kv_quant_mode == 1)
+    expect_query_quant = int(weight_quant_mode in (2, 3, 4, 5) and kv_quant_mode == 1)
     if query_quant_mode != expect_query_quant:
         return False, f"query_quant_mode should be {expect_query_quant} for this quant scenario"
 
@@ -819,6 +960,9 @@ def validate_quant_cache_combo(cache_mode,
 def _rand_tensor(shape, dtype, generator):
     if dtype == torch.int8:
         return torch.randint(-128, 128, shape, dtype=torch.int8, generator=generator)
+    hif8_dtype = _get_hif8_dtype()
+    if hif8_dtype is not None and dtype == hif8_dtype:
+        return (torch.rand(shape, dtype=torch.float32, generator=generator) * 2 - 1).to(dtype)
     if dtype in tuple(getattr(torch, n) for n in ("float8_e4m3fn", "float8_e4m3fnuz", "float8_e5m2", "float8_e5m2fnuz")
                       if hasattr(torch, n)):
         return (torch.rand(shape, dtype=torch.float32, generator=generator) * 2 - 1).to(dtype)
@@ -905,16 +1049,24 @@ def test_prologv3_generalized(params):
         w_dq_dtype = torch.bfloat16
         w_uq_qr_dtype = torch.int8
         w_dkv_kr_dtype = torch.bfloat16
-    elif weight_quant_mode == 2:
-        token_dtype = torch.int8
-        w_dq_dtype = torch.int8
-        w_uq_qr_dtype = torch.int8
-        w_dkv_kr_dtype = torch.int8
-    else:
+    elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
         token_dtype = torch.float8_e4m3fn
         w_dq_dtype = torch.float8_e4m3fn
         w_uq_qr_dtype = torch.float8_e4m3fn
         w_dkv_kr_dtype = torch.float8_e4m3fn
+    elif weight_quant_mode in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8):
+        full_quant_mode_config = _get_full_quant_mode_config(weight_quant_mode)
+        if full_quant_mode_config is None:
+            pytest.skip(f"skip weight_quant_mode={weight_quant_mode} due to unavailable quant dtype")
+        token_dtype = full_quant_mode_config["input_dtype"]
+        w_dq_dtype = full_quant_mode_config["input_dtype"]
+        w_uq_qr_dtype = full_quant_mode_config["input_dtype"]
+        w_dkv_kr_dtype = full_quant_mode_config["input_dtype"]
+    else:
+        pytest.skip(f"skip unsupported weight_quant_mode={weight_quant_mode}")
 
     if kv_quant_mode == 0:
         kv_cache_dtype = torch.bfloat16
@@ -982,13 +1134,16 @@ def test_prologv3_generalized(params):
     if weight_quant_mode == 1:
         deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
         smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
-    elif weight_quant_mode == 2:
+    elif weight_quant_mode in (
+            WEIGHT_QUANT_MODE_FULL_INT8,
+            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+            WEIGHT_QUANT_MODE_FULL_HIF8):
         deq_scale_x = _rand_scale((T, 1), generator).npu()
         deq_scale_w_dq = _rand_scale((1, Hcq), generator).npu()
         deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
         deq_scale_w_dkv_kr = _rand_scale((1, Hckv + Dr), generator).npu()
         smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
-    elif weight_quant_mode == 3:
+    elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
         if fp8_e8m0_dtype is None:
             pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
         deq_scale_x = torch.ones((T, He // 32), dtype=fp8_e8m0_dtype).npu()
