@@ -17,6 +17,7 @@ black_list = ['moe_gather_v2',
               'moe_inplace_index_add',
               'moe_inplace_index_add_with_sorted',
               'moe_masked_scatter']
+a5_black_list = ['moe_distribute_dispatch_teardown']
 op_level_list = ['moe_token_permute_with_routing_map',
                  'moe_token_permute_with_routing_map_grad',
                  'moe_token_unpermute_with_routing_map']
@@ -56,6 +57,8 @@ def count_opnames(sh_filenames):
 
 
 def grouped(gen_path, soc, group_size):
+    if soc == 'ascend950':
+        black_list.extend(a5_black_list)
     result: list[list[str]] = [[] for _ in range(group_size)]
     if not os.path.isdir(gen_path):
         return result
@@ -67,7 +70,7 @@ def grouped(gen_path, soc, group_size):
     for op_name, count in op_counts.items():
         op_name_real = op_name
         if soc == 'ascend950' and op_name.endswith('_apt'):
-            op_name_real = op_name.replace('_apt', '')
+            op_name_real = op_name[:-4]
         if op_name_real in black_list:
             continue
         for i in range(count):
