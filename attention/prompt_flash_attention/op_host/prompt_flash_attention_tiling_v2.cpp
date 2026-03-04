@@ -4635,6 +4635,9 @@ bool PromptFlashAttentionTilingV2::IsFlashDecode(ContextParamsForPFATiling& cont
         OP_LOGD(contextKeyParams.opName, "Flash decode dplit key/value.");
         return true;
     }
+    if (gSize > NLIMIT / 2) {
+        return false;
+    }
 
     if ((bng < flashDecodeBNRatio * aicNum) && (maxActualseqKV >= 2048)) { // 2048, 在flash decode + gqa时的经验值
         OP_LOGD(contextKeyParams.opName, "Flash decode And GQA split key/value.");
