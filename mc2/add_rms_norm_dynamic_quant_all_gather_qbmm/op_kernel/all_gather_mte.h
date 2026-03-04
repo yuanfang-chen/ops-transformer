@@ -34,7 +34,6 @@ using namespace AscendC;
 constexpr static uint32_t X_PER_BLOCK_NUM = 512U;  // 当前一次搬运一个x数据块，x dtype为 8bit 时对应 512个x数据
 constexpr static uint64_t CV_SYNC_START_OFFSET = 100UL * 1024UL; // CV同步状态相对于通信状态向后偏移100K
 constexpr static uint64_t CV_STATE_ALIGN = 64UL;    // CV同步的标志位间64B对齐
-constexpr static uint64_t CV_STATE_ROW_NUM = 2UL;    // CV同步的标志位行数
 constexpr static uint64_t ALLOC_UB_SPACE = 180UL * 1024UL;  // 总共192K UB中抽出180K于此处使用
 
 template<AllGatherTemplateTypeClass>
@@ -225,7 +224,6 @@ template <AllGatherTemplateTypeClass>
 __aicore__ inline GM_ADDR AllGatherMte<AllGatherTemplateType>::CalcCvFlagAddr(
     uint64_t mBlockIdx, uint64_t kBlockIdx)
 {
-    // 状态区为 CV_STATE_ROW_NUM * tileK_ * CV_STATE_ALIGN
     GM_ADDR cvFlagBaseAddr = \
         mteComm_.GetWinStatusAddrGm(mteComm_.hcclContext_->localUsrRankId) + CV_SYNC_START_OFFSET;
     GM_ADDR cvFlagAddr = cvFlagBaseAddr + (mBlockIdx * tileK_ + kBlockIdx) * CV_STATE_ALIGN;

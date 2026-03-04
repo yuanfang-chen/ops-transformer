@@ -56,7 +56,7 @@ constexpr uint64_t BASE_WORKSPACE_SIZE = 16UL * 1024UL * 1024UL;
 
 // matmul tiling 切分
 constexpr int32_t SINGLE_CORE_M = 128;
-constexpr int32_t SINGLE_CORE_N = 128;
+constexpr int32_t SINGLE_CORE_N = 256;
 constexpr int32_t SINGLE_CORE_K = 512;
 
 // addRmsNorm 参数设置
@@ -417,7 +417,7 @@ static ge::graphStatus SetTCubeTiling(
         matmul_tiling::DataType::DT_INT32);
     mmTiling.SetOrgShape(M, N, K);
     mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
-    mmTiling.SetFixSplit(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetFixSplit(SINGLE_CORE_M, -1, -1);
     mmTiling.EnableBias(hasBias);
     mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
 

@@ -141,6 +141,7 @@ private:
     uint32_t rankSize_{0};
     uint32_t tileK_{0};
     uint32_t sendCoreNumPerRank_{0};
+    uint32_t cvStateRowNum_{0};
     float eps_{0};
     float aveNum_{0};
     uint64_t axisKaAlignSize_{0};
@@ -258,7 +259,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 清空状态区100K之后的2*tileK*64B数据
     if (aivId_ == 0) {
         // 已保证32B对齐
-        uint64_t sizeToBeCleaned = tileK_ * CV_STATE_ROW_NUM * CV_STATE_ALIGN;
+        uint64_t sizeToBeCleaned = tileK_ * cvStateRowNum_ * CV_STATE_ALIGN;
         LocalTensor<int32_t> stateResetTensor;
         tpipe_->InitBuffer(stateResetBuf_, sizeToBeCleaned);
         stateResetTensor = stateResetBuf_.Get<int32_t>();
@@ -451,7 +452,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GlobalTensor<int32_t> winCvExp;
     GM_ADDR cvFlagAddr = allGatherMte_.CalcCvFlagAddr(mBlockIdx, kBlockIdx);
     winCvExp.SetGlobalBuffer((__gm__ int32_t *)cvFlagAddr);
-    // int32_t targetCount = axisM_ * rankSize_ / CV_STATE_ROW_NUM;
     while (true) {
         DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(winCvExp);
         int32_t flagCount = winCvExp.GetValue(0);
@@ -551,7 +551,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     mm_.SetSingleShape(singleCoreM_, singleCoreN_, singleCoreK_);
 
     CalcOffset(0, mCoreIndx, nCoreIndx);
-    uint32_t mBlockIdx = aicId_ % CV_STATE_ROW_NUM;
+    uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
     for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
         CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
         // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
@@ -598,9 +598,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // ubCalcM_ = tilingData->qbmmParams.ubCalcM;
     // ubCalcN_ = tilingData->qbmmParams.ubCalcN;
     // ubTmpBuffer_ = tilingData->qbmmParams.needUbBuffer;
-    ubCalcM_ = 8;
+    ubCalcM_ = 22;
     ubCalcN_ = baseN_;
     ubTmpBuffer_ = 8 * ubCalcM_ * ubCalcN_;
+    cvStateRowNum_ = Ceil(rankSize_ * axisM_, singleCoreM_);
 }
 
 template<TemplateMC2TypeClass>
