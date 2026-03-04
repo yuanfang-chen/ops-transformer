@@ -368,7 +368,7 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
 
     PipeBarrier<PIPE_ALL>();
     AscendC::LocalTensor<uint64_t> tempLocal = tBuf.Get<uint64_t>();
-    magicValue_ = addrInfo_.UpdateAndGetMagicValue(tempLocal);
+    magicValue_ = addrInfo_.UpdateAndGetMagicValue();
     sumTarget_ = magicValue_;
     if (coreIdx_ == 0U) {
         tempLocal(0) = sumTarget_;
@@ -1060,9 +1060,6 @@ __aicore__ inline void MoeDistributeCombineA2Layered<TemplateMC2TypeA2layeredFun
             AlltoAllServerDispatch();
         } else {
             SyncAll<true>();
-        }
-        if (coreIdx_ == 0U) {
-            addrInfo_.UpdateBufferId();
         }
         Preload();
         WaitDispatch();
