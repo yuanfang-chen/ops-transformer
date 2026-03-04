@@ -593,7 +593,7 @@ ge::graphStatus BSATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus RFATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext) // 这里应该不需要
+ge::graphStatus BSATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext) // 这里应该不需要
 {
     auto softmaxLsePtr = rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(SOFTMAX_LSE_FLAG_INDEX);
     if (softmaxLsePtr == nullptr) {
