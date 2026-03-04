@@ -857,7 +857,7 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     params2.logit = reformatedLogit;
     params2.rowIndex = reformatedRowIndex;
     params2.offset = reformatedOffset;
-    
+
     ret = CheckParams(params2);
     
     CHECK_RET(ret == ACLNN_SUCCESS, ret);
