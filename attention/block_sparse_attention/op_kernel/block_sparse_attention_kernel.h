@@ -329,7 +329,7 @@ namespace BlockSparse {
             uint32_t preTotalQBlockNum = 0;
             uint32_t curBatch = 0;
             // 根据useUniformQSeqlen标志位决定使用actualSeqLengths数组还是maxQSeqlen
-            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen : 
+            uint32_t qSeqlen = useUniformQSeqlen ? maxQSeqlen :
                               static_cast<uint32_t>(static_cast<int64_t>(gActualQseqlen.GetValue(curBatch)));
             // 根据useUniformKvSeqlen标志位决定使用actualSeqLengthsKv数组还是maxKvSeqlen
             uint32_t kvSeqlen = useUniformKvSeqlen ? maxKvSeqlen : 
@@ -407,7 +407,7 @@ namespace BlockSparse {
 
 #ifdef __DAV_C220_VEC__
                 uint32_t Gmaskoffset = curBatch * qHeads * maxKvBlockNum * maxQBlockNum 
-                + qHeadIdx * maxKvBlockNum * maxQBlockNum + qSBlockIdx * maxKvBlockNum;
+                + qHeadIdx * maxKvBlockNum * maxQBlockNum + qXIdx * maxKvBlockNum;
 
                 uint32_t blockIdx = AscendC::GetBlockIdx();
 
