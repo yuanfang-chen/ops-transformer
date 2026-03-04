@@ -51,7 +51,7 @@ aclnnStatus aclnnBlockSparseAttention(
     void *workspace,                           // workspace地址
     uint64_t workspaceSize,                    // workspace大小
     aclOpExecutor *executor,                   // executor
-    aclrtStream stream);                       // ACL stream
+    aclrtStream stream);                 // ACL stream
 ```
 
 ## 参数说明
@@ -191,12 +191,6 @@ KV方向: ceil(512/64)=8块 [0, 1, 2, 3, 4, 5, 6, 7]
 ```bash
 bash build.sh --soc=Ascend910B3
 ```
-
-## 相关文档
-
-- [CATLASS模板库文档](../../catlass/README.md)
-- [32_sparse_attention_infer原始实现](../../catlass/examples/32_sparse_attention_infer/)
-- [Fused Infer Attention Score算子](../fused_infer_attention_score/)
 
 ## 版本历史
 
