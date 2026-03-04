@@ -204,11 +204,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
     }
     return ge::GRAPH_SUCCESS;
 }
-// constexpr int32_t SPARSE_MODE_NO_MASK = 0;
-// constexpr int32_t SPARSE_MODE_ALL_MASK = 1;
-// constexpr int32_t SPARSE_MODE_LEFT_UP = 2;
-// constexpr int32_t SPARSE_MODE_RIGHT_DOWN = 3;
-// constexpr int32_t SPARSE_MODE_BAND = 4;
+
 ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
 {
     if (!fiaInfo_.isOutQuantEnable || fiaInfo_.s1Size == 1) {
