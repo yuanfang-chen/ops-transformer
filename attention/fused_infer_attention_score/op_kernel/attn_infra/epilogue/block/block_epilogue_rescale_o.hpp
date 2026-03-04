@@ -653,7 +653,7 @@ public:
         uint32_t qSThisSubBlock = (qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize;
         int64_t outOffsetSubBlock =
             layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
-        // 相对偏移
+
         int64_t gmlooutOffsetSubBlock = 0;
         if (splitParams.isSplitkv) {
             gmlooutOffsetSubBlock = 
@@ -710,7 +710,7 @@ public:
                     blockParams.gCombineo = splitParams.gCombineo[gmloffset];
                 }
 
-                auto gOutputCurLoop = gOutput[offsetOutput]; // 又取了一次偏移，相当于下边每次操作go的一块内存
+                auto gOutputCurLoop = gOutput[offsetOutput];
                 auto layoutOutputCurLoop = layoutOutput;
                 int64_t offsetInput = layoutInput.GetOffset(MatrixCoord(rowOffsetCurLoop, 0));
                 auto gInputCurLoop = gInput[offsetInput];
