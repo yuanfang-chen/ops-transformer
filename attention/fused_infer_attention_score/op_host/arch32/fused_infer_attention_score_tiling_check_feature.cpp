@@ -226,26 +226,38 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
         (opParamInfo_.quantOffset2.tensor != nullptr && opParamInfo_.quantOffset2.desc != nullptr) &&
         (opParamInfo_.quantOffset2.tensor->GetStorageShape().GetShapeSize() != 0);
     if (!fiaInfo_.isMaxWorkspace) {
-        std::vector<int64_t> actualSeqS2Size{};
-        if (fiaInfo_.opParamInfo.actualSeqLengths.tensor != nullptr) {
-            const int64_t *s2Ptr = fiaInfo_.opParamInfo.actualSeqLengths.tensor->GetData<int64_t>();
-            int64_t tmpS = 0;
-            for (uint32_t i = 0; i < fiaInfo_.bSize; ++i) {
-                if (fiaInfo_.isAccumKVSeq) {
-                    tmpS = (i == 0U) ? s2Ptr[0] : (s2Ptr[i] - s2Ptr[i - 1U]);
+        std::vector<int64_t> actualSeqLengthsKV{};
+        std::vector<int64_t> actualSeqLengths{};
+        actualSeqLengthsKV.resize(fiaInfo_.bSize);
+        actualSeqLengths.resize(fiaInfo_.bSize);
+
+        const gert::Tensor *tempData = fiaInfo_.opParamInfo.actualSeqLengthsQ.tensor;
+        const gert::Tensor *tempDataKV = fiaInfo_.opParamInfo.actualSeqLengths.tensor;
+        uint32_t actualLenDims = (tempData != nullptr) ? tempData->GetShapeSize() : 0;
+        uint32_t actualLenDimsKV = (tempDataKV != nullptr) ? tempDataKV->GetShapeSize() : 0;
+        for (uint32_t i = 0; i < fiaInfo_.bSize; i++) {
+            if ((actualLenDims == 0) || (tempData == nullptr) || (tempData->GetData<int64_t>() == nullptr)) {
+                actualSeqLengths[i] = fiaInfo_.s1Size;
+            } else {
+                actualSeqLengths[i] = (actualLenDims > 1) ? static_cast<uint32_t>(tempData->GetData<int64_t>()[i]) :
+                                                            static_cast<uint32_t>(tempData->GetData<int64_t>()[0]);
+            }
+            if ((actualLenDimsKV == 0) || (tempDataKV == nullptr) ||
+                (tempDataKV->GetData<int64_t>() == nullptr)) { // The user did not input act_seq_kv
+                if (fiaInfo_.kvStorageMode == KvStorageMode::BATCH_CONTINUOUS) {
+                    actualSeqLengthsKV[i] = fiaInfo_.s2Size;
                 } else {
-                    tmpS = s2Ptr[i];
+                    actualSeqLengthsKV[i] = fiaInfo_.kvListSeqLens[i];
                 }
-                actualSeqS2Size.emplace_back(tmpS);
+            } else {
+                actualSeqLengthsKV[i] = (actualLenDimsKV > 1) ?
+                                            static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[i]) :
+                                            static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[0]);
             }
-        } else {
-            if ((fiaInfo_.kvStorageMode == KvStorageMode::TENSOR_LIST) && (fiaInfo_.kvListSeqLens.size() != 0)) {
-                actualSeqS2Size = fiaInfo_.kvListSeqLens;
-            }
-        }
-        for (uint32_t i = 0; i < actualSeqS2Size.size(); i++) {
             OP_CHECK_IF(
-                (checkPostQuantOffset && ((fiaInfo_.preToken + actualSeqS2Size[i] + static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqS2Size[i] < 0) ||
+                (checkPostQuantOffset && ((fiaInfo_.preToken + actualSeqLengthsKV[i] +
+                                               static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i] <
+                                           0) ||
                                           (fiaInfo_.nextToken < 0))),
                 OPS_REPORT_VECTOR_INNER_ERR(opName_,
                                             "When sparse mode = %d, output dtype is int8, the output's dequant offset "
