@@ -1712,10 +1712,12 @@ static ge::graphStatus CheckOutShapeInDim4(const gert::TilingContext *context, c
     printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDim(DIM_3): %ld\n", exceptOutShape.GetDim(DIM_3));
 
     printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
-    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0)); 
-    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
-    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_1): %ld\n", outShape.GetDim(DIM_1)); 
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_2): %ld\n", outShape.GetDim(DIM_2));
+    printf("tkd CheckOutShapeInDim4 outShape.GetDim(DIM_3): %ld\n", outShape.GetDim(DIM_3));
 
+    printf("tkd CheckOutShapeInDim4 outShape.GetDimNum(): %ld\n", outShape.GetDimNum());
+    printf("tkd CheckOutShapeInDim4 exceptOutShape.GetDimNum(): %ld\n", exceptOutShape.GetDimNum());
     OP_CHECK_IF((outShape.GetDimNum() != DIM_NUM_4),
             OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "OutputLayout is %s, Attention out shape dim should be 4, but got %zu!",
             outputLayoutStr.c_str(), outShape.GetDimNum()), return ge::GRAPH_FAILED);
@@ -1748,9 +1750,9 @@ static ge::graphStatus CheckOutShape(gert::TilingContext *context, const string 
     int64_t valueD = qkvShapeInfo.GetDim(DIM_4);
 
     printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
-    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0)); 
-    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
-    printf("tkd CheckOutShape outShape.GetDim(DIM_0): %ld\n", outShape.GetDim(DIM_0));
+    printf("tkd CheckOutShape outShape.GetDim(DIM_1): %ld\n", outShape.GetDim(DIM_1)); 
+    printf("tkd CheckOutShape outShape.GetDim(DIM_2): %ld\n", outShape.GetDim(DIM_2));
+    printf("tkd CheckOutShape outShape.GetDim(DIM_3): %ld\n", outShape.GetDim(DIM_3));
 
     ge::graphStatus ret = ge::GRAPH_SUCCESS;
     if (outputLayoutStr == "NSD") {
