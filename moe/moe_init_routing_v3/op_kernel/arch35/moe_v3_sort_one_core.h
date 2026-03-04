@@ -62,13 +62,12 @@ __aicore__ inline void MoeSortOneCore::SortCompute()
     uint32_t sreg = static_cast<uint32_t>(this->tileLength);
     __local_mem__ float *inUbAddr = (__local_mem__ float *)expertIdxFp32.GetPhyAddr();
     float cmpScalar = static_cast<float>(expertStart_);
-    float cmpEndScalar = static_cast<float>(expertEnd_);
     float negone = static_cast<float>(-1);
 
     // 2 专家索引预处理（小于expertStart的置为-inf）后续排序时这些无效索引会被排到最后，只保留有效专家索引参与排序。
     __VEC_SCOPE__
     {
-        MicroAPI::MaskReg maskRegLoop, cmpMaskReg, cmpEndMaskReg;
+        MicroAPI::MaskReg maskRegLoop, cmpMaskReg;
         MicroAPI::MaskReg pregMain = MicroAPI::CreateMask<float, MicroAPI::MaskPattern::ALL>();
 
         MicroAPI::RegTensor<float> inRegToFloat, infFloat, vDstReg0;
@@ -81,12 +80,10 @@ __aicore__ inline void MoeSortOneCore::SortCompute()
             MicroAPI::DataCopy(inRegToFloat, inUbAddr + i * FLOAT_REG_TENSOR_LENGTH);
             // 比较：专家索引 < expertStart_ 时生成掩码
             MicroAPI::CompareScalar<float, CMPMODE::LT>(cmpMaskReg, inRegToFloat, cmpScalar, maskRegLoop);
-            MicroAPI::CompareScalar<float, CMPMODE::GE>(cmpEndMaskReg, inRegToFloat, cmpEndScalar, maskRegLoop);
             // 专家索引乘以-1（后续排序后会还原）
             MicroAPI::Muls(inRegToFloat, inRegToFloat, negone, maskRegLoop);
             // 按掩码选择：满足条件的位置置为MIN_FP32（负无穷），否则保留乘-1后的值
             MicroAPI::Select(vDstReg0, infFloat, inRegToFloat, cmpMaskReg);
-            MicroAPI::Select(vDstReg0, infFloat, vDstReg0, cmpEndMaskReg);
             // 将处理后的数据写回本地内存
             MicroAPI::DataCopy(inUbAddr + i * FLOAT_REG_TENSOR_LENGTH, vDstReg0, maskRegLoop);
         }
@@ -105,7 +102,7 @@ __aicore__ inline void MoeSortOneCore::SortCompute()
     LocalTensor<float> tempTensor = tempBuffer.Get<float>(GetSortLen<float>(this->sortNum));
     Concat(concatLocal, expertIdxFp32, tempTensor, this->sortNum / ONE_REPEAT_SORT_NUM);
     // 5 排序：调用 Sort 函数完成排序，参数 true 表示升序排序（因之前将有效索引乘 - 1，升序后有效索引会按原大小降序排列，符合 MoE 选 TopK 专家的需求）
-    // sortedLocal 排序后的张量
+    // sortedLocal 排序后的张量, 对应图上 sortedExpertIdx
     LocalTensor<float> sortedLocal = sortedBuffer.Get<float>(GetSortLen<float>(this->sortNum));
     LocalTensor<uint32_t> sourceRowLocal;
     sourceRowLocal = inLocal[this->sortNum].ReinterpretCast<uint32_t>();
@@ -131,6 +128,7 @@ __aicore__ inline void MoeSortOneCore::CopyOut()
     DataCopyParams intriParams;
     intriParams.blockCount = 1;
     intriParams.blockLen = this->totalLength * sizeof(int32_t);
+
     DataCopyPad(sortedexpertIdxGm, outLocal[0], intriParams);
     DataCopyPad(expandedRowIdxGm, outLocal[this->sortNum], intriParams);
     sortDataCopyOutQueue.FreeTensor(outLocal);
