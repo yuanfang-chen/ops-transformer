@@ -14,7 +14,7 @@
  */
 
 #ifndef BUILD_OPEN_PROJECT
-#include "mc2_a5_gen_task_utils.h"
+#include "op_tiling/mc2_a5_gen_task_utils.h"
 #include "mc2_gen_task_utils.h"
 #include "runtime/rt_model.h"
 #include "checker.h"

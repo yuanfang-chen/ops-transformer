@@ -14,7 +14,7 @@
  */
 #include "ffn_worker_batching_tiling.h"
 #include "tiling_base/tiling_util.h"
-#include "context_util.h"
+#include "op_tiling/context_util.h"
 
 namespace optiling {
 constexpr uint32_t EXPERT_NUM_ATTR = 0;

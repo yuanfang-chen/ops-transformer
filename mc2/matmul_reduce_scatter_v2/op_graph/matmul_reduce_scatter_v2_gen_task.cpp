@@ -21,7 +21,7 @@
 #else
 #include "ops_error.h"
 #include "mc2_gen_task_utils.h"
-#include "mc2_a5_gen_task_utils.h"
+#include "op_tiling/mc2_a5_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"
 #endif
 

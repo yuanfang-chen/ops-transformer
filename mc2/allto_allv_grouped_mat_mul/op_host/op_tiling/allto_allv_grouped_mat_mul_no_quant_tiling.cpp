@@ -19,7 +19,7 @@
 #include "allto_allv_grouped_mat_mul_tiling_base.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "context_util.h"
+#include "op_tiling/context_util.h"
 #include "allto_allv_grouped_mat_mul_no_quant_tiling.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
 #include "op_tiling/hccl_formulaic_tiling.h"

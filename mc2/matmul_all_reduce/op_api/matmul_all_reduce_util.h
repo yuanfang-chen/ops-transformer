@@ -14,7 +14,7 @@
 #include "opdev/common_types.h"
 #include "opdev/platform.h"
 #include "acl/acl.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 
 #ifdef __cplusplus
 extern "C" {

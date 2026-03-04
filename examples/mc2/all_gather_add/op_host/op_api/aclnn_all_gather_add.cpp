@@ -17,7 +17,7 @@
 #include "opdev/op_executor.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 
 using namespace op;
 

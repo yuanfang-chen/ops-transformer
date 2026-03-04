@@ -27,7 +27,7 @@
 #include "opdev/platform.h"
 #include "matmul_all_reduce_util.h"
 #include "aclnn_kernels/contiguous.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 #include "matmul_all_reduce_util.h"
 
 using namespace op;

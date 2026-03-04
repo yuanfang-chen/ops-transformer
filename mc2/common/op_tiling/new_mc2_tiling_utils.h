@@ -21,7 +21,7 @@
 #include <string>
 
 #include "exe_graph/runtime/tiling_context.h"
-#include "formulaic_tiling_datatype.h"
+#include "op_tiling/formulaic_tiling_datatype.h"
 #include "graph/utils/type_utils.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
 #include "tiling/platform/platform_ascendc.h"

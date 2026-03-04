@@ -12,7 +12,7 @@
 #include "acl/acl.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_kernels/transdata.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 #include "op_mc2.h"
 #include "op_mc2_def.h"
 #include "opdev/common_types.h"

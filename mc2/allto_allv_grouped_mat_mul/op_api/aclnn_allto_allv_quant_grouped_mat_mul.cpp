@@ -19,7 +19,7 @@
 #include "opdev/common_types.h"
 #include "opdev/format_utils.h"
 #include "aclnn_kernels/transdata.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 #include "opdev/op_executor.h"
 #include "opdev/op_dfx.h"
 #include "opdev/make_op_executor.h"

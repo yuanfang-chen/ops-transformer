@@ -25,7 +25,7 @@
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "opdev/format_utils.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 #include "aclnn_kernels/transdata.h"
 
 namespace {
