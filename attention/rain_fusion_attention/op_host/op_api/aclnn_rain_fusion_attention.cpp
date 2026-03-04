@@ -277,6 +277,8 @@ __attribute__((visibility("default"))) aclnnStatus aclnnRainFusionAttentionGetWo
 
     auto viewCopyResult = l0op::ViewCopy(outputs[0], attentionOut, executorImpl);
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    auto viewCopyLseResult = l0op::ViewCopy(outputs[1], softmaxLseOptional, executorImpl);
+    CHECK_RET(viewCopyLseResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = executorImpl->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
