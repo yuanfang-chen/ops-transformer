@@ -141,7 +141,7 @@ public:
                    "The dim num of out should be equal 1, current dim is %lu.", outDimNumber);
         if (gmmParams_.pertokenScaleOptional != nullptr) {
             CHECK_COND(xScaleDimNumber == xscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
-                       "The dim num of pertokenscale should be equal %lu, current dim is %lu.", xscaleExpectDim,
+                       "The dim num of pertokenscale should be equal %lu, current dim is %lu.testlog", xscaleExpectDim,
                        xScaleDimNumber);
         }
         if (gmmParams_.bias != nullptr) {
