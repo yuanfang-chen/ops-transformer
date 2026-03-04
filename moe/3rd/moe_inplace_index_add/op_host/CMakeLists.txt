@@ -31,6 +31,4 @@ if (BUILD_OPEN_PROJECT)
     endif()
 endif()
 
-if(NOT BUILD_OPS_RTY_KERNEL)
     add_modules_sources(OPTYPE moe_inplace_index_add ACLNNTYPE aclnn_exclude)
-endif()
