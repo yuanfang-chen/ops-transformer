@@ -217,7 +217,7 @@ protected:
             uint64_t aivNum = GetBlockNum() * GetTaskRation();
             for (int i = 0; i < paramInTiling_->tileCnt; i++){
                 tPipe_->Reset();
-                reduceSum_.Init(tileInfo_.cOffset, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                reduceSum_.Init(tileInfo_.cOffset / rankNum_, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tileInfo_.cAddrOffset;
                 reduceSumOutGM_ += tileInfo_.cAddrOffset / rankNum_;
@@ -226,7 +226,7 @@ protected:
 
             for (int i = 0; i < paramInTiling_->tailCnt; i++){
                 tPipe_->Reset();
-                reduceSum_.Init(tailInfo_.cOffset, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                reduceSum_.Init(tailInfo_.cOffset / rankNum_, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailInfo_.cAddrOffset;
                 reduceSumOutGM_ += tailInfo_.cAddrOffset / rankNum_;
