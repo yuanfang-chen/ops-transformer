@@ -133,8 +133,67 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::Init(
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::PostProcess()
 {
+    // 后处理为纯 Vector 操作
+    if ASCEND_IS_AIC {
+        return;
+    }
+
+    // PerBlock 场景：ReduceSum 作为尾处理
+    if constexpr (IsPerBlock) {
+        auto&& cfg = tilingData_->param;
+
+        // 等待 All2All 通信执行完成
+        if (GetBlockIdx() == 0) {
+            for (uint32_t i = 0; i < cfg.tileCnt + cfg.tailCnt; i++) {
+                hccl_.Wait(handles_[i]);
+            }
+        }
+
+        // V同步, 确保数据到达
+        SyncAll<true>();
+
+        // 准备 ReduceSum 参数
+        auto&& tiling = tilingData_->quantBmmV3TileTiling.matmulTiling;
+        GM_ADDR curSrcPtr = recvBuf_;   // reduceSum 要处理的输入地址, 即 All2All 接收缓冲区
+        GM_ADDR curOutPtr = cGM_;       // reduceSum 输出地址, 即 output 地址
+
+        // 主轮每轮数据量与偏移
+        const uint64_t tileElemCount     = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N);
+        const uint64_t tileByteSize      = tileElemCount * sizeof(CType);
+        const uint64_t tileStrideBytes   = tileByteSize * cfg.rankDim; // 输入指针步长 (连续，rankDim 份数据)
+        
+        // 尾轮每轮数据量与偏移
+        const uint64_t tailElemCount     = static_cast<uint64_t>(cfg.tailM) * static_cast<uint64_t>(tiling.N);
+        const uint64_t tailByteSize      = tailElemCount * sizeof(CType);
+        const uint64_t tailStrideBytes   = tailByteSize * cfg.rankDim;
+
+        // 处理主轮的数据
+        for (uint32_t i = 0; i < cfg.tileCnt; i++) {
+            tPipe_->Reset();
+            reduceSum_.Init(tileElemCount, 0, cfg.rankDim, aivNum_, curSrcPtr, curOutPtr, tPipe_);
+            reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
+
+            // SrcInput 指针偏移
+            curSrcPtr += tileStrideBytes;
+            // outPut 指针偏移
+            curOutPtr += tileByteSize;
+        }
+
+        // 处理尾轮的数据
+        for (uint32_t i = 0; i < cfg.tailCnt; i++) {
+            tPipe_->Reset();
+            reduceSum_.Init(tailElemCount, 0, cfg.rankDim, aivNum_, curSrcPtr, curOutPtr, tPipe_);
+            reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
+
+            // SrcInput 指针偏移
+            curSrcPtr += tailStrideBytes;
+            // outPut 指针偏移
+            curOutPtr += tailByteSize;
+        }
+    }
+
     // 等待执行完成后，最后终止hcclserver
-    if ((GetBlockIdx() == 0) && (g_coreType == AIV)) {
+    if (GetBlockIdx() == 0) {
         hccl_.Finalize();
     }
 }
@@ -174,19 +233,10 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulReduce
     // 同步保证 MatMul 计算完成
     SyncAll<false>();
 
+    // V核发起 All2All 通信
     if ASCEND_IS_AIV {
         handles_[0] = hccl_.AlltoAll<true>(
             sendBuffer, recvBuffer, recvCount, dataType_, stride, repeat);
-        if (GetBlockIdx() == 0) {
-            hccl_.Wait(handles_[0]); // 等待通信完成
-        }
-        // V同步，确保数据到达
-        SyncAll<true>();
-        
-        // Vector 操作：执行reduceSum
-        tPipe_->Reset();
-        reduceSum_.Init(recvCount, stride, cfg.rankDim, aivNum_, recvBuffer, cGM_, tPipe_);
-        reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
     }
 }
 
@@ -212,9 +262,9 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::InnerProcess
         (cfg.tailM ? false : true), false);
     // 计算尾块
     if (cfg.tailM) {
-        // 非 PerBlock 场景
+        // 非 PerBlock, 非连续场景
         if constexpr (!IsPerBlock) {
-            cSize = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim;
+            cSize = static_cast<uint64_t>(tiling.M) * static_cast<uint64_t>(tiling.N) / cfg.rankDim; // tiling不同,需手动除rankDim
             auto aGMTail = aGM_;
             tileOffset_ = static_cast<uint64_t>(cfg.tileCnt) * cSize * sizeof(CType);
             auto recvGMTail = recvBuf_ + tileOffset_;
@@ -224,11 +274,12 @@ __aicore__ inline void QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::InnerProcess
             return;
         }
 
-        // PerBlock 场景
+        // PerBlock 连续场景
         auto aGMTail = aGM_ + aSize * sizeof(AType) * static_cast<uint64_t>(cfg.tileCnt);
-        tileOffset_ = static_cast<uint64_t>(cfg.tileCnt) * cSize * sizeof(CType);
-        auto recvGMTail = recvBuf_ + tileOffset_;
+        tileOffset_ = static_cast<uint64_t>(cfg.tileCnt) * cSize * sizeof(CType) * cfg.rankDim; // 连续场景, 故乘rankDim
+        // PRINTF("tileCnt = %u, cSize = %u, tileOffset = %u\n", cfg.tileCnt, cSize, tileOffset_);
         auto sendGMTail = sendBuf_ + tileOffset_;
+        auto recvGMTail = recvBuf_ + tileOffset_;
         auto x1ScaleTail = x1ScaleGM_ + static_cast<uint64_t>(tiling.M) / BLOCK_SIZE *
                                             CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE) * sizeof(ScaleType) *
                                             static_cast<uint64_t>(cfg.tileCnt);
@@ -396,15 +447,14 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
     const uint64_t scaleBlockM = static_cast<uint64_t>(tiling.M / BLOCK_SIZE);
     const uint64_t scaleBlockK = CeilDiv(static_cast<uint64_t>(tiling.Ka), BLOCK_SIZE);
     const uint64_t scaleTileBytes = scaleBlockM * scaleBlockK * sizeof(ScaleType);
-    // C 矩阵单个 Tile 的字节偏移 (M * N * sizeof(CType))
-    const uint64_t cTileBytes = recvCount * sizeof(CType);
+    // C 矩阵单个 Tile 的字节偏移 (M * N * sizeof(CType) * rankDim), 连续场景
+    const uint64_t cTileBytes = recvCount * sizeof(CType) * cfg.rankDim;
 
     // 初始化指针 
     GM_ADDR currAPtr = aGM;
     GM_ADDR currScalePtr = x1ScaleGM;
     GM_ADDR currSendPtr = sendGM;   // MatMul 输出缓冲区, All2All 发送缓冲区
     GM_ADDR currRecvPtr = recvGM;   // All2All 接收缓冲区
-    GM_ADDR curOutPtr = isTail ? cGM_ + tileOffset_ : cGM_; // reduceSum 输出地址, 即 output 地址
 
     // 通信参数配置
     const uint32_t handleShift = isTail ? cfg.tileCnt : 0; // 存放 handleId 的偏移
@@ -412,7 +462,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
     const uint8_t repeat = 1;       // 通信重复次数
     const uint32_t strideCount = cfg.rankM / cfg.rankDim; // 传递给 MMClass 的步长参数
 
-    // 按切分轮次循环
+    // 按切分轮次循环. 先 MM + All2All
     for (uint32_t i = 0; i < count; i++) {
         tPipe_->Destroy();
         tPipe_->Init();
@@ -426,8 +476,8 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
         PipeBarrier<PIPE_V>();
         SyncAll<false>();
 
+        // All2All 通信, AIV 发起
         if ASCEND_IS_AIV {
-            // All2All 通信, AIV 发起
             handles_[i + handleShift] = hccl_.AlltoAll<true>(
                 currSendPtr,    // 发送缓冲区
                 currRecvPtr,    // 接收缓冲区
@@ -436,23 +486,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
                 stride,         // 步长
                 repeat          // 重复次数
             );
-
-            // 等待通信结束
-            if (GetBlockIdx() == 0) {
-                hccl_.Wait(handles_[i + handleShift]); // 等待通信完成
-            }
-
-            // V同步，确保数据到达
-            SyncAll<true>();
-
-            // Vector 操作：执行reduceSum
-            tPipe_->Reset();
-            reduceSum_.Init(recvCount, stride, cfg.rankDim, aivNum_, currRecvPtr, curOutPtr, tPipe_);
-            reduceSum_.ExecuteReduceSum(); // AIV执行 reduce_sum
         }
-
-        // CV全核同步
-        SyncAll<false>(); // 待分析
 
         // A 矩阵指针偏移
         currAPtr += aTileBytes;
@@ -462,8 +496,6 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPerblock(
         currSendPtr += cTileBytes;
         // Recv 缓冲区指针偏移
         currRecvPtr += cTileBytes;
-        // outPut 指针偏移
-        curOutPtr += cTileBytes;
     }
 }
 
