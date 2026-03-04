@@ -13,7 +13,7 @@
  * \brief tiling data struct
  */
 
-#ifndef __MHC_POST_TILLING_DATA_H__	 
+#ifndef __MHC_POST_TILLING_DATA_H__
 #define __MHC_POST_TILLING_DATA_H__
  
 struct MhcPostTilingData {
@@ -28,6 +28,7 @@ struct MhcPostTilingData {
     int64_t dInner;
     int64_t dOuter;
     int64_t dTail;
+    int64_t dTailAlign;
 };
 
 #endif

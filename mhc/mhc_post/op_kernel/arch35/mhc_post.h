@@ -87,6 +87,7 @@ private:
     int64_t dInner_;
     int64_t dOuter_;
     int64_t dTail_;
+    int64_t dTailAlign_;
 
     int64_t xFactor_;
     int64_t myItemCount_;
@@ -104,7 +105,6 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
     // Get tiling data using direct member access
     n_ = tilingData->n;
     D_ = tilingData->D;
-
     usedCoreNum_ = tilingData->usedCoreNum;
     normalCoreProcessNum_ = tilingData->normalCoreProcessNum;
     tailCoreProcessNum_ = tilingData->tailCoreProcessNum;
@@ -114,6 +114,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
     dInner_ = tilingData->dInner;
     dOuter_ = tilingData->dOuter;
     dTail_ = tilingData->dTail;
+    dTailAlign_ = tilingData->dTailAlign;
 
     blockIdx_ = GetBlockIdx();
     if (blockIdx_ >= usedCoreNum_) {
@@ -227,6 +228,7 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
 {
     int64_t hPostBase = bsIdx * n_;
     int64_t hResBase = bsIdx * n_ * n_;
+    int64_t dNumAlign = (dIdx < dOuter_ - 1) ? dNum : dTailAlign_;
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
     LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
 
@@ -235,14 +237,14 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
 
     Cast(hOutF32, hOutTile, RoundMode::CAST_NONE, dNum);
-    Cast(xF32, xTile, RoundMode::CAST_NONE, n_ * dNum);
+    Cast(xF32, xTile, RoundMode::CAST_NONE, n_ * dNumAlign);
 
     for (int64_t i = 0; i < n_; i++) {
         LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
 
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
         for (int64_t j = 0; j < n_; j++) {
-            Axpy(outF32, xF32[j * dNum], hResGm_.GetValue(hResBase + j * n_ + i), dNum);
+            Axpy(outF32, xF32[j * dNumAlign], hResGm_.GetValue(hResBase + j * n_ + i), dNum);
         }
 
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
@@ -263,9 +265,11 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::CopyInX(int64_t bsIdx, int6
     LocalTensor<T> xTileLocal = xTileQueue_.AllocTensor<T>();
 
     if constexpr (USE_PERMANENT_X == 1) {
+        uint8_t rightPad = (dIdx < dOuter_ - 1) ? 0 : dTailAlign_ - dNum;
         DataCopyExtParams copyParams = {static_cast<uint16_t>(n_), static_cast<uint32_t>(dNum * sizeof(T)),
                                         static_cast<uint32_t>((D_ - dNum) * sizeof(T)), 0, 0};
-        DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
+        DataCopyPadExtParams<T> copyPadParams = {true, 0, rightPad, 0};
+        DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, copyPadParams);
     } else {
         DataCopyExtParams copyParams = {1, static_cast<uint32_t>(dNum * sizeof(T)), 0, 0, 0};
         DataCopyPad(xTileLocal, xGm_[xOffset], copyParams, {false, 0, 0, 0});
