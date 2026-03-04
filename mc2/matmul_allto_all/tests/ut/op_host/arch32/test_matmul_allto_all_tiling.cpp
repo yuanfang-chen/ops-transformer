@@ -32,6 +32,7 @@ TEST_F(MatmulAlltoAllA3TilingTest, Float16Test1)
 {
     struct MatmulAlltoAllCompileInfo {} compileInfo;
     uint64_t coreNum = 20;
+    void* pCompileInfo = &compileInfo;
 
     gert::TilingContextPara tilingContextPara("MatmulAlltoAll",
         {
@@ -61,7 +62,7 @@ TEST_F(MatmulAlltoAllA3TilingTest, Float16Test1)
             {"transposex2", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
             {"groupSize", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
-        &compileInfo, "Ascend910_93", coreNum);
+        pCompileInfo, "Ascend910_93", coreNum);
     Mc2Hcom::MockValues hcomTopologyMockValues{{"rankNum", 2}};
     uint64_t expectTilingKey = 0UL;
     Mc2ExecuteTestCase(tilingContextPara, hcomTopologyMockValues, ge::GRAPH_SUCCESS, expectTilingKey);
