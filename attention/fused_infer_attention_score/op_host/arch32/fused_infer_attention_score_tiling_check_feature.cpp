@@ -551,6 +551,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureLearnableSink() ||
         ge::GRAPH_SUCCESS != CheckFeatureGqaPrefix() ||
         ge::GRAPH_SUCCESS != CheckFeatureLeftPadding() ||
+        ge::GRAPH_SUCCESS != CheckFeaturePostQuant() ||
         ge::GRAPH_SUCCESS != CheckFeaturePSE() ||
         ge::GRAPH_SUCCESS != CheckFeatureHeadDim()) {
         return ge::GRAPH_FAILED;
