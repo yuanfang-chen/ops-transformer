@@ -128,8 +128,9 @@ public:
                    "The dim num of x should be equal 2, current dim is %lu.", xDimNumber);
         CHECK_COND(wDimNumber == THERE_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of w should be equal 3, current dim is %lu.", wDimNumber);
-        CHECK_COND(xScaleDimNumber == xscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
-                   "The dim num of pertokenscale should be equal %lu, current dim is %lu.", xscaleExpectDim,xScaleDimNumber);
+        CHECK_COND(wScaleDimNumber == weightscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
+                   "The dim num of scale should be equal %lu, current dim is %lu.", weightscaleExpectDim,
+                   wScaleDimNumber);
         CHECK_COND(grouplistDimNumber == ONE_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of grouplist should be equal 1, current dim is %lu.", grouplistDimNumber);
         CHECK_COND(logitDimNumber == ONE_DIM, ACLNN_ERR_PARAM_INVALID,
@@ -139,9 +140,9 @@ public:
         CHECK_COND(outDimNumber == TWO_DIM, ACLNN_ERR_PARAM_INVALID,
                    "The dim num of out should be equal 1, current dim is %lu.", outDimNumber);
         if (gmmParams_.pertokenScaleOptional != nullptr) {
-            CHECK_COND(wScaleDimNumber == weightscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
-                       "The dim num of scale should be equal %lu, current dim is %lu.", weightscaleExpectDim,
-                       wScaleDimNumber);
+            CHECK_COND(xScaleDimNumber == xscaleExpectDim, ACLNN_ERR_PARAM_INVALID,
+                       "The dim num of pertokenscale should be equal %lu, current dim is %lu.", xscaleExpectDim,
+                       xScaleDimNumber);
         }
         if (gmmParams_.bias != nullptr) {
             auto baisDimNumber = gmmParams_.bias->GetViewShape().GetDimNum();
