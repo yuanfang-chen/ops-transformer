@@ -26,7 +26,7 @@ template <class T, class U>
 CATLASS_HOST_DEVICE
 constexpr auto RoundUp(T const &val, U const &align)
 {
-	static_assert(align != 0, "align must not be 0");
+	static_assert(align != static_cast<U>(0), "align must not be 0");
     return (val + align - 1) / align * align;
 }
 
