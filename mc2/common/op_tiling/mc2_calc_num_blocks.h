@@ -12,7 +12,7 @@
 #define __MC2_CALC_NUM_BLOCKS_H__
 #include <algorithm>
 #include <cstdint>
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 
 namespace mc2tiling{
 // 根据ascendc提供的aic aiv数量，按照aic:aiv=1:2比例设置逻辑核数量，以aic和aiv/2较小的值为基点

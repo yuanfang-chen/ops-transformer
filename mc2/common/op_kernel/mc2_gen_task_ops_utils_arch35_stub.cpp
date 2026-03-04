@@ -15,7 +15,7 @@
  */
 
 #include "mc2_gen_task_ops_utils_arch35.h"
-#include "op_kernel/mc2_gen_task_ops_utils.h"
+#include "mc2_gen_task_ops_utils.h"
 #include "graph/ascend_string.h"
 #include "op_tiling/mc2_log.h"
 

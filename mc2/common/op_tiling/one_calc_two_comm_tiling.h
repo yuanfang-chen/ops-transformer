@@ -17,9 +17,9 @@
 #define __ONE_CALC_TWO_COMM_BASE_H__
 
 #pragma once
-#include "op_tiling/hccl_performance.h"
-#include "op_tiling/matmul_performance.h"
-#include "op_tiling/hccl_formulaic_tiling.h"
+#include "hccl_performance.h"
+#include "matmul_performance.h"
+#include "hccl_formulaic_tiling.h"
 
 constexpr uint64_t MAX_TILE_CNT_TWO_COMM = 5;
 constexpr uint64_t MAX_ALL_TO_ALL_NUM = 32;

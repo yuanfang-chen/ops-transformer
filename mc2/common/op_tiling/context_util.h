@@ -18,7 +18,7 @@
 
 #include "runtime/infer_shape_context.h"
 #include "runtime/tiling_context.h"
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 
 namespace ops {
 #define OPS_CHECK_NULL_WITH_CONTEXT(context, ptr)                                                \

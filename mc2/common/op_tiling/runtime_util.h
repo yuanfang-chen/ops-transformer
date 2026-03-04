@@ -15,7 +15,7 @@
 #ifndef OPS_BUILT_IN_OP_PROTO_RUNTIME_RUNTIME_UTIL_H_
 #define OPS_BUILT_IN_OP_PROTO_RUNTIME_RUNTIME_UTIL_H_
 
-#include "op_tiling/context_util.h"
+#include "context_util.h"
 #include "register/op_impl_registry.h"
 #include "runtime/continuous_vector.h"
 #include "runtime/infer_shape_context.h"

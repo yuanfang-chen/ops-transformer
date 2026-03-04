@@ -12,10 +12,10 @@
  * \file matmul_formulaic_tiling.cpp
  * \brief
  */
-#include "op_tiling/mc2_hcom_topo_info.h"
-#include "op_tiling/mc2_log.h"
+#include "mc2_hcom_topo_info.h"
+#include "mc2_log.h"
 #include "register/op_def_registry.h"
-#include "op_tiling/matmul_formulaic_tiling.h"
+#include "matmul_formulaic_tiling.h"
 
 using namespace AscendC;
 using namespace ge;

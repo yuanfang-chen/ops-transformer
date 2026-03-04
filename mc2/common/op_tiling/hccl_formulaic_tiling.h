@@ -16,9 +16,9 @@
 #define __HCCL_FORMULAIC_TILING_H__
 
 #pragma once
-#include "op_tiling/matmul_formulaic_tiling.h"
-#include "op_tiling/hccl_performance.h"
-#include "op_tiling/matmul_performance.h"
+#include "matmul_formulaic_tiling.h"
+#include "hccl_performance.h"
+#include "matmul_performance.h"
 
 // FormPartition参数
 constexpr uint64_t LARGE_NK_BAR_BASE = 32;

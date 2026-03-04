@@ -12,7 +12,7 @@
  * \file hccl_performance_arch35.cpp
  * \brief
  */
-#include "op_tiling/hccl_performance_arch35.h"
+#include "hccl_performance_arch35.h"
 const static string DEFAULT_KEY_FOR_ARCH35 = "0_0_0_0";
 
 const static map<string, HCCLFittingParameters> ARCH35_FITTING_PARAMETER_MAP = {

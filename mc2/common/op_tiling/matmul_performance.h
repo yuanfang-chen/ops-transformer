@@ -15,8 +15,8 @@
 #ifndef __MATMUL_PERFORMANCE_H__
 #define __MATMUL_PERFORMANCE_H__
 #pragma once
-#include "op_tiling/matmul_formulaic_tiling.h"
-#include "op_tiling/formulaic_tiling_datatype.h"
+#include "matmul_formulaic_tiling.h"
+#include "formulaic_tiling_datatype.h"
 namespace MatmulPerformance {
 constexpr double COMPUTES_PER_CYCLE = 4096;
 constexpr double K_UNALIGN_UTIL_RATIO_SOC310P = 0.8;

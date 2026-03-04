@@ -16,9 +16,9 @@
 #ifndef MC2_COMMON_INFERSHAPE_H_
 #define MC2_COMMON_INFERSHAPE_H_
 
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 #include "register/op_impl_registry.h"
-#include "op_tiling/mc2_hcom_topo_info.h"
+#include "mc2_hcom_topo_info.h"
 
 namespace ops {
     const size_t GROUP = 0;

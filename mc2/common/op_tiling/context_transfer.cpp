@@ -15,8 +15,8 @@
 #ifndef _CONTEXT_TRANSFER_CC_
 #define _CONTEXT_TRANSFER_CC_
 
-#include "op_tiling/context_transfer.h"
-#include "op_tiling/mc2_log.h"
+#include "context_transfer.h"
+#include "mc2_log.h"
 #include "common/op_tiling/op_mc2.h"
 
 namespace optiling {

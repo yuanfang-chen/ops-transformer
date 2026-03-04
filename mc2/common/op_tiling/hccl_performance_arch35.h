@@ -18,7 +18,7 @@
 #pragma once
 #include <map>
 #include <string>
-#include "op_tiling/hccl_performance.h"
+#include "hccl_performance.h"
 using namespace std;
 
 class HCCLPerformanceArch35 : public HCCLPerformanceModel

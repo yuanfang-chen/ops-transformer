@@ -15,7 +15,7 @@
 #ifndef OPS_COMMON_INC_MC2_MOE_UTIL_H
 #define OPS_COMMON_INC_MC2_MOE_UTIL_H
 
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 
 namespace Mc2Moe {
 const size_t SUPPORT_DIM_NUM = 3;       // E, C, H, x weight current only support 3-dim

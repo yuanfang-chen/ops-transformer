@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "op_tiling/mc2_matmul_tiling_cfg.h"
+#include "mc2_matmul_tiling_cfg.h"
 #include "util/math_util.h"
 
 namespace Mc2MatmulHelper {

@@ -17,8 +17,8 @@
 #include <map>
 #include <string>
 
-#include "op_tiling/mc2_log.h"
-#include "op_tiling/hccl_performance.h"
+#include "mc2_log.h"
+#include "hccl_performance.h"
 
 // {"socType_commMethod",
 // {sizeToTimeBoundary1, sizeToTimeBoundary2,

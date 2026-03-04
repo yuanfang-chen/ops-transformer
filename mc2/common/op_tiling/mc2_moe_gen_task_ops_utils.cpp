@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "op_tiling/mc2_moe_gen_task_ops_utils.h"
+#include "mc2_moe_gen_task_ops_utils.h"
 
 #include <map>
 #include <set>
@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "op_kernel/mc2_gen_task_ops_utils.h"
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 #include "common/op_tiling/op_mc2.h"
 #include "platform/platform_info.h"
 

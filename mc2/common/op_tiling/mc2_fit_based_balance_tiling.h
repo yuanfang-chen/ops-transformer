@@ -16,10 +16,10 @@
 #define __MC2_FIT_BALANCE_TILING_H__
 
 #pragma once
-#include "op_tiling/matmul_formulaic_tiling.h"
-#include "op_tiling/hccl_performance_arch35.h"
-#include "op_tiling/matmul_performance_arch35.h"
-#include "op_tiling/hccl_formulaic_tiling.h"
+#include "matmul_formulaic_tiling.h"
+#include "hccl_performance_arch35.h"
+#include "matmul_performance_arch35.h"
+#include "hccl_formulaic_tiling.h"
 
 constexpr static double CALC_COMM_RATIO = 2.0;
 

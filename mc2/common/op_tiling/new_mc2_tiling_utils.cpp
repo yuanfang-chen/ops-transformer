@@ -16,9 +16,9 @@
 #include <cstdlib>
 
 #include "graph/utils/type_utils.h"
-#include "op_tiling/mc2_hcom_topo_info.h"
+#include "mc2_hcom_topo_info.h"
 #include "../../3rd/mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_tiling_strategy.h"
-#include "op_tiling/mc2_log.h"
+#include "mc2_log.h"
 #include "mc2_tiling_utils.h"
 
 

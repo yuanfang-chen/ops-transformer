@@ -15,7 +15,7 @@
 #ifndef __MATMUL_PERFORMANCE_ARCH35_H__
 #define __MATMUL_PERFORMANCE_ARCH35_H__
 #pragma once
-#include "op_tiling/matmul_performance.h"
+#include "matmul_performance.h"
 
 class MatmulPerformanceArch35: public MatmulPerformanceModel
 {

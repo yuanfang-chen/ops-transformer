@@ -17,8 +17,8 @@
 #define QBMM_MIX_PERBLOCK_NONCONTIGUOUS_H
 
 #include "mc2_tiling_struct.h"
-#include "op_kernel/qbmm_asw_block_noncontiguous.h"
-#include "op_kernel/qbmm_perblock_api_utils_noncontiguous.h"
+#include "qbmm_asw_block_noncontiguous.h"
+#include "qbmm_perblock_api_utils_noncontiguous.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_perblock.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_api_utils.h"
 #include "../../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_perblock_api_utils.h"

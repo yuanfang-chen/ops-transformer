@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "op_tiling/mc2_moe_utils.h"
+#include "mc2_moe_utils.h"
 #include <algorithm>
 
 namespace Mc2Moe {

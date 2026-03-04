@@ -16,8 +16,8 @@
 #define __HCCL_PERFORMANCE_H__
 
 #pragma once
-#include "op_tiling/matmul_formulaic_tiling.h"
-#include "op_tiling/formulaic_tiling_datatype.h"
+#include "matmul_formulaic_tiling.h"
+#include "formulaic_tiling_datatype.h"
 constexpr uint64_t HCCL_MIN_TILE_LEN = 64 * ONE_KBYTE;
 constexpr uint64_t HCCL_MIN_TILE_LEN_COARSE = 2 * ONE_MBYTE;
 constexpr auto DEFAULT_KEY_FOR_FITTING_MAP = "0_0";
