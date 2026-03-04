@@ -835,7 +835,11 @@ static aclnnStatus aclnnGroupedMatmulFinalizeRoutingGetWorkspaceSizeCommonProces
     CHECK_RET(TensorContiguousProcess(params.rowIndex, executor), ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(TensorContiguousProcess(params.groupList, executor), ACLNN_ERR_INNER_NULLPTR);
     CHECK_RET(TensorContiguousProcess(params.logit, executor), ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(TensorContiguousProcess(params.pertokenScaleOptional, executor), ACLNN_ERR_INNER_NULLPTR);
+    OP_LOGI("ZZZtestlog");
+    if(params.pertokenScaleOptional != nullptr) {
+        CHECK_RET(TensorContiguousProcess(params.pertokenScaleOptional, executor), ACLNN_ERR_INNER_NULLPTR);
+    }
+    OP_LOGI("ZZZtestlog2");
     auto reformatedX1 = SetTensorToNDFormat(params.x1);
     const aclTensor *reformatedX2 = SetTensorToNDFormat(params.x2);
     const aclTensor *reformatedScale = GetNDFormat(params.scale);
