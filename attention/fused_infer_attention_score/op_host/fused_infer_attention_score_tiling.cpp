@@ -1902,6 +1902,8 @@ static ge::graphStatus GetValueD(gert::TilingContext *context, const string inpu
         return GetPAValueD(context, valueD);
     }
     auto tempV = context->GetInputShape(VALUE_INDEX);
+    std::cout << "tkd inputLayoutStr" << inputLayoutStr << std::endl;
+    printf("tkd inital valueD: %ld\n", valueD);
     if (inputLayoutStr == "NSD" || 
         inputLayoutStr == "TND" || 
         inputLayoutStr == "TND_NTD" || 
@@ -1916,10 +1918,16 @@ static ge::graphStatus GetValueD(gert::TilingContext *context, const string inpu
         inputLayoutStr == "BNSD"  || 
         inputLayoutStr == "BSND_NBSD" || 
         inputLayoutStr == "BSND") {
+        printf("tkd bnsd/bsnd/bsh if branch\n");
         OP_CHECK_IF((tempV->GetStorageShape().GetDimNum() != DIM_NUM_4),
                     OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
                     "When block_table is null and input_layout is %s, dim number of key/value should be 4, but it is %zu.\n",
                     inputLayoutStr.c_str(), tempV->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+        printf("tkd tempV->GetStorageShape().GetDimNum(): %ld\n", tempV->GetStorageShape().GetDimNum());
+        printf("tkd tempV->GetStorageShape().GetDim(DIM_0): %ld\n", tempV->GetStorageShape().GetDim(DIM_0));
+        printf("tkd tempV->GetStorageShape().GetDim(DIM_1): %ld\n", tempV->GetStorageShape().GetDim(DIM_1));
+        printf("tkd tempV->GetStorageShape().GetDim(DIM_2): %ld\n", tempV->GetStorageShape().GetDim(DIM_2));
+        printf("tkd tempV->GetStorageShape().GetDim(DIM_3): %ld\n", tempV->GetStorageShape().GetDim(DIM_3));
         valueD = tempV->GetStorageShape().GetDim(DIM_3);
     } else {
         int64_t valueH = tempV->GetStorageShape().GetDim(DIM_2);
@@ -1930,6 +1938,7 @@ static ge::graphStatus GetValueD(gert::TilingContext *context, const string inpu
         }
         valueD = valueH / numKvHeads;
     }
+    printf("tkd final valueD: %ld\n", valueD);
     return ge::GRAPH_SUCCESS;
 }
 
