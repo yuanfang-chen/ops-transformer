@@ -57,6 +57,26 @@ using namespace MatmulAlltoAllImpl;
     } while (0)
 #endif
 
+#ifndef MATMUL_ALLTO_ALL_APT_FP_IMPL
+#define MATMUL_ALLTO_ALL_APT_FP_IMPL(tilingData, pipe)  \
+    do {    \
+        DEFINE_MC2_MATMUL_CONTEXT_FOR_MATMUL_COMPUTATION_FP(ComputationContextType);\
+        DEFINE_MC2_MATMUL_FOR_MATMUL_COMPUTATION_FP(ComputationType); \
+        ComputationType matmulImplName(&pipe); \
+        DEFINE_MC2_TRANSPOSE_FOR_MATH_COMPUTATION(DTYPE_Y, TransposeType);    \
+        TransposeType transposeImplName(&pipe);    \
+        DEFINE_MC2_HCCL_FOR_COMMUNICATION(false, HcclServerType::HCCL_SERVER_TYPE_CCU, MC2AlltoAllContext,\
+            MatmulAlltoAllTilingData, MC2AlltoAllPrimitives, 1, 0, CommunicationType); \
+        CommunicationType commImplName(&tilingData);  \
+        using SchedulerContextType = PipelineContext<ComputationContextType>;  \
+        using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
+        SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
+        MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingData> op(&SchedulerImpl); \
+        op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
+        op.Process();   \
+    } while (0)
+#endif
+
 template <uint32_t QUANTMODE, bool X2TRANSPOSE, uint32_t DTYPEBIAS>
 __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR x1Scale, GM_ADDR x2Scale,
                                             GM_ADDR commScale, GM_ADDR x1Offset, GM_ADDR x2Offset, GM_ADDR y,
@@ -130,10 +150,3 @@ __global__ __aicore__ void matmul_allto_all(GM_ADDR x1, GM_ADDR x2, GM_ADDR bias
     }
 #endif
 }
- 
- 
- 
- 
-
-
- 
