@@ -294,33 +294,33 @@ public:
     //     AscendC::PipeBarrier<PIPE_V>();
     // }
 
-    __aicore__ inline
-    void RowsumSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
-        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-        uint32_t numElemsAligned)
-    {
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetVecMask(ROW_OPS_SPEC_MASK_32);
-        AscendC::BlockReduceSum<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound,
-            0, 1, 1, 4);
-        AscendC::PipeBarrier<PIPE_V>();
-        SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
-        AscendC::BlockReduceSum<float, false>(
-            rowsumUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
-    }
+    // __aicore__ inline
+    // void RowsumSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetVecMask(ROW_OPS_SPEC_MASK_32);
+    //     AscendC::BlockReduceSum<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound,
+    //         0, 1, 1, 4);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     SetBlockReduceMask(ROW_OPS_SPEC_MASK_4);
+    //     AscendC::BlockReduceSum<float, false>(
+    //         rowsumUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         CeilDiv(numRowsRound * FLOAT_BLOCK_SIZE, FLOAT_VECTOR_SIZE),
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+    // }
 
     __aicore__ inline
     void RowsumTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
