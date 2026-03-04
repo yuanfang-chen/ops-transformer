@@ -259,63 +259,26 @@ public:
             LayoutC layoutUbC{actualTileShape, ubTileStride};
             
             if (isFirstLoopK) {
-                if (MTE3_MTE2_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventUbDMTE3MTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag MTE3_MTE2 eventUbDMTE3MTE2List[ubListId] %d\n", eventUbDMTE3MTE2List[ubListId]);
-                }
-                if (V_MTE2_UBC_ADD_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag V_MTE2 eventUbCAddVMTE2List[ubListId] %d\n", eventUbCAddVMTE2List[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(eventUbDMTE3MTE2List[ubListId]);
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
                 copyGmToUbC(ubCAdd[ubCOffset], gmTileC, layoutUbC, layoutGmTileC);
-                if (MTE2_V_UBC_ADD_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag MTE2_V eventUbCAddMTE2VList[ubListId] %d\n", eventUbCAddMTE2VList[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
             } else {
                 auto &ubC = ubCList[ubListId];
-                if (V_MTE2_UBC_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag V_MTE2 eventUbCVMTE2List[ubListId] %d\n", eventUbCVMTE2List[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
                 copyGmToUbC(ubC, gmTileC, layoutUbC, layoutGmTileC);
-                if (MTE2_V_UBC_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag MTE2_V eventUbCMTE2VList[ubListId] %d\n", eventUbCMTE2VList[ubListId]);
-                }
-                // int32_t computeLength = actualBlockShapeMNK.m() * actualBlockShapeMNK.n();
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
                 int32_t computeLength = TileShape::ROW * TileShape::COLUMN;
-                if (MTE2_V_UBC_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag MTE2_V eventUbCMTE2VList[ubListId] %d\n", eventUbCMTE2VList[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCMTE2VList[ubListId]);
                 // 因为第一块数据是copy到ubCAdd里的，所以第二块数据需要等上一次的copy结束
                 if (isSecondLoopK) {
-                    if (MTE2_V_UBC_ADD_FLAG) {
-                        AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
-                    } else {
-                        // AscendC::printf("operator WaitFlag MTE2_V eventUbCAddMTE2VList[ubListId] %d\n", eventUbCAddMTE2VList[ubListId]);
-                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
                 }
                 AscendC::Add<half>(ubCAdd[ubCOffset], ubCAdd[ubCOffset], ubC, computeLength);
                 AscendC::PipeBarrier<PIPE_V>();
-                if (V_MTE2_UBC_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag V_MTE2 eventUbCVMTE2List[ubListId] %d\n", eventUbCVMTE2List[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCVMTE2List[ubListId]);
                 if (isSecondLoopK) {
-                   if (V_MTE2_UBC_ADD_FLAG) {
-                        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
-                    } else {
-                        // AscendC::printf("operator SetFlag V_MTE2 eventUbCAddVMTE2List[ubListId] %d\n", eventUbCAddVMTE2List[ubListId]);
-                    }
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
                 }
             } 
 
@@ -330,48 +293,24 @@ public:
                 auto layoutUbPerTokenScale = LayoutPerTokenScale::template MakeLayoutInUb<ElementPerTokenScale>(
                     perTokenScaleTileShape);
                 
-                if (V_MTE2_PERTOKEN_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbPerTokenScaleVMTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag V_MTE2 eventUbPerTokenScaleVMTE2List[ubListId] %d\n", eventUbPerTokenScaleVMTE2List[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(eventUbPerTokenScaleVMTE2List[ubListId]);
                 copyGmToUbPerTokenScale(ubPerTokenScale, gmTilePerTokenScale, layoutUbPerTokenScale,
                     layoutGmTilePerTokenScale);
-                if (MTE2_V_PERTOKEN_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbPerTokenScaleMTE2VList[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag MTE2_V eventUbPerTokenScaleMTE2VList[ubListId] %d\n", eventUbPerTokenScaleMTE2VList[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(eventUbPerTokenScaleMTE2VList[ubListId]);
 
                 if (isFirstLoopK) {
-                    if (MTE2_V_UBC_ADD_FLAG) {
-                        AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
-                    } else {
-                        // AscendC::printf("operator WaitFlag MTE2_V eventUbCAddMTE2VList[ubListId] %d\n", eventUbCAddMTE2VList[ubListId]);
-                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbCAddMTE2VList[ubListId]);
                 }
                 AscendC::Cast(ubCFp32, ubCAdd[ubCOffset], AscendC::RoundMode::CAST_NONE, TileShape::COUNT);
                 if (isFirstLoopK) {
-                    if (V_MTE2_UBC_ADD_FLAG) {
-                        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
-                    } else {
-                        // AscendC::printf("operator SetFlag V_MTE2 eventUbCAddVMTE2List[ubListId] %d\n", eventUbCAddVMTE2List[ubListId]);
-                    }
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbCAddVMTE2List[ubListId]);
                 }
 
-                if (MTE2_V_PERTOKEN_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbPerTokenScaleMTE2VList[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag MTE2_V eventUbPerTokenScaleMTE2VList[ubListId] %d\n", eventUbPerTokenScaleMTE2VList[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(eventUbPerTokenScaleMTE2VList[ubListId]);
                 AscendC::PipeBarrier<PIPE_V>();
                 tileBroadcastOneBlk(ubPerTokenScaleFp32Brcb, ubPerTokenScale);
                 AscendC::PipeBarrier<PIPE_V>();
-                if (V_MTE2_PERTOKEN_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbPerTokenScaleVMTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag V_MTE2 eventUbPerTokenScaleVMTE2List[ubListId] %d\n", eventUbPerTokenScaleVMTE2List[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(eventUbPerTokenScaleVMTE2List[ubListId]);
                 tileOneBlkColumnBroadcastMul(ubPerTokenMul, ubCFp32, ubPerTokenScaleFp32Brcb);
                 AscendC::PipeBarrier<PIPE_V>();
 
@@ -379,26 +318,14 @@ public:
                 LayoutD layoutUbD{actualTileShape, ubTileStride};
 
                 AscendC::Cast(ubD, ubPerTokenMul, AscendC::RoundMode::CAST_RINT, TileShape::COUNT);
-                if (V_MTE3_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag V_MTE3 eventUbDVMTE3List[ubListId] %d\n", eventUbDVMTE3List[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
 
                 auto gmTileD = params.gmD[params.layoutD.GetOffset(tileOffset)];
                 auto layoutGmTileD = params.layoutD.GetTileLayout(actualTileShape);
 
-                if (V_MTE3_FLAG) {
-                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
-                } else {
-                    // AscendC::printf("operator WaitFlag V_MTE3 eventUbDVMTE3List[ubListId] %d\n", eventUbDVMTE3List[ubListId]);
-                }
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(eventUbDVMTE3List[ubListId]);
                 copyUbToGmD(gmTileD, ubD, layoutGmTileD, layoutUbD);
-                if (MTE3_MTE2_FLAG) {
-                    AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventUbDMTE3MTE2List[ubListId]);
-                } else {
-                    // AscendC::printf("operator SetFlag MTE3_MTE2 eventUbDMTE3MTE2List[ubListId] %d\n", eventUbDMTE3MTE2List[ubListId]);
-                }
+                AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(eventUbDMTE3MTE2List[ubListId]);
             }
 
             ubCOffset += UBC_ADD_PER_NUM;
