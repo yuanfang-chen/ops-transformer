@@ -297,7 +297,7 @@ foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
         list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${EXAMPLES_OP_NAME})
     elseif(IS_DIRECTORY ${EXAMPLES_MC2_DIR})
         add_subdirectory(examples/mc2/${EXAMPLES_OP_NAME})
-        list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${EXAMPLES_OP_NAME})
+        #list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/mc2/${EXAMPLES_OP_NAME})
     endif()
 endforeach()
 
