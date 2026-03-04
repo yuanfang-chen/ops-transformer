@@ -97,13 +97,6 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         fBaseParams.d = queryShape->GetStorageShape().GetDim(DIM_2) / headNum; // H=N*D
         fBaseParams.s2 = keyShape->GetStorageShape().GetDim(DIM_1);
         fBaseParams.t1 = fBaseParams.b * fBaseParams.s1;
-        std::cout << "fBaseParams.b " << fBaseParams.b  << std::endl;
-        std::cout << "fBaseParams.s1 " << fBaseParams.s1  << std::endl;
-        std::cout << "fBaseParams.s2 " << fBaseParams.s2  << std::endl;
-        std::cout << "fBaseParams.n1 " << fBaseParams.n1  << std::endl;
-        std::cout << "fBaseParams.n2 " << fBaseParams.n2  << std::endl;
-        std::cout << "fBaseParams.d " << fBaseParams.d  << std::endl;
-        std::cout << "fBaseParams.t1 " << fBaseParams.t1  << std::endl;
         return ge::GRAPH_SUCCESS;
     }
     else if(strcmp(fBaseParams.inputLayout, TND_STR) == 0){
