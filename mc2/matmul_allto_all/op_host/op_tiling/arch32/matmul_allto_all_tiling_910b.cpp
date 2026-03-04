@@ -287,7 +287,7 @@ bool MatmulAlltoAllTiling910B::IsCapable()
 {
     fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
     OP_TILING_CHECK(platformInfoPtr == nullptr,         \
- 	    OP_LOGE(opName_, "fail to get platfoem info"),  \
+ 	    OP_LOGE(opName_, "fail to get platform info"),  \
  	    return ge::GRAPH_FAILED);
  	fe::PlatFormInfos &platformInfo = *platformInfoPtr;
  	std::string socVersionStr;
