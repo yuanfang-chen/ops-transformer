@@ -22,20 +22,21 @@ namespace AiVReduceSumImpl {
 
 using namespace AscendC;
 
-constexpr static uint32_t UB_BUFFER_NUM = 3;    // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
-constexpr static uint32_t UB_ALIGN_BYTES = 32U;     // UB搬运需按32B对齐
-constexpr uint32_t BUFFER_NUM = 2U;                 // 用于double buffer
+constexpr static uint32_t UB_BUFFER_NUM = 3;                     // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
+constexpr static uint32_t MAX_PER_BLOCK_NUM = 1024UL * 15UL;     // 经验最优上限, 限制UB每块最大可搬运的元素数
+constexpr static uint32_t UB_ALIGN_BYTES = 32U;                  // UB搬运需按32B对齐
+constexpr uint32_t BUFFER_NUM = 2U;                              // 用于double buffer
 
 template <typename DataType>
 class ReduceSumForAlltoAll {
 public:
     __aicore__ inline ReduceSumForAlltoAll() {};
-    __aicore__ inline void Init(uint64_t totalDataSize, uint64_t rankDim, uint64_t aivNum, 
+    __aicore__ inline void Init(uint64_t outputSize, uint64_t stride, uint64_t rankDim, uint64_t aivNum, 
                                 GM_ADDR srcAddr, GM_ADDR dstAddr, TPipe* tPipe);
     __aicore__ inline void ExecuteReduceSum();
 
 private:
-    __aicore__ inline void InitParams(uint64_t totalDataSize, uint64_t rankDim, uint64_t aivNum);
+    __aicore__ inline void InitParams(uint64_t outputSize, uint64_t stride, uint64_t rankDim, uint64_t aivNum);
     __aicore__ inline void InitBuffers(GM_ADDR srcAddr, GM_ADDR dstAddr, TPipe* tPipe);
     __aicore__ inline void ReadDataBlockReduceSum(uint64_t curOffset, uint64_t elemsPerBlock);
     __aicore__ inline void ComputeTailAivId();
@@ -47,6 +48,7 @@ private:
     TQue<QuePosition::VECIN, 1> vecInQueue_;
 
     uint64_t sliceSize_{0};
+    uint64_t strideSize_{0};
     uint64_t totalBlockNums_{0};
     uint64_t round_{0};
     uint64_t tailBlockNums_{0};
@@ -61,19 +63,23 @@ private:
     uint64_t tailBlockNum_{0};
 };
 
-/**
- * @brief 统一初始化入口：完成参数计算与GM/UB Tensor设置。
+ /**
+ * @brief 统一初始化入口：完成参数计算与 GM/UB Tensor 设置。
  * 
- * @param totalDataSize 输入总数据量（元素个数）
- * @param rankDim 参与 All2All 的卡数（rank 数量）
- * @param aivNum  启用的 AIV 核数量
- * @param srcAddr 全局内存中源数据起始地址（All2All 接收缓冲区）
- * @param dstAddr 全局内存中目标输出起始地址（Reduce-Sum 结果写回位置）
- * @param tPipe   Tensor Pipe 对象，用于申请和管理 UB 缓冲区
+ * @param outputSize 期望输出的数据量。与每次 All2All 的通信量相同，即 sliceM * N（单位：sizeof(dataType)）。
+ * @param stride     求和数据块间的偏移量, 与 All2All通信的数据块间隔相同（单位：sizeof(dataType)）。
+ *                   - stride = 0：表示相邻数据块地址连续；
+ *                   - stride > 0：表示相邻数据块起始地址的偏移量为 stride。
+ * @param rankDim    参与 All2All 的卡数（Rank 数量）。
+ * @param aivNum     启用的 AIV 核数量。
+ * @param srcAddr    全局内存中源数据起始地址（All2All 接收缓冲区）。
+ * @param dstAddr    全局内存中目标输出起始地址（Reduce-Sum 结果写回位置）。
+ * @param tPipe      Tensor Pipe 对象，用于申请和管理 UB 缓冲区。
  */
 template <typename DataType>
 __aicore__ inline void ReduceSumForAlltoAll<DataType>::Init(
-    uint64_t totalDataSize, 
+    uint64_t outputSize, 
+    uint64_t stride, 
     uint64_t rankDim, 
     uint64_t aivNum, 
     GM_ADDR srcAddr, 
@@ -81,7 +87,7 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::Init(
     TPipe* tPipe) 
 {
     // 初始化计算参数 (分片大小、块数、核分配策略等)
-    InitParams(totalDataSize, rankDim, aivNum);
+    InitParams(outputSize, stride, rankDim, aivNum);
 
     // 初始化内存地址与 UB 缓冲区
     InitBuffers(srcAddr, dstAddr, tPipe);
@@ -90,31 +96,40 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::Init(
 /**
  * @brief 初始化 ReduceSum 所需的参数，包括分片大小、块数、核分配策略等。
  * 
- * @param totalDataSize 输入总数据量（元素个数），即 M * N
+ * @param outputSize 期望输出的数据量（数据个数）
+ * @param stride 期望求和的个个数据块间的偏移量。(数据个数)
  * @param rankDim 参与 All2All 的卡数（rank 数量）
  * @param aivNum  AIV 核数量
  * 
  */
 template <typename DataType>
-__aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(uint64_t totalDataSize, uint64_t rankDim, uint64_t aivNum) 
+__aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(
+    uint64_t outputSize, 
+    uint64_t stride, 
+    uint64_t rankDim, 
+    uint64_t aivNum) 
 {
     // 读取配置
     rankDim_ = rankDim; // 卡数
     aivNum_ = aivNum; // AIV数量
 
-    // 计算UB每块可搬运的元素数（32B 对齐）
-    perBlockNum_ = AiVReduceSumImplUtil::FloorAlign(
+    // 计算理论UB每块可搬运的最大容量（向下 32B 对齐）
+    uint64_t maxPerBlockNum_ = AiVReduceSumImplUtil::FloorAlign(
         TOTAL_UB_SIZE / UB_BUFFER_NUM,
         UB_ALIGN_BYTES
     ) / sizeof(DataType);
 
+    // 限制UB每次搬运数据块大小。
+    perBlockNum_ = AiVReduceSumImplUtil::MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
+
     // 分片大小与总块数
-    sliceSize_ = totalDataSize / rankDim_; // all2all过程，每张卡分片的数据大小，按卡数均分
+    sliceSize_ = outputSize; // 每张卡分片的数据大小，与输出大小一致
+    strideSize_ = (stride == 0U) ? sliceSize_ : stride; // 累加数据块间的数据量偏移，即卡间偏移
     totalBlockNums_ = AiVReduceSumImplUtil::CeilDiv(sliceSize_, perBlockNum_); // 1/rank 数据需要搬运的总块数
 
     // 尾块搬运大小
     uint64_t tailBytes = AiVReduceSumImplUtil::BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType);
-    tailBlockNum_ = AiVReduceSumImplUtil::CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 32B对齐
+    tailBlockNum_ = AiVReduceSumImplUtil::CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
@@ -190,9 +205,8 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum()
 
         // 2. 对每个 rank 的 slice 进行累加
         for (uint64_t curRank = 0; curRank < rankDim_; ++curRank) {
-            uint64_t srcSliceOffset = curRank * sliceSize_; // 卡间的偏移量
+            uint64_t srcSliceOffset = curRank * strideSize_; // 属于不同卡的数据块间的偏移量
             uint64_t curOffset = srcSliceOffset + curBlockOffset;
-
             ReadDataBlockReduceSum(curOffset, copyBlockNum); // 从 recvBuf_ 读取数据做reduce sum
         }
 
