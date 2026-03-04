@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "../op_tiling/mc2_aclnn_util.h"
+#include "mc2_aclnn_util.h"
 #include "common/op_host/op_api/matmul_util.h"
 
 namespace MC2Aclnn {

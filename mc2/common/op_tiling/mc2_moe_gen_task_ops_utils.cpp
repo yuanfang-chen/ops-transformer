@@ -23,7 +23,7 @@
 
 #include "op_kernel/mc2_gen_task_ops_utils.h"
 #include "mc2_log.h"
-#include "common/op_tiling/op_mc2.h"
+#include "op_mc2.h"
 #include "platform/platform_info.h"
 
 namespace {

@@ -17,7 +17,7 @@
 
 #include "context_transfer.h"
 #include "mc2_log.h"
-#include "common/op_tiling/op_mc2.h"
+#include "op_mc2.h"
 
 namespace optiling {
 ge::graphStatus ContextTransfer::AssembleMMRCtxInfoFromMRNCtx(const gert::TilingContext *const context,
