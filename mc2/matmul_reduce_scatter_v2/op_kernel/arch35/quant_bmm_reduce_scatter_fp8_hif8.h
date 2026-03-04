@@ -21,7 +21,7 @@
 #include "../../common/inc/kernel/mc2_common_def.h"
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_mix_perblock.h"
 #include "../../3rd/quant_batch_matmul_v3/op_kernel/arch35/qbmm_cube_on_the_fly.h"
-#include "../../common/new_mc2_mm/kernel/mc2_quant_batch_matmul.h"
+#include "../../common/inc/kernel/mc2_quant_batch_matmul.h"
 #include "../../common/inc/kernel/qbmm_mix_perblock_noncontiguous.h"
 #include "matmul_reduce_scatter_v2_c_tiling.h"
 

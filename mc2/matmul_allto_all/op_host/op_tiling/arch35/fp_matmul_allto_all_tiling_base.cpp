@@ -112,11 +112,11 @@ ge::graphStatus FpMatmulAllToAllTilingBase::DoMMTiling()
     auto ascendcPlatForm = platform_ascendc::PlatformAscendC(platformInfo);
 
     std::vector<int32_t> priorities;
-    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_));
+    GE_ASSERT_GRAPH_SUCCESS(mc2tiling::GetMatmulV3PriorityPolicy(npuArch_, priorities, opName_));
 
     Mc2MMRegisterCfg registerCfg{"Mc2MatMulV3", npuArch_, priorities};
 
-    mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, contextInfo.args_, opName_);
+    mc2tiling::UpdateMatmulV3Args(mmV3Args_, contextInfo.args_, opName_);
 
     // tile tiling, 对于matmulAlltoAll,mvalue就是切块大小
     mmV3Args_.mValue = inferredInfo.tileM;
