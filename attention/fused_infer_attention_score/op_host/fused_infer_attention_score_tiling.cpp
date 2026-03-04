@@ -1878,7 +1878,13 @@ static ge::graphStatus GetQueryD(const gert::TilingContext *context, const strin
 
 static ge::graphStatus GetPAValueD(const gert::TilingContext *context, int64_t &valueD)
 {
+    printf("tkd inital valueD: %ld\n", valueD);
     auto tempV = context->GetInputShape(VALUE_INDEX);
+    printf("tkd GetPAValueD tempV->GetStorageShape().GetDimNum(): %ld\n", tempV->GetStorageShape().GetDimNum());
+    printf("tkd GetPAValueD tempV->GetStorageShape().GetDim(DIM_0): %ld\n", tempV->GetStorageShape().GetDim(DIM_0));
+    printf("tkd GetPAValueD tempV->GetStorageShape().GetDim(DIM_1): %ld\n", tempV->GetStorageShape().GetDim(DIM_1));
+    printf("tkd GetPAValueD tempV->GetStorageShape().GetDim(DIM_2): %ld\n", tempV->GetStorageShape().GetDim(DIM_2));
+    printf("tkd GetPAValueD tempV->GetStorageShape().GetDim(DIM_3): %ld\n", tempV->GetStorageShape().GetDim(DIM_3));
     if (tempV->GetStorageShape().GetDimNum() == DIM_BSH) { // BnBsH
         auto attrs = context->GetAttrs();
         int64_t numKvHeads = static_cast<int64_t>(*attrs->GetAttrPointer<uint32_t>(ATTR_NUM_KV_HEADS_INDEX));
@@ -1895,6 +1901,7 @@ static ge::graphStatus GetPAValueD(const gert::TilingContext *context, int64_t &
             tempV->GetStorageShape().GetDimNum());
         return ge::GRAPH_FAILED;
     }
+    printf("tkd final valueD: %ld\n", valueD);
     return ge::GRAPH_SUCCESS;
 }
 
