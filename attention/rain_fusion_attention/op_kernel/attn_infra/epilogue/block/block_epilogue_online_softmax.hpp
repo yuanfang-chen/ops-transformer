@@ -442,8 +442,8 @@ public:
         // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
         // ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
 
-        uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
-        uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+        uint32_t src0Start = 0;
+        uint32_t src1Start = FLOAT_VECTOR_SIZE;
         AscendC::Max<float, false>(
             tvUbTensor[REDUCE_UB_SIZE + src0Start],
             srcUb[src0Start],
