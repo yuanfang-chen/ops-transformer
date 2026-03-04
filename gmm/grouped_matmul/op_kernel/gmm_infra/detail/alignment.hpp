@@ -22,9 +22,9 @@ constexpr T RoundUp(const T &val)
     return (val + ALIGN - 1) / ALIGN * ALIGN;
 }
 
-template <class T>
+template <class T, class U>
 CATLASS_HOST_DEVICE
-constexpr T RoundUp(const T &val, const T align)
+constexpr auto RoundUp(T const &val, U const &align)
 {
     return (val + align - 1) / align * align;
 }
@@ -37,24 +37,24 @@ constexpr T RoundDown(const T val)
     return val / ALIGN * ALIGN;
 }
 
-template <class T>
+template <class T, class U>
 CATLASS_HOST_DEVICE
-constexpr T RoundDown(const T val, const T align)
+constexpr auto RoundDown(T const &val, U const &align)
 {
     return val / align * align;
 }
 
-template <uint32_t DIVISOP, typename T>
+template <uint32_t DIVISOR, typename T>
 CATLASS_HOST_DEVICE
 constexpr T CeilDiv(const T dividend)
 {
-    static_assert(DIVISOP != 0, "DIVISOP must not be 0");
-    return (dividend + DIVISOP - 1) / DIVISOP;
+    static_assert(DIVISOR != 0, "DIVISOR must not be 0");
+    return (dividend + DIVISOR - 1) / DIVISOR;
 }
 
-template <class T>
+template <class T, class U>
 CATLASS_HOST_DEVICE
-constexpr T CeilDiv(const T dividend, const T divisor)
+constexpr auto CeilDiv(T const &dividend, U const &divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }
