@@ -13,7 +13,7 @@
  * \brief
  */
 #include "op_mc2.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/matmul_allto_all_util_tiling.h"
 #include "../allto_all_matmul_tiling_base.h"
 #include "allto_all_mx_quant_matmul_tiling_base.h"

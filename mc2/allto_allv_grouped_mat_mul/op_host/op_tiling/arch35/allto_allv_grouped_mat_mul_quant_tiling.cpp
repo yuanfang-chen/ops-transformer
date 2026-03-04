@@ -17,7 +17,7 @@
 #include <numeric>
 #include <climits>
 #include "op_tiling/mc2_hcom_topo_info.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "op_tiling/context_util.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
 #include "op_tiling/hccl_formulaic_tiling.h"

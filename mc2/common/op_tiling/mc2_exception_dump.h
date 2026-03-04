@@ -16,7 +16,7 @@
 #include "acl/acl_rt.h"
 #include "acl/acl_dump.h"
 #include "op_kernel/moe_distribute_comm_ctx.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "op_tiling/mc2_tiling_utils.h"
 #include "op_kernel/mc2_gen_task_ops_utils.h"
 #include <chrono>

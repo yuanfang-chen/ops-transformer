@@ -13,7 +13,7 @@
  * \brief
  */
 #include <iostream>
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "all_gather_fit_balance_tiling.h"
 
 constexpr static double MM_EXPANSION_TIME = 40;

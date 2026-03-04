@@ -31,7 +31,7 @@
 #include "../../op_kernel/moe_distribute_combine_tiling.h"
 #include "../../op_kernel/moe_distribute_combine_shmem_tiling.h"
 #include "graph/utils/type_utils.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "platform/platform_infos_def.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"

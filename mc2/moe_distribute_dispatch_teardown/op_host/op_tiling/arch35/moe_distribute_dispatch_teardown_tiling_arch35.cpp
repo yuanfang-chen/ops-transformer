@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "moe_distribute_dispatch_teardown_tiling_arch35.h"
 
 namespace optiling {

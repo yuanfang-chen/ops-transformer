@@ -13,7 +13,7 @@
 
 #include "op_tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
-#include "mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace MC2Tiling {
 
