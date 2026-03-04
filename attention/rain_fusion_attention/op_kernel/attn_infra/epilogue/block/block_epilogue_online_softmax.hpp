@@ -411,9 +411,9 @@ public:
             uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
             uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
             AscendC::Max<float, false>(
-                dstUb[REDUCE_UB_SIZE + src0Start],
-                srcUb[REDUCE_UB_SIZE + src0Start],
-                srcUb[REDUCE_UB_SIZE + src1Start],
+                dstUb[src0Start],
+                srcUb[src0Start],
+                srcUb[src1Start],
                 AscendC::MASK_PLACEHOLDER, // (uint64_t)0
                 numRowsRound,
                 AscendC::BinaryRepeatParams(
@@ -440,34 +440,17 @@ public:
         // 512个元素，以64为单位分治求最大值，512->256->128->64
         uint32_t columnStrideIndex = 2;
         // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-        // ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-
-        uint32_t src0Start = 0;
-        uint32_t src1Start = FLOAT_VECTOR_SIZE;
-        AscendC::Max<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE + src0Start],
-            srcUb[src0Start],
-            srcUb[src1Start],
-            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-            numRowsRound,
-            AscendC::BinaryRepeatParams(
-                dataBlockStride,
-                dataBlockStride,
-                dataBlockStride,
-                blockNumPerRow,
-                blockNumPerRow,
-                blockNumPerRow));
-
+        ReduceMaxByPair(srcUb, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
         columnStrideIndex *= 2;
         for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-            ReduceMaxByPair(tvUbTensor, tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            ReduceMaxByPair(srcUb, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
             AscendC::PipeBarrier<PIPE_V>();
         }
         //每行64个元素分别规约求最大值
         AscendC::WholeReduceMax<float, false>(
             rowmaxUb,
-            tvUbTensor[REDUCE_UB_SIZE],
+            srcUb,
             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
             numRowsRound,
             dataBlockStride,
