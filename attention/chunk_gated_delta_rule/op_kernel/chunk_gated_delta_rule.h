@@ -121,13 +121,16 @@ public:
 
                 // compute this chunk group
                 stage1(cg);
+                SyncAll<false>();
 
                 if (pos > seqStart) {
                     curInitState = curFinalState;
                 }
                 stage2(cg, curInitState, curFinalState);
+                SyncAll<false>();
 
                 stage3(cg);
+                SyncAll<false>();
             }
         }
     }

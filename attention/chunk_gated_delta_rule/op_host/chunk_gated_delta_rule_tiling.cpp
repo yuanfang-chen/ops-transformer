@@ -58,12 +58,13 @@ namespace optiling {
         const auto &ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
         ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, compileInfo_.ubSize);
         compileInfo_.aivNum = ascendcPlatform.GetCoreNumAiv();
+        compileInfo_.aicNum = ascendcPlatform.GetCoreNumAic();
 
-        if (compileInfo_.aivNum <= 0) {
-            OP_LOGE(context_->GetNodeName(), "aivNum <= 0");
+        if (compileInfo_.aivNum <= 0 || compileInfo_.aicNum <= 0) {
+            OP_LOGE(context_->GetNodeName(), "aivNum <= 0 or aicNum <= 0");
             return;
         }
-        tilingData_.aiCoreNum = compileInfo_.aivNum;
+        tilingData_.aiCoreNum = compileInfo_.aicNum;
     }
 
     ge::graphStatus ChunkGatedDeltaRuleTiling::GetPlatformInfo() {
