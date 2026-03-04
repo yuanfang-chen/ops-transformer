@@ -54,6 +54,7 @@ constexpr int32_t CORE_NUM_FOUR = 4;
 constexpr int32_t CORE_NUM_EIGHT = 8;
 constexpr int32_t CORE_NUM_SIXTEEN = 16;
 
+// basic场景tiling默认值
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_FIRSTSTEPCORENUM_DEFAULT = 16;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_PVALUE_DEFAULT = 14;
 constexpr int32_t ALLTOALLMATMUL_TWO_RANK_FP16_M0_DEFAULT = 128;
@@ -67,6 +68,15 @@ constexpr int32_t ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT = 2;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_PVALUE_DEFAULT = 12;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_M0_DEFAULT = 128;
 constexpr int32_t ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT = 2;
+
+// A16W8场景tiling默认值
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT = 7651;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT = 24035;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT = 24035;
+// A16W4场景tiling默认值
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT = 16867;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT = 24035;
+constexpr int32_t ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT = 7651;
 
 constexpr int32_t CONDITION_M_ST = 0;
 constexpr int32_t CONDITION_M_END = 1;
@@ -95,7 +105,13 @@ const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITH_BIAS = {
 };
 const std::vector<std::vector<uint32_t>> SUPPORTED_TYPES_WITHOUT_BIAS = {
     {ge::DT_BF16, ge::DT_BF16, ge::DT_BF16},
-    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}
+    {ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT8, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_BF16},
+    {ge::DT_INT4, ge::DT_INT4, ge::DT_FLOAT16},
+    {ge::DT_BF16, ge::DT_INT4, ge::DT_BF16},
+    {ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}
 };
 }
 
@@ -368,10 +384,235 @@ static std::map<int, std::vector<std::vector<int>>> g_alltoallmatmulEightRankFP1
         {{36864, 2147483647, 2304, 4608, 6656, 2147483647}}}
 };
 
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 640}, {-1, 640, 2560, 2147483647, 640, 2560},
+        {640, 13312, 13312, 2147483647, 1536, 2560}, {-1, 3584, 3584, 2147483647, 2560, 3584},
+        {-1, 2560, -1, 2147483647, 3584, 8704}, {-1, 3584, -1, 4608, 8704, 13312},
+        {-1, 640, 4608, 2147483647, 8704, 13312}, {-1, 1536, -1, 2147483647, 13312, 2147483647},
+        {1536, 3584, -1, 2560, 13312, 2147483647}, {3584, 2147483647, 640, 2560, 13312, 2147483647}}},
+    {1507,
+        {{-1, 640, -1, 2560, 640, 2560}, {640, 3584, 4608, 8704, -1, 1536},
+        {640, 13312, 4608, 13312, 1536, 2560}, {13312, 2147483647, 6144, 2147483647, 1536, 2560},
+        {-1, 3584, 1536, 3584, 2560, 3584}, {2560, 3584, 1536, 2147483647, 3584, 8704},
+        {3584, 2147483647, 640, 1536, 6144, 13312}}},
+    {3555,
+        {{640, 8704, -1, 4608, -1, 1536}, {640, 3584, 8704, 2147483647, -1, 1536},
+        {3584, 2147483647, 4608, 2147483647, -1, 1536}, {640, 13312, -1, 4608, 1536, 2560},
+        {13312, 2147483647, 4608, 6144, 1536, 2560}, {-1, 3584, -1, 1536, 2560, 3584},
+        {2560, 3584, -1, 1536, 3584, 8704}, {640, 3584, 4608, 2147483647, 8704, 13312},
+        {1536, 3584, 2560, 2147483647, 13312, 2147483647}, {3584, 4608, -1, 640, 6144, 2147483647},
+        {4608, 13312, -1, 640, 2560, 2147483647}, {3584, 2147483647, 640, 1536, 2560, 6144},
+        {3584, 2147483647, 1536, 2147483647, 2560, 13312}, {3584, 2147483647, 6144, 2147483647, 13312, 2147483647}}},
+    {7651,
+        {{8704, 2147483647, -1, 4608, -1, 1536}, {13312, 2147483647, -1, 4608, 1536, 2560},
+        {3584, 4608, -1, 640, 2560, 6144}, {13312, 2147483647, -1, 640, 2560, 2147483647},
+        {3584, 2147483647, 2560, 6144, 13312, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BFourRankA16W8tilingCodeMap = {
+    {3555,
+        {{-1, 3072, -1, 96, -1, 640}, {1536, 3072, 704, 2147483647, -1, 640},
+        {1280, 3072, 96, 192, 640, 1536}, {1536, 3072, 192, 2147483647, 640, 1536},
+        {1536, 3072, -1, 704, 2560, 3584}, {3072, 12288, 2560, 2147483647, -1, 640},
+        {3072, 12288, 576, 2147483647, 640, 3584}, {24576, 49152, 1792, 2147483647, -1, 640},
+        {24576, 49152, 704, 2147483647, 640, 2560}, {24576, 2147483647, 2560, 2147483647, 2560, 3584},
+        {3072, 12288, 96, 576, 3584, 8704}, {12288, 24576, 160, 576, 6144, 8704},
+        {3072, 40960, 576, 960, 3584, 4608}, {6144, 2147483647, 1408, 2147483647, 3584, 4608},
+        {12288, 2147483647, 576, 960, 6144, 8704}, {12288, 2147483647, 960, 2147483647, 4608, 8704},
+        {12288, 24576, 96, 320, 8704, 13312}, {24576, 2147483647, 192, 320, 8704, 13312},
+        {3072, 12288, -1, 320, 13312, 2147483647}, {3072, 6144, 2304, 2147483647, 13312, 2147483647},
+        {12288, 24576, 96, 192, 13312, 2147483647}, {24576, 2147483647, -1, 192, 13312, 2147483647},
+        {12288, 24576, 2560, 2147483647, 13312, 2147483647}}},
+    {1507,
+        {{-1, 3072, 96, 704, -1, 640}, {-1, 1536, 704, 832, -1, 640},
+        {-1, 3072, -1, 96, 640, 1536}, {-1, 1536, 192, 832, 640, 1536},
+        {-1, 1536, 960, 2147483647, 640, 1536}, {-1, 768, 192, 576, 2560, 8704},
+        {-1, 768, 576, 1792, 4608, 6144}, {768, 3072, -1, 2147483647, 1536, 2560},
+        {768, 1536, -1, 896, 2560, 3584}, {768, 1536, -1, 2147483647, 6144, 8704},
+        {1536, 3072, 704, 2147483647, 2560, 3584}, {1536, 3072, -1, 1792, 3584, 8704},
+        {3072, 6144, 960, 2147483647, 3584, 4608}, {3072, 12288, 576, 2147483647, 4608, 8704},
+        {-1, 768, 448, 576, 8704, 13312}, {-1, 768, 704, 832, 8704, 13312},
+        {768, 12288, -1, 576, 8704, 13312}, {3072, 12288, 576, 704, 8704, 13312},
+        {-1, 768, 832, 1408, 8704, 13312}, {12288, 24576, 320, 640, 8704, 13312},
+        {24576, 2147483647, 320, 576, 8704, 13312}, {-1, 3072, -1, 96, 13312, 2147483647},
+        {1280, 3072, 96, 192, 13312, 2147483647}, {-1, 3072, 192, 320, 13312, 2147483647},
+        {-1, 768, 448, 1280, 13312, 2147483647}, {3072, 6144, 320, 576, 13312, 2147483647},
+        {12288, 24576, 192, 448, 13312, 2147483647}, {24576, 2147483647, 192, 320, 13312, 2147483647}}},
+    {483,
+        {{-1, 1536, 832, 2147483647, -1, 640}, {-1, 1536, 832, 960, 640, 1536},
+        {-1, 768, 576, 1792, 1536, 4608}, {-1, 768, 576, 1792, 6144, 8704},
+        {-1, 768, 1792, 2147483647, 1536, 8704}, {768, 1536, 896, 2147483647, 2560, 3584},
+        {768, 1536, -1, 2147483647, 3584, 6144}, {1536, 3072, 1792, 2147483647, 3584, 8704},
+        {-1, 768, -1, 448, 8704, 13312}, {768, 3072, 576, 832, 8704, 13312},
+        {3072, 12288, 704, 832, 8704, 13312}, {768, 12288, 832, 1408, 8704, 13312},
+        {-1, 6144, 1408, 2147483647, 8704, 13312}, {6144, 12288, 2560, 2147483647, 8704, 13312},
+        {12288, 24576, 640, 2147483647, 8704, 13312}, {24576, 49152, 576, 1408, 8704, 13312},
+        {24576, 49152, 2560, 2147483647, 8704, 13312}, {49152, 2147483647, 576, 2147483647, 8704, 13312},
+        {-1, 768, 320, 448, 13312, 2147483647}, {-1, 768, 1280, 2147483647, 13312, 2147483647},
+        {768, 3072, 320, 1792, 13312, 2147483647}, {768, 1536, 1792, 2147483647, 13312, 2147483647},
+        {3072, 6144, 576, 1152, 13312, 2147483647}, {6144, 12288, 320, 2147483647, 13312, 2147483647},
+        {12288, 24576, 448, 1664, 13312, 2147483647}, {24576, 2147483647, 448, 2560, 13312, 2147483647}}},
+    {231,
+        {{-1, 1280, 96, 192, 640, 1536}, {-1, 768, -1, 576, 1536, 2560},
+        {-1, 768, -1, 192, 2560, 8704}, {-1, 768, 576, 704, 8704, 13312},
+        {6144, 12288, 1408, 2560, 8704, 13312}, {24576, 49152, 1408, 2560, 8704, 13312},
+        {-1, 1280, 96, 192, 13312, 2147483647}, {1536, 3072, 1792, 2147483647, 13312, 2147483647},
+        {3072, 6144, 1152, 2304, 13312, 2147483647}, {12288, 24576, 1664, 2560, 13312, 2147483647}}},
+    {24035,
+        {{3072, 12288, -1, 96, -1, 640}, {12288, 24576, -1, 320, -1, 1536},
+        {12288, 24576, 320, 1152, -1, 640}, {24576, 49152, -1, 1792, -1, 640},
+        {49152, 2147483647, -1, 1408, -1, 640}, {24576, 2147483647, -1, 704, 640, 2560},
+        {24576, 2147483647, -1, 192, 2560, 3584}}},
+    {7651,
+        {{3072, 12288, 96, 576, -1, 640}, {3072, 12288, -1, 576, 640, 3584},
+        {3072, 12288, 576, 2560, -1, 640}, {12288, 24576, 320, 448, 640, 3584},
+        {12288, 24576, 1152, 2147483647, -1, 640}, {12288, 24576, 448, 2147483647, 640, 3584},
+        {24576, 2147483647, 832, 2560, 2560, 3584}, {6144, 12288, -1, 96, 3584, 8704},
+        {12288, 24576, -1, 576, 3584, 6144}, {12288, 24576, -1, 160, 6144, 8704},
+        {24576, 49152, 320, 448, 3584, 8704}, {24576, 2147483647, 448, 576, 4608, 8704},
+        {12288, 2147483647, 576, 960, 4608, 6144}, {12288, 24576, -1, 96, 8704, 13312},
+        {24576, 49152, 96, 192, 8704, 13312}, {49152, 2147483647, -1, 192, 8704, 13312},
+        {12288, 24576, -1, 96, 13312, 2147483647}}},
+    {11747,
+        {{12288, 24576, -1, 320, 1536, 3584}, {49152, 2147483647, 1408, 2147483647, -1, 640},
+        {49152, 2147483647, 704, 2147483647, 640, 2560}, {24576, 2147483647, 192, 832, 2560, 3584},
+        {24576, 2147483647, 192, 320, 3584, 8704}, {6144, 2147483647, 960, 1408, 3584, 4608},
+        {24576, 49152, -1, 96, 8704, 13312}}},
+    {17891,
+        {{3072, 6144, -1, 96, 3584, 8704}}},
+    {13795,
+        {{24576, 2147483647, -1, 192, 3584, 8704}, {49152, 2147483647, 320, 448, 3584, 8704},
+        {24576, 2147483647, 448, 576, 3584, 4608}, {40960, 2147483647, 576, 960, 3584, 4608},
+        {24576, 2147483647, 2560, 2147483647, 13312, 2147483647}}},
+    {3303,
+        {{24576, 2147483647, 320, 448, 13312, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap = {
+    {1507,
+        {{-1, 1536, -1, 96, -1, 640}, {1536, 3072, -1, 2147483647, -1, 1536},
+        {1536, 3072, -1, 2560, 1536, 3584}, {3072, 2147483647, 2560, 2147483647, -1, 3584},
+        {-1, 768, -1, 192, 13312, 2147483647}, {768, 3072, -1, 576, 3584, 8704},
+        {768, 3072, -1, 96, 8704, 2147483647}, {3072, 6144, 192, 1152, 3584, 8704},
+        {3072, 6144, -1, 448, 8704, 13312}, {3072, 6144, 2304, 2147483647, 13312, 2147483647},
+        {6144, 12288, 320, 2147483647, 3584, 8704}}},
+    {483,
+        {{-1, 1536, 96, 2147483647, -1, 640}, {-1, 1536, -1, 2147483647, 640, 1536},
+        {-1, 768, -1, 704, 1536, 2560}, {-1, 1536, 704, 2147483647, 1536, 2560},
+        {-1, 768, -1, 2147483647, 2560, 3584}, {768, 1536, 320, 2147483647, 2560, 3584},
+        {1536, 3072, 2560, 2147483647, 1536, 3584}, {-1, 768, -1, 2147483647, 3584, 13312},
+        {-1, 768, 192, 2147483647, 13312, 2147483647}, {768, 3072, 576, 2147483647, 3584, 8704},
+        {768, 3072, 96, 2147483647, 8704, 2147483647}, {3072, 6144, 1152, 2147483647, 3584, 8704},
+        {3072, 6144, 448, 2147483647, 8704, 13312}, {3072, 6144, -1, 2304, 13312, 2147483647},
+        {6144, 24576, 320, 1152, 8704, 2147483647}, {6144, 12288, 1152, 2147483647, 8704, 2147483647}}},
+    {231,
+        {{768, 1536, -1, 704, 1536, 2560}, {768, 1536, -1, 320, 2560, 3584}}},
+    {7651,
+        {{3072, 2147483647, -1, 832, -1, 3584}, {12288, 2147483647, -1, 96, 3584, 13312}}},
+    {3555,
+        {{3072, 2147483647, 832, 2560, -1, 3584}, {3072, 6144, -1, 192, 3584, 8704},
+        {6144, 12288, -1, 96, 3584, 13312}, {6144, 2147483647, -1, 96, 13312, 2147483647},
+        {6144, 49152, 96, 320, 3584, 2147483647}, {12288, 2147483647, 320, 2147483647, 3584, 8704},
+        {12288, 2147483647, 1152, 2147483647, 8704, 2147483647}}},
+    {11747,
+        {{49152, 2147483647, 96, 320, 3584, 8704}}},
+    {3303,
+        {{49152, 2147483647, 96, 320, 8704, 2147483647}, {24576, 2147483647, 320, 1152, 8704, 2147483647}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BTwoRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 640}, {-1, 640, 640, 2147483647, 640, 1536},
+        {-1, 640, -1, 1536, 1536, 3584}, {-1, 640, 1536, 2147483647, 1536, 4608},
+        {640, 6144, 4608, 2147483647, 2560, 4608}, {-1, 3584, 1536, 2147483647, 4608, 6144},
+        {-1, 1536, 1536, 2147483647, 6144, 8704}, {-1, 2048, 640, 1536, 8704, 13312},
+        {-1, 2147483647, 1536, 8704, 8704, 13312}, {640, 1536, -1, 1536, 13312, 2147483647},
+        {-1, 1536, 1536, 2147483647, 13312, 2147483647}, {1536, 2147483647, -1, 4608, 13312, 2147483647}}},
+    {1507,
+        {{-1, 640, -1, 640, 640, 1536}, {-1, 640, -1, 1536, 3584, 4608},
+        {640, 6144, -1, 4608, 1536, 4608}, {640, 2147483647, 8704, 2147483647, 640, 1536},
+        {640, 2147483647, 6144, 2147483647, 1536, 2560}, {-1, 3584, 640, 1536, 4608, 6144},
+        {3584, 8704, 640, 2147483647, 4608, 6144}, {-1, 1536, -1, 1536, 6144, 8704},
+        {1536, 13312, 640, 2147483647, 6144, 8704}, {-1, 2688, -1, 640, 8704, 13312},
+        {2048, 2147483647, 640, 1536, 8704, 13312}, {-1, 2147483647, 8704, 2147483647, 8704, 13312},
+        {-1, 640, -1, 1536, 13312, 2147483647}, {1536, 2147483647, 4608, 2147483647, 13312, 2147483647}}},
+    {3555,
+        {{640, 8704, -1, 4608, -1, 1536}, {6144, 8704, -1, 4608, 1536, 4608},
+        {640, 2147483647, 4608, 2147483647, -1, 640}, {640, 2147483647, 4608, 8704, 640, 1536},
+        {640, 2147483647, 4608, 6144, 1536, 2560}, {6144, 2147483647, 4608, 2147483647, 2560, 4608},
+        {640, 10752, -1, 640, 4608, 6144}, {8704, 2147483647, 640, 2147483647, 4608, 6144},
+        {1536, 37888, -1, 640, 6144, 8704}, {13312, 2147483647, 640, 2147483647, 6144, 8704},
+        {2688, 2147483647, -1, 640, 8704, 13312}}},
+    {7651,
+        {{8704, 2147483647, -1, 4608, -1, 4608}, {10752, 2147483647, -1, 640, 4608, 6144},
+        {37888, 2147483647, -1, 640, 6144, 8704}}},
+    {16867,
+        {{-1, 640, -1, 640, 4608, 6144}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BFourRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 640, -1, 2147483647, -1, 2560}, {-1, 640, -1, 384, 8704, 2147483647},
+        {-1, 640, 384, 768, 2560, 8704}, {-1, 3584, 384, 768, 8704, 2147483647},
+        {-1, 2147483647, 768, 1536, 6144, 2147483647}, {-1, 6144, 1536, 4608, 2560, 2147483647},
+        {-1, 1536, 4608, 7680, 2560, 2147483647}, {-1, 13312, 7680, 2147483647, 2560, 6144}}},
+    {1507,
+        {{640, 1536, -1, 2147483647, -1, 640}, {1536, 8704, 2560, 2147483647, -1, 640},
+        {640, 8704, 768, 2147483647, 640, 1536}, {640, 8704, 1536, 2147483647, 1536, 2560},
+        {8704, 2147483647, 768, 2147483647, 1536, 2560}, {640, 24576, -1, 384, 8704, 2147483647},
+        {640, 1536, 384, 768, 2560, 8704}, {1536, 2147483647, 384, 768, 6144, 8704},
+        {3584, 2147483647, 384, 768, 8704, 2147483647}, {6144, 2147483647, 1536, 4608, 2560, 2147483647},
+        {1536, 2147483647, 4608, 7680, 2560, 2147483647}, {-1, 2147483647, 7680, 2147483647, 6144, 2147483647}}},
+    {7651,
+        {{1536, 8704, -1, 2560, -1, 640}, {640, 2147483647, -1, 768, 640, 1536},
+        {8704, 2147483647, -1, 768, 1536, 2560}, {-1, 2147483647, -1, 384, 2560, 4608},
+        {24576, 2147483647, -1, 384, 8704, 13312}}},
+    {3555,
+        {{8704, 24576, -1, 2147483647, -1, 640}, {24576, 2147483647, 768, 2147483647, -1, 640},
+        {640, 8704, -1, 1536, 1536, 2560}, {8704, 2147483647, 768, 2147483647, 640, 1536},
+        {-1, 2147483647, -1, 384, 4608, 8704}, {24576, 2147483647, -1, 384, 13312, 2147483647},
+        {1536, 2147483647, 384, 768, 2560, 6144}, {-1, 2147483647, 768, 1536, 2560, 6144},
+        {13312, 2147483647, 7680, 2147483647, 2560, 6144}}},
+    {24035,
+        {{24576, 2147483647, -1, 768, -1, 640}}}
+};
+
+static std::map<int, std::vector<std::vector<int>>> g_alltoAllMatmulNPU910BEightRankA16W4tilingCodeMap = {
+    {483,
+        {{-1, 1536, -1, 2147483647, -1, 3584}, {2560, 8704, 1536, 2147483647, -1, 3584},
+        {-1, 1536, -1, 2147483647, 3584, 2147483647}, {1536, 2560, -1, 2147483647, 3584, 6144},
+        {1536, 2560, 448, 2147483647, 6144, 8704}, {1536, 2560, 96, 2147483647, 8704, 2147483647},
+        {2560, 6144, 1536, 2560, 3584, 8704}, {2560, 2147483647, 2560, 2147483647, 3584, 8704},
+        {2560, 6144, 576, 2147483647, 8704, 2147483647}, {6144, 2147483647, 576, 4235, 8704, 2147483647}}},
+    {1507,
+        {{1536, 2560, -1, 2147483647, -1, 3584}, {8704, 2147483647, 1536, 2147483647, -1, 3584},
+        {1536, 2560, -1, 448, 6144, 8704}, {1536, 2560, -1, 96, 8704, 2147483647},
+        {2560, 8704, 320, 1536, 3584, 8704}, {6144, 2147483647, 1536, 2560, 3584, 8704},
+        {2560, 13312, -1, 576, 8704, 2147483647}}},
+    {3555,
+        {{2560, 4608, -1, 1536, -1, 3584}, {4608, 2147483647, -1, 1536, 1536, 3584},
+        {2560, 13312, -1, 320, 3584, 8704}, {8704, 2147483647, 320, 1536, 3584, 8704},
+        {13312, 2147483647, -1, 576, 8704, 2147483647}, {6144, 2147483647, 4235, 2147483647, 8704, 2147483647}}},
+    {7651,
+        {{4608, 2147483647, -1, 1536, -1, 1536}, {13312, 2147483647, -1, 320, 3584, 8704}}}
+};
+
 bool AlltoAllMatmulTiling910b::IsCapable()
 {
-    OP_LOGI(opName_, "Start with AllToAllMatmul tiling.");
-    return true;
+    fe::PlatFormInfos *platformInfoPtr = context_->GetPlatformInfo();
+    OP_TILING_CHECK(platformInfoPtr == nullptr, OP_LOGE(opName_, "fail to get platfoem info"), return false);
+    fe::PlatFormInfos &platformInfo = *platformInfoPtr;
+    std::string socVersionStr;
+    (void)platformInfo.GetPlatformResWithLock("version", "Short_SoC_version", socVersionStr);
+    OP_LOGD(opName_, "Current SocVersion is : %s", socVersionStr.c_str());
+    QuantMode mode = MatmulAlltoAllTilingUtil::GetQuantMode(context_, opName_);
+    if (socVersionStr == "Ascend910B") {
+        OP_LOGI(opName_, "Start with AllToAllMatmul tiling.");
+        return true;
+    }
+    OP_LOGD(opName_, "Skip AlltoAllMatmulTiling910b tiling when the SocVersion is unsupported.");
+    return false;
 }
 
 enum class QuantModeType : int64_t {
@@ -473,8 +714,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
     auto x2ScaleTensorDesc = context_->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
     // 校验 scale 张量，量化模式
     if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT8) {
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "x2Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
@@ -498,8 +739,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x1Scale Dtype is %s.", Ops::Base::ToString(x1ScaleDtype).c_str()),
                         return ge::GRAPH_FAILED);
         
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
@@ -508,8 +749,8 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckTensorDataType(AlltoAllMatmulInfo
     }
     // A16W4检测
     if ((x1Dtype == ge::DT_FLOAT16 || x1Dtype == ge::DT_BF16) && x2Dtype == ge::DT_INT4) {  
-        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr || biasTensorDesc == nullptr),
-                        OP_LOGE(opName_, "x2Scale and bias tensors should not be null in quant mode."), return ge::GRAPH_FAILED);
+        OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                        OP_LOGE(opName_, "x2Scale should not be null in quant mode."), return ge::GRAPH_FAILED);
         ge::DataType x2ScaleDtype = x2ScaleTensorDesc->GetDataType();
         OP_TILING_CHECK(x2ScaleDtype != ge::DT_FLOAT,
                         OP_LOGE(opName_, "x2Scale tensors Dtype should be FLOAT, but x2Scale Dtype is %s.", Ops::Base::ToString(x2ScaleDtype).c_str()),
@@ -749,6 +990,17 @@ void AlltoAllMatmulTiling910b::CalTilingParam(CoCTiling &cocTilingData, const st
     }
 }
 
+void AlltoAllMatmulTiling910b::DecodeTilingData(int32_t code, CoCTiling &cocTilingData)
+{
+    cocTilingData.allToAllRecvCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.allToAllSendCoreNum = (code & 31) + 1;
+    code >>= 5;
+    cocTilingData.pValue = (code & 15) + 1;
+    code >>= 4;
+    cocTilingData.m0 = (code + 1) * 128;
+}
+
 void TilingParamDeal(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info, int32_t ubSize)
 {
     uint32_t k = info.K;
@@ -824,16 +1076,136 @@ void AlltoAllMatmulTiling910b::DoEightRankTiling(CoCTiling &cocTilingData, Allto
     }
 }
 
+// A16W8 tiling
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BTwoRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+    
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BFourRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W8Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W8_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BEightRankA16W8tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+// A16W4 tiling
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BTwoRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_TWO_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_TWO_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BTwoRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BFourRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_FOUR_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_FOUR_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BFourRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+
+}
+
+void AlltoAllMatmulTiling910b::AlltoAllMatmulNPU910BEightRankA16W4Tiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
+{
+    int32_t ubSize = ALLTOALLMATMUL_EIGHT_RANK_FP16_UBSIZE_DEFAULT;
+    int32_t code = ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT;
+    std::map<int*, AlltoAllMatmulTilingValue> TilingParamMap = {
+        {&code,
+            AlltoAllMatmulTilingValue(ALLTOALL_MATMUL_NPU910B_EIGHT_RANK_A16W4_TILINGCODE_DEFAULT,
+            g_alltoAllMatmulNPU910BEightRankA16W4tilingCodeMap)}
+    };
+    CalTilingParam(cocTilingData, TilingParamMap, info);
+
+    DecodeTilingData(code, cocTilingData);
+
+    TilingParamDeal(cocTilingData, info, ubSize);
+
+}
+
 ge::graphStatus AlltoAllMatmulTiling910b::DoMmCommTiling(CoCTiling &cocTilingData, AlltoAllMatmulInfo &info)
 {
-    if (info.rankSize == 2) {  // 若2卡
-        DoTwoRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
-    } else if (info.rankSize == 4) {  // 若4卡
-        DoFourRankTiling(cocTilingData, info);
-        return ge::GRAPH_SUCCESS;
+    if (quantType == TILINGKEY_TPL_A16W8) {
+        // A16W8 tiling策略
+        if (info.rankSize == 2) {
+            AlltoAllMatmulNPU910BTwoRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {
+            AlltoAllMatmulNPU910BFourRankA16W8Tiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            AlltoAllMatmulNPU910BEightRankA16W8Tiling(cocTilingData, info);
+        }
+    } else if (quantType == TILINGKEY_TPL_A16W4) {
+        // A16W4 tiling策略
+        if (info.rankSize == 2) {
+            AlltoAllMatmulNPU910BTwoRankA16W4Tiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {
+            AlltoAllMatmulNPU910BFourRankA16W4Tiling(cocTilingData, info);         
+        } else if (info.rankSize == 8) {
+            AlltoAllMatmulNPU910BEightRankA16W4Tiling(cocTilingData, info);                
+        }
+    } else {
+        // basic、A4W4
+        if (info.rankSize == 2) {  // 若2卡
+            DoTwoRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 4) {  // 若4卡
+            DoFourRankTiling(cocTilingData, info);
+        } else if (info.rankSize == 8) {
+            DoEightRankTiling(cocTilingData, info);  // 若8卡
+        }
     }
-    DoEightRankTiling(cocTilingData, info);  // 若8卡
     return ge::GRAPH_SUCCESS;
 }
 
@@ -858,7 +1230,7 @@ ge::graphStatus AlltoAllMatmulTiling910b::DoOpTiling()
     auto aicNum = ascendcPlatform.GetCoreNumAic();
     auto aivNum = ascendcPlatform.GetCoreNumAiv();
     numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);
-
+    info.quantCoreNum = aivNum; //quant阶段利用全部vector
     CalcQuantWorkspaceSize(tilingData->cocTiling, info);
 
     OPS_LOG_I(opName_, "Leave AllToAllMatmul tiling func.");

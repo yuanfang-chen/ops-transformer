@@ -15,8 +15,12 @@
 #ifndef FIA_BLOCK_VEC_NONQUANT_H
 #define FIA_BLOCK_VEC_NONQUANT_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matrix/matmul/tiling.h"
@@ -540,7 +544,8 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::ElewiseCompute(
                 .gS1DealSize = dealRowCount,
                 .s2DealSize = actualColumnCount,
                 .s1LeftPaddingSize = info.qPaddingBeginOffset,
-                .s2LeftPaddingSize = info.kvPaddingBeginOffset
+                .s2LeftPaddingSize = info.kvPaddingBeginOffset,
+                .actualBIdx = info.bIdx
             };
             bool qsEqualOne = (constInfo.qSeqSize == 1);
             copyPSEGmToUb(pseShiftUbTensor, pseShiftGmTensor, pseCoord, qsEqualOne);

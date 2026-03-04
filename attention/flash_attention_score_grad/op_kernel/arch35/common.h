@@ -15,7 +15,11 @@
 
 #pragma once
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "../../../common/op_kernel/arch35/util_regbase.h"
 #include <cstdint>
 
@@ -192,6 +196,15 @@ struct FagConstInfo {
     float scaleValue;
     float attenMaskMinValue;
 
+    // quant
+    float pScale; // 量化参数
+    float dsScale; // 量化参数
+    float pScaleD; // 反量化参数
+    float dsScaleD; // 反量化参数
+    float pScaleLog; // log(pScale)
+
+    int64_t copyOutDStride;
+
     // 轴的乘积
     int64_t gS1o;
     int64_t n2GS1o;
@@ -219,6 +232,20 @@ struct FagConstInfo {
     int64_t mm4Kb;
     int64_t dRopeSize = 64; // rope旋转的维度
     uint32_t continuousBlockNum = 0; // 核内连续块数量
+    // swizzle相关
+    int64_t mSwizzleBlockNum = 0;
+    int64_t mSwizzleBlockNumTail = 0;
+    int64_t nSwizzleBlockNum = 0;
+    int64_t nSwizzleBlockNumTail = 0;
+    int64_t leftUpTotalRound = 0;
+    int64_t leftDownTotalRound = 0;
+    int64_t rightUpTotalRound = 0;
+    int64_t rightDownTotalRound = 0;
+    int64_t leftSingleColTotalRound = 0;
+    int64_t leftTotalRound = 0;
+    int64_t batchTotalRound = 0;
+    // 核数
+    uint32_t aicCoreNum = 0;
 };
 
 // fp8反量化因子
@@ -229,10 +256,38 @@ struct QuantScaleInfo {
 	float deqScaleDyValue = 1.0f;
 	float deqScaleOValue = 1.0f;
 };
+// FP8场景字段
+struct QuantRunInfo {
+    uint32_t s1ProcessSize;
+    uint32_t s2ProcessSize;
+    uint32_t s1Idx;
+    uint32_t s2Idx;
+    bool isDqFixOut;
+    bool isDkFixOut;
+    bool isDvFixOut;
 
+    float qkDScale; // qDScale * kDScale
+    float vdyDScale; // dyDScale * vDScale
+    float dsScaleDMulDeqScaleK; // dsScaleD * deqScaleKValue
+    float dsScaleDMulDeqScaleQ; // pScaleD * deqScaleDyValue
+    float pScaleDMulDeqScaleDy; // dsScaleD * deqScaleQValue
+
+    bool isDkvCompleted = true;
+    bool isDqCompleted = true;
+
+    // 512基本块内部，再切128
+    int64_t innerS1RealSize[4];
+    int64_t innerS2RealSize[4];
+    int64_t innerS1LoopNum;
+    int64_t innerS2LoopNum;
+
+    int64_t qInnerOffset[4];
+    int64_t kvInnerOffset[4];
+};
 struct FagRunInfo {
     RunInfo<false> commonRunInfo{0};
 	QuantScaleInfo quantScaleInfo;
+    QuantRunInfo quantRunInfo;
     int64_t s2oIdx;
     int64_t s2CvBegin;
     int64_t s2CvEnd;
@@ -272,7 +327,13 @@ struct FagRunInfo {
     int64_t queryOffsetWithRopeForMm12;
     int64_t keyOffsetWithRopeForMm12;
     int8_t specialS2Index = -1;
+
     bool isFirstBlock = true;
+    bool isKeyReuse = false;
+    bool isValueReuse = false;
+    bool isNextKeyReuse = true;
+    
+    int64_t maxsumOffset;
 };
 
 constexpr SyncAllConfig syncAllConfigMte2ToMte2 = {PIPE_MTE2, PIPE_MTE2};

@@ -14,7 +14,11 @@
  */
 #ifndef FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
 #define FLASH_ATTENTION_SCORE_GRAD_S1S2_BNGS1S2_PRE_KERNEL_REGBASE_H_
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 
 using namespace AscendC;
 
@@ -56,19 +60,19 @@ public:
 
     uint32_t cBlockIdx;
     // query
-    uint32_t ubBaseSize;
-    uint32_t qPreBlockFactor;
-    uint32_t qPreBlockTotal;
-    uint32_t qPreBlockTail;
-    uint32_t qPostBlockTotal;
-    uint32_t kPreBlockFactor;
-    uint32_t kPreBlockTotal;
-    uint32_t kPreBlockTail;
-    uint32_t kPostBlockTotal;
-    uint32_t vPreBlockFactor;
-    uint32_t vPreBlockTotal;
-    uint32_t vPreBlockTail;
-    uint32_t vPostBlockTotal;
+    uint64_t ubBaseSize;
+    uint64_t qPreBlockFactor;
+    uint64_t qPreBlockTotal;
+    uint64_t qPreBlockTail;
+    uint64_t qPostBlockTotal;
+    uint64_t kPreBlockFactor;
+    uint64_t kPreBlockTotal;
+    uint64_t kPreBlockTail;
+    uint64_t kPostBlockTotal;
+    uint64_t vPreBlockFactor;
+    uint64_t vPreBlockTotal;
+    uint64_t vPreBlockTail;
+    uint64_t vPostBlockTotal;
 
     uint64_t initdqSize;
     uint64_t dqOffset;
@@ -78,10 +82,10 @@ public:
     uint64_t dvOffset;
 
     bool isDropBoolMode;
-    uint32_t maskUsedCoreNum;
-    uint32_t maskUBProcessNum;
-    uint32_t maskTailUBProcessNum;
-    uint32_t maskUBLoop;
+    uint64_t maskUsedCoreNum;
+    uint64_t maskUBProcessNum;
+    uint64_t maskTailUBProcessNum;
+    uint64_t maskUBLoop;
 
     DataCopyParams copyParams;
     DataCopyPadParams padParams;

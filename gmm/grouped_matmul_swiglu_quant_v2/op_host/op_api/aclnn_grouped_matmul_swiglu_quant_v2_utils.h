@@ -170,7 +170,7 @@ protected:
         }
     }
 
-    bool CheckMXAttrs()
+    bool CheckAttrs()
     {
         CheckOptionalTensorListEmpty(gmmDsqParams_.weightAssistMatrix);
         if (gmmDsqParams_.tuningConfig != nullptr && gmmDsqParams_.tuningConfig->Size() == 0) {
@@ -194,14 +194,13 @@ protected:
                     "The current version does not support tuningConfig, it should be nullptr.");
             return false;
         }
-        if (gmmDsqParams_.dequantMode != 2 && gmmDsqParams_.dequantMode != 0) { // 当前版本仅支持dequantMode为 0 以及 2
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "dequantMode should be 0 (pertoken) or 2 (mx), but actual value is %lu.",
-                    gmmDsqParams_.dequantMode);
-            return false;
-        }
-        if (gmmDsqParams_.quantMode != 2 && gmmDsqParams_.quantMode != 0) { // 当前版本仅支持quantMode为 0 以及 2
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "quantMode should be 0 (pertoken) or 2 (mx), but actual value is %lu.",
-                    gmmDsqParams_.quantMode);
+        if ((gmmDsqParams_.dequantMode != QUNAT_MODE_MX && gmmDsqParams_.dequantMode != QUNAT_MODE_PERTOKEN) ||
+            (gmmDsqParams_.quantMode != QUNAT_MODE_MX && gmmDsqParams_.quantMode != QUNAT_MODE_PERTOKEN) ||
+            (gmmDsqParams_.dequantMode != gmmDsqParams_.quantMode)) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "Both dequantMode and quantMode must be 0 (pertoken) or 2 (mx), and they must be equal. Actual "
+                    "value: dequantMode=%lu, dequantMode=%lu.",
+                    gmmDsqParams_.dequantMode, gmmDsqParams_.quantMode);
             return false;
         }
         ge::DataType dequantDtype = static_cast<ge::DataType>(gmmDsqParams_.dequantDtype);
@@ -390,7 +389,8 @@ protected:
         return true;
     }
 
-    bool CheckFp8DtypeValid()
+    bool CheckFp8DtypeValid(const aclTensor *x, const aclTensor *xScale, const aclTensor *groupList,
+                            const aclTensor *output, const aclTensor *outputScale)
     {
         size_t weightLength = gmmDsqParams_.weight->Size();
         for (size_t i = 0; i < weightLength; i++) {
@@ -399,11 +399,6 @@ protected:
             OP_CHECK_DTYPE_NOT_SUPPORT(weight, WEIGHT_DTYPE_SUPPORT_LIST, return false);
             OP_CHECK_DTYPE_NOT_SUPPORT(weightScale, WEIGHT_SCALE_DTYPE_SUPPORT_LIST, return false);
         }
-        const aclTensor *x = gmmDsqParams_.x;
-        const aclTensor *xScale = gmmDsqParams_.xScale;
-        const aclTensor *groupList = gmmDsqParams_.groupList;
-        const aclTensor *output = gmmDsqParams_.output;
-        const aclTensor *outputScale = gmmDsqParams_.outputScale;
         OP_CHECK_DTYPE_NOT_SUPPORT(x, X_DTYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(xScale, X_SCALE_DTYPE_SUPPORT_LIST, return false);
         OP_CHECK_DTYPE_NOT_SUPPORT(groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
@@ -421,7 +416,8 @@ protected:
         return true;
     }
 
-    bool CheckFp4DtypeValid()
+    bool CheckFp4DtypeValid(const aclTensor *x, const aclTensor *xScale, const aclTensor *groupList,
+                            const aclTensor *output, const aclTensor *outputScale)
     {
         size_t weightLength = gmmDsqParams_.weight->Size();
         for (size_t i = 0; i < weightLength; i++) {
@@ -430,21 +426,22 @@ protected:
             OP_CHECK_DTYPE_NOT_SUPPORT(weight, WEIGHT_DTYPE_SUPPORT_LIST_MXFP4, return false);
             OP_CHECK_DTYPE_NOT_SUPPORT(weightScale, WEIGHT_SCALE_DTYPE_SUPPORT_LIST, return false);
         }
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.x, X_DTYPE_SUPPORT_LIST_MXFP4, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.xScale, X_SCALE_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.output, QUANTOUT_DTYPE_SUPPORT_LIST_MXFP4, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(x, X_DTYPE_SUPPORT_LIST_MXFP4, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(xScale, X_SCALE_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(output, QUANTOUT_DTYPE_SUPPORT_LIST_MXFP4, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST, return false);
         return true;
     }
 
-    bool CheckPertokenDtypeValid()
+    bool CheckPertokenDtypeValid(const aclTensor *x, const aclTensor *xScale, const aclTensor *groupList,
+                                 const aclTensor *output, const aclTensor *outputScale)
     {
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.x, XW_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.xScale, X_SCALE_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.output, QUANTOUT_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
-        OP_CHECK_DTYPE_NOT_SUPPORT(gmmDsqParams_.outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(x, XW_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(xScale, X_SCALE_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(groupList, GROUP_LIST_DTYPE_SUPPORT_LIST, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(output, QUANTOUT_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
+        OP_CHECK_DTYPE_NOT_SUPPORT(outputScale, QUANTSCALEOUT_DTYPE_SUPPORT_LIST_PERTOKEN, return false);
         size_t weightLength = gmmDsqParams_.weight->Size();
         for (size_t i = 0; i < weightLength; i++) {
             const aclTensor *weight = (*gmmDsqParams_.weight)[i];
@@ -461,6 +458,7 @@ protected:
         DataType xDtype = gmmDsqParams_.x->GetDataType();
         return IsDtypeCompatiblePertoken(xDtype, ((*gmmDsqParams_.weight)[0])->GetDataType());
     }
+
     bool IsDtypeCompatiblePertoken(DataType a, DataType b)
     {
         if ((a == DataType::DT_FLOAT8_E4M3FN || a == DataType::DT_FLOAT8_E5M2) &&
@@ -469,6 +467,7 @@ protected:
         }
         return a == b;
     }
+
     bool checkMxfp4InputShape()
     {
         int64_t kValue = gmmDsqParams_.x->GetViewShape().GetDim(1);
@@ -511,10 +510,28 @@ and greater or equal to 4, but actual value is %lu.",
         return true;
     }
 
+    bool CheckEmptyTensor() override
+    {
+        if (gmmDsqParams_.x->GetViewShape().GetDim(1) <= 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "When the M value is not 0, the K value in x should be positive, but actual value is %ld",
+                    gmmDsqParams_.x->GetViewShape().GetDim(1));
+            return false;
+        }
+        auto weightKIndex = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDimNum() - LAST_SECOND_DIM_INDEX;
+        if (((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(weightKIndex) <= 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "When the N value is not 0, the K value in weight should be positive, but actual value is %ld",
+                    ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(weightKIndex));
+            return false;
+        }
+        return true;
+    }
+
     bool CheckInputOutDims() override
     {
-        if (!CheckMXAttrs()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckMXAttrs failed.");
+        if (!CheckAttrs()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "CheckAttrs failed.");
             return false;
         }
 
@@ -690,15 +707,34 @@ and greater or equal to 4, but actual value is %lu.",
         DataType weightDtype = ((*gmmDsqParams_.weight)[0])->GetDataType();
         DataType xScaleDtype = gmmDsqParams_.xScale->GetDataType();
         DataType weightScaleDtype = ((*gmmDsqParams_.weightScale)[0])->GetDataType();
+        const aclTensor *x = gmmDsqParams_.x;
+        const aclTensor *xScale = gmmDsqParams_.xScale;
+        const aclTensor *groupList = gmmDsqParams_.groupList;
+        const aclTensor *output = gmmDsqParams_.output;
+        const aclTensor *outputScale = gmmDsqParams_.outputScale;
+        if(std::find(X_DTYPE_SUPPORT_LIST.begin(), X_DTYPE_SUPPORT_LIST.end(), xDtype) == X_DTYPE_SUPPORT_LIST.end() &&
+           std::find(X_DTYPE_SUPPORT_LIST_MXFP4.begin(), X_DTYPE_SUPPORT_LIST_MXFP4.end(), xDtype) == X_DTYPE_SUPPORT_LIST_MXFP4.end() && 
+           std::find(XW_DTYPE_SUPPORT_LIST_PERTOKEN.begin(), XW_DTYPE_SUPPORT_LIST_PERTOKEN.end(), xDtype) == XW_DTYPE_SUPPORT_LIST_PERTOKEN.end()){
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant case with x dtype %s is not supported; supported types are: INT8, FLOAT8_E4M3FN, "
+                        "FLOAT8_E5M2, HIFLOAT8, and FLOAT4_E2M1.", op::ToString(xDtype).GetString());
+            return false;
+        }
+        if(std::find(WEIGHT_DTYPE_SUPPORT_LIST.begin(), WEIGHT_DTYPE_SUPPORT_LIST.end(), weightDtype) == WEIGHT_DTYPE_SUPPORT_LIST.end() &&
+           std::find(WEIGHT_DTYPE_SUPPORT_LIST_MXFP4.begin(), WEIGHT_DTYPE_SUPPORT_LIST_MXFP4.end(), weightDtype) == WEIGHT_DTYPE_SUPPORT_LIST_MXFP4.end() && 
+           std::find(XW_DTYPE_SUPPORT_LIST_PERTOKEN.begin(), XW_DTYPE_SUPPORT_LIST_PERTOKEN.end(), weightDtype) == XW_DTYPE_SUPPORT_LIST_PERTOKEN.end()){
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Quant case with weight dtype %s is not supported; supported types are: INT8, FLOAT8_E4M3FN, "
+                        "FLOAT8_E5M2, HIFLOAT8, and FLOAT4_E2M1.", op::ToString(weightDtype).GetString());
+            return false;
+        }
         if (gmmDsqParams_.quantMode == 2 &&
             (xDtype == DataType::DT_FLOAT8_E4M3FN || xDtype == DataType::DT_FLOAT8_E5M2) &&
             (weightDtype == DataType::DT_FLOAT8_E4M3FN || weightDtype == DataType::DT_FLOAT8_E5M2)) {
-            return CheckFp8DtypeValid();
+            return CheckFp8DtypeValid(x, xScale, groupList, output, outputScale);
         } else if (gmmDsqParams_.quantMode == 2 &&
                    xDtype == DataType::DT_FLOAT4_E2M1 && weightDtype == DataType::DT_FLOAT4_E2M1) {
-            return CheckFp4DtypeValid();
+            return CheckFp4DtypeValid(x, xScale, groupList, output, outputScale);
         } else if (gmmDsqParams_.quantMode == 0) {
-            return CheckPertokenDtypeValid();
+            return CheckPertokenDtypeValid(x, xScale, groupList, output, outputScale);
         } else {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When the dtypes of x and weight are %s and %s, \
 and the dtypes of xScale and weightScale are %s and %s is not supported.",

@@ -39,8 +39,8 @@ private:
     void GenTilingKey();
     bool DealSameSeqEachBatch() const;
 
-    void ZeroTensorProcess() const;
-    bool IsHighPerformanceTemplate();
+    void EmptyTensorProcess() const;
+    bool IsHighPerformanceTemplate() const;
     void InitParams();
 
     void Split();
@@ -75,7 +75,7 @@ private:
     void CalcNumBlocks(uint32_t coreNum);
     void GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, int64_t actSeqLensKv,
                          int64_t &safePreToken, int64_t &safeNextToken) const;
-    bool IsExistRowInvalid(const BaseInfo &baseInfo);
+    bool IsExistRowInvalid(const BaseInfo &baseInfo) const;
 
     bool splitKVFlag_ = false;
 

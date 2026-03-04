@@ -16,12 +16,8 @@
 #ifndef SCATTER_PA_KV_CACHE_ROPE_NOT_FULLY_LOAD_H_
 #define SCATTER_PA_KV_CACHE_ROPE_NOT_FULLY_LOAD_H_
 
-#include <algorithm>
-#include <string>
-#include "common.h"
-#include "kernel_tiling/kernel_tiling.h"
 #include "kernel_operator.h"
-#include "platform/platform_info_def.h"
+#include "common.h"
 
 namespace ScatterPaKvCache {
 using namespace AscendC;
@@ -99,8 +95,8 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
     GM_ADDR value_cache_out)
 {
     blockIdx_ = GetBlockIdx();
-    seqLen_ = tilingData_->keyStride0 / tilingData_->keyStride1;
-    numHead_ = tilingData_->keyStride1 / tilingData_->keyStride2;
+    seqLen_ = tilingData_->seqLen;
+    numHead_ = tilingData_->numHead;
     kvBlockOffset_ = GetBlockIdx() * tilingData_->blockFactor;
     inputKeyGm_.SetGlobalBuffer((__gm__ T *)(key));
 
@@ -209,9 +205,6 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         }
     }
     Div(kTmpLocal, kTmpLocal, kDivideLocal, handleNum);
-    event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-    SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
-    WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
     if constexpr (isNeedCast_) {
         LocalTensor<T> inputKeyLocal = inputKeyQueue_.AllocTensor<T>();
         if constexpr (IsSameType<T, hifloat8_t>::value) {
@@ -219,6 +212,9 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         } else {
             Cast(inputKeyLocal, kTmpLocal, RoundMode::CAST_RINT, handleNum);
         }
+        event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
+        SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
+        WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
         DataCopyPad(outputKeyCacheGm_[kStartIdx + loopIdx * tilingData_->kHandleNumPerLoop], inputKeyLocal,
                     keyCacheOutParams);
         inputKeyQueue_.FreeTensor(inputKeyLocal);
@@ -233,6 +229,9 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         inputKeyQueue_.FreeTensor(inputKeyLocal);
 
     } else {
+        event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
+        SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
+        WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
         DataCopyPad(outputKeyCacheGm_[kStartIdx + loopIdx * tilingData_->kHandleNumPerLoop], kTmpLocal,
                     keyCacheOutParams);
     }
@@ -278,9 +277,6 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         }
     }
     Div(vTmpLocal, vTmpLocal, vDivideLocal, handleNum);
-    event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-    SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
-    WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
     if constexpr (isNeedCast_) {
         LocalTensor<T> inputValueLocal = inputValueQueue_.AllocTensor<T>();
         if constexpr (IsSameType<T, hifloat8_t>::value) {
@@ -288,6 +284,9 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
         } else {
             Cast(inputValueLocal, vTmpLocal, RoundMode::CAST_RINT, handleNum);
         }
+        event_t eventVtoMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
+        SetFlag<HardEvent::V_MTE3>(eventVtoMTE3);
+        WaitFlag<HardEvent::V_MTE3>(eventVtoMTE3);
         DataCopyPad(outputValueCacheGm_[kStartIdx + loopIdx * tilingData_->vHandleNumPerLoop], inputValueLocal,
                     outValueCacheParams);
         inputValueQueue_.FreeTensor(inputValueLocal);
@@ -301,6 +300,9 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
                     outValueCacheParams);
         inputKeyQueue_.FreeTensor(inputValueLocal);
     } else {
+        event_t eventIdVToMTE3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
+        SetFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
+        WaitFlag<HardEvent::V_MTE3>(eventIdVToMTE3);
         DataCopyPad(outputValueCacheGm_[kStartIdx + loopIdx * tilingData_->vHandleNumPerLoop], vTmpLocal,
                     outValueCacheParams);
     }
@@ -407,7 +409,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
             break;
         }
         int64_t kStartIdx = startIdx + k + count_;
-        if (kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
+        if (kStartIdx < 0 || kStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         UpdateKeyCache(k, kStartIdx * tilingData_->kHeadSize, keyOffset);
@@ -513,7 +515,7 @@ __aicore__ inline void ScatterPaKvCacheRopeNotFullyLoad<T, IndexDtype, InOutMode
             break;
         }
         int64_t vStartIdx = startIdx + k + count_;
-        if (vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
+        if (vStartIdx < 0 || vStartIdx >= tilingData_->numBlocks * tilingData_->blockSize) {
             continue;
         }
         UpdateValueCache(k, vStartIdx * tilingData_->vHeadSize, valueOffset);

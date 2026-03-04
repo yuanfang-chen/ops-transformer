@@ -18,6 +18,7 @@
 #include "../../../attn_infra/epilogue/tile_common/tile_copy.hpp"
 #include "../../../attn_infra/gemm_coord.hpp"
 #include "../../../attn_infra/matrix_coord.hpp"
+#include "utils/std/algorithm.h"
 
 namespace NpuArch::Epilogue::Block {
 
@@ -26,6 +27,7 @@ template <
     class InputType_,
     class MaskType_,
     class SinkType_,
+    class FullType_,
     LseMode LSE_MODE_,
     SinkMode SINK_MODE_,
     MaskMode MASK_MODE_>
@@ -34,7 +36,8 @@ class BlockEpilogue<
     OutputType_,
     InputType_,
     MaskType_,
-    SinkType_>
+    SinkType_,
+    FullType_>
 {
 public:
     using DispatchPolicy = EpilogueAtlasA2OnlineSoftmax<LSE_MODE_, SINK_MODE_, MASK_MODE_, half>;
@@ -43,10 +46,11 @@ public:
     using ElementInput = typename InputType_::Element;
     using ElementMask = typename MaskType_::Element;
     using ElementSink = typename SinkType_::Element;
-
+    using ElementFull = typename FullType_::Element;
     using LayoutOutput = typename OutputType_::Layout;
     using LayoutInput = typename InputType_::Layout;
     using LayoutMask = typename MaskType_::Layout;
+    using LayoutFull = typename FullType_::Layout;
 
     static constexpr LseMode LSE_MODE = DispatchPolicy::LSE_MODE;
     static constexpr SinkMode SINK_MODE = DispatchPolicy::SINK_MODE;
@@ -363,7 +367,7 @@ public:
     }
 
     template<typename ElementMaskDst, typename ElementMaskSrc>
-    __aicore__ inline 
+    __aicore__ inline
     void UpCastMask(
         const AscendC::LocalTensor<ElementMaskDst> &maskUbTensorDst,
         const AscendC::LocalTensor<ElementMaskSrc> &maskUbTensorSrc,
@@ -803,7 +807,7 @@ public:
             AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(EVENT_ID0);
             ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
-            
+
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID3);
             CopyMaskGmToUb(
                 gMaskThisSubBlock,

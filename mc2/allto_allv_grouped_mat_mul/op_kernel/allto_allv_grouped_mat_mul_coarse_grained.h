@@ -15,7 +15,11 @@
 #ifndef ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 #define ALL_TO_ALL_V_GROUPED_MAT_MUL_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "basic_api/kernel_basic_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "adv_api/hccl/hccl.h"
 #include "allto_allv_gmm.h"
 #include "lib/matmul_intf.h"
@@ -103,8 +107,10 @@ __aicore__ inline void AlltoAllvGmmCoarseGrained<DataType, IsNeedMM, IsTranGmmW,
     tilingData_ = tilingData;
     permuteOutGM_ = tilingData_->commonTilingInfo.isPermuteOut ? permuteOutOptionalGM : workspaceGM;
 
-    hccl_.Init(contextGM, hcclInitTiling);
-    hccl_.SetCcTiling(alltoAllvCcTiling);
+    const void *hcclInitTilingV2 = &(tilingData_->hcclInitTiling);
+    uint64_t hcclCcTilingOffset = offsetof(AlltoAllvGmmTilingData, alltoAllvCcTiling);
+    hccl_.InitV2(contextGM, hcclInitTilingV2);
+    hccl_.SetCcTilingV2(hcclCcTilingOffset); 
     rankId_ = hccl_.GetRankId();
     rankDim_ = hccl_.GetRankDim();
 

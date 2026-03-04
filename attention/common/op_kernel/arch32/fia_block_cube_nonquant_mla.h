@@ -15,8 +15,12 @@
 #ifndef FIA_BLOCK_CUBE_NONQUANT_MLA_H
 #define FIA_BLOCK_CUBE_NONQUANT_MLA_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -644,9 +648,9 @@ __aicore__ inline void FiaBlockCubeNonQuantMla<FIAT>::ProcessMm1(const Attention
                     .bIdx = constInfo.batchContinuous ? info.bIdx : 0,
                     .n2Idx = info.n2Idx,
                     .s2Idx = info.s2BatchOffset + nL1 * N_L1_SPLIT_SIZE,
-                    .dIdx = kL1 * 256U, // D方向上切32
+                    .dIdx = kL1 * 256U, // D方向上切256
                     .s2DealSize = nL1Size,
-                    .dDealSize = 256U // D方向上切32
+                    .dDealSize = 256U // D方向上切256
                 };
                 if (PAGE_ATTENTION) {
                     copyKKropePAGmToL1(dstTensor, dstRopeTensor, keyGmTensor, keyRopeGmTensor, gmCoord, gmCoordKRope);

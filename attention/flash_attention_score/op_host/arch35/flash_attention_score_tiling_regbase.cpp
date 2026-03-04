@@ -94,16 +94,6 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeDtype()
             bmm1OutDtype = matmul_tiling::DataType::DT_FLOAT;
             calcTypeSize = ge::GetSizeByDataType(ge::DT_FLOAT);
             break;
-        case ge::DT_FLOAT8_E5M2:
-            tilingKeyDType = (DtypeEnum)4; // 4 means DtypeEnum::FLOAT8_E5M2;
-            bmm1OutDtype = matmul_tiling::DataType::DT_FLOAT;
-            calcTypeSize = ge::GetSizeByDataType(ge::DT_FLOAT);
-            break;
-        case ge::DT_FLOAT8_E4M3FN:
-            tilingKeyDType = (DtypeEnum)5; // 5 means DtypeEnum::FLOAT8_E4M3;
-            bmm1OutDtype = matmul_tiling::DataType::DT_FLOAT;
-            calcTypeSize = ge::GetSizeByDataType(ge::DT_FLOAT);
-            break;    
         case ge::DT_FLOAT:
             bmmDtype = matmul_tiling::DataType::DT_FLOAT;
             bmm1OutDtype = matmul_tiling::DataType::DT_FLOAT;
@@ -217,8 +207,9 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeAttrs()
                        OPS_REPORT_VECTOR_INNER_ERR(opName, "outDtype value is out of range"), return false);
         outDtype = outDtype + 1; // 外部合法是0或1, 内部对应使用1和2,如果没有量化参数, 后面会刷成0, 1表示fp16, 2表示bf16
     }
-    OP_LOGD(context_, "attrs: scale_value[%f] keep_prob[%f] pre_tockens[%ld] next_tockens[%ld] head_num[%ld]"
-                        "input_layout[%s] inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld].",
+    idx++; // 跳过softmax_out_layout属性
+    OP_LOGD(context_, "attrs: scale_value[%f] keep_prob[%f] pre_tockens[%ld] next_tockens[%ld] head_num[%ld] input_layout[%s]"
+                      "inner_precise[%d] sparse_mode[%ld] pseType[%ld] seed[%ld] offset[%ld] outDtype[%ld].",
               scaleValue, keepProb, preTokens, nextTokens, n1Size, inputLayout, static_cast<int>(implMode), sparseMode, pseType,
               seed, offset, outDtype);
     return true;
@@ -511,11 +502,17 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::GetShapeAttrsInfo()
     OP_CHECK_IF(!AnalyzeAttrs() || !AnalyzeDtype() || !AnalyzeLayout() || !AnalyzeOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to analyze context info."), return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF((inputDtypeBytes == DATA_TYPE_FP8) &&
-                (hasAttenMask || hasPse || hasDropOut || hasRope || dSize > 128 || dSizeV > 128),
-                OPS_REPORT_VECTOR_INNER_ERR(opName, "FP8 cannot have optional inputs, the value of d must be less than or equal to 128."
-                "[hasAttenMask:%d, hasPse:%d, hasDropOut:%d, hasRope:%d, dSize:%d, dSizeV:%d]", hasAttenMask, hasPse,
-                hasDropOut, hasRope, dSize, dSizeV), return ge::GRAPH_FAILED);
+    OP_CHECK_IF((inputDtype == ge::DT_HIFLOAT8) && (hasAttenMask || hasPse || hasDropOut || hasRope ||
+                tilingKeyLayout != LayoutType::LAYOUT_BSND ||
+                bSize != 1 || n1Size != n2Size || dSize != 128 || dSizeV != 128 ||
+                !((s1Size == 57600 && s2Size == 57600 && n1Size == 5) || (s1Size == 7200 && s2Size == 512 && n1Size == 40))),
+                OPS_REPORT_VECTOR_INNER_ERR(opName, "HIFLOAT8 can only support layout:BSND without any optional inputs, "
+                "and the input shape must be: "
+                "query:[1, 57600, 5, 128] key:[1, 57600, 5, 128] value:[1, 57600, 5, 128] or "
+                "query:[1, 7200, 40, 128] key:[1, 512, 40, 128] value:[1, 512, 40, 128]."
+                "[hasAttenMask:%d, hasPse:%d, hasDropOut:%d, hasRope:%d, input_layout:%s, bSize:%d, s1Size:%d, s2Size:%d, "
+                "n1Size:%d, n2Size:%d, dSize:%d, dSizeV:%d]", hasAttenMask, hasPse, hasDropOut, hasRope, inputLayout,
+                bSize, s1Size, s2Size, n1Size, n2Size, dSize, dSizeV), return ge::GRAPH_FAILED);
 
     if (hasRope && (dSize != 128 || dSizeRope != 64)) {
         OPS_REPORT_VECTOR_INNER_ERR(opName, "MLA concat only support dSize=128, dSizeRope=64.");
@@ -832,7 +829,7 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         int64_t dimValue3 = dScaleKShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_3);
         
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
-            (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE  - 1) / QUANT_KV_BLOCK_SIZE ) || dimValue3 != D_SCALE_DIM_NUM_1,
+            (dimValue2 != (s2Size + QUANT_K_BLOCK_SIZE  - 1) / QUANT_K_BLOCK_SIZE ) || dimValue3 != D_SCALE_DIM_NUM_1,
                     OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleK dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
@@ -855,8 +852,8 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
         int64_t dimValue2 = dScaleVShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_2);
         int64_t dimValue3 = dScaleVShape->GetStorageShape().GetDim(D_SCALE_DIM_NUM_3);
         OP_CHECK_IF(dimValue0 != bSize || dimValue1 != n2Size ||
-            (dimValue2 != (s2Size + QUANT_KV_BLOCK_SIZE - 1) / QUANT_KV_BLOCK_SIZE) || dimValue3 != D_SCALE_DIM_NUM_1,
-                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNump[%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/256), 1]",
+            (dimValue2 != (s2Size + QUANT_V_BLOCK_SIZE - 1) / QUANT_V_BLOCK_SIZE) || dimValue3 != D_SCALE_DIM_NUM_1,
+                    OPS_REPORT_VECTOR_INNER_ERR(opName, "invalid dScaleV dimNum [%ld][%ld][%ld][%ld], only support [B, N2, ceil(S2/512), 1]",
                     dimValue0, dimValue1, dimValue2, dimValue3),
                     return false);
     }
@@ -990,6 +987,9 @@ void FlashAttentionScoreTilingRegbase::SetSplitCoreModeParam()
             splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
         } else if (preTokens >= s1Size && nextTokens == 0 && IsUseSpliteCoreMode(SparseMode::LEFT_UP_CAUSAL)) {
             firstFullLoadS1OuterIdx = CeilDivision(std::min(s1Size, s2Size), s1BasicBlock) - 1;
+            splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
+        } else if (inputDtype == ge::DT_HIFLOAT8) {
+            firstFullLoadS1OuterIdx = -1;
             splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
         }
     }
@@ -1416,7 +1416,7 @@ bool FlashAttentionScoreTilingRegbase::SetSparseStartIdx(const std::vector<int64
         sparseStartIdx[idx] = lastValidPartitionResult[idx];
     }
 
-    if (AlogCheckDebugLevel(OP, DLOG_DEBUG) == 1) {
+    if (CheckLogLevel(OP, DLOG_DEBUG) == 1) {
         PrintSparseMaxMinLoadPerCore(sparseValidArray, sparseStartIdx, validAivNum,
                                      CeilDivision(loadTotal, validAivNum));
     }
@@ -1590,7 +1590,7 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoLibApiTiling()
 
 void FlashAttentionScoreTilingRegbase::CalcDVBasicBlock() {
     dVBasicBlock = AlignUp(dSizeV, D_TEMPLATE_SPLIT_SIZE);
-    if (dTemplateType == DTemplateType::ALIGNED_192 && hasRope) {
+    if (dTemplateType == DTemplateType::ALIGNED_192 && (hasRope || dVBasicBlock == NUM_128)) {
         dVTemplateType = DTemplateType::ALIGNED_128;
     } else {
         dVTemplateType = dTemplateType;

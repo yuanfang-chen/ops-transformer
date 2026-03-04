@@ -120,7 +120,10 @@ enum class InputIndex : uint32_t {
     D_SCALE_DY,
     D_SCALE_O,
     QUERY_ROPE_IDX,
-    KEY_ROPE_IDX
+    KEY_ROPE_IDX,
+    SINK_IDX,
+    D_SCALE_DS_IDX,
+    D_SCALE_P_IDX
 };
 
 enum class AttenMaskCompressMode : uint8_t {
@@ -258,8 +261,8 @@ inline int64_t Gcd(int64_t a, int64_t b)
     return a;
 }
 
-ge::graphStatus CheckSoftmaxMaxShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1);
-ge::graphStatus CheckSoftmaxSumShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1);
+ge::graphStatus CheckSoftmaxMaxShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, bool isQuant);
+ge::graphStatus CheckSoftmaxSumShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, bool isQuant);
 ge::graphStatus CheckAttentionInShape(gert::TilingContext *context);
 ge::graphStatus CheckShapeValid(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, int64_t d);
 ge::graphStatus CheckTndShapeValid(gert::TilingContext *context, int64_t t1, int64_t n1, int64_t d);

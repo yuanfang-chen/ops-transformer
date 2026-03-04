@@ -15,8 +15,12 @@
 #ifndef FIA_BLOCK_CUBE_NONQUANT_H
 #define FIA_BLOCK_CUBE_NONQUANT_H
 
+#if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_vec_intf.h"
 #include "kernel_cube_intf.h"
+#else
+#include "kernel_operator.h"
+#endif
 #include "kernel_operator_list_tensor_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "lib/matmul_intf.h"
@@ -30,34 +34,23 @@ using AscendC::CrossCoreWaitFlag;
 
 template <typename FIAT> class FiaBlockCubeNonQuant {
 public:
-    // 中间计算数据类型为float, 高精度模式
+
     using T = float;
-    using N_UPDATE_T = int32_t;
 
     using Q_T = typename FIAT::queryType;
     using KV_T = typename FIAT::kvType;
     using OUT_T = typename FIAT::outputType;
-    using ORIGIN_T = typename FIAT::orginalType;
     static constexpr bool PAGE_ATTENTION = FIAT::pageAttention;
     static constexpr bool KV_CONTINUOUS = FIAT::kvContinuous;
     static constexpr bool FLASH_DECODE = FIAT::flashDecode;
     static constexpr FIA_LAYOUT LAYOUT_T = FIAT::layout;
     static constexpr FIA_LAYOUT KV_LAYOUT_T = FIAT::kvLayout;
-    static constexpr uint8_t PER_CHANNEL_MODE = 0;       // 伪量化: K V per-channel
-    static constexpr uint8_t PER_TOKEN_MODE = 1;         // 伪量化: K V per-token
-    static constexpr uint8_t PER_CHANNEL_TOKEN_MODE = 2; // 伪量化: K per-channel and V per-token
-    static constexpr uint8_t ANTIQUANT_MODE = FIAT::antiquantMode;
 
     static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<LAYOUT_T>();
     static constexpr GmFormat KV_FORMAT = GetKVFormat<KV_LAYOUT_T, PAGE_ATTENTION>();
 
     static constexpr bool ANTIQUANT = !IsSameType<Q_T, KV_T>::value;
-    static constexpr bool KVINT4 = IsSameType<KV_T, int4b_t>::value;
     static constexpr bool QUANT = (IsSameType<Q_T, KV_T>::value && IsSameType<KV_T, int8_t>::value);
-    static constexpr bool ANTIQUANT_PER_CHANNEL_TOKEN = (ANTIQUANT && (ANTIQUANT_MODE == PER_CHANNEL_TOKEN_MODE));
-    static constexpr bool ANTIQUANT_PER_TOKEN = (ANTIQUANT && (ANTIQUANT_MODE == PER_TOKEN_MODE));
-    static constexpr bool ANTIQUANT_PER_CHANNEL = (ANTIQUANT && (ANTIQUANT_MODE == PER_CHANNEL_MODE));
-    using ANTIQ_PARAMS_T = typename AscendC::Conditional<ANTIQUANT_PER_TOKEN, T, Q_T>::type;
     // define pse datetype
     using pseShiftType = typename AscendC::Conditional<AscendC::IsSameType<Q_T, int8_t>::value, half, Q_T>::type;
     // 后接量化的条件需要重新审视
@@ -88,7 +81,7 @@ public:
 protected:
     template <typename T> __aicore__ inline T Align(T num, T rnd)
     {
-        return (((rnd) == 0) ? 0 : (((num) + (rnd)-1) / (rnd) * (rnd)));
+        return (((rnd) == 0) ? 0 : (((num) + (rnd) - 1) / (rnd) * (rnd)));
     }
 
     template <typename T> __aicore__ inline size_t BlockAlign(size_t s)
@@ -253,11 +246,9 @@ public:
     __aicore__ inline void InitMm2GlobalTensor(GlobalTensor<KV_T> vec1ResGm, GlobalTensor<MM_OUT_T> mm2ResGm);
     __aicore__ inline void ComputeMm1(const RunInfo &info);
     __aicore__ inline void ComputeMm2(const RunInfo &info);
-
     __aicore__ inline void InitBuffers(TPipe *pipe);
     __aicore__ inline void AllocEventID();
     __aicore__ inline void FreeEventID();
-
 };
 
 template <typename FIAT>

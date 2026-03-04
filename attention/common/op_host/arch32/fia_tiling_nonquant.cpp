@@ -210,7 +210,7 @@ bool FiaTilingNonQuant::DealSameSeqEachBatch() const
     }
 }
 
-void FiaTilingNonQuant::ZeroTensorProcess() const
+void FiaTilingNonQuant::EmptyTensorProcess() const
 {
     if (fiaInfo_->s2Size == 0) {
         /*
@@ -222,7 +222,7 @@ void FiaTilingNonQuant::ZeroTensorProcess() const
     }
 }
 
-bool FiaTilingNonQuant::IsHighPerformanceTemplate()
+bool FiaTilingNonQuant::IsHighPerformanceTemplate() const
 {
     if ((fiaInfo_->qkHeadDim  == QK_HEAD_DIM_128 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_128) || 
         (fiaInfo_->qkHeadDim  == QK_HEAD_DIM_64 && fiaInfo_->ropeHeadDim  == ROPE_HEAD_DIM_0 && fiaInfo_->vHeadDim == V_HEAD_DIM_64) ||
@@ -246,7 +246,7 @@ void FiaTilingNonQuant::InitParams()
     numBlocks_ = aicNum_; // Tiling下沉首次Tiling也会校验numBlocks_是否为0，为避免拦截报错，将numBlocks_设置为aicNum_，实际不生效
 
     headDimAlign_ = Align(fiaInfo_->qkHeadDim, BYTE_BLOCK); // 元素个数按照基本块大小对齐
-    ZeroTensorProcess();
+    EmptyTensorProcess();
 }
 
 void FiaTilingNonQuant::CalcInnerSize(uint32_t s2Size)
@@ -651,7 +651,7 @@ void FiaTilingNonQuant::GetSafeActToken(SparseMode mode, int64_t actSeqLensQ, in
     }
 }
 
-bool FiaTilingNonQuant::IsExistRowInvalid(const BaseInfo &baseInfo)
+bool FiaTilingNonQuant::IsExistRowInvalid(const BaseInfo &baseInfo) const
 {
     if (!baseInfo.attenMaskFlag) {
         return false;
