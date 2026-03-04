@@ -121,16 +121,6 @@ struct CopyL0CToGmQuantMode<
 > {
     static constexpr auto VALUE = QuantMode_t::VQF322B8_PRE;
 };
-// CopyL0CToGm output fp32
-template <>
-struct CopyL0CToGmQuantMode<
-    Catlass::Arch::AtlasA2,
-    float, float,
-    ScaleGranularity::NO_QUANT
-> {
-    static constexpr auto VALUE = QuantMode_t::NoQuant;
-};
-
 // CopyL0CToGm output int32
 template <>
 struct CopyL0CToGmQuantMode<
