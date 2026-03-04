@@ -18,14 +18,14 @@ namespace Catlass::Gemm {
 
 // Block Mmad Policies
 
-template <bool ASYNC_ = false>
-struct MmadAtlasA2Base {
-    using ArchTag = Arch::AtlasA2;
+template <class ArchTag_, bool ASYNC_ = false>
+struct MmadBase {
+    using ArchTag = ArchTag_;
     static constexpr uint32_t ASYNC = ASYNC_;
 };
 
-using MmadAtlasA2 = MmadAtlasA2Base<false>;
-using MmadAtlasA2Async = MmadAtlasA2Base<true>;
+using MmadAtlasA2 = MmadBase<Arch::AtlasA2, false>;
+using MmadAtlasA2Async = MmadBase<Arch::AtlasA2, true>;
 
 // Now ENABLE_UNIT_FLAG_ must be false when intput element is int8
 template <bool ENABLE_UNIT_FLAG_ = false>
@@ -86,6 +86,19 @@ struct MmadAtlasA2MLAQKTp1Spec : public MmadAtlasA2 {
 struct MmadAtlasA2MLAPVTp1Spec : public MmadAtlasA2 {
     static constexpr uint32_t STAGES = 2;
 };
+
+template <uint32_t PRELOAD_STAGES_, uint32_t L1_STAGES_, uint32_t L0A_STAGES_, uint32_t L0B_STAGES_,
+    uint32_t L0C_STAGES_, bool ENABLE_UNIT_FLAG_, bool ENABLE_SHUFFLE_K_>
+struct MmadAtlasA2PreloadAsync : public MmadAtlasA2Async {
+    static constexpr uint32_t PRELOAD_STAGES = PRELOAD_STAGES_;  // Stages of emitting load instruction in advance
+    static constexpr uint32_t L1_STAGES = L1_STAGES_;
+    static constexpr uint32_t L0A_STAGES = L0A_STAGES_;
+    static constexpr uint32_t L0B_STAGES = L0B_STAGES_;
+    static constexpr uint32_t L0C_STAGES = L0C_STAGES_;
+    static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
+    static constexpr bool ENABLE_SHUFFLE_K = ENABLE_SHUFFLE_K_;
+};
+
 template <uint32_t PRELOAD_STAGES_, uint32_t L1_STAGES_, uint32_t L1A_STAGES_, uint32_t L1A_TILE_NUM_, uint32_t L1B_STAGES_, 
     uint32_t L0A_STAGES_, uint32_t L0B_STAGES_,
     uint32_t L0C_STAGES_, bool ENABLE_UNIT_FLAG_, bool ENABLE_RIFFLE_SHUFFLE_>
