@@ -15,7 +15,7 @@
 #include "aclnn_moe_distribute_combine_teardown.h"
 #include <algorithm>
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/matmul_util.h"
+#include "common/op_tiling/matmul_util.h"
 #include "common/op_tiling/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/op_log.h"
