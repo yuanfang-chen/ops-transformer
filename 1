@@ -1,0 +1,45 @@
+[2026-03-05 16:28:19] build script for ops-transformer repository
+[2026-03-05 16:28:19] Usage:
+[2026-03-05 16:28:19]     bash build.sh [-h] [-j[n]] [-v] [-O[n]] [-u] 
+[2026-03-05 16:28:19] 
+[2026-03-05 16:28:19] 
+[2026-03-05 16:28:19] Options:
+[2026-03-05 16:28:19] ---------------------------------------------------------------------------------------------------------------------
+[2026-03-05 16:28:19]     Build parameters 
+[2026-03-05 16:28:19] ---------------------------------------------------------------------------------------------------------------------
+[2026-03-05 16:28:19]     -h Print usage
+[2026-03-05 16:28:19]     -j[n] Compile thread nums, default is 8, eg: -j8
+[2026-03-05 16:28:19]     -v Cmake compile verbose
+[2026-03-05 16:28:19]     -O[n] Compile optimization options, support [O0 O1 O2 O3], eg:-O3
+[2026-03-05 16:28:19]     -u Compile all ut
+[2026-03-05 16:28:19] ---------------------------------------------------------------------------------------------------------------------
+[2026-03-05 16:28:19]     examples, Build ophost_test with O3 level compilation optimization and do not execute.
+[2026-03-05 16:28:19]     ./build.sh --ophost_test --noexec -O3
+[2026-03-05 16:28:19] ---------------------------------------------------------------------------------------------------------------------
+[2026-03-05 16:28:19]     The following are all supported arguments:
+[2026-03-05 16:28:19] ---------------------------------------------------------------------------------------------------------------------
+[2026-03-05 16:28:19]     --build-type=<TYPE> Specify build type (TYPE options:Release/Debug), Default: Release
+[2026-03-05 16:28:19]     --version Specify version
+[2026-03-05 16:28:19]     --cov When building uTest locally, count the coverage.
+[2026-03-05 16:28:19]     --noexec Only compile ut, do not execute the compiled executable file
+[2026-03-05 16:28:19]     --make_clean Clean build artifacts
+[2026-03-05 16:28:19]     --disable_asan Disable ASAN (Address Sanitizer)
+[2026-03-05 16:28:19]     --valgrind run ut with valgrind. This option will disable asan, noexec and run utest by valgrind
+[2026-03-05 16:28:19]     --ops Compile specified operator, use snake name, like: --ops=add,add_lora, use ',' to separate different operator
+[2026-03-05 16:28:19]     --soc Compile binary with specified Ascend SoC, like: --soc=ascend310p,ascend910b, use ',' to separate different SoC
+[2026-03-05 16:28:19]     --vendor_name Specify the custom operator package vendor name, like: --vendor_name=customize, default to custom
+[2026-03-05 16:28:19]     --opgraph build graph_plugin_transformer.so
+[2026-03-05 16:28:19]     --onnxplugin build op_transformer_onnx_plugin.so
+[2026-03-05 16:28:19]     --opapi build opapi_transformer.so
+[2026-03-05 16:28:19]     --ophost build ophost_transformer.so
+[2026-03-05 16:28:19]     --opkernel build binary kernel
+[2026-03-05 16:28:19]     --jit build run package without kernel bin
+[2026-03-05 16:28:19]     --pkg build run package with kernel bin
+[2026-03-05 16:28:19]     --experimental build experimental version
+[2026-03-05 16:28:19]     --opapi_test build and run opapi unit tests
+[2026-03-05 16:28:19]     --ophost_test build and run ophost unit tests
+[2026-03-05 16:28:19]     --opgraph_test build and run opgraph unit tests
+[2026-03-05 16:28:19]     --opkernel_test build and run opkernel unit tests
+[2026-03-05 16:28:19]     --run_example Compile and execute the test_aclnn_xxx.cpp/test_geir_xxx.cpp
+[2026-03-05 16:28:19]     --genop Create the initial directory for op
+[2026-03-05 16:28:19] to be continued ...
