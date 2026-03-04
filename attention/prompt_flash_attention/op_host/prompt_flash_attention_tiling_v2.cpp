@@ -2435,7 +2435,7 @@ bool PromptFlashAttentionTilingV2::CheckPATypeAndShape(ContextParamsForPFATiling
     }
     //非量化场景
     if(!enableIFAMLAFullQuant && !enablePertensorQuant){
-        if (enableIFA || enablePFARope || enablePFAMLA){
+        if (enableIFAMLA || enablePFARope || enablePFAMLA){
             OP_CHECK_IF((*blockSize % BLOCK_SIZE_BASE_FOR_NO_QUANT != 0 || *blockSize < BLOCK_SIZE_BASE_FOR_NO_QUANT || *blockSize > BLOCK_SIZE_MAX_FOR_NO_QUANT),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
                 "block size(%d) should be a multiple of %d, and should be in range of [%d, %d] when PA enable and no quant mla",
