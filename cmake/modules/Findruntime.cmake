@@ -10,14 +10,14 @@
 
 include(FindPackageHandleStandardArgs)
 set(runtime_FOUND ON)
-#search acl.h
+#search acl_rt.h
 set(ACL_HEAD_SEARCH_PATHS
   ${ASCEND_DIR}/${SYSTEM_PREFIX}/include
-  ${TOP_DIR}/ace/npuruntime/acl/inc/external            # compile with ci
-  ${TOP_DIR}/runtime/include/external                   # compile with ci
+  ${TOP_DIR}/runtime/include/external/                  # compile with ci
 )
+ message(STATUS "PATH = ${ACL_HEAD_SEARCH_PATHS}")
 find_path(ACL_INC_DIR
-  NAMES acl/acl.h
+  NAMES acl/acl_rt.h
   PATHS ${ACL_HEAD_SEARCH_PATHS}
   NO_CMAKE_SYSTEM_PATH
   NO_CMAKE_FIND_ROOT_PATH
@@ -27,7 +27,6 @@ if(NOT ACL_INC_DIR)
   message(FATAL_ERROR "no source acl include dir found")
 endif()
 get_filename_component(ACL_INC_DIR ${ACL_INC_DIR} REALPATH)
-message(STATUS "Found source acl include dir:  ${ACL_INC_DIR}")
 
 #search rt.h
 set(RUNTIME_SEARCH_PATH
