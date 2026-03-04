@@ -107,13 +107,17 @@ public:
         } else {
             cgmAddr_ = tileInfo_.cAddrOffset * paramInTiling_->tileCnt + tailInfo_.cAddrOffset * paramInTiling_->tailCnt;
             cgmLen_ = tileInfo_.cOffset * paramInTiling_->tileCnt + tailInfo_.cOffset * paramInTiling_->tailCnt;
-            
+            cgmPadLen_ = (rankNum_ - (cgmLen_ % rankNum_)) % rankNum_;      // 和tiling侧对齐，只有最后一块tilingData才可能会不能整除rankNum_
             all2allInGM_ = addrs_->cGM;
-            all2allOutGM_ = all2allInGM_ + cgmAddr_;
+            all2allOutGM_ = all2allInGM_ + cgmAddr_ + cgmPadLen_ * sizeof(YType);       // MM结果
             reduceSumInGM_ = all2allOutGM_;
-            reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_;
+            reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_ + cgmPadLen_ * sizeof(YType);   // alltoall结果
             allgatherInGM_ = reduceSumOutGM_;
-            allgatherOutGM_ = addrs_->outputGM;
+            if (true) {         // 是否需要内存拷贝
+                allgatherOutGM_ = addrs_->outputGM;
+            } else {
+                allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + cgmPadLen_ * sizeof(YType)) / rankNum_; // reduceSum结果
+            }
             PrePareHCCL();
         }
     }
@@ -126,9 +130,10 @@ public:
             all2allRecvGM_[i] = all2allOutGM_ + alltoallIndexOffsetTile;
             allgatherSendGM_[i] = allgatherInGM_ + allgatherIndexOffsetTile / rankNum_;
             allgatherRecvGM_[i] = allgatherOutGM_ + allgatherIndexOffsetTile;
+            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
 
             all2allHandleId_[i] = hccl_.AlltoAll<false>(
-                all2allSendGM_[i], all2allRecvGM_[i], tileInfo_.cOffset / rankNum_, HCCL_DATA_TYPE);
+                all2allSendGM_[i], all2allRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE);
         }
 
         for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++){
@@ -139,20 +144,23 @@ public:
             all2allRecvGM_[index] = all2allOutGM_ + alltoallIndexOffsetTail;
             allgatherSendGM_[index] = allgatherInGM_ + allgatherIndexOffsetTail / rankNum_;
             allgatherRecvGM_[index] = allgatherOutGM_ + allgatherIndexOffsetTail;
-
+            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
+            
             all2allHandleId_[index] = hccl_.AlltoAll<false>(
-                all2allSendGM_[index], all2allRecvGM_[index], tailInfo_.cOffset / rankNum_, HCCL_DATA_TYPE);
+                all2allSendGM_[index], all2allRecvGM_[index], ceilDataCount, HCCL_DATA_TYPE);
         }
 
         for (uint32_t i = 0U; i < paramInTiling_->tileCnt; i++){
+            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
             allgatherHandleId_[i] = hccl_.AllGather<false>(
-                allgatherSendGM_[i], allgatherRecvGM_[i], tileInfo_.cOffset / rankNum_, HCCL_DATA_TYPE, 0, 1);
+                allgatherSendGM_[i], allgatherRecvGM_[i], ceilDataCount, HCCL_DATA_TYPE, 0, 1);
         }
 
         for (uint32_t i = 0U; i < paramInTiling_->tailCnt; i++){
             const uint64_t index = paramInTiling_->tileCnt + i;
+            uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
             allgatherHandleId_[index] = hccl_.AllGather<false>(
-                allgatherSendGM_[index], allgatherRecvGM_[index], tailInfo_.cOffset / rankNum_, HCCL_DATA_TYPE, 0, 1);
+                allgatherSendGM_[index], allgatherRecvGM_[index], ceilDataCount, HCCL_DATA_TYPE, 0, 1);
         }
     }
 
@@ -217,7 +225,8 @@ protected:
             uint64_t aivNum = GetBlockNum() * GetTaskRation();
             for (int i = 0; i < paramInTiling_->tileCnt; i++){
                 tPipe_->Reset();
-                reduceSum_.Init(tileInfo_.cOffset / rankNum_, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tileInfo_.cOffset, rankNum_);
+                reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tileInfo_.cAddrOffset;
                 reduceSumOutGM_ += tileInfo_.cAddrOffset / rankNum_;
@@ -226,7 +235,8 @@ protected:
 
             for (int i = 0; i < paramInTiling_->tailCnt; i++){
                 tPipe_->Reset();
-                reduceSum_.Init(tailInfo_.cOffset / rankNum_, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
+                uint64_t ceilDataCount = AiVReduceSumImplUtil::CeilDiv(tailInfo_.cOffset, rankNum_);
+                reduceSum_.Init(ceilDataCount, 0, rankNum_, aivNum, reduceSumInGM_, reduceSumOutGM_, tPipe_);
                 reduceSum_.ExecuteReduceSum();
                 reduceSumInGM_ += tailInfo_.cAddrOffset;
                 reduceSumOutGM_ += tailInfo_.cAddrOffset / rankNum_;
@@ -263,6 +273,10 @@ protected:
 
         if (allReduceBasedAtaSumAg_){
             SyncAll();
+            if ASCEND_IS_AIV {
+                // DataCopy
+            }
+            SyncAll();
         } else {
             Mc2SyncAll<CoreType>();
         }
@@ -274,6 +288,7 @@ protected:
     uint32_t rankNum_ = 0UL;
     uint64_t cgmLen_ = 0UL;
     uint64_t cgmAddr_ = 0UL;
+    uint64_t cgmPadLen_ = 0UL;
     MC2GmAddrs* addrs_;
     QuantGmAddrs* quantAddrs_;
     ArnGmAddrs* arnAddrs_;
