@@ -50,7 +50,7 @@ struct AlltoAllQuantMatmulAclnnTestParam {
     vector<int64_t> x2_shape; // x2数据shape，正常为（H * world_size，N）
     vector<int64_t> bias_shape; // bias数据shape，正常为（N）
     vector<int64_t> x1_scale_optional_shape; // x1ScaleOptional数据shape，正常为（BS/rankSize），mx量化为（BS/rankSize，ceil(H*rankSize/64)，2）
-    vector<int64_t> x2_scale_shape; // x2scales数据shape，正常为（N），mx量化为（ceil(H*rankSize/64)，N，2）
+    vector<int64_t> x2_scale_shape; // x2scales数据shape，正常为（N），mx量化为（N，ceil(H*rankSize/64)，2）
     vector<int64_t> output_shape; // output数据shape，正常为（BS / world_size，N）
     vector<int64_t> alltoalloutput_shape; // alltoalloutput数据shape，正常为（BS / ranksize，H * ranksize）
     // 数据类型
@@ -82,8 +82,7 @@ struct AlltoAllQuantMatmulAclnnTestParam {
 
 // KC动态量化UT用例表
 static AlltoAllQuantMatmulAclnnTestParam KCDynQuant_cases_params[] = {
-    // 正常用例 192条，caseid按照[算子名-x1-x2-bias-x1scale-x2scale-output-alltoallout-format-transpose-x1quantdtype-id]构成
-    // 等待补充
+    // 正常用例
     {"AclnnAlltoAllQuantMatmul-bf16-e4m3-f32-bf16-f32-bf16-bf16-nd-notrans-35-01",
         2, 7, 2, {256, 64}, {128, 256}, {256}, {0}, {256}, {128, 256}, {128, 128},
         ACL_BF16, ACL_FLOAT8_E4M3FN, ACL_FLOAT, ACL_BF16, ACL_FLOAT, ACL_BF16, ACL_BF16,
