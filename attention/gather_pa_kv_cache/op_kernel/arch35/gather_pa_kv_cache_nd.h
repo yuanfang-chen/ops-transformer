@@ -24,7 +24,7 @@ using namespace AscendC;
 constexpr uint32_t BLOCK_SIZE = 32;
 constexpr uint32_t DOUBLE_BUFFER = 2;
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
 class GatherPaKvCacheNd {
 public:
     __aicore__ inline GatherPaKvCacheNd(TPipe *pipe, const GatherPaKvCacheTilingDataV35 *__restrict tiling)
@@ -34,7 +34,8 @@ public:
                                 GM_ADDR value_out);
     __aicore__ inline void Process();
     __aicore__ inline void InitParams();
-    __aicore__ inline void GatherKvCache(GlobalTensor<T> dstCacheGm, GlobalTensor<T> srcCacheGm, uint64_t curLen,
+    template <typename T_CACHE>
+    __aicore__ inline void GatherKvCache(GlobalTensor<T_CACHE> dstCacheGm, GlobalTensor<T_CACHE> srcCacheGm, uint64_t curLen,
                                          bool isFilledWithZero);
     __aicore__ inline T_INDEX CalcKvCoreOffset(int64_t reduceLen);
 
@@ -45,17 +46,15 @@ private:
     TQue<QuePosition::VECIN, 1> seqLensQueue_;
     TBuf<TPosition::VECCALC> prefixSumBuffer_;
 
-    DataCopyPadExtParams<T> padExtParams_;
-
     const GatherPaKvCacheTilingDataV35 *tl_;
 
-    GlobalTensor<T> keyCacheGm_;
-    GlobalTensor<T> valueCacheGm_;
+    GlobalTensor<T_KEY> keyCacheGm_;
+    GlobalTensor<T_VALUE> valueCacheGm_;
     GlobalTensor<T_INDEX> blockTablesGm_;
     GlobalTensor<T_INDEX> seqLensGm_;
     GlobalTensor<T_INDEX> seqOffsetGm_;
-    GlobalTensor<T> outKeyGm_;
-    GlobalTensor<T> outValueGm_;
+    GlobalTensor<T_KEY> outKeyGm_;
+    GlobalTensor<T_VALUE> outValueGm_;
 
     uint32_t batchPerCore_;
     uint32_t needCoreNum_;
@@ -72,29 +71,29 @@ private:
     int64_t numTokens_;
 };
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
-__aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::Init(
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+__aicore__ inline void GatherPaKvCacheNd<T_KEY, T_VALUE, T_INDEX, isSeqLensCumsum, hasSeqOffset>::Init(
     GM_ADDR key_cache, GM_ADDR value_cache, GM_ADDR block_tables, GM_ADDR seq_lens, GM_ADDR key_in, GM_ADDR value_in,
     GM_ADDR seq_offset, GM_ADDR key_out, GM_ADDR value_out)
 {
     InitParams();
 
-    keyCacheGm_.SetGlobalBuffer((__gm__ T *)(key_cache));
-    valueCacheGm_.SetGlobalBuffer((__gm__ T *)(value_cache));
+    keyCacheGm_.SetGlobalBuffer((__gm__ T_KEY *)(key_cache));
+    valueCacheGm_.SetGlobalBuffer((__gm__ T_VALUE *)(value_cache));
     blockTablesGm_.SetGlobalBuffer((__gm__ T_INDEX *)block_tables);
     seqLensGm_.SetGlobalBuffer((__gm__ T_INDEX *)(seq_lens));
     seqOffsetGm_.SetGlobalBuffer((__gm__ T_INDEX *)(seq_offset));
 
-    outKeyGm_.SetGlobalBuffer((__gm__ T *)(key_out));
-    outValueGm_.SetGlobalBuffer((__gm__ T *)(value_out));
+    outKeyGm_.SetGlobalBuffer((__gm__ T_KEY *)(key_out));
+    outValueGm_.SetGlobalBuffer((__gm__ T_VALUE *)(value_out));
 
-    pipe_->InitBuffer(cacheQueue_, DOUBLE_BUFFER, (maxUbHiddenSize_) * sizeof(T));
+    pipe_->InitBuffer(cacheQueue_, DOUBLE_BUFFER, (maxUbHiddenSize_) * sizeof(T_KEY));
     pipe_->InitBuffer(seqLensQueue_, DOUBLE_BUFFER, (seqLenAccSize_) * sizeof(T_INDEX));
     pipe_->InitBuffer(prefixSumBuffer_, BLOCK_SIZE);
 }
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
-__aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::InitParams()
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+__aicore__ inline void GatherPaKvCacheNd<T_KEY, T_VALUE, T_INDEX, isSeqLensCumsum, hasSeqOffset>::InitParams()
 {
     cacheBlockSize_ = tl_->kvCacheBlockSize;
     batchPerCore_ = tl_->batchPerCore;
@@ -110,15 +109,10 @@ __aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffs
     hiddenSizeK_ = tl_->hiddenSizeK;
     hiddenSizeV_ = tl_->hiddenSizeV;
     numTokens_ = tl_->numTokens;
-
-    padExtParams_.isPad = false;
-    padExtParams_.leftPadding = 0;
-    padExtParams_.rightPadding = 0;
-    padExtParams_.paddingValue = 0;
 }
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
-__aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::Process()
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+__aicore__ inline void GatherPaKvCacheNd<T_KEY, T_VALUE, T_INDEX, isSeqLensCumsum, hasSeqOffset>::Process()
 {
     int64_t batchStart = GetBlockIdx() * batchPerCore_;
     int64_t batchEnd = batchStart + batchPerCore_;
@@ -218,9 +212,9 @@ __aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffs
     }
 }
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
 __aicore__ inline T_INDEX
-GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::CalcKvCoreOffset(int64_t reduceLen)
+GatherPaKvCacheNd<T_KEY, T_VALUE, T_INDEX, isSeqLensCumsum, hasSeqOffset>::CalcKvCoreOffset(int64_t reduceLen)
 {
     LocalTensor<T_INDEX> prefixSumLocal = prefixSumBuffer_.Get<T_INDEX>();
     uint64_t loopTimes = CeilDivision(reduceLen, seqLenAccSize_);
@@ -256,32 +250,30 @@ GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::CalcKvCoreOffset(i
     return coreOffset;
 }
 
-template <typename T, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
-__aicore__ inline void GatherPaKvCacheNd<T, T_INDEX, isSeqLensCumsum, hasSeqOffset>::GatherKvCache(
-    GlobalTensor<T> dstCacheGm, GlobalTensor<T> srcCacheGm, uint64_t curLen, bool isFilledWithZero)
+template <typename T_KEY, typename T_VALUE, typename T_INDEX, bool isSeqLensCumsum, bool hasSeqOffset>
+template <typename T_CACHE>
+__aicore__ inline void GatherPaKvCacheNd<T_KEY, T_VALUE, T_INDEX, isSeqLensCumsum, hasSeqOffset>::GatherKvCache(
+    GlobalTensor<T_CACHE> dstCacheGm, GlobalTensor<T_CACHE> srcCacheGm, uint64_t curLen, bool isFilledWithZero)
 {
-    LocalTensor<T> cacheLocal = cacheQueue_.AllocTensor<T>();
-    DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = 1;
-    dataCopyParams.blockLen = curLen * sizeof(T);
-    dataCopyParams.srcStride = 0;
-    dataCopyParams.dstStride = 0;
+    LocalTensor<T_CACHE> cacheLocal = cacheQueue_.AllocTensor<T_CACHE>();
+    DataCopyExtParams dataCopyParams{1, static_cast<uint32_t>(curLen * sizeof(T_CACHE)), 0, 0, 0};
+    DataCopyPadExtParams<T_CACHE> padParams{};
 
     if (isFilledWithZero) {
         AscendC::TEventID eventIdMTE3ToVec = GetTPipePtr()->FetchEventID(HardEvent::MTE3_V);
         SetFlag<HardEvent::MTE3_V>(eventIdMTE3ToVec);
         WaitFlag<HardEvent::MTE3_V>(eventIdMTE3ToVec);
-        Duplicate<T>(cacheLocal, 0, curLen);
+        Duplicate<T_CACHE>(cacheLocal, 0, curLen);
         AscendC::TEventID eventIdVecToMTE3 = GetTPipePtr()->FetchEventID(HardEvent::V_MTE3);
         SetFlag<HardEvent::V_MTE3>(eventIdVecToMTE3);
         WaitFlag<HardEvent::V_MTE3>(eventIdVecToMTE3);
     } else {
-        DataCopyPad<T, PaddingMode::Normal>(cacheLocal, srcCacheGm, dataCopyParams, padExtParams_);
-        cacheQueue_.EnQue<T>(cacheLocal);
-        cacheLocal = cacheQueue_.DeQue<T>();
+        DataCopyPad<T_CACHE, PaddingMode::Normal>(cacheLocal, srcCacheGm, dataCopyParams, padParams);
+        cacheQueue_.EnQue<T_CACHE>(cacheLocal);
+        cacheLocal = cacheQueue_.DeQue<T_CACHE>();
     }
 
-    DataCopyPad<T, PaddingMode::Normal>(dstCacheGm, cacheLocal, dataCopyParams);
+    DataCopyPad<T_CACHE, PaddingMode::Normal>(dstCacheGm, cacheLocal, dataCopyParams);
     event_t eventIdMTE3ToMTE2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE3_MTE2));
     SetFlag<HardEvent::MTE3_MTE2>(eventIdMTE3ToMTE2);
     WaitFlag<HardEvent::MTE3_MTE2>(eventIdMTE3ToMTE2);
