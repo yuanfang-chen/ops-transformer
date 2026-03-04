@@ -33,9 +33,9 @@ const std::array<const aclTensor *, 2> BlockSparseAttention(
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
-    int64_t preTokens, //新增参数
-    int64_t nextTokens, //新增参数
-    int64_t softmaxLseFlag, //新增参数
+    int64_t preTokens,
+    int64_t nextTokens,
+    int64_t softmaxLseFlag,
     aclOpExecutor *executor);
 
 } // namespace l0op

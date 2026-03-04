@@ -227,9 +227,9 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGetW
     double scaleValue,
     int64_t innerPrecise,
     int64_t blockSize,
-    int64_t preTokens, //新增参数
-    int64_t nextTokens, //新增参数
-    int64_t softmaxLseFlag, //新增参数
+    int64_t preTokens,
+    int64_t nextTokens,
+    int64_t softmaxLseFlag,
     aclTensor *attentionOut,
     aclTensor *softmaxLseOptional,
     uint64_t *workspaceSize,
