@@ -702,14 +702,14 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::DealBmm2ResBaseBlock(
         uint32_t idx = info.loop % constInfo.preLoadNum;
 
         if constexpr (SOFTMAX_WITH_BRC) {
-            RowMuls<COMPUTE_T>(bmm2ResPreUb, bmm2ResPreUb, softmaxExpUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
+            fa_base_vector::VecRowMulsForBigRowCount(bmm2ResPreUb, bmm2ResPreUb, softmaxExpUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
                 dealRowCount, columnCount, actualColumnCount);
         } else {
             LocalTensor<COMPUTE_T> tmpExpBrcbResUb = tmpBuff1.Get<COMPUTE_T>();
             Brcb(tmpExpBrcbResUb, softmaxExpUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
                 (dealRowCount + this->brcbNum - 1) / this->brcbNum, {1, this->brcbNum});
             AscendC::PipeBarrier<PIPE_V>();
-            RowMuls<COMPUTE_T>(bmm2ResPreUb, bmm2ResPreUb, tmpExpBrcbResUb, dealRowCount, columnCount, actualColumnCount);
+            fa_base_vector::VecRowMulsForBigRowCount(bmm2ResPreUb, bmm2ResPreUb, tmpExpBrcbResUb, dealRowCount, columnCount, actualColumnCount);
         }
 
         AscendC::PipeBarrier<PIPE_V>();
@@ -723,14 +723,14 @@ __aicore__ inline void FiaBlockVecNonQuant<FIAT>::DealBmm2ResBaseBlock(
         uint32_t idx = info.loop % constInfo.preLoadNum;
 
         if constexpr (SOFTMAX_WITH_BRC) {
-            fa_base_vector::RowDivs<COMPUTE_T>(bmm2ResUb, bmm2ResUb, softmaxSumUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
+            fa_base_vector::VecRowDivsForBigRowCount(bmm2ResUb, bmm2ResUb, softmaxSumUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
                 dealRowCount, columnCount, actualColumnCount);
         } else {
             LocalTensor<COMPUTE_T> tmpSumBrcbResUb = tmpBuff1.Get<COMPUTE_T>();
             Brcb(tmpSumBrcbResUb, softmaxSumUb[idx * SOFTMAX_TMP_BUFFER_SIZE / sizeof(COMPUTE_T) + baseOffset],
                 (dealRowCount + this->brcbNum - 1) / this->brcbNum, {1, this->brcbNum});
             AscendC::PipeBarrier<PIPE_V>();
-            fa_base_vector::RowDivs<COMPUTE_T>(bmm2ResUb, bmm2ResUb, tmpSumBrcbResUb, dealRowCount, columnCount, actualColumnCount);
+            fa_base_vector::VecRowDivsForBigRowCount(bmm2ResUb, bmm2ResUb, tmpSumBrcbResUb, dealRowCount, columnCount, actualColumnCount);
         }
 
         AscendC::PipeBarrier<PIPE_V>();
