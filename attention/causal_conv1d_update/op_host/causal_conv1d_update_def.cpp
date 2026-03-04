@@ -36,17 +36,17 @@ public:
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("queryStartLoc")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
         this->Input("cacheIndices")
-            .ParamType(REQUIRED)
+            .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("hasInitialState")
-            .ParamType((REQUIRED))
+        this->Input("initialStateMode")
+            .ParamType((OPTIONAL))
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
@@ -55,7 +55,7 @@ public:
             .DataType({ge::DT_FLOAT16, ge::DT_BF16})
             .FormatList({ge::FORMAT_ND})
             .AutoContiguous();
-        this->Input("numAcceptedTokens")
+        this->Input("numAcceptedToken")
             .ParamType(OPTIONAL)
             .DataTypeList({ge::DT_INT32})
             .FormatList({ge::FORMAT_ND})
