@@ -190,34 +190,34 @@ public:
         AscendC::PipeBarrier<PIPE_V>();  
     }
 
-    // __aicore__ inline
-    // void RowsumSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
-    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-    //     uint32_t numElemsAligned)
-    // {
-    //     // Vector计算单元每个迭代最多处理256Byte数据，因此float高精度场景，每次迭代最多处理256/4=64个元素
-    //     uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要256/64=4次循环处理
-    //     // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
-    //     uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有256/8=32个datablock
-    //     uint8_t dataBlockStride = 1;
+    __aicore__ inline
+    void RowsumSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
+        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+        uint32_t numElemsAligned)
+    {
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float高精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要256/64=4次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有256/8=32个datablock
+        uint8_t dataBlockStride = 1;
 
-    //     // 512个元素，以64为单位分治求和，256->128->64
-    //     for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-    //         ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-    //         AscendC::PipeBarrier<PIPE_V>();
-    //     }
+        // 512个元素，以64为单位分治求和，256->128->64
+        for (uint32_t columnStrideIndex = 2; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceSumByPair(srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
 
-    //     //每行64个元素分别规约求和
-    //     AscendC::WholeReduceSum<float, false>(
-    //         rowsumUb,
-    //         srcUb,
-    //         AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-    //         numRowsRound,
-    //         dataBlockStride,
-    //         dataBlockStride,
-    //         blockNumPerRow);
-    //     AscendC::PipeBarrier<PIPE_V>();  
-    // }    
+        //每行64个元素分别规约求和
+        AscendC::WholeReduceSum<float, false>(
+            rowsumUb,
+            srcUb,
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow);
+        AscendC::PipeBarrier<PIPE_V>();  
+    }    
 
     // __aicore__ inline
     // void RowsumTAILTILE(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowsumUb,
