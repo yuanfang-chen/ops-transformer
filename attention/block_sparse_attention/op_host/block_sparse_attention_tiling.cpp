@@ -608,7 +608,7 @@ ge::graphStatus BSATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext)
             softmaxLseFlag_ = true;
             break;
         default:
-            OP_LOGE(rfaContext->GetNodeName(), "invalid softmaxLseFlag:%d", *softmaxLsePtr);
+            OP_LOGE(rfaContext->GetNodeName(), "invalid softmaxLseFlag:%u", *softmaxLsePtr);
             return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
