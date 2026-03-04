@@ -191,11 +191,12 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckWeightNzSpecialParams() co
                "WeightNz feature is only supported in aclnnGroupedMatmulWeightNz");
 
     auto wDtype = GetInputTensor(gmmParams_.weight)->GetDataType();
-    CHECK_COND(
-        gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
-        "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8, but x dtype is %s, weight \
-dtype is %s",
-        op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+    CHECK_COND((gmmParams_.xDtype == DataType::DT_INT8 && wDtype == DataType::DT_INT8) ||
+                   (gmmParams_.xDtype == DataType::DT_FLOAT8_E4M3FN && wDtype == DataType::DT_FLOAT8_E4M3FN),
+               ACLNN_ERR_PARAM_INVALID,
+               "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8, but x dtype is %s, \
+weight dtype is %s",
+               op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
     auto yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     CHECK_COND(yDtype != DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
                "When format of weight is FRACTAL_NZ, the y dtype should not be int8.");
