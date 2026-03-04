@@ -103,7 +103,7 @@ aclnnStatus DispatchCheckParams(const aclTensor* x, const aclTensor* expertIds, 
 }
 
 
-aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum)
+aclnnStatus GetCommHandle(const char* groupEp, HcclComm& hcclHandle, uint32_t& netLayerNum) //TODO:
 {
     OP_LOGD("PRINT GetCommMode start");
     OP_LOGD("PRINT hcclHandle START :%p",hcclHandle);
@@ -150,7 +150,7 @@ aclnnStatus GetHcclCommChannel(HcclComm hcclHandle, uint32_t rankDim, uint32_t s
         if (index == srcRankId) {
             continue;
         }
-        ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum);
+        ret = HcclRankGraphGetLinks(hcclHandle, netLayers, srcRankId, index, &links, &linkNum); // TODO：需要循环去判断这个通讯协议
         if(ret != HCCL_SUCCESS) {
             OP_LOGE(ACLNN_ERR_INNER, "Get Rank Links failed."); //打印错误码，入参之类的。
             return ACLNN_ERR_INNER;
