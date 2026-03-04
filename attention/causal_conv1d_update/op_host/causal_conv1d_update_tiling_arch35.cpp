@@ -87,7 +87,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         dim_ = xOriginShape.GetDim(1);
 
         // For 2D input, query_start_loc must be specified to get batch
-        auto queryStartLocShape = context_->GetInputShape(QUERY_START_LOC_INDEX);
+        auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
         OP_CHECK_NULL_WITH_CONTEXT(context_, queryStartLocShape);
         auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
@@ -116,13 +116,23 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     xDtype_ = context_->GetInputDesc(X_INDEX)->GetDataType();
     weightDtype_ = context_->GetInputDesc(WEIGHT_INDEX)->GetDataType();
     convStatesDtype_ = context_->GetInputDesc(CONV_STATES_INDEX)->GetDataType();
-    queryStartLocDtype_ = context_->GetInputDesc(QUERY_START_LOC_INDEX)->GetDataType();
-    cacheIndicesDtype_ = context_->GetInputDesc(CACHE_INDICES_INDEX)->GetDataType();
 
-    // Get numAcceptedTokens dtype if available (optional input)
-    auto numAcceptedTokensDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKENS_INDEX);
-    if (numAcceptedTokensDesc != nullptr) {
-        numAcceptedTokensDtype_ = numAcceptedTokensDesc->GetDataType();
+    // Get queryStartLoc dtype if available (optional input)
+    auto queryStartLocDesc = context_->GetOptionalInputDesc(QUERY_START_LOC_INDEX);
+    if (queryStartLocDesc != nullptr) {
+        queryStartLocDtype_ = queryStartLocDesc->GetDataType();
+    }
+
+    // Get cacheIndices dtype if available (optional input)
+    auto cacheIndicesDesc = context_->GetOptionalInputDesc(CACHE_INDICES_INDEX);
+    if (cacheIndicesDesc != nullptr) {
+        cacheIndicesDtype_ = cacheIndicesDesc->GetDataType();
+    }
+
+    // Get numAcceptedToken dtype if available (optional input)
+    auto numAcceptedTokenDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKEN_INDEX);
+    if (numAcceptedTokenDesc != nullptr) {
+        numAcceptedTokenDtype_ = numAcceptedTokenDesc->GetDataType();
         hasAcceptTokenNum_ = 1;  // true
     } else {
         hasAcceptTokenNum_ = 0;  // false
@@ -139,14 +149,14 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     auto attrs = context_->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context_, attrs);
 
+    const int64_t* activationModePtr = attrs->GetAttrPointer<int64_t>(ATTR_ACTIVATION_MODE_INDEX);
+    if (activationModePtr != nullptr) {
+        activationMode_ = *activationModePtr;
+    }
+
     const int64_t* padSlotIdPtr = attrs->GetAttrPointer<int64_t>(ATTR_PAD_SLOT_ID_INDEX);
     if (padSlotIdPtr != nullptr) {
         padSlotId_ = *padSlotIdPtr;
-    }
-
-    const int64_t* residualConnModePtr = attrs->GetAttrPointer<int64_t>(ATTR_RESIDUAL_CONN_MODE_INDEX);
-    if (residualConnModePtr != nullptr) {
-        residualConnMode_ = *residualConnModePtr;
     }
 
     const int64_t* runModePtr = attrs->GetAttrPointer<int64_t>(ATTR_RUN_MODE_INDEX);
@@ -260,8 +270,11 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
 // Validate cache indices tensor shape
 ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
 {
-    auto indicesShape = context_->GetInputShape(CACHE_INDICES_INDEX);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, indicesShape);
+    // This is an optional input
+    auto indicesShape = context_->GetOptionalInputShape(CACHE_INDICES_INDEX);
+    if (indicesShape == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
     auto indicesOriginShape = indicesShape->GetOriginShape();
 
     // Validate dimension number: must be 1
@@ -283,21 +296,21 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
 }
 
 // Validate accept token num tensor shape
-ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokensShape()
+ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
 {
     // This is an optional input
-    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKENS_INDEX) == nullptr) {
+    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKEN_INDEX) == nullptr) {
         return ge::GRAPH_SUCCESS;
     }
 
-    auto acceptShape = context_->GetOptionalInputShape(NUM_ACCEPTED_TOKENS_INDEX);
+    auto acceptShape = context_->GetOptionalInputShape(NUM_ACCEPTED_TOKEN_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, acceptShape);
     auto acceptOriginShape = acceptShape->GetOriginShape();
 
     // Validate dimension number: must be 1
     OP_CHECK_IF(acceptOriginShape.GetDimNum() != 1,
                 OP_LOGE(context_->GetNodeName(),
-                        "NumAcceptedTokens dimension number must be 1, but got %lu",
+                        "NumAcceptedToken dimension number must be 1, but got %lu",
                         acceptOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
@@ -305,7 +318,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokensShape()
     int64_t acceptLen = acceptOriginShape.GetDim(0);
     OP_CHECK_IF(acceptLen != batchSize_,
                 OP_LOGE(context_->GetNodeName(),
-                        "NumAcceptedTokens length must match batch size %ld, but got %ld",
+                        "NumAcceptedToken length must match batch size %ld, but got %ld",
                         batchSize_, acceptLen),
                 return ge::GRAPH_FAILED);
 
@@ -315,8 +328,11 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokensShape()
 // Validate query start loc tensor shape
 ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
 {
-    auto queryStartLocShape = context_->GetInputShape(QUERY_START_LOC_INDEX);
-    OP_CHECK_NULL_WITH_CONTEXT(context_, queryStartLocShape);
+    // This is an optional input
+    auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
+    if (queryStartLocShape == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
     auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
     // Validate dimension number: must be 1
@@ -378,6 +394,12 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesType()
 // Validate cache indices tensor type
 ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesType()
 {
+    // This is an optional input
+    auto cacheIndicesDesc = context_->GetOptionalInputDesc(CACHE_INDICES_INDEX);
+    if (cacheIndicesDesc == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
+
     OP_CHECK_IF(cacheIndicesDtype_ != ge::DataType::DT_INT32,
                 OP_LOGE(context_->GetNodeName(),
                         "CacheIndices data type must be INT32, but got %s",
@@ -390,6 +412,12 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesType()
 // Validate query start loc tensor type
 ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 {
+    // This is an optional input
+    auto queryStartLocDesc = context_->GetOptionalInputDesc(QUERY_START_LOC_INDEX);
+    if (queryStartLocDesc == nullptr) {
+        return ge::GRAPH_SUCCESS;
+    }
+
     OP_CHECK_IF(queryStartLocDtype_ != ge::DataType::DT_INT32,
                 OP_LOGE(context_->GetNodeName(),
                         "QueryStartLoc data type must be INT32, but got %s",
@@ -400,17 +428,17 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 }
 
 // Validate num accepted tokens tensor type
-ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokensType()
+ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenType()
 {
     // This is an optional input
-    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKENS_INDEX) == nullptr) {
+    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKEN_INDEX) == nullptr) {
         return ge::GRAPH_SUCCESS;
     }
 
-    OP_CHECK_IF(numAcceptedTokensDtype_ != ge::DataType::DT_INT32,
+    OP_CHECK_IF(numAcceptedTokenDtype_ != ge::DataType::DT_INT32,
                 OP_LOGE(context_->GetNodeName(),
-                        "NumAcceptedTokens data type must be INT32, but got %s",
-                        Ops::Base::ToString(numAcceptedTokensDtype_).c_str()),
+                        "NumAcceptedToken data type must be INT32, but got %s",
+                        Ops::Base::ToString(numAcceptedTokenDtype_).c_str()),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -440,8 +468,8 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
                 OP_LOGE(context_->GetNodeName(), "CacheIndices shape validation failed"),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(ValidateNumAcceptedTokensShape() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "NumAcceptedTokens shape validation failed"),
+    OP_CHECK_IF(ValidateNumAcceptedTokenShape() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "NumAcceptedToken shape validation failed"),
                 return ge::GRAPH_FAILED);
 
     // Validate all types
@@ -465,8 +493,8 @@ ge::graphStatus CausalConv1dUpdateTiling::CheckInputParams()
                 OP_LOGE(context_->GetNodeName(), "CacheIndices type validation failed"),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(ValidateNumAcceptedTokensType() != ge::GRAPH_SUCCESS,
-                OP_LOGE(context_->GetNodeName(), "NumAcceptedTokens type validation failed"),
+    OP_CHECK_IF(ValidateNumAcceptedTokenType() != ge::GRAPH_SUCCESS,
+                OP_LOGE(context_->GetNodeName(), "NumAcceptedToken type validation failed"),
                 return ge::GRAPH_FAILED);
 
     return ge::GRAPH_SUCCESS;
@@ -479,7 +507,7 @@ ge::graphStatus CausalConv1dUpdateTiling::DoOpTiling()
     int64_t invalidBatchAtStart = 0;
     int64_t invalidBatchAtEnd = 0;
 
-    auto cacheIndicesTensor = context_->GetInputTensor(CACHE_INDICES_INDEX);
+    auto cacheIndicesTensor = context_->GetOptionalInputTensor(CACHE_INDICES_INDEX);
     if (cacheIndicesTensor != nullptr) {
         const int32_t* dataPtr = cacheIndicesTensor->GetData<int32_t>();
         if (dataPtr != nullptr) {
@@ -655,7 +683,7 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     // Fixed UB usage for auxiliary tensors
     // queryStartLoc: 257 * sizeof(int32) = 1028 bytes
     // cacheIndices: 256 * sizeof(int32) = 1024 bytes
-    // numAcceptedTokens: 257 * sizeof(int32) = 1028 bytes
+    // numAcceptedToken: 257 * sizeof(int32) = 1028 bytes
     constexpr int64_t QUERY_START_LOC_UB_SIZE = 257 * sizeof(int32_t);
     constexpr int64_t CACHE_INDICES_UB_SIZE = 256 * sizeof(int32_t);
     constexpr int64_t NUM_ACCEPTED_TOKENS_UB_SIZE = 257 * sizeof(int32_t);
