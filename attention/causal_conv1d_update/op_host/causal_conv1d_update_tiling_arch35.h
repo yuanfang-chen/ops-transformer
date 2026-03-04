@@ -40,17 +40,18 @@ constexpr int32_t WEIGHT_INDEX = 1;
 constexpr int32_t CONV_STATES_INDEX = 2;
 constexpr int32_t QUERY_START_LOC_INDEX = 3;
 constexpr int32_t CACHE_INDICES_INDEX = 4;
-constexpr int32_t HAS_INITIAL_STATE_INDEX = 5;
-constexpr int32_t NUM_ACCEPTED_TOKENS_INDEX = 7;
+constexpr int32_t INITIAL_STATE_MODE_INDEX = 5;
+constexpr int32_t BIAS_INDEX = 6;
+constexpr int32_t NUM_ACCEPTED_TOKEN_INDEX = 7;
 
 // Output tensor indices
 constexpr int32_t Y_INDEX = 0;
 constexpr int32_t OUTPUT_CONV_STATES_INDEX = 1;
 
 // Attribute indices
+constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
 constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
-constexpr int32_t ATTR_RESIDUAL_CONN_MODE_INDEX = 2;
-constexpr int32_t ATTR_RUN_MODE_INDEX = 3;
+constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
 
 
 class CausalConv1dUpdateTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
@@ -74,7 +75,7 @@ protected:
     ge::graphStatus ValidateConvStatesShape();
     ge::graphStatus ValidateQueryStartLocShape();
     ge::graphStatus ValidateCacheIndicesShape();
-    ge::graphStatus ValidateNumAcceptedTokensShape();
+    ge::graphStatus ValidateNumAcceptedTokenShape();
 
     // Type validation functions for each tensor
     ge::graphStatus ValidateXType();
@@ -82,7 +83,7 @@ protected:
     ge::graphStatus ValidateConvStatesType();
     ge::graphStatus ValidateQueryStartLocType();
     ge::graphStatus ValidateCacheIndicesType();
-    ge::graphStatus ValidateNumAcceptedTokensType();
+    ge::graphStatus ValidateNumAcceptedTokenType();
 
     // Overall validation
     ge::graphStatus CheckInputParams();
@@ -113,12 +114,12 @@ private:
     ge::DataType convStatesDtype_;
     ge::DataType queryStartLocDtype_;
     ge::DataType cacheIndicesDtype_;
-    ge::DataType numAcceptedTokensDtype_;
+    ge::DataType numAcceptedTokenDtype_;
     size_t xDtypeSize_ = 0;
 
     // Attribute values
+    int64_t activationMode_ = 0;
     int64_t padSlotId_ = -1;
-    int64_t residualConnMode_ = 0;
     int64_t runMode_ = 0;
     int64_t inValidBatchNum_ = 0;
     int64_t xInputMode_ = 0;  // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
