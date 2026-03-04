@@ -221,7 +221,7 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
           <td>x2ScaleOptional</td>
           <td>输入</td>
           <td>MatMul计算后的去量化系数，即计算公式中的x2Scale。</td>
-          <td><ul><li>shape在pertensor场景为(1)，perchannel场景为(n)/(1, n)。</li><li>输出为BFLOAT16时，直接将BFLOAT16类型的dequantScale传入本接口。</li><li>输出为FLOAT16且输入为INT8时，x1ScaleOptional不为空，可直接将FLOAT32类型的x2Scale传入本接口，如果x1ScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将x2Scale转成INT64/UINT64数据类型。数据类型为FLOAT8_E8M0时，仅支持转置，shape为[n, ceilDiv(k, 64), 2], x2为FLOAT4_E2M1时，必须保证ceilDiv(k, 32)为偶数。perblock场景下，x2的shape为[ceilDiv(k, 128), ceilDiv(n, 128)]，x2转置时，x2Scale的shape为[ceilDiv(n, 128), ceilDiv(k, 128)]。</li></ul></td>
+          <td><ul><li>shape在pertensor场景为(1)，perchannel场景为(n)/(1, n)。</li><li>输入为int且输出为BFLOAT16时，直接将BFLOAT16类型的x2scale传入本接口。</li><li>输出为FLOAT16且输入为INT8时，x1ScaleOptional不为空，可直接将FLOAT32类型的x2Scale传入本接口，如果x1ScaleOptional为空，则需提前调用TransQuantParamV2算子的aclnn接口来将x2Scale转成INT64/UINT64数据类型。<li>数据类型为FLOAT8_E8M0时，仅支持转置，shape为[n, ceilDiv(k, 64), 2]。</li> <li>x2为FLOAT4_E2M1时，必须保证ceilDiv(k, 32)为偶数.</li><li>perblock场景下，x2的shape为[ceilDiv(k, 128), ceilDiv(n, 128)]，x2转置时，x2Scale的shape为[ceilDiv(n, 128), ceilDiv(k, 128)]。</li></ul></td>
           <td>INT64、UINT64、FLOAT32、BFLOAT16、FLOAT8_E8M0</td>
           <td>ND</td>
           <td>1-3</td>
@@ -340,22 +340,6 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
       </tbody>
     </table>
 
-  - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
-    - x1、x2支持INT8
-    - biasOptional支持INT32
-    - x3支持FLOAT16、BFLOAT16
-    - x1ScaleOptional支持INT64、UINT64、FLOAT32、BFLOAT16
-    - x2ScaleOptional支持FLOAT32
-    - output支持FLOAT16、BFLOAT16
-  - <term>Ascend 950PR/Ascend 950DT AI处理器</term>：
-    - x1、x2支持INT8、`FLOAT8_E4M3FN`、`FLOAT8_E5M2`、HIFLOAT8、`FLOAT4_E2M1`
-    - biasOptional支持INT32、FLOAT32
-    - x3支持FLOAT16、BFLOAT16、FLOAT32
-    - x1ScaleOptional支持FLOAT32、FLOAT8_E8M0
-    - x2ScaleOptional支持INT64、UINT64、FLOAT32、BFLOAT16、`FLOAT8_E8M0`
-    - output支持FLOAT16、BFLOAT16、FLOAT32
-
-
 - **返回值**
 
   返回aclnnStatus状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -444,13 +428,12 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
 - m大小不超过2147483647，x1与x2的最后一维大小不超过65535，x1的最后一维指k，x2的最后一维指转置时的k或非转置时的n。
 - 传入的x1、x2、x2Scale或者output不为空指针。
 - x1和x2、dequantScale、output、bias（非空场景）、x3（非空场景）的数据类型和数据格式需要在支持的范围之内。
-- 当x1,x2的输入类型为INT8时，若输出output类型为FLOAT16，当x1ScaleOptional为空时，x2Scale的类型为INT64、UINT64，当x1ScaleOptional不为空时，x2Scale的类型为FLOAT32；若输出output类型为BFLOAT16，x2Scale的类型为BFLOAT16，x3的类型为BFLOAT16。
 - 传入的commQuantScale1与commQuantScale2需要同时为空指针或同时不为空指针，若传入的commQuantScale1与commQuantScale2同时不为空指针，两个量化参数shape需保持一致，类型需与算子输出类型保持一致，且每张卡输入保持一致。
 - 仅支持hccs链路all mesh组网。
     - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：支持1、2、4、8卡。
     - <term>Ascend 950PR/Ascend 950DT</term>：支持1、2、4、8、16、32、64卡。
 - 一个模型中的通算融合MC2算子，仅支持相同通信域。
-- INT8和FP8低bit通信仅在通信bound的情况下存在性能收益，计算bound的情况不建议使能INT8或FP8低bit通信，即不建议输入commQuantScale1和commQuantScale2，且commQuantMode输入0。
+- INT8和FP8（x1,x2的输入为int8,float8时）低bit通信仅在通信bound的情况下存在性能收益，计算bound的情况不建议使能INT8或FP8低bit通信，即不建议输入commQuantScale1和commQuantScale2，且commQuantMode输入0。
 - 空tensor支持度：
   - 不支持空tensor。
 - groupSize相关约束:
@@ -460,6 +443,287 @@ aclnnStatus aclnnQuantMatmulAllReduceV4(
     groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32
     $$
 
+输入和输出支持以下数据类型组合
+- <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
+    <table>
+    <thead>
+        <tr>
+        <th>x1</th>
+        <th>x2</th>
+        <th>biasOptional</th>
+        <th>x3Optional</th>
+        <th>x1ScaleOptional</th>
+        <th>x2ScaleOptional</th>
+        <th>commQuantScale1Optional</th>
+        <th>commQuantScale2Optional</th>
+        <th>output</th>
+        <th>限制</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>FLOAT16</td>
+        <td>null</td>
+        <td>INT64、UINT64</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>x1ScaleOptional为空时</td>
+        </tr>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>FLOAT16</td>
+        <td>FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>x1ScaleOptional不为空时</td>
+        </tr>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>BFLOAT16</td>
+        <td>null、FLOAT32</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>output为BFLOAT16时，x3必须为BFLOAT16</td>
+        </tr>
+    </tbody>
+    </table>
+
+- <term>Ascend 950PR/Ascend 950DT</term>：
+    <table>
+    <thead>
+        <tr>
+        <th>x1</th>
+        <th>x2</th>
+        <th>biasOptional</th>
+        <th>x3Optional</th>
+        <th>x1ScaleOptional</th>
+        <th>x2ScaleOptional</th>
+        <th>commQuantScale1Optional</th>
+        <th>commQuantScale2Optional</th>
+        <th>output</th>
+        <th>限制</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>FLOAT16</td>
+        <td>null</td>
+        <td>INT64、UINT64</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>x1ScaleOptional为空时</td>
+        </tr>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>FLOAT16</td>
+        <td>FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>FLOAT16</td>
+        <td>x1ScaleOptional不为空时</td>
+        </tr>
+        <tr>
+        <td>INT8</td>
+        <td>INT8</td>
+        <td>INT32</td>
+        <td>BFLOAT16</td>
+        <td>null、FLOAT32</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>BFLOAT16</td>
+        <td>output为BFLOAT16时，x3必须为BFLOAT16</td>
+        </tr>
+    </tbody>
+    </table>
+
+    K-C量化 && K-T量化
+    <table>
+    <thead>
+        <tr>
+        <th>x1</th>
+        <th>x2</th>
+        <th>biasOptional</th>
+        <th>x3Optional</th>
+        <th>x1ScaleOptional</th>
+        <th>x2ScaleOptional</th>
+        <th>commQuantScale1Optional</th>
+        <th>commQuantScale2Optional</th>
+        <th>output</th>
+        <th>限制</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>HIFLOAT8</td>
+        <td>HIFLOAT8</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+    </tbody>
+    </table>
+
+    T-T量化
+
+    <table>
+    <thead>
+        <tr>
+        <th>x1</th>
+        <th>x2</th>
+        <th>biasOptional</th>
+        <th>x3Optional</th>
+        <th>x1ScaleOptional</th>
+        <th>x2ScaleOptional</th>
+        <th>commQuantScale1Optional</th>
+        <th>commQuantScale2Optional</th>
+        <th>output</th>
+        <th>限制</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>null</td>
+        <td>UINT64</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>null</td>
+        <td>UINT64</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>HIFLOAT8</td>
+        <td>HIFLOAT8</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>null</td>
+        <td>UINT64</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>FLOAT16、BFLOAT16</td>
+        <td>-</td>
+        </tr>
+    </tbody>
+    </table>
+
+    MX量化
+    <table>
+    <thead>
+        <tr>
+        <th>x1</th>
+        <th>x2</th>
+        <th>biasOptional</th>
+        <th>x3Optional</th>
+        <th>x1ScaleOptional</th>
+        <th>x2ScaleOptional</th>
+        <th>commQuantScale1Optional</th>
+        <th>commQuantScale2Optional</th>
+        <th>output</th>
+        <th>限制</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td>FLOAT4_E2M1</td>
+        <td>FLOAT4_E2M1</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT8_E4M3FN</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+        <tr>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT8_E5M2</td>
+        <td>FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT8_E8M0</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>FLOAT16、BFLOAT16、FLOAT32</td>
+        <td>-</td>
+        </tr>
+    </tbody>
+    </table>
 
 ## 调用示例
 
