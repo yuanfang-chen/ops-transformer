@@ -22,7 +22,7 @@ using std::pair;
 using namespace ge;
 using namespace AscendC;
 namespace optiling {
-
+constexpr int64_t SPARSE_MODE_INT_MAX = 2147483647;
 ge::graphStatus FiaTilingCheck::CheckFeatureNoQuantDtype() const
 {
     if (quantMode_ != FiaQuantMode::NO_QUANT) {
@@ -251,11 +251,26 @@ ge::graphStatus FiaTilingCheck::CheckFeaturePostQuant() const
                                                 static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[i]) :
                                                 static_cast<uint32_t>(tempDataKV->GetData<int64_t>()[0]);
                 }
+                int64_t preTokensPerbatch = 0;
+                int64_t nextTokensPerbatch = 0;
+                if (fiaInfo_.sparseMode == SPARSE_MODE_RIGHT_DOWN) {
+                    preTokensPerbatch = static_cast<int64_t>(SPARSE_MODE_INT_MAX);
+                    nextTokensPerbatch =
+                        actualSeqLengthsKV[i] + static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i];
+                } else if (fiaInfo_.sparseMode == SPARSE_MODE_BAND) {
+                    preTokensPerbatch = fiaInfo_.preToken - actualSeqLengthsKV[i] -
+                                        static_cast<int64_t>(fiaInfo_.systemPrefixLen) + actualSeqLengths[i];
+                    nextTokensPerbatch = fiaInfo_.nextToken + actualSeqLengthsKV[i] +
+                                         static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i];
+                } else {
+                    preTokensPerbatch = fiaInfo_.preToken;
+                    nextTokensPerbatch = fiaInfo_.nextToken;
+                }
                 OP_CHECK_IF((checkPostQuantOffset &&
-                             ((fiaInfo_.preToken + actualSeqLengthsKV[i] +
+                             ((preTokensPerbatch + actualSeqLengthsKV[i] +
                                    static_cast<int64_t>(fiaInfo_.systemPrefixLen) - actualSeqLengths[i] <
                                0) ||
-                              (fiaInfo_.nextToken < 0))),
+                              (nextTokensPerbatch < 0))),
                             OPS_REPORT_VECTOR_INNER_ERR(
                                 opName_,
                                 "When sparse mode = %d, output dtype is int8, the output's dequant offset "
