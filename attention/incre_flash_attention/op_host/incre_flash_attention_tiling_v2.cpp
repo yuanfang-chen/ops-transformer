@@ -2628,6 +2628,10 @@ ge::graphStatus IFATilingV2::ProcessAntiQuant() {
   auto queryRopeInputShape = ifaContext_->queryRopeInputShape;
   auto keyRopeInputShape = ifaContext_->keyRopeInputShape;
 
+  OP_CHECK_IF((ifaContext_->antiquantMode != 0 || antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr),
+    OP_LOGE(ifaContext_->opName, "Antiquant only supports key/value split mode, antiquantMode,"
+            "antiquantScale and antiquantOffset should be empty."),
+      return ge::GRAPH_FAILED);
   if (!antiQuantFlag_ && (antiquantScaleTensor != nullptr || antiquantOffsetTensor != nullptr
     || keyAntiquantScaleTensor != nullptr || keyAntiquantOffsetTensor != nullptr
     || valueAntiquantScaleTensor != nullptr || valueAntiquantOffsetTensor != nullptr)) {
