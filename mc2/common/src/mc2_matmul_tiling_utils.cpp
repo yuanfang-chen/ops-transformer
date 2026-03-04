@@ -1,15 +1,15 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
- * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
- * CANN Open Software License Agreement Version 2.0 (the "License").
- * Please refer to the License for details. You may not use this file except in compliance with the License.
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
- * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
- * See LICENSE in the root of the software repository for the full text of the License.
- */
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
 
 /*!
- * \file mc2_tiling_utils.cpp
+ * \file mc2_matmul_tiling_utils.cpp
  * \brief
  */
 
@@ -25,7 +25,7 @@
 
 namespace mc2tiling {
 
-uint64_t NewGetDataTypeSize(const std::string &opName, ge::DataType type) {
+uint64_t GetDataTypeSize(const std::string &opName, ge::DataType type) {
   static const std::map<ge::DataType, int64_t> DATA_TYPE_SIZE_MAP = {
       {ge::DT_BF16, 2},     {ge::DT_FLOAT16, 2},       {ge::DT_FLOAT, 4},
       {ge::DT_HIFLOAT8, 1}, {ge::DT_FLOAT8_E4M3FN, 1}, {ge::DT_FLOAT8_E5M2, 1},
@@ -40,7 +40,7 @@ uint64_t NewGetDataTypeSize(const std::string &opName, ge::DataType type) {
           static_cast<int32_t>(type));
   return 0;
 }
-void NewUpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mmV3Args,
+void UpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mmV3Args,
                         const TilingArgs &args, const char *opName) {
   mmV3Args.opName = opName;
   mmV3Args.isATrans = args.isATrans;
@@ -57,12 +57,12 @@ void NewUpdateMatmulV3Args(optiling::mc2_matmul_v3_advanced::Mc2MatMulV3Args &mm
   mmV3Args.mValue = args.mValue;
   mmV3Args.nValue = args.nValue;
   mmV3Args.kValue = args.kValue;
-  mmV3Args.aDtypeSize = NewGetDataTypeSize(opName, mmV3Args.aType);
-  mmV3Args.bDtypeSize = NewGetDataTypeSize(opName, mmV3Args.bType);
+  mmV3Args.aDtypeSize = GetDataTypeSize(opName, mmV3Args.aType);
+  mmV3Args.bDtypeSize = GetDataTypeSize(opName, mmV3Args.bType);
 }
 
-ge::graphStatus NewGetMatmulV3PriorityPolicy(const NpuArch npuArch, std::vector<int32_t> &priorities, 
-                                             const char *opName) {
+ge::graphStatus GetMatmulV3PriorityPolicy(const NpuArch npuArch, std::vector<int32_t> &priorities, 
+                                          const char *opName) {
  	  const static std::map<NpuArch, std::vector<int32_t>> MATMUL_V3_PRIOR_MAP = {
  	      {NpuArch::DAV_3510, {optiling::mc2_matmul_v3_advanced::strategy::BASE}},
     };

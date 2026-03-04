@@ -26,7 +26,7 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "tiling/mc2_matmul_tiling_utils.h"
 #include "tiling_base/tiling_templates_registry.h"
 
 using namespace AscendC;
@@ -50,7 +50,7 @@ bool MatmulReduceScatterV2Tiling::IsCapable()
     return false;
 }
 
-void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling) 
+void PrintMMV3TilingData(const std::string &opName, Mc2MatMulV3TilingData &tiling)
 {
     PrintTCubeTilingData(opName, tiling.tCubeTiling);
     OP_LOGD(opName, " tiling.isHf32 %d", tiling.isHf32);
@@ -97,7 +97,7 @@ ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm()
     auto group = context_->GetAttrs()->GetAttrPointer<char>(index++);
     const std::string rsConfig = "ReduceScatter=level0:fullmesh";
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(group, opType, rsConfig, 0,
-                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)), 
+                                                static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)),
                                                 static_cast<uint32_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType)));
     OP_TILING_CHECK(mc2CcTilingConfig.GetTiling(matmulReduceScatterV2TilingData_->mc2InitTiling) != 0,
         OP_LOGE(opName_, "mc2CcTilingConfig mc2tiling GetTiling mc2InitTiling failed"), return ge::GRAPH_FAILED);
@@ -130,10 +130,10 @@ ge::graphStatus MatmulReduceScatterV2Tiling::DoAllMatmulTiling()
 
     // 根据芯片型号获取策略模板
     std::vector<int32_t> priorities;
-    OP_TILING_CHECK(mc2tiling::NewGetMatmulV3PriorityPolicy(npuArch_, priorities, opName_) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(mc2tiling::GetMatmulV3PriorityPolicy(npuArch_, priorities, opName_) != ge::GRAPH_SUCCESS,
         VECTOR_INNER_ERR_REPORT_TILING(opName_, "get mmv3 priority policy failed"), return ge::GRAPH_FAILED);
     Mc2MMRegisterCfg registerCfg {"Mc2MatMulV3", npuArch_, priorities};
-    mc2tiling::NewUpdateMatmulV3Args(mmV3Args_, args_, opName_);
+    mc2tiling::UpdateMatmulV3Args(mmV3Args_, args_, opName_);
 
     // 获取tileTiling
     mmV3Args_.mValue = tileMValue_ * args_.rankDim;

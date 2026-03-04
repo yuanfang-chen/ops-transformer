@@ -21,7 +21,6 @@
 #include "graph/utils/type_utils.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_base.h"
-#include "tiling/mc2_tiling_struct.h"
 #include "tiling/matmul_formulaic_tiling.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "platform/platform_infos_def.h"
