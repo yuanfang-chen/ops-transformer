@@ -402,63 +402,80 @@ public:
     //     }
     // }
 
-    // __aicore__ inline
-    // void ReduceMaxByPair(const AscendC::LocalTensor<float> &dstUb, const AscendC::LocalTensor<float> &srcUb,
-    //                                        uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
-    //                                        uint8_t dataBlockStride, uint8_t repeatStride)
-    // {
-    //     for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
-    //         uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
-    //         uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
-    //         AscendC::Max<float, false>(
-    //             dstUb[src0Start],
-    //             srcUb[src0Start],
-    //             srcUb[src1Start],
-    //             AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-    //             numRowsRound,
-    //             AscendC::BinaryRepeatParams(
-    //                 dataBlockStride,
-    //                 dataBlockStride,
-    //                 dataBlockStride,
-    //                 repeatStride,
-    //                 repeatStride,
-    //                 repeatStride));
-    //     }
-    // }
-    
-    // __aicore__ inline
-    // void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
-    //                         const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-    //                         uint32_t numElemsAligned)
-    // {
-    //     // Vector计算单元每个迭代最多处理256Byte数据，因此float低精度场景，每次迭代最多处理256/4=64个元素
-    //     uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要512/64=8次循环处理
-    //     // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
-    //     uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有512/8=64个datablock
-    //     uint8_t dataBlockStride = 1;
+    __aicore__ inline
+    void ReduceMaxByPair(const AscendC::LocalTensor<float> &dstUb, const AscendC::LocalTensor<float> &srcUb,
+                                           uint32_t numRowsRound, uint32_t loopCount, uint32_t columnStrideIndex,
+                                           uint8_t dataBlockStride, uint8_t repeatStride)
+    {
+        for (uint32_t i = 0; i < loopCount; i += columnStrideIndex) {
+            uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
+            uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+            AscendC::Max<float, false>(
+                dstUb[REDUCE_UB_SIZE + src0Start],
+                srcUb[REDUCE_UB_SIZE + src0Start],
+                srcUb[REDUCE_UB_SIZE + src1Start],
+                AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+                numRowsRound,
+                AscendC::BinaryRepeatParams(
+                    dataBlockStride,
+                    dataBlockStride,
+                    dataBlockStride,
+                    repeatStride,
+                    repeatStride,
+                    repeatStride));
+        }
+    }
 
-    //     // 512个元素，以64为单位分治求最大值，512->256->128->64
-    //     uint32_t columnStrideIndex = 2;
-    //     // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
-    //     ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-    //     AscendC::PipeBarrier<PIPE_V>();
-    //     columnStrideIndex *= 2;
-    //     for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
-    //         ReduceMaxByPair(tvUbTensor, tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
-    //         AscendC::PipeBarrier<PIPE_V>();
-    //     }
-    //     //每行64个元素分别规约求最大值
-    //     AscendC::WholeReduceMax<float, false>(
-    //         rowmaxUb,
-    //         tvUbTensor,
-    //         AscendC::MASK_PLACEHOLDER, // (uint64_t)0
-    //         numRowsRound,
-    //         dataBlockStride,
-    //         dataBlockStride,
-    //         blockNumPerRow,
-    //         AscendC::ReduceOrder::ORDER_ONLY_VALUE);
-    //     AscendC::PipeBarrier<PIPE_V>();
-    // }
+    __aicore__ inline
+    void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+                            const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+                            uint32_t numElemsAligned)
+    {
+        // Vector计算单元每个迭代最多处理256Byte数据，因此float低精度场景，每次迭代最多处理256/4=64个元素
+        uint32_t loopCount = numElemsAligned / FLOAT_VECTOR_SIZE; // float高精度场景，每行需要512/64=8次循环处理
+        // 每个datablock长度32Byte，因此float高精度场景，每个datablock内有32/4=8个元素
+        uint8_t blockNumPerRow = numElemsAligned / FLOAT_BLOCK_SIZE; // float高精度场景，每行共有512/8=64个datablock
+        uint8_t dataBlockStride = 1;
+
+        // 512个元素，以64为单位分治求最大值，512->256->128->64
+        uint32_t columnStrideIndex = 2;
+        // 后续Rowsum计算还会使用到srcUb，因此第一轮分治使用lsUbTensor作为目的操作数，srcUb作为源操作数
+        // ReduceMaxByPair(tvUbTensor, srcUb, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+
+        uint32_t src0Start = i * FLOAT_VECTOR_SIZE;
+        uint32_t src1Start = (i + columnStrideIndex / 2) * FLOAT_VECTOR_SIZE;
+        AscendC::Max<float, false>(
+            tvUbTensor[REDUCE_UB_SIZE + src0Start],
+            srcUb[src0Start],
+            srcUb[src1Start],
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            AscendC::BinaryRepeatParams(
+                dataBlockStride,
+                dataBlockStride,
+                dataBlockStride,
+                blockNumPerRow,
+                blockNumPerRow,
+                blockNumPerRow));
+
+        AscendC::PipeBarrier<PIPE_V>();
+        columnStrideIndex *= 2;
+        for (; columnStrideIndex <= loopCount; columnStrideIndex *= 2) {
+            ReduceMaxByPair(tvUbTensor, tvUbTensor, numRowsRound, loopCount, columnStrideIndex, dataBlockStride, blockNumPerRow);
+            AscendC::PipeBarrier<PIPE_V>();
+        }
+        //每行64个元素分别规约求最大值
+        AscendC::WholeReduceMax<float, false>(
+            rowmaxUb,
+            tvUbTensor[REDUCE_UB_SIZE],
+            AscendC::MASK_PLACEHOLDER, // (uint64_t)0
+            numRowsRound,
+            dataBlockStride,
+            dataBlockStride,
+            blockNumPerRow,
+            AscendC::ReduceOrder::ORDER_ONLY_VALUE);
+        AscendC::PipeBarrier<PIPE_V>();
+    }
 
     // __aicore__ inline
     // void RowmaxSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
@@ -551,30 +568,30 @@ public:
     //     AscendC::PipeBarrier<PIPE_V>();
     // }
 
-    __aicore__ inline
-    void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
-        const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
-        uint32_t numElemsAligned)
-    {
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor,
-            srcUb,
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
-            tvUbTensor[REDUCE_UB_SIZE],
-            tvUbTensor,
-            numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-        AscendC::BlockReduceMax<float, false>(
-            rowmaxUb,
-            tvUbTensor[REDUCE_UB_SIZE],
-            numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
-            0, 1, 1, 8);
-        AscendC::PipeBarrier<PIPE_V>();
-    }
+    // __aicore__ inline
+    // void RowmaxSPECTILE512(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
+    //     const AscendC::LocalTensor<float> &tvUbTensor, uint32_t numRowsRound, uint32_t numElems,
+    //     uint32_t numElemsAligned)
+    // {
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor,
+    //         srcUb,
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::BlockReduceMax<float, false>(
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         tvUbTensor,
+    //         numRowsRound * numElemsAligned / FLOAT_BLOCK_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    //     AscendC::BlockReduceMax<float, false>(
+    //         rowmaxUb,
+    //         tvUbTensor[REDUCE_UB_SIZE],
+    //         numRowsRound * numElemsAligned / FLOAT_VECTOR_SIZE / FLOAT_VECTOR_SIZE,
+    //         0, 1, 1, 8);
+    //     AscendC::PipeBarrier<PIPE_V>();
+    // }
 
     __aicore__ inline
     void RowmaxSPECTILE256(const AscendC::LocalTensor<float> &srcUb, const AscendC::LocalTensor<float> &rowmaxUb,
