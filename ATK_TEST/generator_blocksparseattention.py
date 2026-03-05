@@ -136,6 +136,8 @@ class RainFusionAttentionGenerator(CaseGenerator):
             case_config.inputs[2].shape = [kv_total, self.kv_num, self.head_dim]
             case_config.inputs[19].shape = [query_total, self.head_num, self.head_dim]
             case_config.inputs[19].dtype = self.dtype
+            case_config.inputs[20].shape = [query_total, self.head_num, 1]
+            case_config.inputs[20].dtype = 'fp32'
         elif self.q_input_layout == "BNSD":
             
             case_config.inputs[0].shape = [self.batch, self.head_num, self.maxQSeqlen, self.head_dim]
@@ -143,6 +145,8 @@ class RainFusionAttentionGenerator(CaseGenerator):
             case_config.inputs[2].shape = [self.batch, self.kv_num, self.maxKvSeqlen, self.head_dim]
             case_config.inputs[19].shape = [self.batch, self.head_num, self.maxQSeqlen, self.head_dim]
             case_config.inputs[19].dtype = self.dtype
+            case_config.inputs[20].shape = [self.batch, self.head_num, self.maxQSeqlen, 1]
+            case_config.inputs[20].dtype = 'fp32'
               
         # case_config.inputs[3].shape = [blocks_total, self.head_num, max_kv_block_num]
         case_config.inputs[3].shape = [self.batch, self.head_num, max_q_block_num, max_kv_block_num]
