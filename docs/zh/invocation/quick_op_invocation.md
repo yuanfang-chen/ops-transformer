@@ -184,6 +184,7 @@
         ```bash
         python ${scripts_dir}/third_lib_download.py
         ```
+
     \$\{scripts\_dir\}表示脚本存放路径，下载的第三方软件包默认存放在当前脚本所在目录。
 
 3. **编译算子包**
