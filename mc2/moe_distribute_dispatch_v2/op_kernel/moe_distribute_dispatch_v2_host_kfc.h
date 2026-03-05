@@ -262,7 +262,7 @@ private:
     LocalTensor<uint64_t> batchWriteU64Tensor_;
     LocalTensor<uint32_t> batchWriteU32Tensor_;
     LocalTensor<uint32_t> finishNumTensor_;
-    LocalTensor<uint32_t> expertOffsetCntTensor_;
+    LocalTensor<int32_t> expertOffsetCntTensor_;
     LocalTensor<bool> expertMaskInputTensor_;
     LocalTensor<uint32_t> flagTensor_;
 
@@ -771,7 +771,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     Duplicate<int32_t>(tokenSendMap_, int32_t(0), serverMapLength);
 
     tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
-    expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<uint32_t>();
+    expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<int32_t>();
     tpipe_->InitBuffer(xSendBuf_,sendTokenLength_);
     tpipe_->InitBuffer(flagBuf_, blockCntPerToken_ * UB_ALIGN);
     
@@ -1137,7 +1137,7 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
             continue;
         }
         uint32_t expertId = expertIdsTensor_.GetValue(index);
-        uint32_t exprtOffset = expertOffsetTemp(expertId);
+        int32_t exprtOffset = expertOffsetTemp(expertId);
         expertOffsetCntTensor_(index) = exprtOffset;
         expertOffsetTemp(expertId) = exprtOffset + 1;
     }
