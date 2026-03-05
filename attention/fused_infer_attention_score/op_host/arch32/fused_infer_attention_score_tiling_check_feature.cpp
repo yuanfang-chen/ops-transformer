@@ -22,6 +22,12 @@ using std::pair;
 using namespace ge;
 using namespace AscendC;
 namespace optiling {
+constexpr size_t ALIGN_SIZE_16 = 16;
+constexpr size_t ALIGN_SIZE_32 = 32;
+constexpr size_t HEAD_NUM_ONE = 1;
+constexpr size_t HEAD_DIM_64 = 64;
+constexpr size_t HEAD_DIM_128 = 128;
+constexpr size_t HEAD_DIM_192 = 192;
 
 ge::graphStatus FiaTilingCheck::CheckFeatureNoQuantDtype() const
 {
