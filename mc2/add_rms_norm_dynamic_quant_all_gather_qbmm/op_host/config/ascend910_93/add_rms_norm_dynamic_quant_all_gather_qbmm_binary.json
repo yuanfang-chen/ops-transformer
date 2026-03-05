@@ -186,6 +186,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -374,6 +379,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -562,6 +572,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -750,6 +765,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -938,6 +958,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -1126,6 +1151,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -1314,6 +1344,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     },
@@ -1502,6 +1537,11 @@
           "name": "residual_norm_mode",
           "dtype": "int",
           "value": 0
+        },
+        {
+          "name": "optional_output",
+          "dtype": "bool",
+          "value": null
         }
       ]
     }
