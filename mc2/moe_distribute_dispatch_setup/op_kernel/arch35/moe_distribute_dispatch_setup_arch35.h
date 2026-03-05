@@ -520,7 +520,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::SplitToC
     } else {
         newAivId = aivId_ - moeUsedAivNum_; // 由于是后面的核作为发送的共享专家，因此需要换算
     }
-    startTokenId = sendTokenNum * newAivId;
+    startTokenId = newAivId * sendTokenNum;
     if (newAivId < remainderTokenNum) {
         sendTokenNum += 1;
         startTokenId += newAivId;
