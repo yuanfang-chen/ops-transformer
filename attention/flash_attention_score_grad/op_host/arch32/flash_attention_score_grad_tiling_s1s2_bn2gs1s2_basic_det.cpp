@@ -368,7 +368,6 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
         //OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
         return ge::GRAPH_PARAM_INVALID;
     }
-    std::cout << "BasicDet inputLayout" << fBaseParams.inputLayout << "id" << tilingData->basicDetTensorTilingData.layout << std::endl;
     bool tndSoftmaxIn = context_->GetAttrs()->GetAttrNum() > static_cast<size_t>(TND_SOFTMAX_IN) ?
                             *(context_->GetAttrs()->GetAttrPointer<bool>(TND_SOFTMAX_IN)) :
                             false;
