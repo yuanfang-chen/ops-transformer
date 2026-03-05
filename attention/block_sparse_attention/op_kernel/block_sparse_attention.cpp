@@ -32,6 +32,12 @@ extern "C" __global__ __aicore__ void block_sparse_attention(__gm__ uint8_t* que
     TILING_KEY_IS(QF16_KVF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING);
     TILING_KEY_IS(QF16_KVF16_BNSD_BNSD_NOCACHE_HALFSM_NOMASK_RFA_TILING);
     TILING_KEY_IS(QBF16_KVBF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING);
+    TILING_KEY_IS(QF16_KVF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT); // 这里历史为什么会这么写啊，有什么意义
+    TILING_KEY_IS(QF16_KVF16_TND_TND_NOCACHE_HALFSM_NOMASK_RFA_TILING_LSE_OUT);
+    TILING_KEY_IS(QBF16_KVBF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT);
+    TILING_KEY_IS(QF16_KVF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT);
+    TILING_KEY_IS(QF16_KVF16_BNSD_BNSD_NOCACHE_HALFSM_NOMASK_RFA_TILING_LSE_OUT);
+    TILING_KEY_IS(QBF16_KVBF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT);
 
     #if TILING_KEY_VAR == QF16_KVF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING
         BlockSparse::BlockSparseAttentionInfer<half, float, Epilogue::LseMode::NONE, 0, 0>(
@@ -57,6 +63,30 @@ extern "C" __global__ __aicore__ void block_sparse_attention(__gm__ uint8_t* que
         BlockSparse::BlockSparseAttentionInfer<bfloat16_t, float, Epilogue::LseMode::NONE, 1, 1>(
             query, key, value, blockSparseMask, mask, blockTable, attentionOut,
             actualSeqLengths, actualSeqLengthsKv, blockShape, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QF16_KVF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<half, float, Epilogue::LseMode::OUT_ONLY, 0, 0>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QF16_KVF16_TND_TND_NOCACHE_HALFSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<half, half, Epilogue::LseMode::OUT_ONLY, 0, 0>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QBF16_KVBF16_TND_TND_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<bfloat16_t, float, Epilogue::LseMode::OUT_ONLY, 0, 0>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QF16_KVF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<half, float, Epilogue::LseMode::OUT_ONLY, 1, 1>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QF16_KVF16_BNSD_BNSD_NOCACHE_HALFSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<half, half, Epilogue::LseMode::OUT_ONLY, 1, 1>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
+    #elif TILING_KEY_VAR == QBF16_KVBF16_BNSD_BNSD_NOCACHE_FLOATSM_NOMASK_RFA_TILING_LSE_OUT
+        BlockSparse::BlockSparseAttentionInfer<bfloat16_t, float, Epilogue::LseMode::OUT_ONLY, 1, 1>(
+            query, key, value, mask, blockTable, attentionOut,
+            actualSeqLengths, actualSeqLengthsKv, blockShape, selectIdx, selectNumIdx, user, softmaxLse, tiling);
     #else
         BlockSparse::BlockSparseAttentionInfer<half, half, Epilogue::LseMode::NONE, 0, 0>(
             query, key, value, blockSparseMask, mask, blockTable, attentionOut,
