@@ -278,9 +278,12 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGetW
     auto viewCopyResult = l0op::ViewCopy(outputs[0], attentionOut, executorImpl);
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
     OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "===========================hxb 22222222222222222222===================");
-    auto viewCopyLseResult = l0op::ViewCopy(outputs[1], softmaxLseOptional, executorImpl);
-    OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "===========================hxb 3333333333===================");
-    CHECK_RET(viewCopyLseResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    if (softmaxLseFlag == 1) {
+        OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "===========================hxb 3333333333===================");
+        auto viewCopyLseResult = l0op::ViewCopy(outputs[1], softmaxLseOptional, executorImpl);
+        CHECK_RET(viewCopyLseResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
+    }
+
     OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "===========================hxb 44444444444===================");
 
     *workspaceSize = executorImpl->GetWorkspaceSize();
