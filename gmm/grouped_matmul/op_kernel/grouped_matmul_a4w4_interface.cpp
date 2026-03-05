@@ -15,7 +15,7 @@
 #include "kernel_operator.h"
 #include "grouped_matmul_a4w4_regular.h"
 
-namespace Catlass {
+namespace CatlassA4W4 {
 
 template <
     /// Tag indicating architecture
@@ -29,9 +29,9 @@ template <
     /// GemmType type for Bias operand
     class BiasType = void,
     /// GemmType type for Bias operand
-    Catlass::Gemm::Tile::ScaleGranularity SCALE_GRANU = Catlass::Gemm::Tile::ScaleGranularity::PER_TENSOR>
-struct TileCopyGMMPTD : public Catlass::Gemm::Tile::QuantTileCopy<ArchTag, AType, BType, CType, BiasType, SCALE_GRANU> {
-    using Base = Catlass::Gemm::Tile::QuantTileCopy<ArchTag, AType, BType, CType, BiasType, SCALE_GRANU>;
+    CatlassA4W4::Gemm::Tile::ScaleGranularity SCALE_GRANU = CatlassA4W4::Gemm::Tile::ScaleGranularity::PER_TENSOR>
+struct TileCopyGMMPTD : public CatlassA4W4::Gemm::Tile::QuantTileCopy<ArchTag, AType, BType, CType, BiasType, SCALE_GRANU> {
+    using Base = CatlassA4W4::Gemm::Tile::QuantTileCopy<ArchTag, AType, BType, CType, BiasType, SCALE_GRANU>;
     using ElementA = typename Base::ElementA;
     using ElementB = typename Base::ElementB;
     using ElementAccumulator = typename Base::ElementAccumulator;
@@ -56,13 +56,13 @@ template <typename XDType,
 CATLASS_DEVICE void grouped_matmul_a4w4_catlass(uint32_t m, uint32_t k, uint32_t n, uint32_t groupNum, uint64_t quantGroupNum,
                                         GM_ADDR gmA, GM_ADDR gmB, GM_ADDR gmScale, GM_ADDR group_list, 
                                         GM_ADDR per_token_scale, GM_ADDR y, GM_ADDR workspace, uint32_t aicCoreNum) {
-    using LayoutA = Catlass::layout::RowMajor;
-    using LayoutB = Catlass::layout::zN;
-    using LayoutD = Catlass::layout::RowMajor;
+    using LayoutA = CatlassA4W4::layout::RowMajor;
+    using LayoutB = CatlassA4W4::layout::zN;
+    using LayoutD = CatlassA4W4::layout::RowMajor;
     LayoutA layoutA{m, k};
     LayoutB layoutB = LayoutB::template MakeLayout<WeightDType>(k, n);
-    Catlass::layout::VectorLayout layoutScale{n};
-    Catlass::layout::VectorLayout layoutPerTokenScale{m};
+    CatlassA4W4::layout::VectorLayout layoutScale{n};
+    CatlassA4W4::layout::VectorLayout layoutPerTokenScale{m};
     LayoutD layoutD{m, n};
 
     using ArchTag = Arch::AtlasA2;
@@ -84,7 +84,7 @@ CATLASS_DEVICE void grouped_matmul_a4w4_catlass(uint32_t m, uint32_t k, uint32_t
     using CType = Gemm::GemmType<CDType, layout::RowMajor>;
     using ScaleType = Gemm::GemmType<ScaleDType, layout::VectorLayout>;
 
-    using TileCopyMmad = TileCopyGMMPTD<ArchTag, AType, BType, CType, void, Catlass::Gemm::Tile::ScaleGranularity::PER_CHANNEL>;
+    using TileCopyMmad = TileCopyGMMPTD<ArchTag, AType, BType, CType, void, CatlassA4W4::Gemm::Tile::ScaleGranularity::PER_CHANNEL>;
     using BlockMmad =
         Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType, BType, CType, void, TileCopyMmad>;
 
@@ -129,4 +129,4 @@ CATLASS_DEVICE void grouped_matmul_a4w4_catlass(uint32_t m, uint32_t k, uint32_t
     MatmulKernel matmul;
     matmul(params);
 }
-}  // namespace Catlass
+}  // namespace CatlassA4W4
