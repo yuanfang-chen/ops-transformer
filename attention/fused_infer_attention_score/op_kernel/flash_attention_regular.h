@@ -310,34 +310,66 @@ namespace SplitFuse {
                 }
             } 
             else {
+                
+                bool isDecodeTND = (INPUT_LAYOUT == FaiKernel::inputLayout::TND) && (gActualQseqlen.GetValue(batch - 1) == batch);
+                typedef struct {
+                    uint32_t curBatchTmp;
+                    uint32_t preTotalTaskNumTmp;
+                    uint32_t curTotalTaskNumTmp;
+                } CoreBatchState;
+
+                CoreBatchState coreBatchStates[MAX_BLOCK_NUM] = {0};
+                uint32_t initBlockNum = (coreNum > MAX_BLOCK_NUM) ? MAX_BLOCK_NUM : coreNum;
+                for (uint32_t c = 0; c < initBlockNum; ++c) {
+                    coreBatchStates[c].curBatchTmp = 0;
+                    coreBatchStates[c].preTotalTaskNumTmp = 0;
+                    coreBatchStates[c].curTotalTaskNumTmp = firstBatchTaskNum;
+                }
                 for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
                     uint32_t curBatchTmp = 0;
                     uint32_t preTotalTaskNumTmp = 0;
-                    uint32_t curTotalTaskNumTmp = firstBatchTaskNum;
+                    uint32_t curTotalTaskNumTmp = firstBatchTaskNum; // first num
+                    if (isDecodeTND) {
+                            uint32_t qSeqlenTmp = 1;
+                            uint32_t curQNBlockTileTmp = GetQNBlockTile(qSeqlenTmp, groupSize);
+                            uint32_t qNBlockNumPerGroupTmp = NpuArch::Detail::Alignment::CeilDiv(groupSize, curQNBlockTileTmp);
+                            uint32_t curQNBlockNumTmp = qNBlockNumPerGroupTmp * kvHeads;
 
-                    while (taskIdx >= curTotalTaskNumTmp && curBatchTmp < batch - 1) {
-                        ++curBatchTmp;
-                        preTotalTaskNumTmp = curTotalTaskNumTmp;
+                            uint32_t curQSBlockNumTmp = 1U;
+                            uint32_t curTaskNumTmp = curQNBlockNumTmp * curQSBlockNumTmp;
 
-                        uint32_t qSeqlenTmp = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatchTmp));
-                        uint32_t kvSeqlenTmp = static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatchTmp));
-                        if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
-                            uint32_t prevQSeqlenSumTmp = (curBatchTmp == 0) ?
-                                0 : static_cast<uint32_t>(gActualQseqlen.GetValue(curBatchTmp - 1));
-                            qSeqlenTmp = qSeqlenTmp - prevQSeqlenSumTmp;
-                            if constexpr (!PAGED_CACHE_FLAG) {
-                                uint32_t prevKvSeqlenSumTmp = (curBatchTmp == 0) ?
-                                    0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(curBatchTmp - 1));
-                                kvSeqlenTmp = kvSeqlenTmp - prevKvSeqlenSumTmp;
+                            curBatchTmp = taskIdx / curTaskNumTmp;
+                            curTotalTaskNumTmp = (curBatchTmp + 1) * curTaskNumTmp; 
+                            preTotalTaskNumTmp = curTotalTaskNumTmp - curTaskNumTmp;
+                    } else {
+                        CoreBatchState* state = &coreBatchStates[taskIdx % coreNum];
+                        while (taskIdx >= state->curTotalTaskNumTmp && state->curBatchTmp < batch - 1) {
+                            ++state->curBatchTmp;
+                            state->preTotalTaskNumTmp = state->curTotalTaskNumTmp;
+
+                            uint32_t qSeqlenTmp = static_cast<uint32_t>(gActualQseqlen.GetValue(state->curBatchTmp));
+                            uint32_t kvSeqlenTmp = static_cast<uint32_t>(gActualKvseqlen.GetValue(state->curBatchTmp));
+                            if constexpr(INPUT_LAYOUT == FaiKernel::inputLayout::TND) {
+                                uint32_t prevQSeqlenSumTmp = (state->curBatchTmp == 0) ?
+                                    0 : static_cast<uint32_t>(gActualQseqlen.GetValue(state->curBatchTmp - 1));
+                                qSeqlenTmp = qSeqlenTmp - prevQSeqlenSumTmp;
+                                if constexpr (!PAGED_CACHE_FLAG) {
+                                    uint32_t prevKvSeqlenSumTmp = (state->curBatchTmp == 0) ?
+                                        0 : static_cast<uint32_t>(gActualKvseqlen.GetValue(state->curBatchTmp - 1));
+                                    kvSeqlenTmp = kvSeqlenTmp - prevKvSeqlenSumTmp;
+                                }
                             }
-                        }
 
-                        uint32_t curQNBlockTileTmp = GetQNBlockTile(qSeqlenTmp, groupSize);
-                        uint32_t qNBlockNumPerGroupTmp = NpuArch::Detail::Alignment::CeilDiv(groupSize, curQNBlockTileTmp);
-                        uint32_t curQNBlockNumTmp = qNBlockNumPerGroupTmp * kvHeads;
-                        uint32_t curQSBlockTileTmp = GetQSBlockTile(kvSeqlenTmp);
-                        uint32_t curQSBlockNumTmp = NpuArch::Detail::Alignment::CeilDiv(qSeqlenTmp, curQSBlockTileTmp);
-                        curTotalTaskNumTmp += curQNBlockNumTmp * curQSBlockNumTmp;
+                            uint32_t curQNBlockTileTmp = GetQNBlockTile(qSeqlenTmp, groupSize);
+                            uint32_t qNBlockNumPerGroupTmp = NpuArch::Detail::Alignment::CeilDiv(groupSize, curQNBlockTileTmp);
+                            uint32_t curQNBlockNumTmp = qNBlockNumPerGroupTmp * kvHeads;
+
+                            uint32_t curQSBlockTileTmp = GetQSBlockTile(kvSeqlenTmp);
+                            uint32_t curQSBlockNumTmp = NpuArch::Detail::Alignment::CeilDiv(qSeqlenTmp, curQSBlockTileTmp);
+                            state->curTotalTaskNumTmp += curQNBlockNumTmp * curQSBlockNumTmp;
+                        }
+                        curBatchTmp = state->curBatchTmp;
+                        preTotalTaskNumTmp = state->preTotalTaskNumTmp;
                     }
 
                     uint32_t qSeqlenCur = static_cast<uint32_t>(gActualQseqlen.GetValue(curBatchTmp));
