@@ -722,6 +722,7 @@ constexpr uint32_t NZ_D1_IDX = 2;
 constexpr uint32_t NZ_D0_IDX = 4;
 constexpr uint32_t TND_NTD_D_IDX = 2;
 constexpr int64_t HEAD_DIM_192 = 192;
+constexpr int64_t HEAD_DIM_64 = 64;
 
 
 FIA_EXTERN_C ge::graphStatus TilingFusedInferAttentionScoreV3(gert::TilingContext *context)
