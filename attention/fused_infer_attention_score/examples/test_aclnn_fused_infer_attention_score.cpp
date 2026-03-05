@@ -18,7 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_fused_infer_attention_score_v4.h"
+#include "aclnnop/aclnn_fused_infer_attention_score_v5.h"
 #include "securec.h"
 
 using namespace std;
@@ -183,14 +183,14 @@ int main() {
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor;
     // Call the first interface.
-    ret = aclnnFusedInferAttentionScoreV4GetWorkspaceSize(
+    ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
         queryTensor, tensorKeyList, tensorValueList, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut,
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, scaleValue, preTokens, nextTokens, layerOut,
         numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode,
         valueAntiquantMode, 0, outTensor, nullptr, &workspaceSize, &executor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnFusedInferAttentionScoreV4GetWorkspaceSize failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnFusedInferAttentionScoreV5GetWorkspaceSize failed. ERROR: %d\n", ret);
         return ret;
     }
     // Apply for device memory based on the workspaceSize calculated from the first interface paragraph.
@@ -203,9 +203,9 @@ int main() {
         }
     }
     // Call the second interface.
-    ret = aclnnFusedInferAttentionScoreV4(workspaceAddr, workspaceSize, executor, stream);
+    ret = aclnnFusedInferAttentionScoreV5(workspaceAddr, workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnFusedInferAttentionScoreV4 failed. ERROR: %d\n", ret); 
+        LOG_PRINT("aclnnFusedInferAttentionScoreV5 failed. ERROR: %d\n", ret); 
         return ret;
     }
 
