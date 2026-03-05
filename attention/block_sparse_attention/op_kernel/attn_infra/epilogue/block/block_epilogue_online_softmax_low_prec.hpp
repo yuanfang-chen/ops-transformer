@@ -214,46 +214,6 @@ public:
             dataBlockStride,
             blockNumPerRow);
         AscendC::PipeBarrier<PIPE_V>();
-
-        // AscendC::Add<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::Add<half, false>(
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_3],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::Add<half, false>(
-        //     srcUb,
-        //     srcUb,
-        //     srcUb[HALF_VECTOR_SIZE * SPLIT_COL_IDX_2],
-        //     (uint64_t)0,
-        //     numRowsRound,
-        //     AscendC::BinaryRepeatParams(
-        //         1, 1, 1,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE,
-        //         numElemsAligned / BLOCK_SIZE));
-        // AscendC::PipeBarrier<PIPE_V>();
-        // AscendC::WholeReduceSum<half, false>(
-        //     rowsumUb, srcUb, (int32_t)0, numRowsRound, 1, 1,
-        //     numElemsAligned / BLOCK_SIZE);
-        // AscendC::PipeBarrier<PIPE_V>();
     }
 
     __aicore__ inline
