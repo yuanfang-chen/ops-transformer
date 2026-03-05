@@ -8,13 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-/*!
- * \file aclnn_util.h
- * \brief
- */
-#ifndef COMMON_NN_ACLNN_UTIL_H
-#define COMMON_NN_ACLNN_UTIL_H
+#ifndef DETAIL_MACROS_HPP
+#define DETAIL_MACROS_HPP
 
-#define ACLNN_API __attribute__((visibility("default")))
+#define HOST_DEVICE __forceinline__ [host, aicore]
 
-#endif  // COMMON_NN_ACLNN_UTIL_H
+#endif  // DETAIL_MACROS_HPP
