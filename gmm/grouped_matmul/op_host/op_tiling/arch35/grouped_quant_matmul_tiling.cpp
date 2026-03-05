@@ -1050,6 +1050,7 @@ ge::graphStatus GroupedQmmTiling::CalL1Tiling()
     uint64_t biasDtypeSize = ge::GetSizeByDataType(inputParams_.biasDtype);
     uint64_t scaleDtypeSize = ge::GetSizeByDataType(inputParams_.scaleDtype);
     uint64_t totalL1Size = aicoreParams_.l1Size;
+    
 
     basicTiling_.iterateOrder = 0U;
     basicTiling_.dbL0c =

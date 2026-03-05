@@ -127,7 +127,7 @@ static ge::graphStatus ValidateXAndWShapes(const char* op_name, CheckXandWParams
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context,const char* op_name, CheckXandWParams& params)
+static ge::graphStatus SetXAndWShapesForMX(const InferShapeContext *context, CheckXandWParams& params)
 {
     params.m = params.shape_x1->GetDim(xIndex);
     params.k = params.shape_x1->GetDim(wIndex);
@@ -214,7 +214,7 @@ static ge::graphStatus ValidateRowIndex(const InferShapeContext *context, const 
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, const int &bsdp, const char *op_name,
+static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, const char *op_name,
                                                 CheckXandWParams &xAndWParams)
 {
     auto attrs = context->GetAttrs();
@@ -231,7 +231,7 @@ static ge::graphStatus SetupOutputAndCheckAttrs(InferShapeContext *context, cons
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const int& bsdp, const char* op_name, CheckXandWParams& xAndWParams)
+static ge::graphStatus SetupOutputForMX(InferShapeContext *context, const char* op_name, CheckXandWParams& xAndWParams)
 {
     auto attrs = context->GetAttrs();
     auto shape_out = context->GetOutputShape(0);
@@ -288,8 +288,8 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
     auto shape_scale = context->GetOptionalInputShape(scaleOptionIndex);
     OP_CHECK_IF(shape_scale == nullptr, OPS_REPORT_CUBE_INNER_ERR(op_name, "scale is not given."), return ge::GRAPH_FAILED);
     if (shape_scale->GetDimNum() == fourDimNum) {
-        OP_CHECK_IF(SetXAndWShapesForMX(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
-        OP_CHECK_IF(SetupOutputForMX(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+        OP_CHECK_IF(SetXAndWShapesForMX(context, xAndWParams) != ge::GRAPH_SUCCESS, return ge::GRAPH_FAILED, );
+        OP_CHECK_IF(SetupOutputForMX(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                     return ge::GRAPH_FAILED, );
         return ge::GRAPH_SUCCESS;
     } else {
@@ -308,7 +308,7 @@ static ge::graphStatus InferShapeGroupedMatmulFinalizeRouting(InferShapeContext 
             OP_CHECK_IF(ValidateOffsetShape(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                         return ge::GRAPH_FAILED, );
         }
-        OP_CHECK_IF(SetupOutputAndCheckAttrs(context, bsdp, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
+        OP_CHECK_IF(SetupOutputAndCheckAttrs(context, op_name, xAndWParams) != ge::GRAPH_SUCCESS,
                     return ge::GRAPH_FAILED, );
     }
     return ge::GRAPH_SUCCESS;
