@@ -18,10 +18,7 @@
 
 #include "kernel_operator.h"
 
-constexpr static const uint32_t BNGSD = 0;
-constexpr static const uint32_t SBNGD = 1;
-constexpr static const uint32_t BSNGD = 2;
-constexpr static const uint32_t TND = 3;
+
 template <typename TYPE, class TILING_TYPE> class VectorSoftmaxGradDet {
 public:
     __aicore__ inline VectorSoftmaxGradDet(){};
@@ -59,7 +56,7 @@ protected:
     int64_t t1;
     int64_t d;
     int64_t dAlign;
-    int32_t layout{0};
+    uint32_t layout{0};
     GM_ADDR actual_seq_qlen_addr;
 
     int64_t bIdx = 0;
@@ -173,7 +170,7 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::DoCopyIn(int64_t
 {
     int64_t srcOffset = 0;
     
-    if (layout == BSNGD)
+    if (layout == 2)
     {
         srcOffset = bIdx * (s1 * n1 * d) + sIdx * (n1 * d) + nIdx * d;
     }
@@ -250,7 +247,7 @@ template <typename TYPE, class TILING_TYPE> __aicore__ inline void VectorSoftmax
         int64_t startIdx = cBlockIdx * normalCoreSize;
         int64_t nBurst = singleLoopNBurstNum;
         int64_t curS = 0;
-        if (layout == BSNGD){
+        if (layout == 2){
             curS = s1;
         }
 

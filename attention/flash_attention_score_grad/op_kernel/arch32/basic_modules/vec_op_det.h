@@ -20,10 +20,6 @@
 #include "common_header.h"
 #include "kernel_operator.h"
 
-constexpr static const uint32_t BNGSD = 0;
-constexpr static const uint32_t SBNGD = 1;
-constexpr static const uint32_t BSNGD = 2;
-constexpr static const uint32_t TND = 3;
 template <typename FAGT>
 class VecOpDet {
     using TILING_CLASS = typename FAGT::tiling_class;
@@ -100,7 +96,7 @@ protected:
     // attr param
     uint32_t sparseMode;
     uint32_t dqPostAbsorb;
-    int32_t layout{0};
+    uint32_t layout{0};
     int32_t dimS1{0};          // BSH格式：固定的Q序列长度
  	int32_t dimS2{0};          // BSH格式：固定的K序列长度
     int32_t enableCausalOpt;
@@ -174,7 +170,7 @@ __aicore__ void VecOpDet<FAGT>::Init(
     actual_seq_qlen_addr = actual_seq_qlen;
     actual_seq_kvlen_addr = actual_seq_kvlen;
     layout = tilingData->basicDetTensorTilingData.layout;
-    if (layout == BSNGD) {  // BSH格式
+    if (layout == 2) {  // BSH格式
             dimS1 = tilingData->basicDetTensorTilingData.s1;
             dimS2 = tilingData->basicDetTensorTilingData.s2;
         }
@@ -256,7 +252,7 @@ __aicore__ inline void VecOpDet<FAGT>::GetSeqQlenKvlenByBidx(
     int64_t bIdx, SEQLEN_TYPE &actualSeqQlen, SEQLEN_TYPE &actualSeqKvlen)
 {
     
-    if (layout == BSNGD){
+    if (layout == 2){
         actualSeqQlen = dimS1;
         actualSeqKvlen = dimS2;
     }
@@ -570,7 +566,7 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
         }
         sfmgOffset = 0;
         if (batchIdx > 0) {
-            if (layout == BSNGD){
+            if (layout == 2){
                 sfmgOffset = dimS1 * n2 * g * 8;  
             }
             else{
@@ -585,7 +581,7 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
                                               blockInfo.s1Idx + subIdx * s1VecSize) *
                                              32 / sizeof(float);
             int64_t innerRowOffsetLeft = 0;
-            if (layout == BSNGD){
+            if (layout == 2){
                 innerRowOffsetLeft =
                 unlikely(batchIdx == 0) ?
                     0 :
