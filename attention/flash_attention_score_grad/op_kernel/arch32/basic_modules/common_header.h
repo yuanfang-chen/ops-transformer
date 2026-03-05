@@ -42,13 +42,6 @@ constexpr static int32_t ATTEN_MASK_DIM_S2 = 2048;
 constexpr static int32_t ATTEN_MASK_DEFAULT_OFFSET = SIZE_128 * ATTEN_MASK_DIM_S2 + SIZE_128;
 constexpr static uint32_t CAL_REPEAT_NUM = 256 / sizeof(float);
 
-constexpr static uint32_t BSH = 0;
-constexpr static uint32_t SBH = 1;
-constexpr static uint32_t BNSD = 2;
-constexpr static uint32_t BSND = 3;
-constexpr static uint32_t TND = 4;
-
-
 #define SET_FLAG(trigger, waiter, e) AscendC::SetFlag<AscendC::HardEvent::trigger##_##waiter>((e))
 #define WAIT_FLAG(trigger, waiter, e) AscendC::WaitFlag<AscendC::HardEvent::trigger##_##waiter>((e))
 #define PIPE_BARRIER(pipe) AscendC::PipeBarrier<PIPE_##pipe>()
