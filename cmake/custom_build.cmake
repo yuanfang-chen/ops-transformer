@@ -143,7 +143,8 @@ if (BUILD_OPEN_PROJECT)
     # op tiling
     add_library(cust_opmaster SHARED)
     target_include_directories(cust_opmaster PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_tiling
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
     )
     target_compile_options(cust_opmaster PRIVATE
@@ -855,7 +856,7 @@ install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/op_kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
