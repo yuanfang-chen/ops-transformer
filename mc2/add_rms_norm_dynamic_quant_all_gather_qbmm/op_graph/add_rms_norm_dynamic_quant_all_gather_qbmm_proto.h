@@ -63,6 +63,7 @@ REG_OP(AddRmsNormDynamicQuantAllGatherQbmm)
     .ATTR(transpose_x2, Bool, false)
     .ATTR(dtype, Int, 0)
     .ATTR(residual_norm_mode, Int, 0)
+    .ATTR(optional_output, Bool, false)
     .OP_END_FACTORY_REG(AddRmsNormDynamicQuantAllGatherQbmm)
 } // namespace ge
 
