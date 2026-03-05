@@ -41,7 +41,7 @@ constexpr uint32_t FLOAT_REP_SIZE = REGSIZE / sizeof(float);
 //对stateAddr的数据进行原地读写出操作， stateAddr=yAddr
 template <typename T>
 __simd_vf__ void Conv1dNeedStateVF(__ubuf__ T * xAddr,  __ubuf__ T * weightAddr, __ubuf__ T * stateAddr, __ubuf__ T * yAddr,
-    uint8_t stateSLen, uint8_t xSLen, uint8_t dimLen) {
+    uint8_t stateSLen, uint8_t xSLen, uint32_t dimLen) {
         MicroAPI::RegTensor<float> xB32, mulB32, weightB32, yB32;
         MicroAPI::RegTensor<T> xB16, weightB16, yB16;
         MicroAPI::MaskReg maskB32, maskB16;
@@ -69,14 +69,14 @@ __simd_vf__ void Conv1dNeedStateVF(__ubuf__ T * xAddr,  __ubuf__ T * weightAddr,
             }
             MicroAPI::Add(yB32, yB32, xB32, maskB32);
             MicroAPI::Cast<T, float, castTraitB322B16>(yB16, yB32, maskB32);
-            MicroAPI::StoreAlign<ROPET, MicroAPI::StoreDist::DIST_PACK_B32>(yAddr + dimLoop * B16_REP_SIZE, yB16, maskB16);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(yAddr + dimLoop * B16_REP_SIZE, yB16, maskB16);
         }
 
 }
 
 //对xAddr的数据进行原地读写出操作， xAddr=yAddr
 template <typename T>
-__simd_vf__ void Conv1dNoNeedStateVF(__ubuf__ T * xAddr,  __ubuf__ T * weightAddr, __ubuf__ T * yAddr, uint8_t xSLen, uint8_t dimLen) 
+__simd_vf__ void Conv1dNoNeedStateVF(__ubuf__ T * xAddr,  __ubuf__ T * weightAddr, __ubuf__ T * yAddr, uint8_t xSLen, uint32_t dimLen) 
 {
         MicroAPI::RegTensor<float> xB32, mulB32, weightB32, yB32;
         MicroAPI::RegTensor<T> xB16, weightB16, yB16;
@@ -97,13 +97,13 @@ __simd_vf__ void Conv1dNoNeedStateVF(__ubuf__ T * xAddr,  __ubuf__ T * weightAdd
             }
             MicroAPI::Add(yB32, yB32, xB32, maskB32);
             MicroAPI::Cast<T, float, castTraitB322B16>(yB16, yB32, maskB32);
-            MicroAPI::StoreAlign<ROPET, MicroAPI::StoreDist::DIST_PACK_B32>(yAddr + dimLoop * B16_REP_SIZE, yB16, maskB16);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(yAddr + dimLoop * B16_REP_SIZE, yB16, maskB16);
         }
 }
 
 template<typename T>
 __aicore__ inline void Conv1dNeedState(LocalTensor<T> &xUb, LocalTensor<T> &weightUb, LocalTensor<T> &stateUb, LocalTensor<T> &yUb,
-    uint8_t startSLen, uint8_t xSLen, uint8_t dimLen) {
+    uint8_t startSLen, uint8_t xSLen, uint32_t dimLen) {
     __ubuf__ T * xAddr = (__ubuf__ T *)xUb.GetPhyAddr();
     __ubuf__ T * weightAddr = (__ubuf__ T *)weightUb.GetPhyAddr();
     __ubuf__ T * stateAddr = (__ubuf__ T *)stateUb.GetPhyAddr();
@@ -112,9 +112,11 @@ __aicore__ inline void Conv1dNeedState(LocalTensor<T> &xUb, LocalTensor<T> &weig
 }
 
 template<typename T>
-__aicore__ inline void Conv1dNoNeedState(LocalTensor<T> &xUb, LocalTensor<T> &weightUb, LocalTensor<T> &yUb, uint8_t xSLen, uint8_t dimLen) {
+__aicore__ inline void Conv1dNoNeedState(LocalTensor<T> &xUb, LocalTensor<T> &weightUb, LocalTensor<T> &yUb, uint8_t xSLen, uint32_t dimLen) {
     __ubuf__ T * xAddr = (__ubuf__ T *)xUb.GetPhyAddr();
     __ubuf__ T * weightAddr = (__ubuf__ T *)weightUb.GetPhyAddr();
     __ubuf__ T * yAddr = (__ubuf__ T *)yUb.GetPhyAddr();
     Conv1dNoNeedStateVF(xAddr, weightAddr, yAddr, xSLen, dimLen);
 }
+
+#endif
