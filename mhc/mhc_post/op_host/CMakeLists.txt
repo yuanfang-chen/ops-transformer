@@ -14,13 +14,25 @@ if (BUILD_OPEN_PROJECT)
     )
 endif()
 
+set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
 if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
-    add_ops_compile_options(
-        OP_NAME MhcPost
-        OPTIONS --cce-auto-sync=on
-                -Wno-deprecated-declarations
-                -Werror
-    )
+    if(CONDITION_UNIT STREQUAL "ascend950")
+        add_ops_compile_options(
+            OP_NAME MhcPost
+            OPTIONS --cce-auto-sync=on
+                    -Wno-deprecated-declarations
+                    -Werror
+                    -mllvm 
+                    -cce-aicore-dcci-before-kernel-end=false
+        )
+    else()
+        add_ops_compile_options(
+            OP_NAME MhcPost
+            OPTIONS --cce-auto-sync=on
+                    -Wno-deprecated-declarations
+                    -Werror
+        )
+    endif()
 else()
     add_modules_sources(OPTYPE quant_grouped_matmul_dequant ACLNNTYPE aclnn_exclude)
 endif()
