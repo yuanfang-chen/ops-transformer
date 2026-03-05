@@ -181,11 +181,10 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
                 OP_LOGE(context_, "value_cache dimension must be 4, but got %zu. Please check.", vCacheDimNum_),
                 return ge::GRAPH_FAILED);
 
-    // 当数据格式为NZ时，需要检查尾轴是否与32B对齐。kcache和vcache除第1维，其他轴必须相等。
+    // 当数据格式为NZ时，需要检查尾轴是否与32B对齐。kcache和vcache除第1维和尾轴，其他轴必须相等。
     // 当数据格式为ND时，kcache和vcache的shape的非尾轴必须相等。
-    size_t skipAxis = vCacheDimNum_ - 1;
+    size_t lastAxis = vCacheDimNum_ - 1;
     if (!isCacheModeNorm_) { // NZ
-        skipAxis = 1;
         uint32_t vCacheDtypeSize = static_cast<uint32_t>(tilingDataTypeByteTable.find(vCacheDType_)->second);
         uint32_t vCacheByteAlign = BLOCK_SIZE / vCacheDtypeSize;
         OP_CHECK_IF(vCacheShape_.GetDim(vCacheDimNum_ - 1) != vCacheByteAlign,
@@ -201,7 +200,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
                     return ge::GRAPH_FAILED);
     }
     for (size_t i = 0; i < vCacheDimNum_; i++) {
-        if (i == skipAxis) {
+        if ((!isCacheModeNorm_ && i == 1) || i == lastAxis) {
             continue;
         }
         OP_CHECK_IF(vCacheShape_.GetDim(i) != kCacheShape_.GetDim(i),
@@ -466,7 +465,7 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     int64_t batchPerCore = Ops::Base::CeilDiv(batchCount_, coreNum_);
     needCoreNum_ = static_cast<uint32_t>(std::min(Ops::Base::CeilDiv(batchCount_, batchPerCore), coreNum_));
     // uint32_t batchTail = batchCount_ - batchPerCore * (needCoreNum - 1);
-    uint32_t tileBase = BLOCK_SIZE / std::max(cacheDTypeByteSizeK_, cacheDTypeByteSizeV_);
+    uint32_t tileBase = BLOCK_SIZE / std::min(cacheDTypeByteSizeK_, cacheDTypeByteSizeV_);
 
     // 计算UB最大能放下的KV Cache大小
     uint32_t seqLenAccumSize = 1024;
@@ -474,10 +473,12 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
                       (BLOCK_SIZE * DOUBLE_BUFFER);
     uint64_t cacheBlockK = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeK_);
     uint64_t cacheBlockV = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeV_);
-    uint64_t maxUbHiddenSizeK =
-        std::min(static_cast<uint64_t>(factor) * tileBase, cacheBlockK); // 最大不超过1个cacheBlock
-    uint64_t maxUbHiddenSizeV =
-        std::min(static_cast<uint64_t>(factor) * tileBase, cacheBlockV); // 最大不超过1个cacheBlock
+    uint64_t maxUbHiddenSizeK = 
+        std::min(static_cast<uint64_t>(factor) * BLOCK_SIZE / cacheDTypeByteSizeK_, cacheBlockK); // 最大不超过1个cacheBlock
+    uint64_t maxUbHiddenSizeV = 
+        std::min(static_cast<uint64_t>(factor) * BLOCK_SIZE / cacheDTypeByteSizeV_, cacheBlockV); // 最大不超过1个cacheBlock
+    maxUbHiddenSizeK = Ops::Base::CeilAlign(maxUbHiddenSizeK, static_cast<uint64_t>(tileBase)); 
+    maxUbHiddenSizeV = Ops::Base::CeilAlign(maxUbHiddenSizeV, static_cast<uint64_t>(tileBase));
     uint64_t maxUbHiddenSize = std::max(maxUbHiddenSizeK, maxUbHiddenSizeV);
     maxUbHiddenSize = Ops::Base::CeilAlign(maxUbHiddenSize, static_cast<uint64_t>(tileBase)); // 保证maxUbHiddenSize和32B对齐
 

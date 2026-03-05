@@ -97,19 +97,21 @@ namespace ge {
  * @endcode
  */
 REG_OP(GatherPaKvCache)
-    .INPUT(key_cache, "T")
-    .INPUT(value_cache, "T")
+    .INPUT(key_cache, "T_KEY")
+    .INPUT(value_cache, "T_VALUE")
     .INPUT(block_tables, TensorType::IndexNumberType())
     .INPUT(seq_lens, TensorType::IndexNumberType())
-    .INPUT(key, "T")
-    .INPUT(value, "T")
+    .INPUT(key, "T_KEY")
+    .INPUT(value, "T_VALUE")
     .OPTIONAL_INPUT(seq_offset, TensorType::IndexNumberType())
-    .OUTPUT(key, "T")
-    .OUTPUT(value, "T")
+    .OUTPUT(key, "T_KEY")
+    .OUTPUT(value, "T_VALUE")
     .ATTR(cache_mode, String, "Norm")
     .ATTR(is_seq_lens_cumsum, Bool, true)
-    .DATATYPE(T, TensorType({DT_FLOAT16, DT_BF16, DT_FLOAT, DT_INT8, DT_UINT8, DT_INT16,
-                            DT_UINT16, DT_INT32, DT_UINT32, DT_HIFLOAT8, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN}))
+    .DATATYPE(T_KEY, TensorType({DT_FLOAT16, DT_BF16, DT_FLOAT, DT_INT8, DT_UINT8, DT_INT16,
+                            DT_UINT16, DT_INT32, DT_UINT32, DT_HIFLOAT8, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_FLOAT8_E4M3FN}))
+    .DATATYPE(T_VALUE, TensorType({DT_FLOAT16, DT_BF16, DT_FLOAT, DT_INT8, DT_UINT8, DT_INT16,
+                            DT_UINT16, DT_INT32, DT_UINT32, DT_HIFLOAT8, DT_FLOAT8_E5M2, DT_FLOAT8_E4M3FN, DT_FLOAT16}))
 .OP_END_FACTORY_REG(GatherPaKvCache)
 
 } // namespace ge
