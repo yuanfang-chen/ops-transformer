@@ -319,7 +319,7 @@ public:
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     if (qNThisSubBlock == 0U) { // 不切头
-                        AscendC::DumpTensor(tvUbTensor, 0, totalRowNum);
+                        // AscendC::DumpTensor(tvUbTensor, 0, totalRowNum);
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor, // 源是vec，一共totalRowNum个数据块，每次取sizeof(float)长度，因为每个datablock是重复的8个数，目的排布是T（BS）N，拷贝到每个S上，头尾间隔是head-1
                             AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0)); // todo 要区分BNSD？BNSD目的就是相邻的 可以按qHeads = 1
