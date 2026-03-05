@@ -556,7 +556,6 @@ public:
         uint32_t rowOffset)
     {
         if (columnNum == 1024U) {
-            AscendC::printf("tkd RowmaxSPECTILE1024\n");
             RowmaxSPECTILE1024(
                 computeUbTensor,
                 lmUbTensor[rowOffset],
@@ -681,7 +680,6 @@ public:
     {
         // *** ll = rowsum(ls32)
         if (columnNum == 1024U) {
-            AscendC::printf("tkd RowsumSPECTILE1024\n");
             RowsumSPECTILE1024(
                 computeUbTensor,
                 llUbTensor[rowOffset],
