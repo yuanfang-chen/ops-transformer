@@ -336,7 +336,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAicMatMulPipeline(
     Mc2MatmulV3::Mc2QuantBatchMatmulASWKernel<AType, BType, ScaleType, float, CType, CubeFormat::ND, CubeFormat::ND,
         CubeFormat::ND, ATrans, BTrans> mmv3;
     
-    // 初始化算子
+    // 初始化Matmul
     mmv3.Init(aGM_, bGM_, biasGM_, x2ScaleGM_, x1ScaleGM_, sendBuf_, workspaceGM_, 
               &qBmmTiling, GetTPipePtr(), cfg, isTail, false, preCoreNum_);
 
@@ -374,13 +374,15 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAivCommReducePipeline(
     const uint64_t rankSliceBytes = rankSliceElems * sizeof(CType);
     // All2All 步长 (元素数): (rankM / rankDim) * rankN
     const uint64_t stride = static_cast<uint64_t>(cfg.rankM / cfg.rankDim) * static_cast<uint64_t>(cfg.rankN);
+    // 通信重复次数, 1次
     const uint8_t repeat = 1;
+    // 若是尾块，通信 handleId 存放的起始偏移为 tileCnt
     const uint32_t handleShift = isTail ? cfg.tileCnt : 0;
 
     // 指针初始化
     GM_ADDR currSendPtr = sendGM; // 当前发送缓冲区起始地址
     GM_ADDR currRecvPtr = recvGM; // 当前接收缓冲区起始地址
-    GM_ADDR currOutPtr = isTail ? cGM_ + tileOffset_ : cGM_;
+    GM_ADDR currOutPtr = isTail ? cGM_ + tileOffset_ : cGM_; // 当前 reduceSum 输出的起始地址
 
     // --- Prologue: 启动第 0 轮通信 ---
     VecWaitCube(); // 确保依赖的 MatMul 已完成
@@ -388,7 +390,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAivCommReducePipeline(
         currSendPtr, currRecvPtr, rankSliceElems, dataType_, stride, repeat
     );
     
-    // 指针预移
+    // 移动指针准备下一轮
     currSendPtr += rankSliceBytes;
     currRecvPtr += rankSliceBytes;
     currOutPtr += rankSliceBytes;
