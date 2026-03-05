@@ -165,28 +165,51 @@ RopeWithSinCosCacheFP16<T>::GetCosSinCache(LocalTensor<T> inQueueCosSinCacheBefo
         uint64_t pos0 = position_id_GM.GetValue(offsetPos);
         uint64_t pos1 = position_id_GM.GetValue(offsetPos + this->num_tokens);
         uint64_t pos2 = position_id_GM.GetValue(offsetPos + 2 * this->num_tokens);
+        if (this->cacheMode == 0) {
+            uint8_t padding2 = ((this->mrope_section0 + this->mrope_section1) * sizeof(T) % BLOCK_SIZE) / sizeof(T);
+            this->VToMTE2Sync();
+            DataCopyPad(inQueueCosSinCacheBeforeCastLocal[this->mrope_section0 +
+                                                        static_cast<uint16_t>(this->mrope_section1) - padding2],
+                        cos_sin_cache_GM[pos2 * this->rotary_dim +
+                                        static_cast<uint16_t>(this->mrope_section0 + this->mrope_section1) + cosSinOffset],
+                        {1, static_cast<uint16_t>(this->mrope_section2 * sizeof(T)), 0, 0}, {true, padding2, 0, 0});
 
-        uint8_t padding2 = ((this->mrope_section0 + this->mrope_section1) * sizeof(T) % BLOCK_SIZE) / sizeof(T);
-        this->VToMTE2Sync();
-        DataCopyPad(inQueueCosSinCacheBeforeCastLocal[this->mrope_section0 +
-                                                      static_cast<uint16_t>(this->mrope_section1) - padding2],
-                    cos_sin_cache_GM[pos2 * this->rotary_dim +
-                                     static_cast<uint16_t>(this->mrope_section0 + this->mrope_section1) + cosSinOffset],
-                    {1, static_cast<uint16_t>(this->mrope_section2 * sizeof(T)), 0, 0}, {true, padding2, 0, 0});
-
-        uint8_t padding1 = (this->mrope_section0 * sizeof(T) % BLOCK_SIZE) / sizeof(T);
-        DataCopyPad(
-            copyBuf0Local,
-            cos_sin_cache_GM[pos1 * this->rotary_dim + static_cast<uint16_t>(this->mrope_section0) + cosSinOffset],
-            {1, static_cast<uint16_t>(this->mrope_section1 * sizeof(T)), 0, 0}, {true, padding1, 0, 0});
-        this->MTE2ToVSync();
-        Copy(inQueueCosSinCacheBeforeCastLocal[this->mrope_section0 - padding1], copyBuf0Local,
-             this->mrope_section1 + padding1, 1, {1, 1, 0, 0});
-        this->VToMTE2Sync();
-        DataCopyPad(copyBuf0Local, cos_sin_cache_GM[pos0 * this->rotary_dim + cosSinOffset],
-                    {1, static_cast<uint16_t>(this->mrope_section0 * sizeof(T)), 0, 0}, {false, 0, 0, 0});
-        this->MTE2ToVSync();
-        Copy(inQueueCosSinCacheBeforeCastLocal, copyBuf0Local, this->mrope_section0, 1, {1, 1, 0, 0});
+            uint8_t padding1 = (this->mrope_section0 * sizeof(T) % BLOCK_SIZE) / sizeof(T);
+            DataCopyPad(
+                copyBuf0Local,
+                cos_sin_cache_GM[pos1 * this->rotary_dim + static_cast<uint16_t>(this->mrope_section0) + cosSinOffset],
+                {1, static_cast<uint16_t>(this->mrope_section1 * sizeof(T)), 0, 0}, {true, padding1, 0, 0});
+            this->MTE2ToVSync();
+            Copy(inQueueCosSinCacheBeforeCastLocal[this->mrope_section0 - padding1], copyBuf0Local,
+                this->mrope_section1 + padding1, 1, {1, 1, 0, 0});
+            this->VToMTE2Sync();
+            DataCopyPad(copyBuf0Local, cos_sin_cache_GM[pos0 * this->rotary_dim + cosSinOffset],
+                        {1, static_cast<uint16_t>(this->mrope_section0 * sizeof(T)), 0, 0}, {false, 0, 0, 0});
+            this->MTE2ToVSync();
+            Copy(inQueueCosSinCacheBeforeCastLocal, copyBuf0Local, this->mrope_section0, 1, {1, 1, 0, 0});
+        } else if (this->cacheMode == 1) {
+            // 新的处理方式
+            this->VToMTE2Sync();
+            DataCopyPad(inQueueCosSinCacheBeforeCastLocal,
+                        cos_sin_cache_GM[pos0 * this->rotary_dim + cosSinOffset],
+                        {1, static_cast<uint16_t>(this->rotary_dim / 2 * sizeof(T)), 0, 0}, {false, 0, 0, 0});
+            float pos1Value = 0;
+            float pos2Value = 0;
+            uint32_t i = 0;
+            for (i = 0; i < this->rotary_dim / 2; i++) {
+                if (i < this->mrope_section1) {
+                    pos1Value = cos_sin_cache_GM.GetValue(pos1 * this->rotary_dim + cosSinOffset + i * 3 + 1);
+                    inQueueCosSinCacheBeforeCastLocal.SetValue(i * 3 + 1, pos1Value);
+                }
+                if (i < this->mrope_section2) {
+                    pos2Value = cos_sin_cache_GM.GetValue(pos2 * this->rotary_dim + cosSinOffset + i * 3 + 2);
+                    inQueueCosSinCacheBeforeCastLocal.SetValue(i * 3 + 2, pos2Value);
+                }
+                if (i > this->mrope_section1 && i > this->mrope_section2){
+                    break;
+                }
+            }            
+        }
     } else {
         uint64_t pos = position_id_GM.GetValue(offsetPos);
         this->VToMTE2Sync();
@@ -337,6 +360,7 @@ __aicore__ inline void RopeWithSinCosCacheFP16<T>::Compute(uint64_t index, uint6
 
     // 处理key
     this->MTE3ToVSync();
+    this->VToMTE2Sync();
     DataCopy(
         inQQueBeforeCastLocal, key_in_GM[key_in_offset],
         {static_cast<uint16_t>(loopN), static_cast<uint16_t>(this->num_kv_heads * headBlockLen / 2),
@@ -554,6 +578,7 @@ __aicore__ inline void RopeWithSinCosCacheFP16<T>::ComputeAlongHeads(uint64_t in
     }
     //key
     this->MTE3ToVSync();
+    this->VToMTE2Sync();
     if (indexHeads < this->loop_along_kheads) {
         uint64_t loopNKhead = (indexHeads == this->loop_along_kheads - 1 && this->num_kheads_last_loop != 0) ?
                                   this->num_kheads_last_loop :

@@ -23,7 +23,7 @@
 #include "kernel_operator_list_tensor_intf.h"
 #include "infer_flash_attention_comm.h"
 #include "infer_flash_attention_sparse.h"
-
+#define NUM_128 128
 using namespace matmul;
 
 TEMPLATE_INTF
@@ -61,6 +61,7 @@ __aicore__ inline void InitKVLeftPaddingSize(RunParamStr<isInfer>& runParam, con
     }
 }
 
+static constexpr uint32_t DIM_NUM2 = 2;
 TEMPLATE_INTF
 __aicore__ inline void GetKVSeqLengthForTensorList(RunParamStr<isInfer>& runParam,
     const ConstInfo<isInfer, hasRope>& constInfo, int32_t bIdx, GlobalTensor<INPUT_T>& keyGm)
@@ -72,7 +73,7 @@ __aicore__ inline void GetKVSeqLengthForTensorList(RunParamStr<isInfer>& runPara
         kvTensorDesc.SetShapeAddr(&dimInfo[0]);
         keyListTensorDesc.GetDesc(kvTensorDesc, bIdx);
         if constexpr (layout == LayOutTypeEnum::LAYOUT_BNSD) {
-            runParam.s2InCurrentBatch = kvTensorDesc.GetShape(2);
+            runParam.s2InCurrentBatch = kvTensorDesc.GetShape(DIM_NUM2);
         } else {
             runParam.s2InCurrentBatch = kvTensorDesc.GetShape(1);
         }
@@ -187,8 +188,13 @@ __aicore__ inline void AdjustActualS1Size(RunParamStr<isInfer>& runParam,
     }
 
     // 计算S1的尾块大小，非对齐
-    runParam.actualS1Size = (runParam.nextTokensPerBatch >= 0) ? runParam.actualS1Size :
-        (runParam.actualS1Size + runParam.nextTokensPerBatch);
+    if (runParam.nextTokensPerBatch >= 0) {
+        runParam.actualS1Size = runParam.actualS1Size;
+    } else if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+        runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch * constInfo.gSize;
+    } else {
+        runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch;
+    }
 
     if (runParam.actualS1Size < 0) { // 修正preToken/nextToken导致全无效场景的qs值
         runParam.actualS1Size = 0;
@@ -421,6 +427,9 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const C
         runParam.s1LoopTimes = s1LoopTimes;
     } else { // 最后一个bn, 从数组下一个元素取值
         runParam.s1LoopTimes = nextGs1Idx == 0 ? s1LoopTimes : nextGs1Idx;
+    }
+    if (constInfo.isGqa && constInfo.gSize > NUM_128 && layout == LayOutTypeEnum::LAYOUT_TND) {
+        runParam.s1LoopTimes = s1LoopTimes;
     }
 }
 

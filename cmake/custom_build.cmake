@@ -288,6 +288,12 @@ if (UT_TEST_ALL OR OP_HOST_UT OR OP_API_UT OR OP_KERNEL_UT OR OP_GRAPH_UT)
         add_subdirectory(tests/ut/framework_normal)
 endif()
 
+# 编译AICPU算子
+if("${ASCEND_OP_NAME}" STREQUAL "attention_worker_scheduler" OR "${ASCEND_OP_NAME}" STREQUAL "ffn_worker_scheduler")	 
+     add_subdirectory(examples/add_example)	 
+     list(APPEND OP_DIR_LIST ${CMAKE_CURRENT_SOURCE_DIR}/examples/${ASCEND_OP_NAME})	 
+endif()
+
 # 编译examples目录下算子
 foreach(EXAMPLES_OP_NAME ${ASCEND_OP_NAME})
     set(EXAMPLES_DIR "${OPS_TRANSFORMER_DIR}/examples/${EXAMPLES_OP_NAME}")
@@ -351,6 +357,12 @@ foreach (OP_DEPEND_DIR ${OP_DEPEND_DIR_LIST})
     endif ()
     if ( "${OP_DEPEND_DIR}" MATCHES ".*moe_inplace_index_add_with_sorted.*")
        list(APPEND OP_DIR_LIST ${OPS_TRANSFORMER_DIR}/moe/3rd/moe_inplace_index_add_with_sorted)
+    endif()
+    if ( "${OP_DEPEND_DIR}" MATCHES ".*moe_inplace_index_add.*")
+       list(APPEND OP_DIR_LIST ${OPS_TRANSFORMER_DIR}/moe/3rd/moe_inplace_index_add)
+    endif()
+    if ( "${OP_DEPEND_DIR}" MATCHES ".*moe_masked_scatter.*")
+       list(APPEND OP_DIR_LIST ${OPS_TRANSFORMER_DIR}/moe/3rd/moe_masked_scatter)
     endif()
 endforeach ()
 

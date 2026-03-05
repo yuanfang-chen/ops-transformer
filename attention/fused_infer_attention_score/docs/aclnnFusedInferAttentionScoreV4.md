@@ -16,7 +16,7 @@
 
 ## 功能说明
 
-- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV3，本接口新增dequantScaleQueryOptional、learnableSinkOptional、queryQuantMode参数。
+- 接口功能：适配decode & prefill场景的FlashAttention算子，既可以支持prefill计算场景（PromptFlashAttention），也可支持decode计算场景（IncreFlashAttention）。相比于FusedInferAttentionScoreV3，本接口新增dequantScaleQueryOptional、learnableSinkOptional、queryQuantMode参数,另外新增alibi的fullmask能力。
 
     **说明：** 
     decode场景下特有KV Cache：KV Cache是大模型推理性能优化的一个常用技术。采样时，Transformer模型会以给定的prompt/context作为初始输入进行推理（可以并行处理），随后逐一生成额外的token来继续完善生成的序列（体现了模型的自回归性质）。在采样过程中，Transformer会执行自注意力操作，为此需要给当前序列中的每个项目（无论是prompt/context还是生成的token）提取键值（KV）向量。这些向量存储在一个矩阵中，通常被称为kv缓存（KV Cache）。
@@ -33,10 +33,10 @@
     本算子中Score函数采用Softmax函数，self-attention计算公式为：
 
     $$
-    Attention(Q,K,V)=Softmax(\frac{QK^T}{\sqrt{d}})V
+    Attention(Q,K,V)=Softmax(\frac{QK^T}{\sqrt{d}} + FullMask)V
     $$
 
-    其中$Q$和$K^T$的乘积代表输入$x$的注意力，为避免该值变得过大，通常除以$d$的开根号进行缩放，并对每行进行softmax归一化，与$V$相乘后得到一个$n*d$的矩阵。
+    其中$Q$和$K^T$的乘积代表输入$x$的注意力，为避免该值变得过大，通常除以$d$的开根号进行缩放,加上alibi的fullmask，并对每行进行softmax归一化，与$V$相乘后得到一个$n*d$的矩阵。
 
     **说明**：
     <blockquote>query、key、value数据排布格式支持从多种维度解读，其中B（Batch）表示输入样本批量大小、S（Seq-Length）表示输入样本序列长度、H（Hidden-Size）表示隐藏层的大小、N（Head-Num）表示多头数、D（Head-Dim）表示隐藏层最小的单元尺寸，且满足D=H/N、T表示所有Batch输入样本序列长度的累加和。
@@ -292,7 +292,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
             <li>支持per-tensor、per-channel。</li></ul></td>
             <td>FLOAT32、BFLOAT16</td>
             <td>ND</td>
-            <td>输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]</td>
+            <td>见<a href="#INT8">int8量化场景</a></td>
             <td>×</td>
         </tr>
         <tr>
@@ -887,7 +887,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         - query，attentionOut所有tensor的shapeSize不为0，若有lse且lse不为空，并且key，value中所有tensor的shapeSize为0，属于空Tensor。
         - attentionOut和lse都为空时，属于空Tensor。
         - 属于空Tensor时，跳过校验流程；否则，走正常校验流程。
-
+- alibi fullmask场景约束
+  - innerPrecise为0；
+  - pseShiftOptional不为空，shape为[B, N, maxQ, maxKV];
+  - attenMaskOptional为空；
+  - spareMode为0。
 <details>
 
 <summary><a id="Mask"></a>Mask</summary>
@@ -1109,16 +1113,16 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
         </thead>
         <tbody>
             <tr>
-                <td rowspan="3">Q_S&gt;1时</td>
+                <td rowspan="3">P_S1(pse shape第三维)&gt;1时</td>
                 <td rowspan="3">query的数据类型</td>
                 <td>FLOAT16</td>
                 <td>FLOAT16</td>
-                <td rowspan="3">(B,Q_N,Q_S,KV_S)、(1,Q_N,Q_S,KV_S)</td>
+                <td rowspan="3">(B,Q_N,P_S1,P_S2)、(1,Q_N,P_S1,P_S2)</td>
                 <td rowspan="3">
                 <ul>
                 <li>query数据类型为FLOAT16且pseShift存在时，强制走高精度模式，对应的限制继承自高精度模式的限制。</li>
-                <li>Q_S需大于等于query的S长度，KV_S需大于等于key的S长度。prefix场景KV_S需大于等于actualSharedPrefixLen与key的S长度之和。</li>
-                <li>KV_S建议padding到32对齐，提升性能</li>
+                <li>P_S1需大于等于query的S长度，P_S2需大于等于key的S长度。prefix场景P_S2需大于等于actualSharedPrefixLen与key的S长度之和。</li>
+                <li>P_S2建议padding到32对齐，提升性能</li>
                 </ul>
                 </td>
             </tr>
@@ -1131,14 +1135,14 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>FLOAT16</td>
             </tr>
             <tr>
-                <td rowspan="2">Q_S=1时</td>
+                <td rowspan="2">P_S1(pse shape第三维)=1时</td>
                 <td rowspan="2">query的数据类型</td>
                 <td>FLOAT16</td>
                 <td>FLOAT16</td>
-                <td rowspan="2">(B,Q_N,1,KV_S)、(1,Q_N,1,KV_S)</td>
+                <td rowspan="2">(B,Q_N,1,P_S2)、(1,Q_N,1,P_S2)</td>
                 <td rowspan="2">
                 <ul>
-                <li>KV_S建议padding到32对齐，提升性能</li>
+                <li>P_S2建议padding到32对齐，提升性能</li>
                 <li>仅支持D轴对齐，即D轴可以被16整除。</li>
                 </ul>
                 </td>
@@ -1277,7 +1281,9 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
                 <td>支持 per-tensor/per-channel 两种格式和 FLOAT32/BFLOAT16 两种数据类型
                     <ul>
                     <li>当输入为BFLOAT16时，同时支持FLOAT32和BFLOAT16，否则仅支持FLOAT32。</li>
-                    <li>per-channel 格式：当输出layout为BSH时，要求 quantScale2 所有维度的乘积等于H；其他layout要求乘积等于N*D。（建议输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]）。</li>
+                    <li>per-channel 格式：当layout为BSH、BSND、BNSD、BNSD_BSND时，要求 quantScale2
+                        所有维度的乘积等于N*D(H)；其他layout要求shape为[N,D]。</li>
+                    <li>per-tensor 格式：仅支持shape为[1]。</li>
                     </ul>
                 </td>
             </tr>
@@ -1855,7 +1861,7 @@ BFLOAT16和INT8不区分高精度和高性能，行无效修正对FLOAT16、BFLO
         <td>128或512</td>
     </tr>
     <tr>
-        <td colspan="5">不支持左padding、tensorlist、pse、PagedAttention、prefix、后量化。</td>
+        <td colspan="5">不支持左padding、tensorlist、pse、prefix、后量化。</td>
     </tr>
     </tbody>
 </table>
