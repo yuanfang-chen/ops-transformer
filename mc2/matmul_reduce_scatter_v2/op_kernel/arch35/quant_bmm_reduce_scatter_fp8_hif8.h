@@ -55,12 +55,11 @@ private:
     __aicore__ inline void MatMulComputReduceScatter(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM,
                                                      DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
                                                      GM_ADDR sendGM, bool isLast, bool isTail);
-    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR aGM, GM_ADDR recvGM, 
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
-                                                     GM_ADDR sendGM, bool isLast, bool isTail);
+    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR recvGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling,
+                                                              uint32_t count, GM_ADDR sendGM, bool isLast, bool isTail);
     __aicore__ inline void MatMulComputReduceScatterPerblock(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM, 
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
-                                                     GM_ADDR sendGM, bool isTail);
+                                                             DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
+                                                             GM_ADDR sendGM, bool isTail);
     __aicore__ inline void PostProcess();  // 计算后处理, 终止hcclserver
     __aicore__ inline void PrepareTailConfig(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, bool isTail);
     __aicore__ inline void ExecuteAicMatMulPipeline(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
@@ -88,8 +87,8 @@ private:
     uint32_t rankId_{0};
     AscendC::HcclDataType dataType_{HCCL_DATA_TYPE_INT8};
     uint8_t debugMode_{0};
-    Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;        // CCU模式
-    AscendC::HcclHandle handles_[MAX_HANDLE];  // 最大支持64个handleId
+    Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;  // CCU模式
+    AscendC::HcclHandle handles_[MAX_HANDLE];          // 最大支持64个handleId
     uint64_t preCoreNum_ = 0;
     uint32_t batchWeight_[MAX_HANDLE] = {0};
     uint64_t aivNum_{0};
@@ -445,7 +444,6 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAivCommReducePipeline(
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
-    GM_ADDR aGM, 
     GM_ADDR recvGM, 
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
     uint32_t count,
@@ -551,7 +549,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatter(
     if constexpr (IsPerBlock) {
         MatMulComputReduceScatterPerblock(aGM, recvGM, x1ScaleGM, qBmmTiling, count, sendGM, isTail);
     } else {
-        MatMulComputReduceScatterPertensor(aGM, recvGM, qBmmTiling, count, sendGM, isLast, isTail);
+        MatMulComputReduceScatterPertensor(recvGM, qBmmTiling, count, sendGM, isLast, isTail);
     }
 }
 
