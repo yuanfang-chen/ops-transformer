@@ -18,7 +18,7 @@
 #include <cmath>
 #include <cstring>
 #include "acl/acl.h"
-#include "aclnnop/aclnn_fused_infer_attention_score_v4.h"
+#include "aclnnop/aclnn_fused_infer_attention_score_v5.h"
 #include "securec.h"
 
 using namespace std;
@@ -103,29 +103,34 @@ int main() {
     }
 
     // 2. To construct input and output, it is necessary to customize the construction according to the API interface.
-    std::vector<int64_t> queryShape = {1, 2, 1, 16}; // BNSD
+    std::vector<int64_t> queryShape = {1, 2, 2, 16}; // BNSD
     std::vector<int64_t> keyShape = {1, 2, 2, 16};   // BNSD
     std::vector<int64_t> valueShape = {1, 2, 2, 16}; // BNSD
-    std::vector<int64_t> attenShape = {1, 1, 1, 2};  // B 1 S1 S2
-    std::vector<int64_t> outShape = {1, 2, 1, 16};   // BNSD
+    std::vector<int64_t> pseShape = {2}; // N
+    std::vector<int64_t> attenShape = {1, 1, 2, 2};  // B 1 S1 S2
+    std::vector<int64_t> outShape = {1, 2, 2, 16};   // BNSD
     void *queryDeviceAddr = nullptr;
     void *keyDeviceAddr = nullptr;
     void *valueDeviceAddr = nullptr;
+    void *pseDeviceAddr = nullptr;
     void *attenDeviceAddr = nullptr;
     void *outDeviceAddr = nullptr;
     aclTensor *queryTensor = nullptr;
     aclTensor *keyTensor = nullptr;
     aclTensor *valueTensor = nullptr;
+    aclTensor *pseTensor = nullptr;
     aclTensor *attenTensor = nullptr;
     aclTensor *outTensor = nullptr;
     int64_t queryShapeSize = GetShapeSize(queryShape); // BNSD
     int64_t keyShapeSize = GetShapeSize(keyShape);     // BNSD
     int64_t valueShapeSize = GetShapeSize(valueShape); // BNSD
+    int64_t pseShapeSize = GetShapeSize(pseShape);
     int64_t attenShapeSize = GetShapeSize(attenShape); // B 1 S1 S2
     int64_t outShapeSize = GetShapeSize(outShape);     // BNSD
     std::vector<float> queryHostData(queryShapeSize, 1);
     std::vector<float> keyHostData(keyShapeSize, 1);
     std::vector<float> valueHostData(valueShapeSize, 1);
+    std::vector<float> pseHostData(pseShapeSize, 1);
     std::vector<float> attenHostData(attenShapeSize, 1);
     std::vector<float> outHostData(outShapeSize, 1);
 
@@ -151,6 +156,11 @@ int main() {
     aclTensor *tensorsOfValue[kvTensorNum];
     tensorsOfValue[0] = valueTensor;
     auto tensorValueList = aclCreateTensorList(tensorsOfValue, kvTensorNum);
+    // Create atten aclTensor.
+    ret = CreateAclTensor(pseHostData, pseShape, &pseDeviceAddr, aclDataType::ACL_FLOAT, &pseTensor);
+    if (!CHECK_RET(ret == ACL_SUCCESS)) {
+        return ret;
+    }
     // Create atten aclTensor.
     ret = CreateAclTensor(attenHostData, attenShape, &attenDeviceAddr, aclDataType::ACL_BOOL, &attenTensor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
@@ -179,18 +189,19 @@ int main() {
     bool softmaxLseFlag = false;
     int keyAntiquantMode = 0;
     int valueAntiquantMode = 0;
+    int64_t pseType = 2;
     // 3. Call CANN operator library API.
     uint64_t workspaceSize = 0;
     aclOpExecutor *executor;
     // Call the first interface.
-    ret = aclnnFusedInferAttentionScoreV4GetWorkspaceSize(
-        queryTensor, tensorKeyList, tensorValueList, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+    ret = aclnnFusedInferAttentionScoreV5GetWorkspaceSize(
+        queryTensor, tensorKeyList, tensorValueList, pseTensor, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut,
+        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, numHeads, scaleValue, preTokens, nextTokens, layerOut,
         numKeyValueHeads, sparseMode, innerPrecise, blockSize, antiquantMode, softmaxLseFlag, keyAntiquantMode,
-        valueAntiquantMode, 0, outTensor, nullptr, &workspaceSize, &executor);
+        valueAntiquantMode, 0, pseType, outTensor, nullptr, &workspaceSize, &executor);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnFusedInferAttentionScoreV4GetWorkspaceSize failed. ERROR: %d\n", ret);
+        LOG_PRINT("aclnnFusedInferAttentionScoreV5GetWorkspaceSize failed. ERROR: %d\n", ret);
         return ret;
     }
     // Apply for device memory based on the workspaceSize calculated from the first interface paragraph.
@@ -203,9 +214,9 @@ int main() {
         }
     }
     // Call the second interface.
-    ret = aclnnFusedInferAttentionScoreV4(workspaceAddr, workspaceSize, executor, stream);
+    ret = aclnnFusedInferAttentionScoreV5(workspaceAddr, workspaceSize, executor, stream);
     if (!CHECK_RET(ret == ACL_SUCCESS)) {
-        LOG_PRINT("aclnnFusedInferAttentionScoreV4 failed. ERROR: %d\n", ret); 
+        LOG_PRINT("aclnnFusedInferAttentionScoreV5 failed. ERROR: %d\n", ret); 
         return ret;
     }
 
