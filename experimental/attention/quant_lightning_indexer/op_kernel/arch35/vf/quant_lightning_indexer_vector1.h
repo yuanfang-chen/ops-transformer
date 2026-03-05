@@ -280,6 +280,75 @@ __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_, 
     }
 }
 
+// float in uint32 out
+__aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint32_t> &out,   // out    [S2Base]     [128   ] 2
+                                             const LocalTensor<float> &qk,       // q*k^t  [G, S2Base]  [64 128] 2
+                                             const LocalTensor<float> &weight,   // w      [G]          [64    ] 1
+                                             const LocalTensor<float> &kScale,   // kScale [S2Base]     [128   ] 2 
+                                             const LocalTensor<float> &qScale,   // qScale [G]          [64    ] 1
+                                             const int gSize)                    // G 64
+{
+    __local_mem__ float* weight_ = (__local_mem__ float*)weight.GetPhyAddr();
+    __local_mem__ float* qScale_ = (__local_mem__ float*)qScale.GetPhyAddr();
+
+    constexpr uint32_t VL = 64; // vector length
+
+    auto qk0 = (__local_mem__ float*)qk.GetPhyAddr();;
+    auto qk1 = qk0 + VL;
+    auto kScale0 = (__local_mem__ float*)kScale.GetPhyAddr();
+    auto kScale1 = kScale0 + VL;
+    auto out0 = (__local_mem__ uint32_t*)out.GetPhyAddr();
+    auto out1 = out0 + VL;
+
+    __VEC_SCOPE__
+    {
+        AscendC::MicroAPI::RegTensor<uint32_t> brcGatherIndex;
+        AscendC::MicroAPI::RegTensor<float> regQK[2];
+        AscendC::MicroAPI::RegTensor<float> regW;
+        AscendC::MicroAPI::RegTensor<float> regwBrc;        
+        AscendC::MicroAPI::RegTensor<float> regQScale;
+        AscendC::MicroAPI::RegTensor<float> regKScale[2];
+        AscendC::MicroAPI::RegTensor<float> regSum[2];
+
+        AscendC::MicroAPI::MaskReg maskAll = AscendC::MicroAPI::CreateMask<float, AscendC::MicroAPI::MaskPattern::ALL>();
+
+        FloatSortConstCtx<float> fp32Ctx;
+        InitFloatSortConstCtx(fp32Ctx, maskAll);
+
+        AscendC::MicroAPI::LoadAlign<float>(regW, weight_);
+        AscendC::MicroAPI::LoadAlign<float>(regQScale, qScale_);
+
+        AscendC::MicroAPI::Duplicate(regSum[0], 0.0f, maskAll);
+        AscendC::MicroAPI::Duplicate(regSum[1], 0.0f, maskAll);
+
+        AscendC::MicroAPI::LoadAlign<float>(regKScale[0], kScale0);
+        AscendC::MicroAPI::LoadAlign<float>(regKScale[1], kScale1); 
+        AscendC::MicroAPI::Mul(regW, regW, regQScale, maskAll);
+
+        for (uint16_t i = (uint16_t)(0); i < (uint16_t)(gSize); ++i) {
+            AscendC::MicroAPI::Duplicate(brcGatherIndex, i);
+            AscendC::MicroAPI::LoadAlign<float>(regQK[0], qk0 + 128 * i);
+            AscendC::MicroAPI::LoadAlign<float>(regQK[1], qk1 + 128 * i);
+            AscendC::MicroAPI::Gather(regwBrc, regW, brcGatherIndex);
+
+            AscendC::MicroAPI::Relu(regQK[0], regQK[0], maskAll);
+            AscendC::MicroAPI::Relu(regQK[1], regQK[1], maskAll);
+
+            AscendC::MicroAPI::MulAddDst(regSum[0], regQK[0], regwBrc, maskAll);
+            AscendC::MicroAPI::MulAddDst(regSum[1], regQK[1], regwBrc, maskAll);
+        }
+
+        AscendC::MicroAPI::Mul(regSum[0], regSum[0], regKScale[0], maskAll);
+        AscendC::MicroAPI::Mul(regSum[1], regSum[1], regKScale[1], maskAll);
+
+
+        AscendC::MicroAPI::RegTensor<uint32_t> regOut[2];
+        FloatX2ToSortableKey<float>(regOut[0], regOut[1], regSum[0], regSum[1], fp32Ctx, maskAll);
+
+        AscendC::MicroAPI::StoreAlign<uint32_t, AscendC::MicroAPI::StoreDist::DIST_NORM>(out0, regOut[0], maskAll);
+        AscendC::MicroAPI::StoreAlign<uint32_t, AscendC::MicroAPI::StoreDist::DIST_NORM>(out1, regOut[1], maskAll);
+    }
+}
 
 // bfloat16_t in uint16 out
 __aicore__ inline void MulWeightAndReduceSum(const LocalTensor<uint16_t> &out_,   // out    [S2Base]     [128   ]
