@@ -274,13 +274,13 @@ void MatmulAllReduceTilingBase::SetMCutSocVersion(SocVersion& inputSocVersion)
         OP_LOGD(opName_, "TileCnt enter 310P branch.");
         return;
     }
-    // __NPU_ARCH__ == 3510
+    // __DAV_C310__
     if (npuArch_ == NpuArch::DAV_3510) {
         inputSocVersion = SocVersion::SOC950;
         OP_LOGD(opName_, "TileCnt enter 3510 branch.");
         return;
     }
-    // end __NPU_ARCH__ == 3510
+    // end __DAV_C310__
     auto platformInfo = context_->GetPlatformInfo();
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
     uint64_t socMemSize = L2_CACHE_SIZE_910_B4;
@@ -481,14 +481,14 @@ ge::graphStatus MatmulAllReduceTilingBase::GetWorkspaceSize()
     MutableRCSTilingData().biasLen = biasLen;
     uint64_t gmcFloat = 0;
 
-    // __NPU_ARCH__ == 3510
+    // __DAV_C310__
     // 950需要自己申请一块workSpace存放mm的输出
     if (npuArch_ == NpuArch::DAV_3510) {
         gmcFloat = static_cast<uint64_t>(MutableRCSTilingData().rankM) *
                    static_cast<uint64_t>(MutableRCSTilingData().rankN) *
                    static_cast<uint64_t>(args_.outputDtypeSize);
     }
-    // end __NPU_ARCH__ == 3510
+    // end __DAV_C310__
 
     uint32_t mmOutInt32Len = 0;
     if (isUbQuant_) {
@@ -1527,6 +1527,8 @@ AntiQuantType MatmulAllReduceTilingBase::GetAntiQuantType()
 
 void MatmulAllReduceTilingBase::CalcUbTiling()
 {
+    // __DAV_C310__
+    // end __DAV_C310__
     const int64_t* commQuantModePtr = mmrCtxInfo_.commQuantModePtr;
     bool isPertile = false;
     if (commQuantModePtr != nullptr) {
