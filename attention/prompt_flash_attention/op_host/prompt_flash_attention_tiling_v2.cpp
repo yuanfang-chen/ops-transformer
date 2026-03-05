@@ -1685,6 +1685,10 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
         return false;
     }
 
+    if (queryShapeInfo.s > 256U && (queryShapeInfo.d % 64) != 0) {
+        return false;
+    }
+
     const int32_t nQ = *contextKeyParams.headsNumber;
     const int32_t nKV = *contextKeyParams.numKeyValueHeads;
     if ((nKV > 0) && (static_cast<uint32_t>(nQ / nKV) * queryShapeInfo.s > pfaMergeGSLimit)) {
@@ -2572,10 +2576,6 @@ bool PromptFlashAttentionTilingV2::CheckMaskTypeAndShape(ContextParamsForPFATili
     // 1: last frist dim, 2: last second dim
     maskKVsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 1);
     maskQsSize = attenMaskShape->GetStorageShape().GetDim(attenMaskShape->GetStorageShape().GetDimNum() - 2); // 2 for Q dim index
-    
-    if (enableIFAMask) {
-        maskQsSize = 1;
-    }
 
     tilingData.promptAttentionBaseParams.set_maskKVsSize(maskKVsSize);
     tilingData.promptAttentionBaseParams.set_maskQsSize(maskQsSize);
