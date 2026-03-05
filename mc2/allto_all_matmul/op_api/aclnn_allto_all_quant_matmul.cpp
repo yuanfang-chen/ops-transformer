@@ -162,15 +162,15 @@ static bool Check3DScaleShape(const aclTensor* x2, const aclTensor* x1Scale,
 // 校验输入Scaleshape
 static bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale, const aclTensor* x2Scale,
                             int64_t x1QuantMode, int64_t x2QuantMode, bool transposeX2) {
-    bool ScaleShapeValid = false;
+    bool ScaleShapeValid = true;
     if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
         OP_API_CHECK(!transposeX2, {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In the mx quantization scenario, x2 must be transposed.");
             return false;
         });
-        ScaleShapeValid = Check3DScaleShape(x2, x1Scale, x2Scale, transposeX2);
-    } else {
-        ScaleShapeValid = Check1DScaleShape(x2, x2Scale, transposeX2);
+        ScaleShapeValid = Check3DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
+    } else if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::DYN_PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
+        ScaleShapeValid = Check1DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
     }
     return ScaleShapeValid;
 }
@@ -413,8 +413,8 @@ static aclnnStatus CheckAndHandleParams(const aclTensor *x1, const aclTensor *x2
     // 2. 检查空tensor
     CHECK_RET(CheckNotEmptyTensor(x1, x2, transposeX2), ACLNN_ERR_PARAM_INVALID);
     // 3. 检查shape
-    CHECK_RET(CheckShapeAAMM(x1, x2, biasOptional, transposeX2, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
     if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
+        CHECK_RET(CheckShapeAAMM(x1, x2, biasOptional, transposeX2, output, alltoAllOutOptional), ACLNN_ERR_PARAM_INVALID);
         CHECK_RET(CheckScaleShape(x1, x2, x1ScaleOptional, x2Scale, x1QuantMode, x2QuantMode, transposeX2), ACLNN_ERR_PARAM_INVALID);
     }
     // 4. 检查输入的数据类型是否在API支持的数据类型范围之内，需要根据芯片型号和api定义校验
