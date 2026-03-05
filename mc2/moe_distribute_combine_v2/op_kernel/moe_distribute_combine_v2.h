@@ -413,22 +413,14 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitTilingAtt
 }
 
 template <CombineMC2TypeClass>
-<<<<<<< HEAD
 __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitAttrs(GM_ADDR mc2Context,
     const MoeDistributeCombineV2TilingData *tilingData)
-=======
-__aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::InitAttrs(GM_ADDR mc2Context, const MoeDistributeCombineV2TilingData *tilingData)
->>>>>>> 9c822fb7 (op kernel of mc2Context)
 {
     InitTilingAttrs(tilingData);
     uint32_t epRankIdHccl{0};
     uint32_t epWorldSizeHccl{0};
     if (isMc2Context_) {
-<<<<<<< HEAD
         // Using Mc2Context instead of hccl context
-=======
-        //Using Mc2Context instead of hccl context
->>>>>>> 9c822fb7 (op kernel of mc2Context)
         mc2Context_ = (__gm__ Mc2MoeContext*)mc2Context;
         epRankIdHccl = mc2Context_->epRankId;
         epWorldSizeHccl = tilingData->moeDistributeCombineV2Info.epWorldSize;
@@ -491,12 +483,8 @@ __aicore__ inline void MoeDistributeCombineV2<CombineMC2TypeFunc>::Init(
         residualX, gamma, expandX, expertIds, expandIdx, epSendCount, expertScales, xActiveMask, sharedExpertX, elasticInfo, oriX, constExpertAlpha1,
         constExpertAlpha2, constExpertV, performanceInfo, yOut, rstdOut, XOut);
 
-<<<<<<< HEAD
     if (tilingData->moeDistributeCombineV2Info.isMc2Context) {
         isMc2Context_ = true;
-=======
-    if (isMc2Context_) {
->>>>>>> 9c822fb7 (op kernel of mc2Context)
         mc2Context_ = (__gm__ Mc2MoeContext*)mc2Context;
     } else {
         auto realWinSize = Mc2Kernel::GetWinSize(epWinContext_);
