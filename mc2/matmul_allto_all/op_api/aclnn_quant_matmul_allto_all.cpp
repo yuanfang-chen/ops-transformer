@@ -159,14 +159,14 @@ static bool Check3DScaleShape(const aclTensor* x1, const aclTensor* x2, const ac
 // 校验输入Scaleshape
 static bool CheckScaleShape(const aclTensor* x1, const aclTensor* x2, const aclTensor* x1Scale, const aclTensor* x2Scale,
                             int64_t x1QuantMode, int64_t x2QuantMode, bool transposeX2) {
-    bool ScaleShapeValid = false;
+    bool ScaleShapeValid = true;
     if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::MX_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::MX_QUANT) {
         OP_API_CHECK(!transposeX2, {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "In the mx quantization scenario, x2 must be transposed.");
             return false;
         });
         ScaleShapeValid = Check3DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
-    } else {
+    } else if (static_cast<QuantModeType>(x1QuantMode) == QuantModeType::PERTOKEN_QUANT && static_cast<QuantModeType>(x2QuantMode) == QuantModeType::PERCHANNEL_QUANT) {
         ScaleShapeValid = Check1DScaleShape(x1, x2, x1Scale, x2Scale, transposeX2);
     }
     return ScaleShapeValid;
