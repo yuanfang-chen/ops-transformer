@@ -20,6 +20,7 @@
 #define ASCENDC_TPL_5_BW 5
 #define ASCENDC_TPL_10_BW 10
 #define ASCENDC_TPL_3_BW 3
+#define ASCENDC_TPL_8_BW 8
 
 #if (__CCE_AICORE__ == 310)
 #define PARSE_PARAMS_AntiQuant(inOutLayoutType, config, pseMode, ...) \
