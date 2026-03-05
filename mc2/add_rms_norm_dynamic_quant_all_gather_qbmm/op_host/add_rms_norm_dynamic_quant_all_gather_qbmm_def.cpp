@@ -96,6 +96,7 @@ class AddRmsNormDynamicQuantAllGatherQbmm : public OpDef {
     this->Attr("transpose_x2").AttrType(OPTIONAL).Bool(false);
     this->Attr("dtype").AttrType(OPTIONAL).Int(0);
     this->Attr("residual_norm_mode").AttrType(OPTIONAL).Int(0);
+    this->Attr("optional_output").AttrType(OPTIONAL).Bool(false);
 
     OpAICoreConfig aicore_config;
     aicore_config.DynamicCompileStaticFlag(true)
@@ -108,7 +109,6 @@ class AddRmsNormDynamicQuantAllGatherQbmm : public OpDef {
         .ExtendCfgInfo("jitCompile.flag", "static_true")  // 动态shape,复用二进制,后续图支持后修改
         .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
     
-    this->AICore().AddConfig("ascend910b", aicore_config);
     this->AICore().AddConfig("ascend910_93", aicore_config);
     this->MC2().HcclGroup("group");
   }

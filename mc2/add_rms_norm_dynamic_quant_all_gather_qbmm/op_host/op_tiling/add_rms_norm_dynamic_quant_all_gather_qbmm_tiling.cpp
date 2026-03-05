@@ -45,6 +45,7 @@ constexpr size_t RANK_SIZE_INDEX = 1;
 constexpr size_t TRANSPOSE_X2_INDEX = 2;
 constexpr size_t DTYPE_INDEX = 3;
 constexpr size_t RESIDUAL_NORM_MODE_INDEX = 4;
+constexpr size_t OPTIONAL_OUTPUT_INDEX = 5;
 constexpr size_t DIM_ZERO = 0;
 constexpr size_t DIM_ONE = 1;
 constexpr size_t DIM_TWO = 2;
@@ -158,13 +159,14 @@ static void SetTilingData(gert::TilingContext *context, AddRmsNormDynamicQuantAl
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @return
  */
-static void SetTilingKey(gert::TilingContext *context)
+static void SetTilingKey(gert::TilingContext *context, const bool isOptionalOutput)
 {
     const char *nodeName = context->GetNodeName();
     // 设置tilingKey模板参数
     // const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_COMM);
-    context->SetTilingKey(1);
-    // OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
+    uint64_t tilingKey = isOptionalOutput ? 1 : 0;
+    context->SetTilingKey(tilingKey);
+    OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
 }
 
 ge::graphStatus CheckAttrs(
@@ -194,6 +196,10 @@ ge::graphStatus CheckAttrs(
     const int64_t *residualNormModePtr = attrs->GetAttrPointer<int64_t>(RESIDUAL_NORM_MODE_INDEX);
     OP_TILING_CHECK(residualNormModePtr == nullptr, OP_LOGE(nodeName, "residualNormModePtr is nullptr."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(*residualNormModePtr != 0, OP_LOGE(nodeName, "residualNormMode only supports 0 currently."), return ge::GRAPH_FAILED);
+    // 可选输出校验
+    const bool *optionalOutputPtr = attrs->GetAttrPointer<bool>(OPTIONAL_OUTPUT_INDEX);
+    OP_TILING_CHECK(optionalOutputPtr == nullptr, OP_LOGE(nodeName, "optionalOutputPtr is nullptr."), return ge::GRAPH_FAILED);
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput = *optionalOutputPtr;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -480,7 +486,7 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     OP_TILING_CHECK(SetHcommCfg(context, tilingData) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
     SetTilingData(context, *tilingData);
-    SetTilingKey(context);
+    SetTilingKey(context, tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput);
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
     uint32_t mAlign = ((tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize) + \

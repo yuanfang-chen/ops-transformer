@@ -37,6 +37,7 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t N = 0;
     uint32_t aivNum = 0;
     uint32_t rankSize = 0;
+    bool isOptionalOutput = false;
 };
 
 struct QbmmParams {

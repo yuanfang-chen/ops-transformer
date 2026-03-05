@@ -43,6 +43,7 @@ extern "C" {
  * @param [in] transposeX2: x2是否转置，数据类型支持：bool，当前只支持false。
  * @param [in] dtype: 输出类型，数据类型支持：int64，当前只支持-1，即int8。
  * @param [in] residualNormMode: 暂未使用，数据类型支持：int64，当前只支持0。
+ * @param [in] outputOptional: 是否输出中间过程ARN、DynamicQuant以及AllGather的结果，数据类型支持：bool。
  * @param [out] output: 整体输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
  * @param [out] z: x1+y+residual的输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
  * @param [out] addRmsNormOut: ARN的输出，不支持空Tensor，数据类型支持BFLOAT16、FLOAT16，数据格式支持ND。
@@ -56,8 +57,8 @@ extern "C" {
 ACLNN_API aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
-    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z, aclTensor* addRmsNormOut,
-    aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, bool outputOptional, aclTensor* output, aclTensor* z,
+    aclTensor* addRmsNormOut, aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 
 /**

@@ -39,9 +39,9 @@ namespace ge {
  * @li group: A required string identifying the group of ranks participating in the op.
  * @li ranksize: A required int identifying the rank size. Default: 0.
  * @li transpose_x2: An optional bool identifying the transpose of x2. Default: "false".
- * @li dtype: An optional int identifying the data type of output. The type support 0(float), 1(float16),
- * 27(bfloat16). Default: 27(bfloat16).
+ * @li dtype: An optional int identifying the data type of output. Default: -1.
  * @li residual_norm_mode: A required int identifying the norm mode. Default: 0.
+ * @li optional_output: A required int identifying the output optionally. Default: 0.
  */
 REG_OP(AddRmsNormDynamicQuantAllGatherQbmm)
     .INPUT(x1, TensorType({DT_BF16, DT_FLOAT16}))
@@ -63,6 +63,7 @@ REG_OP(AddRmsNormDynamicQuantAllGatherQbmm)
     .ATTR(transpose_x2, Bool, false)
     .ATTR(dtype, Int, 0)
     .ATTR(residual_norm_mode, Int, 0)
+    .ATTR(optional_output, Bool, false)
     .OP_END_FACTORY_REG(AddRmsNormDynamicQuantAllGatherQbmm)
 } // namespace ge
 
