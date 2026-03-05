@@ -20,7 +20,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "platform/platform_ascendc.h"
 #include "ascendc/host_api/tiling/template_argument.h"
 
-#include "op_kernel/grouped_matmul_tiling.h"
+#include "common/op_kernel/grouped_matmul_tiling.h"
 
 #include "grouped_matmul_torch.h"
 

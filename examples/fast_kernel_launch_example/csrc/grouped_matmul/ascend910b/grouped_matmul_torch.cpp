@@ -19,7 +19,7 @@
 
 #include "kernel_operator.h"
 
-#include "op_kernel/grouped_matmul_kernel.h"
+#include "common/op_kernel/grouped_matmul_kernel.h"
 
 
 namespace ascend_ops {

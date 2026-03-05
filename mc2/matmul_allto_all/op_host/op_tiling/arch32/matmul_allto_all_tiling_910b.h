@@ -17,8 +17,8 @@
 #define MATMUL_ALLTO_ALL_TILING_910B_H
 
 #include "securec.h"
-#include "op_tiling/mc2_matmul_tiling_cfg.h"
-#include "op_tiling/new_mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_matmul_tiling_cfg.h"
+#include "common/op_tiling/new_mc2_tiling_utils.h"
 #include "../matmul_allto_all_tiling_base.h"
 #include "../common/matmul_allto_all_util_tiling.h"
 #include "../../../op_kernel/arch32/matmul_allto_all_tiling.h"
