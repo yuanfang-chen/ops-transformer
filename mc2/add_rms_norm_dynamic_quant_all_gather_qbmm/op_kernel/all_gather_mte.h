@@ -201,7 +201,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
     xTmpTensor = xInQueue_.DeQue<int8_t>();
     DataCopyPad(localWinXTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
     // 调试输出
-    DataCopyPad(allGatherXOutTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
+    if constexpr (isOptionalOutput) {
+        DataCopyPad(allGatherXOutTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
+    }
     xInQueue_.FreeTensor(xTmpTensor);
 }
 
@@ -215,7 +217,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
     DataCopyPad(localWinScaleTensor_, scaleTmpTensor, scalesCopyParams_);
     // 调试输出
-    DataCopyPad(allGatherScaleOutTensor_, scaleTmpTensor, scalesCopyParams_);
+    if constexpr (isOptionalOutput) {
+        DataCopyPad(allGatherScaleOutTensor_, scaleTmpTensor, scalesCopyParams_);
+    }
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 
@@ -260,7 +264,8 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
     // 本端对应rank win区数据地址
     uint32_t localRankId = mteComm_.hcclContext_->localUsrRankId;
     // TODO: 正确位置如下，调试完毕后需要修改回来
-    GM_ADDR localDataGm = mteComm_.GetWinDataAddrGm(localRankId) + remoteRankId_ * xSize_;
+    GM_ADDR localWinGm = mteComm_.GetWinDataAddrGm(localRankId);
+    GM_ADDR localDataGm = localWinGm + remoteRankId_ * xSize_;
     localWinXTensor_.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
     GM_ADDR allGatherOutDataGm = allGatherDataAddr + remoteRankId_ * xSize_;
     allGatherXOutTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherOutDataGm);
@@ -270,7 +275,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         GM_ADDR remoteScaleGm = mteComm_.GetWinDataAddrGm(remoteRankId_) + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
         remoteWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)remoteScaleGm);
         // TODO: 正确位置如下，调试完毕后需要修改回来
-        GM_ADDR localScaleGm = localDataGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
+        GM_ADDR localScaleGm = localWinGm + mteComm_.winDataSize_ + remoteRankId_ * scaleSize_;
         localWinScaleTensor_.SetGlobalBuffer((__gm__ ScalesType*)localScaleGm);
         GM_ADDR allGatherOutScaleGm = allGatherScalesAddr + remoteRankId_ * scaleSize_;
         allGatherScaleOutTensor_.SetGlobalBuffer((__gm__ ScalesType*)allGatherOutScaleGm);

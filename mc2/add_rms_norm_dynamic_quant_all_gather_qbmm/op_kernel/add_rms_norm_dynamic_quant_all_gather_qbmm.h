@@ -35,8 +35,8 @@
 
 namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
-#define TemplateMC2TypeClass typename X1Type, bool IsScaleExist, bool IsSmoothScaleExist
-#define TemplateMC2TypeFunc X1Type, IsScaleExist, IsSmoothScaleExist
+#define TemplateMC2TypeClass typename X1Type, bool isOptionalOutput, bool IsSmoothScaleExist
+#define TemplateMC2TypeFunc X1Type, isOptionalOutput, IsSmoothScaleExist
 using namespace AscendC;
 using namespace AllGatherImpl;
 
@@ -87,7 +87,7 @@ private:
     __aicore__ inline void DequantProcess();
 
     TPipe *tpipe_{nullptr};
-    AllGatherMte<int8_t, float, int8_t> allGatherMte_;  // allGather 相关实现
+    AllGatherMte<int8_t, float, int8_t, isOptionalOutput> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -98,6 +98,8 @@ private:
     GlobalTensor<int32_t> biasGMTensor_; // 类型确定
     GlobalTensor<int8_t> x1WinGMTensor_; // 类型确定
     GlobalTensor<float> scaleWinGMTensor_; // 类型确定
+    GlobalTensor<int8_t> x1AllGatherWinTensor_;
+    GlobalTensor<float> pertokenScaleGmTensor_;
     GlobalTensor<X1Type> outputGMTensor_;
     GlobalTensor<X1Type> zGMTensor_;
     GlobalTensor<X1Type> addRmsNormOutGMTensor_;   // TODO: 仅调试用
@@ -106,6 +108,7 @@ private:
     GlobalTensor<float> allGatherScalesOutGMTensor_;   // TODO: 仅调试用
     GM_ADDR allGatherDataOutAddr_;    // TODO: 仅调试用
     GM_ADDR allGatherScalesOutAddr_;    // TODO: 仅调试用
+    GM_ADDR allGatherScalesWinAddr_;
     
     LocalTensor<X1Type> x1Tensor_;
     LocalTensor<int8_t> x2Tensor_;
@@ -125,11 +128,11 @@ private:
     TBuf<> weightTempBuf_;
     TBuf<> dynamicScaleBuf_;
     TBuf<> stateResetBuf_;
+    TBuf<> addRmsNormOutBuf_;
 
     TQue<QuePosition::VECIN, 1> inQueue_;
     TQue<QuePosition::VECOUT, 1> x1OutQueue_;
     TQue<QuePosition::VECOUT, 1> zOutQueue_;
-    TQue<QuePosition::VECOUT, 1> addRmsNormOutQueue_;
 
     uint32_t aivId_{0};
     uint32_t aicId_{0};
@@ -229,7 +232,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(zOutQueue_, BUFFER_NUM, axisKaAlignSize_); // 修改
-    tpipe_->InitBuffer(addRmsNormOutQueue_, BUFFER_NUM, axisKaAlignSize_); // 修改
     tpipe_->InitBuffer(x1OutQueue_, BUFFER_NUM, axisKaAlignInt8Size_); // 修改
     tpipe_->InitBuffer(gammaBuf_, axisKaAlignFloatSize_); // 对齐32B
     tpipe_->InitBuffer(smoothScaleBuf_, axisKaAlignFloatSize_); // 对齐32B
@@ -239,6 +241,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     smoothScaleTensor_ = smoothScaleBuf_.Get<float>();
     xLocalTensorFp32_ = x1TempBuf_.Get<float>();
     yLocalTensorFp32_ = yTempBuf_.Get<float>();
+    if constexpr (isOptionalOutput) {
+        tpipe_->InitBuffer(addRmsNormOutBuf_, axisKaAlignSize_);
+    }
 
     uint64_t winOffset = Ceil(rankSize_ * axisM_ * axisKa_ * sizeof(int8_t), WIN_ALIGN) * WIN_ALIGN;
     GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn);
@@ -246,6 +251,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
     scaleWinGMTensor_.SetGlobalBuffer((__gm__ float*)dynamicScaleWinGM);
+    // mm计算: x和pertoken_scale在本端win区，weight和scale在inputGM
+    x1AllGatherWinTensor_.SetGlobalBuffer((__gm__ int8_t*)selfRankAddr);
+    allGatherScalesWinAddr_ = (__gm__ uint8_t*)(selfRankAddr + winOffset);
+    pertokenScaleGmTensor_.SetGlobalBuffer((__gm__ float*)allGatherScalesWinAddr_);
 
     InitTilingData(tilingData);
     tilingData_ = tilingData;
@@ -362,7 +371,11 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
     // Copy out z
     LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
-    Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+    if constexpr (is_same<X1Type, half>::value) {
+        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
+    } else { // BF16
+        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+    }
     PipeBarrier<PIPE_V>();
     zOutQueue_.EnQue(zOutLocalTensor);
     zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
@@ -390,17 +403,17 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
 
     // CopyOut addRmsNormOut
-    LocalTensor<X1Type> addRmsNormOutLocalTensor = addRmsNormOutQueue_.AllocTensor<X1Type>();
-    if constexpr (is_same<X1Type, half>::value) {
-        Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
-    } else { // BF16
-        Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+    if constexpr (isOptionalOutput) {
+        LocalTensor<X1Type> addRmsNormOutLocalTensor = addRmsNormOutBuf_.Get<X1Type>();
+        if constexpr (is_same<X1Type, half>::value) {
+            Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
+        } else { // BF16
+            Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+        }
+        PipeBarrier<PIPE_V>();
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        DataCopyEx(addRmsNormOutGMTensor_[gmOffset], addRmsNormOutLocalTensor, axisKa_);
     }
-    PipeBarrier<PIPE_V>();
-    addRmsNormOutQueue_.EnQue(addRmsNormOutLocalTensor);
-    addRmsNormOutLocalTensor = addRmsNormOutQueue_.DeQue<X1Type>();
-    DataCopyEx(addRmsNormOutGMTensor_[gmOffset], addRmsNormOutLocalTensor, axisKa_);
-    addRmsNormOutQueue_.FreeTensor<X1Type>(addRmsNormOutLocalTensor);
 }
 
 template<TemplateMC2TypeClass>
@@ -437,7 +450,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         x1OutLocalTensor_ = x1OutQueue_.DeQue<int8_t>();
         DataCopyEx(x1WinGMTensor_[gmOffset], x1OutLocalTensor_, axisKa_);
         // copy out to dynamicQuantOut, too
-        DataCopyEx(dynamicQuantOutGMTensor_[gmOffset], x1OutLocalTensor_, axisKa_);
+        if constexpr (isOptionalOutput) {
+            DataCopyEx(dynamicQuantOutGMTensor_[gmOffset], x1OutLocalTensor_, axisKa_);
+        }
         x1OutQueue_.FreeTensor(x1OutLocalTensor_);
         gmOffset += axisKa_;
     }
@@ -487,13 +502,7 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MMCompute(
     uint32_t singleCoreM, uint32_t singleCoreN, uint32_t kBlockIdx)
 {
-    // mm计算: x和pertoken_scale在本端win区，weight和scale在inputGM
-    GlobalTensor<int8_t> x1WinGlobalTensor;
-    GM_ADDR localDataGm = (GM_ADDR)(winContext_->localWindowsIn);
-    x1WinGlobalTensor.SetGlobalBuffer((__gm__ int8_t*)localDataGm);
-    // x1WinGlobalTensor.SetGlobalBuffer((__gm__ int8_t*)outputAddr_);
-
-    mm_.SetTensorA(x1WinGlobalTensor[offsetA_], false);
+    mm_.SetTensorA(x1AllGatherWinTensor_[offsetA_], false);
     mm_.SetTensorB(x2GMTensor_[offsetB_], false);
     mm_.DisableBias();
     // 暂不支持bias
@@ -707,11 +716,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         LocalTensor<float> broadcastFp32 = broadcastFp32Tmp_.Get<float>();
         LocalTensor<float> pertokenScaleLocal = vecQuePertokenScale_.AllocTensor<float>();
 
-        GlobalTensor<float> pertokenScaleGm;
-        // GM_ADDR pertokenScaleGmAddr = (GM_ADDR)((winContext_->localWindowsIn) + 252*5120);
-        // pertokenScaleGlobalTensor.SetGlobalBuffer((__gm__ float*)pertokenScaleGmAddr);
-        pertokenScaleGm.SetGlobalBuffer((__gm__ float*)allGatherScalesOutAddr_);
-        DataCopyPad(pertokenScaleLocal, pertokenScaleGm[scaleOffset], scale2UbParams, padParams);
+        DataCopyPad(pertokenScaleLocal, pertokenScaleGmTensor_[scaleOffset], scale2UbParams, padParams);
         vecQuePertokenScale_.EnQue<float>(pertokenScaleLocal);
         pertokenScaleLocal = vecQuePertokenScale_.DeQue<float>();
 

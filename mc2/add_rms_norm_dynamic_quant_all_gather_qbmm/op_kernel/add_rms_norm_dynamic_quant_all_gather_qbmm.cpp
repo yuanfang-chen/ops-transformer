@@ -43,13 +43,19 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     GET_TILING_DATA_WITH_STRUCT(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingData, tilingGM);
     // GET_TILING_DATA(tilingData, tiling);
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
-    if (TILING_KEY_IS(1)) {
+    if (TILING_KEY_IS(0)) {
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, false, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, addRmsNormOut, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
         // AscendC::PRINTF("kernel TILING_KEY_IS(1) !!!");
+    } else if (TILING_KEY_IS(1)) { // 中间过程结果全输出
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
+        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, true, false> op;
+        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, addRmsNormOut, dynamicQuantOut,
+                allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
+        op.Process();
     }
     // if (TILING_KEY_IS(0)) {
     //     // 0 Tiling, Do Nothing.

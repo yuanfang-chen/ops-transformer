@@ -38,8 +38,8 @@ constexpr static uint32_t X_BLOCK_BYTES = 512U;    // 当前一个x数据块固�
 constexpr static uint32_t SCALES_BLOCK_BYTES = 256U;     // 63*4B并按照32B对齐
 constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // win区数据部分512B对齐
 
-#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType
-#define AllGatherTemplateType XType, ScalesType, OutputType
+#define AllGatherTemplateTypeClass typename XType, typename ScalesType, typename OutputType, bool isOptionalOutput
+#define AllGatherTemplateType XType, ScalesType, OutputType, isOptionalOutput
 
 template<AllGatherTemplateTypeClass>
 class MTECommunication {
