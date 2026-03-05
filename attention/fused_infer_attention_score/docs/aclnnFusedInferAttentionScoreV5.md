@@ -1172,7 +1172,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
             <tr>
                 <td rowspan="1">1</td>
-                <td colspan="3">"不支持FA推理场景，仅支持FA训练场景"</td>
+                <td colspan="3">不支持FA推理场景，仅支持FA训练场景</td>
                 <td colspan="1">-</td>
                 <td colspan="1">-</td>
                 <td colspan="1">-</td>
