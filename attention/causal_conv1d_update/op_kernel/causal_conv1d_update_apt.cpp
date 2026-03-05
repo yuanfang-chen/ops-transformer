@@ -13,7 +13,7 @@
  * \brief CausalConv1dUpdate kernel entry point
  */
 
-#include "causal_conv1d_update.h"
+#include "arch35/causal_conv1d_update.h"
 
 #define TILING_KEY_BASE 30000
 

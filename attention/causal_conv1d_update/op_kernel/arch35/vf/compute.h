@@ -118,3 +118,5 @@ __aicore__ inline void Conv1dNoNeedState(LocalTensor<T> &xUb, LocalTensor<T> &we
     __ubuf__ T * yAddr = (__ubuf__ T *)yUb.GetPhyAddr();
     Conv1dNoNeedStateVF(xAddr, weightAddr, yAddr, xSLen, dimLen);
 }
+
+#endif
