@@ -42,12 +42,16 @@ public:
         mc2TilingData_ = (Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailMmASTiling.matmulTiling;
         this->tileInfo_.mmTiling = &mc2TilingData_->tileMmASTiling.matmulTiling;
+        this->allReduceBasedAtaSumAg_ = &mc2TilingData_->allReduceBasedAtaSumAg;
     }
     __aicore__ inline void Process()
     {
         InnerProcess(false, this->paramInTiling_->tileCnt, this->tileInfo_);
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
+        }
+        if (this->allReduceBasedAtaSumAg_){
+            this->ReduceSumAndAllGather();
         }
         this->HcclFinalize();
     }
@@ -65,7 +69,11 @@ protected:
                 this->quantAddrs_->antiquantOffsetGM, nullptr, nullptr, this->addrs_->biasGM, this->addrs_->cGM,
                 this->addrs_->workspaceGM, tiling, this->tPipe_);
             mmOp.Process();
-            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset);
+            const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
+            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
+        }
+        if (this->allReduceBasedAtaSumAg_){
+            this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
 
