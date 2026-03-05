@@ -33,9 +33,9 @@ void MMPlusAllReduce::SetCommTimeFactorForOther()
 void MMPlusAllReduce::SetCommTimeFactor()
 {
     if (clusterInfo_.socType == SocVersion::SOC950) {
-        // __NPU_ARCH__ == 3510
+        // __DAV_C310__
         SetCommTimeFactorForA5();
-        // end __NPU_ARCH__ == 3510
+        // end __DAV_C310__
     } else {
         SetCommTimeFactorForOther();
     }
