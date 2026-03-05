@@ -117,6 +117,14 @@ ASCENDC_TPL_ARGS_DECL(FusedInferAttentionScore,
     //    0: false
     //    1: true
     ASCENDC_TPL_BOOL_DECL(EnableKVPrefix, false, true),
+    //    bit 46-39 QKV_DType
+    //    0: PFAMatMulType_MM_PFA
+    //    1: PFAMatMulType_MM_PA
+    //    2: PFAMatMulType_MM_IFA_MLA
+    //    3: PFAMatMulType_MM_IFA_MLA_PA
+    //    4: PFAMatMulType_MM_PA_D512
+    //    5: PFAMatMulType_MM_DN
+    ASCENDC_TPL_UINT_DECL(QKV_DType, ASCENDC_TPL_8_BW, ASCENDC_TPL_UI_RANGE, 1, 0, 127),
 );
 
 ASCENDC_TPL_SEL(
