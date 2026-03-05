@@ -25,6 +25,7 @@
 
 #include "kernel_operator.h"
 #include "./vf/compute.h"
+#include "causal_conv1d_fn_struct.h"
 
 namespace CausalConv1dFnNs {
 
@@ -66,7 +67,7 @@ public:
         GM_ADDR hasInitialState,
         GM_ADDR y,
         GM_ADDR workspace,
-        const CasualConv1dFnTilingData* tiling);
+        const CausalConv1dFnTilingData* tiling);
 
     __aicore__ inline void Process();
 
@@ -243,7 +244,7 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     GM_ADDR hasInitialState,
     GM_ADDR y,
     GM_ADDR workspace,
-    const CasualConv1dFnTilingData* tiling)
+    const CausalConv1dFnTilingData* tiling)
 {
     // --- 解析 tiling ---
     cuSeqLen_                  = tiling->cuSeqLen;
@@ -520,7 +521,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNeedCache(
             uint32_t stateSLen = K - 1 - seqPos;
             uint32_t xSLen = seqPos + 1;
             Conv1dNeedState(xLocal[i * dimSize], weightLocal, cacheLocal[seqPos * dimSize],
-                            cacheLocal[seqPos * dimSize], stateSLen, xSLen);
+                            cacheLocal[seqPos * dimSize], stateSLen, xSLen, dimSize);
         }
     }
 
@@ -563,7 +564,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNoCache(
     for (uint32_t j = 0; j < step; j++) {
         uint32_t tokenIdx = i + j;
         Conv1dNoNeedStateVF(xLocal[tokenIdx * dimSize], weightLocal,
-                            xLocal[tokenIdx * dimSize], K);
+                            xLocal[tokenIdx * dimSize], K, dimSize);
     }
 
     // 写回 y
