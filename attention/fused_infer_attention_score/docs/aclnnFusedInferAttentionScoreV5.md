@@ -1401,8 +1401,8 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <tr>
                 <td colspan="8">
                     <ul>
-                        <li>当伪量化参数 和 KV分离量化参数同时传入时，以KV分离量化参数为准</li>
-                        <li>INT4（INT32）、FLOAT4_E2M1伪量化场景不支持后量化</li>
+                        <li>INT4(INT32)、FLOAT4_E2M1伪量化场景不支持后量化</li>
+                        <li>INT8伪量化场景下，当keyAntiquantMode=0且valueAntiquantMode=1时，query和output仅支持FP16</li>
                     </ul>
                 <td>
             <tr>
