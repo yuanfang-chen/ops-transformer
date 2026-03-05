@@ -767,7 +767,7 @@ public:
         uint32_t rowOffset, uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
         uint32_t isFirstRowLoop, uint32_t isLastRowLoop,
         uint32_t columnNumRound, uint32_t pingpongFlag,
-        uint32_t curStackTileMod)
+        uint32_t curStackTileMod, Arch::CrossCoreFlag softmaxFlag)
     {
         uint32_t rowNumCurLoop = layoutOutput.shape(0);
         uint32_t rowNumCurLoopRound = RoundUp(rowNumCurLoop, FLOAT_BLOCK_SIZE);
@@ -812,6 +812,9 @@ public:
         } else {
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
         }
+        if (isLastRowLoop) {
+            NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxFlag);
+        }
         UpdateGlobalRowSum(
             sUbOffset, rowNumCurLoop, rowNumCurLoopRound, dmUbOffsetCurCycle, rowOffset, isFirstStackTile);
     }
@@ -820,7 +823,7 @@ public:
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementInput> gInput,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
         uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
-        uint32_t qSBlockSize, uint32_t qNBlockSize, uint32_t curStackTileMod)
+        uint32_t qSBlockSize, uint32_t qNBlockSize, uint32_t curStackTileMod, Arch::CrossCoreFlag softmaxFlag)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
@@ -842,6 +845,11 @@ public:
         rowNumTile = AscendC::Std::min(rowNumTile, FLOAT_VECTOR_SIZE);
         uint32_t rowLoopNum = CeilDiv(rowActualThisSubBlock, rowNumTile);
         uint32_t preLoad = 1;
+
+        if (rowActualThisSubBlock == 0) {
+            NpuArch::Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxFlag);
+            return;
+        }
 
         for (uint32_t rowLoopIdx = 0; rowLoopIdx < rowLoopNum + preLoad; rowLoopIdx++) {
             if (rowLoopIdx < rowLoopNum) {
@@ -882,7 +890,8 @@ public:
                     (delayedRowLoopIdx == rowLoopNum - 1),
                     columnNumRound,
                     pingpongFlag,
-                    curStackTileMod);
+                    curStackTileMod,
+                    softmaxFlag);
             }
         }
     }
@@ -892,7 +901,7 @@ public:
         AscendC::GlobalTensor<ElementMask> gMask, const LayoutOutput &layoutOutput, const LayoutInput &layoutInput,
         const LayoutInput &layoutMask, GemmCoord actualBlockShape, uint32_t isFirstStackTile, uint32_t qSBlockSize,
         uint32_t qNBlockSize, uint32_t curStackTileMod, Arch::CrossCoreFlag qkReady, uint32_t triUp, uint32_t triDown,
-        uint32_t kvSStartIdx, uint32_t kvSEndIdx)
+        uint32_t kvSStartIdx, uint32_t kvSEndIdx, Arch::CrossCoreFlag softmaxFlag)
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t columnNum = actualBlockShape.n();
@@ -1038,7 +1047,8 @@ public:
                     (delayedRowLoopIdx == rowLoopNum - 1),
                     columnNumRound,
                     pingpongFlag,
-                    curStackTileMod);
+                    curStackTileMod,
+                    softmaxFlag);
             }
         }
     }
