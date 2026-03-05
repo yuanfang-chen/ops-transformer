@@ -669,7 +669,6 @@ and greater or equal to 4, but actual value is %lu.",
         return true;
     }
 
-
     bool CheckInputOutShapeForMX()
     {
         if (!CheckMXTranspose()) {

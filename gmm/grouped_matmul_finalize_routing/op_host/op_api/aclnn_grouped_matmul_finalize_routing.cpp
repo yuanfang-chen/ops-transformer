@@ -1266,7 +1266,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingV2(void *workspace, uint64_t worksp
     return CommonOpExecutorRun(workspace, workspaceSize, executor, stream);
 }
 
-static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, aclTensor *x2, const aclTensor *scaleOptional,
+static inline aclnnStatus CheckSupportSceneforV3(const aclTensor *x1, const aclTensor *x2, const aclTensor *scaleOptional,
                                                  const aclTensor *groupListOptional,
                                                  const aclTensor *pertokenScaleOptional, const aclTensor *logitOptional,
                                                  const aclTensor *rowIndexOptional,
