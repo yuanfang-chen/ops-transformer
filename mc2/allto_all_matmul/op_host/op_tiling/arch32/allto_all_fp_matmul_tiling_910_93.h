@@ -18,8 +18,8 @@
 
 #include <string>
 #include "securec.h"
-#include "op_tiling/mc2_matmul_tiling_cfg.h"
-#include "op_tiling/new_mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_matmul_tiling_cfg.h"
+#include "common/op_tiling/new_mc2_tiling_utils.h"
 #include "mc2/3rd/mat_mul_v3/op_host/op_tiling/matmul_v3_base_tiling.h"
 #include "../allto_all_matmul_tiling_base.h"
 #include "mc2/allto_all_matmul/op_kernel/arch32/allto_all_matmul_tiling_data_910_93.h"

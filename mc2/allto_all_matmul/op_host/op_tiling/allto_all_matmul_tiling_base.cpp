@@ -13,7 +13,7 @@
  * \brief
  */
 #include "allto_all_matmul_tiling_base.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 
 using namespace AscendC;
 using namespace ge;
