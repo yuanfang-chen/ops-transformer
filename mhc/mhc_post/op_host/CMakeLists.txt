@@ -10,17 +10,32 @@
 
 if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnExc PRIVATE
-    mhc_post_def.cpp
+        mhc_post_def.cpp
     )
-endif()
-
-if (BUILD_OPS_RTY_KERNEL) # 回黄kernel
     add_ops_compile_options(
         OP_NAME MhcPost
-        OPTIONS --cce-auto-sync=on
+        OPTIONS --cce-auto-sync=off
                 -Wno-deprecated-declarations
                 -Werror
     )
-else()
-    add_modules_sources(OPTYPE quant_grouped_matmul_dequant ACLNNTYPE aclnn_exclude)
+    if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
+        add_ops_compile_options(
+            OP_NAME MhcPost
+            COMPUTE_UNIT Ascend950PR_9599
+            OPTIONS -mllvm -cce-aicore-dcci-before-kernel-end=false
+        )
+    endif()
+endif()
+
+set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
+if("${CONDITION_UNIT}" STREQUAL "ascend950")
+    add_ops_compile_options(
+        OP_NAME MhcPost
+        COMPUTE_UNIT Ascend950PR_9599
+        OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
+    )
+endif()
+
+if(NOT BUILD_OPS_RTY_KERNEL)
+    add_modules_sources(OPTYPE mhc_post ACLNNTYPE aclnn_exclude)
 endif()
