@@ -125,7 +125,7 @@ protected:
     bool CheckKeyValueParamsConsistency(ContextParamsForPFATiling& contextKeyParams,
         const gert::StorageShape* keyShape, const gert::StorageShape* valueShape);
     bool SetAndCheckHeadNumRatio(ContextParamsForPFATiling& contextKeyParams, PromptFlashAttentionTilingData& tilingData);
-    bool CheckInputDimAndHeadNum(ContextParamsForPFATiling& contextKeyParams, const uint32_t nQ, const uint32_t nKV);
+    bool CheckInputDimAndHeadNum(ContextParamsForPFATiling& contextKeyParams, const uint32_t nQAttr, const uint32_t nKVAttr);
     bool CheckPostQuantShape(const ContextParamsForPFATiling &contextKeyParams,
                              const gert::StorageShape *quantScale2Shape, const gert::StorageShape *quantOffset2Shape,
                              const PFAShapeInfo &queryShapeInfo, const PFAShapeInfo &valueShapeInfo) const;
