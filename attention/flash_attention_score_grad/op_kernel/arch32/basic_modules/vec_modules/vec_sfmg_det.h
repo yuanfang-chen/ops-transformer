@@ -169,7 +169,7 @@ __aicore__ inline void VectorSoftmaxGradDet<TYPE, TILING_TYPE>::DoCopyIn(int64_t
 {
     int64_t srcOffset = 0;
     
-    if (layout == static_cast<uint32_t>(InputLayout::BSH))
+    if (layout == 0)
     {
         srcOffset = bIdx * (s1 * n1 * d) + sIdx * (n1 * d) + nIdx * d;
     }
@@ -246,7 +246,7 @@ template <typename TYPE, class TILING_TYPE> __aicore__ inline void VectorSoftmax
         int64_t startIdx = cBlockIdx * normalCoreSize;
         int64_t nBurst = singleLoopNBurstNum;
         int64_t curS = 0;
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)){
+        if (layout == 0){
             curS = s1;
         }
 

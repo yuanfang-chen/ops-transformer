@@ -84,7 +84,7 @@ public:
         this->nextToken = tilingData->basicDetTensorTilingData.nextTockens;
         this->dqPostAbsorb = tilingData->basicDetTensorTilingData.dqPostAbsorb;
         this->layout = tilingData->basicDetTensorTilingData.layout;  // 新增：0=BSH, 1=TND
-        if (layout == static_cast<uint32_t>(InputLayout::BSH))
+        if (layout == 0)
         {
             dimS1 = tilingData->basicDetTensorTilingData.s1;
             dimS2 = tilingData->basicDetTensorTilingData.s2;
@@ -146,7 +146,7 @@ private:
     int32_t s2GroupNum{0};  // 当前s2方向计算到需要累加的分组个数
 
     __aicore__ inline void UpdateSeqLen() {
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式：使用固定长度
+        if (layout == 0) {  // BSH格式：使用固定长度
             // BSH格式的lastBatchSum基于batch索引和固定长度计算
             if (bIdx > 0) {
                 lastBatchQSum = bIdx * dimS1;
@@ -171,7 +171,7 @@ private:
     }
 
     __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len) {
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式：返回固定长度
+        if (layout == 0) {  // BSH格式：返回固定长度
             return dimS1;  // 对于Q，返回固定长度
         }
         
@@ -185,7 +185,7 @@ private:
     }
 
     __aicore__ inline SEQLEN_TYPE getTotalLen(int32_t i, __gm__ uint8_t *seq_Len) {
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式：返回基于固定长度的累积
+        if (layout == 0) {  // BSH格式：返回基于固定长度的累积
             return (i + 1) * dimS1;  // 对于Q
         }
         
@@ -194,7 +194,7 @@ private:
     }
 
     __aicore__ inline uint64_t getLeftAddr(int32_t lastBatchSum, int32_t s1Idx, int32_t n1Idx) {
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式
+        if (layout == 0) {  // BSH格式
             // BSH: bIdx * dimS1 * dimN1 * dimD + s1Idx * dimN1 * dimD + n1Idx * dimD
             return bIdx * dimS1 * dimN1 * dimD + (s1Idx * dimN1 * dimD) + (n1Idx * dimD);
         } else {  // TND格式
@@ -204,7 +204,7 @@ private:
     }
 
     __aicore__ inline uint64_t getRightAddr(int32_t lastBatchSum, int32_t s2Idx, int32_t n1Idx) {
-        if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式
+        if (layout == 0) {  // BSH格式
             // BSH: bIdx * dimS2 * dimN2 * dimD + s2Idx * dimN2 * dimD + (n1Idx / dimG) * dimD
             return bIdx * dimS2 * dimN2 * dimD + (s2Idx * dimN2 * dimD) + ((n1Idx / dimG) * dimD);
         } else {  // TND格式
