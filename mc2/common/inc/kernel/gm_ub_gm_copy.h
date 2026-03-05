@@ -38,7 +38,7 @@ public:
 private:
     __aicore__ inline void InitParams(uint64_t dataSize, uint64_t aivNum);
     __aicore__ inline void InitBuffers(GM_ADDR srcAddr, GM_ADDR dstAddr, TPipe* tPipe);
-    __aicore__ inline void GmUbGmDataBlockCopy(uint64_t curOffset, uint64_t elemsPerBlock);
+    __aicore__ inline void GmUbGmDataBlockCopy(uint64_t curOffset, uint64_t elemsPerBlock, bool isTail);
     __aicore__ inline void ComputeTailAivId();
 
     GlobalTensor<DataType> srcGm_;
@@ -55,7 +55,8 @@ private:
     uint64_t curAivOffset_{0};
     uint64_t perBlockNum_{0};
     uint64_t lastAivId_{0};
-    uint64_t tailBlockNum_{0};
+    uint64_t tailBytes_{0};
+    uint64_t tailPerBlockNumAlign_{0};
 };
 
  /**
@@ -110,8 +111,8 @@ __aicore__ inline void GmUbGmCopy<DataType>::InitParams(
     totalBlockNums_ = AiVReduceSumImplUtil::CeilDiv(dataSize, perBlockNum_); // 数据需要搬运的总块数
 
     // 尾块搬运大小
-    uint64_t tailBytes = AiVReduceSumImplUtil::BlockAlignMod(dataSize, perBlockNum_) * sizeof(DataType);
-    tailBlockNum_ = AiVReduceSumImplUtil::CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
+    tailBytes_ = AiVReduceSumImplUtil::BlockAlignMod(dataSize, perBlockNum_) * sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的字节大小
+    tailPerBlockNumAlign_ = AiVReduceSumImplUtil::CeilAlign(tailBytes_, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
@@ -145,10 +146,13 @@ __aicore__ inline void GmUbGmCopy<DataType>::InitBuffers(GM_ADDR srcAddr, GM_ADD
  * 
  * @param curOffset 当前要读取的数据在 GM 中的偏移（元素单位）
  * @param elemsPerBlock 本次搬运的元素个数（主块或尾块大小）
- * 
+ * @param isTail 是否为尾块，若是则写回时使用 DataCopyPad 防止越界
  */
 template <typename DataType>
-__aicore__ inline void GmUbGmCopy<DataType>::GmUbGmDataBlockCopy(uint64_t curOffset, uint64_t elemsPerBlock) 
+__aicore__ inline void GmUbGmCopy<DataType>::GmUbGmDataBlockCopy(
+    uint64_t curOffset, 
+    uint64_t elemsPerBlock,
+    bool isTail) 
 {
     LocalTensor<DataType> tmpTensor = dataQueue_.AllocTensor<DataType>();
     
@@ -162,30 +166,48 @@ __aicore__ inline void GmUbGmCopy<DataType>::GmUbGmDataBlockCopy(uint64_t curOff
     tmpTensor = dataQueue_.DeQue<DataType>();
     
     // 从 UB 写到 GM
-    DataCopy(dstGm_[curOffset], tmpTensor, elemsPerBlock);
+    if (isTail) {
+        // 尾块处理：使用 Pad 拷贝防止越界
+        DataCopyExtParams copyOutParams;
+        copyOutParams.blockCount = 1;
+        // blockLen 单位是 Byte，需传入实际有效字节数
+        copyOutParams.blockLen = static_cast<uint32_t>(tailBytes_); 
+        copyOutParams.srcStride = 0;
+        copyOutParams.dstStride = 0;
+        copyOutParams.rsv = 0;
+
+        DataCopyPad(dstGm_[curOffset], tmpTensor, copyOutParams);
+    } else {
+        // 主块处理：使用高性能的DataCopy拷贝
+        DataCopy(dstGm_[curOffset], tmpTensor, elemsPerBlock);
+    }
     
-    // 释放资源
+    // 4. 释放资源
     dataQueue_.FreeTensor<DataType>(tmpTensor);
 }
 
 /**
  * @brief 执行完整的数据搬运流程：遍历当前核分配到的所有数据块，通过 UB 中转将数据从 GM 源地址拷贝至 GM 目的地址。
  * 
- * @note 尾块由最后一个 AIV 的最后一轮搬运特殊处理。
+ * @note 尾块由最后一个 AIV 的最后一轮搬运特殊处理，并使用 DataCopyPad 防止越界。
  */
 template <typename DataType>
 __aicore__ inline void GmUbGmCopy<DataType>::Process() 
 {
+    const uint64_t lastAivBlockIdx = assignedBlockNums_ - 1;
+    const bool isLastAiv = (aivId_ == lastAivId_);
+
     // 遍历当前核分配到的数据块
     for (uint64_t curBlock = 0; curBlock < assignedBlockNums_; ++curBlock) {
-        uint64_t curBlockOffset = curAivOffset_ + curBlock * perBlockNum_; // 当前数据块的偏移量
-        uint64_t copyBlockNum = perBlockNum_;
-        if ((aivId_ ==  lastAivId_) && (curBlock == assignedBlockNums_ - 1)) {
-            copyBlockNum = tailBlockNum_; // 检测是否为最后的尾块搬运（即最后一个核的最后一个数据块）
-        }
+        // 判定是否为全局最后一个数据块 (Tail Block)
+        const bool isTailBlock = isLastAiv && (curBlock == lastAivBlockIdx);
+        // 如果是尾块，使用对齐后的尾块长度；否则使用标准块长度
+        const uint64_t copyBlockNum = isTailBlock ? tailPerBlockNumAlign_ : perBlockNum_;
+        // 计算当前块的偏移
+        uint64_t curBlockOffset = curAivOffset_ + curBlock * perBlockNum_; 
 
-        // 执行单次搬运: GM(src + offset) -> UB -> GM(dst + offset)
-        GmUbGmDataBlockCopy(curBlockOffset, copyBlockNum);
+        // 执行单次搬运
+        GmUbGmDataBlockCopy(curBlockOffset, copyBlockNum, isTailBlock);
     }
 }
 
