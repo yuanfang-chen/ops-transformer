@@ -92,11 +92,9 @@ int LaunchOneProcessDispatchAndCombine(Args &args)
     ret = HcclGetCommName(args.hcclEpBarrierComm, hcomEpBarrierName);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetEpBarrierCommName failed, ret %d\n", ret); return -1);
     char hcomTpName[128] = {0};
-    ret = HcclGetCommName(args.hcclTpComm, hcomTpName);
-    CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetTpCommName failed, ret %d\n", ret); return -1);
     LOG_PRINT(
-        "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, hcomEpBarrierName = %s, dispatchStream = %p, combineStream = %p, \
-              context = %p\n",
+        "[INFO] rank = %d, hcomEpName = %s, hcomTpName = %s, hcomEpBarrierName = %s, dispatchStream = %p, \
+        dispatchStream = %p, combineStream = %p, context = %p\n",
         args.rankId, hcomEpName, hcomTpName, hcomEpBarrierName, args.dispatchStream, args.barrierStream,
         args.combineStream, args.context);
 
@@ -231,7 +229,7 @@ int LaunchOneProcessDispatchAndCombine(Args &args)
     aclOpExecutor *combineExecutor = nullptr;
     void *combineWorkspaceAddr = nullptr;
 
-    /**************************************** 调用dispatch********************************************/
+    // /**************************************** 调用dispatch********************************************/
 
     ret = aclnnMoeDistributeDispatchV2GetWorkspaceSize(
         x, expertIds, (quantMode > 0 ? scales : nullptr), nullptr, expertScales, hcomEpName, EP_WORLD_SIZE,
