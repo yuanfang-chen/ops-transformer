@@ -15,27 +15,27 @@
 #ifndef GROUPED_MATMUL_A4W4_REGULAR_H
 #define GROUPED_MATMUL_A4W4_REGULAR_H
 
-#include "gmm_infra_a4w4/base_defs.hpp"
-#include "gmm_infra_a4w4/coord.hpp"
-#include "gmm_infra_a4w4/matrix_coord.hpp"
-#include "gmm_infra_a4w4/gemm_coord.hpp"
-#include "gmm_infra_a4w4/arch/cross_core_sync.hpp"
-#include "gmm_infra_a4w4/arch/resource.hpp"
-#include "gmm_infra_a4w4/arch/arch.hpp"
-#include "gmm_infra_a4w4/layout/layout.hpp"
-#include "gmm_infra_a4w4/detail/callback.hpp"
-#include "gmm_infra_a4w4/gemm/dispatch_policy.hpp"
-#include "gmm_infra_a4w4/gemm/gemm_type.hpp"
-#include "gmm_infra_a4w4/gemm/block/block_swizzle.hpp"
-#include "gmm_infra_a4w4/gemm/block/block_mmad.hpp"
-#include "gmm_infra_a4w4/epilogue/dispatch_policy.hpp"
-#include "gmm_infra_a4w4/epilogue/block/block_epilogue.hpp"
-#include "gmm_infra_a4w4/epilogue/tile/tile_broadcast_mul.hpp"
-#include "gmm_infra_a4w4/epilogue/tile/tile_broadcast_one_blk.hpp"
-#include "gmm_infra_a4w4/epilogue/tile/tile_swizzle.hpp"
-#include "gmm_infra_a4w4/epilogue/tile/tile_copy.hpp"
+#include "gmm_infra/base_defs.hpp"
+#include "gmm_infra/coord.hpp"
+#include "gmm_infra/matrix_coord.hpp"
+#include "gmm_infra/gemm_coord.hpp"
+#include "gmm_infra/arch/cross_core_sync.hpp"
+#include "gmm_infra/arch/resource.hpp"
+#include "gmm_infra/arch/arch.hpp"
+#include "gmm_infra/layout/layout.hpp"
+#include "gmm_infra/detail/callback.hpp"
+#include "gmm_infra/gemm/dispatch_policy.hpp"
+#include "gmm_infra/gemm/gemm_type.hpp"
+#include "gmm_infra/gemm/block/block_swizzle.hpp"
+#include "gmm_infra/gemm/block/block_mmad.hpp"
+#include "gmm_infra/epilogue/dispatch_policy.hpp"
+#include "gmm_infra/epilogue/block/block_epilogue.hpp"
+#include "gmm_infra/epilogue/tile/tile_broadcast_mul.hpp"
+#include "gmm_infra/epilogue/tile/tile_broadcast_one_blk.hpp"
+#include "gmm_infra/epilogue/tile/tile_swizzle.hpp"
+#include "gmm_infra/epilogue/tile/tile_copy.hpp"
 
-namespace CatlassA4W4 {
+namespace Catlass {
 
 template <
     class BlockMmad_,
@@ -402,5 +402,5 @@ private:
     Arch::Resource<ArchTag> resource;
 };
 
-} // namespace CatlassA4W4
+} // namespace Catlass
 #endif
