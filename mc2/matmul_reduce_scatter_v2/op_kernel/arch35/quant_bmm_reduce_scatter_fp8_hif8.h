@@ -63,7 +63,7 @@ private:
                                                      GM_ADDR sendGM, bool isTail);
     __aicore__ inline void PostProcess();  // 计算后处理, 终止hcclserver
     __aicore__ inline void PrepareTailConfig(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, bool isTail);
-    __aicore__ inline void ExecuteAicMatMulPipeline(GM_ADDR aGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
+    __aicore__ inline void ExecuteAicMatMulPipeline(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
                                                     uint32_t count, bool isLast, bool isTail);
     __aicore__ inline void ExecuteAivCommReducePipeline(GM_ADDR recvGM, GM_ADDR sendGM, uint32_t count, bool isTail,
                                                         DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling);
@@ -325,7 +325,6 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::PrepareTailConfig(
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAicMatMulPipeline(
-    GM_ADDR aGM, 
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
     uint32_t count, 
     bool isLast, 
@@ -459,7 +458,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
 
     // [AIC 阶段] 执行 MatMul 计算流水线
     if ASCEND_IS_AIC {
-        ExecuteAicMatMulPipeline(aGM, qBmmTiling, count, isLast, isTail);
+        ExecuteAicMatMulPipeline(qBmmTiling, count, isLast, isTail);
     }
 
     // [AIV 阶段] 执行 All2All 通信 + ReduceSum 归约流水线

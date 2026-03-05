@@ -47,13 +47,12 @@ public:
 
 private:
     __aicore__ inline void InnerProcess();
-    __aicore__ inline void Compute(GM_ADDR cGM, Mc2MatMulV3TilingData& tiling, uint32_t count,
-                                   GM_ADDR gmToFloat, bool isLast, bool isTail);
-    __aicore__ inline void MatMulV3Compute(GM_ADDR cGM, Mc2MatMulV3TilingData& tiling, uint32_t count,
-                                           GM_ADDR gmToFloat, bool isLast, bool isTail);
+    __aicore__ inline void Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, uint32_t count,
+                                   GM_ADDR sendGMAddr, bool isLast, bool isTail);
+    __aicore__ inline void MatMulV3Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, uint32_t count, 
+                                           GM_ADDR sendGMAddr, bool isLast, bool isTail);
     __aicore__ inline void PostProcess();
-    __aicore__ inline void ExecuteAicMatMulPipeline(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR sendBuf, 
-                                                    Mc2MatMulV3TilingData& tiling, uint32_t count,
+    __aicore__ inline void ExecuteAicMatMulPipeline(Mc2MatMulV3TilingData& tiling, uint32_t count,
                                                     bool isLast, bool isTail);
     __aicore__ inline void ExecuteAivCommReducePipeline(GM_ADDR recvGMAddr, GM_ADDR sendGMAddr,
                                                         Mc2MatMulV3TilingData& tiling, 
@@ -166,10 +165,6 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
  */
 template <typename AType, typename BType, typename BiasType, typename CType>
 __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType>::ExecuteAicMatMulPipeline(
-    GM_ADDR aGM, 
-    GM_ADDR bGM, 
-    GM_ADDR biasGM, 
-    GM_ADDR sendBuf, 
     Mc2MatMulV3TilingData& tiling, 
     uint32_t count,
     bool isLast,
@@ -180,7 +175,7 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
     
     // 初始化Matmul
     MC2MatmulV3::MC2MatmulAswKernelDerive<AType, BType, CType, BiasType, MC2MatmulV3::MC2MatmulAswBlockDerive> mmv3;
-    mmv3.Init(aGM, bGM, sendBuf, biasGM, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, false);
+    mmv3.Init(aGM_, bGM_, sendBuf_, biasGM_, nullptr, nullptr, &tiling, GetTPipePtr(), cfg, isTail, false);
 
     for (uint32_t i = 0; i < count; i++) {
         mmv3.UpdateSlice(i, isTail);                   // 更新 slice 偏移
@@ -295,7 +290,7 @@ __aicore__ inline void MatmulReduceScatterFP16BF16<AType, BType, BiasType, CType
 {
     // [AIC 阶段] 执行 MatMul 计算流水线
     if ASCEND_IS_AIC {
-        ExecuteAicMatMulPipeline(aGM_, bGM_, biasGM_, sendGMAddr, tiling, count, isLast, isTail);
+        ExecuteAicMatMulPipeline(tiling, count, isLast, isTail);
     }
 
     // [AIV 阶段] 执行 All2All 通信 + ReduceSum 归约流水线
