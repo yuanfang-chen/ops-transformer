@@ -54,6 +54,7 @@ struct alignas(8) QuantMatmulAllReduceTilingDataA5 {
     Mc2Tiling::RCSTiling param;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tilematmulTiling;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tailmatmulTiling;
+    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
