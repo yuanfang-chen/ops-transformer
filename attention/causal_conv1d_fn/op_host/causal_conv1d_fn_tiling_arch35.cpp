@@ -45,6 +45,8 @@ constexpr uint64_t BATCH_MAX = 256;
 constexpr uint64_t KERNEL_WIDTH_MAX = 6;
 
 constexpr uint64_t ALIGN_BYTES = 256;
+constexpr uint64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per element (fp16/bf16)
+constexpr uint64_t SYSTEM_RESERVED_UB_SIZE = 8 * 1024;  // 8 KB system reserved UB space
 constexpr uint64_t MIN_CORE_NUM_FOR_DIM_SPLIT = 32;
 constexpr uint64_t MIN_DIM_PER_CORE = 256;
 constexpr uint64_t DOUBLE_BUFFER_NUM = 2;
@@ -83,7 +85,13 @@ ge::graphStatus CausalConv1dFnTiling::GetPlatformInfo()
         OP_LOGE(context_->GetNodeName(), "ubSize is 0");
         return ge::GRAPH_FAILED;
     }
-    ubSize_ = static_cast<uint64_t>(ubSize);
+
+    // 核内 UB 有固定 8KB 的系统保留空间，需要扣除
+    if (ubSize <= SYSTEM_RESERVED_UB_SIZE) {
+        OP_LOGE(context_->GetNodeName(), "ubSize %lu is too small, must be > %lu", ubSize, SYSTEM_RESERVED_UB_SIZE);
+        return ge::GRAPH_FAILED;
+    }
+    ubSize_ = ubSize - SYSTEM_RESERVED_UB_SIZE;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -192,9 +200,19 @@ ge::graphStatus CausalConv1dFnTiling::CheckInputDim()
                         dim_, cacheStatesDim2),
                 return ge::GRAPH_FAILED);
 
-    // 检查seqStartIndex的维度 (OPTIONAL)
-    // 注意：seqStartIndexShape_ 已在 GetShapeAttrsInfo 中处理，这里只做验证
+    // 检查seqStartIndex的维度 (必须提供)
     auto seqStartIndexStorageShape = context_->GetOptionalInputShape(INPUT_QUERY_START_LOC_INDEX);
+    OP_CHECK_IF(seqStartIndexStorageShape == nullptr,
+                OP_LOGE(context_->GetNodeName(), "QueryStartLoc must be provided"),
+                return ge::GRAPH_FAILED);
+
+    // 检查 cacheIndices (必须提供)
+    auto cacheIndicesShape = context_->GetOptionalInputShape(INPUT_CACHE_INDICES_INDEX);
+    OP_CHECK_IF(cacheIndicesShape == nullptr,
+                OP_LOGE(context_->GetNodeName(), "CacheIndices must be provided"),
+                return ge::GRAPH_FAILED);
+
+    // 注意：seqStartIndexShape_ 已在 GetShapeAttrsInfo 中处理，这里只做验证
     if (seqStartIndexStorageShape != nullptr) {
         // 如果提供了 queryStartLoc，检查维度
         auto seqStartIndexShape = seqStartIndexStorageShape->GetStorageShape();
@@ -309,7 +327,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
 
     // 如果有 padSlotId，需要读取 cacheIndices 来确定有效 batch 范围
     if (padSlotId_ >= 0) {
-        // 尝试读取 cacheIndices 数据
+        // 尝试读取 cacheIndices 数据 (OPTIONAL)
         const gert::Tensor* cacheIndicesTensor = context_->GetOptionalInputTensor(INPUT_CACHE_INDICES_INDEX);
         if (cacheIndicesTensor != nullptr && cacheIndicesTensor->GetData<int32_t>() != nullptr) {
             // 获取 cacheIndices tensor (batch 个 int32 元素)
@@ -338,7 +356,7 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
                 validBatchStart_ = validStart;
                 validBatchCount_ = validEnd - validStart + 1;
 
-                // 读取 queryStartLoc 计算有效序列范围
+                // 读取 queryStartLoc 计算有效序列范围 (OPTIONAL)
                 const gert::Tensor* queryStartLocTensor = context_->GetOptionalInputTensor(INPUT_QUERY_START_LOC_INDEX);
                 if (queryStartLocTensor != nullptr && queryStartLocTensor->GetData<int32_t>() != nullptr) {
                     const int32_t* queryStartLoc = queryStartLocTensor->GetData<int32_t>();
@@ -456,53 +474,70 @@ ge::graphStatus CausalConv1dFnTiling::CalculateCuSeqLenTiling()
 
     // 步骤2: 核内UB切分参数
     // 根据需求文档6节Buffer设计,计算UB使用
-    // weightInQueue: k * 128 * xDtypeSize_, BUF_NUM=1
-    // cacheQueue: (k-1) * 128 * xDtypeSize_, BUF_NUM=1
-    // startLocInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // indicesInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // hasInitialInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // xQueue(y复用): 剩余UB, BUF_NUM=2
+    // 固定UB使用（真正不变的辅助tensor）：
+    // startLocInQueue: (batch + 1) * sizeof(int32), BUF_NUM=1
+    // indicesInQueue: batch * sizeof(int32), BUF_NUM=1
+    // hasInitialInQueue: batch * sizeof(int32), BUF_NUM=1
+    //
+    // 可变UB使用（取决于ubDim）：
+    // weightInQueue: kernelWidth * ubDim * xDtypeSize_, BUF_NUM=1
+    // cacheQueue: (kernelWidth-1) * ubDim * xDtypeSize_, BUF_NUM=1
+    // xQueue(y复用): ubBS * ubDim * xDtypeSize_, BUF_NUM=2
 
-    uint64_t fixedUbUsage = kernelWidth_ * 128 * xDtypeSize_ +           // weightInQueue
-                            (kernelWidth_ - 1) * 128 * xDtypeSize_ +      // cacheQueue
-                            256 * sizeof(int32_t) +                       // startLocInQueue
-                            256 * sizeof(int32_t) +                       // indicesInQueue
-                            256 * sizeof(int32_t);                        // hasInitialInQueue
+    uint64_t startLocInQueueSize = (batch_ + 1) * sizeof(int32_t);
+    uint64_t indicesInQueueSize = batch_ * sizeof(int32_t);
+    uint64_t hasInitialInQueueSize = batch_ * sizeof(int32_t);
+    uint64_t fixedUbSize = startLocInQueueSize + indicesInQueueSize + hasInitialInQueueSize;
 
-    uint64_t availableUb = ubSize_ - fixedUbUsage;
+    // 每个核分到的最大BS（含重叠）
+    uint64_t coreBS = blockFactor_;
 
-    // 计算AlignElement: 256B对齐的元素个数
-    uint64_t alignElement = ALIGN_BYTES / xDtypeSize_;
+    // weight 和 cache 每个 dim 元素的系数
+    uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
 
-    // xQueue使用双buffer,每个buffer可以存储的元素个数
-    // 每次处理 n * alignElement 个元素
-    // ubFactor: n * alignElement * xDtypeSize * DOUBLE_BUFFER_NUM <= availableUb
-    uint64_t maxN = availableUb / (alignElement * xDtypeSize_ * DOUBLE_BUFFER_NUM);
+    // x 每个 dim 元素的系数（双 buffer，满 BS）
+    uint64_t xCoeffPerDimFullBS = coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
 
-    if (maxN == 0) {
-        OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling");
-        return ge::GRAPH_FAILED;
-    }
+    // 总系数（每个 dim 元素）
+    uint64_t totalCoeffPerDim = weightCacheCoeffPerDim + xCoeffPerDimFullBS;
 
-    // 优先保证dim=256B,尽可能往BS方向切
-    // 但如果blockFactor_小于maxN，说明单个核不需要那么大的buffer
-    if (blockFactor_ <= maxN) {
-        ubFactorBS_ = static_cast<uint32_t>(blockFactor_);
+    // 计算可用 UB 和最大 ubDim
+    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
+    int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
+
+    // 对齐到 DIM_ALIGN_ELEMENTS (256 bytes)
+    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+
+    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
+        // 能装下满 BS，尽量扩大 dim
+        ubFactorBS_ = static_cast<uint32_t>(coreBS);
+        ubFactorDim_ = static_cast<uint32_t>(std::min(static_cast<uint64_t>(maxUbDim), dim_));
+
+        // 确保 ubFactorDim_ 对齐到 DIM_ALIGN_ELEMENTS
+        ubFactorDim_ = (ubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        if (ubFactorDim_ == 0) {
+            ubFactorDim_ = DIM_ALIGN_ELEMENTS;
+        }
     } else {
-        ubFactorBS_ = static_cast<uint32_t>(maxN);
-    }
-    ubFactorDim_ = static_cast<uint32_t>(alignElement);
+        // 不能装下满 BS，使用最小 dim 并减少 BS
+        ubFactorDim_ = DIM_ALIGN_ELEMENTS;
 
-    // 如果ubFactorBS * alignElement占不满UB,扩展dim
-    uint64_t currentUbUsage = ubFactorBS_ * alignElement * xDtypeSize_ * DOUBLE_BUFFER_NUM;
-    if (currentUbUsage < availableUb && dim_ > alignElement) {
-        // 以256B为粒度扩展dim
-        uint64_t remainingUb = availableUb - currentUbUsage;
-        uint64_t additionalDimBlocks = remainingUb / (ubFactorBS_ * xDtypeSize_ * DOUBLE_BUFFER_NUM * alignElement);
-        ubFactorDim_ += static_cast<uint32_t>(additionalDimBlocks * alignElement);
-        ubFactorDim_ = std::min(static_cast<uint64_t>(ubFactorDim_), dim_);
-        // 向下对齐到alignElement
-        ubFactorDim_ = (ubFactorDim_ / alignElement) * alignElement;
+        // weight 和 cache 占用空间（使用最小 dim）
+        uint64_t weightCacheSize = weightCacheCoeffPerDim * ubFactorDim_;
+        int64_t availableForX = availableUbSize - weightCacheSize;
+
+        // x 每个 BS 的大小（双 buffer）
+        uint64_t xSizePerBS = ubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
+
+        // 计算能装下多少 BS
+        int64_t maxBS = availableForX / xSizePerBS;
+        ubFactorBS_ = static_cast<uint32_t>(std::max(maxBS, static_cast<int64_t>(1)));
+        ubFactorBS_ = std::min(static_cast<uint64_t>(ubFactorBS_), coreBS);
+
+        if (ubFactorBS_ == 0) {
+            OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling");
+            return ge::GRAPH_FAILED;
+        }
     }
 
     // 步骤3: 计算整核和尾核的循环次数及最后一次循环载入大小
@@ -576,53 +611,67 @@ ge::graphStatus CausalConv1dFnTiling::CalculateDimTiling()
 
     // 步骤2: 核内UB切分参数
     // 根据需求文档6节Buffer设计,计算UB使用
-    // weightInQueue: k * 128 * xDtypeSize_, BUF_NUM=1
-    // cacheQueue: (k-1) * 128 * xDtypeSize_, BUF_NUM=1
-    // startLocInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // indicesInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // hasInitialInQueue: 256 * sizeof(int32), BUF_NUM=1
-    // xQueue(y复用): 剩余UB, BUF_NUM=2
+    // 固定UB使用（真正不变的辅助tensor）：
+    // startLocInQueue: (batch + 1) * sizeof(int32), BUF_NUM=1
+    // indicesInQueue: batch * sizeof(int32), BUF_NUM=1
+    // hasInitialInQueue: batch * sizeof(int32), BUF_NUM=1
+    //
+    // 可变UB使用（取决于ubDim）：
+    // weightInQueue: kernelWidth * ubDim * xDtypeSize_, BUF_NUM=1
+    // cacheQueue: (kernelWidth-1) * ubDim * xDtypeSize_, BUF_NUM=1
+    // xQueue(y复用): ubBS * ubDim * xDtypeSize_, BUF_NUM=2
 
-    uint64_t fixedUbUsage = kernelWidth_ * 128 * xDtypeSize_ +           // weightInQueue
-                            (kernelWidth_ - 1) * 128 * xDtypeSize_ +      // cacheQueue
-                            256 * sizeof(int32_t) +                       // startLocInQueue
-                            256 * sizeof(int32_t) +                       // indicesInQueue
-                            256 * sizeof(int32_t);                        // hasInitialInQueue
+    uint64_t startLocInQueueSize = (batch_ + 1) * sizeof(int32_t);
+    uint64_t indicesInQueueSize = batch_ * sizeof(int32_t);
+    uint64_t hasInitialInQueueSize = batch_ * sizeof(int32_t);
+    uint64_t fixedUbSize = startLocInQueueSize + indicesInQueueSize + hasInitialInQueueSize;
 
-    uint64_t availableUb = ubSize_ - fixedUbUsage;
+    // 每个核分到的 dim 大小
+    uint64_t coreDim = blockFactor_;
+    // 完整的 BS 长度
+    uint64_t coreBS = validSeqLen_;
 
-    // 计算AlignElement: 256B对齐的元素个数
-    uint64_t alignElement = ALIGN_BYTES / xDtypeSize_;
+    // weight 和 cache 每个 dim 元素的系数
+    uint64_t weightCacheCoeffPerDim = (kernelWidth_ + kernelWidth_ - 1) * xDtypeSize_;
 
-    // xQueue使用双buffer,每个buffer可以存储的元素个数
-    // 切dim时，优先保证能容纳尽可能多的 BS，然后再切 dim
-    // 数据布局：[BS, dim]
-    // 每次处理 ubFactorBS * ubFactorDim 个元素
-    // 注意：使用 validSeqLen_ 而不是 cuSeqLen_
+    // x 每个 dim 元素的系数（双 buffer，满 BS）
+    uint64_t xCoeffPerDimFullBS = coreBS * xDtypeSize_ * DOUBLE_BUFFER_NUM;
 
-    // 计算能容纳的最大元素数（考虑双buffer）
-    uint64_t maxElements = availableUb / (xDtypeSize_ * DOUBLE_BUFFER_NUM);
+    // 总系数（每个 dim 元素）
+    uint64_t totalCoeffPerDim = weightCacheCoeffPerDim + xCoeffPerDimFullBS;
 
-    // 优先尝试处理完整的 validSeqLen_
-    if (maxElements >= validSeqLen_ * alignElement) {
-        // UB 能容纳至少 validSeqLen_ * alignElement 的数据
-        ubFactorBS_ = static_cast<uint32_t>(validSeqLen_);
+    // 计算可用 UB 和最大 ubDim
+    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUbSize;
+    int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
 
-        // 计算能容纳的 dim 大小（必须是 alignElement 的倍数）
-        uint64_t maxDim = maxElements / validSeqLen_;
-        maxDim = (maxDim / alignElement) * alignElement;  // 向下对齐
+    // 对齐到 DIM_ALIGN_ELEMENTS (256 bytes)
+    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
 
-        // ubFactorDim_ 不超过每个核分到的 dim 大小
-        ubFactorDim_ = static_cast<uint32_t>(std::min(maxDim, blockFactor_));
+    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
+        // 能装下满 BS，尽量扩大 dim
+        ubFactorBS_ = static_cast<uint32_t>(coreBS);
+        ubFactorDim_ = static_cast<uint32_t>(std::min(static_cast<uint64_t>(maxUbDim), coreDim));
 
+        // 确保 ubFactorDim_ 对齐到 DIM_ALIGN_ELEMENTS
+        ubFactorDim_ = (ubFactorDim_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        if (ubFactorDim_ == 0) {
+            ubFactorDim_ = DIM_ALIGN_ELEMENTS;
+        }
     } else {
-        // UB 不够容纳完整的 validSeqLen_，需要在 BS 方向切分
-        // 优先保证 dim = alignElement
-        ubFactorDim_ = static_cast<uint32_t>(alignElement);
+        // 不能装下满 BS，使用最小 dim 并减少 BS
+        ubFactorDim_ = DIM_ALIGN_ELEMENTS;
 
-        // 计算能容纳的 BS 大小
-        uint64_t maxBS = maxElements / alignElement;
-        ubFactorBS_ = static_cast<uint32_t>(maxBS);
+        // weight 和 cache 占用空间（使用最小 dim）
+        uint64_t weightCacheSize = weightCacheCoeffPerDim * ubFactorDim_;
+        int64_t availableForX = availableUbSize - weightCacheSize;
+
+        // x 每个 BS 的大小（双 buffer）
+        uint64_t xSizePerBS = ubFactorDim_ * xDtypeSize_ * DOUBLE_BUFFER_NUM;
+
+        // 计算能装下多少 BS
+        int64_t maxBS = availableForX / xSizePerBS;
+        ubFactorBS_ = static_cast<uint32_t>(std::max(maxBS, static_cast<int64_t>(1)));
+        ubFactorBS_ = std::min(static_cast<uint64_t>(ubFactorBS_), coreBS);
 
         if (ubFactorBS_ == 0) {
             OP_LOGE(context_->GetNodeName(), "UB size is not enough for tiling in dim mode");
@@ -720,7 +769,15 @@ uint64_t CausalConv1dFnTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
 {
-    workspaceSize_ = SYS_WORKSPACE_SIZE;
+    // 基础系统 workspace 大小
+    uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
+
+    // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
+    uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
+
+    // 总 workspace 大小
+    workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
+
     return ge::GRAPH_SUCCESS;
 }
 
