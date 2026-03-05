@@ -9,14 +9,9 @@
 # -----------------------------------------------------------------------------------------------------------
 
 file(GLOB SUBDIRECTORIES LIST_DIRECTORIES true RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/*)
-# 遍历子目录
-if (BUILD_OPS_RTY_KERNEL) # 只有原融合算子仓的算子走
-  add_subdirectory(mhc_post)
-else()
-  foreach(SUBDIR ${SUBDIRECTORIES})
-    # 检查子目录中是否存在 CMakeLists.txt
-    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/CMakeLists.txt)
-      add_subdirectory(${SUBDIR})
-    endif()
-  endforeach()
-endif()
+foreach(SUBDIR ${SUBDIRECTORIES})
+  # 检查子目录中是否存在 CMakeLists.txt
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${SUBDIR}/CMakeLists.txt)
+    add_subdirectory(${SUBDIR})
+  endif()
+endforeach()
