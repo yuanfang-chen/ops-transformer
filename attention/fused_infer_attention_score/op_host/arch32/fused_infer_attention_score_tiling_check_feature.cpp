@@ -385,14 +385,14 @@ ge::graphStatus FiaTilingCheck::CheckFeatureLayout() const
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
             return ge::GRAPH_FAILED);
         }
-        if (vHeadDim_ == 128) { // 128: qkvD 128 to determine specific input layout
+        if (vHeadDim_ == 128) { // 128: qkvD = 128 to determine specific input layout
             OP_CHECK_IF(std::find(splitRopeLayoutSupportListB.begin(), splitRopeLayoutSupportListB.end(), layout) == splitRopeLayoutSupportListB.end(),
             OP_LOGE(opName_, "In %s %s situation, when value headDim = 128, layout only supports BSH, BSND, BNSD, BNSD_BSND, TND, NTD, BSH_BNSD, BSND_BNSD, NTD_TND, but got %s",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
             return ge::GRAPH_FAILED);
         }
     } else if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
-        if (!fiaInfo_.isLegacyIfa && (vHeadDim_ % 16 != 0)) { // 16: qkvD need 16 align when qs>1
+        if (!fiaInfo_.isLegacyIfa && (vHeadDim_ % 16 != 0)) { // 16: qkvD need 16 align when qs>1, in specific input layout
             OP_CHECK_IF(std::find(noRopeLayoutSupportListA.begin(), noRopeLayoutSupportListA.end(), layout) != noRopeLayoutSupportListA.end(),
             OP_LOGE(opName_, "In %s %s situation, when Qs>1 and input_layout is %s, headDim of query|key|value should be align to 16.",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), layout.c_str()),
@@ -545,7 +545,7 @@ ge::graphStatus FiaTilingCheck::CheckFeatureHeadDim() const
 
     if (fiaInfo_.ropeMode == RopeMode::NO_ROPE) {
         if (!fiaInfo_.isLegacyIfa) {
-            OP_CHECK_IF((!fiaInfo_.isOutQuantEnable && (vHeadDim_ % 16 != 0)), // 16: qkvD need 16 align when qs>1 
+            OP_CHECK_IF((!fiaInfo_.isOutQuantEnable && (vHeadDim_ % 16 != 0)), // 16: qkvD need 16 align when qs>1
             OP_LOGE(opName_, "In %s %s situation, when Qs>1, headDim of query|key|value should be align to 16, but got value headDim:%u, query|key headDim:%u",
                 QuantModeToSerialString(quantMode_).c_str(), SituationToSerialString(ropeMode_).c_str(), vHeadDim_, qkHeadDim_),
             return ge::GRAPH_FAILED);
