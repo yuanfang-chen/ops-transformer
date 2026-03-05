@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file moe_distribute_dispatch_infer_v2.cpp
+ * \file moe_distribute_dispatch_v3_infershape.cpp
  * \brief
  */
 #include "register/op_impl_registry.h"
@@ -40,11 +40,12 @@ static constexpr int64_t PER_GROUP_SIZE = 128;
 static constexpr int64_t MX_QUANT_SIZE = 32;
 static constexpr int64_t NUM_EVEN = 2;
 
-static constexpr size_t DISPATCH_INPUT_X_INDEX = 0;
-static constexpr size_t DISPATCH_INPUT_EXPERT_IDS_INDEX = 1;
-static constexpr size_t DISPATCH_INPUT_SCALES_IDX_INDEX = 2;
-static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 4;
-static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_CONTEXT_INDEX = 0;
+static constexpr size_t DISPATCH_INPUT_X_INDEX = 1;
+static constexpr size_t DISPATCH_INPUT_EXPERT_IDS_INDEX = 2;
+static constexpr size_t DISPATCH_INPUT_SCALES_IDX_INDEX = 3;
+static constexpr size_t DISPATCH_INPUT_EXPERT_SCALES_IDX_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_ELASTIC_INFO_IDX_INDEX = 6;
 static constexpr size_t DISPATCH_OUTPUT_EXPAND_X_INDEX = 0;
 static constexpr size_t DISPATCH_OUTPUT_DYNAMIC_SCALES_INDEX = 1;
 static constexpr size_t DISPATCH_OUTPUT_ASSIST_INFO_IDX_INDEX = 2;
@@ -52,17 +53,17 @@ static constexpr size_t DISPATCH_OUTPUT_EXPERT_TOKEN_NUMS_INDEX = 3;
 static constexpr size_t DISPATCH_OUTPUT_EP_RECV_COUNTS_INDEX = 4;
 static constexpr size_t DISPATCH_OUTPUT_TP_RECV_COUNTS_INDEX = 5;
 static constexpr size_t DISPATCH_OUTPUT_EXPAND_SCALES = 6;
-static constexpr size_t DISPATCH_INPUT_ATTR_EP_WORLD_SIZE_INDEX = 1;
-static constexpr size_t DISPATCH_INPUT_ATTR_EP_RANK_ID_INDEX = 2;
-static constexpr size_t DISPATCH_INPUT_ATTR_MOE_EXPERT_NUM_INDEX = 3;
-static constexpr size_t DISPATCH_INPUT_ATTR_TP_WORLD_SIZE_INDEX = 5;
-static constexpr size_t DISPATCH_INPUT_ATTR_TP_RANK_ID_INDEX = 6;
-static constexpr size_t DISPATCH_INPUT_ATTR_EXPERT_SHARD_TYPE_INDEX = 7;
-static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_NUM_INDEX = 8;
-static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 9;
-static constexpr size_t DISPATCH_INPUT_ATTR_QUANT_MODE_INDEX = 10;
-static constexpr size_t DISPATCH_INPUT_ATTR_GLOBAL_BS_INDEX = 11;
-static constexpr size_t DISPATCH_INPUT_ATTR_Y_DTYPE_INDEX = 17;
+static constexpr size_t DISPATCH_INPUT_ATTR_EP_WORLD_SIZE_INDEX = 0;
+static constexpr size_t DISPATCH_INPUT_ATTR_EP_RANK_ID_INDEX = 1;
+static constexpr size_t DISPATCH_INPUT_ATTR_MOE_EXPERT_NUM_INDEX = 2;
+static constexpr size_t DISPATCH_INPUT_ATTR_TP_WORLD_SIZE_INDEX = 4;
+static constexpr size_t DISPATCH_INPUT_ATTR_TP_RANK_ID_INDEX = 5;
+static constexpr size_t DISPATCH_INPUT_ATTR_EXPERT_SHARD_TYPE_INDEX = 6;
+static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_NUM_INDEX = 7;
+static constexpr size_t DISPATCH_INPUT_ATTR_SHARED_EXPERT_RANK_NUM_INDEX = 8;
+static constexpr size_t DISPATCH_INPUT_ATTR_QUANT_MODE_INDEX = 9;
+static constexpr size_t DISPATCH_INPUT_ATTR_GLOBAL_BS_INDEX = 10;
+static constexpr size_t DISPATCH_INPUT_ATTR_Y_DTYPE_INDEX = 16;
 
 static constexpr uint32_t VERSION_SIZE = 32;
 const std::set<std::string> PLATFORM_A2 = {"Ascend910B"};
@@ -116,12 +117,12 @@ static ge::DataType InferDataTypeDynamicScales(int64_t quantMode)
     return dynamicScalesDtype;
 }
 
-static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext *context)
+static ge::graphStatus InferShapeMoeDistributeDispatchV3(gert::InferShapeContext *context)
 {
     if (context == nullptr){
         return ge::GRAPH_FAILED;
     }
-    OP_LOGD(context->GetNodeName(), "Begin to do InferShapeMoeDistributeDispatchV2.");
+    OP_LOGD(context->GetNodeName(), "Begin to do InferShapeMoeDistributeDispatchV3.");
     // 获取输入shape
     const gert::Shape *xShape = context->GetInputShape(DISPATCH_INPUT_X_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, xShape);
@@ -277,8 +278,6 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     } else {
         if (*tpWorldSize == DIM_TWO)  {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum * (*tpWorldSize));
-        } else if (expertScalesShape != nullptr) {
-            epRecvCountShape->SetDim(0U, *epWorldSize * localExpertNum + globalBsReal * 2 * k * (*epWorldSize) / RANK_NUM_PER_NODE);
         } else {
             epRecvCountShape->SetDim(0U, (*epWorldSize) * localExpertNum);
         }
@@ -298,7 +297,7 @@ static ge::graphStatus InferShapeMoeDistributeDispatchV2(gert::InferShapeContext
     }
     OP_LOGD(context->GetNodeName(), "expandScalesShape shape is :%s after infershape.",
         Ops::Base::ToString(*expandScalesShape).c_str());
-    OP_LOGD(context->GetNodeName(), "End to do InferShapeMoeDistributeDispatchV2.");
+    OP_LOGD(context->GetNodeName(), "End to do InferShapeMoeDistributeDispatchV3.");
     return ge::GRAPH_SUCCESS;
 }
 
@@ -327,9 +326,9 @@ static ge::graphStatus CheckQuantMode(gert::InferDataTypeContext *context, const
     return ge::GRAPH_SUCCESS;
 }
 
-static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeContext *context)
+static ge::graphStatus InferDataTypeMoeDistributeDispatchV3(gert::InferDataTypeContext *context)
 {
-    OP_LOGD(context->GetNodeName(), "Begin to do InferDataTypeMoeDistributeDispatchV2.");
+    OP_LOGD(context->GetNodeName(), "Begin to do InferDataTypeMoeDistributeDispatchV3.");
     auto xDtype = context->GetInputDataType(DISPATCH_INPUT_X_INDEX);
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
@@ -360,11 +359,11 @@ static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeC
     context->SetOutputDataType(DISPATCH_OUTPUT_EXPERT_TOKEN_NUMS_INDEX, ge::DT_INT64);
     context->SetOutputDataType(DISPATCH_OUTPUT_EP_RECV_COUNTS_INDEX, ge::DT_INT32);
     context->SetOutputDataType(DISPATCH_OUTPUT_TP_RECV_COUNTS_INDEX, ge::DT_INT32);
-    OP_LOGD(context->GetNodeName(), "End to do InferDataTypeMoeDistributeDispatchV2.");
+    OP_LOGD(context->GetNodeName(), "End to do InferDataTypeMoeDistributeDispatchV3.");
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(MoeDistributeDispatchV2)
-    .InferShape(InferShapeMoeDistributeDispatchV2)
-    .InferDataType(InferDataTypeMoeDistributeDispatchV2);
+IMPL_OP_INFERSHAPE(MoeDistributeDispatchV3)
+    .InferShape(InferShapeMoeDistributeDispatchV3)
+    .InferDataType(InferDataTypeMoeDistributeDispatchV3);
 }  // namespace ops
