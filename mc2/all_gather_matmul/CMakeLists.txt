@@ -22,4 +22,5 @@
     set(${CURRENT_DIR_NAME}_depends mc2/common mc2/3rd PARENT_SCOPE)
 endif()
 
+
 set(MC2_COMPILE ${SUB_MC2_COMPILE} PARENT_SCOPE)
