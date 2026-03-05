@@ -40,6 +40,7 @@ public:
         mc2TilingData_ = (Mc2Tiling::QuantMatmulAllReduceTilingDataA5*)tilingData;
         this->tileInfo_.mmTiling = &mc2TilingData_->tilematmulTiling.matmulTiling;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailmatmulTiling.matmulTiling;
+        this->allReduceBasedAtaSumAg_ = &mc2TilingData_->allReduceBasedAtaSumAg;
     }
 
     __aicore__ inline void Process()
@@ -50,7 +51,9 @@ public:
             MmType opTail;
             InnerProcess(opTail, true, this->paramInTiling_->tailCnt, this->tailInfo_);
         }
-
+        if (this->allReduceBasedAtaSumAg_){
+            this->ReduceSumAndAllGather();
+        }
         this->HcclFinalize();
     }
 
@@ -73,8 +76,12 @@ protected:
                 this->quantAddrs_->pertokenGM, this->addrs_->cGM, this->addrs_->workspaceGM, tiling, this->tPipe_);
 
             mmOp.Process();
-            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset);
+            const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
+            this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
             this->quantAddrs_->pertokenGM += x1ScaleOffset;
+        }
+        if (this->allReduceBasedAtaSumAg_){
+            this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
 
