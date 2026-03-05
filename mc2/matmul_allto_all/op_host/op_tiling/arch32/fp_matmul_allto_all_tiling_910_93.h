@@ -53,7 +53,6 @@ protected:
     
     ge::graphStatus SetHcclTiling();
     void SetTilingInfo(MatmulAlltoAllTilingInfoA3 &tilingInfo) const;
-    
 
 private:
     MatmulAlltoAllTilingDataA3 localTilingData_;
