@@ -50,6 +50,7 @@ TILING_DATA_FIELD_DEF(uint64_t, quantGroupNum);        // for A8W4 MSD
 TILING_DATA_FIELD_DEF(uint64_t, isPreTiling);
 TILING_DATA_FIELD_DEF(uint32_t, withOffset);
 TILING_DATA_FIELD_DEF(uint32_t, isOutputDisableL2Cache);
+TILING_DATA_FIELD_DEF(uint8_t, isA4W4Optimize);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(GMMBaseParamsOp, GMMBaseParams)
 
@@ -168,7 +169,7 @@ protected:
     ge::graphStatus CheckA16W4MsdEnable(uint64_t mSize, uint64_t antiquantGroupNum, const gert::TilingContext *context,
                                         const GMMCompileInfo *compileInfoPtr);
     uint64_t GetWithOffset(const gert::TilingContext *context);
-    bool CheckTensorListLength(const gert::TilingContext *context);
+    bool IsA4W4OptimizeCondition();
 
 private:
     int32_t mList_[GroupedMatmul::MAX_TENSOR_CONT] = {0};
@@ -227,6 +228,8 @@ private:
     uint32_t totalM_ = 0;
     matmul_tiling::CubeFormat wFormat_;
     int32_t nzFactor_;  // for weight nz format
+    int64_t quantGroupSize_ = 0;
+    bool isPerGroup_ = false;
 };
 }  // namespace optiling
 
