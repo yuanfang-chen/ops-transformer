@@ -77,7 +77,6 @@ public:
     __aicore__ inline void InitGlobalBuffer(__gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
         __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *sequsedQ, __gm__ uint8_t *sinks);
     __aicore__ inline void InitOutputSingleCore(ConstInfo &constInfo);
-    __aicore__ inline void CopyInTopK(int64_t bnIdx, int64_t s1oIdx, ConstInfo &constInfo);
     __aicore__ inline void ProcessVec0(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void ProcessVec1(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputBuf,
@@ -137,7 +136,6 @@ private:
 
     TBuf<> commonTBuf; // common的复用空间
     TBuf<> sinksBuf;
-    TBuf<> topkBuf;
     TQue<QuePosition::VECOUT, 1> stage1OutQue[2]; // 2份表示可能存在pingpong
     TQue<QuePosition::VECIN, 2> stage0InQue; // for v0 input, 2份表示可能存在pingpong
     TQue<QuePosition::VECOUT, 2> stage0OutQue; // for v0 output, 2份表示可能存在pingpong
@@ -159,19 +157,26 @@ TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx,
     int64_t s2IdxInBase, const RunInfo &runInfo, ConstInfo &constInfo)
 {
-    LocalTensor<int32_t> topkUb = this->topkBuf.template Get<int32_t>();
+    int64_t topkBS1Idx = 0;
+    if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
+        uint64_t actualSeqQPrefixSum = cuSeqlensQGm.GetValue(runInfo.boIdx);
+        topkBS1Idx += (actualSeqQPrefixSum + runInfo.s1oIdx) * constInfo.sparseBlockCount; // T, N2(1), K
+    } else {
+        topkBS1Idx += runInfo.boIdx * constInfo.s1Size * constInfo.sparseBlockCount +
+            runInfo.s1oIdx * constInfo.sparseBlockCount; // B, S1, N2(1), K
+    }
     int64_t cmpS2LoopCnt = runInfo.s2LoopCount - runInfo.oriKvLoopEndIdx;
     int64_t topkKIdx = s2IdxInBase + cmpS2LoopCnt * constInfo.s2BaseSize;
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token0Idx = -1;
     } else {
-        token0Idx = topkUb.GetValue(topkKIdx) + runInfo.s2StartIdx;
+        token0Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
     topkKIdx += 1;
     if (unlikely(topkKIdx >= constInfo.sparseBlockCount)) {
         token1Idx = -1;
     } else {
-        token1Idx = topkUb.GetValue(topkKIdx) + runInfo.s2StartIdx;
+        token1Idx = cmpSparseIndicesGm.GetValue(topkBS1Idx + topkKIdx) + runInfo.s2StartIdx;
     }
 }
 
@@ -526,31 +531,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInTopK(int64_t bnIdx, int64_t s1oIdx, ConstInfo &constInfo)
-{    
-    SetFlag<AscendC::HardEvent::V_MTE2>(8);
-    int64_t topkBS1Idx = 0;
-    if constexpr (LAYOUT_T == SAS_LAYOUT::TND) {
-        uint64_t actualSeqQPrefixSum = cuSeqlensQGm.GetValue(bnIdx);
-        topkBS1Idx += (actualSeqQPrefixSum + s1oIdx) * constInfo.sparseBlockCount; // T, N2(1), K
-    } else {
-        topkBS1Idx += (bnIdx * constInfo.s1Size + s1oIdx) * constInfo.sparseBlockCount; // B, S1, N2(1), K
-    }
-    LocalTensor<int32_t> topkUb = this->topkBuf.template Get<int32_t>();
-
-    DataCopyExtParams dataCopyParams;
-    dataCopyParams.blockCount = 1U;
-    dataCopyParams.blockLen = constInfo.sparseBlockCount * sizeof(int32_t) * 4;
-    dataCopyParams.srcStride = 0U;
-    dataCopyParams.dstStride = 0U;
-    DataCopyPadExtParams<int32_t> padParams;
-    WaitFlag<AscendC::HardEvent::V_MTE2>(8);
-    DataCopyPad(topkUb, this->cmpSparseIndicesGm[topkBS1Idx], dataCopyParams, padParams);
-    SetFlag<AscendC::HardEvent::MTE2_V>(7);
-    WaitFlag<AscendC::HardEvent::MTE2_V>(7);
-}
-
-TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::ProcessVec0(
     Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1, const RunInfo &runInfo, ConstInfo &constInfo)
 {
@@ -884,7 +864,6 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitLocalBuffer(TPipe *pipe,
 
     tPipe->InitBuffer(commonTBuf, 512); // commonTBuf内存申请512B
     tPipe->InitBuffer(sinksBuf, 512); // sinksBuf内存申请512B
-    tPipe->InitBuffer(topkBuf, 512 * 4); // topkBuf内存申请512B
 
     tPipe->InitBuffer(stage0InQue, 2, dVTemplateTypeInput * 16 * sizeof(KV_T)); // V0阶段每次处理16个seq, 开2 buffer
     tPipe->InitBuffer(stage0OutQue, 2, dVTemplateType * (16 + 1) * sizeof(Q_T)); // kv输入D轴640, V0阶段每次处理16个seq, 开2 buffer
