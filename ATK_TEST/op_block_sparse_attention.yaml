@@ -217,9 +217,9 @@ inputs:
       values: [ int ]
     ranges:
       valid:
-        values: [ 0 ]
+        values: [ 0, 1 ]
       invalid:
-        values: [ 0 ]
+        values: [ 0, 1 ]
   - name: attentionOut
     type: tensor
     required: true

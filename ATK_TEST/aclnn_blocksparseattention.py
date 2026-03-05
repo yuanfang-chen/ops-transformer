@@ -129,7 +129,7 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
         self.qSeqlenList = input_data.kwargs['actualSeqLengths']
         input_args[8] = null_tensor_ptr # blockTable
         # input_args[20] = null_tensor_ptr
-        if input_data.kwargs['softmaxLseFlag']:
+        if input_data.kwargs['softmaxLseFlag'] == 1:
             input_args.pop()
             input_args.pop()
             output_packages.append(input_args[-2])
@@ -155,7 +155,9 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
         batch = len(self.qSeqlenList)
         count = 0
         tokenNum = sum(self.qSeqlenList)
-
+        print("hxb=== npu out", output[0])
+        if len(output) > 1:
+            print("hxb=== npu lse", output[1])
         if output[0].dim() == 4:
             outputTemp = torch.zeros((tokenNum, output[0].shape[1], output[0].shape[-1]), dtype=output[0].dtype)
             outputTensor = output[0]
@@ -600,6 +602,8 @@ class BlockSparseAttentionApi(BaseApi):
 
         atten_out_golden, lse_golden = testObj.calc_data(query_dtype, q_input_value, k_input_value, v_input_value, select_idx_input, select_num_idx_input, block_shape, q_seqlen_list, kv_seqlen_list, scale_value, q_input_layout, kv_input_layout, inner_precise)
         # print("XXXX", "atten_out_golden:", atten_out_golden)
+        print("hxb=== cpu out", atten_out_golden)
+        print("hxb=== cpu lse", lse_golden)
         if softmax_lse_flag == 1:
             return atten_out_golden, lse_golden
         else:
