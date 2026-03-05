@@ -20,6 +20,10 @@
 #include "common_header.h"
 #include "kernel_operator.h"
 
+constexpr static const uint32_t BNGSD = 0;
+constexpr static const uint32_t SBNGD = 1;
+constexpr static const uint32_t BSNGD = 2;
+constexpr static const uint32_t TND = 3;
 template <typename FAGT>
 class VecOpDet {
     using TILING_CLASS = typename FAGT::tiling_class;

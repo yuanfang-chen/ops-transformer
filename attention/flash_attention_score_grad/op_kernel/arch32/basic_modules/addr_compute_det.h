@@ -19,6 +19,10 @@
 #include "common_header.h"
 using namespace AscendC;
 
+constexpr static const uint32_t BNGSD = 0;
+constexpr static const uint32_t SBNGD = 1;
+constexpr static const uint32_t BSNGD = 2;
+constexpr static const uint32_t TND = 3;
 namespace FAG_DET {
 template <typename FAGT>
 class AddrComputeDet {
@@ -83,7 +87,7 @@ public:
         this->preToken = tilingData->basicDetTensorTilingData.preTockens;
         this->nextToken = tilingData->basicDetTensorTilingData.nextTockens;
         this->dqPostAbsorb = tilingData->basicDetTensorTilingData.dqPostAbsorb;
-        this->layout = tilingData->basicDetTensorTilingData.layout;  // 新增：0=BSH, 1=TND
+        this->layout = tilingData->basicDetTensorTilingData.layout;
         if (layout == BSNGD)
         {
             dimS1 = tilingData->basicDetTensorTilingData.s1;
@@ -115,7 +119,7 @@ private:
     VecAddrInfoDet *globalVecAddr;    // 用于存储Vector计算相关的地址信息
     uint32_t cubeCoreIdx{0};          // 当前核所对应的Cube核的下标
     uint32_t cubeCoreNum{0};          // Cube核的数量
-    int32_t layout{0};                 // 新增：数据布局格式，0=BSH, 1=TND
+    int32_t layout{0};                // 新增：数据布局格式
 
     SEQLEN_TYPE maxSeqK{0};
     int32_t dimB{0};               // batch
