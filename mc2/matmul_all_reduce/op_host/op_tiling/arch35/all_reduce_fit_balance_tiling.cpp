@@ -17,8 +17,8 @@
 #include "mc2_log.h"
 
 constexpr static double LARGE_BACKTILE_CALC_COMM_RATIO_BAR = 1.75;
-constexpr static double MM_EXPANSION_TIME = 30;
-constexpr static double COMM_EXPANSION_TIME = 40;
+constexpr static double MM_EXPANSION_TIME = 60;
+constexpr static double COMM_EXPANSION_TIME = 100;
 constexpr static uint64_t L2_CACHE_SIZE = 128 * ONE_MBYTE;
 
 void MMAllReduceFitBalanceTiling::EstimateMMCommTime()
@@ -46,23 +46,13 @@ void MMAllReduceFitBalanceTiling::EstimateMMCommTime()
 
 void MMAllReduceFitBalanceTiling::SetShortTileLen()
 {
-    if (tilingM_.cutRes.shortTileAtBack) {
-        tilingM_.SetMinLenByMax(commPerf_.InverseCommTime(COMM_EXPANSION_TIME));
-    } else {
-        tilingM_.SetMinLenByMax(matmulPerf_.InverseMatmulTime(MM_EXPANSION_TIME, rankTileNum_));
-    }
-    // Encourage split more if the comm and calc is balanced and the cost of cutLen is sufficiently high
-    bool isCalcCommBalance = ratioCalcComm_ < CALC_COMM_RATIO;
-    uint64_t cutLen = tilingM_.GetAlignLength() / TWO;
-    double mmCost = matmulPerf_.MatmulTime(cutLen, 1);
-    double commCost = commPerf_.CommTime(cutLen);
+    tilingM_.SetMinLenByMax(commPerf_.InverseCommTime(COMM_EXPANSION_TIME));
+    tilingM_.SetMinLenByMax(matmulPerf_.InverseMatmulTime(MM_EXPANSION_TIME, rankTileNum_));
+    // Encourage larger cutLen if the matrix size is greater than the L2 cache size
     uint64_t l2UseSize = mmInfo_.mValue * mmInfo_.kValue * mmInfo_.inMatrixADtypeSize +
         mmInfo_.kValue * mmInfo_.nValue * mmInfo_.inMatrixBDtypeSize;
     if (l2UseSize > L2_CACHE_SIZE) {
         tilingM_.SetMinLenByMax(tilingM_.GetMinLen() * TWO);
-    } else if (isCalcCommBalance && (mmCost > MM_EXPANSION_TIME) && (commCost > COMM_EXPANSION_TIME) && (l2UseSize < L2_CACHE_SIZE)) {
-        tilingM_.SetAlignLength(cutLen);
-        tilingM_.SetMinLenByMin(cutLen);
     }
     tilingM_.cutRes.shortTileLen = tilingM_.GetMinLen();
     tilingM_.cutRes.numShortTile = 1U;

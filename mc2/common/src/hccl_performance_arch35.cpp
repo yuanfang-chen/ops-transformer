@@ -18,9 +18,11 @@ const static string DEFAULT_KEY_FOR_ARCH35 = "0_0_0_0";
 const static map<string, HCCLFittingParameters> ARCH35_FITTING_PARAMETER_MAP = {
     {DEFAULT_KEY_FOR_ARCH35, HCCLFittingParameters{0.032, 1.371, 2.59568, 5.8887, 0, 2.86702,
                                   5.608, 5.6997, 9.448, 0, 0, 0}},
-    {"4_1_0_4", HCCLFittingParameters{0, 0, 5.841842, 8.590666, 0, 0,  // 950 allgather STANDARD_CARD_4p //待测试===============================
+    {"4_1_0_4", HCCLFittingParameters{0, 0, 5.841842, 8.590666, 0, 0,  // 950 allgather standard_card 4p //待测试===============================
                                   0, 0, 0, 0, 0, 0}},
-    {"4_4_0_4", HCCLFittingParameters{0, 0, 5.8087, 5.6810, 0, 0,  // 950 alltoall STANDARD_CARD_4p
+    {"4_4_0_4", HCCLFittingParameters{0, 0, 5.8087, 5.6810, 0, 0,  // 950 alltoall standard_card 4p
+                                  0, 0, 0, 0, 0, 0}},
+    {"4_5_0_4", HCCLFittingParameters{0, 0, 13.3265, 36.1964, 0, 0,  // 950 alltoall_allgather standard_card 4p
                                   0, 0, 0, 0, 0, 0}},
 };
 
