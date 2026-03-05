@@ -285,7 +285,6 @@ bool GroupedMatmulSwigluQuantV2Tiling950::CheckDims() const
 }
 bool GroupedMatmulSwigluQuantV2Tiling950::AnalyzeInputs()
 {
-    std::cout << "!!!!!!!!!!!!!!!!!0305!" << std::endl;
     OP_CHECK_IF(!CheckCoreNum(),
             OP_LOGE(inputParams_.opName, "CheckCoreNum failed."), return false);
     if (inputParams_.aQuantMode == optiling::QuantMode::PERTOKEN_MODE) {
