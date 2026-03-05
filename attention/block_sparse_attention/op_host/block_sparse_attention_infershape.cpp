@@ -181,7 +181,7 @@ static ge::graphStatus InferShapeBlockSparseAttention(gert::InferShapeContext *c
     // SoftmaxLse shape通常是 [batch, num_heads, q_seqlen] 或类似维度
     if (qLayout == "TND") {
         // TND格式
-         softmaxLseShape->SetDimNum(3);
+        softmaxLseShape->SetDimNum(3);
         (*softmaxLseShape)[TND_DIM_T] = queryShape->GetDim(TND_DIM_T);
         (*softmaxLseShape)[TND_DIM_N] = queryShape->GetDim(TND_DIM_N);
         (*softmaxLseShape)[TND_DIM_D] = 1;
