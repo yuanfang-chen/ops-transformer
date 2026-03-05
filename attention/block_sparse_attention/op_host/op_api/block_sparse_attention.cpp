@@ -105,7 +105,7 @@ const std::array<const aclTensor *, 2> BlockSparseAttention(
                                         static_cast<int64_t>(innerPrecise), static_cast<int64_t>(blockSize),
                                         static_cast<int64_t>(preTokens), static_cast<int64_t>(nextTokens), static_cast<int64_t>(softmaxLseFlag)));
     if (softmaxLseTensor != nullptr) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "softmaxLseTensor.ToString() %s", softmaxLseTensor->ToString().GetString())
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "softmaxLseTensor.ToString() %s", softmaxLseTensor->ToString().GetString());
     }
 
     return {attentionOutTensor, softmaxLseTensor};
