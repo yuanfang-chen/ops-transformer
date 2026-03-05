@@ -95,6 +95,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::SetBaseInfo()
         fBaseParams.n2 = headNum / fBaseParams.g;
         fBaseParams.s1 = queryShape->GetStorageShape().GetDim(DIM_1);
         fBaseParams.d = queryShape->GetStorageShape().GetDim(DIM_2) / headNum; // H=N*D
+        fBaseParams.dv = valueShape->GetStorageShape().GetDim(DIM_NUM_2) / headNum;
         fBaseParams.s2 = keyShape->GetStorageShape().GetDim(DIM_1);
         fBaseParams.t1 = fBaseParams.b * fBaseParams.s1;
         return ge::GRAPH_SUCCESS;
@@ -311,9 +312,9 @@ bool FlashAttentionScoreGraTilingBasicDet::IsDropMskCapable()
 
 bool FlashAttentionScoreGraTilingBasicDet::IsShapeCapable()
 {
-    // if (fBaseParams.d != fBaseParams.dv || fBaseParams.d > SPECIAL_HEADDIM_128 || fBaseParams.d % C0_SIZE != 0) {
-    //     return false;
-    // }
+    if (fBaseParams.d != fBaseParams.dv || fBaseParams.d > SPECIAL_HEADDIM_128 || fBaseParams.d % C0_SIZE != 0) {
+        return false;
+    }
     return true;
 }
 
@@ -365,7 +366,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
     } else if (strcmp(inputLayout, TND_STR) == 0) {
         tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::TND));
     } else {
-        //OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
+        OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
         return ge::GRAPH_PARAM_INVALID;
     }
     bool tndSoftmaxIn = context_->GetAttrs()->GetAttrNum() > static_cast<size_t>(TND_SOFTMAX_IN) ?
