@@ -254,7 +254,7 @@ __aicore__ inline void VecOpDet<FAGT>::GetSeqQlenKvlenByBidx(
     
     if (layout == 0){
         actualSeqQlen = dimS1;
-        actualSeqKvlen = dimS2
+        actualSeqKvlen = dimS2;
     }
     else{
         if (unlikely(bIdx == 0)) {
