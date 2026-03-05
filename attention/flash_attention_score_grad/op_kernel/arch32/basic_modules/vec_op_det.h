@@ -170,7 +170,7 @@ __aicore__ void VecOpDet<FAGT>::Init(
     actual_seq_qlen_addr = actual_seq_qlen;
     actual_seq_kvlen_addr = actual_seq_kvlen;
     layout = tilingData->basicDetTensorTilingData.layout;
-    if (layout == BSH) {  // BSH格式
+    if (layout == static_cast<uint32_t>(InputLayout::BSH)) {  // BSH格式
             dimS1 = tilingData->basicDetTensorTilingData.s1;
             dimS2 = tilingData->basicDetTensorTilingData.s2;
         }
@@ -252,7 +252,7 @@ __aicore__ inline void VecOpDet<FAGT>::GetSeqQlenKvlenByBidx(
     int64_t bIdx, SEQLEN_TYPE &actualSeqQlen, SEQLEN_TYPE &actualSeqKvlen)
 {
     
-    if (layout == BSH){
+    if (layout == static_cast<uint32_t>(InputLayout::BSH)){
         actualSeqQlen = dimS1;
         actualSeqKvlen = dimS2;
     }
@@ -566,7 +566,7 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
         }
         sfmgOffset = 0;
         if (batchIdx > 0) {
-            if (layout == BSH){
+            if (layout == static_cast<uint32_t>(InputLayout::BSH)){
                 sfmgOffset = dimS1 * n2 * g * 8;  
             }
             else{
@@ -581,7 +581,7 @@ __aicore__ inline void VecOpDet<FAGT>::DetVector1(const VecAddrInfoDet &addrs)
                                               blockInfo.s1Idx + subIdx * s1VecSize) *
                                              32 / sizeof(float);
             int64_t innerRowOffsetLeft = 0;
-            if (layout == BSH){
+            if (layout == static_cast<uint32_t>(InputLayout::BSH)){
                 innerRowOffsetLeft =
                 unlikely(batchIdx == 0) ?
                     0 :
