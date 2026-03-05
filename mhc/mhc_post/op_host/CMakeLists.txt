@@ -12,30 +12,8 @@ if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnExc PRIVATE
         mhc_post_def.cpp
     )
-    add_ops_compile_options(
-        OP_NAME MhcPost
-        OPTIONS --cce-auto-sync=off
-                -Wno-deprecated-declarations
-                -Werror
-    )
-    if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
-        add_ops_compile_options(
-            OP_NAME MhcPost
-            COMPUTE_UNIT Ascend950PR_9599
-            OPTIONS -mllvm -cce-aicore-dcci-before-kernel-end=false
-        )
-    endif()
 endif()
 
-set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
-if("${CONDITION_UNIT}" STREQUAL "ascend950")
-    add_ops_compile_options(
-        OP_NAME MhcPost
-        COMPUTE_UNIT Ascend950PR_9599
-        OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
-    )
-endif()
-
-if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE mhc_post ACLNNTYPE aclnn_exclude)
-endif()
+# 设置算子定义时支持的芯片类型
+set(SUPPORT_COMPUTE_UNIT "ascend950")
+add_modules_sources(OPTYPE mhc_post COMPUTE_UNIT ${SUPPORT_COMPUTE_UNIT} ACLNNTYPE aclnn_exclude)
