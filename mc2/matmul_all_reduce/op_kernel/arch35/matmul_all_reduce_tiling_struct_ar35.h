@@ -33,6 +33,7 @@ struct alignas(8) WeightQuantMatmulAllReduceA5TilingData {
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tileRegBaseMmTiling;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tailRegBaseMmTiling;
+    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
@@ -40,9 +41,11 @@ struct alignas(8) WeightQuantMatmulAllReduceA5TilingData {
 struct alignas(8) WeightQuantMatmulAllReduceA5Fp8TilingData {
     Mc2InitTiling mc2InitTiling;
  	Mc2CcTiling mc2CcTiling;
+ 	Mc2CcTiling mc2CcTilingComm;
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2ASTilingData tileMmASTiling;
     Mc2WeightQuantBatchMatmulV2ASTilingData tailMmASTiling;
+    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
