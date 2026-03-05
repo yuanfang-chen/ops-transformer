@@ -55,12 +55,11 @@ private:
     __aicore__ inline void MatMulComputReduceScatter(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM,
                                                      DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
                                                      GM_ADDR sendGM, bool isLast, bool isTail);
-    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR aGM, GM_ADDR recvGM, 
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
-                                                     GM_ADDR sendGM, bool isLast, bool isTail);
+    __aicore__ inline void MatMulComputReduceScatterPertensor(GM_ADDR recvGM, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling,
+                                                              uint32_t count, GM_ADDR sendGM, bool isLast, bool isTail);
     __aicore__ inline void MatMulComputReduceScatterPerblock(GM_ADDR aGM, GM_ADDR recvGM, GM_ADDR x1ScaleGM, 
-                                                     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
-                                                     GM_ADDR sendGM, bool isTail);
+                                                             DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, uint32_t count,
+                                                             GM_ADDR sendGM, bool isTail);
     __aicore__ inline void PostProcess();  // 计算后处理, 终止hcclserver
     __aicore__ inline void PrepareTailConfig(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, bool isTail);
     __aicore__ inline void ExecuteAicMatMulPipeline(DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
@@ -445,7 +444,6 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::ExecuteAivCommReducePipeline(
 TEMPLATE_CLASS_PARAMS
 __aicore__ inline void
 QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatterPertensor(
-    GM_ADDR aGM, 
     GM_ADDR recvGM, 
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams& qBmmTiling, 
     uint32_t count,
@@ -551,7 +549,7 @@ QuantBMMReduceScatter<TEMPLATE_FUNC_PARAMS>::MatMulComputReduceScatter(
     if constexpr (IsPerBlock) {
         MatMulComputReduceScatterPerblock(aGM, recvGM, x1ScaleGM, qBmmTiling, count, sendGM, isTail);
     } else {
-        MatMulComputReduceScatterPertensor(aGM, recvGM, qBmmTiling, count, sendGM, isLast, isTail);
+        MatMulComputReduceScatterPertensor(recvGM, qBmmTiling, count, sendGM, isLast, isTail);
     }
 }
 
