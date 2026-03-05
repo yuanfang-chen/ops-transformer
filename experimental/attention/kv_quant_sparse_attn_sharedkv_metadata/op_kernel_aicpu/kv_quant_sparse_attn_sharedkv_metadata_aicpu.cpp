@@ -233,10 +233,20 @@ ValidSocVersion KvQuantSparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
 bool KvQuantSparseAttnSharedkvMetadataCpuKernel::ParamsInit()
 {
     batchSize_ = GetQueryBatchSize();
-    sparseMode_ = oriMaskMode_;
-    preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
-    nextToken_ = 0;
-    attentionMode_ = 1;
+    auto mode = static_cast<SparseMode>(oriMaskMode_);
+    if (mode == SparseMode::DEFAULT_MASK) {
+        preToken_ = INT64_MAX;
+        nextToken_ = INT64_MAX;
+        attentionMode_ = 0;
+    } else if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
+        preToken_ = INT64_MAX;
+        nextToken_ = 0;
+        attentionMode_ = 1;
+    } else {//SparseMode = 4
+        preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
+        nextToken_ = 0;
+        attentionMode_ = 1;
+    }
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (hasCmpKv_) {
