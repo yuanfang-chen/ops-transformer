@@ -563,6 +563,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
 
     for (uint32_t nDimLoopIdx = 1; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
+        if (nDimLoopIdx * nDimReal + nCoreIndx >= nDimNeed) {
+            CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
+            break;
+        }
         CalcOffset(nDimLoopIdx * nDimReal, mCoreIndx, nCoreIndx);
         for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
             // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
@@ -761,6 +765,10 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
     DequantInit();
     for (uint32_t nDimLoopIdx = 0; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
+        if (nDimLoopIdx * nDimReal + nCoreIndx >= nDimNeed) {
+            CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
+            break;
+        }
         CalcOffset(nDimLoopIdx * nDimReal, mCoreIndx, nCoreIndx);
         CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
         DequantCompute(mmOutGm_, 0, 0, singleCoreMUpdate, singleCoreNUpdate);
