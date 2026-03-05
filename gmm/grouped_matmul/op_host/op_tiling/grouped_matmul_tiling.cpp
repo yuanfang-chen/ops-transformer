@@ -96,6 +96,26 @@ constexpr size_t TUNING_CONFIG_TOKEN_PER_EXPECT_INDEX = 0;
 constexpr size_t TUNING_CONFIG_A8W4_SPEC_SCENARIO_INDEX = 1;
 constexpr size_t TUNING_CONFIG_ALLOW_WORKSPACE_INDEX = 2;
 constexpr int64_t SPLITK_M_N_RATIO_THRESHOLD_2 = 2L;
+// A4W4优化K的范围
+constexpr int64_t A4W4OPTIMIZE_K1 = 2048L;
+constexpr int64_t A4W4OPTIMIZE_K2 = 7168L;
+// A4W4优化N的范围
+constexpr int64_t A4W4OPTIMIZE_N1 = 7168L;
+constexpr int64_t A4W4OPTIMIZE_N2 = 4096L;
+// A4W4优化group_num的范围
+constexpr int32_t A4W4OPTIMIZE_GROUP_NUM = 4;
+// A4W4优化每个专家M的范围
+constexpr int64_t A4W4OPTIMIZE_PERM_LOWER = 16L;
+constexpr int64_t A4W4OPTIMIZE_PERM_UPPER = 10240L;
+// A4W4优化split_item的范围
+constexpr int64_t A4W4OPTIMIZE_SPLIT_ITEM2 = 2L;
+constexpr int64_t A4W4OPTIMIZE_SPLIT_ITEM3 = 3L;
+// A4W4优化group_list_type的范围
+constexpr int64_t A4W4OPTIMIZE_GROUP_LIST_TYPE = 0L;
+// A4W4优化group_type的范围
+constexpr int64_t A4W4OPTIMIZE_GROUP_TYPE = 0L;
+// A4W4优化quantGroupSize的范围
+constexpr int64_t A4W4OPTIMIZE_QUANT_GROUP_SIZE = 256L;
 
 
 static inline uint32_t FindBestSingleNA8W4(uint32_t baseM_, uint32_t baseN_, uint32_t avg_m, uint32_t maxN_, uint32_t groupNum_, const uint32_t& aicNum) {
@@ -459,6 +479,8 @@ ge::graphStatus GMMTiling::Init(const gert::TilingContext* context) {
     // 3: pergroup scale shape is [e,g,n]
     if (scaleDimNum == 3U) {
       quantGroupNum = context->GetDynamicInputTensor(SCALE_INDEX, 0)->GetStorageShape().GetDim(1);
+      quantGroupSize_ = maxK_ / quantGroupNum;
+      isPerGroup_ = true;
     // 2: perchannel scale shape is [e, n]
     } else if (scaleDimNum == 2U) {
       quantGroupNum = 1UL;
@@ -469,6 +491,10 @@ ge::graphStatus GMMTiling::Init(const gert::TilingContext* context) {
     tilingData.gmmBaseParams.set_k(maxK_);
     tilingData.gmmBaseParams.set_n(maxN_);
     tilingData.gmmBaseParams.set_quantGroupNum(quantGroupNum);
+    bool isA4W4Optimize = IsA4W4OptimizeCondition();
+    if (isA4W4Optimize) {
+      tilingData.gmmBaseParams.set_isA4W4Optimize(1);
+    }
   }
   if (isA8W4FakeA8W8_) {
     hasBias_ = false;
@@ -1040,6 +1066,26 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
            isDataTypeCorrect && isConfigCorrect && isWorkspaceValid && !hasBias_ && isFormatValid;
 }
 
+bool GMMTiling::IsA4W4OptimizeCondition() {
+    bool isCorrectShape = (maxK_ == A4W4OPTIMIZE_K1 && maxN_ == A4W4OPTIMIZE_N1) ||
+                          (maxK_ == A4W4OPTIMIZE_K2 && maxN_ == A4W4OPTIMIZE_N2);
+    bool isGroupCorrect = (groupNum_ == A4W4OPTIMIZE_GROUP_NUM);
+    bool isTuningInRange = (tuningConfig_ >= A4W4OPTIMIZE_PERM_LOWER) &&
+                          (tuningConfig_ <= A4W4OPTIMIZE_PERM_UPPER);
+    bool isPerGroupCorrect = isPerGroup_ && quantGroupSize_ == A4W4OPTIMIZE_QUANT_GROUP_SIZE;
+    bool isDataTypeCorrect = yDtype_ == ge::DT_BF16 && scaleDtype_ == ge::DT_UINT64 && perTokenScaleDtype_ == ge::DT_FLOAT;
+    bool isConfigCorrect = !transposeX_ && (splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM2 || splitItem_ == A4W4OPTIMIZE_SPLIT_ITEM3)
+                          && (groupListType_ == A4W4OPTIMIZE_GROUP_LIST_TYPE)
+                          && (groupType_ == A4W4OPTIMIZE_GROUP_TYPE) && (actType_ == 0)
+                          && !transposeWeight_;
+    bool isWorkspaceValid = (static_cast<int64_t>(FixedAxisMoveWorkspace_) <= tuningConfigWorkspace_) ||
+                           (tuningConfigWorkspace_ == -1);
+    bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
+
+    return isCorrectShape && isTuningInRange && isGroupCorrect && isPerGroupCorrect && isA4W4_ &&
+           isDataTypeCorrect && isConfigCorrect && isWorkspaceValid && !hasBias_ && isFormatValid;
+}
+
 bool GMMTiling::IsIntDataType() {
     return yDtype_ == ge::DT_INT8 || yDtype_ == ge::DT_INT32;
 }
@@ -1172,7 +1218,7 @@ ge::graphStatus GMMTiling::GMMGetAttrs(const gert::TilingContext* context) {
   OP_CHECK_NULL_WITH_CONTEXT(context, yDesc);
   yDtype_ = yDesc->GetDataType();
   if ((weightDtype_ == ge::DT_INT8 && xDType_ == ge::DT_INT8 && yDtype_ != ge::DT_INT32) || isA8W4FakeA8W8_ ||
-      (xDType_ == ge::DT_FLOAT8_E4M3FN) || (xDType_ == ge::DT_FLOAT8_E5M2)) {
+      (xDType_ == ge::DT_FLOAT8_E4M3FN) || (xDType_ == ge::DT_FLOAT8_E5M2) || isA4W4_) {
       auto scale0Desc = context->GetDynamicInputDesc(SCALE_INDEX, 0);
       OP_CHECK_NULL_WITH_CONTEXT(context, scale0Desc);
       scaleDtype_ = scale0Desc->GetDataType();
@@ -2042,7 +2088,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
   OP_CHECK_NULL_WITH_CONTEXT(context, compileInfoPtr);
   if (compileInfoPtr->npuArch == NpuArch::DAV_3510) {
       // 全量化：双8bits或双4bits(不会有A4W2)
-      bool isQuant = xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
+      bool isQuant = xDType == ge::DT_FLOAT4_E1M2 || xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
                      (ge::GetSizeByDataType(xDType) == 1 && ge::GetSizeByDataType(weightDtype) == 1);
       if (isQuant) {
           return TilingRegistry::GetInstance().DoTilingImpl(context);
@@ -2107,7 +2153,7 @@ ASCENDC_EXTERN_C ge::graphStatus TilingPrepareForGMM(gert::TilingParseContext* c
              compileInfoPtr->l0CSize, compileInfoPtr->l0ASize, compileInfoPtr->l0BSize),
              return ge::GRAPH_FAILED);
 
-  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->ubSize == 0 || \
+  OP_CHECK_IF((compileInfoPtr->aicNum == 0 || compileInfoPtr->aivNum == 0 || compileInfoPtr->ubSize == 0 || \
              compileInfoPtr->l1Size == 0 || compileInfoPtr->l0CSize == 0 || compileInfoPtr->l0ASize == 0 || \
              compileInfoPtr->l0BSize == 0),
              OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(),
