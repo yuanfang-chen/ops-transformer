@@ -82,7 +82,7 @@ public:
             .DynamicShapeSupportFlag(true)
             .NeedCheckSupportFlag(false)
             .PrecisionReduceFlag(true)
-            .ExtendCfgInfo("opFile.value", "causal_conv1d_apt");
+            .ExtendCfgInfo("opFile.value", "causal_conv1d_fn_apt");
         this->AICore().AddConfig("ascend950", config_950);
     }
 };
