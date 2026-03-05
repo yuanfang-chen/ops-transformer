@@ -334,7 +334,7 @@ public:
                                 // AscendC::DumpTensor(tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE], 1, 10);
                         }
                     }
-                    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+                    // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
                 }
             }
         } else if (needRowLoop) {

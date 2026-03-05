@@ -261,7 +261,7 @@ namespace BlockSparse {
             // Initialize hardware events for vector core
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+            // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID3);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID4);
@@ -690,7 +690,7 @@ namespace BlockSparse {
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID2);
-            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+            // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);

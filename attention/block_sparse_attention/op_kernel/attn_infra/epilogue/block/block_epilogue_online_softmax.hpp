@@ -780,7 +780,7 @@ public:
             // In lse out-only mode, tv is used in the last stack tile to transport lse
             // 等待LSE MTE3搬出
             if (isFirstStackTile && isFirstRowLoop) {
-                AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+                // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             }
         }
         CalcLocalRowMax(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
