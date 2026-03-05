@@ -29,7 +29,8 @@ public:
 
     __aicore__ inline void Init(
         GM_ADDR expandedX, GM_ADDR expandedRowIdx, GM_ADDR x1, GM_ADDR x2, GM_ADDR bias, GM_ADDR scales,
-        GM_ADDR expertIdx, GM_ADDR y, GM_ADDR workspace, const MoeFinalizeRoutingV2RegbaseTilingData* tilingDataPtr,
+        GM_ADDR expertIdx, GM_ADDR x, GM_ADDR constExpertAlpha1, GM_ADDR constExpertAlpha2, GM_ADDR v,
+        GM_ADDR y, GM_ADDR workspace, const MoeFinalizeRoutingV2RegbaseTilingData* tilingDataPtr,
         TPipe* pipePtr)
     {
         pipe = pipePtr;
@@ -39,6 +40,9 @@ public:
         hasX2 = x2 != nullptr;
         hasBiasAndExpertIdx = (bias != nullptr) && (expertIdx != nullptr);
         hasScales = scales != nullptr;
+        hasX = x != nullptr;
+        hasConstExpert = (constExpertAlpha1 != nullptr) && (constExpertAlpha2 != nullptr) && (v != nullptr);
+
         expandedXGm.SetGlobalBuffer((__gm__ T*)expandedX);
         expandedRowIdxGm.SetGlobalBuffer((__gm__ int32_t*)expandedRowIdx);
         x1Gm.SetGlobalBuffer((__gm__ T*)x1);
@@ -46,10 +50,15 @@ public:
         biasGm.SetGlobalBuffer((__gm__ T*)bias);
         scalesGm.SetGlobalBuffer((__gm__ S*)scales);
         expertIdxGm.SetGlobalBuffer((__gm__ int32_t*)expertIdx);
+        xGm.SetGlobalBuffer((__gm__ T*)x);
+        constExpertAlpha1Gm.SetGlobalBuffer((__gm__ T*)constExpertAlpha1);
+        constExpertAlpha2Gm.SetGlobalBuffer((__gm__ T*)constExpertAlpha2);
+        vGm.SetGlobalBuffer((__gm__ T*)v);
         yGm.SetGlobalBuffer((__gm__ T*)y);
 
         int32_t rowFactorHAlignedT = RoundUp<T>(tilingData->rowFactor * tilingData->h);
         int32_t rowFactorHAlignedFloat = RoundUp<float>(tilingData->rowFactor * tilingData->h);
+        int32_t constExpertRangeFactorHAlignedT = RoundUp<T>(tilingData->constExpertRangeFactor * tilingData->h);
         int32_t kFactorAlignedT = RoundUp<T>(tilingData->kFactor);
         pipe->InitBuffer(expandedXQue, DOUBLE_BUFFER, tilingData->kFactor * tilingData->hAligned * sizeof(T));
         pipe->InitBuffer(yQue, DOUBLE_BUFFER, rowFactorHAlignedFloat * sizeof(float));
@@ -64,6 +73,15 @@ public:
         }
         if (hasScales) {
             pipe->InitBuffer(scalesQue, DOUBLE_BUFFER, kFactorAlignedT * sizeof(S));
+        }
+        if (hasX) {
+            // X的大小是row_num, h
+            pipe->InitBuffer(xQue, DOUBLE_BUFFER, rowFactorHAlignedT * sizeof(T));
+        }
+        if (hasBiasAndExpertIdx) {
+            pipe->InitBuffer(constExpertAlpha1Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(constExpertAlpha2Que, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
+            pipe->InitBuffer(vQue, DOUBLE_BUFFER, constExpertRangeFactorHAlignedT * sizeof(T));
         }
     }
 
@@ -130,12 +148,33 @@ private:
                 if (hasBiasAndExpertIdx) {
                     biasLocal = biasQue.AllocTensor<T>();
                 }
+                if (hasX) {
+                    xLocal = xQue.AllocTensor<T>();
+                }
+                if (hasConstExpert) {
+                    constExpertAlpha1Local = constExpertAlpha1Que.AllocTensor<T>();
+                    constExpertAlpha2Local = constExpertAlpha2Que.AllocTensor<T>();
+                    vLocal = vQue.AllocTensor<T>();
+                }
+                // 拷贝数据进来
                 CopyExpanedXAndBiasScales(curKFactor, rowOuterIdx, rowInnerIdx, kOuterIdx);
                 expandedXQue.EnQue(expandedXLocal);
                 expandedXLocal = expandedXQue.DeQue<T>();
                 if (hasBiasAndExpertIdx) {
                     biasQue.EnQue(biasLocal);
                     biasLocal = biasQue.DeQue<T>();
+                }
+                if (hasX) {
+                    xQue.EnQue(xLocal);
+                    xLocal = xQue.DeQue<T>();
+                }
+                if (hasConstExpert) {
+                    constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
+                    constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
+                    constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
+                    constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
+                    vQue.EnQue(vLocal);
+                    vLocal = vQue.DeQue<T>();
                 }
                 if (hasScales) {
                     event_t eventId = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::S_V));
@@ -149,6 +188,14 @@ private:
                 if (hasBiasAndExpertIdx) {
                     biasQue.FreeTensor(biasLocal);
                 }
+                if (hasX) {
+                    xQue.FreeTensor(xLocal);
+                }
+                if (hasConstExpert) {
+                    constExpertAlpha1Que.FreeTensor(constExpertAlpha1Local);
+                    constExpertAlpha2Que.FreeTensor(constExpertAlpha2Local);
+                    vQue.FreeTensor(vLocal);
+                }
                 if (hasScales) {
                     scalesQue.FreeTensor(scalesLocal);
                 }
@@ -159,6 +206,32 @@ private:
         }
     }
 
+    __aicore__ inline void CopyLocal(
+        const LocalTensor<T>& srcTensor,       // 源本地张量（从0开始拷贝）
+        const LocalTensor<T>& dstTensor,       // 目标本地张量
+        const uint64_t dstOffset,              // 目标张量的起始偏移量
+        const uint16_t nBurst,                 // 突发传输次数
+        const uint32_t copyLen)                // 每次传输的元素数量
+    {
+        // 配置填充参数（无填充）
+        DataCopyPadExtParams<T> dataCopyPadExtParams;
+        dataCopyPadExtParams.isPad = false;
+        dataCopyPadExtParams.leftPadding = 0;
+        dataCopyPadExtParams.rightPadding = 0;
+        dataCopyPadExtParams.paddingValue = 0;
+
+        // 配置传输参数
+        DataCopyExtParams dataCopyExtParams;
+        dataCopyExtParams.blockCount = nBurst;           // 突发传输次数
+        dataCopyExtParams.blockLen = copyLen * sizeof(T); // 每次传输的字节长度
+        dataCopyExtParams.srcStride = 0;                 // 源张量步长（0表示连续内存）
+        dataCopyExtParams.dstStride = 0;                 // 目标张量步长（0表示连续内存）
+        
+        // 使用偏移后的目标张量进行复制
+        // dstTensor[dstOffset] 表示从目标张量的dstOffset位置开始写入
+        DataCopyPad(dstTensor[dstOffset], srcTensor[0], dataCopyExtParams, dataCopyPadExtParams);
+    }
+
     __aicore__ inline void CopyExpanedXAndBiasScales(
         int64_t curKFactor, int64_t rowOuterIdx, int64_t rowInnerIdx, int64_t kOuterIdx)
     {
@@ -166,18 +239,45 @@ private:
         for (int64_t kInnerIdx = 0; kInnerIdx < curKFactor; kInnerIdx += 1) {
             SetExpandedRowIdxOffset(rowOuterIdx, rowInnerIdx, kOuterIdx, kInnerIdx);
             int64_t gmValueOfExpandedRowIdx = expandedRowIdxGm.GetValue(expandedRowIdxOffset);
+            if (gmValueOfExpandedRowIdx == INVALID_IDX) {
+                continue;
+            }
             if constexpr (dropPadMode != DROP_PAD_ROW && dropPadMode != DROP_PAD_COLUMN) {
                 if (tilingData->activeNum <= gmValueOfExpandedRowIdx) {
-                    continue;
-                }
-            } else {
-                if (gmValueOfExpandedRowIdx == INVALID_IDX) {
                     continue;
                 }
             }
             CopyIn(
                 expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
                 tilingData->h);
+            // 判断专家类型，并进行拷贝相应函数
+            int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
+            if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
+                continue;
+            }
+            if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
+                // x = x[i]
+                int64_t i = expertIdxOffset / tilingData->k;
+                int64_t xGmOffset = i * tilingData->h;
+                CopyIn(xGm[xGmOffset], xLocal, 1, tilingData->h); 
+                CopyLocal(xLocal, expandedXLocal, validK * tilingData->hAligned, 1, tilingData->h);
+            }
+            if (expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                // x = a1 * x[i] +  a2 * v
+                int64_t i = expertIdxOffset / tilingData->k;
+                int64_t xGmOffset = i * tilingData->h;
+                // 不需要有偏移，用完就下一个循环覆盖掉就行
+                CopyIn(xGm[xGmOffset], xLocal, 1, tilingData->h); 
+                int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * tilingData->h;
+                CopyIn(constExpertAlpha1Gm[constExpertGmOffset], constExpertAlpha1Local, 1, tilingData->h); 
+                CopyIn(constExpertAlpha2Gm[constExpertGmOffset], constExpertAlpha2Local, 1, tilingData->h); 
+                CopyIn(vGm[constExpertGmOffset], vLocal, 1, tilingData->h); 
+                vLocal = vLocal * constExpertAlpha2Local;
+                xLocal = xLocal * constExpertAlpha1Local;
+                xLocal = xLocal + vLocal;
+                CopyLocal(xLocal, expandedXLocal, validK * tilingData->hAligned, 1, tilingData->h);
+            }
+
             if (hasBiasAndExpertIdx) {
                 SetOffsetForExpertIdx(kOuterIdx, rowOuterIdx, rowInnerIdx, kInnerIdx);
                 int64_t biasGmOffset = expertIdxGm.GetValue(expertIdxOffset) * tilingData->h;
@@ -233,6 +333,12 @@ private:
     GlobalTensor<T> biasGm;
     GlobalTensor<S> scalesGm;
     GlobalTensor<int32_t> expertIdxGm;
+
+    GlobalTensor<T> xGm;
+    GlobalTensor<T> constExpertAlpha1Gm;
+    GlobalTensor<T> constExpertAlpha2Gm;
+    GlobalTensor<T> vGm;
+
     GlobalTensor<T> yGm;
 
     S scale;
@@ -240,9 +346,17 @@ private:
     bool hasX2{false};
     bool hasBiasAndExpertIdx{false};
     bool hasScales{false};
+    bool hasX{false};
+    bool hasConstExpert{false};
 
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> expandedXQue;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> biasQue;
+
+    TQue<QuePosition::VECIN, DOUBLE_BUFFER> xQue;
+    TQue<QuePosition::VECIN, DOUBLE_BUFFER> constExpertAlpha1Que;
+    TQue<QuePosition::VECIN, DOUBLE_BUFFER> constExpertAlpha2Que;
+    TQue<QuePosition::VECIN, DOUBLE_BUFFER> vQue;
+
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> x1Que;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> x2Que;
     TQue<QuePosition::VECIN, DOUBLE_BUFFER> scalesQue;
@@ -252,6 +366,12 @@ private:
     LocalTensor<T> x1Local;
     LocalTensor<T> x2Local;
     LocalTensor<T> biasLocal;
+
+    LocalTensor<T> xLocal;
+    LocalTensor<T> constExpertAlpha1Local;
+    LocalTensor<T> constExpertAlpha2Local;
+    LocalTensor<T> vLocal;
+
     LocalTensor<S> scalesLocal;
     LocalTensor<float> yLocal;
 };

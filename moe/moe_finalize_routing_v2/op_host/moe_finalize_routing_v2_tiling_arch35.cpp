@@ -26,8 +26,8 @@ static constexpr int64_t BIAS_IDX = 4;
 static constexpr int64_t SCALES_IDX = 5;
 static constexpr int64_t EXPERTIDX_IDX = 6;
 static constexpr int64_t X_IDX = 7;
-static constexpr int64_t CONST_EXPERT_ALOPHA1_IDX = 8;
-static constexpr int64_t CONST_EXPERT_ALOPHA2_IDX = 9;
+static constexpr int64_t CONST_EXPERT_ALPHA1_IDX = 8;
+static constexpr int64_t CONST_EXPERT_ALPHA2_IDX = 9;
 static constexpr int64_t CONST_EXPERT_V_IDX = 10;
 static constexpr int64_t BIAS_DIM_NUM = 2;
 static constexpr int64_t SCALES_DIM_NUM = 2;
@@ -135,6 +135,7 @@ protected:
     int64_t copyExpertEnd{0};
     int64_t constantExpertStart{0};
     int64_t constantExpertEnd{0};
+    int64_t constExpertRangeNum{0};
     MoeFinalizeRoutingV2RegbaseTilingData* tilingData{nullptr};
 };
 
@@ -357,41 +358,16 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
         }
     }
 
-static constexpr int64_t CONST_EXPERT_ALOPHA1_IDX = 8;
-static constexpr int64_t CONST_EXPERT_ALOPHA2_IDX = 9;
-static constexpr int64_t CONST_EXPERT_V_IDX = 10;
-    // 判断x的shape信息要与bias一致
-    auto xDesc = context_->GetOptionalInputDesc(X_IDX);
-    if (xDesc) {
-        OP_CHECK_IF(
-            xDesc->GetDataType() != dtype,
-            OP_LOGE(context_->GetNodeName(), "dtype of x is invalid."),
-            return ge::GRAPH_FAILED);
-    }
-    auto xShape = context_->GetOptionalInputShape(X_IDX);
-    if (xShape) {
-        OP_CHECK_IF(
-            CheckBiasShape(xShape) != ge::GRAPH_SUCCESS,
-            OP_LOGE(context_->GetNodeName(), "failed to get e."), return ge::GRAPH_FAILED);
-        OP_CHECK_IF(
-            xShape->GetStorageShape().GetDim(1) != h,
-            OP_LOGE(context_->GetNodeName(), "dim 1 of of x should be h."),
-            return ge::GRAPH_FAILED);
-        OP_CHECK_IF(
-            xShape->GetStorageShape().GetDim(0) != biasShape->GetStorageShape().GetDim(0),
-            OP_LOGE(context_->GetNodeName(), "dim 0 of of x should be equal with bias."),
-            return ge::GRAPH_FAILED);
-    }
     // const_expert_alpha等的shape信息要与const_expert_range_num一致
-    int64_t constExpertRangeNum = constantExpertEnd - constantExpertStart;
-    auto constExpertAlpha1Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALOPHA1_IDX);
+    constExpertRangeNum = constantExpertEnd - constantExpertStart;
+    auto constExpertAlpha1Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA1_IDX);
     if (constExpertAlpha1Desc) {
         OP_CHECK_IF(
             constExpertAlpha1Desc->GetDataType() != dtype,
             OP_LOGE(context_->GetNodeName(), "dtype of const expert alpha1 is invalid."),
             return ge::GRAPH_FAILED);
     }
-    auto constExpertAlpha1Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALOPHA1_IDX);
+    auto constExpertAlpha1Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALPHA1_IDX);
     if (constExpertAlpha1Shape) {
         OP_CHECK_IF(
             constExpertAlpha1Shape->GetStorageShape().GetDim(1) != h,
@@ -403,14 +379,14 @@ static constexpr int64_t CONST_EXPERT_V_IDX = 10;
             return ge::GRAPH_FAILED);
     }
     
-    auto constExpertAlpha2Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALOPHA2_IDX);
+    auto constExpertAlpha2Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA2_IDX);
     if (constExpertAlpha2Desc) {
         OP_CHECK_IF(
             constExpertAlpha2Desc->GetDataType() != dtype,
             OP_LOGE(context_->GetNodeName(), "dtype of const expert alpha2 is invalid."),
             return ge::GRAPH_FAILED);
     }
-    auto constExpertAlpha2Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALOPHA2_IDX);
+    auto constExpertAlpha2Shape = context_->GetOptionalInputShape(CONST_EXPERT_ALPHA2_IDX);
     if (constExpertAlpha2Shape) {
         OP_CHECK_IF(
             constExpertAlpha2Shape->GetStorageShape().GetDim(1) != h,
@@ -471,6 +447,19 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
             OP_LOGE(context_->GetNodeName(), "shape of expert_idx must be (bs,k)."),
             return ge::GRAPH_FAILED);
     }
+
+    // 判断x的shape信息要与（ROW_NUM, H）一致
+    auto xDesc = context_->GetOptionalInputDesc(X_IDX);
+    OP_CHECK_NULL_WITH_CONTEXT(context_, xDesc);
+    auto xShape = context_->GetOptionalInputShape(X_IDX);
+    OP_CHECK_IF(
+        xDesc->GetDataType() != dtype,
+        OP_LOGE(context_->GetNodeName(), "dtype of x is invalid."),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF(
+        xShape->GetStorageShape() != bsh,
+        OP_LOGE(context_->GetNodeName(), "shape of x must be (bs,h)."),
+        return ge::GRAPH_FAILED);
 
     auto yDesc = context_->GetOutputDesc(0);
     OP_CHECK_NULL_WITH_CONTEXT(context_, yDesc);
@@ -572,7 +561,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
     
     // 新增x， shape与bias一致
     auto xDesc = context_->GetOptionalInputDesc(X_IDX);
-    hasX_ = xDesc != nullptr && (constantExpertEnd - constantExpertStart >= 0);
+    hasX_ = xDesc != nullptr;
 
     OP_CHECK_IF(
         CheckShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
@@ -661,6 +650,7 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     tilingData->rowLoopOfFormerBlock = rowLoopOfFormerBlock;
     tilingData->rowLoopOfTailBlock = rowLoopOfTailBlock;
     tilingData->rowFactor = rowFactor;
+    tilingData->constExpertRangeFactor = std::min(constExpertRangeNum, rowFactor);
     tilingData->tailRowFactorOfFormerBlock = tailRowFactorOfFormerBlock;
     tilingData->tailRowFactorOfTailBlock = tailRowFactorOfTailBlock;
     tilingData->hLoop = 1;
@@ -677,6 +667,7 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     tilingData->copyExpertEnd = copyExpertEnd;
     tilingData->constantExpertStart = constantExpertStart;
     tilingData->constantExpertEnd = constantExpertEnd;
+    tilingData->constExpertRangeNum = constExpertRangeNum;
 }
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)

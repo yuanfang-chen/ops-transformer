@@ -253,7 +253,11 @@ __aicore__ inline void VFProcessExpandXBiasScaleOptimized(
     __local_mem__ T* expandedXLocalAddr = (__local_mem__ T*)expandedXLocal.GetPhyAddr();
     __local_mem__ T* biasLocalAddr = hasBias ? (__local_mem__ T*)biasLocal.GetPhyAddr() : nullptr;
     __local_mem__ S* scalesLocalAddr = hasScale ? (__local_mem__ S*)scalesLocal.GetPhyAddr() : nullptr;
-
+    __local_mem__ T* xLocalAddr =  hasX ? (__local_mem__ T*)xLocal.GetPhyAddr() : nullptr;
+    __local_mem__ T* constExpertAlpha1LocalAddr = hasConstExpert ? (__local_mem__ T*)constExpertAlpha1Local.GetPhyAddr() : nullptr;
+    __local_mem__ T* constExpertAlpha2LocalAddr = hasConstExpert ? (__local_mem__ T*)constExpertAlpha2Local.GetPhyAddr() : nullptr;
+    __local_mem__ T* vLocalAddr = hasConstExpert ? (__local_mem__ T*)vLocal.GetPhyAddr() : nullptr;
+    
     uint16_t loopCount = processLen / VL_FP32;
     uint16_t tailNum = processLen - loopCount * VL_FP32;
     uint16_t tailLoop = Ops::Base::CeilDiv<uint16_t>(tailNum, VL_FP32);	
@@ -317,7 +321,8 @@ __aicore__ inline void VFProcessExpandXBiasScaleOptimized(
 template <typename T, typename S>
 __aicore__ inline void ProcessExpandXBiasScaleOptimized(
     const LocalTensor<float>& yLocal, const LocalTensor<T>& expandedXLocal, const LocalTensor<T>& biasLocal,
-    const LocalTensor<S>& scalesLocal, uint16_t validK, uint16_t processLen, bool hasBias, bool hasScale)
+    const LocalTensor<S>& scalesLocal, uint16_t validK,
+    uint16_t processLen, bool hasBias, bool hasScale)
 {
     if (hasBias && hasScale) {
         VFProcessExpandXBiasScaleOptimized<T, S, true, true>(
@@ -330,7 +335,7 @@ __aicore__ inline void ProcessExpandXBiasScaleOptimized(
             yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);
     } else {
         VFProcessExpandXBiasScaleOptimized<T, S, false, false>(
-            yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);
+            yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);    
     }
 }
 
