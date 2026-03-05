@@ -124,11 +124,11 @@ __aicore__ inline void DistributeBarrier<TemplateDistributeBarrierTypeFunc>::Tim
     curRank = statusSumOutTensor.GetValue(0);
     if (isInputTimeout_) {
       uint64_t systemCntEnd = static_cast<uint64_t>(GetSystemCycle());
-      uint64_t duration = (systemCntEnd - systemCntBegin) / CYCLES_PER_US;
+      uint64_t executionTime = (systemCntEnd - systemCntBegin) / CYCLES_PER_US;
       if (duration >= timeOut_) {
         // 超时后做dfx，通过assert做aicore退出处理
         PipeBarrier<PIPE_ALL>();
-        assert(duration < timeOut_);
+        assert((duration < timeOut_) && "Operator execution timed out");
         PipeBarrier<PIPE_ALL>();
       }
     }
