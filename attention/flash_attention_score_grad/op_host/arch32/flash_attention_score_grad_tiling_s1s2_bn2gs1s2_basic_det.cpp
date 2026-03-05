@@ -356,15 +356,13 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
     tilingData->basicDetTensorTilingData.set_sparseMode(fBaseParams.sparseMode);
     const char *inputLayout = fBaseParams.inputLayout;
     if (strcmp(inputLayout, BSH_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::BSH));
+        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::BSNGD));
     } else if (strcmp(inputLayout, SBH_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::SBH));
+        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::SBNGD));
     } else if (strcmp(inputLayout, BNSD_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::BNSD));
-    } else if (strcmp(inputLayout, BSND_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::BSND));
+        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::BNGSD));
     } else if (strcmp(inputLayout, TND_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(InputLayout::TND));
+        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::TND));
     } else {
         OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
         return ge::GRAPH_PARAM_INVALID;
