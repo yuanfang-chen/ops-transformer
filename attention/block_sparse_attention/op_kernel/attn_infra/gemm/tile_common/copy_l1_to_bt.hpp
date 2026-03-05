@@ -8,18 +8,6 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-<<<<<<<< HEAD:mc2/common/op_tiling/aclnn_util.h
-/*!
- * \file aclnn_util.h
- * \brief
- */
-#ifndef COMMON_NN_ACLNN_UTIL_H
-#define COMMON_NN_ACLNN_UTIL_H
-
-#define ACLNN_API __attribute__((visibility("default")))
-
-#endif  // COMMON_NN_ACLNN_UTIL_H
-========
 #ifndef GEMM_TILE_COPY_L1_TO_BT_HPP
 #define GEMM_TILE_COPY_L1_TO_BT_HPP
 
@@ -37,4 +25,3 @@ namespace NpuArch::Gemm::Tile {
 } // namespace NpuArch::Gemm::Tile
 
 #endif // GEMM_TILE_COPY_L1_TO_BT_HPP
->>>>>>>> upstream/master:attention/block_sparse_attention/op_kernel/attn_infra/gemm/tile_common/copy_l1_to_bt.hpp
