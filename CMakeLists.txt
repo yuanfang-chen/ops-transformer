@@ -15,6 +15,7 @@ project(cann_ops-transformer)
 set(CMAKE_C_FLAGS_RELEASE "")
 set(CMAKE_CXX_FLAGS_RELEASE "")
 
+
 option(BUILD_OPEN_PROJECT         "Build open ascend ops project."  ON)
 option(BUILD_OPS_RTY_KERNEL       "Build return yellow kernel."     OFF)
 option(ENABLE_CCACHE              "Enable ccache capability"        ON)
