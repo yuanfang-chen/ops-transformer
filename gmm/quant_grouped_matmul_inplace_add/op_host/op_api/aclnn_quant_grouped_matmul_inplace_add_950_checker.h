@@ -25,7 +25,7 @@ public:
     aclnnStatus CheckQuantGroupedMatmulInplaceAddDAV3510() const;
     aclnnStatus IsGmmInplaceAddTCQuantMode() const;
     void SetInputName(const std::string &xName, const std::string &weightName, const std::string &perTokenScaleName,
-                      const std::string &scaleName, const std::string &groupTensorName);
+                      const std::string &scaleName, const std::string &groupTensorName) const;
 
 private:
     aclnnStatus CheckGeneralQuantShape() const;

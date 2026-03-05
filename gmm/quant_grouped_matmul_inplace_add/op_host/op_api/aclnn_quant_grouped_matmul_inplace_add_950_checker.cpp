@@ -51,7 +51,7 @@ void AclnnQuantGroupedMatmulInplaceAddDAV3510Checker<T>::SetInputName(const std:
                                                                       const std::string &weightName,
                                                                       const std::string &perTokenScaleName,
                                                                       const std::string &scaleName,
-                                                                      const std::string &groupTensorName)
+                                                                      const std::string &groupTensorName) const
 {
     this->xName_ = xName;
     this->weightName_ = weightName;

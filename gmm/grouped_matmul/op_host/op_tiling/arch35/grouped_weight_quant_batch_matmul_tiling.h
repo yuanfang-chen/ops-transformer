@@ -49,6 +49,8 @@ constexpr uint32_t STEP_K_4 = 4;
 constexpr uint32_t STEP_K_3 = 3;
 constexpr uint32_t DEPTH_8 = 8;
 constexpr uint32_t BUFFER_NUM_2 = 2;
+constexpr uint32_t SHAPE_DIM_3 = 3;
+constexpr uint32_t SHAPE_DIM_4 = 4;
 
 constexpr uint32_t SCALE_FACTOR_DEFAULT = 1;
 constexpr uint32_t SCALE_FACTOR_MIN = 1;
@@ -220,8 +222,8 @@ public:
 
 protected:
     bool SetShapeList(const gert::TilingContext *context);
-    bool CheckEmptyTensor(const gert::TilingContext *context);
-    bool CheckTensorListSize(const gert::TilingContext *context);
+    bool CheckEmptyTensor(const gert::TilingContext *context) const;
+    bool CheckTensorListSize(const gert::TilingContext *context) const;
     bool CheckTensorDtype(const gert::TilingContext *context, uint32_t attrIdx, size_t idx,
                           const ge::DataType &tensorDtype, const std::string &tensorType) const;
     bool IsNzFormat(const gert::TilingContext *context, uint32_t attrIdx, size_t idx) const;
