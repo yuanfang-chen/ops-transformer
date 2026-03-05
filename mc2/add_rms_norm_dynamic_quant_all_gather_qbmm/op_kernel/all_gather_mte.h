@@ -201,7 +201,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
     xTmpTensor = xInQueue_.DeQue<int8_t>();
     DataCopyPad(localWinXTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
     // 调试输出
-    DataCopyPad(allGatherXOutTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
+    if constexpr (isOptionalOutput) {
+        DataCopyPad(allGatherXOutTensor_[curXOffset], xTmpTensor, dataCopyParamsOut_);
+    }
     xInQueue_.FreeTensor(xTmpTensor);
 }
 
@@ -215,7 +217,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
     scaleTmpTensor = scaleInQue.DeQue<ScalesType>();
     DataCopyPad(localWinScaleTensor_, scaleTmpTensor, scalesCopyParams_);
     // 调试输出
-    DataCopyPad(allGatherScaleOutTensor_, scaleTmpTensor, scalesCopyParams_);
+    if constexpr (isOptionalOutput) {
+        DataCopyPad(allGatherScaleOutTensor_, scaleTmpTensor, scalesCopyParams_);
+    }
     scaleInQue.FreeTensor(scaleTmpTensor);
 }
 

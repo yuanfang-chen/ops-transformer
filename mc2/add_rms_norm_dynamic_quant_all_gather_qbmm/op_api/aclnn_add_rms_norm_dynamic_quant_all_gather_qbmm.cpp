@@ -166,7 +166,7 @@ static const aclTensor* CopyTensor(const aclTensor* x2)
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
-    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z, aclTensor* addRmsNormOut,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, bool outputOptional, aclTensor* output, aclTensor* z, aclTensor* addRmsNormOut,
     aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor);
 extern "C" aclnnStatus aclnnInnerAddRmsNormDynamicQuantAllGatherQbmm(
@@ -176,8 +176,8 @@ extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, 
 extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     const aclTensor* x1, const aclTensor* x2, const aclTensor* residual, const aclTensor* y, const aclTensor* gamma,
     const aclTensor* scale, const aclTensor* smoothScale, const aclTensor* bias, const char* group, int64_t rankSize,
-    bool transposeX2, int64_t dtype, int64_t residualNormMode, aclTensor* output, aclTensor* z, aclTensor* addRmsNormOut,
-    aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
+    bool transposeX2, int64_t dtype, int64_t residualNormMode, bool outputOptional, aclTensor* output, aclTensor* z,
+    aclTensor* addRmsNormOut, aclTensor* dynamicQuantOut, aclTensor* allGatherDataOut, aclTensor* allGatherScalesOut,
     uint64_t* workspaceSize, aclOpExecutor** executor)
 {
     aclnnStatus retParam = CheckParams(x1, x2, residual, y, gamma, scale, output, z, group);
@@ -189,8 +189,8 @@ extern "C" aclnnStatus aclnnAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
     }
     OP_LOGD("Invoking aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize...");
     aclnnStatus ret = aclnnInnerAddRmsNormDynamicQuantAllGatherQbmmGetWorkspaceSize(
-        x1, tempX2, residual, y, gamma, scale, smoothScale, bias, group, rankSize, transposeX2, dtype,
-        residualNormMode, output, z, addRmsNormOut, dynamicQuantOut, allGatherDataOut, allGatherScalesOut, workspaceSize, executor);
+        x1, tempX2, residual, y, gamma, scale, smoothScale, bias, group, rankSize, transposeX2, dtype, residualNormMode,
+        outputOptional, output, z, addRmsNormOut, dynamicQuantOut, allGatherDataOut, allGatherScalesOut, workspaceSize, executor);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm, aclnnnGetWorkspaceSize ret %d.", ret);
     return ret;
 }

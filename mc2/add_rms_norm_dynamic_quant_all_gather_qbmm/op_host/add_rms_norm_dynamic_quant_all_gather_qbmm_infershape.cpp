@@ -41,6 +41,7 @@ static constexpr size_t INPUT_ATTR_RANKSIZE_INDEX = 1;
 static constexpr size_t INPUT_ATTR_TRANSPOSE_X2_INDEX = 2;
 static constexpr size_t INPUT_ATTR_DTYPE_INDEX = 3;
 static constexpr size_t INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX = 4;
+static constexpr size_t INPUT_ATTR_OPTIONAL_OUTPUT_INDEX = 5;
 
 static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::InferShapeContext* context)
 {
@@ -75,6 +76,8 @@ static ge::graphStatus InferShapeAddRmsNormDynamicQuantAllGatherQbmm(gert::Infer
     OPS_CHECK_NULL_WITH_CONTEXT(context, dtype);
     const int64_t *residualNormMode = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_RESIDUAL_NORM_MODE_INDEX);
     OPS_CHECK_NULL_WITH_CONTEXT(context, residualNormMode);
+    const bool *outputOptional = attrs->GetAttrPointer<int64_t>(INPUT_ATTR_OPTIONAL_OUTPUT_INDEX);
+    OPS_CHECK_NULL_WITH_CONTEXT(context, outputOptional);
 
     // 参数校验
     int64_t rankSize = *ranksize;
