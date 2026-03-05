@@ -310,7 +310,7 @@ public:
                         (uint64_t)0,
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-                    AscendC::DumpTensor(gmUbTensor, 5, totalRowNum);
+                    AscendC::DumpTensor(gmUbTensor, 6, totalRowNum);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Brcb( // 每次取8个数放到8个datablock中=256字节
                         tvUbTensor.ReinterpretCast<uint32_t>(),
