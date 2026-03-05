@@ -327,9 +327,6 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
 
         int64_t gS1LoopEnd = lastBN ? (runParam.gs1LoopEndIdx + PRELOAD_NUM) : runParam.gs1LoopEndIdx;
         for (int64_t gS1Index = runParam.gs1LoopStartIdx; gS1Index < gS1LoopEnd; gS1Index++) {
-            if ASCEND_IS_AIV {
-                this->vecBlock.CopyInTopK(bnIdx, gS1Index * runParam.qSNumInOneBlock, this->constInfo);
-            }
             bool notLastTwoLoop = true;
             if (lastBN) {
                 int32_t extraGS1 = gS1Index - runParam.gs1LoopEndIdx;
