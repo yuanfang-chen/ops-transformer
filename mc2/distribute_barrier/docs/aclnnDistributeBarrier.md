@@ -60,7 +60,7 @@ aclnnStatus aclnnDistributeBarrier(
     <td>xRef</td>
     <td>输入</td>
     <td>无业务语义，仅用于输入Tensor依赖，接口内不做任何操作。</td>
-    <td>BFLOAT16, FLOAT16、FLOAT32、BOOL、INT8、INT16、INT32、INT64、UINT8、UINT16、UINT32、UINT64</td>
+    <td>BFLOAT16, FLOAT16、FLOAT32、BOOL、INT8、INT16、INT32、INT64、UINT8、UINT16、UINT32、UINT64、FLOAT8_E5M2、FLOAT8_E4M3FN、FLOAT4_E1M2、FLOAT4_E2M1、HIFLOAT8、HIFLOAT4、INT4、UINT4</td>
     <td>ND</td>
     </tr>
     <tr>
