@@ -28,45 +28,63 @@
     cos, sin = cosSin.chunk(2, dim=-1)
     $$
 
-    $$
-    cos0 = cos[0, :, :mropeSection[0]]
-    $$
+    - mropeSection[3]为0：
+      $$
+      cos0 = cos[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    cos = torch.cat((cos0, cos1, cos2), dim=-1)
-    $$
+      $$
+      cos = torch.cat((cos0, cos1, cos2), dim=-1)
+      $$
 
-    $$
-    sin0 = sin[0, :, :mropeSection[0]]
-    $$
+      $$
+      sin0 = sin[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    sin= torch.cat((sin0, sin1, sin2), dim=-1)
-    $$
+      $$
+      sin= torch.cat((sin0, sin1, sin2), dim=-1)
+      $$
 
-    $$
-    queryRot = query[..., :rotaryDim]
-    $$
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
 
-    $$
-    queryPass = query[..., rotaryDim:]
-    $$
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
+
+    - mropeSection[3]大于0：
+      $$
+      cos = torch.cat([m[i]\ for\ i, m\ in\ enumerate(cos.split(mropeSection, dim=-1))], dim=-1)
+      $$
+
+      $$
+      sin = torch.cat([m[i]\ for\ i, m\ in\ enumerate(sin.split(mropeSection, dim=-1))], dim=-1)
+      $$
+      
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
+
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
 
     （1）rotate\_half（GPT-NeoX style）计算模式：
     $$
@@ -429,7 +447,7 @@ aclnnStatus aclnnRopeWithSinCosCache(
 - headSize：数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数。
 - rotaryDim：始终小于等于headSize；数据类型为BFLOAT16或FLOAT16时为32的倍数，数据类型为FLOAT32时为16的倍数;mrope模式下应满足 mropeSection[0] + mropeSection[1] + mropeSection[2] = rotaryDim/2。
 - 输入tensor positions的取值应小于cosSinCache的0维maxSeqLen。
-- mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]和[8, 12, 12]。
+- mrope模式下，mropeSection：取值当前仅支持[16, 24, 24]、[24, 20, 20]、[8, 12, 12]和[16, 16, 16, 16]。
 
 ## 调用示例
 示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
