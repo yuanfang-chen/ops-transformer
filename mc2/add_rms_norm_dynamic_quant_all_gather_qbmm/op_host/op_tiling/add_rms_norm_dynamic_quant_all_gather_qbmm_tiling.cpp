@@ -220,7 +220,6 @@ ge::graphStatus CheckInputOutputTensorDim(
     OP_CHECK_NULL_WITH_CONTEXT(context, gammaShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, scaleShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, smoothShape);
-    OP_CHECK_NULL_WITH_CONTEXT(context, biasShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, outputShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, zShape);
 
@@ -232,7 +231,6 @@ ge::graphStatus CheckInputOutputTensorDim(
     size_t gammaDimNum = gammaShape->GetStorageShape().GetDimNum();
     size_t scaleDimNum = scaleShape->GetStorageShape().GetDimNum();
     size_t smoothDimNum = smoothShape->GetStorageShape().GetDimNum();
-    size_t biasDimNum = biasShape->GetStorageShape().GetDimNum();
     uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
@@ -276,6 +274,8 @@ ge::graphStatus CheckInputOutputTensorDim(
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. smoothDimNum=%lu.", smoothDimNum),
         return ge::GRAPH_FAILED);
+    // 暂不支持bias传入
+    OP_CHECK_IF((biasShape != nullptr), OP_LOGE(context->GetNodeName(), "bias input is not support currently."), return ge::GRAPH_FAILED);
     
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.M = x1Shape->GetStorageShape().GetDim(0);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka = x1Dim1Value;
@@ -305,7 +305,6 @@ ge::graphStatus CheckTensorDataType(const gert::TilingContext *context)
     OP_CHECK_NULL_WITH_CONTEXT(context, gammaDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, scaleDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, smoothDesc);
-    OP_CHECK_NULL_WITH_CONTEXT(context, biasDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, outputDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, zDesc);
 
@@ -337,9 +336,8 @@ ge::graphStatus CheckTensorDataType(const gert::TilingContext *context)
         OP_LOGE(nodeName, "smooth dataType is invalid, dataType should be float32, but is %s.",
         Ops::Base::ToString(smoothDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((biasDesc->GetDataType() != ge::DT_INT32),
-        OP_LOGE(nodeName, "bias dataType is invalid, dataType should be int32, but is %s.",
-        Ops::Base::ToString(biasDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK((biasDesc != nullptr), OP_LOGE(nodeName, "bias input is not support currently."),
+        return ge::GRAPH_FAILED);   // 暂不支持bias传入
 
     OP_TILING_CHECK((outputDesc->GetDataType() != ge::DT_BF16) && (outputDesc->GetDataType() != ge::DT_FLOAT16),
         OP_LOGE(nodeName, "output dataType is invalid, dataType should be bf16 or float16, but is %s.",
@@ -378,8 +376,6 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
         OP_LOGE(nodeName, "scale format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "smooth format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(biasDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
-        OP_LOGE(nodeName, "bias format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "output format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
