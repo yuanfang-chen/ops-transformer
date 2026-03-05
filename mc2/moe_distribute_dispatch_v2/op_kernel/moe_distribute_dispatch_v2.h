@@ -273,8 +273,6 @@ private:
 
     // Using Mc2Context instead of hccl context
     __gm__ Mc2MoeContext* mc2Context_{nullptr};
-    uint32_t rankId_{0};
-    uint32_t rankIdOriginal_{0};
 
     DataCopyParams expandXCopyParams_;
     DataCopyParams xCopyParams_;
@@ -302,12 +300,8 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     // 检查hcclwinsize是否越界
     totalWinSizeEp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeEp);
     totalWinSizeTp_ = static_cast<uint64_t>(tilingData->moeDistributeDispatchV2Info.totalWinSizeTp);
-<<<<<<< HEAD
     if (tilingData->moeDistributeDispatchV2Info.isMc2Context) {
         isMc2Context_ = true;
-=======
-    if (isMc2Context_) {
->>>>>>> 9c822fb7 (op kernel of mc2Context)
         mc2Context_ = (__gm__ Mc2MoeContext *)mc2Context;
     } else {
         winContext_[COMM_EP_IDX] = (__gm__ Mc2Kernel::HcclOpParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
@@ -337,9 +331,7 @@ __aicore__ inline void MoeDistributeDispatchV2<TemplateDispatchV2TypeFunc>::Init
     uint32_t epRankIdHccl{0};
     uint32_t epWorldSizeHccl{0};
     if (isMc2Context_) {
-        rankIdOriginal_ = mc2Context_->epRankId;
-        rankId_ = mc2Context_->epRankId;
-        epRankIdHccl = rankId_;
+        epRankIdHccl = mc2Context_->epRankId;
         statusDataSpaceGm_ = (GM_ADDR)(mc2Context_->epHcclBuffer_[epRankIdHccl]);
         epWorldSizeHccl = epWorldSizeOriginal_;
     } else {
