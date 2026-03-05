@@ -193,6 +193,7 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         q=input['q'].npu() if input['q'] is not None else None,
                                                         ori_kv=input['ori_kv'].npu() if input['ori_kv'] is not None else None,
                                                         cmp_kv=input['cmp_kv'].npu() if input['cmp_kv'] is not None else None,
+                                                        ori_sparse_indices=input['ori_sparse_indices'].npu() if input['ori_sparse_indices'] is not None else None,
                                                         cmp_sparse_indices=input['cmp_sparse_indices'].npu() if input['cmp_sparse_indices'] is not None else None,
                                                         ori_block_table=input['ori_block_table'].npu() if input['ori_block_table'] is not None else None,
                                                         cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,

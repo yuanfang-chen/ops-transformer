@@ -76,7 +76,8 @@ enum class SASAxis : uint32_t {
 enum class SASTemplateMode : uint32_t {
     SWA_TEMPLATE_MODE = 0,
     CFA_TEMPLATE_MODE = 1,
-    SCFA_TEMPLATE_MODE = 2
+    SCFA_TEMPLATE_MODE = 2,
+    ORI_SCFA_TEMPLATE_MODE = 3
 };
 
 enum class KvStorageMode : uint32_t {
@@ -274,7 +275,8 @@ public:
     int64_t oriWinLeft = 0;
     int64_t oriWinRight = 0;
     int64_t sparseBlockSize = 0;
-    int64_t sparseBlockCount = 0;
+    int64_t oriSparseBlockCount = 0;
+    int64_t cmpSparseBlockCount = 0;
     // Mask
     int32_t sparseMode = 0;
     // Others Flag
@@ -366,7 +368,8 @@ public:
     uint32_t qTSize_ = 0;
     uint32_t qkHeadDim_ = 0;
     int64_t sparseBlockSize_ = 0;
-    int64_t sparseBlockCount_ = 0;
+    int64_t oriSparseBlockCount_ = 0;
+    int64_t cmpSparseBlockCount_ = 0;
     uint32_t maxActualseq_ = 0;
     bool isSameSeqAllKVTensor_ = true;
     uint32_t actualLenDimsKV_ = 0;
@@ -386,6 +389,7 @@ public:
     ge::DataType qType_ = ge::DT_FLOAT16;
     ge::DataType oriKvType_ = ge::DT_FLOAT16;
     ge::DataType cmpKvType_ = ge::DT_FLOAT16;
+    ge::DataType oriSparseIndicesType_ = ge::DT_INT32;
     ge::DataType cmpSparseIndicesType_ = ge::DT_INT32;
     ge::DataType oriBlockTableType_ = ge::DT_INT32;
     ge::DataType cmpBlockTableType_ = ge::DT_INT32;
@@ -398,6 +402,7 @@ public:
     gert::Shape qShape_{};
     gert::Shape oriKvShape_{};
     gert::Shape cmpKvShape_{};
+    gert::Shape oriSparseIndicesShape_{};
     gert::Shape cmpSparseIndicesShape_{};
 };
 
@@ -510,7 +515,8 @@ private:
     uint32_t qTSize_ = 0; // 仅TND时生效
     uint32_t kvTSize_ = 0; // 仅TND时生效
     KvStorageMode kvStorageMode_ = KvStorageMode::BATCH_CONTINUOUS;
-    uint32_t sparseBlockCount_ = 0;
+    uint32_t oriSparseBlockCount_ = 0;
+    uint32_t cmpSparseBlockCount_ = 0;
     uint32_t sparseBlockSize_ = 0;
 
     uint32_t oriBlockNum_ = 0;

@@ -50,11 +50,11 @@ __aicore__ constexpr uint64_t Align64Func(uint64_t data) {
 }
 
 #define TEMPLATE_INTF \
-    template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, bool isFd, bool isPa, SAS_LAYOUT LAYOUT_T, \
-    SAS_LAYOUT KV_LAYOUT_T, SASTemplateMode TEMPLATE_MODE>
+    template <typename Q_T, typename KV_T, typename T, typename OUTPUT_T, bool IS_FD, bool IS_PA, SAS_LAYOUT LAYOUT_T, \
+    SAS_LAYOUT KV_LAYOUT_T, SASTemplateMode TEMPLATE_MODE, bool IS_SPLIT_G>
 
 #define TEMPLATE_INTF_ARGS \
-    Q_T, KV_T, T, OUTPUT_T, isFd, isPa, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE
+    Q_T, KV_T, T, OUTPUT_T, IS_FD, IS_PA, LAYOUT_T, KV_LAYOUT_T, TEMPLATE_MODE, IS_SPLIT_G
 
 #define CUBE_BLOCK_TRAITS_TYPE_FIELDS(X) \
     X(Q_T) \
@@ -63,12 +63,12 @@ __aicore__ constexpr uint64_t Align64Func(uint64_t data) {
     X(OUTPUT_T) \
 
 #define CUBE_BLOCK_TRAITS_CONST_FIELDS(X) \
-    X(isFd, bool, false) \
-    X(isPa, bool, true) \
+    X(IS_FD, bool, false) \
+    X(IS_PA, bool, true) \
     X(LAYOUT_T, SAS_LAYOUT, SAS_LAYOUT::BSND) \
     X(KV_LAYOUT_T, SAS_LAYOUT, SAS_LAYOUT::PA_ND) \
     X(TEMPLATE_MODE, SASTemplateMode, SASTemplateMode::SCFA_TEMPLATE_MODE) \
-
+    X(IS_SPLIT_G, bool, false) \
 
 /* 1. 生成带默认值的模版Template */
 #define GEN_TYPE_PARAM(name) typename name,

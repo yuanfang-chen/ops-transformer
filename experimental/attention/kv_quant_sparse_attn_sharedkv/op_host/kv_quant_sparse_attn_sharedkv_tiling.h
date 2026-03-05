@@ -41,7 +41,8 @@ TILING_DATA_FIELD_DEF(uint32_t, paCmpBlockSize)
 TILING_DATA_FIELD_DEF(uint32_t, oriMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, cmpMaxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, nNumOfQInOneGroup)
-TILING_DATA_FIELD_DEF(uint32_t, sparseBlockCount)
+TILING_DATA_FIELD_DEF(uint32_t, oriSparseBlockCount)
+TILING_DATA_FIELD_DEF(uint32_t, cmpSparseBlockCount)
 TILING_DATA_FIELD_DEF(float, softmaxScale) // 即 scaleValue
 TILING_DATA_FIELD_DEF(uint32_t, tileSize)
 TILING_DATA_FIELD_DEF(uint32_t, ropeHeadDim)
@@ -75,8 +76,6 @@ private:
     uint32_t blockDim_{0};
     uint64_t workspaceSize_{0};
     uint64_t tilingKey_{0};
-
-    KvQuantSASTilingInfo *sasInfo_ = nullptr;
 };
 
 }

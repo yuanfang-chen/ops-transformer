@@ -33,6 +33,7 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
     {ORI_KV_NAME,                    {ge::DT_INT8, ge::DT_FLOAT8_E4M3FN}},
     {CMP_KV_NAME,                    {ge::DT_INT8, ge::DT_FLOAT8_E4M3FN}},
     {ATTEN_OUT_NAME,                 {ge::DT_FLOAT16, ge::DT_BF16}},
+    {ORI_SPARSE_INDICES_NAME,        {ge::DT_INT32}},
     {CMP_SPARSE_INDICES_NAME,        {ge::DT_INT32}},
     {ORI_BLOCK_TABLE_NAME,           {ge::DT_INT32}},
     {CMP_BLOCK_TABLE_NAME,           {ge::DT_INT32}},
@@ -258,8 +259,8 @@ ge::graphStatus KvQuantSASTilingCheck::CheckLayoutSupport(const SASLayout &actua
 
 ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaNumHeads() const
 {
-    OP_CHECK_IF(n1Size_ != 64,
-        OP_LOGE(opName_, "n1Size_ only support 64 now, but got %u.", n1Size_),
+    OP_CHECK_IF(n1Size_ != 64 && n1Size_ != 128,
+        OP_LOGE(opName_, "n1Size_ only support 64 and 128 now, but got %u.", n1Size_),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -274,8 +275,11 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaKvHeadNums() const
 
 ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaSparseMode() const
 {
-    OP_CHECK_IF((*opParamInfo_.oriMaskMode != 4 || *opParamInfo_.cmpMaskMode != 3),
-        OP_LOGE(opName_, "oriMaskMode only support 4 and cmpMaskMode only support 3, but got %u and %u.", *opParamInfo_.oriMaskMode, *opParamInfo_.cmpMaskMode),
+    OP_CHECK_IF((*opParamInfo_.oriMaskMode != 0 && *opParamInfo_.oriMaskMode != 3 && *opParamInfo_.oriMaskMode != 4),
+        OP_LOGE(opName_, "oriMaskMode only support {0, 3, 4}, but got %u.", *opParamInfo_.oriMaskMode),
+        return ge::GRAPH_FAILED);
+    OP_CHECK_IF((*opParamInfo_.cmpMaskMode != 3),
+        OP_LOGE(opName_, "cmpMaskMode only support 3, but got %u.", *opParamInfo_.cmpMaskMode),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
@@ -291,7 +295,18 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaSparseBlockSize() const
 
 ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaCmpSparseIndices() const
 {
-    const std::vector<size_t> cmpSparseIndicesDimNumList = {DIM_NUM_FOUR, DIM_NUM_THREE};
+    const std::vector<size_t> sparseIndicesDimNumList = {DIM_NUM_FOUR, DIM_NUM_THREE};
+
+    if (opParamInfo_.oriSparseIndices.tensor != nullptr) {
+        OP_CHECK_IF(opParamInfo_.oriSparseIndices.tensor->GetShapeSize() == 0,
+            OP_LOGE(opName_, "Any dim of input oriSparseIndices cannot be 0 "),
+            return ge::GRAPH_FAILED);
+
+        if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.oriSparseIndices.desc, ORI_SPARSE_INDICES_NAME) || 
+            ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.oriSparseIndices.tensor->GetShape(), sparseIndicesDimNumList, ORI_SPARSE_INDICES_NAME)) {
+            return ge::GRAPH_FAILED;
+        }
+    }
 
     if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
         OP_CHECK_IF(opParamInfo_.cmpSparseIndices.tensor->GetShapeSize() == 0,
@@ -299,7 +314,7 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSingleParaCmpSparseIndices() const
             return ge::GRAPH_FAILED);
 
         if (ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.cmpSparseIndices.desc, CMP_SPARSE_INDICES_NAME) || 
-            ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpSparseIndices.tensor->GetShape(), cmpSparseIndicesDimNumList, CMP_SPARSE_INDICES_NAME)) {
+            ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpSparseIndices.tensor->GetShape(), sparseIndicesDimNumList, CMP_SPARSE_INDICES_NAME)) {
             return ge::GRAPH_FAILED;
         }
     }

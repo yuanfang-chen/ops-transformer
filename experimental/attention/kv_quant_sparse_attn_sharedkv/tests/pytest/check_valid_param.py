@@ -35,7 +35,7 @@ def check_valid_param(params):
     if layout_kv not in ["PA_ND"]:
         raise ValueError(f"不支持的KV shape: {layout_kv}")
 
-    if template_run_mode not in ["SCFA","CFA","SWA"]:
+    if template_run_mode not in ["SCFA","CFA","SWA", "ALL_SCFA"]:
         raise ValueError(f"不支持的template_run_mode: {template_run_mode}")
     
 
