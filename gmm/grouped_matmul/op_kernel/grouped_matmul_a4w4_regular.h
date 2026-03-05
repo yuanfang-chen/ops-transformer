@@ -35,7 +35,7 @@
 #include "gmm_infra/epilogue/tile/tile_swizzle.hpp"
 #include "gmm_infra/epilogue/tile/tile_copy.hpp"
 
-namespace CatlassA4W4 {
+namespace Catlass {
 
 template <
     class BlockMmad_,
@@ -402,5 +402,5 @@ private:
     Arch::Resource<ArchTag> resource;
 };
 
-} // namespace CatlassA4W4
+} // namespace Catlass
 #endif
