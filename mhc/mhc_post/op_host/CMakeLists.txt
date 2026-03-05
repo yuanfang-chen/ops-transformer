@@ -12,7 +12,7 @@ if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnExc PRIVATE
         mhc_post_def.cpp
     )
-    set(scatter_pa_cache_depends attention/scatter_pa_kv_cache CACHE INTERNAL "Dependencies for scatter_pa_cache")
+    set(mhc_post_depends attention/scatter_pa_kv_cache CACHE INTERNAL "Dependencies for mhc_post")
     add_ops_compile_options(
         OP_NAME MhcPost
         OPTIONS --cce-auto-sync=off
