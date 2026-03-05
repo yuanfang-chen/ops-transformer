@@ -15,6 +15,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_V2_HOST_KFC_H
 #define MOE_DISTRIBUTE_DISPATCH_V2_HOST_KFC_H
 
+#include "kernel_operator.h"
 #include "basic_api/kernel_basic_intf.h"
 #include "adv_api/reduce/sum.h"
 #include "kernel_tiling/kernel_tiling.h"
@@ -254,7 +255,7 @@ private:
     LocalTensor<int32_t> elasticInfoTensor_;
     LocalTensor<uint32_t> dataStateLocalTensor_;
     LocalTensor<uint32_t> serverCountTensor_;
-    LocalTensor<uint32_t> tokenSendMap_;
+    LocalTensor<int32_t> tokenSendMap_;
     LocalTensor<uint32_t> flagGatherOutTensor_;
     LocalTensor<uint32_t> flagRecvTensor_;
     LocalTensor<uint8_t> flagCompResultU8_;
@@ -767,9 +768,9 @@ __aicore__ inline void MoeDistributeDispatchV2HostKfc<TemplateDispatchKFCTypeFun
     tpipe_->InitBuffer(serverCountBuf_, serverBuferLength * sizeof(uint32_t));
     tpipe_->InitBuffer(serverMapBuf_, serverMapLength * sizeof(uint32_t));
     serverCountTensor_ = serverCountBuf_.Get<uint32_t>();
-    tokenSendMap_ = serverMapBuf_.Get<uint32_t>();
+    tokenSendMap_ = serverMapBuf_.Get<int32_t>();
     Duplicate<uint32_t>(serverCountTensor_, uint32_t(0), serverBuferLength);
-    Duplicate<uint32_t>(tokenSendMap_, uint32_t(0), serverMapLength);
+    Duplicate<int32_t>(tokenSendMap_, int32_t(0), serverMapLength);
 
     tpipe_->InitBuffer(expertOffsetCntBuf_, expertIdsCnt_ * sizeof(uint32_t));
     expertOffsetCntTensor_ = expertOffsetCntBuf_.Get<uint32_t>();
