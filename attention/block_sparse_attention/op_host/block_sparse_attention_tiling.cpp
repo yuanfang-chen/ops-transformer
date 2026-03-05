@@ -711,6 +711,7 @@ ge::graphStatus BSATiling::ProcessInput(gert::TilingContext *rfaContext)
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
+    OP_LOGE(rfaContext->GetNodeName(), "===============hxb ===================test");
     
     return ge::GRAPH_SUCCESS;
 }
