@@ -15,7 +15,8 @@
 
 #include "arch35/causal_conv1d_update.h"
 
-#define TILING_KEY_BASE 30000
+#define TILING_KEY_UPDATE_BF16 20000
+#define TILING_KEY_UPDATE_FP16 20000
 
 extern "C" __global__ __aicore__ void causal_conv1d_update(
     GM_ADDR x,
@@ -32,11 +33,18 @@ extern "C" __global__ __aicore__ void causal_conv1d_update(
 
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
-    if (TILING_KEY_IS(TILING_KEY_BASE)) {
+    if (TILING_KEY_IS(TILING_KEY_UPDATE_BF16)) {
+        CausalConv1dUpdateKernel<bfloat16_t> op;
+        op.Init(x, weight, cacheState, cacheIndices, acceptTokenNum, queryStartLoc,
+                y, outputCacheState,
+                reinterpret_cast<CausalConv1dUpdateTilingData*>(tilingData.GetDataPtr()));
+        op.Process();
+    } else if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
         CausalConv1dUpdateKernel<half> op;
         op.Init(x, weight, cacheState, cacheIndices, acceptTokenNum, queryStartLoc,
-               y, outputCacheState,
-               reinterpret_cast<CausalConv1dUpdateTilingData*>(tilingData.GetDataPtr()));
+                y, outputCacheState,
+                reinterpret_cast<CausalConv1dUpdateTilingData*>(tilingData.GetDataPtr()));
         op.Process();
     }
+    
 }

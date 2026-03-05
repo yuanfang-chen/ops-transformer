@@ -30,7 +30,8 @@ constexpr int64_t MAX_M = 5;
 constexpr int64_t DIM_3 = 3;
 constexpr int64_t DIM_2 = 2;
 
-constexpr uint64_t TILING_KEY_BASE = 30000UL;
+#define TILING_KEY_UPDATE_BF16 20000
+#define TILING_KEY_UPDATE_FP16 20000
 
 bool CausalConv1dUpdateTiling::IsCapable()
 {

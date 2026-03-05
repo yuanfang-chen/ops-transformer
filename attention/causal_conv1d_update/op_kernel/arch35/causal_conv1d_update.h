@@ -31,8 +31,8 @@
 #define CAUSAL_CONV1D_UPDATE_H
 
 #include "kernel_operator.h"
-#include "../../op_host/causal_conv1d_update_tiling_arch35.h"
-#include "./vf/compute.h"
+#include "causal_conv1d_update_struct.h"
+#include "vf/compute.h"
 
 using namespace AscendC;
 
