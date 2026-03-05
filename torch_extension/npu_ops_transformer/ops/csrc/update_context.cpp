@@ -77,7 +77,7 @@ static int32_t CreateHcclContext(HcclComm &commHandle, void *opArgs, int64_t wor
     return 0;
 }
 
-static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, const char* groupEpStr)
+static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, int64_t cclBufferSize, const char* groupEpStr)
 {
     InitHcclFunctions();
     void* opArgs = nullptr;
@@ -102,10 +102,10 @@ static int32_t GetMc2Context(CommContext &mc2ContextHost, int64_t epWorldSize, c
  * @param x Input Tensor (on NPU)
  * @return Result Tensor
 **/
-bool UpdateContext(std::string groupEp, int64_t epWorldSize, at::Tensor &contextTensor)
+bool UpdateContext(std::string groupEp, int64_t epWorldSize, int64_t cclBufferSize, at::Tensor &contextTensor)
 {
     CommContext mc2ContextHost;
-    int32_t ret = GetMc2Context(mc2ContextHost, epWorldSize, groupEp.c_str());
+    int32_t ret = GetMc2Context(mc2ContextHost, epWorldSize, cclBufferSize, groupEp.c_str());
     TORCH_CHECK(ret == 0, "GetMc2Context failed, ret:", ret);
 
     // copy to device tensor

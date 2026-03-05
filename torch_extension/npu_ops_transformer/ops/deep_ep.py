@@ -30,11 +30,39 @@ class MoeDistributeBuffer:
         self.context = torch.zeros(context_tensor_size, dtype=torch.int32).npu()
         update_context(self.group_name, self.world_size, self.context)
 
-    def get_low_latency_ccl_buffer_size(self, num_max_dispatch_tokens_per_rank: int, hidden: int,
-                                             num_moe_expert: int, num_shared_expert: int = 0,
-                                             num_shared_expert_ranks: int = 0) -> int:
-        total_buffsize = self.world_size
-        return total_buffsize
+    @staticmethod
+    def get_low_latency_ccl_buffer_size(group, num_max_dispatch_tokens_per_rank: int, hidden: int,
+                                        num_moe_expert: int, topK: int, num_shared_expert: int = 0,
+                                        num_shared_expert_ranks: int = 0, comm_alg: str = "",
+                                        ) -> int:
+        def inlineAlignX(value, base):
+            return (value + base - 1) // base * base
+
+        max_out_dtype_size = 2 # sizeof(int32)
+        ub_align = 32 # 32B
+        scale_expand_index_buffer = 44 # scale 32B + 3 * 4 expand_idx
+        full_mesh_data_align = 480
+        win_addr_align = 512
+
+        comm_alg_support_list = ["fullmesh_v2", "fullmesh_v2", ""]
+        torch._check(comm_alg in comm_alg_support_list,
+                     lambda: (f"comm_alg only support {comm_alg_support_list=} "
+                              f"but got {comm_alg=}."),)
+
+        world_size = torch.distributed.get_world_size(group)
+        token_actual_len = inlineAlignX(hidden * max_out_dtype_size, ub_align) + scale_expand_index_buffer
+        if (comm_alg == "fullmesh_v2"):
+            token_need_size_dispatch = inlineAlignX(token_actual_len, full_mesh_data_align) // full_mesh_data_align * \
+                win_addr_align
+        else: 
+            token_need_size_dispatch = inlineAlignX(token_actual_len, win_addr_align)
+        token_need_size_combine = inlineAlignX(hidden * max_out_dtype_size, win_addr_align)
+
+        local_moe_expert_num = num_moe_expert // (world_size - num_shared_expert_ranks)
+        minimum_buffer_size = 2 * (
+            (num_max_dispatch_tokens_per_rank * token_need_size_dispatch * world_size * local_moe_expert_num) + \
+            (num_max_dispatch_tokens_per_rank * token_need_size_combine * (topK + num_shared_expert)))
+        return minimum_buffer_size
 
     def update_ctx(self, new_group) -> bool:
         self.group = new_group
@@ -45,7 +73,7 @@ class MoeDistributeBuffer:
                     lambda: (f"New world size should be the same as orginal world size, "
                             f"but got {new_world_size=}, orginial={self.world_size}"
                             f"{ops_error(ErrCode.VALUE)}."),)
-        return update_context(self.group_name, self.world_size, self.context)
+        return update_context(self.group_name, self.world_size, self.ccl_buffer_size, self.context)
         
     def npu_low_latency_dispatch(self, x, topk_idx, num_experts: int, *,
                              quant_mode=0, comm_alg="", x_smooth_scale=None,
