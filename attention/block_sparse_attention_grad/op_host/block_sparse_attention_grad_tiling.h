@@ -60,6 +60,16 @@ TILING_DATA_FIELD_DEF(uint64_t, mm2OutSize);
 TILING_DATA_FIELD_DEF(uint64_t, updateSize);
 TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize);
 
+TILING_DATA_FIELD_DEF(uint32_t, basicQBlockSize);
+TILING_DATA_FIELD_DEF(uint32_t, basicKVBlockSize);
+TILING_DATA_FIELD_DEF(uint32_t, taskNumPerCore);
+TILING_DATA_FIELD_DEF(uint32_t, tailTaskNum);
+TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, preQSeqLengths);
+TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, preKVSeqLengths);
+TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginBatch);
+TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginHead);
+TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginQSeqOffset);
+
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(BlockSparseAttentionGrad, BlockSparseAttentionGradTilingData)
 

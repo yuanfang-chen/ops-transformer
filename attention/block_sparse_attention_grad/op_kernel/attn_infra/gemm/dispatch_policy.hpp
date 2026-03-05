@@ -69,6 +69,18 @@ struct MmadAtlasA2SFAIPV : public MmadAtlasA2 {
     static constexpr bool ENABLE_UNIT_FLAG = ENABLE_UNIT_FLAG_;
 };
 
+struct MmadAtlasA2SBSAG1 : public MmadAtlasA2 {
+    static constexpr uint32_t STAGES = 2;
+};
+
+struct MmadAtlasA2SBSAG2 : public MmadAtlasA2 {
+    static constexpr uint32_t STAGES = 2;
+};
+
+struct MmadAtlasA2SBSAG3 : public MmadAtlasA2 {
+    static constexpr uint32_t STAGES = 2;
+};
+
 }  // namespace NpuArch::Gemm
 
 #endif  // GEMM_DISPATCH_POLICY_HPP

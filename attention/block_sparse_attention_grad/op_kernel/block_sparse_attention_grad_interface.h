@@ -55,7 +55,7 @@ namespace BSA {
         using A1Type = Gemm::GemmType<ElementA1, LayoutA1>;
         using B1Type = Gemm::GemmType<ElementB1, LayoutB1>;
         using C1Type = Gemm::GemmType<ElementC1, LayoutC1>;
-        using DispatchPolicyCube1 = Gemm::MmadAtlasA2SFAIQK<false, false>;
+        using DispatchPolicyCube1 = Gemm::MmadAtlasA2SBSAG1;
         using L1TileShape1 = GemmShape<Q_TILE_CEIL, 128, 128>;
         using L0TileShape1 = GemmShape<128, 128, 128>;
         using BlockMmadCube1 = Gemm::Block::BlockMmad<DispatchPolicyCube1, L1TileShape1, L0TileShape1, A1Type, B1Type, C1Type>;
