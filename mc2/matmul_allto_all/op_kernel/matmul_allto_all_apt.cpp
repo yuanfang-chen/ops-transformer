@@ -21,6 +21,7 @@
 #endif
 #include "common.h"
 #include "./arch35/template_head.h"
+#include "./arch35/matmul_allto_all_arch35.h"
 #if defined(__NPU_ARCH__) && __NPU_ARCH__ == 2201
 #include "./arch32/matmul_allto_all_tiling_data_910_93.h"
 #include "./arch32/matmul_allto_all_tiling_key_910_93.h"
@@ -28,7 +29,6 @@
 #endif
 #if defined(__NPU_ARCH__) && __NPU_ARCH__ == 3510
 #include "./arch35/matmul_allto_all_tiling_key.h"
-#include "./arch35/matmul_allto_all_arch35.h"
 #include "./arch35/kc_quant_matmul_allto_all_arch35.h"
 #include "./arch35/mx_quant_matmul_allto_all_arch35.h"
 #endif
@@ -51,7 +51,7 @@ using namespace MatmulAlltoAllImpl;
         using SchedulerContextType = PipelineContext<ComputationContextType>;  \
         using SchedulerType = MC2KernelPipelineTemplate<ComputationType, TransposeType, CommunicationType, SchedulerContextType>;   \
         SchedulerType SchedulerImpl(&matmulImplName, &transposeImplName, &commImplName);    \
-        MatmulAlltoAllA3<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataA3> op(&SchedulerImpl); \
+        MatmulAlltoAllArch35<SchedulerType, SchedulerContextType, MatmulAlltoAllTilingDataA3> op(&SchedulerImpl); \
         op.Init(x1, x2, bias, y, workspaceGM, &tilingData, &pipe);  \
         op.Process();   \
     } while (0)
