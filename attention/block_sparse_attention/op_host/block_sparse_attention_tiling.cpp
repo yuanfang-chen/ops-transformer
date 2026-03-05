@@ -51,7 +51,7 @@ constexpr int ATTENTION_MASK_INDEX = 4;
 constexpr int ACTUAL_SEQ_LENGTHS_INDEX = 6;
 constexpr int ACTUAL_SEQ_LENGTHS_KV_INDEX = 7;
 constexpr int BLOCK_TABLE_INDEX = 8;
-constexpr int SOFTMAX_LSE_INDEX = 10
+constexpr int SOFTMAX_LSE_INDEX = 10;
 constexpr int MAX_BLOCK_NUM_INDEX = 2;
 
 
