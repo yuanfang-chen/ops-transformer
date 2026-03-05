@@ -643,7 +643,7 @@ bool GroupedQbmmTiling::CheckCoreNum() const
                    OP_LOGE(inputParams_.opName, "When group type is 2 (mix template), aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
                    return false);
     }
-    if (inputParams_.kernelType == 1 || inputParams_.kernelType == 2) {
+    if (inputParams_.kernelType == DEQUANT_VECTOR_MODE || inputParams_.kernelType == PERGROUP_PERBLOCK_MODE) {
         OP_CHECK_IF(aivNum != GmmConstant::CORE_RATIO * aicNum,
                    OP_LOGE(inputParams_.opName, "Current scene, aicNum:aivNum should be 1:2, actual aicNum: %u, aivNum: %u.", aicNum, aivNum),
                    return false);
@@ -881,14 +881,14 @@ ge::graphStatus GroupedQbmmTiling::DoLibApiTiling()
 void GroupedQbmmTiling::SetKernelType()
 {
     // 以选择主模板设置kernelType, 0: dequant fixp随路（包含K轴分组）；1：dequant vector计算；2：perGroup-perBlock
-    inputParams_.kernelType = 0UL;
+    inputParams_.kernelType = DEQUANT_FIXP_MODE;
     // mx K轴分组当前是独立的模板，后续归一
     if (inputParams_.bQuantMode == optiling::QuantMode::MX_PERGROUP_MODE) {
         return;
     }
     // perGroup-perBlock(GB)有独立pertile模板
     if (inputParams_.bQuantMode == optiling::QuantMode::PERBLOCK_MODE) {
-        inputParams_.kernelType = 2UL;
+        inputParams_.kernelType = PERGROUP_PERBLOCK_MODE;
         return;
     }
     // pertensor-pertensor且没有后处理的bias，都可以走dequant fixp随路
@@ -903,7 +903,7 @@ void GroupedQbmmTiling::SetKernelType()
     bool isScaleEpilogue = (inputParams_.scaleDtype != ge::DT_UINT64 && inputParams_.scaleDtype != ge::DT_INT64);
     // 后处理的bias和（scale非64bits && ！isPertensorCube）需要走dequant vec模板
     if (isBiasEpilogue || isScaleEpilogue) {
-        inputParams_.kernelType = 1UL;
+        inputParams_.kernelType = DEQUANT_VECTOR_MODE;
     }
 }
 
@@ -1015,7 +1015,7 @@ ge::graphStatus GroupedQbmmTiling::CalL1Tiling()
         (basicTiling_.baseM * basicTiling_.baseN * DATA_SIZE_L0C * DB_SIZE <= aicoreParams_.l0cSize) ? DB_SIZE : 1;
     uint64_t singleCoreBiasSize = IsBiasInL1() ? basicTiling_.baseN * biasDtypeSize : 0;
     uint64_t singleCoreScaleSize = inputParams_.bQuantMode == optiling::QuantMode::PERCHANNEL_MODE &&
-                                           inputParams_.kernelType == 0 && inputParams_.cDtype != ge::DT_INT32
+                                           inputParams_.kernelType == DEQUANT_FIXP_MODE && inputParams_.cDtype != ge::DT_INT32
                                        ? basicTiling_.baseN * scaleDtypeSize
                                        : 0;
     uint64_t usedSize = singleCoreBiasSize + singleCoreScaleSize;

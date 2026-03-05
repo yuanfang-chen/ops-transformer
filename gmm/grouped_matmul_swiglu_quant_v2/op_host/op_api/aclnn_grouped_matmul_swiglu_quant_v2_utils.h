@@ -535,9 +535,9 @@ and greater or equal to 4, but actual value is %lu.",
             return false;
         }
 
-        if (gmmDsqParams_.quantMode == 2) {
+        if (gmmDsqParams_.quantMode == QUNAT_MODE_MX) {
             return CheckInputOutDimsForMX();
-        } else if (gmmDsqParams_.quantMode == 0) {
+        } else if (gmmDsqParams_.quantMode == QUNAT_MODE_PERTOKEN) {
             return CheckInputOutDimsForPertoken();
         } else {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -655,9 +655,9 @@ and greater or equal to 4, but actual value is %lu.",
                     "The length of groupList should not be greater than 1024, but actual is %ld.", groupListLen);
             return false;
         }
-        if (gmmDsqParams_.quantMode == 2) {
+        if (gmmDsqParams_.quantMode == QUNAT_MODE_MX) {
             return CheckInputOutShapeForMX();
-        } else if (gmmDsqParams_.quantMode == 0) {
+        } else if (gmmDsqParams_.quantMode == QUNAT_MODE_PERTOKEN) {
             return CheckInputOutShapeForPertoken();
         } else {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
@@ -668,7 +668,6 @@ and greater or equal to 4, but actual value is %lu.",
 
         return true;
     }
-
 
     bool CheckInputOutShapeForMX()
     {
@@ -726,14 +725,14 @@ and greater or equal to 4, but actual value is %lu.",
                         "FLOAT8_E5M2, HIFLOAT8, and FLOAT4_E2M1.", op::ToString(weightDtype).GetString());
             return false;
         }
-        if (gmmDsqParams_.quantMode == 2 &&
+        if (gmmDsqParams_.quantMode == QUNAT_MODE_MX &&
             (xDtype == DataType::DT_FLOAT8_E4M3FN || xDtype == DataType::DT_FLOAT8_E5M2) &&
             (weightDtype == DataType::DT_FLOAT8_E4M3FN || weightDtype == DataType::DT_FLOAT8_E5M2)) {
             return CheckFp8DtypeValid(x, xScale, groupList, output, outputScale);
-        } else if (gmmDsqParams_.quantMode == 2 &&
+        } else if (gmmDsqParams_.quantMode == QUNAT_MODE_MX &&
                    xDtype == DataType::DT_FLOAT4_E2M1 && weightDtype == DataType::DT_FLOAT4_E2M1) {
             return CheckFp4DtypeValid(x, xScale, groupList, output, outputScale);
-        } else if (gmmDsqParams_.quantMode == 0) {
+        } else if (gmmDsqParams_.quantMode == QUNAT_MODE_PERTOKEN) {
             return CheckPertokenDtypeValid(x, xScale, groupList, output, outputScale);
         } else {
             OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When the dtypes of x and weight are %s and %s, \

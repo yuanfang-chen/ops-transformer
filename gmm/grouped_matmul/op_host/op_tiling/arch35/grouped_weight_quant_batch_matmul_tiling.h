@@ -49,6 +49,8 @@ constexpr uint32_t STEP_K_4 = 4;
 constexpr uint32_t STEP_K_3 = 3;
 constexpr uint32_t DEPTH_8 = 8;
 constexpr uint32_t BUFFER_NUM_2 = 2;
+constexpr uint32_t SHAPE_DIM_3 = 3;
+constexpr uint32_t SHAPE_DIM_4 = 4;
 
 constexpr uint32_t SCALE_FACTOR_DEFAULT = 1;
 constexpr uint32_t SCALE_FACTOR_MIN = 1;
