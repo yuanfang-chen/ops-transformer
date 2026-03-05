@@ -479,7 +479,7 @@ ge::graphStatus GMMTiling::Init(const gert::TilingContext* context) {
     // 3: pergroup scale shape is [e,g,n]
     if (scaleDimNum == 3U) {
       quantGroupNum = context->GetDynamicInputTensor(SCALE_INDEX, 0)->GetStorageShape().GetDim(1);
-      quantGroupSize_ = maxK_ / quantGroupNum;
+      quantGroupSize_ = quantGroupNum == 0 ? 0U : maxK_ / quantGroupNum;
       isPerGroup_ = true;
     // 2: perchannel scale shape is [e, n]
     } else if (scaleDimNum == 2U) {
