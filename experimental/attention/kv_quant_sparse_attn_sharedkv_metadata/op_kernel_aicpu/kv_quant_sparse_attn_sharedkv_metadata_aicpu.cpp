@@ -107,8 +107,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         return false;
     }
     // ori_mask_mode 校验
-    if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
-        KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %d", oriMaskMode_);
+    if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK) && oriMaskMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL) && oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
+        KERNEL_LOG_ERROR("ori_mask_mode should be 0, 3 or 4, but got %d", oriMaskMode_);
         return false;
     }
     // ori_win_left 校验
@@ -122,8 +122,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         return false;
     }
     // layout_kv 校验
-    if (layoutKv_ != "PA_ND") {
-        KERNEL_LOG_ERROR("layout_kv must be PA_ND!");
+    if (layoutKv_ != "PA_ND" && layoutQuery_ != "TND" && layoutQuery_ != "BSND") {
+        KERNEL_LOG_ERROR("layout_kv must be TND, BSND or PA_ND!");
         return false;
     }
     return true;
