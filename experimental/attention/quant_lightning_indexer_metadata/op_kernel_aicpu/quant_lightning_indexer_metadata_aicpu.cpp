@@ -217,7 +217,7 @@ bool QuantLightningIndexerMetadataCpuKernel::CheckFeature()
 
 ValidSocVersion QuantLightningIndexerMetadataCpuKernel::ProcessSocVersion()
 {
-    const std::string ascend950 = "Ascend910_95";
+    const std::string ascend950 = "Ascend950";
     if (socVersion_.find(ascend950) != std::string::npos) {
         return ValidSocVersion::ASCEND950;
     } else {
