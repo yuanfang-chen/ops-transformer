@@ -97,7 +97,7 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
         torch.npu.synchronize()
         input_args = []  # 算子的入参列表
         output_packages = []  # 算子的出参数据包列表
-
+        # inspect_kwargs(input_data.kwargs)
         for i, arg in enumerate(input_data.args):
             data = self.backend.convert_input_data(arg, index=i)
             input_args.extend(data)
@@ -134,8 +134,6 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
         self.qSeqlenList = input_data.kwargs['actualSeqLengths']
         input_args[8] = null_tensor_ptr # blockTable
         # input_args[20] = null_tensor_ptr
-        for i in len(input_args):
-            print("123456===", input_args[i])
         if input_data.kwargs['softmaxLseFlag'] == 1:
             input_args.pop()
             input_args.pop()
@@ -144,17 +142,17 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
         else:
             input_args.pop()
             output_packages.append(input_args[-2])
-        print("testtest========input args", input_args)
-        print("testtest========output_packages", output_packages)
+        # print("testtest========input args", input_args)
+        # print("testtest========output_packages", output_packages)
         return input_args, output_packages
 
     def __call__(self):
         """算子调用逻辑"""
-        print("aclnn_x_get_workspace_size before")
+        # print("aclnn_x_get_workspace_size before")
         self.backend.aclnn_x_get_workspace_size()
-        print("aclnn_x_get_workspace_size after")
+        # print("aclnn_x_get_workspace_size after")
         self.backend.aclnn_x()
-        print("aclnn_x after")
+        # print("aclnn_x after")
 
     def after_call(self, output_packages):
         output = []
@@ -175,12 +173,20 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
             for i in range(batch):
                 outputTemp[count:count+self.qSeqlenList[i], :, :] = outputTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
                 count += self.qSeqlenList[i]
+            # lseTensor = output[1] # TODO 先调测单个用例，判断数组长度
+            # lseTemp = torch.zeros((tokenNum, output[0].shape[1]), 1, dtype=output[1].dtype)
+            # for i in range(batch):
+                # lseTemp[count:count+self.qSeqlenList[i], :, :] = lseTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
             if len(output) == 2:
                 return [outputTemp, output[1]]  # 返回 attentionOut 和 softmaxLse
             else:
                 return [outputTemp]  # golden就是TND输出，方便比较
         else:
-            return output
+            if len(output) == 2:
+                return output[0], output[1]
+            else:
+                return output[0] 
+        print("aclnn_output is: ", output)
 
     def get_cpp_func_signature_type(self):
         return "aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *blockSparseMask, const aclTensor *attenMaskOptional, const aclIntArray *blockShape, const aclIntArray *actualSeqLengthsOptional, const aclIntArray *actualSeqLengthsKvOptional, const aclTensor *blockTableOptional, char *qInputLayout, char *kvInputLayout, int64_t numKeyValueHeads, int64_t maskType, double scaleValue, int64_t innerPrecise, int64_t blockSize, int64_t preTokens, int64_t nextTokens, int64_t softmaxLseFlag, const aclTensor *attentionOut, const aclTensor *softmaxLseOptional, uint64_t *workspaceSize, aclOpExecutor **executor)"
@@ -236,7 +242,7 @@ class TestBlockSparseAttentionTorch():
         # 最终归一化
         O_final = O_i / l_i  # (1, q_len, head_size)
         lse = m_i + torch.log(l_i)
-
+        print("inner===== lse", lse)
         return O_final, lse
 
 
@@ -261,7 +267,7 @@ class TestBlockSparseAttentionTorch():
             # 1. 计算注意力分数 S_i = Q @ K_i^T * scale
             # CPU不支持half精度matmul，需要转换为float32计算
             S_i = torch.matmul(q_block.float(), k_block.float()).to(torch_dtype)  # (1, q_len, k_len)
-
+            print("cpu s before =============", S_i)
             S_i = S_i * scale
             
             # 2. 计算当前块的最大值
@@ -277,6 +283,8 @@ class TestBlockSparseAttentionTorch():
             
             # 5. 计算当前块的稳定 softmax 分子
             P_i = torch.exp(S_i - m_new).to(torch_dtype)  # (1, q_len, k_len)
+            print("cpu s after =============", S_i)
+            print("cpu P =============", P_i)
             
             # 6. 更新 running sum
             l_i = alpha * l_i + torch.sum(P_i, dim=-1, keepdim=True)  # (1, q_len, 1)
@@ -290,6 +298,8 @@ class TestBlockSparseAttentionTorch():
         
         # 最终归一化
         O_final = O_i / l_i  # (1, q_len, head_size)
+        print("cpu rowmax", m_i)
+        print("cpu rowsum", l_i)
         # LSE = m + log(l)，shape: (1, q_len, 1)
         lse = m_i + torch.log(l_i)
 
@@ -440,6 +450,7 @@ class TestBlockSparseAttentionTorch():
                     # out_high[head:head+1, q_start_global:q_end_global, :] = out_block_high
                     out[head:head+1, q_start_global:q_end_global, :] = out_block
                     lse_out[head:head+1, q_start_global:q_end_global, :] = lse_block.to(torch.float32)
+                    print("====lse_block\n", lse_block)
             # 【关键修复】：更新累计偏移量，为下一个batch做准备
             q_token_offset += q_seqlen
             kv_token_offset += kv_seqlen
@@ -609,7 +620,6 @@ class BlockSparseAttentionApi(BaseApi):
         # select_num_idx_input = select_num_idx.cpu()
 
         testObj = TestBlockSparseAttentionTorch()
-
         atten_out_golden, lse_golden = testObj.calc_data(query_dtype, q_input_value, k_input_value, v_input_value, select_idx_input, select_num_idx_input, block_shape, q_seqlen_list, kv_seqlen_list, scale_value, q_input_layout, kv_input_layout, inner_precise)
         # print("hxb===", "atten_out_golden:", atten_out_golden)
         print("hxb=== cpu out", atten_out_golden)
@@ -814,6 +824,7 @@ class BlockSparseAttentionApi(BaseApi):
         # print("X" * 20, "key:", input_data.kwargs["key"], input_data.kwargs["key"].shape)
         # print("X" * 20, "value:", input_data.kwargs["value"], input_data.kwargs["value"].shape)
         # print("X" * 20, "scaleValue:", input_data.kwargs["scaleValue"])
+        inspect_kwargs(input_data.kwargs)
         if self.device == "cpu":
             input_data.kwargs["blockSparseMask"] = blockSparseMask
         if self.device == "pyaclnn" or self.device == "npu":
