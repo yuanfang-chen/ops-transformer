@@ -292,51 +292,51 @@ public:
             // ***move O to GM
             CopyOToGm(
                 gOutput, proTokenIdx, proTokenNum, epiTokenNum, integralHeadNum, qSThisSubBlock, embed, oHiddenSize);
-                if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
-                    if (isLastRowLoop) {
-                        AscendC::PipeBarrier<PIPE_V>();
-                        AscendC::Ln<float, false>(
-                            lse32_ubuf_tensor, // 未定义，看是用哪一块空间
-                            glUbTensor,
-                            (uint64_t)0,
-                            CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
-                            AscendC::UnaryRepeatParams(1, 1, 8, 8));
-                        AscendC::PipeBarrier<PIPE_V>();
-                        AscendC::Add<float, false>(
-                            lse32_ubuf_tensor,
-                            lse32_ubuf_tensor,
-                            gmUbTensor,
-                            (uint64_t)0,
-                            CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
-                            AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-                        AscendC::PipeBarrier<PIPE_V>();
-                        AscendC::Brcb( // 每次取8个数放到8个datablock中=256字节
-                            tvUbTensor.ReinterpretCast<uint32_t>(),
-                            lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
-                            CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE), // 每次取8个数，一共多少次？
-                            AscendC::BrcbRepeatParams(1, 8));
-                        AscendC::PipeBarrier<PIPE_V>();
-                        AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
-                        AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
-                        if (qNThisSubBlock == 0U) { // 不切头
-                            // AscendC::DumpTensor(tvUbTensor, 0, totalRowNum);
+            if constexpr(LSE_MODE == LseMode::OUT_ONLY) { // LSE_MODE怎么传递进来的
+                if (isLastRowLoop) {
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::Ln<float, false>(
+                        lse32_ubuf_tensor, // 未定义，看是用哪一块空间
+                        glUbTensor,
+                        (uint64_t)0,
+                        CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
+                        AscendC::UnaryRepeatParams(1, 1, 8, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::Add<float, false>(
+                        lse32_ubuf_tensor,
+                        lse32_ubuf_tensor,
+                        gmUbTensor,
+                        (uint64_t)0,
+                        CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
+                        AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::Brcb( // 每次取8个数放到8个datablock中=256字节
+                        tvUbTensor.ReinterpretCast<uint32_t>(),
+                        lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
+                        CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE), // 每次取8个数，一共多少次？
+                        AscendC::BrcbRepeatParams(1, 8));
+                    AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
+                    AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
+                    if (qNThisSubBlock == 0U) { // 不切头
+                        AscendC::DumpTensor(tvUbTensor, 0, totalRowNum);
+                        AscendC::DataCopyPad(
+                            gLse, tvUbTensor, // 源是vec，一共totalRowNum个数据块，每次取sizeof(float)长度，因为每个datablock是重复的8个数，目的排布是T（BS）N，拷贝到每个S上，头尾间隔是head-1
+                            AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0)); // todo 要区分BNSD？BNSD目的就是相邻的 可以按qHeads = 1
+                        AscendC::DumpTensor(gLse, 333, totalRowNum);
+                    } else {
+                        for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                             AscendC::DataCopyPad(
-                                gLse, tvUbTensor, // 源是vec，一共totalRowNum个数据块，每次取sizeof(float)长度，因为每个datablock是重复的8个数，目的排布是T（BS）N，拷贝到每个S上，头尾间隔是head-1
-                                AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0)); // todo 要区分BNSD？BNSD目的就是相邻的 可以按qHeads = 1
-                            // AscendC::DumpTensor(gLse, 333, totalRowNum);
-                        } else {
-                            for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
-                                AscendC::DataCopyPad(
-                                    gLse[qNIdx],
-                                    tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
-                                    AscendC::DataCopyExtParams(
-                                        qSBlockSize, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
-                                    // AscendC::DumpTensor(tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE], 1, 10);
-                            }
+                                gLse[qNIdx],
+                                tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
+                                AscendC::DataCopyExtParams(
+                                    qSBlockSize, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
+                                AscendC::DumpTensor(tvUbTensor[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE], 1, 10);
                         }
-                        AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
                     }
+                    AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
                 }
+            }
         } else if (needRowLoop) {
             AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID5);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID5);
