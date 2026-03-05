@@ -60,7 +60,8 @@ private:
     uint64_t curAivOffset_{0};
     uint64_t perBlockNum_{0};
     uint64_t lastAivId_{0};
-    uint64_t tailBlockNum_{0};
+    uint64_t tailBytes_{0};
+    uint64_t tailPerBlockNumAlign_{0};
 };
 
  /**
@@ -128,8 +129,8 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::InitParams(
     totalBlockNums_ = CeilDiv(sliceSize_, perBlockNum_); // 1/rank 数据需要搬运的总块数
 
     // 尾块搬运大小
-    uint64_t tailBytes = BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType);
-    tailBlockNum_ = CeilAlign(tailBytes, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
+    tailBytes_ = BlockAlignMod(sliceSize_, perBlockNum_) * sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的字节大小
+    tailPerBlockNumAlign_ = CeilAlign(tailBytes_, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
@@ -192,13 +193,18 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ReadDataBlockReduceSum(ui
 template <typename DataType>
 __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum() 
 {
+    const uint64_t lastAivBlockIdx = assignedBlockNums_ - 1;
+    const bool isLastAiv = (aivId_ == lastAivId_);
+    
     // 遍历当前核分配到的数据块
     for (uint64_t curBlock = 0; curBlock < assignedBlockNums_; ++curBlock) {
-        uint64_t curBlockOffset = curAivOffset_ + curBlock * perBlockNum_; // 当前数据块的偏移量
-        uint64_t copyBlockNum = perBlockNum_;
-        if ((aivId_ ==  lastAivId_) && (curBlock == assignedBlockNums_ - 1)) {
-            copyBlockNum = tailBlockNum_; // 检测是否为最后的尾块搬运（即最后一个核的最后一个数据块）
-        }
+        // 判定是否为全局最后一个数据块 (Tail Block)
+        const bool isTailBlock = isLastAiv && (curBlock == lastAivBlockIdx);
+        // 如果是尾块，使用对齐后的尾块长度；否则使用标准块长度
+        const uint64_t copyBlockNum = isTailBlock ? tailPerBlockNumAlign_ : perBlockNum_;
+        // 计算当前块的偏移
+        uint64_t curBlockOffset = curAivOffset_ + curBlock * perBlockNum_;
+
         // 1. 清零累加 SumTensor
         Duplicate<DataType>(sumTensor_, static_cast<DataType>(0.0), perBlockNum_);
         PipeBarrier<PIPE_V>();
@@ -210,9 +216,23 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum()
             ReadDataBlockReduceSum(curOffset, copyBlockNum); // 从 recvBuf_ 读取数据做reduce sum
         }
 
-        // 3. 将结果写入 output C (UB -> GM)
+        // 3. 将结果写入 output (UB -> GM)
         SyncFunc<AscendC::HardEvent::V_MTE3>();
-        DataCopy(dstGm_[curBlockOffset], sumTensor_, copyBlockNum);
+        // 搬出时，尾块用dataCopyPad, 防止32B向上对齐越界OutPut
+        if (isTailBlock) {
+            // 尾块处理：使用 Pad 拷贝防止越界
+            DataCopyExtParams copyOutParams;
+            copyOutParams.blockCount = 1;
+            copyOutParams.blockLen = static_cast<uint32_t>(tailBytes_); // 单位为Byte
+            copyOutParams.srcStride = 0;
+            copyOutParams.dstStride = 0;
+            copyOutParams.rsv = 0;
+
+            DataCopyPad(dstGm_[curBlockOffset], sumTensor_, copyOutParams);
+        } else {
+            // 主块处理：使用高性能的DataCopy拷贝
+            DataCopy(dstGm_[curBlockOffset], sumTensor_, copyBlockNum);
+        }
         SyncFunc<AscendC::HardEvent::MTE3_V>();
     }
 }
