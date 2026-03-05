@@ -24,13 +24,31 @@
 using namespace AscendC;
 using namespace DistributeBarrierImpl;
 
+
+ge::DT_BF16, ge::DT_FLOAT16, ge::DT_FLOAT, ge::DT_BOOL, ge::DT_INT8, ge::DT_INT16,
+                       ge::DT_INT32, ge::DT_INT64, ge::DT_UINT8, ge::DT_UINT16, ge::DT_UINT32, ge::DT_UINT64,
+                       ge::DT_FLOAT8_E5M2, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT4_E1M2, ge::DT_FLOAT4_E2M1,
+                       ge::DT_HIFLOAT8, ge::DT_INT4
+
 extern "C" __global__ __aicore__ void distribute_barrier(GM_ADDR xRef, GM_ADDR timeOut, GM_ADDR elasticInfo,
                                                          GM_ADDR xRefOut, GM_ADDR workspaceGM, GM_ADDR tilingGM) {
   REGISTER_TILING_DEFAULT(DistributeBarrierTilingData);
   TPipe pipe;
 
   GET_TILING_DATA_WITH_STRUCT(DistributeBarrierTilingData, tilingData, tilingGM);
+
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
   DistributeBarrier<DTYPE_X_REF> op;
   op.Init(timeOut, elasticInfo, workspaceGM, &pipe, &tilingData);
   op.Process();
+else
+#if ((ORIG_DTYPE_EXPAND_X == DT_BF16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT16) || (ORIG_DTYPE_EXPAND_X == DT_FLOAT) ||
+     (ORIG_DTYPE_EXPAND_X == DT_BOOL) || (ORIG_DTYPE_EXPAND_X == DT_INT8) || (ORIG_DTYPE_EXPAND_X == DT_INT16) ||
+     (ORIG_DTYPE_EXPAND_X == DT_INT32) || (ORIG_DTYPE_EXPAND_X == DT_INT64) || (ORIG_DTYPE_EXPAND_X == DT_UINT8) ||
+     (ORIG_DTYPE_EXPAND_X == DT_UINT16) || (ORIG_DTYPE_EXPAND_X == DT_UINT32) || (ORIG_DTYPE_EXPAND_X == DT_UINT64))
+  DistributeBarrier<DTYPE_X_REF> op;
+  op.Init(timeOut, elasticInfo, workspaceGM, &pipe, &tilingData);
+  op.Process();
+#endif 
+
 }
