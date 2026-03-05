@@ -18,6 +18,15 @@ import logging
 from pathlib import Path
 from collections import defaultdict
 
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+build_dir = os.path.join(script_dir, "../../build/")
+build_dir = os.path.abspath(build_dir)
+workdir = os.path.join(build_dir, "binary")
+workdir = os.path.abspath(workdir)
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -84,7 +93,7 @@ def find_txt_files(filter_names: list = None):
     txt_files = []
     
     # Get build/binary directory under current directory
-    base_dir = os.path.join('.', 'build', 'binary')
+    base_dir = workdir
     
     if not os.path.exists(base_dir):
         logger.error(f"Directory {base_dir} does not exist")
@@ -190,7 +199,7 @@ def main():
     # Write to CSV file
     if data_list:
         soc_version = data_list[0]['soc']
-        csv_filename = os.path.join('.', 'build', f'ops_cost_{soc_version}.csv')
+        csv_filename = os.path.join(build_dir, f'ops_cost_{soc_version}.csv')
         fieldnames = ['op_name', 'duration', 'size', 'soc']
         
         with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
