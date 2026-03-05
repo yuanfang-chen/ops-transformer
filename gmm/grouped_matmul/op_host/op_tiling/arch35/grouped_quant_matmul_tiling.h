@@ -72,6 +72,9 @@ constexpr uint32_t FP32_WORKSIZE = 4;
 constexpr uint64_t DB_REQUIRED_BYTES_SIZE = 14;
 constexpr uint32_t SYS_WORKSPACE_SIZES = 16 * 1024 * 1024;
 
+constexpr uint32_t DEQUANT_FIXP_MODE = 0;
+constexpr uint32_t DEQUANT_VECTOR_MODE = 1;
+constexpr uint32_t PERGROUP_PERBLOCK_MODE = 2;
 constexpr uint32_t CORE_RATIO = 2;
 } // namespace GmmConstant
 
@@ -122,7 +125,7 @@ struct GQmmInputInfo {
     uint64_t nSize = 0UL;
     uint64_t groupNum = 0UL;
     int64_t outDtype = 0L;
-    uint64_t kernelType = 0UL;
+    uint64_t kernelType = DEQUANT_FIXP_MODE;
     QuantMode aQuantMode = QuantMode::DEFAULT;
     QuantMode bQuantMode = QuantMode::DEFAULT;
     int8_t groupType = GroupedMatmul::NO_SPLIT;

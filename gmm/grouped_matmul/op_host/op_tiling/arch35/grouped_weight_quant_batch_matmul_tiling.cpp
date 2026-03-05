@@ -65,7 +65,7 @@ bool GroupedWeightQuantBatchMatmulTiling:: SetShapeList(const gert::TilingContex
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckTensorListSize(const gert::TilingContext *context) const
 {
     OP_CHECK_IF(
         numX_ >= GroupedMatmul::MAX_TENSOR_CONT,
@@ -869,7 +869,7 @@ bool GroupedWeightQuantBatchMatmulTiling::CheckTransposeStatus(const gert::Tilin
     return true;
 }
 
-bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context)
+bool GroupedWeightQuantBatchMatmulTiling::CheckEmptyTensor(const gert::TilingContext *context) const
 {
     // all M or N be zero, get true
     bool zeroM = true;
@@ -1034,7 +1034,7 @@ bool GroupedWeightQuantBatchMatmulTiling::SetAntiquantGroupSize(const gert::Tili
     auto antiquantScaleShape = antiquantScale->GetStorageShape();
     int64_t antiquantScaleDimNum = antiquantScaleShape.GetDimNum();
     // 3含义：单场景antiquantScale维度在切M时是(g, N, K)或(g, K, N)
-    if (antiquantScaleDimNum == 3) {
+    if (antiquantScaleDimNum == SHAPE_DIM_3) {
         // 2含义：(g, K, N)格式K轴索引
         int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 1)
                                    : antiquantScaleShape.GetDim(antiquantScaleDimNum - 2);
@@ -1045,7 +1045,7 @@ bool GroupedWeightQuantBatchMatmulTiling::SetAntiquantGroupSize(const gert::Tili
                     return false);
         // GMM伪量化场景支持K=groupSize
         groupSize_ = groupNum > 0 ? kSize_ / static_cast<uint64_t>(groupNum) : 0;
-    } else if (antiquantScaleDimNum == 4) {
+    } else if (antiquantScaleDimNum == SHAPE_DIM_4) {
         // 2:antiquantScaleShape: (g,n,k/64,2) (g,k/64,n,2)
         int64_t groupNum = transB_ ? antiquantScaleShape.GetDim(antiquantScaleDimNum - 2) * 2 :
                                      antiquantScaleShape.GetDim(antiquantScaleDimNum - 3) * 2;

@@ -82,7 +82,7 @@ static ge::graphStatus InferShape4GroupedMatmulSwigluQuantV2(gert::InferShapeCon
         n = dimValue;
     } else {
         n = static_cast<int64_t>(weightScaleShape->GetDim(nDimIndex) / SPLIT_RATIO);
-        if (weightScaleShape->GetDimNum() == 2) {
+        if (weightScaleShape->GetDimNum() == DIM_LEN) {
             n = static_cast<int64_t>(weightScaleShape->GetDim(1) / SPLIT_RATIO);
         }
     }
