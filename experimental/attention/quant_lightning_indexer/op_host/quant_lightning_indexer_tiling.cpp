@@ -512,7 +512,7 @@ ge::graphStatus QLIInfoParser::GetBatchSize()
                 return ge::GRAPH_FAILED);
             bSize_ = bSizeQuery;
         } else {
-            if (bSizeQuery != bSizeKey) {
+            if (bSizeQuery == bSizeKey + 1) {
                 batchSupperFlag_ = true;
             }
             bSize_ = bSizeKey; // Q为TND，batch从Key中获取
