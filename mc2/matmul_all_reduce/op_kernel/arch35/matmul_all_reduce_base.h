@@ -25,10 +25,11 @@
 #include "matmul_all_reduce_add_x3.h"
 #include "matmul_all_reduce_tiling_struct_ar35.h"
 #include "../../common/inc/kernel/reduce_sum.h"
-
+#include "../../common/inc/kernel/gm_ub_gm_copy.h"
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
 using namespace AiVReduceSumImpl;
+using namespace GmUbGmCopyImpl;
 constexpr uint32_t A2A_VSUM_AG_MAX_HANDLE_ID_NUM = 16;
 template <typename XType, typename YType, Mc2CoreType CoreType>
 class MatmulAllReduceBase
@@ -113,7 +114,7 @@ public:
             reduceSumInGM_ = all2allOutGM_;
             reduceSumOutGM_ = reduceSumInGM_ + cgmAddr_ + cgmPadLen_ * sizeof(YType);   // alltoall结果
             allgatherInGM_ = reduceSumOutGM_;
-            if (true) {         // 是否需要内存拷贝
+            if (cgmPadLen_ == 0) {         // 是否需要内存拷贝
                 allgatherOutGM_ = addrs_->outputGM;
             } else {
                 allgatherOutGM_ = reduceSumOutGM_ + (cgmAddr_ + cgmPadLen_ * sizeof(YType)) / rankNum_; // reduceSum结果
@@ -272,11 +273,16 @@ protected:
         }
 
         if (allReduceBasedAtaSumAg_){
-            SyncAll();
-            if ASCEND_IS_AIV {
-                // DataCopy
+            if (cgmPadLen_ != 0){
+                if ASCEND_IS_AIV {
+                    uint64_t aivNum = GetBlockNum() * GetTaskRation();
+                    // DataCopy
+                    SyncAll();
+                    reduceSum_.Init(cgmLen_ + cgmPadLen_, aivNum, allgatherOutGM_, addrs_->outputGM, tPipe_);
+                    reduceSum_.Process();
+                    SyncAll();
+                }
             }
-            SyncAll();
         } else {
             Mc2SyncAll<CoreType>();
         }
@@ -318,6 +324,7 @@ protected:
     bool allReduceBasedAtaSumAg_ = false;
 private:
     ReduceSumForAlltoAll<YType> reduceSum_;     // AIV ReduceSum相关实现
+    GmUbGmCopy<YType> dataCopy_;        // dataCopy实现
 };
 } // namespace MatmulAllReduceImpl
 #endif // MATMUL_ALL_REDUCE_BASE_H
