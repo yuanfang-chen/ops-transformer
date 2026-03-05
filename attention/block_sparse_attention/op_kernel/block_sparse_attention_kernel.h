@@ -454,8 +454,8 @@ namespace BlockSparse {
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
                     gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
-                    // LSE format: [B, N, S] - same as O but without D dimension
-                    gmOffsetLse = lseBOffset + qHeadIdx * qHeads + qSeqOffset;
+                    // LSE format: [B, N, S] - strideN = maxQSeqlen (S维长度)
+                    gmOffsetLse = lseBOffset + qHeadIdx * maxQSeqlen + qSeqOffset;
                 } else {
                     // TND: [T, N, D]
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
