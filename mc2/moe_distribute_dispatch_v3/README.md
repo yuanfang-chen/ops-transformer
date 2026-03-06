@@ -126,11 +126,11 @@ $$
    <td>ND</td>
   </tr>
   <tr>
-    <td>performance_info_optional</td>
-    <td>可选输入</td>
-    <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
-    <td>INT64</td>
-    <td>ND</td>
+   <td>performance_info_optional</td>
+   <td>可选输入</td>
+   <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
+   <td>INT64</td>
+   <td>ND</td>
   </tr>
   <tr>
    <td>ep_world_size</td>
@@ -333,9 +333,9 @@ $$
         - `moe_expert_num`：取值范围(0, 1024]。
         - `shared_expert_num`：取值支持[0, 4]。
         - `comm_alg`：当前版本仅支持""，"fullmesh_v1"，"fullmesh_v2"三种输入方式。
-            - ""：默认值，不使能性能优化模板。
-            - "fullmesh_v1"：不使能性能优化模板。
-            - "fullmesh_v2"：使能性能优化模板，其中`comm_alg`仅在`tp_world_size`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
+            - ""：默认值，使能fullmesh_v1模板。
+            - "fullmesh_v1"：使能fullmesh_v1模板。
+            - "fullmesh_v2"：使能fullmesh_v2模板，其中`comm_alg`仅在`tp_world_size`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
         - `ep_recv_count_out`：要求shape为 (`ep_world_size` * max(`tp_world_size`, 1) * `local_expert_num`, )。
         - `performance_Info_optional`：预留参数，当前版本不支持，传空指针即可。
         - `ccl_buffer_size`：调用get_low_latency_ccl_buffer_size接口(../../torch_extension/npu_opstransformer/ops/deep_ep.py)。

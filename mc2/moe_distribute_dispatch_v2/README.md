@@ -425,9 +425,9 @@ $$
         - `groupTp`：字符串长度范围为[1, 128)，不能和`groupEp`相同。
         - `sharedExpertNum`：取值支持[0, 4]。
         - `commAlg`：当前版本仅支持""，"fullmesh_v1"，"fullmesh_v2"三种输入方式。
-            - ""：默认值，不使能性能优化模板。
-            - "fullmesh_v1"：不使能性能优化模板。
-            - "fullmesh_v2"：使能性能优化模板，其中`commAlg`仅在`tpWorldSize`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
+            - ""：默认值，使能fullmesh_v1模板。
+            - "fullmesh_v1"：使能fullmesh_v1模板。
+            - "fullmesh_v2"：使能fullmesh_v2模板，其中`commAlg`仅在`tpWorldSize`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
         - `epRecvCountsOut`：要求shape为 (`epWorldSize` * max(`tpWorldSize`, 1) * `localExpertNum`, )。
         - `performanceInfoOptional`：预留参数，当前版本不支持，传空指针即可。
     - 参数说明里shape格式说明：
@@ -442,9 +442,9 @@ $$
         - `moeExpertNum`：取值范围(0, 1024]。
         - `sharedExpertNum`：取值支持[0, 4]。
         - `commAlg`：当前版本仅支持""，"fullmesh_v1"，"fullmesh_v2"三种输入方式。
-            - ""：默认值，不使能性能优化模板。
-            - "fullmesh_v1"：不使能性能优化模板。
-            - "fullmesh_v2"：使能性能优化模板，其中`commAlg`仅在`tpWorldSize`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
+            - ""：默认值，使能fullmesh_v1模板。
+            - "fullmesh_v1"：使能fullmesh_v1模板。
+            - "fullmesh_v2"：使能fullmesh_v2模板，其中`commAlg`仅在`tpWorldSize`取值为1时生效，且不支持在各卡`Bs`不一致、输入xActiveMask和特殊专家场景下使能。
         - `epRecvCountsOut`：要求shape为 (`epWorldSize` * max(`tpWorldSize`, 1) * `localExpertNum`, )。
         - `performanceInfoOptional`：预留参数，当前版本不支持，传空指针即可。
         - `expertShardType`当前仅支持传0，表示共享专家卡排在MoE专家卡前面。

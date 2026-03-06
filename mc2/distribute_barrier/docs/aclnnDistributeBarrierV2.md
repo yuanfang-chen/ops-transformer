@@ -15,6 +15,10 @@
 
 算子功能：完成通信域内的全卡同步，xRef仅用于构建Tensor依赖，接口内不对xRef做任何操作。
 
+- 相较于`aclnnDistributeBarrier`接口，该接口变更如下：
+    - 新增`elasticInfoOptional`参数。
+    - 新增`timeOutOptional`参数。
+
 ## 函数原型
 
 每个算子分为[两段式接口](../../../docs/zh/context/两段式接口.md)，必须先调用 “aclnnDistributeBarrierV2GetWorkspaceSize”接口获取计算所需workspace大小以及包含了算子计算流程的执行器，再调用“aclnnDistributeBarrierV2”接口执行计算。

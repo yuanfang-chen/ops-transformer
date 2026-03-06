@@ -185,12 +185,11 @@
    <td>ND</td>
   </tr>
   <tr>
-  <tr>
-    <td>performance_info_optional</td>
-    <td>可选输入</td>
-    <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
-    <td>INT64</td>
-    <td>ND</td>
+   <td>performance_info_optional</td>
+   <td>可选输入</td>
+   <td>表示本卡等待各卡数据的通信时间，单位为us（微秒）。单次算子调用各卡通信耗时会累加到该Tensor上，算子内部不进行自动清零，因此用户每次启用此Tensor开始记录耗时前需对Tensor清零。</td>
+   <td>INT64</td>
+   <td>ND</td>
   </tr>
   <tr>
    <td>ep_world_size</td>
@@ -329,14 +328,14 @@
 
 - `MoeDistributeDispatchV3`与`CombineV3`系列算子必须配套使用，具体参考调用示例。
 
-- 在不同产品型号、不同通信算法或不同版本中，`MoeDistributeDispatchV3`的Tensor输出`assist_info_for_combine_out`、`epRecvCountsOut`、`tp_recv_countsOut`、`expand_scalesOut`中的元素值可能不同，使用时直接将上述Tensor传给`CombineV3`系列算子对应参数即可，模型其他业务逻辑不应对其存在依赖。
+- 在不同产品型号、不同通信算法或不同版本中，`MoeDistributeDispatchV3`的Tensor输出`assist_info_for_combine_out`、`ep_recv_counts_out`、`tp_recv_counts_out`、`expand_scales_out`中的元素值可能不同，使用时直接将上述Tensor传给`CombineV3`系列算子对应参数即可，模型其他业务逻辑不应对其存在依赖。
 
 - 调用算子过程中使用的`ep_world_size`、`moe_expert_num`、`ccl_buffer_size`、`tp_world_size`、`expert_shard_type`、`shared_expert_num`、`shared_expert_num`、`global_bs`、`comm_alg`参数取值所有卡需保持一致，网络中不同层中也需保持一致，且和`MoeDistributeDispatchV3`算子对应参数也保持一致。
 
 - 参数说明里shape格式说明：
     - `A`：表示本卡可能接收的最大token数量，取值范围如下：
-            - 对于共享专家，要满足`A` = `Bs` * `ep_world_size` * `shared_expert_num` / `shared_expert_num`。
-            - 对于MoE专家，当`global_bs`为0时，要满足`A` >= `Bs` * `ep_world_size` * min(`local_expert_num`, `K`)；当`global_bs`非0时，要满足`A` >= `global_bs` * min(`local_expert_num`, `K`)。
+        - 对于共享专家，要满足`A` = `Bs` * `ep_world_size` * `shared_expert_num` / `shared_expert_num`。
+        - 对于MoE专家，当`global_bs`为0时，要满足`A` >= `Bs` * `ep_world_size` * min(`local_expert_num`, `K`)；当`global_bs`非0时，要满足`A` >= `global_bs` * min(`local_expert_num`, `K`)。
     - `K`：表示选取topK个专家，取值范围为0 < `K` ≤ 16同时满足0 < `K` ≤ `moe_expert_num` + `zero_expert_num` + `copy_expert_num` + `const_expert_num`。
     - `local_expert_num`：表示本卡专家数量。
         - 对于共享专家卡，`local_expert_num` = 1
