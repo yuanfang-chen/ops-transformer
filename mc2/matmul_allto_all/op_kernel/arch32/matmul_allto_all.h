@@ -26,7 +26,8 @@ using namespace AscendC;
 #include "adv_api/hccl/hccl.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "matmul_allto_all_tiling.h"
-#include "moe_distribute_base.h"
+// @wangyi 这里不确定
+#include "common/op_kernel/moe_distribute_base.h"
 #include "matmul_allto_all_util.h"
 
 #include "../../3rd/template_linear_algebra/include/template_linear_algebra/catlass.hpp"
