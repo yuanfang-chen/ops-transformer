@@ -97,8 +97,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
         return false;
     }
     // num_heads_q 校验
-    if (queryHeadNum_ != 64) {
-        KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %d", queryHeadNum_);
+    if (queryHeadNum_ > 128) {
+        KERNEL_LOG_ERROR("num_heads_q should not be greater than 128, but got %d", queryHeadNum_);
         return false;
     }
     // num_heads_kv 校验
@@ -243,6 +243,9 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     attentionMode_ = 1;
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
+    if (queryHeadNum_ == 128) {
+        isN128 = true;
+    }
     if (hasCmpKv_) {
         if (cmpTopK_ > 0) {
             isSCFA = true;
@@ -260,7 +263,13 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
         mBaseSize_ = groupSize_ * s1BlockLen;
         s2BaseSize_ = 512U;
     } else if (validSocVersion == ValidSocVersion::ASCEND950){
-        mBaseSize_ = 64U;
+        if (isN128) {
+            mBaseSize_ = groupSize_;
+            aicCoreNum_ /= 2;
+            aivCoreNum_ /= 2;
+    	} else {
+            mBaseSize_ = 64U;
+        }
         s2BaseSize_ = 128U;
     }
     return true;
@@ -638,12 +647,14 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &spli
         return;
     }
     const CostInfo &costInfo = splitContext.costInfo;
+    const SplitInfo &splitInfo = splitContext.splitInfo;
     while (assignContext.bN2Cost == 0 || IsWithinTolerance(assignContext.coreCache.costLimit,
         costInfo.bN2LastBlockCostOfEachBatch[assignContext.curBIdx] / FA_TOLERANCE_RATIO,
         assignContext.coreCache.cost + assignContext.bN2Cost)) {
         assignContext.coreCache.cost += assignContext.bN2Cost;
         assignContext.coreCache.block += assignContext.bN2Block;
         assignContext.curBN2Idx++;
+        singleCoreS1GBaseNum_ += assignContext.bn2S1GBaseNum;
 
         // to the end
         if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {
@@ -661,6 +672,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContext &spli
 
         assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
         assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+        assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
         assignContext.curS1GIdx = 0U;
         CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
         assignContext.curS2Idx = assignContext.s1GCache.s2Start;
@@ -678,12 +690,14 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext &splitC
         assignContext.coreCache.cost + assignContext.s1GCache.s1GCost)) {
         assignContext.coreCache.cost += assignContext.s1GCache.s1GCost;
         assignContext.coreCache.block += assignContext.s1GCache.s1GBlock;
+        singleCoreS1GBaseNum_++;
 
         // 当前batch被分配一行出去，更新剩余负载
         assignContext.bN2Cost = assignContext.bN2Cost > assignContext.s1GCache.s1GCost ?
                                 assignContext.bN2Cost - assignContext.s1GCache.s1GCost : 0;
         assignContext.bN2Block = assignContext.bN2Block > assignContext.s1GCache.s1GBlock ?
                                  assignContext.bN2Block - assignContext.s1GCache.s1GBlock : 0U;
+        assignContext.bn2S1GBaseNum--;
         // 计算新一行的信息
         do{
             assignContext.curS1GIdx++;
@@ -814,6 +828,7 @@ void SparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext &split
         CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
         assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
         assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+        assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
     }
     if (UpdateS1G) {
         CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
@@ -848,6 +863,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext 
     
     int64_t avgCost = assignContext.unassignedCost / (aicCoreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
+    singleCoreS1GBaseNum_ = 0;
     if (!supportFd) {
         assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
     } else {
@@ -868,6 +884,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext 
     result.s2End[assignContext.curCoreIdx] = assignContext.curS2Idx;
     result.maxCost = std::max(result.maxCost, assignContext.coreCache.cost);
     assignContext.unassignedCost -= assignContext.coreCache.cost;
+    result.maxS1GBaseNum = std::max(singleCoreS1GBaseNum_, result.maxS1GBaseNum);
     // 对之前的归约信息进行记录并清理
     if (IsNeedRecordFDInfo(assignContext, result)) {
         RecordFDInfo(splitContext, assignContext, result);
@@ -883,6 +900,7 @@ void SparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitContext 
 void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit, const SplitContext &splitContext, SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
+    const SplitInfo &splitInfo = splitContext.splitInfo;
 
     if (aicCoreNum_ == 0U) {
         return;
@@ -896,6 +914,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit, const
     assignContext.unassignedCost = costInfo.totalCost;
     assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
     assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+    assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
     CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
@@ -967,22 +986,58 @@ bool SparseAttnSharedkvMetadataCpuKernel::BalanceSchedule(SplitResult &splitRes)
 bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
     optiling::detail::SasMetaData* metaDataPtr = (optiling::detail::SasMetaData*)metaData_->GetData();
     // FA Metadata Generate
-    for (size_t i = 0; i < aicCoreNum_; ++i) {
-        if (i >= splitRes.usedCoreNum) {
-            metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
-            continue;
+    if (isN128) {
+        for (size_t i = 0; i < aicCoreNum_; i++) {
+            if (i >= splitRes.usedCoreNum) {
+                metaDataPtr->faMetadata[2 * i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
+                metaDataPtr->faMetadata[2 * i + 1][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
+                continue;
+            }
+            metaDataPtr->faMetadata[2 * i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
+            metaDataPtr->faMetadata[2 * i + 1][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
+            // FA START
+            metaDataPtr->faMetadata[2 * i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
+            metaDataPtr->faMetadata[2 * i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
+            metaDataPtr->faMetadata[2 * i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
+
+            metaDataPtr->faMetadata[2 * i + 1][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
+            metaDataPtr->faMetadata[2 * i + 1][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
+            metaDataPtr->faMetadata[2 * i + 1][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
+            // FA END
+            metaDataPtr->faMetadata[2 * i][FA_BN2_END_INDEX] = splitRes.bN2End[i];
+            metaDataPtr->faMetadata[2 * i][FA_M_END_INDEX] = splitRes.gS1End[i];
+            metaDataPtr->faMetadata[2 * i][FA_S2_END_INDEX] = splitRes.s2End[i];
+
+            metaDataPtr->faMetadata[2 * i + 1][FA_BN2_END_INDEX] = splitRes.bN2End[i];
+            metaDataPtr->faMetadata[2 * i + 1][FA_M_END_INDEX] = splitRes.gS1End[i];
+            metaDataPtr->faMetadata[2 * i + 1][FA_S2_END_INDEX] = splitRes.s2End[i];
+            //
+            metaDataPtr->faMetadata[2 * i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+            metaDataPtr->faMetadata[2 * i + 1][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+            // 单核M基本块最大数量
+            metaDataPtr->faMetadata[2 * i][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
+            metaDataPtr->faMetadata[2 * i + 1][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
         }
-        metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
-        // FA START
-        metaDataPtr->faMetadata[i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
-        metaDataPtr->faMetadata[i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
-        metaDataPtr->faMetadata[i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
-        // FA END
-        metaDataPtr->faMetadata[i][FA_BN2_END_INDEX] = splitRes.bN2End[i];
-        metaDataPtr->faMetadata[i][FA_M_END_INDEX] = splitRes.gS1End[i];
-        metaDataPtr->faMetadata[i][FA_S2_END_INDEX] = splitRes.s2End[i];
-        // 
-        metaDataPtr->faMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+    } else {
+        for (size_t i = 0; i < aicCoreNum_; ++i) {
+            if (i >= splitRes.usedCoreNum) {
+                metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 0; // AIC disenable
+                continue;
+            }
+            metaDataPtr->faMetadata[i][FA_CORE_ENABLE_INDEX] = 1; // AIC enable
+            // FA START
+            metaDataPtr->faMetadata[i][FA_BN2_START_INDEX] = i == 0 ? 0 : splitRes.bN2End[i-1];
+            metaDataPtr->faMetadata[i][FA_M_START_INDEX] = i == 0 ? 0 : splitRes.gS1End[i-1];
+            metaDataPtr->faMetadata[i][FA_S2_START_INDEX] = i == 0 ? 0 : splitRes.s2End[i-1];
+            // FA END
+            metaDataPtr->faMetadata[i][FA_BN2_END_INDEX] = splitRes.bN2End[i];
+            metaDataPtr->faMetadata[i][FA_M_END_INDEX] = splitRes.gS1End[i];
+            metaDataPtr->faMetadata[i][FA_S2_END_INDEX] = splitRes.s2End[i];
+            //
+            metaDataPtr->faMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+            // 单核M基本块最大数量
+            metaDataPtr->faMetadata[i][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
+        }
     }
 
     // FD Metadata Generate
