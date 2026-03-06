@@ -17,9 +17,9 @@
 
 #include "kernel_operator.h"
 #include "kernel_operator_list_tensor_intf.h"
-#include "common/op_kernel/load_store_utils.h"
-#include "common/op_kernel/math_util.h"
-#include "common/op_kernel/platform_util.h"
+#include "op_kernel/load_store_utils.h"
+#include "op_kernel/math_util.h"
+#include "op_kernel/platform_util.h"
 
 namespace AttentionUpdateOpt {
 using namespace AscendC;

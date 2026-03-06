@@ -16,8 +16,8 @@
 #ifndef MOE_FINALIZE_ROUTING_V2_BASE_H_
 #define MOE_FINALIZE_ROUTING_V2_BASE_H_
 #include "kernel_operator.h"
-#include "common/op_kernel/platform_util.h"
-#include "common/op_kernel/math_util.h"
+#include "op_kernel/platform_util.h"
+#include "op_kernel/math_util.h"
 
 namespace MoeFinalizeRoutingV2Regbase {
 using namespace AscendC;
