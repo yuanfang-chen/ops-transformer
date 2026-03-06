@@ -753,7 +753,7 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
 
 uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 {
-    return TILING_KEY_BASE;
+    return TILING_KEY_UPDATE_BF16;
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
