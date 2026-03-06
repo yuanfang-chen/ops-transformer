@@ -1,0 +1,603 @@
+api: pytorch
+api_type: executor_fused_infer_attention_score_v3
+aclnn_api_type: executor_aclnn_fused_infer_attention_score_v3
+version: v2.1
+name: torch_fused_infer_attention_score_v4
+aclnn_name: aclnnFusedInferAttentionScoreV4
+generate: ascend_aclnn_fused_infer_attention_score_v3
+dtype_numbers: 100
+extra_numbers: 0
+standard:
+  acc:
+      cv_fused_double_benchmark:
+        max_re_ratio: 2
+        avg_re_ratio: 1.2
+        root_mean_squared_ratio: 1.2
+      # perf: 
+      #   not_key:
+      #     [0.9, 0.9]
+inputs:
+  - name: query
+    type: tensor
+    required: true
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [3]
+    ranges:
+      valid:
+        values: [[-5, 5]]
+      invalid:
+        values: [[-5, 5]]
+
+  - name: key
+    type: tensors
+    required: true
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [3]
+    ranges:
+      valid:
+        values: [[-5, 5]]
+      invalid:
+        values: [[-5, 5]]
+
+  - name: value
+    type: tensors
+    required: true
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [3]
+    ranges:
+      valid:
+        values: [[-5, 5]]
+      invalid:
+        values: [[-5, 5]]
+
+  - name: pseShiftOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: attenMaskOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['bool', 'int8']
+    shapes:
+      dim_numbers:
+        values: [2]
+    ranges:
+      valid:
+        values: [[0, 2]]
+      invalid:
+        values: [[0, 2]]
+
+  - name: actualSeqLengthsOptional
+    type: attrs
+    required: true
+    dtypes:
+      values: ['int']
+    tuple_numbers:
+      values: [ 1 ]
+    ranges:
+      valid:
+        values: [[4096, 10240]]
+      invalid: 
+        values: [[4096, 10240]]
+
+  - name: actualSeqLengthsKvOptional
+    type: attrs
+    required: true
+    dtypes:
+      values: ['int']
+    tuple_numbers:
+      values: [ 1 ]
+    ranges:
+      valid:
+        values: [[4096, 10240]]
+      invalid:
+        values: [[4096, 10240]]
+
+  - name: deqScale1Optional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: quantScale1Optional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: deqScale2Optional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: quantScale2Optional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp32']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: quantOffset2Optional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp32']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: antiquantScaleOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: antiquantOffsetOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: blockTableOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['int32']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: queryPaddingSizeOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: kvPaddingSizeOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: keyAntiquantScaleOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: keyAntiquantOffsetOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: valueAntiquantScaleOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: valueAntiquantOffsetOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: keySharedPrefixOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: valueSharedPrefixOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [1]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: actualSharedPrefixLenOptional
+    type: attr_tuple
+    required: false
+    dtypes:
+      values: ['int']
+    shapes:
+      dim_numbers:
+        values: [[1]]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: queryRopeOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: keyRopeOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+  
+  - name: keyRopeAntiquantScaleOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: dequantScaleQueryOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: learnableSinkOptional
+    type: tensor
+    required: false
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [4]
+    ranges:
+      valid:
+        values: [["None"]]
+      invalid:
+        values: [["None"]]
+
+  - name: numHeads
+    type: attr
+    required: true
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[1, 32]]
+      invalid:
+        values: [[1, 32]]
+
+  - name: scaleValue
+    type: attr
+    required: false
+    dtypes:
+      values: [ double ]
+    ranges:
+      valid:
+        values: [[1.0]]
+      invalid:
+        values: [[1.0]]
+  
+  - name: preTokens
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[2147483647]]
+      invalid:
+        values: [[2147483647]]
+  - name: nextTokens
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[2147483647]]
+      invalid:
+        values: [[2147483647]]
+
+  - name: inputLayout
+    type: attr
+    required: false
+    dtypes:
+      values: [ string ]
+    ranges:
+      valid:
+        values: [["BSND"]]
+      invalid:
+        values: [["BSND"]]
+
+  - name: numKeyValueHeads
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[1, 32]]
+      invalid:
+        values: [[1, 32]]
+
+  - name: sparseMode
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0, 1]]
+      invalid:
+        values: [[0, 1]]
+
+  - name: innerPrecise
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+  
+  - name: blockSize
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+  
+  - name: antiquantMode
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+  
+  - name: softmaxLseFlag
+    type: attr
+    required: false
+    dtypes:
+      values: [ bool ]
+    ranges:
+      valid:
+        values: [[false]]
+      invalid:
+        values: [[false]]
+
+  - name: keyAntiquantMode
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+  
+  - name: valueAntiquantMode
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+  
+  - name: queryQuantMode
+    type: attr
+    required: false
+    dtypes:
+      values: [ int ]
+    ranges:
+      valid:
+        values: [[0]]
+      invalid:
+        values: [[0]]
+
+  - name: attentionOut
+    type: tensor
+    required: true
+    dtypes:
+      values: ['fp16']
+    shapes:
+      dim_numbers:
+        values: [3]
+    ranges:
+      valid:
+        values: [[-5, 5]]
+      invalid:
+        values: [[-5, 5]]
+
+  - name: softmaxLse
+    type: tensor
+    required: true
+    dtypes:
+      values: ['fp32']
+    shapes:
+      dim_numbers:
+        values: [3]
+    ranges:
+      valid:
+        values: [[-5, 5]]
+      invalid:
+        values: [[-5, 5]]

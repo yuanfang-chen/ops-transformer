@@ -76,7 +76,6 @@ namespace BlockSparse {
         using ElementUpdate = typename EpilogueRescaleO::ElementUpdate;
         using LayoutUpdate = typename EpilogueRescaleO::LayoutUpdate;
 
-        static constexpr Epilogue::LseMode LSE_MODE = EpilogueRescaleO::LSE_MODE;
         static constexpr int32_t BASIC_BLOCK = 64;
         static constexpr uint32_t LS_UB_TENSOR_OFFSET = 0;
         static constexpr uint32_t MASK_PATTERN_HALF_OFFSET = BASIC_BLOCK * 2 + LS_UB_TENSOR_OFFSET;
@@ -262,6 +261,7 @@ namespace BlockSparse {
             // Initialize hardware events for vector core
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
+            // AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID3);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID4);
@@ -324,6 +324,7 @@ namespace BlockSparse {
             uint64_t vBOffset = 0;
             uint64_t oBOffset = 0;
             uint64_t blockBOffset = 0;
+            uint64_t lseBOffset = 0;
 
             uint32_t preTotalTaskNum = 0;
             uint32_t preTotalQBlockNum = 0;
@@ -356,10 +357,12 @@ namespace BlockSparse {
                         // BNSD: [B, N, S, D], offset = batch * strideB
                         qBOffset = curBatch * strideQOB;
                         oBOffset = curBatch * strideQOB;
+                        lseBOffset = curBatch * qHeads * maxQSeqlen;
                     } else {
                         // TND
                         qBOffset += qSeqlen * strideQO;
                         oBOffset += qSeqlen * strideQO;
+                        lseBOffset += qSeqlen * qHeads;
                     }
                     
                     if constexpr (!PAGED_CACHE_FLAG) {
@@ -443,17 +446,22 @@ namespace BlockSparse {
                 uint64_t gmOffsetK = 0;
                 uint64_t gmOffsetV = 0;
                 uint64_t gmOffsetO = 0;
+                uint64_t gmOffsetLse = 0;
                 
                 if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
                     // offset = batch * strideB + head * strideN + seq * strideS
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
                     gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                    // LSE format: [B, N, S] - same as O but without D dimension
+                    gmOffsetLse = lseBOffset + qHeadIdx * qHeads + qSeqOffset;
                 } else {
                     // TND: [T, N, D]
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
                     gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                    // LSE format: [T, N] - same as Q/O but without D dimension
+                    gmOffsetLse = lseBOffset + qSeqOffset * qHeads + qHeadIdx;
                 }
                 
                 if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD: [B, N, S, D]
@@ -613,12 +621,15 @@ namespace BlockSparse {
 #ifdef __DAV_C220_VEC__
                         // Setup layoutO based on data format
                         LayoutO layoutO;
+                        LayoutLse layoutLse;
                         if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
                             // BNSD format: stride[0] = embed (strideQOS)
                             layoutO = LayoutO(qSeqlen, embed);
+                            layoutLse = LayoutLse(qSeqlen, 1); // 1为了适配尾块DataCopy LSE时目的偏移
                         } else {  // TND: [T, N, D]
                             // TND format: stride[0] = qHeads * embed (strideQO)
                             layoutO = LayoutO(qSeqlen, qHeads * embed);
+                            layoutLse = LayoutLse(qSeqlen, qHeads);
                         }
                         LayoutUpdate layoutUpdate(rowNum, embed, embedRound);
                         uint64_t gmOffsetUpdate = (uint64_t)(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
@@ -629,9 +640,11 @@ namespace BlockSparse {
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
+                            gLse[gmOffsetLse],
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,
+                            layoutLse,
                             actualBlockShapePV,
                             qSBlockSize,
                             qNBlockSize,
@@ -677,6 +690,7 @@ namespace BlockSparse {
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
             AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID2);
+            // AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID0);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID1);
             AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(EVENT_ID2);
