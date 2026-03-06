@@ -59,9 +59,6 @@ ge::graphStatus KvQuantSASTilingCheck::CheckParaExistence()
 
  ge::graphStatus KvQuantSASTilingCheck::CheckUnrequiredParaExistence() const
 {
-    OP_CHECK_IF(opParamInfo_.oriSparseIndices.tensor != nullptr || opParamInfo_.oriSparseIndices.desc != nullptr,
-                OP_LOGE(opName_, "oriSparseIndices is not supported now, it must be nullptr."),
-                return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.cuSeqLensOriKv.tensor != nullptr || opParamInfo_.cuSeqLensOriKv.desc != nullptr,
                 OP_LOGE(opName_, "cuSeqLensOriKv is not supported now, it must be nullptr."),
                 return ge::GRAPH_FAILED);
@@ -154,15 +151,12 @@ ge::graphStatus KvQuantSASTilingCheck::CheckSCFAExistence()
 
 ge::graphStatus KvQuantSASTilingCheck::CheckCmpRatioExistence()
 {
-    if (perfMode_ == SASTemplateMode::SWA_TEMPLATE_MODE) {
-        OP_CHECK_IF(*opParamInfo_.cmpRatio != 1 && *opParamInfo_.cmpRatio != 128 && *opParamInfo_.cmpRatio != 4,
-            OP_LOGE(opName_, "when SWA mode, cmpRatio must be 1 or 4 or 128, but got %u", *opParamInfo_.cmpRatio),
-            return ge::GRAPH_FAILED);
-    } else if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE) {
+    if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE) {
         OP_CHECK_IF(*opParamInfo_.cmpRatio != 128 && *opParamInfo_.cmpRatio != 4,
             OP_LOGE(opName_, "when CFA mode, cmpRatio must be 4 or 128, but got %u", *opParamInfo_.cmpRatio),
             return ge::GRAPH_FAILED);
-    } else {
+    }
+    if (perfMode_ == SASTemplateMode::SCFA_TEMPLATE_MODE) {
         OP_CHECK_IF(*opParamInfo_.cmpRatio != 128 && *opParamInfo_.cmpRatio != 4,
             OP_LOGE(opName_, "when SCFA mode, cmpRatio must be 4 or 128, but got %u", *opParamInfo_.cmpRatio),
             return ge::GRAPH_FAILED);

@@ -191,7 +191,8 @@ struct RunInfo {
     bool isActualLenDimsKVNull; /* 判断是否有actualseq_kv */ \
     bool isSoftmaxLseEnable; \
     bool rsvd1; \
-    uint32_t sparseBlockCount; \
+    uint32_t oriSparseBlockCount; \
+    uint32_t cmpSparseBlockCount; \
     uint32_t actualSeqLenSize; /* 用户输入的actualseq的长度 */ \
     uint32_t actualSeqLenKVSize; /* 用户输入的actualseq_kv的长度 */ \
     /* service mm1 mm2 pageAttention */ \
@@ -204,7 +205,9 @@ struct RunInfo {
     int32_t oriWinRight; \
     uint32_t sparseBlockSize; \
     uint32_t cmpRatio; \
-    float softmaxScale
+    float softmaxScale; \
+    uint32_t oriMaskMode; \
+    uint32_t cmpMaskMode
 
 #define CV_SHARED_PARAMS \
     /* base params */ \
@@ -221,7 +224,8 @@ struct RunInfo {
     uint32_t layoutType : 4;  \
     uint32_t isActualSeqLengthsNull : 1; \
     uint32_t isActualSeqLengthsKVNull : 1; \
-    uint32_t sparseBlockCount; \
+    uint32_t oriSparseBlockCount; \
+    uint32_t cmpSparseBlockCount; \
     float softmaxScale; \
     uint32_t cmpRatio : 9; \
     uint32_t dSizeRope : 11; \

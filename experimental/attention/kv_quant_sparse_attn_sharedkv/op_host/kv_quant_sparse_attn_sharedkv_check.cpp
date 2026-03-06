@@ -124,7 +124,8 @@ void KvQuantSASTilingCheck::Init()
     oriBlockSize_ = sasInfo_.oriBlockSize;
     cmpBlockSize_ = sasInfo_.cmpBlockSize;
 
-    sparseBlockCount_ = sasInfo_.sparseBlockCount;
+    oriSparseBlockCount_ = sasInfo_.oriSparseBlockCount;
+    cmpSparseBlockCount_ = sasInfo_.cmpSparseBlockCount;
     sparseBlockSize_ = sasInfo_.sparseBlockSize;
 
     tileSize_ = sasInfo_.tileSize;
@@ -146,7 +147,11 @@ void KvQuantSASTilingCheck::Init()
     outLayout_ = sasInfo_.outLayout;
 
     if (opParamInfo_.cmpKv.tensor == nullptr) {
-        perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+        if (opParamInfo_.oriSparseIndices.tensor != nullptr) {
+            perfMode_ = SASTemplateMode::ORI_SCFA_TEMPLATE_MODE;
+        } else {
+            perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+        }
     } else if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
         perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
     } else {

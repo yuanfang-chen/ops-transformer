@@ -251,6 +251,9 @@ void KvQuantSASInfoParser::SetSASShape()
     if (opParamInfo_.cmpKv.tensor != nullptr) {
         cmpKvShape_ = opParamInfo_.cmpKv.tensor->GetStorageShape();
     }
+    if (opParamInfo_.oriSparseIndices.tensor != nullptr) {
+        oriSparseIndicesShape_ = opParamInfo_.oriSparseIndices.tensor->GetStorageShape();
+    }
     if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
         cmpSparseIndicesShape_ = opParamInfo_.cmpSparseIndices.tensor->GetStorageShape();
     }
@@ -409,10 +412,12 @@ ge::graphStatus KvQuantSASInfoParser::GetQkHeadDim()
 
 ge::graphStatus KvQuantSASInfoParser::GetSparseBlockCount()
 {
-    if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
-        sparseBlockCount_ = GetAxisNum(cmpSparseIndicesShape_, SASAxis::K, qLayout_);
+    if (opParamInfo_.oriSparseIndices.tensor != nullptr) {
+        oriSparseBlockCount_ = GetAxisNum(oriSparseIndicesShape_, SASAxis::K, qLayout_);
     }
-
+    if (opParamInfo_.cmpSparseIndices.tensor != nullptr) {
+        cmpSparseBlockCount_ = GetAxisNum(cmpSparseIndicesShape_, SASAxis::K, qLayout_);
+    }
     return ge::GRAPH_SUCCESS;
 }
 
@@ -471,7 +476,8 @@ void KvQuantSASInfoParser::GenerateInfo(KvQuantSASTilingInfo &sasInfo)
     sasInfo.gSize = gSize_;
     sasInfo.qkHeadDim = qkHeadDim_;
     sasInfo.qTSize = qTSize_;
-    sasInfo.sparseBlockCount = sparseBlockCount_;
+    sasInfo.oriSparseBlockCount = oriSparseBlockCount_;
+    sasInfo.cmpSparseBlockCount = cmpSparseBlockCount_;
 
     sasInfo.qType = qType_;
     sasInfo.oriKvType = oriKvType_;
@@ -568,7 +574,11 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
         OP_CHECK_IF(tilingInfo->opParamInfo.cmpSparseIndices.tensor != nullptr,
             OP_LOGE("KvQuantSparseAttnSharedkv", "cmpSparseIndices must be empty when cmpKv is not provided."),
             return ge::GRAPH_FAILED);
-        perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+        if (tilingInfo->opParamInfo.oriSparseIndices.tensor != nullptr) {
+            perfMode_ = SASTemplateMode::ORI_SCFA_TEMPLATE_MODE;
+        } else {
+            perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
+        }
     } else if (tilingInfo->opParamInfo.cmpSparseIndices.tensor != nullptr) {
         perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
     } else {
@@ -583,18 +593,16 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     OP_LOGI(tilingInfo->opName, "SAS block dim: %u aiv Num: %u aic Num: %u.", blockDim, aivNum, aicNum);
 
     // -------------set workspacesize-----------------
-    constexpr uint32_t MM1_RES_ELEM_SIZE = 4;         // 4: fp32
-    constexpr uint32_t DOUBLE_BUFFER = 2;             // 双Buffer
-    constexpr uint32_t M_BASE_SIZE = 512;             // m轴基本块大小
-    constexpr uint32_t S2_BASE_SIZE = 512;            // S2轴基本块大小
-    constexpr uint32_t V1_RES_ELEM_SIZE = 4;          // 4: int32
-    constexpr uint32_t V1_RES_ELEM_TYPE = 2;          // 保留Index和Value 2种数据
-    constexpr uint32_t V1_DECODE_PARAM_ELEM_SIZE = 8; // 8: int64
-    constexpr uint32_t V1_DECODE_PARAM_NUM = 16;      // Decode参数个数
-    constexpr uint32_t V1_DECODE_DATA_NUM = 2;        // Decode每个核需要存储头和尾部两块数据
-    constexpr uint32_t S1_BASE_SIZE = 8;              // S1轴基本块的大小
+    constexpr uint32_t TRIPLE_BUFFER_NUM = 3;
+    constexpr uint32_t M_BASE_SIZE = 64;             // m轴基本块大小
+    constexpr uint32_t S2_BASE_SIZE = 128;            // S2轴基本块大小
+    constexpr uint32_t D_SIZE = 512;
+    constexpr uint32_t VEC_RES_ELEM_SIZE = 2;        // 2: fp16/bf16
     constexpr uint32_t TOPK_MAX_SIZE = 2048;          // TopK选取个数
     uint32_t workspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+    if (tilingInfo->gSize > 64) {
+        workspaceSize += (S2_BASE_SIZE * D_SIZE * VEC_RES_ELEM_SIZE * TRIPLE_BUFFER_NUM * (aicNum >> 1));
+    }
     size_t *workSpaces = context_->GetWorkspaceSizes(1);
     workSpaces[0] = workspaceSize;
 
@@ -602,7 +610,8 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_batchSize(tilingInfo->bSize);
     tilingData_.baseParams.set_kvSeqSize(tilingInfo->s2Size);
     tilingData_.baseParams.set_qSeqSize(tilingInfo->s1Size);
-    tilingData_.baseParams.set_sparseBlockCount(tilingInfo->sparseBlockCount);
+    tilingData_.baseParams.set_oriSparseBlockCount(tilingInfo->oriSparseBlockCount);
+    tilingData_.baseParams.set_cmpSparseBlockCount(tilingInfo->cmpSparseBlockCount);
     tilingData_.baseParams.set_nNumOfQInOneGroup(tilingInfo->gSize);
     tilingData_.baseParams.set_paOriBlockSize(tilingInfo->oriBlockSize);
     tilingData_.baseParams.set_paCmpBlockSize(tilingInfo->cmpBlockSize);
@@ -631,8 +640,8 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     uint32_t outputType = static_cast<uint32_t>(tilingInfo->outputType);
     uint32_t qLayout = static_cast<uint32_t>(tilingInfo->qLayout);
     uint32_t inputKvLayout = static_cast<uint32_t>(tilingInfo->kvLayout);
-    uint32_t tilingKey =
-        GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(perfMode_));
+    uint32_t tilingKey = GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(perfMode_),
+        static_cast<uint32_t>(tilingInfo->gSize > 64));
     context_->SetTilingKey(tilingKey);
     context_->SetScheduleMode(1);
     
