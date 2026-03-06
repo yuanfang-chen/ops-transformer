@@ -823,7 +823,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       <summary><term>动态量化（T-T && T-C && K-T && K-C量化）场景约束</term></summary>
         <a id="动态量化（T-T && T-C && K-T && K-C量化）场景约束"></a>
 
-    - 动态量化（T-T && T-C && K-T && K-C量化）场景支持的输入类型为：
+    - 支持的输入类型为：
       - 以下入参为空：offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、 activationInputOptional
       - 不为空的参数支持的数据类型组合要满足下表：
 
@@ -883,7 +883,7 @@ aclnnStatus aclnnGroupedMatmulV4(
       <summary><term>动态量化（G-B量化）场景约束</term></summary>
         <a id="动态量化（G-B量化）场景约束"></a>
 
-    - 动态量化（G-B量化）场景支持的数据类型为：
+    - 支持的数据类型为：
     - 以下入参为空：biasOptional、offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、activationInputOptional
     - 计算公式量化block size为：当前仅支持gsM = 1， gsN = gsK = 128。
     - 不为空的参数支持的数据类型组合要满足下表：
