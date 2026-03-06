@@ -578,7 +578,7 @@ if __name__ == '__main__':
     input_bisheng_flags = ""
     for elem in args.argv:
         if elem in bisheng_flags_option:
-            input_bisheng_flags = elem
+            input_bisheng_flags = input_bisheng_flags + "," + elem
     gen_bin_param_file(args.argv[1],
                     args.argv[2],
                     args.argv[3],
