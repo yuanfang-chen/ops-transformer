@@ -11,7 +11,7 @@
 #define OP_API_INC_HCCL_UTIL_H_
 
 #include "hccl/hccl_types.h"
-#include "common/op_tiling/op_mc2_def.h"
+#include "op_mc2_def.h"
 
 #ifdef __cplusplus
 extern "C" {
