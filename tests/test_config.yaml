@@ -1396,4 +1396,5 @@ mhc:
     ut_cov_exclude:
       - mhc/mhc_post/examples
       - mhc/mhc_post/tests
-
+    test:
+      examples: False
