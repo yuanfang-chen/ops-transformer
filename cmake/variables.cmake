@@ -145,6 +145,7 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/ops-base/pkg_inc
     ${TOP_DIR}/ops-base/include
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_fallback
+    ${TOP_DIR}/hcomm/include
   )
 else()
   list(APPEND OPAPI_INCLUDE ${OPBASE_INC_DIRS})
@@ -205,6 +206,7 @@ if (NOT BUILD_OPEN_PROJECT)
     ${METADEF_DIR}
     ${RUNTIME_INC_DIR}/runtime/platform/inc
     ${METADEF_DIR}/inc/external/ge
+    ${TOP_DIR}/hcomm/include
   )
 endif()
 
