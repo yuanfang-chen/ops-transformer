@@ -48,7 +48,6 @@ public:
     __aicore__ inline void InitHcclContext();
     __aicore__ inline void InitParams(uint64_t xSize);
     __aicore__ inline void InitBuffer(TPipe *tPipe);
-    __aicore__ inline void SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum);
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
     __aicore__ inline GM_ADDR GetWinDataAddrGm(uint32_t rankId);
@@ -66,10 +65,7 @@ public:
     uint32_t sendCoreNumPerRank_{0};
     uint32_t curRankId_{0};
 
-private:    
-    uint32_t xNumPerBlock_{0};
-    uint64_t tailXNums_{0};
-
+private:
     GlobalTensor<XType> localWinXGMTensor_;
     GlobalTensor<ScalesType> localWinScaleGMTensor_;
     GlobalTensor<OutputType> outputTensor_;
@@ -89,14 +85,15 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitHcclContext(
 }
 
 template <AllGatherTemplateTypeClass>
-__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint64_t xSize)
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(uint64_t xSize, uint64_t aivNum, uint32_t sendCoreNumPerRank)
 {
+    aivNum_ = aivNum;
     aivId_ = GetBlockIdx(); // 获取当前核Id
     assignedBlockNums_ = aivId_ < tailBlockNums_ ? round_ + 1 : round_; // 当前核分配到的数据块数量，顺序分核，序号小的核多搬一轮
     uint64_t blockIdx = aivId_ * round_ + (aivId_ < tailBlockNums_ ? aivId_ : tailBlockNums_); // 计算当前核分派到的首个数据块序列号
     winDataSize_ = CeilAlignU64(hcclContext_->rankSize * xSize, WIN_ADDR_ALIGN);   // win区数据部分大小
     curRankId_ = hcclContext_->localUsrRankId;
-    sendCoreNumPerRank_ = CeilDiv(aivNum_, hcclContext_->rankSize);
+    sendCoreNumPerRank_ = sendCoreNumPerRank;
     curDstId_ = aivId_ / sendCoreNumPerRank_;
 }
 
@@ -109,21 +106,6 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitBuffer(TPipe
 
     stateResetTensor_ = stateResetBuf_.Get<float>();
     Duplicate<float>(stateResetTensor_, (float)0.0, static_cast<uint32_t>(hcclContext_->rankSize * FLOAT_UB_ALIGN_NUM)); // 用于状态区清零
-}
-
-/**
- * @brief 配置数据块划分参数，用于多核并行计算
- * 
- * @param elementsPerBlock 每个标准数据块包含的X元素数量
- * @param aivNum AIV核的总数，用于数据分发和负载均衡
- * @param lastBlockNum 最后一个核处理的尾部数据块元素数量
- */
-template <AllGatherTemplateTypeClass>
-__aicore__ inline void MTECommunication<AllGatherTemplateType>::SetBlockSize(uint32_t elementsPerBlock, uint64_t aivNum, uint64_t lastBlockNum)
-{
-    xNumPerBlock_ = elementsPerBlock;
-    aivNum_ = aivNum;
-    tailXNums_ = lastBlockNum;
 }
 
 /**

@@ -297,11 +297,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
     eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
     aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
+    sendCoreNumPerRank_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.sendCoreNumPerRank;
+    cvStateRowNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.cvStateRowNum;
 
-    tileK_ = Ceil(axisKa_, SINGLE_CORE_K);
-    axisKaAlignSize_ = Ceil(axisKa_ * sizeof(X1Type), UB_ALIGN) * UB_ALIGN;
-    axisKaAlignFloatSize_ = Ceil(axisKa_ * sizeof(float), UB_ALIGN) * UB_ALIGN;
-    axisKaAlignInt8Size_ = Ceil(axisKa_ * sizeof(int8_t), UB_ALIGN) * UB_ALIGN;
+    tileK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteTileK;
+    axisKaAlignSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignSize;
+    axisKaAlignFloatSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignFloatSize;
+    axisKaAlignInt8Size_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignInt8Size;
 
     sendCoreNumPerRank_ = aivNum_ / rankSize_;
 }
@@ -788,7 +790,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         SyncAll<true>();
         PipeBarrier<PIPE_MTE3>();
         tpipe_->Reset();
-        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_, rankSize_, singleCoreM_);
+        allGatherMte_.Init(tpipe_, tilingData_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
         allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
@@ -796,7 +798,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     }
     
     if ASCEND_IS_AIC {        
-        allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_, rankSize_, singleCoreM_);
+        allGatherMte_.Init(tpipe_, tilingData_);
         MatmulProcess();
     }
     // AscendC::PRINTF("[Kernel] Over!!!");
