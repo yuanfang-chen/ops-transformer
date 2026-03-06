@@ -96,7 +96,6 @@ protected:
 
     int64_t innerN2GD;
 
-
     TBuf<> vecQue;
     LocalTensor<CALC_TYPE> spTensors; // 64*128*4*2
     LocalTensor<CALC_TYPE> spTensor[2];
@@ -221,7 +220,6 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
         this->constInfo.dsScaleD = (float)1.0 / this->constInfo.dsScale;    
         this->constInfo.copyOutDStride = (this->constInfo.commonConstInfo.n2GD - 64) * sizeof(CALC_TYPE);
     }
-
 }
 
 template <typename CubeBlockType, typename VecBlockType>
