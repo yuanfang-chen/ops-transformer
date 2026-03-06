@@ -19,23 +19,30 @@
 #include <kernel_tiling/kernel_tiling.h>
 
 struct QbmmReduceScatterAddRmsNormCastTilingInfo {
-    // 待补充
-    uint64_t aivNum;
-    int32_t M;
-    int32_t N;
-    uint64_t ubCalcN;
-    uint64_t ubCalcM;
-    uint64_t needUbBuffer;
-    int32_t tpWorldSize;
-    TCubeTiling matmulTiling;
-    // addRmsNormCast 相关
+    float epsilon = 1e-6;
+    float avgFactor = 1.0 / (float)5120.0;
+    
+    int32_t M = 252;
+    int32_t Ka = 2560;
+    int32_t N = 5120;
+    uint32_t aivNum = 24;
+    uint32_t aicNum = 24;
+    uint32_t rankSize = 4;
 };
+
+struct QbmmParams {
+    uint32_t ubCalcM;
+    uint32_t ubCalcN;
+    uint32_t needUbBuffer;
+}
 
 // tiling struct待完善...
 struct QbmmReduceScatterAddRmsNormCastTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
     QbmmReduceScatterAddRmsNormCastTilingInfo qbmmReduceScatterAddRmsNormCastTilingInfo;
+    QbmmParams qbmmParams;
+    TCubeTiling matmulTiling;
 };
 
 #endif // QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_H

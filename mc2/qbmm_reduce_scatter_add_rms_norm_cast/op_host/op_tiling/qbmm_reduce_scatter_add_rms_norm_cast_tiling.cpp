@@ -121,6 +121,43 @@ static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
+static ge::graphStatus SetTCubeTiling(
+    gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
+{
+    auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
+    matmul_tiling::MultiCoreMatmulTiling mmTiling(*ascendcPlatform);
+    const gert::RuntimeAttrs *attrs = context->GetAttrs();
+    const char *nodeName = context->GetNodeName();
+    uint32_t M = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M;
+    uint32_t N = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.N;
+    uint32_t Ka = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.Ka;
+
+    uint32_t blockDim = context->GetBlockDim();
+    const bool *transposeX2Ptr = attrs->GetAttrPointer<bool>(TRANSPOSE_X2_INDEX);
+    bool isAtrans = false;
+    bool isBtrans = false;
+    mmTiling.SetDim(1);
+    mmTiling.SetAType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isAtrans);
+    mmTiling.SetBType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, isBtrans);
+    mmTiling.SetCType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT32);
+    mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
+        matmul_tiling::DataType::DT_INT32);
+    mmTiling.SetOrgShape(252, 5120, 2560);
+    mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetSingleShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetFixSplit(BASE_M, BASE_N, BASE_K);
+    mmTiling.EnableBias(false);
+    mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
+
+    OP_TILING_CHECK(mmTiling.GetTiling(tilingData->matmulTiling) == -1,
+                    OP_LOGE(nodeName, "failed to get tiling matmulTiling."),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
 /**
  * @brief qbmm_reduce_scatter_add_rms_norm_cast算子的tiling函数
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
@@ -161,6 +198,9 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastTilingFunc(gert::TilingCon
     SetTCubeTiling(context, tilingData);
     OP_TILING_CHECK(SetHcommCfg(context, tilingData, group) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
+    // 调用matmul做tiling切分
+    OP_TILING_CHECK(SetTCubeTiling(context, tilingData) != ge::GRAPH_SUCCESS,
+        OP_LOGE(nodeName, "SetTCubeTiling failed."), return ge::GRAPH_FAILED);
     SetWorkSpace(context);
     SetTilingData(context, *tilingData);
     SetTilingKey(context);
