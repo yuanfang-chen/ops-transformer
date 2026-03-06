@@ -40,7 +40,7 @@ template<AllGatherTemplateTypeClass>
 class AllGatherMte {
 public:
     __aicore__ inline AllGatherMte() {};
-    __aicore__ inline void Init(TPipe *tPipe, uint32_t M, uint32_t Ka, uint32_t aivNum, uint32_t rankSize, uint32_t singleCoreM);
+    __aicore__ inline void Init(TPipe *tPipe, const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
 
     __aicore__ inline void SetRemoteFlag();
     __aicore__ inline void WaitRemoteFlag();
@@ -55,20 +55,12 @@ private:
     uint64_t xSize_{0}; // 单卡上数据大小
     uint64_t xNums_{0}; // 单卡上数据个数
     uint64_t scaleSize_{0}; // 单卡上scale大小
-    uint64_t tailXNums_{0};
     uint32_t totalBlockNums_{0};
     uint64_t M_{0};
     uint64_t K_{0};
     uint32_t sendCoreNumPerRank_{0};
     uint32_t remoteRankId_{0};
-    uint64_t tileM_{0};
     uint64_t tileK_{0};
-    uint64_t baseBlockSize_{0};
-    uint64_t numLargerBlocks_{0};
-    uint64_t largerBlocksEnd_{0};
-    uint64_t cvStateSizePerRank_{0};
-    uint32_t mCnt_{0};
-    uint32_t kCnt_{0};
     uint64_t xInQueueSize_{0};
     int32_t mStartIndex_{0};
     int32_t kStartIndex_{0};
@@ -81,6 +73,7 @@ private:
     uint32_t kBlockIdx_{0};
     uint32_t mMteCoreM_{0};
     uint32_t kMteCoreK_{0};
+    uint32_t coreInnerMIndex_{0};
 
     DataCopyExtParams dataCopyParamsIn_;
     DataCopyExtParams dataCopyParamsOut_;
@@ -106,27 +99,20 @@ private:
 
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
-    TPipe *tPipe, uint32_t M, uint32_t Ka, uint32_t aivNum,
-    uint32_t rankSize, uint32_t singleCoreM)
+    TPipe *tPipe, const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     // 初始化HcclContext
     mteComm_.InitHcclContext();
 
     /* all_gather 自己的数据 */
-    M_ = M;
-    K_ = Ka;
-    xNums_ = M * Ka; // 总的x数据个数， M * h
-    xSize_ = xNums_ * sizeof(XType); // 总的x数据量，B
-    scaleSize_ = M * sizeof(ScalesType);
-    tailXNums_ = BlockAlignMod(xNums_, X_PER_BLOCK_NUM); // 计算最后一个数据块的大小
+    M_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.M;
+    K_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
+    xNums_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.xNums; // 总的x数据个数， M * h
+    xSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.xSize; // 总的x数据量，B
+    scaleSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.scaleSize;
     totalBlockNums_ = CeilDiv(xSize_, X_BLOCK_BYTES); // 按每次搬运x的数据量分块，得到的总块数
-    sendCoreNumPerRank_ = aivNum / mteComm_.hcclContext_->rankSize;
-    tileM_ = sendCoreNumPerRank_;
-    tileK_ = CeilDiv(K_, X_PER_BLOCK_NUM / sizeof(OutputType));
-    baseBlockSize_ = M_ / sendCoreNumPerRank_;
-    numLargerBlocks_ = M_ % sendCoreNumPerRank_;
-    largerBlocksEnd_ = numLargerBlocks_ * (baseBlockSize_ + 1);
-    cvStateSizePerRank_ = tileM_ * tileK_ * CV_STATE_ALIGN;
+    sendCoreNumPerRank_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.sendCoreNumPerRank;
+    tileK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteTileK;
     mteComm_.round_ = totalBlockNums_ / sendCoreNumPerRank_; // 计算总的数据分核搬运需要的轮次数
     mteComm_.tailBlockNums_ = totalBlockNums_ % sendCoreNumPerRank_; // 搬运的尾块数
 
@@ -134,6 +120,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     scalesCopyParams_ = {1, scaleSize_, 0, 0, 0};
     scalesCopyPadParams_ = {false, 0, 0, 0};
 
+    uint32_t rankSize = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
     // 其余tQue或tBuf所需要的空间
     uint64_t usedSpace = scaleSize_ + CV_STATE_ALIGN * 2 + (rankSize * 2 + 1) * UB_ALIGN_BYTES;
     // 剩余的xInQueue可用的空间大小
@@ -148,42 +135,36 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     tPipe->InitBuffer(atomicAddBuf_, CV_STATE_ALIGN); // 用于累加标志位
 
     atomicAddTensor_ = atomicAddBuf_.Get<int32_t>();
-
-    // 设置切块大小
-    mteComm_.SetBlockSize(X_PER_BLOCK_NUM, aivNum, tailXNums_);
-
+    
     // 公共MTE搬运参数计算
-    mteComm_.InitParams(xSize_);
+    uint32_t aivNum = tilingData->addRmsNormDynamicQuantAllGatherTilingData.aivNum;
+    mteComm_.InitParams(xSize_, aivNum, sendCoreNumPerRank_);
 
     // 初始化tPipe的各种buffer
     mteComm_.InitBuffer(tPipe);
 
     uint32_t modCoreIndex = mteComm_.aivId_ % sendCoreNumPerRank_;
-    uint32_t curBlockIndex = modCoreIndex * mteComm_.round_ + \
-                             (modCoreIndex < mteComm_.tailBlockNums_ ? modCoreIndex : mteComm_.tailBlockNums_);
     
-    // 按k方向切分成dim2
-    uint32_t kDim = 2;
-    uint32_t mDim = sendCoreNumPerRank_ / kDim;
+    // 按k方向奇偶切分成两部分
+    uint32_t kDim = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitNum;
+    uint32_t mDim = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitNum;
     remoteRankId_ = mteComm_.aivId_ / sendCoreNumPerRank_;
     // task 先按 mDim 为3份调整，innerLoop 再做循环调整
     mBlockIdx_ = modCoreIndex % mDim;
     kBlockIdx_ = modCoreIndex % kDim;
-    mMteCoreM_ = M_ / mDim;
-    kMteCoreK_ = K_ / kDim;
-    singleCoreM_ = singleCoreM;
+    mMteCoreM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitSize;
+    kMteCoreK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize;
+    singleCoreM_ = tilingData->matmulTiling.singleCoreM;
     uint32_t mTailNum = M_ % mDim;
-    uint32_t coreInnerMIndex = 0;
     if (mBlockIdx_ < mTailNum) {
         mMteCoreM_ += 1;
-        coreInnerMIndex = mBlockIdx_ * mMteCoreM_;
+        coreInnerMIndex_ = mBlockIdx_ * mMteCoreM_;
     } else {
-        coreInnerMIndex = mBlockIdx_ * mMteCoreM_ + mTailNum;
+        coreInnerMIndex_ = mBlockIdx_ * mMteCoreM_ + mTailNum;
     }
-    mStartIndex_ = coreInnerMIndex + remoteRankId_ * M_;
+    mStartIndex_ = coreInnerMIndex_ + remoteRankId_ * M_;
     kStartIndex_ = kBlockIdx_ * X_PER_BLOCK_NUM;
     mEndIndex_ = mStartIndex_ + mMteCoreM_;
-    kCnt_ = tileK_;
 }
 
 /* 写入状态到状态区 */
@@ -303,21 +284,6 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         ReadScales();
     }
 
-    uint32_t innerRound = (mCnt_ * kCnt_) / sendCoreNumPerRank_;
-    uint32_t innerCoreId = mteComm_.aivId_ % sendCoreNumPerRank_;
-    uint32_t remainderTokenNum = (mCnt_ * kCnt_) % sendCoreNumPerRank_;
-    uint32_t splitCnt = innerCoreId < remainderTokenNum ? innerRound + 1 : innerRound;
-    uint64_t singleCnt = xInQueueSize_ / X_BLOCK_BYTES;
-    uint32_t curStartCntIdx = innerRound * innerCoreId;
-    if (innerCoreId < remainderTokenNum) {
-        // 前remainderRankNum个aiv需要多发1个卡的数据
-        splitCnt = innerRound + 1;
-        curStartCntIdx += innerCoreId;
-    } else {
-        splitCnt = innerRound;
-        curStartCntIdx += remainderTokenNum;
-    }
-
     uint32_t mCurOffset = M_ / singleCoreM_;
     uint32_t mTile = 1;
     uint32_t mFlagCount = mMteCoreM_;
@@ -327,8 +293,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         mFlagCount = Ceil(mStartIndex_, singleCoreM_) * singleCoreM_ - mStartIndex_;
     }
     uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
-    uint32_t mInnerStartIndex = mStartIndex_ - remoteRankId_ * M_;
-    uint32_t curXOffset = mInnerStartIndex * K_ + kStartIndex_;
+    uint32_t curXOffset = coreInnerMIndex_ * K_ + kStartIndex_;
     uint32_t baseMIndex = mStartIndex_ / singleCoreM_;
     for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
         uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
