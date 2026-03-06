@@ -1,0 +1,8 @@
+nodes:
+  - backend: pyaclnn
+    task: ['accuracy']
+    devices: [0]
+    run_modes: ['ascend_use_deterministic_algorithms']
+  - backend: cpu
+    name: gpu
+    task: ['accuracy']
