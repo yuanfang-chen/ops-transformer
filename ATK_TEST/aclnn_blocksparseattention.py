@@ -256,8 +256,13 @@ class TestBlockSparseAttentionTorch():
         head_size = q_block.shape[2]
         
         # 初始化状态量（确保在 CPU 上）
-        m_i = torch.full((1, q_len, 1), -float('inf'), dtype=torch.float32, device=device)  # running max
-        l_i = torch.zeros((1, q_len, 1), dtype=torch.float32, device=device)  # running sum
+        # 低精度模式下,m_i和l_i也使用half类型,与NPU实现保持一致
+        if inner_precise == 1:
+            m_i = torch.full((1, q_len, 1), -float('inf'), dtype=torch_dtype, device=device)  # running max
+            l_i = torch.zeros((1, q_len, 1), dtype=torch_dtype, device=device)  # running sum
+        else:
+            m_i = torch.full((1, q_len, 1), -float('inf'), dtype=torch.float32, device=device)  # running max
+            l_i = torch.zeros((1, q_len, 1), dtype=torch.float32, device=device)  # running sum
         O_i = torch.zeros((1, q_len, head_size), dtype=torch.float32, device=device)  # running output
         is_first = 1
         # 逐块处理
@@ -280,14 +285,22 @@ class TestBlockSparseAttentionTorch():
             # 4. 计算修正因子
             # alpha: 旧输出的修正系数 = exp(m_old - m_new)
             # beta: 当前块的修正系数（用于 softmax）= exp(m_block - m_new)
-            alpha = torch.exp(m_i - m_new).to(torch_dtype)  # (1, q_len, 1)
+            # 低精度模式下保持half精度计算
+            if inner_precise == 1:
+                alpha = torch.exp(m_i - m_new)  # (1, q_len, 1) - half精度
+            else:
+                alpha = torch.exp(m_i - m_new).to(torch_dtype)  # (1, q_len, 1)
             
             # 5. 计算当前块的稳定 softmax 分子
-            P_i = torch.exp(S_i - m_new).to(torch_dtype)  # (1, q_len, k_len)
+            if inner_precise == 1:
+                P_i = torch.exp(S_i - m_new)  # (1, q_len, k_len) - half精度
+            else:
+                P_i = torch.exp(S_i - m_new).to(torch_dtype)  # (1, q_len, k_len)
             print("cpu s after =============", S_i)
             print("cpu P =============", P_i)
             
             # 6. 更新 running sum
+            # 低精度模式下,l_i保持half精度
             l_i = alpha * l_i + torch.sum(P_i, dim=-1, keepdim=True)  # (1, q_len, 1)
             
             # 7. 更新 running output
@@ -295,6 +308,7 @@ class TestBlockSparseAttentionTorch():
             O_i = alpha * O_i + torch.matmul(P_i.float(), v_block.float()).to(torch_dtype)  # (1, q_len, head_size)
             
             # 8. 更新 running max
+            # 低精度模式下,m_i保持half精度
             m_i = m_new
         
         # 最终归一化
@@ -302,7 +316,11 @@ class TestBlockSparseAttentionTorch():
         print("cpu rowmax", m_i)
         print("cpu rowsum", l_i)
         # LSE = m + log(l)，shape: (1, q_len, 1)
-        lse = m_i + torch.log(l_i)
+        # 低精度模式下保持half精度计算LSE,与NPU实现一致
+        if inner_precise == 1:
+            lse = m_i + torch.log(l_i)  # half精度计算
+        else:
+            lse = m_i + torch.log(l_i)  # float32计算
 
         return O_final, lse
 
