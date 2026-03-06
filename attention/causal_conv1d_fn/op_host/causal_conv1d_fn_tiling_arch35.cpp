@@ -50,7 +50,8 @@ constexpr uint64_t SYSTEM_RESERVED_UB_SIZE = 8 * 1024;  // 8 KB system reserved 
 constexpr uint64_t MIN_CORE_NUM_FOR_DIM_SPLIT = 32;
 constexpr uint64_t MIN_DIM_PER_CORE = 256;
 constexpr uint64_t DOUBLE_BUFFER_NUM = 2;
-constexpr uint64_t TILING_KEY_VALUE = 10000UL;
+constexpr uint64_t TILING_KEY_FN_BF16 = 10000UL;
+constexpr uint64_t TILING_KEY_FN_FP16 = 10001UL;
 constexpr uint64_t SYS_WORKSPACE_SIZE = static_cast<uint64_t>(16 * 1024 * 1024);
 
 bool CausalConv1dFnTiling::IsCapable()
@@ -764,7 +765,12 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
 
 uint64_t CausalConv1dFnTiling::GetTilingKey() const
 {
-    return TILING_KEY_VALUE;
+    // 根据数据类型返回不同的 tiling key
+    if (xType_ == ge::DataType::DT_BF16) {
+        return TILING_KEY_FN_BF16;
+    } else if (xType_ == ge::DataType::DT_FLOAT16) {
+        return TILING_KEY_FN_FP16;
+    }
 }
 
 ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
