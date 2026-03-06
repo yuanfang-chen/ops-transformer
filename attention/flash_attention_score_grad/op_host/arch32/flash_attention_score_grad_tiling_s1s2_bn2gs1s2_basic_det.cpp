@@ -357,11 +357,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
     const char *inputLayout = fBaseParams.inputLayout;
     if (strcmp(inputLayout, BSH_STR) == 0) {
         tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::BSNGD));
-    } else if (strcmp(inputLayout, SBH_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::SBNGD));
-    } else if (strcmp(inputLayout, BNSD_STR) == 0) {
-        tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::BNGSD));
-    } else if (strcmp(inputLayout, TND_STR) == 0) {
+    }  else if (strcmp(inputLayout, TND_STR) == 0) {
         tilingData->basicDetTensorTilingData.set_layout(static_cast<uint32_t>(KernelInputLayout::TND));
     } else {
         OP_LOGW(context_, "FlashAttentionBasicDet unsupported layout");
