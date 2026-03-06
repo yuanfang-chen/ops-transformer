@@ -328,7 +328,7 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
         qSize = fBaseParams.b * fBaseParams.s1 * fBaseParams.n1 * fBaseParams.d;
         kvSize = fBaseParams.b * fBaseParams.s2 * fBaseParams.n2 * fBaseParams.d;
         sfmgSize = fBaseParams.b * fBaseParams.s1 * fBaseParams.n1 * 8;
-    }else{
+    } else{
         qSize = fBaseParams.t1 * fBaseParams.n1 * fBaseParams.d;
         kvSize = fBaseParams.t2 * fBaseParams.n2 * fBaseParams.d;
         sfmgSize = fBaseParams.t1 * fBaseParams.n1 * 8;
