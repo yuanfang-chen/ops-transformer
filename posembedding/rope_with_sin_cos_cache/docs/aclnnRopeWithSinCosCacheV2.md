@@ -31,45 +31,63 @@
     $$
 
     （1）cacheMode为0：
-    $$
-    cos0 = cos[0, :, :mropeSection[0]]
-    $$
+    - mropeSection[3]为0：
+      $$
+      cos0 = cos[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      cos1 = cos[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      cos2 = cos[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    cos = torch.cat((cos0, cos1, cos2), dim=-1)
-    $$
+      $$
+      cos = torch.cat((cos0, cos1, cos2), dim=-1)
+      $$
 
-    $$
-    sin0 = sin[0, :, :mropeSection[0]]
-    $$
+      $$
+      sin0 = sin[0, :, :mropeSection[0]]
+      $$
 
-    $$
-    sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
-    $$
+      $$
+      sin1 = sin[1, :, mropeSection[0]:(mropeSection[0] + mropeSection[1])]
+      $$
 
-    $$
-    sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
-    $$
+      $$
+      sin2 = sin[2, :, (mropeSection[0] + mropeSection[1]):(mropeSection[0] + mropeSection[1] + mropeSection[2])]
+      $$
 
-    $$
-    sin= torch.cat((sin0, sin1, sin2), dim=-1)
-    $$
+      $$
+      sin= torch.cat((sin0, sin1, sin2), dim=-1)
+      $$
 
-    $$
-    queryRot = query[..., :rotaryDim]
-    $$
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
 
-    $$
-    queryPass = query[..., rotaryDim:]
-    $$
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
+
+    - mropeSection[3]大于0：
+      $$
+      cos = torch.cat([m[i]\ for\ i, m\ in\ enumerate(cos.split(mropeSection, dim=-1))], dim=-1)
+      $$
+
+      $$
+      sin = torch.cat([m[i]\ for\ i, m\ in\ enumerate(sin.split(mropeSection, dim=-1))], dim=-1)
+      $$
+      
+      $$
+      queryRot = query[..., :rotaryDim]
+      $$
+
+      $$
+      queryPass = query[..., rotaryDim:]
+      $$
 
     （2）cacheMode为1：
     $$
