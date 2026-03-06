@@ -419,7 +419,7 @@ $$
 - <term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
     - 该场景下单卡包含双DIE（简称为“晶粒”或“裸片”），因此参数说明里的“本卡”均表示单DIE。
     - 参数约束：
-        - `elasticInfoOptional`：可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 (4 + 2 * `epWorldSize`, )。Tensor中的前四个数字分别表示（是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数），后2 * `epWorldSize`表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为Table1[epRankId]=`localEpRankId`或-1，`localEpRankId`表示新EP通信域中的rank Index，-1表示`epRankId`这张卡从通信域中被剔除，第二个Table映射关系为Table2[localEpRankId] = `epRankId`。
+        - `elasticInfoOptional`：当前版本不支持，传空指针即可。
         - `epWorldSize`：取值范围[2, 768]。
         - `moeExpertNum`：取值范围(0, 1024]。
         - `groupTp`：字符串长度范围为[1, 128)，不能和`groupEp`相同。
@@ -437,7 +437,7 @@ $$
 
 - <term>Ascend 950PR/Ascend 950DT</term>：
     - 参数约束：
-        - `elasticInfoOptional`：可选择传入有效数据或填空指针，传入空指针时表示不使能动态缩容功能；当传入有效数据时，要求是一个1D的Tensor，shape为 (4 + 2 * `epWorldSize`, )。Tensor中的前四个数字分别表示（是否缩容，缩容后实际rank数，缩容后共享专家使用的rank数，缩容后moe专家的个数），后2 * `epWorldSize`表示2个rank映射表，缩容后本卡中因部分rank异常而从EP通信域中剔除，第一个Table的映射关系为Table1[epRankId]=`localEpRankId`或-1，`localEpRankId`表示新EP通信域中的rank Index，-1表示`epRankId`这张卡从通信域中被剔除，第二个Table映射关系为Table2[localEpRankId] = `epRankId`。
+        - `elasticInfoOptional`：当前版本不支持，传空指针即可。
         - `epWorldSize`：取值范围[2, 768]。
         - `moeExpertNum`：取值范围(0, 1024]。
         - `sharedExpertNum`：取值支持[0, 4]。
