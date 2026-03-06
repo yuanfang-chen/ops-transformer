@@ -19,24 +19,27 @@
 #include "kernel_tiling/kernel_tiling.h"
 
 struct AddRmsNormDynamicQuantAllGatherTilingData {
-    uint64_t useCore = 0;
-    uint64_t numFirstDim = 0;
-    uint64_t numLastDim = 0;
-    uint64_t numLastDimAligned = 0;
-    uint64_t firstDimPerCore = 0;
-    uint64_t firstDimPerCoreTail = 0;
-    uint64_t firstDimPerLoop = 0;
-    uint64_t lastDimLoopNum = 0;
-    uint64_t lastDimSliceLen = 0;
-    uint64_t lastDimSliceLenTail = 0;
-    uint32_t smoothNum = 0;
     float epsilon = 0;
     float avgFactor = 0;
     uint32_t M = 0;
     uint32_t Ka = 0;
     uint32_t N = 0;
-    uint32_t aivNum = 0;
+    uint64_t xSize = 0; // 单卡dynamic quant输出数据大小
+    uint64_t xNums = 0; // 单卡dynamic quant输出数据数量
+    uint64_t scaleSize = 0; // 单卡dynamic quant输出scale大小
+    uint64_t mteBlockBytes = 0; // all gather单块搬运大小
+    uint64_t axisKaAlignSize = 0;   // x1 K轴32B对齐后大小
+    uint64_t axisKaAlignFloatSize = 0;   // dynamic quant输出scale K轴32B对齐后大小
+    uint64_t axisKaAlignInt8Size = 0;   // dynamic quant输出数据K轴32B对齐后大小
+    uint32_t mteTileK = 0;      // all gather K方向切块数目
+    uint32_t mteMSplitNum = 0;  // all gather M方向核数划分
+    uint32_t mteKSplitNum = 0;  // all gather K方向核数划分
+    uint32_t mteMSplitSize = 0; // all gather 单核负责行数向下取整
+    uint32_t mteKSplitSize = 0; // all gather 单核负责列数（保证整除）
+    uint32_t aivNum = 0;        
     uint32_t rankSize = 0;
+    uint32_t sendCoreNumPerRank = 0;    // 负责一个对端的核数
+    uint32_t cvStateRowNum = 0;         // CV状态区的行数
     int64_t residualNormMode = 0;
     bool isOptionalOutput = false;
 };
