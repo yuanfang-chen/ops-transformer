@@ -68,38 +68,15 @@ __aicore__ inline void SoftmaxGradFrontImpl(const LocalTensor<T>& dstTensor, con
     LastAxisShapeND srcNDinfo;
     LastAxisShapeND originalSrcShape;
     // todo 调用的时候没传最后一个参数，都是构造的空结构体，所以只会走上面的分支
-//    if (softmaxShapeInfo.srcM == 0 || softmaxShapeInfo.srcK == 0) {
-        srcNDinfo = GetLastAxisShapeND(srcShape);
-        originalSrcShape = GetLastAxisOriginShapeND(srcShape);
-//    } else {
-//        srcNDinfo = { softmaxShapeInfo.srcM, softmaxShapeInfo.srcK };
-//        originalSrcShape = { softmaxShapeInfo.oriSrcM, softmaxShapeInfo.oriSrcK };
-//    }
-// todo 这里没有NZ的，所以不用要这个分支
-//    if constexpr (isDataFormatNZ) {
-//        if (unlikely(srcNDinfo.k != tiling.srcK || srcNDinfo.m != tiling.srcM)) {
-//            SoftMaxTiling newTiling = tiling;
-//            SoftMaxGradTilingFunc(workLocal.GetSize(), srcNDinfo, newTiling, elementNumPerBlk, true, false, true);
-//            SoftmaxGradFrontNZImpl(dstTensor, gradTensor, srcTensor, workLocal, originalSrcShape, newTiling);
-//        } else {
-//            SoftmaxGradFrontNZImpl(dstTensor, gradTensor, srcTensor, workLocal, originalSrcShape, tiling);
-//        }
-//    } else {
-//        if (unlikely(srcNDinfo.k != tiling.srcK || srcNDinfo.m != tiling.srcM)) {
-    SoftMaxTiling newTiling = tiling;
-    SoftMaxGradTilingFunc(workLocal.GetSize(), srcNDinfo, newTiling, elementNumPerBlk, true, isBasicBlock);
-    SoftmaxGradFrontNDImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, workLocal, newTiling,
-                                            originalSrcShape);
-//        } else {
-//            SoftmaxGradFrontNDImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, workLocal, tiling,
-//                                                    originalSrcShape);
-//        }
-    }
+
+    srcNDinfo = GetLastAxisShapeND(srcShape);
+    originalSrcShape = GetLastAxisOriginShapeND(srcShape);
 
     SoftMaxTiling newTiling{};  //  创建空白的 SoftMaxTiling，所有成员为 0
     SoftMaxGradTilingFunc(workLocal.GetSize(), srcNDinfo, newTiling, elementNumPerBlk, true, isBasicBlock);
     SoftmaxGradFrontNDImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, workLocal, newTiling,
                                             originalSrcShape);
+
 }
 
 
