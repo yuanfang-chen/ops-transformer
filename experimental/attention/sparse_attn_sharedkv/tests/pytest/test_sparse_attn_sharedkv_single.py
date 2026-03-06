@@ -101,7 +101,7 @@ def test_example(param_combinations):
     cmp_kv_datarange = [-10, 10]
     testcase_name = "case_" + str(int(time.time() * 1000000))
 
-    torch_npu.npu.set_device(1)
+    torch_npu.npu.set_device(0)
     # 增加参数请在最后增加，保证结果统计
     test_data = layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, \
