@@ -48,8 +48,8 @@ const std::map<std::string, std::vector<ge::DataType>> DTYPE_SUPPORT_MAP = {
 
 const std::map<std::string, std::vector<SASLayout>> LAYOUT_SUPPORT_MAP = {
     {QUERY_NAME,            {SASLayout::BSND, SASLayout::TND}},
-    {ORI_KV_NAME,               {SASLayout::PA_ND}},
-    {CMP_KV_NAME,             {SASLayout::PA_ND}},
+    {ORI_KV_NAME,               {SASLayout::PA_ND, SASLayout::BSND}},
+    {CMP_KV_NAME,             {SASLayout::PA_ND, SASLayout::BSND}},
     {ATTEN_OUT_NAME,         {SASLayout::BSND, SASLayout::TND}},
     {ORI_SPARSE_INDICES,         {SASLayout::BSND, SASLayout::TND}},
     {CMP_SPARSE_INDICES,         {SASLayout::BSND, SASLayout::TND}},
@@ -137,8 +137,10 @@ ge::graphStatus SASInfoParser::CheckRequiredInOutExistence() const
                 return ge::GRAPH_FAILED);
     OP_CHECK_IF(opParamInfo_.oriKv.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_Kv is nullptr"),
                 return ge::GRAPH_FAILED);
-    OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
+    if (kvLayout_ == SASLayout::PA_ND) {
+            OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor == nullptr, OP_LOGE(opName_, "tensor of ori_block_table is nullptr"),
                 return ge::GRAPH_FAILED);
+    }
     if (perfMode_ == SASTemplateMode::CFA_TEMPLATE_MODE){
         OP_CHECK_IF(opParamInfo_.cmpKv.tensor == nullptr, OP_LOGE(opName_, "tensor of cmp_kv is nullptr"),
                     return ge::GRAPH_FAILED);
@@ -268,6 +270,8 @@ ge::graphStatus SASInfoParser::GetAttrParaInfo()
     opParamInfo_.oriWinRight = attrs->GetAttrPointer<uint32_t>(ATTR_ORI_WIN_RIGHT_INDEX);
     opParamInfo_.layoutQ = attrs->GetStr(ATTR_LAYOUT_Q_INDEX);
     opParamInfo_.layoutKv = attrs->GetStr(ATTR_LAYOUT_KV_INDEX);
+    opParamInfo_.returnSoftmaxLse = attrs->GetAttrPointer<bool>(ATTR_RETURN_SOFTMAX_LSE);
+
     OP_LOGI(context_->GetNodeName(), "GetAttrParaInfo end");
     return ge::GRAPH_SUCCESS;
 }
@@ -351,6 +355,7 @@ ge::graphStatus SASInfoParser::GetKvLayout()
 {
     const map<string, SASLayout> layoutKVMap = {
         {"PA_ND",     SASLayout::PA_ND},
+        {"BSND",     SASLayout::BSND},
     };
     std::string layout(opParamInfo_.layoutKv);
     auto it = layoutKVMap.find(layout);
@@ -589,6 +594,19 @@ ge::graphStatus SASInfoParser::GetS2SizeForPageAttention()
 ge::graphStatus SASInfoParser::GetS2Size()
 {
     // 获取S2基准值:PAGE_ATTENTION时, S2 = block_table.dim1 * block_size
+    // 1、PAGE_ATTENTION时, S2 = block_table.dim1 * block_size
+    // 2、BSND时, S2直接获取
+    if (kvLayout_ == SASLayout::BSND) {
+        if (opParamInfo_.oriKv.tensor != nullptr) {
+            s2Size_ = GetAxisNum(oriKvShape_, SASAxis::S, kvLayout_);
+            return ge::GRAPH_SUCCESS;
+        }
+        if (opParamInfo_.cmpKv.tensor != nullptr) {
+            s2Size_ = GetAxisNum(cmpKvShape_, SASAxis::S, kvLayout_);
+            return ge::GRAPH_SUCCESS;
+        }
+        return ge::GRAPH_FAILED;
+    }
     return GetS2SizeForPageAttention();
 }
 
@@ -650,6 +668,10 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
             actualLenDimsQ_ = opParamInfo_.seqUsedQ.tensor->GetShapeSize();
         }
     }
+    if (kvLayout_ != SASLayout::PA_ND && kvLayout_ != SASLayout::BSND) {
+        OP_LOGE(opName_, "ori_kv and cmp_kv only support PA_ND and BSND layout.");
+        return ge::GRAPH_FAILED;
+    }
     if (kvLayout_ == SASLayout::PA_ND) {
         if (opParamInfo_.sequsedKv.tensor != nullptr) {
             if (qLayout_ == SASLayout::BSND){
@@ -676,9 +698,6 @@ ge::graphStatus SASInfoParser::GetActualseqInfo()
             OP_LOGE(opName_, "Input seqused_kv must be provided");
             return ge::GRAPH_FAILED;
         }
-    } else {
-        OP_LOGE(opName_, "ori_kv and cmp_kv only support PA_ND layout.");
-        return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
 }
@@ -708,8 +727,10 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.cmpKvType = cmpKvType_;
     sasInfo.outputType = outputType_;
 
-    sasInfo.totalBlockNum = (opParamInfo_.oriKv.tensor != nullptr) ?
-        opParamInfo_.oriKv.tensor->GetStorageShape().GetDim(0) : 0;
+    if (kvLayout_ == SASLayout::PA_ND) {
+        sasInfo.totalBlockNum = (opParamInfo_.oriKv.tensor != nullptr) ?
+            opParamInfo_.oriKv.tensor->GetStorageShape().GetDim(0) : 0;
+    }
     sasInfo.sparseBlockSize = 1;
     sasInfo.oriBlockSize = oriBlockSize_;
     sasInfo.cmpBlockSize = cmpBlockSize_;
@@ -735,6 +756,7 @@ void SASInfoParser::GenerateInfo(SASTilingInfo &sasInfo)
     sasInfo.cmpSparseIndicesLayout = cmpSparseIndicesLayout_;
     sasInfo.kvLayout = kvLayout_;
     sasInfo.outLayout = outLayout_;
+    sasInfo.returnSoftmaxLse = *opParamInfo_.returnSoftmaxLse;
 }
 
 ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
@@ -746,7 +768,8 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 
     if (ge::GRAPH_SUCCESS != GetOpName() ||
         ge::GRAPH_SUCCESS != GetNpuInfo() ||
-        ge::GRAPH_SUCCESS != GetOpParaInfo() ||
+        ge::GRAPH_SUCCESS != GetOpParaInfo() || 
+        ge::GRAPH_SUCCESS != GetKvLayout() ||
         ge::GRAPH_SUCCESS != CheckRequiredParaExistence() ||
         ge::GRAPH_SUCCESS != CheckUnrequiredParaExistence()) {
         return ge::GRAPH_FAILED;
@@ -754,7 +777,6 @@ ge::graphStatus SASInfoParser::Parse(SASTilingInfo &sasInfo)
 
     if (ge::GRAPH_SUCCESS != GetInOutDataType() ||
         ge::GRAPH_SUCCESS != GetQueryAndOutLayout() ||
-        ge::GRAPH_SUCCESS != GetKvLayout() ||
         ge::GRAPH_SUCCESS != GetSASTemplateMode(sasInfo)) {
         return ge::GRAPH_FAILED;
     }
@@ -994,8 +1016,7 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
             ge::GRAPH_SUCCESS != CheckDtypeSupport(opParamInfo_.cmpSparseIndices.desc, CMP_SPARSE_INDICES) ||
             ge::GRAPH_SUCCESS != CheckLayoutSupport(cmpSparseIndicesLayout_, CMP_SPARSE_INDICES) ||
             ge::GRAPH_SUCCESS != CheckDimNumSupport(&opParamInfo_.cmpSparseIndices.tensor->GetShape(), cmpSparseIndicesDimNumList, CMP_SPARSE_INDICES) ||
-            ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(cmpSparseIndicesLayout_, &opParamInfo_.cmpSparseIndices.tensor->GetShape(), CMP_SPARSE_INDICES)) {
-            return ge::GRAPH_FAILED;
+            ge::GRAPH_SUCCESS != CheckDimNumInLayoutSupport(cmpSparseIndicesLayout_, &opParamInfo_.cmpSparseIndices.tensor->GetShape(), CMP_SPARSE_INDICES)) {            return ge::GRAPH_FAILED;
         }
         if (cmpSparseIndicesLayout_ == SASLayout::TND)
         {
@@ -1015,6 +1036,9 @@ ge::graphStatus SASTilingCheck::CheckSingleParaCmpSparseIndices() const
 
 ge::graphStatus SASTilingCheck::CheckSingleParaOriBlockTable() const
 {
+    if (kvLayout_ == SASLayout::BSND) {
+        return ge::GRAPH_SUCCESS; // BSND 场景不需要使用oriBlockTable
+    }
     OP_CHECK_IF(opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetShapeSize() == 0,
                 OP_LOGE(opName_, "ori_block_table cannot be empty tensor."),
                 return ge::GRAPH_FAILED);
@@ -1138,6 +1162,7 @@ ge::graphStatus SASTilingCheck::CheckSinglePara() const
         ge::GRAPH_SUCCESS != CheckSingleParaOriWinRight()) {
         return ge::GRAPH_FAILED;
     }
+    
     return ge::GRAPH_SUCCESS;
 }
 
@@ -1191,6 +1216,9 @@ ge::graphStatus SASTilingCheck::CheckExistenceByMap(std::map<std::string, const 
 
 ge::graphStatus SASTilingCheck::CheckParaExistence() const
 {
+    if (kvLayout_ != SASLayout::PA_ND) { 
+        return ge::GRAPH_SUCCESS;
+    }
     std::map<std::string, const void *> ParamExistMap = {
         {"actualSeqLengths", opParamInfo_.sequsedKv.tensor},
         {"oriBlockTable", opParamInfo_.oriBlockTable.tensor},
@@ -1212,8 +1240,8 @@ ge::graphStatus SASTilingCheck::CheckFeatureShape() const
                 OP_LOGE(opName_, "T_size of query should be greater than 0, but got %u", qTSize_),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(n1Size_ != 64,
-                OP_LOGE(opName_, "q_head_num should be 64, but got %u", n1Size_),
+    OP_CHECK_IF(n1Size_ != 64 && n1Size_ != 32,
+                OP_LOGE(opName_, "q_head_num should be 64 or 32, but got %u", n1Size_),
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(n2Size_ != 1,
@@ -1224,8 +1252,8 @@ ge::graphStatus SASTilingCheck::CheckFeatureShape() const
                 OP_LOGE(opName_, "q_head_num(%u) must be divisible by kv_head_num(%u)", n1Size_, n2Size_),
                 return ge::GRAPH_FAILED);
 
-    OP_CHECK_IF(gSize_ !=64,
-                OP_LOGE(opName_, "group num should be 64, but got %u", gSize_),
+    OP_CHECK_IF(gSize_ !=64 && gSize_ != 32,
+                OP_LOGE(opName_, "group num should be 64 or 32, but got %u", gSize_),
                 return ge::GRAPH_FAILED);
 
     OP_CHECK_IF(qHeadDim_ != DIM_LIMIT,
@@ -1433,6 +1461,7 @@ void SparseAttnSharedkvTiling::SplitBalanced(SASTilingInfo *tilingInfo)
 {
     uint32_t s2Size = tilingInfo->s2Size;
     sInnerSizeAlign_ = Align(sInnerSize_, BYTE_BLOCK); // 元素个数按照基本块大小对齐
+    mBaseSize_ = tilingInfo->gSize;
     headDimAlign_ = Align(tilingInfo->qHeadDim, BYTE_BLOCK);
     CalcUbBmm(tilingInfo);
 
@@ -1492,6 +1521,7 @@ ge::graphStatus SparseAttnSharedkvTiling::DoOpTiling(SASTilingInfo *tilingInfo)
     tilingData_.baseParams.set_oriWinLeft(tilingInfo->oriWinLeft);
     tilingData_.baseParams.set_oriWinRight(tilingInfo->oriWinRight);
     tilingData_.baseParams.set_sparseBlockSize(tilingInfo->sparseBlockSize);
+    tilingData_.baseParams.set_returnSoftmaxLse(tilingInfo->returnSoftmaxLse);
 
     tilingData_.cmpParams.set_cmpMaxBlockNumPerBatch(tilingInfo->cmpMaxBlockNumPerBatch);
     tilingData_.cmpParams.set_sparseBlockCount(tilingInfo->sparseBlockCount);

@@ -86,7 +86,7 @@ public:
                                 __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
                                 __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *seqUsedQ,
                                 __gm__ uint8_t *seqUsedKV, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata,
-                                __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace,
+                                __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse, __gm__ uint8_t *workspace,
                                 const SparseAttnSharedkvTilingData *__restrict tiling, __gm__ uint8_t *gmTiling,
                                 TPipe *tPipe);
 
@@ -136,6 +136,8 @@ private:
     GlobalTensor<SINKS_T> sinksGm;
 
     GlobalTensor<OUT_T> attentionOutGm;
+    GlobalTensor<T> softmaxLseGm;
+
     GlobalTensor<int32_t> oriBlockTableGm;
     GlobalTensor<int32_t> cmpBlockTableGm;
     GlobalTensor<int32_t> topKGm;
@@ -206,6 +208,7 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::InitTilingData()
 
     constInfo.actualLenDimsQ = tilingData->baseParams.actualLenDimsQ;
     constInfo.actualLenDimsKV = tilingData->baseParams.actualLenDimsKV;
+    constInfo.returnSoftmaxLse = tilingData->baseParams.returnSoftmaxLse;
     // innerSplitParams
     constInfo.mBaseSize = tilingData->baseParams.mBaseSize;
     constInfo.s2BaseSize = tilingData->baseParams.s2BaseSize;
@@ -259,12 +262,23 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::InitAllZeroOutput(uint32_t 
 
         uint64_t attenOutOffset = (tBase + s1Idx) * kvHeadNum * constInfo.gSize * headDim + // T轴、s1轴偏移
                                   n2Idx * constInfo.gSize * headDim;                        // N2轴偏移
+        uint64_t lseOffset = (tBase + s1Idx) * constInfo.gSize  + // T轴、s1轴偏移
+                                n2Idx * constInfo.qSeqSize * constInfo.gSize; // N2轴偏移
         matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], constInfo.gSize * headDim, 0);
+        if (constInfo.returnSoftmaxLse) {
+            matmul::InitOutput<T>(softmaxLseGm[lseOffset], constInfo.gSize, 0);
+        }
     } else if (constInfo.outputLayout == SAS_LAYOUT::BSND) {
         uint64_t attenOutOffset = bIdx * constInfo.qSeqSize * kvHeadNum * constInfo.gSize * headDim +
                                   s1Idx * kvHeadNum * constInfo.gSize * headDim + // B轴、S1轴偏移
                                   n2Idx * constInfo.gSize * headDim;              // N2轴偏移
+        uint64_t lseOffset = bIdx * constInfo.qSeqSize * constInfo.kvHeadNum * constInfo.gSize  + // B轴偏移
+                    n2Idx  * constInfo.qSeqSize * constInfo.gSize + // N2轴偏移
+                    s1Idx * constInfo.gSize; // S1轴偏移
         matmul::InitOutput<OUT_T>(attentionOutGm[attenOutOffset], constInfo.gSize * headDim, 0);
+        if (constInfo.returnSoftmaxLse) {
+            matmul::InitOutput<T>(softmaxLseGm[lseOffset], constInfo.gSize, 0);
+        }
     }
 }
 
@@ -309,9 +323,10 @@ __aicore__ inline int32_t SparseAttnSharedkvScfa<SAST>::GetActualSeqLenKV(uint32
         tempLoopInfo.actualSeqKVPrefixSum = static_cast<uint64_t>(bIdx * constInfo.kvSeqSize);
         if (constInfo.actualLenDimsKV == 0) {
             return static_cast<int32_t>(constInfo.kvSeqSize);
-        } else {
-            return actualSeqLengthsKVGm.GetValue(bIdx);
         }
+        return actualSeqLengthsKVGm.GetValue(bIdx);
+    } else if constexpr(KV_LAYOUT_T == SAS_LAYOUT::BSND) {
+        return static_cast<int32_t>(constInfo.kvSeqSize);
     }
 }
 
@@ -347,7 +362,7 @@ template <typename SAST>
 __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Init(
     __gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_t *cmpKV, __gm__ uint8_t *cmpSparseIndices,
     __gm__ uint8_t *oriBlockTable, __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *seqUsedQ,
-    __gm__ uint8_t *seqUsedKV, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut,
+    __gm__ uint8_t *seqUsedKV, __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut, __gm__ uint8_t *softmaxLse,
     __gm__ uint8_t *workspace, const SparseAttnSharedkvTilingData *__restrict tiling, __gm__ uint8_t *gmTiling,
     TPipe *tPipe)
 {
@@ -382,6 +397,7 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Init(
     }
 
     attentionOutGm.SetGlobalBuffer((__gm__ OUT_T *)attentionOut);
+    softmaxLseGm.SetGlobalBuffer((__gm__ T *)softmaxLse);
 
     if ASCEND_IS_AIV {
         if (LAYOUT_T != SAS_LAYOUT::TND) {
@@ -430,7 +446,7 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Init(
         vectorBlock.InitVec0GlobalTensor(kvValidSizeGm_, kvMergeGm_, oriKvGm, cmpKvGm, oriBlockTableGm,
                                          cmpBlockTableGm);
         vectorBlock.InitVec1GlobalTensor(mm1ResGm, vec1ResGm, actualSeqLengthsQGm, actualSeqLengthsKVGm, topKGm,
-                                         sinksGm);
+                                         sinksGm, softmaxLseGm);
         vectorBlock.InitVec2GlobalTensor(accumOutGm, vec2ResGm, mm2ResGm, attentionOutGm);
     }
 
@@ -468,7 +484,10 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::CalcParams(uint32_t loop, u
     info.loop = loop;
     info.cmpLoop = cmpLoop;
     info.bIdx = tempLoopInfo.bIdx;
+    info.n2IdxReal = tempLoopInfo.n2Idx;
+
     info.gS1Idx = tempLoopInfo.gS1Idx;
+    info.s1Idx = tempLoopInfo.gS1Idx / constInfo.gSize;
     info.s2Idx = s2LoopIdx;
     info.curSInnerLoopTimes = tempLoopInfo.s2LoopTimes;
     info.tndIsS2SplitCore = tempLoopInfo.tndIsS2SplitCore;
@@ -594,7 +613,6 @@ __aicore__ inline void SparseAttnSharedkvScfa<SAST>::Process()
     if (hasLoad == 0) {
         return;
     }
-
     if ASCEND_IS_AIV {
         vectorBlock.AllocEventID();
         vectorBlock.InitSoftmaxDefaultBuffer();
