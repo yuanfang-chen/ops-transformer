@@ -197,14 +197,14 @@ aclnnStatus AclnnGroupedMatmulDAV3510Checker<T>::CheckWeightNzSpecialParams() co
                "When format of weight is FRACTAL_NZ, the x dtype and weight dtype should be int8/float8_e4m3fn, but x \
 dtype is %s, weight dtype is %s",
                op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
-    if (isInputFp8e4m3) {
-        CHECK_COND((gmmParams_.scaleDtype == DataType::DT_FLOAT8_E8M0 &&
-                    gmmParams_.pertokenScaleDtype == DataType::DT_FLOAT8_E8M0),
-                   ACLNN_ERR_PARAM_INVALID,
-                   "When format of weight is FRACTAL_NZ and the inputs are float8_e4m3fn, scale and pertokenScale are \
-float8_e8m0, but scale dtype is %s, pertokenScale dtype is %s",
-                   op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
-    }
+//     if (isInputFp8e4m3) {
+//         CHECK_COND((gmmParams_.scaleDtype == DataType::DT_FLOAT8_E8M0 &&
+//                     gmmParams_.pertokenScaleDtype == DataType::DT_FLOAT8_E8M0),
+//                    ACLNN_ERR_PARAM_INVALID,
+//                    "When format of weight is FRACTAL_NZ and the inputs are float8_e4m3fn, scale and pertokenScale are \
+// float8_e8m0, but scale dtype is %s, pertokenScale dtype is %s",
+//                    op::ToString(gmmParams_.xDtype).GetString(), op::ToString(wDtype).GetString());
+//     }
 
     auto yDtype = GetInputTensor(gmmParams_.y)->GetDataType();
     CHECK_COND(yDtype != DataType::DT_INT8, ACLNN_ERR_PARAM_INVALID,
