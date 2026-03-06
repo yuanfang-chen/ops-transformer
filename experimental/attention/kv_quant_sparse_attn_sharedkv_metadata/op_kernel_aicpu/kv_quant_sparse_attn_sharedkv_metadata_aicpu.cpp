@@ -97,10 +97,10 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         return false;
     }
     // num_heads_q 校验
-    //if (queryHeadNum_ != 64) {
-        //KERNEL_LOG_ERROR("num_heads_q should only be 64, but got %d", queryHeadNum_);
-        //return false;
-    //}
+    if (queryHeadNum_ > 128) {
+        KERNEL_LOG_ERROR("num_heads_q should not be greater than 128, but got %d", queryHeadNum_);
+        return false;
+    }
     // num_heads_kv 校验
     if (kvHeadNum_ != 1) {
         KERNEL_LOG_ERROR("num_heads_kv should only be 1, but got %d", kvHeadNum_);
