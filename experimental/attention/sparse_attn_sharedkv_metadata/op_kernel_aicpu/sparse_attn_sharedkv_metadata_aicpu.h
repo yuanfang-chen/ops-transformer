@@ -332,8 +332,7 @@ private:
     uint32_t sparseMode_ = 0;
     uint32_t attentionMode_ = 1;
     BlockCost<int64_t> typeCost_;
-    bool isN128 = false;
-    
+
 private:
     enum class ParamId : uint32_t {
     // input
