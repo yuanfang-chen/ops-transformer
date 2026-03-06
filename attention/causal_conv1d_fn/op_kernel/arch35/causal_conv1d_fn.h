@@ -95,7 +95,7 @@ private:
 
     // 处理需要 cache state 的 token（curSequenceIdx < K-1）
     // 返回处理的 token 数量
-    __aicore__ inline uint32_t ProcessTokensNeedCache(
+    __aicore__ inline uint16_t ProcessTokensNeedCache(
         LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
         uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
         uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -105,7 +105,7 @@ private:
 
     // 处理不需要 cache 的 token（curSequenceIdx >= K-1）
     // 返回处理的 token 数量
-    __aicore__ inline uint32_t ProcessTokensNoCache(
+    __aicore__ inline uint16_t ProcessTokensNoCache(
         LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
         uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
         uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -123,7 +123,7 @@ private:
     // 回写 cache（长 batch，长度 >= K，到达 batch 末尾时）
     __aicore__ inline void WriteCacheLongBatch(
         LocalTensor<T>& xLocal,
-        uint32_t i, uint32_t step, uint32_t dimSize, uint32_t dimBlocks,
+        uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks,
         uint32_t dimStart, uint32_t cacheSkipBlocks,
         int64_t cIdx, uint32_t curBatchIdx);
 
@@ -438,7 +438,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
         int32_t hasInitState = hasInitLocal_.GetValue(curBatchIdx);
         int64_t cIdx = cacheIdxLocal_.GetValue(curBatchIdx);
 
-        uint32_t step = 0;
+        uint16_t step = 0;
         bool reachBatchEnd = false;
 
         if (curSequenceIdx < K - 1) {
@@ -478,7 +478,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessUBBlock(
 // ProcessTokensNeedCache - 处理需要 cache state 的 token（curSequenceIdx < K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNeedCache(
+__aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
     LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
     uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -489,7 +489,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNeedCache(
     uint32_t K = kernelWidth_;
 
     // 计算 step
-    uint32_t step = K - 1 - curSequenceIdx;
+    uint16_t step = K - 1 - curSequenceIdx;
     if (step > N - i) step = N - i;
     if (step > curBatchLen - curSequenceIdx) step = curBatchLen - curSequenceIdx;
     reachBatchEnd = (step == curBatchLen - curSequenceIdx);
@@ -539,7 +539,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNeedCache(
 // ProcessTokensNoCache - 处理不需要 cache 的 token（curSequenceIdx >= K-1）
 // ============================================================================
 template <typename T>
-__aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNoCache(
+__aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
     LocalTensor<T>& xLocal, LocalTensor<T>& weightLocal,
     uint32_t i, uint32_t N, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks, uint32_t ySkipBlocks,
@@ -551,7 +551,7 @@ __aicore__ inline uint32_t CausalConv1dFn<T>::ProcessTokensNoCache(
 
     // 计算 step
     uint32_t remainInBatch = curBatchLen - curSequenceIdx;
-    uint32_t step = (N - i < remainInBatch) ? (N - i) : remainInBatch;
+    uint16_t step = (N - i < remainInBatch) ? (N - i) : remainInBatch;
     reachBatchEnd = (step == remainInBatch);
 
     // 如果到达 batch 末尾，回写 cache
@@ -633,7 +633,7 @@ __aicore__ inline void CausalConv1dFn<T>::WriteCacheShortBatch(
 template <typename T>
 __aicore__ inline void CausalConv1dFn<T>::WriteCacheLongBatch(
     LocalTensor<T>& xLocal,
-    uint32_t i, uint32_t step, uint32_t dimSize, uint32_t dimBlocks,
+    uint32_t i, uint16_t step, uint32_t dimSize, uint32_t dimBlocks,
     uint32_t dimStart, uint32_t cacheSkipBlocks,
     int64_t cIdx, uint32_t curBatchIdx)
 {
@@ -673,7 +673,7 @@ __aicore__ inline void CausalConv1dFn<T>::ProcessMainComputeBS(
 {
     // 每次 BS 方向前进的步长（由于有 K-1 重叠，每次实际前进 ubFactorBS - (K-1) 行）
     uint32_t K    = kernelWidth_;
-    uint32_t step = (ubFactorBS > K - 1) ? (ubFactorBS - (K - 1)) : 1;
+    uint16_t step = (ubFactorBS > K - 1) ? (ubFactorBS - (K - 1)) : 1;
 
     // bsStart 是相对于有效序列的偏移，需要转换为全局位置用于 batch 边界判断
     uint64_t globalBsStart = bsStart + validSeqStart_;
