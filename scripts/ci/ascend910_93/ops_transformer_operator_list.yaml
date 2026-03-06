@@ -100,7 +100,6 @@ operator_group_10:
   - matmul_allto_all
   - allto_allv_grouped_mat_mul
   - allto_all_all_gather_batch_mat_mul
-  - allto_all_matmul
   - all_gather_matmul
   - all_gather_matmul_v2
   - attention_to_ffn

@@ -64,15 +64,15 @@ __aicore__ inline void MC2KernelPipelineCommTransComputeTemplate<CommunicationTy
         if ASCEND_IS_AIV {
             commStage_->Process(index);
             AscendC::SyncAll<true>();
-            transStage_->Process(index);
-            CrossCoreSetFlag<0, PIPE_MTE3>(8);
-            CrossCoreWaitFlag(8);
-            CrossCoreSetFlag<2, PIPE_MTE3>(9);
+            // transStage_->Process(index);
+            // CrossCoreSetFlag<0, PIPE_MTE3>(8);
+            // CrossCoreWaitFlag(8);
+            // CrossCoreSetFlag<2, PIPE_MTE3>(9);
         }
-        if ASCEND_IS_AIC {
-            CrossCoreWaitFlag(9);
-            computeStage_->Process(index);
-        }
+        // if ASCEND_IS_AIC {
+        //     CrossCoreWaitFlag(9);
+        //     computeStage_->Process(index);
+        // }
     }
 }
 
