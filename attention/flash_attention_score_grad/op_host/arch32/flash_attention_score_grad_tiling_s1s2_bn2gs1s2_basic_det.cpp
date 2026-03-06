@@ -334,8 +334,6 @@ ge::graphStatus FlashAttentionScoreGraTilingBasicDet::DoOpTiling()
         kvSize = fBaseParams.t2 * fBaseParams.n2 * fBaseParams.d;
         sfmgSize = fBaseParams.t1 * fBaseParams.n1 * 8;
     }
-    
-    
     uint32_t vectorCoreNum = compileInfoPtr->aivNum;
 
     tilingData->basicDetTensorTilingData.set_coreNum(vectorCoreNum);
