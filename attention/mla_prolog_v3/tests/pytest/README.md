@@ -46,6 +46,7 @@ pytest/
 - **query_quant_mode**: 0表示非量化，1表示per-token-head量化，默认值为0。
 - **ckvkr_repo_mode**: 0表示kv_cache和kr_cache分别存储，1表示合并存储，默认值为0。
 - **quant_scale_repo_mode**: 0表示量化scale和数据分别存储，1表示合并存储，默认值为0。
+- **query_norm_flag**: 0表示不输出query_norm，1表示输出query_norm，默认值为0。
 - **tile_size**: per-tile量化时每个tile的大小，默认值为128。
 - **qc_qr_scale**: Query的尺度矫正系数，默认值为1.0。
 - **kc_scale**: Key的尺度矫正系数，默认值为1.0。

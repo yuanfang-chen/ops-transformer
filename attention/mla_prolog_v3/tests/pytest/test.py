@@ -18,14 +18,14 @@ import torch_npu
 
 import check_valid_param
 import prologv3_generalized
-from testcases import ENABLED_PARAMS, FUZZ_PARAM_SPACE
+from testcases import ENABLED_PARAMS, FUZZ_PARAM_SPACE, NEGATIVE_RUNTIME_CASES
 
 PARAM_NAMES = [
     "batch_size", "He", "Hcq", "Hckv", "q_head_num",
     "kv_head_num", "head_dim", "rope_head_dim", "q_seq",
-    "block_size", "input_layout", "cache_mode", "cq_epsilon", "ckv_epsilon", "dtype",
+    "block_size", "input_layout", "cache_mode", "bs_fused_flag", "cq_epsilon", "ckv_epsilon", "dtype",
     "weight_quant_mode", "kv_quant_mode", "query_quant_mode",
-    "ckvkr_repo_mode", "quant_scale_repo_mode", "tile_size",
+    "ckvkr_repo_mode", "quant_scale_repo_mode", "query_norm_flag", "tile_size",
     "qc_qr_scale", "kc_scale"
 ]
 
@@ -72,6 +72,7 @@ def _to_test_data(param_combinations):
         param_combinations["block_size"],
         param_combinations["input_layout"],
         param_combinations["cache_mode"],
+        param_combinations["bs_fused_flag"],
         param_combinations["cq_epsilon"],
         param_combinations["ckv_epsilon"],
         param_combinations["dtype"],
@@ -80,18 +81,24 @@ def _to_test_data(param_combinations):
         param_combinations["query_quant_mode"],
         param_combinations["ckvkr_repo_mode"],
         param_combinations["quant_scale_repo_mode"],
+        param_combinations["query_norm_flag"],
         param_combinations["tile_size"],
         param_combinations["qc_qr_scale"],
         param_combinations["kc_scale"]
     )
 
 
-def _run_single_case(param_combinations):
+def _run_case(param_combinations, validate=True):
     torch_npu.npu.set_device(0)
     check_valid_param.log_discontinuous_error_mode_once()
     test_data = _to_test_data(param_combinations)
-    check_valid_param.validate_config(test_data)
-    expect, result = prologv3_generalized.test_prologv3_generalized(test_data)
+    if validate:
+        check_valid_param.validate_config(test_data)
+    return prologv3_generalized.test_prologv3_generalized(test_data)
+
+
+def _run_single_case(param_combinations):
+    expect, result = _run_case(param_combinations, validate=True)
     check_valid_param.check_result(expect, result)
 
 
@@ -166,3 +173,21 @@ def test_mla_prolog_v3_fuzz():
 
     for fuzz_case in fuzz_cases:
         _run_single_case(fuzz_case)
+
+
+@pytest.mark.negative
+@pytest.mark.parametrize(
+    "negative_case",
+    NEGATIVE_RUNTIME_CASES,
+    ids=[case.get("name", f"negative_{idx:03d}") for idx, case in enumerate(NEGATIVE_RUNTIME_CASES)],
+)
+def test_mla_prolog_v3_negative_runtime(negative_case):
+    with pytest.raises(Exception) as exc_info:
+        _run_case(negative_case["params"], validate=False)
+
+    expected_substrings = [str(sub).lower() for sub in negative_case.get("expected_error_substrings", [])]
+    if expected_substrings:
+        error_msg = str(exc_info.value).lower()
+        assert any(sub in error_msg for sub in expected_substrings), (
+            f"negative case '{negative_case.get('name', 'unknown')}' failed with unexpected error: {exc_info.value}"
+        )

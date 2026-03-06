@@ -33,6 +33,7 @@ WEIGHT_QUANT_MODE_FULL_HIF8 = 5
 INT8_DTYPE_MAX = 127.0
 FP8_E4M3_DTYPE_MAX = 448.0
 HIF8_DTYPE_MAX = 32768.0
+FP8_BLOCK_SIZE = 32
 
 
 def _info_log_enabled():
@@ -91,6 +92,55 @@ def _dynamic_quant_clip_range(dtype_max, quant_dtype):
 def _clamp_to_dtype_range_float(inputs, dtype_max):
     clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, torch.float32)
     return torch.clamp(inputs.to(torch.float32), min=clip_min, max=clip_max)
+
+
+def _fp8_blockwise_quant(inputs, block_size=FP8_BLOCK_SIZE, dtype_max=FP8_E4M3_DTYPE_MAX,
+                         quant_dtype=None):
+    """FP8 per-block quantization (block_size along last dim). Returns (quantized, scale)."""
+    if quant_dtype is None:
+        quant_dtype = torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float32
+    if inputs.ndim != 2:
+        raise ValueError(f"fp8 blockwise quant expects 2D input, got shape={tuple(inputs.shape)}")
+    t_size, h_size = inputs.shape
+    if h_size % block_size != 0:
+        raise ValueError(f"fp8 blockwise quant requires H % {block_size} == 0, got H={h_size}")
+    inputs_fp32 = inputs.to(torch.float32)
+    blocks = h_size // block_size
+    reshaped = inputs_fp32.reshape(t_size, blocks, block_size)
+    amax = torch.max(torch.abs(reshaped), dim=-1)[0]
+    scale = torch.clamp(amax / float(dtype_max), min=1e-8)
+    scaled = torch.round(reshaped / scale.unsqueeze(-1))
+    clipped = torch.clamp(scaled, min=-float(dtype_max), max=float(dtype_max))
+    quantized = clipped.to(quant_dtype).reshape(t_size, h_size)
+    return quantized, scale
+
+
+def _dequant_fp8_blockwise(inputs, scale, block_size=FP8_BLOCK_SIZE):
+    """Dequant FP8 tensor with per-block scales along last dim."""
+    if inputs.ndim != 2:
+        raise ValueError(f"fp8 blockwise dequant expects 2D input, got shape={tuple(inputs.shape)}")
+    t_size, h_size = inputs.shape
+    if h_size % block_size != 0:
+        raise ValueError(f"fp8 blockwise dequant requires H % {block_size} == 0, got H={h_size}")
+    blocks = h_size // block_size
+    inputs_fp32 = inputs.to(torch.float32).reshape(t_size, blocks, block_size)
+    scale_fp32 = scale.to(torch.float32).reshape(t_size, blocks, 1)
+    return (inputs_fp32 * scale_fp32).reshape(t_size, h_size)
+
+
+def _dequant_fp8_weight(weight, scale, block_size=FP8_BLOCK_SIZE):
+    """Dequant FP8 weight with per-block scales along first dim."""
+    if weight.ndim != 2:
+        raise ValueError(f"fp8 weight dequant expects 2D input, got shape={tuple(weight.shape)}")
+    k_size, n_size = weight.shape
+    if k_size % block_size != 0:
+        raise ValueError(f"fp8 weight dequant requires K % {block_size} == 0, got K={k_size}")
+    weight_fp32 = weight.to(torch.float32)
+    scale_fp32 = scale.to(torch.float32)
+    blocks = k_size // block_size
+    weight_reshaped = weight_fp32.reshape(blocks, block_size, n_size)
+    scale_t = scale_fp32.transpose(0, 1).reshape(blocks, 1, n_size)
+    return (weight_reshaped * scale_t).reshape(k_size, n_size)
 
 
 # ===================== Helper Functions =====================
@@ -384,10 +434,10 @@ class GeneralizedPrologV3:
     def __init__(self, params):
         self.batch_size, self.He, self.Hcq, self.Hckv, self.q_head_num, self.kv_head_num, \
         self.head_dim, self.rope_head_dim, self.q_seq, self.block_size, \
-        self.input_layout, self.cache_mode, self.cq_epsilon, self.ckv_epsilon, self.dtype, \
+        self.input_layout, self.cache_mode, self.bs_fused_flag, self.cq_epsilon, self.ckv_epsilon, self.dtype, \
         self.weight_quant_mode, self.kv_quant_mode, self.query_quant_mode, \
-        self.ckvkr_repo_mode, self.quant_scale_repo_mode, self.tile_size, \
-        self.qc_qr_scale, self.kc_scale = params
+        self.ckvkr_repo_mode, self.quant_scale_repo_mode, self.query_norm_flag, \
+        self.tile_size, self.qc_qr_scale, self.kc_scale = params
 
     def forward(self, inputs):
         """
@@ -412,6 +462,7 @@ class GeneralizedPrologV3:
         kv_quant_mode = self.kv_quant_mode
         query_quant_mode = self.query_quant_mode
         cache_mode = self.cache_mode
+        query_norm_flag = int(self.query_norm_flag)
         cq_epsilon = self.cq_epsilon
         ckv_epsilon = self.ckv_epsilon
         qc_qr_scale = self.qc_qr_scale
@@ -447,18 +498,28 @@ class GeneralizedPrologV3:
                 matmul_input_dtype_max = full_quant_mode_config["dtype_max"]
             else:
                 query_quant_dtype = full_quant_mode_config["query_quant_dtype"]
+        if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            if hasattr(torch, "float8_e4m3fn"):
+                query_quant_dtype = torch.float8_e4m3fn
+            query_dtype_max = FP8_E4M3_DTYPE_MAX
         deq_scale_q_nope = None
 
-        def _build_expected_kernel_outputs(query, query_rope, deq_scale_q_nope_tensor):
+        def _build_expected_kernel_outputs(query, query_rope, deq_scale_q_nope_tensor,
+                                            query_norm_tensor, deq_scale_q_norm_tensor):
             query_ret = query.to(torch.bfloat16) if not enable_quant_output else query
             query_rope_ret = query_rope.to(torch.bfloat16) if not enable_quant_output else query_rope
             if deq_scale_q_nope_tensor is None:
                 deq_scale_q_nope_ret = torch.empty((0,), dtype=torch.float32)
             else:
                 deq_scale_q_nope_ret = deq_scale_q_nope_tensor.to(torch.float32)
-            # query_norm_flag is not enabled in this pytest harness.
-            query_norm_ret = torch.empty((0,), dtype=torch.float32)
-            deq_scale_q_norm_ret = torch.empty((0,), dtype=torch.float32)
+            if query_norm_tensor is None:
+                query_norm_ret = torch.empty((0,), dtype=torch.float32)
+            else:
+                query_norm_ret = query_norm_tensor
+            if deq_scale_q_norm_tensor is None:
+                deq_scale_q_norm_ret = torch.empty((0,), dtype=torch.float32)
+            else:
+                deq_scale_q_norm_ret = deq_scale_q_norm_tensor
             return [query_ret, query_rope_ret, deq_scale_q_nope_ret, query_norm_ret, deq_scale_q_norm_ret]
 
         # Unpack base tensors (all moved to CPU)
@@ -526,7 +587,12 @@ class GeneralizedPrologV3:
         # -------------------------------------------------------------------
         matmul1_dtype = torch.float32
         token_x_new = token_x.clone()
-        if mode2_family_full_quant:
+        if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            if deq_scale_x is None or deq_scale_w_dq is None:
+                raise ValueError("mxfp8 quant requires deq_scale_x and deq_scale_w_dq")
+            token_x_new = _dequant_fp8_blockwise(token_x_new, deq_scale_x)
+            w_dq = _dequant_fp8_weight(w_dq, deq_scale_w_dq)
+        elif mode2_family_full_quant:
             if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
                 token_x_new = token_x_new.to(torch.int32)
                 w_dq = w_dq.to(torch.int32)
@@ -552,6 +618,8 @@ class GeneralizedPrologV3:
             for h_index in range(Hcq):
                 matmul1_res[:, h_index] = matmul1_res[:, h_index] * deq_scale_w_dq[0, h_index]
             info_log(f"[INFO]deq1 end. matmul1_res dtype={matmul1_res.dtype}")
+        elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            matmul1_res = matmul1_res.to(torch.float32)
         else:
             matmul1_res = matmul1_res.to(torch.bfloat16).to(torch.float32)
         info_log(f"[INFO]matmul1 end. matmul1_res:{tuple(matmul1_res.shape)}|{matmul1_res.dtype}")
@@ -565,12 +633,24 @@ class GeneralizedPrologV3:
         norm1_res *= qc_qr_scale
         info_log(f"[INFO]rmsnorm1 end. norm1_res:{tuple(norm1_res.shape)}|{norm1_res.dtype}")
 
+        query_norm_tensor = None
+        deq_scale_q_norm_tensor = None
+
         # ----------------------------------------------------------------------------------
         # matmul2 : norm1_res(B*S1,Hcq) * w_uq_qr(Hcq,N*(D+Dr)) -> matmul2_res(B*S1,N,(D+Dr))
         # ----------------------------------------------------------------------------------
         matmul2_dtype = torch.float32
         deq_scale_qcqr = None
-        if weight_quant_mode == 1:
+        norm1_fp8 = None
+        if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            if deq_scale_w_uqqr is None:
+                raise ValueError("mxfp8 quant requires deq_scale_w_uq_qr")
+            norm1_fp8, deq_scale_qcqr = _fp8_blockwise_quant(
+                norm1_res, block_size=FP8_BLOCK_SIZE, dtype_max=FP8_E4M3_DTYPE_MAX
+            )
+            norm1_res = _dequant_fp8_blockwise(norm1_fp8, deq_scale_qcqr, block_size=FP8_BLOCK_SIZE)
+            w_uq_qr = _dequant_fp8_weight(w_uq_qr, deq_scale_w_uqqr, block_size=FP8_BLOCK_SIZE)
+        elif weight_quant_mode == 1:
             w_uq_qr = w_uq_qr.to(torch.int32)
             matmul2_dtype = torch.int32
             norm1_res, deq_scale_qcqr = dynamic_quant(
@@ -597,6 +677,35 @@ class GeneralizedPrologV3:
         else:
             norm1_res = norm1_res.to(torch.bfloat16).to(torch.float32)
 
+        if query_norm_flag:
+            if weight_quant_mode == 0:
+                query_norm_tensor = norm1_res.to(torch.bfloat16)
+                deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
+            elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                query_norm_tensor = norm1_fp8
+                deq_scale_q_norm_tensor = deq_scale_qcqr
+                fp8_e8m0_dtype = _get_mxfp8_e8m0_dtype()
+                if fp8_e8m0_dtype is not None:
+                    deq_scale_q_norm_tensor = deq_scale_q_norm_tensor.to(fp8_e8m0_dtype)
+            else:
+                query_norm_tensor = torch.clamp(norm1_res.to(torch.float32), min=-128.0, max=127.0).to(torch.int8)
+                if deq_scale_qcqr is None:
+                    deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
+                else:
+                    deq_scale_q_norm_tensor = deq_scale_qcqr.reshape(T, 1).to(torch.float32)
+        else:
+            if weight_quant_mode == 0:
+                query_norm_tensor = torch.empty((0,), dtype=torch.bfloat16)
+                deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
+            elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+                q_dtype = torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float32
+                scale_dtype = _get_mxfp8_e8m0_dtype() or torch.float32
+                query_norm_tensor = torch.empty((0,), dtype=q_dtype)
+                deq_scale_q_norm_tensor = torch.empty((0,), dtype=scale_dtype)
+            else:
+                query_norm_tensor = torch.empty((0,), dtype=torch.int8)
+                deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
+
         norm1_res = norm1_res.to(torch.float32)
         w_uq_qr = w_uq_qr.to(torch.float32)
         if mode45_full_quant:
@@ -612,10 +721,13 @@ class GeneralizedPrologV3:
             for nddr_index in range(matmul2_res.shape[1]):
                 matmul2_res[:, nddr_index] = matmul2_res[:, nddr_index] * deq_scale_w_uqqr[0, nddr_index]
             info_log(f"[INFO]deq2 end. matmul2_res dtype={matmul2_res.dtype}")
-        else:
+        elif weight_quant_mode != WEIGHT_QUANT_MODE_MXFP8_FULL:
             matmul2_res = matmul2_res.to(torch.bfloat16).to(torch.float32)
         matmul2_res = matmul2_res.reshape(T, N1, D + Dr)
         info_log(f"[INFO]matmul2 end. matmul2_res:{tuple(matmul2_res.shape)}|{matmul2_res.dtype}")
+
+        if query_norm_tensor is not None and query_norm_tensor.numel() != 0 and not t_flag:
+            query_norm_tensor = query_norm_tensor.reshape(B, S1, Hcq)
 
         # -------------------------------------------------------------------------------------
         # splitD1 : matmul2_res -> splitd1_res1(B*S1,N,D) & splitd1_res2(B*S1,N,Dr)
@@ -670,7 +782,11 @@ class GeneralizedPrologV3:
         # matmul4 : token_x(B*S1,He) * w_dkv_kr(He,Hckv+Dr) -> matmul4_res(B*S1,Hckv+Dr)
         # -------------------------------------------------------------------------------
         matmul4_dtype = torch.float32
-        if mode2_family_full_quant:
+        if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            if deq_scale_w_dkvkr is None:
+                raise ValueError("mxfp8 quant requires deq_scale_w_dkv_kr")
+            w_dkv_kr = _dequant_fp8_weight(w_dkv_kr, deq_scale_w_dkvkr)
+        elif mode2_family_full_quant:
             if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_INT8:
                 w_dkv_kr = w_dkv_kr.to(torch.int32)
                 matmul4_dtype = torch.int32
@@ -692,6 +808,8 @@ class GeneralizedPrologV3:
             for h_index in range(Hckv + Dr):
                 matmul4_res[:, h_index] = matmul4_res[:, h_index] * deq_scale_w_dkvkr[0, h_index]
             info_log(f"[INFO]deq3 end. matmul4_res dtype={matmul4_res.dtype}")
+        elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            matmul4_res = matmul4_res.to(torch.float32)
         else:
             matmul4_res = matmul4_res.to(torch.bfloat16).to(torch.float32)
         info_log(f"[INFO]matmul4 end. matmul4_res:{tuple(matmul4_res.shape)}|{matmul4_res.dtype}")
@@ -709,6 +827,7 @@ class GeneralizedPrologV3:
         ep2 = float(ckv_epsilon)
         norm2_res = splitd2_res1 / torch.sqrt(torch.mean(splitd2_res1 ** 2, dim=-1, keepdim=True) + ep2)
         norm2_res *= gamma_ckv
+        norm2_res *= kc_scale
         info_log(f"[INFO]rmsnorm2 end. norm2_res:{tuple(norm2_res.shape)}|{norm2_res.dtype}")
 
         Dtile = Hckv
@@ -777,7 +896,9 @@ class GeneralizedPrologV3:
             out3 = kv_cache
             out4 = copy.deepcopy(kr_cache)
             return {
-                "outputs": _build_expected_kernel_outputs(out1, out2, deq_scale_q_nope),
+                "outputs": _build_expected_kernel_outputs(
+                    out1, out2, deq_scale_q_nope, query_norm_tensor, deq_scale_q_norm_tensor
+                ),
                 "inplace": [out3, out4]
             }
 
@@ -881,7 +1002,9 @@ class GeneralizedPrologV3:
         info_log("[INFO]========================================")
 
         return {
-            "outputs": _build_expected_kernel_outputs(out1, out2, deq_scale_q_nope),
+            "outputs": _build_expected_kernel_outputs(
+                out1, out2, deq_scale_q_nope, query_norm_tensor, deq_scale_q_norm_tensor
+            ),
             "inplace": [out3, out4]
         }
 
@@ -1010,9 +1133,9 @@ def _cache_shape(cache_mode, B, S2, N2, last_dim, block_size):
 
 def test_prologv3_generalized(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
-    q_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
+    q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
     weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
-    quant_scale_repo_mode, tile_size, qc_qr_scale, kc_scale = params
+    quant_scale_repo_mode, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
 
     is_valid, reason = validate_quant_cache_combo(cache_mode,
                                                   weight_quant_mode,
@@ -1035,7 +1158,7 @@ def test_prologv3_generalized(params):
     D = head_dim
     Dr = rope_head_dim
     T = B * S1
-    t_flag = cache_mode == "TND"
+    t_flag = bool(bs_fused_flag) or cache_mode == "TND"
     fp8_e8m0_dtype = _get_mxfp8_e8m0_dtype()
 
     # Dtypes by scenario
@@ -1194,6 +1317,7 @@ def test_prologv3_generalized(params):
         "rmsnorm_epsilon_cq": cq_epsilon,
         "rmsnorm_epsilon_ckv": ckv_epsilon,
         "cache_mode": cache_mode,
+        "query_norm_flag": bool(query_norm_flag),
         "weight_quant_mode": weight_quant_mode,
         "kv_cache_quant_mode": kv_quant_mode,
         "query_quant_mode": query_quant_mode,

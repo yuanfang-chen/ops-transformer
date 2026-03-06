@@ -19,6 +19,7 @@ import torch
 logging.basicConfig(level=logging.INFO, format='%(message)s', force=True)
 logger = logging.getLogger(__name__)
 _DISCONTINUOUS_MODE_LOGGED = False
+SUPPORTED_HE = {1024, 2048, 3072, 4096, 5120, 6144, 7168, 7680, 8192}
 
 
 def _env_bool(name, default=False):
@@ -88,16 +89,16 @@ def log_discontinuous_error_mode_once():
 
 def validate_config(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
-            q_seq, block_size, input_layout, cache_mode, cq_epsilon, ckv_epsilon, dtype, \
+            q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
             weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
-            quant_scale_repo_mode, tile_size, qc_qr_scale, kc_scale = params
+            quant_scale_repo_mode, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
     # 校验
     if batch_size > 65536 or batch_size < 1:
         raise ValueError("batch_size must <= 65536 and >= 1")
     if q_seq > 16 or q_seq < 1:
         raise ValueError("seq must <= 16 and >= 1")
-    if He != 7168:
-        raise ValueError("He must = 7168")
+    if He not in SUPPORTED_HE:
+        raise ValueError(f"He should be in supported set: {sorted(SUPPORTED_HE)}")
     if Hcq != 1536:
         raise ValueError("Hcq must = 1536")
     if q_head_num > 256:
@@ -120,6 +121,12 @@ def validate_config(params):
         raise ValueError("dtype should be: float16/bfloat16/int8")
     if input_layout not in ["BSH", "BSND", "BNSD"]:
         raise ValueError("input_layout should be: BSH/BSND/BNSD")
+    if bs_fused_flag not in [0, 1]:
+        raise ValueError("bs_fused_flag should be: 0/1")
+    if cache_mode == "TND" and bs_fused_flag != 1:
+        raise ValueError("cache_mode=TND requires bs_fused_flag=1")
+    if cache_mode == "BSND" and bs_fused_flag != 0:
+        raise ValueError("cache_mode=BSND requires bs_fused_flag=0")
     if weight_quant_mode not in [0, 1, 2, 3]:
         raise ValueError("weight_quant_mode should be: 0/1/2/3")
     if kv_quant_mode not in [0, 1, 2, 3]:
@@ -130,6 +137,8 @@ def validate_config(params):
         raise ValueError("ckvkr_repo_mode should be: 0/1")
     if quant_scale_repo_mode not in [0, 1]:
         raise ValueError("quant_scale_repo_mode should be: 0/1")
+    if query_norm_flag not in [0, 1]:
+        raise ValueError("query_norm_flag should be: 0/1")
     if tile_size <= 0:
         raise ValueError("tile_size must > 0")
 
