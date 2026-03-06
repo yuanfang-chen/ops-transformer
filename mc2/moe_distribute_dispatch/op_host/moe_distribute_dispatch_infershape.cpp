@@ -12,8 +12,8 @@
  * \file moe_distribute_dispatch_infer.cpp
  * \brief
  */
-#include "runtime_util.h"
-#include "mc2_log.h"
+#include "common/op_tiling/runtime_util.h"
+#include "common/op_tiling/mc2_log.h"
 #include "platform/platform_info.h"
 #include "runtime/rt_external_base.h"
 #include "platform/soc_spec.h"

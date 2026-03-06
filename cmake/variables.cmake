@@ -126,6 +126,8 @@ set(OPAPI_INCLUDE
 
   ${OPS_TRANSFORMER_DIR}/mc2/common/inc
   ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
   ${OPS_TRANSFORMER_DIR}/mc2/3rd
   ${OPS_TRANSFORMER_DIR}/mc2
 )
@@ -172,6 +174,8 @@ set(OP_TILING_INCLUDE
   ${OPS_TRANSFORMER_DIR}/mc2/common
   ${OPS_TRANSFORMER_DIR}/mc2/common/inc
   ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
   ${OPS_TRANSFORMER_DIR}/mc2/3rd
   ${OPS_TRANSFORMER_DIR}/mc2
   ${NNOPBASE_INCLUDE_DIRS}
@@ -226,6 +230,8 @@ set(OP_PROTO_INCLUDE
 
   ${OPS_TRANSFORMER_DIR}/mc2/common/inc
   ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+  ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
   ${OPS_TRANSFORMER_DIR}/mc2/3rd
   ${OPS_TRANSFORMER_DIR}/mc2
 )

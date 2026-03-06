@@ -11,7 +11,7 @@
 #include <algorithm>
 #include "allto_allv_grouped_mat_mul_checker.h"
 #include "aclnn_kernels/common/op_error_check.h"
-#include "op_mc2_def.h"
+#include "common/op_tiling/op_mc2_def.h"
 #include "opdev/op_log.h"
 #include "opdev/platform.h"
 #include "opdev/common_types.h"
@@ -104,7 +104,7 @@ aclnnStatus aclnnAlltoAllvGroupedMatMulGetWorkspaceSize(const aclTensor *gmmX, c
     int64_t mmDtype = mmYOptional == nullptr ? 0 : mmYOptional->GetDataType();
     int64_t groupSize = 0;
     aclnnStatus ret = aclnnInnerAlltoAllvGroupedMatMulGetWorkspaceSize(gmmX, gmmWeight, sendCountsTensorOptional,
-        recvCountsTensorOptional, mmXOptional, mmWeightOptional, 
+        recvCountsTensorOptional, mmXOptional, mmWeightOptional,
         nullptr, // gmmXScale
         nullptr,  // gmmWeightScale
         nullptr, // gmmXOffset

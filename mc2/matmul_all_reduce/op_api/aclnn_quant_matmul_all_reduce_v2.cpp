@@ -16,8 +16,8 @@
 #include "securec.h"
 
 #include "acl/acl.h"
-#include "op_mc2.h"
-#include "op_mc2_def.h"
+#include "common/op_tiling/op_mc2.h"
+#include "common/op_tiling/op_mc2_def.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "opdev/common_types.h"
 #include "opdev/op_dfx.h"
@@ -27,7 +27,7 @@
 #include "opdev/platform.h"
 #include "matmul_all_reduce_util.h"
 #include "aclnn_kernels/contiguous.h"
-#include "hccl_util.h"
+#include "common/op_tiling/hccl_util.h"
 #include "matmul_all_reduce_util.h"
 
 using namespace op;

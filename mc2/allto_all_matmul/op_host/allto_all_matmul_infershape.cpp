@@ -15,9 +15,9 @@
 
 #include <register/op_impl_registry.h>
 #include "util/math_util.h"
-#include "mc2_log.h"
-#include "op_mc2.h"
-#include "mc2_common_infershape.h"
+#include "common/op_tiling/mc2_log.h"
+#include "common/op_tiling/op_mc2.h"
+#include "common/op_tiling/mc2_common_infershape.h"
 
 namespace ops {
 

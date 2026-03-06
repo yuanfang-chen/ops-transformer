@@ -14,13 +14,13 @@
  */
 #include <vector>
 #include <platform/platform_info.h>
-#include "op_mc2.h"
+#include "common/op_tiling/op_mc2.h"
 
 #ifdef BUILD_OPEN_PROJECT
-#include "mc2_gen_task_ops_utils.h"
+#include "common/op_kernel/mc2_gen_task_ops_utils.h"
 #include "register/op_impl_registry.h"
-#include "mc2_gen_task_ops_utils_arch35.h"
-#include "mc2_log.h"
+#include "common/op_kernel/mc2_gen_task_ops_utils_arch35.h"
+#include "common/op_tiling/mc2_log.h"
 #endif
 
 namespace ops {

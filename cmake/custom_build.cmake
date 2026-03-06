@@ -144,6 +144,8 @@ if (BUILD_OPEN_PROJECT)
     add_library(cust_opmaster SHARED)
     target_include_directories(cust_opmaster PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_tiling
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
     )
     target_compile_options(cust_opmaster PRIVATE
@@ -548,7 +550,7 @@ if (BUILD_OPEN_PROJECT)
             "mc2"
         )
         set(update_proto_srcs)
-        
+
         foreach(OP_DIR ${OP_DIR_LIST})
             # filter op dir to be updated
             set(need_update_proto FALSE)
@@ -556,7 +558,7 @@ if (BUILD_OPEN_PROJECT)
                 if(${OP_DIR} MATCHES ".*${filter_op_frag}.*")
                     set(need_update_proto TRUE)
                     break()
-                endif()        
+                endif()
             endforeach()
             if(NOT need_update_proto)
                 message(STATUS "Skip proto update: ${OP_DIR}")
@@ -626,7 +628,7 @@ if (BUILD_OPEN_PROJECT)
 
         set(generate_proto_srcs ${generate_proto_srcs_filtered})
     endif()
-    
+
     set_source_files_properties(${generate_proto_srcs}
             PROPERTIES GENERATED TRUE
     )
@@ -908,14 +910,14 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
 install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
-install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/op_kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/3rd
 )
-        
+
 foreach (op_dir ${OP_DIR_LIST})
     get_filename_component(_op_name "${op_dir}" NAME)
     set(CURRENT_KERNEL_DIR "${op_dir}/op_kernel")

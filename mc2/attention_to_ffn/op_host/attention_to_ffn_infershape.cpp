@@ -12,8 +12,8 @@
  * \file attention_to_ffn_infershape.cpp
  * \brief
  */
-#include "runtime_util.h"
-#include "mc2_log.h"
+#include "common/op_tiling/runtime_util.h"
+#include "common/op_tiling/mc2_log.h"
 
 using namespace ge;
 namespace ops {

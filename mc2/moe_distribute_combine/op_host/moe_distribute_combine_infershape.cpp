@@ -12,8 +12,8 @@
  * \file moe_distribute_dispatch_infer.cc
  * \brief
  */
-#include "runtime_util.h"
-#include "mc2_log.h"
+#include "common/op_tiling/runtime_util.h"
+#include "common/op_tiling/mc2_log.h"
 #include "platform/platform_info.h"
 using namespace ge;
 namespace ops {

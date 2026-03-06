@@ -34,6 +34,8 @@
    add_library(mc2_tiling_ut_stub SHARED ${MC2_TILING_UT_STUB})
    target_include_directories(mc2_tiling_ut_stub PRIVATE
      ${OPS_TRANSFORMER_DIR}/mc2/common/inc
+     ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+     ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
      ${OP_TILING_INCLUDE}
    )
   endif()
