@@ -134,11 +134,9 @@ namespace BlockSparse {
                 AscendC::PipeBarrier<PIPE_V>();
                 AscendC::CompareScalar(maskPatternInBitUbLocal, maskPatternFloatLocal, (float)1.0, AscendC::CMPMODE::GE, BASIC_BLOCK);
                 AscendC::PipeBarrier<PIPE_V>();
-                AscendC::CreateVecIndex(maskIdxUbLocal, 0, BASIC_BLOCK);
+                AscendC::CreateVecIndex(maskIdxUbLocal, i * BASIC_BLOCK, BASIC_BLOCK);
                 AscendC::PipeBarrier<PIPE_V>();
                 AscendC::GatherMask(sparseIdxUbLocal, maskIdxUbLocal, maskPatternInBitUbLocalUint32, reduceMode, (uint32_t)0, {1,1,0,0}, tempSelectNum);
-                AscendC::PipeBarrier<PIPE_V>();
-                AscendC::Adds<int32_t>(sparseIdxUbLocal, sparseIdxUbLocal, static_cast<int32_t>(i * BASIC_BLOCK), static_cast<int32_t>(elementLen));
                 AscendC::SetFlag<HardEvent::V_MTE3>(eventIDVToMTE3);
                 AscendC::WaitFlag<HardEvent::V_MTE3>(eventIDVToMTE3);
                 AscendC::DataCopy(selectIdxGM[selectNum], sparseIdxUbLocal, CeilDiv(elementLen, 8) * 8);
