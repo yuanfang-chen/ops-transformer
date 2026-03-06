@@ -30,32 +30,34 @@ using namespace CausalConv1dFnNs;
 // 模板参数 schMode 由 tiling 侧通过 SetTilingKey 写入，
 // 在 kernel 侧通过 if constexpr 选择对应数据类型的实现。
 // ============================================================================
-template <uint32_t T>
 __global__ __aicore__ void causal_conv1d_fn(
-    GM_ADDR x,
-    GM_ADDR weight,
-    GM_ADDR cacheStates,
-    GM_ADDR cacheIndices,
-    GM_ADDR seqStartIndex,
-    GM_ADDR hasInitialState,
-    GM_ADDR y,
-    GM_ADDR workspace,
-    GM_ADDR tiling)
+    GM_ADDR x,                    // 输入1: x
+    GM_ADDR weight,               // 输入2: weight
+    GM_ADDR convStates,           // 输入3: convStates (cache states)
+    GM_ADDR queryStartLoc,        // 输入4: queryStartLoc (OPTIONAL)
+    GM_ADDR cacheIndices,         // 输入5: cacheIndices (OPTIONAL)
+    GM_ADDR initialStateMode,     // 输入6: initialStateMode (OPTIONAL)
+    GM_ADDR bias,                 // 输入7: bias (OPTIONAL, 暂不使用)
+    GM_ADDR numAcceptedToken,     // 输入8: numAcceptedToken (OPTIONAL, 暂不使用)
+    GM_ADDR y,                    // 输出1: y
+    GM_ADDR convStatesOut,        // 输出2: convStates (与输入3为同一地址，inplace)
+    GM_ADDR workspace,            // workspace
+    GM_ADDR tiling)               // tiling data
 {
     REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
     GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
 
     if (TILING_KEY_IS(TILING_KEY_FN_BF16)) {
         CausalConv1dFn<bfloat16_t> op;
-        op.Init(x, weight, cacheStates, cacheIndices,
-                seqStartIndex, hasInitialState, y, workspace, &tilingData);
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
+                initialStateMode, y, workspace, &tilingData);
         op.Process();
     }
 
     if (TILING_KEY_IS(TILING_KEY_FN_FP16))  {
         CausalConv1dFn<half> op;
-        op.Init(x, weight, cacheStates, cacheIndices,
-                seqStartIndex, hasInitialState, y, workspace, &tilingData);
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices,
+                initialStateMode, y, workspace, &tilingData);
         op.Process();
     }
 }

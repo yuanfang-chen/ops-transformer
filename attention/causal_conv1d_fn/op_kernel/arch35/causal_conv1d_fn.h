@@ -61,10 +61,10 @@ public:
     __aicore__ inline void Init(
         GM_ADDR x,
         GM_ADDR weight,
-        GM_ADDR cacheStates,
+        GM_ADDR convStates,
+        GM_ADDR queryStartLoc,
         GM_ADDR cacheIndices,
-        GM_ADDR seqStartIndex,
-        GM_ADDR hasInitialState,
+        GM_ADDR initialStateMode,
         GM_ADDR y,
         GM_ADDR workspace,
         const CausalConv1dFnTilingData* tiling);
@@ -191,8 +191,8 @@ private:
     GlobalTensor<T>       xGM_;
     GlobalTensor<T>       weightGM_;
     GlobalTensor<T>       cacheStatesGM_;
-    GlobalTensor<int64_t> cacheIndicesGM_;
-    GlobalTensor<int64_t> seqStartIndexGM_;
+    GlobalTensor<int32_t> cacheIndicesGM_;
+    GlobalTensor<int32_t> seqStartIndexGM_;
     GlobalTensor<int32_t> hasInitialStateGM_;   // 0: 用0填充cache计算, 1: 使用cache, 2: 前K-1个置0
     GlobalTensor<T>       yGM_;
     GlobalTensor<T>       workspaceGM_;         // 临时存放待更新的 cache rows
@@ -217,8 +217,8 @@ private:
     TQueBind<TPosition::VECIN, TPosition::VECOUT, 1> xQueue_;  // x 搬入(VECIN)，y 搬出(VECOUT)
 
     // 从队列 DeQue 后持久持有的 meta 数据（在 Process 期间一直有效）
-    LocalTensor<int64_t> seqStartLocal_;
-    LocalTensor<int64_t> cacheIdxLocal_;
+    LocalTensor<int32_t> seqStartLocal_;
+    LocalTensor<int32_t> cacheIdxLocal_;
     LocalTensor<int32_t> hasInitLocal_;
 
     // -------------------------------------------------------------------------
@@ -238,10 +238,10 @@ template <typename T>
 __aicore__ inline void CausalConv1dFn<T>::Init(
     GM_ADDR x,
     GM_ADDR weight,
-    GM_ADDR cacheStates,
+    GM_ADDR convStates,
+    GM_ADDR queryStartLoc,
     GM_ADDR cacheIndices,
-    GM_ADDR seqStartIndex,
-    GM_ADDR hasInitialState,
+    GM_ADDR initialStateMode,
     GM_ADDR y,
     GM_ADDR workspace,
     const CausalConv1dFnTilingData* tiling)
@@ -297,10 +297,10 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
     // xGM_ 从 validSeqStart_ 开始，这样 bsStart=0 对应有效序列的起始位置
     xGM_.SetGlobalBuffer((__gm__ T*)x + validSeqStart_ * xStride_, validSeqLen_ * dim_);
     weightGM_.SetGlobalBuffer((__gm__ T*)weight, kernelWidth_ * dim_);
-    cacheStatesGM_.SetGlobalBuffer((__gm__ T*)cacheStates);
-    cacheIndicesGM_.SetGlobalBuffer((__gm__ int64_t*)cacheIndices, batchSize_);
-    seqStartIndexGM_.SetGlobalBuffer((__gm__ int64_t*)seqStartIndex, batchSize_ + 1);
-    hasInitialStateGM_.SetGlobalBuffer((__gm__ int32_t*)hasInitialState, batchSize_);
+    cacheStatesGM_.SetGlobalBuffer((__gm__ T*)convStates);
+    cacheIndicesGM_.SetGlobalBuffer((__gm__ int32_t*)cacheIndices, batchSize_);
+    seqStartIndexGM_.SetGlobalBuffer((__gm__ int32_t*)queryStartLoc, batchSize_ + 1);
+    hasInitialStateGM_.SetGlobalBuffer((__gm__ int32_t*)initialStateMode, batchSize_);
     yGM_.SetGlobalBuffer((__gm__ T*)y, cuSeqLen_ * dim_);
     if (workspace != nullptr) {
         GM_ADDR userWS = GetUserWorkspace(workspace);
@@ -314,8 +314,8 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
 
     uint32_t weightBufBytes  = AlignUp(K * maxUbDim_ * sizeof(T),       ALIGN_BYTES);
     uint32_t cacheBufBytes   = AlignUp((K - 1) * maxUbDim_ * sizeof(T), ALIGN_BYTES);
-    uint32_t startLocBytes   = AlignUp((batchSize_ + 1) * sizeof(int64_t), ALIGN_BYTES);
-    uint32_t indicesBytes    = AlignUp(batchSize_ * sizeof(int64_t),       ALIGN_BYTES);
+    uint32_t startLocBytes   = AlignUp((batchSize_ + 1) * sizeof(int32_t), ALIGN_BYTES);
+    uint32_t indicesBytes    = AlignUp(batchSize_ * sizeof(int32_t),       ALIGN_BYTES);
     uint32_t hasInitBytes    = AlignUp(batchSize_ * sizeof(int32_t),       ALIGN_BYTES);
     uint32_t xBufBytes       = AlignUp(maxUbBS_ * maxUbDim_ * sizeof(T),  ALIGN_BYTES);
 
@@ -334,25 +334,25 @@ __aicore__ inline void CausalConv1dFn<T>::Init(
 template <typename T>
 __aicore__ inline void CausalConv1dFn<T>::LoadMetaData()
 {
-    // seqStartIndex
+    // seqStartIndex (queryStartLoc)
     {
-        LocalTensor<int64_t> tmp = startLocInQueue_.AllocTensor<int64_t>();
-        DataCopyExtParams cpParams{1, static_cast<uint16_t>((batchSize_ + 1) * sizeof(int64_t)), 0, 0, 0};
-        DataCopyPadExtParams<int64_t> padParams{false, 0, 0, 0};
+        LocalTensor<int32_t> tmp = startLocInQueue_.AllocTensor<int32_t>();
+        DataCopyExtParams cpParams{1, static_cast<uint16_t>((batchSize_ + 1) * sizeof(int32_t)), 0, 0, 0};
+        DataCopyPadExtParams<int32_t> padParams{false, 0, 0, 0};
         DataCopyPad(tmp, seqStartIndexGM_[0], cpParams, padParams);
         startLocInQueue_.EnQue(tmp);
-        seqStartLocal_ = startLocInQueue_.DeQue<int64_t>();
+        seqStartLocal_ = startLocInQueue_.DeQue<int32_t>();
     }
     // cacheIndices
     {
-        LocalTensor<int64_t> tmp = indicesInQueue_.AllocTensor<int64_t>();
-        DataCopyExtParams cpParams{1, static_cast<uint16_t>(batchSize_ * sizeof(int64_t)), 0, 0, 0};
-        DataCopyPadExtParams<int64_t> padParams{false, 0, 0, 0};
+        LocalTensor<int32_t> tmp = indicesInQueue_.AllocTensor<int32_t>();
+        DataCopyExtParams cpParams{1, static_cast<uint16_t>(batchSize_ * sizeof(int32_t)), 0, 0, 0};
+        DataCopyPadExtParams<int32_t> padParams{false, 0, 0, 0};
         DataCopyPad(tmp, cacheIndicesGM_[0], cpParams, padParams);
         indicesInQueue_.EnQue(tmp);
-        cacheIdxLocal_ = indicesInQueue_.DeQue<int64_t>();
+        cacheIdxLocal_ = indicesInQueue_.DeQue<int32_t>();
     }
-    // hasInitialState
+    // hasInitialState (initialStateMode)
     {
         LocalTensor<int32_t> tmp = hasInitInQueue_.AllocTensor<int32_t>();
         DataCopyExtParams cpParams{1, static_cast<uint16_t>(batchSize_ * sizeof(int32_t)), 0, 0, 0};
@@ -520,8 +520,11 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNeedCache(
             uint32_t seqPos = curSequenceIdx + j;
             uint32_t stateSLen = K - 1 - seqPos;
             uint32_t xSLen = seqPos + 1;
-            Conv1dNeedState(xLocal[i * dimSize], weightLocal, cacheLocal[seqPos * dimSize],
-                            cacheLocal[seqPos * dimSize], stateSLen, xSLen, dimSize);
+            // Conv1dNeedState(xLocal[i * dimSize], weightLocal, cacheLocal[seqPos * dimSize],
+            //                 cacheLocal[seqPos * dimSize], stateSLen, xSLen, dimSize);
+            LocalTensor<T> xSlice = xLocal[i * dimSize];
+            LocalTensor<T> stateSlice = cacheLocal[seqPos * dimSize];
+            Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSize);
         }
     }
 
@@ -563,8 +566,10 @@ __aicore__ inline uint16_t CausalConv1dFn<T>::ProcessTokensNoCache(
     // 卷积计算
     for (uint32_t j = 0; j < step; j++) {
         uint32_t tokenIdx = i + j;
-        Conv1dNoNeedStateVF(xLocal[tokenIdx * dimSize], weightLocal,
-                            xLocal[tokenIdx * dimSize], K, dimSize);
+        // Conv1dNoNeedStateVF(xLocal[tokenIdx * dimSize], weightLocal,
+        //                     xLocal[tokenIdx * dimSize], K, dimSize);
+        LocalTensor<T> xSlice = xLocal[tokenIdx * dimSize];
+        Conv1dNoNeedState(xSlice, weightLocal, xSlice, K, dimSize);
     }
 
     // 写回 y
