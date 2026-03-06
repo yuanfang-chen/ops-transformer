@@ -278,6 +278,7 @@ protected:
                     uint64_t aivNum = GetBlockNum() * GetTaskRation();
                     // DataCopy
                     SyncAll();
+                    tPipe_->Reset();
                     dataCopy_.Init(cgmLen_ + cgmPadLen_, aivNum, allgatherOutGM_, addrs_->outputGM, tPipe_);
                     dataCopy_.Process();
                     SyncAll();
