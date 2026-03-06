@@ -14,10 +14,10 @@ constexpr uint32_t SOFTMAX_DEFAULT_BLK_SIZE = 32;
 //constexpr uint8_t SOFTMAXGRAD_COMPUTE_DIM = 3;
 const int32_t ONE_REPEAT_BYTE_SIZE = 256;
 //constexpr uint8_t SOFTMAX_BASIC_TILE_NUM = 8;
-const int32_t DEFAULT_BLOCK_SIZE = 256;
-const uint8_t B16_BYTE_SIZE = 2;
-const uint8_t B32_BYTE_SIZE = 4;
-const int32_t DEFAULT_C0_SIZE = 32;
+//const int32_t DEFAULT_BLOCK_SIZE = 256;
+//const uint8_t B16_BYTE_SIZE = 2;
+//const uint8_t B32_BYTE_SIZE = 4;
+//const int32_t DEFAULT_C0_SIZE = 32;
 
 /*!
  * \ingroup SoftmaxGradFront
