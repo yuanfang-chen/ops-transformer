@@ -20,8 +20,9 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 
 namespace ChunkGatedDeltaRule {
+
     #pragma pack(push, 8)
-    struct alignas(8) ChunkGatedDeltaRuleTilingData { 
+    struct alignas(8) ChunkGatedDeltaRuleTilingData {
         int64_t aiCoreNum;
         int64_t t;
         int64_t nk;
@@ -35,6 +36,8 @@ namespace ChunkGatedDeltaRule {
         int64_t interWorkspaceSz;
         int64_t stageWorkspaceSz;
         float scale;
+        AscendC::tiling::TCubeTiling matmulTilingFp32;  // for MT_FP32: fp32 -> fp32
+        AscendC::tiling::TCubeTiling matmulTilingBf16;  // for MT_BF16: fp32 -> bf16
     };
     #pragma pack(pop)
 

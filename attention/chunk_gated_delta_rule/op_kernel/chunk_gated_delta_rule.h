@@ -20,11 +20,12 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "lib/matmul_intf.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
+#include "chunk_gated_delta_rule_stage1.h"
 
 namespace ChunkGatedDeltaRule {
-    
+
 using namespace AscendC;
-    
+
 constexpr int32_t BUFFER_NUM = 2;
 
 struct CGDRInitParams {
@@ -48,6 +49,15 @@ public:
         pipe_ = pipe;
         tiling_ = tilingData;
     };
+
+    __aicore__ inline void InitMatmul()
+    {
+        if ASCEND_IS_AIC {
+            // 使用 tiling 中的 matmul tiling 数据初始化
+            mmFp32_.Init(&tiling_->matmulTilingFp32, pipe_);
+            mmBf16_.Init(&tiling_->matmulTilingBf16, pipe_);
+        }
+    }
 
     __aicore__ inline void Init(const CGDRInitParams &initParams, GM_ADDR user)
     {
@@ -97,6 +107,7 @@ public:
         offset += sizeof(highType) * tiling_->nv * tiling_->maxGroupLength * tiling_->chunkSize;
 
         stageWsAddr_ = user + offset;
+        InitMatmul();
     }
 
     __aicore__ inline void Process()
@@ -107,6 +118,7 @@ public:
         cg.chunkSize = tiling_->chunkSize;
         for (int64_t bid = 0; bid < tiling_->b; bid++) {
             int32_t length = actualSeqLens_.GetValue(bid);
+            seqStart = seqEnd;
             seqEnd = seqStart + (int64_t)length;
             GlobalTensor<lowType> curInitState = initState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
             GlobalTensor<lowType> curFinalState = finalState_[bid * tiling_->nv * tiling_->dv * tiling_->dk];
@@ -118,7 +130,6 @@ public:
                 } else {
                     cg.length = tiling_->maxGroupLength;
                 }
-
                 // compute this chunk group
                 stage1(cg);
                 SyncAll<false>();
@@ -139,6 +150,12 @@ private:
     __aicore__ inline void stage1(const ChunkGroup& cg)
     {
         // todo: stage1, release ub resource after computing
+        GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
+                                                  gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, cg};
+        GDRStageOne stageOneOp(mmFp32_, mmBf16_);
+        stageOneOp.Init(initStageOneParams, pipe_, tiling_);
+        stageOneOp.Process();
+        pipe_->Reset();
     }
 
     __aicore__ inline void stage2(
@@ -177,6 +194,10 @@ private:
     GlobalTensor<highType> kg_;           // (Nv, maxGroupLength, Dk)
     GlobalTensor<highType> qkt_;          // (Nv, maxGroupLength, C)
     GM_ADDR stageWsAddr_;                 // temporary space addr for stages
+
+    // Matmul objects
+    MT_FP32 mmFp32_;
+    MT_BF16 mmBf16_;
 
 };
 

@@ -48,6 +48,11 @@ namespace optiling {
     // 固定系统 workspace 大小（16 MB）
     constexpr int64_t SYS_WORKSPACE_SIZE = 16777216;
 
+    // Matmul tiling 相关常量
+    constexpr uint32_t MATMUL_BASE_M = 128;
+    constexpr uint32_t MATMUL_BASE_K = 128;
+    constexpr uint32_t MATMUL_BASE_N = 256;
+
     // 初始化编译信息：读取平台信息，获取 aivNum/ubSize，并写入 tilingData_ 的 core 数
     void ChunkGatedDeltaRuleTiling::InitCompileInfo() {
         auto platformInfoPtr = context_->GetPlatformInfo();
@@ -116,15 +121,85 @@ namespace optiling {
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * dk;  // kg
         tilingData_.interWorkspaceSz += sizeHigh * nv * s * tilingData_.chunkSize;  // qkt
 
-        tilingData_.stageWorkspaceSz = sizeHigh * c * (3 * c + dk + dv);  // stage1需要3份(c, c)的临时变量
+        tilingData_.stageWorkspaceSz = sizeHigh * c * (2 * c + 3 * dk + dv);  // stage1临时变量
         tilingData_.stageWorkspaceSz *= tilingData_.aiCoreNum;
 
         PrintTilingData();
         return ge::GRAPH_SUCCESS;
     }
 
+    ge::graphStatus ChunkGatedDeltaRuleTiling::DoMatmulTiling() {
+        // 获取 matmul 相关的 shape 信息
+        // stage1 中的 matmul 主要是 (c, c) 和 (c, dk/dv) 的形状
+        int64_t c = tilingData_.chunkSize;   // chunk size
+        int64_t dk = tilingData_.dk;
+        int64_t dv = tilingData_.dv;
+
+        // 计算 baseM, baseN, baseK
+        uint32_t baseM = MATMUL_BASE_M;
+        uint32_t baseK = MATMUL_BASE_K;
+        uint32_t baseN = MATMUL_BASE_N;
+
+        // ========== MT_FP32: FP32 -> FP32 ==========
+        // 直接设置 tilingData_.matmulTilingFp32 的各个字段
+        tilingData_.matmulTilingFp32.usedCoreNum = static_cast<uint32_t>(compileInfo_.aicNum);
+        tilingData_.matmulTilingFp32.singleCoreM = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingFp32.singleCoreN = static_cast<uint32_t>(baseN);
+        tilingData_.matmulTilingFp32.singleCoreK = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingFp32.baseM = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingFp32.baseN = static_cast<uint32_t>(baseN);
+        tilingData_.matmulTilingFp32.baseK = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingFp32.depthA1 = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.depthB1 = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.stepM = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.stepN = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.stepKa = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.stepKb = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.iterateOrder = static_cast<uint32_t>(0);
+        tilingData_.matmulTilingFp32.dbL0C = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingFp32.M = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingFp32.N = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingFp32.Ka = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingFp32.Kb = static_cast<uint32_t>(baseK);
+
+        OP_LOGD(context_->GetNodeName(), "MT_FP32 tiling: baseM=%u, baseN=%u, baseK=%u", baseM, baseN, baseK);
+
+        // ========== MT_BF16: FP32 -> BF16 ==========
+        // 直接设置 tilingData_.matmulTilingBf16 的各个字段
+        tilingData_.matmulTilingBf16.usedCoreNum = static_cast<uint32_t>(compileInfo_.aicNum);
+        tilingData_.matmulTilingBf16.singleCoreM = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingBf16.singleCoreN = static_cast<uint32_t>(baseN);
+        tilingData_.matmulTilingBf16.singleCoreK = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingBf16.baseM = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingBf16.baseN = static_cast<uint32_t>(baseN);
+        tilingData_.matmulTilingBf16.baseK = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingBf16.depthA1 = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.depthB1 = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.stepM = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.stepN = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.stepKa = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.stepKb = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.iterateOrder = static_cast<uint32_t>(0);
+        tilingData_.matmulTilingBf16.dbL0C = static_cast<uint32_t>(1);
+        tilingData_.matmulTilingBf16.M = static_cast<uint32_t>(baseM);
+        tilingData_.matmulTilingBf16.N = static_cast<uint32_t>(baseN);
+        tilingData_.matmulTilingBf16.Ka = static_cast<uint32_t>(baseK);
+        tilingData_.matmulTilingBf16.Kb = static_cast<uint32_t>(baseK);
+
+        OP_LOGD(context_->GetNodeName(), "MT_BF16 tiling: baseM=%u, baseN=%u, baseK=%u", baseM, baseN, baseK);
+
+        return ge::GRAPH_SUCCESS;
+    }
+
     ge::graphStatus ChunkGatedDeltaRuleTiling::DoLibApiTiling() {
         tilingKey_ = 0;
+
+        // 执行 matmul tiling
+        if (DoMatmulTiling() != ge::GRAPH_SUCCESS) {
+            OP_LOGE(context_->GetNodeName(), "DoMatmulTiling failed");
+            return ge::GRAPH_FAILED;
+        }
+
         return ge::GRAPH_SUCCESS;
     };
 
