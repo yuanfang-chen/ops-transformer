@@ -12,7 +12,7 @@
 #define CHECKER_H
 
 #include "aclnn/aclnn_base.h"
-#include "aclnn_util.h"
+##include "common/op_tiling/aclnn_util.h"
 #include "hccl/hccl_types.h"
 
 // 量化与非量化共用的方法和常量、枚举值
