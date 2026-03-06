@@ -11,6 +11,7 @@
 #ifndef OP_HOST_OP_API_ACLNN_GROUPED_MATMUL_SWIGLU_QUANT_UTILS_H
 #define OP_HOST_OP_API_ACLNN_GROUPED_MATMUL_SWIGLU_QUANT_UTILS_H
 
+
 #include "aclnn_kernels/contiguous.h"
 #include "acl/acl.h"
 #include "aclnn/aclnn_base.h"
