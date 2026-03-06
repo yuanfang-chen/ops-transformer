@@ -507,7 +507,7 @@ ge::graphStatus QLIInfoParser::GetBatchSize()
         GetActualSeqLenSize(bSizeKey, opParamInfo_.actualSeqLengthsK.tensor, "input actual_seq_lengths_key");
         if (kLayout_ == DataLayout::TND) {
             OP_CHECK_IF(bSizeQuery != bSizeKey,
-                OP_LOGE(opName_, "the lengths of actual_seq_lengths_query is %u, %u respectively, they must be same.",
+                OP_LOGE(opName_, "the lengths of actual_seq_lengths_query and actual_seq_lengths_key is %u, %u respectively, they must be same.",
                         bSizeQuery, bSizeKey),
                 return ge::GRAPH_FAILED);
             bSize_ = bSizeQuery;
@@ -515,6 +515,10 @@ ge::graphStatus QLIInfoParser::GetBatchSize()
             if (bSizeQuery == bSizeKey + 1) {
                 batchSupperFlag_ = true;
             }
+            OP_CHECK_IF((bSizeQuery != bSizeKey) && !batchSupperFlag_,
+                OP_LOGE(opName_, "the lengths of actual_seq_lengths_query and actual_seq_lengths_key is %u, %u respectively, they must be same.",
+                        bSizeQuery, bSizeKey),
+                return ge::GRAPH_FAILED);
             bSize_ = bSizeKey; // Q为TND，batch从Key中获取
         }
         return ge::GRAPH_SUCCESS;

@@ -218,8 +218,6 @@ __aicore__ inline uint32_t QLIPreload<QLIT>::GetActualSeqLen(uint32_t bIdx, uint
         return defaultSeqLen;
     } else if (isAccumSeq && bIdx > 0) {
         return actualSeqLengthsGm.GetValue(bIdx) - actualSeqLengthsGm.GetValue(bIdx - 1);
-    // } else if (constInfo.batchSupperFlag) {
- 	//     return actualSeqLengthsGm.GetValue(bIdx + 1) - actualSeqLengthsGm.GetValue(bIdx);
     } else {
         return actualSeqLengthsGm.GetValue(bIdx);
     }
