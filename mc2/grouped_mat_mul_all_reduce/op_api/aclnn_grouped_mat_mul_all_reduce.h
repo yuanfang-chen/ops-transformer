@@ -15,7 +15,7 @@
 #ifndef OP_API_INC_GROUPED_MATMUL_ALL_REDUCE_H_
 #define OP_API_INC_GROUPED_MATMUL_ALL_REDUCE_H_
 #include "aclnn/aclnn_base.h"
-#include "common/op_tiling/aclnn_util.h"
+#include "aclnn_util.h"
 #include "hccl/hccl_types.h"
 
 #ifdef __cplusplus

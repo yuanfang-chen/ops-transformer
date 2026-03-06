@@ -12,7 +12,7 @@
 #define OP_API_INC_ROPE_WITH_SIN_COS_CACHE_V2_H_
 
 #include "aclnn/aclnn_base.h"
-#include "common/op_tiling/aclnn_util.h"
+#include "aclnn_util.h"
 
 #ifdef __cplusplus
 extern "C" {

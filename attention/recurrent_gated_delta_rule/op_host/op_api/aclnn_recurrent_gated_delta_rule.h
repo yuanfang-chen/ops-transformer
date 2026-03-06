@@ -12,7 +12,7 @@
 #define OP_API_ACLNN_RECURRENT_GETED_DELTA_RULE_H
 
 #include "aclnn/aclnn_base.h"
-#include "common/op_tiling/aclnn_util.h"
+#include "aclnn_util.h"
 
 #ifdef __cplusplus
 extern "C" {

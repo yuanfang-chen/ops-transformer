@@ -11,7 +11,7 @@
 #define OP_API_INC_APPLY_ROTARY_POS_EMB_V2_H_
 
 #include "aclnn/aclnn_base.h"
-#include "common/op_tiling/aclnn_util.h"
+#include "aclnn_util.h"
 
 #ifdef __cplusplus
 extern "C" {
