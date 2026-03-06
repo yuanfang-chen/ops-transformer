@@ -301,7 +301,7 @@ aclnnStatus aclnnGroupedMatmulV3(
       <td>若bias不为空，bias的长度不等于weight的长度。</td>
     </tr>
     <tr>
-      <td>groupListOptional维度为1。</td>
+      <td>groupListOptional维度不在支持范围内（如维度不为1）。</td>
     </tr>
     <tr>
       <td>splitItem为2、3的场景，out长度不等于1。</td>
@@ -366,7 +366,6 @@ aclnnStatus aclnnGroupedMatmulV3(
     - x为BFLOAT16、weight为BFLOAT16、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为BFLOAT16；
     - x为FLOAT32、weight为FLOAT32、biasOptional为FLOAT32、scaleOptional为空、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为FLOAT32（仅x、weight、y都为单tensor场景支持）；
   - 量化场景支持的输入类型为：
-
     - x为INT8、weight为INT8、biasOptional为INT32、scaleOptional为UINT64、offsetOptional为空、antiquantScaleOptional为空、antiquantOffsetOptional为空、y为INT8；
   - 伪量化场景支持的输入类型为：
     - x为FLOAT16、weight为INT8、biasOptional为FLOAT16、scaleOptional为空，offsetOptional为空，antiquantScaleOptional为FLOAT16、antiquantOffsetOptional为FLOAT16、y为FLOAT16；
