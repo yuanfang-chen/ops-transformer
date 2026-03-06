@@ -352,6 +352,7 @@ function(gen_onnx_plugin_symbol)
             -Wl,--whole-archive
             rt2_registry_static
             -Wl,--no-whole-archive
+            $<$<CONFIG:Release>:-s>
     )
 
   target_link_directories(${ONNX_PLUGIN_NAME} PRIVATE ${ASCEND_DIR}/${SYSTEM_PREFIX}/lib64)
