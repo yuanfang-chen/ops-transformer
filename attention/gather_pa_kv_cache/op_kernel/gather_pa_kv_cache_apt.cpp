@@ -24,28 +24,36 @@
 #define TILING_KEY_1001 1001
 #define TILING_KEY_1000 1000
 
+template <bool B, class T, class F>
+struct Conditional {
+    typedef T type;
+};
+
+template <class T, class F>
+struct Conditional<false, T, F> {
+    typedef F type;
+};
+
 extern "C" __global__ __aicore__ void gather_pa_kv_cache(GM_ADDR key_cache, GM_ADDR value_cache,
                                                          GM_ADDR block_tables, GM_ADDR seq_lens,
                                                          GM_ADDR key_in, GM_ADDR value_in, GM_ADDR seq_offset,
                                                          GM_ADDR key_out, GM_ADDR value_out,
                                                          GM_ADDR workspace, GM_ADDR tiling)
 {
+    using T_KEY = Conditional<AscendC::IsSameType<DTYPE_KEY_CACHE, fp8_e4m3fn_t>::value ||
+        AscendC::IsSameType<DTYPE_KEY_CACHE, fp8_e5m2_t>::value ||
+        AscendC::IsSameType<DTYPE_KEY_CACHE, hifloat8_t>::value, uint8_t, DTYPE_KEY_CACHE>::type;
+    using T_VALUE = Conditional<AscendC::IsSameType<DTYPE_VALUE_CACHE, fp8_e4m3fn_t>::value ||
+        AscendC::IsSameType<DTYPE_VALUE_CACHE, fp8_e5m2_t>::value ||
+        AscendC::IsSameType<DTYPE_VALUE_CACHE, hifloat8_t>::value, uint8_t, DTYPE_VALUE_CACHE>::type;
 // 宏封装，简化分支代码
 // B8几种类型编译DataCopyPad报错，用uint8_t代替规避
 #define TILING_KEY_BRANCH(tilingKey, isCacheModeNorm, isSeqLenCumSum, hasSeqOffset) {                                                           \
     if (TILING_KEY_IS(tilingKey)) {                                                                                                             \
         if constexpr (isCacheModeNorm == true) {                                                                                                \
-            if constexpr (AscendC::IsSameType<DTYPE_KEY_CACHE, hifloat8_t>::value ||                                                            \
-                          AscendC::IsSameType<DTYPE_KEY_CACHE, fp8_e5m2_t>::value ||                                                            \
-                          AscendC::IsSameType<DTYPE_KEY_CACHE, fp8_e4m3fn_t>::value) {                                                          \
-                GatherPaKvCacheV35::GatherPaKvCacheNd<uint8_t, DTYPE_SEQ_LENS, isSeqLenCumSum, hasSeqOffset> op(&pipe, &tilingData);            \
-                op.Init(key_cache, value_cache, block_tables, seq_lens, key_in, value_in, seq_offset, key_out, value_out);                      \
-                op.Process();                                                                                                                   \
-            } else {                                                                                                                            \
-                GatherPaKvCacheV35::GatherPaKvCacheNd<DTYPE_KEY_CACHE, DTYPE_SEQ_LENS, isSeqLenCumSum, hasSeqOffset> op(&pipe, &tilingData);    \
-                op.Init(key_cache, value_cache, block_tables, seq_lens, key_in, value_in, seq_offset, key_out, value_out);                      \
-                op.Process();                                                                                                                   \
-            }                                                                                                                                   \
+            GatherPaKvCacheV35::GatherPaKvCacheNd<T_KEY, T_VALUE, DTYPE_SEQ_LENS, isSeqLenCumSum, hasSeqOffset> op(&pipe, &tilingData);         \
+            op.Init(key_cache, value_cache, block_tables, seq_lens, key_in, value_in, seq_offset, key_out, value_out);                          \
+            op.Process();                                                                                                                       \
         } else {                                                                                                                                \
             if constexpr (AscendC::IsSameType<DTYPE_KEY_CACHE, hifloat8_t>::value ||                                                            \
                           AscendC::IsSameType<DTYPE_KEY_CACHE, fp8_e5m2_t>::value ||                                                            \
