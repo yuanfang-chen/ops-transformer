@@ -122,8 +122,17 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
         return false;
     }
     // layout_kv 校验
-    if (layoutKv_ != "PA_ND") {
-        KERNEL_LOG_ERROR("layout_kv must be PA_ND!");
+    if (layoutKv_ != "PA_ND" && layoutKv_ != "TND" && layoutKv_ != "BSND") {
+        KERNEL_LOG_ERROR("layout_kv must be TND, BSND or PA_ND!");
+        return false;
+    }
+    // layout交叉校验
+    if (layoutQuery_ == "TND" && layoutKv_ == "BSND") {
+        KERNEL_LOG_ERROR("For layout_query TND, layout_key should be PA_BSND/TND");
+        return false;
+    }
+    if (layoutQuery_ == "BSND" && layoutKv_ == "TND") {
+        Kernel_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
         return false;
     }
     return true;
@@ -237,10 +246,20 @@ ValidSocVersion SparseAttnSharedkvMetadataCpuKernel::ProcessSocVersion()
 bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
 {
     batchSize_ = GetQueryBatchSize();
-    sparseMode_ = oriMaskMode_;
-    preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
-    nextToken_ = 0;
-    attentionMode_ = 1;
+    auto mode = static_cast<SparseMode>(oriMaskMode_);
+    if (mode == SparseMode::DEFAULT_MASK) {
+        preToken_ = INT64_MAX;
+        nextToken_ = INT64_MAX;
+        attentionMode_ = 0;
+    } else if (mode == SparseMode::RIGHT_DOWN_CAUSAL) {
+        preToken_ = INT64_MAX;
+        nextToken_ = 0;
+        attentionMode_ = 1;
+    } else {//SparseMode = 4
+        preToken_ = (winLeft_ > -1) ? winLeft_ : INT64_MAX;
+        nextToken_ = 0;
+        attentionMode_ = 1;
+    }
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
     if (hasCmpKv_) {
