@@ -402,6 +402,29 @@ namespace BlockSparse {
                 
                 uint32_t kvHeadIdx = qNBlockIdx / qNBlockNumPerGroup;
                 uint32_t qHeadIdx = kvHeadIdx * groupSize + qNBlockIdxCurGroup * curQNBlockTile;
+                uint64_t gmOffsetQ = 0;
+                uint64_t gmOffsetO = 0;
+                
+                if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
+                    // offset = batch * strideB + head * strideN + seq * strideS
+                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
+                    gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                    gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
+                } else {
+                    // TND: [T, N, D]
+                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
+                    gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                    gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
+                }
+                uint32_t qSBlockSize = (qXIdx == xBlockNum) ? 
+                    (qXInnerIdx == xTailNum / curQSBlockTile ? 
+                        xTailNum - qXInnerIdx * curQSBlockTile : curQSBlockTile) :
+                    ((qXInnerIdx == qBlockInX - 1) ? qBlockX - qXInnerIdx * curQSBlockTile : curQSBlockTile);
+
+                uint32_t qNBlockSize = (qNBlockIdxCurGroup == (qNBlockNumPerGroup - 1)) ?
+                    (groupSize - qNBlockIdxCurGroup * curQNBlockTile) : curQNBlockTile;
+                uint32_t rowNum = qSBlockSize * qNBlockSize;
+                uint32_t rowNumRound = AlignUp<uint32_t>(rowNum, BLOCK_SIZE);
 
 #ifdef __DAV_C220_VEC__
                 uint32_t Gmaskoffset = curBatch * qHeads * maxKvBlockNum * maxQBlockNum 
@@ -421,6 +444,15 @@ namespace BlockSparse {
 #endif
 
 #ifdef __DAV_C220_CUBE__
+                LayoutQ layoutQTemp(rowNum, embed);
+                // Pass correct Q stride based on data format
+                uint64_t qGmStride = 0;
+                if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
+                    qGmStride = strideQOS;  // embed
+                } else {  // TND: [T, N, D]
+                    qGmStride = strideQO;  // qHeads * embed
+                }
+                blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qGmStride);
                 NpuArch::Arch::CrossCoreWaitFlag(masktoidxReady);
 #endif
                 uint32_t pingpong = 0;
@@ -437,22 +469,9 @@ namespace BlockSparse {
                     qBlockY * (curSelectNum - 1) + kvSeqlen % qBlockY : qBlockY * curSelectNum;
                 
                 // Calculate offsets based on layout (compile-time optimization)
-                uint64_t gmOffsetQ = 0;
                 uint64_t gmOffsetK = 0;
                 uint64_t gmOffsetV = 0;
-                uint64_t gmOffsetO = 0;
                 
-                if constexpr (QUERY_LAYOUT == 1) {  // BNSD_Q: [B, N, S, D]
-                    // offset = batch * strideB + head * strideN + seq * strideS
-                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
-                    gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
-                    gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
-                } else {
-                    // TND: [T, N, D]
-                    uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
-                    gmOffsetQ = qBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
-                    gmOffsetO = oBOffset + qSeqOffset * strideQO + qHeadIdx * embed;
-                }
                 
                 if constexpr (KV_CACHE_LAYOUT == 1) {  // BNSD: [B, N, S, D]
                     // offset = batch * strideB + head * strideN
@@ -465,16 +484,6 @@ namespace BlockSparse {
                     gmOffsetV = vBOffset + kvHeadIdx * embed;
                 }
 
-                uint32_t qSBlockSize = (qXIdx == xBlockNum) ? 
-                    (qXInnerIdx == xTailNum / curQSBlockTile ? 
-                        xTailNum - qXInnerIdx * curQSBlockTile : curQSBlockTile) :
-                    ((qXInnerIdx == qBlockInX - 1) ? qBlockX - qXInnerIdx * curQSBlockTile : curQSBlockTile);
-
-                uint32_t qNBlockSize = (qNBlockIdxCurGroup == (qNBlockNumPerGroup - 1)) ?
-                    (groupSize - qNBlockIdxCurGroup * curQNBlockTile) : curQNBlockTile;
-                uint32_t rowNum = qSBlockSize * qNBlockSize;
-                uint32_t rowNumRound = AlignUp<uint32_t>(rowNum, BLOCK_SIZE);
-
                 uint32_t noSkipKvS = curKvSeqLen;
                 uint32_t kvSLoopNumTotal = (noSkipKvS + pagedBlockSize - 1) / pagedBlockSize; // CeilDiv
 
@@ -485,7 +494,6 @@ namespace BlockSparse {
                 int32_t stackSeqCount = 0;
 
 #ifdef __DAV_C220_CUBE__
-                LayoutQ layoutQTemp(rowNum, embed);
                 // For BNSD format, use strideKVS; for TND, use strideKV (compile-time)
                 uint64_t actualStrideKV = 0;
                 if constexpr (KV_CACHE_LAYOUT == 1) {
@@ -495,14 +503,6 @@ namespace BlockSparse {
                 }
                 LayoutK layoutKTemp(actualStrideKV, blockStackNum * pagedBlockSize);
                 LayoutV layoutVTemp(blockStackNum * pagedBlockSize, actualStrideKV);
-                // Pass correct Q stride based on data format
-                uint64_t qGmStride = 0;
-                if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
-                    qGmStride = strideQOS;  // embed
-                } else {  // TND: [T, N, D]
-                    qGmStride = strideQO;  // qHeads * embed
-                }
-                blockMmadQK.loadQGM(gQ[gmOffsetQ], layoutQTemp, rowNum, qNBlockSize, qGmStride);
 #endif
                 // Main computation loop: QK matmul -> Softmax -> PV matmul
                 for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
