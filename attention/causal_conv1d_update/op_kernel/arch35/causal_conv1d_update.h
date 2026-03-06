@@ -82,7 +82,7 @@ public:
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR cacheState,
                                 GM_ADDR cacheIndices, GM_ADDR acceptTokenNum,
                                 GM_ADDR queryStartLoc,
-                                GM_ADDR y, CausalConv1dUpdateTilingData* tilingData);
+                                GM_ADDR y, const CausalConv1dUpdateTilingData* tilingData);
 
     /**
      * @brief 主处理函数，执行双重循环处理所有数据
@@ -219,7 +219,7 @@ template <typename T>
 __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR cacheState,
     GM_ADDR cacheIndices, GM_ADDR acceptTokenNum,
-    GM_ADDR queryStartLoc, GM_ADDR y, CausalConv1dUpdateTilingData* tilingData)
+    GM_ADDR queryStartLoc, GM_ADDR y, const CausalConv1dUpdateTilingData* tilingData)
 {
     // === 1. 获取核间切分参数（二维：Dim方向 × Batch方向） ===
     usedCoreNum_ = tilingData->usedCoreNum;
