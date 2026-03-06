@@ -316,12 +316,12 @@ public:
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     
                     if (qNThisSubBlock == 0U) {
-                        AscendC::DumpTensor(tvUbTensor, 0, totalRowNum);
+                        AscendC::DumpTensor(tvUbTensor, 789, totalRowNum);
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor32,
                             AscendC::DataCopyExtParams(
                                 totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
-                        AscendC::DumpTensor(gLse, 333, totalRowNum);
+                        AscendC::DumpTensor(gLse, 456, totalRowNum);
                     } else {
                         for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                             AscendC::DataCopyPad(
