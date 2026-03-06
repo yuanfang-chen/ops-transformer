@@ -657,7 +657,7 @@ def _format_case_dict(case_name: str, params: Dict[str, object]) -> str:
 
 def _format_enabled_params(case_names: Sequence[str]) -> str:
     names = ", ".join(f'TEST_PARAMS["{name}"]' for name in case_names)
-    return f"ENABLED_PARAMS = [{names}]"
+    return f"FULL_COVERAGE_PARAMS = [{names}]\nENABLED_PARAMS = FULL_COVERAGE_PARAMS"
 
 
 def render_testcases_py(

@@ -296,7 +296,8 @@ TEST_PARAMS = {
     }
 }
 
-ENABLED_PARAMS = [TEST_PARAMS["coverage_case_000"], TEST_PARAMS["coverage_case_001"], TEST_PARAMS["coverage_case_002"], TEST_PARAMS["coverage_case_003"], TEST_PARAMS["coverage_case_004"], TEST_PARAMS["coverage_case_005"], TEST_PARAMS["coverage_case_006"], TEST_PARAMS["coverage_case_007"], TEST_PARAMS["coverage_case_008"], TEST_PARAMS["coverage_case_009"]]
+FULL_COVERAGE_PARAMS = [TEST_PARAMS["coverage_case_000"], TEST_PARAMS["coverage_case_001"], TEST_PARAMS["coverage_case_002"], TEST_PARAMS["coverage_case_003"], TEST_PARAMS["coverage_case_004"], TEST_PARAMS["coverage_case_005"], TEST_PARAMS["coverage_case_006"], TEST_PARAMS["coverage_case_007"], TEST_PARAMS["coverage_case_008"], TEST_PARAMS["coverage_case_009"]]
+ENABLED_PARAMS = FULL_COVERAGE_PARAMS
 
 FUZZ_PARAM_SPACE = {
     'batch_size': [1, 2, 4, 6, 8, 9, 12, 16],
