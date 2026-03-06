@@ -7,13 +7,13 @@
 
 #endif //OPS_TRANSFORMER_SFMG_FLASH_ATTENTION_GRAD_CUSTOM_SFMG_H
 
-constexpr uint32_t ONE_BLK_SIZE = 32;
+//constexpr uint32_t ONE_BLK_SIZE = 32;
 constexpr uint32_t SOFTMAX_DEFAULT_BLK_SIZE = 32;
-const int32_t ONE_BYTE_BIT_SIZE = 8;
-constexpr uint8_t SOFTMAX_COMPUTE_DIM = 2;
-constexpr uint8_t SOFTMAXGRAD_COMPUTE_DIM = 3;
+//const int32_t ONE_BYTE_BIT_SIZE = 8;
+//constexpr uint8_t SOFTMAX_COMPUTE_DIM = 2;
+//constexpr uint8_t SOFTMAXGRAD_COMPUTE_DIM = 3;
 const int32_t ONE_REPEAT_BYTE_SIZE = 256;
-constexpr uint8_t SOFTMAX_BASIC_TILE_NUM = 8;
+//constexpr uint8_t SOFTMAX_BASIC_TILE_NUM = 8;
 const int32_t DEFAULT_BLOCK_SIZE = 256;
 const uint8_t B16_BYTE_SIZE = 2;
 const uint8_t B32_BYTE_SIZE = 4;
