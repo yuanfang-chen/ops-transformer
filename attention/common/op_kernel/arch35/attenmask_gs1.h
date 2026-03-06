@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file attenmask.h
+ * \file attenmask_gs1.h
  * \brief
  */
 
