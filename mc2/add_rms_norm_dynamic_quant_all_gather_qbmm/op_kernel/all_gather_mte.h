@@ -71,11 +71,16 @@ private:
     uint32_t kCnt_{0};
     uint64_t xInQueueSize_{0};
     int32_t mStartIndex_{0};
+    int32_t kStartIndex_{0};
     int32_t mEndIndex_{0};
     uint32_t mStartFlagCount_{0};
     uint32_t mEndFlagCount_{0};
     uint32_t singleCoreM_{0};
     uint32_t mLoop_{0};
+    uint32_t mBlockIdx_{0};
+    uint32_t kBlockIdx_{0};
+    uint32_t mMteCoreM_{0};
+    uint32_t kMteCoreK_{0};
 
     DataCopyExtParams dataCopyParamsIn_;
     DataCopyExtParams dataCopyParamsOut_;
@@ -156,22 +161,28 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     uint32_t modCoreIndex = mteComm_.aivId_ % sendCoreNumPerRank_;
     uint32_t curBlockIndex = modCoreIndex * mteComm_.round_ + \
                              (modCoreIndex < mteComm_.tailBlockNums_ ? modCoreIndex : mteComm_.tailBlockNums_);
-    int32_t mDim = CeilDiv(M_ * rankSize, singleCoreM);
-    // task 先不在内部按M方向分，后续做成全均匀
+    
+    // 按k方向切分成dim2
+    uint32_t kDim = 2;
+    uint32_t mDim = sendCoreNumPerRank_ / kDim;
     remoteRankId_ = mteComm_.aivId_ / sendCoreNumPerRank_;
-    mStartIndex_ = remoteRankId_ * M_ /singleCoreM;
-    mEndIndex_ = ((remoteRankId_ + 1) * M_ - 1) / singleCoreM;
-    mLoop_ = mEndIndex_ - mStartIndex_ + 1;
-    uint64_t curSplitMIndex = CeilAlignU64(remoteRankId_ * M_, singleCoreM);
-    if (curSplitMIndex == 0) {
-        curSplitMIndex = singleCoreM;
-    }
-    mStartFlagCount_ = (curSplitMIndex - remoteRankId_ * M_) < M_ ? (curSplitMIndex - remoteRankId_ * M_) : M_;
-    if (mLoop_ > 1) {
-        mEndFlagCount_ = M_ - (mStartFlagCount_ + (mLoop_ - 2) * singleCoreM);
-    }
+    // task 先按 mDim 为3份调整，innerLoop 再做循环调整
+    mBlockIdx_ = modCoreIndex % mDim;
+    kBlockIdx_ = modCoreIndex % kDim;
+    mMteCoreM_ = M_ / mDim;
+    kMteCoreK_ = K_ / kDim;
     singleCoreM_ = singleCoreM;
-    mCnt_ = 1;
+    uint32_t mTailNum = M_ % mDim;
+    uint32_t coreInnerMIndex = 0;
+    if (modCoreIndex < mTailNum) {
+        mMteCoreM_ += 1;
+        coreInnerMIndex = mBlockIdx_ * mMteCoreM_;
+    } else {
+        coreInnerMIndex = mBlockIdx_ * mMteCoreM_ + mTailNum;
+    }
+    mStartIndex_ = coreInnerMIndex + remoteRankId_ * M_;
+    kStartIndex_ = kBlockIdx_ * X_PER_BLOCK_NUM;
+    mEndIndex_ = mStartIndex_ + mMteCoreM_;
     kCnt_ = tileK_;
 }
 
@@ -193,6 +204,11 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::WaitRemoteFlag()
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64_t curXOffset, uint32_t mCnt)
 {
+    if constexpr (!isOptionalOutput) {
+        if (remoteRankId_ == mteComm_.hcclContext_->localUsrRankId) {
+            return;
+        }
+    }
     LocalTensor<int8_t> xTmpTensor = xInQueue_.AllocTensor<int8_t>();
     dataCopyParamsIn_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, K_ - X_PER_BLOCK_NUM, 0, 0};
     dataCopyParamsOut_ = {static_cast<uint16_t>(mCnt), X_PER_BLOCK_NUM, 0, K_ - X_PER_BLOCK_NUM, 0};
@@ -211,6 +227,11 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadDataBlock(uint64
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ReadScales()
 {
+    if constexpr (!isOptionalOutput) {
+        if (remoteRankId_ == mteComm_.hcclContext_->localUsrRankId) {
+            return;
+        }
+    }
     LocalTensor<ScalesType> scaleTmpTensor = scaleInQue.AllocTensor<ScalesType>();
     DataCopyPad(scaleTmpTensor, remoteWinScaleTensor_, scalesCopyParams_, scalesCopyPadParams_);
     scaleInQue.EnQue(scaleTmpTensor);
@@ -297,36 +318,35 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
         curStartCntIdx += remainderTokenNum;
     }
 
-    uint32_t kIdx = curStartCntIdx / mCnt_;
-    uint32_t mIdx = curStartCntIdx % mCnt_;
-    // TODO: 入参为调试用，后续需删除
-    // 遍历需要搬运的数据块
-    uint32_t mFlagIndex = mStartIndex_;
-    uint32_t mFlagCount = mStartFlagCount_;
-    uint64_t curXOffset = mIdx * K_;
-    for (uint64_t curMBlock = 0; curMBlock < mLoop_; ++curMBlock) {
-        kIdx = curStartCntIdx / mCnt_;
-        mIdx = curStartCntIdx % mCnt_;
-        for (uint64_t curKBlock = 0; curKBlock < splitCnt; ++curKBlock) {
-            uint64_t innerCurXOffset = curXOffset + kIdx * X_PER_BLOCK_NUM;
+    uint32_t mCurOffset = M_ / singleCoreM_;
+    uint32_t mTile = 1;
+    uint32_t mFlagCount = mMteCoreM_;
+    // 先一次拷完，若跨base块则切分拷贝，当前tp M泛化到128，暂不存在跨baseM的情况
+    if (((mEndIndex_ - 1) / singleCoreM_ - mStartIndex_ / singleCoreM_) > 0) {
+        mTile = 2;
+        mFlagCount = Ceil(mStartIndex_, singleCoreM_) * singleCoreM_ - mStartIndex_;
+    }
+    uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
+    uint32_t mInnerStartIndex = mStartIndex_ - remoteRankId_ * M_;
+    uint32_t curXOffset = mInnerStartIndex * K_ + kStartIndex_;
+    uint32_t baseMIndex = mStartIndex_ / singleCoreM_;
+    for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+        uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+        // 读取对端对应地址的 x 数据
+        ReadDataBlock(innerCurXOffset, mFlagCount);
+        SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
+    }
+    // 第二轮
+    if (mTile > 1) {
+        curXOffset += mFlagCount * K_;
+        mFlagCount = mEndIndex_ - Ceil(mStartIndex_, singleCoreM_) * singleCoreM_;
+        baseMIndex++;
+        for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+            uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
             // 读取对端对应地址的 x 数据
             ReadDataBlock(innerCurXOffset, mFlagCount);
-            SetCvAtomicFlag(mFlagIndex, kIdx, mFlagCount);
-            // 更新索引
-            mIdx++;
-            if (mIdx >= mCnt_) {
-                // 切换到下一列搬运
-                mIdx = 0;
-                kIdx++;
-            }
+            SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
         }
-        curXOffset += mFlagCount * K_;
-        if (curMBlock + 1 >= mLoop_ - 1) {
-            mFlagCount = mEndFlagCount_;
-        } else {
-            mFlagCount = singleCoreM_;
-        }
-        mFlagIndex++;
     }
     PipeBarrier<PIPE_MTE3>();
 }
