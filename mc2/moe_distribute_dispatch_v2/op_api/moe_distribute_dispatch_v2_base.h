@@ -19,7 +19,7 @@
 #include <string>
 
 #include "aclnn/aclnn_base.h"
-##include "common/op_tiling/aclnn_util.h"
+#include "common/op_tiling/aclnn_util.h"
 #include "common/op_host/op_api/matmul_util.h"
 
 #ifdef __cplusplus

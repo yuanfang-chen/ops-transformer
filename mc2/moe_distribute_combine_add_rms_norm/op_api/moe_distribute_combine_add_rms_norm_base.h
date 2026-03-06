@@ -17,7 +17,7 @@
 #define MOE_DISTRIBUTE_COMBINE_ADD_RMS_NORM_BASE_
 
 #include "aclnn/aclnn_base.h"
-##include "common/op_tiling/aclnn_util.h"
+#include "common/op_tiling/aclnn_util.h"
 #include "common/op_host/op_api/matmul_util.h"
 
 #ifdef __cplusplus
