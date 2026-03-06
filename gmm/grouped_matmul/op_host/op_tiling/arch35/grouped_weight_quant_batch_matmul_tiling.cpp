@@ -29,8 +29,10 @@ static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_
 
 bool GroupedWeightQuantBatchMatmulTiling::SetTiling(gert::TilingContext *context)
 {
-    OP_CHECK_IF(!AnalyzeAttr(context), OP_LOGE(context->GetNodeName(), "Invalid attr param"),
+    OP_CHECK_IF(!AnalyzeAttr(context), OP_LOGE(context->GetNodeName(), "Invalid dddattr param"),
                return false);
+
+
     OP_CHECK_IF(!CalcResplitTiling(context),
                OP_LOGE(context->GetNodeName(), "Unable to calculate resplit-tiling"), return false);
     auto ret = SetBaseTiling();
