@@ -1382,3 +1382,17 @@ mc2:
         examples: False
       options:
         - attention_to_ffn
+ mhc:
+ 	   mhc_sinkhorn:
+ 	     module: True
+ 	     src:
+ 	       - mhc/mhc_sinkhorn
+ 	     exclude:
+ 	       - mhc/mhc_sinkhorn/docs
+ 	       - mhc/mhc_sinkhorn/README.md
+ 	     ut_cov_exclude:
+ 	       - mhc/mhc_sinkhorn/examples
+ 	       - mhc/mhc_sinkhorn/tests
+ 	     test:
+ 	       examples: False
+ 	       ut: True
