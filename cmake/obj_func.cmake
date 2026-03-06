@@ -304,6 +304,7 @@ function(add_opapi_modules)
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/${SYSTEM_PREFIX}/include/op_common/op_host>>
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/hccl/external>>
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/${SYSTEM_PREFIX}/pkg_inc/profiling>>
+      ${OPS_TRANSFORMER_DIR}/mc2/common/inc
       ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
       ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
       ${OPS_TRANSFORMER_DIR}/mc2/3rd
@@ -345,6 +346,7 @@ set(INFER_OBJ_INCLUDE
   $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/metadef/common/util>>
   $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/external>>
   $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/base>>
+  ${OPS_TRANSFORMER_DIR}/mc2/common/inc
   ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
   ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
   ${OPS_TRANSFORMER_DIR}/mc2/3rd
@@ -408,6 +410,7 @@ function(add_tiling_modules)
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment/metadef/common/util>>
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>
       $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/pkg_inc/profiling>>
+      ${OPS_TRANSFORMER_DIR}/mc2/common/inc
       ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
       ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
       ${OPS_TRANSFORMER_DIR}/mc2/3rd

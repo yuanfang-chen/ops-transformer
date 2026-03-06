@@ -143,6 +143,7 @@ if (BUILD_OPEN_PROJECT)
     # op tiling
     add_library(cust_opmaster SHARED)
     target_include_directories(cust_opmaster PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/inc
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_kernel
             ${CMAKE_CURRENT_SOURCE_DIR}/mc2/common/op_tiling
             $<$<BOOL:${BUILD_OPEN_PROJECT}>:$<BUILD_INTERFACE:${ASCEND_CANN_PACKAGE_PATH}/include/experiment>>

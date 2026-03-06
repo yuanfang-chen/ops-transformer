@@ -18,7 +18,7 @@
 
 #include "tiling/platform/platform_ascendc.h"
 #include "op_host/rope_matrix_tiling.h"
-#include "common/op_kernel/rope_matrix.h"
+#include "op_kernel/rope_matrix.h"
 #include "kernel_operator.h"
 
 namespace npu_ops_transformer_ext {
