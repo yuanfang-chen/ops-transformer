@@ -117,19 +117,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "bfloat16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -140,7 +129,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -151,7 +140,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -310,19 +299,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "bfloat16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -333,7 +311,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -344,7 +322,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -503,19 +481,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "bfloat16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -526,7 +493,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -537,7 +504,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -696,19 +663,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "bfloat16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -719,7 +675,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -730,7 +686,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -889,19 +845,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "float16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -912,7 +857,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -923,7 +868,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -1082,19 +1027,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "float16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1105,7 +1039,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1116,7 +1050,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -1275,19 +1209,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "float16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1298,7 +1221,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1309,7 +1232,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",
@@ -1468,19 +1391,8 @@
           "format_match_mode": "FormatAgnostic"
         },
         {
-          "name": "addRmsNormOut",
-          "index": 2,
-          "dtype": "float16",
-          "format": "ND",
-          "paramType": "required",
-          "shape": [
-            -2
-          ],
-          "format_match_mode": "FormatAgnostic"
-        },
-        {
           "name": "dynamicQuantOut",
-          "index": 3,
+          "index": 2,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1491,7 +1403,7 @@
         },
         {
           "name": "allGatherDataOut",
-          "index": 4,
+          "index": 3,
           "dtype": "int8",
           "format": "ND",
           "paramType": "required",
@@ -1502,7 +1414,7 @@
         },
         {
           "name": "allGatherScalesOut",
-          "index": 5,
+          "index": 4,
           "dtype": "float32",
           "format": "ND",
           "paramType": "required",

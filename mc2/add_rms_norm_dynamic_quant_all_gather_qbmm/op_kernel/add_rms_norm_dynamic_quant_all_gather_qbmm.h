@@ -53,10 +53,10 @@ template<TemplateMC2TypeClass>
 class AddRmsNormDynamicQuantAllGatherQbmm {
 public:
     __aicore__ inline AddRmsNormDynamicQuantAllGatherQbmm() {};
-    __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale,
-                                GM_ADDR smoothScale, GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR addRmsNormOut,
-                                GM_ADDR dynamicQuantOut, GM_ADDR allGatherDataOut, GM_ADDR allGatherScalesOut,
-                                GM_ADDR workspaceGM, TPipe *pipe,
+    __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma,
+                                GM_ADDR scale, GM_ADDR smoothScale, GM_ADDR bias, GM_ADDR output,
+                                GM_ADDR z, GM_ADDR dynamicQuantOut, GM_ADDR allGatherDataOut,
+                                GM_ADDR allGatherScalesOut, GM_ADDR workspaceGM, TPipe *pipe,
                                 const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void Process();
 
@@ -96,18 +96,17 @@ private:
     GlobalTensor<float> scaleGMTensor_; // 类型确定
     GlobalTensor<float> smoothScaleGMTensor_;
     GlobalTensor<int32_t> biasGMTensor_; // 类型确定
-    GlobalTensor<int8_t> x1WinGMTensor_; // 类型确定
-    GlobalTensor<float> scaleWinGMTensor_; // 类型确定
+    GlobalTensor<int8_t> x1WinGMTensor_;
+    GlobalTensor<float> scaleWinGMTensor_;
     GlobalTensor<int8_t> x1AllGatherWinTensor_;
     GlobalTensor<float> pertokenScaleGmTensor_;
     GlobalTensor<X1Type> outputGMTensor_;
     GlobalTensor<X1Type> zGMTensor_;
-    GlobalTensor<X1Type> addRmsNormOutGMTensor_;   // TODO: 仅调试用
-    GlobalTensor<int8_t> dynamicQuantOutGMTensor_;   // TODO: 仅调试用
-    GlobalTensor<int8_t> allGatherDataOutGMTensor_;   // TODO: 仅调试用
-    GlobalTensor<float> allGatherScalesOutGMTensor_;   // TODO: 仅调试用
-    GM_ADDR allGatherDataOutAddr_;    // TODO: 仅调试用
-    GM_ADDR allGatherScalesOutAddr_;    // TODO: 仅调试用
+    GlobalTensor<int8_t> dynamicQuantOutGMTensor_;
+    GlobalTensor<int8_t> allGatherDataOutGMTensor_;
+    GlobalTensor<float> allGatherScalesOutGMTensor_;
+    GM_ADDR allGatherDataOutAddr_;
+    GM_ADDR allGatherScalesOutAddr_;
     GM_ADDR allGatherScalesWinAddr_;
     
     LocalTensor<X1Type> x1Tensor_;
@@ -128,7 +127,6 @@ private:
     TBuf<> weightTempBuf_;
     TBuf<> dynamicScaleBuf_;
     TBuf<> stateResetBuf_;
-    TBuf<> addRmsNormOutBuf_;
 
     TQue<QuePosition::VECIN, 1> inQueue_;
     TQue<QuePosition::VECOUT, 1> x1OutQueue_;
@@ -147,6 +145,7 @@ private:
     uint32_t cvStateRowNum_{0};
     float eps_{0};
     float aveNum_{0};
+    int64_t residualNormMode_{0};
     uint64_t axisKaAlignSize_{0};
     uint64_t axisKaAlignFloatSize_{0};
     uint64_t axisKaAlignInt8Size_{0};
@@ -201,8 +200,8 @@ private:
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Init(
-    GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR smoothScale,
-    GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR addRmsNormOut, GM_ADDR dynamicQuantOut,
+    GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale,
+    GM_ADDR smoothScale, GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR dynamicQuantOut,
     GM_ADDR allGatherDataOut, GM_ADDR allGatherScalesOut, GM_ADDR workspaceGM, TPipe *pipe,
     const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
@@ -221,7 +220,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // 输出
     outputGMTensor_.SetGlobalBuffer((__gm__ X1Type*)output);
     zGMTensor_.SetGlobalBuffer((__gm__ X1Type*)z);
-    addRmsNormOutGMTensor_.SetGlobalBuffer((__gm__ X1Type*)addRmsNormOut);   // TODO: 仅调试用
     dynamicQuantOutGMTensor_.SetGlobalBuffer((__gm__ int8_t*)dynamicQuantOut);   // TODO: 仅调试用
     allGatherDataOutGMTensor_.SetGlobalBuffer((__gm__ int8_t*)allGatherDataOut);   // TODO: 仅调试用
     allGatherScalesOutGMTensor_.SetGlobalBuffer((__gm__ float*)allGatherScalesOut);   // TODO: 仅调试用
@@ -229,10 +227,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     allGatherDataOutAddr_ = allGatherDataOut;   // TODO: 仅调试用
     allGatherScalesOutAddr_ = allGatherScalesOut;   // TODO: 仅调试用
 
-    // tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
-    tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_); // 修改
-    tpipe_->InitBuffer(zOutQueue_, BUFFER_NUM, axisKaAlignSize_); // 修改
-    tpipe_->InitBuffer(x1OutQueue_, BUFFER_NUM, axisKaAlignInt8Size_); // 修改
+    tpipe_->InitBuffer(inQueue_, BUFFER_NUM, 3 * axisKaAlignSize_);
+    tpipe_->InitBuffer(zOutQueue_, BUFFER_NUM, axisKaAlignSize_);
+    tpipe_->InitBuffer(x1OutQueue_, BUFFER_NUM, axisKaAlignInt8Size_);
     tpipe_->InitBuffer(gammaBuf_, axisKaAlignFloatSize_); // 对齐32B
     tpipe_->InitBuffer(smoothScaleBuf_, axisKaAlignFloatSize_); // 对齐32B
     tpipe_->InitBuffer(x1TempBuf_, axisKaAlignFloatSize_);
@@ -241,9 +238,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     smoothScaleTensor_ = smoothScaleBuf_.Get<float>();
     xLocalTensorFp32_ = x1TempBuf_.Get<float>();
     yLocalTensorFp32_ = yTempBuf_.Get<float>();
-    if constexpr (isOptionalOutput) {
-        tpipe_->InitBuffer(addRmsNormOutBuf_, axisKaAlignSize_);
-    }
 
     uint64_t winOffset = Ceil(rankSize_ * axisM_ * axisKa_ * sizeof(int8_t), WIN_ALIGN) * WIN_ALIGN;
     GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn);
@@ -297,6 +291,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     rankSize_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize;
     eps_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon;
     aveNum_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor;
+    residualNormMode_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.residualNormMode;
 
     tileK_ = Ceil(axisKa_, SINGLE_CORE_K);
     axisKaAlignSize_ = Ceil(axisKa_ * sizeof(X1Type), UB_ALIGN) * UB_ALIGN;
@@ -370,17 +365,19 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
 
     // Copy out z
-    LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
-    if constexpr (is_same<X1Type, half>::value) {
-        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
-    } else { // BF16
-        Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+    if (residualNormMode_ == 0) {
+        LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
+        if constexpr (is_same<X1Type, half>::value) {
+            Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
+        } else { // BF16
+            Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+        }
+        PipeBarrier<PIPE_V>();
+        zOutQueue_.EnQue(zOutLocalTensor);
+        zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
+        DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
+        zOutQueue_.FreeTensor<X1Type>(zOutLocalTensor);
     }
-    PipeBarrier<PIPE_V>();
-    zOutQueue_.EnQue(zOutLocalTensor);
-    zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
-    DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
-    zOutQueue_.FreeTensor<X1Type>(zOutLocalTensor);
 
     // RMS Norm
     PipeBarrier<PIPE_V>();
@@ -403,16 +400,18 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     PipeBarrier<PIPE_V>();
 
     // CopyOut addRmsNormOut
-    if constexpr (isOptionalOutput) {
-        LocalTensor<X1Type> addRmsNormOutLocalTensor = addRmsNormOutBuf_.Get<X1Type>();
+    if (residualNormMode_ == 1) {
+        LocalTensor<X1Type> zOutLocalTensor = zOutQueue_.AllocTensor<X1Type>();
         if constexpr (is_same<X1Type, half>::value) {
-            Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
+            Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_NONE, axisKa_);
         } else { // BF16
-            Cast(addRmsNormOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
+            Cast(zOutLocalTensor, xLocalTensorFp32_, RoundMode::CAST_RINT, axisKa_);
         }
         PipeBarrier<PIPE_V>();
-        SyncFunc<AscendC::HardEvent::V_MTE3>();
-        DataCopyEx(addRmsNormOutGMTensor_[gmOffset], addRmsNormOutLocalTensor, axisKa_);
+        zOutQueue_.EnQue(zOutLocalTensor);
+        zOutLocalTensor = zOutQueue_.DeQue<X1Type>();
+        DataCopyEx(zGMTensor_[gmOffset], zOutLocalTensor, axisKa_);
+        zOutQueue_.FreeTensor<X1Type>(zOutLocalTensor);
     }
 }
 
@@ -799,7 +798,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         allGatherMte_.Init(tpipe_, axisM_, axisKa_, aivNum_, rankSize_, singleCoreM_);
         MatmulProcess();
     }
-    // AscendC::PRINTF("[Kernel] Over!!!");
 }
 } // AddRmsNormDynamicQuantAllGatherQbmmImpl
 #endif  // ADD_RMS_NORM_DYNAMIC_ALL_GATHER_QBMM_H

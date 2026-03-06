@@ -79,7 +79,8 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "rankSize is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.rankSize);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "epsilon is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.epsilon);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "avgFactor is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.avgFactor);
-    
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "residualNormMode is %ld.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.residualNormMode);
+
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.M is %u.", tilingData.matmulTiling.M);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.Ka is %u.", tilingData.matmulTiling.Ka);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "matmulTiling.Kb is %u.", tilingData.matmulTiling.Kb);
@@ -195,7 +196,7 @@ ge::graphStatus CheckAttrs(
     // residual_norm_mode校验，当前只支持0
     const int64_t *residualNormModePtr = attrs->GetAttrPointer<int64_t>(RESIDUAL_NORM_MODE_INDEX);
     OP_TILING_CHECK(residualNormModePtr == nullptr, OP_LOGE(nodeName, "residualNormModePtr is nullptr."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(*residualNormModePtr != 0, OP_LOGE(nodeName, "residualNormMode only supports 0 currently."), return ge::GRAPH_FAILED);
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.residualNormMode = *residualNormModePtr;
     // 可选输出校验
     const bool *optionalOutputPtr = attrs->GetAttrPointer<bool>(OPTIONAL_OUTPUT_INDEX);
     OP_TILING_CHECK(optionalOutputPtr == nullptr, OP_LOGE(nodeName, "optionalOutputPtr is nullptr."), return ge::GRAPH_FAILED);

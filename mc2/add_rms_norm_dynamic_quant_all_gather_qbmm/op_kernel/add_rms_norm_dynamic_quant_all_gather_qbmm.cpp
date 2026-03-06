@@ -35,7 +35,7 @@
 
 extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm(
     GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR smooth_scale,
-    GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR addRmsNormOut, GM_ADDR dynamicQuantOut, GM_ADDR allGatherDataOut,
+    GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR dynamicQuantOut, GM_ADDR allGatherDataOut,
     GM_ADDR allGatherScalesOut, GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
     TPipe pipe;
@@ -46,14 +46,13 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     if (TILING_KEY_IS(0)) {
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, false, false> op;
-        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, addRmsNormOut, dynamicQuantOut,
+        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
-        // AscendC::PRINTF("kernel TILING_KEY_IS(1) !!!");
     } else if (TILING_KEY_IS(1)) { // 中间过程结果全输出
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
         AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, true, false> op;
-        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, addRmsNormOut, dynamicQuantOut,
+        op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
