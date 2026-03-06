@@ -248,7 +248,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
     <tr>
       <td>transposeX2</td>
       <td>输入</td>
-      <td>右矩阵是否转置，仅支持false。</td>
+      <td>右矩阵是否转置。</td>
       <td>-</td>
       <td>BOOL</td>
       <td>-</td>
@@ -310,8 +310,8 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 
 - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>、<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>：
 
-  - x1仅支持INT8。维度m的取值范围为[1,16\*1024\*8]，k支持2048;
-  - x2支持INT4以及INT32。当输入为INT32时维度为(e, k, n / 8)，输入转为INT4时维度为(e, k, n)，e取值范围[1,256]，k支持2048，n支持7168。
+  - x1仅支持INT8。维度m的取值范围为[1,16\*1024\*8]，k支持2048。
+  - x2支持INT4以及INT32。当输入为INT32时维度为(e, k, n / 8)，输入转为INT4时维度为(e, k, n)，e取值范围[1,256]，k支持2048，n支持7168。不支持转置。
   - offsetOptional的shape支持三维，维度为(e, 1, n)，e、n和weight的e、n一致。
   - scaleOptional支持INT64、FLOAT32、BF16。
   - rowIndex支持INT64、INT32。
@@ -320,7 +320,7 @@ aclnnStatus aclnnGroupedMatmulFinalizeRoutingWeightNzV2(
 - <term>Ascend 950PR/Ascend 950DT</term>：
 
   - x1支持INT8、FLOAT8_E4M3FN、HIFLOAT8数据类型。
-  - x2支持INT8、FLOAT8_E4M3FN、HIFLOAT8数据类型。维度为(e,k,n)，e取值范围[1,1024]。
+  - x2支持INT8、FLOAT8_E4M3FN、HIFLOAT8数据类型。支持转置，非转置维度为(e,k,n)，转置下维度为(e,n,k)，e取值范围[1,1024]。
   - scaleOptional支持FLOAT32、BF16。
   - rowIndex在x1以及x2数据类型为INT8时，数据类型支持INT64、INT32；在x1以及x2数据类型为FLOAT8_E4M3FN、HIFLOAT8时，数据类型支持INT64。
   - x1、x2、scaleOptional、groupListOptional、logitOptional、rowIndexOptional是必选参数，pertokenScaleOptional、sharedInputOptional、biasOptional是可选参数。目前暂不支持offsetOptional参数。
