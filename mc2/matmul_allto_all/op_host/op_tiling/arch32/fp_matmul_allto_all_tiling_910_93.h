@@ -23,8 +23,8 @@
 #include "mc2/3rd/mat_mul_v3/op_host/op_tiling/matmul_v3_base_tiling.h"
 #include "../matmul_allto_all_tiling_base.h"
 #include "mc2/matmul_allto_all/op_host/op_tiling/common/matmul_allto_all_util_tiling.h"
-#include "mc2/matmul_allto_all//op_kernel/arch32/matmul_allto_all_tiling_data_910_93.h"
-#include "mc2/matmul_allto_all//op_kernel/arch32/matmul_allto_all_tiling_key_910_93.h"
+#include "mc2/matmul_allto_all/op_kernel/arch32/matmul_allto_all_tiling_data_910_93.h"
+#include "mc2/matmul_allto_all/op_kernel/arch32/matmul_allto_all_tiling_key_910_93.h"
 
 namespace MC2Tiling {
 

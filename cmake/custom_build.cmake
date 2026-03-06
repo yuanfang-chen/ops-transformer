@@ -910,8 +910,8 @@ install(DIRECTORY ${OPS_ADV_UTILS_KERNEL_INC}/
 install(DIRECTORY ${OPS_ADV_DIR}/gmm/common/cgmct
         DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
-install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/inc/kernel
-        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common/inc
+install(DIRECTORY ${OPS_ADV_DIR}/mc2/common/op_kernel
+        DESTINATION ${IMPL_INSTALL_DIR}/ascendc/common
 )
 
 install(DIRECTORY ${OPS_ADV_DIR}/mc2/3rd/
