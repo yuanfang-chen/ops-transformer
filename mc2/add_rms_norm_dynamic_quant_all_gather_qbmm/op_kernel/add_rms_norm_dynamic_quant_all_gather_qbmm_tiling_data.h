@@ -46,13 +46,17 @@ struct QbmmParams {
     uint32_t needUbBuffer;
 };
 
+struct AddRmsNormDynamicQuantAllGatherQbmmInfo {
+    AddRmsNormDynamicQuantAllGatherTilingData addRmsNormDynamicQuantAllGatherTilingData;
+    QbmmParams qbmmParams;
+    TCubeTiling matmulTiling;
+};
+
 // tiling struct待完善
 struct AddRmsNormDynamicQuantAllGatherQbmmTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
-    AddRmsNormDynamicQuantAllGatherTilingData addRmsNormDynamicQuantAllGatherTilingData;
-    QbmmParams qbmmParams;
-    TCubeTiling matmulTiling;
+    AddRmsNormDynamicQuantAllGatherQbmmInfo tilingInfo;
 };
 
 #endif // ADD_RMS_NORM_DYNAMIC_QUANT_ALL_GATHER_QBMM_H

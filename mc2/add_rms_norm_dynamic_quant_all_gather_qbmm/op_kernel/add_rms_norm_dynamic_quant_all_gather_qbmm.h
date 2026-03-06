@@ -57,7 +57,7 @@ public:
                                 GM_ADDR smoothScale, GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR addRmsNormOut,
                                 GM_ADDR dynamicQuantOut, GM_ADDR allGatherDataOut, GM_ADDR allGatherScalesOut,
                                 GM_ADDR workspaceGM, TPipe *pipe,
-                                const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
+                                const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void Process();
 
     using AMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
@@ -67,7 +67,7 @@ public:
     matmul::MatmulImpl<AMatmulType, BMatmulType, CMatmulType, BiasMatmulType, MM_DEFAULT_MDL_CFG> mm_;
 
 private:
-    __aicore__ inline void InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
+    __aicore__ inline void InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void SplitToCore(uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
     __aicore__ inline void Add2RmsNormCompute(int32_t gmOffset, int32_t elementCount);
     __aicore__ inline void GammaWeightAndCopyOut(int32_t gmOffset);
@@ -78,7 +78,7 @@ private:
     __aicore__ inline void MMCompute(uint32_t singleCoreM, uint32_t singleCoreN, uint32_t kBlockIdx);
     // __aicore__ inline void MMGetCo1Tensor(uint32_t singleCoreM, uint32_t singleCoreN);
     __aicore__ inline void MatmulProcess();
-    __aicore__ inline void InitTilingData(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData);
+    __aicore__ inline void InitTilingData(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void DequantInit();
     __aicore__ inline void Bf16ScaleGm2Ub(LocalTensor<float> &scaleLocal, GlobalTensor<float> &scaleGm_,
         DataCopyPadParams padParams, uint64_t baseNOfffset, uint32_t curAivN);
@@ -196,7 +196,7 @@ private:
     TBuf<TPosition::VECCALC> biasFp32Tmp_;
     TBuf<TPosition::VECCALC> outFp32Tmp_;
 
-    const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData_;
+    const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData_;
 };
 
 template<TemplateMC2TypeClass>
@@ -204,7 +204,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     GM_ADDR x1, GM_ADDR x2, GM_ADDR residual, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR smoothScale,
     GM_ADDR bias, GM_ADDR output, GM_ADDR z, GM_ADDR addRmsNormOut, GM_ADDR dynamicQuantOut,
     GM_ADDR allGatherDataOut, GM_ADDR allGatherScalesOut, GM_ADDR workspaceGM, TPipe *pipe,
-    const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+    const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     tpipe_ = pipe;
     InitBaseParams(tilingData);
@@ -283,7 +283,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 }
 
 template<TemplateMC2TypeClass>
-__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+__aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitBaseParams(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     aivId_ = GetBlockIdx();
     aicId_ = aivId_;    // CV核1:1
@@ -593,7 +593,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::InitTilingData(
-    const AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+    const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     blockIdx_ = GetBlockIdx();
     blockIdx_ /= GetTaskRation();

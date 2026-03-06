@@ -40,7 +40,7 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
 {
     TPipe pipe;
     REGISTER_TILING_DEFAULT(AddRmsNormDynamicQuantAllGatherQbmmTilingData);
-    GET_TILING_DATA_WITH_STRUCT(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingData, tilingGM);
+    GET_TILING_DATA_MEMBER(AddRmsNormDynamicQuantAllGatherQbmmTilingData, tilingInfo, tilingData, tilingGM);
     // GET_TILING_DATA(tilingData, tiling);
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
     if (TILING_KEY_IS(0)) {

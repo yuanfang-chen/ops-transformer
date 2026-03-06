@@ -70,7 +70,7 @@ constexpr float AVG_FACTOR = 1.0 / (float)5120.0;
  * @param tilingData: 框架根据context的opName匹配tiling模板，计算产生的tilingData
  * @return
  */
-static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
+static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo &tilingData)
 {
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "M is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.M);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Ka is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.Ka);
@@ -100,7 +100,7 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
 
 // matmul切分
 static ge::graphStatus GetMatmultiling(
-    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
+    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo &tilingData)
 {
     MmTilingHelper mmTilingHelper(context);
     OP_CHECK_IF(!mmTilingHelper.getMamtulArgs(),
@@ -144,7 +144,7 @@ static ge::graphStatus SetHcommCfg(const gert::TilingContext *context,
  * @return
  */
 //  需要修改核数设置
-static void SetTilingData(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData &tilingData)
+static void SetTilingData(gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo &tilingData)
 {
     uint32_t numBlocks = 1U;
     auto ascendcPlatform = platform_ascendc::PlatformAscendC(context->GetPlatformInfo());
@@ -170,7 +170,7 @@ static void SetTilingKey(gert::TilingContext *context, const bool isOptionalOutp
 }
 
 ge::graphStatus CheckAttrs(
-    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     const char *nodeName = context->GetNodeName();
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -204,7 +204,7 @@ ge::graphStatus CheckAttrs(
 }
 
 ge::graphStatus CheckInputOutputTensorDim(
-    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+    const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     // Check Shape Not NULL
     const gert::StorageShape* x1Shape = context->GetInputShape(X1_INDEX);
@@ -391,7 +391,7 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
 }
 
 static ge::graphStatus SetTCubeTiling(
-    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData)
+    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     auto ascendcPlatform = platform_ascendc::PlatformAscendCManager::GetInstance();
     matmul_tiling::MultiCoreMatmulTiling mmTiling(*ascendcPlatform);
@@ -447,8 +447,9 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
                         "failed to get nodeName in add_rms_norm_dynamic_quant_all_gather_qbmm."),
                     return ge::GRAPH_FAILED);
 
-    AddRmsNormDynamicQuantAllGatherQbmmTilingData *tilingData \
+    AddRmsNormDynamicQuantAllGatherQbmmTilingData *tiling \
         = context->GetTilingData<AddRmsNormDynamicQuantAllGatherQbmmTilingData>();
+    AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData = &(tiling->tilingInfo);
     OP_TILING_CHECK(tilingData == nullptr,
         OP_LOGE(nodeName, "tilingData is nullptr in add_rms_norm_dynamic_quant_all_gather_qbmm."),
         return ge::GRAPH_FAILED);
@@ -483,7 +484,7 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
         OP_LOGE(nodeName, "SetTCubeTiling failed."),
         return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK(SetHcommCfg(context, tilingData) != ge::GRAPH_SUCCESS,
+    OP_TILING_CHECK(SetHcommCfg(context, tiling) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
     SetTilingData(context, *tilingData);
     SetTilingKey(context, tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput);
