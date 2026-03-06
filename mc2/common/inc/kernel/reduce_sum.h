@@ -22,7 +22,7 @@ namespace AiVReduceSumImpl {
 
 using namespace AscendC;
 
-constexpr static uint32_t UB_BUFFER_NUM = 3;                     // 使用到的UB buffer 个数, 当前为1 + 2， 即 1个SumTensor + double buffer vecInQueue_
+constexpr static uint32_t UB_BUFFER_NUM = 6;                     // 使用到的UB buffer 个数
 constexpr static uint32_t MAX_PER_BLOCK_NUM = 1024UL * 15UL;     // 经验最优上限, 限制UB每块最大可搬运的元素数
 constexpr static uint32_t UB_ALIGN_BYTES = 32U;                  // UB搬运需按32B对齐
 constexpr uint32_t BUFFER_NUM = 2U;                              // 用于double buffer
@@ -38,14 +38,18 @@ public:
 private:
     __aicore__ inline void InitParams(uint64_t outputSize, uint64_t stride, uint64_t rankDim, uint64_t aivNum);
     __aicore__ inline void InitBuffers(GM_ADDR srcAddr, GM_ADDR dstAddr, TPipe* tPipe);
-    __aicore__ inline void ReadDataBlockReduceSum(uint64_t curOffset, uint64_t elemsPerBlock);
+    __aicore__ inline void ReadDataBlockReduceSum(uint64_t curOffset, uint64_t count);
+    __aicore__ inline void CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint64_t count, bool isTail)
     __aicore__ inline void ComputeTailAivId();
 
     TBuf<> sumBuf_; // 用于Reduce_sum 求和
-    LocalTensor<DataType> sumTensor_;
+    TBuf<> castBuf_; // 用于把输入Cast成float32
+    LocalTensor<float> sumTensor_; // 累加用float32
+    LocalTensor<float> castTensor_; // 转换Cast后的数据
     GlobalTensor<DataType> srcGm_;
     GlobalTensor<DataType> dstGm_;
     TQue<QuePosition::VECIN, 1> vecInQueue_;
+    TQue<QuePosition::VECOUT, 1> vecOutQueue_;
 
     uint64_t sliceSize_{0};
     uint64_t strideSize_{0};
@@ -156,32 +160,45 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::InitBuffers(GM_ADDR srcAd
     srcGm_.SetGlobalBuffer((__gm__ DataType*)srcAddr);
     dstGm_.SetGlobalBuffer((__gm__ DataType*)dstAddr);
 
-    tPipe->InitBuffer(sumBuf_, perBlockNum_ * sizeof(DataType));        // Reduce-sum buffer
     tPipe->InitBuffer(vecInQueue_, BUFFER_NUM, perBlockNum_ * sizeof(DataType)); // srcBuf_ -> UB 拷贝队列
-    sumTensor_ = sumBuf_.Get<DataType>();
+    tPipe->InitBuffer(vecOutQueue_, BUFFER_NUM, perBlockNum_ * sizeof(DataType)); // UB -> dstBuf_ 拷贝队列
+    tPipe->InitBuffer(sumBuf_, perBlockNum_ * sizeof(float));        // Reduce-sum buffer
+    tPipe->InitBuffer(castBuf_, perBlockNum_ * sizeof(float));        // CastToFloat32 buffer
+    sumTensor_ = sumBuf_.Get<float>();
+    castTensor_ = castBuf_.Get<float>();
 }
 
 /**
  * @brief 从 GM 指定偏移读取一块数据到 UB，并将其累加到当前 sumTensor_ 中。
  * 
  * @param curOffset 当前要读取的数据在 GM 中的偏移（元素单位）
- * @param elemsPerBlock 本次搬运的元素个数（主块或尾块大小）
+ * @param count 本次搬运的元素个数（主块或尾块大小）
  * 
  */
 template <typename DataType>
-__aicore__ inline void ReduceSumForAlltoAll<DataType>::ReadDataBlockReduceSum(uint64_t curOffset, uint64_t elemsPerBlock) 
+__aicore__ inline void ReduceSumForAlltoAll<DataType>::ReadDataBlockReduceSum(uint64_t curOffset, uint64_t count) 
 {
-    LocalTensor<DataType> tempBuf = vecInQueue_.template AllocTensor<DataType>();
+    LocalTensor<DataType> inTensor = vecInQueue_.template AllocTensor<DataType>();
     
     // GM -> UB: 从 srcBuf_ 拷贝数据
-    DataCopy(tempBuf, srcGm_[curOffset], elemsPerBlock);
-    vecInQueue_.EnQue(tempBuf);
-    tempBuf = vecInQueue_.DeQue<DataType>();
-    // 执行累加: sumTensor_ += tempBuf
-    Add(sumTensor_, sumTensor_, tempBuf, elemsPerBlock);
+    DataCopy(inTensor, srcGm_[curOffset], count);
+
+    vecInQueue_.EnQue(inTensor);
+    inTensor = vecInQueue_.DeQue<DataType>();
+
+    // Cast 成 float32
+    if constexpr (AscendC::IsSameType<DataType, float>::value) {
+        DataCopy(castTensor_, inTensor, count); // 左手倒右手一波
+    } else {
+        Cast(castTensor_, inTensor, RoundMode::CAST_NONE, count); // Cast 成 float32
+    }
 
     // 释放临时 buffer
-    vecInQueue_.FreeTensor(tempBuf);
+    vecInQueue_.FreeTensor(inTensor);
+
+    // 执行累加: sumTensor_ += castTensor_
+    Add(sumTensor_, sumTensor_, castTensor_, count);
+    PipeBarrier<PIPE_V>();
 }
 
 /**
@@ -206,7 +223,7 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum()
         uint64_t curBlockOffset = curAivOffset_ + curBlock * perBlockNum_;
 
         // 1. 清零累加 SumTensor
-        Duplicate<DataType>(sumTensor_, static_cast<DataType>(0.0), perBlockNum_);
+        Duplicate<float>(sumTensor_, static_cast<float>(0.0), perBlockNum_);
         PipeBarrier<PIPE_V>();
 
         // 2. 对每个 rank 的 slice 进行累加
@@ -216,10 +233,35 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum()
             ReadDataBlockReduceSum(curOffset, copyBlockNum); // 从 recvBuf_ 读取数据做reduce sum
         }
 
-        // 3. 将结果写入 output (UB -> GM)
-        SyncFunc<AscendC::HardEvent::V_MTE3>();
+        // 3. 将结果写入 output (UB -> GM), 如果是非float数据类型需要先转换成目标数据类型
+        CopyResultToOutput(curBlockOffset, sumTensor_, copyBlockNum, isTailBlock);
+    }
+}
+
+/**
+ * @brief 将计算得到的UB上的结果Tensor的数据复制到GM上的OutPutTensor，并进行类型转换（如果需要）。
+ * 
+ * @param outputOffset 输出OutputTensor的GM偏移量，用于指定目标位置。
+ * @param sourceTensor 本地UB上计算结果Tensor，包含计算完成的数据。
+ * @param count 当前每次处理数据块的元素数量
+ * @param isTail 是否为尾块搬运
+ */
+template <typename DataType>
+__aicore__ inline void ReduceSumForAlltoAll<DataType>::CopyResultToOutput(uint64_t outOffsetGM, LocalTensor<float>& localResultTensor, uint64_t count, bool isTail)
+{
+        LocalTensor<DataType> outTensor = vecOutQueue_.AllocTensor<DataType>();
+
+        if constexpr (AscendC::IsSameType<DataType, float>::value) {
+            DataCopy(outTensor, localResultTensor, count); // 左手倒右手一波
+        } else {
+            Cast(outTensor, localResultTensor, RoundMode::CAST_RINT, count); // Cast成目标格式
+        }
+
+        vecOutQueue_.EnQue(outTensor);
+        outTensor = vecOutQueue_.DeQue<DataType>();
+
         // 搬出时，尾块用dataCopyPad, 防止32B向上对齐越界OutPut
-        if (isTailBlock) {
+        if (isTail) {
             // 尾块处理：使用 Pad 拷贝防止越界
             DataCopyExtParams copyOutParams;
             copyOutParams.blockCount = 1;
@@ -227,14 +269,13 @@ __aicore__ inline void ReduceSumForAlltoAll<DataType>::ExecuteReduceSum()
             copyOutParams.srcStride = 0;
             copyOutParams.dstStride = 0;
             copyOutParams.rsv = 0;
-
-            DataCopyPad(dstGm_[curBlockOffset], sumTensor_, copyOutParams);
+            DataCopyPad(dstGm_[outOffsetGM], outTensor , copyOutParams);
         } else {
             // 主块处理：使用高性能的DataCopy拷贝
-            DataCopy(dstGm_[curBlockOffset], sumTensor_, copyBlockNum);
+            DataCopy(dstGm_[outOffsetGM], outTensor , count);
         }
-        SyncFunc<AscendC::HardEvent::MTE3_V>();
-    }
+
+        vecOutQueue_.FreeTensor(outTensor);
 }
 
 /**
