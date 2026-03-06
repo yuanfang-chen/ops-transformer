@@ -30,7 +30,7 @@ public:
         IsSameType<INPUT_TYPE, fp8_e5m2_t>::value || IsSameType<INPUT_TYPE, fp8_e4m3fn_t>::value || IsSameType<INPUT_TYPE, hifloat8_t>::value;
     constexpr static uint32_t CUBE_BASEM = 128;
     constexpr static uint32_t CUBE_BASEN = 128;
-    constexpr static uint32_t HEAD_DIM_ALIGN = (uint32_t)dTemplateType;
+    constexpr static uint32_t HEAD_DIM_ALIGN = static_cast<uint32_t>(dTemplateType);
     constexpr static uint32_t K_SIZE = 256;
     constexpr static uint32_t BASEK = 128;
     constexpr static uint32_t L0_OFFSET = 128 * 128;
@@ -39,14 +39,14 @@ public:
     constexpr static uint32_t DUAL_DST_NUM = 2;
     constexpr static uint8_t L1_BUFFER_NUM = 4;
 
-    static constexpr uint8_t EVENT_ID0 = 0;
-    static constexpr uint8_t EVENT_ID1 = 1;
-    static constexpr uint8_t EVENT_ID2 = 2;
-    static constexpr uint8_t EVENT_ID3 = 3;
-    static constexpr uint8_t EVENT_ID4 = 4;
-    static constexpr uint8_t EVENT_ID5 = 5;
-    static constexpr uint8_t EVENT_ID6 = 6;
-    static constexpr uint8_t EVENT_ID7 = 7;
+    static constexpr uint32_t EVENT_ID0 = 0;
+    static constexpr uint32_t EVENT_ID1 = 1;
+    static constexpr uint32_t EVENT_ID2 = 2;
+    static constexpr uint32_t EVENT_ID3 = 3;
+    static constexpr uint32_t EVENT_ID4 = 4;
+    static constexpr uint32_t EVENT_ID5 = 5;
+    static constexpr uint32_t EVENT_ID6 = 6;
+    static constexpr uint32_t EVENT_ID7 = 7;
 
     uint32_t commonBufferId = 0;
     uint32_t l0BufferId = 0;
@@ -80,8 +80,7 @@ public:
     __aicore__ inline ~FAGBlockCubeQuant();
     __aicore__ inline void SetCubeBlockParams(TPipe *pipe, FagTilingType tilingData,
                                               BufferManager<BufferType::L1> *l1BuffMgr);
-    __aicore__ inline void InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR queryRope,
-                                            GM_ADDR keyRope, GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR workspace);
+    __aicore__ inline void InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy);
     __aicore__ inline void InitCubeBuffer(FagConstInfo &constInfo);
     __aicore__ inline void IterateMmDsP(LocalTensor<CALC_TYPE> &mm1ResTensor, LocalTensor<CALC_TYPE> &mm2ResTensor,
                                         FagConstInfo &constInfo, FagRunInfo &runInfo);
@@ -127,9 +126,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::SetCubeBlockParams(TPip
 }
  
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy,
-                                                                        GM_ADDR queryRope,GM_ADDR keyRope, GM_ADDR dq,
-                                                                        GM_ADDR dk, GM_ADDR dv, GM_ADDR workspace)
+__aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy)
 {
     queryGm.SetGlobalBuffer((__gm__ INPUT_TYPE *)query);
     keyGm.SetGlobalBuffer((__gm__ INPUT_TYPE *)key);
@@ -333,7 +330,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsP(LocalTenso
     MMParam param = {
         realM,                                       // singleM
         realN,                                       // singleN
-        (uint32_t)HEAD_DIM_ALIGN,                    // singleK
+        HEAD_DIM_ALIGN,                              // singleK
         false,                                       // isLeftTranspose
         true                                         // isRightTranspose
     };
@@ -430,8 +427,8 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsK(LocalTenso
     LocalTensor<INPUT_TYPE> kL1TensorSecond;
 
     MMParam param = {
-        CUBE_BASEM,                                        // singleM
-        (uint32_t)HEAD_DIM_ALIGN,                   // singleN
+        CUBE_BASEM,                                 // singleM
+        HEAD_DIM_ALIGN,                             // singleN
         realK,                                      // singleK
         true,                                       // isLeftTranspose
         false                                       // isRightTranspose
@@ -451,8 +448,8 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsK(LocalTenso
         kL1Tensor = kL1Buf[runInfo.quantRunInfo.s2Idx].Get().GetTensor<INPUT_TYPE>();
         kL1TensorSecond = kL1Buf[runInfo.quantRunInfo.s2Idx + 1].Get().GetTensor<INPUT_TYPE>();
         LocalTensor<INPUT_TYPE> L0BTensorSecond = L0BTensor[L0_OFFSET];
-        LoadDataToL0B<INPUT_TYPE>(L0BTensor, kL1Tensor, param, 0, kSizeFirst, (uint32_t)HEAD_DIM_ALIGN);
-        LoadDataToL0B<INPUT_TYPE>(L0BTensorSecond, kL1TensorSecond, param, 0, kSizeSecond, (uint32_t)HEAD_DIM_ALIGN);
+        LoadDataToL0B<INPUT_TYPE>(L0BTensor, kL1Tensor, param, 0, kSizeFirst, HEAD_DIM_ALIGN);
+        LoadDataToL0B<INPUT_TYPE>(L0BTensorSecond, kL1TensorSecond, param, 0, kSizeSecond, HEAD_DIM_ALIGN);
 
         if (!runInfo.isNextKeyReuse || runInfo.isLastProcessBlock) {
             if ((runInfo.quantRunInfo.s1Idx == runInfo.quantRunInfo.innerS1LoopNum - 1) && runInfo.quantRunInfo.s2Idx == 0) {
@@ -470,7 +467,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsK(LocalTenso
         CopyInKeyToL1(kL1Tensor, keyOffset, realK, HEAD_DIM_ALIGN, constInfo.commonConstInfo.n2D);
         SetFlag<HardEvent::MTE2_MTE1>(EVENT_ID4 + kBufferId);
         WaitFlag<HardEvent::MTE2_MTE1>(EVENT_ID4 + kBufferId);
-        LoadDataToL0B<INPUT_TYPE>(L0BTensor, kL1Tensor, param, 0, realK, (uint32_t)HEAD_DIM_ALIGN);
+        LoadDataToL0B<INPUT_TYPE>(L0BTensor, kL1Tensor, param, 0, realK, HEAD_DIM_ALIGN);
         SetFlag<HardEvent::MTE1_MTE2>(EVENT_ID4 + kBufferId);
         commonBufferId = (commonBufferId + NUM_TWO) & NUM_THREE;
     }
@@ -517,8 +514,8 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsQ(LocalTenso
     WaitFlag<HardEvent::MTE2_MTE1>(EVENT_ID4 + qBufferId);
 
     MMParam param = {
-        CUBE_BASEM,                                        // singleM
-        (uint32_t)HEAD_DIM_ALIGN,                   // singleN
+        CUBE_BASEM,                                 // singleM
+        HEAD_DIM_ALIGN,                             // singleN
         realK,                                      // singleK
         false,                                      // isLeftTranspose
         false                                       // isRightTranspose
@@ -533,7 +530,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmDsQ(LocalTenso
 
     Buffer<BufferType::L0B, SyncType::NO_SYNC> l0bBuffer = l0bBuf[l0Id].Get();
     LocalTensor<INPUT_TYPE> L0BTensor = l0bBuffer.GetTensor<INPUT_TYPE>();
-    LoadDataToL0B<INPUT_TYPE>(L0BTensor, qL1Tensor, param, 0, realK, (uint32_t)HEAD_DIM_ALIGN);
+    LoadDataToL0B<INPUT_TYPE>(L0BTensor, qL1Tensor, param, 0, realK, HEAD_DIM_ALIGN);
     SetFlag<HardEvent::MTE1_MTE2>(EVENT_ID4 + qBufferId);
     SetFlag<HardEvent::MTE1_M>(l0Id);
     WaitFlag<HardEvent::MTE1_M>(l0Id);
@@ -578,8 +575,8 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmPDy(LocalTenso
     SetFlag<HardEvent::MTE2_MTE1>(EVENT_ID4 + dyBufferId);
     WaitFlag<HardEvent::MTE2_MTE1>(EVENT_ID4 + dyBufferId);
     MMParam param = {
-        CUBE_BASEM,                                        // singleM
-        (uint32_t)HEAD_DIM_ALIGN,                   // singleN
+        CUBE_BASEM,                                 // singleM
+        HEAD_DIM_ALIGN,                             // singleN
         realK,                                      // singleK
         false,                                      // isLeftTranspose
         false                                       // isRightTranspose
@@ -594,7 +591,7 @@ __aicore__ inline void FAGBlockCubeQuant<TEMPLATE_ARGS>::IterateMmPDy(LocalTenso
 
     Buffer<BufferType::L0B, SyncType::NO_SYNC> l0bBuffer = l0bBuf[l0Id].Get();
     LocalTensor<INPUT_TYPE> L0BTensor = l0bBuffer.GetTensor<INPUT_TYPE>();
-    LoadDataToL0B<INPUT_TYPE>(L0BTensor, dyL1Tensor, param, 0, realK, (uint32_t)HEAD_DIM_ALIGN);
+    LoadDataToL0B<INPUT_TYPE>(L0BTensor, dyL1Tensor, param, 0, realK, HEAD_DIM_ALIGN);
     SetFlag<HardEvent::MTE1_MTE2>(EVENT_ID4 + dyBufferId);
     SetFlag<HardEvent::MTE1_M>(l0Id);
     WaitFlag<HardEvent::MTE1_M>(l0Id);
@@ -624,8 +621,7 @@ public:
     __aicore__ inline FAGBlockCubeQuantDummy(){};
     __aicore__ inline void SetCubeBlockParams(TPipe *pipe, FagTilingType tilingData,
                                               BufferManager<BufferType::L1> *l1BuffMgr){};
-    __aicore__ inline void InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy, GM_ADDR queryRope,
-                                            GM_ADDR keyRope, GM_ADDR dq, GM_ADDR dk, GM_ADDR dv, GM_ADDR workspace){};
+    __aicore__ inline void InitGlobalBuffer(GM_ADDR query, GM_ADDR key, GM_ADDR value, GM_ADDR dy){};
     __aicore__ inline void InitCubeBuffer(FagConstInfo &constInfo){};
     __aicore__ inline void IterateMmDsP(LocalTensor<CALC_TYPE> &mm1ResTensor, LocalTensor<CALC_TYPE> &mm2ResTensor,
                                         FagConstInfo &constInfo, FagRunInfo &runInfo){};
@@ -641,7 +637,7 @@ public:
     __aicore__ inline void CopyOutDkDvResult(LocalTensor<CALC_TYPE> &dvOutTensor, LocalTensor<CALC_TYPE> &dkOutTensor, FagConstInfo &constInfo){};
     __aicore__ inline void CopyOutDqResult(LocalTensor<CALC_TYPE> &dqOutTensor, FagConstInfo &constInfo){};
     __aicore__ inline void AllocEventID(){};
-    __aicore__ inline void FreeEventID(){};    
+    __aicore__ inline void FreeEventID(){};    :
 };
  
 template <typename T>

@@ -57,9 +57,9 @@ public:
     constexpr static bool IS_FP32_INPUT = IsSameType<INPUT_TYPE, float>::value;
     constexpr static float FP8_MAX = IsSameType<INPUT_TYPE, fp8_e5m2_t>::value ? 57344 : (IsSameType<INPUT_TYPE, fp8_e4m3fn_t>::value ? 448 : 32768);
     constexpr static uint32_t DETER_OFFSET_UB_SIZE = 1024 * 3;
-    constexpr static uint32_t CUBE_BASEM = (uint32_t)s1TemplateType;
-    constexpr static uint32_t CUBE_BASEN = (uint32_t)s2TemplateType;
-    constexpr static uint32_t HEAD_DIM_ALIGN = (uint32_t)dTemplateType;
+    constexpr static uint32_t CUBE_BASEM = static_cast<uint32_t>(s1TemplateType);
+    constexpr static uint32_t CUBE_BASEN = static_cast<uint32_t>(s2TemplateType);
+    constexpr static uint32_t HEAD_DIM_ALIGN = static_cast<uint32_t>(dTemplateType);
     constexpr static uint32_t VECTOR_BASEM = CUBE_BASEM / CV_CORE_RATIO;
     constexpr static uint32_t VECTOR_BASEN = CUBE_BASEN;
     constexpr static uint32_t INNER_VECTOR_BASEM = 128;

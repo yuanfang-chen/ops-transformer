@@ -30,8 +30,8 @@ class FlashAttentionScoreGradKernelQuant
                                                CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
-    constexpr static uint32_t CUBE_BASEM = (uint32_t)s1TemplateType;
-    constexpr static uint32_t CUBE_BASEN = (uint32_t)s2TemplateType;
+    constexpr static uint32_t CUBE_BASEM = static_cast<uint32_t>s1TemplateType;
+    constexpr static uint32_t CUBE_BASEN = static_cast<uint32_t>s2TemplateType;
 
     BufferManager<BufferType::L1> l1BufferManager;
     BuffersPolicy4buff<BufferType::L1, SyncType::NO_SYNC> pL1Buf;
@@ -140,7 +140,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
  
     this->cubeBlock.SetCubeBlockParams(pipeIn, tilingData, &l1BufferManager);
     this->cubeBlock.InitCubeBuffer(this->constInfo);
-    this->cubeBlock.InitGlobalBuffer(query, key, value, dy, queryRope, keyRope, dq, dk, dv, workspace);
+    this->cubeBlock.InitGlobalBuffer(query, key, value, dy);
 }
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetConstInfo()
