@@ -34,8 +34,8 @@ __aicore__ inline void InitQueryLeftPaddingSize(RunParamStr<isInfer>& runParam, 
         runParam.queryLeftPaddingSize = 0;
     } else {
         int64_t qLeftPaddingSize = 0;
-        if (constInfo.isGqa) {
-            qLeftPaddingSize = constInfo.s1Size - actualS1Size - constInfo.queryRightPaddingSize;
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
+            qLeftPaddingSize = constInfo.s1Size - actualS1Size / constInfo.gSize - constInfo.queryRightPaddingSize;
         } else {
             qLeftPaddingSize = constInfo.s1Size - actualS1Size - constInfo.queryRightPaddingSize;
         }
