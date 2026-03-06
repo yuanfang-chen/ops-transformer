@@ -23,7 +23,6 @@
 void AlltoAllMM::EstimateKernelTime()
 {
     SetCommTimeFactor(); // 设置通信的时间因子
-
     // 预测计算、通信任务耗时
     // EstimateTotalMatmulTime单独估算的是matmul的计算时间，这里乘一个参数考虑重排的时间
     double totalMatmulTime = EstimateTotalMatmulTime() * COMPUTE_TIME_SCALE_FACTOR;
@@ -55,8 +54,20 @@ void AlltoAllMM::EstimateKernelTime()
  */
 void AlltoAllMM::SetCommTimeFactor()
 {
-    // A5上的时间因子AlltoAll暂时定义为2
-    commPerf_.ChangeCommTimeFactorByDivision(TWO); // 2x time of factor
+    const uint64_t rankDim4D = 4; // 卡数为4、8时单独处理
+    const uint64_t rankDim8D = 8;
+    if (socVersion_ == SocVersion::SOC910_93) {
+        OP_LOGD("AlltoAllMatmul, Current socVersion is SOC910_93.");
+        if ((rankDim_ == rankDim4D) || (rankDim_ == rankDim8D)) {
+            commPerf_.ChangeCommTimeFactorByDivision(COMM_TIME_FACTOR_FOUR_OR_EIGHT);
+        } else {
+            commPerf_.ChangeCommTimeFactorByDivision(COMM_TIME_FACTOR_OTHER);
+        }
+    } else {
+        OP_LOGD("AlltoAllMatmul, Current socVersion is SOC950.");
+        // A5上的时间因子AlltoAll暂时定义为2
+        commPerf_.ChangeCommTimeFactorByDivision(TWO); // 2x time of factor
+    }
 }
 
 /**
