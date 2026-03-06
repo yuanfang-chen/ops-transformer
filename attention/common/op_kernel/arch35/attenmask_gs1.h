@@ -180,6 +180,14 @@ __aicore__ inline void AttentionmaskDataCopy(LocalTensor<T> &attenMaskUb, Global
 template <typename T>
 __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskUb, GlobalTensor<T> &srcGmAddr, MaskInfo &info, bool isPre = false)
 {
+    if ((isPre && IsSkipAttentionmaskForPre(info)) || (!isPre && IsSkipAttentionmask(info))) {
+        Duplicate(attenMaskUb, static_cast<T>(0U), info.gs1dealNum * Align(info.s2dealNum, 32U));
+        event_t enQueEvtID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(enQueEvtID);
+        WaitFlag<HardEvent::MTE2_V>(enQueEvtID);
+        PipeBarrier<PIPE_V>();
+        return;
+    }
     int32_t s1StartIdx = info.gs1StartIdx % info.s1Size;
     int32_t s1EndIdx = (info.gs1StartIdx + info.gs1dealNum - 1) % info.s1Size + 1;
     uint32_t attenMaskSizeAlign = Align(info.s2dealNum, 32U);
