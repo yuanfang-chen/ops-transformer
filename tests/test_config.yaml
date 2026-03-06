@@ -1398,3 +1398,4 @@ mhc:
       - mhc/mhc_post/tests
     test:
       examples: False
+      ut: True
