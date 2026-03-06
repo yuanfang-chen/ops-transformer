@@ -52,7 +52,11 @@ bash build.sh --help
 | --opgraph_test  | 可选     | 预留参数，开发者暂不需要关注。                                                           |
 | --opkernel_test | 可选     | 编译opkernel相关单元测试，与-u --opkernel组合等效。                                      |
 | --run_example    | 可选     | 编译指定算子及模式的样例并执行编译后的可执行文件。                                                    |
+| --simulator      | 可选     | 启用仿真器模式执行--run_example任务。仿真模式下，会根据soc_version链接对应的仿真库。          |
 | --genop         | 可选     | 创建AI Core自定义算子初始目录。                                                       |
 | --experimental  | 可选     | 编译experimental目录下的用户算子。                                                   |
 | --oom           | 可选     | 开启kernel侧oom内存检测功能。                                                   |
+| --bisheng_flags  | 可选     | 指定毕昇编译器编译参数，多个编译参数用英文逗号“,”分隔，不可与--mssanitizer、--oom、--dump_cce同时使用。     |
+| --tiling_key     | 可选     | 指定编译kernel时的tilingkey，多个tilingkey用英文逗号“,”分隔，与--ops同时使用且只能指定一个算子。     |
+| --kernel_template_input     | 可选     | 指定编译kernel时的模板参数，多个模板参数用英文逗号“,”分隔，与--ops同时使用且只能指定一个算子。     |
 | --cann_3rd_lib_path           | 可选     | 离线编译场景下第三方库存放的目录。                                                   |
