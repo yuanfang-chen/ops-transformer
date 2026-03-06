@@ -132,7 +132,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
         return false;
     }
     if (layoutQuery_ == "BSND" && layoutKv_ == "TND") {
-        Kernel_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
+        KERNEL_LOG_ERROR("For layout_query BSND, layout_key should be PA_BSND/BSND");
         return false;
     }
     return true;
