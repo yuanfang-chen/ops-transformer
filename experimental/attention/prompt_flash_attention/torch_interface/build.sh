@@ -22,6 +22,6 @@ fi
 rm -rf build torch_pfa.egg-info
 pip uninstall -y torch_pfa
 
-# set PFA_LIB option to be "custom" if you compiled ops-transformer kernlee using "./build.sh --make_clean -j96 --pkg --soc=ascend910b --ops=prompt_flash_attention"
-# set PFA_LIB option to be "ops_transformer" if you compiled ops-transformer kernlee using "./build.sh --make_clean -j96 --pkg --soc=ascend910b"
+# set PFA_LIB option to be "custom" if you compiled ops-transformer kernel using "./build.sh --make_clean -j96 --pkg --soc=ascend910b --ops=prompt_flash_attention"
+# set PFA_LIB option to be "ops_transformer" if you compiled ops-transformer kernel using "./build.sh --make_clean -j96 --pkg --soc=ascend910b"
 PFA_LIB=$1 pip install . --no-build-isolation

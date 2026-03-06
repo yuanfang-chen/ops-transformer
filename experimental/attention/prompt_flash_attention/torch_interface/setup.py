@@ -9,12 +9,12 @@ PFA_LIB = os.getenv('PFA_LIB','')  # 2 options: 'custom'-restricted package cont
 
 # Libararies and Includes paths\
 if PFA_LIB == 'ops_transformer':
-    OPS_TRANSFORMER_LIB_PATH = '/usr/local/Ascend/8.5.0.alpha001/ops_transformer/lib64'
-    OPS_TRANSFORMER_INC_PATH = '/usr/local/Ascend/8.5.0.alpha001/ops_transformer/include'
+    OPS_TRANSFORMER_LIB_PATH = os.getenv("ASCEND_TOOLKIT_HOME","") + '/ops_transformer/lib64'
+    OPS_TRANSFORMER_INC_PATH = os.getenv("ASCEND_TOOLKIT_HOME","") + '/ops_transformer/include'
     OPS_TRANSFORMER_LIB_NAME = 'opapi_transformer'
 elif PFA_LIB == 'custom':
-    OPS_TRANSFORMER_LIB_PATH = '/usr/local/Ascend/latest/opp/vendors/custom_transformer/op_api/lib'
-    OPS_TRANSFORMER_INC_PATH = '/usr/local/Ascend/latest/opp/vendors/custom_transformer/op_api/include'
+    OPS_TRANSFORMER_LIB_PATH = os.getenv("ASCEND_OPP_PATH","") + '/vendors/custom_transformer/op_api/lib'
+    OPS_TRANSFORMER_INC_PATH = os.getenv("ASCEND_OPP_PATH","") + '/vendors/custom_transformer/op_api/include'
     OPS_TRANSFORMER_LIB_NAME = 'cust_opapi'
 else:
     assert False, 'wrong PFA_LIB option'

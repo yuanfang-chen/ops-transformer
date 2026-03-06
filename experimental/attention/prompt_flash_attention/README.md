@@ -1,4 +1,25 @@
-# PromptFlashAttention
+# PromptFlashAttention with block-sparsity support
+
+This version of prompt flash attention modifies V4 of the prompt flash attention kernel, by adding a new argument "sabi_tensor" [batch_size, num_heads, ceil(sequence_length/128), ceil(sequence_length/512)] to specify for each set of 128 rows of attention matrix (query rows): which 128x512 tiles of attention matrix should be computed. Every q-row will enumerated from 0 to ceil(sequence_length/512)-1 or using "-1" to indicate an unused one. 
+
+Example of sabi_tensor of batch_size=1 and 2 heads processing sequence length 4000 (the sabi will have 31 rows and 7 columns):
+```python
+[
+  # head 0:
+  [
+    [0,1,2,-1,-1,-1,-1],  # process only 3 out of 7 blocks
+    [0,1,2,3,-1,-1,-1],   # process only 4 out of 7 blocks
+    [0,1,2,3,4,5,6],      # process all blocks - dense
+    #... total of 31 rows
+    [0,1,2,3,4,5,-1],     # process only 6 out of 7 - dense
+
+  ],
+  # head 1:
+  [
+    #... total of 31 rows
+  ]
+]
+```
 
 ## 产品支持情况
 
