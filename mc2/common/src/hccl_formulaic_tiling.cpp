@@ -378,4 +378,9 @@ void OneCalcOneCommBase::GetTiling() {
     tilingM_.cutRes.numShortTile = 0U;
     tilingM_.cutRes.numLongTile++;
   }
+
+  // tilingM_.cutRes.numShortTile = 0U;
+  // tilingM_.cutRes.shortTileLen = 0U;
+  // tilingM_.cutRes.numLongTile = 1;
+  // tilingM_.cutRes.longTileLen = (clusterInfo_.mValue - (tilingM_.cutRes.shortTileLen * tilingM_.cutRes.numShortTile)) / tilingM_.cutRes.numLongTile;
 }
