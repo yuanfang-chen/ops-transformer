@@ -12,8 +12,8 @@
  * \file moe_distribute_combine_teardown_infershape.cpp
  * \brief
  */
-#include "common/op_tiling/runtime_util.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/runtime_util.h"
+#include "op_tiling/mc2_log.h"
 #include "platform/platform_info.h"
 
 namespace ops {

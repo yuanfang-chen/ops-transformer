@@ -14,7 +14,7 @@
  */
 
 #include "moe_distribute_combine_tiling_helper.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 using namespace ge;
 

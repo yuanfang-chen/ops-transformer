@@ -16,7 +16,7 @@
 #define MOE_V3_GATHER_HIF8_PERTOKEN_QUANT_H_REGBASE
 
 #include "moe_v3_common.h"
-#include "common/op_kernel/load_store_utils.h"
+#include "op_kernel/load_store_utils.h"
 #if ASC_DEVKITMAJOE >= 9
 #include "kernel_vec_intf.h"
 #else

@@ -14,7 +14,7 @@
  */
 #include "unquant_matmul_all_reduce_tiling_310.h"
 #include "../../../op_kernel/matmul_all_reduce_tiling_key.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "common/op_tiling/op_mc2.h"
 using namespace Mc2Log;
 using namespace Mc2Tiling;

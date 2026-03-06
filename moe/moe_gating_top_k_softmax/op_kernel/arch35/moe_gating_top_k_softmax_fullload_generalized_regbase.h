@@ -15,8 +15,8 @@
 #ifndef MOE_GATING_TOP_K_SOFTMAX_FULLLOAD_GENERALIZED_REGBASE_H
 #define MOE_GATING_TOP_K_SOFTMAX_FULLLOAD_GENERALIZED_REGBASE_H
 #include "kernel_utils.h"
-#include "common/op_kernel/platform_util.h"
-#include "common/op_kernel/load_store_utils.h"
+#include "op_kernel/platform_util.h"
+#include "op_kernel/load_store_utils.h"
 
 namespace MoeGatingTopKSoftmax {
 using namespace AscendC;

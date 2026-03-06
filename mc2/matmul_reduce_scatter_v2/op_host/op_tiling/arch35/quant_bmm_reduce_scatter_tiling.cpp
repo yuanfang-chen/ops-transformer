@@ -18,8 +18,8 @@
 
 #include "quant_bmm_reduce_scatter_tiling.h"
 #include "common/op_tiling/op_mc2.h"
-#include "common/op_tiling/mc2_log.h"
-#include "common/op_tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_log.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "../../../op_kernel/matmul_reduce_scatter_v2_apt_tiling_key.h"
 

@@ -11,9 +11,9 @@
 #ifndef QUANT_REDECE_SCATTER_UTIL_TILING_H
 #define QUANT_REDECE_SCATTER_UTIL_TILING_H
 
-#include "common/op_tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace MC2Tiling {
 

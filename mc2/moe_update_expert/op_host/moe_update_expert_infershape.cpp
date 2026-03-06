@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_impl_registry.h"
 #include "platform/platform_info.h"
 using namespace ge;

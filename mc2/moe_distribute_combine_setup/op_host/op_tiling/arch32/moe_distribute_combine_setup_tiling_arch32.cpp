@@ -15,8 +15,8 @@
 
 #include "moe_distribute_combine_setup_tiling_arch32.h"
 
-#include "common/op_tiling/mc2_log.h"
-#include "common/op_tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_log.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "register/tilingdata_base.h"
 
 namespace {

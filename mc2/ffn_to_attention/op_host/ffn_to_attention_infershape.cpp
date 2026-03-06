@@ -12,8 +12,8 @@
  * \file ffn_to_attention_infershape.cpp
  * \brief
  */
-#include "common/op_tiling/runtime_util.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/runtime_util.h"
+#include "op_tiling/mc2_log.h"
 using namespace ge;
 namespace ops {
 static ge::graphStatus InferShapeFFNToAttention(gert::InferShapeContext *context)

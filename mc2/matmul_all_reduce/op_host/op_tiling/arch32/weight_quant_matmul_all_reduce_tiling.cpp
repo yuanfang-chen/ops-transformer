@@ -14,7 +14,7 @@
  */
 #include "weight_quant_matmul_all_reduce_tiling.h"
 #include "common/op_tiling/op_mc2.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 using namespace Mc2Log;
 using namespace Mc2Tiling;

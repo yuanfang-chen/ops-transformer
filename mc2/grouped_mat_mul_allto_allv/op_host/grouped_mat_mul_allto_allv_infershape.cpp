@@ -13,10 +13,10 @@
  * \brief
  */
 
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "register/op_impl_registry.h"
 #include "common/op_tiling/op_mc2.h"
-#include "common/op_tiling/mc2_moe_utils.h"
+#include "op_tiling/mc2_moe_utils.h"
 using namespace ge;
 namespace ops
 {

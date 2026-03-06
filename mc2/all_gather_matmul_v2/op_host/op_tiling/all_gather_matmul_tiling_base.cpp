@@ -23,11 +23,11 @@
 #include <cmath>
 #include <cstdint>
 
-#include "common/op_tiling/mc2_hcom_topo_info.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_hcom_topo_info.h"
+#include "op_tiling/mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "common/op_tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "util/math_util.h"
 #include "all_gather_formulaic_tiling.h"
 #include "arch35/all_gather_fit_balance_tiling.h"

@@ -13,7 +13,7 @@
  * \brief
  */
 #include "common/op_tiling/op_mc2.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 #include "kc_quant_matmul_allto_all_tiling_base.h"
 
 using namespace Mc2Log;

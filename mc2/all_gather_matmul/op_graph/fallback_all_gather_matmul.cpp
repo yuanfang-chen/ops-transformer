@@ -10,7 +10,7 @@
 
 #include "fallback/fallback.h"
 #include "common/op_tiling/op_mc2.h"
-#include "common/op_tiling/mc2_log.h"
+#include "op_tiling/mc2_log.h"
 
 namespace fallback {
 const char *allGatherInfo = "AllGatherMatmulFallback";
