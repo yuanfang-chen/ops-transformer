@@ -14,7 +14,7 @@
  */
 
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "util/math_util.h"
 #include "register/op_impl_registry.h"
 

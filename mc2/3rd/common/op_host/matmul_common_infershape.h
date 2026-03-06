@@ -18,7 +18,7 @@
 
 #include "runtime/infer_shape_context.h"
 #include "register/op_impl_registry.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 
 namespace Ops {
 namespace Transformer {

@@ -30,11 +30,11 @@
 #include "../../op_kernel/moe_distribute_dispatch_tiling.h"
 #include "../../op_kernel/moe_distribute_dispatch_shmem_tiling.h"
 #include "graph/utils/type_utils.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "platform/platform_infos_def.h"
 #include "register/op_def_registry.h"
 #include "register/tilingdata_base.h"
-#include "op_tiling/mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_tiling_utils.h"
 #include "tiling/tiling_api.h"
 
 using namespace AscendC;

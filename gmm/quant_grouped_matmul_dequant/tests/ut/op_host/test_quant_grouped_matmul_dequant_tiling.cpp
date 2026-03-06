@@ -18,7 +18,7 @@
 #include "runtime2_util.h"
 #include "experiment_ops.h"
 #include "array_ops.h"
-#include "op_tiling/op_tiling_util.h"
+#include "common/op_tiling/op_tiling_util.h"
 #include "tiling/platform/platform_ascendc.h"
 #include "common/utils/ut_op_util.h"
 #include "common_unittest.h"

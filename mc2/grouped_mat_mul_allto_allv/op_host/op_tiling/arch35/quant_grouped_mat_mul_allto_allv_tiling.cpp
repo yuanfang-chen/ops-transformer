@@ -14,10 +14,10 @@
  */
 
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "quant_grouped_mat_mul_allto_allv_tiling_adapter.h"
-#include "op_tiling/mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_tiling_utils.h"
 #include <tiling/tiling_api.h>
 #include <numeric>
 

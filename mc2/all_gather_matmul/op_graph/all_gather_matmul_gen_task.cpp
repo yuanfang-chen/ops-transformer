@@ -18,11 +18,11 @@
 #include "platform/platform_info.h"
 
 #ifdef BUILD_OPEN_PROJECT
-#include "op_kernel/mc2_gen_task_ops_utils.h"
+#include "common/op_kernel/mc2_gen_task_ops_utils.h"
 #include "graph/arg_desc_info.h"
 #include "graph/kernel_launch_info.h"
 #include "register/op_impl_registry.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #else
 #include "mc2_gen_task_utils.h"
 #include "register/op_ct_impl_registry.h"

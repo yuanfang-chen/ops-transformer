@@ -16,7 +16,7 @@
 #ifndef MOE_DISTRIBUTE_DISPATCH_TILING_ARCH35_H
 #define MOE_DISTRIBUTE_DISPATCH_TILING_ARCH35_H
 
-#include "op_tiling/moe_tiling_base.h"
+#include "common/op_tiling/moe_tiling_base.h"
 #include "../moe_distribute_dispatch_tiling_helper.h"
 
 namespace optiling {

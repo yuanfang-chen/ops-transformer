@@ -10,7 +10,7 @@
 
 #include "fallback/fallback.h"
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 
 #ifdef __cplusplus
 extern "C" {

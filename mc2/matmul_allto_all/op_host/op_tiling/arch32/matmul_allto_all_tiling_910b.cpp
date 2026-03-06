@@ -14,10 +14,10 @@
  */
 #include "vector"
 #include "tiling/tiling_api.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/mc2_hcom_topo_info.h"
-#include "op_tiling/mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_hcom_topo_info.h"
+#include "common/op_tiling/mc2_tiling_utils.h"
 #include <map>
 #include "matmul_allto_all_tiling_910b.h"
 

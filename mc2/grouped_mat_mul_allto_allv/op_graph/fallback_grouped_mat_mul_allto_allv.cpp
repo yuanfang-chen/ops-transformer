@@ -12,7 +12,7 @@
  * \file fallback_grouped_mat_mul_allto_allv.cpp
  * \brief fallback function of op GroupedMatMulAlltoAllv
  */
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "fallback/fallback.h"
 #include "common/op_tiling/op_mc2.h"
 

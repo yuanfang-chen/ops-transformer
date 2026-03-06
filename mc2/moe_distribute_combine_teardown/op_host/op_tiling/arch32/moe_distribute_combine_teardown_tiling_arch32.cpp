@@ -13,7 +13,7 @@
  * \brief
  */
 
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 #include "moe_distribute_combine_teardown_tiling_arch32.h"
 
 namespace {

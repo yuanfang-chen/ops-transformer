@@ -14,7 +14,7 @@
  */
 #include "fp_matmul_allto_all_tiling_base.h"
 #include "common/op_tiling/op_mc2.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/mc2_log.h"
 
 using namespace Mc2Log;
 using namespace AscendC;

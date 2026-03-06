@@ -21,7 +21,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "op_kernel/mc2_gen_task_ops_utils.h"
+#include "common/op_kernel/mc2_gen_task_ops_utils.h"
 #include "mc2_log.h"
 #include "op_mc2.h"
 #include "platform/platform_info.h"

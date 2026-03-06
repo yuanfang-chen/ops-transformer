@@ -16,17 +16,17 @@
 #include <string>
 #include <numeric>
 #include <climits>
-#include "op_tiling/matmul_formulaic_tiling.h"
-#include "op_tiling/hccl_formulaic_tiling.h"
-#include "op_tiling/mc2_hcom_topo_info.h"
-#include "op_tiling/mc2_log.h"
+#include "common/op_tiling/matmul_formulaic_tiling.h"
+#include "common/op_tiling/hccl_formulaic_tiling.h"
+#include "common/op_tiling/mc2_hcom_topo_info.h"
+#include "common/op_tiling/mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "op_tiling/mc2_tiling_utils.h"
+#include "common/op_tiling/mc2_tiling_utils.h"
 #include "allto_allv_grouped_mat_mul_tiling_base.h"
 #include "register/op_impl_registry.h"
 #include "tiling_base/tiling_templates_registry.h"
-#include "op_tiling/context_util.h"
+#include "common/op_tiling/context_util.h"
 
 using namespace ge;
 using namespace AscendC;

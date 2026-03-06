@@ -16,10 +16,10 @@
 #define ASCENDC_MOE_INPLACE_INDEX_ADD_COMMON_H_
 
 #include "kernel_operator.h"
-#include "op_kernel/platform_util.h"
-#include "op_kernel/math_util.h"
+#include "common/op_kernel/platform_util.h"
+#include "common/op_kernel/math_util.h"
 #include "indices_sort_utils.h"
-#include "op_kernel/load_store_utils.h"
+#include "common/op_kernel/load_store_utils.h"
 
 
 namespace MoeInplaceIndexAdd

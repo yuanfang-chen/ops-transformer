@@ -30,13 +30,13 @@
 #include "register/tilingdata_base.h"
 #include "tiling/tiling_api.h"
 #include "common/op_tiling/mc2_log.h"
-#include "op_tiling/mc2_exception_dump.h"
+#include "common/op_tiling/mc2_exception_dump.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "platform/platform_infos_def.h"
 #include "../../../moe_distribute_dispatch_v2/op_host/op_tiling/moe_distribute_dispatch_tiling_v2.h"
 #include "../../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_v2_tiling.h"
-#include "op_tiling/mc2_hcom_topo_info.h"
+#include "common/op_tiling/mc2_hcom_topo_info.h"
 
 using namespace Mc2Tiling;
 using namespace Mc2Exception;
