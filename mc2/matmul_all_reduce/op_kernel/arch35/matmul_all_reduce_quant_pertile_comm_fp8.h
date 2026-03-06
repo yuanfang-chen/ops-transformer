@@ -288,6 +288,7 @@ __aicore__ inline void MatmulAllReduceQuantPertileCommFp8<XType, WType, YType, M
         if (notifyFlag_) {
             hccl_.Commit(all2allHandleId_[all2allCommitIdx_]);
             all2allCommitIdx_++;
+            SyncAll<false>();
         }
         if (isSendTileFlag_) {
             StepOneTurn(mmOp, quantOp, mmTiling, curPadM, isTail, i == 0);
