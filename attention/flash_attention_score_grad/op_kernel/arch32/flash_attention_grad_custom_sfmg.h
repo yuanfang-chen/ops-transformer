@@ -371,7 +371,6 @@ __aicore__ inline void SoftmaxGradFrontImpl(const LocalTensor<T>& dstTensor, con
     SoftMaxTiling newTiling{};  //  创建空白的 SoftMaxTiling，所有成员为 0
     CustomSoftMaxGradTilingFunc(workLocal.GetSize(), srcNDinfo, newTiling, elementNumPerBlk, true, isBasicBlock);
     CustomSoftmaxGradFrontNDImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, workLocal, newTiling,
-    CustomSoftmaxGradFrontNDImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, workLocal, newTiling,
                                             originalSrcShape);
 
 }
