@@ -684,6 +684,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::UpdateCursor(const SplitContext
         CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
         assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
         assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+        assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
     }
     if (UpdateS1G) {
         CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
@@ -697,13 +698,14 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContex
         return;
     }
     const CostInfo &costInfo = splitContext.costInfo;
+    const SplitInfo &splitInfo = splitContext.splitInfo;
     while (assignContext.bN2Cost == 0 || IsWithinTolerance(assignContext.coreCache.costLimit,
         costInfo.bN2LastBlockCostOfEachBatch[assignContext.curBIdx] / FA_TOLERANCE_RATIO,
         assignContext.coreCache.cost + assignContext.bN2Cost)) {
         assignContext.coreCache.cost += assignContext.bN2Cost;
         assignContext.coreCache.block += assignContext.bN2Block;
         assignContext.curBN2Idx++;
-
+        singleCoreS1GBaseNum_ += assignContext.bn2S1GBaseNum;
         // to the end
         if (assignContext.curBN2Idx == batchSize_ * kvHeadNum_) {
             assignContext.curS1GIdx = 0U;
@@ -720,6 +722,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByBatch(const SplitContex
 
         assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
         assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+        assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
         assignContext.curS1GIdx = 0U;
         CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
         assignContext.curS2Idx = assignContext.s1GCache.s2Start;
@@ -737,12 +740,13 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignByRow(const SplitContext 
         assignContext.coreCache.cost + assignContext.s1GCache.s1GCost)) {
         assignContext.coreCache.cost += assignContext.s1GCache.s1GCost;
         assignContext.coreCache.block += assignContext.s1GCache.s1GBlock;
-
+        singleCoreS1GBaseNum_++;
         // 当前batch被分配一行出去，更新剩余负载
         assignContext.bN2Cost = assignContext.bN2Cost > assignContext.s1GCache.s1GCost ?
                                 assignContext.bN2Cost - assignContext.s1GCache.s1GCost : 0;
         assignContext.bN2Block = assignContext.bN2Block > assignContext.s1GCache.s1GBlock ?
                                  assignContext.bN2Block - assignContext.s1GCache.s1GBlock : 0U;
+        assignContext.bn2S1GBaseNum--;
         // 计算新一行的信息
         do{
             assignContext.curS1GIdx++;
@@ -859,6 +863,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
     result.firstFdDataWorkspaceIdx[assignContext.curCoreIdx] = assignContext.preFdDataNum + assignContext.curKvSplitPart - 1U;
     int64_t avgCost = assignContext.unassignedCost / (aicCoreNum_ - assignContext.curCoreIdx);
     assignContext.coreCache = {};
+    singleCoreS1GBaseNum_ = 0;
     if (!supportFd) {
         assignContext.coreCache.costLimit = std::max(avgCost, costInfo.maxS1GCost);
     } else {
@@ -879,6 +884,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::AssignBlocksToCore(const SplitC
     result.s2End[assignContext.curCoreIdx] = assignContext.curS2Idx;
     result.maxCost = std::max(result.maxCost, assignContext.coreCache.cost);
     assignContext.unassignedCost -= assignContext.coreCache.cost;
+    result.maxS1GBaseNum = std::max(singleCoreS1GBaseNum_, result.maxS1GBaseNum);
     // 对之前的归约信息进行记录并清理
     if (IsNeedRecordFDInfo(assignContext, result)) {
         RecordFDInfo(splitContext, assignContext, result);
@@ -896,7 +902,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
                                                                 SplitResult &result)
 {
     const CostInfo &costInfo = splitContext.costInfo;
-
+    const SplitInfo &splitInfo = splitContext.splitInfo;
     if (aicCoreNum_ == 0U) {
         return;
     }
@@ -909,6 +915,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitPlan(int64_t costLimit
     assignContext.unassignedCost = costInfo.totalCost;
     assignContext.bN2Cost = costInfo.bN2CostOfEachBatch[assignContext.curBIdx];
     assignContext.bN2Block = costInfo.bN2BlockOfEachBatch[assignContext.curBIdx];
+    assignContext.bn2S1GBaseNum = splitInfo.s1GBaseNum[assignContext.curBIdx];
     CalcBatchCache(assignContext.curBIdx, splitContext, assignContext.batchCache);
     CalcS1GCache(assignContext.curS1GIdx, splitContext, assignContext.batchCache, assignContext.s1GCache);
     assignContext.curS2Idx = assignContext.s1GCache.s2Start;
@@ -1013,6 +1020,9 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitR
             //
             metaDataPtr->faMetadata[2 * i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
             metaDataPtr->faMetadata[2 * i + 1][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+            // 单核M基本块最大数量
+            metaDataPtr->faMetadata[2 * i][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
+            metaDataPtr->faMetadata[2 * i + 1][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
         }
     } else {
         for (size_t i = 0; i < aicCoreNum_; ++i) {
@@ -1031,6 +1041,8 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitR
             metaDataPtr->faMetadata[i][FA_S2_END_INDEX] = splitRes.s2End[i];
             //
             metaDataPtr->faMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
+            // 单核M基本块最大数量
+            metaDataPtr->faMetadata[i][FA_M_MAX_NUM] = splitRes.maxS1GBaseNum;
         }
     }
 
