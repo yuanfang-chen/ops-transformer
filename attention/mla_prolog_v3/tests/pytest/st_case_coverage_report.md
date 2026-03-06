@@ -1,9 +1,9 @@
 # MlaPrologV3 ST Coverage Report
 
 - Hardware profile: AIC=24, AIV=48, CV=1:2
-- Candidate count: 419840
+- Candidate count: 839680
 - Selected positive cases: 10
-- Reachable tag count: 60
+- Reachable tag count: 66
 - Uncovered reachable tags: 0
 
 ## Factor Summary
@@ -17,6 +17,8 @@
 - `block_size`: PA block behavior and legality
 - `kv_head_num`: fixed positive at 1; invalid values used for negative runtime cases
 - `query_norm_flag`: query_norm output path
+- `qc_qr_scale / kc_scale`: scale-enable branches for query/ckv normalization
+- `smooth_scales_cq_flag`: optional smooth scales for dynamic quant
 - `hardware profile (aic_num/aiv_num)`: cube/vector partition and tail reachability
 
 ## Tree Map
@@ -68,6 +70,9 @@ MlaPrologV3 Condition Coverage
 └─ Postprocess
    ├─ needQnDynamicQuant yes/no (reachable, reachable)
    ├─ isPertile yes/no (reachable, reachable)
+   ├─ qc_qr_scale_enable yes/no (reachable, reachable)
+   ├─ kc_scale_enable yes/no (reachable, reachable)
+   ├─ smooth_scales_cq yes/no (reachable, reachable)
    └─ query_norm_flag yes/no (reachable, reachable)
 ```
 
@@ -99,6 +104,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 0
 }
@@ -121,8 +127,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm0`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -157,11 +166,12 @@ MlaPrologV3 Condition Coverage
   "kv_quant_mode": 1,
   "q_head_num": 128,
   "q_seq": 16,
-  "qc_qr_scale": 1.0,
+  "qc_qr_scale": 1.1,
   "quant_scale_repo_mode": 0,
   "query_norm_flag": 1,
   "query_quant_mode": 1,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 1,
   "tile_size": 128,
   "weight_quant_mode": 3
 }
@@ -184,8 +194,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:multi`
   - `l1:mm3_nl1_tail:0`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:1`
   - `post:need_qn_dynamic_quant:1`
+  - `post:qc_qr_scale_enable:1`
   - `post:query_norm_flag:1`
+  - `post:smooth_scales_cq:1`
   - `quant_mode:qm8`
   - `tiling:actual_seq_mode:en_q_len`
   - `tiling:bs_fused_flag:1`
@@ -225,6 +238,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 2
 }
@@ -247,8 +261,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:1`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm6`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -288,6 +305,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 1
 }
@@ -310,8 +328,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm1`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -351,6 +372,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 1
 }
@@ -373,8 +395,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm2`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -414,6 +439,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 1
 }
@@ -436,8 +462,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:1`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm5`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:1`
@@ -477,6 +506,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 2
 }
@@ -499,8 +529,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm3`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -540,6 +573,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 1,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 2
 }
@@ -562,8 +596,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:single`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:1`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm4`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -603,6 +640,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 3
 }
@@ -625,8 +663,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:multi`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:0`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm7`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -666,6 +707,7 @@ MlaPrologV3 Condition Coverage
   "query_norm_flag": 0,
   "query_quant_mode": 0,
   "rope_head_dim": 64,
+  "smooth_scales_cq_flag": 0,
   "tile_size": 128,
   "weight_quant_mode": 3
 }
@@ -688,8 +730,11 @@ MlaPrologV3 Condition Coverage
   - `l1:mm3_nl1_loops:multi`
   - `l1:mm3_nl1_tail:1`
   - `post:is_pertile:1`
+  - `post:kc_scale_enable:0`
   - `post:need_qn_dynamic_quant:0`
+  - `post:qc_qr_scale_enable:0`
   - `post:query_norm_flag:0`
+  - `post:smooth_scales_cq:0`
   - `quant_mode:qm9`
   - `tiling:actual_seq_mode:disabled`
   - `tiling:bs_fused_flag:0`
@@ -735,10 +780,16 @@ MlaPrologV3 Condition Coverage
 | `l1:mm3_nl1_tail:1` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
 | `post:is_pertile:0` | Y | Y |  | Y | Y |  | Y | Y | Y |  |
 | `post:is_pertile:1` |  |  | Y |  |  | Y |  |  |  | Y |
+| `post:kc_scale_enable:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
+| `post:kc_scale_enable:1` |  | Y |  |  |  |  |  |  |  |  |
 | `post:need_qn_dynamic_quant:0` | Y |  | Y | Y | Y | Y | Y |  | Y | Y |
 | `post:need_qn_dynamic_quant:1` |  | Y |  |  |  |  |  | Y |  |  |
+| `post:qc_qr_scale_enable:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
+| `post:qc_qr_scale_enable:1` |  | Y |  |  |  |  |  |  |  |  |
 | `post:query_norm_flag:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
 | `post:query_norm_flag:1` |  | Y |  |  |  |  |  |  |  |  |
+| `post:smooth_scales_cq:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
+| `post:smooth_scales_cq:1` |  | Y |  |  |  |  |  |  |  |  |
 | `quant_mode:qm0` | Y |  |  |  |  |  |  |  |  |  |
 | `quant_mode:qm1` |  |  |  | Y |  |  |  |  |  |  |
 | `quant_mode:qm2` |  |  |  |  | Y |  |  |  |  |  |
@@ -800,10 +851,16 @@ MlaPrologV3 Condition Coverage
 - `l1:mm3_nl1_tail:1`
 - `post:is_pertile:0`
 - `post:is_pertile:1`
+- `post:kc_scale_enable:0`
+- `post:kc_scale_enable:1`
 - `post:need_qn_dynamic_quant:0`
 - `post:need_qn_dynamic_quant:1`
+- `post:qc_qr_scale_enable:0`
+- `post:qc_qr_scale_enable:1`
 - `post:query_norm_flag:0`
 - `post:query_norm_flag:1`
+- `post:smooth_scales_cq:0`
+- `post:smooth_scales_cq:1`
 - `quant_mode:qm0`
 - `quant_mode:qm1`
 - `quant_mode:qm2`

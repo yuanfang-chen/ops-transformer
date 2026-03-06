@@ -52,6 +52,7 @@ PARAM_NAMES: List[str] = [
     "query_quant_mode",
     "ckvkr_repo_mode",
     "quant_scale_repo_mode",
+    "smooth_scales_cq_flag",
     "query_norm_flag",
     "tile_size",
     "qc_qr_scale",
@@ -81,6 +82,7 @@ DEFAULT_FACTOR_SPACE: Dict[str, List[object]] = {
     "bs_fused_flag": [0, 1],
     "weight_quant_mode": [0, 1, 2, 3],
     "kv_quant_mode": [0, 1, 2, 3],
+    "smooth_scales_cq_flag": [0, 1],
     "query_norm_flag": [0, 1],
 }
 
@@ -98,6 +100,7 @@ FIXED_FIELDS: Dict[str, object] = {
     "tile_size": 128,
     "qc_qr_scale": 1.0,
     "kc_scale": 1.0,
+    "smooth_scales_cq_flag": 1,
     "query_norm_flag": 0,
 }
 
@@ -113,6 +116,8 @@ FACTOR_SUMMARY: Tuple[Tuple[str, str], ...] = (
     ("block_size", "PA block behavior and legality"),
     ("kv_head_num", "fixed positive at 1; invalid values used for negative runtime cases"),
     ("query_norm_flag", "query_norm output path"),
+    ("qc_qr_scale / kc_scale", "scale-enable branches for query/ckv normalization"),
+    ("smooth_scales_cq_flag", "optional smooth scales for dynamic quant"),
     ("hardware profile (aic_num/aiv_num)", "cube/vector partition and tail reachability"),
 )
 
@@ -127,6 +132,7 @@ MODEL_FACTOR_NAMES: Tuple[str, ...] = (
     "bs_fused_flag",
     "weight_quant_mode",
     "kv_quant_mode",
+    "smooth_scales_cq_flag",
     "query_norm_flag",
 )
 
@@ -156,6 +162,7 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
             "query_quant_mode": 0,
             "ckvkr_repo_mode": 0,
             "quant_scale_repo_mode": 0,
+            "smooth_scales_cq_flag": 1,
             "query_norm_flag": 0,
             "tile_size": 128,
             "qc_qr_scale": 1.0,
@@ -187,6 +194,7 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
             "query_quant_mode": 0,
             "ckvkr_repo_mode": 1,
             "quant_scale_repo_mode": 1,
+            "smooth_scales_cq_flag": 1,
             "query_norm_flag": 0,
             "tile_size": 64,
             "qc_qr_scale": 1.0,
@@ -218,6 +226,7 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
             "query_quant_mode": 0,
             "ckvkr_repo_mode": 0,
             "quant_scale_repo_mode": 0,
+            "smooth_scales_cq_flag": 1,
             "query_norm_flag": 0,
             "tile_size": 128,
             "qc_qr_scale": 1.0,
@@ -249,6 +258,7 @@ NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
             "query_quant_mode": 0,
             "ckvkr_repo_mode": 0,
             "quant_scale_repo_mode": 0,
+            "smooth_scales_cq_flag": 1,
             "query_norm_flag": 0,
             "tile_size": 128,
             "qc_qr_scale": 1.0,
@@ -402,6 +412,9 @@ def build_case_tags(case: Dict[str, object], hw: HardwareProfile) -> Set[str]:
     cache_mode = str(case["cache_mode"])
     bs_fused_flag = int(case["bs_fused_flag"])
     query_norm_flag = int(case.get("query_norm_flag", 0))
+    smooth_scales_cq_flag = int(case.get("smooth_scales_cq_flag", 1))
+    qc_qr_scale_enable = int(abs(float(case.get("qc_qr_scale", 1.0)) - 1.0) > 1e-6)
+    kc_scale_enable = int(abs(float(case.get("kc_scale", 1.0)) - 1.0) > 1e-6)
 
     qm = quant_mode(weight_quant_mode, kv_quant_mode)
     assert qm is not None
@@ -439,6 +452,12 @@ def build_case_tags(case: Dict[str, object], hw: HardwareProfile) -> Set[str]:
     tags.add(f"post:need_qn_dynamic_quant:{int(need_qn_dynamic_quant)}")
     tags.add(f"post:is_pertile:{int(is_pertile)}")
     tags.add(f"post:query_norm_flag:{query_norm_flag}")
+    tags.add(f"post:qc_qr_scale_enable:{qc_qr_scale_enable}")
+    tags.add(f"post:kc_scale_enable:{kc_scale_enable}")
+    if weight_quant_mode in (1, 2, 3):
+        tags.add(f"post:smooth_scales_cq:{smooth_scales_cq_flag}")
+    else:
+        tags.add("post:smooth_scales_cq:0")
 
     # mm1
     mm1_align = 32 if is_mm_input_one_byte else 16
@@ -541,6 +560,7 @@ def enumerate_positive_candidates(factor_space: Dict[str, Sequence[object]], hw:
         "bs_fused_flag",
         "weight_quant_mode",
         "kv_quant_mode",
+        "smooth_scales_cq_flag",
         "query_norm_flag",
     ]
     index = 0
@@ -555,7 +575,11 @@ def enumerate_positive_candidates(factor_space: Dict[str, Sequence[object]], hw:
         base["ckvkr_repo_mode"] = ckvkr_repo_mode
         base["quant_scale_repo_mode"] = quant_scale_repo_mode
         if int(base.get("query_norm_flag", 0)) == 1:
+            base["qc_qr_scale"] = 1.1
             base["kc_scale"] = 1.1
+        else:
+            base["qc_qr_scale"] = 1.0
+            base["kc_scale"] = 1.0
 
         if not validate_positive_case(base):
             continue
@@ -740,6 +764,9 @@ def build_tree_map(universe: Set[str], hw: HardwareProfile) -> str:
             "└─ Postprocess",
             f"   ├─ needQnDynamicQuant yes/no ({yn('post:need_qn_dynamic_quant:1')}, {yn('post:need_qn_dynamic_quant:0')})",
             f"   ├─ isPertile yes/no ({yn('post:is_pertile:1')}, {yn('post:is_pertile:0')})",
+            f"   ├─ qc_qr_scale_enable yes/no ({yn('post:qc_qr_scale_enable:1')}, {yn('post:qc_qr_scale_enable:0')})",
+            f"   ├─ kc_scale_enable yes/no ({yn('post:kc_scale_enable:1')}, {yn('post:kc_scale_enable:0')})",
+            f"   ├─ smooth_scales_cq yes/no ({yn('post:smooth_scales_cq:1')}, {yn('post:smooth_scales_cq:0')})",
             f"   └─ query_norm_flag yes/no ({yn('post:query_norm_flag:1')}, {yn('post:query_norm_flag:0')})",
         ]
     )
@@ -846,8 +873,9 @@ def _merge_fuzz_space(factor_space: Dict[str, Sequence[object]]) -> Dict[str, Li
     fuzz["cq_epsilon"] = [0.0005, 0.001]
     fuzz["ckv_epsilon"] = [0.0005, 0.001]
     fuzz["tile_size"] = [128]
-    fuzz["qc_qr_scale"] = [1.0]
+    fuzz["qc_qr_scale"] = [1.0, 1.1]
     fuzz["kc_scale"] = [1.0, 1.1]
+    fuzz["smooth_scales_cq_flag"] = [0, 1]
     fuzz["query_norm_flag"] = [0, 1]
     fuzz["query_quant_mode"] = [0, 1]
     fuzz["ckvkr_repo_mode"] = [0, 1]
@@ -955,7 +983,11 @@ def enumerate_feature_relative_candidates(
         base["ckvkr_repo_mode"] = ckvkr_repo_mode
         base["quant_scale_repo_mode"] = quant_scale_repo_mode
         if int(base.get("query_norm_flag", 0)) == 1:
+            base["qc_qr_scale"] = 1.1
             base["kc_scale"] = 1.1
+        else:
+            base["qc_qr_scale"] = 1.0
+            base["kc_scale"] = 1.0
 
         if not validate_positive_case(base):
             continue

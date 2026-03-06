@@ -25,7 +25,7 @@ PARAM_NAMES = [
     "kv_head_num", "head_dim", "rope_head_dim", "q_seq",
     "block_size", "input_layout", "cache_mode", "bs_fused_flag", "cq_epsilon", "ckv_epsilon", "dtype",
     "weight_quant_mode", "kv_quant_mode", "query_quant_mode",
-    "ckvkr_repo_mode", "quant_scale_repo_mode", "query_norm_flag", "tile_size",
+    "ckvkr_repo_mode", "quant_scale_repo_mode", "smooth_scales_cq_flag", "query_norm_flag", "tile_size",
     "qc_qr_scale", "kc_scale"
 ]
 
@@ -81,6 +81,7 @@ def _to_test_data(param_combinations):
         param_combinations["query_quant_mode"],
         param_combinations["ckvkr_repo_mode"],
         param_combinations["quant_scale_repo_mode"],
+        param_combinations["smooth_scales_cq_flag"],
         param_combinations["query_norm_flag"],
         param_combinations["tile_size"],
         param_combinations["qc_qr_scale"],

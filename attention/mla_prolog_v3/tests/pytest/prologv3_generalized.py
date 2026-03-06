@@ -436,7 +436,7 @@ class GeneralizedPrologV3:
         self.head_dim, self.rope_head_dim, self.q_seq, self.block_size, \
         self.input_layout, self.cache_mode, self.bs_fused_flag, self.cq_epsilon, self.ckv_epsilon, self.dtype, \
         self.weight_quant_mode, self.kv_quant_mode, self.query_quant_mode, \
-        self.ckvkr_repo_mode, self.quant_scale_repo_mode, self.query_norm_flag, \
+        self.ckvkr_repo_mode, self.quant_scale_repo_mode, self.smooth_scales_cq_flag, self.query_norm_flag, \
         self.tile_size, self.qc_qr_scale, self.kc_scale = params
 
     def forward(self, inputs):
@@ -463,6 +463,7 @@ class GeneralizedPrologV3:
         query_quant_mode = self.query_quant_mode
         cache_mode = self.cache_mode
         query_norm_flag = int(self.query_norm_flag)
+        smooth_scales_cq_flag = int(self.smooth_scales_cq_flag)
         cq_epsilon = self.cq_epsilon
         ckv_epsilon = self.ckv_epsilon
         qc_qr_scale = self.qc_qr_scale
@@ -546,6 +547,8 @@ class GeneralizedPrologV3:
         smooth_scale_cq = inputs.get('smooth_scale_cq')
         actual_seq_len = inputs.get('actual_seq_len')
         k_nope_clip_alpha = inputs.get('k_nope_clip_alpha')
+        if not smooth_scales_cq_flag:
+            smooth_scale_cq = None
         if deq_scale_x is not None:
             deq_scale_x = deq_scale_x.cpu()
         if deq_scale_w_dq is not None:
@@ -1135,7 +1138,7 @@ def test_prologv3_generalized(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
     q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
     weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
-    quant_scale_repo_mode, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
+    quant_scale_repo_mode, smooth_scales_cq_flag, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
 
     is_valid, reason = validate_quant_cache_combo(cache_mode,
                                                   weight_quant_mode,
@@ -1256,7 +1259,8 @@ def test_prologv3_generalized(params):
 
     if weight_quant_mode == 1:
         deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
-        smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+        if smooth_scales_cq_flag:
+            smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
     elif weight_quant_mode in (
             WEIGHT_QUANT_MODE_FULL_INT8,
             WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
@@ -1265,7 +1269,8 @@ def test_prologv3_generalized(params):
         deq_scale_w_dq = _rand_scale((1, Hcq), generator).npu()
         deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
         deq_scale_w_dkv_kr = _rand_scale((1, Hckv + Dr), generator).npu()
-        smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+        if smooth_scales_cq_flag:
+            smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
     elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
         if fp8_e8m0_dtype is None:
             pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")

@@ -91,7 +91,8 @@ def validate_config(params):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
             q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
             weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
-            quant_scale_repo_mode, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
+            quant_scale_repo_mode, smooth_scales_cq_flag, query_norm_flag, tile_size, \
+            qc_qr_scale, kc_scale = params
     # 校验
     if batch_size > 65536 or batch_size < 1:
         raise ValueError("batch_size must <= 65536 and >= 1")
@@ -137,6 +138,8 @@ def validate_config(params):
         raise ValueError("ckvkr_repo_mode should be: 0/1")
     if quant_scale_repo_mode not in [0, 1]:
         raise ValueError("quant_scale_repo_mode should be: 0/1")
+    if smooth_scales_cq_flag not in [0, 1]:
+        raise ValueError("smooth_scales_cq_flag should be: 0/1")
     if query_norm_flag not in [0, 1]:
         raise ValueError("query_norm_flag should be: 0/1")
     if tile_size <= 0:
