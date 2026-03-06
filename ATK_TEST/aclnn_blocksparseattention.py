@@ -173,20 +173,21 @@ class BlockSparseAttentionInputProcess(AclnnBaseApi):
             for i in range(batch):
                 outputTemp[count:count+self.qSeqlenList[i], :, :] = outputTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
                 count += self.qSeqlenList[i]
-            # lseTensor = output[1] # TODO 先调测单个用例，判断数组长度
-            # lseTemp = torch.zeros((tokenNum, output[0].shape[1]), 1, dtype=output[1].dtype)
-            # for i in range(batch):
-                # lseTemp[count:count+self.qSeqlenList[i], :, :] = lseTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
             if len(output) == 2:
-                return [outputTemp, output[1]]  # 返回 attentionOut 和 softmaxLse
+                lseTensor = output[1]
+                lseTemp = torch.zeros((tokenNum, output[0].shape[1], 1), dtype=lseTensor.dtype)
+                count = 0
+                for i in range(batch):
+                    lseTemp[count:count+self.qSeqlenList[i], :, :] = lseTensor[i, :, :self.qSeqlenList[i], :].permute(1, 0, 2)
+                    count += self.qSeqlenList[i]
+                return [outputTemp, lseTemp]
             else:
-                return [outputTemp]  # golden就是TND输出，方便比较
+                return [outputTemp]
         else:
             if len(output) == 2:
                 return output[0], output[1]
             else:
-                return output[0] 
-        print("aclnn_output is: ", output)
+                return output[0]
 
     def get_cpp_func_signature_type(self):
         return "aclnnStatus aclnnBlockSparseAttentionGetWorkspaceSize(const aclTensor *query, const aclTensor *key, const aclTensor *value, const aclTensor *blockSparseMask, const aclTensor *attenMaskOptional, const aclIntArray *blockShape, const aclIntArray *actualSeqLengthsOptional, const aclIntArray *actualSeqLengthsKvOptional, const aclTensor *blockTableOptional, char *qInputLayout, char *kvInputLayout, int64_t numKeyValueHeads, int64_t maskType, double scaleValue, int64_t innerPrecise, int64_t blockSize, int64_t preTokens, int64_t nextTokens, int64_t softmaxLseFlag, const aclTensor *attentionOut, const aclTensor *softmaxLseOptional, uint64_t *workspaceSize, aclOpExecutor **executor)"
