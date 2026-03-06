@@ -18,7 +18,7 @@
 #include "experiment_ops.h"
 #include "array_ops.h"
 #include "nn_other.h"
-#include "common/op_tiling/op_tiling_util.h"
+#include "op_tiling/op_tiling_util.h"
 #include "common/utils/ut_op_util.h"
 #include "common_unittest.h"
 #include "attention_update/decode_update_tiling.h"
