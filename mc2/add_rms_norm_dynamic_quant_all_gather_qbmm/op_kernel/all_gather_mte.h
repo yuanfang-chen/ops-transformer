@@ -174,7 +174,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     singleCoreM_ = singleCoreM;
     uint32_t mTailNum = M_ % mDim;
     uint32_t coreInnerMIndex = 0;
-    if (modCoreIndex < mTailNum) {
+    if (mBlockIdx_ < mTailNum) {
         mMteCoreM_ += 1;
         coreInnerMIndex = mBlockIdx_ * mMteCoreM_;
     } else {
