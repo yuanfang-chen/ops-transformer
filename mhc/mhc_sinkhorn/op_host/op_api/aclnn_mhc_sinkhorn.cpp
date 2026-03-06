@@ -26,6 +26,8 @@ static constexpr size_t DIM_ONE = 1;
 static constexpr size_t DIM_TWO = 2;
 static constexpr size_t DIM_THREE = 3;
 static constexpr size_t MAX_DIM = 8;
+static constexpr size_t MIN_NUMITERS = 0;
+static constexpr size_t MAX_NUMITERS = 100;
 
 static bool CheckNotNull(const aclTensor* x, const aclTensor* output, const aclTensor* normOut, const aclTensor* sumOut)
 {
@@ -75,7 +77,7 @@ static bool CheckShape(
     OP_CHECK_MAX_DIM(x, MAX_DIM, return false);
 
     // numIters在1~100范围内
-    if (numIters <= 0 || numIters > 100) {
+    if (numIters <= MIN_NUMITERS || numIters > MAX_NUMITERS) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID, "numIters value error, numIters must in 1 to 100, but got numIters = %ld .",
             numIters);
@@ -83,7 +85,7 @@ static bool CheckShape(
     }
 
     // outFlag为0或1
-    if (outFlag != 0 || outFlag != 1) {
+    if (outFlag != 0 && outFlag != 1) {
         OP_LOGE(
             ACLNN_ERR_PARAM_INVALID, "outFlag value error, outFlag must be 0 or 1, but got outFlag = %ld .", outFlag);
         return false;
