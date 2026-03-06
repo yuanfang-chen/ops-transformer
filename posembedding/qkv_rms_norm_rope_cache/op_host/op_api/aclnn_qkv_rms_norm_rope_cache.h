@@ -17,7 +17,7 @@
 #define OP_API_ACLNN_QKV_RMS_NORM_ROPE_CACHE_H_
 
 #include "aclnn/aclnn_base.h"
-#include "aclnn_util.h"
+#include "common/op_tiling/aclnn_util.h"
 
 #ifdef __cplusplus
 extern "C" {
