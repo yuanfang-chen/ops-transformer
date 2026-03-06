@@ -13,38 +13,33 @@
  * \brief CausalConv1dUpdate kernel entry point
  */
 
-#include "arch35/causal_conv1d_update.h"
+#include "./arch35/causal_conv1d_update.h"
 
-#define TILING_KEY_UPDATE_BF16 20000
+
 #define TILING_KEY_UPDATE_FP16 20000
-
 extern "C" __global__ __aicore__ void causal_conv1d_update(
-    GM_ADDR x,
-    GM_ADDR filter,
-    GM_ADDR cacheState,
-    GM_ADDR cacheIndices,
-    GM_ADDR acceptTokenNum,
-    GM_ADDR queryStartLoc,
-    GM_ADDR y,
-    GM_ADDR outputCacheState,
-    GM_ADDR tiling)
+    GM_ADDR x,                    // 输入0: x
+    GM_ADDR weight,               // 输入1: weight
+    GM_ADDR convStates,           // 输入2: convStates
+    GM_ADDR queryStartLoc,        // 输入3: queryStartLoc (optional)
+    GM_ADDR cacheIndices,         // 输入4: cacheIndices (optional)
+    GM_ADDR initialStateMode,     // 输入5: initialStateMode (optional)
+    GM_ADDR bias,                 // 输入6: bias (optional)
+    GM_ADDR numAcceptedToken,     // 输入7: numAcceptedToken (optional)
+    GM_ADDR y,                    // 输出0: y
+    GM_ADDR outputConvStates,     // 输出1: convStates output
+    GM_ADDR workspace,            // workspace
+    GM_ADDR tiling)               // tiling
 {
-    GET_TILING_DATA(tilingData, tiling);
-
+    REGISTER_TILING_DEFAULT(CausalConv1dUpdateTilingData);
+    GET_TILING_DATA_WITH_STRUCT(CausalConv1dUpdateTilingData, tilingData, tiling);
+    TPipe pipe;
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
-    if (TILING_KEY_IS(TILING_KEY_UPDATE_BF16)) {
-        CausalConv1dUpdateKernel<bfloat16_t> op;
-        op.Init(x, weight, cacheState, cacheIndices, acceptTokenNum, queryStartLoc,
-                y, outputCacheState,
-                reinterpret_cast<CausalConv1dUpdateTilingData*>(tilingData.GetDataPtr()));
-        op.Process();
-    } else if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
-        CausalConv1dUpdateKernel<half> op;
-        op.Init(x, weight, cacheState, cacheIndices, acceptTokenNum, queryStartLoc,
-                y, outputCacheState,
-                reinterpret_cast<CausalConv1dUpdateTilingData*>(tilingData.GetDataPtr()));
+    if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
+        CausalConv1dUpdateKernel<half> op(&pipe);
+        op.Init(x, weight, convStates, cacheIndices, numAcceptedToken, queryStartLoc,
+               y, &tilingData);
         op.Process();
     }
-    
 }
