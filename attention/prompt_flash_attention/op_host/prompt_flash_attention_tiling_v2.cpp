@@ -5044,7 +5044,7 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
 
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
         OP_LOGI(contextKeyParams.opName,
-            "enter gs1 merge! enableIFAMLA is %s, enableIFA is %d, enablePFAMerge is %f", enableIFAMLA, enableIFA, enablePFAMerge);
+            "enter gs1 merge! enableIFAMLA is %d, enableIFA is %d, enablePFAMerge is %d", enableIFAMLA, enableIFA, enablePFAMerge);
         queryShapeInfo.n = queryShapeInfo.n / gSize;
         queryShapeInfo.s = queryShapeInfo.s * gSize;
     }

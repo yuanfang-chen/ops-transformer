@@ -414,11 +414,16 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const C
 {
     constexpr int32_t s1BaseSize = static_cast<int32_t>(s1TemplateType);
     int32_t s1LoopTimes;
-    if (constInfo.isGqa) {
-        s1LoopTimes = CeilDiv(runParam.actualS1Size * constInfo.gSize, s1BaseSize);
-    } else {
+    if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
         s1LoopTimes = CeilDiv(runParam.actualS1Size, s1BaseSize);
+    } else {
+        if (constInfo.isGqa) {
+            s1LoopTimes = CeilDiv(runParam.actualS1Size * constInfo.gSize, s1BaseSize);
+        } else {
+            s1LoopTimes = CeilDiv(runParam.actualS1Size, s1BaseSize);
+        }
     }
+
     // 不是最后一个bn, 赋值souterBlockNum
     if (!lastBN) {
         runParam.s1LoopTimes = s1LoopTimes;
@@ -435,10 +440,14 @@ __aicore__ inline void ComputeSouterParam(RunParamStr<isInfer>& runParam, const 
     if (runParam.actualS1Size == 0) {
         runParam.s1RealSize = 0;
     } else {
-        if (constInfo.isGqa) {
-            runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size * constInfo.gSize - cubeSOuterOffset);
-        } else {
+        if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
             runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
+        } else {
+            if (constInfo.isGqa) {
+                runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size * constInfo.gSize - cubeSOuterOffset);
+            } else {
+                runParam.s1RealSize = Min((uint32_t)s1TemplateType, runParam.actualS1Size - cubeSOuterOffset);
+            }
         }
     }
 
