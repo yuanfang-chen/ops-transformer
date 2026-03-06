@@ -109,7 +109,6 @@ struct SplitResult {
     int64_t maxCost { 0 };            // 慢核开销
     uint32_t numOfFdHead { 0U };        // 归约任务数量
     uint32_t maxS2SplitNum { 0U };      // 单个归约任务最大分核数量
-    uint32_t maxS1GBaseNum { 0U };      // 单个核最大s1g基本块数量
     FlashDecodeResult fdRes { 0U, 0U };     // FD信息
 
     SplitResult(uint32_t aicNum, uint32_t aivNum) :
@@ -217,7 +216,6 @@ struct AssignContext {
 
     int64_t bN2Cost { 0 };
     uint32_t bN2Block { 0U };
-    uint32_t bn2S1GBaseNum { 0U };
     bool isFinished { false };
     BatchCache batchCache {};
     S1GCache s1GCache {};
@@ -335,7 +333,6 @@ private:
     uint32_t attentionMode_ = 1;
     BlockCost<int64_t> typeCost_;
     bool isN128 = false;
-    uint32_t singleCoreS1GBaseNum_ = 0;
     
 private:
     enum class ParamId : uint32_t {
