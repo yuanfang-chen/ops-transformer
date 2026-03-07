@@ -1,7 +1,7 @@
 
 
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -14,23 +14,28 @@
  * \file mhc_post_proto.h
  * \brief
  */
-#ifndef OPS_OP_PROTO_INC_MHC_POST_H_
-#define OPS_OP_PROTO_INC_MHC_POST_H_
+#ifndef OPS_OP_PROTO_INC_MHCPOST_H_
+#define OPS_OP_PROTO_INC_MHCPOST_H_
 
 #include "graph/operator_reg.h"
 
 namespace ge {
 /**
-* @brief Fuse the main branch feature h_out with the residual branch feature x 
-* using the gating mechanism h_post and the doubly stochastic matrix  h_res 
+* @brief Fuse the main branch feature h_out with the residual branch feature x
+* using the gating mechanism h_post and the doubly stochastic matrix  h_res
 * to enable information flow.
 * @par Inputs:
-* @li x: A Tensor. Type is:BFloat16 or Float16.
-* @li h_res: A Tensor. Type is:Float32.
-* @li h_out: A Tensor. Type is:BFloat16 or Float16.
-* @li h_post: A Tensor. Type is:Float32.
+* @li x: A Tensor. Represents input data in the mHC layer. Type is:BFloat16 or Float16. \n
+* Dataformat:ND. Supports 3D (Shape:[T, n, D]) or 4D (Shape:[B, S, n, D]) tensors.
+* @li h_res: A Tensor. Represents the h_res transformation matrix. Type is:Float32. \n 
+* Dataformat:ND. Supports 3D (Shape:[T, n, n]) or 4D (Shape:[B, S, n, n]) tensors.
+* @li h_out: A Tensor. Represents output of the Atten/MLP layer. Type is:BFloat16 or Float16. \n
+* Dataformat:ND. Supports 2D (Shape:[T, D]) or 3D (Shape:[B, S, D]) tensors.
+* @li h_post: A Tensor. Represents the h_res transformation matrix. Type is:Float32. \n
+* Dataformat:ND. Supports 2D (Shape:[T, n]) or 3D (Shape:[B, S, n]) tensors.
 * @par Outputs:
-* @li y: A Tensor. Type is:BFloat16 or Float16.
+* y: A Tensor. Type is:BFloat16 or Float16. Dataformat:ND. \n
+* Supports 3D (Shape:[T, n, D]) or 4D (Shape:[B, S, n, D]) tensors. 
 */
 REG_OP(MhcPost)
     .INPUT(x, TensorType({DT_FLOAT16, DT_BF16}))
@@ -42,4 +47,4 @@ REG_OP(MhcPost)
 
 } // namespace ge
 
-#endif // OPS_OP_PROTO_INC_MHC_POST_H_
+#endif // OPS_OP_PROTO_INC_MHCPOST_H_
