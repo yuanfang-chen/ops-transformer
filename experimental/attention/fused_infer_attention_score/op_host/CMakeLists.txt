@@ -13,6 +13,7 @@ target_sources(op_host_aclnnInner PRIVATE
     fused_infer_attention_score_def.cpp
 )
 
+
 add_ops_compile_options(
     OP_NAME FusedInferAttentionScore
     OPTIONS --cce-auto-sync=off
