@@ -262,7 +262,7 @@ namespace BlockSparse {
             // Initialize hardware events for vector core
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID0);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID1);
-            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4); // set 首轮计算
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID2);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID3);
             AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID4);
@@ -358,7 +358,7 @@ namespace BlockSparse {
                         // BNSD: [B, N, S, D], offset = batch * strideB
                         qBOffset = curBatch * strideQOB;
                         oBOffset = curBatch * strideQOB;
-                        lseBOffset = curBatch * qHeads * maxQSeqlen; // 封装成strideLseB？
+                        lseBOffset = curBatch * qHeads * maxQSeqlen;
                     } else {
                         // TND
                         qBOffset += qSeqlen * strideQO;
@@ -454,7 +454,7 @@ namespace BlockSparse {
                     uint32_t qSeqOffset = qXIdx * qBlockX + qXInnerIdx * BASIC_BLOCK_SIZE;
                     gmOffsetQ = qBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
                     gmOffsetO = oBOffset + qHeadIdx * strideQON + qSeqOffset * strideQOS;
-                    // LSE format: [B, N, S] - strideN = maxQSeqlen (S维长度)
+                    // LSE format: [B, N, S] - strideN = maxQSeqlen
                     gmOffsetLse = lseBOffset + qHeadIdx * maxQSeqlen + qSeqOffset;
                 } else {
                     // TND: [T, N, D]
@@ -626,7 +626,7 @@ namespace BlockSparse {
                         if constexpr (QUERY_LAYOUT == 1) {  // BNSD: [B, N, S, D]
                             // BNSD format: stride[0] = embed (strideQOS)
                             layoutO = LayoutO(qSeqlen, embed);
-                            layoutLse = LayoutLse(qSeqlen, 1); // 1为了适配尾块DataCopy LSE时目的偏移
+                            layoutLse = LayoutLse(qSeqlen, 1);
                         } else {  // TND: [T, N, D]
                             // TND format: stride[0] = qHeads * embed (strideQO)
                             layoutO = LayoutO(qSeqlen, qHeads * embed);
@@ -641,7 +641,7 @@ namespace BlockSparse {
                             gO[gmOffsetO],
                             gOTmp[gmOffsetOTmp],
                             gOUpdate[gmOffsetUpdate],
-                            gLse[gmOffsetLse], // todo 这里便宜计算正确吗？
+                            gLse[gmOffsetLse],
                             layoutO,
                             layoutOTmp,
                             layoutUpdate,

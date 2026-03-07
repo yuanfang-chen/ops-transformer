@@ -593,6 +593,27 @@ ge::graphStatus BSATiling::ProcessBlockShape(gert::TilingContext *rfaContext)
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus BSATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext)
+{
+    auto softmaxLsePtr = rfaContext->GetAttrs()->GetAttrPointer<uint32_t>(SOFTMAX_LSE_FLAG_INDEX);
+    if (softmaxLsePtr == nullptr) {
+        OP_LOGE(rfaContext->GetNodeName(), "softmaxLsePtr is null");
+        return ge::GRAPH_FAILED;
+    }
+    switch (*softmaxLsePtr) {
+        case 0:
+            softmaxLseFlag_ = false;
+            break;
+        case 1:
+            softmaxLseFlag_ = true;
+            break;
+        default:
+            OP_LOGE(rfaContext->GetNodeName(), "invalid softmaxLseFlag:%u", *softmaxLsePtr);
+            return ge::GRAPH_FAILED;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
 ge::graphStatus BSATiling::ValidateTNDSeqlenSum(gert::TilingContext *rfaContext)
 {
     // 只在TND格式时进行校验
@@ -941,6 +962,8 @@ uint64_t BSATiling::GenerateTilingKey(gert::TilingContext *rfaContext)
     } else if (qInputLayout_ == RFAQInputLayout::BNSD_Q) {
         tilingKey += 3;  // 3 for BNSD
     }
+
+    // Softmax LSE（亿位）
     if (softmaxLseFlag_) {
         tilingKey += 100000000ULL; // 1 for lse out
     }

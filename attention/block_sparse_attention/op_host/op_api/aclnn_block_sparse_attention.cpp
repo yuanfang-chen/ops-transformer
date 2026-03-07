@@ -31,6 +31,7 @@ extern "C" {
 
 namespace {
 
+static const uint32_t LSE_OUT = 1;
 
 static bool CheckDataType(const aclTensor *query,
                           const aclTensor *key,
@@ -249,7 +250,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGetW
     L2_DFX_PHASE_1(aclnnBlockSparseAttention,
                    DFX_IN(query, key, value, blockSparseMask, attenMaskOptional, blockShape, actualSeqLengthsOptional,
                           actualSeqLengthsKvOptional, blockTableOptional, qInputLayout, qInputLayout, numKeyValueHeads,
-                          maskType, scaleValue, innerPrecise, blockSize, preTokens, nextTokens, softmaxLseFlag, attentionOut, softmaxLseOptional),
+                          maskType, scaleValue, innerPrecise, blockSize, preTokens, nextTokens, softmaxLseFlag),
                    DFX_OUT(attentionOut, softmaxLseOptional));
 
     auto uniqueExecutor = CREATE_EXECUTOR();
@@ -277,7 +278,7 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGetW
 
     auto viewCopyResult = l0op::ViewCopy(outputs[0], attentionOut, executorImpl);
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    if (softmaxLseFlag == 1) {
+    if (softmaxLseFlag == LSE_OUT) {
         auto viewCopyLseResult = l0op::ViewCopy(outputs[1], softmaxLseOptional, executorImpl);
         CHECK_RET(viewCopyLseResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
     }
