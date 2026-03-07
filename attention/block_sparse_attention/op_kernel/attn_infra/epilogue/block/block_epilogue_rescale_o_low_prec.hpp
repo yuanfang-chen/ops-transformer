@@ -438,7 +438,7 @@ public:
                     gOutputCurLoop,
                     gInputCurLoop,
                     gUpdateCurLoop,
-                    gLse,
+                    gLseThisSubBlock,
                     layoutOutputCurLoop,
                     layoutInputCurLoop,
                     layoutUpdateCurLoop,
