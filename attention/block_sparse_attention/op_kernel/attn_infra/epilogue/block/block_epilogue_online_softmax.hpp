@@ -457,6 +457,7 @@ public:
     __aicore__ inline
     void ScaleS(uint32_t sUbOffset, uint32_t rowNumCurLoop, uint32_t columnNumRound)
     {
+        // AscendC::DumpTensor(lsUbTensor[sUbOffset], 2, columnNumRound);
         AscendC::Muls<float, false>(
             lsUbTensor[sUbOffset],
             lsUbTensor[sUbOffset],
@@ -464,7 +465,7 @@ public:
             (uint64_t)0,
             CeilDiv(rowNumCurLoop * columnNumRound, FLOAT_VECTOR_SIZE),
             AscendC::UnaryRepeatParams(1, 1, 8, 8));
-
+        // AscendC::DumpTensor(lsUbTensor[sUbOffset], 3, columnNumRound);
         AscendC::PipeBarrier<PIPE_V>();
     }
 
@@ -758,6 +759,7 @@ public:
             lpUbTensor[sUbOffset],
             AscendC::DataCopyParams(
                 rowNumCurLoop, columnNumRound / BLOCK_SIZE, 0, (columnNumPad - columnNumRound) / BLOCK_SIZE));
+        // AscendC::DumpTensor(lpUbTensor[sUbOffset], 1, columnNumRound);
     }
 
     template <bool doTriUMask>
@@ -776,7 +778,7 @@ public:
         uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
         uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
 
-        if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) {
+        if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) { // 等待LSE搬出
             // In lse out-only mode, tv is used in the last stack tile to transport lse
             if (isFirstStackTile && isFirstRowLoop) {
                 AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);

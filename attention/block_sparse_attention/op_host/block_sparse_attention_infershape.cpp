@@ -181,19 +181,23 @@ static ge::graphStatus InferShapeBlockSparseAttention(gert::InferShapeContext *c
     // SoftmaxLse shape通常是 [batch, num_heads, q_seqlen] 或类似维度
     if (qLayout == "TND") {
         // TND格式
-        softmaxLseShape->SetDimNum(2);
+        softmaxLseShape->SetDimNum(3);
         (*softmaxLseShape)[TND_DIM_T] = queryShape->GetDim(TND_DIM_T);
         (*softmaxLseShape)[TND_DIM_N] = queryShape->GetDim(TND_DIM_N);
+        (*softmaxLseShape)[TND_DIM_D] = 1;
     } else if (qLayout == "BNSD") {
         // BNSD格式
-        softmaxLseShape->SetDimNum(3);
+        softmaxLseShape->SetDimNum(4);
         (*softmaxLseShape)[BNSD_DIM_B] = queryShape->GetDim(BNSD_DIM_B);
         (*softmaxLseShape)[BNSD_DIM_N] = queryShape->GetDim(BNSD_DIM_N);
         (*softmaxLseShape)[BNSD_DIM_S] = queryShape->GetDim(BNSD_DIM_S);
+        (*softmaxLseShape)[BNSD_DIM_D] = 1;
     } else {
         OP_LOGE(context->GetNodeName(), "Unexpected Q layout in softmaxLse shape calculation: %s", qInputLayoutPtr);
         return ge::GRAPH_FAILED;
     }
+    // *softmaxLseShape = *attentionOutShape;
+    // OP_LOGE(context->GetNodeName(), "BlockSparseAttention softmaxLseShape shape[%u]", softmaxLseShape->GetDimNum());
     
     OP_LOGD(context->GetNodeName(), "BlockSparseAttention InferShape success.");
     return ge::GRAPH_SUCCESS;
