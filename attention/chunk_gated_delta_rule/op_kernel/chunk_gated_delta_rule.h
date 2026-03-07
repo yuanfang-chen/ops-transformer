@@ -45,6 +45,7 @@ template <typename lowType, typename highType>
 class CGDR {
 public:
     __aicore__ inline CGDR(TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
+        : stageOneOp_(mmFp32_, mmBf16_)
     {
         pipe_ = pipe;
         tiling_ = tilingData;
@@ -152,9 +153,8 @@ private:
         // todo: stage1, release ub resource after computing
         GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
                                                   gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, cg};
-        GDRStageOne stageOneOp(mmFp32_, mmBf16_);
-        stageOneOp.Init(initStageOneParams, pipe_, tiling_);
-        stageOneOp.Process();
+        stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
+        stageOneOp_.Process();
         pipe_->Reset();
     }
 
@@ -164,6 +164,49 @@ private:
         GlobalTensor<lowType>& finalState)
     {
         // todo: stage2, release ub resource after computing
+        if (GetBlockIdx() == 23)
+        {
+            // Dump stage1 outputs for debugging: print first 10 and last 10 values
+        int64_t nvLen = cg.length * tiling_->nv;
+
+        // gCumExp_: (Nv, maxGroupLength) - highType
+        AscendC::printf("======================================================gCumExp_ first 10:");
+        AscendC::DumpTensor(gCumExp_[0], 1001, 10);
+        AscendC::DumpTensor(gCumExp_[nvLen - 10], 1002, 10);
+
+        // kCumDecay_: (Nv, maxGroupLength, Dk) - lowType
+        int64_t kCumDecayLen = cg.length * tiling_->nv * tiling_->dk;
+        AscendC::PRINTF("======================================================kCumDecay_ first 10:");
+        AscendC::DumpTensor(kCumDecay_[0], 2001, 10);
+        AscendC::PRINTF("kCumDecay_ last 10:");
+        AscendC::DumpTensor(kCumDecay_[kCumDecayLen - 10], 2002, 10);
+
+        // vInner_: (Nv, maxGroupLength, Dv) - highType
+        int64_t vInnerLen = cg.length * tiling_->nv * tiling_->dv;
+        AscendC::PRINTF("======================================================vInner_ first 10:");
+        AscendC::DumpTensor(vInner_[0], 3001, 10);
+        AscendC::DumpTensor(vInner_[vInnerLen - 10], 3002, 10);
+
+        // qPrime_: (Nv, maxGroupLength, Dk) - lowType
+        int64_t qPrimeLen = cg.length * tiling_->nv * tiling_->dk;
+        AscendC::PRINTF("======================================================qPrime_ first 10:");
+        AscendC::DumpTensor(qPrime_[0], 4001, 10);
+        AscendC::DumpTensor(qPrime_[qPrimeLen - 10], 4002, 10);
+
+        // kg_: (Nv, maxGroupLength, Dk) - highType
+        int64_t kgLen = cg.length * tiling_->nv * tiling_->dk;
+        AscendC::PRINTF("======================================================kg_ first 10:");
+        AscendC::DumpTensor(kg_[0], 5001, 10);
+        AscendC::DumpTensor(kg_[kgLen - 10], 5002, 10);
+
+        // qkt_: (Nv, maxGroupLength, C) - highType
+        int64_t qktLen = cg.length * tiling_->nv * tiling_->chunkSize;
+        AscendC::PRINTF("======================================================qkt_ first 10:");
+        AscendC::DumpTensor(qkt_[0], 6001, 10);
+        AscendC::DumpTensor(qkt_[qktLen - 10], 6002, 10);
+        }
+        
+        
     }
 
     __aicore__ inline void stage3(const ChunkGroup& cg)
@@ -198,6 +241,9 @@ private:
     // Matmul objects
     MT_FP32 mmFp32_;
     MT_BF16 mmBf16_;
+
+    // Stage operators
+    GDRStageOne stageOneOp_;
 
 };
 
