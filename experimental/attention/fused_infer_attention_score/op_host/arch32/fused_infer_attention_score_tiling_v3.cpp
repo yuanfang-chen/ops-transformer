@@ -21,7 +21,6 @@
 #include "../fused_infer_attention_score_const.h"
 using namespace AscendC;
 namespace optiling {
-REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, FusedInferAttentionScoreTilingData)
 
 FIA_EXTERN_C ge::graphStatus TilingFusedInferAttentionScoreV3(gert::TilingContext *context)
 {
