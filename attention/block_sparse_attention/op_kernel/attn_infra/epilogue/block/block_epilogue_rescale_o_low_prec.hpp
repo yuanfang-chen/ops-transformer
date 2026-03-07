@@ -329,9 +329,8 @@ public:
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     
                     if (qNThisSubBlock == 0U) {
-                        AscendC::print("hxb============== totalRowNum:%u qHeads:%u", totalRowNum, qHeads);
+                        AscendC::printf("hxb============== totalRowNum:%u qHeads:%u", totalRowNum, qHeads);
                         AscendC::DumpTensor(tvUbTensor32, 17, 128);
-                        AscendC::printf();
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor32,
                             AscendC::DataCopyExtParams(
@@ -339,7 +338,7 @@ public:
                         AscendC::DumpTensor(gLse, 18, 128);
                     } else {
                         for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
-                            AscendC::print("hxb==============");
+                            AscendC::printf("hxb==============");
                             AscendC::DataCopyPad(
                                 gLse[qNIdx],
                                 tvUbTensor32[qNIdx * qSBlockSize * FLOAT_BLOCK_SIZE],
