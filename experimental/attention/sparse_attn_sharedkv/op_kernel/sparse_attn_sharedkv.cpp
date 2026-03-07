@@ -31,30 +31,32 @@ using namespace SASKernel;
 
 #if (__CCE_AICORE__ == 310)
 #if defined(__DAV_C310_CUBE__)
-#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
-    do {                                                                                          \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                              \
+    do {                                                                                              \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                   \
             SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
             SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                            \
-        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedQ, seqUsedKV, sinks, metadata, attentionOut, user, nullptr, &tPipe);    \
-        op.Process();                                                                             \
+        templateClass<CubeBlockType, VecBlockType> op;                                                \
+        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,      \
+                seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata, attentionOut,     \
+                user, nullptr, &tPipe);                                                               \
+        op.Process();                                                                                 \
     } while (0)
 #else
-#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                          \
-    do {                                                                                          \
-        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,               \
+#define SAS_OP_IMPL(templateClass, tilingdataClass, ...)                                              \
+    do {                                                                                              \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC,                   \
             SASKernel::SCFABlockCube<__VA_ARGS__>, SASKernel::SCFABlockCubeDummy<__VA_ARGS__>>::type; \
-        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC,                    \
             SASKernel::SCFABlockVecDummy<__VA_ARGS__>, SASKernel::SCFABlockVec<__VA_ARGS__>>::type;   \
-        templateClass<CubeBlockType, VecBlockType> op;                                            \
-        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                       \
-        const tilingdataClass *__restrict tilingData = &tilingDataIn;                             \
-        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,  \
-                seqUsedQ, seqUsedKV, sinks, metadata, attentionOut, user, tilingData, &tPipe); \
-        op.Process();                                                                             \
+        templateClass<CubeBlockType, VecBlockType> op;                                                \
+        GET_TILING_DATA_WITH_STRUCT(tilingdataClass, tilingDataIn, tiling);                           \
+        const tilingdataClass *__restrict tilingData = &tilingDataIn;                                 \
+        op.Init(query, oriKV, cmpKV, cmpSparseIndices, oriBlockTable, cmpBlockTable, cuSeqlensQ,      \
+                seqUsedQ, seqUsedKV, oriTopkLength, cmpTopkLength, sinks, metadata, attentionOut,     \
+                user, tilingData, &tPipe);                                                            \
+        op.Process();                                                                                 \
     } while (0)
 #endif
 #else
@@ -75,6 +77,7 @@ sparse_attn_sharedkv(__gm__ uint8_t *query, __gm__ uint8_t *oriKV, __gm__ uint8_
                      __gm__ uint8_t *oriSparseIndices, __gm__ uint8_t *cmpSparseIndices, __gm__ uint8_t *oriBlockTable,
                      __gm__ uint8_t *cmpBlockTable, __gm__ uint8_t *cuSeqlensQ, __gm__ uint8_t *cuSeqlensOriKv,
                      __gm__ uint8_t *cuSeqlensCmpKv, __gm__ uint8_t *seqUsedQ, __gm__ uint8_t *seqUsedKV,
+                     __gm__ uint8_t *oriTopkLength, __gm__ uint8_t *cmpTopkLength,
                      __gm__ uint8_t *sinks, __gm__ uint8_t *metadata, __gm__ uint8_t *attentionOut,
                      __gm__ uint8_t *softmax_lse, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {

@@ -80,6 +80,16 @@ public:
             .DataType({ge::DT_INT32})
             .Format({ge::FORMAT_ND})
             .AutoContiguous();
+        this->Input("ori_topk_length")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_INT32})
+            .Format({ge::FORMAT_ND})
+            .AutoContiguous();
+        this->Input("cmp_topk_length")
+            .ParamType(OPTIONAL)
+            .DataType({ge::DT_INT32})
+            .Format({ge::FORMAT_ND})
+            .AutoContiguous();
         this->Input("sinks")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT})
@@ -109,6 +119,9 @@ public:
         this->Attr("ori_win_right").AttrType(OPTIONAL).Int(0);
         this->Attr("layout_q").AttrType(OPTIONAL).String("BSND");
         this->Attr("layout_kv").AttrType(OPTIONAL).String("PA_ND");
+        this->Attr("topk_value_mode").AttrType(OPTIONAL).Int(1);
+        this->Attr("ori_kv_stride").AttrType(OPTIONAL).Int(0);
+        this->Attr("cmp_kv_stride").AttrType(OPTIONAL).Int(0);
         this->Attr("return_softmax_lse").AttrType(OPTIONAL).Bool(false);
 
         OpAICoreConfig aicore_config;
