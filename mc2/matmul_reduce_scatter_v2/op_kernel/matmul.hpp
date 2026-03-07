@@ -35,8 +35,14 @@ using namespace AscendC;
 using namespace matmulReduceScatterV2_aivmode_tiling;
 using namespace matmulReduceScatterV2_util;
 namespace Catlass::Gemm::Kernel {
-template <class PrologueA, class PrologueB, class BlockMmad_>
-
+template <
+    class PrologueA,
+    class PrologueB,
+    class BlockMmad_,
+    class BlockEpilogue_,
+    class BlockScheduler_,
+    bool HasBias
+>
 class MatmulReduceScatterAivMode : public CommBase {
 public:
     using BlockMmad = BlockMmad_;
@@ -51,7 +57,16 @@ public:
     using LayoutA = typename BlockMmad::LayoutA;
     using LayoutB = typename BlockMmad::LayoutB;
     using LayoutScale = typename layout::VectorLayout;
+    template<bool condition, class mmad>
+    struct BiasTypeHelper {
+        using type = typename mmad::ElementBias;
+    };
 
+    template<class mmad>
+    struct BiasTypeHelper<false, mmad> {
+        using type = float;
+    };
+    using ElementBias = typename BiasTypeHelper<HasBias, BlockMmad>::type;
     using L1TileShape = typename BlockMmad::L1TileShape;
     using L0TileShape = typename BlockMmad::L0TileShape;
     using ElementC = typename BlockMmad::ElementC;
