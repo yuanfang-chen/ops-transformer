@@ -20,11 +20,11 @@ public:
     int64_t n{0};
     int64_t usedCoreNum{0};
     int64_t tNormCoreLoop{0};
-    int64_t tUbFactor{0};     // 正常循环大小 (n * n 的个数)
-    int64_t tUbFactorTail{0}; // 正常核的尾循环大小 (n * n 的个数)
+    int64_t tUbFactor{0};     // 正常循环大小
+    int64_t tUbFactorTail{0}; // 正常核的尾循环大小
     int64_t tTailCoreLoop{0};
-    int64_t tUbTailTail{0}; // 尾核的尾循环大小 (n * n 的个数)
-    int64_t tNormCore{0};   // 正常核总大小 (n * n 的个数)
+    int64_t tUbTailTail{0}; // 尾核的尾循环大小
+    int64_t tNormCore{0};   // 正常核计算的总大小 (n * n 的个数)
 };
 
 #endif // MHC_SINKHORN_STRUCT_H

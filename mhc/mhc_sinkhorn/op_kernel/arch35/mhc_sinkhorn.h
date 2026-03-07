@@ -36,54 +36,55 @@ constexpr int64_t DOUBLE_BUFFER = 2;
 
 class MhcSinkhornSimd {
 public:
-    __aicore__ inline MhcSinkhornSimd(TPipe& pipe, const MhcSinkhornTilingData& tilingData)
+    __aicore__ inline MhcSinkhornSimd(TPipe &pipe, const MhcSinkhornTilingData &tilingData)
         : pipe_(pipe), tilingData_(tilingData){};
     __aicore__ inline void Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, GM_ADDR sum_out, GM_ADDR tiling);
     __aicore__ inline void Process();
 
 private:
-    __aicore__ inline void CalcSoftmax(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps);
-    __aicore__ inline void CalcCol(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps);
-    __aicore__ inline void CalcRow(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps);
+    __aicore__ inline void CalcSoftmax(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                       __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr, uint32_t dataLen,
+                                       uint32_t n, float eps);
+    __aicore__ inline void CalcCol(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                   __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr, uint32_t dataLen,
+                                   uint32_t n, float eps);
+    __aicore__ inline void CalcRow(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                   __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr, uint32_t dataLen,
+                                   uint32_t n, float eps);
 
     GlobalTensor<float> hRes_;
     GlobalTensor<float> y_;
     GlobalTensor<float> normOut_;
     GlobalTensor<float> sumOut_;
-    TPipe& pipe_;
-    const MhcSinkhornTilingData& tilingData_;
+    TPipe &pipe_;
+    const MhcSinkhornTilingData &tilingData_;
     int64_t blockIdx_;
     int64_t loop_;
-    int64_t tUbFactor_;
+    // int64_t tilingData_.tUbFactor;
     int64_t tailLoopSize_;
-    int64_t T_;
-    int64_t n_;
+    // int64_t T_;
+    // int64_t tilingData_.n;
     TQue<QuePosition::VECOUT, DOUBLE_BUFFER> inputQue_;
     TQue<QuePosition::VECOUT, DOUBLE_BUFFER> outputQue_;
     TBuf<TPosition::VECCALC> maskBuffer_;
     TBuf<TPosition::VECCALC> maxBuffer_;
 };
 
-__aicore__ inline void MhcSinkhornSimd::Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, GM_ADDR sum_out, GM_ADDR tiling)
+__aicore__ inline void MhcSinkhornSimd::Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, GM_ADDR sum_out,
+                                             GM_ADDR tiling)
 {
     blockIdx_ = GetBlockIdx();
-    hRes_.SetGlobalBuffer((__gm__ float*)(h_res));
-    y_.SetGlobalBuffer((__gm__ float*)(y));
-    normOut_.SetGlobalBuffer((__gm__ float*)(norm_out));
-    sumOut_.SetGlobalBuffer((__gm__ float*)(sum_out));
-    tUbFactor_ = tilingData_.tUbFactor;
-    n_ = tilingData_.n;
-    T_ = tilingData_.T;
+    hRes_.SetGlobalBuffer((__gm__ float *)(h_res));
+    y_.SetGlobalBuffer((__gm__ float *)(y));
+    normOut_.SetGlobalBuffer((__gm__ float *)(norm_out));
+    sumOut_.SetGlobalBuffer((__gm__ float *)(sum_out));
+    // tilingData_.tUbFactor = tilingData_.tUbFactor;
+    // tilingData_.n = tilingData_.n;
+    // T_ = tilingData_.T;
     pipe_.InitBuffer(maskBuffer_, MASK_BUFFER_SIZE);
     pipe_.InitBuffer(maxBuffer_, MAX_BUFFER_SIZE);
-    pipe_.InitBuffer(inputQue_, DOUBLE_BUFFER, tUbFactor_ * sizeof(float));
-    pipe_.InitBuffer(outputQue_, DOUBLE_BUFFER, tUbFactor_ * sizeof(float));
+    pipe_.InitBuffer(inputQue_, DOUBLE_BUFFER, tilingData_.tUbFactor * sizeof(float));
+    pipe_.InitBuffer(outputQue_, DOUBLE_BUFFER, tilingData_.tUbFactor * sizeof(float));
     loop_ = tilingData_.tNormCoreLoop;
     tailLoopSize_ = tilingData_.tUbFactorTail;      // 尾循环处理的数量
     if (blockIdx_ == tilingData_.usedCoreNum - 1) { //  尾核
@@ -93,9 +94,9 @@ __aicore__ inline void MhcSinkhornSimd::Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR n
 }
 
 // CalcSoftmax
-__aicore__ inline void MhcSinkhornSimd::CalcSoftmax(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps)
+__aicore__ inline void MhcSinkhornSimd::CalcSoftmax(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                                    __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr,
+                                                    uint32_t dataLen, uint32_t n, float eps)
 {
     __VEC_SCOPE__
     {
@@ -123,7 +124,7 @@ __aicore__ inline void MhcSinkhornSimd::CalcSoftmax(
         MicroAPI::Sub(tmpReg2, orderReg, tmpReg2, maskReg);
         MicroAPI::Mul(tmpReg3, tmpReg1, duplicateReg2, maskReg);
         MicroAPI::Add(indexReg, tmpReg2, tmpReg3, maskReg);
-        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
 
         MicroAPI::ReduceMaxWithDataBlock(maxReg, gatherReg, maskReg);
         MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_NORM>(maxAddr, maxReg, dataCopyMaskReg);
@@ -140,14 +141,14 @@ __aicore__ inline void MhcSinkhornSimd::CalcSoftmax(
         MicroAPI::Div(softmaxReg, softmaxReg, sumReg, maskReg);
         MicroAPI::Adds(softmaxReg, softmaxReg, eps, maskReg);
 
-        MicroAPI::DataCopyScatter(outputAddr, softmaxReg, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyScatter(outputAddr, softmaxReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
         MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
 
-__aicore__ inline void MhcSinkhornSimd::CalcCol(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps)
+__aicore__ inline void MhcSinkhornSimd::CalcCol(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                                __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr,
+                                                uint32_t dataLen, uint32_t n, float eps)
 {
     __VEC_SCOPE__
     {
@@ -175,7 +176,7 @@ __aicore__ inline void MhcSinkhornSimd::CalcCol(
         MicroAPI::Muls(tmpReg2, tmpReg2, static_cast<int32_t>(n), maskReg);
         MicroAPI::Mul(tmpReg3, tmpReg1, duplicateReg2, maskReg);
         MicroAPI::Add(indexReg, tmpReg2, tmpReg3, maskReg);
-        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
 
         MicroAPI::ReduceSumWithDataBlock(sumReg, gatherReg, maskReg);
         MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_NORM>(maxAddr, sumReg, dataCopyMaskReg);
@@ -184,14 +185,14 @@ __aicore__ inline void MhcSinkhornSimd::CalcCol(
         MicroAPI::Adds(sumReg, sumReg, eps, maskReg);
         MicroAPI::Div(resReg, gatherReg, sumReg, maskReg);
 
-        MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
         MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
 
-__aicore__ inline void MhcSinkhornSimd::CalcRow(
-    __local_mem__ float* inputAddr, __local_mem__ float* outputAddr, __local_mem__ uint32_t* maskAddr,
-    __local_mem__ float* maxAddr, uint32_t dataLen, uint32_t n, float eps)
+__aicore__ inline void MhcSinkhornSimd::CalcRow(__local_mem__ float *inputAddr, __local_mem__ float *outputAddr,
+                                                __local_mem__ uint32_t *maskAddr, __local_mem__ float *maxAddr,
+                                                uint32_t dataLen, uint32_t n, float eps)
 {
     __VEC_SCOPE__
     {
@@ -218,7 +219,7 @@ __aicore__ inline void MhcSinkhornSimd::CalcRow(
         MicroAPI::Sub(tmpReg2, orderReg, tmpReg2, maskReg);
         MicroAPI::Mul(tmpReg3, tmpReg1, duplicateReg2, maskReg);
         MicroAPI::Add(indexReg, tmpReg2, tmpReg3, maskReg);
-        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyGather(gatherReg, inputAddr, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
 
         MicroAPI::ReduceSumWithDataBlock(sumReg, gatherReg, maskReg);
         MicroAPI::DataCopy<float, MicroAPI::StoreDist::DIST_NORM>(maxAddr, sumReg, dataCopyMaskReg);
@@ -227,7 +228,7 @@ __aicore__ inline void MhcSinkhornSimd::CalcRow(
         MicroAPI::Adds(sumReg, sumReg, eps, maskReg);
         MicroAPI::Div(resReg, gatherReg, sumReg, maskReg);
 
-        MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t>&)(indexReg), maskReg);
+        MicroAPI::DataCopyScatter(outputAddr, resReg, (MicroAPI::RegTensor<uint32_t> &)(indexReg), maskReg);
         MicroAPI::LocalMemBar<AscendC::MicroAPI::MemType::VEC_STORE, AscendC::MicroAPI::MemType::VEC_LOAD>();
     }
 }
@@ -238,101 +239,89 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         return;
     }
 
-    LocalTensor<float> inputLocal = inputQue_.AllocTensor<float>();
-    LocalTensor<float> outputLocal = outputQue_.AllocTensor<float>();
     LocalTensor<uint32_t> maskLocal = maskBuffer_.Get<uint32_t>();
     LocalTensor<float> maxLocal = maxBuffer_.Get<float>();
 
     uint32_t mask = 0;
-    if (n_ == 4) {
+    if (tilingData_.n == 4) {
         mask = MASK_4;
-    } else if (n_ == 6) {
+    } else if (tilingData_.n == 6) {
         mask = MASK_6;
-    } else if (n_ == 8) {
+    } else if (tilingData_.n == 8) {
         mask = MASK_8;
     }
     Duplicate(maskLocal, mask, MASK_NUM);
 
     for (int64_t i = 0; i < loop_; i++) {
-        int64_t inputOffset = (blockIdx_ * tilingData_.tNormCore * n_ * n_ + i * tUbFactor_);
-        uint32_t loopSize = (i == loop_ - 1) ? tailLoopSize_ : tUbFactor_;
-        loopSize = loopSize / (n_ * n_) * (n_ * n_);
+        LocalTensor<float> inputLocal = inputQue_.AllocTensor<float>();
+        LocalTensor<float> outputLocal = outputQue_.AllocTensor<float>();
+
+        int64_t inputOffset =
+            (blockIdx_ * tilingData_.tNormCore * tilingData_.n * tilingData_.n + i * tilingData_.tUbFactor);
+        uint32_t loopSize = (i == loop_ - 1) ? tailLoopSize_ : tilingData_.tUbFactor;
+        loopSize = loopSize / (tilingData_.n * tilingData_.n) * (tilingData_.n * tilingData_.n);
 
         //  copyin
         DataCopyPadExtParams<float> dataCopyPadExtParams{false, 0, 0, 0};
         DataCopyExtParams dataCopyExtParams{1, static_cast<uint32_t>(loopSize * sizeof(float)), 0, 0, 0};
         DataCopyPad(inputLocal, hRes_[inputOffset], dataCopyExtParams, dataCopyPadExtParams);
+        
         inputQue_.EnQue<float>(inputLocal);
-
         inputLocal = inputQue_.DeQue<float>();
-        auto MTE2ToVEventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
-        SetFlag<HardEvent::MTE2_V>(MTE2ToVEventID);
-        WaitFlag<HardEvent::MTE2_V>(MTE2ToVEventID);
 
-        uint32_t repeatSize = platform::GetVRegSize() / BLOCK_SIZE * n_ * n_;
+        uint32_t repeatSize = platform::GetVRegSize() / BLOCK_SIZE * tilingData_.n * tilingData_.n;
         uint16_t repeatTimes = ops::CeilDiv(loopSize, repeatSize);
-        __local_mem__ float* inputAddr = (__local_mem__ float*)inputLocal.GetPhyAddr();
-        __local_mem__ float* outputAddr = (__local_mem__ float*)outputLocal.GetPhyAddr();
-        __local_mem__ uint32_t* maskAddr = (__local_mem__ uint32_t*)maskLocal.GetPhyAddr();
-        __local_mem__ float* maxAddr = (__local_mem__ float*)maxLocal.GetPhyAddr();
+        __local_mem__ float *inputAddr = (__local_mem__ float *)inputLocal.GetPhyAddr();
+        __local_mem__ float *outputAddr = (__local_mem__ float *)outputLocal.GetPhyAddr();
+        __local_mem__ uint32_t *maskAddr = (__local_mem__ uint32_t *)maskLocal.GetPhyAddr();
+        __local_mem__ float *maxAddr = (__local_mem__ float *)maxLocal.GetPhyAddr();
 
-        auto dataLen = loopSize / n_ / n_;
+        auto dataLen = loopSize / tilingData_.n / tilingData_.n;
         for (uint16_t i = 0; i < repeatTimes; i++) {
-            for (uint16_t j = 0; j < n_; j++) {
-                auto curInputAddr = inputAddr + i * repeatSize + j * n_;
-                auto curOutputAddr = outputAddr + i * repeatSize + j * n_;
-                CalcSoftmax(curInputAddr, curOutputAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen), static_cast<uint32_t>(n_), tilingData_.eps);
+            for (uint16_t j = 0; j < tilingData_.n; j++) {
+                auto curInputAddr = inputAddr + i * repeatSize + j * tilingData_.n;
+                auto curOutputAddr = outputAddr + i * repeatSize + j * tilingData_.n;
+                CalcSoftmax(curInputAddr, curOutputAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                            static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
             }
         }
+        inputQue_.FreeTensor<float>(inputLocal);
 
-        outputQue_.EnQue<float>(outputLocal);
-        outputLocal = outputQue_.DeQue<float>();
 
-         for (uint16_t i = 0; i < repeatTimes; i++) {
-            for (uint16_t j = 0; j < n_; j++) {
+        for (uint16_t i = 0; i < repeatTimes; i++) {
+            for (uint16_t j = 0; j < tilingData_.n; j++) {
                 auto curInputAddrCol = outputAddr + i * repeatSize + j;
                 auto curOutputAddrCol = outputAddr + i * repeatSize + j;
-                CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen), static_cast<uint32_t>(n_), tilingData_.eps);
+                CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                        static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
             }
         }
 
-        outputQue_.EnQue<float>(outputLocal);
-        outputLocal = outputQue_.DeQue<float>();
 
         for (int64_t iter = 0; iter < tilingData_.num_iters - 1; iter++) {
             for (uint16_t i = 0; i < repeatTimes; i++) {
-                for (uint16_t j = 0; j < n_; j++) {
-                    auto curInputAddrRow = outputAddr + i * repeatSize + j * n_;
-                    auto curOutputAddrRow = outputAddr + i * repeatSize + j * n_;
-                    CalcRow(
-                        curInputAddrRow, curOutputAddrRow, maskAddr, maxAddr, static_cast<uint32_t>(dataLen), static_cast<uint32_t>(n_), tilingData_.eps);
+                for (uint16_t j = 0; j < tilingData_.n; j++) {
+                    auto curInputAddrRow = outputAddr + i * repeatSize + j * tilingData_.n;
+                    auto curOutputAddrRow = outputAddr + i * repeatSize + j * tilingData_.n;
+                    CalcRow(curInputAddrRow, curOutputAddrRow, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                            static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
-                
-                outputQue_.EnQue<float>(outputLocal);
-                outputLocal = outputQue_.DeQue<float>();
 
-                for (uint16_t j = 0; j < n_; j++) {
+                for (uint16_t j = 0; j < tilingData_.n; j++) {
                     auto curInputAddrCol = outputAddr + i * repeatSize + j;
                     auto curOutputAddrCol = outputAddr + i * repeatSize + j;
-                    CalcCol(
-                        curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen), static_cast<uint32_t>(n_), tilingData_.eps);
+                    CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                            static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
-
-                outputQue_.EnQue<float>(outputLocal);
-                outputLocal = outputQue_.DeQue<float>();
             }
         }
 
         outputQue_.EnQue<float>(outputLocal);
         outputLocal = outputQue_.DeQue<float>();
-        auto VToMTE3EventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
-        SetFlag<HardEvent::V_MTE3>(VToMTE3EventID);
-        WaitFlag<HardEvent::V_MTE3>(VToMTE3EventID);
-        DataCopyPad(y_[inputOffset], outputLocal, dataCopyExtParams);
-    }
 
-    inputQue_.FreeTensor<float>(inputLocal);
-    outputQue_.FreeTensor<float>(outputLocal);
+        DataCopyPad(y_[inputOffset], outputLocal, dataCopyExtParams);
+        outputQue_.FreeTensor<float>(outputLocal);
+    }  
 }
 } // namespace MhcSinkhorn
 

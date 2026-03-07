@@ -28,39 +28,23 @@ namespace l0op {
 
 OP_TYPE_REGISTER(MhcSinkhorn);
 
-static const std::initializer_list<op::DataType> AICORE_DTYPE_SUPPORT_LIST = {
-    op::DataType::DT_INT32, op::DataType::DT_FLOAT16,  op::DataType::DT_FLOAT,
-    op::DataType::DT_INT64, op::DataType::DT_BOOL};
-
-// 根据dtype判断算子是否支持走aicore
-static bool IsAiCoreSupport(const aclTensor *x) 
-{
-    auto socVersion = GetCurrentPlatformInfo().GetSocVersion();
-    return CheckType(x->GetDataType(), AICORE_DTYPE_SUPPORT_LIST);
-}
-
 // AICORE算子kernel
-static const aclTensor* MhcSinkhornAiCore(const aclTensor* x, int64_t outFlag, float eps, int64_t numIters, aclTensor* output, 
-                                         aclTensor* normOut, aclTensor* sumOut,aclOpExecutor* executor) 
+static const aclTensor *MhcSinkhornAiCore(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
+                                          aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
+                                          aclOpExecutor *executor)
 {
-  L0_DFX(MhcSinkhornAiCore, x, outFlag, eps, numIters, output, normOut, sumOut);
-  // 使用框架宏 ADD_TO_LAUNCHER_LIST_AICORE，将MhcSinkhorn算子加入任务队列
-  auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MhcSinkhorn,
-                                         OP_INPUT(x),
-                                         OP_OUTPUT(output, normOut, sumOut),
-                                         OP_ATTR(outFlag, eps, numIters));
-  OP_CHECK(ret ==  ACLNN_SUCCESS, OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MhcSinkhorn ADD_TO_LAUNCHER_LIST_AICORE failed."),
-    return nullptr);
-  return output;
+    L0_DFX(MhcSinkhornAiCore, x, outFlag, eps, numIters, output, normOut, sumOut);
+    // 使用框架宏 ADD_TO_LAUNCHER_LIST_AICORE，将MhcSinkhorn算子加入任务队列
+    auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MhcSinkhorn, OP_INPUT(x), OP_OUTPUT(output, normOut, sumOut),
+                                           OP_ATTR(outFlag, eps, numIters));
+    OP_CHECK(ret == ACLNN_SUCCESS, OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MhcSinkhorn ADD_TO_LAUNCHER_LIST_AICORE failed."),
+             return nullptr);
+    return output;
 }
 
-const aclTensor *MhcSinkhorn(const aclTensor* x, int64_t outFlag, float eps, int64_t numIters, aclTensor* output, 
-                                         aclTensor* normOut, aclTensor* sumOut,aclOpExecutor* executor) 
+const aclTensor *MhcSinkhorn(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters, aclTensor *output,
+                             aclTensor *normOut, aclTensor *sumOut, aclOpExecutor *executor)
 {
-  if (IsAiCoreSupport(x)) {
     return MhcSinkhornAiCore(x, outFlag, eps, numIters, output, normOut, sumOut, executor);
-  } else {
-    return nullptr;
-  }
 }
-}  // namespace l0op
+} // namespace l0op

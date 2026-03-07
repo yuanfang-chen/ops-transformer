@@ -15,10 +15,10 @@
 namespace ge {
 
 /**
- * @brief Perform the Sinkhorn normalization on the input tensor h_res to generate 
+ * @brief Perform the Sinkhorn normalization on the input tensor h_res to generate
  * a doubly stochastic matrix, and compute related normalization and summation results.
  * @par Description:
- * This operator implements the Sinkhorn-Knopp algorithm to iteratively normalize 
+ * This operator implements the Sinkhorn-Knopp algorithm to iteratively normalize
  * the rows and columns of the input matrix h_res, making it close to a doubly stochastic matrix.
  * It outputs the normalized matrix, normalization factor, and summation result based on configuration.
  * @par Inputs:
@@ -29,8 +29,10 @@ namespace ge {
  * @li sum_out: A Tensor of type Float32. Summation result tensor of the normalized matrix rows/columns.
  * @par Attributes:
  * @li eps: Float type, default value 1.00e-06. A small epsilon value to prevent division by zero during normalization.
- * @li num_iters: Int type, default value 20. Number of iteration steps for the Sinkhorn-Knopp algorithm. Range: [1, 100].
- * @li out_flag: Int type, default value 0. Control flag for output mode (0: basic output, 1: extended output, etc.).
+ * @li num_iters: Int type, default value 20. Number of iteration steps for the Sinkhorn-Knopp algorithm. Range: [1,
+ * 100].
+ * @li out_flag: Int type, default value 0. Control flag for output mode (0: basic output, 1: extended output,
+ * etc.).Currently, only value 0 is supported in this version.
  */
 REG_OP(MhcSinkhorn)
     .INPUT(h_res, TensorType({DT_FLOAT}))

@@ -21,15 +21,21 @@ extern "C" {
 #endif
 
 static const std::initializer_list<op::DataType> DTYPE_SUPPORT_LIST = {op::DataType::DT_FLOAT};
+static const std::vector<int64_t> VALID_N_VALUES = {4, 6, 8};
 
 static constexpr size_t DIM_ONE = 1;
 static constexpr size_t DIM_TWO = 2;
 static constexpr size_t DIM_THREE = 3;
-static constexpr size_t MAX_DIM = 8;
 static constexpr size_t MIN_NUMITERS = 0;
 static constexpr size_t MAX_NUMITERS = 100;
+static constexpr size_t SUPPORT_DIM_NUM_3 = 3;
+static constexpr size_t SUPPORT_DIM_NUM_4 = 4;
+static const int64_t N_VALID_4 = 4;
+static const int64_t N_VALID_6 = 6;
+static const int64_t N_VALID_8 = 8;
 
-static bool CheckNotNull(const aclTensor* x, const aclTensor* output, const aclTensor* normOut, const aclTensor* sumOut)
+
+static bool CheckNotNull(const aclTensor *x, const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut)
 {
     OP_CHECK_NULL(x, return false);
     OP_CHECK_NULL(output, return false);
@@ -38,8 +44,8 @@ static bool CheckNotNull(const aclTensor* x, const aclTensor* output, const aclT
     return true;
 }
 
-static bool CheckDtypeValid(
-    const aclTensor* x, const aclTensor* output, const aclTensor* normOut, const aclTensor* sumOut)
+static bool CheckDtypeValid(const aclTensor *x, const aclTensor *output, const aclTensor *normOut,
+                            const aclTensor *sumOut)
 {
     // 检查x的数据类型是否在算子的支持列表内
     OP_CHECK_DTYPE_NOT_SUPPORT(x, DTYPE_SUPPORT_LIST, return false);
@@ -52,49 +58,41 @@ static bool CheckDtypeValid(
     return true;
 }
 
-static bool CheckFormat(const aclTensor* self, const aclTensor* out)
+static bool CheckFormat(const aclTensor *self, const aclTensor *out)
 {
     // 输入输出的格式需要一致
     if (self->GetStorageFormat() != out->GetStorageFormat()) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
-            ToString(self->GetStorageFormat()).GetString(), ToString(out->GetStorageFormat()).GetString());
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+                ToString(self->GetStorageFormat()).GetString(), ToString(out->GetStorageFormat()).GetString());
         return false;
     }
     return true;
 }
 
-static bool CheckShape(
-    const aclTensor* x, const aclTensor* output, const aclTensor* normOut, const aclTensor* sumOut, int64_t numIters,
-    int64_t outFlag)
+static bool CheckShape(const aclTensor *x, const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut,
+                       int64_t numIters, int64_t outFlag)
 {
-    if (x->IsEmpty()) {
-        return true;
-    }
     // 校验self的shape是否等于out的shape
     OP_CHECK_SHAPE_NOT_EQUAL(x, output, return false);
-    // 最大维度限制
-    OP_CHECK_MAX_DIM(x, MAX_DIM, return false);
 
     // numIters在1~100范围内
     if (numIters <= MIN_NUMITERS || numIters > MAX_NUMITERS) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "numIters value error, numIters must in 1 to 100, but got numIters = %ld .",
-            numIters);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "numIters value error, numIters must in 1 to 100, but got numIters = %ld .",
+                numIters);
         return false;
     }
 
     // outFlag为0或1
     if (outFlag != 0 && outFlag != 1) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "outFlag value error, outFlag must be 0 or 1, but got outFlag = %ld .", outFlag);
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "outFlag value error, outFlag must be 0 or 1, but got outFlag = %ld .",
+                outFlag);
         return false;
     }
 
     // 维度必须是3或4
     auto xShape = x->GetViewShape();
     auto xDim = xShape.GetDimNum();
-    if (xDim != 3 && xDim != 4) {
+    if (xDim != SUPPORT_DIM_NUM_3 && xDim != SUPPORT_DIM_NUM_4) {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Dim value error, input dim must be 3 or 4, but got Dim = %ld .", xDim);
         return false;
     }
@@ -102,25 +100,24 @@ static bool CheckShape(
     // n0等于n1 且n为4,6,8
     int64_t n0 = 0;
     int64_t n1 = 0;
-    if (xDim == 3) {
+    if (xDim == SUPPORT_DIM_NUM_3) {
         n0 = xShape.GetDim(DIM_ONE);
         n1 = xShape.GetDim(DIM_TWO);
-    } else if (xDim == 4) {
+    } else if (xDim == SUPPORT_DIM_NUM_3) {
         n0 = xShape.GetDim(DIM_TWO);
         n1 = xShape.GetDim(DIM_THREE);
     }
-    if ((n0 != n1) || (n0 != 4 && n0 != 6 && n0 != 8)) {
-        OP_LOGE(
-            ACLNN_ERR_PARAM_INVALID, "n0 must equal n1, and n must be 4 or 6 or 8, but got n0 = %ld, n1 = %ld", n0, n1);
+    if ((n0 != n1) || (n0 != N_VALID_4 && n0 != N_VALID_6 && n0 != N_VALID_8)) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                "n0 must equal n1, and n must be %ld or %ld or %ld, but got n0 = %ld, n1 = %ld", N_VALID_4, N_VALID_6,
+                N_VALID_8, n0, n1);
         return false;
     }
-
     return true;
 }
 
-static inline aclnnStatus CheckParams(
-    const aclTensor* x, int64_t outFlag, float eps, int64_t numIters, const aclTensor* output, const aclTensor* normOut,
-    const aclTensor* sumOut)
+static inline aclnnStatus CheckParams(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
+                                      const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut)
 {
     // 1. 检查参数是否为空指针
     CHECK_RET(CheckNotNull(x, output, normOut, sumOut), ACLNN_ERR_PARAM_NULLPTR);
@@ -137,11 +134,10 @@ static inline aclnnStatus CheckParams(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(
-    const aclTensor* x, int64_t outFlag, float eps, int64_t numIters, aclTensor* output, aclTensor* normOut,
-    aclTensor* sumOut, uint64_t* workspaceSize, aclOpExecutor** executor)
+aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
+                                             aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
+                                             uint64_t *workspaceSize, aclOpExecutor **executor)
 {
-    OP_LOGI("Enter aclnnMhcSinkhorn WorkspaceSize");
     L2_DFX_PHASE_1(aclnnMhcSinkhorn, DFX_IN(x, outFlag, eps, numIters), DFX_OUT(output, normOut, sumOut));
 
     // 固定写法，创建OpExecutor
@@ -175,7 +171,7 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnMhcSinkhorn(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream)
+aclnnStatus aclnnMhcSinkhorn(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
 {
     L2_DFX_PHASE_2(aclnnMhcSinkhorn);
     // 固定写法，调用框架能力，完成计算

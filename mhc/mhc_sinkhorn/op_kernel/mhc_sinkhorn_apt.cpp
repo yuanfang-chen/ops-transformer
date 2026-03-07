@@ -26,7 +26,7 @@ extern "C" __global__ __aicore__ void mhc_sinkhorn(GM_ADDR h_res, GM_ADDR y, GM_
     if (user == nullptr) {
         return;
     }
-
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     REGISTER_TILING_DEFAULT(MhcSinkhornTilingData);
     GET_TILING_DATA(tilingData, tiling);
     AscendC::TPipe pipe;

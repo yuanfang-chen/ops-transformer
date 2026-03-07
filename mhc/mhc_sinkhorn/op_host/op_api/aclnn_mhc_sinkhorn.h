@@ -22,15 +22,15 @@ extern "C" {
  * @brief aclnnMhcSinkhorn的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
  */
-ACLNN_API aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(
-    const aclTensor* x, int64_t outFlag, float eps, int64_t numIters, aclTensor* output, aclTensor* normOut, aclTensor* sumOut,
-    uint64_t* workspaceSize, aclOpExecutor** executor);
+ACLNN_API aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
+                                                       aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
+                                                       uint64_t *workspaceSize, aclOpExecutor **executor);
 
 /**
  * @brief aclnnMhcSinkhorn的第二段接口，用于执行计算。
  */
-ACLNN_API aclnnStatus
-aclnnMhcSinkhorn(void* workspace, uint64_t workspaceSize, aclOpExecutor* executor, aclrtStream stream);
+ACLNN_API aclnnStatus aclnnMhcSinkhorn(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
+                                       aclrtStream stream);
 
 #ifdef __cplusplus
 }
