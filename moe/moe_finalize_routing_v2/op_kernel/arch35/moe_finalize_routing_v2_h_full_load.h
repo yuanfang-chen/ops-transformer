@@ -206,32 +206,6 @@ private:
         }
     }
 
-    __aicore__ inline void CopyLocal(
-        const LocalTensor<T>& srcTensor,       // 源本地张量（从0开始拷贝）
-        const LocalTensor<T>& dstTensor,       // 目标本地张量
-        const uint64_t dstOffset,              // 目标张量的起始偏移量
-        const uint16_t nBurst,                 // 突发传输次数
-        const uint32_t copyLen)                // 每次传输的元素数量
-    {
-        // 配置填充参数（无填充）
-        DataCopyPadExtParams<T> dataCopyPadExtParams;
-        dataCopyPadExtParams.isPad = false;
-        dataCopyPadExtParams.leftPadding = 0;
-        dataCopyPadExtParams.rightPadding = 0;
-        dataCopyPadExtParams.paddingValue = 0;
-
-        // 配置传输参数
-        DataCopyExtParams dataCopyExtParams;
-        dataCopyExtParams.blockCount = nBurst;           // 突发传输次数
-        dataCopyExtParams.blockLen = copyLen * sizeof(T); // 每次传输的字节长度
-        dataCopyExtParams.srcStride = 0;                 // 源张量步长（0表示连续内存）
-        dataCopyExtParams.dstStride = 0;                 // 目标张量步长（0表示连续内存）
-        
-        // 使用偏移后的目标张量进行复制
-        // dstTensor[dstOffset] 表示从目标张量的dstOffset位置开始写入
-        DataCopyPad(dstTensor[dstOffset], srcTensor[0], dataCopyExtParams, dataCopyPadExtParams);
-    }
-
     __aicore__ inline void CopyExpanedXAndBiasScales(
         int64_t curKFactor, int64_t rowOuterIdx, int64_t rowInnerIdx, int64_t kOuterIdx)
     {
@@ -253,7 +227,11 @@ private:
             // 判断专家类型，并进行拷贝相应函数
             int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
             if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                continue;
+                // x = 0
+                // 直接填充0 到 expandedXLocal
+                T xVal(0.0);
+                AscendC::Duplicate(xLocal, xVal, tilingData->h);
+                CopyLocal(xLocal, expandedXLocal, validK * tilingData->hAligned, 1, tilingData->h);
             }
             if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
                 // x = x[i]
