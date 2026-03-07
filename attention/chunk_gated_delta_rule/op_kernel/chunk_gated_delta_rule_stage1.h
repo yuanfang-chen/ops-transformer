@@ -10,7 +10,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
  */
 
 /*!
- * \file chunk_gated_delta_rule_stage1.h.h
+ * \file chunk_gated_delta_rule_stage1.h
  * \brief
  */
 #ifndef __CHUNK_GATED_DELTA_RULE_STAGE1_H
