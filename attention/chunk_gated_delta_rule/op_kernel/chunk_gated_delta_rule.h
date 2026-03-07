@@ -21,6 +21,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "kernel_tiling/kernel_tiling.h"
 #include "chunk_gated_delta_rule_tiling_data.h"
 #include "chunk_gated_delta_rule_stage1.h"
+#include "chunk_gated_delta_rule_stage2.h"
 
 namespace ChunkGatedDeltaRule {
 
@@ -157,13 +158,8 @@ private:
         stageOneOp_.Process();
         pipe_->Reset();
     }
-
-    __aicore__ inline void stage2(
-        const ChunkGroup& cg,
-        GlobalTensor<lowType>& initState,
-        GlobalTensor<lowType>& finalState)
+    __aicore__ inline void stage1Dump()
     {
-        // todo: stage2, release ub resource after computing
         if (GetBlockIdx() == 23)
         {
             // Dump stage1 outputs for debugging: print first 10 and last 10 values
@@ -205,8 +201,18 @@ private:
         AscendC::DumpTensor(qkt_[0], 6001, 10);
         AscendC::DumpTensor(qkt_[qktLen - 10], 6002, 10);
         }
-        
-        
+    }
+
+    __aicore__ inline void stage2(
+        const ChunkGroup& cg,
+        GlobalTensor<lowType>& initState,
+        GlobalTensor<lowType>& finalState)
+    {
+        // todo: stage2, release ub resource after computing
+        Stage2 stageTwoOp;
+        stageTwoOp.Init();
+        stageTwoOp.Process();
+        pipe_->Reset();
     }
 
     __aicore__ inline void stage3(const ChunkGroup& cg)
