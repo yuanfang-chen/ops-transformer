@@ -17,7 +17,6 @@
 
 #include "kernel_log.h"
 #include "kernel_operator.h"
-#include "kernel_utils.h"
 
 using AscendC::CrossCoreSetFlag;
 using AscendC::CrossCoreWaitFlag;
