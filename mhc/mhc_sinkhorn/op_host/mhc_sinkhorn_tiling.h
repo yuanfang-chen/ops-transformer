@@ -55,6 +55,8 @@ protected:
     void DumpTilingInfo() override;
     ge::graphStatus CheckInputShape();
     ge::graphStatus CheckInputDtype();
+    void SplitByCoreNum(int64_t tCoreNum, int64_t ubBlockX, int64_t xDtypeSize, 
+                    int64_t tUbFactor, int64_t tCoreLoop, int64_t tUbFactorTail);
     void SetTilingData();
 
 private:
@@ -72,6 +74,7 @@ private:
     int64_t tilingKey_ = 0;
     int64_t totalCoreNum_ = 0;
     int64_t ubSize_ = 0;
+    int64_t ubSizeUsed_ = 0;
     float eps_ = 1E-6;
     int64_t num_iters_ = 20;
     int64_t out_flag_ = 0;
