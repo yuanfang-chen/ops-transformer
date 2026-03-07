@@ -30,8 +30,8 @@ extern "C" {
  *                h_{l}^{out} * H_{t}^{post} 表示逐元素相乘后广播到所有维度
  * @domain aclnn_ops_infer
  */
-aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *h_res, const aclTensor *h_out,
-                                         const aclTensor *h_post, aclTensor *out, uint64_t *workspaceSize,
+aclnnStatus aclnnMhcPostGetWorkspaceSize(const aclTensor *x, const aclTensor *hRes, const aclTensor *hOut,
+                                         const aclTensor *hPost, aclTensor *out, uint64_t *workspaceSize,
                                          aclOpExecutor **executor);
 
 /**
