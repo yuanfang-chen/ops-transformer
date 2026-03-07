@@ -20,7 +20,6 @@ add_ops_compile_options(
             -Werror
             -mllvm -cce-vf-remove-membar=false
             -mllvm -cce-aicore-hoist-movemask=false
-            --op_relocatable_kernel_binary=true
 )
 
 add_modules_sources_with_soc(OPTYPE fused_infer_attention_score ACLNNTYPE aclnn_inner)
