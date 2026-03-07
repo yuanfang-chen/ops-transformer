@@ -49,6 +49,10 @@ ge::graphStatus CausalConv1dUpdateTiling::GetPlatformInfo()
         ubSize_ = compileInfoPtr->ubSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+        uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+        size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
+        currentWorkspace[0] = static_cast<size_t>(0UL + sysWorkspaceSize);
+
         totalCoreNum_ = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
         if (totalCoreNum_ == 0UL) {
             OP_LOGE(context_->GetNodeName(), "coreNum is 0");
