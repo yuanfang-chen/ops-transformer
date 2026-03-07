@@ -560,16 +560,20 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     mm_.SetOrgShape(m_, n_, k_); // 252, 3072, 5120
     mm_.SetSingleShape(singleCoreM_, singleCoreN_, singleCoreK_);
 
-    CalcOffset(0, mCoreIndx, nCoreIndx);
-    uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
-    for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
-        CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
-        // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
-        MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
-        offsetA_ += singleCoreK_; // 512
-        offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
+    if (nCoreIndx < nDimNeed) {
+        CalcOffset(0, mCoreIndx, nCoreIndx);
+        uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
+        for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
+            if (kBlockIdx % 2 == 0) {
+                CrossCoreWaitFlag(6);
+            }
+            // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
+            MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
+            offsetA_ += singleCoreK_; // 512
+            offsetB_ += (singleCoreK_ * K0_INT8); // 512*32
+        }
+        mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
     }
-    mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
     CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
 
     for (uint32_t nDimLoopIdx = 1; nDimLoopIdx < nDimLoops; nDimLoopIdx++) {
@@ -696,12 +700,12 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         // if (isPerTensor_) {
         //     AscendDequant(dstLocalFp32, srcLocal, scaleScalar_, tmpLocal, dequantParams);
         // } else {
-            LocalTensor<float> scaleLocal = vecQueScale_.AllocTensor<float>();
-            Bf16ScaleGm2Ub(scaleLocal, scaleGMTensor_, padParams, baseNOfffset, curAicN);
-            SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
-            WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
-            AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
-            vecQueScale_.FreeTensor(scaleLocal);
+        LocalTensor<float> scaleLocal = vecQueScale_.AllocTensor<float>();
+        Bf16ScaleGm2Ub(scaleLocal, scaleGMTensor_, padParams, baseNOfffset, curAicN);
+        SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
+        WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
+        AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
+        vecQueScale_.FreeTensor(scaleLocal);
         // }
 
         DataCopyParams scale2UbParams{1, 0, 0, 0};
