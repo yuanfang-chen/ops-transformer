@@ -107,8 +107,8 @@ struct PFAType {
     static constexpr MsdMode msdMode = MSD_MODE;
 };
 
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP16 = 0xC77FE000;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP16 = 0xC77FE000;
 
 constexpr static uint32_t MM2_SINGLE_K_ALIGN_SIZE = 32;
 constexpr static uint32_t SINGLE_PROCESS_SINNER_BMMTAIL_LIMIT = 32;
@@ -715,7 +715,7 @@ protected:
 
     uint32_t attentionMaskStride = 0;
     int32_t attentionMaskType = 0;
-    uint32_t negativeScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeScalar = NEGATIVE_MIN_VALUE_FP32;
     bool isSoftmaxResNeedUpdate;
     bool isSoftmaxLseNeedUpdate = false;
     bool isSoftmaxNeedUpdate[MAX_SUBSOUTER_NUM];
@@ -1780,7 +1780,7 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910Base<PFAT>::Init(__gm__ u
     uint32_t s = tilingData->promptAttentionBaseParams.seqSize;
     if constexpr ((PFAT::calcMode != OptimizationMode::HighPrecision) &&
                   (IsSameType<T, half>::value || IsSameType<T, int8_t>::value)) {
-        this->negativeScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeScalar = NEGATIVE_MIN_VALUE_FP16;
     }
     uint64_t maskSize = (tilingData->promptAttentionTensorSizeRect.attenMaskUbSize) * sizeof(U);
     maskBmm2ShareSize = (tilingData->promptAttentionTensorSizeRect.bmm2ResUbSize) * sizeof(computeType);

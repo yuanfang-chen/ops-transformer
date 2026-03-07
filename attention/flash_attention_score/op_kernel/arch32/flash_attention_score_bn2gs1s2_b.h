@@ -257,7 +257,7 @@ protected:
     int64_t s1Vec2OuterSize;
     int64_t dSizeAlign16;
     int64_t softmaxBufSize = 256;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     constexpr static int32_t repeatMaxBytes = 256;
     constexpr static int32_t repeatMaxTimes = 255;
     int32_t repeatMaxSize;
@@ -415,7 +415,7 @@ FlashAttentionScoreBn2gs1s2B<FA_BN2GS1S2B_FUNCTION_PARAMS_TEMPLATE>::InitInput(
 
     this->dropMaskUnAligned = this->tilingData->inputParams.needDropMaskOp == 1;
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeIntScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeIntScalar = NEGATIVE_MIN_VALUE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
 

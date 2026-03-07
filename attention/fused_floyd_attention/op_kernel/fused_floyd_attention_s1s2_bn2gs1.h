@@ -307,7 +307,7 @@ protected:
     int64_t mm2Kb;
     // 当splitN大于16时，需要修改softMaxCheckRes数据类型
     uint16_t softMaxCheckRes = SOFTMAX_CHECK_RES_DEFAULT_VALUE;
-    uint32_t negativeIntScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 
@@ -451,7 +451,7 @@ FusedFloydAttentionS1s2Bn2gs1<implMode, layOutType, hasPse, hasAtten, hasDrop, I
             (__gm__ T *)(workspace + this->blockIdx * totalOffset + mmNRatioOffset * bmm1AndVec1Ratio + mm2Offset * 3));
     }
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeIntScalar = NEGATIVE_MIN_VAULE_FP16;
+        this->negativeIntScalar = NEGATIVE_MIN_VALUE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
 }
