@@ -314,7 +314,6 @@ public:
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
                     AscendC::DumpTensor(lse32_ubuf_tensor, 04, 128);
-                    AscendC::DumpTensor(glUbTensor, 00, 128);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Brcb(
                         tvUbTensor.ReinterpretCast<uint32_t>(),
