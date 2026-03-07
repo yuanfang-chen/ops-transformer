@@ -41,14 +41,12 @@ public:
         __gm__ uint8_t *x,
         __gm__ uint8_t *wKv,
         __gm__ uint8_t *wGate,
-        __gm__ uint8_t *kvState,
-        __gm__ uint8_t *scoreState,
+        __gm__ uint8_t *stateCache,
         __gm__ uint8_t *ape,
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *kvBlockTable,
-        __gm__ uint8_t *scoreBlockTable,
+        __gm__ uint8_t *stateBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -122,14 +120,12 @@ private:
     GlobalTensor<X_T> xGm_;
     GlobalTensor<X_T> wkvGm_;
     GlobalTensor<X_T> wgateGm_;
-    GlobalTensor<int32_t> kvStateGm_;
-    GlobalTensor<int32_t> scoreStateGm_;
+    GlobalTensor<int32_t> stateCacheGm_;
     GlobalTensor<int32_t> apeGm_;
     GlobalTensor<X_T> ropeSinGm_;
     GlobalTensor<X_T> ropeCosGm_;
     GlobalTensor<X_T> normWeightGm_;
-    GlobalTensor<int32_t> kvBlockTableGm_;
-    GlobalTensor<int32_t> scoreBlockTableGm_;
+    GlobalTensor<int32_t> stateBlockTableGm_;
     GlobalTensor<int32_t> cuSeqlensGm_;
     GlobalTensor<int32_t> sequsedGm_;
     GlobalTensor<int32_t> startPosGm_;
@@ -146,14 +142,12 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
         __gm__ uint8_t *x,
         __gm__ uint8_t *wKv,
         __gm__ uint8_t *wGate,
-        __gm__ uint8_t *kvState,
-        __gm__ uint8_t *scoreState,
+        __gm__ uint8_t *stateCache,
         __gm__ uint8_t *ape,
         __gm__ uint8_t *normWeight,
         __gm__ uint8_t *ropeSin,
         __gm__ uint8_t *ropeCos,
-        __gm__ uint8_t *kvBlockTable,
-        __gm__ uint8_t *scoreBlockTable,
+        __gm__ uint8_t *stateBlockTable,
         __gm__ uint8_t *cuSeqlens,
         __gm__ uint8_t *seqUsed,
         __gm__ uint8_t *startPos,
@@ -169,14 +163,12 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     xGm_.SetGlobalBuffer((__gm__ X_T *)x);
     wkvGm_.SetGlobalBuffer((__gm__ X_T *)wKv);
     wgateGm_.SetGlobalBuffer((__gm__ X_T *)wGate);
-    kvStateGm_.SetGlobalBuffer((__gm__ int32_t *)kvState);
-    scoreStateGm_.SetGlobalBuffer((__gm__ int32_t *)scoreState);
+    stateCacheGm_.SetGlobalBuffer((__gm__ int32_t *)stateCache);
     apeGm_.SetGlobalBuffer((__gm__ int32_t *)ape);
     ropeSinGm_.SetGlobalBuffer((__gm__ X_T *)ropeSin);
     ropeCosGm_.SetGlobalBuffer((__gm__ X_T *)ropeCos);
     normWeightGm_.SetGlobalBuffer((__gm__ X_T *)normWeight);
-    kvBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)kvBlockTable);
-    scoreBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)scoreBlockTable);
+    stateBlockTableGm_.SetGlobalBuffer((__gm__ int32_t *)stateBlockTable);
     if constexpr (COMP::xLayout == X_LAYOUT::TH) {
         cuSeqlensGm_.SetGlobalBuffer((__gm__ int32_t *)cuSeqlens);
     }
@@ -229,8 +221,8 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
     InitWorkspace(workspace);
     if ASCEND_IS_AIC {
         blockCube_.InitParams(constInfo);
-        blockCube_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, 
-            kvBlockTable, scoreBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut);
+        blockCube_.Init(x, wKv, wGate, stateCache, ape, normWeight, ropeSin, ropeCos, 
+            stateBlockTable, cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockCube_.InitBuffers(pipe_);
 #if __CCE_AICORE__ == 310
 #else
@@ -238,7 +230,7 @@ __aicore__ inline void CompressorKernel<COMP>::Init(
 #endif
     } else {
         blockVec_.InitParams(constInfo);
-        blockVec_.Init(x, wKv, wGate, kvState, scoreState, ape, normWeight, ropeSin, ropeCos, kvBlockTable, scoreBlockTable, 
+        blockVec_.Init(x, wKv, wGate, stateCache, ape, normWeight, ropeSin, ropeCos, stateBlockTable,
                         cuSeqlens, seqUsed, startPos, cmpKvOut);
         blockVec_.InitBuffers(pipe_);
 #if __CCE_AICORE__ == 310
