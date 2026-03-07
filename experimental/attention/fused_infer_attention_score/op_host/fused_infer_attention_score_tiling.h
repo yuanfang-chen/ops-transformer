@@ -158,6 +158,7 @@ TILING_DATA_FIELD_DEF_STRUCT(FusedInferAttentionPseParams, pseParams);
 TILING_DATA_FIELD_DEF_STRUCT(FusedInferAttentionLeftPaddingParams, leftPaddingParams);
 TILING_DATA_FIELD_DEF_STRUCT(FusedInferAttentionPostQuantParams, postquantParams);
 END_TILING_DATA_DEF
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, FusedInferAttentionScoreTilingData)
 
 // empty tenmsor 模板TilingData
 BEGIN_TILING_DATA_DEF(FusedInferAttentionScoreEmptyTensorTilingData)

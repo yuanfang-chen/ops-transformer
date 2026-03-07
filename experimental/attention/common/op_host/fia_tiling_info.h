@@ -18,6 +18,7 @@
 
 #include <vector>
 #include "fia_tiling_base.h"
+#include "../../fused_infer_attention_score/op_host/fused_infer_attention_score_tiling.h"
 
 namespace optiling {
 const std::string KEY_NAME = "key";
