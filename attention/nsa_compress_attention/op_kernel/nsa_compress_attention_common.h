@@ -45,20 +45,20 @@ using AscendC::TSCM;
 constexpr MatmulConfig CFG_EXCEED = GetNormalConfig(true);
 constexpr MatmulConfig CFG_IBSHARE_EXCEED = GetIBShareNormConfig(true);
 constexpr uint64_t BLOCK_BYTE = 32;
-constexpr uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr uint32_t NEGATIVE_MIN_VAULE_FP16 = 0xFBFF;
+constexpr uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
+constexpr uint32_t NEGATIVE_MIN_VALUE_FP16 = 0xFBFF;
 constexpr uint32_t POSITIVE_MAX_VALUE_FP32 = 0x7F7FFFFF;
 constexpr uint32_t POSITIVE_MAX_VALUE_FP16 = 0x7BFF;
 
 template <typename T> __aicore__ inline void GetExtremeValue(T &negativeScalar, T &positiveScalar)
 {
     if constexpr (IsSameType<T, float>::value) {
-        uint32_t tmp1 = NEGATIVE_MIN_VAULE_FP32;
+        uint32_t tmp1 = NEGATIVE_MIN_VALUE_FP32;
         uint32_t tmp2 = POSITIVE_MAX_VALUE_FP32;
         negativeScalar = *((float *)&tmp1);
         positiveScalar = *((float *)&tmp2);
     } else {
-        uint16_t tmp1 = NEGATIVE_MIN_VAULE_FP16;
+        uint16_t tmp1 = NEGATIVE_MIN_VALUE_FP16;
         uint16_t tmp2 = POSITIVE_MAX_VALUE_FP16;
         negativeScalar = *((half *)&tmp1);
         positiveScalar = *((half *)&tmp2);

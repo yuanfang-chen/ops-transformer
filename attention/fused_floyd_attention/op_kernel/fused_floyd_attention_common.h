@@ -53,8 +53,8 @@ constexpr static uint64_t BLOCK_BYTE = 32;
 constexpr static int32_t SOFTMAX_M_ALIGNED_SIZE = 8;
 constexpr static int32_t SOFTMAX_K_ALIGNED_SIZE = 64;
 constexpr static uint64_t DATACOPYPAD_PADDING_VALUE_ZERO = 0;
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP16 = 0xFBFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP16 = 0xFBFF;
 constexpr static uint32_t POSITIVE_MAX_VALUE_FP32 = 0x7F7FFFFF;
 constexpr static uint32_t POSITIVE_MAX_VALUE_FP16 = 0x7BFF;
 constexpr static uint16_t SOFTMAX_CHECK_RES_DEFAULT_VALUE = 0xFFFF;
@@ -146,12 +146,12 @@ __aicore__ inline bool IsIncludeInvalidLine(uint16_t softMaxCheckRes, uint32_t b
 template <typename T> __aicore__ inline void GetExtremeValue(T &negativeScalar, T &positiveScalar)
 {
     if constexpr (IsSameType<T, float>::value) {
-        uint32_t tmp1 = NEGATIVE_MIN_VAULE_FP32;
+        uint32_t tmp1 = NEGATIVE_MIN_VALUE_FP32;
         uint32_t tmp2 = POSITIVE_MAX_VALUE_FP32;
         negativeScalar = *((float *)&tmp1);
         positiveScalar = *((float *)&tmp2);
     } else {
-        uint16_t tmp1 = NEGATIVE_MIN_VAULE_FP16;
+        uint16_t tmp1 = NEGATIVE_MIN_VALUE_FP16;
         uint16_t tmp2 = POSITIVE_MAX_VALUE_FP16;
         negativeScalar = *((half *)&tmp1);
         positiveScalar = *((half *)&tmp2);

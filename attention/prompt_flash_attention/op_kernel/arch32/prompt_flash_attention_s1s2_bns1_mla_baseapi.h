@@ -258,7 +258,7 @@ protected:
     int64_t mm2Kb;
     // 当splitN大于16时，需要修改softMaxCheckRes数据类型
     uint16_t softMaxCheckRes = SOFTMAX_CHECK_RES_DEFAULT_VALUE;
-    uint32_t negativeIntScalar = MLA_NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeIntScalar = MLA_NEGATIVE_MIN_VALUE_FP32;
     T negativeFloatScalar;
     T positiveFloatScalar;
 
@@ -413,7 +413,7 @@ MlaS1s2Bn2gs1SameABBaseApi<TILING_TYPE, implMode, layOutType, hasAtten, INPUT_T,
     this->vec2Res[1].SetGlobalBuffer((__gm__ T *)(workspace + this->cubeBlockIdx * totalOffset + mmNRatioOffset *
                                                 bmm1AndVec1Ratio + mm2Offset * 3));
     if constexpr (IsSameType<T, half>::value) {
-        this->negativeIntScalar = MLA_NEGATIVE_MIN_VAULE_FP16;
+        this->negativeIntScalar = MLA_NEGATIVE_MIN_VALUE_FP16;
     }
     GetExtremeValue(this->negativeFloatScalar, this->positiveFloatScalar);
     uint32_t kvCacheBlockSize = this->tilingData->PFAinputParams.blockSize;
