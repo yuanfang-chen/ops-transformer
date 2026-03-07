@@ -13,7 +13,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
  * \file chunk_gated_delta_rule_stage2.h
  * \brief
  */
-#ifndef __CHUNK_GATED_DELTA_RULE_STAGE2_H
+#ifndef __CHUNK_GATED_DELTA_RULE_STAGE2_H_
 #define __CHUNK_GATED_DELTA_RULE_STAGE2_H_
 
 #include "kernel_operator.h"
