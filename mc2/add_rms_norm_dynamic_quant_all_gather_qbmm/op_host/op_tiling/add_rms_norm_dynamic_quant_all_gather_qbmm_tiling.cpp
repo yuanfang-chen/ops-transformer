@@ -95,6 +95,7 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "mteKSplitNum is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.mteKSplitNum);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "mteMSplitSize is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.mteMSplitSize);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "mteKSplitSize is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize);
+    OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "mteMSplitLargeBlockNum is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.mteMSplitLargeBlockNum);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "sendCoreNumPerRank is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.sendCoreNumPerRank);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "cvStateRowNum is %u.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.cvStateRowNum);
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "axisKaAlignSize is %llu.", tilingData.addRmsNormDynamicQuantAllGatherTilingData.axisKaAlignSize);
@@ -443,6 +444,7 @@ static ge::graphStatus SetAllGatherTiling(
     tmpTilingData->mteMSplitNum = (sendCoreNumPerRank + MTE_K_SPLIT_NUM - 1) / MTE_K_SPLIT_NUM;
     tmpTilingData->mteKSplitSize = tmpTilingData->Ka / tmpTilingData->mteKSplitNum;
     tmpTilingData->mteMSplitSize = tmpTilingData->M / tmpTilingData->mteMSplitNum;
+    tmpTilingData->mteMSplitLargeBlockNum = tmpTilingData->M % tmpTilingData->mteMSplitNum;
     tmpTilingData->cvStateRowNum = (tmpTilingData->rankSize * tmpTilingData->M + SINGLE_CORE_M - 1) / SINGLE_CORE_M;
     return ge::GRAPH_SUCCESS;
 }

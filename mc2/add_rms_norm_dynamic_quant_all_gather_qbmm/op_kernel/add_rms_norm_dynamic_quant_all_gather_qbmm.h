@@ -76,7 +76,6 @@ private:
     __aicore__ inline void CheckCvFlagReady(uint32_t mBlockIdx, uint32_t kBlockIdx, uint32_t targetCount);
     __aicore__ inline void CalcOffset(uint32_t nDimStartIdx, uint32_t mCoreIndx, uint32_t nCoreIndx);
     __aicore__ inline void MMCompute(uint32_t singleCoreM, uint32_t singleCoreN, uint32_t kBlockIdx);
-    // __aicore__ inline void MMGetCo1Tensor(uint32_t singleCoreM, uint32_t singleCoreN);
     __aicore__ inline void MatmulProcess();
     __aicore__ inline void InitTilingData(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void DequantInit();
@@ -179,9 +178,6 @@ private:
 
     GlobalTensor<int32_t> mmOutGm_;
     GM_ADDR workspaceAddr_;
-    // TODO: 手动管理CO1，并用FIXP做NZ2ND
-    // TQue<QuePosition::CO1, 1> co1Queue_;
-    // LocalTensor<int32_t> l0cTensor_;
 
     // define the que
     TQue<QuePosition::VECIN, 1> vecQueSrc_;
@@ -506,38 +502,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     mm_.SetTensorA(x1AllGatherWinTensor_[offsetA_], false);
     mm_.SetTensorB(x2GMTensor_[offsetB_], false);
     mm_.DisableBias();
-    // 暂不支持bias
-    // if (hasBias_ != 0 && biasDtype_ == DT_INT32) {
-    //     mm_.SetBias(biasGmInt32_[offsetBias_]);
-    // }
 
     if (kBlockIdx == 0) {
         mm_.template Iterate<false>(false); // <sync=false>(enPartialSum=false)
     } else {
         mm_.template Iterate<false>(true); // <sync=false>(enPartialSum=true)
     }
-
-    // if (kBlockIdx == 0) {
-    //     mm_.template Iterate<false>(false, l0cTensor_); // <sync=false>(enPartialSum=false, l0cTensor_)
-    // } else {
-    //     mm_.template Iterate<false>(true, l0cTensor_); // <sync=false>(enPartialSum=false, l0cTensor_)
-    // }
 }
-
-// template<TemplateMC2TypeClass>
-// __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MMGetCo1Tensor(
-//     uint32_t singleCoreM, uint32_t singleCoreN)
-// {
-//     FixpipeParamsV220 fixpipeParams;
-//     fixpipeParams.nSize = singleCoreN;
-//     fixpipeParams.mSize = singleCoreM;
-//     fixpipeParams.srcStride = DequantBmm::CeilDiv(singleCoreM, 16) * 16; // CeilAlign16
-//     fixpipeParams.dstStride = n_;
-//     fixpipeParams.quantPre = QuantMode_t::NoQuant;
-//     fixpipeParams.reluEn = 0;
-//     fixpipeParams.ndNum = 1;
-//     Fixpipe<int32_t, int32_t, CFG_ROW_MAJOR>(mmOutGm_[offsetC_], l0cTensor_, fixpipeParams);
-// }
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::MatmulProcess()
@@ -616,9 +587,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     ubCalcM_ = tilingData->qbmmParams.ubCalcM;
     ubCalcN_ = tilingData->qbmmParams.ubCalcN;
     ubTmpBuffer_ = tilingData->qbmmParams.needUbBuffer;
-    // ubCalcM_ = 22;
-    // ubCalcN_ = baseN_;
-    // ubTmpBuffer_ = 8 * ubCalcM_ * ubCalcN_;
 }
 
 template<TemplateMC2TypeClass>
@@ -632,13 +600,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
     tpipe_->InitBuffer(vecQueOut_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(X1Type)); // yType=X1Type
-    // if (biasDtype_ != DT_INT32) {
-    //     tpipe_->InitBuffer(biasFp32Tmp_, ubCalcN_ * sizeof(float));
-    //     tpipe_->InitBuffer(vecQueBias_, BUFFER_NUM, ubCalcN_ * biasDtypeSize_);
-    // }
-    // if (!isPerTensor_) {
-    //     tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, ubCalcN_ * sizeof(scaleType));
-    // }
     tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, ubCalcN_ * sizeof(ScaleType));
     // pertoken
     tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, 8U) * sizeof(float));
@@ -693,20 +654,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         DataCopyPad(srcLocal, mmOutGm_[offsetC_ + curAicAivOffset], gm2UbParams, padParams);
         SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
         WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
-        // if (biasDtype_ != DT_INT32) {
-        //     BiasTensorInit(dstLocalFp32, biasFp32, oriBiasBf16, oriBiasFp16, oriBiasFp32);
-        //     BiasGm2Ub(oriBiasBf16, oriBiasFp16, oriBiasFp32, padParams, baseNOfffset, curAicN);
-        // }
-        // if (isPerTensor_) {
-        //     AscendDequant(dstLocalFp32, srcLocal, scaleScalar_, tmpLocal, dequantParams);
-        // } else {
+
         LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
         Bf16ScaleGm2Ub(scaleLocal, scaleGMTensor_, padParams, baseNOfffset, curAicN);
         SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
         WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
         AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
         vecQueScale_.FreeTensor(scaleLocal);
-        // }
 
         DataCopyParams scale2UbParams{1, 0, 0, 0};
         scale2UbParams.blockLen = curAivM * sizeof(float);
@@ -738,9 +692,6 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         }
         vecQuePertokenScale_.FreeTensor(pertokenScaleLocal);
 
-        // if (biasDtype_ != DT_INT32) {
-        //     CalBiasAdd(tmpdstLocal, biasFp32, oriBiasBf16, oriBiasFp16, oriBiasFp32, curAivN, curAivM);
-        // }
         AscendC::PipeBarrier<PIPE_V>();
         Cast(dstLocal, tmpdstLocal, RoundMode::CAST_RINT, curAivM * ubResAlignedN);
         SetFlag<HardEvent::V_MTE3>(EVENT_ID2);
@@ -799,8 +750,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         DequantProcess();
     }
     
-    if ASCEND_IS_AIC {        
-        allGatherMte_.Init(tpipe_, tilingData_);
+    if ASCEND_IS_AIC {
         MatmulProcess();
     }
 }

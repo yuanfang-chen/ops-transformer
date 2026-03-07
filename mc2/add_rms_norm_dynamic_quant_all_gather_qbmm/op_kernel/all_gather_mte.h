@@ -126,7 +126,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     // 剩余的xInQueue可用的空间大小
     uint64_t availableSpaceForXInQueue = (ALLOC_UB_SPACE - usedSpace) / BUFFER_NUM / X_BLOCK_BYTES * X_BLOCK_BYTES;
     // xInQueue需要的最大空间大小
-    uint64_t demandSpaceForXInQueue = CeilAlign(xSize_, X_BLOCK_BYTES);
+    uint64_t demandSpaceForXInQueue = CeilAlignU64(xSize_, X_BLOCK_BYTES);
     xInQueueSize_ = availableSpaceForXInQueue < demandSpaceForXInQueue \
                     ? availableSpaceForXInQueue \
                     : demandSpaceForXInQueue;
@@ -155,7 +155,7 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     mMteCoreM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitSize;
     kMteCoreK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize;
     singleCoreM_ = tilingData->matmulTiling.singleCoreM;
-    uint32_t mTailNum = M_ % mDim;
+    uint32_t mTailNum = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitLargeBlockNum;
     if (mBlockIdx_ < mTailNum) {
         mMteCoreM_ += 1;
         coreInnerMIndex_ = mBlockIdx_ * mMteCoreM_;
