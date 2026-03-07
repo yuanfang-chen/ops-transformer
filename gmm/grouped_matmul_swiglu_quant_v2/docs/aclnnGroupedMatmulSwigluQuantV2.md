@@ -1324,5 +1324,5 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
 
         Finalize(deviceId, stream);
         return 0;
-    }
+    } 
     ```
