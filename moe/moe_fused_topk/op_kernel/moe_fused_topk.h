@@ -31,7 +31,7 @@ constexpr static uint32_t ADD_COUNT_SIXTY_FOUR = 64;
 constexpr static uint32_t ADD_COUNT_ONE_TWENTY_EIGHT = 128;
 constexpr static uint32_t BUFFER_NUM = 1;
 constexpr static uint32_t BUFFER_NUM_ONE = 1;
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
 constexpr static uint32_t BROADCAST_DIM = 2;
 constexpr static uint32_t BROADCAST_AXIS = 1;
 constexpr static uint32_t SORTED_COEF = 2;
@@ -168,7 +168,7 @@ __aicore__ inline void MoeFusedTopk<inputT, calT, enableExpertMapping>::InitTili
     topkPad_ = CeilAlign(k_, BLOCK_BYTES / sizeof(calT));
     topnPad_ = CeilAlign(n_, BLOCK_BYTES / sizeof(calT));
 
-    uint32_t tmpNegativeInf = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t tmpNegativeInf = NEGATIVE_MIN_VALUE_FP32;
     floatNegativeInf_ = *((float *)&tmpNegativeInf);
 
     outBatchStride_ = k_ * batchOffset_;
