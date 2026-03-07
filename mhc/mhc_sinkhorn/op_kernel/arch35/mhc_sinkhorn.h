@@ -25,14 +25,17 @@ namespace MhcSinkhorn {
 using namespace AscendC;
 
 constexpr int64_t MASK_BUFFER_SIZE = 64;
+constexpr int64_t MAX_BUFFER_SIZE = 256;
 constexpr uint32_t MASK_4 = 0b00000000000000001111111111111111;
 constexpr uint32_t MASK_6 = 0b00000000111111111111111111111111;
 constexpr uint32_t MASK_8 = 0b11111111111111111111111111111111;
 constexpr int64_t MASK_NUM = 8;
 constexpr int64_t INDEX_BLOCK_LEN = 8;
 constexpr int64_t BLOCK_SIZE = 32;
-constexpr int64_t MAX_BUFFER_SIZE = 256;
 constexpr int64_t DOUBLE_BUFFER = 2;
+static const int64_t N_VALID_4 = 4;
+static const int64_t N_VALID_6 = 6;
+static const int64_t N_VALID_8 = 8;
 
 class MhcSinkhornSimd {
 public:
@@ -243,11 +246,11 @@ __aicore__ inline void MhcSinkhornSimd::Process()
     LocalTensor<float> maxLocal = maxBuffer_.Get<float>();
 
     uint32_t mask = 0;
-    if (tilingData_.n == 4) {
+    if (tilingData_.n == N_VALID_4) {
         mask = MASK_4;
-    } else if (tilingData_.n == 6) {
+    } else if (tilingData_.n == N_VALID_6) {
         mask = MASK_6;
-    } else if (tilingData_.n == 8) {
+    } else if (tilingData_.n == N_VALID_8) {
         mask = MASK_8;
     }
     Duplicate(maskLocal, mask, MASK_NUM);
@@ -265,7 +268,7 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         DataCopyPadExtParams<float> dataCopyPadExtParams{false, 0, 0, 0};
         DataCopyExtParams dataCopyExtParams{1, static_cast<uint32_t>(loopSize * sizeof(float)), 0, 0, 0};
         DataCopyPad(inputLocal, hRes_[inputOffset], dataCopyExtParams, dataCopyPadExtParams);
-        
+
         inputQue_.EnQue<float>(inputLocal);
         inputLocal = inputQue_.DeQue<float>();
 
