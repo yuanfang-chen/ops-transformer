@@ -246,7 +246,7 @@ public:
                 curRowNumRound / FLOAT_BLOCK_SIZE,
                 AscendC::BrcbRepeatParams(1, 8));
             AscendC::PipeBarrier<PIPE_V>();
-            AscendC::DumpTensor(glUbTensor, 00, 128);
+            AscendC::DumpTensor(glUbTensor, 0, 128);
             // *** go = go / gl_block
             AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
             for (uint32_t vdiv_idx = 0; vdiv_idx < embed / FLOAT_VECTOR_SIZE; ++vdiv_idx) {
@@ -295,17 +295,17 @@ public:
                 gOutput, proTokenIdx, proTokenNum, epiTokenNum, integralHeadNum, qSThisSubBlock, embed, oHiddenSize);
             if constexpr(LSE_MODE == LseMode::OUT_ONLY) {
                 if (isLastRowLoop) {
-                    AscendC::DumpTensor(glUbTensor, 01, 128);
+                    AscendC::DumpTensor(glUbTensor, 1, 128);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Ln<float, false>(
                         lse32_ubuf_tensor,
                         glUbTensor,
                         (uint64_t)0,
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
-                    AscendC::DumpTensor(lse32_ubuf_tensor, 02, 128);
                         AscendC::UnaryRepeatParams(1, 1, 8, 8));
-                    AscendC::DumpTensor(gmUbTensor, 03, 128);
+                    AscendC::DumpTensor(lse32_ubuf_tensor, 2, 128);
                     AscendC::PipeBarrier<PIPE_V>();
+                    AscendC::DumpTensor(gmUbTensor, 3, 128);
                     AscendC::Add<float, false>(
                         lse32_ubuf_tensor,
                         lse32_ubuf_tensor,
@@ -313,19 +313,19 @@ public:
                         (uint64_t)0,
                         CeilDiv(totalRowNum, FLOAT_VECTOR_SIZE),
                         AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
-                    AscendC::DumpTensor(lse32_ubuf_tensor, 04, 128);
+                    AscendC::DumpTensor(lse32_ubuf_tensor, 4, 128);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::Brcb(
                         tvUbTensor.ReinterpretCast<uint32_t>(),
                         lse32_ubuf_tensor.ReinterpretCast<uint32_t>(),
                         CeilDiv(totalRowNum, FLOAT_BLOCK_SIZE),
                         AscendC::BrcbRepeatParams(1, 8));
-                    AscendC::DumpTensor(tvUbTensor, 06, 128);
+                    AscendC::DumpTensor(tvUbTensor, 6, 128);
                     AscendC::PipeBarrier<PIPE_V>();
                     AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(EVENT_ID4);
                     if (qNThisSubBlock == 0U) {
-                        AscendC::DumpTensor(tvUbTensor, 07, 128);
+                        AscendC::DumpTensor(tvUbTensor, 7, 128);
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor,
                             AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
