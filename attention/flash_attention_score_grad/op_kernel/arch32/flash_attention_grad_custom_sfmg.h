@@ -395,7 +395,7 @@ __aicore__ inline void SoftmaxGradFront(const LocalTensor<T>& dstTensor, const L
     if ASCEND_IS_AIC {
                 return;
         }
-    std::cout<<"zad:: 新的 SFMG 走进来了啊！！！！！"<<std::endl;
+    AscendC::PRINTF("zad:: 新的 SFMG 走进来了啊！！！！！");
     SoftmaxGradFrontImpl<T, isBasicBlock>(dstTensor, gradTensor, srcTensor, sharedTmpBuffer,
                                                           softmaxShapeInfo);
 }
