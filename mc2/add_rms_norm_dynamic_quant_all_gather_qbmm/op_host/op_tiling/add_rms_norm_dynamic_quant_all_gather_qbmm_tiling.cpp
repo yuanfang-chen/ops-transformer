@@ -265,10 +265,15 @@ ge::graphStatus CheckInputOutputTensorDim(
     size_t smoothDimNum = smoothShape->GetStorageShape().GetDimNum();
     uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
+    uint64_t x2Dim1Value = x2Shape->GetStorageShape().GetDim(1);
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
     uint32_t expectedX2DimNum = (x2Format == ge::FORMAT_FRACTAL_NZ) ? FOUR_DIMS : TWO_DIMS;
-    if (expectedX2DimNum == FOUR_DIMS) {
+    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != expectedX2DimNum) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
+        OP_LOGE(context->GetNodeName(),
+        "The dim of x1, residual, y should be 2, and the dim of x2 should be %lu, but current x1DimNum=%lu, x2DimNum=%lu, residualDimNum=%lu, yDimNum=%lu.",
+        expectedX2DimNum, x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
+    if (x2Format == ge::FORMAT_FRACTAL_NZ) {
         OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(1) * x2Shape->GetStorageShape().GetDim(2)),
             OP_LOGE(context->GetNodeName(), 
                 "Expect x1dim1 to be the same as x2dim1 * x2dim2, but got x1dim1=%d, x2dim1=%d, x2dim2=%d.",
@@ -276,6 +281,7 @@ ge::graphStatus CheckInputOutputTensorDim(
                 x2Shape->GetStorageShape().GetDim(1),
                 x2Shape->GetStorageShape().GetDim(2)),
             return ge::GRAPH_FAILED);
+        x2Dim1Value = x2Shape->GetStorageShape().GetDim(0) * x2Shape->GetStorageShape().GetDim(3);
     } else {
         OP_CHECK_IF((x1Shape->GetStorageShape().GetDim(1) != x2Shape->GetStorageShape().GetDim(0)),
             OP_LOGE(context->GetNodeName(),
@@ -290,10 +296,6 @@ ge::graphStatus CheckInputOutputTensorDim(
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1Dim1Value != gammaValue)),
         OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((x1DimNum != TWO_DIMS) || (x2DimNum != expectedX2DimNum) || (yDimNum != TWO_DIMS) || (residualDimNum != TWO_DIMS),
-        OP_LOGE(context->GetNodeName(),
-        "The dim of x1, residual, y should be 2, and the dim of x2 should be %lu, but current x1DimNum=%lu, x2DimNum=%lu, residualDimNum=%lu, yDimNum=%lu.",
-        expectedX2DimNum, x1DimNum, x2DimNum, residualDimNum, yDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
         OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1DimNum != residualDimNum)),
@@ -311,8 +313,7 @@ ge::graphStatus CheckInputOutputTensorDim(
     
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.M = x1Shape->GetStorageShape().GetDim(0);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka = x1Dim1Value;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = \
-        x2Shape->GetStorageShape().GetDim(0) * x2Shape->GetStorageShape().GetDim(3);
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = x2Dim1Value;
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.xNums = \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
     
