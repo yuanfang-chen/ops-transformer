@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -13,18 +13,17 @@
  * \brief
  */
 
-#ifndef MATMUL_BLOCK_MMAD_MX_QUANT_H
-#define MATMUL_BLOCK_MMAD_MX_QUANT_H
-#include "../utils/layout_utils.h"
-#include "../utils/common_utils.h"
-#include "../utils/tuple_utils.h"
+#ifndef MATMUL_BLOCK_MMAD_MX_H
+#define MATMUL_BLOCK_MMAD_MX_H
 #include "../policy/dispatch_policy.h"
-#include "..//tile/tile_copy.h"
+#include "../utils/common_utils.h"
+#include "../utils/layout_utils.h"
+#include "../utils/tuple_utils.h"
 
 namespace Cgmct {
 namespace Gemm {
 namespace Block {
-using namespace AscendC;
+using AscendC::fp8_e8m0_t;
 namespace {
 constexpr static uint64_t HALF_L0C_SIZE = AscendC::TOTAL_L0C_SIZE / DOUBLE_BUFFER_COUNT / sizeof(float);
 constexpr static uint64_t BLOCK_REDUCE_CUBE = 32UL;
@@ -80,8 +79,8 @@ public:
     using LayoutB = LayoutB_;
     using L1TileShape = L1TileShape_;
     using L0TileShape = L0TileShape_;
-    using MxL0AType = typename GetL0DataType<AType, true>::Type;
-    using MxL0BType = typename GetL0DataType<BType, true>::Type;
+    using MxL0AType = typename AscendC::GetL0DataType<AType, true>::Type;
+    using MxL0BType = typename AscendC::GetL0DataType<BType, true>::Type;
     using BiasType = BiasType_;
     using DispatchPolicy = DispatchPolicy_;
     using TupleShape = AscendC::Shape<int64_t, int64_t, int64_t>;
@@ -151,7 +150,7 @@ public:
         baseN_ = Get<IDX_N_IDX>(l0TileShape);
         baseK_ = Get<IDX_K_IDX>(l0TileShape);
         orderAL1BL1_ = l1Params.kAL1 >= l1Params.kBL1;
-        minKL1_ = AscendC::Std::min(l1Params.kAL1, l1Params.kBL1);
+        minKL1_ = Min(l1Params.kAL1, l1Params.kBL1);
         isBias_ = isBias;
         l1BufNum_ = l1Params.l1BufNum;
         enableL0cPingPong_ = dbL0C;
@@ -166,7 +165,6 @@ public:
         scaleAL1OneBuffer_ = baseM_ * mxScaleKL1;
         for (int32_t bufferId = 0; bufferId < l1BufNum_; bufferId++) {
             // 2 buffer: L1 space is : A0|B0|AScale0|BScale0|bias0|...|A1|B1|AScale1|BScale1|bias1|...
-            // 4 buffer: L1 space is : A0A2|B0B2|AScale0|BScale0|bias0|...|A1A3|B1B3|AScale1|BScale1|bias1|...
             uint64_t l1Offset = (AscendC::TOTAL_L1_SIZE >> 1) * (bufferId & 1);
             l1BufferAOffset_[bufferId] = l1Offset + aL1OneBuffer_ * (bufferId >> 1);
             l1BufferBOffset_[bufferId] = l1Offset + aL1OneBuffer_ * (l1BufNum_ >> 1) + bL1OneBuffer_ * (bufferId >> 1);
@@ -253,7 +251,7 @@ public:
         AscendC::InitConstValueParams<half> initConstValueParams;
         uint64_t offset = 0;
         if constexpr (!transA) {
-            // nd2nz pading to 64 align
+            // nd2nz pading to k 64 align, (m,k)->(k1,m1,m0,k0)
             if (tileL1L0Param.curPadAKL1 - tileL1L0Param.curGmAKL1 < BLOCK_REDUCE_CUBE) {
                 return;
             }
@@ -264,15 +262,16 @@ public:
             initConstValueParams.initValue = 0;
             uint64_t kAlign = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmAKL1, C0_SIZE) * AscendC::BLOCK_CUBE;
             offset = tileL1L0Param.curAlignM * kAlign;
-        } else {
-            if (tileL1L0Param.curPadAKL1 == tileL1L0Param.curGmAKL1) {
+        } else { // nd2nz pading to k 64 align, (k,m)->(m1,k1,k0,m0)
+            uint64_t curNd2NzK = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmAKL1, AscendC::BLOCK_CUBE);
+            if (tileL1L0Param.curPadAKL1 == curNd2NzK) {
                 return;
             }
             uint64_t m1 = Cgmct::Gemm::CeilDiv(tileL1L0Param.curAlignM, C0_SIZE);
-            offset = tileL1L0Param.curGmAKL1 * AscendC::BLOCK_CUBE;
+            offset = curNd2NzK * AscendC::BLOCK_CUBE;
             initConstValueParams.repeatTimes = m1;
-            initConstValueParams.blockNum = tileL1L0Param.curPadAKL1 - tileL1L0Param.curGmAKL1;
-            initConstValueParams.dstGap = tileL1L0Param.curGmAKL1;
+            initConstValueParams.blockNum = tileL1L0Param.curPadAKL1 - curNd2NzK;
+            initConstValueParams.dstGap = curNd2NzK;
             initConstValueParams.initValue = 0;
         }
         AscendC::InitConstValue(al1LocalHalf[offset], initConstValueParams);
@@ -285,7 +284,7 @@ public:
         AscendC::InitConstValueParams<half> initConstValueParams;
         uint64_t offset = 0;
         if constexpr (transB) {
-            // nd2nz pading to 64 align
+            // nd2nz pading to 64 align, (n,k)->(k1,n1,n0,k0)
             if (tileL1L0Param.curPadBKL1 - tileL1L0Param.curGmBKL1 < BLOCK_REDUCE_CUBE) {
                 return;
             }
@@ -296,21 +295,16 @@ public:
             initConstValueParams.initValue = 0;
             uint64_t kAlign = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmBKL1, C0_SIZE) * AscendC::BLOCK_CUBE;
             offset = tileL1L0Param.curAlignN * kAlign;
-        } else {
-            if constexpr (FormatB == CubeFormat::NZ) {
-                if (tileL1L0Param.curPadBKL1 == Cgmct::Gemm::CeilAlign(tileL1L0Param.curGmBKL1, AscendC::BLOCK_CUBE)) {
-                    return;
-                }
-            } else {
-                if (tileL1L0Param.curPadBKL1 == tileL1L0Param.curGmBKL1) {
-                    return;
-                }
+        } else { // nd2nz pading to k 64 align, (k,n)->(n1,k1,k0,n0)
+            uint64_t curNd2NzK = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmBKL1, AscendC::BLOCK_CUBE);
+            if (tileL1L0Param.curPadBKL1 == curNd2NzK) {
+                return;
             }
             // when format of B is NZ, we reuse code for ND even though we initialize unnecessary extra space
-            offset = tileL1L0Param.curGmBKL1 * AscendC::BLOCK_CUBE;
+            offset = curNd2NzK * AscendC::BLOCK_CUBE;
             initConstValueParams.repeatTimes = Cgmct::Gemm::CeilDiv(tileL1L0Param.curAlignN, C0_SIZE);
-            initConstValueParams.blockNum = tileL1L0Param.curPadBKL1 - tileL1L0Param.curGmBKL1;
-            initConstValueParams.dstGap = tileL1L0Param.curGmBKL1;
+            initConstValueParams.blockNum = tileL1L0Param.curPadBKL1 - curNd2NzK;
+            initConstValueParams.dstGap = curNd2NzK;
             initConstValueParams.initValue = 0;
         }
         AscendC::InitConstValue(bl1LocalHalf[offset], initConstValueParams);
@@ -325,8 +319,8 @@ public:
         AscendC::DataCopyPad(cl1Local, biasGlobal, biasParam, padParams);
     }
 
-    __aicore__ inline void CopyInScaleA(const GlobalTensor<fp8_e8m0_t> &aScaleGlobal,
-                                        const LocalTensor<fp8_e8m0_t> &aScaleL1Local, uint64_t curML1,
+    __aicore__ inline void CopyInScaleA(const AscendC::GlobalTensor<fp8_e8m0_t> &aScaleGlobal,
+                                        const AscendC::LocalTensor<fp8_e8m0_t> &aScaleL1Local, uint64_t curML1,
                                         uint64_t kL1Offset)
     {
         uint64_t curScaleKL1 = scaleKL1_;
@@ -338,7 +332,7 @@ public:
 
         uint64_t offsetScaleAGM = !transA ? kL1Offset / MXFP_DIVISOR_SIZE : (kL1Offset / MXFP_DIVISOR_SIZE) * m_;
 
-        GlobalTensor<half> aScaleGlobalB16;
+        AscendC::GlobalTensor<half> aScaleGlobalB16;
         aScaleGlobalB16.SetGlobalBuffer(((__gm__ half *)(aScaleGlobal.GetPhyAddr())));
         auto aScaleL1LocalImpl = aScaleL1Local.template ReinterpretCast<half>();
 
@@ -367,8 +361,8 @@ public:
         }
     }
 
-    __aicore__ inline void CopyInScaleB(const GlobalTensor<fp8_e8m0_t> &bScaleGlobal,
-                                        const LocalTensor<fp8_e8m0_t> &bScaleL1Local, uint64_t curNL1,
+    __aicore__ inline void CopyInScaleB(const AscendC::GlobalTensor<fp8_e8m0_t> &bScaleGlobal,
+                                        const AscendC::LocalTensor<fp8_e8m0_t> &bScaleL1Local, uint64_t curNL1,
                                         uint64_t kL1Offset)
     {
         uint64_t curScaleKL1 = scaleKL1_;
@@ -378,7 +372,7 @@ public:
         uint64_t nDim = transB ? curNL1 : Cgmct::Gemm::CeilDiv(curScaleKL1, MXFP_DIVISOR_SIZE);
         uint64_t dDim = transB ? Cgmct::Gemm::CeilDiv(curScaleKL1, MXFP_DIVISOR_SIZE) : curNL1;
 
-        GlobalTensor<half> bScaleGlobalB16;
+        AscendC::GlobalTensor<half> bScaleGlobalB16;
         bScaleGlobalB16.SetGlobalBuffer(((__gm__ half *)(bScaleGlobal.GetPhyAddr())));
         auto bScaleL1LocalImpl = bScaleL1Local.template ReinterpretCast<half>();
 
@@ -462,15 +456,15 @@ public:
         AscendC::LoadData(l0aLocal, al1Local, scaleAl1Local, loadDataParams, loadData2DMxParams);
         if constexpr (transA) {
             if ((m1 & 1) != 0) {
-                PipeBarrier<PIPE_MTE1>();
-                LocalTensor<AType> l0a = l0aLocal.template ReinterpretCast<AType>();
+                AscendC::PipeBarrier<PIPE_MTE1>();
+                AscendC::LocalTensor<AType> l0a = l0aLocal.template ReinterpretCast<AType>();
                 uint64_t loadTimes =
                     Cgmct::Gemm::CeilDiv(Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, AscendC::BLOCK_CUBE), B8_MIN_STEP);
                 for (uint64_t i = 1; i < loadTimes; i++) {
                     loadDataParams.mStartPosition =
                         B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
                     AscendC::LoadData(l0a[i * m1 * AscendC::BLOCK_CUBE * C0_SIZE], al1Local, loadDataParams);
-                    PipeBarrier<PIPE_MTE1>();
+                    AscendC::PipeBarrier<PIPE_MTE1>();
                 }
             }
         }
@@ -515,15 +509,15 @@ public:
         AscendC::LoadData(l0bLocal, bl1Local, scaleBl1Local, loadDataParams, loadData2DMxParams);
         if constexpr (!transB) {
             if ((n1 & 1) != 0) {
-                PipeBarrier<PIPE_MTE1>();
-                LocalTensor<BType> l0b = l0bLocal.template ReinterpretCast<BType>();
+                AscendC::PipeBarrier<PIPE_MTE1>();
+                AscendC::LocalTensor<BType> l0b = l0bLocal.template ReinterpretCast<BType>();
                 uint64_t loadTimes =
                     Cgmct::Gemm::CeilDiv(Cgmct::Gemm::CeilDiv(tileL1L0Param.curKL0, AscendC::BLOCK_CUBE), B8_MIN_STEP);
                 for (uint64_t i = 1; i < loadTimes; i++) {
                     loadDataParams.mStartPosition =
                         B8_MIN_STEP * i + Cgmct::Gemm::CeilDiv(kL0L1Off, AscendC::BLOCK_CUBE);
                     AscendC::LoadData(l0b[i * n1 * AscendC::BLOCK_CUBE * C0_SIZE], bl1Local, loadDataParams);
-                    PipeBarrier<PIPE_MTE1>();
+                    AscendC::PipeBarrier<PIPE_MTE1>();
                 }
             }
         }
@@ -621,13 +615,12 @@ public:
         }
     }
 
-    __aicore__ inline void Iterate(TileL1L0Param &tileL1L0Param, MmadParams &mmadParams, uint64_t kL1Offset,
+    __aicore__ inline void Iterate(TileL1L0Param &tileL1L0Param, AscendC::MmadParams &mmadParams, uint64_t kL1Offset,
                                    uint64_t al1BufId, uint64_t bl1BufId, uint64_t scaleL1BufId, uint64_t l0cOffset,
                                    uint64_t kaL1Offset, uint64_t kbL1Offset)
     {
         uint64_t minPadKL1 = Cgmct::Gemm::Min(tileL1L0Param.curPadBKL1, tileL1L0Param.curPadAKL1);
-        for (uint64_t kL0Offset = kL1Offset; kL0Offset < AscendC::Std::min(kL1Offset + minKL1_, k_);
-             kL0Offset += baseK_) {
+        for (uint64_t kL0Offset = kL1Offset; kL0Offset < Min(kL1Offset + minKL1_, k_); kL0Offset += baseK_) {
             UpdateKL0(tileL1L0Param, kL0Offset - kL1Offset, minPadKL1);
             uint64_t kL0L1Off = kL0Offset - kL1Offset;
             // Load data to L0 and open DB
@@ -672,7 +665,7 @@ public:
                 CopyInBias(biasGlobal, biasL1Local_[l1BufferBiasOffset_[biasBufId_] / sizeof(BiasType)],
                            tileL1L0Param.curN);
             }
-            for (uint64_t kInner = kOuter; kInner < AscendC::Std::min(kOuter + kBL1_, k_); kInner += kAL1_) {
+            for (uint64_t kInner = kOuter; kInner < Min(kOuter + kBL1_, k_); kInner += kAL1_) {
                 uint64_t aL1BufId = aL1LoopCnt_ & (l1BufNum_ - 1);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(INPUT_BUFFER_FLAG_2 + aL1BufId);
                 UpdateKAL1(tileL1L0Param, kInner);
@@ -713,7 +706,7 @@ public:
                 CopyInBias(biasGlobal, biasL1Local_[l1BufferBiasOffset_[biasBufId_] / sizeof(BiasType)],
                            tileL1L0Param.curN);
             }
-            for (uint64_t kInner = kOuter; kInner < AscendC::Std::min(kOuter + kAL1_, k_); kInner += kBL1_) {
+            for (uint64_t kInner = kOuter; kInner < Min(kOuter + kAL1_, k_); kInner += kBL1_) {
                 uint64_t bL1BufId = bL1LoopCnt_ & (l1BufNum_ - 1);
                 AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(INPUT_BUFFER_FLAG_2 + bL1BufId);
                 UpdateKBL1(tileL1L0Param, kInner);
@@ -734,11 +727,11 @@ public:
         }
     }
 
-    __aicore__ inline void operator()(const AscendC::GlobalTensor<AType> &aGlobal,
-                                      const AscendC::GlobalTensor<BType> &bGlobal,
-                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
-                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
-                                      const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
+    __aicore__ inline void run(const AscendC::GlobalTensor<AType> &aGlobal, const AscendC::GlobalTensor<BType> &bGlobal,
+                               const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                               const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                               const AscendC::GlobalTensor<BiasType> &biasGlobal,
+                               const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
     {
         TileL1L0Param tileL1L0Param;
         tileL1L0Param.curM = Get<IDX_M_TILE_IDX>(singleShape);
@@ -749,7 +742,6 @@ public:
         mmadParams.n = tileL1L0Param.curN;
         mmadParams.disableGemv = true;
         uint64_t l0cOffset = (l0cPingPong_ & 1) * HALF_L0C_SIZE;
-        AscendC::GlobalTensor<BiasType> biasGlobal;
         if (orderAL1BL1_) {
             IterAL1BL1(tileL1L0Param, mmadParams, l0cOffset, aGlobal, bGlobal, scaleAGlobal, scaleBGlobal, biasGlobal);
         } else {
@@ -768,30 +760,20 @@ public:
                                       const AscendC::GlobalTensor<BType> &bGlobal,
                                       const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
                                       const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
+                                      const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
+    {
+        AscendC::GlobalTensor<BiasType> biasGlobal;
+        run(aGlobal, bGlobal, scaleAGlobal, scaleBGlobal, biasGlobal, cGlobal, singleShape);
+    }
+
+    __aicore__ inline void operator()(const AscendC::GlobalTensor<AType> &aGlobal,
+                                      const AscendC::GlobalTensor<BType> &bGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleAGlobal,
+                                      const AscendC::GlobalTensor<fp8_e8m0_t> &scaleBGlobal,
                                       const AscendC::GlobalTensor<BiasType> &biasGlobal,
                                       const AscendC::GlobalTensor<CType> &cGlobal, const BlockShape &singleShape)
     {
-        TileL1L0Param tileL1L0Param;
-        tileL1L0Param.curM = Get<IDX_M_TILE_IDX>(singleShape);
-        tileL1L0Param.curN = Get<IDX_N_TILE_IDX>(singleShape);
-        GetAlignMN(tileL1L0Param);
-        AscendC::MmadParams mmadParams;
-        mmadParams.m = tileL1L0Param.curM;
-        mmadParams.n = tileL1L0Param.curN;
-        mmadParams.disableGemv = true;
-        uint64_t l0cOffset = (l0cPingPong_ & 1) * HALF_L0C_SIZE;
-        if (orderAL1BL1_) {
-            IterAL1BL1(tileL1L0Param, mmadParams, l0cOffset, aGlobal, bGlobal, scaleAGlobal, scaleBGlobal, biasGlobal);
-        } else {
-            IterBL1AL1(tileL1L0Param, mmadParams, l0cOffset, aGlobal, bGlobal, scaleAGlobal, scaleBGlobal, biasGlobal);
-        }
-        // Copy out to GM
-        AscendC::LocalTensor<float> c1Local = c1Local_[l0cOffset];
-        // 数据搬出到GM或ub
-        CopyOut(cGlobal, c1Local, mmadParams.m, mmadParams.n);
-        if (enableL0cPingPong_) {
-            l0cPingPong_++;
-        }
+        run(aGlobal, bGlobal, scaleAGlobal, scaleBGlobal, biasGlobal, cGlobal, singleShape);
     }
 
 private:
