@@ -25,6 +25,35 @@ namespace ChunkGatedDeltaRule {
 using namespace AscendC;
 using namespace matmul;
 
+struct StageTwoParams {
+    // in
+    GlobalTensor<bfloat16_t> qPrime_;       // (Nv, Sp, Dk)
+    GlobalTensor<float> vInner_;            // (Nv, Sp, Dv)
+    GlobalTensor<float> gCumExp_;           // (Nv, Sp)
+    GlobalTensor<bfloat16_t> kCumdecay_;    // (Nv, Sp, Dk)
+    GlobalTensor<bfloat16_t> initState_;        // (Nv, Dv, Dk)
+    GlobalTensor<float> kg_;
+    // out
+    GlobalTensor<bfloat16_t> finalState_;
+    GlobalTensor<float> attnInter_;
+    GlobalTensor<float> vNew_;
+
+    // Matmul
+    MT0 *mm1_;
+    MT1 *mm2_;
+
+    // Pipe
+    TPipe *pipe_;
+
+    // attr
+    ChunkGroup *cg;
+    int32_t maxGroupLength_;
+    int32_t Nv_;
+    int32_t Nk_;
+    int32_t Dv_;
+    int32_t Dk_;
+};
+
 class Stage2 {
 public:
     __aicore__ inline void Init(StageTwoParams *initParams)

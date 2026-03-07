@@ -158,6 +158,26 @@ private:
         stageOneOp_.Process();
         pipe_->Reset();
     }
+    
+
+    __aicore__ inline void stage2(const ChunkGroup& cg,
+                                    GlobalTensor<lowType>& initState,
+                                    GlobalTensor<lowType>& finalState)
+    {
+        // todo: stage2, release ub resource after computing
+        Stage2 stageTwoOp;
+        StageTwoParams initStageTwoParams{qPrime_,vInner_,gCumExp_, kCumdecay_initState,kg_,finalState, attnInter_, vNew_,
+                                            mmFp32_, mmFp32_, pipe_, cg, tiling_->maxGroupLength,tiling_->nv,tiling_->nk,tiling_->dv,tiling_->dk}
+        stageTwoOp.Init(initStageTwoParams);
+        stageTwoOp.Process();
+        pipe_->Reset();
+    }
+
+    __aicore__ inline void stage3(const ChunkGroup& cg)
+    {
+        // todo: stage3, release ub resource after computing
+    }
+
     __aicore__ inline void stage1Dump()
     {
         if (GetBlockIdx() == 23)
@@ -201,23 +221,6 @@ private:
         AscendC::DumpTensor(qkt_[0], 6001, 10);
         AscendC::DumpTensor(qkt_[qktLen - 10], 6002, 10);
         }
-    }
-
-    __aicore__ inline void stage2(
-        const ChunkGroup& cg,
-        GlobalTensor<lowType>& initState,
-        GlobalTensor<lowType>& finalState)
-    {
-        // todo: stage2, release ub resource after computing
-        Stage2 stageTwoOp;
-        stageTwoOp.Init();
-        stageTwoOp.Process();
-        pipe_->Reset();
-    }
-
-    __aicore__ inline void stage3(const ChunkGroup& cg)
-    {
-        // todo: stage3, release ub resource after computing
     }
 
 private:
