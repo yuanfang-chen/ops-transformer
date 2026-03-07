@@ -197,7 +197,7 @@ static ge::graphStatus InferShapeBlockSparseAttention(gert::InferShapeContext *c
         return ge::GRAPH_FAILED;
     }
     // *softmaxLseShape = *attentionOutShape;
-    OP_LOGE(context->GetNodeName(), "BlockSparseAttention softmaxLseShape shape[%u]", softmaxLseShape->GetDimNum());
+    // OP_LOGE(context->GetNodeName(), "BlockSparseAttention softmaxLseShape shape[%u]", softmaxLseShape->GetDimNum());
     
     OP_LOGD(context->GetNodeName(), "BlockSparseAttention InferShape success.");
     return ge::GRAPH_SUCCESS;
