@@ -107,7 +107,7 @@ struct PFAType {
     static constexpr MsdMode msdMode = MSD_MODE;
 };
 
-constexpr static uint32_t NEGATIVE_MIN_VAULE_FP32 = 0xFF7FFFFF;
+constexpr static uint32_t NEGATIVE_MIN_VALUE_FP32 = 0xFF7FFFFF;
 constexpr static uint32_t NEGATIVE_MIN_VAULE_FP16 = 0xC77FE000;
 
 constexpr static uint32_t MM2_SINGLE_K_ALIGN_SIZE = 32;
@@ -715,7 +715,7 @@ protected:
 
     uint32_t attentionMaskStride = 0;
     int32_t attentionMaskType = 0;
-    uint32_t negativeScalar = NEGATIVE_MIN_VAULE_FP32;
+    uint32_t negativeScalar = NEGATIVE_MIN_VALUE_FP32;
     bool isSoftmaxResNeedUpdate;
     bool isSoftmaxLseNeedUpdate = false;
     bool isSoftmaxNeedUpdate[MAX_SUBSOUTER_NUM];
