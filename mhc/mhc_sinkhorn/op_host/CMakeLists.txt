@@ -12,31 +12,24 @@
  	     target_sources(op_host_aclnnExc PRIVATE
  	         mhc_sinkhorn_def.cpp
  	     )
- 	     # set(mhc_sinkhorn_depends attention/scatter_pa_kv_cache CACHE INTERNAL "Dependencies for mhc_sinkhorn")
- 	     add_ops_compile_options(
- 	         OP_NAME MhcSinkhorn
- 	         OPTIONS --cce-auto-sync=off
- 	                 -Wno-deprecated-declarations
- 	                 -Werror
- 	     )
+ 	 
  	     if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
  	         add_ops_compile_options(
  	             OP_NAME MhcSinkhorn
  	             COMPUTE_UNIT Ascend950PR_9599
  	             OPTIONS -mllvm -cce-aicore-dcci-before-kernel-end=false
  	         )
+ 	     else()
+ 	         add_ops_compile_options(
+ 	             OP_NAME MhcSinkhron
+ 	             OPTIONS --cce-auto-sync=off
+ 	                     -Wno-deprecated-declarations
+ 	                     -Werror
+ 	         )
  	     endif()
  	 endif()
  	 
- 	 set(CONDITION_UNIT ${ASCEND_COMPUTE_UNIT})
- 	 if("${CONDITION_UNIT}" STREQUAL "ascend950")
- 	     add_ops_compile_options(
- 	         OP_NAME MhcSinkhorn
- 	         COMPUTE_UNIT Ascend950PR_9599
- 	         OPTIONS -DENABLE_CV_COMM_VIA_SSBUF=true
- 	     )
- 	 endif()
- 	 
  	 if(NOT BUILD_OPS_RTY_KERNEL)
+ 	     add_op_to_compiled_list()
  	     add_modules_sources(OPTYPE mhc_sinkhorn ACLNNTYPE aclnn_exclude)
  	 endif()
