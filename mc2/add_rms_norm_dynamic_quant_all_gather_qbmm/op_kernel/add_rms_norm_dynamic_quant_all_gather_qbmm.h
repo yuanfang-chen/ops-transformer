@@ -35,8 +35,8 @@
 
 namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
-#define TemplateMC2TypeClass typename X1Type, bool isOptionalOutput, bool IsSmoothScaleExist
-#define TemplateMC2TypeFunc X1Type, isOptionalOutput, IsSmoothScaleExist
+#define TemplateMC2TypeClass typename X1Type, typename ScaleType, bool isOptionalOutput, bool IsSmoothScaleExist
+#define TemplateMC2TypeFunc X1Type, ScaleType, isOptionalOutput, IsSmoothScaleExist
 using namespace AscendC;
 using namespace AllGatherImpl;
 
@@ -80,7 +80,7 @@ private:
     __aicore__ inline void MatmulProcess();
     __aicore__ inline void InitTilingData(const AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData);
     __aicore__ inline void DequantInit();
-    __aicore__ inline void Bf16ScaleGm2Ub(LocalTensor<float> &scaleLocal, GlobalTensor<float> &scaleGm_,
+    __aicore__ inline void Bf16ScaleGm2Ub(LocalTensor<ScaleType> &scaleLocal, GlobalTensor<ScaleType> &scaleGm,
         DataCopyPadParams padParams, uint64_t baseNOfffset, uint32_t curAivN);
     __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOfffset,
         uint64_t baseNOfffset, uint32_t curAicM, uint32_t curAicN);
@@ -93,7 +93,7 @@ private:
     GlobalTensor<X1Type> residualGMTensor_;
     GlobalTensor<X1Type> yGMTensor_;
     GlobalTensor<float> gammaGMTensor_;
-    GlobalTensor<float> scaleGMTensor_; // 类型确定
+    GlobalTensor<ScaleType> scaleGMTensor_;
     GlobalTensor<float> smoothScaleGMTensor_;
     GlobalTensor<int32_t> biasGMTensor_; // 类型确定
     GlobalTensor<int8_t> x1WinGMTensor_;
@@ -214,7 +214,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     yGMTensor_.SetGlobalBuffer((__gm__ X1Type*)y);
     gammaGMTensor_.SetGlobalBuffer((__gm__ float*)gamma);
     // 可选输入
-    scaleGMTensor_.SetGlobalBuffer((__gm__ float*)scale);
+    scaleGMTensor_.SetGlobalBuffer((__gm__ ScaleType*)scale);
     smoothScaleGMTensor_.SetGlobalBuffer((__gm__ float*)smoothScale);
     biasGMTensor_.SetGlobalBuffer((__gm__ int32_t*)bias);
     // 输出
@@ -639,7 +639,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     // if (!isPerTensor_) {
     //     tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, ubCalcN_ * sizeof(scaleType));
     // }
-    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, ubCalcN_ * sizeof(float));
+    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, ubCalcN_ * sizeof(ScaleType));
     // pertoken
     tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, 8U) * sizeof(float));
     tpipe_->InitBuffer(broadcastFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
@@ -648,13 +648,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
 template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Bf16ScaleGm2Ub(
-    LocalTensor<float> &scaleLocal, GlobalTensor<float> &scaleGm_,
+    LocalTensor<ScaleType> &scaleLocal, GlobalTensor<ScaleType> &scaleGm,
     DataCopyPadParams padParams, uint64_t baseNOfffset, uint32_t curAivN)
 {
     DataCopyParams scale2UbParams{1, 0, 0, 0};
-    scale2UbParams.blockLen = curAivN * sizeof(float);
+    scale2UbParams.blockLen = curAivN * sizeof(ScaleType);
     uint64_t scaleOffset = offsetScale_ + baseNOfffset;
-    DataCopyPad(scaleLocal, scaleGm_[scaleOffset], scale2UbParams, padParams);
+    DataCopyPad(scaleLocal, scaleGm[scaleOffset], scale2UbParams, padParams);
 }
 
 template<TemplateMC2TypeClass>
@@ -700,7 +700,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         // if (isPerTensor_) {
         //     AscendDequant(dstLocalFp32, srcLocal, scaleScalar_, tmpLocal, dequantParams);
         // } else {
-        LocalTensor<float> scaleLocal = vecQueScale_.AllocTensor<float>();
+        LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
         Bf16ScaleGm2Ub(scaleLocal, scaleGMTensor_, padParams, baseNOfffset, curAicN);
         SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
         WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);

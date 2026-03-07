@@ -45,13 +45,13 @@ extern "C" __global__ __aicore__ void add_rms_norm_dynamic_quant_all_gather_qbmm
     // GM_ADDR usrWorkspace = AscendC::GetUserWorkspace(workspace);
     if (TILING_KEY_IS(0)) {
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
-        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, false, false> op;
+        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, false, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
     } else if (TILING_KEY_IS(1)) { // 中间过程结果全输出
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_1);
-        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, true, false> op;
+        AddRmsNormDynamicQuantAllGatherQbmmImpl::AddRmsNormDynamicQuantAllGatherQbmm<DTYPE_X1, DTYPE_SCALE, true, false> op;
         op.Init(x1, x2, residual, y, gamma, scale, smooth_scale, bias, output, z, dynamicQuantOut,
                 allGatherDataOut, allGatherScalesOut, workspaceGM, &pipe, &tilingData);
         op.Process();
