@@ -329,7 +329,7 @@ public:
                         AscendC::DataCopyPad(
                             gLse, tvUbTensor,
                             AscendC::DataCopyExtParams(totalRowNum, sizeof(float), 0, (qHeads - 1) * sizeof(float), 0));
-                        AscendC::DumpTensor(gLse, 08, 128);
+                        AscendC::DumpTensor(gLse, 8, 128);
                     } else {
                         for (uint32_t qNIdx = 0; qNIdx < qNThisSubBlock; qNIdx++) {
                             AscendC::DataCopyPad(
