@@ -125,7 +125,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureMlaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
-        ge::GRAPH_SUCCESS != CheckFeatureSparseMode() ||
         ge::GRAPH_SUCCESS != CheckFeatureMask() ||
         ge::GRAPH_SUCCESS != CheckFeatureNoQuantDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureLse() ||
@@ -203,11 +202,10 @@ ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
         if (fiaInfo_.isMaxWorkspace) {
             return ge::GRAPH_SUCCESS;
         }
-        // qSize在feature文件中可以获得每个batch实际大小
-        // CheckActualSeqLensQ、CheckActualSeqLensKv保证了长度的一致性
         // 在入图场景，请求没有打满时，actualseqQ会padding为1，actualseqKv padding为0，此时不校验
+        int32_t actualSeqSize = std::min(qSize.size(), kvSize.size());
         int32_t NonpaddingZeroIndex = -1;
-        for (int32_t i = qSize.size() - 1; i >= 0; i--) {
+        for (int32_t i = actualSeqSize - 1; i >= 0; i--) {
             if (kvSize[i] != 0) {
                 NonpaddingZeroIndex = i;
                 break;
@@ -232,6 +230,10 @@ ge::graphStatus FiaTilingCheck::CheckFeatureSparseMode() const
 
 ge::graphStatus FiaTilingCheck::CheckFeatureMask() const
 {
+    if (ge::GRAPH_SUCCESS != CheckFeatureSparseMode()) {
+        return ge::GRAPH_FAILED;
+    }
+
     if ((!attenMaskFlag_) && (fiaInfo_.sparseMode != SPARSE_MODE_NO_MASK)) {
         OP_LOGE(opName_, "when %s is %d, it not 0, %s should not be null.",
             SPARSE_MODE_NAME.c_str(), fiaInfo_.sparseMode, ATTEN_MASK_NAME.c_str());
@@ -537,7 +539,6 @@ ge::graphStatus FiaTilingCheck::CheckFeatureGqaNoquant()
         ge::GRAPH_SUCCESS != CheckFeatureBlockSize() ||
         ge::GRAPH_SUCCESS != CheckFeatureInOutDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureActualSeqLens() ||
-        ge::GRAPH_SUCCESS != CheckFeatureSparseMode() ||
         ge::GRAPH_SUCCESS != CheckFeatureMask() ||
         ge::GRAPH_SUCCESS != CheckFeatureNoQuantDtype() ||
         ge::GRAPH_SUCCESS != CheckFeatureLse() ||
