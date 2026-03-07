@@ -628,7 +628,6 @@ def qli_output_single(params):
                 else:
                     for i_n in range(k_head_num):
                         key[cur_block_id, :, i_n, :] = key_expand[i_batch, i_n, block_start_pos:block_start_pos+block_size,:]
-        key = key.npu()
         # 构建PA场景的key_dequant_scale
         key_dequant_scale_expand = torch.zeros((batch_size, k_head_num, k_max_block_num_per_batch * block_size), dtype= dequant_dtype)
         key_dequant_scale_expand[:,:,:k_max_s2] = key_dequant_scale_bns
@@ -641,7 +640,24 @@ def qli_output_single(params):
                 else:
                     for i_n in range(k_head_num):
                         key_dequant_scale[cur_block_id, :, i_n] = key_dequant_scale_expand[i_batch, i_n,block_start_pos:block_start_pos+block_size]
+        #--------------------kv_cache 非连续
+        bytes_per_token = head_dim + key_dequant_scale.element_size() // key.element_size()
+        blockFusion = torch.zeros((block_num, block_size * k_head_num * bytes_per_token), dtype = qk_dtype)
+
+        key = key.view(block_num, block_size * k_head_num * head_dim)
+        key_dequant_scale = key_dequant_scale.view(block_num, block_size * k_head_num).view(qk_dtype)
+
+        blockFusion[:, :block_size * k_head_num * head_dim] = key
+        blockFusion[:, block_size * k_head_num * head_dim:] = key_dequant_scale
+
+        key = blockFusion[:, :block_size * k_head_num * head_dim].view(block_num, block_size, k_head_num, head_dim)
+        key_dequant_scale = blockFusion[:, block_size * k_head_num * head_dim:].view(dequant_dtype).view(block_num, block_size, k_head_num)
+
+        key = key.npu()
         key_dequant_scale = key_dequant_scale.npu()
+
+
+
         cpu_result, topk_value = test_qli.forward(query, key_bnsd, weights, query_dequant_scale, key_dequant_scale_bns, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
     max_seqlen_q = actual_seq_lengths_query.max().item()

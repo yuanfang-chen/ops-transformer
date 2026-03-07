@@ -65,6 +65,8 @@ constexpr uint32_t ATTR_PRE_TOKENS_INDEX = 6;
 constexpr uint32_t ATTR_NEXT_TOKENS_INDEX = 7;
 constexpr uint32_t ATTR_CMP_RATIO_INDEX = 8;
 constexpr uint32_t ATTR_RETURN_VALUES_INDEX = 9;
+constexpr uint32_t ATTR_KEY_STRIDE_INDEX = 10;
+constexpr uint32_t ATTR_KEY_SCALE_STRIDE_INDEX = 11;
 // Dim Index
 constexpr uint32_t DIM_IDX_ZERO = 0;
 constexpr uint32_t DIM_IDX_ONE = 1;
@@ -98,6 +100,8 @@ TILING_DATA_FIELD_DEF(uint32_t, sparseMode)
 TILING_DATA_FIELD_DEF(uint32_t, cmpRatio)
 TILING_DATA_FIELD_DEF(uint32_t, batchSupperFlag)
 TILING_DATA_FIELD_DEF(uint32_t, returnValues)
+TILING_DATA_FIELD_DEF(uint32_t, keyStride)
+TILING_DATA_FIELD_DEF(uint32_t, keyScaleStride)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(QuantLightningIndexer, QLITilingData)
 
@@ -129,6 +133,9 @@ struct QLIParaInfo {
     const int64_t *cmpRatio = nullptr;
     const int32_t *batchSupperFlag = nullptr;
     const bool *returnValues = nullptr;
+    const int64_t *keyStride = nullptr;
+    const int64_t *keyScaleStride = nullptr;
+
 };
 
 // -----------算子Tiling入参信息类---------------
@@ -159,6 +166,8 @@ public:
     uint32_t cmpRatio = 1;
     bool batchSupperFlag = false;
     bool returnValues = false;
+    uint32_t keyStride = 1;
+    uint32_t keyScaleStride = 1;
     // DType
     ge::DataType inputQType = ge::DT_FLOAT16;
     ge::DataType inputKType = ge::DT_FLOAT16;
