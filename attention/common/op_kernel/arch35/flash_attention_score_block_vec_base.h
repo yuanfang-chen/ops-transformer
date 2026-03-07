@@ -613,9 +613,9 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
             attenMaskInQuePre.template DeQue<uint8_t>();
             attenMaskInQue.template DeQue<uint8_t>();
             MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
-            attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
             attenMaskInQue.template EnQue(attenMaskUb);
         }
+        attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
     }
 }
 
