@@ -17,6 +17,7 @@
 #define FLASH_ATTENTION_SCORE_GRAD_SFMG_KERNEL_H_
 
 #include "kernel_operator.h"
+#include "flash_attention_grad_custom_sfmg.h"
 
 template <typename T1, typename T2, typename TILING_TYPE, const uint32_t INPUT_LAYOUT>
 class FlashAttentionScoreGradSfmg {
@@ -280,9 +281,9 @@ __aicore__ inline void FlashAttentionScoreGradSfmg<T1, T2, TILING_TYPE, INPUT_LA
 
             bool isBasicBlock = (nBurst % SFMG_HIGH_PERF_N_FACTOR == 0) && (dAlign % SFMG_HIGH_PERF_D_FACTOR == 0);
             if (likely(isBasicBlock)) {
-                SoftmaxGradFront<float, true>(outputBuf, sfmgClc1, sfmgClc2, tempBuf, TilingData->softmaxGradTilingData);
+                SoftmaxGradFront<float, true>(outputBuf, sfmgClc1, sfmgClc2, tempBuf);
             } else {
-                SoftmaxGradFront<float, false>(outputBuf, sfmgClc1, sfmgClc2, tempBuf, TilingData->softmaxGradTilingData);
+                SoftmaxGradFront<float, false>(outputBuf, sfmgClc1, sfmgClc2, tempBuf);
             }
             AscendC::PipeBarrier<PIPE_V>();
 
