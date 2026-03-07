@@ -249,7 +249,8 @@ public:
                 glUbTensor.ReinterpretCast<uint16_t>()[rowOffsetLoop],
                 curRowNumRound / FLOAT_BLOCK_SIZE,
                 AscendC::BrcbRepeatParams(1, 8));
-            AscendC::PipeBarrier<PIPE_V>();
+            AscendC::PipeBarrier<PIPE_V>(glUbTensor, 9, 128);
+            AscendC::DumpTensor(glUbTensor, 10, 128);
             // *** go = go / gl_block
             AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
             for (uint32_t vdiv_idx = 0; vdiv_idx < embed / HALF_VECTOR_SIZE; ++vdiv_idx) {
