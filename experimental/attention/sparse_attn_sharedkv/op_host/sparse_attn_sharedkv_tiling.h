@@ -81,8 +81,10 @@ constexpr uint32_t CU_SEQLENS_ORI_KV_INDEX = 8;
 constexpr uint32_t CU_SEQLENS_CMP_KV_INDEX = 9;
 constexpr uint32_t SEQUSED_Q_INDEX = 10;
 constexpr uint32_t SEQUSED_KV_INDEX = 11;
-constexpr uint32_t SINKS_INDEX = 12;
-constexpr uint32_t METADATA_INDEX = 13;
+constexpr uint32_t ORI_TOPK_LENGTH = 12;
+constexpr uint32_t CMP_TOPK_LENGTH = 13;
+constexpr uint32_t SINKS_INDEX = 14;
+constexpr uint32_t METADATA_INDEX = 15;
 // Outputs Index
 constexpr uint32_t ATTN_OUT_INDEX = 0;
 
