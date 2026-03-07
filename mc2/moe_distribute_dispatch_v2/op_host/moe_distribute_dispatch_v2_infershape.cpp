@@ -345,7 +345,8 @@ static ge::graphStatus InferDataTypeMoeDistributeDispatchV2(gert::InferDataTypeC
     ge::DataType expandXDtype = ge::DT_INT8;
     if (!quantFlag && (*quantMode == QuantMode::QUANT_MODE_NO_QUANT)) {
         expandXDtype = xDtype;
-    } else if ((yDtypePtr != nullptr) && (*yDtypePtr != ge::DT_UNDEFINED)) {
+    }
+    if ((yDtypePtr != nullptr) && (*yDtypePtr != ge::DT_UNDEFINED)) {
         int64_t yDtype = *yDtypePtr;
         OP_LOGD(context->GetNodeName(), "specified y_dtype = %lld.", yDtype);
         OP_CHECK_IF(CheckQuantMode(context, quantMode, yDtype) == ge::GRAPH_FAILED,
