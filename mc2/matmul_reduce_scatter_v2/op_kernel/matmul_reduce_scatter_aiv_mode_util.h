@@ -208,6 +208,7 @@ public:
         dequantSize = tilingData.matmulReduceScatterV2AivModeInfo.dequantSize;
         hasAAlign = tilingData.matmulReduceScatterV2AivModeInfo.hasAAlign;
         hasBAlign = tilingData.matmulReduceScatterV2AivModeInfo.hasBAlign;
+        hasBias = tilingData.matmulReduceScatterV2AivModeInfo.hasBias;
         dequant_type = tilingData.matmulReduceScatterV2AivModeInfo.dequant_type;
         is910C = tilingData.matmulReduceScatterV2AivModeInfo.is910C;
         isX2ScaleTypeInt64 = tilingData.matmulReduceScatterV2AivModeInfo.isX2ScaleTypeInt64;
@@ -450,6 +451,7 @@ public:
     uint64_t dequantSize;
     bool hasAAlign;
     bool hasBAlign;
+    bool hasBias;
     bool nAlign16;
     int32_t gm_c_pingpong_size;
     DequantType dequant_type;

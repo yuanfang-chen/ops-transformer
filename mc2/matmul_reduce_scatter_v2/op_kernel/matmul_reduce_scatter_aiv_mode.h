@@ -179,6 +179,7 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
         using ArchTag = Arch::AtlasA2;
         constexpr bool ENABLE_UNIT_FLAG = false;
         constexpr bool ENABLE_SHUFFLE_K = true;
+        constexpr bool aicCalBias = (QuantType == MC2_NON_QUANT) && hasBias;  // 如果计算量化后的矩阵乘，bias不由CatlassMatmul负责
         using ElementA = AType;
         using ElementB = BType;
         using ElementC = typename std::conditional<quantFlag, int32_t, cType>::type;
@@ -247,7 +248,7 @@ __aicore__ inline void MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                 using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivMode<void, void, BlockMmadOpt>;
                 typename MatmulKernel::Params params{processSize,   reinterpret_cast<GM_ADDR>(gm_a_src),
                                                      layoutA,       reinterpret_cast<GM_ADDR>(gm_b_src),
-                                                     layoutBNZ,     reinterpret_cast<GM_ADDR>(cGM_),
+                                                     layoutBNZ,     reinterpret_cast<GM_ADDR>(biasGM_), reinterpret_cast<GM_ADDR>(cGM_),
                                                      layoutC,       reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
                                                      layoutScale,   reinterpret_cast<GM_ADDR>(gm_peer_mem),
                                                      layoutPeerMem, reinterpret_cast<GM_ADDR>(gm_accum),

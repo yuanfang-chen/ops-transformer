@@ -39,6 +39,7 @@ struct MatmulReduceScatterV2AivModeInfo {
     uint64_t dequantSize;
     bool hasAAlign;
     bool hasBAlign;
+    bool hasBias;
     bool quantFlag;
     bool is910C;
     bool isX2ScaleTypeInt64; /* 当前x2Scale存在入参类型为int64的场景，需要tilingKey的方式传入kernel */
