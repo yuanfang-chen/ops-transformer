@@ -201,6 +201,8 @@ private:
         LocalTensor<OUTPUT_T> &attenOut);
     __aicore__ inline void MlaBnsdWithActqDataCopyOut(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
         LocalTensor<OUTPUT_T> &attenOut, DataCopyExtParams &dataCopyParams);
+    __aicore__ inline void MlaBnsdWithActqPreProcess(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, int64_t &gIdxStart,
+        int64_t &s1IdxStart, int64_t &gIdxEnd, int64_t &s1IdxEnd, uint32_t &headS1, uint32_t &needDealHeadS1);
 };
 
 TEMPLATES_DEF_BASE_NO_DEFAULT
@@ -552,6 +554,7 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
 {
     if constexpr (hasAtten && (isMlaFullQuant || isMlaNoQuant)) {
         LocalTensor<uint8_t> attenMaskUb = attenMaskInQue.template AllocTensor<uint8_t>();
+        LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();
         attenMaskInfo.attenMaskS1Offset = 0;    // 0: 默认值
         int64_t maskOffset = ComputeAttenMaskOffset<hasAtten, enableKVPrefix, isFd, hasRope, isInfer, dTemplateType>(runInfo, constInfo, attenMaskInfo);
         int64_t preMaskOffset = attenMaskInfo.attenMaskOffsetPre;
@@ -584,7 +587,6 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
             WaitFlag<HardEvent::MTE2_V>(mte2ToV);
             attenMaskInQue.template EnQue(attenMaskUb);
             if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-                LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();
                 if (firstS1Start + runInfo.halfS1RealSize > constInfo.s1Size) {
                     intriParams.blockCount = constInfo.s1Size - firstS1Start;
                     DataCopyPad(attenMaskUbPre, srcTensor[preMaskOffset1], intriParams, padParams);
@@ -595,28 +597,24 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaAttenMaskCopyIn(
                 }
                 SetFlag<HardEvent::MTE2_V>(mte2ToV);
                 WaitFlag<HardEvent::MTE2_V>(mte2ToV);
-                attenMaskInQuePre.template EnQue(attenMaskUbPre);
-                attenMaskInQuePre.template DeQue<uint8_t>();
-                attenMaskInQue.template DeQue<uint8_t>();
-                MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
-                attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
-                attenMaskInQue.template EnQue(attenMaskUb);
             }
         } else {
             this->MlaBoolCopyInRegbase(attenMaskUb, srcTensor, maskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
                 attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
             attenMaskInQue.template EnQue(attenMaskUb);
             if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
-                LocalTensor<uint8_t> attenMaskUbPre = attenMaskInQuePre.template AllocTensor<uint8_t>();
                 this->MlaBoolCopyInRegbase(attenMaskUbPre, srcTensor, preMaskOffset, runInfo.halfS1RealSize, runInfo.s2RealSize,
                     attenMaskInfo.attenMaskS2Size, constInfo.s2BaseSize, constInfo, runInfo);
-                attenMaskInQuePre.template EnQue(attenMaskUbPre);
-                attenMaskInQuePre.template DeQue<uint8_t>();
-                attenMaskInQue.template DeQue<uint8_t>();
-                MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
-                attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
-                attenMaskInQue.template EnQue(attenMaskUb);
             }
+        }
+
+        if (attenMaskInfo.compressMode == static_cast<uint8_t>(AttenMaskCompressMode::BAND_MODE)) {
+            attenMaskInQuePre.template EnQue(attenMaskUbPre);
+            attenMaskInQuePre.template DeQue<uint8_t>();
+            attenMaskInQue.template DeQue<uint8_t>();
+            MergeBandModeMask<hasAtten>(attenMaskUbPre, attenMaskUb, runInfo.halfS1RealSize, constInfo.s2BaseSize);
+            attenMaskInQuePre.template FreeTensor(attenMaskUbPre);
+            attenMaskInQue.template EnQue(attenMaskUb);
         }
     }
 }
@@ -1440,18 +1438,19 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTransposeDataCopyO
     }
 }
 
+
 TEMPLATES_DEF_BASE_NO_DEFAULT
-__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopyOut(
-    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut)
+__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithActqPreProcess(RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo,
+    int64_t &gIdxStart, int64_t &s1IdxStart, int64_t &gIdxEnd, int64_t &s1IdxEnd, uint32_t &headS1, uint32_t &needDealHeadS1)
 {
-    int64_t gIdxStart = runInfo.sOuterOffset / constInfo.s1Size;
-    int64_t s1IdxStart = runInfo.sOuterOffset % constInfo.s1Size;
-    int64_t gIdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) / constInfo.s1Size;
-    int64_t s1IdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) % constInfo.s1Size;
+    gIdxStart = runInfo.sOuterOffset / constInfo.s1Size;
+    s1IdxStart = runInfo.sOuterOffset % constInfo.s1Size;
+    gIdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) / constInfo.s1Size;
+    s1IdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) % constInfo.s1Size;
 
     // 处理第一个S
-    uint32_t headS1 = 0;
-    uint32_t needDealHeadS1 = 0;
+    headS1 = 0;
+    needDealHeadS1 = 0;
     if (gIdxStart == gIdxEnd) {
         headS1 = s1IdxEnd - s1IdxStart;
         if (s1IdxEnd < runInfo.actualSeqLengthOfMlaPerBatch) {
@@ -1469,6 +1468,21 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopy
             needDealHeadS1 = 0;
         }
     }
+}
+
+TEMPLATES_DEF_BASE_NO_DEFAULT
+__aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaTranspose2DataCopyOut(
+    RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut)
+{
+    int64_t gIdxStart = 0;
+    int64_t s1IdxStart = 0;
+    int64_t gIdxEnd = 0;
+    int64_t s1IdxEnd = 0;
+    // 处理第一个S
+    uint32_t headS1 = 0;
+    uint32_t needDealHeadS1 = 0;
+    MlaBnsdWithActqPreProcess(runInfo, constInfo, gIdxStart, s1IdxStart, 
+        gIdxEnd, s1IdxEnd, headS1, needDealHeadS1);
 
     int64_t startOffsetOfUb = 0;         // ub起始位置偏移
     int64_t dealedCount = 0;             // 已处理的行数
@@ -1520,31 +1534,15 @@ TEMPLATES_DEF_BASE_NO_DEFAULT
 __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithActqDataCopyOut(
     RunInfo<isInfer> &runInfo, ConstInfo<isInfer, hasRope> &constInfo, LocalTensor<OUTPUT_T> &attenOut, DataCopyExtParams &dataCopyParams)
 {
-    int64_t gIdxStart = runInfo.sOuterOffset / constInfo.s1Size;
-    int64_t s1IdxStart = runInfo.sOuterOffset % constInfo.s1Size;
-    int64_t gIdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) / constInfo.s1Size;
-    int64_t s1IdxEnd = (runInfo.sOuterOffset + runInfo.vec2S1RealSize) % constInfo.s1Size;
- 
+    int64_t gIdxStart = 0;
+    int64_t s1IdxStart = 0;
+    int64_t gIdxEnd = 0;
+    int64_t s1IdxEnd = 0;
     // 处理第一个S
     uint32_t headS1 = 0;
     uint32_t needDealHeadS1 = 0;
-    if (gIdxStart == gIdxEnd) {
-        headS1 = s1IdxEnd - s1IdxStart;
-        if (s1IdxEnd < runInfo.actualSeqLengthOfMlaPerBatch) {
-            needDealHeadS1 = headS1;
-        } else if (s1IdxStart < runInfo.actualSeqLengthOfMlaPerBatch) {
-            needDealHeadS1 = runInfo.actualSeqLengthOfMlaPerBatch - s1IdxStart;
-        } else {
-            needDealHeadS1 = 0;
-        }
-    } else {
-        headS1 = constInfo.s1Size - s1IdxStart;
-        if (s1IdxStart < runInfo.actualSeqLengthOfMlaPerBatch) {
-            needDealHeadS1 = runInfo.actualSeqLengthOfMlaPerBatch - s1IdxStart;
-        } else {
-            needDealHeadS1 = 0;
-        }
-    }
+    MlaBnsdWithActqPreProcess(runInfo, constInfo, gIdxStart, s1IdxStart, 
+        gIdxEnd, s1IdxEnd, headS1, needDealHeadS1);
                                        
     int64_t startOffset = 0;             // gm起始位置偏移
     int64_t startOffsetOfUb = 0;         // ub起始位置偏移
@@ -1559,6 +1557,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithActqDataCo
         startOffset = headS1 * constInfo.dSizeV;
         startOffsetOfUb = headS1 * constInfo.dSizeV;
         dealedCount += headS1;
+
+        // 处理中间完整的 g 块
         dataCopyParams.blockCount = static_cast<uint16_t>(runInfo.actualSeqLengthOfMlaPerBatch);
         for (int64_t i = 1; i * constInfo.s1Size + headS1 <= runInfo.vec2S1RealSize; i++) {
             DataCopyPad(this->attentionOutGm[runInfo.attentionOutOffset + startOffset], attenOut[startOffsetOfUb], dataCopyParams);
@@ -1566,6 +1566,8 @@ __aicore__ inline void FABlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithActqDataCo
             startOffsetOfUb += constInfo.s1Size * constInfo.dSizeV;
             dealedCount += constInfo.s1Size;
         }
+
+        // 尾块
         if (runInfo.vec2S1RealSize - dealedCount > 0) {
             int64_t tmpBlockCount = runInfo.vec2S1RealSize - dealedCount;
             tmpBlockCount = tmpBlockCount < runInfo.actualSeqLengthOfMlaPerBatch ?
