@@ -18,7 +18,7 @@
  
 struct MhcPostTilingData {
     int64_t n;
-    int64_t D;
+    int64_t d;
     int64_t usedCoreNum;
     int64_t normalCoreProcessNum;
     int64_t tailCoreProcessNum;
