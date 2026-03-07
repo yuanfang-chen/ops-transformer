@@ -682,12 +682,12 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     }
 
     // Fixed UB usage for auxiliary tensors
-    // queryStartLoc: 257 * sizeof(int32) = 1028 bytes
-    // cacheIndices: 256 * sizeof(int32) = 1024 bytes
-    // numAcceptedToken: 257 * sizeof(int32) = 1028 bytes
-    constexpr int64_t QUERY_START_LOC_UB_SIZE = 257 * sizeof(int32_t);
-    constexpr int64_t CACHE_INDICES_UB_SIZE = 256 * sizeof(int32_t);
-    constexpr int64_t NUM_ACCEPTED_TOKENS_UB_SIZE = 257 * sizeof(int32_t);
+    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
+    // cacheIndices: batchSize_ * sizeof(int32)
+    // numAcceptedToken: batchSize_ * sizeof(int32)
+    constexpr int64_t QUERY_START_LOC_UB_SIZE = (batchSize_ + 1) * sizeof(int32_t);
+    constexpr int64_t CACHE_INDICES_UB_SIZE = batchSize_ * sizeof(int32_t);
+    constexpr int64_t NUM_ACCEPTED_TOKENS_UB_SIZE = batchSize_ * sizeof(int32_t);
     constexpr int64_t FIXED_UB_SIZE = QUERY_START_LOC_UB_SIZE + CACHE_INDICES_UB_SIZE + NUM_ACCEPTED_TOKENS_UB_SIZE;
 
     constexpr int64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per bf16
