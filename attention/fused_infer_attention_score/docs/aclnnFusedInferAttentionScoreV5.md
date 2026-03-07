@@ -304,7 +304,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </td>
         <td>FLOAT32、BFLOAT16</td>
         <td>ND</td>
-        <td>输出layout为BSH时，quantScale2 shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]</td>
+        <td>见<a href="#INT8">INT8/FP8量化相关入参数量与输入、输出数据格式的综合限制</a></td>
         <td>-</td>
     </tr>
     <tr>
@@ -1103,7 +1103,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </colgroup>
         <thead>
         <tr>
-            <th>pesType</th>
+            <th>pseType</th>
             <th colspan="3" style="text-align: center;">支持的场景</th>
             <th>pseShiftOptional的数据类型约束</th>
             <th >shape约束</th>
@@ -1111,7 +1111,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
         </tr>
         </thead>
         <tbody>
-            <td rowspan="6">1</td>
+            <td rowspan="6">0</td>
             <tr>
                 <td rowspan="3">P_S1(pse shape第三维)&gt;1时</td>
                 <td rowspan="3">query的数据类型</td>
@@ -1120,7 +1120,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td rowspan="3">(B,Q_N,P_S1,P_S2)、(1,Q_N,P_S1,P_S2)</td>
                 <td rowspan="3">
                 <ul>
-                <li>仅FA训练支持pseType=1。</li>
                 <li>query数据类型为FLOAT16且pseShift存在时，强制走高精度模式，对应的限制继承自高精度模式的限制。</li>
                 <li>P_S1需大于等于query的S长度，P_S2需大于等于key的S长度。prefix场景P_S2需大于等于actualSharedPrefixLen与key的S长度之和。</li>
                 <li>P_S2建议padding到32对齐，提升性能</li>
@@ -1131,9 +1130,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>BFLOAT16</td>
                 <td>BFLOAT16</td>
             </tr>
-            <tr>
-                <td>INT8</td>
-                <td>FLOAT16</td>
+            <tr> 
+                <td>INT8</td> 
+                <td>FLOAT16</td> 
             </tr>
             <tr>
                 <td rowspan="2">P_S1(pse shape第三维)=1时</td>
@@ -1143,7 +1142,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td rowspan="2">(B,Q_N,1,P_S2)、(1,Q_N,1,P_S2)</td>
                 <td rowspan="2">
                 <ul>
-                <li>仅FA训练支持pseType=1。</li>
                 <li>P_S2需大于等于key的S长度。prefix场景P_S2需大于等于actualSharedPrefixLen与key的S长度之和。</li>
                 <li>P_S2建议padding到32对齐，提升性能</li>
                 </ul>
@@ -1152,6 +1150,13 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             <tr>
                 <td>BFLOAT16</td>
                 <td>BFLOAT16</td>
+            </tr>
+            <tr>
+                <td rowspan="1">1</td>
+                <td colspan="3">不支持FA推理场景，仅支持FA训练场景</td>
+                <td colspan="1">-</td>
+                <td colspan="1">-</td>
+                <td colspan="1">-</td>
             </tr>
             <tr> 
                 <td rowspan="2">2/3</td>
@@ -1242,7 +1247,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </td>
         </tr>
         <tr>
-        <td colspan="3"><ul>
+        <td colspan="4"><ul>
             <li>当attenMask数据类型取INT8、UINT8时，其tensor中的值需要为0或1</li>
             <li>非<a href="#MLA">MLA场景</a> sparseMode Q_S>1时生效</li>
         </ul></td>
@@ -1431,7 +1436,11 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>blockSize</td>
                 <td>
                     <ul>
-                        <li>在使能PagedAttention，并且非量化场景下，blockSize需要传入非0值, 需要16对齐，且blocksize最大不超过1024。</li>
+                        <li>在使能PagedAttention，并且非量化场景下，blockSize需要传入非0值，有如下约束:
+                            MLA场景blocksize需要16对齐且最大不超过1024；
+                            GQA场景且query、key、value的headdim=64/128时，blocksize需要16对齐且最大不超过1024；
+                            GQA场景且query、key、value的headdim≠64/128，Q_S>1时，blocksize需要128对齐且最大不超过512；
+                            GQA场景且query、key、value的headdim≠64/128，Q_S=1时，blocksize需要16对齐且最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，blockSize需要传入非0值, 且blocksize最大不超过512。</li>
                         <li>在使能PagedAttention，并且全量化场景下，Q_S=1时：</li>
                             key、value输入类型为FLOAT16/BFLOAT16时需要16对齐；</br>
@@ -1456,12 +1465,12 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                     <ul>
                         <li>支持key、value dtype为FLOAT16/BFLOAT16/INT8/INT4(INT32)/HIFLOAT8/FLOAT8_E4M3FN/FLOAT4_E2M1</li>
                         <li>在非量化场景下，当query的inputLayout为BNSD、TND、BSH、BSND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum,  KV_N, blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
-                        <li>在全量化场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N,
+                        <li>在MLA全量化场景下，当query的inputLayout为BNSD、TND时，kv cache排布支持BnBsH（blocknum, blocksize, H）、BnNBsD（blocknum, KV_N,
  	                        blocksize, D）和NZ（blocknum，KV_N，D/16，blocksize，16）三种格式；</li>
-                        <li>在全量化场景下，当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式</li>
+                        <li>在MLA全量化场景下，当query的inputLayout为BSH、BSND时，kv cache排布只支持BnBsH和NZ两种格式</li>
                         <li>伪量化场景下，当kv cache为五维时，kv cache排布为（blocknum，KV_N，D/16，blocksize，16）；同时，当key、value dtype为INT32时，kv
                             cache排布为（blocknum，KV_N，D/2，blocksize，2）</li>
-                        <li>Q_S>1时，支持query和kv cache全部为INT8/HIFLOAT8/FLOAT8_E4M3FN</li>
+                        <li>GQA全量化场景不支持PagedAttention</li>
                 </td>
                 <td>
                 <ul>
@@ -1521,47 +1530,6 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td rowspan="10">输入INT8，输出为INT8/FP8的场景</td>
-                <td>query</td>
-                <td>类型为INT8</td>
-            </tr>
-            <tr>
-                <td>key</td>
-                <td>类型为INT8</td>
-            </tr>
-            <tr>
-                <td>value</td>
-                <td>类型为INT8</td>
-            </tr>
-            <tr>
-                <td>deqScale1</td>
-                <td rowspan="3">需要同时存在。</td>
-            </tr>
-            <tr>
-                <td>quantScale1</td>
-            </tr>
-            <tr>
-                <td>deqScale2</td>
-            </tr>
-            <tr>
-                <td>quantScale2</td>
-                <td>类型为FLOAT32/BFLOAT16,支持 per-tensor/per-channel 两种格式。
-                </td>
-            </tr>
-            <tr>
-                <td>quantOffset2</td>
-                <td>可选参数，若传入 quantOffset2 ，需保证其类型和shape信息与quantScale2 一致。不传时默认为nullptr,表示为0。
-                </td>
-            </tr>
-            <tr>
-                <td>attentionOut</td>
-                <td>类型为INT8/FP8(FLOAT8_E4M3FN/HIFLOAT8)。</td>
-            </tr>
-            <tr>
-                <td>inputLayout</td>
-                <td>仅支持BSH、BNSD、BSND、BNSD_BSND。</td>
-            </tr>
             <tr>
                 <td rowspan="10">输入INT8，输出为FLOAT16的场景</td>
                 <td>query</td>
@@ -1632,9 +1600,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV5(
                 <td>支持 per-tensor/per-channel 两种格式和 FLOAT32/BFLOAT16 两种数据类型
                     <ul>
                         <li>当输入为BFLOAT16时，同时支持FLOAT32和BFLOAT16，否则仅支持FLOAT32。</li>
-                        <li>per-channel 格式：当输出layout为BSH时，要求 quantScale2
-                            所有维度的乘积等于H；其他layout要求乘积等于N*D。（建议输出layout为BSH时，quantScale2
-                            shape传入[1,1,H]或[H]；输出为BNSD时，建议传入[1,N,1,D]或[N,D]；输出为BSND时，建议传入[1,1,N,D]或[N,D]）。</li>
+                        <li>per-channel 格式：当layout为BSH、BSND、BNSD、BNSD_BSND时，要求 quantScale2
+                            所有维度的乘积等于N*D(H)；其他layout要求shape为[N,D]。</li>
+                        <li>per-tensor 格式：仅支持shape为[1]。</li>
                     </ul>
                 </td>
             </tr>

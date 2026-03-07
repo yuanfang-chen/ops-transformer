@@ -30,8 +30,8 @@ class FlashAttentionScoreGradKernelQuant
                                                CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
-    constexpr static uint32_t CUBE_BASEM = (uint32_t)s1TemplateType;
-    constexpr static uint32_t CUBE_BASEN = (uint32_t)s2TemplateType;
+    constexpr static uint32_t CUBE_BASEM = static_cast<uint32_t>(s1TemplateType);
+    constexpr static uint32_t CUBE_BASEN = static_cast<uint32_t>(s2TemplateType);
 
     BufferManager<BufferType::L1> l1BufferManager;
     BuffersPolicy4buff<BufferType::L1, SyncType::NO_SYNC> pL1Buf;
@@ -68,7 +68,7 @@ public:
     __aicore__ inline int64_t CalDeterMaxLoopNum();
     __aicore__ inline void CalDeterIndex(uint32_t roundId, uint32_t maxLoopNum, int64_t &nextValidRoundId, int64_t &nextValidIndex, int64_t taskId,
         CoordinateInfo &coordinateInfo, FagRunInfo &runInfo);
-    __aicore__ inline int64_t CalDenseDeterIndex(uint32_t roundId, CoordinateInfo &coordinateInfo);
+    __aicore__ inline int64_t CalDenseDeterIndex(uint32_t roundId, uint32_t maxLoopNum, CoordinateInfo &coordinateInfo);
     __aicore__ inline void Process();
     __aicore__ inline void ProcessFirstS2(FagRunInfo &runInfo, FagRunInfo &lastRunInfo, int8_t kvInnerId);
     __aicore__ inline void ProcessSP(FagRunInfo &runInfo, int8_t sdpId);
@@ -95,7 +95,6 @@ protected:
     int64_t lastN2Idx = -1;
 
     int64_t innerN2GD;
-
 
     TBuf<> vecQue;
     LocalTensor<CALC_TYPE> spTensors; // 64*128*4*2
@@ -141,7 +140,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
  
     this->cubeBlock.SetCubeBlockParams(pipeIn, tilingData, &l1BufferManager);
     this->cubeBlock.InitCubeBuffer(this->constInfo);
-    this->cubeBlock.InitGlobalBuffer(query, key, value, dy, queryRope, keyRope, dq, dk, dv, workspace);
+    this->cubeBlock.InitGlobalBuffer(query, key, value, dy);
 }
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetConstInfo()
@@ -221,7 +220,6 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
         this->constInfo.dsScaleD = (float)1.0 / this->constInfo.dsScale;    
         this->constInfo.copyOutDStride = (this->constInfo.commonConstInfo.n2GD - 64) * sizeof(CALC_TYPE);
     }
-
 }
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -299,14 +297,18 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetUniqueConstI
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline int64_t
 FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::CalDenseDeterIndex(
-    uint32_t roundId, CoordinateInfo &coordinateInfo)
+    uint32_t roundId, uint32_t maxLoopNum, CoordinateInfo &coordinateInfo)
 {
     int64_t j = this->cBlockIdx + 1;
     int64_t r = roundId + 1;
  
     int64_t k = static_cast<int64_t>(this->tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
     int64_t b = this->constInfo.bSize * this->constInfo.n2Size;
-    CalDenseIndex(k, this->constInfo.s1Outer, this->constInfo.s2Outer, b, j, r, coordinateInfo);
+    if (this->constInfo.s2Outer == 1) {
+        CalDenseIndexForSingleN(k, this->constInfo.s1Outer, b, j, r, maxLoopNum, coordinateInfo);
+    } else {
+        CalDenseIndex(k, this->constInfo.s1Outer, this->constInfo.s2Outer, b, j, r, coordinateInfo);
+    }
  
     int64_t w = coordinateInfo.batchId;
     int64_t n1 = this->constInfo.commonConstInfo.gSize * this->constInfo.n2Size;
@@ -337,12 +339,15 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::CalDeterMaxLoop
     int64_t m = this->constInfo.s1Outer;
     int64_t n = this->constInfo.s2Outer;
     int64_t k = static_cast<int64_t>(this->tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
-    int64_t loopMax = 0;
  
     InitCoordinateInfo(this->constInfo.s1Outer, this->constInfo.s2Outer, 0, 0, this->coordinateInfos[0]);
     InitCoordinateInfo(this->constInfo.s1Outer, this->constInfo.s2Outer, 0, 0, this->coordinateInfos[1]);
  
-    return Ceil<int64_t>(n * b, Min(k, m * b)) * m;
+    if (n == 1) {
+        return Max(Ceil<int64_t>(m * b, k), m);
+    } else {
+        return Ceil<int64_t>(n * b, Min(k, m * b)) * m;
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -353,7 +358,7 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::CalDeterIndex(
 {
     coordinateInfo.sparseMode = this->constInfo.sparseMode;
     for (uint32_t currentRoundId = roundId; currentRoundId < maxLoopNum; currentRoundId++) {
-        nextValidIndex = CalDenseDeterIndex(currentRoundId, coordinateInfo);
+        nextValidIndex = CalDenseDeterIndex(currentRoundId, maxLoopNum, coordinateInfo);
  
         bool isValidBlock = (nextValidIndex >= 0);
         if (isValidBlock) { 
@@ -361,6 +366,7 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::CalDeterIndex(
             return;
         }
     }
+    coordinateInfo.batchId = -1;
     nextValidIndex = -1;
     nextValidRoundId = maxLoopNum;
 }
@@ -403,11 +409,13 @@ template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
 FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetRunInfo(FagRunInfo &runInfo, FagRunInfo &lastRunInfo, int64_t taskId, CoordinateInfo &coordinateInfo, CoordinateInfo &nextCoordinateInfo)
 {
-    runInfo.isKeyReuse = (nextCoordinateInfo.batchId == coordinateInfo.batchId) 
+    runInfo.isKeyReuse = ((nextCoordinateInfo.batchId == coordinateInfo.batchId) 
                         && (nextCoordinateInfo.n2Idx == coordinateInfo.n2Idx) 
-                        && (nextCoordinateInfo.s2Idx == coordinateInfo.s2Idx);
-    runInfo.isValueReuse = (lastS2Idx == coordinateInfo.s2Idx && lastBatchIdx == coordinateInfo.batchId && lastN2Idx == coordinateInfo.n2Idx) ? false : true;
+                        && (nextCoordinateInfo.s2Idx == coordinateInfo.s2Idx)) || (nextCoordinateInfo.batchId == -1);
+    runInfo.isLastProcessBlock = (nextCoordinateInfo.batchId == -1);
+    runInfo.isFirstProcessBlock = taskId == 0;
     lastRunInfo.isNextKeyReuse = runInfo.isKeyReuse;
+    runInfo.isValueReuse = (lastS2Idx == coordinateInfo.s2Idx && lastBatchIdx == coordinateInfo.batchId && lastN2Idx == coordinateInfo.n2Idx);
     lastBatchIdx = coordinateInfo.batchId;
     lastN2Idx = coordinateInfo.n2Idx;
     lastS2Idx = coordinateInfo.s2Idx;
@@ -483,13 +491,11 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
 {
     if ASCEND_IS_AIV {
         // sdp
-        CrossCoreSetFlag<SYNC_MODE, PIPE_MTE2>(0);
-        CrossCoreSetFlag<SYNC_MODE, PIPE_MTE2>(1);
+        CrossCoreSetFlag<SYNC_MODE, PIPE_MTE3>(0);
+        CrossCoreSetFlag<SYNC_MODE, PIPE_MTE3>(1);
 
         // process dqkv 
-        for (int64_t i = 0; i<1;i++) {
-            CrossCoreSetFlag<SYNC_MODE, PIPE_MTE3>(SYNC_TRANSFER_DKV_FLAG);
-        }
+        CrossCoreSetFlag<SYNC_MODE, PIPE_MTE3>(SYNC_TRANSFER_DKV_FLAG);
         CrossCoreSetFlag<SYNC_MODE, PIPE_MTE3>(SYNC_TRANSFER_DQ_FLAG);
         CrossCoreSetFlag<0, PIPE_MTE3>(SYNC_DETER_FLAG);
     }
@@ -515,10 +521,9 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
         CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(1);
         CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(16 + 1);
 
-        for (int64_t i = 0; i<1;i++) {
-            CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_TRANSFER_DKV_FLAG);
-            CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_TRANSFER_DKV_FLAG);
-        }
+        CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_TRANSFER_DKV_FLAG);
+        CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_TRANSFER_DKV_FLAG);
+
         CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(SYNC_TRANSFER_DQ_FLAG);
         CrossCoreWaitFlag<SYNC_MODE, PIPE_FIX>(16 + SYNC_TRANSFER_DQ_FLAG);
     }

@@ -24,16 +24,16 @@
 #include "grouped_mat_mul_allto_allv_tiling.h"
 #include "lib/matmul_intf.h"
 #if __CCE_AICORE__ == 310
-    #if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
-    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
+    #if __has_include("../../allto_allv_grouped_mat_mul/allto_allv_gmm.h")
+    #include "../../allto_allv_grouped_mat_mul/allto_allv_gmm.h"
     #else
-    #include "../../allto_allv_grouped_mat_mul_apt/op_kernel/allto_allv_gmm.h"
+    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
     #endif
 #else
-    #if __has_include("../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h")
-    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
-    #else
+    #if __has_include("../allto_allv_grouped_mat_mul/allto_allv_gmm.h")
     #include "../allto_allv_grouped_mat_mul/allto_allv_gmm.h"
+    #else
+    #include "../../allto_allv_grouped_mat_mul/op_kernel/allto_allv_gmm.h"
     #endif
 #endif
 
@@ -101,7 +101,7 @@ private:
     static constexpr uint64_t TOTAL_UBSIZE = static_cast<uint64_t>(190U * 1024U / 2U);
     static constexpr uint64_t MAX_AIV_NUM = 48U;
     static constexpr uint64_t MAX_HANDLE_ID_NUM = 64U;
-#if defined(__DAV_C310__)
+#if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
     Hccl<HcclServerType::HCCL_SERVER_TYPE_CCU> hccl_;
 #else
     Hccl<HCCL_SERVER_TYPE_AICPU> hccl_;
