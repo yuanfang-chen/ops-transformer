@@ -13,6 +13,7 @@ target_sources(op_host_aclnnInner PRIVATE
     fused_infer_attention_score_def.cpp
 )
 
+
 add_ops_compile_options(
     OP_NAME FusedInferAttentionScore
     OPTIONS --cce-auto-sync=off
@@ -21,6 +22,7 @@ add_ops_compile_options(
             -mllvm -cce-vf-remove-membar=false
             -mllvm -cce-aicore-hoist-movemask=false
             --op_relocatable_kernel_binary=true
+            --save-temp-files
 )
 
 add_modules_sources_with_soc(OPTYPE fused_infer_attention_score ACLNNTYPE aclnn_inner)
