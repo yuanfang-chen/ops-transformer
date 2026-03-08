@@ -18,6 +18,8 @@
 #include "flash_attention_score_block_vec_train.h"
 #include "flash_attention_score_block_cube_mla_fullquant.h"
 #include "flash_attention_score_block_vec_infer_mla_fullquant.h"
+#include "flash_attention_score_block_cube_gqa_fullquant.h"
+#include "flash_attention_score_block_vec_infer_gqa_fullquant.h"
 #include "flash_attention_score_common_regbase.h"
 #if ASC_DEVKIT_MAJOR >= 9
 #include "kernel_basic_intf.h"
