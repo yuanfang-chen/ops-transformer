@@ -115,14 +115,15 @@ private:
         return (GM_ADDR)((hcclContext_->windowsOut[rankId]) + dataState_ * WIN_STATE_OFFSET);
     }
 
-    __aicore__ inline uint32_t MIN(uint32_t x1, uint32_t x2)
+    __aicore__ inline uint32_t MIN(uint32_t x, uint32_t y)
     {
-        return (x1 < x2) ? x1 : x2;
+        return (x < y) ? x : y;
     }
 
     __aicore__ inline int32_t ReduceSumWorkNeedSize(int32_t calCnt)
     {
-        int32_t elementsPerBlock = 32 / static_cast<int>(sizeof(int32_t));
+        int typeSize = static_cast<int>(sizeof(int32_t));
+        int32_t elementsPerBlock = 32 / typeSize;
         int32_t iter1OutputCount = calCnt;
         int32_t iter1AlignEnd = ((iter1OutputCount + elementsPerBlock - 1) / elementsPerBlock) * elementsPerBlock;
         return iter1AlignEnd;
@@ -185,15 +186,15 @@ private:
     uint32_t axisK_{0};
     uint32_t aivNum_{0};
     uint32_t sharedUsedAivNum_{0};
-    uint32_t epWorldSize_{0};
     uint32_t moeUsedAivNum_{0};
+    uint32_t epWorldSize_{0};
     uint32_t epRankId_{0};
-    uint32_t aivId_{0};
+    uint32_t aivId_{0};          // aiv id
     uint32_t sharedExpertNum_{0};
-    uint32_t sharedExpertRankNum_{0};
-    uint32_t rankNumPerSharedExpert_{0};
+    uint32_t sharedExpertRankNum_{0};    // 共享专家卡数
+    uint32_t rankNumPerSharedExpert_{0}; // 部署单个共享专家所用的卡数
     uint32_t moeExpertNum_{0};
-    uint32_t moeExpertRankNum_{0};
+    uint32_t moeExpertRankNum_{0}; // moe专家卡数，等于epWorldSize_ - sharedExpertRankNum_
     uint32_t moeExpertNumPerRank_{0};
     uint32_t totalExpertNum_{0};
     uint32_t hOutSize_{0};
@@ -320,16 +321,16 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::Init(
     QuantInit();
     hAlignWinSize_ = Ceil(hOutSizeAlign_, WIN_ADDR_ALIGN) * WIN_ADDR_ALIGN; // win区token起始地址对齐512
     hAlignWinCnt_ = hAlignWinSize_ / sizeof(YOutType);
+    expertPerSizeOnWin_ = axisMaxBS_ * hAlignWinSize_;
     if (sharedExpertRankNum_ != 0U) {
         sharedUsedAivNum_ = (aivNum_ * sharedExpertNum_) / (axisK_ + sharedExpertNum_);
         if (sharedUsedAivNum_ == 0) {
             sharedUsedAivNum_ = 1;
         }
     }
-    expertPerSizeOnWin_ = axisMaxBS_ * hAlignWinSize_;
     expertIdsCnt_ = axisBS_ * axisK_;
-    moeUsedAivNum_ = aivNum_ - sharedUsedAivNum_;
     recvWinBlockNum_ = epWorldSize_ * moeExpertNumPerRank_;
+    moeUsedAivNum_ = aivNum_ - sharedUsedAivNum_;
     stateOffset_ = ((recvWinBlockNum_ > 512) ? (STATE_OFFSET / 2) : STATE_OFFSET);
     DataCacheCleanAndInvalid<int32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfDataStatusTensor);
     dataState_ = selfDataStatusTensor(0);
@@ -512,16 +513,16 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::SplitToC
     uint32_t curSendCnt, uint32_t curUseAivNum, uint32_t& startTokenId, uint32_t& endTokenId, uint32_t& sendTokenNum,
     bool isFront)
 {
-    uint32_t remainderTokenNum = curSendCnt % curUseAivNum; // 余数
     sendTokenNum = curSendCnt / curUseAivNum;               // 每个aiv需要发送的token数
+    uint32_t remainderTokenNum = curSendCnt % curUseAivNum; // 余数
     uint32_t newAivId;
     if (isFront) {
         newAivId = aivId_;
     } else {
         newAivId = aivId_ - moeUsedAivNum_; // 由于是后面的核作为发送的共享专家，因此需要换算
     }
-    startTokenId = sendTokenNum * newAivId;
-    if (newAivId < remainderTokenNum) {
+    startTokenId = sendTokenNum * newAivId; // 每个aiv发送时的起始rankid
+    if (newAivId < remainderTokenNum) {     // 前remainderRankNum个aiv需要多发1个卡的数据
         sendTokenNum += 1;
         startTokenId += newAivId;
     } else {
