@@ -19,6 +19,7 @@ import math
 import copy
 import numpy as np
 import random
+from typing import Dict, Optional, Tuple
 
 COLOR_YELLOW = "\033[33m"
 YELLOW_RESET = "\033[0m"
@@ -1134,20 +1135,218 @@ def _cache_shape(cache_mode, B, S2, N2, last_dim, block_size):
     return (B * S2, N2, last_dim)  # TND
 
 
-def test_prologv3_generalized(params):
+PROLOGV3_PARAM_NAMES = (
+    "batch_size", "He", "Hcq", "Hckv", "q_head_num", "kv_head_num", "head_dim", "rope_head_dim",
+    "q_seq", "block_size", "input_layout", "cache_mode", "bs_fused_flag", "cq_epsilon", "ckv_epsilon",
+    "dtype", "weight_quant_mode", "kv_quant_mode", "query_quant_mode", "ckvkr_repo_mode",
+    "quant_scale_repo_mode", "smooth_scales_cq_flag", "query_norm_flag", "tile_size", "qc_qr_scale",
+    "kc_scale"
+)
+
+
+def _params_to_named_dict(params) -> Dict[str, object]:
+    return dict(zip(PROLOGV3_PARAM_NAMES, params))
+
+
+def _normalize_override_dtype(dtype):
+    if dtype is None or isinstance(dtype, torch.dtype):
+        return dtype
+    if isinstance(dtype, str) and dtype.startswith("torch."):
+        dtype_name = dtype.split(".", 1)[1]
+        if not hasattr(torch, dtype_name):
+            raise ValueError(f"unsupported torch dtype override: {dtype}")
+        return getattr(torch, dtype_name)
+    raise TypeError(f"unsupported dtype override: {dtype}")
+
+
+def _rand_tensor_for_override(shape, dtype, generator):
+    shape = tuple(int(dim) for dim in shape)
+    if dtype == torch.bool:
+        return torch.randint(0, 2, shape, dtype=torch.bool, generator=generator)
+    if dtype == torch.uint8:
+        return torch.randint(0, 256, shape, dtype=torch.uint8, generator=generator)
+    if dtype in (torch.int8, torch.int16, torch.int32, torch.int64):
+        return torch.randint(-16, 16, shape, dtype=dtype, generator=generator)
+    if hasattr(torch, "float8_e4m3fn") and dtype == torch.float8_e4m3fn:
+        return torch.randn(shape, dtype=torch.float32, generator=generator).clamp(-4.0, 4.0).to(dtype)
+    hif8_dtype = _get_hif8_dtype()
+    if hif8_dtype is not None and dtype == hif8_dtype:
+        return torch.randn(shape, dtype=torch.float32, generator=generator).clamp(-4.0, 4.0).to(dtype)
+    return torch.randn(shape, dtype=torch.float32, generator=generator).to(dtype)
+
+
+def _make_override_tensor(name, reference_tensor, override_spec, generator):
+    if not override_spec.get("present", True):
+        return None
+
+    base_dtype = reference_tensor.dtype if reference_tensor is not None else None
+    dtype = _normalize_override_dtype(override_spec.get("dtype", base_dtype))
+    if dtype is None:
+        raise ValueError(f"override for {name} requires explicit dtype when no reference tensor exists")
+
+    if "shape" in override_spec:
+        shape = tuple(int(dim) for dim in override_spec["shape"])
+    elif reference_tensor is not None:
+        shape = tuple(reference_tensor.shape)
+    else:
+        raise ValueError(f"override for {name} requires explicit shape when no reference tensor exists")
+
+    if name == "cache_index":
+        tensor = torch.zeros(shape, dtype=dtype)
+    elif name == "actual_seq_len" and len(shape) == 1:
+        tensor = torch.arange(1, shape[0] + 1, dtype=dtype)
+    elif 0 in shape:
+        tensor = torch.empty(shape, dtype=dtype)
+    else:
+        tensor = _rand_tensor_for_override(shape, dtype, generator)
+
+    if reference_tensor is not None and getattr(reference_tensor, "is_npu", False):
+        return tensor.npu()
+    return tensor.npu()
+
+
+def _build_op_attrs(named_params: Dict[str, object]) -> Dict[str, object]:
+    return {
+        "rmsnorm_epsilon_cq": named_params["cq_epsilon"],
+        "rmsnorm_epsilon_ckv": named_params["ckv_epsilon"],
+        "cache_mode": named_params["cache_mode"],
+        "query_norm_flag": bool(named_params["query_norm_flag"]),
+        "weight_quant_mode": named_params["weight_quant_mode"],
+        "kv_cache_quant_mode": named_params["kv_quant_mode"],
+        "query_quant_mode": named_params["query_quant_mode"],
+        "ckvkr_repo_mode": named_params["ckvkr_repo_mode"],
+        "quant_scale_repo_mode": named_params["quant_scale_repo_mode"],
+        "tile_size": named_params["tile_size"],
+        "qc_qr_scale": named_params["qc_qr_scale"],
+        "kc_scale": named_params["kc_scale"],
+    }
+
+
+def _build_forward_inputs(runtime_inputs: Dict[str, object]) -> Dict[str, object]:
+    return {
+        "token_x": runtime_inputs["token_x"],
+        "w_dq": runtime_inputs["w_dq"],
+        "w_uq_qr": runtime_inputs["w_uq_qr"],
+        "w_uk": runtime_inputs["w_uk"],
+        "w_dkv_kr": runtime_inputs["w_dkv_kr"],
+        "gamma_cq": runtime_inputs["rmsnorm_gamma_cq"],
+        "gamma_ckv": runtime_inputs["rmsnorm_gamma_ckv"],
+        "sin": runtime_inputs["rope_sin"],
+        "cos": runtime_inputs["rope_cos"],
+        "index_table": runtime_inputs["cache_index"],
+        "kv_cache": runtime_inputs["kv_cache"],
+        "kr_cache": runtime_inputs["kr_cache"],
+        "deq_scale_x": runtime_inputs["dequant_scale_x"],
+        "deq_scale_w_dq": runtime_inputs["dequant_scale_w_dq"],
+        "deq_scale_w_uqqr": runtime_inputs["dequant_scale_w_uq_qr"],
+        "deq_scale_w_dkvkr": runtime_inputs["dequant_scale_w_dkv_kr"],
+        "quant_scale_ckv": runtime_inputs["quant_scale_ckv"],
+        "quant_scale_ckr": runtime_inputs["quant_scale_ckr"],
+        "smooth_scale_cq": runtime_inputs["smooth_scales_cq"],
+        "actual_seq_len": runtime_inputs["actual_seq_len"],
+        "k_nope_clip_alpha": runtime_inputs["k_nope_clip_alpha"],
+    }
+
+
+def _execute_npu_case(runtime_inputs: Dict[str, object], op_attrs: Dict[str, object]):
+    w_dq_cast = torch_npu.npu_format_cast(runtime_inputs["w_dq"].contiguous(), 29)
+    w_uq_qr_cast = torch_npu.npu_format_cast(runtime_inputs["w_uq_qr"].contiguous(), 29)
+    w_dkv_kr_cast = torch_npu.npu_format_cast(runtime_inputs["w_dkv_kr"].contiguous(), 29)
+
+    op_kwargs = dict(op_attrs)
+    if str(op_attrs["cache_mode"]).startswith("PA") and runtime_inputs["cache_index"] is not None:
+        op_kwargs["cache_index"] = runtime_inputs["cache_index"]
+    if runtime_inputs["dequant_scale_x"] is not None:
+        op_kwargs["dequant_scale_x"] = runtime_inputs["dequant_scale_x"]
+    if runtime_inputs["dequant_scale_w_dq"] is not None:
+        op_kwargs["dequant_scale_w_dq"] = runtime_inputs["dequant_scale_w_dq"]
+    if runtime_inputs["dequant_scale_w_uq_qr"] is not None:
+        op_kwargs["dequant_scale_w_uq_qr"] = runtime_inputs["dequant_scale_w_uq_qr"]
+    if runtime_inputs["dequant_scale_w_dkv_kr"] is not None:
+        op_kwargs["dequant_scale_w_dkv_kr"] = runtime_inputs["dequant_scale_w_dkv_kr"]
+    if runtime_inputs["quant_scale_ckv"] is not None:
+        op_kwargs["quant_scale_ckv"] = runtime_inputs["quant_scale_ckv"]
+    if runtime_inputs["quant_scale_ckr"] is not None:
+        op_kwargs["quant_scale_ckr"] = runtime_inputs["quant_scale_ckr"]
+    if runtime_inputs["smooth_scales_cq"] is not None:
+        op_kwargs["smooth_scales_cq"] = runtime_inputs["smooth_scales_cq"]
+    if runtime_inputs["actual_seq_len"] is not None:
+        op_kwargs["actual_seq_len"] = runtime_inputs["actual_seq_len"]
+    if runtime_inputs["k_nope_clip_alpha"] is not None:
+        op_kwargs["k_nope_clip_alpha"] = runtime_inputs["k_nope_clip_alpha"]
+
+    result = torch_npu.npu_mla_prolog_v3(
+        runtime_inputs["token_x"], w_dq_cast, w_uq_qr_cast,
+        runtime_inputs["w_uk"], w_dkv_kr_cast,
+        runtime_inputs["rmsnorm_gamma_cq"], runtime_inputs["rmsnorm_gamma_ckv"],
+        runtime_inputs["rope_sin"], runtime_inputs["rope_cos"],
+        runtime_inputs["kv_cache"], runtime_inputs["kr_cache"],
+        **op_kwargs
+    )
+    torch.npu.synchronize()
+
+    if isinstance(result, torch.Tensor):
+        kernel_outputs = [result]
+    elif isinstance(result, (list, tuple)):
+        kernel_outputs = list(result)
+    else:
+        raise RuntimeError(f"unsupported npu_mla_prolog_v3 output type: {type(result)}")
+
+    if len(kernel_outputs) == 5:
+        kernel_outputs_aligned = kernel_outputs
+    elif len(kernel_outputs) >= 7:
+        kernel_outputs_aligned = [
+            kernel_outputs[0],
+            kernel_outputs[1],
+            kernel_outputs[4],
+            kernel_outputs[5],
+            kernel_outputs[6],
+        ]
+    else:
+        raise RuntimeError(
+            f"unexpected npu_mla_prolog_v3 output count: {len(kernel_outputs)} (expect 5 or >=7)"
+        )
+
+    return {
+        "outputs": kernel_outputs_aligned,
+        "inplace": [runtime_inputs["kv_cache"], runtime_inputs["kr_cache"]],
+    }
+
+
+def _apply_case_overrides(case_payload, attr_overrides=None, input_overrides=None):
+    runtime_inputs = dict(case_payload["runtime_inputs"])
+    op_attrs = dict(case_payload["op_attrs"])
+    if attr_overrides:
+        op_attrs.update(attr_overrides)
+
+    if input_overrides:
+        override_generator = torch.Generator().manual_seed(int(case_payload["seed"]) + 97)
+        for name, spec in input_overrides.items():
+            if name not in runtime_inputs:
+                raise KeyError(f"unsupported input override: {name}")
+            runtime_inputs[name] = _make_override_tensor(name, runtime_inputs.get(name), spec, override_generator)
+
+    updated_payload = dict(case_payload)
+    updated_payload["runtime_inputs"] = runtime_inputs
+    updated_payload["op_attrs"] = op_attrs
+    return updated_payload
+
+
+def _build_default_case_payload(params, validate_quant_combo=True):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
     q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
     weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
     quant_scale_repo_mode, smooth_scales_cq_flag, query_norm_flag, tile_size, qc_qr_scale, kc_scale = params
 
-    is_valid, reason = validate_quant_cache_combo(cache_mode,
-                                                  weight_quant_mode,
-                                                  kv_quant_mode,
-                                                  query_quant_mode,
-                                                  ckvkr_repo_mode,
-                                                  quant_scale_repo_mode)
-    if not is_valid:
-        pytest.skip(f"skip invalid quant/cache combo: {reason}")
+    if validate_quant_combo:
+        is_valid, reason = validate_quant_cache_combo(cache_mode,
+                                                      weight_quant_mode,
+                                                      kv_quant_mode,
+                                                      query_quant_mode,
+                                                      ckvkr_repo_mode,
+                                                      quant_scale_repo_mode)
+        if not is_valid:
+            pytest.skip(f"skip invalid quant/cache combo: {reason}")
 
     seed = 3
     set_seed(seed)
@@ -1287,105 +1486,51 @@ def test_prologv3_generalized(params):
     elif kv_quant_mode == 3:
         k_nope_clip_alpha = _rand_scale((1,), generator, min_val=0.9, max_val=1.1).npu()
 
-    # CPU reference
-    forward_inputs = {
+    runtime_inputs = {
         "token_x": token_x,
         "w_dq": w_dq,
         "w_uq_qr": w_uq_qr,
         "w_uk": w_uk,
         "w_dkv_kr": w_dkv_kr,
-        "gamma_cq": rmsnorm_gamma_cq,
-        "gamma_ckv": rmsnorm_gamma_ckv,
-        "sin": rope_sin,
-        "cos": rope_cos,
-        "index_table": cache_index,
+        "rmsnorm_gamma_cq": rmsnorm_gamma_cq,
+        "rmsnorm_gamma_ckv": rmsnorm_gamma_ckv,
+        "rope_sin": rope_sin,
+        "rope_cos": rope_cos,
+        "cache_index": cache_index,
         "kv_cache": kv_cache,
         "kr_cache": kr_cache,
-        "deq_scale_x": deq_scale_x,
-        "deq_scale_w_dq": deq_scale_w_dq,
-        "deq_scale_w_uqqr": deq_scale_w_uq_qr,
-        "deq_scale_w_dkvkr": deq_scale_w_dkv_kr,
+        "dequant_scale_x": deq_scale_x,
+        "dequant_scale_w_dq": deq_scale_w_dq,
+        "dequant_scale_w_uq_qr": deq_scale_w_uq_qr,
+        "dequant_scale_w_dkv_kr": deq_scale_w_dkv_kr,
         "quant_scale_ckv": quant_scale_ckv,
         "quant_scale_ckr": quant_scale_ckr,
-        "smooth_scale_cq": smooth_scale_cq,
+        "smooth_scales_cq": smooth_scale_cq,
         "actual_seq_len": actual_seq_len,
         "k_nope_clip_alpha": k_nope_clip_alpha,
     }
-    expect = GeneralizedPrologV3(params).forward(forward_inputs)
 
-    # NPU call
-    w_dq_cast = torch_npu.npu_format_cast(w_dq.contiguous(), 29)
-    w_uq_qr_cast = torch_npu.npu_format_cast(w_uq_qr.contiguous(), 29)
-    w_dkv_kr_cast = torch_npu.npu_format_cast(w_dkv_kr.contiguous(), 29)
-
-    op_kwargs = {
-        "rmsnorm_epsilon_cq": cq_epsilon,
-        "rmsnorm_epsilon_ckv": ckv_epsilon,
-        "cache_mode": cache_mode,
-        "query_norm_flag": bool(query_norm_flag),
-        "weight_quant_mode": weight_quant_mode,
-        "kv_cache_quant_mode": kv_quant_mode,
-        "query_quant_mode": query_quant_mode,
-        "ckvkr_repo_mode": ckvkr_repo_mode,
-        "quant_scale_repo_mode": quant_scale_repo_mode,
-        "tile_size": tile_size,
-        "qc_qr_scale": qc_qr_scale,
-        "kc_scale": kc_scale
+    return {
+        "params": params,
+        "named_params": _params_to_named_dict(params),
+        "seed": seed,
+        "runtime_inputs": runtime_inputs,
+        "op_attrs": _build_op_attrs(_params_to_named_dict(params)),
     }
-    if cache_mode.startswith("PA"):
-        op_kwargs["cache_index"] = cache_index
-    if deq_scale_x is not None:
-        op_kwargs["dequant_scale_x"] = deq_scale_x
-    if deq_scale_w_dq is not None:
-        op_kwargs["dequant_scale_w_dq"] = deq_scale_w_dq
-    if deq_scale_w_uq_qr is not None:
-        op_kwargs["dequant_scale_w_uq_qr"] = deq_scale_w_uq_qr
-    if deq_scale_w_dkv_kr is not None:
-        op_kwargs["dequant_scale_w_dkv_kr"] = deq_scale_w_dkv_kr
-    if quant_scale_ckv is not None:
-        op_kwargs["quant_scale_ckv"] = quant_scale_ckv
-    if quant_scale_ckr is not None:
-        op_kwargs["quant_scale_ckr"] = quant_scale_ckr
-    if smooth_scale_cq is not None:
-        op_kwargs["smooth_scales_cq"] = smooth_scale_cq
-    if actual_seq_len is not None:
-        op_kwargs["actual_seq_len"] = actual_seq_len
-    if k_nope_clip_alpha is not None:
-        op_kwargs["k_nope_clip_alpha"] = k_nope_clip_alpha
 
-    result = torch_npu.npu_mla_prolog_v3(
-        token_x, w_dq_cast, w_uq_qr_cast,
-        w_uk, w_dkv_kr_cast, rmsnorm_gamma_cq, rmsnorm_gamma_ckv,
-        rope_sin, rope_cos, kv_cache, kr_cache, **op_kwargs
-    )
-    torch.npu.synchronize()
 
-    if isinstance(result, torch.Tensor):
-        kernel_outputs = [result]
-    elif isinstance(result, (list, tuple)):
-        kernel_outputs = list(result)
-    else:
-        raise RuntimeError(f"unsupported npu_mla_prolog_v3 output type: {type(result)}")
-
-    # torch_npu wrapper returns only functional outputs in normal path; tolerate full-op tuple as fallback.
-    if len(kernel_outputs) == 5:
-        kernel_outputs_aligned = kernel_outputs
-    elif len(kernel_outputs) >= 7:
-        kernel_outputs_aligned = [
-            kernel_outputs[0],  # query
-            kernel_outputs[1],  # query_rope
-            kernel_outputs[4],  # dequant_scale_q_nope
-            kernel_outputs[5],  # query_norm
-            kernel_outputs[6],  # dequant_scale_q_norm
-        ]
-    else:
-        raise RuntimeError(
-            f"unexpected npu_mla_prolog_v3 output count: {len(kernel_outputs)} (expect 5 or >=7)"
-        )
-
-    result_aligned = {
-        "outputs": kernel_outputs_aligned,
-        # kv_cache/kr_cache are in-place outputs.
-        "inplace": [kv_cache, kr_cache]
-    }
+def test_prologv3_generalized(params):
+    case_payload = _build_default_case_payload(params, validate_quant_combo=True)
+    expect = GeneralizedPrologV3(params).forward(_build_forward_inputs(case_payload["runtime_inputs"]))
+    result_aligned = _execute_npu_case(case_payload["runtime_inputs"], case_payload["op_attrs"])
     return expect, result_aligned
+
+
+def run_prologv3_npu_only(params, attr_overrides=None, input_overrides=None):
+    case_payload = _build_default_case_payload(params, validate_quant_combo=True)
+    case_payload = _apply_case_overrides(
+        case_payload,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+    )
+    return _execute_npu_case(case_payload["runtime_inputs"], case_payload["op_attrs"])

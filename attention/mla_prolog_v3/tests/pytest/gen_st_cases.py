@@ -110,7 +110,7 @@ FACTOR_SUMMARY: Tuple[Tuple[str, str], ...] = (
     ("cache_mode", "ND/PA scatter path family and per-tile legality"),
     ("bs_fused_flag", "tokenX 2D fused path; gates actualSeqMode for PA_BLK cache modes"),
     ("ckvkr_repo_mode / quant_scale_repo_mode / tile_size", "per-tile storage path and dtile constraints"),
-    ("batch_size / q_seq", "token count, vector split tail, and step batch tail"),
+    ("batch_size / q_seq", "token count, multi-step outer loop, vector split tail, and step batch tail"),
     ("q_head_num", "mm3/mm4 split and tail behavior, dequant-opt gating"),
     ("He", "mm1/mm2 stepK (3/4), kL1 loops, and baseK path"),
     ("block_size", "PA block behavior and legality"),
@@ -137,135 +137,183 @@ MODEL_FACTOR_NAMES: Tuple[str, ...] = (
 )
 
 
+NEGATIVE_BASE_PARAMS: Dict[str, object] = {
+    "batch_size": 1,
+    "He": 7168,
+    "Hcq": 1536,
+    "Hckv": 512,
+    "q_head_num": 32,
+    "kv_head_num": 1,
+    "head_dim": 128,
+    "rope_head_dim": 64,
+    "q_seq": 1,
+    "block_size": 128,
+    "input_layout": "BSH",
+    "cache_mode": "PA_BSND",
+    "bs_fused_flag": 0,
+    "cq_epsilon": 0.0005,
+    "ckv_epsilon": 0.0005,
+    "dtype": "torch.bfloat16",
+    "weight_quant_mode": 0,
+    "kv_quant_mode": 0,
+    "query_quant_mode": 0,
+    "ckvkr_repo_mode": 0,
+    "quant_scale_repo_mode": 0,
+    "smooth_scales_cq_flag": 1,
+    "query_norm_flag": 0,
+    "tile_size": 128,
+    "qc_qr_scale": 1.0,
+    "kc_scale": 1.0,
+}
+
+
+def _negative_case(
+    name: str,
+    *,
+    kind: str = "param_only",
+    param_updates: Optional[Dict[str, object]] = None,
+    attr_overrides: Optional[Dict[str, object]] = None,
+    input_overrides: Optional[Dict[str, object]] = None,
+    expected_error_substrings: Optional[Sequence[str]] = None,
+) -> Dict[str, object]:
+    params = dict(NEGATIVE_BASE_PARAMS)
+    if param_updates:
+        params.update(param_updates)
+
+    case: Dict[str, object] = {
+        "name": name,
+        "kind": kind,
+        "params": params,
+        "expected_error_substrings": list(expected_error_substrings or []),
+    }
+    if attr_overrides:
+        case["attr_overrides"] = dict(attr_overrides)
+    if input_overrides:
+        case["input_overrides"] = dict(input_overrides)
+    return case
+
+
 NEGATIVE_RUNTIME_CASES_DEFAULT: List[Dict[str, object]] = [
-    {
-        "name": "invalid_n_size_not_supported",
-        "params": {
-            "batch_size": 1,
-            "He": 7168,
-            "Hcq": 1536,
-            "Hckv": 512,
-            "q_head_num": 3,
-            "kv_head_num": 1,
-            "head_dim": 128,
-            "rope_head_dim": 64,
-            "q_seq": 1,
-            "block_size": 128,
-            "input_layout": "BSH",
-            "cache_mode": "PA_BSND",
-            "bs_fused_flag": 0,
-            "cq_epsilon": 0.0005,
-            "ckv_epsilon": 0.0005,
-            "dtype": "torch.bfloat16",
-            "weight_quant_mode": 0,
-            "kv_quant_mode": 0,
-            "query_quant_mode": 0,
-            "ckvkr_repo_mode": 0,
-            "quant_scale_repo_mode": 0,
-            "smooth_scales_cq_flag": 1,
-            "query_norm_flag": 0,
-            "tile_size": 128,
-            "qc_qr_scale": 1.0,
-            "kc_scale": 1.0,
-        },
-        "expected_error_substrings": ["n", "head", "unsupported", "invalid", "error"],
-    },
-    {
-        "name": "invalid_tile_size_for_pertile",
-        "params": {
-            "batch_size": 1,
-            "He": 7168,
-            "Hcq": 1536,
-            "Hckv": 512,
-            "q_head_num": 32,
-            "kv_head_num": 1,
-            "head_dim": 128,
-            "rope_head_dim": 64,
-            "q_seq": 1,
-            "block_size": 128,
-            "input_layout": "BSH",
-            "cache_mode": "PA_BSND",
-            "bs_fused_flag": 0,
-            "cq_epsilon": 0.0005,
-            "ckv_epsilon": 0.0005,
-            "dtype": "torch.bfloat16",
+    _negative_case(
+        "invalid_n_size_not_supported",
+        param_updates={"q_head_num": 3},
+        expected_error_substrings=["n", "head", "unsupported", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_tile_size_for_pertile",
+        param_updates={
             "weight_quant_mode": 1,
             "kv_quant_mode": 3,
-            "query_quant_mode": 0,
             "ckvkr_repo_mode": 1,
             "quant_scale_repo_mode": 1,
-            "smooth_scales_cq_flag": 1,
-            "query_norm_flag": 0,
             "tile_size": 64,
-            "qc_qr_scale": 1.0,
-            "kc_scale": 1.0,
         },
-        "expected_error_substrings": ["tile", "unsupported", "invalid", "error"],
-    },
-    {
-        "name": "invalid_kv_head_num",
-        "params": {
-            "batch_size": 1,
-            "He": 7168,
-            "Hcq": 1536,
-            "Hckv": 512,
-            "q_head_num": 32,
-            "kv_head_num": 2,
-            "head_dim": 128,
-            "rope_head_dim": 64,
-            "q_seq": 1,
-            "block_size": 128,
-            "input_layout": "BSH",
-            "cache_mode": "PA_BSND",
-            "bs_fused_flag": 0,
-            "cq_epsilon": 0.0005,
-            "ckv_epsilon": 0.0005,
-            "dtype": "torch.bfloat16",
-            "weight_quant_mode": 0,
-            "kv_quant_mode": 0,
-            "query_quant_mode": 0,
-            "ckvkr_repo_mode": 0,
-            "quant_scale_repo_mode": 0,
-            "smooth_scales_cq_flag": 1,
-            "query_norm_flag": 0,
-            "tile_size": 128,
-            "qc_qr_scale": 1.0,
-            "kc_scale": 1.0,
+        expected_error_substrings=["tile", "unsupported", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_kv_head_num",
+        param_updates={"kv_head_num": 2},
+        expected_error_substrings=["kv", "head", "unsupported", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_he_not_supported",
+        param_updates={"He": 7000},
+        expected_error_substrings=["he", "unsupported", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_block_size_alignment",
+        param_updates={"block_size": 20},
+        expected_error_substrings=["block", "size", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_block_size_out_of_range",
+        param_updates={"block_size": 2048},
+        expected_error_substrings=["block", "size", "invalid", "error"],
+    ),
+    _negative_case(
+        "invalid_pertile_cache_mode_pa_nz",
+        kind="input_override",
+        param_updates={
+            "weight_quant_mode": 1,
+            "kv_quant_mode": 3,
+            "ckvkr_repo_mode": 1,
+            "quant_scale_repo_mode": 1,
         },
-        "expected_error_substrings": ["kv", "head", "unsupported", "invalid", "error"],
-    },
-    {
-        "name": "invalid_he_not_supported",
-        "params": {
-            "batch_size": 1,
-            "He": 7000,
-            "Hcq": 1536,
-            "Hckv": 512,
-            "q_head_num": 32,
-            "kv_head_num": 1,
-            "head_dim": 128,
-            "rope_head_dim": 64,
-            "q_seq": 1,
-            "block_size": 128,
-            "input_layout": "BSH",
-            "cache_mode": "PA_BSND",
-            "bs_fused_flag": 0,
-            "cq_epsilon": 0.0005,
-            "ckv_epsilon": 0.0005,
-            "dtype": "torch.bfloat16",
-            "weight_quant_mode": 0,
-            "kv_quant_mode": 0,
-            "query_quant_mode": 0,
-            "ckvkr_repo_mode": 0,
-            "quant_scale_repo_mode": 0,
-            "smooth_scales_cq_flag": 1,
-            "query_norm_flag": 0,
-            "tile_size": 128,
-            "qc_qr_scale": 1.0,
-            "kc_scale": 1.0,
+        attr_overrides={"cache_mode": "PA_NZ"},
+        expected_error_substrings=["cache", "pertile", "support", "error"],
+    ),
+    _negative_case(
+        "invalid_pertile_repo_modes",
+        kind="input_override",
+        param_updates={
+            "weight_quant_mode": 1,
+            "kv_quant_mode": 3,
+            "ckvkr_repo_mode": 1,
+            "quant_scale_repo_mode": 1,
         },
-        "expected_error_substrings": ["he", "unsupported", "invalid", "error"],
-    },
+        attr_overrides={"ckvkr_repo_mode": 0, "quant_scale_repo_mode": 0},
+        expected_error_substrings=["repo", "expected", "error"],
+    ),
+    _negative_case(
+        "invalid_non_pertile_combined_repo",
+        kind="input_override",
+        attr_overrides={"ckvkr_repo_mode": 1, "quant_scale_repo_mode": 1},
+        expected_error_substrings=["repo", "expected", "error"],
+    ),
+    _negative_case(
+        "invalid_query_quant_mode",
+        kind="input_override",
+        param_updates={"weight_quant_mode": 2, "kv_quant_mode": 1, "query_quant_mode": 1},
+        attr_overrides={"query_quant_mode": 0},
+        expected_error_substrings=["query", "expected", "error"],
+    ),
+    _negative_case(
+        "invalid_tnd_token_x_rank",
+        kind="input_override",
+        param_updates={"batch_size": 2, "q_seq": 4, "cache_mode": "TND", "bs_fused_flag": 1},
+        input_overrides={"token_x": {"shape": [2, 4, 7168]}},
+        expected_error_substrings=["tnd", "token", "dim", "error"],
+    ),
+    _negative_case(
+        "invalid_bsnd_token_x_rank",
+        kind="input_override",
+        param_updates={"batch_size": 2, "q_seq": 4, "cache_mode": "BSND", "bs_fused_flag": 0},
+        input_overrides={"token_x": {"shape": [8, 7168]}},
+        expected_error_substrings=["bsnd", "token", "dim", "error"],
+    ),
+    _negative_case(
+        "invalid_pa_blk_missing_actual_seq_len",
+        kind="input_override",
+        param_updates={"batch_size": 9, "q_seq": 16, "cache_mode": "PA_BLK_BSND", "bs_fused_flag": 1},
+        input_overrides={"actual_seq_len": {"present": False}},
+        expected_error_substrings=["actual", "seq", "null", "error"],
+    ),
+    _negative_case(
+        "invalid_pa_blk_cache_index_rank",
+        kind="input_override",
+        param_updates={"batch_size": 9, "q_seq": 16, "cache_mode": "PA_BLK_BSND", "bs_fused_flag": 1},
+        input_overrides={"cache_index": {"shape": [9, 1]}},
+        expected_error_substrings=["cacheindex", "dim", "error"],
+    ),
+    _negative_case(
+        "invalid_combined_repo_nonempty_kr_cache",
+        kind="input_override",
+        param_updates={
+            "weight_quant_mode": 1,
+            "kv_quant_mode": 3,
+            "ckvkr_repo_mode": 1,
+            "quant_scale_repo_mode": 1,
+        },
+        input_overrides={"kr_cache": {"shape": [1], "dtype": "torch.bfloat16"}},
+        expected_error_substrings=["krcache", "empty", "error"],
+    ),
+    _negative_case(
+        "invalid_pa_kv_cache_rank",
+        kind="input_override",
+        param_updates={"batch_size": 2, "q_seq": 4, "cache_mode": "PA_BSND", "bs_fused_flag": 0},
+        input_overrides={"kv_cache": {"shape": [1, 1, 512]}},
+        expected_error_substrings=["kvcache", "dim", "error"],
+    ),
 ]
 
 
@@ -538,9 +586,11 @@ def build_case_tags(case: Dict[str, object], hw: HardwareProfile) -> Set[str]:
     tags.add(f"l1:mm3_kl1_loops:{'multi' if mm3_kl1_loops > 1 else 'single'}")
 
     # vector
+    has_multi_step_loop = int(t_size > step_batch_size)
     has_batch_tail = int(t_size > step_batch_size and (t_size % step_batch_size != 0))
     has_vector_tail = int(vector_block_num > 0 and (step_batch_size % vector_block_num != 0))
     has_vector_inactive_lanes = int(step_batch_size < hw.aiv_num)
+    tags.add(f"vector:multi_step_loop:{has_multi_step_loop}")
     tags.add(f"vector:step_batch_tail:{has_batch_tail}")
     tags.add(f"vector:token_split_tail:{has_vector_tail}")
     tags.add(f"vector:inactive_lanes:{has_vector_inactive_lanes}")
@@ -660,6 +710,42 @@ def _format_enabled_params(case_names: Sequence[str]) -> str:
     return f"FULL_COVERAGE_PARAMS = [{names}]\nENABLED_PARAMS = FULL_COVERAGE_PARAMS"
 
 
+def _format_py_value_lines(value: object, indent: int) -> List[str]:
+    prefix = " " * indent
+    if isinstance(value, dict):
+        lines = [prefix + "{"]
+        for key, item in value.items():
+            lines.extend(_format_py_item_lines(key, item, indent + 4))
+        lines.append(prefix + "}")
+        return lines
+    if isinstance(value, list):
+        if not value:
+            return [prefix + "[]"]
+        if all(not isinstance(item, (dict, list, tuple)) for item in value):
+            rendered = ", ".join(_python_literal(item) for item in value)
+            return [prefix + f"[{rendered}]"]
+        lines = [prefix + "["]
+        for item in value:
+            item_lines = _format_py_value_lines(item, indent + 4)
+            item_lines[-1] += ","
+            lines.extend(item_lines)
+        lines.append(prefix + "]")
+        return lines
+    return [prefix + _python_literal(value)]
+
+
+def _format_py_item_lines(key: str, value: object, indent: int) -> List[str]:
+    prefix = " " * indent + repr(key) + ": "
+    if isinstance(value, (dict, list)):
+        value_lines = _format_py_value_lines(value, indent + 4)
+        lines = [prefix + value_lines[0].lstrip()]
+        if len(value_lines) > 1:
+            lines.extend(value_lines[1:])
+        lines[-1] += ","
+        return lines
+    return [prefix + _python_literal(value) + ","]
+
+
 def render_testcases_py(
     selected_cases: Sequence[CaseWithCoverage],
     fuzz_space: Dict[str, Sequence[object]],
@@ -699,14 +785,14 @@ import torch
     for case in negative_runtime_cases:
         neg_lines.append("    {")
         neg_lines.append(f"        'name': {repr(case['name'])},")
-        neg_lines.append("        'params': {")
-        params = case["params"]
-        for key in PARAM_NAMES:
-            neg_lines.append(f"            {repr(key)}: {_python_literal(params[key])},")
+        neg_lines.append(f"        'kind': {repr(case.get('kind', 'param_only'))},")
+        neg_lines.extend(_format_py_item_lines("params", case["params"], 8))
+        if "attr_overrides" in case:
+            neg_lines.extend(_format_py_item_lines("attr_overrides", case["attr_overrides"], 8))
+        if "input_overrides" in case:
+            neg_lines.extend(_format_py_item_lines("input_overrides", case["input_overrides"], 8))
         expected_subs = case.get("expected_error_substrings", [])
-        rendered_subs = ", ".join(repr(s) for s in expected_subs)
-        neg_lines.append("        },")
-        neg_lines.append(f"        'expected_error_substrings': [{rendered_subs}],")
+        neg_lines.extend(_format_py_item_lines("expected_error_substrings", list(expected_subs), 8))
         neg_lines.append("    },")
     neg_lines.append("]")
     neg_lines.append("")
@@ -738,7 +824,7 @@ def build_tree_map(universe: Set[str], hw: HardwareProfile) -> str:
         [
             "├─ Tiling Flags",
             f"│  ├─ enableDequantOpt = {{{0},{1}}} ({yn('tiling:enable_dequant_opt:0')}, {yn('tiling:enable_dequant_opt:1')})",
-            "│  ├─ enableGroupComputeOpt = {0} [unreachable=1 under current constraints]",
+            "│  ├─ enableGroupComputeOpt = {0} [unreachable=1; current V3 contract fixes Nkv=1]",
             f"│  ├─ bsFusedFlag = {{{0},{1}}} ({yn('tiling:bs_fused_flag:0')}, {yn('tiling:bs_fused_flag:1')})",
             f"│  ├─ actualSeqMode = {{DISABLED, EN_Q_LEN}} ({yn('tiling:actual_seq_mode:disabled')}, {yn('tiling:actual_seq_mode:en_q_len')})",
             "│  ├─ splitMFlag = 0 (fixed by tiling)",
@@ -758,8 +844,10 @@ def build_tree_map(universe: Set[str], hw: HardwareProfile) -> str:
             "├─ L0 Loops",
             f"│  └─ baseK inner loops stepK {{3,4}} ({yn('l0:mm12_basek_stepk:3')}, {yn('l0:mm12_basek_stepk:4')})",
             "├─ Vector Core",
+            f"│  ├─ multi-step outer loop yes/no ({yn('vector:multi_step_loop:1')}, {yn('vector:multi_step_loop:0')})",
             f"│  ├─ step batch tail yes/no ({yn('vector:step_batch_tail:1')}, {yn('vector:step_batch_tail:0')})",
             f"│  ├─ vector token split tail yes/no ({yn('vector:token_split_tail:1')}, {yn('vector:token_split_tail:0')})",
+            "│  ├─ paged scatter spill(rows>1) [unreachable; vectorRow is fixed to 1]",
             f"│  └─ active/inactive vector lanes ({yn('vector:inactive_lanes:0')}, {yn('vector:inactive_lanes:1')})",
             "└─ Postprocess",
             f"   ├─ needQnDynamicQuant yes/no ({yn('post:need_qn_dynamic_quant:1')}, {yn('post:need_qn_dynamic_quant:0')})",
@@ -812,6 +900,12 @@ def render_coverage_report(
             "```text",
             build_tree_map(universe, hw),
             "```",
+            "",
+            "## Known Unreachable Conditions",
+            "- `splitMFlag=1`: host tiling hardcodes the split-N template.",
+            "- `enableGroupComputeOpt=1`: current V3 contract fixes `Nkv=1`, while this path requires `Nkv=8`.",
+            "- `PA_BLK spill(rows>1)`: kernel `vectorRow_` is fixed to `1`, so the spill branch is not taken.",
+            f"- `cvMode=1:1`: not part of the current default hardware profile (`AIC={hw.aic_num}`, `AIV={hw.aiv_num}`).",
             "",
             "## Selected Cases",
         ]
@@ -1055,6 +1149,10 @@ def generate(
             raise RuntimeError(f"selected cases did not cover all reachable tags: {sorted(missing)}")
 
     fuzz_space = _merge_fuzz_space(dict(factor_space))
+
+    if "vector:multi_step_loop:1" in universe:
+        if not any("vector:multi_step_loop:1" in case.tags for case in selected):
+            raise RuntimeError("selected cases did not retain explicit multi-step loop coverage")
 
     testcases_text = render_testcases_py(selected, fuzz_space, NEGATIVE_RUNTIME_CASES_DEFAULT)
     output_testcases.write_text(testcases_text, encoding="utf-8")

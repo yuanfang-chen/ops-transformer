@@ -98,6 +98,16 @@ def _run_case(param_combinations, validate=True):
     return prologv3_generalized.test_prologv3_generalized(test_data)
 
 
+def _run_npu_only_case(param_combinations, attr_overrides=None, input_overrides=None):
+    torch_npu.npu.set_device(0)
+    test_data = _to_test_data(param_combinations)
+    return prologv3_generalized.run_prologv3_npu_only(
+        test_data,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+    )
+
+
 def _run_single_case(param_combinations):
     expect, result = _run_case(param_combinations, validate=True)
     check_valid_param.check_result(expect, result)
@@ -183,8 +193,18 @@ def test_mla_prolog_v3_fuzz():
     ids=[case.get("name", f"negative_{idx:03d}") for idx, case in enumerate(NEGATIVE_RUNTIME_CASES)],
 )
 def test_mla_prolog_v3_negative_runtime(negative_case):
+    case_kind = negative_case.get("kind", "param_only")
     with pytest.raises(Exception) as exc_info:
-        _run_case(negative_case["params"], validate=False)
+        if case_kind == "param_only":
+            _run_case(negative_case["params"], validate=False)
+        elif case_kind == "input_override":
+            _run_npu_only_case(
+                negative_case["params"],
+                attr_overrides=negative_case.get("attr_overrides"),
+                input_overrides=negative_case.get("input_overrides"),
+            )
+        else:
+            raise AssertionError(f"unsupported negative case kind: {case_kind}")
 
     expected_substrings = [str(sub).lower() for sub in negative_case.get("expected_error_substrings", [])]
     if expected_substrings:

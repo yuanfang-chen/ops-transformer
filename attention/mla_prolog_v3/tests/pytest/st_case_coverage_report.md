@@ -3,7 +3,7 @@
 - Hardware profile: AIC=24, AIV=48, CV=1:2
 - Candidate count: 839680
 - Selected positive cases: 10
-- Reachable tag count: 66
+- Reachable tag count: 68
 - Uncovered reachable tags: 0
 
 ## Factor Summary
@@ -11,7 +11,7 @@
 - `cache_mode`: ND/PA scatter path family and per-tile legality
 - `bs_fused_flag`: tokenX 2D fused path; gates actualSeqMode for PA_BLK cache modes
 - `ckvkr_repo_mode / quant_scale_repo_mode / tile_size`: per-tile storage path and dtile constraints
-- `batch_size / q_seq`: token count, vector split tail, and step batch tail
+- `batch_size / q_seq`: token count, multi-step outer loop, vector split tail, and step batch tail
 - `q_head_num`: mm3/mm4 split and tail behavior, dequant-opt gating
 - `He`: mm1/mm2 stepK (3/4), kL1 loops, and baseK path
 - `block_size`: PA block behavior and legality
@@ -44,7 +44,7 @@ MlaPrologV3 Condition Coverage
 │  ├─ TND (reachable)
 ├─ Tiling Flags
 │  ├─ enableDequantOpt = {0,1} (reachable, reachable)
-│  ├─ enableGroupComputeOpt = {0} [unreachable=1 under current constraints]
+│  ├─ enableGroupComputeOpt = {0} [unreachable=1; current V3 contract fixes Nkv=1]
 │  ├─ bsFusedFlag = {0,1} (reachable, reachable)
 │  ├─ actualSeqMode = {DISABLED, EN_Q_LEN} (reachable, reachable)
 │  ├─ splitMFlag = 0 (fixed by tiling)
@@ -64,8 +64,10 @@ MlaPrologV3 Condition Coverage
 ├─ L0 Loops
 │  └─ baseK inner loops stepK {3,4} (reachable, reachable)
 ├─ Vector Core
+│  ├─ multi-step outer loop yes/no (reachable, reachable)
 │  ├─ step batch tail yes/no (reachable, reachable)
 │  ├─ vector token split tail yes/no (reachable, reachable)
+│  ├─ paged scatter spill(rows>1) [unreachable; vectorRow is fixed to 1]
 │  └─ active/inactive vector lanes (reachable, reachable)
 └─ Postprocess
    ├─ needQnDynamicQuant yes/no (reachable, reachable)
@@ -75,6 +77,12 @@ MlaPrologV3 Condition Coverage
    ├─ smooth_scales_cq yes/no (reachable, reachable)
    └─ query_norm_flag yes/no (reachable, reachable)
 ```
+
+## Known Unreachable Conditions
+- `splitMFlag=1`: host tiling hardcodes the split-N template.
+- `enableGroupComputeOpt=1`: current V3 contract fixes `Nkv=1`, while this path requires `Nkv=8`.
+- `PA_BLK spill(rows>1)`: kernel `vectorRow_` is fixed to `1`, so the spill branch is not taken.
+- `cvMode=1:1`: not part of the current default hardware profile (`AIC=24`, `AIV=48`).
 
 ## Selected Cases
 ### coverage_case_000
@@ -141,6 +149,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -208,6 +217,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:0`
+  - `vector:multi_step_loop:1`
   - `vector:step_batch_tail:1`
   - `vector:token_split_tail:1`
 
@@ -275,6 +285,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -342,6 +353,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -409,6 +421,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -476,6 +489,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -543,6 +557,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -610,6 +625,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -677,6 +693,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -744,6 +761,7 @@ MlaPrologV3 Condition Coverage
   - `tiling:enable_group_compute_opt:0`
   - `tiling:split_m_mode:0`
   - `vector:inactive_lanes:1`
+  - `vector:multi_step_loop:0`
   - `vector:step_batch_tail:0`
   - `vector:token_split_tail:0`
 
@@ -812,6 +830,8 @@ MlaPrologV3 Condition Coverage
 | `tiling:split_m_mode:0` | Y | Y | Y | Y | Y | Y | Y | Y | Y | Y |
 | `vector:inactive_lanes:0` |  | Y |  |  |  |  |  |  |  |  |
 | `vector:inactive_lanes:1` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
+| `vector:multi_step_loop:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
+| `vector:multi_step_loop:1` |  | Y |  |  |  |  |  |  |  |  |
 | `vector:step_batch_tail:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
 | `vector:step_batch_tail:1` |  | Y |  |  |  |  |  |  |  |  |
 | `vector:token_split_tail:0` | Y |  | Y | Y | Y | Y | Y | Y | Y | Y |
@@ -883,6 +903,8 @@ MlaPrologV3 Condition Coverage
 - `tiling:split_m_mode:0`
 - `vector:inactive_lanes:0`
 - `vector:inactive_lanes:1`
+- `vector:multi_step_loop:0`
+- `vector:multi_step_loop:1`
 - `vector:step_batch_tail:0`
 - `vector:step_batch_tail:1`
 - `vector:token_split_tail:0`
