@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -445,9 +445,9 @@ ge::graphStatus QLIInfoParser::GetGSize()
     gSize_ = n1Size_ / n2Size_;
 
     if (socVersion_ == platform_ascendc::SocVersion::ASCEND950) {
-        OP_CHECK_IF(gSize_ != G_SIZE_LIMIT_950 && gSize_ != G_SIZE_LIMIT,
-               OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must equal 64 or 24.", n1Size_, n2Size_),
-               return ge::GRAPH_FAILED);
+        // OP_CHECK_IF(gSize_ != G_SIZE_LIMIT_950 && gSize_ != G_SIZE_LIMIT,
+        //        OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must equal 64 or 24.", n1Size_, n2Size_),
+        //        return ge::GRAPH_FAILED);
     } else {
         OP_CHECK_IF(gSize_ != G_SIZE_LIMIT,
                OP_LOGE(opName_, "N1 is %u, N2 is %u, N1 divided by N2 must equal 64.", n1Size_, n2Size_),
@@ -460,17 +460,31 @@ ge::graphStatus QLIInfoParser::GetGSize()
 ge::graphStatus QLIInfoParser::GetBatchSize()
 {
     // 获取B基准值
-    // 1、非TND/NTD时, 以query的batch_size维度为基准;
-    // 2、TND/NTD时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组的长度为B轴大小
-    if (qLayout_ == DataLayout::TND) {
-        return GetActualSeqLenSize(bSize_, opParamInfo_.actualSeqLengthsQ.tensor, "input actual_seq_lengths_query");
-    } else {  // BSND
+    // 1、非TND时, 以query的batch_size维度为基准;
+    // 2、Q和K都为TND时, actual_seq_lens_q必须传入, 以actual_seq_lens_q数组的长度为B轴大小
+    // 3、Q为TND，K为PA_BSND时，以actual_seq_lens_k数组的长度为B轴大小
+    if (qLayout_ == DataLayout::BSND) {
         bSize_ = opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_ZERO);
         OP_LOGI(context_->GetNodeName(), "b: %d, s: %d, n: %d,d :%d",
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_ZERO),
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_ONE),
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_TWO),
             opParamInfo_.query.shape->GetStorageShape().GetDim(DIM_IDX_THREE));
+        return ge::GRAPH_SUCCESS;
+    } else {  // TND
+        uint32_t bSizeQuery;
+        uint32_t bSizeKey;
+        GetActualSeqLenSize(bSizeQuery, opParamInfo_.actualSeqLengthsQ.tensor, "input actual_seq_lengths_query");
+        GetActualSeqLenSize(bSizeKey, opParamInfo_.actualSeqLengthsK.tensor, "input actual_seq_lengths_key");
+        if (kLayout_ == DataLayout::TND) {
+            OP_CHECK_IF(bSizeQuery != bSizeKey,
+                OP_LOGE(opName_, "the lengths of actual_seq_lengths_query is %u, %u respectively, they must be same.",
+                        bSizeQuery, bSizeKey),
+                return ge::GRAPH_FAILED);
+            bSize_ = bSizeQuery;
+        } else {
+            bSize_ = bSizeKey; // Q为TND，batch从Key中获取
+        }
         return ge::GRAPH_SUCCESS;
     }
 }
