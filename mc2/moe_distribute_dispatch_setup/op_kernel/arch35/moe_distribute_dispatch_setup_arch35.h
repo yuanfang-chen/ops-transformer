@@ -431,17 +431,14 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::QuantIni
     hAlignSize_ = Ceil(axisH_ * sizeof(XType), UB_ALIGN) * UB_ALIGN; //用于搬入token数据xInQueue_大小申请
     if constexpr (QuantMode == PERTOKEN_DYNAMIC_QUANT) {
         hOutSizeAlign_ += sizeof(float); 
-        // scaleOutBytes_ = sizeof(float); // PERTOKEN量化一个token生成一个scale
     } else if constexpr (QuantMode == MX_QUANT) {
         hOutSizeAlign_ = Align256(axisH_) * sizeof(YOutType);
         hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
         hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
-        // scaleOutBytes_ = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
     } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
         hOutSizeAlign_ = Align128(axisH_) * sizeof(YOutType);
         hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
         hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
-        // scaleOutBytes_ = Ceil128(axisH_) * sizeof(float); // MX量化每128个值生成一个scale
     }
 }
 
@@ -520,7 +517,7 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::SplitToC
     } else {
         newAivId = aivId_ - moeUsedAivNum_; // 由于是后面的核作为发送的共享专家，因此需要换算
     }
-    startTokenId = sendTokenNum * newAivId;
+    startTokenId = newAivId * sendTokenNum;
     if (newAivId < remainderTokenNum) {
         sendTokenNum += 1;
         startTokenId += newAivId;
@@ -622,7 +619,6 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::AlltoAll
     if (isSendShared_) { // 用于send共享专家数据的核，也需要搬运expertIds，后续会重新分核写状态位置，该核可能用于写moe专家flag
         return;
     }
-    PipeBarrier<PIPE_V>();
     SendToMoeExpert();
 }
 
@@ -844,14 +840,19 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::TokenSca
     Duplicate(expertIdsF32LT_, MAX_FP32, sortNum_);
     CreateVecIndex(indexLT_, 0, sortNum_);
     SyncFunc<HardEvent::MTE2_V>();
+    PipeBarrier<PIPE_V>();
     Cast(expertIdsF32LT_, expertIdsTensor_, RoundMode::CAST_RINT, expertIdsCnt_);
+    PipeBarrier<PIPE_V>();
     Muls(expertIdsF32LT_, expertIdsF32LT_, (float)-1, sortNum_);
     LocalTensor<float> concatLocal;
     LocalTensor<float> tempTensor = tempBuf_.Get<float>(GetSortLen<float>(sortNum_));
+    PipeBarrier<PIPE_V>();
     Concat(concatLocal, expertIdsF32LT_, tempTensor, sortRepeat_);
     LocalTensor<uint32_t> indexU32LT = indexLT_.ReinterpretCast<uint32_t>();
     LocalTensor<float> sortedLocal = sortedBuf_.Get<float>(GetSortLen<float>(sortNum_));
+    PipeBarrier<PIPE_V>();
     Sort<float, true>(sortedLocal, concatLocal, indexU32LT, tempTensor, sortRepeat_);
+    PipeBarrier<PIPE_V>();
     Extract(sortedOutF32LT_, sortedIndex1LT_, sortedLocal, sortRepeat_);
 }
 
