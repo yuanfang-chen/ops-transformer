@@ -9,11 +9,11 @@
  */
 
 /*!
- * \file flash_attention_score_block_cube_mla_fullquant.h
+ * \file flash_attention_score_block_cube_gqa_fullquant.h
  * \brief
  */
-#ifndef FLASH_ATTENTION_SCORE_BLOCK_CUBE_MLA_FULLQUANT_H_
-#define FLASH_ATTENTION_SCORE_BLOCK_CUBE_MLA_FULLQUANT_H_
+#ifndef FLASH_ATTENTION_SCORE_BLOCK_CUBE_GQA_FULLQUANT_H_
+#define FLASH_ATTENTION_SCORE_BLOCK_CUBE_GQA_FULLQUANT_H_
 #include "util_regbase.h"
 #include "../offset_calculator.h"
 #include "../matmul.h"
@@ -125,7 +125,7 @@ namespace BaseApi {
 // };
 
 TEMPLATES_DEF
-class FABlockCubeMlaFullquant {
+class FABlockCubeGqaFullquant {
 public:
     /* =================编译期常量的基本块信息================= */
     static constexpr uint32_t s1BaseSize = (uint32_t)s1TemplateType;
@@ -151,7 +151,7 @@ public:
     using mm2ResPos = typename std::conditional<bmm2Write2Ub, Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>,
         Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD>>::type;
 
-    __aicore__ inline FABlockCubeMlaFullquant() {};
+    __aicore__ inline FABlockCubeGqaFullquant() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr,
         __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *blockTable, 
         __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope);
@@ -258,7 +258,7 @@ private:
 };
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitCubeBlock(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitCubeBlock(
     TPipe *pipe, BufferManager<BufferType::L1> *l1BuffMgr, __gm__ uint8_t *query,
     __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *blockTable, 
     __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope)
@@ -283,7 +283,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitCubeBlock(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitCubeInput(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitCubeInput(
     __gm__ uint8_t *key, __gm__ uint8_t *value, CVSharedParams<isInfer, isPa> *sharedParams,
     AttenMaskInfo *attenMaskInfo, __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr,
     __gm__ uint8_t *keySharedPrefix, __gm__ uint8_t *valueSharedPrefix, __gm__ uint8_t *actualSharedPrefixLen)
@@ -331,7 +331,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitCubeInput(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitLocalBuffer() {
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitLocalBuffer() {
     if constexpr (isMlaFullQuant) {
         constexpr uint32_t dRopeBaseSize = dBaseSize - dVBaseSize;
         constexpr uint32_t mm1QSize = s1BaseSize * dVBaseSize * sizeof(INPUT_T);
@@ -394,7 +394,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitLocalBuffer()
 
 /* 初始化GmTensor,设置shape信息并计算strides */
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams<isInfer, isPa> *sharedParams,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitGmTensor(CVSharedParams<isInfer, isPa> *sharedParams,
     __gm__ int64_t *actualSeqQlenAddr, __gm__ int64_t *actualSeqKvlenAddr)
 {
     if constexpr (GmLayoutParams<Q_FORMAT>::CATEGORY == FormatCategory::GM_Q_OUT_BNGSD) {
@@ -462,7 +462,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitGmTensor(CVSh
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::CalcS1Coord(RunInfo<isInfer> &runInfo,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::CalcS1Coord(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     // 计算s1方向偏移
@@ -475,7 +475,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::CalcS1Coord(RunIn
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::CalcS2Coord(RunInfo<isInfer> &runInfo,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::CalcS2Coord(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     coordInfo[runInfo.taskIdMod3].s2Coord = runInfo.s2StartIdx + runInfo.s2LoopCount * s2BaseSize;
@@ -500,7 +500,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::CalcS2Coord(RunIn
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -545,7 +545,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos &outputBuf,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm2L1SplitN(mm2ResPos &outputBuf,
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo) 
 {
@@ -671,7 +671,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2L1Spli
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &outputBuf,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm2(mm2ResPos &outputBuf,
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -837,7 +837,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2(mm2Re
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitDequantParams(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::InitDequantParams(
     __gm__ uint8_t *deqScaleQ, __gm__ uint8_t *deqScaleK, __gm__ uint8_t *deqScaleV)
 {
     if constexpr (isFp8) {
@@ -848,7 +848,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::InitDequantParams
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetKvByTensorList(RunInfo<isInfer>& runInfo, 
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::GetKvByTensorList(RunInfo<isInfer>& runInfo, 
     const ConstInfo<isInfer, hasRope> &constInfo,
     GlobalTensor<INPUT_T>& keyValueGm, GlobalTensor<INPUT_T>& tempKeyValueGm)
 {
@@ -863,7 +863,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetKvByTensorList
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline GlobalTensor<INPUT_T>
-FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetKeyGm(RunInfo<isInfer> &runInfo, 
+FABlockCubeGqaFullquant<TEMPLATE_ARGS>::GetKeyGm(RunInfo<isInfer> &runInfo, 
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     if constexpr (isInfer) {
@@ -877,7 +877,7 @@ FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetKeyGm(RunInfo<isInfer> &runInfo,
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline GlobalTensor<INPUT_T>
-FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetValueGm(RunInfo<isInfer> &runInfo,
+FABlockCubeGqaFullquant<TEMPLATE_ARGS>::GetValueGm(RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
     if constexpr (isInfer) {
@@ -891,7 +891,7 @@ FABlockCubeMlaFullquant<TEMPLATE_ARGS>::GetValueGm(RunInfo<isInfer> &runInfo,
 
 /* 针对S1Base=128, S2Base = 128, D > 128场景，L1全载，左矩阵驻留 + L0切D + L0Db*/
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL0Split(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1080,7 +1080,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL0Sp
 
 /* 针对useDn=true, S1Base=128, S2Base = 128, 128 < D <= 256场景，L1全载，左矩阵驻留 + L0切D + L0Db*/
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1DnSplitK(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1191,7 +1191,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1DnSpli
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Nz(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1Nz(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1347,7 +1347,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Nz(
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2Nz(mm2ResPos &outputBuf,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm2Nz(mm2ResPos &outputBuf,
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1436,7 +1436,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2Nz(mm2
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Nd(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1Nd(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1583,7 +1583,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Nd(
 
 /* 针对S1Base=128, S2Base = 128, D > 256场景，L1层面切K，且左矩阵单Buffer+驻留，右矩阵每次重新搬运。*/
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL1SplitK(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo) 
 {
@@ -1745,7 +1745,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1NdL1Sp
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Dn(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1Dn(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1859,7 +1859,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1Dn(
 
 /* 针对MLA的bmm1*/
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFullQuant(
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFullQuant(
     Buffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> &outputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo)
 {
@@ -1995,7 +1995,7 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm1MLAFul
 
 //MLA全量化新增的bmm2,L1上切N
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2MLAFullQuant(mm2ResPos &outputBuf,
+__aicore__ inline void FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IterateBmm2MLAFullQuant(mm2ResPos &outputBuf,
     BuffersPolicy3buff<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &inputBuf, RunInfo<isInfer> &runInfo,
     ConstInfo<isInfer, hasRope> &constInfo) 
 {
@@ -2050,22 +2050,22 @@ __aicore__ inline void FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IterateBmm2MLAFul
 
 // 判断是否GS1合轴
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline bool FABlockCubeMlaFullquant<TEMPLATE_ARGS>::IsGS1Merge(ConstInfo<isInfer, hasRope> &constInfo)
+__aicore__ inline bool FABlockCubeGqaFullquant<TEMPLATE_ARGS>::IsGS1Merge(ConstInfo<isInfer, hasRope> &constInfo)
 {
     return (Q_FORMAT == GmFormat::BSNGD || Q_FORMAT == GmFormat::TNGD) && constInfo.isPfaGS1Merge;
 }
 
 
 TEMPLATES_DEF
-class FABlockCubeMlaFullquantDummy {
+class FABlockCubeGqaFullquantDummy {
 public:
-    static constexpr bool isFp8 = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::isFp8;
-    static constexpr bool splitD = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::splitD;
-    static constexpr bool useDn = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::useDn;
-    static constexpr bool useNz = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::useNz;
-    static constexpr TPosition bmm2OutPos = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::bmm2OutPos;
-    static constexpr bool bmm2Write2Ub = FABlockCubeMlaFullquant<TEMPLATE_ARGS>::bmm2Write2Ub;
-    __aicore__ inline FABlockCubeMlaFullquantDummy() {};
+    static constexpr bool isFp8 = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::isFp8;
+    static constexpr bool splitD = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::splitD;
+    static constexpr bool useDn = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::useDn;
+    static constexpr bool useNz = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::useNz;
+    static constexpr TPosition bmm2OutPos = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::bmm2OutPos;
+    static constexpr bool bmm2Write2Ub = FABlockCubeGqaFullquant<TEMPLATE_ARGS>::bmm2Write2Ub;
+    __aicore__ inline FABlockCubeGqaFullquantDummy() {};
     __aicore__ inline void InitCubeBlock(TPipe *pipe, BufferManager<BufferType::L1> *l1BufferManagerPtr,
         __gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t *value, __gm__ uint8_t *blockTable, 
         __gm__ uint8_t *queryRope, __gm__ uint8_t *keyRope) {}
@@ -2105,8 +2105,8 @@ struct CubeBlockTraits;  // 声明
         CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_TRAIT_CONST) \
     };
 
-DEFINE_CUBE_BLOCK_TRAITS(FABlockCubeMlaFullquant);
-DEFINE_CUBE_BLOCK_TRAITS(FABlockCubeMlaFullquantDummy);
+DEFINE_CUBE_BLOCK_TRAITS(FABlockCubeGqaFullquant);
+DEFINE_CUBE_BLOCK_TRAITS(FABlockCubeGqaFullquantDummy);
 
 // /* 生成Arg Traits, kernel中只需要调用ARGS_TRAITS就可以获取所有CubeBlock中的模板参数 */
 #define GEN_ARGS_TYPE(name, ...) using name = typename CubeBlockTraits<CubeBlockType>::name##_TRAITS;
@@ -2115,4 +2115,4 @@ DEFINE_CUBE_BLOCK_TRAITS(FABlockCubeMlaFullquantDummy);
     CUBE_BLOCK_TRAITS_TYPE_FIELDS(GEN_ARGS_TYPE)\
     CUBE_BLOCK_TRAITS_CONST_FIELDS(GEN_ARGS_CONST)
 }
-#endif // FLASH_ATTENTION_SCORE_BLOCK_CUBE_MLA_FULLQUANT_H_
+#endif // FLASH_ATTENTION_SCORE_BLOCK_CUBE_GQA_FULLQUANT_H_
