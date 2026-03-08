@@ -145,6 +145,19 @@ using namespace regbaseutil;
         op.Process();                                                                                                                   \
     } while (0)
 
+#define INVOKE_PFA_NOQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
+    do {                                                                                                                                \
+        if (query == nullptr) {return;}                                                                                                 \
+        TPipe tPipe;                                                                                                                    \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
+            postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, nullptr, &tPipe);            \
+        op.Process();                                                                                                                   \
+    } while (0)
+
 #define INVOKE_MLA_FULLQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
     do {                                                                                                                                \
         if (query == nullptr) {return;}                                                                                                 \
@@ -203,6 +216,21 @@ using namespace regbaseutil;
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
         op.Process();                                                                                                                   \
     } while (0)
+
+#define INVOKE_PFA_NOQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
+    do {                                                                                                                                \
+        if (query == nullptr) {return;}                                                                                                 \
+        PFA_REGBASE_COPY_TILING_DATA(tiling);                                                                                           \
+        TPipe tPipe;                                                                                                                    \
+        using CubeBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockCube<__VA_ARGS__>, BaseApi::FANoQuantBlockCubeDummy<__VA_ARGS__>>::type; \
+        using VecBlockType = typename std::conditional<g_coreType == AscendC::AIC, BaseApi::FANoQuantBlockVecDummy<__VA_ARGS__>, BaseApi::FANoQuantBlockVecInfer<__VA_ARGS__>>::type; \
+        templateClass<CubeBlockType, VecBlockType> op;                                                                                  \
+        op.InitBaseAPI(query, key, value, pseShift, nullptr, nullptr, attenMask, nullptr, actualSeqLengths,                             \
+            actualSeqLengthsKV, blocktable, queryPaddingSize, kvPaddingSize, dequantScaleQuery, key_antiquant_scale, value_antiquant_scale, nullptr, postQuantScale,                 \
+            postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
+        op.Process();                                                                                                                   \
+    } while (0)
+#endif
 
 #define INVOKE_MLA_FULLQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
     do {                                                                                                                                \
