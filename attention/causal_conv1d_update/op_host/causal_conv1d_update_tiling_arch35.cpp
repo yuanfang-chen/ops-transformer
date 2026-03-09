@@ -816,48 +816,45 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 
 void CausalConv1dUpdateTiling::DumpTilingInfo()
 {
-    std::ostringstream info;
-
-    // Tiling data in the order of struct members
-    info << "=== CausalConv1dUpdate Tiling Info ===" << std::endl;
+    OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
+    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate Tiling Info ===");
+    
     // Core distribution parameters
-    info << "usedCoreNum: " << usedCoreNum_ << std::endl;
-    info << "dimCoreCnt: " << dimCoreCnt_ << std::endl;
-    info << "batchCoreCnt: " << batchCoreCnt_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", usedCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", dimCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", batchCoreCnt_);
 
     // Dim tiling parameters inter-core
-    info << "dimChunkSize: " << dimChunkSize_ << std::endl;
-    info << "dimTailSize: " << dimTailSize_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "dimChunkSize: %ld", dimChunkSize_);
+    OP_LOGI(context_->GetNodeName(), "dimTailSize: %ld", dimTailSize_);
 
     // Batch tiling parameters inter-core
-    info << "batchPerCore: " << batchPerCore_ << std::endl;
-    info << "batchTailPerCore: " << batchTailPerCore_ << std::endl;
-    info << "validBatchStart: " << validBatchStart_ << std::endl;
-    info << "validBatchEnd: " << validBatchEnd_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "batchPerCore: %ld", batchPerCore_);
+    OP_LOGI(context_->GetNodeName(), "batchTailPerCore: %ld", batchTailPerCore_);
+    OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", validBatchStart_);
+    OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", validBatchEnd_);
 
     // Intra-core tiling parameters UB loop
-    info << "ubBatchSize: " << ubBatchSize_ << std::endl;
-    info << "ubDimSize: " << ubDimSize_ << std::endl;
-    info << "batchLoopCnt: " << batchLoopCnt_ << std::endl;
-    info << "dimLoopCnt: " << dimLoopCnt_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "ubBatchSize: %ld", ubBatchSize_);
+    OP_LOGI(context_->GetNodeName(), "ubDimSize: %ld", ubDimSize_);
+    OP_LOGI(context_->GetNodeName(), "batchLoopCnt: %ld", batchLoopCnt_);
+    OP_LOGI(context_->GetNodeName(), "dimLoopCnt: %ld", dimLoopCnt_);
 
     // Shape information for kernel use
-    info << "batchSize: " << batchSize_ << std::endl;
-    info << "seqLen: " << seqLen_ << std::endl;
-    info << "cuSeqLen: " << cuSeqLen_ << std::endl;
-    info << "dim: " << dim_ << std::endl;
-    info << "kernelSize: " << kernelSize_ << std::endl;
-    info << "stateLen: " << stateLen_ << std::endl;
-    info << "xInputMode: " << xInputMode_ << std::endl;
-    info << "hasAcceptTokenNum: " << hasAcceptTokenNum_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "batchSize: %ld", batchSize_);
+    OP_LOGI(context_->GetNodeName(), "seqLen: %ld", seqLen_);
+    OP_LOGI(context_->GetNodeName(), "cuSeqLen: %ld", cuSeqLen_);
+    OP_LOGI(context_->GetNodeName(), "dim: %ld", dim_);
+    OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", kernelSize_);
+    OP_LOGI(context_->GetNodeName(), "stateLen: %ld", stateLen_);
+    OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", xInputMode_);
+    OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", hasAcceptTokenNum_);
 
     // Additional debug information (not in struct)
-    info << "Invalid Batch Number: " << inValidBatchNum_ << std::endl;
-    info << "Total Core Number: " << totalCoreNum_ << std::endl;
-    info << "Limited Core Number: " << limitedCoreNum_ << std::endl;
-    info << "UB Size: " << ubSize_ << " bytes" << std::endl;
-
-    OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
+    OP_LOGI(context_->GetNodeName(), "Invalid Batch Number: %ld", inValidBatchNum_);
+    OP_LOGI(context_->GetNodeName(), "Total Core Number: %ld", totalCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "Limited Core Number: %ld", limitedCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "UB Size: %lu bytes", ubSize_);
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
