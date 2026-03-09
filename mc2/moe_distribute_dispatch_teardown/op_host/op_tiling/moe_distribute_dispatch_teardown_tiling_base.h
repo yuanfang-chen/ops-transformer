@@ -17,7 +17,7 @@
 #define MOE_DISTRIBUTE_DISPATCH_TEARDOWN_TILING_BASE_H_
 
 #include "op_tiling/mc2_tiling_utils.h"
-#include "tiling/moe_tiling_base.h"
+#include "op_tiling/moe_tiling_base.h"
 #include "../../op_kernel/moe_distribute_dispatch_teardown_tiling.h"
 
 namespace optiling {
