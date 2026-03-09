@@ -37,7 +37,7 @@ const std::string COMM_GET_SIZE_NAME = "CommGetInstSizeByNetLayer";
 const std::string COMM_GET_CCL_BUFFER_SIZE_NAME = "CommGetCCLBufSizeCfg";
 const std::string COMM_GET_HCCL_BUFFER_NAME = "HcclGetHcclBuffer";
 
-static const char *GetLibPath()
+static const string GetLibPath()
 {
     const char *ascendPath = std::getenv("ASCEND_HOME_PATH");
     if (ascendPath == nullptr) {
@@ -53,7 +53,7 @@ static const char *GetLibPath()
 #endif
     std::string fullPath = ascendPath + hcclPathPostfix;
     OP_LOGI("", "Loading lib in path %s.", fullPath.c_str());
-    return fullPath.c_str();
+    return fullPath;
 }
 
 template <typename T>
@@ -116,7 +116,7 @@ MC2HcomTopology::MC2HcomTopology(const char *libPath)
 
 MC2HcomTopology &MC2HcomTopology::GetInstance()
 {
-    static const char *libPath = GetLibPath();
+    static const char *libPath = GetLibPath().c_str();
     static MC2HcomTopology loader(libPath);
     return loader;
 }
