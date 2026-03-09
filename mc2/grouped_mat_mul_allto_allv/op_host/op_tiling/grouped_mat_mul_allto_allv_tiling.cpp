@@ -25,7 +25,7 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "op_tiling/hccl_formulaic_tiling.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "../../op_kernel/grouped_mat_mul_allto_allv_tiling.h"
 #include "../../op_kernel/grouped_mat_mul_allto_allv_tiling_key.h"
 
@@ -900,7 +900,7 @@ static void UpdateTilingKey(uint64_t& tilingKey, const GroupedMatMulAlltoAllvTil
         tilingkeyMmTrans = false;
     }
 
-    tilingKey = GET_TPL_TILING_KEY(tilingkeyComputeMm, 
+    tilingKey = GET_TPL_TILING_KEY(tilingkeyComputeMm,
                                     tilingkeyGmmTrans, tilingkeyMmTrans);
     return;
 }
