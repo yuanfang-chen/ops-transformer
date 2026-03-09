@@ -141,6 +141,7 @@ private:
     ge::graphStatus ProcessQueryShape(gert::TilingContext *rfaContext);
     ge::graphStatus ProcessActualSeqLengths(gert::TilingContext *rfaContext);
     ge::graphStatus ProcessBlockShape(gert::TilingContext *rfaContext);
+    ge::graphStatus ProcessSoftmaxLse(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateConfiguration(gert::TilingContext *rfaContext);
     ge::graphStatus ValidateTNDSeqlenSum(gert::TilingContext *rfaContext);
     
