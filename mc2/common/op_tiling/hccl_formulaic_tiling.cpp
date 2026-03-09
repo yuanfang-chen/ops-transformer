@@ -15,7 +15,7 @@
 #include <cmath>
 
 #include "mc2_log.h"
-#include "tiling/hccl_formulaic_tiling.h"
+#include "hccl_formulaic_tiling.h"
 
 void FormPartition::SetMinLenByMax(uint64_t newLen) {
   tileArgs.minTileLen = std::max(tileArgs.minTileLen, newLen);
