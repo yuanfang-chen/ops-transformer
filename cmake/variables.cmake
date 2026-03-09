@@ -119,10 +119,10 @@ set(OPAPI_INCLUDE
   ${OPS_TRANSFORMER_DIR}/common/stub/op_api
   $<$<NOT:$<BOOL:${BUILD_OPEN_PROJECT}>>:${TOP_DIR}/output/${PRODUCT}/aclnnop_resource>
 
-  ${OPS_TRANSFORMER_DIR}/mc2/common/inc
-  ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
-  ${OPS_TRANSFORMER_DIR}/mc2/3rd
-  ${OPS_TRANSFORMER_DIR}/mc2
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+   ${OPS_TRANSFORMER_DIR}/mc2/3rd
+   ${OPS_TRANSFORMER_DIR}/mc2
 )
 
 if (NOT BUILD_OPEN_PROJECT)
@@ -164,13 +164,13 @@ set(OP_TILING_INCLUDE
   ${OPS_TRANSFORMER_DIR}/common/include/
   ${OPS_TRANSFORMER_DIR}/common/stub/op_tiling
   
-  ${OPS_TRANSFORMER_DIR}/mc2/common
-  ${OPS_TRANSFORMER_DIR}/mc2/common/inc
-  ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
-  ${OPS_TRANSFORMER_DIR}/mc2/3rd
-  ${OPS_TRANSFORMER_DIR}/mc2
-  ${NNOPBASE_INCLUDE_DIRS}
-  ${AICPU_INC_DIRS}
+   ${OPS_TRANSFORMER_DIR}/mc2/common
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+   ${OPS_TRANSFORMER_DIR}/mc2/3rd
+   ${OPS_TRANSFORMER_DIR}/mc2
+   ${NNOPBASE_INCLUDE_DIRS}
+   ${AICPU_INC_DIRS}
 )
 
 if (NOT BUILD_OPEN_PROJECT)
@@ -189,7 +189,8 @@ if (NOT BUILD_OPEN_PROJECT)
     ${TOP_DIR}/asl/ops/cann/ops/ops-nn/inner
     ${TOP_DIR}/asl/ops/cann/ops/matmul
     ${TOP_DIR}/ace/npuruntime/acl/inc/external/acl/error_codes
-    ${TOP_DIR}/asl/ops/cann/ops/mc2/common/inc
+    ${TOP_DIR}/asl/ops/cann/ops/mc2/common/op_tiling
+    ${TOP_DIR}/asl/ops/cann/ops/mc2/common/op_kernel
     ${TOP_DIR}/asl/ops/cann/ops/built-in/op_tiling/runtime
     ${TOP_DIR}/asl/ops/cann/ops/built-in
 
@@ -217,12 +218,12 @@ set(OP_PROTO_INCLUDE
   ${OPS_TRANSFORMER_DIR}
   ${OPS_TRANSFORMER_DIR}/mc2/common
 
-  ${OPS_TRANSFORMER_DIR}/common/include
+   ${OPS_TRANSFORMER_DIR}/common/include
 
-  ${OPS_TRANSFORMER_DIR}/mc2/common/inc
-  ${OPS_TRANSFORMER_DIR}/mc2/common/new_mc2_mm
-  ${OPS_TRANSFORMER_DIR}/mc2/3rd
-  ${OPS_TRANSFORMER_DIR}/mc2
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_tiling
+   ${OPS_TRANSFORMER_DIR}/mc2/common/op_kernel
+   ${OPS_TRANSFORMER_DIR}/mc2/3rd
+   ${OPS_TRANSFORMER_DIR}/mc2
 )
 
 if (NOT BUILD_OPEN_PROJECT)
