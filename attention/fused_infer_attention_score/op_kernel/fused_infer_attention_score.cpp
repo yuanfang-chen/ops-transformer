@@ -18,7 +18,6 @@
 #else
 #include "kernel_operator.h"
 #endif
-#include "../../../attn_infra/epilogue/block/CombineScale.hpp"
 #include "adv_api/quantization/ascend_quant.h"
 #include "kernel_operator_list_tensor_intf.h"
 // ifa must include before pfa
