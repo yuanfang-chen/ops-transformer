@@ -99,7 +99,7 @@
     $$
 
     $$
-    cos[..., 2:mropeSection[1] * 3:3] = cosTmp[2, ..., 2:mrope_section[1] * 3:3]
+    cos[..., 2:mropeSection[1] * 3:3] = cosTmp[2, ..., 2:mropeSection[1] * 3:3]
     $$
 
     $$
@@ -111,7 +111,7 @@
     $$
 
     $$
-    sin[..., 2:mropeSection[1] * 3:3] = sinTmp [2, ..., 2:mrope_section[1] * 3:3]
+    sin[..., 2:mropeSection[1] * 3:3] = sinTmp [2, ..., 2:mropeSection[1] * 3:3]
     $$
 
     $$
