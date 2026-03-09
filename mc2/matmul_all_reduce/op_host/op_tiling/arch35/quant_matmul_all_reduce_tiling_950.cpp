@@ -50,7 +50,75 @@ bool QuantMatmulAllReduceTilingA5::IsCapable()
     OP_LOGI(opName_, "Skip quant tiling as dtype not support.");
     return false;
 }
+ge::graphStatus SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType)
+{
+    uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
+    uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
+    const std::string algConfig = "AllReduce=level0:fullmesh";
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
+        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
+        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+ge::graphStatus SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType, const uint8_t dataType)
+{
+    uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
+    uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
 
+    const std::string algConfig1 = "AlltoAll=level0:fullmesh";
+    const std::string algConfig2 = "AllGather=level0:fullmesh";
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
+        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
+        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    mc2CcTilingConfig.SetGroupName(groupName);
+    mc2CcTilingConfig.SetOpType(opType2);
+    mc2CcTilingConfig.SetAlgConfig(algConfig2);
+    mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
+        OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+ge::graphStatus SetMc2HcommRSAG(const char* groupName, const uint32_t reduceType)
+{
+    uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_REDUCE_SCATTER);
+    uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
+    uint8_t dataType1 = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_INT8));
+    uint8_t dataType2 = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_FLOAT));
+    const std::string algConfig1 = "ReduceScatter=level0:fullmesh";
+    const std::string algConfig2 = "AllGather=level0:fullmesh";
+    AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType2, dataType1);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
+        OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
+        OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    mc2CcTilingConfig.SetGroupName(groupName);
+    mc2CcTilingConfig.SetOpType(opType2);
+    mc2CcTilingConfig.SetAlgConfig(algConfig2);
+    mc2CcTilingConfig.SetReduceType(reduceType, dataType1, dataType1);
+    OP_TILING_CHECK(
+        mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
+        OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+        return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 {
     quantMatmulAllReduceTilingData_.allReduceBasedAtaSumAg = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
@@ -63,89 +131,27 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
     const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
     if (quantMatmulAllReduceTilingData_.allReduceBasedAtaSumAg && !MutableRCSTilingData().isInputCommQuantScale) {
-        // 非低比特通信
-        uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
-        uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
         uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
-        const std::string algConfig1 = "AlltoAll=level0:fullmesh";
-        const std::string algConfig2 = "AllGather=level0:fullmesh";
-        AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
         OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-            OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
-            return ge::GRAPH_FAILED);
-        OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-            OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
-            return ge::GRAPH_FAILED);
-        mc2CcTilingConfig.SetGroupName(groupName);
-        mc2CcTilingConfig.SetOpType(opType2);
-        mc2CcTilingConfig.SetAlgConfig(algConfig2);
-        mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
-        OP_TILING_CHECK(
-            mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
-            OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+            SetMc2HcommA2AAG(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
             return ge::GRAPH_FAILED);
     } else {
         if (MutableRCSTilingData().isInputCommQuantScale == 1) {
-            uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_REDUCE_SCATTER);
-            uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
-            uint8_t dataType1 = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_INT8));
-            uint8_t dataType2 = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, ge::DataType::DT_FLOAT));
-            const std::string algConfig1 = "ReduceScatter=level0:fullmesh";
-            const std::string algConfig2 = "AllGather=level0:fullmesh";
-            AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType2, dataType1);
             OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-                OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
-                return ge::GRAPH_FAILED);
-            OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-                OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
-                return ge::GRAPH_FAILED);
-            mc2CcTilingConfig.SetGroupName(groupName);
-            mc2CcTilingConfig.SetOpType(opType2);
-            mc2CcTilingConfig.SetAlgConfig(algConfig2);
-            mc2CcTilingConfig.SetReduceType(reduceType, dataType1, dataType1);
-            OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
-                OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+                SetMc2HcommRSAG(groupName, reduceType) != ge::GRAPH_SUCCESS,
+                OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommRSAG failed."),
                 return ge::GRAPH_FAILED);
         } else if (MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8) {
-            uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
-            uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
             uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geAType));
-            const std::string algConfig1 = "AlltoAll=level0:fullmesh";
-            const std::string algConfig2 = "AllGather=level0:fullmesh";
-            AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
             OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-                OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
-                return ge::GRAPH_FAILED);
-            OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-                OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
-                return ge::GRAPH_FAILED);
-            mc2CcTilingConfig.SetGroupName(groupName);
-            mc2CcTilingConfig.SetOpType(opType2);
-            mc2CcTilingConfig.SetAlgConfig(algConfig2);
-            mc2CcTilingConfig.SetReduceType(reduceType, dataType, dataType);
-            OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTilingComm),
-                OP_LOGE(opName_, "Get mc2CcTilingComm from quantMatmulAllReduceTilingData failed."),
+                SetMc2HcommA2AAG(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,
+                OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
                 return ge::GRAPH_FAILED);
         } else {
-            uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
-            uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
-            const std::string algConfig = "AllReduce=level0:fullmesh";
-            AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType, algConfig, reduceType, dataType, dataType);
             OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2InitTiling),
-                OP_LOGE(opName_, "Get mc2InitTiling from quantMatmulAllReduceTilingData failed."),
-                return ge::GRAPH_FAILED);
-            OP_TILING_CHECK(
-                mc2CcTilingConfig.GetTiling(quantMatmulAllReduceTilingData_.mc2CcTiling),
-                OP_LOGE(opName_, "Get mc2CcTiling from quantMatmulAllReduceTilingData failed."),
+                SetMc2HcommAllReduce(groupName, reduceType) != ge::GRAPH_SUCCESS,
+                OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommAllReduce failed."),
                 return ge::GRAPH_FAILED);
         }
     }
@@ -322,81 +328,93 @@ void QuantMatmulAllReduceTilingA5::PrintExtendMatmulTiling(bool isTail)
     OP_LOGD(opName_, "AdaptiveSlidingWin.mTailTile=%u.", tiling.adaptiveSlidingWin.mTailTile);
     OP_LOGD(opName_, "AdaptiveSlidingWin.nTailTile=%u.", tiling.adaptiveSlidingWin.nTailTile);
 }
+ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSizeInStandardCard4P(const uint64_t gmcFloat)
+{
+    uint64_t commFp16Len = 0UL;
+    uint64_t cgmPadLen = 0UL;
+    uint64_t commFp16WorkSpace = 0UL;
+
+    uint64_t tileM = MutableTCubeTileTilingData().M;
+    uint64_t tailM = MutableTCubeTailTilingData().M;
+    uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
+    uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
+    commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
+    cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
+    commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
+                            tempTailSize * MutableRCSTilingData().tailCnt +
+                            cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
+    OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+
+    myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat;
+    if (cgmPadLen == 0) {
+        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
+    } else {
+        myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
+    }
+    return ge::GRAPH_SUCCESS;
+}
+
+ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSizeOfCommQuantScaleOrFP8(const uint64_t gmcFloat)
+{
+    uint64_t commInt8WorkSpace = 0UL;
+    uint64_t commFp32WorkSpace = 0UL;
+    bool isFp8 = MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8;
+    if (MutableRCSTilingData().isInputCommQuantScale == 1 || isFp8) {
+        uint64_t padTileM = MutableTCubeTileTilingData().M;
+        uint64_t padTailM = MutableTCubeTailTilingData().M;
+        if (padTileM % args_.rankDim != 0) {
+            padTileM += args_.rankDim - (padTileM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
+        }
+        uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().N * sizeof(int8_t);
+        if (padTailM % args_.rankDim != 0) {
+            padTailM += args_.rankDim - (padTailM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
+        }
+        uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().N * sizeof(int8_t);
+        commFp32WorkSpace = (tempPadTileM * MutableRCSTilingData().tileCnt +
+                            tempPadTailM * MutableRCSTilingData().tailCnt) * sizeof(float);
+        if (isFp8) {
+            uint64_t tileN = MutableTCubeTileTilingData().N;
+            uint64_t tailN = MutableTCubeTailTilingData().N;
+            tileN += Ops::Base::CeilDiv(tileN, PERTILE_TILELEN);
+            tailN += Ops::Base::CeilDiv(tailN, PERTILE_TILELEN);
+            tempPadTileM = padTileM * tileN;
+            tempPadTailM = padTailM * tailN;
+        }
+        commInt8WorkSpace = tempPadTileM * MutableRCSTilingData().tileCnt + tempPadTailM * MutableRCSTilingData().tailCnt;
+        commInt8WorkSpace *= isFp8 ? sizeof(float) : sizeof(int8_t);
+        OP_LOGI(opName_, "Set commInt8WorkSpace size=%lu, commFp32WorkSpace size=%lu to context.", commInt8WorkSpace,
+                commFp32WorkSpace);
+        MutableRCSTilingData().commInt8WorkSpace = (commInt8WorkSpace); // int8 通信用于存放reduceScatter输入 workspace 的开销
+    }
+    if (isFp8) {
+        // 存放Matmul输出+quant输出+alltoall输出+(dequant+reduce+quant)混合输出+allgather输出+dequant输出
+        myWorkSpaceSize_ = myWorkSpaceSize_ + PERTILE_FP8_WORKSPACE_CNT * commInt8WorkSpace +
+                        commInt8WorkSpace / args_.rankDim + PERTILE_FP32_WORKSPACE_CNT * commFp32WorkSpace;
+    } else {
+        myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat + INT8_WORKSPACE_CNT * commInt8WorkSpace + commFp32WorkSpace;
+    }
+    return ge::GRAPH_SUCCESS;
+}
 
 ge::graphStatus QuantMatmulAllReduceTilingA5::GetWorkspaceSize()
 {
     size_t* workspaces = context_->GetWorkspaceSizes(1); // set workspace
-    uint64_t commInt8WorkSpace = 0UL;
-    uint64_t commFp32WorkSpace = 0UL;
-    uint64_t commFp16WorkSpace = 0UL;
-    uint64_t commFp16Len = 0UL;
-    uint64_t cgmPadLen = 0UL;
+    uint64_t commWorkSpace = myWorkSpaceSize_ - libApiWorkSpaceSize_;
+    MutableRCSTilingData().commWorkSpaceSize = (commWorkSpace); // myWorkSpaceSize_去除系统空间后剩余大小
     uint64_t gmcFloat = static_cast<uint64_t>(MutableRCSTilingData().rankM) *
                         static_cast<uint64_t>(MutableRCSTilingData().rankN) *
                         static_cast<uint64_t>(args_.outputDtypeSize);
-    bool isFp8 = MutableRCSTilingData().isInputCommQuantScale == QUANT_MODE_FP8;
     if (mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum) && !MutableRCSTilingData().isInputCommQuantScale) {
-        uint64_t tileM = MutableTCubeTileTilingData().M;
-        uint64_t tailM = MutableTCubeTailTilingData().M;
-        uint64_t tempTileSize = tileM * MutableTCubeTileTilingData().N;
-        uint64_t tempTailSize = tailM * MutableTCubeTailTilingData().N;
-
-        commFp16Len = tempTileSize * MutableRCSTilingData().tileCnt + tempTailSize * MutableRCSTilingData().tailCnt;
-        cgmPadLen = (args_.rankDim - commFp16Len % args_.rankDim) % args_.rankDim;
-        commFp16WorkSpace = (tempTileSize * MutableRCSTilingData().tileCnt +
-                             tempTailSize * MutableRCSTilingData().tailCnt +
-                             cgmPadLen) * static_cast<uint64_t>(args_.outputDtypeSize);
-        OP_LOGI(opName_, "Set commFp16WorkSpace size=%lu to context.", commFp16WorkSpace);
+        OP_TILING_CHECK(
+            GetWorkspaceSizeInStandardCard4P(gmcFloat) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "get workspace size By GetWorkspaceSizeInStandardCard4P failed."),
+            return ge::GRAPH_FAILED);
     } else {
-        if (MutableRCSTilingData().isInputCommQuantScale == 1 || isFp8) {
-            uint64_t padTileM = MutableTCubeTileTilingData().M;
-            uint64_t padTailM = MutableTCubeTailTilingData().M;
-            if (padTileM % args_.rankDim != 0) {
-                padTileM += args_.rankDim - (padTileM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
-            }
-            uint64_t tempPadTileM = padTileM * MutableTCubeTileTilingData().N * sizeof(int8_t);
-            if (padTailM % args_.rankDim != 0) {
-                padTailM += args_.rankDim - (padTailM % args_.rankDim); // args_.rankDim :1/2/4/8 不会为0
-            }
-            uint64_t tempPadTailM = padTailM * MutableTCubeTailTilingData().N * sizeof(int8_t);
-            commFp32WorkSpace = (tempPadTileM * MutableRCSTilingData().tileCnt +
-                                tempPadTailM * MutableRCSTilingData().tailCnt) * sizeof(float);
-            if (isFp8) {
-                uint64_t tileN = MutableTCubeTileTilingData().N;
-                uint64_t tailN = MutableTCubeTailTilingData().N;
-                tileN += Ops::Base::CeilDiv(tileN, PERTILE_TILELEN);
-                tailN += Ops::Base::CeilDiv(tailN, PERTILE_TILELEN);
-                tempPadTileM = padTileM * tileN;
-                tempPadTailM = padTailM * tailN;
-            }
-            commInt8WorkSpace =
-                tempPadTileM * MutableRCSTilingData().tileCnt + tempPadTailM * MutableRCSTilingData().tailCnt;
-            commInt8WorkSpace *= isFp8 ? sizeof(float) : sizeof(int8_t);
-            OP_LOGI(opName_, "Set commInt8WorkSpace size=%lu, commFp32WorkSpace size=%lu to context.", commInt8WorkSpace,
-                    commFp32WorkSpace);
-            MutableRCSTilingData().commInt8WorkSpace = (commInt8WorkSpace); // int8 通信用于存放reduceScatter输入 workspace 的开销
-        }
+        OP_TILING_CHECK(
+            GetWorkspaceSizeOfCommQuantScaleOrFP8(gmcFloat) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "get workspace size By GetWorkspaceSizeOfCommQuantScaleOrFP8 failed."),
+            return ge::GRAPH_FAILED);
     }
-    uint64_t commWorkSpace = myWorkSpaceSize_ - libApiWorkSpaceSize_;
-    MutableRCSTilingData().commWorkSpaceSize = (commWorkSpace); // myWorkSpaceSize_去除系统空间后剩余大小
-    
-    if (mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum) && !MutableRCSTilingData().isInputCommQuantScale) {
-        myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat;
-        if (cgmPadLen == 0) {
-            myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 2 + commFp16WorkSpace / args_.rankDim;
-        } else {
-            myWorkSpaceSize_ = myWorkSpaceSize_ + commFp16WorkSpace * 3 + commFp16WorkSpace / args_.rankDim;
-        }
-    } else {
-        if (isFp8) {
-            // 存放Matmul输出+quant输出+alltoall输出+(dequant+reduce+quant)混合输出+allgather输出+dequant输出
-            myWorkSpaceSize_ = myWorkSpaceSize_ + PERTILE_FP8_WORKSPACE_CNT * commInt8WorkSpace +
-                            commInt8WorkSpace / args_.rankDim + PERTILE_FP32_WORKSPACE_CNT * commFp32WorkSpace;
-        } else {
-            myWorkSpaceSize_ = myWorkSpaceSize_ + gmcFloat + INT8_WORKSPACE_CNT * commInt8WorkSpace + commFp32WorkSpace;
-        }
-    }
-    
     OP_LOGI(opName_, "Set max workspace size=%lu to context.", myWorkSpaceSize_);
     workspaces[0] = myWorkSpaceSize_;
     return ge::GRAPH_SUCCESS;
