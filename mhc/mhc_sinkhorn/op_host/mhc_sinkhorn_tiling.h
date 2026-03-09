@@ -21,7 +21,9 @@
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
 #include "register/op_impl_registry.h"
+#include "register/op_def_registry.h"
 #include "util/math_util.h"
+#include "kernel_tiling/kernel_tiling.h"
 #include "../op_kernel/arch35/mhc_sinkhorn_struct.h"
 
 namespace optiling
