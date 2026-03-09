@@ -16,7 +16,7 @@
 #ifndef NEW_MC2_QUANT_BATCH_MATMUL
 #define NEW_MC2_QUANT_BATCH_MATMUL
  
-#include "../../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_base.h"
+#include "../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_base.h"
 #include "mc2_quant_batch_matmul_asw_block.h"
  
 #define LOCAL_TEMPLATE_CLASS_PARAMS                                                                              \

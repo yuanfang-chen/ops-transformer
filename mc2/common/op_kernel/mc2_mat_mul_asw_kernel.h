@@ -16,7 +16,7 @@
 #ifndef NEW_MC2_MAT_MUL_ASW_KERNEL_H
 #define NEW_MC2_MAT_MUL_ASW_KERNEL_H
 
-#include "../../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
+#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
 #include "mc2_mat_mul_asw_block.h"
 
 namespace MC2MatmulV3
