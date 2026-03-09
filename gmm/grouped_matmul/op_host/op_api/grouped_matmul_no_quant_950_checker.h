@@ -22,7 +22,6 @@ public:
     aclnnStatus CheckGroupedMatmulFunctionParamsNoQuantDAV3510() const;
     aclnnStatus CheckGroupedMatmulGroupSizeNoQuantDAV3510();
 
-
 private:
     aclnnStatus CheckEmptyTensor() const;
     aclnnStatus CheckTensorListLength(const aclTensorList *tensorList) const;
