@@ -709,23 +709,23 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUBSize;
     int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
 
-    // Align to DIM_ALIGN_ELEMENTS (256 bytes = 128 bf16 elements)
-    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+    // Align to DIM_ALIGN_ELEMENT (256 bytes = 128 bf16 elements)
+    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
 
-    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
+    if (maxUbDim >= DIM_ALIGN_ELEMENT) {
         // Can load full batch, try to maximize dim
         ubBatchSize_ = coreBatch;
         ubDimSize_ = std::min(maxUbDim, coreDim);
 
-        // Ensure ubDimSize_ is aligned to DIM_ALIGN_ELEMENTS
-        ubDimSize_ = (ubDimSize_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        // Ensure ubDimSize_ is aligned to DIM_ALIGN_ELEMENT
+        ubDimSize_ = (ubDimSize_ / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
         if (ubDimSize_ == 0) {
-            ubDimSize_ = DIM_ALIGN_ELEMENTS;
+            ubDimSize_ = DIM_ALIGN_ELEMENT;
         }
     } else {
         // Cannot load full batch with minimum dim, need to reduce batch
-        // Use minimum ubDim = DIM_ALIGN_ELEMENTS
-        ubDimSize_ = DIM_ALIGN_ELEMENTS;
+        // Use minimum ubDim = DIM_ALIGN_ELEMENT
+        ubDimSize_ = DIM_ALIGN_ELEMENT;
 
         // Calculate space for weight and convStates with minimum dim
         int64_t weightConvStatesSize = weightConvStatesCoeffPerDim * ubDimSize_;
