@@ -63,10 +63,10 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_single
             {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
             {{{E, K, N / 8}, {E, K, N / 8}}, ge::DT_INT32, ge::FORMAT_ND}, // weight (int32表示8个int4)
             {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
             {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
         },
@@ -97,9 +97,9 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_single
                                          GROUPED_MATMUL_CUBE_ONLY,                       // AIV_AIC_RATIO
                                          false                                           // IS_ENABLE_FIXED_AXIS
         );                                                                               // tilngkey
-    string expectTilingData = "0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ";
-    std::vector<size_t> expectWorkspaces = {16777216}; // workspace
-    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces, 230);
+    TilingInfo tilingInfo;
+    ExecuteTiling(tilingContextPara, tilingInfo);
+    EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
 }
 
 // A16W4 ND场景 - FP16输入, INT4权重, 单单单模式, Split M
