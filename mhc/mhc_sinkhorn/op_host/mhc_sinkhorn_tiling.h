@@ -28,7 +28,7 @@
 
 namespace optiling
 {
-using Ops::NN::Optiling::TilingBaseClass;
+using Ops::Transformer::OpTiling::TilingBaseClass;
 
 
 struct MhcSinkhornCompileInfo {
