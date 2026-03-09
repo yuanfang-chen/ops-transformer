@@ -1062,7 +1062,6 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
     if (posL1 == 0) {
       TscmGlobal[tscmIndex].cacheSize = 0;
     }
-
     if (posL1 < TscmGlobal[tscmIndex].cacheSize) {
         LocalTensor<INPUT_T> aL1Tensor;
         aL1Tensor.SetAddr(TscmGlobal[tscmIndex].srcAddr);
@@ -2301,7 +2300,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     int32_t posA = 0;
     int32_t posB = 0;
 
-
     TscmGlobal[Q_VEC1_INDEX].needAlloc = true;
     TscmGlobal[K_V_INDEX].needAlloc = true;
     TscmGlobal[Q_VEC1_INDEX].cacheSize = 0;
@@ -2316,10 +2314,7 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     const uint16_t blockLen = BLOCK_CUBE * mm2BaseM * sizeof(INPUT_T) / BLOCK_BYTE;
     const uint16_t srcStride = aRowNum == 1 ? 0 : blockLen; // singleCoreM == BaseM or 2 * BaseM
     const uint16_t dstStride = 0;
-    AscendC::DataCopyParams copyParams = {blockCount, blockLen, srcStride, dstStride};	 
-
-
-
+    AscendC::DataCopyParams copyParams = {blockCount, blockLen, srcStride, dstStride};
     event_t eventIdMte1ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE1_MTE2));
     event_t eventIdMte2ToMte1 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_MTE1));
     event_t Mte1ToMte2Flag[2];
@@ -2328,7 +2323,7 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
     AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
     for (int32_t curRow = 0;curRow < aRowNum;curRow++) {
-        for (int32_t curCol = 0;curCol < bColNum;curCol++) 
+        for (int32_t curCol = 0;curCol < bColNum;curCol++) {
             for (int32_t curK = 0;curK < aColNum;curK++) {
                 int32_t ndNum = aColNum - curK == 1 ? 1 : 2;
                 const uint16_t blockCount = mm2BaseK * ndNum / BLOCK_CUBE;
@@ -2336,7 +2331,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
                 posA = curRow * aColNum + curK;
                 posB = curK * bColNum + curCol;
                 aSrcOffset = mm2BaseK * extraInfo.cubeS1RealSize * curK + BLOCK_CUBE * mm2BaseM * curRow;
-
                 this->mm2LoadDataB(scmBTensor, bSrc, mm2BaseK, mm2BaseN, K_V_INDEX, posB, mm2BBaseSize, this->d2Size, ndNum);
                 if (posA % 2 == 0 && posA > 0) {
                     AscendC::WaitFlag<HardEvent::MTE1_MTE2>(Mte1ToMte2Flag[(posA / 2) % 2]);
