@@ -798,14 +798,16 @@ uint64_t CausalConv1dFnTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
 {
-    // 基础系统 workspace 大小
-    uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
+    // // 基础系统 workspace 大小
+    // uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
 
-    // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
-    uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
+    // // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
+    // uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
 
-    // 总 workspace 大小
-    workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
+    // // 总 workspace 大小
+    // workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
+
+    workspaceSize_ = SYS_WORKSPACE_SIZE;
 
     return ge::GRAPH_SUCCESS;
 }
