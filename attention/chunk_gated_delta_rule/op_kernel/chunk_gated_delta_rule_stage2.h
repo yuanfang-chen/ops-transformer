@@ -25,6 +25,18 @@ namespace ChunkGatedDeltaRule {
 using namespace AscendC;
 using namespace matmul;
 
+using aT1 = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t, true>;
+using bT1 = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t, true>;
+using cT1 = MatmulType<TPosition::GM, CubeFormat::ND, float>;
+using MT1 = matmul::MatmulImpl<aT1, bT1, cT1>;
+
+using aT2 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
+using bT2 = MatmulType<TPosition::GM, CubeFormat::ND, float, true>;
+using cT2 = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t>;
+using MT2 = matmul::MatmulImpl<aT2, bT2, cT2>;
+
+constexpr uint64_t BUFFER_NUM = 1;
+
 struct StageTwoParams {
     // in
     GlobalTensor<bfloat16_t> qPrime_;       // (Nv, Sp, Dk)
@@ -38,31 +50,44 @@ struct StageTwoParams {
     GlobalTensor<float> attnInter_;
     GlobalTensor<float> vNew_;
 
-    // Matmul
-    MT0 *mm1_;
-    MT1 *mm2_;
+    MT1 *mm1_;
+    MT2 *mm2_;
 
     // Pipe
     TPipe *pipe_;
 
     // attr
     ChunkGroup *cg;
-    int32_t maxGroupLength_;
-    int32_t Nv_;
-    int32_t Nk_;
-    int32_t Dv_;
-    int32_t Dk_;
+    int64_t maxGroupLength_;
+    int64_t Nv_;
+    int64_t Nk_;
+    int64_t Dv_;
+    int64_t Dk_;
+};
+
+template <typename inType, typename outType>
+struct mmParams {
+    GlobalTensor<inType> x;
+    GlobalTensor<inType> y;
+    GlobalTensor<outType> z;
+    int64_t m;
+    int64_t n;
+    int64_t k;
+    int64_t singleM;
+    int64_t singleN;
+    int64_t singleK;
 };
 
 class Stage2 {
 public:
-    __aicore__ inline void Init(StageTwoParams *initParams)
+    __aicore__ inline void Init(StageTwoParams *initParams, int32_t coreNum)
     {
         sTP_ = initParams;
         pipe_ = sTP_->pipe_;
-        Sp_ = cg->maxGroupLength;
-        chunkSize_ = initParams->cg->chunkSize;
+        chunkSize_ = sTP_->cg->chunkSize;
+        Sp_ = (sTP_->cg->length + chunkSize_ - 1) / chunkSize_  * chunkSize_;
         chunkNum_ = Sp_ / chunkSize_;
+        coreNum_ = coreNum;
         InitLocalBuffers();
     }
 
@@ -75,35 +100,49 @@ public:
         pipe_->InitBuffer(outQueue_, BUFFER_NUM, chunkSize_ * chunkSize_ * sizeof(float));
         pipe_->InitBuffer(tmpBuff_, (chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float)));
         uint32_t buffOffset = 0;
-        DvDkFloat_ = sTP_->tmpBuff_->GetWithOffset<float>(static_cast<uint32_t>(sTP_->Dv_ * sTP_->Dk_), buffOffset);
+        DvDkFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(sTP_->Dv_ * sTP_->Dk_), buffOffset);
     }
 
     __aicore__ inline void Process()
     {
         for (int nv_id = 0; nv_id < sTP_->Nv_; nv_id++) {
             int state_offset = nv_id * sTP_->Dv_ * sTP_->Dk_;
-            for (int core_id = GetBlockIdx(); core_id < Cn_; core_id += 1) {   // 当前为1核
-                auto cur_state = core_id == GetBlockIdx() ?
-                    sTP_->state_[state_offset] : sTP_->finalState_[state_offset];
-                int idx = core_id * sTP_->chunkSize_;
+            int core_id = GetBlockIdx();
+            if ASCEND_IS_AIV {
+                core_id /= 2;
+            }
+            for (; core_id < chunkNum_; core_id += coreNum_) {
                 if ASCEND_IS_AIV {
+                    if (GetSubBlockIdx() == 1) {
+                        CrossCoreWaitFlag(0x4);
+                        if (core_id + coreNum_ < chunkNum_) {
+                            CrossCoreSetFlag<0x2, PIPE_MTE3>(0x3);
+                        }
+                        continue;
+                    }
+                    auto cur_state = core_id == GetBlockIdx() ?
+                        sTP_->initState_[state_offset] : sTP_->finalState_[state_offset];
+                    int idx = core_id * chunkSize_;
                     CrossCoreWaitFlag(0x4);
-                    CalGCumExp(cur_state, sTP_->finalState_[state_offset]);
-                    if (core_id + 1 < Cn_) {
+                    CalGCumExp(sTP_->initState_[state_offset], sTP_->finalState_[state_offset]);
+                    if (core_id + coreNum_ < chunkNum_) {
                         CrossCoreSetFlag<0x2, PIPE_MTE3>(0x3);
                     }
                 }
                 if ASCEND_IS_AIC {
+                    auto cur_state = core_id == GetBlockIdx() ?
+                        sTP_->initState_[state_offset] : sTP_->finalState_[state_offset];
+                    int idx = core_id * chunkSize_;
                     int mm_offset0 = nv_id * Sp_ * sTP_->Dk_ + idx * sTP_->Dk_;
                     int mm_offset1 = nv_id * Sp_ * sTP_->Dv_ + idx * sTP_->Dv_;
                     if (core_id != GetBlockIdx()) {
                         CrossCoreWaitFlag(0x3);
                     }
-                    CalVPrime(sTP_->kCumdecay_[mm_offset0], cur_state, sTP_->vNew_[mm_offset1]);
-                    CalAttnInter(sTP_->qPrime_[mm_offset0], cur_state, sTP_->attnInter_[mm_offset1]);
+                    CalVPrime(sTP_->kCumdecay_[mm_offset0], sTP_->initState_[state_offset], sTP_->vInner_[mm_offset1]);
+                    CalAttnInter(sTP_->qPrime_[mm_offset0], sTP_->initState_[state_offset], sTP_->attnInter_[mm_offset1]);
                     // 上面读完AIV才可以开始写
                     CrossCoreSetFlag<0x2, PIPE_FIX>(0x4);
-                    CalStateNew(sTP_->vNew_[mm_offset1], sTP_->kg_[mm_offset0], sTP_->finalState_[state_offset]);
+                    CalStateNew(sTP_->vInner_[mm_offset1], sTP_->kg_[mm_offset0], sTP_->finalState_[state_offset]);
                 }
             }
         }
@@ -111,17 +150,17 @@ public:
 
     __aicore__ inline void CalGCumExp(GlobalTensor<bfloat16_t> state_old, GlobalTensor<bfloat16_t> state_new)
     {
-        float last_g_cum_exp = sTP_->gCumExp_.GetValue(sTP_->chunkSize_ - 1);
+        float last_g_cum_exp = sTP_->gCumExp_.GetValue(chunkSize_ - 1);
         CopyIn<bfloat16_t>(state_old, sTP_->Dv_, sTP_->Dk_);
         curDk_ = Ceil(sTP_->Dk_, 32 / sizeof(bfloat16_t)) * (32 / sizeof(bfloat16_t));
-        auto state_in = sTP_->inQueue_->DeQue<bfloat16_t>();
+        auto state_in = inQueue_.DeQue<bfloat16_t>();
         Cast(DvDkFloat_, state_in, RoundMode::CAST_NONE, sTP_->Dv_ * curDk_);
         PipeBarrier<PIPE_V>();
         Muls(DvDkFloat_, DvDkFloat_, last_g_cum_exp, sTP_->Dv_ * curDk_);
-        auto state_out = sTP_->outQueue_->AllocTensor<bfloat16_t>();
+        auto state_out = outQueue_.AllocTensor<bfloat16_t>();
         Cast(state_out, DvDkFloat_, RoundMode::CAST_RINT, sTP_->Dv_ * curDk_);
-        sTP_->inQueue_->FreeTensor(state_in);
-        sTP_->outQueue_->EnQue(state_out);
+        inQueue_.FreeTensor(state_in);
+        outQueue_.EnQue(state_out);
         CopyOut<bfloat16_t>(state_new, sTP_->Dv_, sTP_->Dk_, true);
     }
 
@@ -129,7 +168,7 @@ public:
     {
         mmParams<bfloat16_t, float> params{a, b, c,
             Sp_, sTP_->Dv_, sTP_->Dk_,
-            sTP_->chunkSize_, sTP_->Dv_, sTP_->Dk_};
+            chunkSize_, sTP_->Dv_, sTP_->Dk_};
         AICProcess<bfloat16_t>(params, 0, false, true);
     }
 
@@ -137,17 +176,16 @@ public:
     {
         mmParams<bfloat16_t, float> params{a, b, c,
             Sp_, sTP_->Dv_, sTP_->Dk_,
-            sTP_->chunkSize_, sTP_->Dv_, sTP_->Dk_};
-        AICProcess<bfloat16_t>(params, 0, false, true);
+            chunkSize_, sTP_->Dv_, sTP_->Dk_};
+        AICProcess<bfloat16_t>(params, 1, false, true);
     }
 
     __aicore__ inline void CalStateNew(GlobalTensor<float> a, GlobalTensor<float> b, GlobalTensor<bfloat16_t> c)
     {
         mmParams<float, bfloat16_t> params{a, b, c,
-            sTP_->Dv_, sTP_->Dk_, sTP_->chunkSize_,
-            sTP_->Dv_, sTP_->Dk_, sTP_->chunkSize_};
+            sTP_->Dv_, sTP_->Dk_, chunkSize_,
+            sTP_->Dv_, sTP_->Dk_, chunkSize_};
         // state_new = (key * (g_cum_exp[-1, None] / g_cum_exp)[..., None]).transpose(-1, -2) @ v_new
-        // CrossCoreWaitFlag(0x3);
         AICProcess<float>(params, 1, true, false);
     }
 
@@ -160,7 +198,7 @@ public:
             sTP_->mm1_->SetSingleShape(params.singleM, params.singleN, params.singleK); // SingleCoreMNK
             sTP_->mm1_->SetTensorA(params.x, isTransposeA);
             sTP_->mm1_->SetTensorB(params.y, isTransposeB);
-            sTP_->mm1_->IterateAll(params.z);
+            sTP_->mm1_->IterateAll(params.z, mmType);
             sTP_->mm1_->End();
         }
         if constexpr (std::is_same_v<inType, float>) {
@@ -176,7 +214,7 @@ public:
     template <typename inType>
     __aicore__ inline void CopyIn(GlobalTensor<inType> tmpGM, int32_t row, int32_t col)
     {
-        LocalTensor<inType> inLocal = sTP_->inQueue_->AllocTensor<inType>();
+        LocalTensor<inType> inLocal = inQueue_.AllocTensor<inType>();
         DataCopyPadExtParams<inType> padParams;
         DataCopyExtParams inParams{static_cast<uint16_t>(row),
                                     static_cast<uint32_t>(col * sizeof(inType)),                // 非对齐情况需要补0
@@ -185,13 +223,13 @@ public:
         int padding = Ceil(col, 32 / sizeof(inType)) * (32 / sizeof(inType)) - col;
         DataCopyPadExtParams<inType> copyPadParams{true, 0, static_cast<uint8_t>(padding), 0};
         DataCopyPad(inLocal, tmpGM, inParams, padParams);
-        sTP_->inQueue_->EnQue(inLocal);
+        inQueue_.EnQue(inLocal);
     }
 
     template <typename outType>
     __aicore__ inline void CopyOut(GlobalTensor<outType> tmpGM, int32_t row, int32_t col, bool setAtomic = false)
     {
-        auto outLocal = sTP_->outQueue_->DeQue<outType>();
+        auto outLocal = outQueue_.DeQue<outType>();
         DataCopyExtParams copyParams;
         copyParams.blockCount = static_cast<uint16_t>(row);
         copyParams.blockLen = static_cast<uint32_t>(col * sizeof(outType));
@@ -204,7 +242,7 @@ public:
         if (setAtomic) {
             SetAtomicNone();
         }
-        sTP_->outQueue_->FreeTensor(outLocal);
+        outQueue_.FreeTensor(outLocal);
     }
 
 private:
@@ -216,8 +254,9 @@ private:
     LocalTensor<float> DvDkFloat_;
     int32_t chunkSize_; // Dk非对齐时补齐后长度
     int32_t curDk_; // Dk非对齐时补齐后长度
-    int32_t Sp_;    // S非对齐时补齐后长度
+    int64_t Sp_;    // S非对齐时补齐后长度
     int32_t chunkNum_;    // S非对齐时补齐后Chunk个数
+    int32_t coreNum_;    // S非对齐时补齐后Chunk个数
 };
 } // namespace ChunkGatedDeltaRule
 #endif
