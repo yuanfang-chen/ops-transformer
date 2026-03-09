@@ -102,7 +102,7 @@ static ge::graphStatus CheckShapeForAlltoAllMatmul(const gert::InferShapeContext
 static ge::graphStatus CheckRankDim(gert::InferShapeContext* context, AlltoAllMatmulShapeInfo& shape)
 {
     const auto attrs = context->GetAttrs();
-    const int* rankDim = attrs->GetAttrPointer<int>(INDEX_ATTR_WORLD_SIZE);
+    const int64_t* rankDim = attrs->GetInt(INDEX_ATTR_WORLD_SIZE);
     OPS_CHECK(rankDim == nullptr,
         CUBE_INNER_ERR_REPORT(context->GetNodeName(), "Invalid rank number %zu in allto all matmul.", *rankDim),
         return ge::GRAPH_FAILED);
@@ -174,8 +174,8 @@ static ge::graphStatus InferDataTypeAlltoAllMatmul(gert::InferDataTypeContext* c
     OP_LOGD(INNER_DEBUG, "Start to infer datatype of allto all matmul.");
     const auto attrs = context->GetAttrs();
     OPS_CHECK_NULL_WITH_CONTEXT(context, attrs);
-    const int* x1_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X1_QUANT_MODE);
-    const int* x2_quant_mode = attrs->GetAttrPointer<int>(INDEX_ATTR_X2_QUANT_MODE);
+    const int64_t* x1_quant_mode = attrs->GetInt(INDEX_ATTR_X1_QUANT_MODE);
+    const int64_t* x2_quant_mode = attrs->GetInt(INDEX_ATTR_X2_QUANT_MODE);
     const int64_t* y_dtypes_ptr = attrs->GetInt(INDEX_ATTR_Y_DTYPE);
     auto y_type = ge::DataType::DT_UNDEFINED;
     ge::DataType x1_type = context->GetInputDataType(INDEX_IN_X1);
