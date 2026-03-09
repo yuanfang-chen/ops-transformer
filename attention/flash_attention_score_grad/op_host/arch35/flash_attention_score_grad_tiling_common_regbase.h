@@ -56,6 +56,7 @@ constexpr uint32_t PREFIX_COMPRESS_S1_SIZE = 3072;
 constexpr uint32_t ATTEN_MASK_COMPRESS_LIMIT = 2048;
 constexpr uint32_t BOOL_BLOCK_NUMS = 32;
 constexpr uint32_t DROPOUT4BIT_LEN = 16;
+constexpr uint32_t DTYPE_ENUM_INDEX_6 = 6;
 const int64_t SAB_TND_SIZE = 1024;
 
 enum class TilingDataType : uint32_t {
