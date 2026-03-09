@@ -438,7 +438,7 @@ ge::graphStatus MxQuantMatmulAllToAllTilingBase::CheckMxQuantScaleShapes(const g
                                                           MX_SCALE_OFFSET - 1) / MX_SCALE_OFFSET));
     uint64_t x2Dim1DivMxFp8Size = static_cast<uint64_t>(((static_cast<int64_t>(shapeInfo.x2Dim1) + 
                                                           MX_SCALE_OFFSET - 1) / MX_SCALE_OFFSET));
-    // mxfp4场景中，ceil(k/32)需要为偶数
+    // mxfp4场景中，k和ceil(k/32)需要为偶数
     if (isMxfp4_) {
         uint64_t x1Dim1DivMxFp4Size = static_cast<uint64_t>(((static_cast<int64_t>(shapeInfo.x1Dim1) + 
                                                               MX_GROUP_SIZE_K - 1) / MX_GROUP_SIZE_K));
@@ -547,14 +547,14 @@ ge::graphStatus MxQuantMatmulAllToAllTilingBase::SetHcclTiling()
 ge::graphStatus MxQuantMatmulAllToAllTilingBase::DoMxQuantMMTiling()
 {
     // 设置MM切前信息
-    mmMvalueLen = inferredInfo.tileM;
-    MxQuantMatmulAlltoAllHelper mmTile(*this, localTilingData_.mc2QuantBmmV3TileTilingData, mmMvalueLen);
+    mmMvalueLen_ = inferredInfo.tileM;
+    MxQuantMatmulAlltoAllHelper mmTile(*this, localTilingData_.mc2QuantBmmV3TileTilingData, mmMvalueLen_);
     GE_ASSERT_GRAPH_SUCCESS(mmTile.DoTiling());
     if (inferredInfo.tailCnt == 0) {
         return ge::GRAPH_SUCCESS;
     }
-    mmMvalueLen = inferredInfo.tailM;
-    MxQuantMatmulAlltoAllHelper mmTail(*this, localTilingData_.mc2QuantBmmV3TailTilingData, mmMvalueLen);
+    mmMvalueLen_ = inferredInfo.tailM;
+    MxQuantMatmulAlltoAllHelper mmTail(*this, localTilingData_.mc2QuantBmmV3TailTilingData, mmMvalueLen_);
     GE_ASSERT_GRAPH_SUCCESS(mmTail.DoTiling());
     return ge::GRAPH_SUCCESS;
 }
