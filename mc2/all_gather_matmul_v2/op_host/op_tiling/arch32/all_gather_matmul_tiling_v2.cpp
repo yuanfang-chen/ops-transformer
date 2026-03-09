@@ -29,7 +29,7 @@
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "mc2_log.h"
-#include "tiling/new_mc2_tiling_utils.h"
+#include "op_tiling/new_mc2_tiling_utils.h"
 #include "all_gather_matmul_tiling_v2.h"
 
 using namespace Mc2Log;
