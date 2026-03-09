@@ -28,6 +28,97 @@ using namespace AscendC::Impl::Detail;
 using namespace regbaseutil;
 using namespace fa_base_matmul;
 namespace BaseApi {
+namespace BlockCubeGqaFullquant {
+template <LayOutTypeEnum LAYOUT>
+__aicore__ inline constexpr GmFormat GetQueryGmFormat() {
+    if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BSH) {
+        return GmFormat::BSNGD;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_SBH) {
+        return GmFormat::SBNGD;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
+        return GmFormat::BNGSD;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
+        return GmFormat::TNGD;
+    } else {
+        return GmFormat::NGTD;
+    }
+}
+
+template <LayOutTypeEnum LAYOUT>
+__aicore__ inline constexpr GmFormat GetKVGmFormat() {
+    if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BSH) {
+        return GmFormat::BSND;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_SBH) {
+        return GmFormat::SBND;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_BNSD) {
+        return GmFormat::BNSD;
+    } else if constexpr (LAYOUT == LayOutTypeEnum::LAYOUT_TND) {
+        return GmFormat::TND;
+    } else {
+        return GmFormat::NTD;
+    }
+}
+
+/* ============确定Query的L1类型============= */
+template <typename INPUT_T, uint32_t dBaseSize>
+struct QL1BuffSel {
+    using Type = std::conditional_t<
+        std::is_same_v<INPUT_T, float> ||
+        (!(std::is_same_v<INPUT_T, fp8_e4m3fn_t> ||
+           std::is_same_v<INPUT_T, fp8_e5m2_t> ||
+           std::is_same_v<INPUT_T, hifloat8_t>) && dBaseSize > 256),
+        BuffersPolicySingleBuffer<BufferType::L1>,
+        BuffersPolicyDB<BufferType::L1>>;
+};
+
+/* ============确定Key的L1类型============= */
+template <typename INPUT_T, uint32_t s2BaseSize, uint32_t dBaseSize>
+struct KVL1BuffSel {
+    constexpr static bool isFP8DType =  
+            std::is_same_v<INPUT_T, fp8_e4m3fn_t> ||
+           std::is_same_v<INPUT_T, fp8_e5m2_t> ||
+           std::is_same_v<INPUT_T, hifloat8_t>;
+    using Type = std::conditional_t<
+            (isFP8DType && s2BaseSize == 128 && dBaseSize == 576),
+            BuffersPolicy4buff<BufferType::L1>,
+            std::conditional_t<
+                (!(isFP8DType) && s2BaseSize == 256 && dBaseSize > 128),
+                BuffersPolicySingleBuffer<BufferType::L1>,
+                BuffersPolicyDB<BufferType::L1>
+            >
+        >;
+};
+
+/* ============确定L0A的类型============= */
+template <typename INPUT_T>
+struct L0ABuffSel {
+    using Type = std::conditional_t<
+        std::is_same_v<INPUT_T, float>,
+        BuffersPolicySingleBuffer<BufferType::L0A>,
+        BuffersPolicyDB<BufferType::L0A>>;
+};
+/* ============确定L0B的类型============= */
+template <typename INPUT_T, uint32_t s2BaseSize, uint32_t dBaseSize>
+struct L0BBuffSel {
+    using Type = std::conditional_t<
+        std::is_same_v<INPUT_T, float> || (s2BaseSize == 256 && dBaseSize > 128 && 
+        !(std::is_same_v<INPUT_T, fp8_e4m3fn_t> ||
+           std::is_same_v<INPUT_T, fp8_e5m2_t> ||
+           std::is_same_v<INPUT_T, hifloat8_t>)),
+        BuffersPolicySingleBuffer<BufferType::L0B>,
+        BuffersPolicyDB<BufferType::L0B>>;
+};
+/* ============确定L0C的类型============= */
+template <typename INPUT_T, uint32_t s1BaseSize, uint32_t s2BaseSize, uint32_t dVBaseSize>
+struct L0CBuffSel {
+    using Type = std::conditional_t<
+        (s1BaseSize * s2BaseSize * FLOAT_BYTES <= (L0C_SIZE * KB_TO_BYTES) / NUM_4 && s1BaseSize * dVBaseSize * FLOAT_BYTES <= (L0C_SIZE * KB_TO_BYTES) / NUM_4),
+        BuffersPolicy4buff<BufferType::L0C>,
+        BuffersPolicyDB<BufferType::L0C>>;
+};
+}
+
+
 TEMPLATES_DEF
 class FABlockCubeGqaFullquant {
 public:
@@ -100,8 +191,8 @@ private:
     __gm__ uint8_t *currentValue; // pageattention需要
     __gm__ uint8_t *blocktablePtr; // pageattention需要
     GlobalTensor<int32_t> blockTableGm; // pageattention需要
-    static constexpr GmFormat Q_FORMAT = GetQueryGmFormat<layout>();
-    static constexpr GmFormat KV_FORMAT = GetKVGmFormat<layout>();
+    static constexpr GmFormat Q_FORMAT = BlockCubeGqaFullquant::GetQueryGmFormat<layout>();
+    static constexpr GmFormat KV_FORMAT = BlockCubeGqaFullquant::GetKVGmFormat<layout>();
     FaGmTensor<INPUT_T, Q_FORMAT> queryGm;
     FaGmTensor<INPUT_T, KV_FORMAT> keyGm;
     FaGmTensor<INPUT_T, KV_FORMAT> valueGm;
@@ -127,20 +218,20 @@ private:
     BufferManager<BufferType::L0C> l0cBufferManager;
 
     // D小于等于256 mm1左矩阵Q，GS1循环内左矩阵复用, GS1循环间开pingpong；D大于256使用单块Buffer，S1循环间驻留；fp32场景单块不驻留
-    typename QL1BuffSel<INPUT_T, dBaseSize>::Type l1QBuffers;
+    typename BlockCubeGqaFullquant::QL1BuffSel<INPUT_T, dBaseSize>::Type l1QBuffers;
     // mm1右矩阵K
-    typename KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1KBuffers;
+    typename BlockCubeGqaFullquant::KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1KBuffers;
 
     // mm2右矩阵V
-    typename KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1VBuffers;
+    typename BlockCubeGqaFullquant::KVL1BuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type l1VBuffers;
     // L0A
-    using L0AType = typename L0ABuffSel<INPUT_T>::Type;
+    using L0AType = typename BlockCubeGqaFullquant::L0ABuffSel<INPUT_T>::Type;
     L0AType mmL0ABuffers;
     // L0B
-    using L0BType = typename L0BBuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type;
+    using L0BType = typename BlockCubeGqaFullquant::L0BBuffSel<INPUT_T, s2BaseSize, dBaseSize>::Type;
     L0BType mmL0BBuffers;
     // L0C
-    using L0CType = typename L0CBuffSel<INPUT_T, s1BaseSize, s2BaseSize, dVBaseSize>::Type;
+    using L0CType = typename BlockCubeGqaFullquant::L0CBuffSel<INPUT_T, s1BaseSize, s2BaseSize, dVBaseSize>::Type;
     L0CType mmL0CBuffers;
 };
 

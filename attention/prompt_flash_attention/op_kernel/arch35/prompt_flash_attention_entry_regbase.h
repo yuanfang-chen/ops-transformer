@@ -230,7 +230,6 @@ using namespace regbaseutil;
             postQuantOffset, keySharedPrefix, valueSharedPrefix, actualSharedPrefixLen, queryRope, keyRope, learnableSink, nullptr, nullptr, nullptr, softmaxLse, attentionOut, user, tilingData, &tPipe);        \
         op.Process();                                                                                                                   \
     } while (0)
-#endif
 
 #define INVOKE_MLA_FULLQUANT_GENERAL_OP_IMPL_ASCEND950_FA_BASEAPI(templateClass, vec1ResultSize, qkvSize, ...)                                 \
     do {                                                                                                                                \
