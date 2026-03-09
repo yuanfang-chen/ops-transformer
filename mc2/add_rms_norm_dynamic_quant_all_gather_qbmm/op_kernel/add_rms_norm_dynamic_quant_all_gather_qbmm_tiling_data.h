@@ -43,6 +43,7 @@ struct AddRmsNormDynamicQuantAllGatherTilingData {
     uint32_t cvStateRowNum = 0;         // CV状态区的行数
     int64_t residualNormMode = 0;
     bool isOptionalOutput = false;
+    bool isSmoothScale = false;
 };
 
 struct QbmmParams {
