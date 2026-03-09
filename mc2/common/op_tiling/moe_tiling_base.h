@@ -17,7 +17,7 @@
 #define MOE_TILING_BASE_H
 
 #include "register/tilingdata_base.h"
-#include "tiling_api.h"
+#include "tiling/tiling_api.h"
 #include "graph/utils/type_utils.h"
 #include "mc2_log.h"
 #include "tiling_base/tiling_base.h"
