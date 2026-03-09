@@ -766,7 +766,7 @@ __aicore__ inline void CompressorBlockVector<COMP>::ReadState(const LocalTensor<
             uint64_t startSeqIdx = endSeqIdx - copySeqCnt;
             uint64_t srcBaseOffset = 0;
             ReadFromCacheState(kvLocal, stateCacheGm_, stateBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize, 0);
-            ReadFromCacheState(scoreLocal, stateCacheGm_, stateBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize, 0);
+            ReadFromCacheState(scoreLocal, stateCacheGm_, stateBlockTableGm_, blockInfo.bIdx, startSeqIdx, endSeqIdx, dStartIdx, dDealSize, 1);
         }
     }
 }
