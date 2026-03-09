@@ -19,16 +19,6 @@
 
 namespace optiling {
 
-// Constants for validation
-constexpr int64_t ALIGN_SIZE = 256;
-constexpr int64_t MIN_DIM = 64;
-constexpr int64_t MAX_DIM = 16384;
-constexpr int64_t MIN_BATCH = 1;
-constexpr int64_t MAX_BATCH = 256;
-constexpr int64_t MIN_M = 0;
-constexpr int64_t MAX_M = 5;
-constexpr int64_t DIM_3 = 3;
-constexpr int64_t DIM_2 = 2;
 
 #define TILING_KEY_UPDATE_BF16 20000
 #define TILING_KEY_UPDATE_FP16 20000
@@ -82,12 +72,12 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 
     // Support both 3D [batch, seq_len, dim] and 2D [cu_seq_len, dim] input
     if (xOriginShape.GetDimNum() == DIM_3) {
-        xInputMode_ = 0;  // 3D input mode
+        xInputMode_ = X_INPUT_3D;  // 3D input mode
         batchSize_ = xOriginShape.GetDim(0);
         seqLen_ = xOriginShape.GetDim(1);
         dim_ = xOriginShape.GetDim(2);
     } else if (xOriginShape.GetDimNum() == DIM_2) {
-        xInputMode_ = 1;  // 2D input mode
+        xInputMode_ = X_INPUT_2D;  // 2D input mode
         cuSeqLen_ = xOriginShape.GetDim(0);  // cu_seq_len = batch * seq_len
         dim_ = xOriginShape.GetDim(1);
 
@@ -195,7 +185,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
                 return ge::GRAPH_FAILED);
 
     // For 3D input, validate sequence length
-    if (xInputMode_ == 0) {
+    if (xInputMode_ == X_INPUT_3D) {
         // Validate sequence length: m+1 where m in [0, 5], so seqLen in [1, 6]
         int64_t m = seqLen_ - 1;
         OP_CHECK_IF(m < MIN_M || m > MAX_M,
@@ -250,7 +240,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
 
     // For 3D input, validate conv states shape: [-1, K-1+m, dim]
     // The second dimension should be K-1 + m = K-1 + (seqLen-1) = K + seqLen - 2
-    if (xInputMode_ == 0) {
+    if (xInputMode_ == X_INPUT_3D) {
         int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
         int64_t cacheLen = convStatesOriginShape.GetDim(1);
         OP_CHECK_IF(cacheLen != expectedCacheLen,
@@ -561,7 +551,7 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 {
     // Calculate input x size in bytes (data type is float16/bf16, 2 bytes per element)
     int64_t xSizeBytes;
-    if (xInputMode_ == 0) {
+    if (xInputMode_ == X_INPUT_3D) {
         // 3D input: batchSize * seqLen * dim * 2 bytes
         xSizeBytes = batchSize_ * seqLen_ * dim_ * 2;
     } else {
@@ -569,10 +559,26 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
         xSizeBytes = cuSeqLen_ * dim_ * 2;
     }
 
+    // Fixed UB usage for auxiliary tensors
+    // cacheIndices: batchSize_ * sizeof(int32)
+    // numAcceptedToken: batchSize_ * sizeof(int32)
+    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
+    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
+    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
+
+    // For 3D input (xInputMode_ == X_INPUT_3D), only include cacheIndicesUBSize and numAcceptedTokensUBSize
+    // For 2D input (xInputMode_ == X_INPUT_2D), include queryStartLocUBSize
+    if (xInputMode_ == X_INPUT_3D) {
+        fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
+    } else {
+        int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
+        fixedUBSize = queryStartLocUBSize + cacheIndicesUBSize + numAcceptedTokensUBSize;
+    }
+
     // Limit core number based on data size
     // When data occupies half of UB, bandwidth is good
     // effectiveCoreNum = xSizeBytes / (ubSize_ / 2)
-    int64_t halfUbSize = ubSize_ / 2;
+    int64_t halfUbSize = (ubSize_ - fixedUBSize) / 2;
     int64_t effectiveCoreNum = (xSizeBytes + halfUbSize - 1) / halfUbSize;
     effectiveCoreNum = std::max(effectiveCoreNum, static_cast<int64_t>(1));
 
@@ -598,7 +604,6 @@ int64_t CausalConv1dUpdateTiling::ComputeOptimalDimChunk(int64_t dim, int64_t ba
         return 1;
     }
 
-    constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
     int64_t bestWorkload = INT64_MAX;
     int64_t bestN = 1;
 
@@ -647,8 +652,6 @@ int64_t CausalConv1dUpdateTiling::ComputeOptimalDimChunk(int64_t dim, int64_t ba
 
 void CausalConv1dUpdateTiling::CalculateTilingParams(int64_t validBatch)
 {
-    constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
-
     // Step 1: Calculate limited core number
     limitedCoreNum_ = CalculateLimitedCoreNum();
 
@@ -676,7 +679,7 @@ void CausalConv1dUpdateTiling::CalculateTilingParams(int64_t validBatch)
 void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
 {
     // Only support 3D input for now
-    if (xInputMode_ != 0) {
+    if (xInputMode_ != X_INPUT_3D) {
         // For 2D input, set default values
         ubBatchSize_ = batchPerCore_;
         ubDimSize_ = dimChunkSize_;
@@ -684,18 +687,6 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
         dimLoopCnt_ = 1;
         return;
     }
-
-    // Fixed UB usage for auxiliary tensors
-    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
-    // cacheIndices: batchSize_ * sizeof(int32)
-    // numAcceptedToken: batchSize_ * sizeof(int32)
-    int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
-    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
-    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
-    int64_t fixedUBSize = queryStartLocUBSize + cacheIndicesUBSize + numAcceptedTokensUBSize;
-
-    constexpr int64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per bf16
-    constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
 
     // Use dimChunkSize_ and batchPerCore_ as the maximum data per core
     int64_t coreDim = dimChunkSize_;
@@ -708,8 +699,8 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
 
     // x coefficient per dim element when full batch is loaded
-    // x: coreBatch * seqLen_ * ubDim * DTYPE_SIZE
-    int64_t xCoeffPerDimFullBatch = coreBatch * seqLen_ * DTYPE_SIZE;
+    // x: BUFFER_NUM * coreBatch * seqLen_ * ubDim * DTYPE_SIZE
+    int64_t xCoeffPerDimFullBatch = BUFFER_NUM * coreBatch * seqLen_ * DTYPE_SIZE;
 
     // Total coefficient per dim element with full batch
     int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBatch;
@@ -816,9 +807,8 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 
 void CausalConv1dUpdateTiling::DumpTilingInfo()
 {
-    OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
-    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate Tiling Info ===");
-    
+    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate DumpTilingInfo ===");
+
     // Core distribution parameters
     OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", usedCoreNum_);
     OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", dimCoreCnt_);
