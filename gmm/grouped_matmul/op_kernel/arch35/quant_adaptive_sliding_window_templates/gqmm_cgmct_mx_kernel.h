@@ -24,13 +24,14 @@
 #include "../../grouped_matmul_utils.h"
 #include "../grouped_matmul_tiling_data_apt.h"
 using GMMQuantParams = GroupedMatmulTilingData::GMMQuantParams;
+using QuantBasicApiMMTiling = GroupedMatmulTilingData::QuantBasicApiMMTiling;
 using namespace Cgmct::Gemm;
 template <class xType, class wType, class biasType, class scaleType, class ptScaleType, class yType, class xLayout,
           class wLayout, class yLayout, class l0cType>
 __aicore__ inline void GmmCgmctMxKernel(GM_ADDR x, GM_ADDR weight, GM_ADDR bias, GM_ADDR scale, GM_ADDR groupList,
                                         GM_ADDR perTokenScale, GM_ADDR y, GM_ADDR workspace,
-                                        const GMMQuantParams *gmmBaseParamsIn, const TCubeTiling *mmTilingDataIn,
-                                        AscendC::TPipe *que)
+                                        const GMMQuantParams *gmmBaseParamsIn,
+                                        const QuantBasicApiMMTiling *mmTilingDataIn, AscendC::TPipe *que)
 {
     // 定义L1和L0的TileShape
     using L1TileShape = AscendC::Shape<_0, _0, _0>;
@@ -67,11 +68,11 @@ __aicore__ inline void GmmCgmctMxKernel(GM_ADDR x, GM_ADDR weight, GM_ADDR bias,
     using GmmKernel = Kernel::KernelQGmmMx<ProblemShape, BlockMmad, BlockEpilogue, BlockScheduler>;
     using Params = typename GmmKernel::Params;
     using GMMTiling = typename GmmKernel::GMMTiling;
-    GMMTiling gmmParams{mmTilingDataIn->M,         mmTilingDataIn->N,          mmTilingDataIn->Ka,
-                        mmTilingDataIn->baseM,     mmTilingDataIn->baseN,      mmTilingDataIn->baseK,
-                        mmTilingDataIn->stepM,     mmTilingDataIn->stepN,      mmTilingDataIn->stepKa,
-                        mmTilingDataIn->stepKb,    mmTilingDataIn->mxTypePara, mmTilingDataIn->isBias,
-                        gmmBaseParamsIn->groupNum, gmmBaseParamsIn->groupType, gmmBaseParamsIn->groupListType};
+    GMMTiling gmmParams{gmmBaseParamsIn->groupNum, mmTilingDataIn->m,          mmTilingDataIn->n,
+                        mmTilingDataIn->k,         mmTilingDataIn->baseM,      mmTilingDataIn->baseN,
+                        mmTilingDataIn->baseK,     mmTilingDataIn->kAL1,       mmTilingDataIn->kBL1,
+                        mmTilingDataIn->scaleKAL1, mmTilingDataIn->scaleKBL1,  mmTilingDataIn->isBias,
+                        mmTilingDataIn->dbL0C,     gmmBaseParamsIn->groupType, gmmBaseParamsIn->groupListType};
     Params params = {{1, 1, 1, 1},                                          // shape
                      {x, weight, scale, perTokenScale, y, bias, groupList}, // gm addr
                      gmmParams};

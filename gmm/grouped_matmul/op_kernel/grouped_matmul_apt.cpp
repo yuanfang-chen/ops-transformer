@@ -18,6 +18,7 @@
 using GMMWeightQuantTilingData = GroupedMatmulTilingData::GMMWeightQuantTilingData;
 using GMMNoQuantTilingData = GroupedMatmulTilingData::GMMNoQuantTilingData;
 using GMMQuantTilingData = GroupedMatmulTilingData::GMMQuantTilingData;
+using GMMQuantBasicApiTilingData = GroupedMatmulTilingData::GMMQuantBasicApiTilingData;
 #if defined(V310_GMM_QUANT)
 #include "arch35/quant_adaptive_sliding_window_templates/gqmm_tiling_key.h"
 #if defined(V310_GMM_QUANT_MX) || defined(V310_GMM_QUANT_CUBE) || defined(V310_GMM_QUANT_PERTENSOR_CUBE)
@@ -205,8 +206,9 @@ using biasType = MatmulType<AscendC::TPosition::GM, CubeFormat::ND, DTYPE_BIAS>;
 
 #define GMM_QUANT_MX_LOW_API_IMPL_CLASS(xLayout, wLayout, yLayout)                                                     \
     do {                                                                                                               \
-        GET_TILING_DATA_MEMBER(GMMQuantTilingData, gmmQuantParams, gmmQuantParams_, tiling);                           \
-        GET_TILING_DATA_MEMBER(GMMQuantTilingData, mmTilingData, mmTilingData_, tiling);                               \
+        GET_TILING_DATA_WITH_STRUCT(GMMQuantBasicApiTilingData, tilingData, tiling)                                    \
+        GET_TILING_DATA_MEMBER(GMMQuantBasicApiTilingData, gmmQuantParams, gmmQuantParams_, tiling);                   \
+        GET_TILING_DATA_MEMBER(GMMQuantBasicApiTilingData, mmTilingData, mmTilingData_, tiling);                       \
         GmmCgmctMxKernel<DTYPE_X, DTYPE_WEIGHT, DTYPE_BIAS, DTYPE_SCALE, float, DTYPE_Y, xLayout, wLayout, yLayout,    \
                          DTYPE_L0C_LOCAL>(x, weight, bias, scale, groupList, perTokenScale, y, user1,                  \
                                           &gmmQuantParams_, &mmTilingData_, &tPipe);                                   \

@@ -84,29 +84,30 @@ public:
     using CoordClass = Coordinate<transA, transB, CubeFormat::ND, FormatB, CubeFormat::ND>;
 
     struct GMMTiling {
-        int32_t m;
-        int32_t n;
-        int32_t k;
-        int32_t baseM;
-        int32_t baseN;
-        int32_t baseK;
-        int32_t stepM;
-        int32_t stepN;
-        int32_t stepKa;
-        int32_t stepKb;
-        int32_t mxTypePara;
-        int32_t isBias;
         uint32_t groupNum;
+        uint32_t m;
+        uint32_t n;
+        uint32_t k;
+        uint32_t baseM;
+        uint32_t baseN;
+        uint32_t baseK;
+        uint32_t kAL1;
+        uint32_t kBL1;
+        uint32_t scaleKAL1;
+        uint32_t scaleKBL1;
+        uint8_t isBias;
+        uint8_t dbL0C;
         int8_t groupType;
         uint8_t groupListType;
         __aicore__ GMMTiling()
         {
         }
-        __aicore__ GMMTiling(int32_t m_, int32_t n_, int32_t k_, int32_t baseM_, int32_t baseN_, int32_t baseK_,
-                             int32_t stepM_, int32_t stepN_, int32_t stepKa_, int32_t stepKb_, int32_t mxTypePara_,
-                             int32_t isBias_, uint32_t groupNum_, int8_t groupType_, uint8_t groupListType_)
-            : m(m_), n(n_), k(k_), baseM(baseM_), baseN(baseN_), baseK(baseK_), stepM(stepM_), stepN(stepN_),
-              stepKa(stepKa_), stepKb(stepKb_), mxTypePara(mxTypePara_), isBias(isBias_), groupNum(groupNum_),
+        __aicore__ GMMTiling(uint32_t groupNum_, uint32_t m_, uint32_t n_, uint32_t k_, uint32_t baseM_,
+                             uint32_t baseN_, uint32_t baseK_, uint32_t kAL1_, uint32_t kBL1_, uint32_t scaleKAL1_,
+                             uint32_t scaleKBL1_, uint8_t isBias_, uint8_t dbL0C_, int8_t groupType_,
+                             uint8_t groupListType_)
+            : groupNum(groupNum_), m(m_), n(n_), k(k_), baseM(baseM_), baseN(baseN_), baseK(baseK_), kAL1(kAL1_),
+              stepN(kBL1_), scaleKAL1(scaleKAL1_), scaleKBL1(scaleKBL1_), isBias(isBias_), dbL0C_(dbL0C_),
               groupType(groupType_), groupListType(groupListType_)
         {
         }
@@ -225,14 +226,9 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::Init(const P
     }
     TupleShape l0Shape{static_cast<int64_t>(params.gmmParams.baseM), static_cast<int64_t>(params.gmmParams.baseN),
                        static_cast<int64_t>(params.gmmParams.baseK)};
-    int64_t scaleFactorA = static_cast<int64_t>(params.gmmParams.mxTypePara & 0xff);        // low 8B is scaleFactorA
-    int64_t scaleFactorB = static_cast<int64_t>((params.gmmParams.mxTypePara >> 8) & 0xff); // 8B-16B is scaleFactorB
-    int64_t kL1A = static_cast<int64_t>(params.gmmParams.stepKa) * static_cast<int64_t>(params.gmmParams.baseK);
-    int64_t kL1B = static_cast<int64_t>(params.gmmParams.stepKb) * static_cast<int64_t>(params.gmmParams.baseK);
-    int64_t scaleKL1 = Min(Max(scaleFactorA * kL1A, scaleFactorB * kL1B), Get<MNK_K>(problemShape_));
-    L1Params tileL12L0{static_cast<uint64_t>(kL1A), static_cast<uint64_t>(kL1B), static_cast<uint64_t>(scaleKL1),
-                       2UL}; // 默认开启2buffer
-    mmadOp_.Init(problemShape_, l0Shape, tileL12L0, isBias_, false);
+    L1Params l1Params{static_cast<uint64_t>(params.gmmParams.kAL1), static_cast<uint64_t>(params.gmmParams.kBL1),
+                      static_cast<uint64_t>(params.gmmParams.scaleKAL1), 2UL}; // 默认开启2buffer
+    mmadOp_.Init(problemShape_, l0Shape, l1Params, isBias_, false);
 }
 
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
@@ -349,6 +345,7 @@ __aicore__ inline void KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::UpdateMMGlob
     yGlobal_.SetGlobalBuffer(GetTensorAddr<CType>(0, yTensorPtr_) + Get<IDX_C_OFFSET>(baseOffset_));
 }
 
+// TODO: grouplisttype=2
 QGMM_MX_KERNEL_CLASS_TEM_PARAMS
 __aicore__ inline int32_t KernelQGmmMx<QGMM_MX_KERNEL_FUN_TEM_PARAMS>::GetSplitValueFromGroupList(uint32_t groupIdx)
 {
