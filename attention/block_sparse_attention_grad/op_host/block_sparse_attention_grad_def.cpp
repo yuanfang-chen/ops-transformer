@@ -44,7 +44,7 @@ public:
             .ParamType(OPTIONAL)
             .DataType({ge::DT_UINT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
-         this->Input("attenMaskOptional")
+        this->Input("attenMaskOptional")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_UINT8, ge::DT_UINT8})
             .FormatList({ge::FORMAT_ND});
@@ -78,8 +78,8 @@ public:
         this->Attr("numKeyValueHeads").AttrType(OPTIONAL).Int(1);
         this->Attr("maskType").AttrType(OPTIONAL).Int(0);
         this->Attr("scaleValue").AttrType(OPTIONAL).Float(0.0);
-        this->Attr("preTokens").AttrType(OPTIONAL).Int(0);
-        this->Attr("nextTokens").AttrType(OPTIONAL).Int(0);
+        this->Attr("preTokens").AttrType(OPTIONAL).Int(2147483647);
+        this->Attr("nextTokens").AttrType(OPTIONAL).Int(2147483647);
 
         this->AICore().AddConfig("ascend910b");
         this->AICore().AddConfig("ascend910_93");
