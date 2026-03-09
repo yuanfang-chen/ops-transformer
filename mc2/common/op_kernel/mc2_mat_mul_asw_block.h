@@ -16,7 +16,7 @@
 #ifndef NEW_MC2_MAT_MUL_ASW_BLOCK_H
 #define NEW_MC2_MAT_MUL_ASW_BLOCK_H
 
-#include "../../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_block.h"
+#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_block.h"
 #include "../../inc/kernel/mc2_tiling_struct.h"
 
 namespace MC2MatmulV3
