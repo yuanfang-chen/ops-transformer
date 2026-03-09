@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef GEMM_BLOCK_MMAD_BSAG_1_HPP
-#define GEMM_BLOCK_MMAD_BSAG_1_HPP
+#ifndef GEMM_BLOCK_MMAD_BSAG_2_HPP
+#define GEMM_BLOCK_MMAD_BSAG_2_HPP
 
 #include "../../../attn_infra/base_defs.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
@@ -190,5 +190,5 @@ protected:
 }  // namespace NpuArch::Gemm::Block
 
 
-#endif  // GEMM_BLOCK_MMAD_BSAG_1_HPP
+#endif  // GEMM_BLOCK_MMAD_BSAG_2_HPP
 

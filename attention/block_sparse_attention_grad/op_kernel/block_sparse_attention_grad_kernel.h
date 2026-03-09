@@ -33,6 +33,8 @@ using namespace NpuArch;
 namespace BSA {
 
     constexpr int32_t PRE_LAUNCH = 2;
+    constexpr uint64_t WORKSPACE_BLOCK_SIZE = 128 * 128;
+    constexpr uint64_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
 
     template <
         class BlockMmadBSAG1_,
@@ -53,8 +55,30 @@ namespace BSA {
         using EpilogueFAGOp = EpilogueFAGOp_;
         using EpilogueFAGPost = EpilogueFAGPost_;
         using ArchTag = typename BlockMmadBSAG1_::ArchTag;
-        
         using ElementInput = typename BlockMmadBSAG1::ElementA;
+
+        using L1TileShape = typename BlockMmadBSAG1::L1TileShape;
+        using ElementA1 = typename BlockMmadBSAG1::ElementA;
+        using LayoutA1 = typename BlockMmadBSAG1::LayoutA;
+        using ElementB1 = typename BlockMmadBSAG1::ElementB;
+        using LayoutB1 = typename BlockMmadBSAG1::LayoutB;
+        using ElementC1 = typename BlockMmadBSAG1::ElementC;
+        using LayoutC1 = typename BlockMmadBSAG1::LayoutC;
+
+        using ElementA2 = typename BlockMmadBSAG2::ElementA;
+        using LayoutA2 = typename BlockMmadBSAG2::LayoutA;
+        using ElementB2 = typename BlockMmadBSAG2::ElementB;
+        using LayoutB2 = typename BlockMmadBSAG2::LayoutB;
+        using ElementC2 = typename BlockMmadBSAG2::ElementC;
+        using LayoutC2 = typename BlockMmadBSAG2::LayoutC;
+
+        using ElementA3 = typename BlockMmadBSAG3::ElementA;
+        using LayoutA3 = typename BlockMmadBSAG3::LayoutA;
+        using ElementB3 = typename BlockMmadBSAG3::ElementB;
+        using LayoutB3 = typename BlockMmadBSAG3::LayoutB;
+        using ElementC3 = typename BlockMmadBSAG3::ElementC;
+        using LayoutC3 = typename BlockMmadBSAG3::LayoutC;
+
         /// Parameters structure
         struct Params {
             // Data members
@@ -95,22 +119,24 @@ namespace BSA {
             uint32_t curBatchIdx;
             uint32_t curHeadIdx;
             uint32_t curQSeqIdx;
-            uint32_t curQBlcokSparseSeqIdx;
+            uint32_t curQBlcokIdx;
             uint32_t curCalQSize;
             uint32_t curCalKVSize;
             uint32_t qSeqlen;
             uint32_t kvSeqlen;
-            uint64_t qOffset;
-            uint64_t kvOffset;
+            uint64_t qOffset; //Q, dout, dq
+            uint64_t kvOffset;//K, V, dk, dv
+            uint64_t sOffset; //workspace : S, P, dp, ds
         };
 
         __aicore__ inline void UpdateTaskInfoCalQSize(uint32_t blockShapeX, uint32_t basicQBlockSize, TaskInfo &taskInfo) {
-            taskInfo.curQBlcokSparseSeqIdx = taskInfo.curQSeqIdx / blockShapeX * blockShapeX;
-            if (taskInfo.curQBlcokSparseSeqIdx + blockShapeX <= taskInfo.qSeqlen) {
-                if (taskInfo.curQSeqIdx + basicQBlockSize <= taskInfo.curQBlcokSparseSeqIdx + blockShapeX) {
+            taskInfo.curQBlcokIdx = taskInfo.curQSeqIdx / blockShapeX;
+            uint32_t curQBlcokSeqIdx = taskInfo.curQBlcokIdx * blockShapeX;
+            if (curQBlcokSeqIdx + blockShapeX <= taskInfo.qSeqlen) {
+                if (taskInfo.curQSeqIdx + basicQBlockSize <= curQBlcokSeqIdx + blockShapeX) {
                     taskInfo.curCalQSize = basicQBlockSize;
                 } else {
-                    taskInfo.curCalQSize = taskInfo.curQBlcokSparseSeqIdx + blockShapeX - taskInfo.curQSeqIdx;
+                    taskInfo.curCalQSize = curQBlcokSeqIdx + blockShapeX - taskInfo.curQSeqIdx;
                 }
             } else {
                 if (taskInfo.curQSeqIdx + basicQBlockSize <= taskInfo.qSeqlen) {
@@ -230,7 +256,7 @@ namespace BSA {
             uint32_t taskLength = tailTaskNum >= coreIdx ? taskNumPerCore : taskNumPerCore + 1;
 
             // Initialize global tensors
-            AscendC::GlobalTensor<ElementInput> gDout;
+            AscendC::GlobalTensor<ElementA1> gDout;
             gDout.SetGlobalBuffer((__gm__ ElementInput *)params.dout);
             AscendC::GlobalTensor<ElementInput> gQ;
             gQ.SetGlobalBuffer((__gm__ ElementInput *)params.q);
@@ -245,22 +271,28 @@ namespace BSA {
             AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
 
+            uint64_t sOutSize = WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * 20; // blockdim
+            uint64_t dPOutSize = WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * 20; // blockdim
+            uint64_t dQOutSize = batch * numHeads * maxQSeqlen * headDim * sizeof(float);
+            uint64_t dKOutSize = batch * kvHeads * maxKvSeqlen * headDim * sizeof(float);
+            uint64_t dVOutSize = batch * kvHeads * maxKvSeqlen * headDim * sizeof(float);
             AscendC::GlobalTensor<float> gS;
-            gS.SetGlobalBuffer((__gm__ float *)params.workspace); // 128 * 128 * 20 * 2 * sizeof(float)
+            gS.SetGlobalBuffer((__gm__ float *)params.workspace);
             AscendC::GlobalTensor<ElementInput> gP;
             gP.SetGlobalBuffer((__gm__ ElementInput *)params.workspace); // 和 S 复用
             AscendC::GlobalTensor<float> gDp;
-            gDp.SetGlobalBuffer((__gm__ float *)params.workspace); // 128 * 128 * 20 * 2 * sizeof(float)
+            gDp.SetGlobalBuffer((__gm__ float *)(params.workspace + sOutSize));
             AscendC::GlobalTensor<ElementInput> gDs;
-            gDs.SetGlobalBuffer((__gm__ ElementInput *)params.workspace); // 和 dp 复用
+            gDs.SetGlobalBuffer((__gm__ ElementInput *)(params.workspace + sOutSize)); // 和 dp 复用
             AscendC::GlobalTensor<float> gDq;
-            gDq.SetGlobalBuffer((__gm__ float *)params.workspace); // TND or BNSD * sizeof(float)
+            gDq.SetGlobalBuffer((__gm__ float *)(params.workspace + sOutSize + dPOutSize));
             AscendC::GlobalTensor<float> gDk;
-            gDk.SetGlobalBuffer((__gm__ float *)params.workspace); // TND or BNSD * sizeof(float)
+            gDk.SetGlobalBuffer((__gm__ float *)(params.workspace + sOutSize + dPOutSize + dQOutSize));
             AscendC::GlobalTensor<float> gDv;
-            gDv.SetGlobalBuffer((__gm__ float *)params.workspace); // TND or BNSD * sizeof(float)
+            gDv.SetGlobalBuffer((__gm__ float *)(params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize));
 
             TaskInfo taskInfo[2];
+            TaskInfo preTaskInfo;
             initTaskInfo(gActualQseqlen, gActualKvseqlen, tilingData, numHeads, kvHeads, groupSize, headDim,
                 maxQSeqlen, maxKvSeqlen, blockShapeX, basicQBlockSize, inputLayout, coreIdx, taskInfo[0]);
             uint32_t qBlockNum = (maxQSeqlen + blockShapeX - 1) / blockShapeX;
@@ -268,14 +300,30 @@ namespace BSA {
             uint32_t batchBlocks = numHeads * qBlockNum * kvBlockNum;
             uint32_t headBlocks = qBlockNum * kvBlockNum;
 
+            uint64_t actualStrideQ = headDim;
+            uint64_t actualStrideKV = headDim;
+            if (inputLayout == 0) {
+                actualStrideQ = numHeads * headDim;
+                actualStrideKV = kvHeads * headDim;
+            }
+
+            BlockMmadBSAG1 blockMmad1(resource);
+            BlockMmadBSAG2 blockMmad2(resource);
+            BlockMmadBSAG3 blockMmad3(resource);
+            uint32_t count = 0;
+            uint32_t pingpongFlag = 0;
+            uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
             for (uint32_t i = 0; i < taskLength; i++) {
-                TaskInfo& curInfo = taskInfo[i % 2];
-                // loadQGM
-                // loadDoutGM
+                TaskInfo curInfo = taskInfo[i % 2];
+                LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
+                blockMmad1.loadLeft(gQ[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 0);
+                blockMmad1.loadLeft(gDout[curInfo.qOffset], layoutA1, curInfo.curCalQSize, actualStrideQ, 1);
+
                 uint64_t kvBlockOffset = 0;
                 for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
                     uint64_t kvBlockBasicOffset = 0;
-                    uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokSparseSeqIdx * kvBlockNum + idx;
+                    // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
+                    uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
                     if (gBlcokSpaseMask.GetValue(maskOffset)) {
                         uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen % blockShapeY;
                         uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
@@ -286,56 +334,56 @@ namespace BSA {
                             } else {
                                 curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * headDim;
                             }
-                            // cube1(q,k)
-                            // cube1(dout,v)
+                            curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
+                            LayoutB1 layoutB1(curInfo.curCalKVSize, headDim);
+                            LayoutC1 layoutC1(curInfo.curCalQSize, curInfo.curCalKVSize);
+                            GemmCoord actualShape1{curInfo.curCalQSize, curInfo.curCalKVSize, headDim};
+                            blockMmad1(gQ[curInfo.qOffset], gK[curInfo.kvOffset], gS[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 0);
+                            blockMmad1(gDout[curInfo.qOffset], gV[curInfo.kvOffset], gDp[curInfo.sOffset], layoutA1, layoutB1, layoutC1, actualShape1, 1);
                             // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
-                            // AscendC::WaitEvent(VEC2CUBE);
-                            // cube2(ds,k)
-                            // cube3(ds,q)
-                            // cube3(p,dout)
+                            if (count > 0) {
+                                // AscendC::WaitEvent(VEC2CUBE);
+                                LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
+                                LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
+                                LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
+                                GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
+                                blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gS[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
+
+                                LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
+                                LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);
+                                LayoutC3 layoutC3(preTaskInfo.curCalKVSize, headDim);
+                                GemmCoord actualShape3{preTaskInfo.curCalKVSize, headDim, preTaskInfo.curCalQSize};
+                                blockMmad3(gP[preTaskInfo.sOffset], gDout[preTaskInfo.qOffset], gDv[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
+                                blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
+                            }
+                            preTaskInfo = curInfo;
+                            pingpongFlag = 1 - pingpongFlag;
+                            count++;
                         }
                         kvBlockBasicOffset += basicKVBlockSize;
                     }
                     kvBlockOffset += kvBlockNum;
                 }
-                updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
-                    blockShapeX, basicQBlockSize, inputLayout, curInfo, taskInfo[(i + 1) % 2]);
 
+                if (i != taskLength - 1) {
+                    updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
+                        blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
+                }
             }
-            // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
+            // AscendC::WaitEvent(VEC2CUBE);
+            LayoutA2 layoutA2(preTaskInfo.curCalQSize, preTaskInfo.curCalKVSize);
+            LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
+            LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
+            GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
+            blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gS[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
 
-            // for(uint32_t i = 0; i < PRE_LAUNCH; i++) {
-            //     loadQGM
-            //     loadDoutGM
-            //     //blockSparseMask : [B, N , ceilDiv(maxQS, blockShapeX), ceilDiv(maxKVS, blockShapeY)]
-            //     for (uint32_t idx = 0; idx < ceilDiv(maxKVS, blockShapeY); idx++) {
-            //         if (params.blockSparseMask[batchId][headId][seqId][idx] == 1) {
-            //             cube1(q,k)
-            //             cube1(dout,v)
-            //             AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
-            //         }
-            //     }
-            // }
-            
-            // for (uint32_t i = 2; i < taskLength; i++) {
-            //     AscendC::WaitEvent(VEC2CUBE);
-            //     AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
-            //     cube2(ds,k)
-            //     cube3(ds,q)
-            //     cube3(p,dout)
-            //     cube1(q,k)
-            //     cube1(dout,v)
-            // }
+            LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
+            LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);
+            LayoutC3 layoutC3(preTaskInfo.curCalKVSize, headDim);
+            GemmCoord actualShape3{preTaskInfo.curCalKVSize, headDim, preTaskInfo.curCalQSize};
+            blockMmad3(gP[preTaskInfo.sOffset], gDout[preTaskInfo.qOffset], gDv[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
+            blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
-            // for(uint32_t i = 0; i < PRE_LAUNCH; i++) {
-            //     AscendC::WaitEvent(VEC2CUBE);
-            //     if(i == 0) {
-            //         AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
-            //     }
-            //     cube2(ds,k)
-            //     cube3(ds,q)
-            //     cube3(p,dout)
-            // }
             // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
         }
 

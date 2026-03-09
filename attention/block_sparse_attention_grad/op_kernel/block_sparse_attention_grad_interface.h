@@ -56,7 +56,7 @@ namespace BSA {
         using B1Type = Gemm::GemmType<ElementB1, LayoutB1>;
         using C1Type = Gemm::GemmType<ElementC1, LayoutC1>;
         using DispatchPolicyCube1 = Gemm::MmadAtlasA2SBSAG1;
-        using L1TileShape1 = GemmShape<Q_TILE_CEIL, 128, 128>;
+        using L1TileShape1 = GemmShape<128, 128, 128>;
         using L0TileShape1 = GemmShape<128, 128, 128>;
         using BlockMmadCube1 = Gemm::Block::BlockMmad<DispatchPolicyCube1, L1TileShape1, L0TileShape1, A1Type, B1Type, C1Type>;
 
@@ -70,7 +70,7 @@ namespace BSA {
         using A2Type = Gemm::GemmType<ElementA2, LayoutA2>;
         using B2Type = Gemm::GemmType<ElementB2, LayoutB2>;
         using C2Type = Gemm::GemmType<ElementC2, LayoutC2>;
-        using DispatchPolicyCube2 = Gemm::MmadAtlasA2SFAIPV<false, false>;
+        using DispatchPolicyCube2 = Gemm::MmadAtlasA2SBSAG2;
         using L1TileShape2 = GemmShape<128, 128, 128>;
         using L0TileShape2 = GemmShape<128, 128, 128>;
         using BlockMmadCube2 = Gemm::Block::BlockMmad<DispatchPolicyCube2, L1TileShape2, L0TileShape2, A2Type, B2Type, C2Type>;
@@ -85,8 +85,7 @@ namespace BSA {
         using A3Type = Gemm::GemmType<ElementA3, LayoutA3>;
         using B3Type = Gemm::GemmType<ElementB3, LayoutB3>;
         using C3Type = Gemm::GemmType<ElementC3, LayoutC3>;
-        // using DispatchPolicyCube3 = Gemm::MmadAtlasA2FAGCube3;
-        using DispatchPolicyCube3 = Gemm::MmadAtlasA2SFAIPV<false, false>;
+        using DispatchPolicyCube3 = Gemm::MmadAtlasA2SBSAG2;
         using L1TileShape3 = GemmShape<128, 128, 128>;
         using L0TileShape3 = GemmShape<128, 128, 128>;
         using BlockMmadCube3 = Gemm::Block::BlockMmad<DispatchPolicyCube3, L1TileShape3, L1TileShape3, A3Type, B3Type, C3Type>;
@@ -121,7 +120,7 @@ namespace BSA {
         using EpilogueFAGPost = Epilogue::Block::BlockEpilogue<EpilogueAtlasA2FAGPost, OutputType, UpdateType, InputType>;
 
         // Kernel instantiation
-        using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2,BlockMmadCube3,
+        using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2, BlockMmadCube3,
                                                           EpilogueFAGPre, EpilogueFAGSfmg, EpilogueAtlasA2FAGOp,
                                                           EpilogueAtlasA2FAGPost, InputLayout>;
         typename BSAGKernel::Params params{dout, q, k, v, out, softmaxLse, blockSparseMask, blockShape, attentionMask,
@@ -132,5 +131,3 @@ namespace BSA {
 }
 
 #endif // BLOCK_SPARSE_ATTENTION_GRAD_INTERFACE_H
- 
- 
