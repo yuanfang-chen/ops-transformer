@@ -809,7 +809,7 @@ bool GroupedQmmTiling::SetMKN(const gert::Shape &xShape, const gert::Shape &wSha
                                        wShape.GetDim(wDimNum - LAST_FIRST_DIM_INDEX);
     // In static graph mode, when M or N is 0, the framework will skip tiling check and return empty tensors, but when
     // K = 0, tiling should be able to intercept.
-    OP_CHECK_IF(xShape.GetShapeSize() == 0 || wShape.GetShapeSize() == 0,
+    OP_CHECK_IF((xShape.GetShapeSize() == 0 || wShape.GetShapeSize() == 0) && inputParams_.groupType == SPLIT_M,
                 OP_LOGE(inputParams_.opName, "Unsupported empty tensor here. Please check your k dimension."),
                 return false);
     inputParams_.mSize = mSize;
