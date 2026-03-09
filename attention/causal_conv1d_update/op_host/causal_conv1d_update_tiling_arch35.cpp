@@ -689,10 +689,10 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
     // cacheIndices: batchSize_ * sizeof(int32)
     // numAcceptedToken: batchSize_ * sizeof(int32)
-    constexpr int64_t QUERY_START_LOC_UB_SIZE = (batchSize_ + 1) * sizeof(int32_t);
-    constexpr int64_t CACHE_INDICES_UB_SIZE = batchSize_ * sizeof(int32_t);
-    constexpr int64_t NUM_ACCEPTED_TOKENS_UB_SIZE = batchSize_ * sizeof(int32_t);
-    constexpr int64_t FIXED_UB_SIZE = QUERY_START_LOC_UB_SIZE + CACHE_INDICES_UB_SIZE + NUM_ACCEPTED_TOKENS_UB_SIZE;
+    int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
+    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
+    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
+    int64_t fixedUBSize = queryStartLocUBSize + cacheIndicesUBSize + numAcceptedTokensUBSize;
 
     constexpr int64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per bf16
     constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
@@ -715,7 +715,7 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBatch;
 
     // Calculate maximum ubDim when full batch is loaded
-    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - FIXED_UB_SIZE;
+    int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUBSize;
     int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
 
     // Align to DIM_ALIGN_ELEMENTS (256 bytes = 128 bf16 elements)

@@ -533,7 +533,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             // 这里xSlice指向batch数据起始，需要确保包含足够的x数据
             // 创建局部变量以满足左值引用要求
             LocalTensor<T> xSlice = xLocal[xInnerOffset];
-            LocalTensor<T> stateSlice = convStatesLocal[acceptToken-1+j];
+            LocalTensor<T> stateSlice = convStatesLocal[(acceptToken-1+j)*dimInnerOffset];
             Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSizeInLoop);
         }
         event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
@@ -544,7 +544,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         yGMParams.blockLen = blockLen;
         yGMParams.srcStride = 0;
         yGMParams.dstStride = dstStrideBytes;
-        LocalTensor<T> cacheOutSlice = convStatesLocal[acceptToken-1];
+        LocalTensor<T> cacheOutSlice = convStatesLocal[(acceptToken-1)*dimInnerOffset];
         DataCopyPad(yGm[yOffset], cacheOutSlice, yGMParams);
 
 
