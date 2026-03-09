@@ -328,6 +328,7 @@ protected:
         maxValidS2Len = 0LL;
         opName = nullptr;
         inputLayout = nullptr;
+        softmaxOutLayout = nullptr;
     }
 
     bool IsCapable() override
@@ -447,6 +448,7 @@ protected:
     int64_t pseType;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    uint8_t tndSoftmaxOut;
     int64_t qStartIdx;
     int64_t kvStartIdx;
     int64_t accumS1;
@@ -477,6 +479,7 @@ protected:
     const char *templateName = "base";
     const char *opName;
     const char *inputLayout;
+    const char *softmaxOutLayout;
     const int64_t *prefixNData;
 
     bool isSparseValidSizeAligned = false;
