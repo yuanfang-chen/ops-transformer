@@ -29,12 +29,12 @@ public:
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT8_E4M3FN})
             .Format({ge::FORMAT_ND})
-            .AutoContiguous();
+            .IgnoreContiguous();
         this->Input("cmp_kv")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_FLOAT8_E4M3FN})
             .Format({ge::FORMAT_ND})
-            .AutoContiguous();
+            .IgnoreContiguous();
         this->Input("ori_sparse_indices")
             .ParamType(OPTIONAL)
             .DataType({ge::DT_INT32})

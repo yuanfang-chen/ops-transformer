@@ -206,6 +206,8 @@ struct RunInfo {
     uint32_t sparseBlockSize; \
     uint32_t cmpRatio; \
     float softmaxScale; \
+    uint32_t oriKvStride; \
+    uint32_t cmpKvStride; \
     uint32_t oriMaskMode; \
     uint32_t cmpMaskMode
 
@@ -238,7 +240,9 @@ struct RunInfo {
     uint32_t oriBlockSize : 12; \
     uint32_t cmpBlockSize : 12; \
     uint32_t oriMaxBlockNumPerBatch; \
-    uint32_t cmpMaxBlockNumPerBatch
+    uint32_t cmpMaxBlockNumPerBatch; \
+    uint32_t oriKvStride; \
+    uint32_t cmpKvStride
 
 
 struct ConstInfo{
