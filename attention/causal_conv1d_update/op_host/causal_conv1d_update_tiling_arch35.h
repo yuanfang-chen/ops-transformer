@@ -61,10 +61,11 @@ constexpr int64_t MIN_BATCH = 1;
 constexpr int64_t MAX_BATCH = 256;
 constexpr int64_t MIN_M = 0;
 constexpr int64_t MAX_M = 5;
-constexpr int64_t DIM_3 = 3;
+constexpr int64_t DIM_0 = 0;
+constexpr int64_t DIM_1 = 1;
 constexpr int64_t DIM_2 = 2;
+constexpr int64_t DIM_3 = 3;
 constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
-
 constexpr int64_t BUFFER_NUM = 2;
 
 // Input mode constants

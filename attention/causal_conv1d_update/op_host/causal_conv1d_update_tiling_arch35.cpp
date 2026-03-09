@@ -73,13 +73,13 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     // Support both 3D [batch, seq_len, dim] and 2D [cu_seq_len, dim] input
     if (xOriginShape.GetDimNum() == DIM_3) {
         xInputMode_ = X_INPUT_3D;  // 3D input mode
-        batchSize_ = xOriginShape.GetDim(0);
-        seqLen_ = xOriginShape.GetDim(1);
-        dim_ = xOriginShape.GetDim(2);
+        batchSize_ = xOriginShape.GetDim(DIM_0);
+        seqLen_ = xOriginShape.GetDim(DIM_1);
+        dim_ = xOriginShape.GetDim(DIM_2);
     } else if (xOriginShape.GetDimNum() == DIM_2) {
         xInputMode_ = X_INPUT_2D;  // 2D input mode
-        cuSeqLen_ = xOriginShape.GetDim(0);  // cu_seq_len = batch * seq_len
-        dim_ = xOriginShape.GetDim(1);
+        cuSeqLen_ = xOriginShape.GetDim(DIM_0);  // cu_seq_len = batch * seq_len
+        dim_ = xOriginShape.GetDim(DIM_1);
 
         // For 2D input, query_start_loc must be specified to get batch
         auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
@@ -87,7 +87,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
         // query_start_loc shape is (batch + 1,), so batch = dim0 - 1
-        batchSize_ = queryStartLocOriginShape.GetDim(0) - 1;
+        batchSize_ = queryStartLocOriginShape.GetDim(DIM_0) - 1;
     } else {
         OP_LOGE(context_->GetNodeName(), "X dimension number must be 2 or 3, but got %lu",
                 xOriginShape.GetDimNum());
@@ -105,7 +105,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         return ge::GRAPH_FAILED;
     }
 
-    kernelSize_ = weightOriginShape.GetDim(0);
+    kernelSize_ = weightOriginShape.GetDim(DIM_0);
 
     // Get data types
     xDtype_ = context_->GetInputDesc(X_INDEX)->GetDataType();
@@ -553,10 +553,10 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
     int64_t xSizeBytes;
     if (xInputMode_ == X_INPUT_3D) {
         // 3D input: batchSize * seqLen * dim * 2 bytes
-        xSizeBytes = batchSize_ * seqLen_ * dim_ * 2;
+        xSizeBytes = batchSize_ * seqLen_ * dim_ * DTYPE_SIZE;
     } else {
         // 2D input: cuSeqLen * dim * 2 bytes
-        xSizeBytes = cuSeqLen_ * dim_ * 2;
+        xSizeBytes = cuSeqLen_ * dim_ * DTYPE_SIZE;
     }
 
     // Fixed UB usage for auxiliary tensors
@@ -753,8 +753,6 @@ uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 {
-    // tilingData_ = context_->GetTilingData<CausalConv1dUpdateTilingData>();
-
     // Set block dimension (number of cores to use)
     context_->SetBlockDim(usedCoreNum_);
 
