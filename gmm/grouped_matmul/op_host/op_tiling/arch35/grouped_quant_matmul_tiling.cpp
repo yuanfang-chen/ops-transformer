@@ -1121,7 +1121,7 @@ ge::graphStatus GroupedQmmTiling::CalL1Depth(uint64_t leftL1Size)
     return ge::GRAPH_SUCCESS;
 }
 
-uint64_t GroupedQbmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
+uint64_t GroupedQmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
 {
     // 只需要满足读GM数据大于64KB即可获得较高的带宽，不一定要把L1用满，同时减少MTE2头开销
     uint64_t baseKSize = GetSizeWithDataType(basicTiling_.baseK, inputParams_.aDtype);
@@ -1136,7 +1136,7 @@ uint64_t GroupedQbmmTiling::GetDepthWithHighBW(uint64_t mnL1) const
     return std::min(pow2Depth, CeilDiv(inputParams_.kSize, basicTiling_.baseK) * DB_SIZE);
 }
 
-void GroupedQbmmTiling::ModifyDepthForUnalign(uint64_t leftL1Size, uint64_t baseASize, uint64_t baseBSize,
+void GroupedQmmTiling::ModifyDepthForUnalign(uint64_t leftL1Size, uint64_t baseASize, uint64_t baseBSize,
                                               uint64_t baseScaleABSize)
 {
     // 只调整K轴非对齐场景
@@ -1177,7 +1177,7 @@ void GroupedQbmmTiling::ModifyDepthForUnalign(uint64_t leftL1Size, uint64_t base
     }
 }
 
-uint64_t GroupedQbmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)
+uint64_t GroupedQmmTiling::GetDepthA1B1(uint64_t leftSize, uint64_t perDepthSize, uint64_t depthInit)
 {
     if (depthInit > 1UL && perDepthSize > DB_SIZE * MTE2_MIN_LOAD_SIZE_V120) {
         return depthInit;
@@ -1235,7 +1235,7 @@ void GroupedQmmTiling::CalStepKs()
     basicTiling_.depthB1 = basicTiling_.stepKb * DB_SIZE;
 }
 
-ge::graphStatus GroupedQbmmTiling::CalScaleFactors()
+ge::graphStatus GroupedQmmTiling::CalScaleFactors()
 {
     uint64_t baseASize = GetSizeWithDataType(basicTiling_.baseM * basicTiling_.baseK, inputParams_.aDtype);
     uint64_t baseBSize = GetSizeWithDataType(basicTiling_.baseN * basicTiling_.baseK, inputParams_.bDtype);
