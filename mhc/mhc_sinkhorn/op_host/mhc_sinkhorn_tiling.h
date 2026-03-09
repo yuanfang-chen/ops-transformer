@@ -57,7 +57,7 @@ protected:
     ge::graphStatus CheckInputShape();
     ge::graphStatus CheckInputDtype();
     void SplitByCoreNum(int64_t tCoreNum, int64_t ubBlockX, int64_t xDtypeSize, 
-                    int64_t tUbFactor, int64_t tCoreLoop, int64_t tUbFactorTail);
+                    int64_t& tUbFactor, int64_t& tCoreLoop, int64_t& tUbFactorTail);
     void SetTilingData();
 
 private:
