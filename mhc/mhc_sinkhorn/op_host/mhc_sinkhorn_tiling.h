@@ -25,6 +25,7 @@
 #include "util/math_util.h"
 #include "kernel_tiling/kernel_tiling.h"
 #include "../op_kernel/arch35/mhc_sinkhorn_struct.h"
+#include "../op_kernel/arch35/mhc_sinkhorn_tiling_key.h"
 
 namespace optiling
 {
