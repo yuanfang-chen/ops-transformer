@@ -523,7 +523,7 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSingleWeightSingleY(const gert::Ti
 /** @brief split K single-multi-multi(s-m-m)
  */
 bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::TilingContext* context,
-                                                        const gert::Shape &xShape, const gert::Shape &wShape)
+                                                        const gert::Shape xShape, const gert::Shape wShape)
 {
   int64_t m = xShape.GetDim(1);
   int64_t k = xShape.GetDim(xKDim_);
@@ -536,7 +536,7 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::Tiling
     auto wTensorShape = wTensor->GetOriginShape();
 
     groupNum_ += 1U;
-    int64_t n = wTensorShape.GetDim(weightNDim_) * nzfactor_;
+    int64_t n = wTensorShape.GetDim(weightNDim_) * nzFactor_;
     n_ = std::max(n_, static_cast<uint64_t>(n));
   }
   m_ = static_cast<uint64_t>(m);
