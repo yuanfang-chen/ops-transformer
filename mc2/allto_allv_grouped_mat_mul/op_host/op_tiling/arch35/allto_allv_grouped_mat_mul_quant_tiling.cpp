@@ -20,7 +20,7 @@
 #include "mc2_log.h"
 #include "context_util.h"
 #include "tiling/matmul_formulaic_tiling.h"
-#include "tiling/hccl_formulaic_tiling.h"
+#include "op_tiling/hccl_formulaic_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"

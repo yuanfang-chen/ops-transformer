@@ -23,7 +23,7 @@
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling/hccl_formulaic_tiling.h"
+#include "op_tiling/hccl_formulaic_tiling.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "tiling/mc2_calc_num_blocks.h"
 #include "../../op_kernel/grouped_mat_mul_allto_allv_tiling.h"
