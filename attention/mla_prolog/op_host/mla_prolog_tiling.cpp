@@ -656,7 +656,7 @@ ge::graphStatus MlaPrologTiling::RunBigKernelTiling(MlaPrologContext &context, M
             context_->workSpaces[0] = libapiSize_;
         }
         GenTilingKey();
-        context_->blockDim = 1U;
+        context_->numBlocks = 1U;
         return ge::GRAPH_SUCCESS;
     }
 
@@ -675,7 +675,7 @@ ge::graphStatus MlaPrologTiling::RunBigKernelTiling(MlaPrologContext &context, M
         }
     }
 
-    context_->blockDim = aicNum_;
+    context_->numBlocks = aicNum_;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -836,7 +836,7 @@ MLA_EXTERN_C ge::graphStatus TilingMlaProlog(gert::TilingContext *context)
             return ge::GRAPH_FAILED);
     if (mlaPrologTiling.RunBigKernelTiling(mlaPrologContext, tilingData) == ge::SUCCESS) {
         context->SetTilingKey(mlaPrologContext.tilingKey);
-        context->SetBlockDim(mlaPrologContext.blockDim);
+        context->SetBlockDim(mlaPrologContext.numBlocks);
         return ge::GRAPH_SUCCESS;
     }
     return ge::GRAPH_FAILED;
