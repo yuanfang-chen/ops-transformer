@@ -1676,7 +1676,7 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
 
     if (queryShapeInfo.s <= 1U) {
-        return false;
+        return true;
     }
 
     if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) { // 256U, 64: d > 256 must be multiple of 64 for memory alignment
@@ -1696,7 +1696,7 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     std::string layoutStr(contextKeyParams.layout);
     bool isTransposeLayout = layoutStr == "BNSD_BSND" || layoutStr == "BSND_BNSD" || layoutStr == "BSH_BNSD" ||
         layoutStr == "NTD" || layoutStr == "NTD_TND" || layoutStr == "TND_NTD";
-    bool hasCrossoverAttr = enableMask || enablePseShift || enablePA || enableAlibiPse || enablePFARope ||
+    bool hasCrossoverAttr = enablePseShift || enableAlibiPse ||
         enablePerblockQuant || enablePertensorQuant || enablePostQuant || enableLeftPadding || enableTensorList ||
         enableIFAMLAFullQuant || contextKeyParams.isSoftMaxLseEnable || isTransposeLayout || enableLearnSink;
 
@@ -1756,7 +1756,6 @@ bool PromptFlashAttentionTilingV2::CheckIO(ContextParamsForPFATiling& contextKey
     }
     if (queryShapeInfo.d == MLA_QKD_SIZE && valueShapeInfo.d == MLA_VD_SIZE) {
         enablePFAMLA = true;
-        enablePFAMerge = false;
     }
 
     if(queryShapeInfo.d != valueShapeInfo.d && !enablePFAMLA){
@@ -1900,7 +1899,6 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         return false);
     enableIFA = false;
     enableIFAMask = false;
-    enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
     } else {
@@ -5084,6 +5082,8 @@ ge::graphStatus PromptFlashAttentionTilingV2::RunBigKernelTilingWithParams(Conte
     OP_CHECK_IF(gSize == 0, OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "calculate gSize = 0"), return ge::GRAPH_FAILED);
 
     if (enableIFAMLA || enableIFA || enablePFAMerge) {
+        OP_LOGI(contextKeyParams.opName,
+            "enter gs1 merge! enableIFAMLA is %d, enableIFA is %d, enablePFAMerge is %d", enableIFAMLA, enableIFA, enablePFAMerge);
         queryShapeInfo.n = queryShapeInfo.n / gSize;
         queryShapeInfo.s = queryShapeInfo.s * gSize;
     }
