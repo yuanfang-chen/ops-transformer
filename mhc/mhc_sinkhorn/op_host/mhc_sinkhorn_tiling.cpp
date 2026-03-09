@@ -14,8 +14,8 @@
  */
 
 #include <vector>
-#include "register/op_def_registry.h"
-#include "tiling/tiling_api.h"
+#include "util/platform_util.h"
+#include "util/shape_util.h"
 #include "platform/platform_info.h"
 #include "log/log.h"
 #include "mhc_sinkhorn_tiling.h"
@@ -145,8 +145,8 @@ ge::graphStatus MhcSinkhornTiling::CheckInputShape()
     return ge::GRAPH_SUCCESS;
 }
 
-void MhcSinkhornTiling::SplitByCoreNum(int64_t tCoreNum, int64_t ubBlockX, int64_t xDtypeSize, int64_t tUbFactor,
-                                        int64_t tCoreLoop, int64_t tUbFactorTail) {
+void MhcSinkhornTiling::SplitByCoreNum(int64_t tCoreNum, int64_t ubBlockX, int64_t xDtypeSize, int64_t& tUbFactor,
+                                        int64_t& tCoreLoop, int64_t& tUbFactorTail) {
     
     int64_t blockFactorAlignX = Ops::Base::CeilAlign(tCoreNum * n_ * n_, ubBlockX);
     if (blockFactorAlignX * 4  <= ubSizeUsed_ / xDtypeSize) {
