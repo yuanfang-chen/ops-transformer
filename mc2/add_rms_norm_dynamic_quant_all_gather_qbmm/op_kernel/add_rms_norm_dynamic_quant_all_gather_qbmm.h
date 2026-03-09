@@ -35,8 +35,8 @@
 
 namespace AddRmsNormDynamicQuantAllGatherQbmmImpl {
 
-#define TemplateMC2TypeClass typename X1Type, typename ScaleType, bool isOptionalOutput, bool IsSmoothScaleExist
-#define TemplateMC2TypeFunc X1Type, ScaleType, isOptionalOutput, IsSmoothScaleExist
+#define TemplateMC2TypeClass typename X1Type, typename ScaleType, bool isCVSync, bool isOptionalOutput, bool isSmoothScale
+#define TemplateMC2TypeFunc X1Type, ScaleType, isCVSync, isOptionalOutput, isSmoothScale
 using namespace AscendC;
 using namespace AllGatherImpl;
 
@@ -86,7 +86,7 @@ private:
     __aicore__ inline void DequantProcess();
 
     TPipe *tpipe_{nullptr};
-    AllGatherMte<int8_t, float, int8_t, isOptionalOutput> allGatherMte_;  // allGather 相关实现
+    AllGatherMte<int8_t, float, int8_t, isCVSync, isOptionalOutput> allGatherMte_;  // allGather 相关实现
     GlobalTensor<X1Type> x1GMTensor_;
     GlobalTensor<int8_t> x2GMTensor_;
     GlobalTensor<X1Type> residualGMTensor_;
@@ -227,13 +227,15 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     tpipe_->InitBuffer(zOutQueue_, BUFFER_NUM, axisKaAlignSize_);
     tpipe_->InitBuffer(x1OutQueue_, BUFFER_NUM, axisKaAlignInt8Size_);
     tpipe_->InitBuffer(gammaBuf_, axisKaAlignFloatSize_); // 对齐32B
-    tpipe_->InitBuffer(smoothScaleBuf_, axisKaAlignFloatSize_); // 对齐32B
     tpipe_->InitBuffer(x1TempBuf_, axisKaAlignFloatSize_);
     tpipe_->InitBuffer(yTempBuf_, axisKaAlignFloatSize_);
     gammaTensor_ = gammaBuf_.Get<float>();
-    smoothScaleTensor_ = smoothScaleBuf_.Get<float>();
     xLocalTensorFp32_ = x1TempBuf_.Get<float>();
     yLocalTensorFp32_ = yTempBuf_.Get<float>();
+    if constexpr (isSmoothScale) {
+        tpipe_->InitBuffer(smoothScaleBuf_, axisKaAlignFloatSize_); // 对齐32B
+        smoothScaleTensor_ = smoothScaleBuf_.Get<float>();
+    }
 
     uint64_t winOffset = Ceil(rankSize_ * axisM_ * axisKa_ * sizeof(int8_t), WIN_ALIGN) * WIN_ALIGN;
     GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn);
@@ -318,8 +320,10 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::DynamicQuant(int32_t offset)
 {
     // smooth
-    Mul(yLocalTensorFp32_, xLocalTensorFp32_, smoothScaleTensor_, axisKa_); // y * smooth
-    PipeBarrier<PIPE_V>();
+    if constexpr (isSmoothScale) {
+        Mul(yLocalTensorFp32_, xLocalTensorFp32_, smoothScaleTensor_, axisKa_); // y * smooth
+        PipeBarrier<PIPE_V>();
+    }
  
     // scale
     float maxTemp;
@@ -417,7 +421,9 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::Add2RmsNormDynamicQuantProcess()
 {
     DataCopyEx(gammaTensor_, gammaGMTensor_, axisKa_);
-    DataCopyEx(smoothScaleTensor_, smoothScaleGMTensor_, axisKa_);
+    if constexpr (isSmoothScale) {
+        DataCopyEx(smoothScaleTensor_, smoothScaleGMTensor_, axisKa_);
+    }
 
     uint32_t startRowId = 0;
     uint32_t endRowId = 0;
@@ -535,8 +541,12 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         CalcOffset(0, mCoreIndx, nCoreIndx);
         uint32_t mBlockIdx = aicId_ % cvStateRowNum_;
         for (uint32_t kBlockIdx = 0; kBlockIdx < tileK_; kBlockIdx++) {
-            if (kBlockIdx % 2 == 0) {
-                CrossCoreWaitFlag(6);
+            if constexpr (isCVSync) {
+                CheckCvFlagReady(mBlockIdx, kBlockIdx, singleCoreMUpdate);
+            } else {
+                if (kBlockIdx % 2 == 0) {
+                    CrossCoreWaitFlag(6);
+                }
             }
             // enPartialSum 要求 singleCoreM == baseM, singleCoreN == baseN（当前N方向没有尾块）
             MMCompute(singleCoreM_, singleCoreNUpdate, kBlockIdx);
@@ -652,13 +662,11 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         gm2UbParams.srcStride = (n_ - curAivN) * sizeof(int32_t);
         uint32_t curAicAivOffset = mUbLoopIdx * ubCalcM_ * n_;
         DataCopyPad(srcLocal, mmOutGm_[offsetC_ + curAicAivOffset], gm2UbParams, padParams);
-        SetFlag<HardEvent::MTE2_V>(EVENT_ID0);
-        WaitFlag<HardEvent::MTE2_V>(EVENT_ID0);
+        SyncFunc<AscendC::HardEvent::MTE2_V>();
 
         LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
         Bf16ScaleGm2Ub(scaleLocal, scaleGMTensor_, padParams, baseNOfffset, curAicN);
-        SetFlag<HardEvent::MTE2_V>(EVENT_ID1);
-        WaitFlag<HardEvent::MTE2_V>(EVENT_ID1);
+        SyncFunc<AscendC::HardEvent::MTE2_V>();
         AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
         vecQueScale_.FreeTensor(scaleLocal);
 
@@ -694,14 +702,13 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
 
         AscendC::PipeBarrier<PIPE_V>();
         Cast(dstLocal, tmpdstLocal, RoundMode::CAST_RINT, curAivM * ubResAlignedN);
-        SetFlag<HardEvent::V_MTE3>(EVENT_ID2);
+        SyncFunc<AscendC::HardEvent::V_MTE3>();
         vecQueSrc_.FreeTensor(srcLocal);
         // dst from ub -> gm
         ub2GmParams.blockLen = curAivN * sizeof(X1Type); // yType=X1Type
         ub2GmParams.blockCount = curAivM;
         ub2GmParams.dstStride = (n_ - curAivN) * sizeof(X1Type); // yType=X1Type
         uint64_t aivOffset = mUbLoopIdx * ubCalcM_ * n_;
-        WaitFlag<HardEvent::V_MTE3>(EVENT_ID2);
         DataCopyPad(outputGMTensor_[offsetC_ + baseMOfffset + baseNOfffset + aivOffset], dstLocal, ub2GmParams);
         vecQueOut_.FreeTensor(dstLocal);
     }
