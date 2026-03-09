@@ -107,17 +107,18 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
 {
     auto kCacheDesc = context_->GetInputDesc(INDEX_INPUT_KEY_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, kCacheDesc);
-    ge::DataType kCacheDType_ = kCacheDesc->GetDataType();
+    ge::DataType kCacheDType = kCacheDesc->GetDataType();
     ge::Format kCacheFormat = kCacheDesc->GetFormat().GetStorageFormat();
 
     // 校验数据类型是否合法
-    OP_CHECK_IF((KV_SUPPORT_DTYPE.find(kCacheDType_) == KV_SUPPORT_DTYPE.end()),
+    OP_CHECK_IF((KV_SUPPORT_DTYPE.find(kCacheDType) == KV_SUPPORT_DTYPE.end()),
                 OP_LOGE(context_,
                         "key_cache dtype only support [float32, float16, bf16,"
                         " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
                 return ge::GRAPH_FAILED);
 
-    cacheDTypeByteSize_ = tilingDataTypeByteTable.find(kCacheDType_)->second;
+    uint32_t kCacheDTypeByteSize = tilingDataTypeByteTable.find(kCacheDType)->second;
+    keyByteSize_ = kCacheDTypeByteSize;
 
     auto kCacheStoreShape = context_->GetInputShape(INDEX_INPUT_KEY_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, kCacheStoreShape);
@@ -127,6 +128,8 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
     OP_CHECK_IF(kCacheDimNum_ != 4,
                 OP_LOGE(context_, "key_cache dimension must be 4, but got %zu. Please check.", kCacheDimNum_),
                 return ge::GRAPH_FAILED);
+    kCacheShape_.SetDim(3, kCacheShape_.GetDim(3) * kCacheDTypeByteSize);
+
     for (size_t i = 0; i < kCacheDimNum_; i++) {
         OP_CHECK_IF(kCacheShape_.GetDim(i) <= 0,
                     OP_LOGE(context_, "key_cache.shape[%zu] must be positive, Please check.", i),
@@ -137,8 +140,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
     blockSize_ = kCacheShape_.GetDim(1);
     // 当数据格式为NZ时
     if (!isCacheModeNorm_) {
-        uint32_t kCacheByteAlign = BLOCK_SIZE / cacheDTypeByteSize_;
-        OP_CHECK_IF(kCacheShape_.GetDim(kCacheDimNum_ - 1) != kCacheByteAlign,
+        OP_CHECK_IF(kCacheShape_.GetDim(kCacheDimNum_ - 1) != BLOCK_SIZE,
                     OP_LOGE(context_, "key_cache.shape[3](%ld) must align and equal to 32B, please check.",
                             kCacheShape_.GetDim(kCacheDimNum_ - 1)),
                     return ge::GRAPH_FAILED);
@@ -169,6 +171,8 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
                         "value_cache dtype only support [float32, float16, bf16,"
                         " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
                 return ge::GRAPH_FAILED);
+    uint32_t vCacheDTypeByteSize = tilingDataTypeByteTable.find(vCacheDType)->second;
+    valueByteSize_ = vCacheDTypeByteSize;
 
     auto vCacheStoreShape = context_->GetInputShape(INDEX_INPUT_VALUE_CACHE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, vCacheStoreShape);
@@ -178,15 +182,14 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
     OP_CHECK_IF(vCacheDimNum_ != 4,
                 OP_LOGE(context_, "value_cache dimension must be 4, but got %zu. Please check.", vCacheDimNum_),
                 return ge::GRAPH_FAILED);
+    vCacheShape_.SetDim(3, vCacheShape_.GetDim(3) * vCacheDTypeByteSize);
 
     // 当数据格式为NZ时，需要检查尾轴是否与32B对齐。kcache和vcache除第1维，其他轴必须相等。
     // 当数据格式为ND时，kcache和vcache的shape的非尾轴必须相等。
     size_t skipAxis = vCacheDimNum_ - 1;
     if (!isCacheModeNorm_) {
         skipAxis = 1;
-        uint32_t vCacheDtypeSize = static_cast<uint32_t>(tilingDataTypeByteTable.find(vCacheDType)->second);
-        uint32_t vCacheByteAlign = BLOCK_SIZE / vCacheDtypeSize;
-        OP_CHECK_IF(vCacheShape_.GetDim(vCacheDimNum_ - 1) != vCacheByteAlign,
+        OP_CHECK_IF(vCacheShape_.GetDim(vCacheDimNum_ - 1) != BLOCK_SIZE,
                     OP_LOGE(context_, "value_cache last dimension must align and equal to 32B, please check."),
                     return ge::GRAPH_FAILED);
         OP_CHECK_IF(
@@ -304,6 +307,8 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputKey()
     OP_CHECK_IF(keyDimNum != keyDimExpect,
                 OP_LOGE(context_, "key dimension must be %u, but got %zu. Please check.", keyDimExpect, keyDimNum),
                 return ge::GRAPH_FAILED);
+    uint32_t keyDTypeByteSize = tilingDataTypeByteTable.find(keyDType)->second;
+    keyShape_.SetDim(keyDimNum - 1, keyShape_.GetDim(keyDimNum - 1) * keyDTypeByteSize);
     for (size_t i = 0; i < keyDimNum; i++) {
         OP_CHECK_IF(keyShape_.GetDim(i) <= 0, OP_LOGE(context_, "key.shape[%zu] must be positive, please check.", i),
                     return ge::GRAPH_FAILED);
@@ -363,6 +368,8 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputValue()
         valueDimNum != valueDimExpect,
         OP_LOGE(context_, "value dimension must be %u, but got %zu. Please check.", valueDimExpect, valueDimNum),
         return ge::GRAPH_FAILED);
+    uint32_t valueDTypeByteSize = tilingDataTypeByteTable.find(valueDType)->second;
+    valueShape_.SetDim(valueDimNum - 1, valueShape_.GetDim(valueDimNum - 1) * valueDTypeByteSize);
     for (size_t i = 0; i < valueDimNum - 1; i++) {
         OP_CHECK_IF(valueShape_.GetDim(i) != keyShape_.GetDim(i),
                     OP_LOGE(context_, "value.shape[%zu] %ld is not equal to key.shape[%zu] %ld, please check.", i,
@@ -464,12 +471,12 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     int64_t batchPerCore = Ops::Base::CeilDiv(batchCount_, coreNum_);
     needCoreNum_ = static_cast<uint32_t>(std::min(Ops::Base::CeilDiv(batchCount_, batchPerCore), coreNum_));
     // uint32_t batchTail = batchCount_ - batchPerCore * (needCoreNum - 1);
-    uint32_t tileBase = BLOCK_SIZE / cacheDTypeByteSize_;
+    uint32_t tileBase = BLOCK_SIZE;
 
     // 计算UB最大能放下的KV Cache大小
     uint32_t seqLenAccumSize = 1024;
     uint32_t factor = (ubSize_ - UB_REVERSE - seqLenAccumSize * DOUBLE_BUFFER * indexByteSize_ - BLOCK_SIZE) /
-                      (tileBase * DOUBLE_BUFFER * cacheDTypeByteSize_);
+                      (tileBase * DOUBLE_BUFFER);
     uint64_t cacheBlockK = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeK_);
     uint64_t cacheBlockV = static_cast<uint64_t>(blockSize_) * static_cast<uint64_t>(hiddenSizeV_);
     uint64_t maxUbHiddenSizeK =
@@ -482,10 +489,15 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     // 动态调整: 如果有多余空间，就用于累加和的计算
     if (maxUbHiddenSizeK == cacheBlockK || maxUbHiddenSizeV == cacheBlockV) {
         uint32_t spareBuffer =
-            ubSize_ - UB_REVERSE - maxUbHiddenSize * DOUBLE_BUFFER * cacheDTypeByteSize_ - BLOCK_SIZE;
+            ubSize_ - UB_REVERSE - maxUbHiddenSize * DOUBLE_BUFFER - BLOCK_SIZE;
         seqLenAccumSize = Ops::Base::CeilDiv(spareBuffer / DOUBLE_BUFFER, BLOCK_SIZE) * BLOCK_SIZE / indexByteSize_;
     }
 
+    hiddenSizeK_ /= keyByteSize_;
+    hiddenSizeV_ /= valueByteSize_;
+    maxUbHiddenSizeK /= keyByteSize_;
+    maxUbHiddenSizeV /= valueByteSize_;
+    maxUbHiddenSize /= keyByteSize_;
     // 配置tilingdata
     tilingData_.set_batchCount(batchCount_);
     tilingData_.set_batchPerCore(batchPerCore);
@@ -500,6 +512,19 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     tilingData_.set_maxUbHiddenSizeV(maxUbHiddenSizeV);
     tilingData_.set_maxUbHiddenSize(maxUbHiddenSize);
     tilingData_.set_kvCacheBlockSize(blockSize_);
+    fprintf(stderr, "batchCount: %lu\n", static_cast<uint64_t>(batchCount_));
+    fprintf(stderr, "batchPerCore: %lu\n", static_cast<uint64_t>(batchPerCore));
+    fprintf(stderr, "needCoreNum: %lu\n", static_cast<uint64_t>(needCoreNum_));
+    fprintf(stderr, "seqLenAccumSize: %lu\n", static_cast<uint64_t>(seqLenAccumSize));
+    fprintf(stderr, "blockTableWidth: %lu\n", blockTableWidth_);
+    fprintf(stderr, "numBlocks: %lu\n", static_cast<uint64_t>(numBlocks_));
+    fprintf(stderr, "hiddenSizeK: %lu\n", hiddenSizeK_);
+    fprintf(stderr, "hiddenSizeV: %lu\n", hiddenSizeV_);
+    fprintf(stderr, "numTokens: %lu\n", numTokens_);
+    fprintf(stderr, "maxUbHiddenSizeK: %lu\n", maxUbHiddenSizeK);
+    fprintf(stderr, "maxUbHiddenSizeV: %lu\n", maxUbHiddenSizeV);
+    fprintf(stderr, "maxUbHiddenSize: %lu\n", maxUbHiddenSize);
+    fprintf(stderr, "blockSize: %lu\n", blockSize_);
 
     // 根据属性设置tilingkey
     for (const auto &item : tilingKeyTable) {
