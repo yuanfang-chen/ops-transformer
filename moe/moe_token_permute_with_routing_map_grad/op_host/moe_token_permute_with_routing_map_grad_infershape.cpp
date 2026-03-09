@@ -19,7 +19,7 @@ namespace ops {
 static ge::graphStatus InferShapeForMoeTokenPermuteWithRoutingMapGrad(gert::InferShapeContext* context)
 {
     const gert::Shape* permuted_token_output_grad_shape = context->GetInputShape(0);
-    const int* tokens_num = context->GetAttrs()->GetAttrPointer<int>(1);
+    const int64_t* tokens_num = context->GetAttrs()->GetAttrPointer<int64_t>(1);
     int64_t tokensNum = static_cast<int64_t>(*tokens_num);
 
     int64_t hidden_size = permuted_token_output_grad_shape->GetDim(1);
