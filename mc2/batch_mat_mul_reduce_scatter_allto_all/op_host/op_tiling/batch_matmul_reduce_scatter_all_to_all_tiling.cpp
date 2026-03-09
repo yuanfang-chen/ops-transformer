@@ -33,7 +33,7 @@
 #include "mc2_log.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "batch_matmul_reduce_scatter_all_to_all_formulaic_tiling.h"
 #include "op_mc2.h"
 #include "mc2_moe_utils.h"
