@@ -120,6 +120,7 @@ private:
     
     // Runtime information
     int64_t fixedUBSize = 0;
+    
     // Input tensor shape information
     int64_t batchSize_ = 0;
     int64_t seqLen_ = 0;

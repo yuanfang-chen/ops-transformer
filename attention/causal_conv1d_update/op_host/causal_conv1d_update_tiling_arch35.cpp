@@ -21,7 +21,7 @@ namespace optiling {
 
 
 #define TILING_KEY_UPDATE_BF16 20000
-#define TILING_KEY_UPDATE_FP16 20000
+#define TILING_KEY_UPDATE_FP16 20001
 
 bool CausalConv1dUpdateTiling::IsCapable()
 {
@@ -39,10 +39,6 @@ ge::graphStatus CausalConv1dUpdateTiling::GetPlatformInfo()
         ubSize_ = compileInfoPtr->ubSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-        uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
-        size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
-        currentWorkspace[0] = static_cast<size_t>(0UL + sysWorkspaceSize);
-
         totalCoreNum_ = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
         if (totalCoreNum_ == 0UL) {
             OP_LOGE(context_->GetNodeName(), "coreNum is 0");
@@ -164,7 +160,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
     auto convStatesOriginShape = convStatesShape->GetOriginShape();
     // stateLen is the second dimension of convStates [-1, stateLen, dim]
-    stateLen_ = convStatesOriginShape.GetDim(1);
+    stateLen_ = convStatesOriginShape.GetDim(DIM_1);
 
     // Perform all validations
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
@@ -238,21 +234,19 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
                         convStatesOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
-    // For 3D input, validate conv states shape: [-1, K-1+m, dim]
+    // conv states shape: [-1, K-1+m, dim]
     // The second dimension should be K-1 + m = K-1 + (seqLen-1) = K + seqLen - 2
-    if (xInputMode_ == X_INPUT_3D) {
-        int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
-        int64_t cacheLen = convStatesOriginShape.GetDim(1);
-        OP_CHECK_IF(cacheLen != expectedCacheLen,
-                    OP_LOGE(context_->GetNodeName(),
-                            "ConvStates length must be K-1+m = %ld, but got %ld",
-                            expectedCacheLen, cacheLen),
-                    return ge::GRAPH_FAILED);
-    }
-    // For 2D input, skip seqLen-based validation as seqLen_ is not set
+    // state_len must be greater than the maximum of width-1+seq_len-1 for all batches. 
+    int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
+    int64_t state_len = convStatesOriginShape.GetDim(DIM_1);
+    OP_CHECK_IF(state_len < expectedCacheLen,
+                OP_LOGE(context_->GetNodeName(),
+                        "state_len must be greater than width-1+seq_len-1 = %ld, but got %ld",
+                        expectedCacheLen, state_len),
+                return ge::GRAPH_FAILED);
 
     // Validate conv states dim matches x dim
-    int64_t convStatesDim = convStatesOriginShape.GetDim(2);
+    int64_t convStatesDim = convStatesOriginShape.GetDim(DIM_2);
     OP_CHECK_IF(convStatesDim != dim_,
                 OP_LOGE(context_->GetNodeName(),
                         "ConvStates dimension must match X dimension %ld, but got %ld",
@@ -273,14 +267,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
     auto indicesOriginShape = indicesShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(indicesOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(indicesOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "CacheIndices dimension number must be 1, but got %lu",
                         indicesOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape matches batch size
-    int64_t indicesLen = indicesOriginShape.GetDim(0);
+    int64_t indicesLen = indicesOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(indicesLen != batchSize_,
                 OP_LOGE(context_->GetNodeName(),
                         "CacheIndices length must match batch size %ld, but got %ld",
@@ -303,14 +297,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
     auto acceptOriginShape = acceptShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(acceptOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(acceptOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "NumAcceptedToken dimension number must be 1, but got %lu",
                         acceptOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape matches batch size
-    int64_t acceptLen = acceptOriginShape.GetDim(0);
+    int64_t acceptLen = acceptOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(acceptLen != batchSize_,
                 OP_LOGE(context_->GetNodeName(),
                         "NumAcceptedToken length must match batch size %ld, but got %ld",
@@ -331,14 +325,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
     auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(queryStartLocOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(queryStartLocOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "QueryStartLoc dimension number must be 1, but got %lu",
                         queryStartLocOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape: should be (batch + 1,)
-    int64_t queryStartLocLen = queryStartLocOriginShape.GetDim(0);
+    int64_t queryStartLocLen = queryStartLocOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(queryStartLocLen != batchSize_ + 1,
                 OP_LOGE(context_->GetNodeName(),
                         "QueryStartLoc length must be batch_size + 1 = %ld, but got %ld",
@@ -426,7 +420,8 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenType()
 {
     // This is an optional input
-    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKEN_INDEX) == nullptr) {
+    auto numAcceptedTokenDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKEN_INDEX);
+    if (numAcceptedTokenDesc == nullptr) {
         return ge::GRAPH_SUCCESS;
     }
 
@@ -567,12 +562,11 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
     int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
 
     // For 3D input (xInputMode_ == X_INPUT_3D), only include cacheIndicesUBSize and numAcceptedTokensUBSize
+    fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
     // For 2D input (xInputMode_ == X_INPUT_2D), include queryStartLocUBSize
-    if (xInputMode_ == X_INPUT_3D) {
-        fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
-    } else {
+    if (xInputMode_ == X_INPUT_2D) {
         int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
-        fixedUBSize = queryStartLocUBSize + cacheIndicesUBSize + numAcceptedTokensUBSize;
+        fixedUBSize += queryStartLocUBSize;
     }
 
     // Limit core number based on data size
@@ -852,6 +846,11 @@ ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
 
 ge::graphStatus CausalConv1dUpdateTiling::GetWorkspaceSize()
 {
+    auto platformInfo = context_->GetPlatformInfo();
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+    size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
+    currentWorkspace[0] = static_cast<size_t>(0UL + sysWorkspaceSize);
     return ge::GRAPH_SUCCESS;
 }
 
