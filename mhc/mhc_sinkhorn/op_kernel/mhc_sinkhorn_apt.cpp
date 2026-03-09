@@ -17,7 +17,7 @@
 using namespace AscendC;
 using namespace MhcSinkhorn;
 
-#define TILING_KEY_DATA_NUM_FLOAT32_TENSOR 1000000
+#define TILING_KEY_DATA_NUM_FLOAT32_TENSOR 1
 
 extern "C" __global__ __aicore__ void mhc_sinkhorn(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, 
                                             GM_ADDR sum_out, GM_ADDR workSpace, GM_ADDR tiling)
@@ -30,9 +30,7 @@ extern "C" __global__ __aicore__ void mhc_sinkhorn(GM_ADDR h_res, GM_ADDR y, GM_
     REGISTER_TILING_DEFAULT(MhcSinkhornTilingData);
     GET_TILING_DATA(tilingData, tiling);
     AscendC::TPipe pipe;
-    if (TILING_KEY_IS(TILING_KEY_DATA_NUM_FLOAT32_TENSOR)) {
-        MhcSinkhornSimd op(pipe, tilingData);
-        op.Init(h_res, y, norm_out, sum_out, tiling);
-        op.Process();
-    } 
+    MhcSinkhornSimd op(pipe, tilingData);
+    op.Init(h_res, y, norm_out, sum_out, tiling);
+    op.Process();
 }

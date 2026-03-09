@@ -17,7 +17,6 @@
 #include "register/op_def_registry.h"
 #include "tiling/tiling_api.h"
 #include "platform/platform_info.h"
-#include "error_util.h"
 #include "log/log.h"
 #include "mhc_sinkhorn_tiling.h"
 
@@ -205,7 +204,7 @@ ge::graphStatus MhcSinkhornTiling::DoLibApiTiling()
 
 uint64_t MhcSinkhornTiling::GetTilingKey() const
 {
-    int64_t tilingKey = 1000000;
+    int64_t tilingKey = 1;
     return GET_TPL_TILING_KEY(tilingKey);
 }
 
