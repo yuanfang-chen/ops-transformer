@@ -27,7 +27,7 @@
 #include "op_kernel/mc2_tiling_struct.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
 #include "mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "context_transfer.h"
 #include "tiling_base/tiling_base.h"
 #include "tiling_base/tiling_templates_registry.h"
