@@ -340,7 +340,7 @@ void KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcSplitInfo(SplitContext &spl
 int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
     uint32_t s1Size, uint32_t s2Size)
 {
-    auto mode = static_cast<SparseMode>(sparseMode_);
+    auto mode = static_cast<SparseMode>(oriMaskMode_);
     if (mode == SparseMode::BAND) {
         return static_cast<int64_t>(s1Size) - static_cast<int64_t>(s2Size) + preToken_;
     }
@@ -350,7 +350,7 @@ int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcPreTokenLeftUp(
 int64_t KvQuantSparseAttnSharedkvMetadataCpuKernel::CalcNextTokenLeftUp(
     uint32_t s1Size, uint32_t s2Size)
 {
-    auto mode = static_cast<SparseMode>(sparseMode_);
+    auto mode = static_cast<SparseMode>(oriMaskMode_);
     switch (mode) {
         case SparseMode::DEFAULT_MASK:
         case SparseMode::ALL_MASK:
