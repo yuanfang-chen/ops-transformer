@@ -110,16 +110,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_fp16_nd_single
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -175,16 +175,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_with_o
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -240,16 +240,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_int8_int4)
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     // NZ格式: (N1, K1, K0, N0)，其中N0=16, K0=32 (对于int4)
     size_t N1 = N / 16;
@@ -308,16 +308,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_multi_
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -373,16 +373,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_transb
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -438,16 +438,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_19
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
     size_t K1 = K / 32;
@@ -505,16 +505,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_no_spl
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -570,16 +570,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_fp16_output)
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
     size_t K1 = K / 32;
@@ -637,16 +637,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_large_
     size_t N = 8192; // 大N值
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
@@ -702,16 +702,16 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_25
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        24,                                       // aicNum
-        48,                                       // aivNum
-        196608,                                   // ubSize
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
         524288,                                   // l1Size
         196608,                                   // l2Size
-        131072,                                   // l0CSize
+        262144,                                   // l0CSize
         65536,                                    // l0ASize
         65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND910B, // ASCEND910B
-        NpuArch::DAV_2201,
+        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
     size_t K1 = K / 32;
