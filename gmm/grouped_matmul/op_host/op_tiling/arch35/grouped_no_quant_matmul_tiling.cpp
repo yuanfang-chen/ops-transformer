@@ -537,7 +537,7 @@ bool GroupedNoQuantMatmulTiling::SplitKSingleXSeparatedWeight(const gert::Tiling
 
     groupNum_ += 1U;
     int64_t n = wTensorShape->GetDim(weightNDim_) * nzfactor_;
-    n_ = std::max(n_, static_cast<uint64_t>(n))
+    n_ = std::max(n_, static_cast<uint64_t>(n));
   }
   m_ = static_cast<uint64_t>(m);
   k_ = static_cast<uint64_t>(k);
