@@ -39,6 +39,7 @@ static constexpr int64_t DROP_PAD_COL = 1;
 static constexpr int64_t DROP_LESS_ROW = 2;
 static constexpr int64_t DROP_PAD_ROW = 3;
 static constexpr int64_t INPUT_BUFFER_NUM = 8;  // expaned_x bias x1 x2
+static constexpr int64_t CONST_EXPERT_BUFFER_NUM = 3;  // expaned_x bias x1 x2
 static constexpr int64_t OUTPUT_BUFFER_NUM = 1; // y
 static constexpr uint64_t FULL_LOAD_H_BASE_TILING_KEY = 10000;
 static constexpr uint64_t SPLIT_H_BASE_TILING_KEY = 20000;
@@ -744,7 +745,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFo
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
-                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_)  - static_cast<int64_t>(!hasConstExpert_) * 3;
+                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_) - static_cast<int64_t>(!hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM;
     int64_t totalBufferNum = actualInputNum + OUTPUT_BUFFER_NUM + (dtype != ge::DataType::DT_FLOAT ? 1 : 0);
     int64_t hFactor = ubSize_ / DOUBLE_BUFFER / dtypeSize / totalBufferNum;
     int64_t hLoop = Ops::Base::CeilDiv(h, hFactor);
@@ -845,9 +846,9 @@ bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
     int64_t hasScalevalue = hasScales_ ? scalesAlignedByte : 0;
     // 8. 计算所有数据的总字节数（核心：DOUBLE_BUFFER是双缓冲机制，提升流水线效率）
     int64_t totalSize =
-        expandedXAlignedByte + hasBiasvalue + hasXvalue +
+        expandedXAlignedByte + hasBiasvalue +
         DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) +
-        static_cast<int64_t>(hasX_) + static_cast<int64_t>(hasConstantExpert_) * 3) * hAlignedByte +
+        static_cast<int64_t>(hasX_) + static_cast<int64_t>(hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM) * hAlignedByte +
                          hAligned32Byte * OUTPUT_BUFFER_NUM);
     return totalSize <= ubSize_;
 }

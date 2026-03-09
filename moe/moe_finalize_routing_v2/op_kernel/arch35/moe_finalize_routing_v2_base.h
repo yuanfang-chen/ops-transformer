@@ -317,8 +317,7 @@ __aicore__ inline void VFProcessExpandXBiasScaleOptimized(
 template <typename T, typename S>
 __aicore__ inline void ProcessExpandXBiasScaleOptimized(
     const LocalTensor<float>& yLocal, const LocalTensor<T>& expandedXLocal, const LocalTensor<T>& biasLocal,
-    const LocalTensor<S>& scalesLocal, uint16_t validK,
-    uint16_t processLen, bool hasBias, bool hasScale)
+    const LocalTensor<S>& scalesLocal, uint16_t validK, uint16_t processLen, bool hasBias, bool hasScale)
 {
     if (hasBias && hasScale) {
         VFProcessExpandXBiasScaleOptimized<T, S, true, true>(
@@ -331,7 +330,7 @@ __aicore__ inline void ProcessExpandXBiasScaleOptimized(
             yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);
     } else {
         VFProcessExpandXBiasScaleOptimized<T, S, false, false>(
-            yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);    
+            yLocal, expandedXLocal, biasLocal, scalesLocal, validK, processLen);
     }
 }
 

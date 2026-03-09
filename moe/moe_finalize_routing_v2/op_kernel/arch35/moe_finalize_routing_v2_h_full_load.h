@@ -93,6 +93,7 @@ public:
                                                                        tilingData->tailRowFactorOfFormerBlock;
         for (int64_t rowOuterIdx = 0; rowOuterIdx < rowOuterLoop; rowOuterIdx += 1) {
             int64_t rowInnerLoop = (rowOuterIdx == rowOuterLoop - 1) ? tailRowFactor : tilingData->rowFactor;
+            // 行循环处理rowInnerLoop个BS
             if (hasX1) {
                 x1Local = x1Que.AllocTensor<T>();
                 int64_t x1GmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
@@ -130,6 +131,7 @@ public:
     }
 
 private:
+    // rowInnerLoop : rowFactor，就是每次循环处理的BS数
     __aicore__ inline void ProcessYWithInput(int64_t rowOuterIdx, int64_t rowInnerLoop)
     {
         for (int64_t rowInnerIdx = 0; rowInnerIdx < rowInnerLoop; rowInnerIdx += 1) {
