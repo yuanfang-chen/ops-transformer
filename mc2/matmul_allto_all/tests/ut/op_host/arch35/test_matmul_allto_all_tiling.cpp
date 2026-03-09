@@ -1522,7 +1522,7 @@ static MatmulAlltoAllTestParam g_testCases[] = {
     ge::GRAPH_FAILED,
     50UL, "", {1069023232}, 0},
 
-    {"mx_quant_matmul_alltoall_case_legal_bias_dtype_float4_e2m1_float4_e2m1_bfloat16",
+    {"mx_quant_matmul_alltoall_case_legal_bias_dtype_float4_e2m1_float4_e2m1_bfloat16_k_not_even",
     {28543, 3071}, ge::DT_FLOAT4_E2M1, ge::FORMAT_ND,
     {9216, 3071}, ge::DT_FLOAT4_E2M1, ge::FORMAT_ND,
     {9216}, ge::DT_FLOAT, ge::FORMAT_ND,
