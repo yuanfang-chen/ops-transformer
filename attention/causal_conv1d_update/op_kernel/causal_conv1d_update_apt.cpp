@@ -36,10 +36,13 @@ extern "C" __global__ __aicore__ void causal_conv1d_update(
     TPipe pipe;
     // Check if FP16 or BF16
     // Assuming FP16 for now (can be extended to support BF16)
+    PRINTF("START UPDATE");
     if (TILING_KEY_IS(TILING_KEY_UPDATE_FP16)) {
         CausalConv1dUpdateKernel<half> op(&pipe);
-        op.Init(x, weight, convStates, cacheIndices, numAcceptedToken, queryStartLoc,
-               y, &tilingData);
+        PRINTF("START Init");
+        op.Init(x, weight, convStates, queryStartLoc, cacheIndices, numAcceptedToken, y, &tilingData);
+        PRINTF("START Process");
         op.Process();
+        PRINTF("END Process");
     }
 }
