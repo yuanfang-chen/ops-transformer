@@ -38,7 +38,7 @@ static constexpr int64_t DROP_LESS_COL = 0;
 static constexpr int64_t DROP_PAD_COL = 1;
 static constexpr int64_t DROP_LESS_ROW = 2;
 static constexpr int64_t DROP_PAD_ROW = 3;
-static constexpr int64_t INPUT_BUFFER_NUM = 4;  // expaned_x bias x1 x2
+static constexpr int64_t INPUT_BUFFER_NUM = 8;  // expaned_x bias x1 x2
 static constexpr int64_t OUTPUT_BUFFER_NUM = 1; // y
 static constexpr uint64_t FULL_LOAD_H_BASE_TILING_KEY = 10000;
 static constexpr uint64_t SPLIT_H_BASE_TILING_KEY = 20000;
@@ -109,6 +109,7 @@ protected:
     bool hasScales_{false};
     bool hasBias_{false};
     bool hasX_{false};   // 有x输入，且constantEnd - constantStart >= 0
+    bool hasConstantExpert_{false};
     bool rowKHFullLoad_{false};
     bool kHFullLoad_{false};
     bool hFullLoad_{false};
@@ -562,7 +563,10 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
     // 新增x， shape与bias一致
     auto xDesc = context_->GetOptionalInputDesc(X_IDX);
     hasX_ = xDesc != nullptr;
-
+    auto constExpertAlpha1Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA1_IDX);
+    auto constExpertAlpha2Desc = context_->GetOptionalInputDesc(CONST_EXPERT_ALPHA2_IDX);
+    auto constExpertVDesc = context_->GetOptionalInputDesc(CONST_EXPERT_V_IDX);
+    hasConstantExpert_ =  constExpertVDesc != nullptr && constExpertAlpha1Desc != nullptr && constExpertAlpha2Desc != nullptr;
     OP_CHECK_IF(
         CheckShapeAndDtypeIsValid() != ge::GRAPH_SUCCESS,
         OP_LOGE(context_->GetNodeName(), "check shapes and dtype are invalid."),
@@ -670,6 +674,7 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     tilingData->constExpertRangeNum = constExpertRangeNum;
 }
 
+// 切分的地方需要修改
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
     int64_t expandedXAlignedByte;
@@ -880,7 +885,7 @@ bool MoeFinalizeRoutingV2Regbase::IsHFullLoad()
     hAligned = hAlignedByte / dtypeSize;
     int64_t hAligned32Byte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * sizeof(float)), blockSize_) * blockSize_;
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
-                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_);
+                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_) - static_cast<int64_t>(!hasConstantExpert_) * 3;
     int64_t hasScalevalue = hasScales_ ? oneKAlignedByte : 0;
     int64_t totalSize =
         DOUBLE_BUFFER * (hAlignedByte * actualInputNum + hasScalevalue + hAligned32Byte * OUTPUT_BUFFER_NUM);

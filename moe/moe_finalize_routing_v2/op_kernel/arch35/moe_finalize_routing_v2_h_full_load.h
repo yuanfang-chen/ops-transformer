@@ -229,9 +229,7 @@ private:
             if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
                 // x = 0
                 // 直接填充0 到 expandedXLocal
-                T xVal(0.0);
-                AscendC::Duplicate(xLocal, xVal, tilingData->h);
-                AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
+                continue;
             }
             if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
                 // x = x[i]

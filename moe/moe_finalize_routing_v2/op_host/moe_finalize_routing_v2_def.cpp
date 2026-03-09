@@ -74,6 +74,9 @@ public:
             .Format({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND})
             .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
         this->Attr("drop_pad_mode").AttrType(OPTIONAL).Int(0);
+        this->Attr("zero_expert_range").AttrType(OPTIONAL).ListInt({});
+        this->Attr("copy_expert_range").AttrType(OPTIONAL).ListInt({});
+        this->Attr("constant_expert_range").AttrType(OPTIONAL).ListInt({});
         OpAICoreConfig membaseCfg;
         membaseCfg.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
@@ -230,9 +233,6 @@ public:
             .UnknownShapeFormat(
                 {ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND,
                  ge::FORMAT_ND, ge::FORMAT_ND, ge::FORMAT_ND});
-        regbaseCfg.Attr("zero_expert_range").AttrType(OPTIONAL).ListInt({});
-        regbaseCfg.Attr("copy_expert_range").AttrType(OPTIONAL).ListInt({});
-        regbaseCfg.Attr("constant_expert_range").AttrType(OPTIONAL).ListInt({});
         regbaseCfg.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
             .DynamicRankSupportFlag(true)
