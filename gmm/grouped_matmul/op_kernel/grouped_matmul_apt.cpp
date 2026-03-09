@@ -217,50 +217,61 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
 #if defined(V310_GMM_QUANT_MX) // mxfpx
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MX: B_NO_TRANS, A_NO_TRANS, DEQUANT_FIXP\n"); } }
         GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MX: B_TRANS, A_NO_TRANS, DEQUANT_FIXP\n"); } }
         GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
     }
 #endif
 #if defined(V310_GMM_QUANT_CUBE) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // scale64/perTensor/double perTensor
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_CUBE/PERTENSOR: B_NO_TRANS, A_NO_TRANS, DEQUANT_FIXP\n"); } }
         GMM_QUANT_IMPL_CLASS(false, false, GmmASWKernel);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_CUBE/PERTENSOR: B_TRANS, A_NO_TRANS, DEQUANT_FIXP\n"); } }
         GMM_QUANT_IMPL_CLASS(false, true, GmmASWKernel);
     }
 #endif
 #if defined(V310_GMM_QUANT_MX) || defined(V310_GMM_QUANT_PERTENSOR_CUBE) // mx/perTensor/double perTensor
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_FIXP) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MX/PERTENSOR: B_NO_TRANS, A_TRANS, DEQUANT_FIXP (EmptyTensor)\n"); } }
         GMM_QUANT_WITH_EMPTY_TENSOR_IMPL_CLASS(true, false, GmmASWKernel);
     }
 #endif
 #if defined(V310_GMM_QUANT_MIX) // perToken/SPLIT_K/scale bf16/fp32
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_VECTOR) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MIX: B_NO_TRANS, A_NO_TRANS, DEQUANT_VECTOR\n"); } }
         GMM_QUANT_MIX_IMPL_CLASS(false, false, GQmmMixRegbaseKernel);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_VECTOR) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MIX: B_TRANS, A_NO_TRANS, DEQUANT_VECTOR\n"); } }
         GMM_QUANT_MIX_IMPL_CLASS(false, true, GQmmMixRegbaseKernel);
     } else if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS
         && KERNEL_TYPE == GMM_DEQUANT_VECTOR) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_MIX: B_NO_TRANS, A_TRANS, DEQUANT_VECTOR\n"); } }
         GMM_QUANT_MIX_IMPL_CLASS(true, false, GQmmMixRegbaseKernel);
     }
 #endif
 #if defined(V310_GMM_QUANT_PERTILE)
     if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_PERGROUP_PERBLOCK) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_PERTILE: B_NO_TRANS, A_NO_TRANS, PERGROUP_PERBLOCK\n"); } }
         GMM_QUANT_GB_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::RowMajor,
                                 Cgmct::Gemm::layout::RowMajorAlign);
     } else if constexpr (QUANT_B_TRANS == GMM_TRANS && QUANT_A_TRANS == GMM_NO_TRANS
         && KERNEL_TYPE == GMM_PERGROUP_PERBLOCK) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_PERTILE: B_TRANS, A_NO_TRANS, PERGROUP_PERBLOCK\n"); } }
         GMM_QUANT_GB_IMPL_CLASS(Cgmct::Gemm::layout::RowMajor, Cgmct::Gemm::layout::ColumnMajor,
                                 Cgmct::Gemm::layout::RowMajorAlign);
     } else if constexpr (QUANT_B_TRANS == GMM_NO_TRANS && QUANT_A_TRANS == GMM_TRANS
         && KERNEL_TYPE == GMM_PERGROUP_PERBLOCK) {
+        if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] QUANT_PERTILE: B_NO_TRANS, A_TRANS, PERGROUP_PERBLOCK\n"); } }
         GMM_QUANT_GB_IMPL_CLASS(Cgmct::Gemm::layout::ColumnMajor, Cgmct::Gemm::layout::RowMajor,
                                 Cgmct::Gemm::layout::RowMajorAlign);
     }
@@ -273,6 +284,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_NO_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_512_BUF_NUM_DEFAULT
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT_INT8: NZ, PER_CH, 512_DEFAULT, RESPLIT, VCV\n"); } }
             INVOKE_GMM_WEIGHT_QUANT_VCV_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, S8S4_NZKN_G,
                                                            VEC_ANTIQUANT_CONFIG_4);
         } else if constexpr (W_TYPE == WQGMM_FRACTAL_NZ &&
@@ -282,6 +294,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_384_BUF_NUM_3 &&
             ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT &&
             ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT_INT8: NZ, PER_CH, 384_3, RESPLIT, VCV\n"); } }
             INVOKE_GMM_WEIGHT_QUANT_VCV_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, S8S4_NZKN_G,
                                                            VEC_ANTIQUANT_CONFIG_5);
         }
@@ -290,6 +303,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_MX && WQ_B_TRANS == WQGMM_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_DYNAMIC_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT_FP8: NZ, MX, TRANS, DYNAMIC_4, RESPLIT\n"); } }
             INVOKE_GMM_WEIGHT_QUANT_MXA8W4_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, MXA8W4_NZNK,
                                                               VEC_ANTIQUANT_CONFIG_DYNAMIC);
         }
@@ -298,6 +312,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_MX && WQ_B_TRANS == WQGMM_NO_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT_E8M0: NZ, MX, NO_TRANS, 256_4, RESPLIT\n"); } }
             INVOKE_GMM_WEIGHT_QUANT_RESPLIT_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, A16MXF4_NZKN,
                                                                VEC_ANTIQUANT_CONFIG_3);
         }
@@ -306,6 +321,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, NO_OFFSET, PER_CH, TRANS, 256_4, RESPLIT\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, true, QuantType::PER_CHANNEL, false,
                                                 QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_RESPLIT_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, wqmmCfg,
@@ -314,6 +330,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_TAIL_RESPLIT && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, HAS_OFFSET, PER_CH, TRANS, 256_4, RESPLIT\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, true, QuantType::PER_CHANNEL, true,
                                                    QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_RESPLIT_CONTROLLER_OP_IMPL(GMMWeightQuantResplitController, wqmmCfg,
@@ -322,6 +339,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_BASIC_BLOCK && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, NO_OFFSET, PER_CH, TRANS, 256_4, BASIC\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, true, QuantType::PER_CHANNEL, false,
                                                    QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_BASIC_CONTROLLER_OP_IMPL(GMMWeightQuantBasicController, wqmmCfg,
@@ -330,6 +348,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_BASIC_BLOCK && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, HAS_OFFSET, PER_CH, TRANS, 256_4, BASIC\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, true, QuantType::PER_CHANNEL, true,
                                                    QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_BASIC_CONTROLLER_OP_IMPL(GMMWeightQuantBasicController, wqmmCfg,
@@ -338,6 +357,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_NO_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_BASIC_BLOCK && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, NO_OFFSET, PER_CH, NO_TRANS, 256_4, BASIC\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, false, QuantType::PER_CHANNEL, false,
                                                    QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_BASIC_CONTROLLER_OP_IMPL(GMMWeightQuantBasicController, wqmmCfg,
@@ -346,6 +366,7 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
             && C_QUANT_TYPE == WQGMM_NONE && W_QUANT_TYPE == WQGMM_PER_CHANNEL && WQ_B_TRANS == WQGMM_NO_TRANS
             && WQ_A_TRANS == WQGMM_NO_TRANS && TEMPLATE_CUSTOM_SC == WQGMM_MTE2_INNER_SIZE_256_BUF_NUM_4
             && ALGORITHM_SUB_CATEGORY == WQGMM_N_FIRST_BASIC_BLOCK && ALGORITHM_CATEGORY == WQGMM_VECTOR_ANTIQUANT) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] ANTI_QUANT: ND, HAS_OFFSET, PER_CH, NO_TRANS, 256_4, BASIC\n"); } }
             static constexpr WqmmConfig wqmmCfg = {false, false, QuantType::PER_CHANNEL, true,
                                                    QuantType::NONE, CubeFormat::ND};
             INVOKE_GMM_WEIGHT_QUANT_BASIC_CONTROLLER_OP_IMPL(GMMWeightQuantBasicController, wqmmCfg,
@@ -356,25 +377,32 @@ REGISTER_TILING_DEFAULT(GMMQuantTilingData);
     REGISTER_TILING_DEFAULT(GMMNoQuantTilingData);
     if constexpr (NO_QUANT_B_TRANS == GMM_NO_TRANS && NO_QUANT_A_TRANS == GMM_NO_TRANS) {
         if constexpr (wFormat == CubeFormat::NZ) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] NO_QUANT: B_NO_TRANS, A_NO_TRANS, NZ\n"); } }
             GmmNoQuantAswt<layout::RowMajor, layout::Nz>(x, weight, bias, groupList, y, tiling);
         } else {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] NO_QUANT: B_NO_TRANS, A_NO_TRANS, ND\n"); } }
             GmmNoQuantAswt<layout::RowMajor, layout::RowMajor>(x, weight, bias, groupList, y, tiling);
         }
     } else if constexpr (NO_QUANT_B_TRANS == GMM_NO_TRANS && NO_QUANT_A_TRANS == GMM_TRANS) {    // x transposed
         if ASCEND_IS_AIV {
+            if (AscendC::GetBlockIdx() == 0) { AscendC::PRINTF("[GMM] NO_QUANT: B_NO_TRANS, A_TRANS, AIV EmptyTensor\n"); }
             EmptyTensor<DTYPE_Y>(x, weight, groupList, y, tiling);
         }
         if ASCEND_IS_AIC {
             if constexpr (wFormat == CubeFormat::NZ) {
+                if (AscendC::GetBlockIdx() == 0) { AscendC::PRINTF("[GMM] NO_QUANT: B_NO_TRANS, A_TRANS, AIC NZ\n"); }
                 GmmNoQuantAswt<layout::ColumnMajor, layout::Nz>(x, weight, bias, groupList, y, tiling);
             } else {
+                if (AscendC::GetBlockIdx() == 0) { AscendC::PRINTF("[GMM] NO_QUANT: B_NO_TRANS, A_TRANS, AIC ND\n"); }
                 GmmNoQuantAswt<layout::ColumnMajor, layout::RowMajor>(x, weight, bias, groupList, y, tiling);
             }
         }
     } else if constexpr (NO_QUANT_B_TRANS == GMM_TRANS && NO_QUANT_A_TRANS == GMM_NO_TRANS) {    // weight transposed
         if constexpr (wFormat == CubeFormat::NZ) {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] NO_QUANT: B_TRANS, A_NO_TRANS, NZ\n"); } }
             GmmNoQuantAswt<layout::RowMajor, layout::Zn>(x, weight, bias, groupList, y, tiling);
         } else {
+            if (AscendC::GetBlockIdx() == 0) { if ASCEND_IS_AIV { AscendC::PRINTF("[GMM] NO_QUANT: B_TRANS, A_NO_TRANS, ND\n"); } }
             GmmNoQuantAswt<layout::RowMajor, layout::ColumnMajor>(x, weight, bias, groupList, y, tiling);
         }
     }
