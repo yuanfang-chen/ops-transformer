@@ -25,7 +25,7 @@
 #include "quant_batch_matmul_v3/op_host/op_tiling/quant_batch_matmul_v3_tiling.h"
 #include "quant_batch_matmul_v3/op_host/op_tiling/arch35/adaptive_sliding_window_tiling.h"
 #include "op_kernel/mc2_tiling_struct.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_tiling/matmul_formulaic_tiling.h"
 #include "mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
 #include "tiling/mc2_tiling_utils.h"
 #include "context_transfer.h"
