@@ -276,7 +276,7 @@ ge::graphStatus ActualSeqLenChecker::CheckExistenceActualSeqLenQ(const FiaTiling
     if (qLayout == FiaLayout::TND || qLayout == FiaLayout::NTD) {
         OP_CHECK_IF(actualSeqLengthsQTensor == nullptr,
             OP_LOGE(fiaInfo.opName,
-                "actuanSeqLengthsQ does not exist. "
+                "actualSeqLengthsQ does not exist. "
                 "actualSeqLengthsQ must exist when the layout of query is TND or NTD."),
             return ge::GRAPH_FAILED);
     }
