@@ -85,12 +85,12 @@ private:
     ge::graphStatus ProcessBaseInputs();
     ge::graphStatus ProcessOptionalTensors();
     ge::graphStatus ProcessPseShift();
+    ge::graphStatus CheckTreeSparseMask();
     ge::graphStatus CheckTreeSparseMaskShape();
     ge::graphStatus CheckTndMaskShapeWithSparseMode();
     ge::graphStatus CheckMaskShapeWithQSeq() const;
     ge::graphStatus CheckAttenMaskShape();
     ge::graphStatus ProcessAttenMask();
-    ge::graphStatus ProcessSparseMode();
     ge::graphStatus CheckMlaQueryRopeDesc() const;
     ge::graphStatus CheckMlaQueryRopeBsndLayout(const gert::Shape &qRopeShape, const gert::Shape &qShape);
     ge::graphStatus CheckMlaQueryRopeBnsdLayout(const gert::Shape &qRopeShape, const gert::Shape &qShape);

@@ -526,8 +526,7 @@ ge::graphStatus IFATiling::GetRopeAndGqaFlag(const uint32_t sOfQuery, const uint
         ropeFlag_ = true;
     }
 
-    // 遗留问题：看路由条件放开的情况在做决定，现在先放开
-    if (sOfQuery > 1U && sOfQuery <= 16U && !ropeFlag_) {  // 投机推理场景，QS在1到32之间
+    if (sOfQuery > 1U && sOfQuery <= 16U && !ropeFlag_) {  // 投机推理场景，QS在1到16之间
         gqaMtpFlag_ = true;
     }
     if (kDimNum == 5U && !ropeFlag_) {
@@ -922,11 +921,6 @@ ge::graphStatus IFATiling::ProcessOptionalTensors()
 
     // for kv shared prefix
     if ((ProcessSharedPrefix() != ge::GRAPH_SUCCESS) || (ProcessSharedPrefixLen() != ge::GRAPH_SUCCESS)) {
-        return ge::GRAPH_FAILED;
-    }
-
-    // for Tree sparse(9)
-    if (ProcessSparseMode() != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }
     return ge::GRAPH_SUCCESS;
@@ -1842,87 +1836,6 @@ ge::graphStatus IFATiling::ProcessSharedPrefix()
 
     sysPrefixFlag_ = true;
 
-    return ge::GRAPH_SUCCESS;
-}
-
-ge::graphStatus IFATiling::ProcessSparseMode()
-{
-    // 仅支持MLA全量化
-    // 不支持左padding、PSE、公共前缀、后量化等特性
-    // 补充s2 >= s1的拦截
-    // mask形状的校验已经在ProcessAttenMask()，函数完成
-
-    sparseMode_ = ifaContext_->sparseMode != nullptr ? *ifaContext_->sparseMode : 0;
-
-    if (sparseMode_ == 9U) {
-        if (ropeFlag_ && quantFlag_) {
-            OP_CHECK_IF(kvPaddingSizeFlag_,
-                OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, kvPaddingSize should be not exist.", sparseMode_),
-                return ge::GRAPH_FAILED);
-
-            OP_CHECK_IF(pseShiftFlag_,
-                OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, pse_shift should be not exist.", sparseMode_),
-                return ge::GRAPH_FAILED);
-
-            OP_CHECK_IF(sysPrefixFlag_,
-                OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, key_shared_prefix and key_shared_prefix should be not exist.",
-                        sparseMode_),
-                return ge::GRAPH_FAILED);
-
-            OP_CHECK_IF(outputType_ == ge::DT_INT8,
-                OP_LOGE(ifaContext_->opName,
-                        "In MLA full quant situation, when sparse is %d, output dtype int8_t is not supported.", sparseMode_),
-                return ge::GRAPH_FAILED);
-            
-            // tiling下沉场景，获取不到actualseqlen,不进行校验
-            if (isWorkspace_) {
-                return ge::GRAPH_SUCCESS;
-            }
-
-            // 补充s2 >= s1的拦截，在MLA全量化场景，必须开启PA(NZ)，所以actualSeqKV不进行累加
-            if (inputLayout_ == IfaLayout::TND) {
-                const int64_t *actualSeqQTnd = ifaContext_->actualSeqLengthsQ.tensor->GetData<int64_t>();
-                const int64_t *actualSeqKVTnd = ifaContext_->actualSeqLengths.tensor->GetData<int64_t>();
-                int64_t qActSize = 0;
-                int64_t kvActSize = 0;
-
-                // 入图padding场景，最后几个batch s2=0时不校验
-                int32_t NonpaddingZeroIndex = -1;
-                for (int32_t i = actualLenQDims_ - 1; i >= 0; i--) {
-                    if (actualSeqKVTnd[i] != 0) {
-                        NonpaddingZeroIndex = i;
-                        break;
-                    }
-                }
-        
-                if (NonpaddingZeroIndex == -1) {
-                    return ge::GRAPH_SUCCESS;
-                }
-
-                for (int b = 0; b <= NonpaddingZeroIndex; b++) {
-                    qActSize = (b == 0) ? actualSeqQTnd[0] : (actualSeqQTnd[b] - actualSeqQTnd[b - 1]);
-                    kvActSize = actualSeqKVTnd[b];
-                    OP_CHECK_IF(qActSize > kvActSize,
-                        OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).", 
-                            sparseMode_, qActSize, kvActSize),
-                    return ge::GRAPH_FAILED);
-                }
-            } else {
-                OP_CHECK_IF(qSeqSize_ > seqSize_,
-                    OP_LOGE(ifaContext_->opName,
-                            "In MLA full quant situation, when sparse is %d, qSize(%ld) should less than or equal to kvSize(%ld).", 
-                            sparseMode_, qSeqSize_, seqSize_),
-                    return ge::GRAPH_FAILED);
-            }
-        } else {
-            OP_LOGE(ifaContext_->opName, "Tree Sparse(%d) is only supported in MLA full quant situation.", sparseMode_);
-            return ge::GRAPH_FAILED;
-        }
-    }
     return ge::GRAPH_SUCCESS;
 }
 
