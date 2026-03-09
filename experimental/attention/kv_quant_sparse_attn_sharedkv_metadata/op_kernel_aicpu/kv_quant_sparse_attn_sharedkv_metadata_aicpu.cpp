@@ -108,7 +108,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckSingleParam() {
     }
     // ori_mask_mode 校验
     if (oriMaskMode_ != static_cast<uint32_t>(SparseMode::DEFAULT_MASK) && oriMaskMode_ != static_cast<uint32_t>(SparseMode::RIGHT_DOWN_CAUSAL) && oriMaskMode_ != static_cast<uint32_t>(SparseMode::BAND)) {
-        KERNEL_LOG_ERROR("ori_mask_mode should be 4, but got %d", oriMaskMode_);
+        KERNEL_LOG_ERROR("ori_mask_mode should be 0, 3 or4, but got %d", oriMaskMode_);
         return false;
     }
     // ori_win_left 校验
