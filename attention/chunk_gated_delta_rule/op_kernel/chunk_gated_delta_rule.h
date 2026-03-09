@@ -186,7 +186,7 @@ private:
     {
         // todo: stage1, release ub resource after computing
         GDRStageOneInitParams initStageOneParams {query_, key_, value_, beta_, g_,
-                                                  gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, cg};
+                                                  gCumExp_, kCumDecay_, vInner_, qPrime_, kg_, qkt_, stageWsAddr_, stageOneMask_, cg};
         stageOneOp_.Init(initStageOneParams, pipe_, tiling_);
         stageOneOp_.Process();
         pipe_->Reset();

@@ -54,6 +54,7 @@ struct GDRStageOneInitParams {
     GlobalTensor<float> qK;             // (Nv, cg_len, C)
     // other
     GM_ADDR ws;
+    GlobalTensor<float> stageOneMask;             // (Nv, cg_len, C)
     ChunkGroup cg;
 };
 
@@ -73,6 +74,7 @@ public:
         outQGBaseGm_ = initParams.qG;
         outKgBaseGm_ = initParams.kG;
         outQkBaseGm_ = initParams.qK;
+        stageOneMask_ = initParams.stageOneMask;
 
         uint64_t workSpaceOffset = 0;
         GBKWsGm_.SetGlobalBuffer(reinterpret_cast<__gm__ float *>(initParams.ws + workSpaceOffset + coreIdx * chunkSize * dk * sizeof(float)));
@@ -99,7 +101,7 @@ public:
             return;
         }
         uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv, dk), chunkSize);
-        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize * chunkSize / 2 * sizeof(float));      // 8KB
+        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen / 2 * sizeof(float));      // 8KB
         pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize * maxLen / 2 * sizeof(float));        // 16KB
         pipe_->InitBuffer(gOutQueue_, STAGEONE_BUFFER_NUM, chunkSize * sizeof(float)); // 总24.25KB
 
@@ -137,9 +139,6 @@ public:
 
         identityUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize * chunkSize / 2), buffOffset);  // 8KB
         buffOffset += chunkSize * chunkSize / 2 * sizeof(float);
-
-        maskUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize), buffOffset);  // 8KB
-        buffOffset += chunkSize * sizeof(float);
 
         qUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize / 2 * dk), buffOffset);  // 8KB
         buffOffset += chunkSize / 2 * dk * sizeof(float);
@@ -353,24 +352,12 @@ private:
         // div
         Div(gammaUbFloat, gBroadUbFloat, gTransBroadUbFloat, chunkSize * chunkSize);
         PipeBarrier<PIPE_V>();
-        // SetMaskNorm();
-        // SetVectorMask<float, MaskMode::NORMAL>(); // 按行计算得算chunkSize次
-        // tril(严格下三角) setvecormask
-        ////////////////////////////////////////////////////////////////////////////////临时掩码
-        Duplicate(maskUbFloat, static_cast<float>(0.0), chunkSize);
+        // mask
+        DataCopyInFp32(chunkSize * chunkSize, stageOneMask_);
+        kkLocal = fp32InQueue_.DeQue<float>();
+        Mul(gammaUbFloat, gammaUbFloat, kkLocal, chunkSize * chunkSize);
+        fp32InQueue_.FreeTensor(kkLocal);
         PipeBarrier<PIPE_V>();
-        if (subBlockIdx == 1){
-            Duplicate(maskUbFloat, static_cast<float>(1.0), chunkSize / 2);
-            PipeBarrier<PIPE_V>();
-        }
-        for (int i = 0; i < chunkSize / 2; ++i){    ///////////////////和SetVectorMask的优劣///////////////////
-            Mul(gammaUbFloat[i * chunkSize + subBlockIdx * chunkSize * chunkSize / 2], gammaUbFloat[i * chunkSize + subBlockIdx * chunkSize * chunkSize / 2], maskUbFloat, chunkSize);
-            PipeBarrier<PIPE_V>();
-            maskUbFloat.SetValue(i + chunkSize * subBlockIdx / 2, 1);
-            PipeBarrier<PIPE_V>();
-        }
-        PipeBarrier<PIPE_V>();
-        /////////////////////////////////////////////////////////////////////////////////
     }
 
     __aicore__ inline void KKBetaCompute()
@@ -753,6 +740,7 @@ private:
     GlobalTensor<float> queryContinousGm_;
     GlobalTensor<float> keyContinousGm_;
     GlobalTensor<float> querytmpGm_;
+    GlobalTensor<float> stageOneMask_;
 
     TPipe *pipe_;
     uint32_t chunkSize;
