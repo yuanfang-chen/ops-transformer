@@ -160,7 +160,7 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvData(const FiaTilingInfo
     }
     uint32_t actualSeqLengthsKvDimNum = actualSeqLengthsKvTensor->GetShapeSize();
     uint32_t batchSize = fiaInfo.bSize;
-    FiaLayout kvLayout = fiaInfo.qLayout;
+    FiaLayout kvLayout = fiaInfo.kvLayout;
     if (kvLayout == FiaLayout::TND || kvLayout == FiaLayout::NTD) {
         // key/value的layout为TND或NTD时，非page attention场景时，其值应递增，且为非负数
         for (uint32_t bIdx = 0; bIdx < batchSize; bIdx++) {
@@ -252,7 +252,7 @@ ge::graphStatus ActualSeqLenChecker::CheckActualSeqLenKvTNDLastData(const FiaTil
             OP_LOGE(fiaInfo.opName,
                 "The last element(%ld) of actualSeqLengthsKv is not equal to the T(%ld) of "
                 "key/value. The last element of actualSeqLengthsKv must be equal to the T of key/value "
-                "when the layout of key/value is TND.", actualSeqLengthsKvLastData, keyShape.GetDim(DIM_NUM_1)),
+                "when the layout of key/value is TND.", actualSeqLengthsKvLastData, keyShape.GetDim(DIM_NUM_0)),
             return ge::GRAPH_FAILED);
     }
     if (fiaInfo.kvLayout == FiaLayout::NTD) {

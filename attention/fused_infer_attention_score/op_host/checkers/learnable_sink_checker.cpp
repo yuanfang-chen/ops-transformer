@@ -116,7 +116,7 @@ ge::graphStatus LearnableSinkChecker::CheckSinkShapeSupport(const FiaTilingInfo 
         OP_LOGE(fiaInfo.opName, " When learnable sink enable, the dimension(%u) of sink must be 1!", sinkDimNum),
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(sinkDim0 != fiaInfo.n1Size, OP_LOGE(fiaInfo.opName,
-        "When learnable sink enable, the shape([%u]) of sink must be equal to aixs N(%u) of query.",
+        "When learnable sink enable, the shape([%u]) of sink must be equal to axis N(%u) of query.",
         sinkDim0, fiaInfo.n1Size),
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;

@@ -127,7 +127,7 @@ ge::graphStatus LeftPaddingChecker::CheckFeaturePageAttention(const FiaTilingInf
 
 // enableNonQuant 相关校验函数
 // CheckMuiltPara
-ge::graphStatus LeftPaddingChecker::CheckMuiltParaShapeAndDim(const FiaTilingInfo &fiaInfo)
+ge::graphStatus LeftPaddingChecker::CheckMultiParaShapeAndDim(const FiaTilingInfo &fiaInfo)
 {
     // When left-padding is enabled for Query and Key/Value,
     // the Shape size and Dim number corresponding to the Padding size must both be 1.
@@ -209,7 +209,7 @@ ge::graphStatus LeftPaddingChecker::CheckMultiPara(const FiaTilingInfo &fiaInfo)
 {
     OP_LOGI(fiaInfo.opName, "Begin LeftPaddingChecker::CheckMultiPara!");
     if (enableNonQuant_) {
-        if (ge::GRAPH_SUCCESS != CheckMuiltParaShapeAndDim(fiaInfo)) {
+        if (ge::GRAPH_SUCCESS != CheckMultiParaShapeAndDim(fiaInfo)) {
             return ge::GRAPH_FAILED;
         }
     } else if (enableFullQuant_) {
