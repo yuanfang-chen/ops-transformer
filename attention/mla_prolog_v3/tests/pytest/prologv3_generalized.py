@@ -84,6 +84,29 @@ def _get_full_quant_mode_config(weight_quant_mode):
     return None
 
 
+def _get_quant_dtype_max(quant_dtype):
+    if quant_dtype == torch.int8:
+        return INT8_DTYPE_MAX
+    if hasattr(torch, "float8_e4m3fn") and quant_dtype == torch.float8_e4m3fn:
+        return FP8_E4M3_DTYPE_MAX
+    hif8_dtype = _get_hif8_dtype()
+    if hif8_dtype is not None and quant_dtype == hif8_dtype:
+        return HIF8_DTYPE_MAX
+    raise ValueError(f"unsupported quant dtype: {quant_dtype}")
+
+
+def _get_kv_tile_quant_dtype(weight_quant_mode):
+    if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+        if not hasattr(torch, "float8_e4m3fn"):
+            raise ValueError("weight_quant_mode=3 requires torch.float8_e4m3fn support")
+        return torch.float8_e4m3fn
+
+    full_quant_mode_config = _get_full_quant_mode_config(weight_quant_mode)
+    if full_quant_mode_config is not None:
+        return full_quant_mode_config["input_dtype"]
+    return torch.int8
+
+
 def _dynamic_quant_clip_range(dtype_max, quant_dtype):
     if quant_dtype == torch.int8:
         return -128.0, 127.0
@@ -244,9 +267,10 @@ def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape, dtype_max=I
         return y.reshape(T, N, H), scale.reshape(T, N, 1).to(torch.float64)
 
 
-def dynamic_quant_ckv_with_amax(inputs, amax, smooth_scale=None):
+def dynamic_quant_ckv_with_amax(inputs, amax, smooth_scale=None, quant_dtype=torch.int8):
     """3D dynamic quantization with external amax. Returns (quantized, scale)."""
     T, N, H = inputs.shape
+    dtype_max = _get_quant_dtype_max(quant_dtype)
     inputs = inputs.to(torch.float32)
     amax = amax.to(torch.float32).clamp(min=1e-8)
     if smooth_scale is not None:
@@ -257,8 +281,10 @@ def dynamic_quant_ckv_with_amax(inputs, amax, smooth_scale=None):
         scaled_inputs = inputs * smooth_scale
     else:
         scaled_inputs = inputs
-    scale = amax / 127.0
+    scale = amax / float(dtype_max)
     y = torch.round(scaled_inputs / scale)
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+    y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     return y, scale
 
 
@@ -490,6 +516,7 @@ class GeneralizedPrologV3:
             WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
             WEIGHT_QUANT_MODE_FULL_HIF8,
         ))
+        kv_tile_quant_dtype = _get_kv_tile_quant_dtype(weight_quant_mode)
         query_quant_dtype = torch.int8
         query_dtype_max = INT8_DTYPE_MAX
         matmul_input_dtype_max = None
@@ -852,9 +879,11 @@ class GeneralizedPrologV3:
                 k_nope_clip_alpha = torch.ones((1,), dtype=torch.float32)
             amax = torch.clamp(amax, min=eps) * k_nope_clip_alpha
             clip_res = torch.clamp(norm2_res, min=-amax, max=amax)
-            norm2_res, deq_scale_ckv = dynamic_quant_ckv_with_amax(clip_res, amax)
+            norm2_res, deq_scale_ckv = dynamic_quant_ckv_with_amax(
+                clip_res, amax, quant_dtype=kv_tile_quant_dtype
+            )
             deq_scale_ckv = deq_scale_ckv.reshape(T, -1)
-            norm2_res = norm2_res.reshape(T, Hckv).to(torch.int8)
+            norm2_res = norm2_res.reshape(T, Hckv)
             if self.ckvkr_repo_mode == 1:
                 # Compute rotary2 early for merged storage
                 cos_flat = cos.reshape(T, Dr)
@@ -862,10 +891,12 @@ class GeneralizedPrologV3:
                 k = splitd2_res2.reshape(T, 1, int(Dr / 2), 2).transpose(3, 2).reshape(T, Dr)
                 rotary2_res_early = (k * cos_flat) + (rotate_half(k) * sin_flat)
                 rotary2_bf16 = rotary2_res_early.to(torch.bfloat16)
-                norm2_res = torch.cat((norm2_res, rotary2_bf16.view(torch.int8)), axis=-1)
+                rotary2_packed = rotary2_bf16.contiguous().view(kv_tile_quant_dtype)
+                norm2_res = torch.cat((norm2_res, rotary2_packed), axis=-1)
                 Dtile = Dtile + Dr * 2
             if self.quant_scale_repo_mode == 1:
-                norm2_res = torch.cat((norm2_res, deq_scale_ckv.view(torch.int8)), axis=-1)
+                deq_scale_ckv_packed = deq_scale_ckv.contiguous().view(kv_tile_quant_dtype)
+                norm2_res = torch.cat((norm2_res, deq_scale_ckv_packed), axis=-1)
                 Dtile = Dtile + Hckv // tile_size * 4
 
         # -------------------------------------------------------------------------------------
@@ -1400,7 +1431,7 @@ def _build_default_case_payload(params, validate_quant_combo=True):
     elif kv_quant_mode == 2:
         kv_cache_dtype = torch.int8
     else:
-        kv_cache_dtype = torch.float8_e4m3fn if weight_quant_mode == 3 else torch.int8
+        kv_cache_dtype = _get_kv_tile_quant_dtype(weight_quant_mode)
 
     if ckvkr_repo_mode == 1:
         kr_cache_dtype = None
