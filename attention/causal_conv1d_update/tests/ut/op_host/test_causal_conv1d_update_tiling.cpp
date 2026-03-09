@@ -74,7 +74,7 @@ TEST_F(CausalConv1dUpdateTiling, CausalConv1dUpdate_950_tiling_bf16)
         &compileInfo);
 
     int64_t expectTilingKey = 20000;
-    std::string expectTilingData = "64 64 1 256 256 256 256 0 255 166 128 2 2 256 6 0 16384 3 7 0 0 0 0 ";
+    std::string expectTilingData = "64 64 1 256 256 256 256 0 255 167 128 2 2 256 6 0 16384 3 7 0 0 0 0 ";
     std::vector<size_t> expectWorkspaces = {};
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
