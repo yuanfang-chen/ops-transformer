@@ -47,7 +47,7 @@ ge::graphStatus MatmulAllReduceTilingA5::SetMc2HcommAllReduce(const char* groupN
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
-ge::graphStatus MatmulAllReduceTilingA5::SetMc2HcommA2ARSAG(const char* groupName, const uint32_t reduceType)
+ge::graphStatus MatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
     uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);

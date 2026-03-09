@@ -58,7 +58,10 @@ protected:
     void DoCommFp8ReTiling();
 
     ge::graphStatus DoQuantTiling();
-
+    
+    ge::graphStatus SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType);
+    ge::graphStatus SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType, const uint8_t dataType);
+    ge::graphStatus SetMc2HcommRSAG(const char* groupName, const uint32_t reduceType);
     ge::graphStatus SetMc2Hcomm();
 
     ge::graphStatus CheckInput() override;
