@@ -13,15 +13,14 @@
  */
 
 #include "mhc_sinkhorn.h"
-#include "opdev/make_op_executor.h"
-#include "opdev/op_dfx.h"
 #include "opdev/aicpu/aicpu_task.h"
-#include "op_api/aclnn_util.h"
-#include "aclnn_kernels/common/op_error_check.h"
-#include "opdev/op_def.h"
-#include "opdev/op_executor.h"
 #include "opdev/op_log.h"
+#include "opdev/op_executor.h"
+#include "opdev/make_op_executor.h"
 #include "opdev/shape_utils.h"
+#include "opdev/op_def.h"
+#include "opdev/op_dfx.h"
+#include "aclnn_kernels/common/op_error_check.h"
 
 using namespace op;
 namespace l0op {
