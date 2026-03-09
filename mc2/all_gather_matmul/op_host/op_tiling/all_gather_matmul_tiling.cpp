@@ -14,7 +14,7 @@
  */
 #include "vector"
 #include "mc2_hcom_topo_info.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_tiling/matmul_formulaic_tiling.h"
 #include "all_gather_formulaic_tiling.h"
 #include "mc2_log.h"
 #include "ops_utils.h"
