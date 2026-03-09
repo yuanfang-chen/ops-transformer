@@ -1068,7 +1068,6 @@ static ge::graphStatus CheckTensorShape(const gert::TilingContext *context, cons
     uint32_t sharedExpertNum = tilingData.moeDistributeDispatchV2Info.sharedExpertNum;
     uint32_t sharedExpertRankNum = tilingData.moeDistributeDispatchV2Info.sharedExpertRankNum;
 
-    // 校验输入x的维度1并设h, bs已校验过
     const gert::StorageShape *xStorageShape = context->GetInputShape(config.xIndex);
     const int64_t xDim0 = xStorageShape->GetStorageShape().GetDim(0);
     const int64_t xDim1 = xStorageShape->GetStorageShape().GetDim(1);
