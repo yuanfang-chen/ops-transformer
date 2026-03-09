@@ -577,8 +577,9 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInUb)
 {
-    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) *
+    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
+           (hasConstantExpert_ ? 1 : 0) * constExpertRangeNum * hAligned * dtypeSize * 3 +
            (scalesInUb && hasScales_ ? 1 : 0) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * scaleDtypeSize), blockSize_) * blockSize_ +
            /* y */ Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * sizeof(float)), blockSize_) * blockSize_;
@@ -586,11 +587,12 @@ int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInU
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSizeForKHFullLoad(int64_t rowFactor, bool scalesInUb)
 {
-    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) *
+    return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
            (scalesInUb && hasScales_ ? 1 : 0) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * scaleDtypeSize), blockSize_) * blockSize_ +
            (hasBias_ ? 1 : 0) * rowFactor * k * hAligned * dtypeSize + 
+           (hasConstantExpert_ ? 1 : 0) * constExpertRangeNum * hAligned * dtypeSize * 3 +
                rowFactor * k * hAligned * dtypeSize +
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_ +
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * k * sizeof(int32_t)), blockSize_) * blockSize_ +
@@ -685,8 +687,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t row
     }
     int64_t eHAlignedByte = Ops::Base::CeilDiv(static_cast<uint64_t>(e * h * dtypeSize), blockSize_) * blockSize_;
     int64_t hasBiasvalue = hasBias_ ? eHAlignedByte : 0;
-    int64_t hasXvalue = hasX_ ? eHAlignedByte : 0;
-    int64_t ubSizeRemained = (ubSize_ - expandedXAlignedByte - hasBiasvalue - hasXvalue) / DOUBLE_BUFFER;
+    int64_t ubSizeRemained = (ubSize_ - expandedXAlignedByte - hasBiasvalue) / DOUBLE_BUFFER;
     int64_t rowFactor = CalcRowFactor(ubSizeRemained, true);
     SetFullLoadTilingData(rowOfFormerBlock, rowOfTailBlock, rowFactor);
     return ge::GRAPH_SUCCESS;
@@ -701,8 +702,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfF
     } else {
         int64_t kHAlignedByte = k * hAligned * dtypeSize;	
         int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;
-        int64_t hasXvalue = hasX_ ? kHAlignedByte : 0;
-        int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER - kHAlignedByte - hasBiasvalue - hasXvalue;
+        int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER - kHAlignedByte - hasBiasvalue;
         rowFactor = CalcRowFactor(ubSizeRemained, true);
     }
     SetFullLoadTilingData(rowOfFormerBlock, rowOfTailBlock, rowFactor);	
@@ -711,8 +711,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfF
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
-    int64_t expandedXAndBiasSize = (1 /* expanded_x */ + static_cast<int64_t>(hasBias_) +
-        static_cast<int64_t>(hasX_)) * hAligned * dtypeSize;
+    int64_t expandedXAndBiasSize = (1 /* expanded_x */ + static_cast<int64_t>(hasBias_)) * hAligned * dtypeSize;
     int64_t kFactor = ubSize_ / DOUBLE_BUFFER / expandedXAndBiasSize;
     int64_t upper = kFactor;
     int64_t lower = 1;
@@ -745,7 +744,7 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFo
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
-                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_);
+                             static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_)  - static_cast<int64_t>(!hasConstExpert_) * 3;
     int64_t totalBufferNum = actualInputNum + OUTPUT_BUFFER_NUM + (dtype != ge::DataType::DT_FLOAT ? 1 : 0);
     int64_t hFactor = ubSize_ / DOUBLE_BUFFER / dtypeSize / totalBufferNum;
     int64_t hLoop = Ops::Base::CeilDiv(h, hFactor);
@@ -770,11 +769,14 @@ void MoeFinalizeRoutingV2Regbase::PrintTilingData()
         "MoeFinalizeRoutingV2 tiling data: numBlocks[%ld] row[%ld] e[%ld] c[%ld] h[%ld] hAligned[%ld] k[%ld]"
         "rowOfFormerBlock[%ld] rowOfTailBlock[%ld] rowLoopOfFormerBlock[%ld] rowLoopOfTailBlock[%ld] "
         "rowFactor[%ld] tailRowFactorOfFormerBlock[%ld] tailRowFactorOfTailBlock[%ld] "
-        "hLoop[%ld] hFactor[%ld] tailHFactor[%ld]",
+        "hLoop[%ld] hFactor[%ld] tailHFactor[%ld] zeroExpertStart[%ld] zeroExpertEnd[%ld] copyExpertStart[%ld] "
+        "copyExpertEnd[%ld] constantExpertStart[%ld] constantExpertEnd[%ld] constExpertRangeNum[%ld]",
         usedCoreNum_, tilingData->row, tilingData->e, tilingData->c, tilingData->h, tilingData->hAligned, tilingData->k,
         tilingData->rowOfFormerBlock, tilingData->rowOfTailBlock, tilingData->rowLoopOfFormerBlock,
         tilingData->rowLoopOfTailBlock, tilingData->rowFactor, tilingData->tailRowFactorOfFormerBlock,
-        tilingData->tailRowFactorOfTailBlock, tilingData->hLoop, tilingData->hFactor, tilingData->tailHFactor);
+        tilingData->tailRowFactorOfTailBlock, tilingData->hLoop, tilingData->hFactor, tilingData->tailHFactor,
+        tilingData->zeroExpertStart, tilingData->zeroExpertEnd, tilingData->copyExpertStart, tilingData->copyExpertEnd,
+        tilingData->constantExpertStart, tilingData->constantExpertEnd, tilingData->constExpertRangeNum);
 }
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
@@ -841,12 +843,11 @@ bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
     // 6. 条件性计算：有bias（偏置）则加eHAlignedByte，否则为0
     int64_t hasBiasvalue = hasBias_ ? eHAlignedByte : 0;
     int64_t hasScalevalue = hasScales_ ? scalesAlignedByte : 0;
-    // 7. 新增判断x
-    int64_t hasXvalue = hasX_ ? eHAlignedByte : 0;
     // 8. 计算所有数据的总字节数（核心：DOUBLE_BUFFER是双缓冲机制，提升流水线效率）
     int64_t totalSize =
         expandedXAlignedByte + hasBiasvalue + hasXvalue +
-        DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
+        DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) +
+        static_cast<int64_t>(hasX_) + static_cast<int64_t>(hasConstantExpert_) * 3) * hAlignedByte +
                          hAligned32Byte * OUTPUT_BUFFER_NUM);
     return totalSize <= ubSize_;
 }
@@ -863,16 +864,15 @@ bool MoeFinalizeRoutingV2Regbase::IsKHFullLoad()
     int64_t hAligned32Byte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * sizeof(float)), blockSize_) * blockSize_;
     int64_t hasBiasvalue = hasBias_ ? kHAlignedByte : 0;
     int64_t hasScalevalue = hasScales_ ? scalesAlignedByte : 0;
-    int64_t hasXvalue = hasX_ ? kHAlignedByte : 0;
     int64_t expandedRowIdxAlignedByte = 
         Ops::Base::CeilDiv(static_cast<uint64_t>(k * sizeof(int32_t)), blockSize_) * blockSize_;
     int64_t hasExpandedRowIdxValue = k == 1 ? expandedRowIdxAlignedByte : 0;
     int64_t expertIdxAlignedByte = 
         Ops::Base::CeilDiv(static_cast<uint64_t>(k * sizeof(int32_t)), blockSize_) * blockSize_;
     int64_t hasExpertIdxValue = (hasBias_ && k == 1) ? expertIdxAlignedByte : 0;
-    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue + hasXvalue +
-                                        hasExpandedRowIdxValue + hasExpertIdxValue +
-                                        (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_)) * hAlignedByte +
+    int64_t totalSize = DOUBLE_BUFFER * (kHAlignedByte + hasBiasvalue + hasScalevalue + hasExpandedRowIdxValue + hasExpertIdxValue +
+                                        (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_) + 
+                                        static_cast<int64_t>(hasConstantExpert_) * 3) * hAlignedByte +
                                         hAligned32Byte * OUTPUT_BUFFER_NUM);
     return totalSize <= ubSize_;
 }

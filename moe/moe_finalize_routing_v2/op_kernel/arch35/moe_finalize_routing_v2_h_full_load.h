@@ -221,16 +221,14 @@ private:
                     continue;
                 }
             }
-            CopyIn(
-                expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
-                tilingData->h);
             // 判断专家类型，并进行拷贝相应函数
             int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
             if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                // x = 0
-                // 直接填充0 到 expandedXLocal
                 continue;
             }
+            CopyIn(
+                expandedXGm[gmValueOfExpandedRowIdx * tilingData->h], expandedXLocal[validK * tilingData->hAligned], 1,
+                tilingData->h);
             if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
                 // x = x[i]
                 int64_t i = expertIdxOffset / tilingData->k;
