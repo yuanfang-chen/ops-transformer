@@ -54,6 +54,23 @@ constexpr uint64_t TILING_KEY_FN_BF16 = 10000UL;
 constexpr uint64_t TILING_KEY_FN_FP16 = 10001UL;
 constexpr uint64_t SYS_WORKSPACE_SIZE = static_cast<uint64_t>(16 * 1024 * 1024);
 
+// 辅助函数：根据数据大小限制核数
+// 当数据占据 UB 的一半时，带宽利用率较好
+static uint64_t LimitCoreNumByDataSize(uint64_t originalCoreNum, uint64_t cuSeqLen, uint64_t dim,
+                                        uint64_t dtypeSize, uint64_t ubSize)
+{
+    // 计算输入 x 大小（字节）：cuSeqLen * dim * dtypeSize (2D input)
+    int64_t xSizeBytes = cuSeqLen * dim * dtypeSize;
+
+    // effectiveCoreNum = xSizeBytes / (ubSize / 2)
+    int64_t halfUbSize = ubSize / 2;
+    int64_t effectiveCoreNum = (xSizeBytes + halfUbSize - 1) / halfUbSize;
+    effectiveCoreNum = std::max(effectiveCoreNum, static_cast<int64_t>(1));
+
+    // 返回 min(effectiveCoreNum, originalCoreNum)
+    return std::min(static_cast<uint64_t>(effectiveCoreNum), originalCoreNum);
+}
+
 bool CausalConv1dFnTiling::IsCapable()
 {
     return true;
@@ -386,13 +403,13 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
 
 // 辅助函数：计算切cu_seq_len时的核间切分信息（考虑因果卷积重叠）
 CausalConv1dFnTiling::CuSeqLenSplitInfo CausalConv1dFnTiling::CalculateCuSeqLenSplitInfo(
-    uint64_t cuSeqLen, uint64_t bsOverlap) const
+    uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const
 {
     CuSeqLenSplitInfo info;
 
-    info.effectiveTotal = cuSeqLen + (totalCoreNum_ - 1) * bsOverlap;
-    info.baseLen = info.effectiveTotal / totalCoreNum_;
-    info.remainder = info.effectiveTotal % totalCoreNum_;
+    info.effectiveTotal = cuSeqLen + (coreNum - 1) * bsOverlap;
+    info.baseLen = info.effectiveTotal / coreNum;
+    info.remainder = info.effectiveTotal % coreNum;
 
     // blockFactor: 整核的处理长度（前 remainder 个核）
     info.blockFactor = info.baseLen + (info.remainder > 0 ? 1 : 0);
@@ -402,7 +419,7 @@ CausalConv1dFnTiling::CuSeqLenSplitInfo CausalConv1dFnTiling::CalculateCuSeqLenS
     info.realCoreNum = 0;
     info.blockTailFactor = 0;
 
-    for (uint64_t core_id = 0; core_id < totalCoreNum_; ++core_id) {
+    for (uint64_t core_id = 0; core_id < coreNum; ++core_id) {
         uint64_t core_load_length = info.baseLen + (core_id < info.remainder ? 1 : 0);
 
         // 这个核能产生的实际输出（去除与前面核的重叠）
@@ -429,8 +446,8 @@ CausalConv1dFnTiling::CuSeqLenSplitInfo CausalConv1dFnTiling::CalculateCuSeqLenS
 
     // 如果循环结束还没break，说明所有核都需要
     if (info.realCoreNum == 0) {
-        info.realCoreNum = totalCoreNum_;
-        info.blockTailFactor = info.baseLen + (totalCoreNum_ - 1 < info.remainder ? 1 : 0);
+        info.realCoreNum = coreNum;
+        info.blockTailFactor = info.baseLen + (coreNum - 1 < info.remainder ? 1 : 0);
     }
 
     return info;
@@ -464,8 +481,9 @@ ge::graphStatus CausalConv1dFnTiling::CalculateCuSeqLenTiling()
         // 使用缓存的结果
         splitInfo = cachedSplitInfo_;
     } else {
-        // 第一次计算，使用有效序列长度
-        splitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap);
+        // 第一次计算，先限制核数，再用限制后的核数计算切分信息
+        uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
+        splitInfo = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, effectiveCoreNum);
     }
 
     // 使用计算结果
@@ -598,10 +616,13 @@ ge::graphStatus CausalConv1dFnTiling::CalculateDimTiling()
     // 步骤1: 核间切分 - dim 维度均分到所有核
     // 注意：dim 切分时，核间没有重叠（不像 cu_seq_len 有因果重叠）
 
-    // 计算每个核分到的 dim 大小（向上取整）
-    uint64_t dim_per_core = Ops::Base::CeilDiv(dim_, totalCoreNum_);
+    // 先限制核数：根据数据大小计算有效核数
+    uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, cuSeqLen_, dim_, xDtypeSize_, ubSize_);
 
-    // 计算实际需要的核数
+    // 计算每个核分到的 dim 大小（向上取整）
+    uint64_t dim_per_core = Ops::Base::CeilDiv(dim_, effectiveCoreNum);
+
+    // 计算实际需要的核数（可能小于 effectiveCoreNum，如果 dim 不够分配给所有核）
     realCoreNum_ = Ops::Base::CeilDiv(dim_, dim_per_core);
 
     // blockFactor_: 整核处理的 dim 大小
@@ -744,14 +765,16 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
 
     // 条件2: 核数限制（考虑因果卷积重叠，使用有效序列长度）
     // 计算并缓存切分信息，避免在 CalculateCuSeqLenTiling 中重复计算
-    cachedSplitInfo_ = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap);
+    // 先限制核数，再用限制后的核数计算切分信息
+    uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
+    cachedSplitInfo_ = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, effectiveCoreNum);
     hasCachedSplitInfo_ = true;
 
     uint64_t coreNumForCuSeqLen = cachedSplitInfo_.realCoreNum;
     bool coreNumCondition = (coreNumForCuSeqLen < MIN_CORE_NUM_FOR_DIM_SPLIT);
 
-    // 条件3: 每个核处理的dim长度
-    uint64_t dimPerCore = Ops::Base::CeilDiv(dim_, totalCoreNum_);
+    // 条件3: 每个核处理的dim长度（使用受限后的核数）
+    uint64_t dimPerCore = Ops::Base::CeilDiv(dim_, effectiveCoreNum);
     bool dimPerCoreCondition = (dimPerCore * xDtypeSize_ > MIN_DIM_PER_CORE);
 
     shouldSplitDim = memoryCondition && coreNumCondition && dimPerCoreCondition;

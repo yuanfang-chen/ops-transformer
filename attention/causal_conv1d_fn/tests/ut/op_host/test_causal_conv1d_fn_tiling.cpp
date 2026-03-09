@@ -77,9 +77,9 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_basic_fp16)
         attrs,
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
-    int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 7 7 512 512 7 0 6 1 1 7 6 512 512 64 4 256 512 2 0 2 0 256 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16842752};
+    int64_t expectTilingKey = 10001;  // FP16 类型
+    std::string expectTilingData = "1 2 256 256 128 43 171 1 170 1 2 256 256 128 42 3 4 256 512 2 0 2 0 256 512 512 ";
+    std::vector<size_t> expectWorkspaces = {16780288};  // 实际运行值
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -124,9 +124,9 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_single_batch)
         attrs,
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
-    int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 4 4 256 256 4 0 4 1 1 4 4 256 256 61 4 64 256 1 0 1 0 64 256 256 ";
-    std::vector<size_t> expectWorkspaces = {16808448};
+    int64_t expectTilingKey = 10001;  // FP16 类型
+    std::string expectTilingData = "1 1 64 64 256 256 64 0 64 1 1 64 64 256 256 1 4 64 256 1 0 1 0 64 256 256 ";
+    std::vector<size_t> expectWorkspaces = {16777728};  // 实际运行值
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -171,9 +171,9 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_medium_fp16)
         attrs,
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
-    int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 67 67 768 768 67 0 66 1 1 67 66 768 768 64 4 4096 768 8 0 8 0 4096 768 768 ";
-    std::vector<size_t> expectWorkspaces = {16875520};
+    int64_t expectTilingKey = 10001;  // FP16 类型
+    std::string expectTilingData = "1 2 85 85 640 128 85 0 84 1 2 85 84 640 128 50 4 4096 768 8 0 8 0 4096 768 768 ";
+    std::vector<size_t> expectWorkspaces = {16854016};  // 实际运行值
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -218,9 +218,9 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_variable_seqlen)
         attrs,
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
-    int64_t expectTilingKey = 10000;
-    std::string expectTilingData = "1 1 10 10 512 512 10 0 9 1 1 10 9 512 512 64 4 448 512 3 0 3 0 448 512 512 ";
-    std::vector<size_t> expectWorkspaces = {16842752};
+    int64_t expectTilingKey = 10001;  // FP16 类型
+    std::string expectTilingData = "1 1 115 115 512 512 115 0 114 1 1 115 114 512 512 4 4 448 512 3 0 3 0 448 512 512 ";
+    std::vector<size_t> expectWorkspaces = {16781312};  // 实际运行值
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }
 
@@ -311,8 +311,51 @@ TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_xlarge_fp16)
         attrs,
         &compileInfo, "Ascend950", 64, 262144, 8192);
 
-    int64_t expectTilingKey = 10000;
+    int64_t expectTilingKey = 10001;  // FP16 类型
     std::string expectTilingData = "3 64 487 56 128 128 1026 0 1025 3 64 487 55 128 128 64 3 65536 8192 256 0 256 0 65536 8192 8192 ";
     std::vector<size_t> expectWorkspaces = {17825792};
+    ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
+}
+
+TEST_F(CausalConv1dFnTiling, CausalConv1dFn_950_tiling_small_fp16)
+{
+    optiling::CausalConv1dFnCompileInfoArch35 compileInfo = {
+        64, 262144, 2, false, platform_ascendc::SocVersion::ASCEND950};
+
+    std::vector<gert::TilingContextPara::OpAttr> attrs = {
+        {"activationMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
+        {"padSlotId", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
+        {"runMode", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)}
+    };
+
+    gert::TilingContextPara tilingContextPara(
+        "CausalConv1dFn",
+        {
+            // Input 0: x - (cu_seq_len=8, dim=512)
+            {{{8, 512}, {8, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 1: weight - (kernel_width=4, dim=512)
+            {{{4, 512}, {4, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 2: convStates/cacheStates - (cache_max_size=4, cache_width=3, dim=512)
+            // cache_max_size must be > batch, here 4 > 2
+            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Input 3: queryStartLoc - (batch+1=3)
+            {{{3}, {3}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 4: cacheIndices - (batch=2)
+            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
+            // Input 5: initialStateMode - (batch=2)
+            {{{2}, {2}}, ge::DT_INT32, ge::FORMAT_ND},
+            },
+        {
+            // Output 0: y - (cu_seq_len=256, dim=512)
+            {{{8, 512}, {8, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+            // Output 1: cacheStates - (cache_max_size=4, cache_width=3, dim=512)
+            {{{4, 3, 512}, {4, 3, 512}}, ge::DT_FLOAT16, ge::FORMAT_ND},
+        },
+        attrs,
+        &compileInfo, "Ascend950", 64, 262144, 8192);
+
+    int64_t expectTilingKey = 10001;  // FP16 类型
+    std::string expectTilingData = "1 1 8 8 512 512 8 0 8 1 1 8 8 512 512 1 4 8 512 2 0 2 0 8 512 512 ";
+    std::vector<size_t> expectWorkspaces = {16778240};  // 实际运行值
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData, expectWorkspaces);
 }

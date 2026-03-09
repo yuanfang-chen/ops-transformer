@@ -74,7 +74,7 @@ private:
 
     // 辅助函数：计算切cu_seq_len时实际需要的核数（考虑因果卷积重叠）
     // 同时返回中间计算结果，避免重复计算
-    CuSeqLenSplitInfo CalculateCuSeqLenSplitInfo(uint64_t cuSeqLen, uint64_t bsOverlap) const;
+    CuSeqLenSplitInfo CalculateCuSeqLenSplitInfo(uint64_t cuSeqLen, uint64_t bsOverlap, uint64_t coreNum) const;
 
     // 硬件信息
     uint64_t ubSize_ = 0;
