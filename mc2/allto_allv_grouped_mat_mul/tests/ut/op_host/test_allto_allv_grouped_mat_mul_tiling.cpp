@@ -11,7 +11,8 @@
 #include <gtest/gtest.h>
 
 #include "mc2_tiling_case_executor.h"
-#include "../../../op_host/op_tiling/arch35/allto_allv_grouped_mat_mul_quant_tiling.h"
+#include "../../../op_host/op_tiling/arch35/allto_allv_grouped_mat_mul_tt_quant_tiling.h"
+#include "../../../op_host/op_tiling/arch35/allto_allv_grouped_mat_mul_mx_quant_tiling.h"
 
 using namespace std;
 
@@ -68,10 +69,10 @@ struct AlltoAllvGroupedMatMulTilingTestParam {
     ge::Format permuteOutFormat;
 
     // Attributes
-    bool gmm_x_quant_mode;
-    bool gmm_weight_quant_mode;
-    bool mm_x_quant_mode;
-    bool mm_weight_quant_mode;
+    int32_t gmm_x_quant_mode;
+    int32_t gmm_weight_quant_mode;
+    int32_t mm_x_quant_mode;
+    int32_t mm_weight_quant_mode;
 
     bool trans_gmm_weight_flag;
     bool trans_mm_weight_flag;
@@ -107,7 +108,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,        // gmmY
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,                  // mmY
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,        // permuteOut
-        false, false, false, false,                         // quant modes
+        0, 0, 0, 0,                         // quant modes
         false, false, true, true,                           // trans flags, permute, mm_out
         8, 8, 0,                                            // world_size, ep_world_size, graph_type
         ge::GRAPH_FAILED, 0                                 // expected status, tiling key
@@ -131,7 +132,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 4, 0,
         ge::GRAPH_FAILED, 0
@@ -155,7 +156,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -177,7 +178,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         16, 16, 0,
         ge::GRAPH_FAILED, 0
@@ -201,7 +202,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         16, 16, 0,
         ge::GRAPH_FAILED, 0
@@ -225,7 +226,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -249,7 +250,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {52428800, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -273,7 +274,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 65536}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -297,7 +298,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2048, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -321,7 +322,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 65536}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -345,7 +346,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -369,7 +370,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2048, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -393,7 +394,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 65536}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -417,7 +418,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -441,7 +442,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {8193, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {16386, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND, // A=16386
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -465,7 +466,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {8193, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {16386, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND, // A=16386
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -489,7 +490,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 7169}, ge::DT_FLOAT16, ge::FORMAT_ND, // permuteOutShape mismatch
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -513,7 +514,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4097, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND, // A=4097 mismatch
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -537,7 +538,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2047, 64}, ge::DT_FLOAT16, ge::FORMAT_ND, // BS mismatch
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -561,7 +562,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -585,7 +586,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -609,7 +610,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -633,7 +634,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2047, 64}, ge::DT_FLOAT16, ge::FORMAT_ND, // mismatch
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -657,7 +658,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2047, 64}, ge::DT_FLOAT16, ge::FORMAT_ND, // mismatch
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -681,7 +682,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {2047, 64}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -705,7 +706,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {4096, 3, 3}, ge::DT_FLOAT16, ge::FORMAT_NCL, // 3D shape
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -729,7 +730,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true, // permute_out_flag=true
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -751,7 +752,7 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND,
         {512, 1024}, ge::DT_BF16, ge::FORMAT_ND,
         {4096, 7168}, ge::DT_FLOAT16, ge::FORMAT_ND,
-        false, false, false, false,
+        0, 0, 0, 0,
         false, false, true, true,
         8, 8, 0,
         ge::GRAPH_FAILED, 0
@@ -1833,6 +1834,645 @@ static const vector<AlltoAllvGroupedMatMulTilingTestParam> alltoAllvGroupedMatMu
         {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
         {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
         1, 1, 1, 1, true, true, true, false, 2, 2, 0, ge::GRAPH_FAILED, 258
+    },
+    // 补充ut
+    //bsk超过最大值52428800
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmx_bsk_beyond_max",
+        {52428800, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    //h1超过最大值65536
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmx_h1_beyond_max",
+        {8192, 65536}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmx为nullptr
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmx_null",
+        {}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // N1超过最大值52428800
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmWeight_N1_beyond_max",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 52428800, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // e*epWorldSize不等于sendCounts长度
+    {
+        "alltoallvgmm_hif8_quant_exception_e_mutilepworldsize_not_sendcounts_size",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {8, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // e*epWorldSize超过256
+    {
+        "alltoallvgmm_hif8_quant_exception_e_mutilepworldsize_beyond_256",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {32, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 16, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // recvCountsTensor不为null
+    // sendCountsTensor不为null
+    // gmmWeightoffset不为null
+    // gmmXoffset不为null
+    // gmmXScale为nullptr
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmXScale_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmWeightScale为nullptr
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmWeightScale_is_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmx不为null，bs为0
+    {
+        "alltoallvgmm_hif8_quant_exception_mmx_not_null_bs_zero",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {0, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmx不为null，h2为0
+    {
+        "alltoallvgmm_hif8_quant_exception_mmx_not_null_h2_zero",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 0}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // bs不能被bsk整除
+    {
+        "alltoallvgmm_hif8_quant_exception_bs_can_not_divide_exactly",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4097, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // K不在[2,8]
+    {
+        "alltoallvgmm_hif8_quant_exception_bs_divide_byond_max",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {512, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // H2超过最大值12288
+    {
+        "alltoallvgmm_hif8_quant_exception_h2_byond_max",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 12288}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mm不为null，mmxScale为nullptr
+    {
+        "alltoallvgmm_hif8_quant_exception_mmx_not_null_mmxscale_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmx为null，mmxScale不为null
+    {
+        "alltoallvgmm_hif8_quant_exception_mmx_null_mmxscale_not_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // transWeight为flase，H2不相等
+    {
+        "alltoallvgmm_hif8_quant_exception_not_transweight_h2_not_same",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7169, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // transWeight为flase，N2超过65536
+    {
+        "alltoallvgmm_hif8_quant_exception_not_transweight_n2_byond_max",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 65536}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // transWeight为true，H2不相等
+    {
+        "alltoallvgmm_hif8_quant_exception_transweight_h2_not_same",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4096, 7169}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, true, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // transWeight为true，N2超过65536
+    {
+        "alltoallvgmm_hif8_quant_exception_transweight_n2_byond_max",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {65536, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, true, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmweightoffset为null
+    // mmxoffset不为null
+    // Ascend950,epworldsize不在集合[2,4,8,16,32,64,128,256]中
+    // 其他平台，epworldsize不在集合[2,4,8,16,32,64,128]中
+    // groupsize传入值不为0
+    // recvcounts长度不等于e*epworldsize
+    {
+        "alltoallvgmm_hif8_quant_exception_recvcounts_not_equal_e_mutilepworldsize",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // recvcounts长度超过256
+    {
+        "alltoallvgmm_hif8_quant_exception_recvcounts_size_byond_256",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        vector<int64_t>(512, 1024),
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // recv数组存在负数
+    {
+        "alltoallvgmm_hif8_quant_exception_recvcounts_exist_neg_num",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, -1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // recv数组之和与gmmY第一维A不相等
+    {
+        "alltoallvgmm_hif8_quant_exception_recvcounts_sum_not_A",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // sendcounts长度不等于e*epworldsize
+    {
+        "alltoallvgmm_hif8_quant_exception_sendcounts_not_e_mutilepworldsize",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // sendcounts长度超过256
+    {
+        "alltoallvgmm_hif8_quant_exception_sendcounts_size_byond_256",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        vector<int64_t>(512, 1024),
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // send数组存在负数
+    {
+        "alltoallvgmm_hif8_quant_exception_sendcounts_exist_neg_num",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, -1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // send数组之和不等于bsk
+    {
+        "alltoallvgmm_hif8_quant_exception_sendcounts_not_bsk",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmY为null
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmy_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmY维度不为2d
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmy_not_2D",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168,2}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmY dim1不等于A
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmy_dim1_not_A",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8193,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // gmmY dim2不等于N1
+    {
+        "alltoallvgmm_hif8_quant_exception_gmmy_dim2_not_n1",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4097}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // 当mmx和mmw都不存在时，mmY不为null
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_not_exist_but_not_null",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmy存在时，dimnum不为2
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_exist_dimnum_not_two",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096, 4096, 2}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmy存在时。dim1不等于BS
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_exist_dim1_not_bs",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4097, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmy存在时，dim2不等于N2
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_exist_dim2_not_n2",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096, 4097}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmy存在时，dim1=0
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_exist_dim1_zero",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {0, 4096}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
+    },
+    // mmy存在时，dim2=0
+    {
+        "alltoallvgmm_hif8_quant_exception_mmy_exist_dim2_zero",
+        {8192, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {4, 7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {4096, 7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {7168, 4096}, ge::DT_HIFLOAT8, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND, 
+        {1}, ge::DT_FLOAT, ge::FORMAT_ND,
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024},
+        {8192,4096}, ge::DT_FLOAT16, ge::FORMAT_ND, {4096, 0}, ge::DT_FLOAT16, ge::FORMAT_ND, 
+        {8192,7168}, ge::DT_HIFLOAT8, ge::FORMAT_ND,
+        1, 1, 1, 1, false, false, true, true, 2, 2, 0, ge::GRAPH_SUCCESS, 258
     },
 };
 
