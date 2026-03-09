@@ -32,6 +32,8 @@ const aclTensor* KvQuantSparseAttnSharedkvMetadata(
     const aclTensor* cuSeqLensCmpKvOptional,
     const aclTensor* sequsedQOptional,
     const aclTensor* sequsedKvOptional,
+    const aclTensor* oriTopkLengthOptional,
+    const aclTensor* cmpTopkLengthOptional,
     int64_t numHeadsQ,
     int64_t numHeadsKv,
     int64_t headDim,
@@ -58,11 +60,11 @@ const aclTensor* KvQuantSparseAttnSharedkvMetadata(
     const aclTensor* metaData,
     aclOpExecutor* executor) {
     L0_DFX(KvQuantSparseAttnSharedkvMetadata, cuSeqLensQOptional, cuSeqLensOriKvOptional, cuSeqLensCmpKvOptional, 
-           sequsedQOptional, sequsedKvOptional, numHeadsQ, numHeadsKv, headDim, batchSizeOptional, maxSeqlenQOptional, 
-           maxSeqlenKvOptional, oriTopKOptional, cmpTopKOptional, kvQuantMode, tileSizeOptional, ropeHeadDimOptional, 
-           cmpRatioOptional, oriMaskModeOptional, cmpMaskModeOptional, oriWinLeftOptional, oriWinRightOptional, 
-           layoutQOptional, layoutKvOptional, hasOriKvOptional, hasCmpKvOptional, socVersion, aicCoreNum, aivCoreNum, 
-           metaData);
+           sequsedQOptional, sequsedKvOptional, oriTopkLengthOptional, cmpTopkLengthOptional, numHeadsQ, numHeadsKv, 
+           headDim, batchSizeOptional, maxSeqlenQOptional, maxSeqlenKvOptional, oriTopKOptional, cmpTopKOptional, 
+           kvQuantMode, tileSizeOptional, ropeHeadDimOptional, cmpRatioOptional, oriMaskModeOptional, 
+           cmpMaskModeOptional, oriWinLeftOptional, oriWinRightOptional, layoutQOptional, layoutKvOptional, 
+           hasOriKvOptional, hasCmpKvOptional, socVersion, aicCoreNum, aivCoreNum, metaData);
 
     static internal::AicpuTaskSpace space("KvQuantSparseAttnSharedkvMetadata");
 
@@ -72,7 +74,8 @@ const aclTensor* KvQuantSparseAttnSharedkvMetadata(
                     "ori_topk", "cmp_topk", "kv_quant_mode", "tile_size", "rope_head_dim", "cmp_ratio", "ori_mask_mode", 
                     "cmp_mask_mode", "ori_win_left", "ori_win_right", "layout_q", "layout_kv", "has_ori_kv", 
                     "has_cmp_kv", "soc_version", "aic_core_num", "aiv_core_num"}),
-    OP_INPUT(cuSeqLensQOptional, cuSeqLensOriKvOptional, cuSeqLensCmpKvOptional, sequsedQOptional, sequsedKvOptional), 
+    OP_INPUT(cuSeqLensQOptional, cuSeqLensOriKvOptional, cuSeqLensCmpKvOptional, sequsedQOptional, sequsedKvOptional, 
+             oriTopkLengthOptional, cmpTopkLengthOptional), 
     OP_OUTPUT(metaData),
     OP_ATTR(numHeadsQ, numHeadsKv, headDim, batchSizeOptional, maxSeqlenQOptional, maxSeqlenKvOptional, oriTopKOptional, 
             cmpTopKOptional, kvQuantMode, tileSizeOptional, ropeHeadDimOptional, cmpRatioOptional, oriMaskModeOptional, 

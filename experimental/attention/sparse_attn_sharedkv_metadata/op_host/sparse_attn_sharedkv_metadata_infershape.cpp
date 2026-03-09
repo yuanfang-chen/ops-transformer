@@ -21,7 +21,6 @@ namespace ops {
 static ge::graphStatus InferShapeSparseAttnSharedkvMetadata(gert::InferShapeContext* context)
 {
     gert::Shape* oShape = context->GetOutputShape(0);
-    // output shape (SAS_METADATA_T, )
     oShape->SetDimNum(1);
     oShape->SetDim(0, optiling::SAS_META_SIZE);
     return GRAPH_SUCCESS;
