@@ -14,8 +14,8 @@
  */
 
 #include <vector>
-#include "register/op_def_registry.h"
-#include "tiling/tiling_api.h"
+#include "util/platform_util.h"
+#include "util/shape_util.h"
 #include "platform/platform_info.h"
 #include "log/log.h"
 #include "mhc_sinkhorn_tiling.h"
