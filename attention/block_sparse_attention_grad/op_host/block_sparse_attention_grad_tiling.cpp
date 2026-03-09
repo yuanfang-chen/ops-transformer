@@ -63,7 +63,7 @@ constexpr int VALID_HEAD_DIM_128 = 128;
 namespace optiling {
 
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
-constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 131072;
+constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
 constexpr uint32_t NUM3 = 3;
 
 static inline uint32_t CeilDiv(uint32_t n1, uint32_t n2)
@@ -218,13 +218,6 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
         return ge::GRAPH_FAILED;
     }
 
-
-
-
-
-    // maxKvBlockNum_ = static_cast<uint32_t>(selectIdxShape->GetStorageShape().GetDim(MAX_BLOCK_NUM_INDEX));
-    // maxNumBlocksPerBatch_ = maxKvBlockNum_ * numHeads_;
-
     return ge::GRAPH_SUCCESS;
 }
 
@@ -338,12 +331,19 @@ ge::graphStatus BSAGradTiling::CalculateWorkSpace(gert::TilingContext *context)
         return ge::GRAPH_FAILED;
     }
     
-    mm1OutSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * NUM3;
-    smOnlineOutSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(uint16_t) * NUM3;
-    mm2OutSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * NUM3;
-    updateSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * NUM3;
-    
-    workSpaceSize_ = libapiSize_ + mm1OutSize_ + smOnlineOutSize_ + mm2OutSize_ + updateSize_;
+    sOutSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(float);
+    dPOutSize_ = blockDim_ * WORKSPACE_BLOCK_SIZE_DB * sizeof(float);
+    if (layout_ == InputLayout::TND) {
+        dQOutSize_ = totalTokensT_ * numHeads_ * headDim_ * sizeof(float);
+        dKOutSize_ = totalTokensT_ * kvHeads_ * headDim_ * sizeof(float);
+        dVOutSize_ = dKOutSize_;
+    } else {
+        dQOutSize_ = batch_ * numHeads_ * maxQSeqlen_ * headDim_ * sizeof(float);
+        dKOutSize_ = batch_ * kvHeads_ * maxKvSeqlen_ * headDim_ * sizeof(float);
+        dVOutSize_ = dKOutSize_;
+    }
+
+    workSpaceSize_ = libapiSize_ + sOutSize_ + dPOutSize_ + dQOutSize_ + dKOutSize_ + dVOutSize_;
     context->GetWorkspaceSizes(1)[0] = workSpaceSize_;
     
     return ge::GRAPH_SUCCESS;
@@ -381,11 +381,11 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     context->SetTilingKey(tilingKey);
     context->SetBlockDim(blockDim_);
 
-    tilingData_->set_mm1OutSize(mm1OutSize_);
-    tilingData_->set_smOnlineOutSize(smOnlineOutSize_);
-    tilingData_->set_mm2OutSize(mm2OutSize_);
-    tilingData_->set_updateSize(updateSize_);
-    tilingData_->set_workSpaceSize(workSpaceSize_);
+    tilingData_->set_sOutSize(sOutSize_);
+    tilingData_->set_dPOutSize(dPOutSize_);
+    tilingData_->set_dQOutSize(dQOutSize_);
+    tilingData_->set_dKOutSize(dKOutSize_);
+    tilingData_->set_dVOutSize(dVOutSize_);
     tilingData_->set_scaleValue(scaleValue_);
 
     return ge::GRAPH_SUCCESS;

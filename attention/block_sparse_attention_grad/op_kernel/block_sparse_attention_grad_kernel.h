@@ -254,6 +254,12 @@ namespace BSA {
             uint32_t blockShapeX = tilingData->blockShapeX;
             uint32_t blockShapeY = tilingData->blockShapeY;
 
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
+
             uint32_t basicQBlockSize = tilingData->basicQBlockSize;
             uint32_t basicKVBlockSize = tilingData->basicKVBlockSize;
             uint32_t taskNumPerCore = tilingData->taskNumPerCore;
@@ -276,11 +282,6 @@ namespace BSA {
             AscendC::GlobalTensor<int64_t> gActualKvseqlen;
             gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
 
-            uint64_t sOutSize = WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * 20; // blockdim
-            uint64_t dPOutSize = WORKSPACE_BLOCK_SIZE_DB * sizeof(float) * 20; // blockdim
-            uint64_t dQOutSize = batch * numHeads * maxQSeqlen * headDim * sizeof(float);
-            uint64_t dKOutSize = batch * kvHeads * maxKvSeqlen * headDim * sizeof(float);
-            uint64_t dVOutSize = batch * kvHeads * maxKvSeqlen * headDim * sizeof(float);
             AscendC::GlobalTensor<float> gS;
             gS.SetGlobalBuffer((__gm__ float *)params.workspace);
             AscendC::GlobalTensor<ElementInput> gP;

@@ -54,11 +54,11 @@ TILING_DATA_FIELD_DEF(uint32_t, maxKvSeqlen);  // BNSD格式KV的第三维（S�
 TILING_DATA_FIELD_DEF(uint64_t, tilingKey);
 
 // Workspace大小
-TILING_DATA_FIELD_DEF(uint64_t, mm1OutSize);
-TILING_DATA_FIELD_DEF(uint64_t, smOnlineOutSize);
-TILING_DATA_FIELD_DEF(uint64_t, mm2OutSize);
-TILING_DATA_FIELD_DEF(uint64_t, updateSize);
-TILING_DATA_FIELD_DEF(uint64_t, workSpaceSize);
+TILING_DATA_FIELD_DEF(uint64_t, sOutSize);
+TILING_DATA_FIELD_DEF(uint64_t, dPOutSize);
+TILING_DATA_FIELD_DEF(uint64_t, dQOutSize);
+TILING_DATA_FIELD_DEF(uint64_t, dKOutSize);
+TILING_DATA_FIELD_DEF(uint64_t, dVOutSize);
 
 TILING_DATA_FIELD_DEF(uint32_t, basicQBlockSize);
 TILING_DATA_FIELD_DEF(uint32_t, basicKVBlockSize);
@@ -136,11 +136,12 @@ private:
     bool useUniformQSeqlen_ = false;  // 是否使用统一的qseqlen值（使用maxQSeqlen_）
     bool useUniformKvSeqlen_ = false;  // 是否使用统一的kvseqlen值（使用maxKvSeqlen_）
 
-    uint64_t mm1OutSize_ = 0;
-    uint64_t smOnlineOutSize_ = 0;
-    uint64_t mm2OutSize_ = 0;
-    uint64_t updateSize_ = 0;
-    
+    uint64_t sOutSize_ = 0;
+    uint64_t dPOutSize_ = 0;
+    uint64_t dQOutSize_ = 0;
+    uint64_t dKOutSize_ = 0;
+    uint64_t dVOutSize_ = 0;
+
     InputLayout layout_ = InputLayout::TND;
     
     uint32_t blockDim_ = 20;
