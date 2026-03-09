@@ -179,12 +179,12 @@ __aicore__ inline void AdjustActualS1Size(RunParamStr<isInfer>& runParam,
             }
 
             // 计算S1的尾块大小，非对齐
-            if (runParam.nextTokensPerBatch >= 0) {
-                runParam.actualS1Size = runParam.actualS1Size;
-            } else if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
-                runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch * constInfo.gSize;
-            } else {
-                runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch;
+            if (runParam.nextTokensPerBatch < 0) {
+                if (constInfo.isGqa && constInfo.s1Size == 1 && layout != LayOutTypeEnum::LAYOUT_BNSD) {
+                    runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch * constInfo.gSize;
+                } else {
+                    runParam.actualS1Size = runParam.actualS1Size + runParam.nextTokensPerBatch;
+                }
             }
         }
     }
@@ -411,6 +411,7 @@ __aicore__ inline void ComputeS1LoopInfo(RunParamStr<isInfer>& runParam, const C
     bool lastBN, int64_t nextGs1Idx)
 {
     constexpr int32_t s1BaseSize = static_cast<int32_t>(s1TemplateType);
+    int32_t s1LoopTimes;
     if constexpr (hasRope && (dTemplateType == DTemplateType::Aligned576)) {
         s1LoopTimes = CeilDiv(runParam.actualS1Size, s1BaseSize);
     } else {

@@ -149,9 +149,9 @@ __aicore__ inline bool IsSkipAttentionmask(MaskInfo &info)
         return false;
     }
 
-    int64_t nextToken = 0; // sparse2 本身远点就在左上角
+    int64_t nextToken = 0; // sparse2 本身原点就在左上角
     if (info.sparseMode == RIGHT_DOWN_CAUSAL) {
-        nextToken = static_cast<int64_t>(info.s2Size) - static_cast<int64_t>(info.s1Size); // 统一以左上角为远点计算Token
+        nextToken = static_cast<int64_t>(info.s2Size) - static_cast<int64_t>(info.s1Size); // 统一以左上角为原点计算Token
     } else if (info.sparseMode == BAND) { // 4
         nextToken = info.nextToken + static_cast<int64_t>(info.s2Size) - static_cast<int64_t>(info.s1Size);
     }
