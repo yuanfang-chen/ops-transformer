@@ -33,10 +33,15 @@ constexpr size_t EPSILON_INDEX = 4;
 constexpr size_t DIM_ZERO = 0;
 constexpr size_t DIM_ONE = 1;
 constexpr size_t DIM_TWO = 2;
+constexpr size_t DIM_THREE = 3;
 constexpr size_t NUM_THREE = 3;
 constexpr size_t TP_NUMBER = 4;
+constexpr size_t ONE_DIM = 1;
+constexpr size_t TWO_DIMS = 2;
+constexpr size_t FOUR_DIMS = 4;
 
-bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckAttrs(const gert::TilingContext *context)
+
+bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckAttrs(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
@@ -52,7 +57,7 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckAttrs(const gert::TilingCo
     OP_TILING_CHECK(*transposeX2Ptr,
         OP_LOGE(nodeName, "transposeX2 should be false."), return false);
     // 输出type校验（猜测属性的dtype和最终输出的y1的类型应该保持一致）
-    const int64_t *outputTypePtr = attrs->GetAttrPointer<int64_t>(OUTPUT_DTYPE_INDEX);
+    const int64_t *outputTypePtr = attrs->GetAttrPointer<int64_t>(OUT_PUT_DTYPE_INDEX);
     OP_TILING_CHECK(outputTypePtr == nullptr, OP_LOGE(nodeName, "outputTypePtr is nullptr."), return false);
     ge::DataType outputType = static_cast<ge::DataType>(*outputTypePtr);
     OP_TILING_CHECK(outputType != ge::DT_FLOAT,
@@ -62,12 +67,12 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckAttrs(const gert::TilingCo
     // epsilon校验
     const float *epsilonPtr = attrs->GetAttrPointer<float>(TRANSPOSE_X2_INDEX);
     OP_TILING_CHECK(epsilonPtr == nullptr, OP_LOGE(nodeName, "epsilonPtr is nullptr."), return false);
-    OP_TILING_CHECK(*epsilonPtr != 1e-6f,
-        OP_LOGE(nodeName, "epsilon should be 1e-6f."), return false);
+    // OP_TILING_CHECK(*epsilonPtr != 1e-6f,
+    //     OP_LOGE(nodeName, "epsilon should be 1e-6f."), return false);
     return true;
 }
 
-bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorFormat(const gert::TilingContext *context)
+bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckTensorFormat(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     ge::Format x1Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X1_INDEX)->GetStorageFormat()));
@@ -80,11 +85,11 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorFormat(const gert::T
     ge::Format y1Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(Y1_INDEX)->GetStorageFormat()));
     ge::Format y2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(Y2_INDEX)->GetStorageFormat()));
     ge::Format xFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X_INDEX)->GetStorageFormat()));
-    OP_TILING_CHECK((x1Format != ge::FORMAT_ND) && (yFormat != ge::FORMAT_ND) && (gammaFormat != ge::FORMAT_ND) && (scaleFormat != ge::FORMAT_ND),
+    OP_TILING_CHECK((x1Format != ge::FORMAT_ND) && (yFormat != ge::FORMAT_ND) && (gammaFormat != ge::FORMAT_ND) && (scaleFormat != ge::FORMAT_ND) && 
         (biasFormat != ge::FORMAT_ND) && (pertokenScaleFormat != ge::FORMAT_ND),
         OP_LOGE(nodeName, "The input format of x1/y/gamma/scale/bias/pertokenScale should be ND, but current format of x1/y/gamma/scale/bias/pertokenScale"
         "are %s/%s/%s/%s/%s/%s.", Ops::Base::ToString(x1Format).c_str(), Ops::Base::ToString(yFormat).c_str(), Ops::Base::ToString(gammaFormat).c_str(),
-        Ops::Base::ToString(scaleFormat).c_str(), Ops::Base::ToString(biasFormat).c_str(), Ops::Base::ToString(pertokenScaleDesc).c_str()), return false);
+        Ops::Base::ToString(scaleFormat).c_str(), Ops::Base::ToString(biasFormat).c_str(), Ops::Base::ToString(pertokenScaleFormat).c_str()), return false);
 
     OP_TILING_CHECK((y1Format != ge::FORMAT_ND) && (y2Format != ge::FORMAT_ND) && (xFormat != ge::FORMAT_ND),
         OP_LOGE(nodeName, "The output format of y1/y2/x should be ND, but current format of y1/y2/x"
@@ -96,10 +101,11 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorFormat(const gert::T
     return true;
 }
 
-bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(const gert::TilingContext *context, QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
+bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckTensorDim(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
     const gert::StorageShape *x1Shape = context->GetInputShape(X1_INDEX);
+    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
     // 输入
     OP_TILING_CHECK(x1Shape == nullptr, OP_LOGE(nodeName, "x1Shape is null."), return false);
     const gert::StorageShape *x2Shape = context->GetInputShape(X2_INDEX);
@@ -115,11 +121,11 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(cons
     const gert::StorageShape *perTokenScaleShape = context->GetInputShape(PER_TOKEN_SCALE_INDEX);
     OP_TILING_CHECK(perTokenScaleShape == nullptr, OP_LOGE(nodeName, "perTokenScaleShape is null."), return false);
     // 输出
-    const gert::StorageShape *y1Shape = context->GetInputShape(Y1_INDEX);
+    const gert::StorageShape *y1Shape = context->GetOutputShape(Y1_INDEX);
     OP_TILING_CHECK(y1Shape == nullptr, OP_LOGE(nodeName, "y1Shape is null."), return false);
-    const gert::StorageShape *y2Shape = context->GetInputShape(Y2_INDEX);
+    const gert::StorageShape *y2Shape = context->GetOutputShape(Y2_INDEX);
     OP_TILING_CHECK(y2Shape == nullptr, OP_LOGE(nodeName, "y2Shape is null."), return false);
-    const gert::StorageShape *xShape = context->GetInputShape(X_INDEX);
+    const gert::StorageShape *xShape = context->GetOutputShape(X_INDEX);
     OP_TILING_CHECK(xShape == nullptr, OP_LOGE(nodeName, "xShape is null."), return false);
     // 获取维度
     size_t x1Dim = x1Shape->GetStorageShape().GetDimNum();
@@ -136,16 +142,18 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(cons
     uint64_t x1ValueOne = x1Shape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t x1ValueTwo = x1Shape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t x2ValueOne = x2Shape->GetStorageShape().GetDim(DIM_ZERO);
-    if (xxformat==NZ) {
-        uint64_t x2ValueThree = x2Shape->GetStorageShape().GetDim(DIM_ZERO);
-        uint64_t x2ValueFour = x2Shape->GetStorageShape().GetDim(DIM_ONE);
-    }
     uint64_t x2ValueTwo = x2Shape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t x2ValueThree = 0;
+    uint64_t x2ValueFour = 0;
+    if (x2Format == ge::FORMAT_FRACTAL_NZ) {
+        x2ValueThree = x2Shape->GetStorageShape().GetDim(DIM_TWO);
+        x2ValueFour = x2Shape->GetStorageShape().GetDim(DIM_THREE);
+    }
     uint64_t yValueOne = yShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t yValueTwo = yShape->GetStorageShape().GetDim(DIM_ONE);
-    uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(DIM_ONE);
-    uint64_t scaleValue = scaleShape->GetStorageShape().GetDim(DIM_ONE);
-    uint64_t biasValue = biasShape->GetStorageShape().GetDim(DIM_ONE);
+    uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t scaleValue = scaleShape->GetStorageShape().GetDim(DIM_ZERO);
+    uint64_t biasValue = biasShape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t pertokenScaleValue = perTokenScaleShape->GetStorageShape().GetDim(DIM_ONE);
     uint64_t y1ValueOne = y1Shape->GetStorageShape().GetDim(DIM_ZERO);
     uint64_t y1ValueTwo = y1Shape->GetStorageShape().GetDim(DIM_ONE);
@@ -169,10 +177,10 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(cons
         OP_LOGE(nodeName, "The dims of y,y1,y2,x should be match, but current yShape=(%lu,%lu), y1Shape=(%lu,%lu), y2Shape=(%lu,%lu), xShape=(%lu,%lu)",
                 yValueOne, yValueTwo, y1ValueOne, y1ValueTwo, y2ValueOne, y2ValueTwo, xValueOne, xValueTwo), return false);
     
-    OP_TILING_CHECK((yValueTwo != gammaValue) && (yValueTwo != scaleValue) && (yValueTwo != biasValue),
-        OP_LOGE(nodeName, "The dims of gamma,scale,bias should be match N, but current gammaDim=%lu, scaleDim=%lu, biasDim=%lu, N=%lu)",
-                gammaValue, scaleValue, biasValue, yValueTwo), return false);
-    if (xxformat==NZ) {
+    OP_TILING_CHECK((yValueTwo != gammaValue) && (yValueTwo != scaleValue) && (yValueTwo != biasValue) && (yValueTwo != pertokenScaleValue),
+        OP_LOGE(nodeName, "The dims of gamma,scale,bias,pertokenScale should be match N, but current gammaDim=%lu, scaleDim=%lu, biasDim=%lu, pertokenScaleDim=%lu, N=%lu)",
+                gammaValue, scaleValue, biasValue, pertokenScaleValue, yValueTwo), return false);
+    if (x2Format == ge::FORMAT_FRACTAL_NZ) {
         OP_TILING_CHECK((x2ValueTwo * x2ValueThree != x1ValueTwo) || (x2ValueOne * x2ValueFour != yValueTwo),
             OP_LOGE(nodeName, "When x2 is NZ format, x2Dim1 * x2Dim2 should be equal to K(x1Dim1), yDim1 should be equal to N(x2Dim0 * x2Dim3),"
             "but current x2Dim1/x2Dim2/x1Dim1/yDim1/x2Dim0/x2Dim3 are %lu/%lu/%lu/%lu/%lu/%lu)",
@@ -185,14 +193,11 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDimAndSetTiling(cons
     OP_TILING_CHECK((yValueOne != (x1ValueOne/TP_NUMBER)),
         OP_LOGE(nodeName, "yDim0 should be equal to x1Dim0/tp_num, but current yDim0/x1Dim0/tp_num are %lu/%lu/%lu)",
                 yValueOne, x1ValueOne, TP_NUMBER), return false);
-    tilingData->M = x1ValueOne;
-    tilingData->K = x1ValueTwo;
-    tilingData->N = x2ValueTwo;
     return true;
 }
 
 
-bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDataType(const gert::TilingContext *context)
+bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckTensorDataType(const gert::TilingContext *context)
 {
     // 获取输入输出的dtype
     const char *nodeName = context->GetNodeName();
@@ -203,9 +208,9 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDataType(const gert:
     auto scaleDesc = context->GetInputDesc(SCALE_INDEX);
     auto biasDesc = context->GetInputDesc(BIAS_INDEX);
     auto perTokenScaleDesc = context->GetInputDesc(PER_TOKEN_SCALE_INDEX);
-    auto y1ScaleDesc = context->GetInputDesc(Y1_INDEX);
-    auto y2ScaleDesc = context->GetInputDesc(Y2_INDEX);
-    auto xScaleDesc = context->GetInputDesc(X_INDEX);
+    auto y1ScaleDesc = context->GetOutputDesc(Y1_INDEX);
+    auto y2ScaleDesc = context->GetOutputDesc(Y2_INDEX);
+    auto xScaleDesc = context->GetOutputDesc(X_INDEX);
     OP_TILING_CHECK(x1Desc == nullptr, OP_LOGE(nodeName, "x1Desc is null."), return false);
     OP_TILING_CHECK(x2Desc == nullptr, OP_LOGE(nodeName, "x2Desc is null."), return false);
     OP_TILING_CHECK(yDesc == nullptr, OP_LOGE(nodeName, "yDesc is null."), return false);
@@ -234,14 +239,14 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDataType(const gert:
     OP_TILING_CHECK((x1Dtype != ge::DT_INT8) && (x2Dtype != ge::DT_INT8),
         OP_LOGE(nodeName, "The dataType of x1/x2 should be the same, and the dtype should be int8, but current x1/x2 dtype are %s/%s.",
         Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()), return false);
-    OP_TILING_CHECK((scaleDtype != perTokenScaleDtype) && ((scaleDtype != ge::DT_BF16) || (scaleDtype != ge::DT_FLOAT),
+    OP_TILING_CHECK((scaleDtype != perTokenScaleDtype) && ((scaleDtype != ge::DT_BF16) || (scaleDtype != ge::DT_FLOAT)),
         OP_LOGE(nodeName, "The dataType of scale/perTokenScale should be the same, and the dtype should be bfloat16 or float, but current x1/x2 dtype are %s/%s.",
         Ops::Base::ToString(scaleDtype).c_str(), Ops::Base::ToString(perTokenScaleDtype).c_str()), return false);
-    OP_TILING_CHECK(gammaDtype != ge::DT_BF16, OP_LOGE(nodeName, "The dataType of gamma should be the float, but current gamma dtype is %s.",
+    OP_TILING_CHECK(gammaDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of gamma should be the float, but current gamma dtype is %s.",
         Ops::Base::ToString(gammaDtype).c_str()), return false);
     OP_TILING_CHECK(y1Dtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of y1 should be the float, but current y1 dtype is %s.",
         Ops::Base::ToString(y1Dtype).c_str()), return false);
-    OP_TILING_CHECK(biasDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of bias should be the bfloat16 or int32 or float16 or float, but current bias dtype is %s.",
+    OP_TILING_CHECK((biasDtype != ge::DT_FLOAT && biasDtype != ge::DT_BF16 && biasDtype != ge::DT_FLOAT16 && biasDtype != ge::DT_INT32), OP_LOGE(nodeName, "The dataType of bias should be the bfloat16 or int32 or float16 or float, but current bias dtype is %s.",
         Ops::Base::ToString(biasDtype).c_str()), return false);
     return true;
 }
@@ -249,13 +254,13 @@ bool TilingCheckQbmmReduceScatterAddRmsNormCast::CheckTensorDataType(const gert:
 ge::graphStatus QbmmReduceScatterAddRmsNormCastCheckTiling::TilingCheckQbmmReduceScatterAddRmsNormCast(const gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    OP_TILING_CHECK(!CheckTensorFormat(context),
+    OP_TILING_CHECK(!CheckAttrs(context),
         OP_LOGE(nodeName, "attr is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!CheckTensorFormat(context),
         OP_LOGE(nodeName, "params format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(!CheckTensorDataType(context),
         OP_LOGE(nodeName, "params dtype is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(!CheckTensorDimAndSetTiling(context),
+    OP_TILING_CHECK(!CheckTensorDim(context),
         OP_LOGE(nodeName, "params shape is invalid."), return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }

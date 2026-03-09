@@ -520,7 +520,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
     }
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32 singleM, uint32_t singleN)
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32_t singleM, uint32_t singleN)
 {
     mm_.SetSingleShape(singleM, singleN, singleCoreK_);
     mm_.SetTensorA(x1GM_[offsetA_], aTrans_);

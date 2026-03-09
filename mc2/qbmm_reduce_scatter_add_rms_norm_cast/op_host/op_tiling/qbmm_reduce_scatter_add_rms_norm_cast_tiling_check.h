@@ -13,7 +13,7 @@
 namespace MC2Tiling {
 class QbmmReduceScatterAddRmsNormCastCheckTiling {
 public:
-    static ge::graphStatus CheckAttrs(const gert::TilingContext *context);
+    static bool CheckAttrs(const gert::TilingContext *context);
     static bool CheckTensorDataType(const gert::TilingContext *context);
     static bool CheckTensorDim(const gert::TilingContext *context);
     static bool CheckTensorFormat(const gert::TilingContext *context);

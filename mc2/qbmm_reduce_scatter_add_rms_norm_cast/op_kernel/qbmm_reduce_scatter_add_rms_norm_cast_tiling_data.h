@@ -21,28 +21,26 @@
 struct QbmmReduceScatterAddRmsNormCastTilingInfo {
     float epsilon = 1e-6;
     float avgFactor = 1.0 / (float)5120.0;
-    
-    int32_t M = 252;
-    int32_t Ka = 2560;
-    int32_t N = 5120;
+    uint32_t M = 252;
+    uint32_t Ka = 2560;
+    uint32_t N = 5120;
     uint32_t aivNum = 24;
     uint32_t aicNum = 24;
     uint32_t rankSize = 4;
-};
-
-struct QbmmParams {
+    // qbmmParams
     uint32_t ubCalcM;
     uint32_t ubCalcN;
     uint32_t needUbBuffer;
-}
 
-// tiling struct待完善...
+    // TCubeTiling
+    TCubeTiling matmulTiling;
+    
+};
+
 struct QbmmReduceScatterAddRmsNormCastTilingData {
     Mc2InitTiling mc2InitTiling;
     Mc2CcTiling mc2CcTiling;
     QbmmReduceScatterAddRmsNormCastTilingInfo qbmmReduceScatterAddRmsNormCastTilingInfo;
-    QbmmParams qbmmParams;
-    TCubeTiling matmulTiling;
 };
 
 #endif // QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_H
