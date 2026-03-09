@@ -50,7 +50,7 @@ bool QuantMatmulAllReduceTilingA5::IsCapable()
     OP_LOGI(opName_, "Skip quant tiling as dtype not support.");
     return false;
 }
-ge::graphStatus SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType)
+ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommAllReduce(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLREDUCE);
     uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
@@ -66,7 +66,7 @@ ge::graphStatus SetMc2HcommAllReduce(const char* groupName, const uint32_t reduc
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
-ge::graphStatus SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType, const uint8_t dataType)
+ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceType, const uint8_t dataType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLTOALL);
     uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
@@ -92,7 +92,7 @@ ge::graphStatus SetMc2HcommA2AAG(const char* groupName, const uint32_t reduceTyp
         return ge::GRAPH_FAILED);
     return ge::GRAPH_SUCCESS;
 }
-ge::graphStatus SetMc2HcommRSAG(const char* groupName, const uint32_t reduceType)
+ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommRSAG(const char* groupName, const uint32_t reduceType)
 {
     uint32_t opType1 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_REDUCE_SCATTER);
     uint32_t opType2 = static_cast<uint32_t>(HcclCMDType::HCCL_CMD_ALLGATHER);
