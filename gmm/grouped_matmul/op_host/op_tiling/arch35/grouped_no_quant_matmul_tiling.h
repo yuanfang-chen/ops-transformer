@@ -105,7 +105,7 @@ protected:
     bool SeparatedXSeparatedWeight(const gert::TilingContext* context);
     bool SeparatedXSingleWeight(const gert::TilingContext* context, const gert::Shape wShape);
     bool SplitKSingleXSingleWeightSingleY(const gert::TilingContext* context, const gert::Shape xShape, const gert::Shape wShape);
-    bool SplitKSingleXSeparatedWeight(const gert::TilingContext* context, const gert::Shape &xShape, const gert::Shape &wShape);
+    bool SplitKSingleXSeparatedWeight(const gert::TilingContext* context, const gert::Shape xShape, const gert::Shape wShape);
     void PrintTilingResult(const gert::TilingContext *context);
     void SetDisableL2Cache(const gert::TilingContext *context, const GMMCompileInfo *compileInfoPtr);
 
