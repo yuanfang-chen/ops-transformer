@@ -26,7 +26,7 @@
 #include "log/log.h"
 #include "securec.h"
 #include "../op_kernel/mc2_tiling_struct.h"
-#include "tiling_api.h"
+#include "tiling/tiling_api.h"
 #if __has_include("error_manager/error_manager.h")
 #include "error_manager/error_manager.h"
 #else
