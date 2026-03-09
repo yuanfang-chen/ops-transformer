@@ -1913,7 +1913,7 @@ IncreFlashAttentionAttenPreloadMla<IFAT>::AttenMaskCopyNoFull(LocalTensor<bool> 
         DataCopyExtParams dataCopyParams;
         dataCopyParams.blockCount = s1EndIdx - s1StartIdx;
         dataCopyParams.blockLen = curS2EndPos - treeMaskStart;
-        dataCopyParams.srcStride = 0;
+        dataCopyParams.srcStride = attenMaskStride - (curS2EndPos - treeMaskStart);
         dataCopyParams.dstStride = (treeMaskStart - curS2StartPos) / 32;
 
         DataCopyPadExtParams<bool> padParams;
