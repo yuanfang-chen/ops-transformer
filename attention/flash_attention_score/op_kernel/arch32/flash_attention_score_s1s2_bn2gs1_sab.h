@@ -2361,7 +2361,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     int32_t cOffset = 0;
     int32_t aSrcOffset = 0;
 
-
     const uint16_t blockLen = BLOCK_CUBE * mm2BaseM * sizeof(INPUT_T) / BLOCK_BYTE;
     const uint16_t srcStride = aRowNum == 1 ? 0 : blockLen; // singleCoreM == BaseM or 2 * BaseM
     const uint16_t dstStride = 0;
