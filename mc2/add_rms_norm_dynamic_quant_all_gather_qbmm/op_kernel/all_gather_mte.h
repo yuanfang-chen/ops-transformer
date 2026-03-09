@@ -286,13 +286,45 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
 
     uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
     uint32_t curXOffset = coreInnerMIndex_ * K_ + kStartIndex_;
-    for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
-        uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
-        ReadDataBlock(innerCurXOffset, mMteCoreM_);
+    if constexpr (isCVSync) {   // CV软同步
+        uint32_t mCurOffset = M_ / singleCoreM_;
+        uint32_t mTile = 1;
+        uint32_t mFlagCount = mMteCoreM_;
+        uint32_t baseMIndex = mStartIndex_ / singleCoreM_;
+        // 先一次拷完，若跨base块则切分拷贝，当前tp M泛化到128，暂不存在跨baseM的情况
+        if (((mEndIndex_ - 1) / singleCoreM_ - mStartIndex_ / singleCoreM_) > 0) {
+            mTile = 2;
+            mFlagCount = Ceil(mStartIndex_, singleCoreM_) * singleCoreM_ - mStartIndex_;
+        }
+        for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+            uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+            // 读取对端对应地址的 x 数据
+            ReadDataBlock(innerCurXOffset, mFlagCount);
+            SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
+        }
+        // 第二轮
+        if (mTile > 1) {
+            curXOffset += mFlagCount * K_;
+            mFlagCount = mEndIndex_ - Ceil(mStartIndex_, singleCoreM_) * singleCoreM_;
+            baseMIndex++;
+            for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+                uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+                // 读取对端对应地址的 x 数据
+                ReadDataBlock(innerCurXOffset, mFlagCount);
+                SetCvAtomicFlag(baseMIndex, kStartIndex_ / X_PER_BLOCK_NUM + curKBlock * 2, mFlagCount);
+            }
+        }
         PipeBarrier<PIPE_MTE3>();
-        SyncAll<true>();
-        CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+    } else {    // CV硬同步
+        for (uint64_t curKBlock = 0; curKBlock < kLoop; ++curKBlock) {
+            uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
+            ReadDataBlock(innerCurXOffset, mMteCoreM_);
+            PipeBarrier<PIPE_MTE3>();
+            SyncAll<true>();
+            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+        }
     }
+    
 }
 } // AllGatherImpl
 #endif  // ALL_GATHER_MTE_H

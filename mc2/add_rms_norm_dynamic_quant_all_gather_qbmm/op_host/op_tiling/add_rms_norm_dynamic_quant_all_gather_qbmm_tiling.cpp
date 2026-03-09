@@ -61,6 +61,13 @@ constexpr uint64_t MTE_BLOCK_BYTES = 512UL;
 constexpr uint32_t MTE_K_SPLIT_NUM = 2UL;
 constexpr uint64_t UB_ALIGN = 32UL;
 
+// tilingKey
+constexpr uint32_t CV_SYNC_M = 92;
+constexpr uint32_t INIT_TILINGKEY = 10000UL;
+constexpr uint64_t TILINGKEY_SMOOTH_SCALE = 1UL;
+constexpr uint64_t TILINGKEY_OPTIONAL_OUTPUT = 10UL;
+constexpr uint64_t TILINGKEY_CV_SYNC = 100UL;
+
 // matmul tiling 切分
 constexpr int32_t SINGLE_CORE_M = 128;
 constexpr int32_t SINGLE_CORE_N = 256;
@@ -186,12 +193,16 @@ static void SetBlockDim(gert::TilingContext *context, AddRmsNormDynamicQuantAllG
  * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
  * @return
  */
-static void SetTilingKey(gert::TilingContext *context, const bool isOptionalOutput)
+static void SetTilingKey(gert::TilingContext *context, const bool isSmoothScale,
+ 	      const bool isOptionalOutput, const uint32_t M)
 {
     const char *nodeName = context->GetNodeName();
     // 设置tilingKey模板参数
     // const uint64_t tilingKey = GET_TPL_TILING_KEY(MTE_COMM);
-    uint64_t tilingKey = isOptionalOutput ? 1 : 0;
+    uint64_t tilingKey = INIT_TILINGKEY;
+    tilingKey += static_cast<uint64_t>((isSmoothScale ? TILINGKEY_SMOOTH_SCALE : 0));
+    tilingKey += static_cast<uint64_t>((isOptionalOutput ? TILINGKEY_OPTIONAL_OUTPUT : 0));
+    tilingKey += static_cast<uint64_t>((M > CV_SYNC_M ? TILINGKEY_CV_SYNC : 0));
     context->SetTilingKey(tilingKey);
     OP_LOGD(nodeName, "tilingKey is [%lu] in add_rms_norm_dynamic_quant_all_gather_qbmm.", tilingKey);
 }
@@ -252,7 +263,6 @@ ge::graphStatus CheckInputOutputTensorDim(
     OP_CHECK_NULL_WITH_CONTEXT(context, yShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, gammaShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, scaleShape);
-    OP_CHECK_NULL_WITH_CONTEXT(context, smoothShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, outputShape);
     OP_CHECK_NULL_WITH_CONTEXT(context, zShape);
 
@@ -263,10 +273,10 @@ ge::graphStatus CheckInputOutputTensorDim(
     size_t yDimNum = yShape->GetStorageShape().GetDimNum();
     size_t gammaDimNum = gammaShape->GetStorageShape().GetDimNum();
     size_t scaleDimNum = scaleShape->GetStorageShape().GetDimNum();
-    size_t smoothDimNum = smoothShape->GetStorageShape().GetDimNum();
     uint64_t gammaValue = gammaShape->GetStorageShape().GetDim(0);
     uint64_t x1Dim1Value = x1Shape->GetStorageShape().GetDim(1);
     uint64_t x2Dim1Value = x2Shape->GetStorageShape().GetDim(1);
+    bool isSmoothScale = smoothShape != nullptr;
     ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
 
     uint32_t expectedX2DimNum = (x2Format == ge::FORMAT_FRACTAL_NZ) ? FOUR_DIMS : TWO_DIMS;
@@ -297,8 +307,6 @@ ge::graphStatus CheckInputOutputTensorDim(
         OP_LOGE(context->GetNodeName(), "x1Shape is not same to yShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1Dim1Value != gammaValue)),
         OP_LOGE(context->GetNodeName(), "x1Dim1Value gammaValue not equal. x1Dim1Value=%lu, gammaValue=%lu ", x1Dim1Value, gammaValue), return ge::GRAPH_FAILED);
-    OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
-        OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1DimNum != residualDimNum)),
         OP_LOGE(context->GetNodeName(), "Input x1/residual shape dims not equal. x1DimNum=%lu, residualDimNum=%lu ", x1DimNum, residualDimNum), return ge::GRAPH_FAILED);
     OP_CHECK_IF(((x1DimNum != yDimNum)),
@@ -307,17 +315,23 @@ ge::graphStatus CheckInputOutputTensorDim(
         return ge::GRAPH_FAILED);
     OP_CHECK_IF(((gammaDimNum != 1)), OP_LOGE(context->GetNodeName(), "gamma shape dims not equal to 1. gammaDimNum=%lu.", gammaDimNum),
         return ge::GRAPH_FAILED);
-    OP_CHECK_IF(((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. smoothDimNum=%lu.", smoothDimNum),
-        return ge::GRAPH_FAILED);
+
+    if (isSmoothScale) {
+        size_t smoothDimNum = smoothShape->GetStorageShape().GetDimNum();
+        OP_CHECK_IF((smoothShape->GetStorageShape() != gammaShape->GetStorageShape()),
+            OP_LOGE(context->GetNodeName(), "GammaShape is not same to smoothShape."), return ge::GRAPH_FAILED);
+        OP_CHECK_IF(((smoothDimNum != 1)), OP_LOGE(context->GetNodeName(), "smooth scale shape dims not equal to 1. smoothDimNum=%lu.", smoothDimNum),
+            return ge::GRAPH_FAILED);
+    }
     // 暂不支持bias传入
     OP_CHECK_IF((biasShape != nullptr), OP_LOGE(context->GetNodeName(), "bias input is not support currently."), return ge::GRAPH_FAILED);
     
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.M = x1Shape->GetStorageShape().GetDim(0);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka = x1Dim1Value;
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = x2Dim1Value;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.xNums = \
-        tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
-    
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.xNums = x1Shape->GetStorageShape().GetDim(0) * x1Dim1Value;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale = isSmoothScale;
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -342,7 +356,6 @@ ge::graphStatus CheckTensorDataType(
     OP_CHECK_NULL_WITH_CONTEXT(context, yDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, gammaDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, scaleDesc);
-    OP_CHECK_NULL_WITH_CONTEXT(context, smoothDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, outputDesc);
     OP_CHECK_NULL_WITH_CONTEXT(context, zDesc);
 
@@ -370,9 +383,12 @@ ge::graphStatus CheckTensorDataType(
         OP_LOGE(nodeName, "scale dataType is invalid, dataType should be bf16 or float32, but is %s.",
         Ops::Base::ToString(scaleDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
 
-    OP_TILING_CHECK((smoothDesc->GetDataType() != ge::DT_FLOAT),
-        OP_LOGE(nodeName, "smooth dataType is invalid, dataType should be float32, but is %s.",
-        Ops::Base::ToString(smoothDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+    if (tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale) {
+        OP_CHECK_NULL_WITH_CONTEXT(context, smoothDesc);
+        OP_TILING_CHECK((smoothDesc->GetDataType() != ge::DT_FLOAT),
+            OP_LOGE(nodeName, "smooth dataType is invalid, dataType should be float32, but is %s.",
+            Ops::Base::ToString(smoothDesc->GetDataType()).c_str()), return ge::GRAPH_FAILED);
+    }
 
     OP_TILING_CHECK((biasDesc != nullptr), OP_LOGE(nodeName, "bias input is not support currently."),
         return ge::GRAPH_FAILED);   // 暂不支持bias传入
@@ -398,15 +414,13 @@ ge::graphStatus CheckTensorDataType(
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
+ge::graphStatus CheckTensorFormat(const gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo *tilingData)
 {
     auto x1Desc = context->GetInputDesc(X1_INDEX);
     auto residualDesc = context->GetInputDesc(RESIDUAL_INDEX);
     auto yDesc = context->GetInputDesc(Y_INDEX);
     auto gammaDesc = context->GetInputDesc(GAMMA_INDEX);
     auto scaleDesc = context->GetInputDesc(SCALE_INDEX);
-    auto smoothDesc = context->GetOptionalInputDesc(SMOOTH_SCALE_INDEX);
-    auto biasDesc = context->GetOptionalInputDesc(BIAS_INDEX);
     auto outputDesc = context->GetOutputDesc(OUTPUT_INDEX);
     auto zDesc = context->GetOutputDesc(Z_INDEX);
     const char *nodeName = context->GetNodeName();
@@ -422,8 +436,13 @@ ge::graphStatus CheckTensorFormat(const gert::TilingContext *context)
         OP_LOGE(nodeName, "gamma format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(scaleDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "scale format is invalid."), return ge::GRAPH_FAILED);
-    OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
-        OP_LOGE(nodeName, "smooth format is invalid."), return ge::GRAPH_FAILED);
+
+    if (tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale) {
+        auto smoothDesc = context->GetOptionalInputDesc(SMOOTH_SCALE_INDEX);
+        OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(smoothDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
+            OP_LOGE(nodeName, "smooth format is invalid."), return ge::GRAPH_FAILED);
+    }
+
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(outputDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
         OP_LOGE(nodeName, "output format is invalid."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(static_cast<ge::Format>(ge::GetPrimaryFormat(zDesc->GetStorageFormat())) == ge::FORMAT_FRACTAL_NZ,
@@ -553,7 +572,13 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
 
     OP_TILING_CHECK(SetHcommCfg(context, tiling) != ge::GRAPH_SUCCESS,
         OP_LOGE(nodeName, "SetHCommCfg failed."), return ge::GRAPH_FAILED);
-    SetTilingKey(context, tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput);
+
+    // 设置tilingKey
+    SetTilingKey(context, tilingData->addRmsNormDynamicQuantAllGatherTilingData.isSmoothScale,
+ 	            tilingData->addRmsNormDynamicQuantAllGatherTilingData.isOptionalOutput,
+ 	            tilingData->addRmsNormDynamicQuantAllGatherTilingData.M);
+
+    // workspace
     size_t *currentWorkspace = context->GetWorkspaceSizes(1);
     uint32_t mAlign = ((tilingData->addRmsNormDynamicQuantAllGatherTilingData.M * \
         tilingData->addRmsNormDynamicQuantAllGatherTilingData.rankSize) + \
