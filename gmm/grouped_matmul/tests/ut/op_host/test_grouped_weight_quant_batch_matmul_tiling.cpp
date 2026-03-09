@@ -437,13 +437,13 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_no_spl
         {
             // input info
             {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
+            {{{K, N}, {K, N}}, ge::DT_INT4, ge::FORMAT_ND},                // weight
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                      // bias
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                      // antiquantScale
             {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},                       // groupList
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
         },
         {// output info
@@ -545,7 +545,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_large_
         {
             // input info
             {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
+            {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
             {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
             {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
@@ -568,7 +568,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_large_
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 36773888;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
