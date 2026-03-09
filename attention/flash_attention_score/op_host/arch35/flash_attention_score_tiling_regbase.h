@@ -447,6 +447,7 @@ protected:
     int64_t pseType;
     int64_t pseAlibiBaseS1;
     int64_t pseAlibiBaseS2;
+    uint8_t tndSoftmaxOut;
     int64_t qStartIdx;
     int64_t kvStartIdx;
     int64_t accumS1;
