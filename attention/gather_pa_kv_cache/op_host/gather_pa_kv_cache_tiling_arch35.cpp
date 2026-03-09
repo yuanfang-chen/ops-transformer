@@ -512,19 +512,6 @@ ge::graphStatus GatherPaKvCacheTiling::DoOpTiling()
     tilingData_.set_maxUbHiddenSizeV(maxUbHiddenSizeV);
     tilingData_.set_maxUbHiddenSize(maxUbHiddenSize);
     tilingData_.set_kvCacheBlockSize(blockSize_);
-    fprintf(stderr, "batchCount: %lu\n", static_cast<uint64_t>(batchCount_));
-    fprintf(stderr, "batchPerCore: %lu\n", static_cast<uint64_t>(batchPerCore));
-    fprintf(stderr, "needCoreNum: %lu\n", static_cast<uint64_t>(needCoreNum_));
-    fprintf(stderr, "seqLenAccumSize: %lu\n", static_cast<uint64_t>(seqLenAccumSize));
-    fprintf(stderr, "blockTableWidth: %lu\n", blockTableWidth_);
-    fprintf(stderr, "numBlocks: %lu\n", static_cast<uint64_t>(numBlocks_));
-    fprintf(stderr, "hiddenSizeK: %lu\n", hiddenSizeK_);
-    fprintf(stderr, "hiddenSizeV: %lu\n", hiddenSizeV_);
-    fprintf(stderr, "numTokens: %lu\n", numTokens_);
-    fprintf(stderr, "maxUbHiddenSizeK: %lu\n", maxUbHiddenSizeK);
-    fprintf(stderr, "maxUbHiddenSizeV: %lu\n", maxUbHiddenSizeV);
-    fprintf(stderr, "maxUbHiddenSize: %lu\n", maxUbHiddenSize);
-    fprintf(stderr, "blockSize: %lu\n", blockSize_);
 
     // 根据属性设置tilingkey
     for (const auto &item : tilingKeyTable) {
