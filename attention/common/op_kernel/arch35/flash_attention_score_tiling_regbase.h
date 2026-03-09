@@ -87,6 +87,7 @@ public:
     uint8_t sparseType;
     uint8_t needDropMaskOp;
     uint8_t dropMaskOuter;
+    uint8_t needSinkOp;
     uint8_t pseEncodeType;
     uint16_t remain;
     uint32_t attenMaskS2Size;
@@ -192,6 +193,8 @@ public:
     void set_needDropMaskOp(uint8_t needDropMaskOpParam) {this->needDropMaskOp = needDropMaskOpParam;}
     uint8_t get_dropMaskOuter() const {return dropMaskOuter;}
     void set_dropMaskOuter(uint8_t dropMaskOuterParam) {this->dropMaskOuter = dropMaskOuterParam;}
+    uint8_t get_needSinkOp() const {return needSinkOp;}
+    void set_needSinkOp(uint8_t needSinkOpParam) {this->needSinkOp = needSinkOpParam;}
     uint8_t get_pseEncodeType() const {return pseEncodeType;}
     void set_pseEncodeType(uint8_t pseEncodeTypeParam) {this->pseEncodeType = pseEncodeTypeParam;}
     uint16_t get_remain() const {return remain;}

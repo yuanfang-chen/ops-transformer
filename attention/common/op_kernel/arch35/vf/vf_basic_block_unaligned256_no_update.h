@@ -23,11 +23,11 @@ using namespace regbaseutil;
 namespace FaVectorApi {
 
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 64, uint32_t s2BaseSize = 256,
-    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0>
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool hasSink = false>
 __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
     __ubuf__ T2 * expUb1, __ubuf__ T2 * expUb2, __ubuf__ pseShiftType * pseUb, __ubuf__ T * expSumUb, 
     __ubuf__ T * maxUb, __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ uint32_t * maskUb1, __ubuf__ uint32_t * maskUb2, 
-    __ubuf__ uint32_t * maskUb3, __ubuf__ uint32_t * maskUb4, __ubuf__ uint32_t * dropMaskUb1, __ubuf__ uint32_t * dropMaskUb2, 
+    __ubuf__ uint32_t * maskUb3, __ubuf__ uint32_t * maskUb4, __ubuf__ uint32_t * dropMaskUb1, __ubuf__ uint32_t * dropMaskUb2, __ubuf__ T * sinkUb,
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN1, 
     const uint32_t oriTailN2, const uint32_t tailN1, const uint32_t tailN2, uint32_t pltOriTailN1, uint32_t pltOriTailN2, 
     uint32_t pltTailN1, uint32_t pltTailN2, float divValue, const uint16_t m, const uint32_t pseStride, 
@@ -69,6 +69,10 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
     RegTensor<float> vreg_alibi4;
     RegTensor<float> vreg_sel_drop;
     RegTensor<float> vreg_sel_drop2;
+    RegTensor<float> vreg_sink_input_even1;
+    RegTensor<float> vreg_sink_input_odd1;
+    RegTensor<float> vreg_sink_input_even2;
+    RegTensor<float> vreg_sink_input_odd2;
     // bfloat16_t
     RegTensor<bfloat16_t> vreg_exp_even1_bf16;
     RegTensor<bfloat16_t> vreg_exp_odd1_bf16;
@@ -239,6 +243,17 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
             Max(vreg_max_tmp3, vreg_max_tmp1, vreg_max_tmp2, preg_all);
             Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
                 vreg_input_max, vreg_max_tmp3, preg_all);
+            if constexpr (hasSink) {
+                LoadAlign(vreg_sink_input_even1, sinkUb + i * s2BaseSize);
+                LoadAlign(vreg_sink_input_odd1, sinkUb + floatRepSize + i * s2BaseSize);
+                LoadAlign(vreg_sink_input_even2, sinkUb + floatRepSize * 2 + i * s2BaseSize);
+                LoadAlign(vreg_sink_input_odd2, sinkUb + floatRepSize * 3 + i * s2BaseSize);
+                Max(vreg_max_tmp1, vreg_sink_input_even1, vreg_sink_input_odd1, preg_all);
+                Max(vreg_max_tmp2, vreg_sink_input_even2, vreg_sink_input_odd2, preg_all);
+                Max(vreg_max_tmp3, vreg_max_tmp1, vreg_max_tmp2, preg_all);
+                Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+                    vreg_input_max, vreg_max_tmp3, preg_all);
+            }
         }
         StoreUnAlign<T, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)maxUb), vreg_input_max, ureg_max, 1);
@@ -261,13 +276,27 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
         ExpSub(vreg_exp_odd1, vreg_input_x2, vreg_max_brc, preg_all);
         ExpSub(vreg_exp_even2, vreg_input_x3, vreg_max_brc, preg_all);
         ExpSub(vreg_exp_odd2, vreg_input_x4, vreg_max_brc, preg_all);
-
         // x_sum = sum(x_exp, axis=-1, keepdims=True)
         Add(vreg_exp_sum1, vreg_exp_even1, vreg_exp_odd1, preg_all);
         Add(vreg_exp_sum2, vreg_exp_even2, vreg_exp_odd2, preg_all);
         Add(vreg_exp_sum3, vreg_exp_sum1, vreg_exp_sum2, preg_all);
         Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
             vreg_exp_sum3, vreg_exp_sum3, preg_all);
+        if constexpr (hasSink) {
+            LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+                vreg_sink_input_even1, vreg_sink_input_odd1, sinkUb + i * s2BaseSize);
+            LoadAlign<T, MicroAPI::LoadDist::DIST_DINTLV_B32>(
+                vreg_sink_input_even2, vreg_sink_input_odd2, sinkUb + floatRepSize * 2 + i * s2BaseSize);
+            ExpSub(vreg_sink_input_even1, vreg_sink_input_even1, vreg_max_brc, preg_all);
+            ExpSub(vreg_sink_input_odd1, vreg_sink_input_odd1, vreg_max_brc, preg_all);
+            ExpSub(vreg_sink_input_even2, vreg_sink_input_even2, vreg_max_brc, preg_all);
+            ExpSub(vreg_sink_input_odd2, vreg_sink_input_odd2, vreg_max_brc, preg_all);
+            Add(vreg_exp_sum1, vreg_sink_input_even1, vreg_sink_input_odd1, preg_all);
+            Add(vreg_exp_sum2, vreg_sink_input_even2, vreg_sink_input_odd2, preg_all);
+            Add(vreg_exp_sum3, vreg_sink_input_even1, vreg_sink_input_even2, preg_all);
+            Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
+                vreg_exp_sum3, vreg_exp_sum3, preg_all);
+        }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)expSumUb), vreg_exp_sum3, ureg_exp_sum, 1);
         // dropmask compute
@@ -329,14 +358,15 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl256VF(
 
 // no update, 128 < originN <= 256
 template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 64, uint32_t s2BaseSize = 256,
-    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0>
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool hasSink = false>
 __aicore__ inline void ProcessVec1NoUpdateGeneralImpl256(
     const LocalTensor<T2>& dstTensor, const LocalTensor<T>& expSumTensor, const LocalTensor<T>& maxTensor,
     const LocalTensor<T>& srcTensor, const LocalTensor<T>& expMaxTensor, const LocalTensor<T>& inExpSumTensor,
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor,
     const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN,
-    const uint32_t pseStride, const float slopes, const float posShift, const T scale, const T minValue, float keepProb)
+    const uint32_t pseStride, const float slopes, const float posShift, const T scale, const T minValue, float keepProb,
+    const LocalTensor<T>& sinkTensor = LocalTensor<T>())
 {
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (65*16*2/32)，单位block, low 16bits: repeatStride (1)
@@ -367,10 +397,11 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl256(
     uint32_t pltTailN1 = tailN1;
     uint32_t pltTailN2 = tailN2;
     float divValue = 1.0f / keepProb;
+    __ubuf__ T * sinkUb = (__ubuf__ T*)sinkTensor.GetPhyAddr();
 
-    ProcessVec1NoUpdateGeneralImpl256VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(
+    ProcessVec1NoUpdateGeneralImpl256VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, hasSink>(
         expUb1, expUb2, pseUb, expSumUb, maxUb, maxUbStart, srcUb, maskUb1, maskUb2, maskUb3, maskUb4, dropMaskUb1, 
-        dropMaskUb2, nPadding, blockStride, repeatStride, oriTailN1, oriTailN2, tailN1, tailN2, pltOriTailN1, 
+        dropMaskUb2, sinkUb, nPadding, blockStride, repeatStride, oriTailN1, oriTailN2, tailN1, tailN2, pltOriTailN1, 
         pltOriTailN2, pltTailN1, pltTailN2, divValue, m, pseStride, slopes, posShift, scale, minValue);
 }
 } // namespace
