@@ -79,7 +79,7 @@ protected:
     __aicore__ inline GM_ADDR GetWindAddrByRankId(const int32_t rankId);
     __aicore__ inline void SplitToCore(const uint32_t curSendCnt, const uint32_t curUseAivNum, const uint32_t coreId, uint32_t &startId, uint32_t &endId, uint32_t &sendNum);
     __aicore__ inline GM_ADDR GetWindStateAddrByRankId(const int32_t rankId);
-    __aicore__ inline void DequantCompute(uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col);
+    __aicore__ inline void DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col);
     __aicore__ inline void ReadRemoteDataAdd();
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
@@ -94,7 +94,7 @@ protected:
                                                     LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
                                                     LocalTensor<float>& gammaLocal,
                                                     const DataCopyExtParams& copyExtParams);
-    __aicore__ inline void MMCompute(uint32 singleM, uint32_t singleN);
+    __aicore__ inline void MMCompute(uint32_t singleM, uint32_t singleN);
     __aicore__ inline void CalcMAxisOffset(uint32_t loopIdx, uint32_t nLoops);
     __aicore__ inline void CalcNAxisOffset(uint32_t loopIdx);
 
@@ -112,7 +112,7 @@ protected:
     TBuf<> resFp32Buf_;
     TBuf<TPosition::VECCALC> reduceFp32Buf_;
 
-    TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> tokenQueue_;
+    // TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> tokenQueue_;
     TQueBind<QuePosition::VECIN, QuePosition::VECOUT, 1> tokenNewQueue_;
 
     uint32_t coreVid_{0};
@@ -208,7 +208,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_A
     mmOutGm_.SetGlobalBuffer((__gm__ int32_t *)workspaceAddr_);
     scaleGMTensor_.SetGlobalBuffer((__gm__ float*)scale);
 
-    mm_.Init(&(tilingData->matmulTiling), tpipe_);
+    mm_.Init(&(tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling), tpipe_);
     InitTilingData(tilingData);
     singleM_ = 126;
     singleN_ = 128;
@@ -246,17 +246,17 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_A
 __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::InitTilingData(
     const QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
-    m_ = tilingData->matmulTiling.M;
-    n_ = tilingData->matmulTiling.N;
-    k_ = tilingData->matmulTiling.Ka;
-    singleTimeM_ = tilingData->matmulTiling.singleCoreM;
-    singleTimeN_ = tilingData->matmulTiling.singleCoreN;
-    singleCoreK_ = tilingData->matmulTiling.singleCoreK;
+    m_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.M;
+    n_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.N;
+    k_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.Ka;
+    singleTimeM_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.singleCoreM;
+    singleTimeN_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.singleCoreN;
+    singleCoreK_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.singleCoreK;
     singleCoreM_ = singleTimeM_;
     singleCoreN_ = singleTimeN_;
-    baseM_ = tilingData->matmulTiling.baseM;
-    baseN_ = tilingData->matmulTiling.baseN;
-    baseK_ = tilingData->matmulTiling.baseK;
+    baseM_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseM;
+    baseN_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseN;
+    baseK_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseK;
 }
 
 __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindAddrByRankId(const int32_t rankId)
@@ -493,15 +493,15 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
         uint32_t curVidTileOffset = curVidOffset + tileIdx * n_;
         for(int tpIndex = 0; tpIndex < tpWorldSize_; ++tpIndex) {
             uint32_t curOffset = curVidTileOffset + tpIndex * singleTpSize_;
-            tokenTensor_ = tokenQueue_.AllocTensor<bfloat16_t>();
+            tokenTensor_ = tokenNewQueue_.AllocTensor<bfloat16_t>();
             DataCopy(tokenTensor_, localWinTensor[curOffset], n_);
-            tokenQueue_.EnQue(tokenTensor_);
-            tokenTensor_ = tokenQueue_.DeQue<bfloat16_t>();
+            tokenNewQueue_.EnQue(tokenTensor_);
+            tokenTensor_ = tokenNewQueue_.DeQue<bfloat16_t>();
             SyncFunc<AscendC::HardEvent::MTE2_V>();
             Cast(tokenFp32Tensor, tokenTensor_, RoundMode::CAST_NONE, BLOCK_LENGTH);
             PipeBarrier<PIPE_V>();
             Add(sumFp32Tensor, sumFp32Tensor, tokenFp32Tensor, BLOCK_LENGTH);
-            tokenQueue_.FreeTensor<bfloat16_t>(tokenTensor_);
+            tokenNewQueue_.FreeTensor<bfloat16_t>(tokenTensor_);
         }
         rowTmpFloatLocal_ = rowTmpFloatBuf_.Get<float>();
         AddRmsNormAddCompute(tokenIndex, n_, sumFp32Tensor, rowTmpFloatLocal_, sumFp32Tensor, expandXCopyParams, copyPadXTypeParams);
@@ -520,7 +520,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
     }
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32 singleM, uint32_t singleN)
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32_t singleM, uint32_t singleN)
 {
     mm_.SetSingleShape(singleM, singleN, singleCoreK_);
     mm_.SetTensorA(x1GM_[offsetA_], aTrans_);

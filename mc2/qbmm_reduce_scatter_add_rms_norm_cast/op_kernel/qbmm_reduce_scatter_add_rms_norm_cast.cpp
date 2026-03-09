@@ -14,8 +14,8 @@
  */
 
 #include "basic_api/kernel_basic_intf.h"
+#include "lib/matmul_intf.h"
 #include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_data.h"
-// #include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_key.h"
 #include "qbmm_reduce_scatter_add_rms_norm_cast_mte.h"
 
 using namespace AscendC;
@@ -26,18 +26,15 @@ __global__ __aicore__ void qbmm_reduce_scatter_add_rms_norm_cast(GM_ADDR x1, GM_
                                                                  GM_ADDR y1, GM_ADDR y2, GM_ADDR x,
                                                                  GM_ADDR workspaceGM, GM_ADDR tilingGM)
 {
-    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
-    PRINTF("Goes into kernel 30. %d\n", 23);
     REGISTER_TILING_DEFAULT(QbmmReduceScatterAddRmsNormCastTilingData);
     GET_TILING_DATA_WITH_STRUCT(QbmmReduceScatterAddRmsNormCastTilingData, tilingData, tilingGM);
     TPipe pipe;
     if (TILING_KEY_IS(0)) {
-        const QbmmReduceScatterAddRmsNormCastTilingData *qBmmReduceScatterAddRmsNormCastTilingData = &tilingData;                               \
-        const TCubeTiling *mmTiling = &(qBmmReduceScatterAddRmsNormCastTilingData->matmulTiling);
-        QbmmReduceScatterAddRmsNormCastMte <DTYPE_X1, DTYPE_Y, DTYPE_SCALE, false> op;
-        REGIST_MATMUL_OBJ(&pipe, GetSysWorkSpacePtr(), op.mm, mmTiling);
-        op.Init(x, x2, y, gamma, scale,  bias, perTokenScale, y1, 
-                y2, x, &pipe, workspaceGM, &tilingData);
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+        QbmmReduceScatterAddRmsNormCastMte op;
+        const QbmmReduceScatterAddRmsNormCastTilingData *qBmmReduceScatterAddRmsNormCastTilingData = &tilingData;
+        op.Init(x1, x2, y, gamma, scale,  bias, perTokenScale, y1, 
+                y2, x, workspaceGM, &pipe, &tilingData);
         op.Process();
     }
 }
