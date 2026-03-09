@@ -126,6 +126,7 @@ uint64_t MatmulAllReduceTilingA5::GetTilingKey() const
             MMTYPE_FP_NULL_TENSOR,                      \
             false,                                      \
             false,                                      \
+            false,                                      \
             SET_NOT_USE_FP_MM_TILING,                   \
             SET_NOT_USE_QUANT_MM_TILING,                \
             SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
@@ -135,10 +136,13 @@ uint64_t MatmulAllReduceTilingA5::GetTilingKey() const
     if (!matmulAllReduce910TilingData_.param.isAdd) {
         matmulWithAdd = false;
     }
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isA2ARSAG = isStandardCard4P;
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_FP_MM,                               \
         false,                                      \
         false,                                      \
+        isA2ARSAG,                                  \
         matmulWithAdd,                              \
         SET_NOT_USE_QUANT_MM_TILING,                \
         SET_NOT_USE_WEIGHT_QUANT_MM_TILING);

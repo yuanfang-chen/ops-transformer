@@ -261,10 +261,13 @@ uint64_t QuantMatmulAllReduceTilingA5::GetTilingKey() const
         commDtype = COMMDTPYE_FP8; // 适配fp8 通信;
     }
     bool scenarioIsMXFP8 = (scenario_ == AllReduceScenario::MXFP8); // 区分MXFP8 和 FP8HIF8场景
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isA2ARSAG = (isStandardCard4P && (commDtype == COMMDTPYE_DEFAULT));
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_QUANT_MM,                            \
         quantTPlparam_.transB,                      \
         false,                                      \
+        isA2ARSAG,                                  \
         SET_NOT_USE_FP_MM_TILING,                   \
         quantTPlparam_.kernelType,                  \
         commDtype,                                  \
