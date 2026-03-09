@@ -222,17 +222,28 @@ __aicore__ inline void FABlockVecTrain<TEMPLATE_ARGS>::SoftmaxDataCopyOut(
     int64_t bOffset;
     int64_t n2Offset;
     int64_t gOffset;
+    int64_t s1Offset;
     if constexpr (layout == LayOutTypeEnum::LAYOUT_TND) {
-        bOffset = constInfo.n2G * runInfo.s1SizeAcc;
-        n2Offset = runInfo.n2oIdx * constInfo.gSize * runInfo.actualS1Size;
-        gOffset = runInfo.goIdx * runInfo.actualS1Size;
+        if (this->tilingData->inputParamsRegbase.tndSoftmaxOut == 1) {
+            bOffset = constInfo.n2G * runInfo.s1SizeAcc;
+            s1Offset = 
+            (runInfo.s1oIdx * this->s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize) * constInfo.n2G;
+            n2Offset = runInfo.n2oIdx * constInfo.gSize;
+            gOffset = runInfo.goIdx; 
+        } else {
+            bOffset = constInfo.n2G * runInfo.s1SizeAcc;
+            s1Offset = 
+            runInfo.s1oIdx * this->s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize;
+            n2Offset = runInfo.n2oIdx * constInfo.gSize * runInfo.actualS1Size;
+            gOffset = runInfo.goIdx * runInfo.actualS1Size;
+        }
     } else {
         bOffset = runInfo.boIdx * constInfo.n2Size * constInfo.gS1;
         n2Offset = runInfo.n2oIdx * constInfo.gS1;
         gOffset = runInfo.goIdx * constInfo.s1Size;
-    }
-    int64_t s1Offset =
+        s1Offset =
         (runInfo.s1oIdx * this->s1BaseSize + constInfo.subBlockIdx * runInfo.firstHalfS1RealSize);
+    }
     int64_t gmOffset = (bOffset + n2Offset + gOffset + s1Offset) * fp32BaseSize;
     int64_t calculateSize = runInfo.halfS1RealSize * fp32BaseSize;
 
