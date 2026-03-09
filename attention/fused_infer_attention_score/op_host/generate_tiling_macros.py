@@ -50,13 +50,22 @@ def generate_macros_from_strings(list_str1, list_str2, list_str3, output_file):
     if not (len(list1) == len(list2) == len(list3)):
         raise ValueError("三个列表的长度不一致")
     
+    seen = set()
     with open(output_file, 'w') as f:
+        cnt = 0
         for i in range(len(list1)):
             name1 = extract_name(list1[i])
             name2 = extract_name(list2[i])
             name3 = extract_name(list3[i])
             macro_name = f"{name1}_{name2}_{name3}"
-            f.write(f"#define {macro_name} {i}\n")
+        
+           # 检查是否重复
+            if macro_name in seen:
+                print("macro_name: ", macro_name, "repeated")
+                continue
+            seen.add(macro_name)
+            cnt += 1
+            f.write(f"#define {macro_name} {cnt}\n")
 
 # 示例用法
 if __name__ == "__main__":
