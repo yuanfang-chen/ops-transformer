@@ -65,6 +65,7 @@ protected:
     
 private:
     AlltoAllQuantMatmulTilingData localTilingData_;
+    bool isMxFp4_ = false;
     uint64_t mmMvalueLen_ = 0;
     void PrintAlltoAllMxQuantMatmulTilingInfo(const std::string &opName, AlltoAllMatmulTilingInfo &tilingInfo);
     void PrintMxQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
