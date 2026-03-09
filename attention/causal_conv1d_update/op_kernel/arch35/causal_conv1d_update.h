@@ -557,7 +557,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             Conv1dNoNeedState(InLocal, weightLocal, outLocal, xSLen, static_cast<uint32_t>(dimSizeInLoop));
         }
         DataCopyParams xToCacheCopyParams2;
-        xToCacheCopyParams2.blockCount = cacheLen_ - (kernelSize_ - 1);
+        xToCacheCopyParams2.blockCount = curSeqLen - (kernelSize_ - 1);
         xToCacheCopyParams2.blockLen = blockLen;
         xToCacheCopyParams2.srcStride = 0;
         xToCacheCopyParams2.dstStride = dstStrideBytes;
