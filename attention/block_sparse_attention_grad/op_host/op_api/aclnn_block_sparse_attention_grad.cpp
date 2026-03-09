@@ -112,9 +112,16 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
                                   const aclTensor *attentionOut,
                                   const aclTensor *softmaxLse,
                                   const aclTensor *blockSparseMaskOptional,
+                                  const aclTensor *attenMaskOptional,
+                                  const aclIntArray *actualSeqLengthsOptional,
+                                  const aclIntArray *actualSeqLengthsKvOptional,
                                   char *qInputLayout,
                                   char *kvInputLayout,
-                                  const aclIntArray *blockShapeOptional)
+                                  const aclIntArray *blockShapeOptional,
+                                  int64_t numKeyValueHeads,
+                                  int64_t maskType,
+                                  int64_t preTokens,
+                                  int64_t nextTokens)
 {
     CHECK_RET(CheckMandatoryTensors(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional) == ACLNN_SUCCESS,
               ACLNN_ERR_PARAM_NULLPTR);
@@ -123,6 +130,21 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
         return ACLNN_ERR_PARAM_INVALID;
     }
 
+    if (attenMaskOptional!=nullptr){
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "attenMaskOptional currently only supports nullptr.");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+
+    if (maskType != 0) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "maskType only supports 0, got %ld.", maskType);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+
+       if (preTokens !=2147483647 || nextTokens !=2147483647 ) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "preTokens and nextTokens must be 2147483647, got [%ld,%ld].", preTokens,nextTokens);
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+    
     if (qInputLayout == nullptr || kvInputLayout == nullptr) {
         OP_LOGE(ACLNN_ERR_PARAM_NULLPTR, "Input layout strings are null.");
         return ACLNN_ERR_PARAM_NULLPTR;
@@ -130,6 +152,16 @@ static aclnnStatus ValidateParams(const aclTensor *dout,
     std::string qLayout(qInputLayout);
     std::string kvLayout(kvInputLayout);
     
+    if (qLayout == "TND" && actualSeqLengthsOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, " actualSeqLengthsOptional  is mandatory when qInputLayout is TND.");
+        return ACLNN_ERR_PARAM_INVALID;
+    }
+
+    if (kvLayout == "TND" && actualSeqLengthsKvOptional == nullptr) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, " actualSeqLengthsKvOptional  is mandatory when kvInputLayout is TND.");
+        return ACLNN_ERR_PARAM_INVALID;
+    }    
+
     // 验证Q layout
     if (qLayout != "TND" && qLayout != "BNSD") {
         OP_LOGE(ACLNN_ERR_PARAM_INVALID, "qInputLayout only supports TND or BNSD, got %s.", qLayout.c_str());
@@ -227,7 +259,9 @@ __attribute__((visibility("default"))) aclnnStatus aclnnBlockSparseAttentionGrad
     aclOpExecutor **executor)
 {
     aclnnStatus ret = ValidateParams(dout, query, key, value, attentionOut, softmaxLse, blockSparseMaskOptional,
-                                     qInputLayout, kvInputLayout, blockShapeOptional);
+                                     attenMaskOptional, actualSeqLengthsOptional, actualSeqLengthsKvOptional,
+                                     qInputLayout, kvInputLayout, blockShapeOptional, 
+                                     numKeyValueHeads, maskType, preTokens,nextTokens);
     if (ret != ACLNN_SUCCESS) {
         return ret;
     }

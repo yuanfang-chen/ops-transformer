@@ -131,16 +131,15 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
     }
 
     if (layout_ == InputLayout::TND) {
-        if (queryShape->GetStorageShape().GetDimNum() != TND_DIM_NUM ||
-            kvShape->GetStorageShape().GetDimNum() != TND_DIM_NUM ||
-            blockSparseMaskShape->GetStorageShape().GetDimNum() != TND_DIM_NUM) {
+        if (queryShape->GetOriginShape().GetDimNum() != TND_DIM_NUM ||
+            kvShape->GetOriginShape().GetDimNum() != TND_DIM_NUM ) {
             OP_LOGE(context->GetNodeName(), "TND format must have 3 dimensions");
             return ge::GRAPH_FAILED;
-        }
-        totalTokensT_ = queryShape->GetStorageShape().GetDim(TND_DIM_T);
-        numHeads_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(TND_DIM_N));
-        headDim_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(TND_DIM_D));
-        kvHeads_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(TND_DIM_N));
+           }
+        totalTokensT_ = queryShape->GetOriginShape().GetDim(TND_DIM_T);
+        numHeads_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(TND_DIM_N));
+        headDim_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(TND_DIM_D));
+        kvHeads_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(TND_DIM_N));
         auto actualSeqLengths = context->GetOptionalInputTensor(ACTUAL_SEQ_LENGTHS_INDEX);
         if (actualSeqLengths == nullptr) {
             OP_LOGE(context->GetNodeName(), "TND format must have is actualSeqLengthsOptional");
@@ -154,18 +153,19 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
             }
         }
     } else if (layout_ == InputLayout::BNSD) {
-        if (queryShape->GetStorageShape().GetDimNum() != BNSD_DIM_NUM ||
-            kvShape->GetStorageShape().GetDimNum() != BNSD_DIM_NUM ||
-            blockSparseMaskShape->GetStorageShape().GetDimNum() != BNSD_DIM_NUM) {
+        if (queryShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM ||
+            kvShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM ||
+            blockSparseMaskShape->GetOriginShape().GetDimNum() != BNSD_DIM_NUM) {
             OP_LOGE(context->GetNodeName(), "BNSD format must have 4 dimensions");
             return ge::GRAPH_FAILED;
         }
         // 保存BNSD格式的batch和S维度
-        batch_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_B));
-        numHeads_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_N));
-        maxQSeqlen_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_S));
-        headDim_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_D));
-        maxKvSeqlen_ = static_cast<uint32_t>(queryShape->GetStorageShape().GetDim(BNSD_DIM_S));
+        batch_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(BNSD_DIM_B));
+        numHeads_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(BNSD_DIM_N));
+        maxQSeqlen_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(BNSD_DIM_S));
+        headDim_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(BNSD_DIM_D));
+        kvHeads_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(BNSD_DIM_N));
+        maxKvSeqlen_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(BNSD_DIM_S));
     }
 
     auto blockShapeOptional = context->GetInputTensor(BLOCK_SHAPE_INDEX);
@@ -195,6 +195,20 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
         dataType_ = qInputDesc->GetDataType();
     }
 
+    if (kvHeads_ == 0){
+        OP_LOGE(context->GetNodeName(), "kvHeads can not be zero.");
+        return ge::GRAPH_FAILED;
+    }
+
+    if (!(numHeads_ >= kvHeads_ && numHeads_ % kvHeads_ == 0)){
+        OP_LOGE(context->GetNodeName(), "Invalid head config: query heads(%u) must be >=kv heads(%u) and divisible by it.",
+    numHeads_, kvHeads_);
+        return ge::GRAPH_FAILED;
+    }
+
+
+
+
 
     // maxKvBlockNum_ = static_cast<uint32_t>(selectIdxShape->GetStorageShape().GetDim(MAX_BLOCK_NUM_INDEX));
     // maxNumBlocksPerBatch_ = maxKvBlockNum_ * numHeads_;
@@ -202,32 +216,87 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context)
-{
-    // 计算总的Q块数量和最大KV块数量
-    totalQBlocks_ = 0;
-    if (batch_ == 0) {
-        OP_LOGE(context->GetNodeName(), "batch_ is 0 in CalculateTaskSplit");
-        return ge::GRAPH_FAILED;
+ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) {
+    uint32_t numHeads = numHeads_;
+    uint32_t kvHeads = kvHeads_;
+    uint32_t blockX = blockShapeX_;
+    uint32_t coreNum = aicNum_;
+    uint32_t totalTasks = 0;
+
+    std::vector<uint32_t> tasksInBatch(batch_);
+    std::vector<uint64_t> qPrefixTokenSum(batch_ + 1, 0);
+    std::vector<uint64_t> kvPrefixTokenSum(batch_ + 1, 0);
+     
+    for (uint32_t b = 0; b < batch_; b++) {
+        uint32_t qSeqlen = (layout_ == InputLayout::TND) ? qSeqlenList[b] : maxQSeqlen_;
+        uint32_t kvSeqlen = (layout_ == InputLayout::TND) ? kvSeqlenList[b] : maxkvSeqlen_;
+
+        uint32_t qBlocks = GetQBlocks(qSeqlen, blockX);
+        tasksInBatch[b] = qBlocks * numHeads;
+        totalTasks += tasksInBatch[b];
+
+        qPrefixTokenSum[b+1] = qPrefixTokenSum[b] + qSeqlen;
+        kvPrefixTokenSum[b+1] = kvPrefixTokenSum[b] + kvSeqlen;
     }
-    // 遍历每个batch进行分核计算
-    for (auto i = 0; i < batch_; i++) {
-        int64_t qSeqlen;
-        if (layout_ == InputLayout::TND) {
-            qSeqlen = static_cast<int64_t>(maxQSeqlen_);
+
+    uint32_t taskNumPerCore = totalTasks / coreNum;
+    uint32_t tailTaskNum =t otalTasks % coreNum;
+    uint32_t currentGlobalTaskID = 0;
+
+    for (uint32_t i=0; i < coreNum; i++){
+        uint32_t curBatch = 0,curHeadNum = 0,curQSeqIdx = 0;
+        uint64_t preQSeqLengths= 0 ,preKVSeqLengths = 0;
+        uint32_t tempId = currentGlobalTasKId;
+
+        if (layout_ == InputLayout::TND){
+            //TND遍历顺序是 Batch -> SeqBlock  ->  Head
+            for (uint32_t b = 0; b < batch_; b++){
+                if(tempId <tasksInBatch[b]){
+                    curBatch=b;
+                    curHeadNum=tempId % numHeads;
+                    uint32_t blockIdx = tempId/numHeads;
+                        
+                    uint32_t qBlocksInX=CeilDiv(blockX,BASIC_BLOCK_SIZE);
+                    uint32_t macroBlockIdx=blockIdx / qBlocksInX;
+                    uint32_t microBlockInMacro=blockIdx % qBlocksInX;
+
+                    curQSeqIdx=macroBlockIdx * blockX + microBlockInMacro * BASIC_BLOCK_SIZE;
+                    preQSeqLengths= qPrefixTokenSum[b] * numHeads*headDim_ + curQSeqIdx*numHeads * headDim_ +curHeadNum * headDim_;
+                    preKVSeqLengths= kvPrefixTokenSum[b] * kvHeads*headDim_ + (curHeadNum /(numHeads/kvHeads)) * headDim_;
+                    break;
+
+                }
+                tempId -= tasksInBatch[b];
+
+            }
         } else {
-            qSeqlen = qSeqLenList[i];
+            //BNSD遍历顺序是 Batch ->Head -> SeqBlock
+            uint32_t qBlocksPerHead = GetQBlocks(maxQSeqlen_,blockX);
+            curBatch = tempId / (numHeads * qBlocksPerHead);
+            uint32_t remain =tempId % (numHeads * qBlocksPerHead);
+            curHeadNum = remain / qBlocksPerHead;
+            uint32_t blockIdx = remain % qBlocksPerHead;
+
+            uint32_t qBlocksInX = CeilDiv(blockX,BASIC_BLOCK_SIZE);
+            curQSeqIdx = (blockIdx/ qBlocksInX)* blockX + (blockIdx % qBlocksInX) * BASIC_BLOCK_SIZE;
+            preQSeqLengths = (static_cast<uint64_t>(curBatch) * numHeads * maxQSeqlen_ * headDim_ ) +
+                            (static_cast<uint64_t>(curHeadNum) * maxQSeqlen_ * headDim_ )+
+                            (static_cast<uint64_t>(curQSeqIdx) * headDim_ );
+            
+            preKVSeqLengths = (static_cast<uint64_t>(curBatch) * kvHeads * maxKvSeqlen_ * headDim_ ) +
+                            (static_cast<uint64_t>(curHeadNum/(numHeads/kvHeads)) * maxKVSeqlen_ * headDim_ );
         }
-        uint32_t curTaskNum = GetQBlocks(qSeqlen, blockShapeX_) * numHeads_;
-        uint32_t curQBlockNum = CeilDiv(qSeqlen, blockShapeX_) * numHeads_;
-        if (i == 0) {
-            firstBatchTaskNum_ = curTaskNum;
-            firstQBlockNum_ = curQBlockNum;
-        }
-        totalTaskNum_ += curTaskNum;
-        totalQBlocks_ += curQBlockNum;
+
+        tilingData_->get_beginBatch()[i] = curBatch;
+        tilingData_->get_beginHead()[i] = curHeadNum;
+        tilingData_->get_beginQSeqOffset()[i] = curQSeqIdx;
+        tilingData_->get_preQSeqLengths()[i] = preQSeqLengths;
+        tilingData_->get_preKVSeqLengths()[i] = preKVSeqLengths;
+
+        uint32_t taskLen = (i< tailTaskNum) ? (taskNumPerCore + 1):taskNumPerCore;
+        currentGlobalTasKId += taskLen;
     }
-    blockDim_ = std::min(aicNum_, totalTaskNum_);
+
     return ge::GRAPH_SUCCESS;
 }
 
