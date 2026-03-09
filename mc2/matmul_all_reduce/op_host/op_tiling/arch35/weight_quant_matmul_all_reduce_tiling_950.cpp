@@ -205,15 +205,19 @@ uint64_t WeightQuantMatmulAllReduceTilingA5::GetTilingKey() const
             MMTYPE_WEIQUANT_NULL_TENSOR,                \
             false,                                      \
             false,                                      \
+            false,                                      \
             SET_NOT_USE_FP_MM_TILING,                   \
             SET_NOT_USE_QUANT_MM_TILING,                \
             SET_NOT_USE_WEIGHT_QUANT_MM_TILING);
         return tilingKey;
     }
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isA2ARSAG = isStandardCard4P;
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_WEIGHT_QUANT_MM,                     \
         WeightQuantTPLPatams_.transB,               \
         WeightQuantTPLPatams_.biasIsExist,          \
+        isA2ARSAG,                                  \
         SET_NOT_USE_FP_MM_TILING,                   \
         SET_NOT_USE_QUANT_MM_TILING,                \
         WeightQuantTPLPatams_.templateCustom,       \
