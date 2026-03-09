@@ -14,32 +14,6 @@
  */
 #include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_check.h"
 namespace MC2Tiling {
-constexpr size_t X1_INDEX = 0;
-constexpr size_t X2_INDEX = 1;
-constexpr size_t Y_INDEX = 2;
-constexpr size_t GAMMA_INDEX = 3;
-constexpr size_t SCALE_INDEX = 4;
-constexpr size_t BIAS_INDEX = 5;
-constexpr size_t PER_TOKEN_SCALE_INDEX = 6;
-constexpr size_t Y1_INDEX = 0;
-constexpr size_t Y2_INDEX = 1;
-constexpr size_t X_INDEX = 2;
-constexpr size_t OUTPUT_INDEX = 0;
-constexpr size_t GROUP_INDEX = 0;
-constexpr size_t RANK_SIZE_INDEX = 1;
-constexpr size_t TRANSPOSE_X2_INDEX = 2;
-constexpr size_t OUT_PUT_DTYPE_INDEX = 3;
-constexpr size_t EPSILON_INDEX = 4;
-constexpr size_t DIM_ZERO = 0;
-constexpr size_t DIM_ONE = 1;
-constexpr size_t DIM_TWO = 2;
-constexpr size_t DIM_THREE = 3;
-constexpr size_t NUM_THREE = 3;
-constexpr size_t TP_NUMBER = 4;
-constexpr size_t ONE_DIM = 1;
-constexpr size_t TWO_DIMS = 2;
-constexpr size_t FOUR_DIMS = 4;
-
 
 bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckAttrs(const gert::TilingContext *context)
 {
@@ -239,15 +213,17 @@ bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckTensorDataType(const gert:
     OP_TILING_CHECK((x1Dtype != ge::DT_INT8) && (x2Dtype != ge::DT_INT8),
         OP_LOGE(nodeName, "The dataType of x1/x2 should be the same, and the dtype should be int8, but current x1/x2 dtype are %s/%s.",
         Ops::Base::ToString(x1Dtype).c_str(), Ops::Base::ToString(x2Dtype).c_str()), return false);
-    OP_TILING_CHECK((scaleDtype != perTokenScaleDtype) && ((scaleDtype != ge::DT_BF16) || (scaleDtype != ge::DT_FLOAT)),
-        OP_LOGE(nodeName, "The dataType of scale/perTokenScale should be the same, and the dtype should be bfloat16 or float, but current x1/x2 dtype are %s/%s.",
-        Ops::Base::ToString(scaleDtype).c_str(), Ops::Base::ToString(perTokenScaleDtype).c_str()), return false);
+    OP_TILING_CHECK(((scaleDtype != ge::DT_BF16) && (scaleDtype != ge::DT_FLOAT)),
+        OP_LOGE(nodeName, "The dataType of scale should be bfloat16 or float, but current dtype is %s.",
+        Ops::Base::ToString(scaleDtype).c_str()), return false);
+    OP_TILING_CHECK(perTokenScaleDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of pertokenScale should be float, but current dtype is %s.",
+        Ops::Base::ToString(perTokenScaleDtype).c_str()), return false);
     OP_TILING_CHECK(gammaDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of gamma should be the float, but current gamma dtype is %s.",
         Ops::Base::ToString(gammaDtype).c_str()), return false);
     OP_TILING_CHECK(y1Dtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of y1 should be the float, but current y1 dtype is %s.",
         Ops::Base::ToString(y1Dtype).c_str()), return false);
-    OP_TILING_CHECK((biasDtype != ge::DT_FLOAT && biasDtype != ge::DT_BF16 && biasDtype != ge::DT_FLOAT16 && biasDtype != ge::DT_INT32), OP_LOGE(nodeName, "The dataType of bias should be the bfloat16 or int32 or float16 or float, but current bias dtype is %s.",
-        Ops::Base::ToString(biasDtype).c_str()), return false);
+    // OP_TILING_CHECK((biasDtype != ge::DT_FLOAT && biasDtype != ge::DT_BF16 && biasDtype != ge::DT_FLOAT16 && biasDtype != ge::DT_INT32), OP_LOGE(nodeName, "The dataType of bias should be the bfloat16 or int32 or float16 or float, but current bias dtype is %s.",
+    //     Ops::Base::ToString(biasDtype).c_str()), return false);
     return true;
 }
 

@@ -11,6 +11,31 @@
 #define QBMM_REDUCE_SCATTER_ADD_RMS_NORM_CAST_TILING_CHECK_H
 #include "tiling/mc2_tiling_utils.h"
 namespace MC2Tiling {
+constexpr size_t X1_INDEX = 0;
+constexpr size_t X2_INDEX = 1;
+constexpr size_t Y_INDEX = 2;
+constexpr size_t GAMMA_INDEX = 3;
+constexpr size_t SCALE_INDEX = 4;
+constexpr size_t BIAS_INDEX = 5;
+constexpr size_t PER_TOKEN_SCALE_INDEX = 6;
+constexpr size_t Y1_INDEX = 0;
+constexpr size_t Y2_INDEX = 1;
+constexpr size_t X_INDEX = 2;
+constexpr size_t OUTPUT_INDEX = 0;
+constexpr size_t GROUP_INDEX = 0;
+constexpr size_t RANK_SIZE_INDEX = 1;
+constexpr size_t TRANSPOSE_X2_INDEX = 2;
+constexpr size_t OUT_PUT_DTYPE_INDEX = 3;
+constexpr size_t EPSILON_INDEX = 4;
+constexpr size_t DIM_ZERO = 0;
+constexpr size_t DIM_ONE = 1;
+constexpr size_t DIM_TWO = 2;
+constexpr size_t DIM_THREE = 3;
+constexpr size_t NUM_THREE = 3;
+constexpr size_t TP_NUMBER = 4;
+constexpr size_t ONE_DIM = 1;
+constexpr size_t TWO_DIMS = 2;
+constexpr size_t FOUR_DIMS = 4;
 class QbmmReduceScatterAddRmsNormCastCheckTiling {
 public:
     static bool CheckAttrs(const gert::TilingContext *context);

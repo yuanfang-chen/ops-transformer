@@ -37,6 +37,10 @@
 #endif
 
 namespace QbmmReduceScatterAddRmsNormCastImpl {
+
+#define TemplateMC2TypeClass typename YType, typename ScaleType, typename Y1Type, typename Y2Type, typename XType, bool isNz
+#define TemplateMC2TypeFunc YType, ScaleType, Y1Type, Y2Type, XType, isNz
+using namespace AscendC;
 using namespace AscendC;
 
 constexpr uint32_t BUFFER_NUM = 1U;
@@ -61,13 +65,23 @@ __aicore__ inline uint64_t CeilDiv(uint64_t a, uint64_t b)
     return (a + b - 1) / b;
 }
 
+__aicore__ inline constexpr CubeFormat GetFormat(bool isNz)
+{
+    if (isNz) {
+        return CubeFormat::NZ;
+    }
+    return CubeFormat::ND;
+}
+
+template<TemplateMC2TypeClass>
 class QbmmReduceScatterAddRmsNormCastMte {
 public:
     __aicore__ inline QbmmReduceScatterAddRmsNormCastMte() {};
     __aicore__ inline void Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, GM_ADDR bias, GM_ADDR perTokenScale, GM_ADDR y1Out,
                 GM_ADDR y2Out, GM_ADDR xOut, GM_ADDR workspaceGM, TPipe *pipe, const QbmmReduceScatterAddRmsNormCastTilingData *tilingData);
+    static constexpr CubeFormat x2Format = GetFormat(isNz);
     using AMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
-    using BMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int8_t, false>;
+    using BMatmulType = matmul::MatmulType<TPosition::GM, x2Format, int8_t, false>;
     using CMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int32_t>;
     using BiasMatmulType = matmul::MatmulType<TPosition::GM, CubeFormat::ND, int32_t>;
     
@@ -89,7 +103,7 @@ protected:
                                                 LocalTensor<float>& x2TmpFloatLocal,
                                                 LocalTensor<float>& addOutTmpFloatLocal,
                                                 const DataCopyExtParams& copyExtParams,
-                                                const DataCopyPadExtParams<bfloat16_t>& copyPadExtParams);
+                                                const DataCopyPadExtParams<YType>& copyPadExtParams);
     __aicore__ inline void AddRmsNormRmsNormCompute(uint32_t tokenIndex, uint32_t numCol,
                                                     LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
                                                     LocalTensor<float>& gammaLocal,
@@ -120,19 +134,19 @@ protected:
     GlobalTensor<int8_t> x1GM_;
     GlobalTensor<int8_t> x2GM_;
     // 用来存储通信tensor
-    GlobalTensor<bfloat16_t> yGM_;
+    GlobalTensor<YType> yGM_;
     // 用来存储reducescatter输出
-    GlobalTensor<bfloat16_t> xOutGM_;
-    GlobalTensor<bfloat16_t> y2OutGM_;
+    GlobalTensor<YType> xOutGM_;
+    GlobalTensor<YType> y2OutGM_;
     GlobalTensor<float> y1OutGM_;
     GlobalTensor<float> gammaGM_;
     GlobalTensor<int32_t> mmOutGm_;
     GM_ADDR workspaceAddr_;
     GM_ADDR perTokenScaleAddr_;
 
-    LocalTensor<bfloat16_t> tmpTensor_;
+    // LocalTensor<bfloat16_t> tmpTensor_;
     LocalTensor<int32_t> srcLocalTensor_;
-    LocalTensor<bfloat16_t> tokenTensor_;
+    LocalTensor<YType> tokenTensor_;
     LocalTensor<float> rowTmpFloatLocal_;
     LocalTensor<float> mulBufLocal_;
 
@@ -167,6 +181,8 @@ protected:
     uint64_t offsetC_{0};
     uint64_t mOffset_{0};
     uint64_t nOffset_{0};
+    uint64_t nOffset_fix{0};
+
     bool aTrans_;
     bool bTrans_;
     
@@ -185,10 +201,11 @@ protected:
     TBuf<TPosition::VECCALC> biasFp32Tmp_;
     TBuf<TPosition::VECCALC> outFp32Tmp_;
 
-    GlobalTensor<float> scaleGMTensor_;
+    GlobalTensor<ScaleType> scaleGMTensor_;
 };
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, 
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::Init(GM_ADDR x1, GM_ADDR x2, GM_ADDR y, GM_ADDR gamma, GM_ADDR scale, 
     GM_ADDR bias, GM_ADDR perTokenScale, GM_ADDR y1Out, GM_ADDR y2Out, GM_ADDR xOut, GM_ADDR workspaceGM, TPipe *pipe, const QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     // PRINTF("kernel init doing.");
@@ -197,16 +214,16 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_A
     coreCid_ = GetBlockIdx();
 
     // init global buffer
-    yGM_.SetGlobalBuffer((__gm__ bfloat16_t*) y);
+    yGM_.SetGlobalBuffer((__gm__ YType*) y);
     gammaGM_.SetGlobalBuffer((__gm__ float*) gamma);
-    xOutGM_.SetGlobalBuffer((__gm__ bfloat16_t*) xOut);
+    xOutGM_.SetGlobalBuffer((__gm__ YType*) xOut);
     x1GM_.SetGlobalBuffer((__gm__ int8_t*) x1);
     x2GM_.SetGlobalBuffer((__gm__ int8_t*) x2);
     y1OutGM_.SetGlobalBuffer((__gm__ float*) y1Out);
-    y2OutGM_.SetGlobalBuffer((__gm__ bfloat16_t*) y2Out);
+    y2OutGM_.SetGlobalBuffer((__gm__ YType*) y2Out);
     workspaceAddr_ = workspaceGM;
     mmOutGm_.SetGlobalBuffer((__gm__ int32_t *)workspaceAddr_);
-    scaleGMTensor_.SetGlobalBuffer((__gm__ float*)scale);
+    scaleGMTensor_.SetGlobalBuffer((__gm__ ScaleType*)scale);
 
     mm_.Init(&(tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling), tpipe_);
     InitTilingData(tilingData);
@@ -231,8 +248,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_A
     // init ub local buffer for dequantCompute
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
-    tpipe_->InitBuffer(vecQueOut_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(bfloat16_t));
-    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, 128 * sizeof(float));
+    tpipe_->InitBuffer(vecQueOut_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(YType));
+    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, 128 * sizeof(ScaleType));
     tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, 8U) * sizeof(float));
     tpipe_->InitBuffer(broadcastFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
     tpipe_->InitBuffer(outFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
@@ -243,7 +260,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Init(GM_ADDR x1, GM_A
     rankId_ = winContext_->localUsrRankId;
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::InitTilingData(
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::InitTilingData(
     const QbmmReduceScatterAddRmsNormCastTilingData *tilingData)
 {
     m_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.M;
@@ -259,7 +277,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::InitTilingData(
     baseK_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseK;
 }
 
-__aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindAddrByRankId(const int32_t rankId)
+template<TemplateMC2TypeClass>
+__aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::GetWindAddrByRankId(const int32_t rankId)
 {
     if (rankId == rankId_) {
         return (GM_ADDR)(winContext_->localWindowsIn);
@@ -267,7 +286,8 @@ __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindAddrByRankI
     return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsIn);   // 先找到某个rank的首地址，然后再偏移到具体的处理data的地方
 }
 
-__aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindStateAddrByRankId(const int32_t rankId)
+template<TemplateMC2TypeClass>
+__aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::GetWindStateAddrByRankId(const int32_t rankId)
 {
     if (rankId == rankId_) {
         return (GM_ADDR)(winContext_->localWindowsExp);
@@ -275,7 +295,8 @@ __aicore__ inline GM_ADDR QbmmReduceScatterAddRmsNormCastMte::GetWindStateAddrBy
     return (GM_ADDR)(((HcclRankRelationResV2*)(winContext_->remoteRes[rankId].nextDevicePtr))->windowsExp);
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::SplitToCore(const uint32_t curSendCnt, const uint32_t curUseCoreNum, const uint32_t coreId, uint32_t &startId, uint32_t &endId, uint32_t &sendNum)
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::SplitToCore(const uint32_t curSendCnt, const uint32_t curUseCoreNum, const uint32_t coreId, uint32_t &startId, uint32_t &endId, uint32_t &sendNum)
 {
     sendNum = curSendCnt / curUseCoreNum;
     uint32_t remainderNum = curSendCnt % curUseCoreNum;
@@ -289,7 +310,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::SplitToCore(const uin
     endId = startId + sendNum;
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::WriteStatusToWin()
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::WriteStatusToWin()
 {
     if (coreVid_ >= tpWorldSize_) {
         return;
@@ -306,7 +328,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::WriteStatusToWin()
     DataCopy(stateGMTensor[curOffset], statusTensor, FLOAT_UB_ALIGN_NUM);
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadStatus()
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::ReadStatus()
 {
     // 粗粒度状态区逻辑，只有tpwordsize个状态，所需的v核只需要4个
     if (coreVid_ >= tpWorldSize_) {
@@ -331,7 +354,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadStatus()
     }   
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col)
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::DequantCompute(GlobalTensor<int32_t> &curMmOutGm, uint64_t baseMOffset, uint64_t baseNOffset, uint32_t curAicM, uint32_t curAicN, uint64_t row, uint64_t col)
 {
     LocalTensor<float> dstLocalFp32;
     uint32_t curAivM = ubCalcM_;
@@ -341,14 +365,14 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(Global
     DequantParams dequantParams;
     DequantBmm::CalcDequantParams(mUbLoops == 1 ? curAicM : ubCalcM_, curAicN, dequantParams);
     dstLocalFp32 = outFp32Tmp_.Get<float>();
-    GlobalTensor<bfloat16_t> remoteTensor;
+    GlobalTensor<YType> remoteTensor;
     for (uint32_t mUbLoopIdx = 0; mUbLoopIdx < mUbLoops; ++mUbLoopIdx) {
         if (mUbLoopIdx == mUbLoops - 1) {
             curAivM = 63 - ubCalcM_ * (mUbLoops - 1);
             DequantBmm::CalcDequantParams(curAivM, curAicN, dequantParams, mUbLoops != 1 && curAivM != ubCalcM_);
         }
         LocalTensor<int32_t> srcLocal = vecQueSrc_.AllocTensor<int32_t>();
-        LocalTensor<bfloat16_t> dstLocal = vecQueOut_.AllocTensor<bfloat16_t>();
+        LocalTensor<YType> dstLocal = vecQueOut_.AllocTensor<YType>();
         LocalTensor<uint8_t> tmpLocal = vecQueTmp_.Get<uint8_t>();
         DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), 16, 624, 0};
         DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), 8, 0, 312};
@@ -357,8 +381,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(Global
         DataCopy(srcLocal, mmOutGm_[curAicAivOffset], gm2UbParams);
         PipeBarrier<PIPE_ALL>();
         SyncFunc<AscendC::HardEvent::MTE2_V>();
-        LocalTensor<float> scaleLocal = vecQueScale_.AllocTensor<float>();
-        DataCopy(scaleLocal, scaleGMTensor_[offsetB_], 128);
+        LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
+        DataCopy(scaleLocal, scaleGMTensor_[nOffset_], 128);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
         vecQueScale_.FreeTensor(scaleLocal);
@@ -399,24 +423,25 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::DequantCompute(Global
         // 计算当前正处于的TP域
         int32_t remoteRankId = curAicAivOffset / (m_ * n_ / tpWorldSize_);
         GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
-        remoteTensor.SetGlobalBuffer((__gm__ bfloat16_t*)remoteWinAddr);
+        remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
         uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_;
-        uint64_t nOffset = offsetB_;
+        uint64_t nOffset = nOffset_;
         uint32_t dstOffset = tpOffset + nOffset + mUbLoopIdx * ubCalcM_ * n_;
         DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams);
         vecQueOut_.FreeTensor(dstLocal);
     }
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::AddRmsNormAddCompute(uint32_t tokenIndex, uint32_t numCol,
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::AddRmsNormAddCompute(uint32_t tokenIndex, uint32_t numCol,
                                                                                 LocalTensor<float>& x1TmpFloatLocal,
                                                                                 LocalTensor<float>& x2TmpFloatLocal,
                                                                                 LocalTensor<float>& addOutTmpFloatLocal,
                                                                                 const DataCopyExtParams& copyExtParams,
-                                                                                const DataCopyPadExtParams<bfloat16_t>& copyPadExtParams)
+                                                                                const DataCopyPadExtParams<YType>& copyPadExtParams)
 {
     // 计算x + residual_x
-    LocalTensor<bfloat16_t> x2 = tokenBuf_.Get<bfloat16_t>();
+    LocalTensor<YType> x2 = tokenBuf_.Get<YType>();
     DataCopyPad(x2, yGM_[tokenIndex * n_], copyExtParams, copyPadExtParams);
     SyncFunc<AscendC::HardEvent::MTE2_V>();
     Cast(x2TmpFloatLocal, x2, AscendC::RoundMode::CAST_NONE, numCol);
@@ -424,7 +449,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::AddRmsNormAddCompute(
     AscendC::Add(addOutTmpFloatLocal, x1TmpFloatLocal, x2TmpFloatLocal, numCol);
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::AddRmsNormRmsNormCompute(uint32_t tokenIndex, uint32_t numCol,
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::AddRmsNormRmsNormCompute(uint32_t tokenIndex, uint32_t numCol,
                                                     LocalTensor<float>& xFp32, LocalTensor<float>& sqx,
                                                     LocalTensor<float>& gammaLocal,
                                                     const DataCopyExtParams& copyExtParams)
@@ -450,7 +476,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::AddRmsNormRmsNormComp
     SyncFunc<AscendC::HardEvent::S_V>();
     Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
-    LocalTensor<bfloat16_t> yLocal = rowTmpFloatBuf_.Get<bfloat16_t>();
+    LocalTensor<YType> yLocal = rowTmpFloatBuf_.Get<YType>();
     Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
     PipeBarrier<PIPE_V>();
     Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
@@ -467,7 +493,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::AddRmsNormRmsNormComp
     DataCopy(y1OutGM_[tokenIndex * n_], resFp32Tensor, n_);
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::ReadRemoteDataAdd()
 {
     uint32_t startRowId = 0;
     uint32_t endRowId = 0;
@@ -479,12 +506,12 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
     LocalTensor<float> tokenFp32Tensor = tokenFp32Buf_.Get<float>();
     mulBufLocal_ = mulBuf_.Get<float>();
     uint32_t curVidOffset = startRowId * n_;
-    GlobalTensor<bfloat16_t> localWinTensor;
-    localWinTensor.SetGlobalBuffer((__gm__ bfloat16_t*)GetWindAddrByRankId(rankId_));
+    GlobalTensor<YType> localWinTensor;
+    localWinTensor.SetGlobalBuffer((__gm__ YType*)GetWindAddrByRankId(rankId_));
 
     DataCopyExtParams expandXCopyParams{1U, static_cast<uint32_t>(n_ * 2), 0U, 0U, 0U};
     DataCopyExtParams gammaCopyParams{1U, static_cast<uint32_t>(n_ * 4), 0U, 0U, 0U};
-    const DataCopyPadExtParams<bfloat16_t> copyPadXTypeParams{false, 0U, 0U, 0U};
+    const DataCopyPadExtParams<YType> copyPadXTypeParams{false, 0U, 0U, 0U};
     const DataCopyPadExtParams<float> copyPadFloatParams{false, 0U, 0U, 0U};
 
     for(uint32_t tileIdx = 0; tileIdx < rowNum; ++tileIdx) {
@@ -493,20 +520,20 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
         uint32_t curVidTileOffset = curVidOffset + tileIdx * n_;
         for(int tpIndex = 0; tpIndex < tpWorldSize_; ++tpIndex) {
             uint32_t curOffset = curVidTileOffset + tpIndex * singleTpSize_;
-            tokenTensor_ = tokenNewQueue_.AllocTensor<bfloat16_t>();
+            tokenTensor_ = tokenNewQueue_.AllocTensor<YType>();
             DataCopy(tokenTensor_, localWinTensor[curOffset], n_);
             tokenNewQueue_.EnQue(tokenTensor_);
-            tokenTensor_ = tokenNewQueue_.DeQue<bfloat16_t>();
+            tokenTensor_ = tokenNewQueue_.DeQue<YType>();
             SyncFunc<AscendC::HardEvent::MTE2_V>();
             Cast(tokenFp32Tensor, tokenTensor_, RoundMode::CAST_NONE, BLOCK_LENGTH);
             PipeBarrier<PIPE_V>();
             Add(sumFp32Tensor, sumFp32Tensor, tokenFp32Tensor, BLOCK_LENGTH);
-            tokenNewQueue_.FreeTensor<bfloat16_t>(tokenTensor_);
+            tokenNewQueue_.FreeTensor<YType>(tokenTensor_);
         }
         rowTmpFloatLocal_ = rowTmpFloatBuf_.Get<float>();
         AddRmsNormAddCompute(tokenIndex, n_, sumFp32Tensor, rowTmpFloatLocal_, sumFp32Tensor, expandXCopyParams, copyPadXTypeParams);
         // 执行AddRmsNorm--Add，输出x
-        LocalTensor<bfloat16_t> sumBufLocal = tokenBuf_.Get<bfloat16_t>();
+        LocalTensor<YType> sumBufLocal = tokenBuf_.Get<YType>();
         PipeBarrier<PIPE_V>();
         Cast(sumBufLocal, sumFp32Tensor, AscendC::RoundMode::CAST_RINT, n_);
         SyncFunc<AscendC::HardEvent::V_MTE3>();
@@ -520,7 +547,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::ReadRemoteDataAdd()
     }
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32_t singleM, uint32_t singleN)
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::MMCompute(uint32_t singleM, uint32_t singleN)
 {
     mm_.SetSingleShape(singleM, singleN, singleCoreK_);
     mm_.SetTensorA(x1GM_[offsetA_], aTrans_);
@@ -528,28 +556,30 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MMCompute(uint32_t si
     mm_.template Iterate<false>();
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::CalcMAxisOffset(uint32_t loopIdx, uint32_t nLoops)
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::CalcMAxisOffset(uint32_t loopIdx, uint32_t nLoops)
 {
-    if (loopIdx == 0) {
-        return;
-    }
-    offsetA_ += singleTimeM_ * k_;
-    uint64_t nOffset = singleTimeN_ * (nLoops - 1);
-    offsetC_ = offsetC_ - nOffset + singleTimeM_ * n_;
-    offsetB_ -= nOffset;
-    mOffset_ += singleTimeM_;
+    mOffset_ = loopIdx * singleTimeM_;
+    offsetA_ = loopIdx * singleTimeM_ * k_;
+    offsetC_ = nOffset_fix + loopIdx * singleTimeM_ * n_;
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::CalcNAxisOffset(uint32_t loopIdx)
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::CalcNAxisOffset(uint32_t loopIdx)
 {
-    if (loopIdx == 0) {
-        return;
+    nOffset_ = nOffset_fix + loopIdx * singleTimeN_;
+    if constexpr (BMatmulType::format == CubeFormat::ND) {
+        offsetB_ = nOffset_;
+    } else if constexpr (BMatmulType::format == CubeFormat::NZ) {
+        uint64_t temp1 = nOffset_ / 32;
+        uint64_t temp2 = nOffset_ % 32;
+        offsetB_ = temp1 * k_ * 32 + temp2;
     }
-    offsetB_ += singleTimeN_;
     offsetC_ += singleTimeN_;
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MatmulProcess()
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::MatmulProcess()
 {
     mm_.SetOrgShape(m_, n_, k_);
     uint32_t mDim = CeilDiv(m_, singleCoreM_ * 2);
@@ -565,10 +595,9 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MatmulProcess()
     uint32_t nLoops = tileNum;
     // CalcOffset, 默认当前都是ND, 且非转置
     mOffset_ = static_cast<uint64_t>(mCoreIndx * singleCoreM_);
-    nOffset_ = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
+    nOffset_fix = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
     offsetA_ = mOffset_ * k_;
     offsetB_ = nOffset_;
-    offsetC_ = mOffset_ * n_ + nOffset_;
 
     PipeBarrier<PIPE_ALL>();
     for (uint32_t i = 0; i < mLoops; ++i) {
@@ -578,14 +607,15 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::MatmulProcess()
             uint32_t singleN = singleTimeN_;
             CalcNAxisOffset(j);
             MMCompute(singleM, singleN);
-            mm_.GetTensorC<false>(mmOutGm_[offsetC_]);
+            mm_.template GetTensorC<false>(mmOutGm_[offsetC_]);
             CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
         }
     }
     mm_.End();
 }
 
-__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
+template<TemplateMC2TypeClass>
+__aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::Process()
 {
     if ASCEND_IS_AIC {
         MatmulProcess();
@@ -605,10 +635,9 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
         uint32_t nLoops = tileNum;
         // CalOffset, 默认当前都是ND, 且非转置
         mOffset_ = static_cast<uint64_t>(mCoreIndx * singleCoreM_);
-        nOffset_ = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
+        nOffset_fix = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
         offsetA_ = mOffset_ * k_;
         offsetB_ = nOffset_;
-        offsetC_ = mOffset_ * n_ + nOffset_;
 
         PipeBarrier<PIPE_ALL>();
         for (uint32_t i = 0; i < mLoops; ++i) {
@@ -629,7 +658,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte::Process()
         ReadStatus();
         SyncAll<true>();    //确保前4个核都等到了状态，即数据区完全ready
         tpipe_->Reset();
-        tpipe_->InitBuffer(tokenNewQueue_, BUFFER_NUM, 5120 * 4);   //涉及到Cast的src和dst记得，小cast大要分配大的空间
+        tpipe_->InitBuffer(tokenNewQueue_, BUFFER_NUM, 5120 * sizeof(float));   //涉及到Cast的src和dst记得，小cast大要分配大的空间
         tpipe_->InitBuffer(sumFp32Buf_, BLOCK_LENGTH * 4);
         tpipe_->InitBuffer(tokenFp32Buf_, BLOCK_LENGTH * 4);
         tpipe_->InitBuffer(tokenBuf_, BLOCK_LENGTH * 2);

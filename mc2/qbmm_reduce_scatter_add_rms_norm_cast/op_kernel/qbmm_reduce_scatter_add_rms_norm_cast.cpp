@@ -31,7 +31,15 @@ __global__ __aicore__ void qbmm_reduce_scatter_add_rms_norm_cast(GM_ADDR x1, GM_
     TPipe pipe;
     if (TILING_KEY_IS(0)) {
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
-        QbmmReduceScatterAddRmsNormCastMte op;
+        QbmmReduceScatterAddRmsNormCastMte<DTYPE_Y, DTYPE_SCALE, DTYPE_Y1, DTYPE_Y2, DTYPE_X, false> op;
+        const QbmmReduceScatterAddRmsNormCastTilingData *qBmmReduceScatterAddRmsNormCastTilingData = &tilingData;
+        op.Init(x1, x2, y, gamma, scale,  bias, perTokenScale, y1, 
+                y2, x, workspaceGM, &pipe, &tilingData);
+        op.Process();
+    }
+    if (TILING_KEY_IS(1)) {
+        KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
+        QbmmReduceScatterAddRmsNormCastMte<DTYPE_Y, DTYPE_SCALE, DTYPE_Y1, DTYPE_Y2, DTYPE_X, true> op;
         const QbmmReduceScatterAddRmsNormCastTilingData *qBmmReduceScatterAddRmsNormCastTilingData = &tilingData;
         op.Init(x1, x2, y, gamma, scale,  bias, perTokenScale, y1, 
                 y2, x, workspaceGM, &pipe, &tilingData);

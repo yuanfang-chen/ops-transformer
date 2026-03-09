@@ -18,14 +18,12 @@
 #include "util/math_util.h"
 #include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_check.h"
 #include "../../op_kernel/qbmm_reduce_scatter_add_rms_norm_cast_tiling_data.h"
+#include "qbmm_reduce_scatter_add_rms_norm_cast_tiling_check.h"
 
 #include "mc2_log.h"
 using namespace AscendC;
 using namespace ge;
 namespace MC2Tiling {
-constexpr size_t GROUP_INDEX = 0;
-constexpr size_t TRANSPOSE_X2_INDEX = 2;
-constexpr size_t BIAS_INDEX = 5;
 constexpr uint32_t OP_TYPE_ALL_TO_ALL = 8;
 constexpr uint32_t AIV_TYPE = 3;
 constexpr uint32_t BUFFER_NUM = 1;
@@ -117,8 +115,12 @@ static void SetTilingData(gert::TilingContext *context, QbmmReduceScatterAddRmsN
 static void SetTilingKey(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
-    // 设置tilingKey模板参数
-    context->SetTilingKey(0);
+    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
+    if (x2Format == ge::FORMAT_ND) {
+        context->SetTilingKey(0);
+    } else if (x2Format == ge::FORMAT_FRACTAL_NZ) {
+        context->SetTilingKey(1);
+    }
 }
 
 static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
@@ -149,8 +151,14 @@ static ge::graphStatus SetTCubeTiling(
     mmTiling.SetDim(1);
     mmTiling.SetAType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isAtrans);
-    mmTiling.SetBType(matmul_tiling::TPosition::GM,
+    ge::Format x2Format = static_cast<ge::Format>(ge::GetPrimaryFormat(context->GetInputDesc(X2_INDEX)->GetStorageFormat()));
+    if (x2Format == ge::FORMAT_ND) {
+        mmTiling.SetBType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT8, isBtrans);
+    } else if (x2Format == ge::FORMAT_FRACTAL_NZ) {
+        mmTiling.SetBType(matmul_tiling::TPosition::GM,
+        matmul_tiling::CubeFormat::NZ, matmul_tiling::DataType::DT_INT8, isBtrans);
+    }
     mmTiling.SetCType(matmul_tiling::TPosition::GM,
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT32);
     mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
