@@ -1063,7 +1063,6 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
       TscmGlobal[tscmIndex].cacheSize = 0;
     }
 
-    // AscendC::printf("mm2LoadDataA posL1 = %d, TscmGlobal[tscmIndex].cacheSize = %d \n", posL1, TscmGlobal[tscmIndex].cacheSize);
     if (posL1 < TscmGlobal[tscmIndex].cacheSize) {
         LocalTensor<INPUT_T> aL1Tensor;
         aL1Tensor.SetAddr(TscmGlobal[tscmIndex].srcAddr);
@@ -1079,9 +1078,7 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
         tscmTensor = aL1Tensor[posL1 * baseBlockSize];
     }
 
-    AscendC::PipeBarrier<PIPE_ALL>();
     DataCopy(tscmTensor, globalTensor, copyParams);
-    AscendC::PipeBarrier<PIPE_ALL>();
 
     if (posL1 == 0) {
         TscmGlobal[tscmIndex].srcAddr = tscmTensor.address_;
@@ -1102,7 +1099,6 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
                                     int32_t posL1, int32_t baseBlockSize, int32_t orgWidth, int32_t ndNum)
 {
     // 是否需要缓存,当前一次只搬一个base块
-    // AscendC::printf("mm2LoadDataB posL1 = %d, TscmGlobal[tscmIndex].cacheSize = %d \n", posL1, TscmGlobal[tscmIndex].cacheSize);
     if (posL1 < TscmGlobal[tscmIndex].cacheSize) {
         LocalTensor<INPUT_T> aL1Tensor;
         aL1Tensor.SetAddr(TscmGlobal[tscmIndex].srcAddr);
@@ -1166,18 +1162,6 @@ FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType, hasPse, hasAtten, hasD
     int32_t bColNum = extraInfo.s2RealSize / mm1BaseN;
     int32_t rowNum = aRowNum;
     int32_t colNum = bColNum;
-
-    // AscendC::printf("============================================================================================================ \n");
-    // AscendC::printf("extraInfo.cubeS1RealSize =  %d \n", extraInfo.cubeS1RealSize);
-    // AscendC::printf("this->mm1Ka1 =  %d \n", this->mm1Ka1);
-    // AscendC::printf("extraInfo.s2RealSize =  %d \n", extraInfo.s2RealSize);
-    // AscendC::printf("mm1BaseM =  %d \n", mm1BaseM);
-    // AscendC::printf("mm1BaseK =  %d \n", mm1BaseK);
-    // AscendC::printf("mm1BaseN =  %d \n", mm1BaseN);
-    // AscendC::printf("aRowNum =  %d \n", aRowNum);
-    // AscendC::printf("aColNum =  %d \n", aColNum);
-    // AscendC::printf("bRowNum =  %d \n", bRowNum);
-    // AscendC::printf("bColNum =  %d \n", bColNum);
 
     LocalTensor<INPUT_T> scmATensor;
     LocalTensor<INPUT_T> scmBTensor;
@@ -2318,16 +2302,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     int32_t posB = 0;
 
 
-    // AscendC::printf("**********************mm2************************************* \n");
-    // AscendC::printf("extraInfo.cubeS1RealSize =  %d \n", extraInfo.cubeS1RealSize);
-    // AscendC::printf("extraInfo.s2AlignedSize =  %d \n", extraInfo.s2AlignedSize);
-    // AscendC::printf("mm2BaseM =  %d \n", mm2BaseM);
-    // AscendC::printf("mm2BaseK =  %d \n", mm2BaseK);
-    // AscendC::printf("mm2BaseN =  %d \n", mm2BaseN);
-    // AscendC::printf("aRowNum =  %d \n", aRowNum);
-    // AscendC::printf("aColNum =  %d \n", aColNum);
-    // AscendC::printf("bRowNum =  %d \n", bRowNum);
-    // AscendC::printf("bColNum =  %d \n", bColNum);
     TscmGlobal[Q_VEC1_INDEX].needAlloc = true;
     TscmGlobal[K_V_INDEX].needAlloc = true;
     TscmGlobal[Q_VEC1_INDEX].cacheSize = 0;
@@ -2343,9 +2317,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     const uint16_t srcStride = aRowNum == 1 ? 0 : blockLen; // singleCoreM == BaseM or 2 * BaseM
     const uint16_t dstStride = 0;
 
-    // AscendC::printf("blockLen =  %d \n", blockLen);
-    // AscendC::printf("srcStride =  %d \n", srcStride);
-    // AscendC::printf("dstStride =  %d \n", dstStride);
 
 
     event_t eventIdMte1ToMte2 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE1_MTE2));
@@ -2355,19 +2326,14 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     Mte1ToMte2Flag[1] = static_cast<event_t>(GetTPipePtr()->AllocEventID<HardEvent::MTE1_MTE2>());
     AscendC::SetFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
     AscendC::WaitFlag<HardEvent::MTE1_MTE2>(eventIdMte1ToMte2);
-    for (int32_t curRow = 0;curRow < aRowNum;curRow++) { //M
-        for (int32_t curCol = 0;curCol < bColNum;curCol++) { //N=1
-            for (int32_t curK = 0;curK < aColNum;curK++) { //K
+    for (int32_t curRow = 0;curRow < aRowNum;curRow++) {
+        for (int32_t curCol = 0;curCol < bColNum;curCol++) 
+            for (int32_t curK = 0;curK < aColNum;curK++) {
                 int32_t ndNum = aColNum - curK == 1 ? 1 : 2;
                 const uint16_t blockCount = mm2BaseK * ndNum / BLOCK_CUBE;
-                AscendC::DataCopyParams copyParams = {blockCount, blockLen, srcStride, dstStride};//16, 2048*2
-                // AscendC::printf("curRow = %d, curCol = %d, curK = %d,  \n", curRow, curCol, );
-                // AscendC::printf("aColNum =  %d, curK = %d, ndNum = %d \n", aColNum, curK, ndNum);
+                AscendC::DataCopyParams copyParams = {blockCount, blockLen, srcStride, dstStride};
                 posA = curRow * aColNum + curK;
                 posB = curK * bColNum + curCol;
-                // AscendC::printf("blockCount =  %d \n", blockCount);
-                // AscendC::printf("posA =  %d \n", posA);
-                // AscendC::printf("posB =  %d \n", posB);
                 aSrcOffset = mm2BaseK * extraInfo.cubeS1RealSize * curK + BLOCK_CUBE * mm2BaseM * curRow;
 
                 this->mm2LoadDataB(scmBTensor, bSrc, mm2BaseK, mm2BaseN, K_V_INDEX, posB, mm2BBaseSize, this->d2Size, ndNum);
@@ -2390,7 +2356,6 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
             bmm2.GetTensorC(this->mm2Res[extraInfo.taskIdMod2][cOffset]);
         }
     }
-    // AscendC::printf("============================================================================================================ \n");
     AscendC::WaitFlag<HardEvent::MTE1_MTE2>(Mte1ToMte2Flag[(posA / 2 + 1) % 2]);
 
     GetTPipePtr()->ReleaseEventID<HardEvent::MTE1_MTE2>(Mte1ToMte2Flag[0]);
