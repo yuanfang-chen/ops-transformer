@@ -17,7 +17,7 @@
 
 #include "tiling/tiling_api.h"
 #include "tiling_base/tiling_base.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_tiling/matmul_formulaic_tiling.h"
 #include "mat_mul_v3/op_host/op_tiling/matmul_v3_tiling.h"
 #include "tiling/mc2_tiling_utils.h"
 
