@@ -146,7 +146,7 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
         return false;
     }
     // ori_topk_length 存在性校验
-    if (!isInvalid(oriTopkLength_) oriMaskMode_ != 0) {
+    if (!isInvalid(oriTopkLength_) && oriMaskMode_ != 0) {
         KERNEL_LOG_ERROR("ori_topk_length needs to be enabled only when ori_mask_mode = 0, but got %d", oriMaskMode_);
         return false;
     }

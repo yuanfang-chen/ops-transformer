@@ -9,7 +9,6 @@
 # ---------------------------------------------------------------------------------------------------------
 
 add_modules_sources_aicpu(OPTYPE sparse_attn_sharedkv ACLNNTYPE aclnn)
-#add_modules_sources_aicpu(DEPENDENCIES sparse_attn_sharedkv)
 
 
 
