@@ -32,9 +32,14 @@ using namespace NpuArch;
 
 namespace BSA {
 
+    constexpr uint32_t CUBE2VEC = 7;
+    constexpr uint32_t VEC2CUBE = 8;
+    constexpr uint32_t CUBE2POST = 9;
+
     constexpr int32_t PRE_LAUNCH = 2;
     constexpr uint64_t WORKSPACE_BLOCK_SIZE = 128 * 128;
     constexpr uint64_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
+    constexpr uint64_t L1_SIZE_OFFSET = 131072;
 
     template <
         class BlockMmadBSAG1_,
@@ -308,11 +313,30 @@ namespace BSA {
             }
 
             BlockMmadBSAG1 blockMmad1(resource);
-            BlockMmadBSAG2 blockMmad2(resource);
-            BlockMmadBSAG3 blockMmad3(resource);
+            BlockMmadBSAG2 blockMmad2(resource, L1_SIZE_OFFSET);
+            BlockMmadBSAG3 blockMmad3(resource, L1_SIZE_OFFSET * 2);
             uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
+
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
+            AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
+            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+            AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
             for (uint32_t i = 0; i < taskLength; i++) {
                 TaskInfo curInfo = taskInfo[i % 2];
                 LayoutA1 layoutA1(curInfo.curCalQSize, headDim);
@@ -385,6 +409,25 @@ namespace BSA {
             blockMmad3(gDs[preTaskInfo.sOffset], gQ[preTaskInfo.qOffset], gDk[preTaskInfo.kvOffset], layoutA3, layoutB3, layoutC3, actualShape3);
 
             // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2POST);
+
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID2);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID3);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID4);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID5);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID6);
+            AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(EVENT_ID7);
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID0);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID1);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID2);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID3);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID4);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID5);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID6);
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
         }
 
         template <>
@@ -396,9 +439,6 @@ namespace BSA {
 
     private:
         NpuArch::Arch::Resource<ArchTag> resource;
-        // NpuArch::Arch::CrossCoreFlag qkReady{QK_READY_ID};
-        // NpuArch::Arch::CrossCoreFlag softmaxReady{SOFTMAX_READY_ID};
-        // NpuArch::Arch::CrossCoreFlag pvReady{PV_READY_ID};
     };
 
 } // namespace BSA
