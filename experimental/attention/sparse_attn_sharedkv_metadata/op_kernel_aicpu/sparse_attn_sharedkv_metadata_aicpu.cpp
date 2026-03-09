@@ -282,7 +282,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     return true;
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx)
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx)
 {
     uint32_t s1GToken = s1GIdx * mBaseSize_;
     uint32_t s1Idx = 0;
@@ -294,19 +294,21 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetS1Idx(const BatchCache &
     return s1Idx;
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_t s1Idx)
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_t s1Idx)
 {
     uint32_t bsStride = 0;
-    if (!seqUsedQ_.empty()) {
+    if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
+        const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
         for (uint32_t i = 0; i < bIdx; i++) {
-            bsStride += seqUsedQ_[bIdx];
+            bsStride += seqUsedPtr[bIdx];
         }
         bsStride += s1Idx;
         return bsStride;
     }
     if (layoutQuery_ == "TND") {
-        if (!actSeqLenOriKv_.empty()) {
-            bsStride = actSeqLenOriKv_[bIdx + 1U] + s1Idx;
+        if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
+            const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
+            bsStride = s1Ptr[bIdx + 1U] + s1Idx;
             return bsStride;
         }
     }
@@ -314,12 +316,12 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, 
     return bsStride;
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t bsStride)
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t bsStride)
 {
     auto mode = static_cast<SparseMode>(oriMaskMode_);
     if (mode == SparseMode::DEFAULT_MASK) {
         // 如果是 DEFAULT_MASK，尝试使用 oriTopkLength_
-        if (!oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
+        if (oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
             const int32_t *oriTopkPtr =static_cast<const int32_t*>(oriTopkLength_->GetData());
             return static_cast<uint32_t>(oriTopkPtr[bsStride]);
         }
@@ -328,10 +330,10 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetOriTopkLength(uint32_t b
     return static_cast<uint32_t>(oriTopK_);
 }
 
-uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetCmpTopkLength(uint32_t bsStride)
+uint32_t SparseAttnSharedkvMetadataCpuKernel::GetCmpTopkLength(uint32_t bsStride)
 {
     // 尝试使用 cmpTopkLength_
-    if (!cmpTopkLength_ != nullptr && cmpTopkLength_->GetData() != nullptr) {
+    if (cmpTopkLength_ != nullptr && cmpTopkLength_->GetData() != nullptr) {
         const int32_t *cmpTopkPtr =static_cast<const int32_t*>(cmpTopkLength_->GetData());
         return static_cast<uint32_t>(cmpTopkPtr[bsStride]);
     }
