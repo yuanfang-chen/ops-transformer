@@ -650,13 +650,10 @@ def qli_output_single(params):
         blockFusion[:, :block_size * k_head_num * head_dim] = key
         blockFusion[:, block_size * k_head_num * head_dim:] = key_dequant_scale
 
+        blockFusion = blockFusion.npu()
+
         key = blockFusion[:, :block_size * k_head_num * head_dim].view(block_num, block_size, k_head_num, head_dim)
         key_dequant_scale = blockFusion[:, block_size * k_head_num * head_dim:].view(dequant_dtype).view(block_num, block_size, k_head_num)
-
-        key = key.npu()
-        key_dequant_scale = key_dequant_scale.npu()
-
-
 
         cpu_result, topk_value = test_qli.forward(query, key_bnsd, weights, query_dequant_scale, key_dequant_scale_bns, actual_seq_lengths_query, actual_seq_lengths_key, block_table)
         block_table = torch.from_numpy(block_table).to(dtype=torch.int32).npu()
