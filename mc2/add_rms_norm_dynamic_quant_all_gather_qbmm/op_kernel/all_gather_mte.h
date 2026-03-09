@@ -69,6 +69,8 @@ private:
     uint32_t mEndFlagCount_{0};
     uint32_t singleCoreM_{0};
     uint32_t mLoop_{0};
+    uint32_t mDim_{0};
+    uint32_t kDim_{0};
     uint32_t mBlockIdx_{0};
     uint32_t kBlockIdx_{0};
     uint32_t mMteCoreM_{0};
@@ -146,12 +148,12 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::Init(
     uint32_t modCoreIndex = mteComm_.aivId_ % sendCoreNumPerRank_;
     
     // 按k方向奇偶切分成两部分
-    uint32_t kDim = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitNum;
-    uint32_t mDim = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitNum;
+    kDim_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitNum;
+    mDim_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitNum;
     remoteRankId_ = mteComm_.aivId_ / sendCoreNumPerRank_;
     // task 先按 mDim 为3份调整，innerLoop 再做循环调整
-    mBlockIdx_ = modCoreIndex % mDim;
-    kBlockIdx_ = modCoreIndex % kDim;
+    mBlockIdx_ = modCoreIndex % mDim_;
+    kBlockIdx_ = modCoreIndex % kDim_;
     mMteCoreM_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteMSplitSize;
     kMteCoreK_ = tilingData->addRmsNormDynamicQuantAllGatherTilingData.mteKSplitSize;
     singleCoreM_ = tilingData->matmulTiling.singleCoreM;
@@ -285,6 +287,9 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
     }
 
     uint32_t kLoop = kMteCoreK_ / X_PER_BLOCK_NUM;
+    if (kBlockIdx_ < tileK_ % kDim_) {
+        kLoop++;
+    }
     uint32_t curXOffset = coreInnerMIndex_ * K_ + kStartIndex_;
     if constexpr (isCVSync) {   // CV软同步
         uint32_t mCurOffset = M_ / singleCoreM_;
@@ -320,6 +325,10 @@ __aicore__ inline void AllGatherMte<AllGatherTemplateType>::ExecuteAllGather(GM_
             uint64_t innerCurXOffset = curXOffset + curKBlock * X_PER_BLOCK_NUM * 2;
             ReadDataBlock(innerCurXOffset, mMteCoreM_);
             PipeBarrier<PIPE_MTE3>();
+            SyncAll<true>();
+            CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
+        }
+        if (kLoop < ((tileK_ + kDim_ - 1) / kDim_)) {
             SyncAll<true>();
             CrossCoreSetFlag<0x2, PIPE_MTE3>(6);
         }

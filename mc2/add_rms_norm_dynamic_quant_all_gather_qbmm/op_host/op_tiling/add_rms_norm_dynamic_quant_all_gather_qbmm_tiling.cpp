@@ -16,7 +16,6 @@
 #include <register/op_def_registry.h>
 // #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_key.h"
 #include "../../op_kernel/add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_data.h"
-#include "add_rms_norm_dynamic_quant_all_gather_qbmm_tiling_helper.h"
 #include "mc2_log.h"
 #include "tiling/mc2_tiling_utils.h"
 
@@ -130,21 +129,6 @@ static void PrintTilingDataInfo(gert::TilingContext *context, AddRmsNormDynamicQ
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "qbmmParams.needUbBuffer is %u.", tilingData.qbmmParams.needUbBuffer);
 
     OP_LOGD("AddRmsNormDynamicQuantAllGatherQbmm", "Tiling end");
-}
-
-// matmul切分
-static ge::graphStatus GetMatmultiling(
-    gert::TilingContext *context, AddRmsNormDynamicQuantAllGatherQbmmInfo &tilingData)
-{
-    MmTilingHelper mmTilingHelper(context);
-    OP_CHECK_IF(!mmTilingHelper.getMamtulArgs(),
-        OP_LOGE(context, "MmTilingHelper get matmulArgs failed, return Failed."),
-        return ge::GRAPH_FAILED);
-    mmTilingHelper.InitCompileInfo();
-    OP_CHECK_IF(!mmTilingHelper.InitTCubeTilingData(tilingData.matmulTiling),
-        OP_LOGE(context, "MmTilingHelper InitTCubeTilingData failed, return Failed."),
-        return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
 }
 
 /**
