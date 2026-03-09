@@ -789,6 +789,7 @@ ASCENDC_TPL_SEL(
         ASCENDC_TPL_BOOL_SEL(HasRope, false),
         ASCENDC_TPL_BOOL_SEL(IsPa, false, true),
         ASCENDC_TPL_BOOL_SEL(IsFd, false, true),
+        ASCENDC_TPL_BOOL_SEL(EmptyTensor, false),
         ASCENDC_TPL_UINT_SEL(PFAMask,  ASCENDC_TPL_UI_LIST, PFAMask_DISABLE_MASK),
         ASCENDC_TPL_UINT_SEL(PFAMatMulType, ASCENDC_TPL_UI_LIST, PFAMatMulType_MM_PFA),
         ASCENDC_TPL_BOOL_SEL(EnableKVPrefix, false),
