@@ -149,7 +149,7 @@ public:
 
     template <typename T>
     __aicore__ inline void CopyGmToUbufAlignB16(LocalTensor<T> ubTensor, __gm__ T *src, uint16_t nBurst, uint32_t lenBurst,
-                                                uint16_t srcStride, uint16_t dstStride)
+                                                uint32_t srcStride, uint32_t dstStride)
     {
         DataCopyExtParams dataCopyParams(nBurst,     // blockCount
                                         lenBurst,   // blockLen
@@ -164,7 +164,7 @@ public:
 
     template <typename T>
     __aicore__ inline void CopyUbufToGmAlignB16(__gm__ T *dst, LocalTensor<T> ubTensor, uint16_t nBurst, uint32_t lenBurst,
-                                                uint16_t srcStride, uint16_t dstStride)
+                                                uint32_t srcStride, uint323_t dstStride)
     {
         DataCopyExtParams dataCopyParams(nBurst,     // blockCount
                                         lenBurst,   // blockLen
@@ -210,9 +210,9 @@ public:
         uint32_t tokenNum = copyBytes / srcKBytes;
         uint32_t blockPerToken = DivCeil(srcKBytes, BLOCK_ALIGN_BYTES);  // 每个token占用多少格子
         uint32_t copyTimesPerToken = blockPerToken / BLOCK_NUM_OF_UB_OFFSET;  // 一个token要搬运多少次
-        uint32_t srcKTailBlocks = srcKBytes - copyTimesPerToken * UB_OFFSET;  // 每个token的尾字节数量
+        uint32_t copyOffset = UB_OFFSET * copyTimesPerToken;
+        uint32_t srcKTailBytes = srcKBytes - copyOffset;  // 每个token的尾字节数量
         blockPerToken -= copyTimesPerToken * BLOCK_NUM_OF_UB_OFFSET;  // 每个token占用多少格子，减去完整部分
-        uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;
 
         if (copyTimesPerToken > 0) {
             __gm__ int8_t *gmSrcCopy = gmSrc;
@@ -222,7 +222,7 @@ public:
             for (int tokenIdx = 0; tokenIdx < tokenNum; ++tokenIdx) {  // 对每个token
                 for (int copyIdx = 0; copyIdx < copyTimesPerToken; ++copyIdx) {  // 先搬运完整的部分
                     auto eventId = ((copyIdx + copyTimesPerToken * tokenIdx) & 1) ? EVENT_ID0 : EVENT_ID1;
-                    LocalTensor<int8_t> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
+                    LocalTensor<int8_t> copyTensor = (eventId & 1) ? copyTensor0 : copyTensor1;
                     WaitFlag<HardEvent::MTE3_MTE2>(eventId);
                     CopyGmToUbufAlignB16(copyTensor, gmSrcCopy, 1, UB_OFFSET, 0, 0);  // 一次性搬运
                     SetFlag<HardEvent::MTE2_MTE3>(eventId);
@@ -232,38 +232,41 @@ public:
                     gmDstCopy += UB_OFFSET;
                     SetFlag<HardEvent::MTE3_MTE2>(eventId);
                 }
-                gmSrcCopy += srcKTailBlocks;  // token换行
-                gmDstCopy += srcKTailBlocks + dstKBytes - srcKBytes;  // token换行，peermem上需要跳过其他rank搬运过来的空间
+                gmSrcCopy += srcKTailBytes;  // token换行
+                gmDstCopy += srcKTailBytes + dstKBytes - srcKBytes;  // token换行，peermem上需要跳过其他rank搬运过来的空间
             }
             WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
             WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
         }
         // 拷贝小于UB_OFFSET的tokens的情况和拷贝尾块共用以下逻辑
-        uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
-        uint32_t actualCopyTokenPerTime = copyTokenPerTime;
-        uint32_t copyOffset = UB_OFFSET * copyTimesPerToken;
-        uint32_t copyBytesPerTime = srcKBytes - copyOffset;
-        gmSrc += copyOffset;
-        gmDst += copyOffset;
-        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-        SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
-        for (int32_t copyIdx = 0; copyIdx < copyTimes; ++copyIdx) {
-            if (copyIdx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
-                actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
+        if (blockPerToken > 0)
+        {
+            uint32_t copyTokenPerTime = BLOCK_NUM_OF_UB_OFFSET / blockPerToken;
+            uint32_t copyTimes = DivCeil(tokenNum, copyTokenPerTime);
+            uint32_t actualCopyTokenPerTime = copyTokenPerTime;
+            gmSrc += copyOffset;
+            gmDst += copyOffset;
+            uint32_t dstOffset = dstKBytes - srcKBytes + copyOffset;
+            SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+            SetFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
+            for (int32_t copyIdx = 0; copyIdx < copyTimes; ++copyIdx) {
+                if (copyIdx == copyTimes - 1) {  // 最后一次可能不为copyTokenPerTime
+                    actualCopyTokenPerTime = tokenNum - (copyTimes - 1) * copyTokenPerTime;
+                }
+                auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
+                LocalTensor<int8_t> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
+                WaitFlag<HardEvent::MTE3_MTE2>(eventId);
+                CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, srcKTailBytes, copyOffset, 0);
+                SetFlag<HardEvent::MTE2_MTE3>(eventId);
+                WaitFlag<HardEvent::MTE2_MTE3>(eventId);
+                CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, srcKTailBytes, 0, dstOffset);
+                gmDst += dstKBytes * actualCopyTokenPerTime;  // int_8占用一个字节，可直接作为地址偏移
+                gmSrc += srcKBytes * actualCopyTokenPerTime;
+                SetFlag<HardEvent::MTE3_MTE2>(eventId);
             }
-            auto eventId = (copyIdx & 1) ? EVENT_ID0 : EVENT_ID1;
-            LocalTensor<int8_t> copyTensor = (copyIdx & 1) ? copyTensor0 : copyTensor1;
-            WaitFlag<HardEvent::MTE3_MTE2>(eventId);
-            CopyGmToUbufAlignB16(copyTensor, gmSrc, actualCopyTokenPerTime, copyBytesPerTime, copyOffset, 0);
-            SetFlag<HardEvent::MTE2_MTE3>(eventId);
-            WaitFlag<HardEvent::MTE2_MTE3>(eventId);
-            CopyUbufToGmAlignB16(gmDst, copyTensor, actualCopyTokenPerTime, copyBytesPerTime, 0, dstKBytes - srcKBytes);
-            gmDst += dstKBytes * actualCopyTokenPerTime;  // int_8占用一个字节，可直接作为地址偏移
-            gmSrc += srcKBytes * actualCopyTokenPerTime;
-            SetFlag<HardEvent::MTE3_MTE2>(eventId);
+            WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
+            WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
         }
-        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID0);
-        WaitFlag<HardEvent::MTE3_MTE2>(EVENT_ID1);
 
         uBuf_.FreeTensor<int8_t>(ubTensor);
     }
