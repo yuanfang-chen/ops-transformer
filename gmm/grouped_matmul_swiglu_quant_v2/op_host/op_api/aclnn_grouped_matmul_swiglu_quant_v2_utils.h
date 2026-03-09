@@ -635,7 +635,7 @@ and greater or equal to 4, but actual value is %lu.",
         auto weightDimNumber = ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDimNum();
         auto weightScaleDimNumber = ((*gmmDsqParams_.weightScale)[0])->GetViewShape().GetDimNum();
         if (weightScaleDimNumber != PERTOKEN_WEIGHT_SCALE_DIM) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of weightScale should be equal 4, current dim is %lu.",
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "The dim num of weightScale should be equal 2, current dim is %lu.",
                     weightScaleDimNumber);
             return false;
         }
@@ -655,6 +655,18 @@ and greater or equal to 4, but actual value is %lu.",
                     "The length of groupList should not be greater than 1024, but actual is %ld.", groupListLen);
             return false;
         }
+        // 从x的第1维获取k
+        int64_t kInX = gmmDsqParams_.x->GetViewShape().GetDim(1);
+        // 根据是否转置，来决定从weight中读取k的位置
+        int64_t kInWeight = gmmDsqParams_.transposeWeight ? ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(2) :
+                                                    ((*gmmDsqParams_.weight)[0])->GetViewShape().GetDim(1);
+        if (kInX != kInWeight) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "Expected input tensor x and weight tensor to have consistent k-dimension, but k=%ld in x, while "
+                    "k=%ld in weight.",
+                    kInX, kInWeight);
+            return false;
+        }
         if (gmmDsqParams_.quantMode == 2) {
             return CheckInputOutShapeForMX();
         } else if (gmmDsqParams_.quantMode == 0) {
@@ -663,7 +675,7 @@ and greater or equal to 4, but actual value is %lu.",
             OP_LOGE(ACLNN_ERR_PARAM_INVALID,
                     "Quant mode %d is not supported. Supported modes are 0 (pertoken) and 2 (MX).",
                     gmmDsqParams_.quantMode);
-            return ACLNN_ERR_PARAM_INVALID;
+            return false;
         }
 
         return true;
@@ -736,9 +748,10 @@ and greater or equal to 4, but actual value is %lu.",
         } else if (gmmDsqParams_.quantMode == 0) {
             return CheckPertokenDtypeValid(x, xScale, groupList, output, outputScale);
         } else {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "When the dtypes of x and weight are %s and %s, \
-and the dtypes of xScale and weightScale are %s and %s is not supported.",
-                    op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString(),
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID,
+                    "In quantization mode %d, the combination of x dtype %s, weight dtype %s, xscale dtype %s, "
+                    "weightScale dtype %s is not supported.",
+                    gmmDsqParams_.quantMode, op::ToString(xDtype).GetString(), op::ToString(weightDtype).GetString(),
                     op::ToString(xScaleDtype).GetString(), op::ToString(weightScaleDtype).GetString());
             return false;
         }
