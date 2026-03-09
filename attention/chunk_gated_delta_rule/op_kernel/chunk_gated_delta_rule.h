@@ -22,6 +22,7 @@ BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULA
 #include "chunk_gated_delta_rule_tiling_data.h"
 #include "chunk_gated_delta_rule_stage1.h"
 #include "chunk_gated_delta_rule_stage2.h"
+#include "chunk_gated_delta_rule_stage3.h"
 
 namespace ChunkGatedDeltaRule {
 
