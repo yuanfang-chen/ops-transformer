@@ -22,7 +22,7 @@
 
 #include "mc2_hcom_topo_info.h"
 #include "mc2_log.h"
-#include "tiling/matmul_formulaic_tiling.h"
+#include "op_tiling/matmul_formulaic_tiling.h"
 #include "graph/utils/type_utils.h"
 #include "register/op_def_registry.h"
 #include "tiling/mc2_tiling_utils.h"
