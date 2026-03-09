@@ -27,6 +27,9 @@
 #include "matmul_reduce_scatter_v2_c_tiling.h"
 #include "../../common/inc/kernel/reduce_sum_cast_fp32.h"
 
+#define TEMPLATE_CLASS_PARAMS template <typename AType, typename BType, typename BiasType, typename CType>
+#define TEMPLATE_FUNC_PARAMS AType, BType, BiasType, CType
+
 namespace MatmulReduceScatterV2Impl {
 using namespace AscendC;
 using namespace AiVReduceSumCastFp32Impl;
@@ -36,10 +39,9 @@ static constexpr uint16_t SYNC_AIC_AIV_DET_FLAG = 8; // 用于 AIC 与 AIV 核�
 static constexpr uint64_t SYNC_MODE0 = 0; // 核间同步模式 0
 static constexpr uint64_t SYNC_MODE2 = 2; // 核间同步模式 2
 
-template <typename AType, typename BType, typename BiasType, typename CType>
+TEMPLATE_CLASS_PARAMS
 class MatmulA2AVecReduceFP16BF16 {
 public:
-    __aicore__ inline MatmulA2AVecReduceFP16BF16() {}
     __aicore__ inline void Init(GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM,
                                 GM_ADDR workspaceGM, Mc2Tiling::MatmulReduceScatterV2TilingData* tilingData, 
                                 __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tpipe);
@@ -47,16 +49,16 @@ public:
 
 private:
     __aicore__ inline void InnerProcess();
-    __aicore__ inline void Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, uint32_t count,
-                                   GM_ADDR sendGMAddr, bool isLast, bool isTail);
-    __aicore__ inline void MatMulV3Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, uint32_t count, 
-                                           GM_ADDR sendGMAddr, bool isLast, bool isTail);
+    __aicore__ inline void Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, const uint32_t count,
+                                   GM_ADDR sendGMAddr, const bool isLast, const bool isTail);
+    __aicore__ inline void MatMulV3Compute(GM_ADDR recvGMAddr, Mc2MatMulV3TilingData& tiling, const uint32_t count, 
+                                           GM_ADDR sendGMAddr, const bool isLast, const bool isTail);
     __aicore__ inline void PostProcess();
-    __aicore__ inline void ExecuteAicMatMulPipeline(Mc2MatMulV3TilingData& tiling, uint32_t count,
-                                                    bool isLast, bool isTail);
+    __aicore__ inline void ExecuteAicMatMulPipeline(Mc2MatMulV3TilingData& tiling, const uint32_t count,
+                                                    const bool isLast, const bool isTail);
     __aicore__ inline void ExecuteAivCommReducePipeline(GM_ADDR recvGMAddr, GM_ADDR sendGMAddr,
                                                         Mc2MatMulV3TilingData& tiling, 
-                                                        uint32_t count, bool isTail);
+                                                        const uint32_t count, const bool isTail);
     __aicore__ inline void CubeNotifyVector();
     __aicore__ inline void VecWaitCube();
 
@@ -82,10 +84,12 @@ private:
     uint64_t tileOffset_{0};
 };
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::Init(
-    GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, GM_ADDR contextGM, GM_ADDR workspaceGM,
-    Mc2Tiling::MatmulReduceScatterV2TilingData* tilingData, __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::Init(
+    GM_ADDR aGM, GM_ADDR bGM, GM_ADDR biasGM, GM_ADDR cGM, 
+    GM_ADDR contextGM, GM_ADDR workspaceGM,
+    Mc2Tiling::MatmulReduceScatterV2TilingData* tilingData, 
+    __gm__ void* mc2InitTiling, __gm__ void* mc2CcTiling, TPipe* tPipe)
 {
     tilingData_ = tilingData;
     auto&& cfg = tilingData_->param;
@@ -112,8 +116,8 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     recvBuf_ = sendBuf_ + fullMN_ * sizeof(C_DTYPE);                                // [fullMN, 2*fullMN)
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::PostProcess()
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::PostProcess()
 {
     // 等待执行完成后，最后终止hcclserver
     if ((GetBlockIdx() == 0) && (g_coreType == AIV)) {
@@ -121,15 +125,15 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     }
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::Process()
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::Process()
 {
     InnerProcess(); // 核心计算+通信
     PostProcess(); // 等待计算与通信完成, 终止hcclserver
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::InnerProcess()
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::InnerProcess()
 {
     auto&& tiling = tilingData_->mC2Mmv3TileTilingData.tCubeTiling;
     auto&& cfg = tilingData_->param;
@@ -147,14 +151,14 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     }
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::Compute(
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::Compute(
     GM_ADDR recvGMAddr,
     Mc2MatMulV3TilingData& tiling,
-    uint32_t count,
+    const uint32_t count,
     GM_ADDR sendGMAddr,
-    bool isLast,
-    bool isTail)
+    const bool isLast,
+    const bool isTail)
 {
     // Cube 核执行 MatMul, Vector 核执行 all2all + reduceSum
     MatMulV3Compute(recvGMAddr, tiling, count, sendGMAddr, isLast, isTail);
@@ -163,12 +167,12 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
 /**
  * @brief [AIC] 执行 MatMul 计算流水线
  */
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::ExecuteAicMatMulPipeline(
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::ExecuteAicMatMulPipeline(
     Mc2MatMulV3TilingData& tiling, 
-    uint32_t count,
-    bool isLast,
-    bool isTail) 
+    const uint32_t count,
+    const bool isLast,
+    const bool isTail) 
 {
     auto&& cfg = tilingData_->param;
     cfg.rankID = rankId_;
@@ -191,13 +195,13 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
 /**
  * @brief [AIV] 执行 All2All 通信 + ReduceSum 归约流水线 (双发模式)
  */
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::ExecuteAivCommReducePipeline(
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::ExecuteAivCommReducePipeline(
     GM_ADDR recvGMAddr,
     GM_ADDR sendGMAddr,
     Mc2MatMulV3TilingData& tiling, 
-    uint32_t count, 
-    bool isTail) 
+    const uint32_t count, 
+    const bool isTail) 
 {
     auto&& cfg = tilingData_->param;
 
@@ -279,14 +283,14 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     reduceSum_.ExecuteReduceSum();
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::MatMulV3Compute(
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::MatMulV3Compute(
     GM_ADDR recvGMAddr,
     Mc2MatMulV3TilingData& tiling, 
-    uint32_t count,
+    const uint32_t count,
     GM_ADDR sendGMAddr,
-    bool isLast,
-    bool isTail)
+    const bool isLast,
+    const bool isTail)
 {
     // [AIC 阶段] 执行 MatMul 计算流水线
     if ASCEND_IS_AIC {
@@ -299,8 +303,8 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     }
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::CubeNotifyVector()
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::CubeNotifyVector()
 {
     // 先全 AIC 同步一次
     CrossCoreSetFlag<SYNC_MODE0, PIPE_FIX>(SYNC_AIC_ONLY_ALL_DET_FLAG);
@@ -309,8 +313,8 @@ __aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>
     CrossCoreSetFlag<SYNC_MODE2, PIPE_FIX>(SYNC_AIC_AIV_DET_FLAG);
 }
 
-template <typename AType, typename BType, typename BiasType, typename CType>
-__aicore__ inline void MatmulA2AVecReduceFP16BF16<AType, BType, BiasType, CType>::VecWaitCube()
+TEMPLATE_CLASS_PARAMS
+__aicore__ inline void MatmulA2AVecReduceFP16BF16<TEMPLATE_FUNC_PARAMS>::VecWaitCube()
 {
     // 等待 AIC 完成
     CrossCoreWaitFlag<SYNC_MODE2, PIPE_MTE2>(SYNC_AIC_AIV_DET_FLAG);
