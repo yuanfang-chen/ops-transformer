@@ -32,8 +32,7 @@
 #include "platform/soc_spec.h"
 
 namespace mc2tiling {
-constexpr uint32_t STANDARDCARD4P_RANKDIM = 4;
-constexpr uint32_t STANDARDCARD4P_AIC_CORE_NUM = 28;
+constexpr uint32_t STANDARD_CARD_4P = 4;
 constexpr uint32_t COMM_MESH = 0b1U;
 constexpr uint32_t COMM_SWITCH = (COMM_MESH << 1U);
 constexpr uint32_t COMM_RING = (COMM_MESH << 2U);
@@ -272,9 +271,9 @@ inline ge::graphStatus GetEpWinSize(const gert::TilingContext *context, const ch
     return ge::GRAPH_SUCCESS;
 }
 
-// 判断是否为标卡4p形态(4卡，28核AIC，950)
-inline bool IsStandardCard4P(uint32_t rankDim, uint32_t aicCoreNum, NpuArch npuArch){
-        return (rankDim==STANDARDCARD4P_RANKDIM && aicCoreNum==STANDARDCARD4P_AIC_CORE_NUM && npuArch == NpuArch::DAV_3510);
+// 临时判断是否为标卡4p形态(4卡，950)
+inline bool IsStandardCard4P(const uint32_t rankDim, const NpuArch npuArch) {
+    return ((rankDim == STANDARD_CARD_4P) && (npuArch == NpuArch::DAV_3510));
 }
 }  // namespace mc2tiling
 

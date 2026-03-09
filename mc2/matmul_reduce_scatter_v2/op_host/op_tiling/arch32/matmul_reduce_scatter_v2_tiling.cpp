@@ -92,15 +92,12 @@ ge::graphStatus MatmulReduceScatterV2Tiling::CheckInput()
 
 ge::graphStatus MatmulReduceScatterV2Tiling::SetMc2Hcomm() 
 {
-    // 判断是否走标卡4p路径： (All2All + Vec Reduce)
-    bool isA2APath = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum, npuArch_);
-
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-    const uint32_t opType = isA2APath 
+    const uint32_t opType = isA2APath_ 
         ? static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL)
         : static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
 
-    const std::string rsConfig = isA2APath 
+    const std::string rsConfig = isA2APath_ 
         ? "AlltoAll=level0:fullmesh" 
         : "ReduceScatter=level0:fullmesh";
 

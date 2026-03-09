@@ -377,15 +377,12 @@ ge::graphStatus QuantBmmReduceScatterTiling::CheckInput()
 
 ge::graphStatus QuantBmmReduceScatterTiling::SetMc2Hcomm()
 {
-    // 判断是否走标卡4p路径： (All2All + Vec Reduce)
-    bool isA2APath = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum, npuArch_);
-
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-    const uint32_t opType = isA2APath 
+    const uint32_t opType = isA2APath_ 
         ? static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_ALLTOALL)
         : static_cast<uint32_t>(mc2tiling::AicpuComType::HCCL_CMD_REDUCE_SCATTER);
 
-    const std::string rsConfig = isA2APath 
+    const std::string rsConfig = isA2APath_ 
         ? "AlltoAll=level0:fullmesh" 
         : "ReduceScatter=level0:fullmesh";
 
@@ -488,8 +485,7 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
     }
 
     bool isPerBlock = quantMode_ == mc2tiling::Mc2QuantMode::PERBLOCK_MODE;
-    bool isA2APath = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum, npuArch_);
-    uint8_t commAlg = isA2APath ? TPL_CCU_ALL2ALL_VEC_REDUCE : TPL_CCU_REDUCESUM;
+    uint8_t commAlg = isA2APath_ ? TPL_CCU_ALL2ALL_VEC_REDUCE : TPL_CCU_REDUCESUM;
     uint64_t tilingKey = GET_TPL_TILING_KEY(   \
         isPerBlock, args_.isATrans, args_.isBTrans, INPUT_TYPE_IS_FP8, outputType, scaleType, commAlg);
     OP_LOGD(opName_, "isPerBlock, transA, transB is: [%d, %d, %d]", isPerBlock, args_.isATrans, args_.isBTrans);
@@ -499,11 +495,8 @@ uint64_t QuantBmmReduceScatterTiling::GetTilingKey() const
 
 ge::graphStatus QuantBmmReduceScatterTiling::GetWorkspaceSize()
 {
-    // 判断是否走标卡4p路径： (All2All + Vec Reduce)
-    bool isA2APath = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum, npuArch_);
-
     // A2A 路径需要 3 倍 cToFloatLen (senBuf + recvBuf + matmul)，否则只需 1 倍
-    uint32_t factor = isA2APath ? 3 : 1;
+    uint32_t factor = isA2APath_ ? 3 : 1;
     myWorkSpaceSize_ = myWorkSpaceSize_ + MutableRCSTilingDataA5().cToFloatLen * factor;
 
     OP_LOGI(opName_, "set max workspace size %lu to context", myWorkSpaceSize_);
