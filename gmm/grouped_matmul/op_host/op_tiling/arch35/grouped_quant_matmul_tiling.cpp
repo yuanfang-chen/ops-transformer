@@ -808,6 +808,14 @@ ge::graphStatus GroupedQbmmTiling::GetShapeAttrsInfo()
 
 ge::graphStatus GroupedQbmmTiling::DoOpTiling()
 {
+    OP_LOGI(context_->GetNodeName(),
+            "[GMM Tiling] GroupedQbmmTiling::DoOpTiling, groupNum=%d, aQuantMode=%d, bQuantMode=%d, transA=%d, transB=%d, kernelType=%lu",
+            inputParams_.groupNum,
+            static_cast<int>(inputParams_.aQuantMode),
+            static_cast<int>(inputParams_.bQuantMode),
+            static_cast<int>(inputParams_.transA),
+            static_cast<int>(inputParams_.transB),
+            inputParams_.kernelType);
     tilingData_.gmmQuantParams.groupNum = inputParams_.groupNum;
     tilingData_.gmmQuantParams.activeType = inputParams_.actType;
     tilingData_.gmmQuantParams.aQuantMode = static_cast<uint32_t>(inputParams_.aQuantMode);

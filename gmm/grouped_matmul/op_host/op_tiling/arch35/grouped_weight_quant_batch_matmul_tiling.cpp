@@ -29,6 +29,7 @@ static const std::map<ge::DataType, std::unordered_set<ge::DataType>> BIAS_TYPE_
 
 bool GroupedWeightQuantBatchMatmulTiling::SetTiling(gert::TilingContext *context)
 {
+    OP_LOGI(context->GetNodeName(), "[GMM Tiling] GroupedWeightQuantBatchMatmulTiling::SetTiling entered");
     OP_CHECK_IF(!AnalyzeAttr(context), OP_LOGE(context->GetNodeName(), "Invalid attr param"),
                return false);
     OP_CHECK_IF(!CalcResplitTiling(context),

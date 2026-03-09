@@ -2051,8 +2051,12 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
       bool isQuant = xDType == ge::DT_FLOAT4_E2M1 || xDType == ge::DT_INT4 ||
                      (ge::GetSizeByDataType(xDType) == 1 && ge::GetSizeByDataType(weightDtype) == 1);
       if (isQuant) {
+          OP_LOGI(context->GetNodeName(), "[GMM Tiling] QUANT path -> GroupedQbmmTiling, xDType=%d, wDType=%d",
+                  static_cast<int>(xDType), static_cast<int>(weightDtype));
           return TilingRegistry::GetInstance().DoTilingImpl(context);
       } else if (xDType != weightDtype) {
+          OP_LOGI(context->GetNodeName(), "[GMM Tiling] WEIGHT_QUANT path -> GroupedWeightQuantBatchMatmulTiling, xDType=%d, wDType=%d",
+                  static_cast<int>(xDType), static_cast<int>(weightDtype));
           GroupedWeightQuantBatchMatmulTiling groupedWeightQuantTiling;
           OP_CHECK_IF(!groupedWeightQuantTiling.SetTiling(context),
                      OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "SetTiling failed."), return ge::GRAPH_FAILED);
@@ -2060,6 +2064,8 @@ ASCENDC_EXTERN_C ge::graphStatus TilingGMM(gert::TilingContext* context) {
       }
       bool isUnQuant = (xDType == ge::DT_FLOAT16 || xDType == ge::DT_BF16 || xDType == ge::DT_FLOAT) && (xDType == weightDtype);
       if (isUnQuant) {
+          OP_LOGI(context->GetNodeName(), "[GMM Tiling] NO_QUANT path -> GroupedNoQuantMatmulTiling, xDType=%d, wDType=%d",
+                  static_cast<int>(xDType), static_cast<int>(weightDtype));
         GroupedNoQuantMatmulTiling groupedNoQuantMatmulTiling;
         OP_CHECK_IF(!groupedNoQuantMatmulTiling.SetTiling(context),
                      OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "SetTiling failed."), return ge::GRAPH_FAILED);

@@ -24,6 +24,7 @@ enum class GmmTrans {
 namespace optiling {
 bool GroupedNoQuantMatmulTiling::SetTiling(gert::TilingContext *context)
 {
+    OP_LOGI(context->GetNodeName(), "[GMM Tiling] GroupedNoQuantMatmulTiling::SetTiling entered");
     auto compileInfoPtr = context->GetCompileInfo<GMMCompileInfo>();
     OP_CHECK_IF(compileInfoPtr == nullptr, OP_LOGE(context->GetNodeName(), "compileInfoPtr is nullptr."), return false);
     usedCoreNum_ = compileInfoPtr->aicNum;
