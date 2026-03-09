@@ -44,6 +44,7 @@ __global__ __aicore__ void causal_conv1d_fn(
     GM_ADDR workspace,            // workspace
     GM_ADDR tiling)               // tiling data
 {
+    KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_AIV_ONLY);
     REGISTER_TILING_DEFAULT(CausalConv1dFnTilingData);
     GET_TILING_DATA_WITH_STRUCT(CausalConv1dFnTilingData, tilingData, tiling);
 
