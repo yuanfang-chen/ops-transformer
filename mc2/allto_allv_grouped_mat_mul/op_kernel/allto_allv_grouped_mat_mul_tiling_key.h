@@ -20,12 +20,13 @@
 #define ADD_TPL_FP16 0 // 输入数据类型
 #define ADD_TPL_BP16 1
 #define ADD_TPL_HIF8 2
+#define ADD_TPL_FP8_E4M3_E5M2 3
 
 
 ASCENDC_TPL_ARGS_DECL( 
     AlltoAllvGroupedMatMul,
     ASCENDC_TPL_DTYPE_DECL( // 输入数据类型
-        D_T_MM, ADD_TPL_FP16, ADD_TPL_BP16, ADD_TPL_HIF8),
+        D_T_MM, ADD_TPL_FP16, ADD_TPL_BP16, ADD_TPL_HIF8, ADD_TPL_FP8_E4M3_E5M2),
     ASCENDC_TPL_BOOL_DECL(  // 共享专家mm计算
         TILINGKEY_MM, 0, 1),
     ASCENDC_TPL_BOOL_DECL(  // gmm计算转置场景
