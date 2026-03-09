@@ -250,6 +250,11 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     attentionMode_ = 1;
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
+    if (oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
+        hasOriTopk = true;
+    } else if (oriTopK_ != 0) {
+        hasOriTopk = true;
+    }
     if (queryHeadNum_ == 128) {
         isN128 = true;
     }
@@ -593,7 +598,7 @@ void SparseAttnSharedkvMetadataCpuKernel::CalcBlockRangeAndTailSize(Range<int64_
         uint32_t s1Idx = GetS1Idx(batchCache, s1GCache.s1GIdx);
         uint32_t bsStride = GetBsStride(s1GCache.bIdx, s1Idx);
         uint32_t oriTopkSize = GetOriTopkLength(bsStride);
-        oriS2LastTokenSize = oriMaskMode_ == 0 ? std::min(oriS2LastToken + 1, static_cast<int64_t>(oriTopkSize)) : (oriS2LastToken + 1);
+        oriS2LastTokenSize = hasOriTopk ? std::min(oriS2LastToken + 1, static_cast<int64_t>(oriTopkSize)) : (oriS2LastToken + 1);
         s1GCache.winS2Start = 0;
         s1GCache.winS2End = oriS2LastTokenSize == 0 ? 0 : (oriS2LastTokenSize - 1 - oriS2FirstToken) / s2BaseSize_ + 1U;
         s1GCache.winS2TailSize = (oriS2LastToken - oriS2FirstToken + 1) % s2BaseSize_;

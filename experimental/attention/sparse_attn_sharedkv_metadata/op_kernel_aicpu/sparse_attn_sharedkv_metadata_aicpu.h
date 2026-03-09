@@ -341,6 +341,7 @@ private:
     BlockCost<int64_t> typeCost_;
     bool isN128 = false;
     uint32_t singleCoreS1GBaseNum_ = 0;
+    bool hasOriTopk = false;
     
 private:
     enum class ParamId : uint32_t {
