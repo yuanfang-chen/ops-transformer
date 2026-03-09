@@ -219,6 +219,7 @@ public:
     bool SetTiling(gert::TilingContext *context);
 
 protected:
+    bool CheckCoreNum(const gert::TilingContext *context) const;
     bool SetShapeList(const gert::TilingContext *context);
     bool CheckEmptyTensor(const gert::TilingContext *context);
     bool CheckTensorListSize(const gert::TilingContext *context);
@@ -291,6 +292,7 @@ private:
     uint32_t groupNum_ = 0;
     uint32_t groupListType_ = 0;
     uint32_t coreNum_ = 0;
+    uint32_t aivNum_ = 0;
     uint32_t groupSize_ = 0;
     uint8_t cubeNumBlocksN_ = 0;
 
