@@ -80,7 +80,7 @@ public:
      * @param tilingData tiling参数结构体指针
      */
     __aicore__ inline void Init(GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc,
-                                GM_ADDR cacheIndices, GM_ADDR numAcceptedToken, GM_ADDR y, CausalConv1dUpdateTilingData* tilingData);
+                                GM_ADDR cacheIndices, GM_ADDR numAcceptedToken, GM_ADDR y, const CausalConv1dUpdateTilingData* tilingData);
 
     /**
      * @brief 主处理函数，执行双重循环处理所有数据
@@ -237,7 +237,7 @@ private:
 template <typename T>
 __aicore__ inline void CausalConv1dUpdateKernel<T>::Init(
     GM_ADDR x, GM_ADDR weight, GM_ADDR convStates, GM_ADDR queryStartLoc, GM_ADDR cacheIndices,
-    GM_ADDR numAcceptedToken, GM_ADDR y, CausalConv1dUpdateTilingData* tilingData)
+    GM_ADDR numAcceptedToken, GM_ADDR y, const CausalConv1dUpdateTilingData* tilingData)
 {
     // === 1. 获取核间切分参数（二维：Dim方向 × Batch方向） ===
     usedCoreNum_ = tilingData->usedCoreNum;
@@ -533,7 +533,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
             // 这里xSlice指向batch数据起始，需要确保包含足够的x数据
             // 创建局部变量以满足左值引用要求
             LocalTensor<T> xSlice = xLocal[xInnerOffset];
-            LocalTensor<T> stateSlice = convStatesLocal[acceptToken-1+j];
+            LocalTensor<T> stateSlice = convStatesLocal[(acceptToken-1+j)*dimInnerOffset];
             Conv1dNeedState(xSlice, weightLocal, stateSlice, stateSlice, stateSLen, xSLen, dimSizeInLoop);
         }
         event_t eventIdVToMte3 = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
@@ -544,7 +544,7 @@ __aicore__ inline void CausalConv1dUpdateKernel<T>::Compute(int32_t batchLoop, i
         yGMParams.blockLen = blockLen;
         yGMParams.srcStride = 0;
         yGMParams.dstStride = dstStrideBytes;
-        LocalTensor<T> cacheOutSlice = convStatesLocal[acceptToken-1];
+        LocalTensor<T> cacheOutSlice = convStatesLocal[(acceptToken-1)*dimInnerOffset];
         DataCopyPad(yGm[yOffset], cacheOutSlice, yGMParams);
 
 
