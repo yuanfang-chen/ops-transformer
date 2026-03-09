@@ -21,7 +21,7 @@ using namespace regbaseutil;
 
 namespace FaVectorApi {
 template <typename T, typename T2, typename OUTPUT_T, uint32_t s1BaseSize = 16, uint32_t s2BaseSize = 512,
-    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0>
+    bool hasAtten = 0, PseTypeEnum pseMode = PseTypeEnum::PSE_NONE_TYPE, bool hasDrop = 0, bool hasSink = false>
 __simd_vf__ void ProcessVec1UpdateGeneralImpl256GqaFullquantVF(
     __ubuf__ T2 * expUb, __ubuf__ T * srcUb,
     __ubuf__ T * maxUb, __ubuf__ T * inMaxUb, __ubuf__ T * tmpExpSumUb, __ubuf__ T * tmpMaxUb, __ubuf__ T * tmpMaxUb2, __ubuf__ uint8_t * indexesUb, 

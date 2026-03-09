@@ -159,12 +159,12 @@ protected:
             return GET_TPL_TILING_KEY(0, static_cast<uint8_t>(implMode), static_cast<uint8_t>(tilingKeyLayout),
             static_cast<uint16_t>(s1TemplateType), static_cast<uint16_t>(s2TemplateType),
             static_cast<uint16_t>(dTemplateType), static_cast<uint16_t>(DTemplateType::NONALIGNED), pseMode, hasAttenMask,
-            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), static_cast<uint8_t>(regbase));
+            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), hasSink, static_cast<uint8_t>(regbase));
         }
         return GET_TPL_TILING_KEY(0, static_cast<uint8_t>(implMode), static_cast<uint8_t>(tilingKeyLayout),
             static_cast<uint16_t>(s1TemplateType), static_cast<uint16_t>(s2TemplateType),
             static_cast<uint16_t>(dTemplateType), static_cast<uint16_t>(dVTemplateType), pseMode, hasAttenMask,
-            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), static_cast<uint8_t>(regbase));
+            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), hasSink, static_cast<uint8_t>(regbase));
     }
 
     bool IsCapable() override
