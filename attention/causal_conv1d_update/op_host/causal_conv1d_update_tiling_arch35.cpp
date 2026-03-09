@@ -672,16 +672,6 @@ void CausalConv1dUpdateTiling::CalculateTilingParams(int64_t validBatch)
 
 void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
 {
-    // Only support 3D input for now
-    if (xInputMode_ != X_INPUT_3D) {
-        // For 2D input, set default values
-        ubBatchSize_ = batchPerCore_;
-        ubDimSize_ = dimChunkSize_;
-        batchLoopCnt_ = 1;
-        dimLoopCnt_ = 1;
-        return;
-    }
-
     // Use dimChunkSize_ and batchPerCore_ as the maximum data per core
     int64_t coreDim = dimChunkSize_;
     int64_t coreBatch = batchPerCore_;
