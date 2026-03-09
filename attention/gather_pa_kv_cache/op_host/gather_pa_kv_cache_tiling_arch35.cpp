@@ -60,6 +60,8 @@ static const std::set<ge::DataType> KV_SUPPORT_DTYPE = {
 
 static const std::set<ge::DataType> INDEX_SUPPORT_DTYPE = {ge::DT_INT32, ge::DT_INT64};
 
+static const char *formatErrorKeyValueDtypeNotSupported =
+    "%s dtype only support [float32, float16, bf16, hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check.";
 
 ge::graphStatus GatherPaKvCacheTiling::GetPlatformInfo()
 {
@@ -112,9 +114,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputKeyCache()
 
     // 校验数据类型是否合法
     OP_CHECK_IF((KV_SUPPORT_DTYPE.find(kCacheDType) == KV_SUPPORT_DTYPE.end()),
-                OP_LOGE(context_,
-                        "key_cache dtype only support [float32, float16, bf16,"
-                        " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
+                OP_LOGE(context_, formatErrorKeyValueDtypeNotSupported, "key_cache"),
                 return ge::GRAPH_FAILED);
 
     uint32_t kCacheDTypeByteSize = tilingDataTypeByteTable.find(kCacheDType)->second;
@@ -167,9 +167,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputValueCache()
 
     // 校验数据类型是否合法
     OP_CHECK_IF((KV_SUPPORT_DTYPE.find(vCacheDType) == KV_SUPPORT_DTYPE.end()),
-                OP_LOGE(context_,
-                        "value_cache dtype only support [float32, float16, bf16,"
-                        " hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
+                OP_LOGE(context_, formatErrorKeyValueDtypeNotSupported, "value_cache"),
                 return ge::GRAPH_FAILED);
     uint32_t vCacheDTypeByteSize = tilingDataTypeByteTable.find(vCacheDType)->second;
     valueByteSize_ = vCacheDTypeByteSize;
@@ -293,9 +291,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputKey()
 
     // 校验数据类型是否合法
     OP_CHECK_IF((KV_SUPPORT_DTYPE.find(keyDType) == KV_SUPPORT_DTYPE.end()),
-                OP_LOGE(context_,
-                        "key dtype only support [float32, float16, bf16, "
-                        "hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
+                OP_LOGE(context_, formatErrorKeyValueDtypeNotSupported, "key"),
                 return ge::GRAPH_FAILED);
 
     auto keyStoreShape = context_->GetInputShape(INDEX_INPUT_KEY);
@@ -352,9 +348,7 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputValue()
 
     // 校验数据类型是否合法
     OP_CHECK_IF((KV_SUPPORT_DTYPE.find(valueDType) == KV_SUPPORT_DTYPE.end()),
-                OP_LOGE(context_,
-                        "value dtype only support [float32, float16, bf16, "
-                        "hf8, fp8_e5m2, fp8_e4m3fn, int32, uint32, int16, uint16, int8, uint8], please check."),
+                OP_LOGE(context_, formatErrorKeyValueDtypeNotSupported, "value"),
                 return ge::GRAPH_FAILED);
 
     auto valueStoreShape = context_->GetInputShape(INDEX_INPUT_VALUE);
