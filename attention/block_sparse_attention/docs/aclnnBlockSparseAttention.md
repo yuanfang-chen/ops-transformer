@@ -137,7 +137,7 @@ aclnnStatus aclnnBlockSparseAttention(
       <td>blockSparseMaskOptional</td>
       <td>输入</td>
       <td>公式中的atten_mask。</td>
-      <td>当前不支持，传入nullptr。</td>
+      <td>-</td>
       <td>BOOL</td>
       <td>ND</td>
       <td>2</td>

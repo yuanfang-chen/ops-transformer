@@ -75,8 +75,8 @@ public:
     BlockEpilogue(Arch::Resource<ArchTag> &resource)
     {
         // Allocate UB space
-        constexpr uint32_t LO_UB_TENSOR_OFFSET = 6 * UB_UINT8_BLOCK_SIZE;
-        constexpr uint32_t GO_UB_TENSOR_OFFSET = 8 * UB_UINT8_BLOCK_SIZE;
+        constexpr uint32_t LO_UB_TENSOR_OFFSET = 8 * UB_UINT8_BLOCK_SIZE;
+        constexpr uint32_t GO_UB_TENSOR_OFFSET = 9 * UB_UINT8_BLOCK_SIZE;
         constexpr uint32_t TV_UB_TENSOR_OFFSET = 10 * UB_UINT8_BLOCK_SIZE;
 
         constexpr uint32_t HM_UB_TENSOR_OFFSET = 10 * UB_UINT8_BLOCK_SIZE + 9 * UB_UINT8_VECTOR_SIZE;
@@ -379,12 +379,12 @@ public:
         uint32_t qSThisSubBlock = (qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize;
         int64_t outOffsetSubBlock =
             layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
-        
+
         uint32_t outLseRowOffsetThisSubBlock = (qNBlockSize == 1U) ? inRowOffsetThisSubBlock : 0;
         uint32_t outLseColOffsetThisSubBlock = (qNBlockSize == 1U) ? 0 : subBlockIdx * qNSplitSubBlock;
         int64_t offsetLse = layoutLse.GetOffset(MatrixCoord(outLseRowOffsetThisSubBlock, outLseColOffsetThisSubBlock));
         auto gLseThisSubBlock = gLse[offsetLse];
-        
+
         if (inRowActualThisSubBlock > 0U) {
             uint32_t rowLoop = CeilDiv(inRowActualThisSubBlock, rowNumTile);
             uint32_t needRowLoop = (rowLoop > 1U) ? 1 : 0;
