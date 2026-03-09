@@ -67,6 +67,9 @@ constexpr int SOFTMAX_LSE_FLAG_INDEX = 9;
 constexpr int VALID_EMBEDDING_SIZE_64 = 64;
 constexpr int VALID_EMBEDDING_SIZE_128 = 128;
 
+constexpr int LSE_NO_OUT = 0;
+constexpr int LSE_OUT = 1;
+
 namespace optiling {
 
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
@@ -601,10 +604,10 @@ ge::graphStatus BSATiling::ProcessSoftmaxLse(gert::TilingContext *rfaContext)
         return ge::GRAPH_FAILED;
     }
     switch (*softmaxLsePtr) {
-        case 0:
+        case LSE_NO_OUT:
             softmaxLseFlag_ = false;
             break;
-        case 1:
+        case LSE_OUT:
             softmaxLseFlag_ = true;
             break;
         default:
@@ -728,8 +731,14 @@ ge::graphStatus BSATiling::ProcessInput(gert::TilingContext *rfaContext)
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
     }
+
+    // 6. 处理softmax lse flag
+    ret = ProcessSoftmaxLse(rfaContext);
+    if (ret != ge::GRAPH_SUCCESS) {
+        return ret;
+    }
     
-    // 6. 验证配置
+    // 7. 验证配置
     ret = ValidateConfiguration(rfaContext);
     if (ret != ge::GRAPH_SUCCESS) {
         return ret;
