@@ -16,6 +16,27 @@ pytest test.py # correctness tests for sequence lengths 10k-20k 1-4 attention he
 python benchmark.py # performance benchmarking - check the constant inputs shapes defined in the script
 ```
 
+The test should be all green and the benchmark should print:
+```shell
+============================================================================================================================================
+  DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'
+============================================================================================================================================
+  H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]  Ref_BW_[TB/sec]  Our_BW_[TB/sec]
+--------------------------------------------------------------------------------------------------------------------------------------------
+  3   1 118806 118806  128      0.00             yes          157410.30          171075.90            0.002            0.002
+  3   1 118806 118806  128      0.10             N/A                N/A          155304.30              N/A            0.002
+  3   1 118806 118806  128      0.20             N/A                N/A          138751.92              N/A            0.003
+  3   1 118806 118806  128      0.30             N/A                N/A          122295.94              N/A            0.003
+  3   1 118806 118806  128      0.40             N/A                N/A          106064.51              N/A            0.003
+  3   1 118806 118806  128      0.50             N/A                N/A           89029.65              N/A            0.004
+  3   1 118806 118806  128      0.60             N/A                N/A           72481.47              N/A            0.005
+  3   1 118806 118806  128      0.70             N/A                N/A           56076.45              N/A            0.007
+  3   1 118806 118806  128      0.80             N/A                N/A           39556.65              N/A            0.009
+  3   1 118806 118806  128      0.90             N/A                N/A           22716.71              N/A            0.016
+============================================================================================================================================
+```
+
+
 ## Kernel integration plan
 if this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention
 
