@@ -136,7 +136,7 @@ aclnnStatus aclnnGroupedMatmulV5(
           <td>一般情况下，长度与weight相同。综合约束请参见<a href="#约束说明">约束说明</a>。</td>
           <td>FLOAT、UINT64、BFLOAT16、FLOAT8_E8M0<sup>2</sup>、INT64<sup>2</sup></td>
           <td>ND</td>
-          <td>1-3</td>
+          <td>1-4</td>
           <td>√</td>
       </tr>
       <tr>
@@ -176,7 +176,7 @@ aclnnStatus aclnnGroupedMatmulV5(
           <td>一般情况下，只支持1维且长度与x的M相同。综合约束请参见<a href="#约束说明">约束说明</a>。</td>
           <td>FLOAT、FLOAT8_E8M0<sup>2</sup></td>
           <td>ND</td>
-          <td>1-2</td>
+          <td>1-3</td>
           <td>√</td>
       </tr>
       <tr>
@@ -839,7 +839,7 @@ aclnnStatus aclnnGroupedMatmulV5(
         <a id="动态量化（mx量化）场景约束"></a>
 
     - 以下入参为空：offsetOptional、antiquantScaleOptional、antiquantOffsetOptional、 activationInputOptional
-    - 计算公式中量化block size为：gsM = gsN = 1，gsK = 32。mx量化是特殊的pergroup量 化。
+    - 计算公式中量化block size为：gsM = gsN = 1，gsK = 32。mx量化是特殊的pergroup量化。
     - 不为空的参数支持的数据类型组合要满足下表：
 
         |groupType| x       | weight  | biasOptional | scaleOptional |  perTokenScaleOptional |out     |
@@ -852,7 +852,7 @@ aclnnStatus aclnnGroupedMatmulV5(
         |groupType| 使用场景 | shape限制 |
         |:---------:|:---------:| :------ |
         |0|weight单tensor|每个tensor 4维，当weight转置时，shape为(g, N, ceil(K / 64), 2)；当weight不转置时，shape为(g, ceil(K / 64), N, 2)|
-        |2|weight单tensor|每个tensor 3维，shape为((K / 64) + g, N, 2)，scale\_i起始地 址偏移为((K\_0 + K\_1 + ...+ K\_ {i-1})/ 64 + g\_i)*N* 2，即scale_0的起始地 址偏移为0，scale_1的起始地址偏移为（K\_0 / 64 + 1）*N* 2， scale_2的起始地址偏移为((K\_0 + K\_1) / 64 + 2) *N* 2, 依此类推|
+        |2|weight单tensor|每个tensor 3维，shape为((K / 64) + g, N, 2)，scale\_i起始地 址偏移为((K\_0 + K\_1 + ...+ K\_ {i-1})/ 64 + g\_i) * N * 2，即scale_0的起始地 址偏移为0，scale_1的起始地址偏移为（K\_0 / 64 + 1）* N * 2， scale_2的起始地址偏移为((K\_0 + K\_1) / 64 + 2) * N * 2, 依此类推|
 
     - perTokenScaleOptional要满足下表：
 
@@ -883,7 +883,7 @@ aclnnStatus aclnnGroupedMatmulV5(
         |groupType| 使用场景 | shape限制 |
         |:---------:|:---------:| :------ |
         |0|weight单tensor|每个tensor 3维，weight转置时shape为（g, ceil(N / gsN), ceil (K / gsK)），weight非转置时shape为（g, ceil(K / gsK), ceil(N / gsN)）|
-        |2|weight单tensor|每个tensor 2维，shape为（K / gsK + g, ceil(N / gsN)），scale\_i地址偏移为（(K\_0 + K\_1 + ...+   K\_{i-1})/ gsK + g\_i）*ceil(N /  gsN)，即scale\_0的起始地址偏移为0，scale\_1的起始地址偏移为（K\_0 / gsK + 1）* ceil(N / gsN)， scale_2的起始地址偏移为((K\_0 + K\_1) / gsK + 2) * ceil(N / gsN), 依此类推|
+        |2|weight单tensor|每个tensor 2维，shape为（K / gsK + g, ceil(N / gsN)），scale\_i地址偏移为（(K\_0 + K\_1 + ...+   K\_{i-1})/ gsK + g\_i）* ceil(N /  gsN)，即scale\_0的起始地址偏移为0，scale\_1的起始地址偏移为（K\_0 / gsK + 1）* ceil(N / gsN)， scale_2的起始地址偏移为((K\_0 + K\_1) / gsK + 2) * ceil(N / gsN), 依此类推|
 
     - perTokenScaleOptional要满足下表：
 

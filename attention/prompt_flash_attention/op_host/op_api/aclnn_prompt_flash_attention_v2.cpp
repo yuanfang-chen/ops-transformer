@@ -9,7 +9,7 @@
  */
 
 #include "aclnn_prompt_flash_attention_v2.h"
-#include "aclnn_prompt_flash_attention_inner.h"
+#include "prompt_flash_attention_inner.h"
 #include "aclnn_kernels/contiguous.h"
 #include "aclnn_kernels/pad.h"
 #include "aclnn_kernels/slice.h"
@@ -51,7 +51,7 @@ aclnnStatus aclnnPromptFlashAttentionV2GetWorkspaceSize(
     uint64_t *workspaceSize,
     aclOpExecutor **executor) {
         if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V2 are no longer supported on Ascend950.");
+            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
             return ACLNN_ERR_RUNTIME_ERROR;
         }
         static bool isFirstCall = true;
@@ -78,7 +78,7 @@ aclnnStatus aclnnPromptFlashAttentionV2(
     aclOpExecutor *executor,
     const aclrtStream stream) { // V2 call aclnn inner
         if (GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510) {
-            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V2 are no longer supported on Ascend950.");
+            OP_LOGE(ACLNN_ERR_RUNTIME_ERROR, "Interface aclnnPromptFlashAttention versions V1 to V3 are no longer supported on Ascend950.");
             return ACLNN_ERR_RUNTIME_ERROR;
         }
         static bool isFirstCall = true;
