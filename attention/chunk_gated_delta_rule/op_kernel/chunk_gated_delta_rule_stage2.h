@@ -220,3 +220,4 @@ private:
     int32_t chunkNum_;    // S非对齐时补齐后Chunk个数
 };
 } // namespace ChunkGatedDeltaRule
+#endif

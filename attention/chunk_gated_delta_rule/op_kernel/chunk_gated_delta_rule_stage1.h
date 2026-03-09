@@ -813,3 +813,4 @@ private:
     uint32_t coreIdx;
 };
 } // namespace ChunkGatedDeltaRule
+#endif
