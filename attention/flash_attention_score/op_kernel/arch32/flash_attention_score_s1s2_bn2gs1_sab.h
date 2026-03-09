@@ -222,7 +222,7 @@ protected:
                                     int32_t posL1, int32_t baseBlockSize, int32_t orgWidth = 192);
     __aicore__ inline void mm2LoadDataA(LocalTensor<INPUT_T> &tscmTensor,
                                     const GlobalTensor<INPUT_T> &globalTensor, const DataCopyParams &copyParams,
-                                    uint8_t tscmIndex, int32_t posL1, int32_t baseBlockSize, int32_t ndNum);
+                                    uint8_t tscmIndex, int32_t posL1, int32_t baseBlockSize, int32_t ndNum = 2);
     __aicore__ inline void mm2LoadDataB(LocalTensor<INPUT_T> &tscmTensor, const GlobalTensor<INPUT_T> &globalTensor,
                             int32_t tileHeight, int32_t tileWidth, uint8_t tscmIndex,
                                     int32_t posL1, int32_t baseBlockSize, int32_t orgWidth = 192, int32_t ndNum = 2);
@@ -2316,6 +2316,7 @@ __aicore__ inline void FlashAttentionScoreS1s2Bn2gs1SameAB<implMode, layOutType,
     const uint16_t blockLen = BLOCK_CUBE * mm2BaseM * sizeof(INPUT_T) / BLOCK_BYTE;
     const uint16_t srcStride = aRowNum == 1 ? 0 : blockLen; // singleCoreM == BaseM or 2 * BaseM
     const uint16_t dstStride = 0;
+    AscendC::DataCopyParams copyParams = {blockCount, blockLen, srcStride, dstStride};	 
 
 
 
