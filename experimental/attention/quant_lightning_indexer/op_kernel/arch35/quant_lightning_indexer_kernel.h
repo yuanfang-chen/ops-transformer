@@ -163,6 +163,8 @@ __aicore__ inline void QLIPreload<QLIT>::InitTilingData(const QLITilingData *__r
     constInfo.maxBlockNumPerBatch = tilingData->maxBlockNumPerBatch;
     constInfo.sparseCount = tilingData->sparseCount;
     constInfo.cmpRatio = tilingData->cmpRatio;
+    constInfo.keyStride = tilingData->keyStride;
+    constInfo.keyScaleStride = tilingData->keyScaleStride;
     constInfo.batchSupperFlag = tilingData->batchSupperFlag;
     constInfo.outputLayout = Q_LAYOUT_T;  // 输出和输入形状一致
     if (Q_LAYOUT_T == LI_LAYOUT::TND) {
