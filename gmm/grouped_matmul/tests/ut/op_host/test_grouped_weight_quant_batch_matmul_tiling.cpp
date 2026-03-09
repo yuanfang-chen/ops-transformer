@@ -190,7 +190,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_with_o
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 53485600;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
@@ -246,7 +246,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_int8_int4)
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 37756929;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
@@ -352,7 +352,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_transb
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 36773888;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
@@ -407,7 +407,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_19
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 38805505;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
@@ -515,7 +515,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_fp16_output)
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 37756929;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
@@ -623,7 +623,7 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_25
             {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
         },
         &compileInfo);
-    int64_t expectTilingKey = 53485568;
+    int64_t expectTilingKey = 37756929;
     TilingInfo tilingInfo;
     ExecuteTiling(tilingContextPara, tilingInfo);
     EXPECT_EQ(tilingInfo.tilingKey, expectTilingKey);
