@@ -14,7 +14,7 @@
  */
 #ifndef NEW_MC2_QUANT_BMMV3_ASW_BLOCK_H
 #define NEW_MC2_QUANT_BMMV3_ASW_BLOCK_H
-#include "../../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_base.h"
+#include "../../3rd/quant_batch_matmul_v3/op_kernel/quant_batch_matmul_v3_base.h"
 #include "../../inc/kernel/mc2_tiling_struct.h"
 
 namespace Mc2MatmulV3 {
