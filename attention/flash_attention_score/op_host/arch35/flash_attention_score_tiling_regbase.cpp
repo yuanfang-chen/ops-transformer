@@ -503,15 +503,15 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::GetShapeAttrsInfo()
                OPS_REPORT_VECTOR_INNER_ERR(opName, "fail to analyze context info."), return ge::GRAPH_FAILED);
 
     OP_CHECK_IF((inputDtype == ge::DT_HIFLOAT8) && (hasAttenMask || hasPse || hasDropOut || hasRope ||
-                tilingKeyLayout != LayoutType::LAYOUT_BSND ||
+                hasSink || tilingKeyLayout != LayoutType::LAYOUT_BSND ||
                 bSize != 1 || n1Size != n2Size || dSize != 128 || dSizeV != 128 ||
                 !((s1Size == 57600 && s2Size == 57600 && n1Size == 5) || (s1Size == 7200 && s2Size == 512 && n1Size == 40))),
                 OPS_REPORT_VECTOR_INNER_ERR(opName, "HIFLOAT8 can only support layout:BSND without any optional inputs, "
                 "and the input shape must be: "
                 "query:[1, 57600, 5, 128] key:[1, 57600, 5, 128] value:[1, 57600, 5, 128] or "
                 "query:[1, 7200, 40, 128] key:[1, 512, 40, 128] value:[1, 512, 40, 128]."
-                "[hasAttenMask:%d, hasPse:%d, hasDropOut:%d, hasRope:%d, input_layout:%s, bSize:%d, s1Size:%d, s2Size:%d, "
-                "n1Size:%d, n2Size:%d, dSize:%d, dSizeV:%d]", hasAttenMask, hasPse, hasDropOut, hasRope, inputLayout,
+                "[hasAttenMask:%d, hasPse:%d, hasDropOut:%d, hasRope:%d, hasSink:%d, input_layout:%s, bSize:%d, s1Size:%d, s2Size:%d, "
+                "n1Size:%d, n2Size:%d, dSize:%d, dSizeV:%d]", hasAttenMask, hasPse, hasDropOut, hasRope, hasSink, inputLayout,
                 bSize, s1Size, s2Size, n1Size, n2Size, dSize, dSizeV), return ge::GRAPH_FAILED);
 
     if (hasRope && (dSize != 128 || dSizeRope != 64)) {
@@ -860,13 +860,48 @@ bool FlashAttentionScoreTilingRegbase::AnalyzeFp8OptionalInput()
     return true;
 }
 
+bool FlashAttentionScoreTilingRegbase::AnalyzeSinkOptionalInput()
+{
+    auto sinkShapePtr = context_->GetOptionalInputShape(SINK_INPUT_INDEX);
+    auto sinkInputPtr = context_->GetOptionalInputDesc(SINK_INPUT_INDEX);
+    if (sinkShapePtr != nullptr && sinkInputPtr != nullptr && sinkShapePtr->GetStorageShape().GetDimNum() != 0) {
+        hasSink = true;
+        auto shape = sinkShapePtr->GetStorageShape();
+        int64_t dimNum = shape.GetDimNum();
+        auto sinkDtype = sinkInputPtr->GetDataType();
+        OP_CHECK_IF(sinkDtype != GE::DT_FLOAT,
+            OP_LOGE(opName, "invalid sink dtype[%s], only support float.",
+                ge::TypeUtils::DataTypeToSerialString(sinkDtype).c_str()),
+            return false);
+        
+        std::string sinkShape = "";
+        for (int i = 0; i < dimNum; ++i) {
+            sinkShape += std::to_string(shape.GetDim(i));
+            if (i < dimNum - 1) {
+                sinkShape += ", ";
+            }
+        }
+        OP_CHECK_IF(dimNum != 1, OP_LOGE(opName, "invalid sink shape [%s], sink only support [n,].",
+            sinkShape.c_str()),
+            return false);
+        
+        int64_t expectedSinkSize = n1Size;
+        auto actualSinkShapeSize = shape.GetShapeSize();
+        OP_CHECK_IF(actualSinkShapeSize != expectedSinkSize, OP_LOGE(context_, "invalid sink shapeSize, expect [%ld], but got [%ld].",
+            expectedSinkSize, actualSinkShapeSize),
+            return false);
+    }
+    inputParamsRegbase_->set_hasSink(static_cast<uint8_t>(hasSink));
+    return true;
+}
+
 bool FlashAttentionScoreTilingRegbase::AnalyzeOptionalInput()
 {
     OP_CHECK_IF(!AnalyzePseOptionalInput() || !AnalyzeAttenOptionalInput() || !AnalyzeDropOptionalInput() ||
-               !AnalyzeFp8OptionalInput(),
+               !AnalyzeFp8OptionalInput() || !AnalyzeSinkOptionalInput(),
                OPS_REPORT_VECTOR_INNER_ERR(opName, "Analyze Optional Input error."), return false);
-    OP_LOGD(context_, "hasPse: %d, hasAttenMask: %d, hasDropOut: %d, dropMaskouter %d.",
-              hasPse, hasAttenMask, hasDropOut, dropMaskOuter);
+    OP_LOGD(context_, "hasPse: %d, hasAttenMask: %d, hasDropOut: %d, dropMaskouter %d, hasSink: %d.",
+              hasPse, hasAttenMask, hasDropOut, dropMaskOuter, hasSink);
     return true;
 }
 
