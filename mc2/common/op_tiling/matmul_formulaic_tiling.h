@@ -20,7 +20,7 @@
 #include "../op_kernel/mc2_tiling_struct.h"
 #include "register/tilingdata_base.h"
 #include "mc2_tiling_struct.h"
-#include "tiling_api.h"
+#include "tiling/tiling_api.h"
 
 namespace mc2tiling {
 constexpr uint32_t AC_MAX_AIV = 64;
