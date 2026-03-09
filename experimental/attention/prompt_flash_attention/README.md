@@ -1,25 +1,23 @@
 # PromptFlashAttention with block-sparsity support
 
-This version of prompt flash attention modifies V4 of the prompt flash attention kernel, by adding a new argument "sabi_tensor" [batch_size, num_heads, ceil(sequence_length/128), ceil(sequence_length/512)] to specify for each set of 128 rows of attention matrix (query rows): which 128x512 tiles of attention matrix should be computed. Every q-row will enumerated from 0 to ceil(sequence_length/512)-1 or using "-1" to indicate an unused one. 
+This kernel is a modifies of the PromptFlashAttentionV3, introduced as PromptFlashAttentionV4, by adding a new argument "sabi_tensor" to enable block sparse attention computation during prefill. We provide a torch interface to quickly try out our kernel in your end-to-end python pipelines that may benefit from sparse computation (e.g. Hunyuan-video). Documentation of the sabiTensor argument can be found in [docs/aclnnPromptFlashAttentionV4.md](docs/aclnnPromptFlashAttentionV4.md)
 
-Example of sabi_tensor of batch_size=1 and 2 heads processing sequence length 4000 (the sabi will have 31 rows and 7 columns):
-```python
-[
-  # head 0:
-  [
-    [0,1,2,-1,-1,-1,-1],  # process only 3 out of 7 blocks
-    [0,1,2,3,-1,-1,-1],   # process only 4 out of 7 blocks
-    [0,1,2,3,4,5,6],      # process all blocks - dense
-    #... total of 31 rows
-    [0,1,2,3,4,5,-1],     # process only 6 out of 7 - dense
-
-  ],
-  # head 1:
-  [
-    #... total of 31 rows
-  ]
-]
+## Quick test and benchmark in python:
+build the kernel as a custom experimental package, install it, then install our "torch_pfa" torch interface package
+```shell
+bash build.sh --make_clean --experimental -j96 --pkg --soc=ascend910b --ops=prompt_flash_attention
+./build/cann-ops-transformer-custom_linux-"$(uname -i)".run
+(cd experimental/attention/prompt_flash_attention/torch_interface && bash build.sh custom)
 ```
+test and benchmark run times:
+```shell
+cd experimental/attention/prompt_flash_attention/benchmark
+pytest test.py # correctness tests for sequence lengths 10k-20k 1-4 attention heads
+python benchmark.py # performance benchmarking - check the constant inputs shapes defined in the script
+```
+
+## Kernel integration plan
+if this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention
 
 ## 产品支持情况
 
