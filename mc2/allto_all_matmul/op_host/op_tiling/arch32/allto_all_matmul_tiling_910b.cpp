@@ -34,7 +34,6 @@ constexpr uint32_t INPUT_X2_INDEX = 1;
 constexpr uint32_t INPUT_BIAS_INDEX = 2;
 constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16 * 1024 * 1024;
 constexpr uint32_t USER_WORKSPACE_A2 = 1 * 1024 * 1024; // moeExpertNum_ * sizeof(uint32_t) + epWorldSize_ * 2 * 32
-constexpr uint32_t UB_OFFSET = 97440;
 constexpr uint32_t USED_UB_SIZE = 160 * 1024;
 constexpr uint32_t ELEMENT_SIZE = 2;
 constexpr uint32_t MAX_BLOCK_COUNT = 2;
@@ -870,10 +869,10 @@ ge::graphStatus AlltoAllMatmulTiling910b::CheckShapeInfo(AlltoAllMatmulInfo &inf
                         return ge::GRAPH_FAILED);
     }
 
-    OP_TILING_CHECK((tokenSize > 35000), 
-        OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be in range[1, 35000], but it is %lu.",
-        info.rankSize, tokenSize),
-        return ge::GRAPH_FAILED);
+    // OP_TILING_CHECK((tokenSize > 35000), 
+    //     OP_LOGE(opName_, "RankSize (%lu) times of the second dim of x1 should be in range[1, 35000], but it is %lu.",
+    //     info.rankSize, tokenSize),
+    //     return ge::GRAPH_FAILED);
 
     // INT4计算时，需要额外验证维度为偶数
     if (quantType == TILINGKEY_TPL_A4W4) {
