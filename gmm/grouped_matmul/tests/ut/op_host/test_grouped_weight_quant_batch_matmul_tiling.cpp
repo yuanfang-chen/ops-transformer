@@ -38,23 +38,23 @@ protected:
 };
 
 // ANTIQUANT_A16W4
-TEST_F(GroupedMatmulTiling, test_tiling_a16w4ofp16_perchannel_transw_1aic1aiv)
+TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_liuyang_debug)
 {
     size_t M = 512;
     size_t K = 2048;
     size_t N = 1024;
     size_t E = 8;
     optiling::GMMCompileInfo compileInfo = {
-        24,//aicNum
-        48,//aivNum
-        196608,//ubSize
-        524288,//l1Size
-        196608,//l2Size
-        131072,//l0CSize
-        65536,//l0ASize
-        65536,//l0BSize
-        platform_ascendc::SocVersion::ASCEND910B,//ASCEND910B
-        NpuArch::DAV_2201,
+        32,                                       // aicNum
+        64,                                       // aivNum
+        262144,                                   // ubSize
+        524288,                                   // l1Size
+        196608,                                   // l2Size
+        262144,                                   // l0CSize
+        65536,                                    // l0ASize
+        65536,                                    // l0BSize
+        platform_ascendc::SocVersion::ASCEND950,  //ASCEND950
+        NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara("GroupedMatmul", // op_name
                                                 { // input info
