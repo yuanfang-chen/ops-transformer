@@ -1,0 +1,382 @@
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.201 [kernel_mgr.cpp:195][NNOP][ParseDynamicKernelConfig][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Parse dynamic kernel config success, file path: /home/w00809645/cann/vendors/custom_transformer/op_impl/ai_core/tbe/kernel/config/ascend950/grouped_matmul_apt.json
+[WARNING] RUNTIME(81225,python):2026-03-09-07:43:40.299.208 [context.cc:3980] 81225 CtxGetSysParamOpt: SYS Config Opt(1) did not set
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.299.212 [api_impl.cc:6888] 81225 CtxGetSysParamOpt: ret=0x7110014, curCtx = 0x1ae1d660, configOpt=1, *configVal=0.
+[WARNING] ASCENDCL(81225,python):2026-03-09-07:43:40.299.216 [context.cpp:121]81225 GetSysParamOpt: option 1 is not set, runtime errorCode is 107021
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.250 [op_kernel.h:1482][NNOP][SelectBin][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Available bin for op GroupedMatmul is /home/w00809645/cann/vendors/custom_transformer/op_impl/ai_core/tbe/kernel/ascend950/grouped_matmul_apt/GroupedMatmul_037cec40685a17f15b75759e999767c3.o. Key is 0/1/|float8_e4m3fn/ND/dynamic num:1/float8_e4m3fn/ND/dynamic num:1/float/ND/dynamic num:1/float8_e8m0/ND/dynamic num:1/float/ND/dynamic num:1/float16/ND/dynamic num:1/float16/ND/dynamic num:1/bf16/ND/dynamic num:1/
+[WARNING] GE(81225,python):2026-03-09-07:43:40.299.264 [op_binary_resource_manager.cc:179]81225 GetOpBinaryDescByPath:Get binaryInfo by json path failed, path is ascend950/grouped_matmul_apt/GroupedMatmul_037cec40685a17f15b75759e999767c3.json.
+[WARNING] OP(81225,python):2026-03-09-07:43:40.299.271 [kernel_mgr.cpp:507][NNOP][GetBinJson][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] No builtin op kernel bin json [ascend950/grouped_matmul_apt/GroupedMatmul_037cec40685a17f15b75759e999767c3.json]
+[WARNING] OP(81225,python):2026-03-09-07:43:40.299.511 [op_kernel_bin.cpp:152][NNOP][ParseOpDebugConfig][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] json can not parse op_debug_config in /home/w00809645/cann/vendors/custom_transformer/op_impl/ai_core/tbe/kernel/ascend950/grouped_matmul_apt/GroupedMatmul_037cec40685a17f15b75759e999767c3.json
+[WARNING] OP(81225,python):2026-03-09-07:43:40.299.524 [op_kernel_bin.cpp:179][NNOP][ParseOriOpParaSize][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] json can not parse oriOpParaSize in /home/w00809645/cann/vendors/custom_transformer/op_impl/ai_core/tbe/kernel/ascend950/grouped_matmul_apt/GroupedMatmul_037cec40685a17f15b75759e999767c3.json
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.539 [op_kernel_bin.cpp:210][NNOP][ParseKernelDfxConfig][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] kernel dfx config is 2, buf size is 113246208
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.299.557 [device.cpp:138]81225 aclrtGetDeviceImpl: start to execute aclrtGetDevice
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.568 [platform.cpp:410][NNOP][GetPlatformInfo][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] GetCurrentPlatformInfo, get current device is: 0, tPlatformInfoList.size(): 1
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.575 [tiling_parse_ctx_holder.cpp:132][NNOP][SetCoreNum][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] current soc version value: 3, core type: MIX.
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.582 [tiling_parse_ctx_holder.cpp:138][NNOP][SetCoreNum][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Set MIX core num: 64
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.603 [tiling_parse_ctx_holder.cpp:210][NNOP][BuildTilingParseCtx][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Op [GroupedMatmul] use compile info creator to alloc compile info struct
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.299.613 [context.cpp:130]81225 GetSysParamOpt: successfully execute GetSysParamOpt, opt = 2, value = 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.643 [/home/w00809645/repos/ops-gmma2av/ops-transformer/gmm/grouped_matmul/op_host/op_tiling/grouped_matmul_tiling.cpp:2131][OPS_BASE][TilingPrepareForGMM][81225] OpName:[GroupedMatmul] Parse compile info success, soc: 4
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.652 [tiling_parse_ctx_holder.cpp:258][NNOP][BuildTilingParseCtx][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Parse op [GroupedMatmul]  tiling compile info succ
+[WARNING] OP(81225,python):2026-03-09-07:43:40.299.668 [kernel_context_holder.h:214][NNOP][UpdateAttrArg][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Update Attr NULL aclIntArray*: [7]
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.679 [tilingctx_builder.cpp:201][NNOP][UpdateTilingCtx][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Update op tiling ctx. input[9], output[1], compiled Info 0x20490410, deterministic 0, deterministicLevel 0, tilingDataWrap: 0x1f4d9960, coreNum: 64
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.689 [/home/w00809645/repos/ops-gmma2av/ops-transformer/gmm/grouped_matmul/op_host/op_tiling/grouped_matmul_tiling.cpp:2054][OPS_BASE][TilingGMM][81225] OpName:[GroupedMatmul] [GMM Tiling] QUANT path -> GroupedQbmmTiling, xDType=36, wDType=36
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.709 [/home/w00809645/repos/ops-gmma2av/ops-transformer/gmm/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.cpp:65][OPS_BASE][GetPlatformInfo][81225] OpName:[GroupedMatmul:GroupedMatmul] Platform info: aicNum(32) ubSize(253952) l1Size(524288) l0aSize(65536) l0bSize(65536) l0cSize(262144).
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.719 [/home/w00809645/repos/ops-gmma2av/ops-transformer/gmm/grouped_matmul/op_host/op_tiling/arch35/grouped_quant_matmul_tiling.cpp:811][OPS_BASE][DoOpTiling][81225] OpName:[GroupedMatmul] [GMM Tiling] GroupedQbmmTiling::DoOpTiling, groupNum=4, aQuantMode=8, bQuantMode=8, transA=0, transB=1, kernelType=0
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.751 [bridge_graph.cpp:47][NNOP][AddKernelNodeToGraph][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] graph 0x7f580d444330, kernel node: 0x7f580d44ae60
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.762 [grouped_matmul.cpp:41][NNOP][GroupedMatmul][81225] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Leaving function GroupedMatmul
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.772 [contiguous.cpp:658][NNOP][ViewCopy][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] Entering function ViewCopy.
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.819 [op_dfx.h:318][NNOP][SplitStringAndPrint][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] Entering function params: x: aclTensor(view_shape = [576, 7168], view_strides = [7168, 1], view_offset = 0, view_format = ND, storage_shape = [576, 7168], storage_format = ND, ori_shape = [576, 7168], ori_format = ND, data_type = DT_BFLOAT16, device_ptr = 0), y: aclTensor(view_shape = [576, 7168], view_strides = [7168, 1], view_offset = 0, view_format = ND, storage_shape = [4128768], storage_format = ND, ori_shape = [4128768], ori_format = ND, data_type = DT_BFLOAT16, device_ptr = 0x100045c00000).
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.831 [op_dfx.h:260][NNOP][OpDfxGuard][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] Entering function end. 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.299.839 [device.cpp:138]81225 aclrtGetDeviceImpl: start to execute aclrtGetDevice
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.846 [platform.cpp:410][NNOP][GetPlatformInfo][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] GetCurrentPlatformInfo, get current device is: 0, tPlatformInfoList.size(): 1
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.856 [common_types.cpp:502][NNOP][SetStorageAddr][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] Set storage addr: 0x100045c00000
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.864 [op_cache.cpp:1139][NNOP][IsOpCacheValid][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] hash Key: 12321660912651436052, key_.len 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.872 [contiguous.cpp:658][NNOP][ViewCopy][81225] OpName:[aclnnGroupedMatmulV4_1_ViewCopy] Leaving function ViewCopy
+[INFO] OP(81225,python):2026-03-09-07:43:40.299.885 [memory_allocator.cpp:50][NNOP][UpdateOffset][81225] OpName:[aclnnGroupedMatmulV4_1] MaxAllocator tensor index: 0, offset: 0, lifetime: [0, 0], original size: 130023424, align size: 130023936.
+[WARNING] OP(81225,python):2026-03-09-07:43:40.304.968 [op_cache.cpp:1210][NNOP][CanUse][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] can not hit cache, may be hash conflict, xcurrent: aclnnGroupedMatmulV4, cache: aclnnGroupedMatmulV4
+[INFO] OP(81225,python):2026-03-09-07:43:40.304.983 [op_cache.cpp:1139][NNOP][IsOpCacheValid][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] hash Key: 0, key_.len 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.304.996 [rts_arg.cpp:697][NNOP][DumpToCache][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] hash key is zero, or dont has tiling, or tiling size bigger than cache limit, skip cache.
+[WARNING] OP(81225,python):2026-03-09-07:43:40.305.012 [op_cache.cpp:1210][NNOP][CanUse][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] can not hit cache, may be hash conflict, xcurrent: aclnnGroupedMatmulV4, cache: aclnnGroupedMatmulV4
+[INFO] OP(81225,python):2026-03-09-07:43:40.305.027 [op_cache.cpp:1134][NNOP][MarkOpCacheInvalid][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] key_.len 0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.221 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.248 [api_impl.cc:1631] 81925 StreamSynchronize: stream_id=1.
+[WARNING] RUNTIME(81225,python):2026-03-09-07:43:40.379.278 [task_res_da.cc:104] 81925 GetTaskInfo: taskId is invalid, device_id=0, stream_id=1, taskId=1, head=0, tail=1, taskResAHead=0, taskResATail=1, taskInfo_id=0.
+[WARNING] RUNTIME(81225,python):2026-03-09-07:43:40.379.292 [stream_david.cc:1324] 81925 GetTaskIdByPos: taskInfo is null, pos=1
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.298 [stream.cc:1552] 81925 GetFinishedTaskIdBySqHead: sqHead=1, nextTaskId=65535, finishedPos=0, endTaskId=0
+[WARNING] RUNTIME(81225,python):2026-03-09-07:43:40.379.299 [task_res_da.cc:104] 81922 GetTaskInfo: taskId is invalid, device_id=0, stream_id=1, taskId=1, head=0, tail=1, taskResAHead=0, taskResATail=1, taskInfo_id=0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.306 [stream.cc:1673] 81925 SynchronizeImpl: device_id=0, stream_id=1, task_id=0 has been completed, no concerned cqe.
+[WARNING] RUNTIME(81225,python):2026-03-09-07:43:40.379.311 [stream_david.cc:1324] 81922 GetTaskIdByPos: taskInfo is null, pos=1
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.314 [api_error.cc:1035] 81925 StreamSynchronize: stream synchronize exit, stream_id=1, result=0x0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.316 [stream.cc:1552] 81922 GetFinishedTaskIdBySqHead: sqHead=1, nextTaskId=65535, finishedPos=0, endTaskId=0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.379.329 [task_res_da.cc:188] 81922 RecycleTaskInfo: recycle taskinfo success, pos=0, sqeNum=1, headBeforeRecycle=0, taskResAHead=1, tail=1, stream_id=1.
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.332 [dump_printf.cpp:885][tid:81925] dumpWorkSpaceSize is 113246208 bytes, blockDataLen is 1048576 bytes.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.357 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.372 [dump_printf.cpp:907][tid:81925] Block info[64] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.381 [dump_printf.cpp:907][tid:81925] Block info[65] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.388 [dump_printf.cpp:907][tid:81925] Block info[66] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.395 [dump_printf.cpp:907][tid:81925] Block info[67] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.400 [dump_printf.cpp:907][tid:81925] Block info[68] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.407 [dump_printf.cpp:907][tid:81925] Block info[69] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.413 [dump_printf.cpp:907][tid:81925] Block info[70] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.392.419 [dump_printf.cpp:907][tid:81925] Block info[71] is illegal, magic is 0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.459 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.503 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+opType=GroupedMatmul, DumpHead: AIC-0, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048384, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.520 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-0, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048384, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.556 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.571 [dump_printf.cpp:604][tid:81925] PrintInfo: [GMM] QUANT_MX: B_TRANS, A_NO_TRANS, DEQUANT_FIXP
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.590 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.604 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+[GMM] QUANT_MX: B_TRANS, A_NO_TRANS, DEQUANT_FIXP
+opType=GroupedMatmul, DumpHead: AIC-1, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.619 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-1, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.639 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.662 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.676 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-2, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.691 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-2, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.713 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.734 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.748 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-3, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.763 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-3, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.784 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.808 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.821 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-4, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.831 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-4, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.851 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.875 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.888 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-5, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.899 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-5, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.919 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.392.942 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.956 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-6, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.969 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-6, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.392.989 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.013 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.027 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-7, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.041 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-7, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.062 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.084 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.097 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-8, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.107 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-8, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.127 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.150 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.164 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-9, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.175 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-9, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.199 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.223 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.235 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-10, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.246 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-10, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.274 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.300 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.314 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-11, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.324 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-11, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.343 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.367 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.380 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-12, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.390 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-12, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.410 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.432 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.446 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-13, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.460 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-13, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.480 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.504 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.518 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-14, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.533 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-14, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.552 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.575 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.588 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-15, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.602 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-15, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.622 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.646 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.659 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-16, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.670 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-16, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.689 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.710 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.724 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-17, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.738 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-17, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.758 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.781 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.794 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-18, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.804 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-18, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.825 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.847 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.860 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-19, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.870 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-19, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.890 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.913 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.927 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-20, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.937 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-20, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.956 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.393.978 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.393.992 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-21, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.003 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-21, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.023 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.046 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.060 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-22, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.073 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-22, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.093 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.118 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.132 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-23, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.146 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-23, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.166 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.188 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.202 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-24, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.217 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-24, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.237 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.259 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.273 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-25, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.287 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-25, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.308 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.330 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.344 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-26, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.358 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-26, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.378 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.402 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.415 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-27, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.426 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-27, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.446 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.468 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.482 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-28, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.492 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-28, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.511 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.534 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.548 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-29, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.561 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-29, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.581 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.604 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.618 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-30, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.633 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-30, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.652 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.675 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.688 [dump_printf.cpp:761][tid:81925] PrintInfo: opType=GroupedMatmul
+CANN Version: 1.0.0, TimeStamp: 202603
+opType=GroupedMatmul, DumpHead: AIC-31, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.699 [dump_printf.cpp:775][tid:81925] PrintInfo: DumpHead: AIC-31, CoreType=MIX, block dim=32, total_block_num=96, block_remain_len=1048456, block_initial_space=1048576, rsv=0, magic=5aa5bccd
+[INFO] IDEDD(81225,python):2026-03-09-07:43:40.394.718 [dump_printf.cpp:604][tid:81925] PrintInfo: CANN Version: 1.0.0, TimeStamp: 202603
+
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.394.729 [dump_printf.cpp:907][tid:81925] Block info[104] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.394.736 [dump_printf.cpp:907][tid:81925] Block info[105] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.394.743 [dump_printf.cpp:907][tid:81925] Block info[106] is illegal, magic is 0.
+[WARNING] IDEDD(81225,python):2026-03-09-07:43:40.394.750 [dump_printf.cpp:907][tid:81925] Block info[107] is illegal, magic is 0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.768 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.394.786 [api_c_soc.cc:75] 81925 rtGetSocVersion: soc version is Ascend950PR_958b
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.109 [op_kernel_bin.cpp:246][NNOP][DumpWorkspaceData][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] AdumpPrintWorkspace for 0x100047000000, 113246208, GroupedMatmul
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.135 [bridge_dfx.cpp:30][NNOP][IsExceptionDumpEnable][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Exception dump = 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.143 [bridge_dfx.cpp:44][NNOP][IsOverflowDumpEnable][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] Overflow dump = 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.152 [tilingctx_builder.h:81][NNOP][~TilingResCache][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] release tiling result
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.180 [op_executor.cpp:415][NNOP][~aclOpExecutor][81925] OpName:[aclnnGroupedMatmulV4_1_GroupedMatmul] ~aclOpExecutor
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.206 [bridge_pool.cpp:46][NNOP][UpdateHugeMemIndex][81925] Hugemem trace: update pool index: 4095
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.221 [op_cache.cpp:1139][NNOP][IsOpCacheValid][81925] hash Key: 0, key_.len 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.234 [op_cache.cpp:1139][NNOP][IsOpCacheValid][81925] hash Key: 0, key_.len 0
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.241 [op_cache.cpp:786][NNOP][ReleaseOpExecCacheManager][81925] Release op exec cache manager.
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.252 [aclnn_grouped_matmul.cpp:2664][NNOP][aclnnGroupedMatmulV4][81925] Leaving function aclnnGroupedMatmulV4
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.513 [log_inner.cpp:84]81925 third_party/op-plugin/op_plugin/utils/op_api_common.cpp:GetOpApiFuncAddr:832: "[PTA]:"aclDestroyTensorList is found in /home/w00809645/cann/vendors/custom_transformer/op_api/lib/libcust_opapi.so.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.586 [log_inner.cpp:84]81925 third_party/op-plugin/op_plugin/utils/op_api_common.cpp:GetOpApiFuncAddr:832: "[PTA]:"aclDestroyTensor is found in /home/w00809645/cann/vendors/custom_transformer/op_api/lib/libcust_opapi.so.""
+[INFO] OP(81225,python):2026-03-09-07:43:40.399.599 [huge_mem.cpp:273][NNOP][FreeHugeMem][81925] Hugemem trace: get thread local context pool index: 4095
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.709 [log_inner.cpp:84]81225 third_party/op-plugin/op_plugin/utils/op_api_common.cpp:GetOpApiFuncAddr:832: "[PTA]:"UnInitPTACacheThreadLocal is found in /home/w00809645/cann/vendors/custom_transformer/op_api/lib/libcust_opapi.so.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.919 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown_synchronize:105: "[PTA]:"NPU shutdown synchronize begin.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.931 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown_synchronize:117: "[PTA]:"NPU shutdown synchronize device.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.399.944 [log_inner.cpp:84]81225 torch_npu/csrc/core/npu/NPUQueue.cpp:MakeSureQueueEmpty:249: "[PTA]:"Begin to makesure taskqueue empty.""
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.400.101 [device.cpp:185]81225 aclrtSynchronizeDeviceWithTimeoutImpl: start to execute aclrtSynchronizeDeviceWithTimeout, timeout -1ms
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.400.114 [api_impl.cc:3758] 81225 DeviceSynchronize: device synchronize.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.400.131 [device.cpp:201]81225 aclrtSynchronizeDeviceWithTimeoutImpl: device synchronize with timeout -1ms successfully.
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.261 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:63: "[PTA]:"NPU shutdown begin.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.270 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:68: "[PTA]:"NPU shutdown ReleaseHcclCommList.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.275 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:70: "[PTA]:"NPU shutdown ReleaseHcclCommList success.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.280 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:74: "[PTA]:"NPU shutdown CachingHostAllocator emptyCache.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.332 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:80: "[PTA]:"NPU shutdown NPUCachingAllocator emptyCache.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.442 [log_inner.cpp:84]81225 torch_npu/csrc/core/npu/NPUQueue.cpp:MakeSureQueueEmpty:249: "[PTA]:"Begin to makesure taskqueue empty.""
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.400.451 [device.cpp:185]81225 aclrtSynchronizeDeviceWithTimeoutImpl: start to execute aclrtSynchronizeDeviceWithTimeout, timeout -1ms
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.400.457 [api_impl.cc:3758] 81225 DeviceSynchronize: device synchronize.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.400.466 [device.cpp:201]81225 aclrtSynchronizeDeviceWithTimeoutImpl: device synchronize with timeout -1ms successfully.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.400.520 [api_impl.cc:2352] 81225 DevFree: device free mem=0x100047000000
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.980 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:86: "[PTA]:"NPU shutdown NPUSwappedMemoryAllocator emptyCache.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.400.993 [log_inner.cpp:84]81225 torch_npu/csrc/InitNpuBindings.cpp:THPModule_npu_shutdown:92: "[PTA]:"NPU shutdown NpuSysCtrl Finalize.""
+[INFO] APP(81225,python):2026-03-09-07:43:40.401.258 [log_inner.cpp:84]81225 torch_npu/csrc/core/npu/NPUStream.cpp:StreamInitFlag:760: "[PTA]:"Device 0, Npu StreamInitFlag Check is 1""
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.327 [stream.cpp:119]81225 aclrtDestroyStreamForceImpl: start to execute aclrtDestroyStreamForce
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.338 [api_impl.cc:1441] 81225 StreamDestroy: stream_id=1.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.349 [acl_resource_manager.cpp:387]81225 HandleReleaseSourceByStream: start to execute HandleReleaseSourceByStream.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.358 [acl_resource_manager.cpp:393]81225 HandleReleaseSourceByStream: successfully execute HandleReleaseSourceByStream.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.364 [acl_op_resource_manager.cpp:609]81225 HandleReleaseSourceByStream: start to execute HandleReleaseSourceByStream.
+[INFO] GE(81225,python):2026-03-09-07:43:40.401.372 [single_op_manager.cc:51]81225 ReleaseResource:ReleaseResource in. resource id = 0x1ebfcb20
+[INFO] GE(81225,python):2026-03-09-07:43:40.401.383 [caching_allocator.cc:404]81225 TryFreeBlocks:Try free blocks.
+[INFO] GE(81225,python):2026-03-09-07:43:40.401.388 [caching_allocator.cc:360]81225 FreeCachedBlocks:Free cached blocks
+[INFO] GE(81225,python):2026-03-09-07:43:40.401.394 [npu_memory_allocator.cc:74]81225 FreeCachedMem:NpuMemoryAllocators start free cached mem.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.399 [stream_executor.cpp:211]81225 RemoveExecutor: To remove executor by stream = 515885856
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.401.405 [acl_op_resource_manager.cpp:618]81225 HandleReleaseSourceByStream: successfully execute HandleReleaseSourceByStream.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.412 [stream_david.cc:484] 81225 TearDown: stream_id=1, sq_id=1, head=1, tail=1, isForceRecycle=1, flag=1, failMode=1.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.425 [stream_sqcq_manage.cc:636] 81225 FreeLogicCq: Return(0), threadIdentifier(140019161896768), devId(0), tsId(0), cqId(16), isFastCq(0).
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.440 [npu_driver_res.cc:832] 81225 StreamUnBindLogicCq: success: deviceId=0, tsId=0, streamId=1, logicCq=16.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.463 [npu_driver_res.cc:1675] 81225 LogicCqFree: Succ:device_id=0,ts_id=0,type=2,logic_cq_id=16, drvFlag=0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.471 [stream.cc:258] 81225 FreeStreamId: Free stream_id=1.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.478 [stream_sqcq_manage.cc:381] 81225 DeAllocStreamSqCq: deviceId=0, tsId=0, drvFlag=0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.483 [npu_driver_res.cc:1557] 81225 NormalSqCqFree: Normal sqcq free, sqId=1, cqId=1, device_id=0, tsId=0, drvFlag=0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.655 [npu_driver_res.cc:1565] 81225 NormalSqCqFree: Normal sqcq free success, sqId=1, cqId=1, device_id=0, tsId=0, drvFlag=0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.664 [stream_sqcq_manage.cc:393] 81225 DeAllocStreamSqCq: [SqCqManage]success to release sq, sq_id=1, cq_id=1, stream_id=1, is_sq_need_release=1, drvFlag=0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.670 [npu_driver_res.cc:1149] 81225 StreamIdFree: stream id free begin, device_id=0, stream_id=1, ts_id=0, remote_stream_id=0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.401.680 [npu_driver_res.cc:1158] 81225 StreamIdFree: Stream id free success, stream_id=1, device_id=0, tsId=0, streamFlag=1536
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.035 [stream.cpp:127]81225 aclrtDestroyStreamForceImpl: aclrtDestroyStreamForce success
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.152 [device.cpp:90]81225 aclrtResetDeviceImpl: start to execute aclrtResetDevice, deviceId = 0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.402.164 [api_impl.cc:3610] 81225 DeviceReset: Reset device, drv devId=0.
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.402.170 [runtime.cc:3273] 81225 PrimaryContextRelease: Context TryDecRef, ts_id=0, count=0x1, reset:0
+[INFO] RUNTIME(81225,python):2026-03-09-07:43:40.402.176 [api_impl.cc:3624] 81225 DeviceReset: Succ, drv devId=0.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.179 [device.cpp:96]81225 aclrtResetDeviceImpl: successfully execute aclrtResetDevice, reset device 0.
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.567 [acl.cpp:607]81225 aclFinalizeImpl: start to execute aclFinalize
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.579 [acl.cpp:530]81225 aclFinalizeInternal: start to execute aclFinalizeInternal
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.690 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_MALLOC_FREE, applyTotal = 4, applySucc = 4, releaseTotal = 1, releaseSucc = 1
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.699 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_MALLOC_FREE_HOST, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.705 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_CONTEXT, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.710 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_SET_RESET_DEVICE, applyTotal = 2, applySucc = 2, releaseTotal = 1, releaseSucc = 1
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.715 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_EVENT, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.722 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_STREAM, applyTotal = 2, applySucc = 2, releaseTotal = 1, releaseSucc = 1
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.727 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_DVPP_MALLOC_FREE, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.732 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_RECORD_RESET_EVENT, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.737 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DATA_BUFFER, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.742 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_TENSOR_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.747 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.751 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DATASET, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.757 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_LOAD_UNLOAD_MODEL, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.762 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_AIPP, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.766 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_ATTR, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.771 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_HANDLE, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.776 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_CHANNEL_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.781 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_PIC_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.786 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_ROI_CONFIG, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.791 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_RESIZE_CONFIG, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.796 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_JPEGE_CONFIG, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.800 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_VDEC_CHANNEL_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.805 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_VENC_CHANNEL_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.810 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_STREAM_DESC, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.815 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_VDEC_FRAME_CONFIG, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.820 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_VENC_FRAME_CONFIG, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
+[INFO] ASCENDCL(81225,python):2026-03-09-07:43:40.402.824 [resource_statistics.cpp:113]81225 TraverseStatistics: The ResourceType:ACL_STATISTICS_CREATE_DESTROY_DVPP_CHANNEL, applyTotal = 0, applySucc = 0, releaseTotal = 0, releaseSucc = 0
