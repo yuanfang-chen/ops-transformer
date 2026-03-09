@@ -316,8 +316,8 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
 
     // 读取 padSlotId attribute
     padSlotId_ = -1;
-    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(0) != nullptr) {
-        padSlotId_ = *(context_->GetAttrs()->GetInt(0));
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(1) != nullptr) {
+        padSlotId_ = *(context_->GetAttrs()->GetInt(1));
     }
 
     // 初始化有效 batch 范围（默认为全部 batch）
