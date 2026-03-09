@@ -186,6 +186,54 @@ static bool CheckShapeValid(
     return true;
 }
 
+static bool CheckFormatValid(
+    const aclTensor* permutedTokenOutputGrad, const aclTensor* permutedProbsOutputGradOptional,
+    const aclTensor* sortedIndices, const aclTensor* routingMapOptional)
+{
+    // 检查输入张量的格式是否为 ND 格式
+    if (permutedTokenOutputGrad != nullptr) {
+        op::Format format = permutedTokenOutputGrad->GetStorageFormat();
+        if (format != op::Format::FORMAT_ND) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "Format of permutedTokenOutputGrad should be ND, but got %s.",
+                op::ToString(format).GetString());
+            return false;
+        }
+    }
+    
+    if (permutedProbsOutputGradOptional != nullptr) {
+        op::Format format = permutedProbsOutputGradOptional->GetStorageFormat();
+        if (format != op::Format::FORMAT_ND) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "Format of permutedProbsOutputGradOptional should be ND, but got %s.",
+                op::ToString(format).GetString());
+            return false;
+        }
+    }
+    
+    if (sortedIndices != nullptr) {
+        op::Format format = sortedIndices->GetStorageFormat();
+        if (format != op::Format::FORMAT_ND) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "Format of sortedIndices should be ND, but got %s.",
+                op::ToString(format).GetString());
+            return false;
+        }
+    }
+    
+    if (routingMapOptional != nullptr) {
+        op::Format format = routingMapOptional->GetStorageFormat();
+        if (format != op::Format::FORMAT_ND) {
+            OP_LOGE(
+                ACLNN_ERR_PARAM_INVALID, "Format of routingMapOptional should be ND, but got %s.",
+                op::ToString(format).GetString());
+            return false;
+        }
+    }
+    
+    return true;
+}
+
 static bool checkAttrValid(int64_t numExperts, int64_t tokensNum)
 {
     if (numExperts <= 0) {
@@ -221,6 +269,11 @@ static aclnnStatus CheckParams(
         ACLNN_ERR_PARAM_INVALID);
     CHECK_RET(
         CheckShapeValid(permutedTokenOutputGrad, routingMapOptional, permutedProbsOutputGradOptional),
+        ACLNN_ERR_PARAM_INVALID);
+    // 4. 检查输入张量的格式是否为 ND 格式
+    CHECK_RET(
+        CheckFormatValid(
+            permutedTokenOutputGrad, permutedProbsOutputGradOptional, sortedIndices, routingMapOptional),
         ACLNN_ERR_PARAM_INVALID);
 
     (void)dropAndPad;
