@@ -82,8 +82,8 @@ ge::graphStatus MatmulAllReduceTilingA5::SetMc2Hcomm()
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
     if (matmulAllReduce910TilingData_.allReduceBasedAtaSumAg) {
         OP_TILING_CHECK(
-            SetMc2HcommA2ARSAG(groupName, reduceType) != ge::GRAPH_SUCCESS,
-            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2ARSAG failed."),
+            SetMc2HcommA2AAG(groupName, reduceType) != ge::GRAPH_SUCCESS,
+            OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
             return ge::GRAPH_FAILED);
     } else {
         OP_TILING_CHECK(
