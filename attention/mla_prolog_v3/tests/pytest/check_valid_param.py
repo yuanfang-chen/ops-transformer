@@ -128,8 +128,8 @@ def validate_config(params):
         raise ValueError("cache_mode=TND requires bs_fused_flag=1")
     if cache_mode == "BSND" and bs_fused_flag != 0:
         raise ValueError("cache_mode=BSND requires bs_fused_flag=0")
-    if weight_quant_mode not in [0, 1, 2, 3]:
-        raise ValueError("weight_quant_mode should be: 0/1/2/3")
+    if weight_quant_mode not in [0, 1, 2, 3, 4, 5]:
+        raise ValueError("weight_quant_mode should be: 0/1/2/3/4/5")
     if kv_quant_mode not in [0, 1, 2, 3]:
         raise ValueError("kv_quant_mode should be: 0/1/2/3")
     if query_quant_mode not in [0, 1]:

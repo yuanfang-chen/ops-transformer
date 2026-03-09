@@ -12,7 +12,10 @@
 
 import os
 import torch
-import torch_npu
+try:
+    import torch_npu
+except Exception:
+    torch_npu = None
 import check_valid_param
 import pytest
 import math
@@ -50,6 +53,8 @@ def info_log(message):
 
 
 def _get_hif8_dtype():
+    if torch_npu is None:
+        return None
     return getattr(torch_npu, "hifloat8", None)
 
 
@@ -95,7 +100,20 @@ def _get_quant_dtype_max(quant_dtype):
     raise ValueError(f"unsupported quant dtype: {quant_dtype}")
 
 
-def _get_kv_tile_quant_dtype(weight_quant_mode):
+def _get_kv_tile_quant_dtype(kv_quant_mode, kv_cache_dtype=None, weight_quant_mode=None):
+    if kv_quant_mode != 3:
+        return None
+
+    if kv_cache_dtype is not None:
+        if kv_cache_dtype in (torch.int8,):
+            return kv_cache_dtype
+        if hasattr(torch, "float8_e4m3fn") and kv_cache_dtype == torch.float8_e4m3fn:
+            return kv_cache_dtype
+        hif8_dtype = _get_hif8_dtype()
+        if hif8_dtype is not None and kv_cache_dtype == hif8_dtype:
+            return kv_cache_dtype
+        raise ValueError(f"unsupported kv tile quant dtype: {kv_cache_dtype}")
+
     if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
         if not hasattr(torch, "float8_e4m3fn"):
             raise ValueError("weight_quant_mode=3 requires torch.float8_e4m3fn support")
@@ -111,11 +129,6 @@ def _dynamic_quant_clip_range(dtype_max, quant_dtype):
     if quant_dtype == torch.int8:
         return -128.0, 127.0
     return -float(dtype_max), float(dtype_max)
-
-
-def _clamp_to_dtype_range_float(inputs, dtype_max):
-    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, torch.float32)
-    return torch.clamp(inputs.to(torch.float32), min=clip_min, max=clip_max)
 
 
 def _fp8_blockwise_quant(inputs, block_size=FP8_BLOCK_SIZE, dtype_max=FP8_E4M3_DTYPE_MAX,
@@ -193,6 +206,15 @@ def quant(x, qscale):
     s9_res = s9_saturation(scaled_values)
     s8_res_cal = s8_saturation(s9_res)
     return s8_res_cal
+
+
+def quant_with_scale(x, qscale, quant_dtype=torch.int8):
+    if quant_dtype == torch.int8:
+        return quant(x, qscale)
+    dtype_max = _get_quant_dtype_max(quant_dtype)
+    scaled_values = torch.round(x.to(torch.float32) * qscale.to(torch.float32))
+    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+    return torch.clamp(scaled_values, min=clip_min, max=clip_max).to(quant_dtype)
 
 
 def numpy_float8_e4m3fn():
@@ -506,27 +528,17 @@ class GeneralizedPrologV3:
             WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
             WEIGHT_QUANT_MODE_FULL_HIF8,
         )
-        mode45_full_quant = weight_quant_mode in (
-            WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
-            WEIGHT_QUANT_MODE_FULL_HIF8,
-        )
         enable_quant_output = (query_quant_mode == 1 and weight_quant_mode in (
             WEIGHT_QUANT_MODE_FULL_INT8,
             WEIGHT_QUANT_MODE_MXFP8_FULL,
             WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
             WEIGHT_QUANT_MODE_FULL_HIF8,
         ))
-        kv_tile_quant_dtype = _get_kv_tile_quant_dtype(weight_quant_mode)
         query_quant_dtype = torch.int8
         query_dtype_max = INT8_DTYPE_MAX
-        matmul_input_dtype_max = None
         if mode2_family_full_quant and full_quant_mode_config is not None:
             query_dtype_max = full_quant_mode_config["dtype_max"]
-            if mode45_full_quant:
-                query_quant_dtype = torch.float32
-                matmul_input_dtype_max = full_quant_mode_config["dtype_max"]
-            else:
-                query_quant_dtype = full_quant_mode_config["query_quant_dtype"]
+            query_quant_dtype = full_quant_mode_config["query_quant_dtype"]
         if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
             if hasattr(torch, "float8_e4m3fn"):
                 query_quant_dtype = torch.float8_e4m3fn
@@ -564,6 +576,9 @@ class GeneralizedPrologV3:
         index_table = inputs['index_table'].cpu()
         kv_cache = inputs['kv_cache'].cpu()
         kr_cache = inputs['kr_cache'].cpu()
+        kv_tile_quant_dtype = _get_kv_tile_quant_dtype(
+            kv_quant_mode, kv_cache_dtype=kv_cache.dtype, weight_quant_mode=weight_quant_mode
+        )
 
         # Optional quant tensors
         deq_scale_x = inputs.get('deq_scale_x')
@@ -636,9 +651,6 @@ class GeneralizedPrologV3:
                  f" w_dq:{tuple(w_dq.shape)}|{w_dq.dtype}")
         token_x_new = token_x_new.to(torch.float32)
         w_dq = w_dq.to(torch.float32)
-        if mode45_full_quant:
-            token_x_new = _clamp_to_dtype_range_float(token_x_new, matmul_input_dtype_max)
-            w_dq = _clamp_to_dtype_range_float(w_dq, matmul_input_dtype_max)
         matmul1_res = torch.matmul(token_x_new, w_dq).to(matmul1_dtype)
 
         # matmul1 post-processing
@@ -697,12 +709,11 @@ class GeneralizedPrologV3:
                 )
             else:
                 w_uq_qr = w_uq_qr.to(full_quant_mode_config["input_dtype"])
-                matmul2_dtype = torch.float32
                 norm1_res, deq_scale_qcqr = dynamic_quant(
                     norm1_res,
                     smooth_scale_cq,
                     dtype_max=full_quant_mode_config["dtype_max"],
-                    quant_dtype=torch.float32
+                    quant_dtype=full_quant_mode_config["input_dtype"],
                 )
             info_log(f"[INFO]dynamic_quant end. norm1_res dtype={norm1_res.dtype}")
         else:
@@ -710,7 +721,7 @@ class GeneralizedPrologV3:
 
         if query_norm_flag:
             if weight_quant_mode == 0:
-                query_norm_tensor = norm1_res.to(torch.bfloat16)
+                query_norm_tensor = norm1_res
                 deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
             elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
                 query_norm_tensor = norm1_fp8
@@ -719,14 +730,14 @@ class GeneralizedPrologV3:
                 if fp8_e8m0_dtype is not None:
                     deq_scale_q_norm_tensor = deq_scale_q_norm_tensor.to(fp8_e8m0_dtype)
             else:
-                query_norm_tensor = torch.clamp(norm1_res.to(torch.float32), min=-128.0, max=127.0).to(torch.int8)
+                query_norm_tensor = norm1_res
                 if deq_scale_qcqr is None:
                     deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
                 else:
-                    deq_scale_q_norm_tensor = deq_scale_qcqr.reshape(T, 1).to(torch.float32)
+                    deq_scale_q_norm_tensor = deq_scale_qcqr
         else:
             if weight_quant_mode == 0:
-                query_norm_tensor = torch.empty((0,), dtype=torch.bfloat16)
+                query_norm_tensor = torch.empty((0,), dtype=torch.float32)
                 deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
             elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
                 q_dtype = torch.float8_e4m3fn if hasattr(torch, "float8_e4m3fn") else torch.float32
@@ -734,14 +745,15 @@ class GeneralizedPrologV3:
                 query_norm_tensor = torch.empty((0,), dtype=q_dtype)
                 deq_scale_q_norm_tensor = torch.empty((0,), dtype=scale_dtype)
             else:
-                query_norm_tensor = torch.empty((0,), dtype=torch.int8)
+                if full_quant_mode_config is not None:
+                    qnorm_dtype = full_quant_mode_config["input_dtype"]
+                else:
+                    qnorm_dtype = torch.int32
+                query_norm_tensor = torch.empty((0,), dtype=qnorm_dtype)
                 deq_scale_q_norm_tensor = torch.empty((0,), dtype=torch.float32)
 
         norm1_res = norm1_res.to(torch.float32)
         w_uq_qr = w_uq_qr.to(torch.float32)
-        if mode45_full_quant:
-            norm1_res = _clamp_to_dtype_range_float(norm1_res, matmul_input_dtype_max)
-            w_uq_qr = _clamp_to_dtype_range_float(w_uq_qr, matmul_input_dtype_max)
         matmul2_res = torch.matmul(norm1_res, w_uq_qr).to(matmul2_dtype)
 
         # matmul2 post-processing
@@ -826,9 +838,6 @@ class GeneralizedPrologV3:
 
         token_x_matmul4 = token_x_new.to(torch.float32)
         w_dkv_kr = w_dkv_kr.to(torch.float32)
-        if mode45_full_quant:
-            token_x_matmul4 = _clamp_to_dtype_range_float(token_x_matmul4, matmul_input_dtype_max)
-            w_dkv_kr = _clamp_to_dtype_range_float(w_dkv_kr, matmul_input_dtype_max)
         matmul4_res = torch.matmul(token_x_matmul4, w_dkv_kr).to(matmul4_dtype)
 
         # matmul4 post-processing
@@ -858,15 +867,22 @@ class GeneralizedPrologV3:
         ep2 = float(ckv_epsilon)
         norm2_res = splitd2_res1 / torch.sqrt(torch.mean(splitd2_res1 ** 2, dim=-1, keepdim=True) + ep2)
         norm2_res *= gamma_ckv
-        norm2_res *= kc_scale
         info_log(f"[INFO]rmsnorm2 end. norm2_res:{tuple(norm2_res.shape)}|{norm2_res.dtype}")
 
         Dtile = Hckv
         # rmsnorm2 post-processing: kv cache quantization
         if kv_quant_mode in (1, 2):
-            if weight_quant_mode == 3:
+            if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
                 norm2_res_np = quant_ckv_per_tensor(norm2_res.numpy(), quant_scale_ckv.numpy())
                 norm2_res = torch.from_numpy(np.asarray(norm2_res_np, dtype=np.float32))
+            elif weight_quant_mode in (
+                    WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+                    WEIGHT_QUANT_MODE_FULL_HIF8):
+                norm2_res = quant_with_scale(
+                    norm2_res,
+                    quant_scale_ckv,
+                    quant_dtype=full_quant_mode_config["input_dtype"],
+                )
             else:
                 norm2_res = quant(norm2_res, quant_scale_ckv)
             info_log(f"[INFO]quant1 end. norm2_res dtype={norm2_res.dtype}")
@@ -1052,6 +1068,8 @@ def _get_mxfp8_e8m0_dtype():
 
 
 def _get_device_name():
+    if torch_npu is None:
+        return ""
     try:
         if hasattr(torch_npu.npu, "current_device"):
             dev_id = torch_npu.npu.current_device()
@@ -1206,7 +1224,17 @@ def _rand_tensor_for_override(shape, dtype, generator):
     return torch.randn(shape, dtype=torch.float32, generator=generator).to(dtype)
 
 
-def _make_override_tensor(name, reference_tensor, override_spec, generator):
+def _move_tensor_to_runtime_device(tensor, runtime_device):
+    if runtime_device == "cpu":
+        return tensor.cpu()
+    if runtime_device == "npu":
+        if torch_npu is None:
+            raise RuntimeError("runtime_device='npu' requires torch_npu")
+        return tensor.npu()
+    raise ValueError(f"unsupported runtime_device={runtime_device}")
+
+
+def _make_override_tensor(name, reference_tensor, override_spec, generator, runtime_device):
     if not override_spec.get("present", True):
         return None
 
@@ -1231,9 +1259,7 @@ def _make_override_tensor(name, reference_tensor, override_spec, generator):
     else:
         tensor = _rand_tensor_for_override(shape, dtype, generator)
 
-    if reference_tensor is not None and getattr(reference_tensor, "is_npu", False):
-        return tensor.npu()
-    return tensor.npu()
+    return _move_tensor_to_runtime_device(tensor, runtime_device)
 
 
 def _build_op_attrs(named_params: Dict[str, object]) -> Dict[str, object]:
@@ -1280,6 +1306,8 @@ def _build_forward_inputs(runtime_inputs: Dict[str, object]) -> Dict[str, object
 
 
 def _execute_npu_case(runtime_inputs: Dict[str, object], op_attrs: Dict[str, object]):
+    if torch_npu is None:
+        raise RuntimeError("NPU execution requires torch_npu")
     w_dq_cast = torch_npu.npu_format_cast(runtime_inputs["w_dq"].contiguous(), 29)
     w_uq_qr_cast = torch_npu.npu_format_cast(runtime_inputs["w_uq_qr"].contiguous(), 29)
     w_dkv_kr_cast = torch_npu.npu_format_cast(runtime_inputs["w_dkv_kr"].contiguous(), 29)
@@ -1355,7 +1383,13 @@ def _apply_case_overrides(case_payload, attr_overrides=None, input_overrides=Non
         for name, spec in input_overrides.items():
             if name not in runtime_inputs:
                 raise KeyError(f"unsupported input override: {name}")
-            runtime_inputs[name] = _make_override_tensor(name, runtime_inputs.get(name), spec, override_generator)
+            runtime_inputs[name] = _make_override_tensor(
+                name,
+                runtime_inputs.get(name),
+                spec,
+                override_generator,
+                runtime_device=case_payload["runtime_device"],
+            )
 
     updated_payload = dict(case_payload)
     updated_payload["runtime_inputs"] = runtime_inputs
@@ -1363,7 +1397,7 @@ def _apply_case_overrides(case_payload, attr_overrides=None, input_overrides=Non
     return updated_payload
 
 
-def _build_default_case_payload(params, validate_quant_combo=True):
+def _build_default_case_payload(params, validate_quant_combo=True, runtime_device="npu"):
     batch_size, He, Hcq, Hckv, q_head_num, kv_head_num, head_dim, rope_head_dim, \
     q_seq, block_size, input_layout, cache_mode, bs_fused_flag, cq_epsilon, ckv_epsilon, dtype, \
     weight_quant_mode, kv_quant_mode, query_quant_mode, ckvkr_repo_mode, \
@@ -1427,11 +1461,18 @@ def _build_default_case_payload(params, validate_quant_combo=True):
     if kv_quant_mode == 0:
         kv_cache_dtype = torch.bfloat16
     elif kv_quant_mode == 1:
-        kv_cache_dtype = torch.float8_e4m3fn if weight_quant_mode == 3 else torch.int8
+        if weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
+            kv_cache_dtype = torch.float8_e4m3fn
+        elif weight_quant_mode in (
+                WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
+                WEIGHT_QUANT_MODE_FULL_HIF8):
+            kv_cache_dtype = full_quant_mode_config["input_dtype"]
+        else:
+            kv_cache_dtype = torch.int8
     elif kv_quant_mode == 2:
         kv_cache_dtype = torch.int8
     else:
-        kv_cache_dtype = _get_kv_tile_quant_dtype(weight_quant_mode)
+        kv_cache_dtype = _get_kv_tile_quant_dtype(kv_quant_mode, weight_quant_mode=weight_quant_mode)
 
     if ckvkr_repo_mode == 1:
         kr_cache_dtype = None
@@ -1459,24 +1500,30 @@ def _build_default_case_payload(params, validate_quant_combo=True):
     else:
         kr_cache_shape = _cache_shape(cache_mode, B, S2, N2, Dr, block_size)
 
-    token_x = _rand_tensor(token_shape, token_dtype, generator).npu()
-    w_dq = _rand_tensor((He, Hcq), w_dq_dtype, generator).npu()
-    w_uq_qr = _rand_tensor((Hcq, N1 * (D + Dr)), w_uq_qr_dtype, generator).npu()
-    w_uk = _rand_tensor((N1, D, Hckv), torch.bfloat16, generator).npu()
-    w_dkv_kr = _rand_tensor((He, Hckv + Dr), w_dkv_kr_dtype, generator).npu()
-    rmsnorm_gamma_cq = _rand_tensor((Hcq,), torch.bfloat16, generator).npu()
-    rmsnorm_gamma_ckv = _rand_tensor((Hckv,), torch.bfloat16, generator).npu()
-    rope_sin = _rand_tensor(rope_shape, torch.bfloat16, generator).npu()
-    rope_cos = _rand_tensor(rope_shape, torch.bfloat16, generator).npu()
+    token_x = _move_tensor_to_runtime_device(_rand_tensor(token_shape, token_dtype, generator), runtime_device)
+    w_dq = _move_tensor_to_runtime_device(_rand_tensor((He, Hcq), w_dq_dtype, generator), runtime_device)
+    w_uq_qr = _move_tensor_to_runtime_device(
+        _rand_tensor((Hcq, N1 * (D + Dr)), w_uq_qr_dtype, generator),
+        runtime_device,
+    )
+    w_uk = _move_tensor_to_runtime_device(_rand_tensor((N1, D, Hckv), torch.bfloat16, generator), runtime_device)
+    w_dkv_kr = _move_tensor_to_runtime_device(
+        _rand_tensor((He, Hckv + Dr), w_dkv_kr_dtype, generator),
+        runtime_device,
+    )
+    rmsnorm_gamma_cq = _move_tensor_to_runtime_device(_rand_tensor((Hcq,), torch.bfloat16, generator), runtime_device)
+    rmsnorm_gamma_ckv = _move_tensor_to_runtime_device(_rand_tensor((Hckv,), torch.bfloat16, generator), runtime_device)
+    rope_sin = _move_tensor_to_runtime_device(_rand_tensor(rope_shape, torch.bfloat16, generator), runtime_device)
+    rope_cos = _move_tensor_to_runtime_device(_rand_tensor(rope_shape, torch.bfloat16, generator), runtime_device)
 
-    kv_cache = _rand_tensor(kv_cache_shape, kv_cache_dtype, generator).npu()
+    kv_cache = _move_tensor_to_runtime_device(_rand_tensor(kv_cache_shape, kv_cache_dtype, generator), runtime_device)
     if kr_cache_dtype is None:
-        kr_cache = torch.empty(kr_cache_shape, dtype=torch.bfloat16).npu()
+        kr_cache = _move_tensor_to_runtime_device(torch.empty(kr_cache_shape, dtype=torch.bfloat16), runtime_device)
     else:
-        kr_cache = _rand_tensor(kr_cache_shape, kr_cache_dtype, generator).npu()
-    cache_index = cache_index.npu()
+        kr_cache = _move_tensor_to_runtime_device(_rand_tensor(kr_cache_shape, kr_cache_dtype, generator), runtime_device)
+    cache_index = _move_tensor_to_runtime_device(cache_index, runtime_device)
     if actual_seq_len is not None:
-        actual_seq_len = actual_seq_len.npu()
+        actual_seq_len = _move_tensor_to_runtime_device(actual_seq_len, runtime_device)
 
     deq_scale_x = None
     deq_scale_w_dq = None
@@ -1488,34 +1535,54 @@ def _build_default_case_payload(params, validate_quant_combo=True):
     k_nope_clip_alpha = None
 
     if weight_quant_mode == 1:
-        deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
+        deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
+            _rand_scale((1, N1 * (D + Dr)), generator), runtime_device
+        )
         if smooth_scales_cq_flag:
-            smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+            smooth_scale_cq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
     elif weight_quant_mode in (
             WEIGHT_QUANT_MODE_FULL_INT8,
             WEIGHT_QUANT_MODE_FULL_FP8_E4M3,
             WEIGHT_QUANT_MODE_FULL_HIF8):
-        deq_scale_x = _rand_scale((T, 1), generator).npu()
-        deq_scale_w_dq = _rand_scale((1, Hcq), generator).npu()
-        deq_scale_w_uq_qr = _rand_scale((1, N1 * (D + Dr)), generator).npu()
-        deq_scale_w_dkv_kr = _rand_scale((1, Hckv + Dr), generator).npu()
+        deq_scale_x = _move_tensor_to_runtime_device(_rand_scale((T, 1), generator), runtime_device)
+        deq_scale_w_dq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
+        deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
+            _rand_scale((1, N1 * (D + Dr)), generator),
+            runtime_device,
+        )
+        deq_scale_w_dkv_kr = _move_tensor_to_runtime_device(
+            _rand_scale((1, Hckv + Dr), generator),
+            runtime_device,
+        )
         if smooth_scales_cq_flag:
-            smooth_scale_cq = _rand_scale((1, Hcq), generator).npu()
+            smooth_scale_cq = _move_tensor_to_runtime_device(_rand_scale((1, Hcq), generator), runtime_device)
     elif weight_quant_mode == WEIGHT_QUANT_MODE_MXFP8_FULL:
         if fp8_e8m0_dtype is None:
             pytest.skip("float8_e8m0 dtype is unavailable for mxfp8 scenario")
-        deq_scale_x = torch.ones((T, He // 32), dtype=fp8_e8m0_dtype).npu()
-        deq_scale_w_dq = torch.ones((Hcq, He // 32), dtype=fp8_e8m0_dtype).npu()
-        deq_scale_w_uq_qr = torch.ones((N1 * (D + Dr), Hcq // 32), dtype=fp8_e8m0_dtype).npu()
-        deq_scale_w_dkv_kr = torch.ones((Hckv + Dr, He // 32), dtype=fp8_e8m0_dtype).npu()
+        deq_scale_x = _move_tensor_to_runtime_device(torch.ones((T, He // 32), dtype=fp8_e8m0_dtype), runtime_device)
+        deq_scale_w_dq = _move_tensor_to_runtime_device(
+            torch.ones((Hcq, He // 32), dtype=fp8_e8m0_dtype),
+            runtime_device,
+        )
+        deq_scale_w_uq_qr = _move_tensor_to_runtime_device(
+            torch.ones((N1 * (D + Dr), Hcq // 32), dtype=fp8_e8m0_dtype),
+            runtime_device,
+        )
+        deq_scale_w_dkv_kr = _move_tensor_to_runtime_device(
+            torch.ones((Hckv + Dr, He // 32), dtype=fp8_e8m0_dtype),
+            runtime_device,
+        )
 
     if kv_quant_mode == 1:
-        quant_scale_ckv = _rand_scale((1,), generator).npu()
+        quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale((1,), generator), runtime_device)
     elif kv_quant_mode == 2:
-        quant_scale_ckv = _rand_scale((1, Hckv), generator).npu()
-        quant_scale_ckr = _rand_scale((1, Dr), generator).npu()
+        quant_scale_ckv = _move_tensor_to_runtime_device(_rand_scale((1, Hckv), generator), runtime_device)
+        quant_scale_ckr = _move_tensor_to_runtime_device(_rand_scale((1, Dr), generator), runtime_device)
     elif kv_quant_mode == 3:
-        k_nope_clip_alpha = _rand_scale((1,), generator, min_val=0.9, max_val=1.1).npu()
+        k_nope_clip_alpha = _move_tensor_to_runtime_device(
+            _rand_scale((1,), generator, min_val=0.9, max_val=1.1),
+            runtime_device,
+        )
 
     runtime_inputs = {
         "token_x": token_x,
@@ -1545,23 +1612,39 @@ def _build_default_case_payload(params, validate_quant_combo=True):
         "params": params,
         "named_params": _params_to_named_dict(params),
         "seed": seed,
+        "runtime_device": runtime_device,
         "runtime_inputs": runtime_inputs,
         "op_attrs": _build_op_attrs(_params_to_named_dict(params)),
     }
 
 
 def test_prologv3_generalized(params):
-    case_payload = _build_default_case_payload(params, validate_quant_combo=True)
+    case_payload = _build_default_case_payload(params, validate_quant_combo=True, runtime_device="npu")
     expect = GeneralizedPrologV3(params).forward(_build_forward_inputs(case_payload["runtime_inputs"]))
     result_aligned = _execute_npu_case(case_payload["runtime_inputs"], case_payload["op_attrs"])
     return expect, result_aligned
 
 
 def run_prologv3_npu_only(params, attr_overrides=None, input_overrides=None):
-    case_payload = _build_default_case_payload(params, validate_quant_combo=True)
+    case_payload = _build_default_case_payload(params, validate_quant_combo=True, runtime_device="npu")
     case_payload = _apply_case_overrides(
         case_payload,
         attr_overrides=attr_overrides,
         input_overrides=input_overrides,
     )
     return _execute_npu_case(case_payload["runtime_inputs"], case_payload["op_attrs"])
+
+
+def run_prologv3_cpu_only(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    case_payload = _build_default_case_payload(
+        params,
+        validate_quant_combo=validate_quant_combo,
+        runtime_device="cpu",
+    )
+    case_payload = _apply_case_overrides(
+        case_payload,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+    )
+    result = GeneralizedPrologV3(params).forward(_build_forward_inputs(case_payload["runtime_inputs"]))
+    return case_payload, result

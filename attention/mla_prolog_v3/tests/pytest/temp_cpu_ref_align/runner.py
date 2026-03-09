@@ -1,0 +1,86 @@
+import sys
+from pathlib import Path
+
+import pytest
+import torch
+
+
+PYTEST_DIR = Path(__file__).resolve().parents[1]
+if str(PYTEST_DIR) not in sys.path:
+    sys.path.insert(0, str(PYTEST_DIR))
+
+import aclnnMlaPrologV3Ref
+import check_valid_param
+import prologv3_generalized
+
+from .case_adapter import build_old_ref_case
+
+
+def has_cpu_hif8_support():
+    hif8_dtype = prologv3_generalized._get_hif8_dtype()
+    if hif8_dtype is None:
+        return False
+    try:
+        torch.randn((2, 2), dtype=torch.float32).to(hif8_dtype)
+    except Exception:
+        return False
+    return True
+
+
+def _canonicalize_old_result(old_raw_result, case_payload, generalized_result):
+    out1, out2, out3, out4, deq_scale_q_nope, query_norm, deq_scale_q_norm = old_raw_result
+    outputs = generalized_result["outputs"]
+    named = case_payload["named_params"]
+    t_flag = bool(named["bs_fused_flag"]) or named["cache_mode"] == "TND"
+    batch_size = named["batch_size"]
+    q_seq = named["q_seq"]
+    hcq = named["Hcq"]
+
+    if deq_scale_q_nope is None:
+        deq_scale_q_nope = torch.empty_like(outputs[2])
+    if query_norm is None:
+        query_norm = torch.empty_like(outputs[3])
+    elif query_norm.numel() != 0 and not t_flag and query_norm.ndim == 2:
+        query_norm = query_norm.reshape(batch_size, q_seq, hcq)
+    if deq_scale_q_norm is None:
+        deq_scale_q_norm = torch.empty_like(outputs[4])
+
+    return {
+        "outputs": [out1, out2, deq_scale_q_nope, query_norm, deq_scale_q_norm],
+        "inplace": [out3, out4],
+    }
+
+
+def run_cpu_ref_alignment_case(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    case_payload, generalized_result = prologv3_generalized.run_prologv3_cpu_only(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+    old_params, torch_tensor_list = build_old_ref_case(case_payload, generalized_result)
+    old_mla_param = aclnnMlaPrologV3Ref.get_param(torch_tensor_list, old_params)
+    old_mla_param["device"] = "cpu"
+    old_raw_result = aclnnMlaPrologV3Ref.cal_mlaprolog(old_mla_param)
+    old_result = _canonicalize_old_result(old_raw_result, case_payload, generalized_result)
+    return old_result, generalized_result, case_payload
+
+
+def assert_cpu_refs_aligned(params, attr_overrides=None, input_overrides=None, validate_quant_combo=True):
+    old_result, generalized_result, case_payload = run_cpu_ref_alignment_case(
+        params,
+        attr_overrides=attr_overrides,
+        input_overrides=input_overrides,
+        validate_quant_combo=validate_quant_combo,
+    )
+    check_valid_param.check_result(old_result, generalized_result)
+    return case_payload
+
+
+def skip_if_case_unsupported(param_dict):
+    weight_quant_mode = param_dict["weight_quant_mode"]
+    if weight_quant_mode == prologv3_generalized.WEIGHT_QUANT_MODE_MXFP8_FULL and \
+            not prologv3_generalized.is_mxfp8_runtime_supported():
+        pytest.skip("mxfp8 CPU alignment requires float8_e8m0 + ml_dtypes support")
+    if weight_quant_mode == prologv3_generalized.WEIGHT_QUANT_MODE_FULL_HIF8 and not has_cpu_hif8_support():
+        pytest.skip("hif8 CPU alignment requires CPU-castable torch_npu.hifloat8 support")
