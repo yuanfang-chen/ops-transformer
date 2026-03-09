@@ -11,7 +11,7 @@
 #include <gtest/gtest.h>
 
 #include "mc2_tiling_case_executor.h"
-#include "../../../op_host/op_tiling/arch35/allto_allv_grouped_mat_mul_quant_tiling.h"
+#include "../../../op_host/op_tiling/arch35/allto_allv_grouped_mat_mul_tt_quant_tiling.h"
 
 using namespace std;
 
