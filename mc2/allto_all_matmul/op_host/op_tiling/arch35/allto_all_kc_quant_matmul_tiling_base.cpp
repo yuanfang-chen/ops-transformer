@@ -57,6 +57,8 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::CheckOpInputInfo()
     OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckAttrsInfo(context_, opName_, ALLTOALL_MATMUL_INDEX_SCHEMA) !=
                         ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Attrs failed."), return ge::GRAPH_FAILED);
+    OP_TILING_CHECK(CheckKcTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(AllToAllMatmulTilingBase::CheckKcQuantTensorDataType(context_, opName_) != ge::GRAPH_SUCCESS,
                     OP_LOGE(opName_, "Tiling check Dtype failed."), return ge::GRAPH_FAILED);
     OP_TILING_CHECK(AllToAllMatmulTilingBase::CheckKcQuantShapeInfo(context_, opName_, ALLTOALL_MATMUL_INDEX_SCHEMA) !=
@@ -69,7 +71,36 @@ ge::graphStatus AllToAllKcQuantMatmulTilingBase::CheckOpInputInfo()
     return ge::GRAPH_SUCCESS;
 }
 
+/**
+ * @brief 校验参数的format::是否为私有格式
+ * 
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称 
+ * @return
+ */
+ge::graphStatus AllToAllKcQuantMatmulTilingBase::CheckKcTensorFormat(const gert::TilingContext *context, const char *opName)
+{
+    OP_TILING_CHECK(MatmulAlltoAllTilingUtil::CheckTensorFormat(context_, opName_) != ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "Tiling check format failed."), return ge::GRAPH_FAILED);
+    auto x2ScaleTensorDesc = context->GetOptionalInputDesc(INPUT_X2_SCALE_INDEX);
+    OP_TILING_CHECK((x2ScaleTensorDesc == nullptr),
+                    OP_LOGE(opName, "x2scale tensors should not be null in kc quant mode."), return ge::GRAPH_FAILED);
+    ge::Format x2ScaleFormat = static_cast<ge::Format>(ge::GetPrimaryFormat(x2ScaleTensorDesc->GetStorageFormat()));
+    OP_TILING_CHECK(x2ScaleFormat != ge::FORMAT_ND,
+                    OP_LOGE(opName, "X2Scale format should be ND, but actual value is %s.",
+                            Ops::Base::ToString(x2ScaleFormat).c_str()),
+                    return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
 
+/**
+ * @brief 设置量化的数据类型信息
+ * 
+ * @param context: 框架根据input，output，attrs等信息生成tiling需要的context
+ * @param opName 算子名称
+ * @param contextInfo 存储了tiling的过程信息
+ * @return
+ */
 ge::graphStatus AllToAllKcQuantMatmulTilingBase::SetKcDataTypeInfo(const gert::TilingContext *context,
                                                                    const char *opName, TilingContextInfo &contextInfo)
 {
