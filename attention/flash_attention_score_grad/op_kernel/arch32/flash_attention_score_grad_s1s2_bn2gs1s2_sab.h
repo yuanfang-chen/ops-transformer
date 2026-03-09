@@ -1460,12 +1460,12 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeM
                     AscendC::WaitFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
                 }
                 LoadDataBToL0((*l0_b_tensor), vL1Tensor[bL1Offset], value_d, subNSizeAct);
-                // AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
-                // AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
+                AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
+                AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
                 Cube1Mmad(*l0_c_tensor, *l0_a_tensor, *l0_b_tensor, subMSizeAct, subNSizeAct, value_d);
                 AscendC::SetFlag<HardEvent::M_MTE1>(ping_pong_flag_l0_b_ + 3 + 2);
-                // AscendC::SetFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
-                // AscendC::WaitFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
+                AscendC::SetFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
+                AscendC::WaitFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
                 if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
                     Cube1CopyOut(mm1WorkspaceGm[pingpongIdx * cubeBaseMN + m * mSplitSize * C0_SIZE +
                                                   n * nSplitSize * dbParam.s1CvExtendAlign], *l0_c_tensor, subMSizeAct,
@@ -1512,12 +1512,12 @@ __aicore__ inline void FlashAttentionScoreGradS1s2Bn2gs1s2SameAB<FAGT>::ComputeM
                     AscendC::WaitFlag<HardEvent::MTE2_MTE1>(eventIdMte2ToMte1);
                 }
                 LoadDataBToL0((*l0_b_tensor), kL1Tensor[bL1Offset], d, subNSizeAct);
-                // AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
-                // AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
+                AscendC::SetFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
+                AscendC::WaitFlag<HardEvent::FIX_M>(eventIdFixpipeToM);
                 Cube1Mmad(*l0_c_tensor, *l0_a_tensor, *l0_b_tensor, subMSizeAct, subNSizeAct, d);
                 AscendC::SetFlag<HardEvent::M_MTE1>(ping_pong_flag_l0_b_ + 3 + 2);
-                // AscendC::SetFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
-                // AscendC::WaitFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
+                AscendC::SetFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
+                AscendC::WaitFlag<HardEvent::M_FIX>(eventIdMToFixpipe);
                 if constexpr (MM_OUT_FORMAT == CubeFormat::NZ) {
                     Cube1CopyOut(mm2WorkspaceGm[pingpongIdx * cubeBaseMN + m * mSplitSize * C0_SIZE +
                                                   n * nSplitSize * dbParam.s1CvExtendAlign], *l0_c_tensor, subMSizeAct,
