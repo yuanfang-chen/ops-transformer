@@ -19,19 +19,9 @@
 
 namespace optiling {
 
-// Constants for validation
-constexpr int64_t ALIGN_SIZE = 256;
-constexpr int64_t MIN_DIM = 64;
-constexpr int64_t MAX_DIM = 16384;
-constexpr int64_t MIN_BATCH = 1;
-constexpr int64_t MAX_BATCH = 256;
-constexpr int64_t MIN_M = 0;
-constexpr int64_t MAX_M = 5;
-constexpr int64_t DIM_3 = 3;
-constexpr int64_t DIM_2 = 2;
 
 #define TILING_KEY_UPDATE_BF16 20000
-#define TILING_KEY_UPDATE_FP16 20000
+#define TILING_KEY_UPDATE_FP16 20001
 
 bool CausalConv1dUpdateTiling::IsCapable()
 {
@@ -49,10 +39,6 @@ ge::graphStatus CausalConv1dUpdateTiling::GetPlatformInfo()
         ubSize_ = compileInfoPtr->ubSize;
     } else {
         auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
-        uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
-        size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
-        currentWorkspace[0] = static_cast<size_t>(0UL + sysWorkspaceSize);
-
         totalCoreNum_ = static_cast<uint64_t>(ascendcPlatform.GetCoreNumAiv());
         if (totalCoreNum_ == 0UL) {
             OP_LOGE(context_->GetNodeName(), "coreNum is 0");
@@ -82,14 +68,14 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
 
     // Support both 3D [batch, seq_len, dim] and 2D [cu_seq_len, dim] input
     if (xOriginShape.GetDimNum() == DIM_3) {
-        xInputMode_ = 0;  // 3D input mode
-        batchSize_ = xOriginShape.GetDim(0);
-        seqLen_ = xOriginShape.GetDim(1);
-        dim_ = xOriginShape.GetDim(2);
+        xInputMode_ = X_INPUT_3D;  // 3D input mode
+        batchSize_ = xOriginShape.GetDim(DIM_0);
+        seqLen_ = xOriginShape.GetDim(DIM_1);
+        dim_ = xOriginShape.GetDim(DIM_2);
     } else if (xOriginShape.GetDimNum() == DIM_2) {
-        xInputMode_ = 1;  // 2D input mode
-        cuSeqLen_ = xOriginShape.GetDim(0);  // cu_seq_len = batch * seq_len
-        dim_ = xOriginShape.GetDim(1);
+        xInputMode_ = X_INPUT_2D;  // 2D input mode
+        cuSeqLen_ = xOriginShape.GetDim(DIM_0);  // cu_seq_len = batch * seq_len
+        dim_ = xOriginShape.GetDim(DIM_1);
 
         // For 2D input, query_start_loc must be specified to get batch
         auto queryStartLocShape = context_->GetOptionalInputShape(QUERY_START_LOC_INDEX);
@@ -97,7 +83,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
         // query_start_loc shape is (batch + 1,), so batch = dim0 - 1
-        batchSize_ = queryStartLocOriginShape.GetDim(0) - 1;
+        batchSize_ = queryStartLocOriginShape.GetDim(DIM_0) - 1;
     } else {
         OP_LOGE(context_->GetNodeName(), "X dimension number must be 2 or 3, but got %lu",
                 xOriginShape.GetDimNum());
@@ -115,7 +101,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         return ge::GRAPH_FAILED;
     }
 
-    kernelSize_ = weightOriginShape.GetDim(0);
+    kernelSize_ = weightOriginShape.GetDim(DIM_0);
 
     // Get data types
     xDtype_ = context_->GetInputDesc(X_INDEX)->GetDataType();
@@ -174,7 +160,7 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
     OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
     auto convStatesOriginShape = convStatesShape->GetOriginShape();
     // stateLen is the second dimension of convStates [-1, stateLen, dim]
-    stateLen_ = convStatesOriginShape.GetDim(1);
+    stateLen_ = convStatesOriginShape.GetDim(DIM_1);
 
     // Perform all validations
     OP_CHECK_IF(CheckInputParams() != ge::GRAPH_SUCCESS,
@@ -195,7 +181,7 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateXShape()
                 return ge::GRAPH_FAILED);
 
     // For 3D input, validate sequence length
-    if (xInputMode_ == 0) {
+    if (xInputMode_ == X_INPUT_3D) {
         // Validate sequence length: m+1 where m in [0, 5], so seqLen in [1, 6]
         int64_t m = seqLen_ - 1;
         OP_CHECK_IF(m < MIN_M || m > MAX_M,
@@ -248,21 +234,19 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateConvStatesShape()
                         convStatesOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
-    // For 3D input, validate conv states shape: [-1, K-1+m, dim]
+    // conv states shape: [-1, K-1+m, dim]
     // The second dimension should be K-1 + m = K-1 + (seqLen-1) = K + seqLen - 2
-    if (xInputMode_ == 0) {
-        int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
-        int64_t cacheLen = convStatesOriginShape.GetDim(1);
-        OP_CHECK_IF(cacheLen != expectedCacheLen,
-                    OP_LOGE(context_->GetNodeName(),
-                            "ConvStates length must be K-1+m = %ld, but got %ld",
-                            expectedCacheLen, cacheLen),
-                    return ge::GRAPH_FAILED);
-    }
-    // For 2D input, skip seqLen-based validation as seqLen_ is not set
+    // state_len must be greater than the maximum of width-1+seq_len-1 for all batches. 
+    int64_t expectedCacheLen = kernelSize_ + seqLen_ - 2;
+    int64_t state_len = convStatesOriginShape.GetDim(DIM_1);
+    OP_CHECK_IF(state_len < expectedCacheLen,
+                OP_LOGE(context_->GetNodeName(),
+                        "state_len must be greater than width-1+seq_len-1 = %ld, but got %ld",
+                        expectedCacheLen, state_len),
+                return ge::GRAPH_FAILED);
 
     // Validate conv states dim matches x dim
-    int64_t convStatesDim = convStatesOriginShape.GetDim(2);
+    int64_t convStatesDim = convStatesOriginShape.GetDim(DIM_2);
     OP_CHECK_IF(convStatesDim != dim_,
                 OP_LOGE(context_->GetNodeName(),
                         "ConvStates dimension must match X dimension %ld, but got %ld",
@@ -283,14 +267,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateCacheIndicesShape()
     auto indicesOriginShape = indicesShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(indicesOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(indicesOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "CacheIndices dimension number must be 1, but got %lu",
                         indicesOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape matches batch size
-    int64_t indicesLen = indicesOriginShape.GetDim(0);
+    int64_t indicesLen = indicesOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(indicesLen != batchSize_,
                 OP_LOGE(context_->GetNodeName(),
                         "CacheIndices length must match batch size %ld, but got %ld",
@@ -313,14 +297,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenShape()
     auto acceptOriginShape = acceptShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(acceptOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(acceptOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "NumAcceptedToken dimension number must be 1, but got %lu",
                         acceptOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape matches batch size
-    int64_t acceptLen = acceptOriginShape.GetDim(0);
+    int64_t acceptLen = acceptOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(acceptLen != batchSize_,
                 OP_LOGE(context_->GetNodeName(),
                         "NumAcceptedToken length must match batch size %ld, but got %ld",
@@ -341,14 +325,14 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocShape()
     auto queryStartLocOriginShape = queryStartLocShape->GetOriginShape();
 
     // Validate dimension number: must be 1
-    OP_CHECK_IF(queryStartLocOriginShape.GetDimNum() != 1,
+    OP_CHECK_IF(queryStartLocOriginShape.GetDimNum() != DIM_1,
                 OP_LOGE(context_->GetNodeName(),
                         "QueryStartLoc dimension number must be 1, but got %lu",
                         queryStartLocOriginShape.GetDimNum()),
                 return ge::GRAPH_FAILED);
 
     // Validate shape: should be (batch + 1,)
-    int64_t queryStartLocLen = queryStartLocOriginShape.GetDim(0);
+    int64_t queryStartLocLen = queryStartLocOriginShape.GetDim(DIM_0);
     OP_CHECK_IF(queryStartLocLen != batchSize_ + 1,
                 OP_LOGE(context_->GetNodeName(),
                         "QueryStartLoc length must be batch_size + 1 = %ld, but got %ld",
@@ -436,7 +420,8 @@ ge::graphStatus CausalConv1dUpdateTiling::ValidateQueryStartLocType()
 ge::graphStatus CausalConv1dUpdateTiling::ValidateNumAcceptedTokenType()
 {
     // This is an optional input
-    if (context_->GetOptionalInputTensor(NUM_ACCEPTED_TOKEN_INDEX) == nullptr) {
+    auto numAcceptedTokenDesc = context_->GetOptionalInputDesc(NUM_ACCEPTED_TOKEN_INDEX);
+    if (numAcceptedTokenDesc == nullptr) {
         return ge::GRAPH_SUCCESS;
     }
 
@@ -561,18 +546,33 @@ int64_t CausalConv1dUpdateTiling::CalculateLimitedCoreNum()
 {
     // Calculate input x size in bytes (data type is float16/bf16, 2 bytes per element)
     int64_t xSizeBytes;
-    if (xInputMode_ == 0) {
+    if (xInputMode_ == X_INPUT_3D) {
         // 3D input: batchSize * seqLen * dim * 2 bytes
-        xSizeBytes = batchSize_ * seqLen_ * dim_ * 2;
+        xSizeBytes = batchSize_ * seqLen_ * dim_ * DTYPE_SIZE;
     } else {
         // 2D input: cuSeqLen * dim * 2 bytes
-        xSizeBytes = cuSeqLen_ * dim_ * 2;
+        xSizeBytes = cuSeqLen_ * dim_ * DTYPE_SIZE;
+    }
+
+    // Fixed UB usage for auxiliary tensors
+    // cacheIndices: batchSize_ * sizeof(int32)
+    // numAcceptedToken: batchSize_ * sizeof(int32)
+    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
+    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
+    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
+
+    // For 3D input (xInputMode_ == X_INPUT_3D), only include cacheIndicesUBSize and numAcceptedTokensUBSize
+    fixedUBSize = cacheIndicesUBSize + numAcceptedTokensUBSize;
+    // For 2D input (xInputMode_ == X_INPUT_2D), include queryStartLocUBSize
+    if (xInputMode_ == X_INPUT_2D) {
+        int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
+        fixedUBSize += queryStartLocUBSize;
     }
 
     // Limit core number based on data size
     // When data occupies half of UB, bandwidth is good
     // effectiveCoreNum = xSizeBytes / (ubSize_ / 2)
-    int64_t halfUbSize = ubSize_ / 2;
+    int64_t halfUbSize = (ubSize_ - fixedUBSize) / 2;
     int64_t effectiveCoreNum = (xSizeBytes + halfUbSize - 1) / halfUbSize;
     effectiveCoreNum = std::max(effectiveCoreNum, static_cast<int64_t>(1));
 
@@ -598,7 +598,6 @@ int64_t CausalConv1dUpdateTiling::ComputeOptimalDimChunk(int64_t dim, int64_t ba
         return 1;
     }
 
-    constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
     int64_t bestWorkload = INT64_MAX;
     int64_t bestN = 1;
 
@@ -647,8 +646,6 @@ int64_t CausalConv1dUpdateTiling::ComputeOptimalDimChunk(int64_t dim, int64_t ba
 
 void CausalConv1dUpdateTiling::CalculateTilingParams(int64_t validBatch)
 {
-    constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
-
     // Step 1: Calculate limited core number
     limitedCoreNum_ = CalculateLimitedCoreNum();
 
@@ -675,28 +672,6 @@ void CausalConv1dUpdateTiling::CalculateTilingParams(int64_t validBatch)
 
 void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
 {
-    // Only support 3D input for now
-    if (xInputMode_ != 0) {
-        // For 2D input, set default values
-        ubBatchSize_ = batchPerCore_;
-        ubDimSize_ = dimChunkSize_;
-        batchLoopCnt_ = 1;
-        dimLoopCnt_ = 1;
-        return;
-    }
-
-    // Fixed UB usage for auxiliary tensors
-    // queryStartLoc: (batchSize_ + 1) * sizeof(int32)
-    // cacheIndices: batchSize_ * sizeof(int32)
-    // numAcceptedToken: batchSize_ * sizeof(int32)
-    int64_t queryStartLocUBSize = (batchSize_ + 1) * sizeof(int32_t);
-    int64_t cacheIndicesUBSize = batchSize_ * sizeof(int32_t);
-    int64_t numAcceptedTokensUBSize = batchSize_ * sizeof(int32_t);
-    int64_t fixedUBSize = queryStartLocUBSize + cacheIndicesUBSize + numAcceptedTokensUBSize;
-
-    constexpr int64_t DIM_ALIGN_ELEMENTS = 128;  // 256 bytes / 2 bytes per bf16
-    constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
-
     // Use dimChunkSize_ and batchPerCore_ as the maximum data per core
     int64_t coreDim = dimChunkSize_;
     int64_t coreBatch = batchPerCore_;
@@ -708,8 +683,8 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     int64_t weightConvStatesCoeffPerDim = (kernelSize_ + kernelSize_ + seqLen_ - 2) * DTYPE_SIZE;
 
     // x coefficient per dim element when full batch is loaded
-    // x: coreBatch * seqLen_ * ubDim * DTYPE_SIZE
-    int64_t xCoeffPerDimFullBatch = coreBatch * seqLen_ * DTYPE_SIZE;
+    // x: BUFFER_NUM * coreBatch * seqLen_ * ubDim * DTYPE_SIZE
+    int64_t xCoeffPerDimFullBatch = BUFFER_NUM * coreBatch * seqLen_ * DTYPE_SIZE;
 
     // Total coefficient per dim element with full batch
     int64_t totalCoeffPerDim = weightConvStatesCoeffPerDim + xCoeffPerDimFullBatch;
@@ -718,23 +693,23 @@ void CausalConv1dUpdateTiling::CalculateIntraCoreTiling()
     int64_t availableUbSize = static_cast<int64_t>(ubSize_) - fixedUBSize;
     int64_t maxUbDim = availableUbSize / totalCoeffPerDim;
 
-    // Align to DIM_ALIGN_ELEMENTS (256 bytes = 128 bf16 elements)
-    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+    // Align to DIM_ALIGN_ELEMENT (256 bytes = 128 bf16 elements)
+    maxUbDim = (maxUbDim / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
 
-    if (maxUbDim >= DIM_ALIGN_ELEMENTS) {
+    if (maxUbDim >= DIM_ALIGN_ELEMENT) {
         // Can load full batch, try to maximize dim
         ubBatchSize_ = coreBatch;
         ubDimSize_ = std::min(maxUbDim, coreDim);
 
-        // Ensure ubDimSize_ is aligned to DIM_ALIGN_ELEMENTS
-        ubDimSize_ = (ubDimSize_ / DIM_ALIGN_ELEMENTS) * DIM_ALIGN_ELEMENTS;
+        // Ensure ubDimSize_ is aligned to DIM_ALIGN_ELEMENT
+        ubDimSize_ = (ubDimSize_ / DIM_ALIGN_ELEMENT) * DIM_ALIGN_ELEMENT;
         if (ubDimSize_ == 0) {
-            ubDimSize_ = DIM_ALIGN_ELEMENTS;
+            ubDimSize_ = DIM_ALIGN_ELEMENT;
         }
     } else {
         // Cannot load full batch with minimum dim, need to reduce batch
-        // Use minimum ubDim = DIM_ALIGN_ELEMENTS
-        ubDimSize_ = DIM_ALIGN_ELEMENTS;
+        // Use minimum ubDim = DIM_ALIGN_ELEMENT
+        ubDimSize_ = DIM_ALIGN_ELEMENT;
 
         // Calculate space for weight and convStates with minimum dim
         int64_t weightConvStatesSize = weightConvStatesCoeffPerDim * ubDimSize_;
@@ -762,8 +737,6 @@ uint64_t CausalConv1dUpdateTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 {
-    // tilingData_ = context_->GetTilingData<CausalConv1dUpdateTilingData>();
-
     // Set block dimension (number of cores to use)
     context_->SetBlockDim(usedCoreNum_);
 
@@ -816,48 +789,44 @@ ge::graphStatus CausalConv1dUpdateTiling::PostTiling()
 
 void CausalConv1dUpdateTiling::DumpTilingInfo()
 {
-    std::ostringstream info;
+    OP_LOGI(context_->GetNodeName(), "=== CausalConv1dUpdate DumpTilingInfo ===");
 
-    // Tiling data in the order of struct members
-    info << "=== CausalConv1dUpdate Tiling Info ===" << std::endl;
     // Core distribution parameters
-    info << "usedCoreNum: " << usedCoreNum_ << std::endl;
-    info << "dimCoreCnt: " << dimCoreCnt_ << std::endl;
-    info << "batchCoreCnt: " << batchCoreCnt_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "usedCoreNum: %ld", usedCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "dimCoreCnt: %ld", dimCoreCnt_);
+    OP_LOGI(context_->GetNodeName(), "batchCoreCnt: %ld", batchCoreCnt_);
 
     // Dim tiling parameters inter-core
-    info << "dimChunkSize: " << dimChunkSize_ << std::endl;
-    info << "dimTailSize: " << dimTailSize_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "dimChunkSize: %ld", dimChunkSize_);
+    OP_LOGI(context_->GetNodeName(), "dimTailSize: %ld", dimTailSize_);
 
     // Batch tiling parameters inter-core
-    info << "batchPerCore: " << batchPerCore_ << std::endl;
-    info << "batchTailPerCore: " << batchTailPerCore_ << std::endl;
-    info << "validBatchStart: " << validBatchStart_ << std::endl;
-    info << "validBatchEnd: " << validBatchEnd_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "batchPerCore: %ld", batchPerCore_);
+    OP_LOGI(context_->GetNodeName(), "batchTailPerCore: %ld", batchTailPerCore_);
+    OP_LOGI(context_->GetNodeName(), "validBatchStart: %ld", validBatchStart_);
+    OP_LOGI(context_->GetNodeName(), "validBatchEnd: %ld", validBatchEnd_);
 
     // Intra-core tiling parameters UB loop
-    info << "ubBatchSize: " << ubBatchSize_ << std::endl;
-    info << "ubDimSize: " << ubDimSize_ << std::endl;
-    info << "batchLoopCnt: " << batchLoopCnt_ << std::endl;
-    info << "dimLoopCnt: " << dimLoopCnt_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "ubBatchSize: %ld", ubBatchSize_);
+    OP_LOGI(context_->GetNodeName(), "ubDimSize: %ld", ubDimSize_);
+    OP_LOGI(context_->GetNodeName(), "batchLoopCnt: %ld", batchLoopCnt_);
+    OP_LOGI(context_->GetNodeName(), "dimLoopCnt: %ld", dimLoopCnt_);
 
     // Shape information for kernel use
-    info << "batchSize: " << batchSize_ << std::endl;
-    info << "seqLen: " << seqLen_ << std::endl;
-    info << "cuSeqLen: " << cuSeqLen_ << std::endl;
-    info << "dim: " << dim_ << std::endl;
-    info << "kernelSize: " << kernelSize_ << std::endl;
-    info << "stateLen: " << stateLen_ << std::endl;
-    info << "xInputMode: " << xInputMode_ << std::endl;
-    info << "hasAcceptTokenNum: " << hasAcceptTokenNum_ << std::endl;
+    OP_LOGI(context_->GetNodeName(), "batchSize: %ld", batchSize_);
+    OP_LOGI(context_->GetNodeName(), "seqLen: %ld", seqLen_);
+    OP_LOGI(context_->GetNodeName(), "cuSeqLen: %ld", cuSeqLen_);
+    OP_LOGI(context_->GetNodeName(), "dim: %ld", dim_);
+    OP_LOGI(context_->GetNodeName(), "kernelSize: %ld", kernelSize_);
+    OP_LOGI(context_->GetNodeName(), "stateLen: %ld", stateLen_);
+    OP_LOGI(context_->GetNodeName(), "xInputMode: %ld", xInputMode_);
+    OP_LOGI(context_->GetNodeName(), "hasAcceptTokenNum: %ld", hasAcceptTokenNum_);
 
     // Additional debug information (not in struct)
-    info << "Invalid Batch Number: " << inValidBatchNum_ << std::endl;
-    info << "Total Core Number: " << totalCoreNum_ << std::endl;
-    info << "Limited Core Number: " << limitedCoreNum_ << std::endl;
-    info << "UB Size: " << ubSize_ << " bytes" << std::endl;
-
-    OP_LOGI(context_->GetNodeName(), "%s", info.str().c_str());
+    OP_LOGI(context_->GetNodeName(), "Invalid Batch Number: %ld", inValidBatchNum_);
+    OP_LOGI(context_->GetNodeName(), "Total Core Number: %ld", totalCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "Limited Core Number: %ld", limitedCoreNum_);
+    OP_LOGI(context_->GetNodeName(), "UB Size: %lu bytes", ubSize_);
 }
 
 ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
@@ -867,6 +836,11 @@ ge::graphStatus CausalConv1dUpdateTiling::DoLibApiTiling()
 
 ge::graphStatus CausalConv1dUpdateTiling::GetWorkspaceSize()
 {
+    auto platformInfo = context_->GetPlatformInfo();
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfo);
+    uint32_t sysWorkspaceSize = ascendcPlatform.GetLibApiWorkSpaceSize();
+    size_t *currentWorkspace = context_->GetWorkspaceSizes(1);
+    currentWorkspace[0] = static_cast<size_t>(0UL + sysWorkspaceSize);
     return ge::GRAPH_SUCCESS;
 }
 

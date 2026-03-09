@@ -53,6 +53,24 @@ constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
 constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
 constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
 
+// Constants for validation
+constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
+constexpr int64_t MIN_DIM = 64;
+constexpr int64_t MAX_DIM = 16384;
+constexpr int64_t MIN_BATCH = 1;
+constexpr int64_t MAX_BATCH = 256;
+constexpr int64_t MIN_M = 0;
+constexpr int64_t MAX_M = 5;
+constexpr int64_t DIM_0 = 0;
+constexpr int64_t DIM_1 = 1;
+constexpr int64_t DIM_2 = 2;
+constexpr int64_t DIM_3 = 3;
+constexpr int64_t DTYPE_SIZE = 2;  // bf16/fp16 size in bytes
+constexpr int64_t BUFFER_NUM = 2;
+
+// Input mode constants
+constexpr int64_t X_INPUT_3D = 0;  // 3D input mode
+constexpr int64_t X_INPUT_2D = 1;  // 2D input mode
 
 class CausalConv1dUpdateTiling : public Ops::Transformer::OpTiling::TilingBaseClass {
 public:
@@ -99,7 +117,10 @@ private:
     uint64_t ubSize_ = 0;
     uint64_t totalCoreNum_ = 0;
     uint64_t ubBlockSize_ = 0;
-
+    
+    // Runtime information
+    int64_t fixedUBSize = 0;
+    
     // Input tensor shape information
     int64_t batchSize_ = 0;
     int64_t seqLen_ = 0;
