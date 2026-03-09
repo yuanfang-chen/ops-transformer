@@ -45,6 +45,17 @@ using namespace AscendC::Impl::Detail;
 using namespace regbaseutil;
 
 namespace BaseApi {
+namespace KernelBaseFullQuant {
+/* ============确定bmm2ResBuffer的类型============= */
+template <bool useDn, bool isFp8>
+struct Bmm2ResBuffSel {
+    using Type = std::conditional_t<(useDn && isFp8),
+        BuffersPolicySingleBuffer<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>,
+        BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH>>;
+};
+}
+
+
 template <typename ChildClass, typename CubeBlockType, typename VecBlockType>
 class FlashAttentionScoreKernelBaseFullquant {
 public:
@@ -111,7 +122,7 @@ public:
 
     BufferManager<BufferType::UB> ubBufferManager;
     BuffersPolicyDB<BufferType::UB, SyncType::CROSS_CORE_SYNC_BOTH> bmm1Buffers;
-    using bmm2ResBufferType = typename Bmm2ResBuffSel<useDn, isFp8>::Type;
+    using bmm2ResBufferType = typename KernelBaseFullQuant::Bmm2ResBuffSel<useDn, isFp8>::Type;
     bmm2ResBufferType bmm2Buffers;
 
     // mm2左矩阵P
