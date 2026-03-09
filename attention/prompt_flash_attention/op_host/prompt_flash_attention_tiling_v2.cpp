@@ -1845,10 +1845,9 @@ bool PromptFlashAttentionTilingV2::CheckQueryAndKey(ContextParamsForPFATiling& c
 
 bool PromptFlashAttentionTilingV2::CheckIFAMLA(ContextParamsForPFATiling& contextKeyParams, const PFAShapeInfo& queryShapeInfo) const 
 {
-    constexpr uint32_t maxQuerySeqLenInIfaMla = 16U; // ifa mla场景qS最大支持16
-    OP_CHECK_IF((queryShapeInfo.s > maxQuerySeqLenInIfaMla || queryShapeInfo.s < 1),
+    OP_CHECK_IF((queryShapeInfo.s < 1),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName, "input query's sequence length is %u, it should be "
-            "in range of [1, %u] when enable ifa mla", queryShapeInfo.s, maxQuerySeqLenInIfaMla),
+            "larger than 0 when enable ifa mla", queryShapeInfo.s),
         return false);
     if (enableIFAMLAFullQuant) {
         static const std::set<uint32_t> supportNumHeadInIfaMla = {32U, 64U, 128U}; // ifa mla场景qN支持范围
@@ -2305,9 +2304,9 @@ bool PromptFlashAttentionTilingV2::CheckActSeqLen(ContextParamsForPFATiling& con
 
     std::string layoutStr(contextKeyParams.layout);
     if (enableActSeqLen) {   // check the length of actual_seq_lengthsQ, whether is 1 or batch size
-        OP_CHECK_IF(enableIFAMLA && (inputLayout != InputLayout::TND),
+        OP_CHECK_IF(enableIFAMLAFullQuant && (inputLayout != InputLayout::TND),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
-                "The layout is %s, Actual_seq_lengths cannot be configured in MLA and non-TND/TND_NTD scenarios, only supported when layout is TND/TND_NTD!", layoutStr.c_str()),
+                "The layout is %s, Actual_seq_lengths cannot be configured in MLA Fullquant and non-TND/TND_NTD scenarios, only supported when layout is TND/TND_NTD!", layoutStr.c_str()),
             return false);
         OP_CHECK_IF((actSeqLenDims < queryShapeInfo.b) && (actSeqLenDims > actSeqLenDimsQMin),
             OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
