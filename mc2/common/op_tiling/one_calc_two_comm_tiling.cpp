@@ -17,7 +17,7 @@
 #include <iostream>
 
 #include "mc2_log.h"
-#include "tiling/one_calc_two_comm_tiling.h"
+#include "one_calc_two_comm_tiling.h"
 
 void OneCalcTwoCommBase::ECutInit(CutResult& eCut) {
   eCut.longTileLen = clusterInfo.batchSize;

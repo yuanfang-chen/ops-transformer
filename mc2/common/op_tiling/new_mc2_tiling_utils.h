@@ -21,11 +21,11 @@
 #include <string>
 
 #include "exe_graph/runtime/tiling_context.h"
-#include "tiling/formulaic_tiling_datatype.h"
+#include "formulaic_tiling_datatype.h"
 #include "graph/utils/type_utils.h"
-#include "tiling/matmul_formulaic_tiling.h"
-#include "tiling/platform/platform_ascendc.h"
-#include "tiling/tiling_api.h"
+#include "matmul_formulaic_tiling.h"
+#include "platform/platform_ascendc.h"
+#include "tiling_api.h"
 #include "tiling_base/tiling_type.h"
 #include "../../../3rd/mat_mul_v3/op_host/op_tiling/arch35/matmul_v3_base_tiling_advanced.h"
 
