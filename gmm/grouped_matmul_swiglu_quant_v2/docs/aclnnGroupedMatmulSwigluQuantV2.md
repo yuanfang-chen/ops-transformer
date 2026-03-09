@@ -344,8 +344,8 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td>x</td>
         <td rowspan="1">输入</td>
         <td>表示左矩阵，对应公式中的X。</td>
-        <td>不支持空tensor。</td>
-        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8、INT4、INT32、HIFLOAT8</td>
+        <td>-</td>
+        <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8、HIFLOAT8</td>
         <td>ND</td>
         <td>2，形如(M, K)</td>
         <td>√</td>
@@ -354,10 +354,7 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td>weight</td>
         <td rowspan="1">输入</td>
         <td>表示权重矩阵，对应公式中的W。</td>
-        <td><ul>
-          <li>目前仅支持tensorlist长度为1。</li>
-          <li>不支持空tensorlist。</li>
-        </ul></td>
+        <td>目前仅支持tensorlist长度为1。</td>
         <td>FLOAT8_E4M3FN、FLOAT8_E5M2、FLOAT4_E2M1、INT8、INT4、INT32、HIFLOAT8</td>
         <td>ND、FRACTAL_NZ</td>
         <td>3、5</td>
@@ -370,7 +367,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td><ul>
           <li>首轴长度需与weight的首轴维度相等，尾轴长度需要与weight还原为ND格式的尾轴相同。</li>
           <li>目前仅支持tensorlist长度为1。</li>
-          <li>不支持空tensorlist。</li>
         </ul></td>
         <td>FLOAT8_E8M0、UINT64、FLOAT、FLOAT16、BFLOAT16</td>
         <td>ND</td>
@@ -404,7 +400,6 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
         <td>xScale</td>
         <td rowspan="1">输入</td>
         <td>表示左矩阵的的量化因子，公式中的xScale。</td>
-        <td>不支持空tensor。</td>
         <td>FLOAT8_E8M0、FLOAT</td>
         <td>ND</td>
         <td>1、3</td>
@@ -547,12 +542,15 @@ aclnnStatus aclnnGroupedMatmulSwigluQuantV2(
       - weight仅支持非转置，INT32为A8W4和A4W4场景下的适配用途，实际1个INT32会被解释为8个INT4数据，A8W8场景不支持ND数据格式。
       - 支持dequantMode参数：A8W4场景支持取值0和1，A8W8和A4W4场景仅支持取值0。
       - 不支持dequantDtype和quantMode参数。
+      - x和weight不支持空Tensor。
     - <term>Ascend 950PR/Ascend 950DT</term>：
       - weight支持转置，仅支持ND格式。
       - 支持dequantMode参数：MX量化场景支持取值2，Pertoken场景支持取值为0。
       - 支持dequantDtype参数：MX量化场景支持取值0，Pertoken场景支持取值为0、1、27。
       - 支持quantMode参数：MX量化场景支持取值2，Pertoken场景支持取值为0。
       - 仅支持dequantMode和quantMode相同取值。
+      - x和xScale支持M为0的空Tensor。
+      - weight和weightScale支持N为0的空Tensor。
 
 
 - **返回值**
