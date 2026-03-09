@@ -250,7 +250,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::ParamsInit()
     attentionMode_ = 1;
     isS1G_ = (layoutQuery_ == "BSND" || layoutQuery_ == "BSH" || layoutQuery_ == "TND");
     groupSize_ = queryHeadNum_ / kvHeadNum_;
-    if (oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
+    if (mode == SparseMode::DEFAULT_MASK && oriTopkLength_ != nullptr && oriTopkLength_->GetData() != nullptr) {
         hasOriTopk = true;
     } else if (oriTopK_ != 0) {
         hasOriTopk = true;
