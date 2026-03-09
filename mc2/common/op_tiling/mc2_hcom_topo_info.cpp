@@ -19,7 +19,7 @@
 #include "log/log.h"
 #include "mc2_hcom_topo_info.h"
 #include "ops_legacy/op_tiling/hcom_topo_info.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "mc2_tiling_utils.h"
 #ifndef BUILD_OPEN_PROJECT
 #include "hcom/hcom_topo_info.h"
 #endif
