@@ -17,7 +17,7 @@
 #include <map>
 #include <string>
 #include "mc2_log.h"
-#include "tiling/matmul_performance.h"
+#include "matmul_performance.h"
 
 const static std::map<std::string, double> CUBE_CALC_PER_CYCLE_MAP = {
     {MatmulPerformance::DEFAULT_KEY_FOR_PAR_MAP,
