@@ -17,7 +17,7 @@
 #include "graph/utils/type_utils.h"
 #include "mc2_log.h"
 #include "register/op_def_registry.h"
-#include "tiling/mc2_tiling_utils.h"
+#include "op_tiling/mc2_tiling_utils.h"
 #include "mc2_hcom_topo_info.h"
 #include "util/math_util.h"
 #include "op_tiling/matmul_formulaic_tiling.h"
