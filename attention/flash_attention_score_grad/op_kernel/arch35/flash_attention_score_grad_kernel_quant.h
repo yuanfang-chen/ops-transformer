@@ -30,8 +30,8 @@ class FlashAttentionScoreGradKernelQuant
                                                CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
-    constexpr static uint32_t CUBE_BASEM = (uint32_t)s1TemplateType;
-    constexpr static uint32_t CUBE_BASEN = (uint32_t)s2TemplateType;
+    constexpr static uint32_t CUBE_BASEM = static_cast<uint32_t>(s1TemplateType);
+    constexpr static uint32_t CUBE_BASEN = static_cast<uint32_t>(s2TemplateType);
 
     BufferManager<BufferType::L1> l1BufferManager;
     BuffersPolicy4buff<BufferType::L1, SyncType::NO_SYNC> pL1Buf;
@@ -96,7 +96,6 @@ protected:
 
     int64_t innerN2GD;
 
-
     TBuf<> vecQue;
     LocalTensor<CALC_TYPE> spTensors; // 64*128*4*2
     LocalTensor<CALC_TYPE> spTensor[2];
@@ -110,6 +109,7 @@ protected:
     LocalTensor<CALC_TYPE> dvTensor; // 64*128*4
 
     CoordinateInfo coordinateInfos[2];
+    CoordinateInfo nextCoreFirstBlockCoordinateInfo;
 };
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -141,7 +141,7 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
  
     this->cubeBlock.SetCubeBlockParams(pipeIn, tilingData, &l1BufferManager);
     this->cubeBlock.InitCubeBuffer(this->constInfo);
-    this->cubeBlock.InitGlobalBuffer(query, key, value, dy, queryRope, keyRope, dq, dk, dv, workspace);
+    this->cubeBlock.InitGlobalBuffer(query, key, value, dy);
 }
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetConstInfo()
@@ -221,7 +221,6 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
         this->constInfo.dsScaleD = (float)1.0 / this->constInfo.dsScale;    
         this->constInfo.copyOutDStride = (this->constInfo.commonConstInfo.n2GD - 64) * sizeof(CALC_TYPE);
     }
-
 }
 
 template <typename CubeBlockType, typename VecBlockType>
@@ -305,6 +304,9 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::CalDenseDeterIn
     int64_t r = roundId + 1;
  
     int64_t k = static_cast<int64_t>(this->tilingData->s1s2BNGS1S2BaseParams.coreNum / NUM_TWO);
+    if (j > k) {
+        return -1;
+    }
     int64_t b = this->constInfo.bSize * this->constInfo.n2Size;
     if (this->constInfo.s2Outer == 1) {
         CalDenseIndexForSingleN(k, this->constInfo.s1Outer, b, j, r, maxLoopNum, coordinateInfo);
@@ -459,6 +461,12 @@ FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBlockType>::SetRunInfo(FagR
                            runInfo.commonRunInfo.goIdx) *
                               this->constInfo.commonConstInfo.s1Size +
                           runInfo.commonRunInfo.s1oIdx * CUBE_BASEM;
+        runInfo.quantRunInfo.kvNeedAtomic =
+            (this->constInfo.s2Outer != 1 && runInfo.isValueReuse) ||
+            (this->constInfo.s2Outer == 1 &&
+             ((!runInfo.isFirstProcessBlock && (((coordinateInfo.batchId == nextCoreFirstBlockCoordinateInfo.batchId) &&
+                                                 (coordinateInfo.n2Idx == nextCoreFirstBlockCoordinateInfo.n2Idx)) ||
+                                                runInfo.isValueReuse))));
     }
 
     runInfo.commonRunInfo.queryOffset = this->GetQueryOffset(runInfo);
@@ -557,6 +565,15 @@ __aicore__ inline void FlashAttentionScoreGradKernelQuant<CubeBlockType, VecBloc
     int64_t nextblockIdx;
  
     FagRunInfo runInfos[2];
+    if ASCEND_IS_AIV {
+        if (this->constInfo.s2Outer == 1) {
+            this->cBlockIdx = this->cBlockIdx + 1;
+            InitCoordinateInfo(this->constInfo.s1Outer, this->constInfo.s2Outer, 0, 0, nextCoreFirstBlockCoordinateInfo);
+            CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, taskId,
+                nextCoreFirstBlockCoordinateInfo, runInfos[taskId & 1]);
+            this->cBlockIdx = this->cBlockIdx - 1;
+        }
+    }
     CalDeterIndex(0, loopMax, nextValidLoopIdx, nextblockIdx, taskId,
         this->coordinateInfos[taskId & 1], runInfos[taskId & 1]);
  
