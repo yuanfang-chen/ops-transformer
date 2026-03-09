@@ -522,6 +522,22 @@ def _float_or_none(value: Any) -> Optional[float]:
     return float(value)
 
 
+def _bool_from_value(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off", ""}:
+            return False
+    return bool(value)
+
+
 def _int_from_keys(data: Mapping[str, Any], *keys: str, default: Optional[int] = None) -> int:
     for key in keys:
         if key in data and data[key] is not None:
@@ -646,7 +662,15 @@ def case_from_mapping(data: Mapping[str, Any]) -> CaseConfig:
     cache_mode = str(data.get("cache_mode", "BSND")).upper()
     if cache_mode not in CACHE_MODES:
         raise ValueError(f"unsupported cache_mode {cache_mode}")
-    actual_seq_mode = str(data.get("actual_seq_mode", ACTUAL_SEQ_DISABLED)).upper()
+    actual_seq_mode_raw = data.get("actual_seq_mode")
+    if actual_seq_mode_raw is None:
+        bs_fused_flag = _int_from_keys(data, "bs_fused_flag", default=0)
+        if bs_fused_flag == 1 and cache_mode in {"PA_BLK_BSND", "PA_BLK_NZ"}:
+            actual_seq_mode = ACTUAL_SEQ_EN_Q_LEN
+        else:
+            actual_seq_mode = ACTUAL_SEQ_DISABLED
+    else:
+        actual_seq_mode = str(actual_seq_mode_raw).upper()
     if actual_seq_mode not in {ACTUAL_SEQ_DISABLED, ACTUAL_SEQ_EN_Q_LEN}:
         raise ValueError(f"unsupported actual_seq_mode {actual_seq_mode}")
 
@@ -673,8 +697,42 @@ def case_from_mapping(data: Mapping[str, Any]) -> CaseConfig:
         query_norm_flag=_int_from_keys(data, "query_norm_flag", default=0),
         qc_qr_scale=_float_from_keys(data, "qc_qr_scale", default=1.0),
         kc_scale=_float_from_keys(data, "kc_scale", default=1.0),
-        smooth_scales_enabled=bool(data.get("smooth_scales_enabled", False)),
+        smooth_scales_enabled=_bool_from_value(
+            data.get("smooth_scales_enabled", data.get("smooth_scales_cq_flag")),
+            default=False,
+        ),
     )
+
+
+def case_to_mapping(case: CaseConfig, *, case_name: Optional[str] = None) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "B": case.B,
+        "S": case.S,
+        "T": case.T,
+        "He": case.He,
+        "Hcq": case.Hcq,
+        "Hckv": case.Hckv,
+        "N": case.N,
+        "Nkv": case.Nkv,
+        "D": case.D,
+        "Dr": case.Dr,
+        "block_size": case.block_size,
+        "cache_mode": case.cache_mode,
+        "actual_seq_mode": case.actual_seq_mode,
+        "weight_quant_mode": case.weight_quant_mode,
+        "kv_quant_mode": case.kv_quant_mode,
+        "query_quant_mode": case.query_quant_mode,
+        "ckvkr_repo_mode": case.ckvkr_repo_mode,
+        "quant_scale_repo_mode": case.quant_scale_repo_mode,
+        "tile_size": case.tile_size,
+        "query_norm_flag": case.query_norm_flag,
+        "qc_qr_scale": case.qc_qr_scale,
+        "kc_scale": case.kc_scale,
+        "smooth_scales_enabled": case.smooth_scales_enabled,
+    }
+    if case_name:
+        payload["case_name"] = case_name
+    return payload
 
 
 def derive_quant_mode(case: CaseConfig) -> str:
