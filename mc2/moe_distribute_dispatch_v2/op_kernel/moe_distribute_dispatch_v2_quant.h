@@ -75,13 +75,13 @@ public:
         else if constexpr (QuantMode == MX_QUANT) {
             hOutSizeAlign_ = Align256(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // MX量化计算scale时每次搬入128个数据
-            hOutSizeAlign_ += Align2(Ceil32(axisH_)); 
             scaleOutBytes = Align2(Ceil32(axisH_)) * sizeof(fp8_e8m0_t); // MX量化每32个值生成一个scale，且scale数量需为偶数
+            hOutSizeAlign_ += scaleOutBytes; 
         } else if constexpr (QuantMode == PERGROUP_DYNAMIC_QUANT) {
             hOutSizeAlign_ = Align128(axisH_) * sizeof(ExpandXOutType);
             hAlignSize_ = Align128(axisH_) * sizeof(XType); // PERGROUP量化计算scale时每次搬入128个数据
-            hOutSizeAlign_ += Ceil128(axisH_) * sizeof(float); 
             scaleOutBytes = Ceil128(axisH_) * sizeof(float); // PERGROUP量化每128个值生成一个scale
+            hOutSizeAlign_ += scaleOutBytes; 
         }
         #endif
         uint32_t hScaleSizeAlign = Ceil(hOutSizeAlign_, UB_ALIGN) * UB_ALIGN; //保证后面填充三元组的起始地址对齐32
@@ -143,10 +143,10 @@ public:
         #endif
     }
 
-    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal, 
+    __aicore__ inline void QuantDynamicPerToken(LocalTensor<ExpandXOutType>& outLocal, LocalTensor<XType>& inLocal,
                                                 uint32_t expertIndex, GlobalTensor<float> &scalesGMTensor_)
     {
-        float dynamicScale = 0.0;
+        float dynamicScaleInv = 0.0;
         float maxVal = INT8_MAX_VALUE; // 获取输出类型的最大值（AscendC未提供相关接口）
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         if constexpr (Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value) {
@@ -169,20 +169,20 @@ public:
         PipeBarrier<PIPE_V>();
         ReduceMaxInplace(floatLocalAbsTemp, axisH_); // 获取最大值
         SyncFunc<AscendC::HardEvent::V_S>();
-        dynamicScale = maxVal / floatLocalAbsTemp.GetValue(0);
-        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScale, axisH_);
+        dynamicScaleInv = maxVal / floatLocalAbsTemp.GetValue(0);
+        Muls(floatLocalTemp_, floatLocalTemp_, dynamicScaleInv, axisH_);
         PipeBarrier<PIPE_V>();
         if constexpr (Std::IsSame<ExpandXOutType, int8_t>::value) {
+            LocalTensor<int16_t> int16LocalTemp = floatLocalTemp_.ReinterpretCast<int16_t>();
+            Cast(int16LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            PipeBarrier<PIPE_V>();
+
             LocalTensor<half> halfLocalTemp = floatLocalTemp_.ReinterpretCast<half>();
-            LocalTensor<int32_t> int32LocalTemp = floatLocalTemp_.ReinterpretCast<int32_t>();
-            Cast(int32LocalTemp, floatLocalTemp_, RoundMode::CAST_RINT, axisH_);
+            Cast(halfLocalTemp, int16LocalTemp, RoundMode::CAST_NONE, axisH_);
             PipeBarrier<PIPE_V>();
-            SetDeqScale((half)1.000000e+00f);
-            PipeBarrier<PIPE_V>();
-            Cast(halfLocalTemp, int32LocalTemp, RoundMode::CAST_ROUND, axisH_);
-            PipeBarrier<PIPE_V>();
-            Cast(outLocal, halfLocalTemp, RoundMode::CAST_TRUNC, axisH_);
-        } 
+
+            Cast(outLocal, halfLocalTemp, RoundMode::CAST_NONE, axisH_);
+        }
         #if defined(__NPU_ARCH__) && (__NPU_ARCH__ == 3510)
         else if constexpr (Std::IsSame<ExpandXOutType, fp8_e4m3fn_t>::value || 
             Std::IsSame<ExpandXOutType, fp8_e5m2_t>::value){
@@ -190,7 +190,7 @@ public:
         }
         #endif
         LocalTensor<float> tokenF32Tmp = outLocal.template ReinterpretCast<float>();
-        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScale); // int8->float32
+        tokenF32Tmp.SetValue((Ceil(axisH_, UB_ALIGN) * UB_ALIGN) / sizeof(float), float(1.0) / dynamicScaleInv);
         SyncFunc<AscendC::HardEvent::S_MTE3>();
     }
 
