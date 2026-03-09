@@ -403,12 +403,12 @@ private:
             // 直接填充0 到 expandedXLocal
             T xVal(0.0);
             AscendC::Duplicate(xLocal, xVal, tilingData->h);
-            CopyLocal(xLocal, expandedXLocal, khAlignedOffset, 1, h);
+            AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
         }
         if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
             // x = x[i]
             CopyIn(xGm[kOffset], xLocal, 1, h); 
-            CopyLocal(xLocal, expandedXLocal, khAlignedOffset, 1, h);
+            AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
         }
         if (expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
             // x = a1 * x[i] +  a2 * v
@@ -421,7 +421,7 @@ private:
             vLocal = vLocal * constExpertAlpha2Local;
             xLocal = xLocal * constExpertAlpha1Local;
             xLocal = xLocal + vLocal;
-            CopyLocal(xLocal, expandedXLocal, khAlignedOffset, 1, tilingData->h);
+            AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
         }
         
         if (hasBiasAndExpertIdx) {

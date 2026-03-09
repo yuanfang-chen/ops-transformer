@@ -368,33 +368,6 @@ __aicore__ inline void CopyOut(
     dataCopyParams.dstStride = 0;
     DataCopyPad(outputGm, outputTensor, dataCopyParams);
 }
-
-template <typename T>
-__aicore__ inline void CopyLocal(
-    const LocalTensor<T>& srcTensor,       // 源本地张量（从0开始拷贝）
-    const LocalTensor<T>& dstTensor,       // 目标本地张量
-    const uint64_t dstOffset,              // 目标张量的起始偏移量
-    const uint16_t nBurst,                 // 突发传输次数
-    const uint32_t copyLen)                // 每次传输的元素数量
-{
-    // 配置填充参数（无填充）
-    DataCopyPadExtParams<T> dataCopyPadExtParams;
-    dataCopyPadExtParams.isPad = false;
-    dataCopyPadExtParams.leftPadding = 0;
-    dataCopyPadExtParams.rightPadding = 0;
-    dataCopyPadExtParams.paddingValue = 0;
-
-    // 配置传输参数
-    DataCopyExtParams dataCopyExtParams;
-    dataCopyExtParams.blockCount = nBurst;           // 突发传输次数
-    dataCopyExtParams.blockLen = copyLen * sizeof(T); // 每次传输的字节长度
-    dataCopyExtParams.srcStride = 0;                 // 源张量步长（0表示连续内存）
-    dataCopyExtParams.dstStride = 0;                 // 目标张量步长（0表示连续内存）
-    
-    // 使用偏移后的目标张量进行复制
-    // dstTensor[dstOffset] 表示从目标张量的dstOffset位置开始写入
-    DataCopyPad(dstTensor[dstOffset], srcTensor[0], dataCopyExtParams, dataCopyPadExtParams);
-}
 } // namespace MoeFinalizeRoutingV2Regbase
 
 #endif
