@@ -22,9 +22,9 @@
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_tiling_registry.h"
 #include "mat_mul_v3/op_host/op_tiling/arch35/matmul_tiling_cfg.h"
 #include "register/tilingdata_base.h"
-#include "tiling/tiling_api.h"
+#include "tiling_api.h"
 #include "mc2_log.h"
-#include "tiling/mc2_tiling_struct.h"
+#include "mc2_tiling_struct.h"
 
 namespace Mc2MatmulHelper {
 class NewMc2MatmulTilingCfg : public optiling::Mc2MatMulTilingCfg
