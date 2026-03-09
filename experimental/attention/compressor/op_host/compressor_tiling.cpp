@@ -58,14 +58,6 @@ void CompressorTiling::ConvertRequiredParams(gert::TilingContext &context, Compr
     } else if (xDimNum == COMPRESSOR_DIM_NUM_2) {
         compressorContext.layout = LayoutType::LAYOUT_TH;
     }
-    // compressorContext.kvState.stride = context.GetRequiredInputStride(KV_STATE_INPUT_INDEX);
-    // compressorContext.scoreState.stride = context.GetRequiredInputStride(SCORE_STATE_INPUT_INDEX);
-    // for (auto i = 0; i < compressorContext.kvState.stride->GetDimNum(); i++) {
-    //     OP_LOGE("CX", "%s stride dim %u, is %u", "kvState", i, compressorContext.kvState.stride->GetStride(i));
-    // }
-    // for (auto i = 0; i < compressorContext.scoreState.stride->GetDimNum(); i++) {
-    //     OP_LOGE("CX", "%s stride dim %u, is %u", "scoreState", i, compressorContext.scoreState.stride->GetStride(i));
-    // }
 }
 
 void CompressorTiling::ConvertOptionalParams(gert::TilingContext &context, CompressorContext &compressorContext)
