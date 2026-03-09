@@ -1,0 +1,46 @@
+{
+  "soc_name": "Ascend950",
+  "aic_num": 32,
+  "aiv_num": 64,
+  "cv_mode": "1:2",
+  "gm_bandwidth_gbps": 1600.0,
+  "l2_bandwidth_gbps": 5200.0,
+  "frequency_ghz_cube": 1.65,
+  "frequency_ghz_vector": 1.65,
+  "ub_size_bytes": 253952,
+  "l1_size_bytes": 524288,
+  "l0a_size_bytes": 65536,
+  "l0b_size_bytes": 65536,
+  "l0c_size_bytes": 262144,
+  "cube_bf16_tflops_total": null,
+  "cube_int8_tops_total": null,
+  "cube_fp8_tops_total": null,
+  "vector_fp32_tflops_total": null,
+  "vector_bf16_tflops_total": null,
+  "vector_int8_tops_total": null,
+  "vector_fp8_tops_total": null,
+  "cube_formula": {
+    "bf16": [16, 16, 16, 2],
+    "int8": [16, 16, 32, 2],
+    "fp8": [16, 16, 32, 2]
+  },
+  "vector_formula": {
+    "fp32": [16, 16, 8, 2],
+    "bf16": [16, 16, 16, 2],
+    "int8": [16, 16, 32, 2],
+    "fp8": [16, 16, 32, 2]
+  },
+  "memory_efficiency": {
+    "contiguous": 1.0,
+    "pa": 0.85,
+    "pa_blk": 0.7
+  },
+  "micro_kernel_costs": {
+    "rmsnorm_ops_per_elem": 12.0,
+    "rope_ops_per_elem": 8.0,
+    "dequant_ops_per_elem": 2.0,
+    "cast_ops_per_elem": 1.0,
+    "dynamic_quant_ops_per_elem": 12.0,
+    "scatter_compute_ops_per_elem": 1.0
+  }
+}
