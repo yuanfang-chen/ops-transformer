@@ -23,7 +23,6 @@
 #include "lib/matmul_intf.h"
 #include "../common.h"
 
-#include "matmul_all_reduce_base.h"
 #include "matmul_all_reduce_reduce_sum.h"
 #include "matmul_all_reduce_dynamic_quant_pertile.h"
 #include "matmul_all_reduce_dynamic_quant_pertile_utils.h"
