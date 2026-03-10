@@ -608,7 +608,6 @@ namespace optiling{
 
     void FAInferTiling::SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData)
     {
-        // 当前的分核适用于PA decode场景
         uint32_t totalTaskNum = 0;
         uint32_t groupSize = faInfo_.numHeads / faInfo_.kvHeads;
 
@@ -618,20 +617,13 @@ namespace optiling{
                 uint64_t prevQSeqlenSum = *(faInfo_.qSeqlenList + batchIdx - 1);
                 qSeqlen = qSeqlen - prevQSeqlenSum;
             }
-	        // 计算qn切块的大小，不超过groupsize，结果是group块的大小（subG包含的qhead的个数）
             uint32_t curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
-            // 单个G被切分的数量
             uint32_t curGBlockNum = (groupSize + curGBlockTile - 1) / curGBlockTile;
-            // 先分S1，S1填不满128时再分G
             uint32_t curQSBlockTile = GetQSBlockTile(qSeqlen);
             uint32_t curQSBlockNum = (qSeqlen + curQSBlockTile - 1) / curQSBlockTile;
-            // 计算S1和G分完以后，S1G块合轴后的大小
             uint32_t curQSGBlockTile = curGBlockTile * curQSBlockTile;
-            // 如果S1G块大小依旧不足128，进一步分N2
-            // 确保分N2的场景下，G已经完整参与了合轴。然后拆分N2
             uint32_t curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, faInfo_.kvHeads);
             uint32_t curKvNBlockNum = (faInfo_.kvHeads + curKvNBlockTile - 1) / curKvNBlockTile;
-            // 计算总的任务数
             uint32_t curTaskNum = curGBlockNum * curQSBlockNum * curKvNBlockNum;
             if (batchIdx == 0) {
                 faTilingData.set_firstBatchTaskNum(curTaskNum);
@@ -639,8 +631,6 @@ namespace optiling{
             totalTaskNum += curTaskNum;
         }
         faTilingData.set_totalTaskNum(totalTaskNum);
-        // printf("tiling侧计算出来的总任务数量是：%d\n", totalTaskNum);
-        // 后面的代码需要移到kernel侧来计算。
     }
 
     ge::graphStatus FAInferTiling::DoTiling(FAInferTilingData &tilingdata)
