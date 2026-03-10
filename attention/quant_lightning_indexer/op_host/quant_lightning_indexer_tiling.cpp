@@ -371,24 +371,21 @@ ge::graphStatus QLIInfoParser::IsTensorContiguous(uint32_t tensorIdx)
 {
     auto viewShape = context_->GetInputShape(tensorIdx);
     auto viewStride = context_->GetInputStride(tensorIdx);
-    OP_CHECK_IF(viewStride == nullptr, OP_LOGE(opName_, "isContiguous check viewStride is nullptr."), return ge::GRAPH_SUCCESS);
+    if (viewStride == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
     size_t shapeDim = viewShape->GetShape().GetDimNum();
     size_t strideDim = viewStride->GetDimNum();
 
-    if (strideDim == 0) {
-        OP_LOGE(opName_, "isContiguous check strideDim is 0.");
-        return ge::GRAPH_SUCCESS; // 连续
+    if (strideDim == 0 && shapeDim != strideDim) {
+        return ge::GRAPH_FAILED; // 连续
     }
-    if (shapeDim != strideDim) {
-        OP_LOGE(opName_, "isContiguous check strideDim should be %u, but now is %u.", shapeDim, strideDim);
-        return ge::GRAPH_SUCCESS;
-    }
-    return ge::GRAPH_FAILED; // 非连续
+    return ge::GRAPH_SUCCESS; // 非连续
 }
 
 size_t QLIInfoParser::GetKeyDimNum()
 {
-    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS) {
+    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_FAILED) {
         return opParamInfo_.key.shape->GetStorageShape().GetDimNum();
     }
     return opParamInfo_.key.shape->GetShape().GetDimNum();
@@ -396,7 +393,7 @@ size_t QLIInfoParser::GetKeyDimNum()
 
 int64_t QLIInfoParser::GetKeyDim(const size_t idx)
 {
-    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS) {
+    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_FAILED) {
         return opParamInfo_.key.shape->GetStorageShape().GetDim(idx);
     }
     return opParamInfo_.key.shape->GetShape().GetDim(idx);
@@ -604,23 +601,17 @@ ge::graphStatus QLIInfoParser::GetS2Size()
     return GetS2SizeForBatchContinuous();
 }
 
-ge::graphStatus QLIInfoParser::GetBlockStride()
+ge::graphStatus QLIInfoParser::GetKCacheBlockStride()
 {
-    auto keyStride = context_->GetInputStride(KEY_INDEX);
-    uint32_t keyStrideDimNum = keyStride->GetDimNum();
-
     if (kLayout_ != DataLayout::PA_BSND) { // 非PA场景
-        if (keyStrideDimNum != 0) {
-            OP_LOGE(opName_, "only supports contiguous key when kLayout_ is not PA.");
-            return ge::GRAPH_FAILED;
-        }
-        return ge::GRAPH_SUCCESS;
+        OP_CHECK_IF(IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS,
+                    OP_LOGE(opName_, "only supports contiguous key when key layout is not PA."),
+                    return ge::GRAPH_FAILED);
     }
 
     // PA场景
-    if (keyStrideDimNum != 0) {
-        OP_LOGE(opName_, "kCacheStride shape is [%d, %d, %d, %d].", keyStride->GetStride(0),
-                        keyStride->GetStride(1), keyStride->GetStride(2), keyStride->GetStride(3));
+    auto keyStride = context_->GetInputStride(KEY_INDEX);
+    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS) {
         blockStride_ = keyStride->GetStride(0);
     } else {
         blockStride_ = blockSize_ * n2Size_ * headDim_;
@@ -844,7 +835,7 @@ ge::graphStatus QLIInfoParser::ParseAndCheck(QLITilingInfo &QLIInfo)
     if (ge::GRAPH_SUCCESS != ValidateInputShapesMatch() || ge::GRAPH_SUCCESS != CheckScaleShape()) {
         return ge::GRAPH_FAILED;
     } 
-    if (ge::GRAPH_SUCCESS != GetBlockStride()) {
+    if (ge::GRAPH_SUCCESS != GetKCacheBlockStride()) {
         return ge::GRAPH_FAILED;
     }
 

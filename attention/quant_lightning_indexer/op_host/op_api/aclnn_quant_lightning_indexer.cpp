@@ -32,86 +32,6 @@ extern "C" {
 
 namespace {
 
-static bool quantLightningIndexerCheckDataType(
-    const aclTensor *query,
-    const aclTensor *key,
-    const aclTensor *weights,
-    const aclTensor *queryDequantScale,
-    const aclTensor *keyDequantScale,
-    const aclTensor *blockTableOptional,
-    const aclTensor *out)
-{
-    auto qDtype = query->GetDataType();
-    auto kDtype = key->GetDataType();
-    auto wtDtype = weights->GetDataType();
-    auto qScaleDtype = queryDequantScale->GetDataType();
-    auto kScaleDtype = keyDequantScale->GetDataType();
-    auto blockTableDtype = blockTableOptional->GetDataType();
-    auto outDtype = out->GetDataType();
-
-    static const std::unordered_map<DataType, std::vector<DataType>> dTypeMappingQtoK = {
-        {DataType::DT_FLOAT8_E4M3FN, {DataType::DT_FLOAT8_E4M3FN}},
-        {DataType::DT_HIFLOAT8, {DataType::DT_HIFLOAT8}},
-    };
-    if (dTypeMappingQtoK.find(qDtype) == dTypeMappingQtoK.end()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input query data type is invalid, please check.");
-        return false;
-    } else {
-        auto validKDtypeList = dTypeMappingQtoK.at(qDtype);
-        if (std::find(validKDtypeList.begin(), validKDtypeList.end(), kDtype) == validKDtypeList.end()) {
-            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Input key data type is invalid, please check.");
-            return false;
-        }
-    }
-    if (wtDtype != DataType::DT_BF16) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "weights data type must be bf16, please check.");
-        return false;
-    }
-    if (qScaleDtype != DataType::DT_FLOAT) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "queryDequantScale data type must be fp32, please check.");
-        return false;
-    }
-    if (kScaleDtype != DataType::DT_FLOAT) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "keyDequantScale data type must be fp32, please check.");
-        return false;
-    }
-    if (blockTableDtype != DataType::DT_INT32) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "blockTable data type must be int32, please check.");
-        return false;
-    }
-    if (outDtype != DataType::DT_INT32) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "out data type must be int32, please check.");
-        return false;
-    }
-    return true;
-}
-
-aclnnStatus quantLightningIndexerCheckTensorNull(
-    const aclTensor *query,
-    const aclTensor *key,
-    const aclTensor *weights,
-    const aclTensor *queryDequantScale,
-    const aclTensor *keyDequantScale,
-    const aclTensor *blockTableOptional,
-    const char *layoutQueryOptional,
-    const char *layoutKeyOptional,
-    const aclTensor *out,
-    const uint64_t *workspaceSize)
-{
-    // 参数指针判空
-    CHECK_RET(query != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(key != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(weights != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(queryDequantScale != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(keyDequantScale != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(blockTableOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(layoutQueryOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(layoutKeyOptional != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(out != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    CHECK_RET(workspaceSize != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    return ACLNN_SUCCESS;
-}
-
 aclnnStatus quantLightningIndexerContiguous(
     const aclTensor *&query,
     const aclTensor *&weights,
@@ -155,7 +75,7 @@ static const aclTensor* calNoContiguous(const aclTensor *self, aclOpExecutor *ex
     return newSelf;
 }
 
-static const aclTensor* tensorContiguous(const aclTensor *tensor, aclOpExecutor *executor, const char *tensorName)
+static const aclTensor* GetTensorContiguous(const aclTensor *tensor, aclOpExecutor *executor, const char *tensorName)
 {
     if (tensor == nullptr) {
         return nullptr;
@@ -194,13 +114,6 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
-    CHECK_RET(quantLightningIndexerCheckTensorNull(query, key, weights, queryDequantScale, keyDequantScale,
-        blockTableOptional, layoutQueryOptional, layoutKeyOptional, out, workspaceSize) == ACLNN_SUCCESS,
-        ACLNN_ERR_PARAM_NULLPTR);
-
-    CHECK_RET(quantLightningIndexerCheckDataType(query, key, weights, queryDequantScale, keyDequantScale,
-        blockTableOptional, out), ACLNN_ERR_PARAM_INVALID);
-
     L2_DFX_PHASE_1(aclnnQuantLightningIndexer,
                     DFX_IN(query, key, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional, 
                     actualSeqLengthsKeyOptional, blockTableOptional, queryQuantMode, keyQuantMode, layoutQueryOptional,
@@ -217,20 +130,12 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
         return ACLNN_SUCCESS;
     }
 
-    // 判断inputLayout
-    if (strcmp(layoutQueryOptional, "TND") != 0 && strcmp(layoutQueryOptional, "BSND") != 0) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Layout %s is not TND and BSND, invalid shape, please check", layoutQueryOptional);
-        *workspaceSize = 0;
-        uniqueExecutor.ReleaseTo(executor);
-        return ACLNN_ERR_PARAM_INVALID;
-    }
-
     aclOpExecutor *l0Executor = uniqueExecutor.get();
 
     // 非连续转连续
     CHECK_RET(quantLightningIndexerContiguous(query, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional,
             actualSeqLengthsKeyOptional, blockTableOptional, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
-    const aclTensor *newKey = tensorContiguous(key, l0Executor, "key");
+    const aclTensor *newKey = GetTensorContiguous(key, l0Executor, "key");
 
     // 调用L0接口获得输出
     auto l0QuantLightningIndexerOuts = l0op::QuantLightningIndexer(

@@ -189,7 +189,7 @@ public:
     ge::graphStatus GetS2SizeForPageAttention();
     ge::graphStatus GetS2SizeForBatchContinuous();
     ge::graphStatus GetS2Size();
-    ge::graphStatus GetBlockStride();
+    ge::graphStatus GetKCacheBlockStride();
     ge::graphStatus GetQueryKeyAndOutLayout();
     ge::graphStatus GetN1Size();
     ge::graphStatus GetAndCheckN2Size();
