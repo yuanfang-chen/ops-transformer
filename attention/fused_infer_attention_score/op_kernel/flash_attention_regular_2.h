@@ -300,26 +300,27 @@ namespace SplitFuse {
                     noSkipKvS = (qSBlockIdx + 1U) * curQSBlockTile + diffS;
                     noSkipKvS = AscendC::Std::min(static_cast<int64_t>(kvSeqlen), noSkipKvS);
                 }
-                uint32_t kvSLoopNumTotal = CeilDiv(noSkipKvS, pagedBlockSize);
+                kvSLoopNumTotal = NpuArch::Detail::Alignment::CeilDiv(static_cast<uint32_t>(noSkipKvS), MAX_KV_STACK_LEN);
 
-                uint32_t blockStackNum = MAX_KV_STACK_LEN / pagedBlockSize;
-                uint32_t stackSeqTile;
-                uint32_t stackSeqTilePad = blockStackNum * pagedBlockSize;
-                uint32_t preKVNum = PRE_LAUNCH * blockStackNum;
+                uint32_t blockStackNum = (MAX_KV_STACK_LEN - 1 + pagedBlockSize) / pagedBlockSize;
+                uint32_t stackSeqTile = MAX_KV_STACK_LEN;
+                uint32_t stackSeqTilePad = MAX_KV_STACK_LEN;
+                uint32_t preKVNum = PRE_LAUNCH;
                 int32_t stackSeqCount = 0;
 #ifdef __DAV_C220_CUBE__
                 LayoutQ layoutQTemp(rowNum, embed);
-                LayoutK layoutKTemp(strideK, blockStackNum * pagedBlockSize);
-                LayoutV layoutVTemp(blockStackNum * pagedBlockSize, strideV);
+                LayoutK layoutKTemp(strideK, stackSeqTile);
+                LayoutV layoutVTemp(stackSeqTile, strideV);
+                blockMmadQK.resetBlockStart();
+                blockMmadPV.resetBlockStart();
+                //loadQGM
 #endif
-                for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
-                    // AscendC::printf("+++ kvSIdx %d kvSLoopNumTotal %d preKVNum %d blockStackNum %d\n", kvSIdx, kvSLoopNumTotal, preKVNum, blockStackNum);
+                for (uint32_t kvSIdx = 0; kvSIdx < kvEnd + preKVNum; kvSIdx++) {
                     if (kvSIdx < kvSLoopNumTotal) {
-                        AscendC::printf("kvSIdx < kvSLoopNumTotal \n");
-                        if (kvSIdx + blockStackNum > kvSLoopNumTotal - 1U) {
-                            stackSeqTile = noSkipKvS - kvSIdx * pagedBlockSize;
+                        if (kvSIdx + 1 > kvSLoopNumTotal - 1U) {
+                            stackSeqTile = noSkipKvS - kvSIdx * MAX_KV_STACK_LEN;
                         } else {
-                            stackSeqTile = pagedBlockSize * blockStackNum;
+                            stackSeqTile = MAX_KV_STACK_LEN;
                         }
                         uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1U);
 #ifdef __DAV_C220_CUBE__
@@ -414,10 +415,10 @@ namespace SplitFuse {
                     }
                     if (kvSIdx >= preKVNum) {
                         uint32_t nowkvSIdx = kvSIdx - preKVNum;
-                        if (nowkvSIdx + blockStackNum > kvSLoopNumTotal - 1U) {
-                            stackSeqTile = noSkipKvS - nowkvSIdx * pagedBlockSize;
+                        if (nowkvSIdx + 1 > kvSLoopNumTotal - 1U) {
+                            stackSeqTile = noSkipKvS - nowkvSIdx * MAX_KV_STACK_LEN;
                         } else {
-                            stackSeqTile = pagedBlockSize * blockStackNum;
+                            stackSeqTile = MAX_KV_STACK_LEN;
                         }
                         uint32_t curStackTileMod = (stackSeqCount - PRE_LAUNCH) % (PRE_LAUNCH + 1U);
 
@@ -504,7 +505,7 @@ namespace SplitFuse {
                             gBlockSize,
                             kvNBlockSize,
                             (stackSeqCount - PRE_LAUNCH == 0),
-                            nowkvSIdx + blockStackNum >= kvSLoopNumTotal,
+                            nowkvSIdx + 1 >= kvSLoopNumTotal,
                             curStackTileMod,
                             1U);
 #endif
