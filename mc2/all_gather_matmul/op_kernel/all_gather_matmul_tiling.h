@@ -18,11 +18,7 @@
 
 #pragma once
 #include "kernel_tiling/kernel_tiling.h"
-#if __has_include("../common/inc/kernel/mc2_tiling_struct.h")
-#include "../common/inc/kernel/mc2_tiling_struct.h"
-#else
 #include "../../common/inc/kernel/mc2_tiling_struct.h"
-#endif
 using namespace Mc2Tiling;
 
 struct AllGatherSoc {
