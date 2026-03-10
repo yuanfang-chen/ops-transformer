@@ -208,8 +208,8 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
     <tr>
         <td>globalBs</td>
         <td>输入</td>
-        <td>EP域全局的batch&nbsp;&nbsp;&nbsp;size大小</td>
-        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs =&nbsp;&nbsp;&nbsp;0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
+        <td>EP域全局的batch size大小</td>
+        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs = 0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -239,7 +239,7 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>commAlg</td>
         <td>输入</td>
         <td>通信算法选择</td>
-        <td>仅支持传入空指针</td>
+        <td>仅支持传入空指针或空字符串</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -252,8 +252,8 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>不支持空Tensor。</td>
         <td>INT8</td>
         <td>ND</td>
-        <td>(A,&nbsp;&nbsp;&nbsp;tokenMsgSize)</td>
-        <td>x</td>
+        <td>(A, tokenMsgSize)</td>
+        <td>√</td>
     </tr>
     <tr>
         <td>commCmdInfoOut</td>
@@ -371,11 +371,13 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>在Device侧申请的workspace大小，由第一段接口aclnnMoeDistributeCombineSetupGetWorkspaceSize获取。</td>
     </tr>
     <tr>
-        <td rowspan="2">executor</td>
-        <td rowspan="2">输入</td>
+        <td>executor</td>
+        <td>输入</td>
         <td>op执行器，包含了算子计算流程。</td>
     </tr>
     <tr>
+        <td>stream</td>
+        <td>输入</td>
         <td>指定执行任务的stream流。</td>
     </tr>
     </tbody>
@@ -518,8 +520,8 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
     <tr>
         <td>globalBs</td>
         <td>输入</td>
-        <td>EP域全局的batch&nbsp;&nbsp;&nbsp;size大小</td>
-        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs =&nbsp;&nbsp;&nbsp;0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
+        <td>EP域全局的batch size大小</td>
+        <td>当每个rank的Bs数一致场景下，globalBs = Bs * epWorldSize 或 globalBs = 0；当每个rank的Bs数不一致场景下，globalBs = maxBs * epWorldSize，其中maxBs表示单卡Bs最大值。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -559,7 +561,7 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>tokenMsgSize</td>
         <td>输出</td>
         <td>aclnnMoeDistributeCombineSetup接口quantExpandX第二维HS大小</td>
-        <td>表示每个token在数据通信时的维度信息，计算公式是Align512(&nbsp;&nbsp;&nbsp;Align32(H) + Align8(H) / 8 * sizeof(float) )，其中AlignN(x) = ((x + N - 1) / N)&nbsp;&nbsp;&nbsp;* N。</td>
+        <td>表示每个token在数据通信时的维度信息，计算公式是Align512(Align32(H) + Align8(H) / 8 * sizeof(float))，其中AlignN(x) = ((x + N - 1) / N) * N。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -569,7 +571,7 @@ aclnnStatus aclnnMoeDistributeCombineSetupTeardownCalcOutputSize(
         <td>commCmdInfoOutSize</td>
         <td>输出</td>
         <td>aclnnMoeDistributeCombineSetup接口的commCmdInfoOut的大小</td>
-        <td>计算公式是(A&nbsp;&nbsp;&nbsp;+ epWorldSize) * 16</td>
+        <td>计算公式是(A + epWorldSize) * 16</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
