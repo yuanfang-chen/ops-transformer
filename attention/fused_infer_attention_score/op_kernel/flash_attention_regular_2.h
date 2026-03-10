@@ -283,7 +283,7 @@ namespace SplitFuse {
                 uint32_t kvNBlockSize = (kvNBlockIdx == (curKvNBlockNum - 1U)) ?
                     (kvHeads - kvNBlockIdx * curKvNBlockTile) : curKvNBlockTile;
                 uint32_t rowNum = qSBlockSize * gBlockSize;
-                uint32_t rowNumRound = NpuArch::Detail::Alignment::RoundUp(rowNum, FaiKenel::BLOCK_SIZE);
+                uint32_t rowNumRound = NpuArch::Detail::Alignment::RoundUp(rowNum, FaiKernel::BLOCK_SIZE);
 
                 uint64_t qSOffset = static_cast<uint64_t>(qSBlockIdx * curQSBlockTile) * strideQ;
                 uint64_t qNStartOffset = static_cast<uint64_t>(qNStartIdx * embed);
