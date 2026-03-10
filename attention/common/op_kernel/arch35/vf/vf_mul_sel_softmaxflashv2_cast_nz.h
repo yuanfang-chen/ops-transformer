@@ -61,7 +61,7 @@ __aicore__ inline void ProcessVec1NoUpdate(
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
     const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f,
-    const float pScale = 1.0f, const LocalTensor<T>& sinkTensor = LocalTensor<T>())
+    const float pScale = 1.0f, const uint32_t sinkValue)
 {
     if constexpr (useNz) {
         if constexpr (oriNRange == GT_256_AND_LTE_512) {
@@ -81,7 +81,7 @@ __aicore__ inline void ProcessVec1NoUpdate(
         if constexpr (oriNRange == GT_128_AND_LTE_256) {
             ProcessVec1NoUpdateGeneralImpl256<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, hasSink>(dstTensor,
                 expSumTensor, maxTensor, srcTensor, expMaxTensor, inExpSumTensor, inMaxTensor, maskTensor, pseTensor,
-                dropTensor, sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, minValue, keepProb, sinkTensor);
+                dropTensor, sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, minValue, keepProb, sinkValue);
         } else if constexpr (oriNRange == EQ_128) {
             LocalTensor<uint8_t> indexesTensor;
             if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
@@ -99,7 +99,7 @@ __aicore__ inline void ProcessVec1NoUpdate(
             }
             ProcessVec1NoUpdateImpl64<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(dstTensor, indexesTensor, expSumTensor,
                 maxTensor, srcTensor, expMaxTensor, inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor,
-                sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkTensor);
+                sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkValue);
         } else if constexpr (oriNRange == GT_256_AND_LTE_512) {
             ProcessVec1NoUpdateGeneralImpl512<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(dstTensor, expSumTensor,
                 maxTensor, srcTensor, expMaxTensor, inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor,
@@ -116,7 +116,7 @@ __aicore__ inline void ProcessVec1NoUpdate(
             }
             ProcessVec1NoUpdateGeneralImpl128<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(dstTensor, indexesTensor,
                 expSumTensor, maxTensor, srcTensor, expMaxTensor, inExpSumTensor, inMaxTensor, maskTensor, pseTensor,
-                dropTensor, sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkTensor);
+                dropTensor, sharedTmpBuffer, m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkValue);
         }
     }
 }
@@ -228,7 +228,7 @@ __aicore__ inline void ProcessVec1Update(
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const LocalTensor<T>& pScaleTensor, const uint16_t m, const uint32_t originN,
     const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, float keepProb,
     const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const float pScale = 1.0f,
-    const LocalTensor<T>& sinkTensor = LocalTensor<T>())
+    const uint32_t sinkValue)
 {
     if constexpr (useNz) {
         if constexpr (oriNRange == GT_256_AND_LTE_512) {
@@ -249,7 +249,7 @@ __aicore__ inline void ProcessVec1Update(
             ProcessVec1UpdateGeneralImpl256<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, hasSink>(
                 dstTensor, expSumTensor, maxTensor, srcTensor, expMaxTensor,
                 inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer, m, originN,
-                pseStride, slopes, posShift, scale, minValue, keepProb, sinkTensor);
+                pseStride, slopes, posShift, scale, minValue, keepProb, sinkValue);
         } else if constexpr (oriNRange == EQ_128) {
             LocalTensor<uint8_t> indexesTensor;
             if constexpr (IsSameType<T2, fp8_e5m2_t>::value || IsSameType<T2, fp8_e4m3fn_t>::value ||
@@ -269,7 +269,7 @@ __aicore__ inline void ProcessVec1Update(
             ProcessVec1UpdateImpl64<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(
                 dstTensor, indexesTensor, expSumTensor, maxTensor, srcTensor, expMaxTensor,
                 inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer, pScaleTensor, m, originN,
-                pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkTensor);
+                pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkValue);
         } else if constexpr (oriNRange == GT_256_AND_LTE_512) {
             ProcessVec1UpdateGeneralImpl512<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop>(
                 dstTensor, expSumTensor, maxTensor, srcTensor, expMaxTensor,
@@ -289,7 +289,7 @@ __aicore__ inline void ProcessVec1Update(
             ProcessVec1UpdateGeneralImpl128<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(
                 dstTensor, indexesTensor, expSumTensor, maxTensor, srcTensor, expMaxTensor,
                 inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer, pScaleTensor, m, originN,
-                pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkTensor);
+                pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, sinkValue);
         }
     }
 }
@@ -325,7 +325,7 @@ __aicore__ inline void ProcessVec1Vf(const LocalTensor<T2>& dstTensor, TBuf<> *v
     const LocalTensor<uint8_t>& sharedTmpBuffer, const LocalTensor<T>& pScaleTensor, const uint16_t m, const uint32_t originN,
     const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, float keepProb,
     const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const float pScale = 1.0f,
-    const LocalTensor<T>& sinkTensor = LocalTensor<T>())
+    const uint32_t sinkValue)
 {
     if constexpr (useNz) {
         static_assert(IsSameType<T, half>::value, "VF mul_sel_softmaxflashv2_cast_nz, T must be half");
@@ -341,12 +341,12 @@ __aicore__ inline void ProcessVec1Vf(const LocalTensor<T2>& dstTensor, TBuf<> *v
         ProcessVec1NoUpdate<T, T2, pseShiftType, s1BaseSize, s2BaseSize, oriNRange, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, useNz, hasSink>(
             dstTensor, vselrIndexesBuf, expSumTensor, maxTensor, srcTensor, expMaxTensor,
             inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer,
-            m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, pScale, sinkTensor);
+            m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, pScale, sinkValue);
     } else {
         ProcessVec1Update<T, T2, pseShiftType, s1BaseSize, s2BaseSize, oriNRange, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, useNz, hasSink>(
             dstTensor, vselrIndexesBuf, expSumTensor, maxTensor, srcTensor, expMaxTensor,
             inExpSumTensor, inMaxTensor, maskTensor, pseTensor, dropTensor, sharedTmpBuffer, pScaleTensor,
-            m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, pScale, sinkTensor);
+            m, originN, pseStride, slopes, posShift, scale, dScaleQK, minValue, keepProb, queryScaleUb, deSCaleKValue, pScale, sinkValue);
     }
 }
 

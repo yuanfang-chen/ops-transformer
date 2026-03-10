@@ -30,7 +30,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * dropMaskUb, __ubuf__ T * sinkUb, const uint32_t blockStride,
     const uint32_t repeatStride, const uint32_t nPadding, uint32_t pltOriginalN, float divValue, uint32_t pltSrcN, uint32_t pltSrcN16,
     const float dScale, const uint16_t m, const uint32_t pseStride, const float slopes, const float posShift, const T scale,
-    const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f)
+    const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f, const uint32_t sinkValue)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel;
@@ -46,6 +46,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     RegTensor<float> vreg_rowmax_p;
     RegTensor<float> vreg_scale_qk;
     RegTensor<float> vreg_sink_input;
+    RegTensor<float> vreg_sink_exp;
     // bfloat16_t
     RegTensor<bfloat16_t> vreg_exp_even_bf16;
     RegTensor<bfloat16_t> vreg_exp_bf16;
@@ -79,6 +80,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
     MaskReg preg3;
     MaskReg preg4;
 
+    Duplicate(vreg_sink_input, sinkValue);
     if constexpr (hasAtten == 1) {
         Duplicate(vreg_min, minValue);
         if constexpr (isMlaSgd) {
@@ -152,9 +154,7 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
             Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
                 vreg_input_max, vreg_input_x, preg_ori_src_n);
             if constexpr (hasSink) {
-                LoadAlign(vreg_sink_input, sinkUb + i * s2BaseSize);
-                Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
-                    vreg_input_max, vreg_sink_input, preg_ori_src_n);
+                Max(vreg_input_max, vreg_input_max, vreg_sink_input, preg_ori_src_n);
             }
         }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
@@ -176,10 +176,8 @@ __simd_vf__ void ProcessVec1NoUpdateImpl64VF(
         Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
             vreg_exp_sum, vreg_exp, preg_ori_src_n);
         if constexpr (hasSink) {
-            LoadAlign(vreg_sink_input, sinkUb + i * s2BaseSize);
-            ExpSub(vreg_sink_input, vreg_sink_input, vreg_max_brc, preg_ori_src_n);
-            Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
-                vreg_exp_sum, vreg_sink_input, preg_ori_src_n);
+            ExpSub(vreg_sink_exp, vreg_sink_input, vreg_max_brc, preg_ori_src_n);
+            Adds(vreg_exp_sum, vreg_exp_sum, vreg_sink_exp, preg_ori_src_n);
         }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
@@ -263,7 +261,7 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m,
     const uint32_t originN, const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK,
     const T minValue, float keepProb, const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f,
-    const LocalTensor<T>& sinkTensor = LocalTensor<T>())
+    const uint32_t sinkValue)
 {
     __ubuf__ T2 * expUb = (__ubuf__ T2*)dstTensor.GetPhyAddr();
     __ubuf__ pseShiftType * pseUb = (__ubuf__ pseShiftType*)pseTensor.GetPhyAddr();
@@ -272,7 +270,6 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     __ubuf__ T * maxUbStart = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
-    __ubuf__ T * sinkUb = (__ubuf__ T*)sinkTensor.GetPhyAddr();
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
     __ubuf__ uint32_t * maskUb = (__ubuf__ uint32_t*)maskTensor.GetPhyAddr();
@@ -292,8 +289,8 @@ __aicore__ inline void ProcessVec1NoUpdateImpl64(
     const float dScale = scale * dScaleQK;
 
     ProcessVec1NoUpdateImpl64VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(
-        expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, dropMaskUb, sinkUb, blockStride, repeatStride,
-        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue);
+        expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, dropMaskUb, blockStride, repeatStride,
+        nPadding, pltOriginalN, divValue, pltSrcN, pltSrcN16, dScale, m, pseStride, slopes, posShift, scale, dScaleQK, minValue, deSCaleKValue, sinkValue);
 }
 } // namespace
 

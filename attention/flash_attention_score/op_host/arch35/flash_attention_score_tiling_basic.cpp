@@ -149,10 +149,10 @@ protected:
     {
         uint8_t pseMode = hasPse ? static_cast<uint8_t>(pseType) : static_cast<uint8_t>(PseType::PSE_NONE_TYPE);
         OP_LOGD(opName, "TilingKey info is implMode:%d, s1TemplateType:%d, s2TemplateType:%d, dTemplateType:%d,"
-            "dVTemplateType:%d, pseMode:%d, hasAttenMask:%d, hasDropOut:%d, hasRope:%d, outDtype:%d, regbase:%d",
+            "dVTemplateType:%d, pseMode:%d, hasAttenMask:%d, hasDropOut:%d, hasRope:%d, outDtype:%d, hasSink:%d, regbase:%d",
             static_cast<uint8_t>(implMode), static_cast<uint16_t>(s1TemplateType), static_cast<uint16_t>(s2TemplateType),
             static_cast<uint16_t>(dTemplateType), static_cast<uint16_t>(dVTemplateType), pseMode, hasAttenMask,
-            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), static_cast<uint8_t>(regbase));
+            hasDropOut, hasRope, static_cast<uint8_t>(outDtype), hasSink, static_cast<uint8_t>(regbase));
 
         // Const 128
         if (dTemplateType == dVTemplateType) {
