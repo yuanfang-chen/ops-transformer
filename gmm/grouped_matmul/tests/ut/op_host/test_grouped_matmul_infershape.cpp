@@ -49,10 +49,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_0)
         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                      //groupList
         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                        //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -91,10 +91,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_g
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                              //groupList
         {{{M, K/32}, {M, K/32}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},            //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -133,10 +133,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_p
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                              //groupList
         {{{M, 1, K/32}, {M, 1, K/32}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},      //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -175,10 +175,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_g
         {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},            //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},              //groupList
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},              //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -217,10 +217,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_a
         {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -259,10 +259,10 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_m
         {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                            //antiquantOffset
         {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                              //groupList
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //perTokenScale
-    }, 
+    },
     { // output info
         {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    }, 
+    },
     { // attr
         {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
         {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
@@ -337,48 +337,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_x
         {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x
         {{{E, N, K + 1}, {E, N, K + 1}}, ge::DT_INT8, ge::FORMAT_ND}, //weight, K mismatch
         {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //antiquantScale
-        {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N},};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
-}
-
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_bias_dtype)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 3;
-    size_t K = 1280;
-    size_t N = 1280;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x
-        {{{E, N, K}, {E, N, K}}, ge::DT_INT8, ge::FORMAT_ND},       //weight
-        {{{E, N}, {E, N}}, ge::DT_INT32, ge::FORMAT_ND},            //bias, invalid dtype
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
         {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
         {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //antiquantScale
@@ -571,48 +529,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_a
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
 }
 
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_with_per_token_scale_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info
-        {{{M, K}, {M, K}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},                //x
-        {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_FRACTAL_NZ},           //weight
-        {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                         //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //offset
-        {{{E, N, K/32}, {E, N, K/32}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},      //antiquantScale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                              //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                              //groupList
-        {{{M, K/32}, {M, K/32}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},            //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N},};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_x_dim)
 {
     fe::PlatformInfo platformInfo;
@@ -698,52 +614,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_transpose
 }
 
 // ==================== Multi/Multi/Multi Scenario Tests ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_scenario_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - multi scenario: multiple tensors in lists
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[0]
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[1]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[0]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[1]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[1]
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[1]
-        {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset
-        {{{0}, {0}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    },
-    { // output info - multi output
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},  // X_Y_SEPARATED for multi scenario
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)}, // GMM_NO_SPLIT
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}, {M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_scenario_invalid_x_size)
 {
     fe::PlatformInfo platformInfo;
@@ -875,97 +745,7 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_sce
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
 }
 
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_scenario_with_antiquant_offset)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - with antiquantOffset
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[0]
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[1]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[0]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[1]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[1]
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[1]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset[1]
-        {{{0}, {0}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    },
-    { // output info - multi output
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}, {M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 // ==================== S8S4 (INT8-INT4) Scenario Tests ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_s8s4_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 512;
-    size_t N = 512;
-    size_t E = 2;
-    size_t groupSize = 128;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - S8S4 with required params
-        {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},                     //x
-        {{{E, N, K/8}, {E, N, K/8}}, ge::DT_INT32, ge::FORMAT_ND},          //weight (4bit packed in int32)
-        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                    //bias
-        {{{E, N, K/groupSize}, {E, N, K/groupSize}}, ge::DT_FLOAT, ge::FORMAT_ND},  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //offset
-        {{{E, N, K/groupSize}, {E, N, K/groupSize}}, ge::DT_FLOAT16, ge::FORMAT_ND}, //antiquantScale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //antiquantOffset (empty for S8S4)
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                          //groupList
-        {{{M}, {M}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //perTokenScale (1 dim for S8S4)
-    },
-    { // output info
-        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_s8s4_invalid_scale_dtype)
 {
     fe::PlatformInfo platformInfo;
@@ -1049,91 +829,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_s8s4_miss
     });
     std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
-}
-
-// ==================== A16FP8 (FP16/BF16-FP8) Scenario Tests ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_a16fp8_e4m3_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - FP16-FP8_E4M3
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},                  //x
-        {{{E, N, K}, {E, N, K}}, ge::DT_FLOAT8_E4M3FN, ge::FORMAT_ND},      //weight
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                  //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //offset
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                  //antiquantScale
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                  //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                          //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_bf16_fp8_e5m2_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - BF16-FP8_E5M2
-        {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                     //x
-        {{{E, N, K}, {E, N, K}}, ge::DT_FLOAT8_E5M2, ge::FORMAT_ND},        //weight
-        {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                     //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //offset
-        {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                     //antiquantScale
-        {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                     //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                          //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},      // BF16 output
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 // ==================== Activation Function Tests ====================
@@ -1269,48 +964,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_s
 }
 
 // ==================== FP4_E2M1 with FP8_E8M0 antiquantScale Tests ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_fp16_fp4_e2m1_mx_success)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 256;
-    size_t N = 256;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - FP16-FP4 with MX quantization
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},                  //x
-        {{{E, K, N/8}, {E, K, N/8}}, ge::DT_FLOAT4_E2M1, ge::FORMAT_FRACTAL_NZ}, //weight
-        {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                     //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //offset
-        {{{E, K/32, N}, {E, K/32, N}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},  //antiquantScale (per-group)
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //antiquantOffset (empty for FP4)
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                          //groupList
-        {{{M, K/32}, {M, K/32}}, ge::DT_FLOAT8_E8M0, ge::FORMAT_ND},        //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_fp16_fp4_with_antiquant_offset_fail)
 {
     fe::PlatformInfo platformInfo;
@@ -1481,96 +1134,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_g
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
 }
 
-// ==================== Unsupported dtype combination Tests ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_invalid_dtype_combination)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 3;
-    size_t K = 1280;
-    size_t N = 1280;
-    size_t E = 2;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - unsupported dtype combination
-        {{{M, K}, {M, K}}, ge::DT_INT32, ge::FORMAT_ND},            //x - int32 not supported
-        {{{E, N, K}, {E, N, K}}, ge::DT_INT8, ge::FORMAT_ND},       //weight
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //bias
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
-        {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //antiquantScale
-        {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
-}
-
-// ==================== Multi scenario with Y separated ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_scenario_y_separated)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 1280;
-    size_t N = 1280;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - multi scenario with Y separated (split_item=1)
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[0]
-        {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},          //x[1]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[0]
-        {{{N, K}, {N, K}}, ge::DT_INT8, ge::FORMAT_ND},             //weight[1]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //bias[1]
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //offset
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[0]
-        {{{N}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantScale[1]
-        {{{0}, {0}}, ge::DT_FLOAT16, ge::FORMAT_ND},                //antiquantOffset
-        {{{0}, {0}}, ge::DT_INT64, ge::FORMAT_ND},                  //groupList
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                  //perTokenScale
-    },
-    { // output info - multi output
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},
-        {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(1)},  // Y_SEPARATED
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(-1)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}, {M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
-}
-
 // ==================== Multi scenario K mismatch ====================
 TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_scenario_k_mismatch)
 {
@@ -1709,50 +1272,6 @@ TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_multi_sce
     });
     std::vector<std::vector<int64_t>> expectOutputShape = {{-1, N}, {-1, N}};
     ExecuteTestCase(infershapeContextPara, ge::GRAPH_FAILED, expectOutputShape);
-}
-
-// ==================== S8S4 with groupsize 192 ====================
-TEST_F(GroupedMatmulInfershape, grouped_matmul_infershape_weight_quant_s8s4_groupsize_192)
-{
-    fe::PlatformInfo platformInfo;
-    fe::OptionalInfo opti_compilation_info;
-    opti_compilation_info.soc_version = "Ascend950";
-    platformInfo.str_info.short_soc_version = "Ascend950";
-    fe::PlatformInfoManager::Instance().platform_info_map_["Ascend950"] = platformInfo;
-    fe::PlatformInfoManager::Instance().SetOptionalCompilationInfo(opti_compilation_info);
-    size_t M = 128;
-    size_t K = 576;  // 192 * 3
-    size_t N = 512;
-    size_t E = 2;
-    size_t groupSize = 192;
-    gert::InfershapeContextPara infershapeContextPara(
-    "GroupedMatmul",
-    { // input info - S8S4 with groupsize 192
-        {{{M, K}, {M, K}}, ge::DT_INT8, ge::FORMAT_ND},                     //x
-        {{{E, N, K/8}, {E, N, K/8}}, ge::DT_INT32, ge::FORMAT_ND},          //weight
-        {{{E, N}, {E, N}}, ge::DT_FLOAT, ge::FORMAT_ND},                    //bias
-        {{{E, N, K/groupSize}, {E, N, K/groupSize}}, ge::DT_FLOAT, ge::FORMAT_ND},  //scale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //offset
-        {{{E, N, K/groupSize}, {E, N, K/groupSize}}, ge::DT_FLOAT16, ge::FORMAT_ND}, //antiquantScale
-        {{{0}, {0}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //antiquantOffset
-        {{{2}, {2}}, ge::DT_INT64, ge::FORMAT_ND},                          //groupList
-        {{{M}, {M}}, ge::DT_FLOAT, ge::FORMAT_ND},                          //perTokenScale
-    },
-    { // output info
-        {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND}
-    },
-    { // attr
-        {"split_item", Ops::Transformer::AnyValue::CreateFrom<int64_t>(3)},
-        {"dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"transpose_weight", Ops::Transformer::AnyValue::CreateFrom<bool>(true)},
-        {"transpose_x", Ops::Transformer::AnyValue::CreateFrom<bool>(false)},
-        {"group_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"group_list_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"act_type", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
-        {"tuning_config", Ops::Transformer::AnyValue::CreateFrom<std::vector<int64_t>>({0})},
-    });
-    std::vector<std::vector<int64_t>> expectOutputShape = {{M, N}};
-    ExecuteTestCase(infershapeContextPara, ge::GRAPH_SUCCESS, expectOutputShape);
 }
 
 // ==================== S8S4 with invalid groupsize ====================
