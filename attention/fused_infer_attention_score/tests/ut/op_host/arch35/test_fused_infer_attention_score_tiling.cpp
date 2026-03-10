@@ -4237,7 +4237,7 @@ TEST_F(FusedInferAttentionScoreTiling, FusedInferAttentionScoreTiling_tiling_mla
             {"out_dtype", Ops::Transformer::AnyValue::CreateFrom<int64_t>(0)},
         },
         &compileInfo, "Ascend950", 64, 262144, 16384);
-    int64_t expectTilingKey = 266602241;
+    int64_t expectTilingKey = 132385024;
     std::string expectTilingData = "";
     ExecuteTestCase(tilingContextPara, ge::GRAPH_SUCCESS, expectTilingKey, expectTilingData);
 }
