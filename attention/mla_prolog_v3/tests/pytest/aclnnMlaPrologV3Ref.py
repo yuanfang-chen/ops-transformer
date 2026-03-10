@@ -8,6 +8,7 @@ import math
 import random
 import copy
 import ctypes
+import hif8_codec
 try:
     import libs.tools as tools
 except Exception:
@@ -105,13 +106,10 @@ def _get_full_quant_mode_config(weight_quant_mode):
             "query_quant_dtype": torch.float8_e4m3fn,
         }
     if weight_quant_mode == WEIGHT_QUANT_MODE_FULL_HIF8:
-        hif8_dtype = _get_hif8_dtype()
-        if hif8_dtype is None:
-            return None
         return {
-            "input_dtype": hif8_dtype,
+            "input_dtype": torch.float32,
             "dtype_max": HIF8_DTYPE_MAX,
-            "query_quant_dtype": hif8_dtype,
+            "query_quant_dtype": torch.float32,
         }
     return None
 
@@ -125,6 +123,16 @@ def _get_quant_dtype_max(quant_dtype):
     if hif8_dtype is not None and quant_dtype == hif8_dtype:
         return HIF8_DTYPE_MAX
     raise ValueError(f"unsupported quant dtype: {quant_dtype}")
+
+
+def _is_hif8_surrogate_quant(quant_dtype, dtype_max):
+    return quant_dtype == torch.float32 and float(dtype_max) == float(HIF8_DTYPE_MAX)
+
+
+def _quantize_hif8_surrogate(values):
+    return hif8_codec.quantize_tensor_to_hif8_native_float32(
+        values, round_mode="hybrid", over_mode=True
+    )
 
 
 def _dynamic_quant_clip_range(dtype_max, quant_dtype):
@@ -414,11 +422,14 @@ def quant_ckv_per_tensor(input, quant_scale_ckv):
     return scaled_value
 
 
-def quant_with_scale(x, qscale, quant_dtype=torch.int8):
-    if quant_dtype == torch.int8:
+def quant_with_scale(x, qscale, quant_dtype=torch.int8, dtype_max=None):
+    if quant_dtype == torch.int8 and (dtype_max is None or float(dtype_max) == float(INT8_DTYPE_MAX)):
         return quant(x, qscale)
-    dtype_max = _get_quant_dtype_max(quant_dtype)
+    if dtype_max is None:
+        dtype_max = _get_quant_dtype_max(quant_dtype)
     scaled_values = (x * qscale).round().to(torch.float32)
+    if _is_hif8_surrogate_quant(quant_dtype, dtype_max):
+        return _quantize_hif8_surrogate(scaled_values)
     clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
     return torch.clamp(scaled_values, min=clip_min, max=clip_max).to(quant_dtype)
 
@@ -429,6 +440,15 @@ def _tensor_to_uint8_rows(tensor):
 
 
 def _merge_quant_cache_repo_payload(base_tensor, quant_dtype, rotary_bf16=None, deq_scale=None):
+    if quant_dtype == torch.float32:
+        parts = [base_tensor.to(torch.float32)]
+        if rotary_bf16 is not None and rotary_bf16.numel() != 0:
+            parts.append(_tensor_to_uint8_rows(rotary_bf16).to(torch.float32))
+        if deq_scale is not None and deq_scale.numel() != 0:
+            parts.append(_tensor_to_uint8_rows(deq_scale).to(torch.float32))
+        if len(parts) == 1:
+            return parts[0]
+        return torch.cat(parts, axis=-1)
     parts = [_tensor_to_uint8_rows(base_tensor)]
     if rotary_bf16 is not None and rotary_bf16.numel() != 0:
         parts.append(_tensor_to_uint8_rows(rotary_bf16))
@@ -469,6 +489,8 @@ def dynamic_quant(inputs, smooth_scale, dtype_max=INT8_DTYPE_MAX, quant_dtype=to
             y[bs_index:] = torch.round(inputs[bs_index:]/ scale_bs)
     if quant_dtype == torch.int32:
         y = y.to(torch.int32)
+    elif _is_hif8_surrogate_quant(quant_dtype, dtype_max):
+        y = _quantize_hif8_surrogate(y)
     else:
         clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
         y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
@@ -746,7 +768,7 @@ def dynamic_mx_quant_qn(x, mla_param):
 
 
 def dynamic_quant_ckv_with_amax(inputs: torch.Tensor, amax: torch.Tensor, smooth_scale: torch.Tensor = None,
-                                quant_dtype: torch.dtype = torch.int8):
+                                quant_dtype: torch.dtype = torch.int8, dtype_max=None):
     """
         三维动态量化 FP32 -> INT8（每行 scale 由外部提供 amax）
         inputs: [T, N, H] 张量
@@ -769,13 +791,17 @@ def dynamic_quant_ckv_with_amax(inputs: torch.Tensor, amax: torch.Tensor, smooth
     else:
         scaled_inputs = inputs
 
-    dtype_max = _get_quant_dtype_max(quant_dtype)
+    if dtype_max is None:
+        dtype_max = _get_quant_dtype_max(quant_dtype)
     scale = amax / float(dtype_max)
 
     # 量化
     y = torch.round(scaled_inputs / scale)
-    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
-    y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
+    if _is_hif8_surrogate_quant(quant_dtype, dtype_max):
+        y = _quantize_hif8_surrogate(y)
+    else:
+        clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+        y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
 
     return y, scale
 
@@ -814,8 +840,11 @@ def dynamic_quant_without_smooth_scale(inputs, out_deqq_shape_shape, dtype_max=I
     max_values, _ = torch.max(torch.abs(inputs), dim=-1, keepdim=True)
     scale = max_values / float(dtype_max)
     y = torch.round(inputs/scale)
-    clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
-    y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
+    if _is_hif8_surrogate_quant(quant_dtype, dtype_max):
+        y = _quantize_hif8_surrogate(y)
+    else:
+        clip_min, clip_max = _dynamic_quant_clip_range(dtype_max, quant_dtype)
+        y = torch.clamp(y, min=clip_min, max=clip_max).to(quant_dtype)
     if len(out_deqq_shape_shape) == 2:  # [BS, 1], per_token
         print(f"[INFO]dynamic_quant_without_smooth_scale in per_token mode")
         return y.reshape(T, N, H), scale.reshape(quant_loops, 1).to(torch.float64)
@@ -1591,6 +1620,7 @@ def cal_mlaprolog(mla_param):
                 norm2_res,
                 quant_scale_ckv,
                 quant_dtype=full_quant_mode_config["input_dtype"],
+                dtype_max=full_quant_mode_config["dtype_max"],
             )
             print(f"[INFO]quant1 end. norm2_res dtype trans to {norm2_res.dtype}")
         else:
@@ -1634,6 +1664,7 @@ def cal_mlaprolog(mla_param):
                 clip_res,
                 amax,
                 quant_dtype=full_quant_mode_config["input_dtype"],
+                dtype_max=full_quant_mode_config["dtype_max"],
             )
             deq_scale_ckv = deq_scale_ckv.reshape(T, -1)
             norm2_res = norm2_res.reshape(T, Hckv).to(full_quant_mode_config["input_dtype"])

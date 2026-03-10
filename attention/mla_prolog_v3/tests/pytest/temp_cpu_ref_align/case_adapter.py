@@ -89,6 +89,11 @@ def build_old_ref_case(case_payload, generalized_result):
 
     shape_input = [_shape_of(tensor) for tensor in tensor_list]
     dtype_input = [_dtype_to_old_name(tensor.dtype) for tensor in tensor_list]
+    if named["weight_quant_mode"] == prologv3_generalized.WEIGHT_QUANT_MODE_FULL_HIF8:
+        for index in (0, 1, 2, 4):
+            dtype_input[index] = "hifloat8"
+        if named["kv_quant_mode"] in (1, 3):
+            dtype_input[10] = "hifloat8"
 
     shape_output = [
         _shape_of(outputs[0]),
@@ -102,12 +107,19 @@ def build_old_ref_case(case_payload, generalized_result):
         _dtype_to_old_name(inplace[0].dtype),
         _dtype_to_old_name(inplace[1].dtype),
     ]
+    if named["weight_quant_mode"] == prologv3_generalized.WEIGHT_QUANT_MODE_FULL_HIF8:
+        if enable_quant_output:
+            dtype_output[0] = "hifloat8"
+        if named["kv_quant_mode"] in (1, 3):
+            dtype_output[2] = "hifloat8"
     if flaglist[21]:
         shape_output.append(_shape_of(outputs[2]))
         dtype_output.append(_dtype_to_old_name(outputs[2].dtype))
     if flaglist[22]:
         shape_output.append(_shape_of(outputs[3]))
         dtype_output.append(_dtype_to_old_name(outputs[3].dtype))
+        if named["weight_quant_mode"] == prologv3_generalized.WEIGHT_QUANT_MODE_FULL_HIF8:
+            dtype_output[-1] = "hifloat8"
     if flaglist[23]:
         shape_output.append(_shape_of(outputs[4]))
         dtype_output.append(_dtype_to_old_name(outputs[4].dtype))

@@ -16,17 +16,6 @@ import prologv3_generalized
 from .case_adapter import build_old_ref_case
 
 
-def has_cpu_hif8_support():
-    hif8_dtype = prologv3_generalized._get_hif8_dtype()
-    if hif8_dtype is None:
-        return False
-    try:
-        torch.randn((2, 2), dtype=torch.float32).to(hif8_dtype)
-    except Exception:
-        return False
-    return True
-
-
 def _canonicalize_old_result(old_raw_result, case_payload, generalized_result):
     out1, out2, out3, out4, deq_scale_q_nope, query_norm, deq_scale_q_norm = old_raw_result
     outputs = generalized_result["outputs"]
@@ -82,5 +71,3 @@ def skip_if_case_unsupported(param_dict):
     if weight_quant_mode == prologv3_generalized.WEIGHT_QUANT_MODE_MXFP8_FULL and \
             not prologv3_generalized.is_mxfp8_runtime_supported():
         pytest.skip("mxfp8 CPU alignment requires float8_e8m0 + ml_dtypes support")
-    if weight_quant_mode == prologv3_generalized.WEIGHT_QUANT_MODE_FULL_HIF8 and not has_cpu_hif8_support():
-        pytest.skip("hif8 CPU alignment requires CPU-castable torch_npu.hifloat8 support")

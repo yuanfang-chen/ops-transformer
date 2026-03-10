@@ -292,9 +292,26 @@ def check_result(expect, result):
 
             result_fp32 = result_cpu.to(torch.float32).reshape(-1)
             expect_fp32 = expect_cpu.to(torch.float32).reshape(-1)
-            abs_diff = torch.abs(result_fp32 - expect_fp32)
-            allowed = atol + rtol * torch.abs(expect_fp32)
-            mismatch_mask = abs_diff > allowed
+            result_nan = torch.isnan(result_fp32)
+            expect_nan = torch.isnan(expect_fp32)
+            result_posinf = torch.isinf(result_fp32) & (result_fp32 > 0)
+            expect_posinf = torch.isinf(expect_fp32) & (expect_fp32 > 0)
+            result_neginf = torch.isinf(result_fp32) & (result_fp32 < 0)
+            expect_neginf = torch.isinf(expect_fp32) & (expect_fp32 < 0)
+
+            mismatch_mask = (
+                (result_nan != expect_nan) |
+                (result_posinf != expect_posinf) |
+                (result_neginf != expect_neginf)
+            )
+
+            finite_mask = ~(result_nan | expect_nan | result_posinf | expect_posinf | result_neginf | expect_neginf)
+            abs_diff = torch.zeros_like(result_fp32)
+            allowed = torch.zeros_like(result_fp32)
+            if torch.any(finite_mask):
+                abs_diff[finite_mask] = torch.abs(result_fp32[finite_mask] - expect_fp32[finite_mask])
+                allowed[finite_mask] = atol + rtol * torch.abs(expect_fp32[finite_mask])
+                mismatch_mask = mismatch_mask | (abs_diff > allowed)
             mismatch_idx = torch.nonzero(mismatch_mask).reshape(-1)
             if mismatch_idx.numel() > 0:
                 logger.info(f"{group_name}[{i}] mismatch index(sample): {mismatch_idx[:20]}")

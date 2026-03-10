@@ -11,9 +11,10 @@ if str(PYTEST_DIR) not in sys.path:
     sys.path.insert(0, str(PYTEST_DIR))
 
 import check_valid_param
+import hif8_codec
 import prologv3_generalized
 
-from .runner import assert_cpu_refs_aligned, skip_if_case_unsupported
+from .runner import assert_cpu_refs_aligned, run_cpu_ref_alignment_case, skip_if_case_unsupported
 
 
 BASE_CASE = {
@@ -107,3 +108,66 @@ def test_cpu_ref_alignment(case_dict):
     params = _case_to_param_tuple(case_dict)
     check_valid_param.validate_config(params)
     assert_cpu_refs_aligned(params)
+
+
+@pytest.mark.cpu_ref_align
+def test_hif8_cpu_outputs_use_float32_surrogate():
+    case_dict = _make_case(
+        weight_quant_mode=5,
+        kv_quant_mode=1,
+        cache_mode="PA_BSND",
+        bs_fused_flag=0,
+        query_quant_mode=1,
+        smooth_scales_cq_flag=1,
+        query_norm_flag=1,
+    )
+    params = _case_to_param_tuple(case_dict)
+    old_result, generalized_result, case_payload = run_cpu_ref_alignment_case(params)
+    check_valid_param.check_result(old_result, generalized_result)
+
+    for name in ("token_x", "w_dq", "w_uq_qr", "w_dkv_kr", "kv_cache"):
+        assert case_payload["runtime_inputs"][name].dtype == torch.float32
+
+    query = generalized_result["outputs"][0]
+    query_norm = generalized_result["outputs"][3]
+    kv_cache = generalized_result["inplace"][0]
+    assert query.dtype == torch.float32
+    assert query_norm.dtype == torch.float32
+    assert kv_cache.dtype == torch.float32
+    assert torch.allclose(query, hif8_codec.ensure_hif8_native_float32_tensor(query), equal_nan=True)
+    assert torch.allclose(query_norm, hif8_codec.ensure_hif8_native_float32_tensor(query_norm), equal_nan=True)
+    assert torch.allclose(kv_cache, hif8_codec.ensure_hif8_native_float32_tensor(kv_cache), equal_nan=True)
+
+
+@pytest.mark.cpu_ref_align
+def test_hif8_cpu_tile_cache_layout_and_native_values():
+    case_dict = _make_case(
+        weight_quant_mode=5,
+        kv_quant_mode=3,
+        cache_mode="TND",
+        bs_fused_flag=1,
+        query_quant_mode=0,
+        ckvkr_repo_mode=1,
+        quant_scale_repo_mode=1,
+        smooth_scales_cq_flag=1,
+        query_norm_flag=0,
+    )
+    params = _case_to_param_tuple(case_dict)
+    old_result, generalized_result, case_payload = run_cpu_ref_alignment_case(params)
+    check_valid_param.check_result(old_result, generalized_result)
+
+    kv_cache = generalized_result["inplace"][0]
+    expected_dtile = (
+        case_dict["Hckv"] +
+        case_dict["rope_head_dim"] * 2 +
+        case_dict["Hckv"] // case_dict["tile_size"] * 4
+    )
+    assert kv_cache.dtype == torch.float32
+    assert kv_cache.shape[-1] == expected_dtile
+
+    quant_segment = kv_cache[..., :case_dict["Hckv"]]
+    assert torch.allclose(
+        quant_segment,
+        hif8_codec.ensure_hif8_native_float32_tensor(quant_segment),
+        equal_nan=True,
+    )
