@@ -537,6 +537,9 @@ protected:
             splitCoreMode = SplitCoreMode::SQ_MULTI_CORE_FIRST;
         }
 
+        multiCoreParamsRegbase_->set_splitCoreMode(static_cast<uint8_t>(splitCoreMode));
+        multiCoreParamsRegbase_->set_firstFullLoadS1OuterIdx(firstFullLoadS1OuterIdx);
+
         OP_LOGD(context_, "sparseMode: %ld, firstFullLoadS1OuterIdx: %ld, splitCoreMode: %d, s2SizeThreshold: %d.",
             sparseMode, firstFullLoadS1OuterIdx, splitCoreMode, thresholdS2Size);
     }
