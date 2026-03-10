@@ -54,7 +54,7 @@ extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t
         __gm__ uint8_t *user = GetUserWorkspace(workspace);
         KERNEL_TASK_TYPE_DEFAULT(KERNEL_TYPE_MIX_AIC_1_2);
         FIA_COPY_TILING_DATA(FAInferTilingData, tiling);
-    #if (ORIG_DTYPE_QUERY == DT_FLOAT16) && (ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) && (ORIG_DTYPE_KEY == DT_FLOAT16)
+    // #if (ORIG_DTYPE_QUERY == DT_FLOAT16) && (ORIG_DTYPE_ATTENTION_OUT == DT_FLOAT16) && (ORIG_DTYPE_KEY == DT_FLOAT16)
         TILING_KEY_IS(QF16_KVF16_OUTF16_NOLSEOUT_TND_NOCACHE_CAUSALMASK_SPLITFUSE_TILING);
         TILING_KEY_IS(QF16_KVF16_OUTF16_NOLSEOUT_TND_PAGEDCACHE_CAUSALMASK_SPLITFUSE_TILING);
         TILING_KEY_IS(QF16_KVF16_OUTF16_LSEOUT_TND_NOCACHE_CAUSALMASK_SPLITFUSE_TILING);
@@ -349,9 +349,9 @@ extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t
             query, key, value, pse_shift, attenMask, blocktable, attentionOut, softmaxLse,
             actualSeqLengths, actualSeqLengthsKV, user, tiling, learnableSink);
          #endif
-    #endif
+    // #endif
 
-    #if (ORIG_DTYPE_QUERY == DT_BF16) && (ORIG_DTYPE_ATTENTION_OUT == DT_BF16) && (ORIG_DTYPE_KEY == DT_BF16)
+    // #if (ORIG_DTYPE_QUERY == DT_BF16) && (ORIG_DTYPE_ATTENTION_OUT == DT_BF16) && (ORIG_DTYPE_KEY == DT_BF16)
         TILING_KEY_IS(QBF16_KVBF16_OUTBF16_NOLSEOUT_TND_NOCACHE_CAUSALMASK_SPLITFUSE_TILING);
         TILING_KEY_IS(QBF16_KVBF16_OUTBF16_NOLSEOUT_TND_PAGEDCACHE_CAUSALMASK_SPLITFUSE_TILING);
         TILING_KEY_IS(QBF16_KVBF16_OUTBF16_LSEOUT_TND_NOCACHE_CAUSALMASK_SPLITFUSE_TILING);
@@ -634,7 +634,7 @@ extern "C" __global__ __aicore__ void fused_infer_attention_score(__gm__ uint8_t
             query, key, value, pse_shift, attenMask, blocktable, attentionOut, softmaxLse,
             actualSeqLengths, actualSeqLengthsKV, user, tiling, learnableSink);
         #endif
-    #endif
+    // #endif
     } else if (TILING_KEY_VAR >= PFA_FlAG_TILING) {
         prompt_flash_attention_FIAS_arch32(query, key, value, pse_shift, attenMask, actualSeqLengths,
                                     actualSeqLengthsKV, deq_scale1, quant_scale1,
