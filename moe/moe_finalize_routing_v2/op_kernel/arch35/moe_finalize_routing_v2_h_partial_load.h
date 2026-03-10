@@ -84,7 +84,9 @@ public:
     {
         int64_t rowOuterLoop =
             (GetBlockIdx() == GetBlockNum() - 1) ? tilingData->rowLoopOfTailBlock : tilingData->rowLoopOfFormerBlock;
+        // rowOuterLoop: 循环多少BS
         for (int64_t rowOuterIdx = 0; rowOuterIdx < rowOuterLoop; rowOuterIdx += 1) {
+            // hIdx: 循环多少H, 列
             for (int64_t hIdx = 0; hIdx < tilingData->hLoop; hIdx += 1) {
                 int64_t hFactor = (hIdx == tilingData->hLoop - 1) ? tilingData->tailHFactor : tilingData->hFactor;
                 if (hasX1) {
@@ -138,45 +140,50 @@ private:
                     continue;
                 }
             }
+
+            int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
+            if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
+                continue;
+            }
             expandedXLocal = expandedXQue.AllocTensor<T>();
             CopyIn(
                 expandedXGm[expandedRowIdxGmValue * tilingData->h + hIdx * tilingData->hFactor], expandedXLocal, 1,
                 hFactor);
             expandedXQue.EnQue(expandedXLocal);
-            int64_t expertIdx = expertIdxGm.GetValue(expertIdxOffset);
-            if (expertIdx >= tilingData->zeroExpertStart && expertIdx < tilingData->zeroExpertEnd) {
-                continue;
+            if (hasX) {
+                if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
+                    // x = x[i]
+                    int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
+                                        rowOuterIdx * tilingData->h + hIdx * hFactor;
+                    CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
+                    AscendC::Copy(expandedXLocal, xLocal, hFactor);
+                }
+                if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                    // x = a1 * x[i] +  a2 * v
+                    int64_t xGmOffset = GetBlockIdx() * tilingData->rowOfFormerBlock * tilingData->h +
+                                        rowOuterIdx * tilingData->h + hIdx * hFactor;
+                    // 不需要有偏移，用完就下一个循环覆盖掉就行
+                    CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
+                    int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * hFactor;
+                    CopyIn(constExpertAlpha1Gm[constExpertGmOffset], constExpertAlpha1Local, 1, hFactor); 
+                    CopyIn(constExpertAlpha2Gm[constExpertGmOffset], constExpertAlpha2Local, 1, hFactor); 
+                    CopyIn(vGm[constExpertGmOffset], vLocal, 1, hFactor); 
+                    vLocal = vLocal * constExpertAlpha2Local;
+                    xLocal = xLocal * constExpertAlpha1Local;
+                    xLocal = xLocal + vLocal;
+                    AscendC::Copy(expandedXLocal, xLocal, hFactor);
+                    constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
+                    constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
+                    constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
+                    constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
+                    vQue.EnQue(vLocal);
+                    vLocal = vQue.DeQue<T>();
+                }
+                
+                xQue.EnQue(xLocal);
+                xLocal = xQue.DeQue<T>();
             }
-            if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
-                // x = x[i]
-                int64_t i = expertIdxOffset / tilingData->k;
-                int64_t xGmOffset = i * tilingData->h + hIdx * hFactor;
-                CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
-                AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
-            }
-            if (expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
-                // x = a1 * x[i] +  a2 * v
-                int64_t i = expertIdxOffset / tilingData->k;
-                int64_t xGmOffset = i * tilingData->h + hIdx * hFactor;
-                // 不需要有偏移，用完就下一个循环覆盖掉就行
-                CopyIn(xGm[xGmOffset], xLocal, 1, hFactor); 
-                int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * hFactor;
-                CopyIn(constExpertAlpha1Gm[constExpertGmOffset], constExpertAlpha1Local, 1, hFactor); 
-                CopyIn(constExpertAlpha2Gm[constExpertGmOffset], constExpertAlpha2Local, 1, hFactor); 
-                CopyIn(vGm[constExpertGmOffset], vLocal, 1, hFactor); 
-                vLocal = vLocal * constExpertAlpha2Local;
-                xLocal = xLocal * constExpertAlpha1Local;
-                xLocal = xLocal + vLocal;
-                AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
-                constExpertAlpha1Que.EnQue(constExpertAlpha1Local);
-                constExpertAlpha1Local = constExpertAlpha1Que.DeQue<T>();
-                constExpertAlpha2Que.EnQue(constExpertAlpha2Local);
-                constExpertAlpha2Local = constExpertAlpha2Que.DeQue<T>();
-                vQue.EnQue(vLocal);
-                vLocal = vQue.DeQue<T>();
-            }
-            xQue.EnQue(xLocal);
-            xLocal = xQue.DeQue<T>();
+
             if (hasBiasAndExpertIdx) {
                 SetExpertIdxOffset(rowOuterIdx, kIdx);
                 int64_t biasGmOffset =
