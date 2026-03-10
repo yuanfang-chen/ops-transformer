@@ -183,39 +183,6 @@ public:
     }
 
     __aicore__ inline
-    void CopyOToGm(AscendC::GlobalTensor<ElementOutput> gOutput, uint32_t proTokenIdx, uint32_t proTokenNum,
-        uint32_t epiTokenNum, uint32_t integralHeadNum, uint32_t qSThisSubBlock, uint32_t embed, uint32_t embedRound, uint32_t oHiddenSize)
-    {
-        uint32_t innerOGmOffset = 0;
-        uint32_t innerGOUbOffset = 0;
-        if (proTokenNum != 0U) {
-            AscendC::DataCopyPad(
-                gOutput[innerOGmOffset + proTokenIdx * oHiddenSize],
-                goUbTensor16[innerGOUbOffset],
-                AscendC::DataCopyExtParams(
-                    proTokenNum, embed * SIZE_OF_16BIT, 0, (oHiddenSize - embed) * SIZE_OF_16BIT, 0));
-            innerOGmOffset += embed;
-            innerGOUbOffset += proTokenNum * embedRound;
-        }
-        for (uint32_t qN_idx = 0; qN_idx < integralHeadNum; qN_idx++) {
-            AscendC::DataCopyPad(
-                gOutput[innerOGmOffset],
-                goUbTensor16[innerGOUbOffset],
-                AscendC::DataCopyExtParams(
-                    qSThisSubBlock, embed * SIZE_OF_16BIT, 0, (oHiddenSize - embed) * SIZE_OF_16BIT, 0));
-            innerOGmOffset += embed;
-            innerGOUbOffset += qSThisSubBlock * embedRound;
-        }
-        if (epiTokenNum != 0U) {
-            AscendC::DataCopyPad(
-                gOutput[innerOGmOffset],
-                goUbTensor16[innerGOUbOffset],
-                AscendC::DataCopyExtParams(
-                    epiTokenNum, embed * SIZE_OF_16BIT, 0, (oHiddenSize - embed) * SIZE_OF_16BIT, 0));
-        }
-    }
-
-    __aicore__ inline
     void CopyOToGm(
         AscendC::GlobalTensor<ElementOutput> gOutput,
         uint32_t proTokenIdx, uint32_t proTokenNum, uint32_t epiTokenNum, uint32_t integralHeadNum,
