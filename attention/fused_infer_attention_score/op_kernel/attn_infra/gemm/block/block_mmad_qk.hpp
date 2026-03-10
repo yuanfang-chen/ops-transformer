@@ -140,7 +140,7 @@ public:
         AscendC::GlobalTensor<ElementA> gA,
         LayoutA layoutA,
         uint32_t rowNum, uint32_t &singleGroupHeads, uint32_t &qHeads,
-        uint32_t kvNBlockSizeParam = 1)
+        uint32_t kvNBlockSizeParam)
     {
         uint32_t embed = layoutA.shape(1);
         // 对齐到16的倍数，表示ND转NZ之后，源操作数的一行转化为NZ的多行的行数，一行长度是16
@@ -234,7 +234,7 @@ public:
                     AscendC::GlobalTensor<int32_t> gBlockTable,
                     LayoutA layoutA, LayoutB layoutB, LayoutC layoutC, GemmCoord actualOriShape,
                     uint32_t nIdx, uint32_t nLoop, uint32_t blockSize, uint32_t strideKV,
-                    uint32_t kvNIncreIdx = 0)
+                    uint32_t kvNIncreIdx)
     {
         uint32_t rowNum = actualOriShape[COORD_DIM0];
         uint32_t stackSeqTile = actualOriShape[COORD_DIM1];
