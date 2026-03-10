@@ -968,6 +968,63 @@ public:
     template <bool doTriUMask>
     __aicore__ inline
     void SubCoreCompute(
+        AscendC::GlobalTensor<ElementOutput> gOutput, const LayoutOutput &layoutOutput,
+        uint32_t rowOffset, uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
+        uint32_t isFirstRowLoop, uint32_t isLastRowLoop,
+        uint32_t columnNumRound, uint32_t pingpongFlag,
+        uint32_t curStackTileMod)
+    {
+        // AscendC::printf("调用 SubCoreCompute \n");
+        uint32_t rowNumCurLoop = layoutOutput.shape(0);
+        uint32_t rowNumCurLoopRound = NpuArch::Detail::Alignment::RoundUp(rowNumCurLoop, FLOAT_BLOCK_SIZE);
+        uint32_t columnNum = layoutOutput.shape(1);
+        uint32_t columnNumPad = layoutOutput.stride(0);
+        uint32_t sUbOffset = pingpongFlag * MAX_UB_S_ELEM_NUM;
+        uint32_t dmUbOffsetCurCycle = curStackTileMod * MAX_ROW_NUM_SUB_CORE + rowOffset;
+
+        if constexpr (LSE_MODE_ == LseMode::OUT_ONLY) {
+            // In lse out-only mode, tv is used in the last stack tile to transport lse
+            if (isFirstStackTile && isFirstRowLoop) {
+                AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(EVENT_ID4);
+            }
+        }
+        CalcLocalRowMax(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
+        UpdateGlobalRowMax(
+            rowNumCurLoop, rowNumCurLoopRound,
+            columnNum, columnNumRound,
+            dmUbOffsetCurCycle,
+            rowOffset,
+            isFirstStackTile);
+
+        CalcExp(sUbOffset, rowNumCurLoop, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
+        if constexpr (!doTriUMask) {
+            AscendC::WaitFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
+        }
+
+        DownCastP(sUbOffset, rowNumCurLoop, columnNumRound);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
+
+        CalcLocalRowSum(sUbOffset, rowNumCurLoopRound, columnNum, columnNumRound, rowOffset);
+        AscendC::SetFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
+
+        AscendC::WaitFlag<AscendC::HardEvent::V_MTE3>(pingpongFlag);
+        CopyPUbToGm(gOutput, sUbOffset, rowNumCurLoop, columnNumRound, columnNumPad);
+        if constexpr (!doTriUMask) {
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_V>(pingpongFlag);
+            if (isLastNoMaskStackTile && isLastRowLoop) {
+                AscendC::WaitFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+                AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+            }
+        } else {
+            AscendC::SetFlag<AscendC::HardEvent::MTE3_MTE2>(EVENT_ID0);
+        }
+        UpdateGlobalRowSum(
+            sUbOffset, rowNumCurLoop, rowNumCurLoopRound, dmUbOffsetCurCycle, rowOffset, isFirstStackTile);
+    }
+
+    template <bool doTriUMask>
+    __aicore__ inline
+    void SubCoreCompute(
         AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementSink> gSink, const LayoutOutput &layoutOutput,
         uint32_t rowOffset, uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile,
         uint32_t isFirstRowLoop, uint32_t isLastRowLoop,

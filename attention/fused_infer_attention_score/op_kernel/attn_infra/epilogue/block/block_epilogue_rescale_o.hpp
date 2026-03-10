@@ -819,6 +819,135 @@ public:
 
     __aicore__ inline
     void operator()(
+        // uint32_t kvheadIdx,
+        AscendC::GlobalTensor<ElementOutput> gOutput,
+        AscendC::GlobalTensor<ElementInput> gInput,
+        AscendC::GlobalTensor<ElementUpdate> gUpdate,
+        AscendC::GlobalTensor<ElementLse> gLse,
+        const LayoutOutput &layoutOutput,
+        const LayoutInput &layoutInput,
+        const LayoutUpdate &layoutUpdate,
+        const LayoutLse &layoutLse,
+        GemmCoord actualBlockShape,
+        uint32_t qSBlockSize, uint32_t qNBlockSize, uint32_t kvNBlockSize,
+        uint32_t isFirstStackTile, uint32_t isLastStackTile, uint32_t curStackTileMod,
+        uint32_t isNew)
+    {
+        uint32_t rowNum = actualBlockShape.m();
+        uint32_t embed = actualBlockShape.n();
+        uint32_t embedRoundV = layoutInput.stride(0);
+        uint32_t maxRowNumPerLoop = MAX_UB_O_ELEM_NUM / embed;
+        uint32_t rowNumTile = NpuArch::Detail::Alignment::RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
+
+        uint32_t subBlockIdx = AscendC::GetSubBlockIdx();
+        uint32_t subBlockNum = AscendC::GetSubBlockNum();
+
+        uint32_t kvNSplitSubBlock = kvNBlockSize / subBlockNum;
+        uint32_t kvNThisSubBlock = (kvNBlockSize == 1U) ? 0
+                                   : (subBlockIdx == 1U) ? (kvNBlockSize - kvNSplitSubBlock)
+                                                        : kvNSplitSubBlock;
+
+        uint32_t qNSplitSubBlock = qNBlockSize / subBlockNum;
+        uint32_t qNThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? 0
+                                 : (subBlockIdx == 1U) ? (qNBlockSize - qNSplitSubBlock)
+                                                      : qNSplitSubBlock)
+            : (kvNThisSubBlock * qNBlockSize);  // kvN 切分时，处理该 subblock 所有 kvhead 的 Q heads
+
+        uint32_t inRowSplitSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? (qSBlockSize / subBlockNum) : (qSBlockSize * qNSplitSubBlock)) :
+            (qSBlockSize * qNBlockSize * kvNSplitSubBlock);
+
+        uint32_t inRowActualThisSubBlock = (subBlockIdx == 1U) ? (rowNum - inRowSplitSubBlock) : inRowSplitSubBlock;
+        uint32_t inRowOffsetThisSubBlock = subBlockIdx * inRowSplitSubBlock;
+
+        uint32_t outRowOffsetThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? inRowOffsetThisSubBlock : 0) : 0;
+        uint32_t outColOffsetThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? 0 : (subBlockIdx * qNSplitSubBlock * embed)) :
+            (subBlockIdx * kvNSplitSubBlock * qNBlockSize * embed);
+
+        uint32_t qSThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize) : qSBlockSize;
+
+
+        int64_t outOffsetSubBlock =
+            layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
+
+        uint32_t outLseRowOffsetThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? inRowOffsetThisSubBlock : 0) : 0;
+        uint32_t outLseColOffsetThisSubBlock = (kvNBlockSize == 1U) ?
+            ((qNBlockSize == 1U) ? 0 : (subBlockIdx * qNSplitSubBlock)) :
+            (subBlockIdx * kvNSplitSubBlock * qNBlockSize);
+            
+        int64_t offsetLse =
+            layoutLse.GetOffset(MatrixCoord(outLseRowOffsetThisSubBlock, outLseColOffsetThisSubBlock));
+
+        auto gLseThisSubBlock = gLse[offsetLse];
+        auto layoutOutLseThisSubBlock = layoutLse;
+
+        if (inRowActualThisSubBlock > 0U) {
+            uint32_t rowLoop = NpuArch::Detail::Alignment::CeilDiv(inRowActualThisSubBlock, rowNumTile);
+            uint32_t needRowLoop = (rowLoop > 1U) ? 1 : 0;
+
+            uint32_t proTokenIdx = 0;
+            uint32_t proTokenIdxPre = 0;
+            uint32_t proTokenNum = 0;
+            uint32_t epiTokenNum = 0;
+            uint32_t integralHeadNum = 0;
+            uint32_t qSRemian = qSThisSubBlock;
+
+            for (uint32_t rowLoopIdx = 0; rowLoopIdx < rowLoop; rowLoopIdx++) {
+                uint32_t rowOffsetLoop = rowLoopIdx * rowNumTile;
+                uint32_t rowOffsetCurLoop = inRowOffsetThisSubBlock + rowOffsetLoop;
+                uint32_t rowActualCurLoop =
+                    (rowLoopIdx == (rowLoop - 1U)) ? inRowActualThisSubBlock - rowLoopIdx * rowNumTile : rowNumTile;
+
+                int64_t offsetOutput =
+                    static_cast<int64_t>(rowLoopIdx * rowNumTile / qSThisSubBlock * embed) + outOffsetSubBlock;
+                auto gOutputCurLoop = gOutput[offsetOutput];
+                auto layoutOutputCurLoop = layoutOutput;
+                int64_t offsetInput = layoutInput.GetOffset(MatrixCoord(rowOffsetCurLoop, 0));
+                auto gInputCurLoop = gInput[offsetInput];
+
+                auto layoutInputCurLoop = layoutInput.GetTileLayout(MatrixCoord(rowActualCurLoop, embed));
+                int64_t offsetUpdate = layoutUpdate.GetOffset(MatrixCoord(rowOffsetCurLoop, 0));
+                auto gUpdateCurLoop = gUpdate[offsetUpdate];
+                auto layoutUpdateCurLoop = layoutUpdate.GetTileLayout(MatrixCoord(rowActualCurLoop, embed));
+
+                proTokenIdx = rowOffsetLoop % qSThisSubBlock;
+                proTokenNum = AscendC::Std::min(rowActualCurLoop, (qSThisSubBlock - proTokenIdx)) % qSThisSubBlock;
+                integralHeadNum = (rowActualCurLoop - proTokenNum) / qSThisSubBlock;
+                epiTokenNum = rowActualCurLoop - proTokenNum - integralHeadNum * qSThisSubBlock;
+
+                SubCoreCompute(
+                    gOutputCurLoop,
+                    gInputCurLoop,
+                    gUpdateCurLoop,
+                    gLseThisSubBlock,
+                    layoutOutputCurLoop,
+                    layoutInputCurLoop,
+                    layoutUpdateCurLoop,
+                    layoutOutLseThisSubBlock,
+                    qNThisSubBlock,
+                    qSThisSubBlock,
+                    inRowActualThisSubBlock,
+                    isFirstStackTile,
+                    isLastStackTile,
+                    curStackTileMod,
+                    needRowLoop,
+                    (rowLoopIdx == rowLoop - 1U),
+                    rowOffsetLoop,
+                    proTokenIdx,
+                    proTokenNum,
+                    epiTokenNum,
+                    integralHeadNum);
+            }
+        }
+    }
+
+    __aicore__ inline
+    void operator()(
         AscendC::GlobalTensor<ElementOutput> gOutput,
         AscendC::GlobalTensor<ElementInput> gInput,
         AscendC::GlobalTensor<ElementUpdate> gUpdate,
