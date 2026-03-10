@@ -334,7 +334,7 @@ int main() {
     output_inv_rms_tensor, output_h_mix_tensor, output_h_pre_tensor,
     &workspace_size, &executor);
 
-  CHECK_RET(aclnn_ret == ACLNN_SUCCESS, 
+  CHECK_RET(aclnn_ret == ACL_SUCCESS, 
             LOG_PRINT("aclnnMhcPreGetWorkspaceSize failed, error: %d\n", aclnn_ret); 
             return -1);
   
@@ -354,7 +354,7 @@ int main() {
       executor,
       stream
   );
-  CHECK_RET(aclnn_ret == ACLNN_SUCCESS, 
+  CHECK_RET(aclnn_ret == ACL_SUCCESS, 
             LOG_PRINT("aclnnMhcPre failed, error: %d\n", aclnn_ret); 
             return -1);
 
