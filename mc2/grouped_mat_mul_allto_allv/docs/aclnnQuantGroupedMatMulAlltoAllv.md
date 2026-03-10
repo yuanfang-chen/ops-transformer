@@ -547,16 +547,16 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
         long long mmWScaleShapeSize = GetShapeSize(mmWScaleShape);
         long long mmYShapeSize = GetShapeSize(mmYShape);
 
-        std::vector<int16_t> gmmXHostData(gmmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
-        std::vector<int16_t> gmmWHostData(gmmWShapeSize, (args.rankId + 1) * 512);
-        std::vector<int16_t> gmmXScaleHostData(gmmXScaleShapeSize, 1);
-        std::vector<int16_t> gmmWScaleHostData(gmmWScaleShapeSize, 1);
+        std::vector<uint8_t> gmmXHostData(gmmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
+        std::vector<uint8_t> gmmWHostData(gmmWShapeSize, (args.rankId + 1) * 512);
+        std::vector<float> gmmXScaleHostData(gmmXScaleShapeSize, 1);
+        std::vector<float> gmmWScaleHostData(gmmWScaleShapeSize, 1);
         std::vector<int16_t> yHostData(yShapeSize, 65535);
 
-        std::vector<int16_t> mmXHostData(mmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
-        std::vector<int16_t> mmWHostData(mmWShapeSize, (args.rankId + 1) * 512);
-        std::vector<int16_t> mmXScaleHostData(mmXScaleShapeSize, 1);
-        std::vector<int16_t> mmWScaleHostData(mmWScaleShapeSize, 1);
+        std::vector<uint8_t> mmXHostData(mmXShapeSize, (args.rankId + 1) * 1024);  // HIFLOAT8
+        std::vector<uint8_t> mmWHostData(mmWShapeSize, (args.rankId + 1) * 512);
+        std::vector<float> mmXScaleHostData(mmXScaleShapeSize, 1);
+        std::vector<float> mmWScaleHostData(mmWScaleShapeSize, 1);
         std::vector<int16_t> mmYHostData(mmYShapeSize, 0);
 
         ret = CreateAclTensor(gmmXHostData, gmmXShape, &gmmXDeviceAddr, aclDataType::ACL_HIFLOAT8, &gmmX);
