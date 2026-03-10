@@ -34,5 +34,11 @@ enum class SASTemplateMode {
     CFA_TEMPLATE_MODE = 1,
     SCFA_TEMPLATE_MODE = 2,
     ORI_SCFA_TEMPLATE_MODE = 3,
+    ORI_CMP_SCFA_TEMPLATE_MODE = 4,
+};
+
+enum class TopkValueMode {
+    TOPK_INDEX_MODE = 1,
+    TOPK_OFFSET_MODE = 2,
 };
 #endif // KV_QUANT_SPARSE_FLASH_ATTENTION_COMMON_H

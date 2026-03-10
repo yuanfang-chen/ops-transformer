@@ -144,6 +144,7 @@ ge::graphStatus KvQuantSASInfoParser::GetAttrParaInfo()
     opParamInfo_.cmpRatio = attrs->GetAttrPointer<int64_t>(ATTR_CMP_RATIO_INDEX);
     opParamInfo_.oriMaskMode = attrs->GetAttrPointer<uint32_t>(ATTR_ORI_MASK_MODE_INDEX);
     opParamInfo_.cmpMaskMode = attrs->GetAttrPointer<uint32_t>(ATTR_CMP_MASK_MODE_INDEX);
+    opParamInfo_.topkValueMode = attrs->GetAttrPointer<uint32_t>(ATTR_TOPK_VALUE_MODE_INDEX); 
     opParamInfo_.oriWinLeft = attrs->GetAttrPointer<int64_t>(ATTR_ORI_WIN_LEFT_INDEX);
     opParamInfo_.oriWinRight = attrs->GetAttrPointer<int64_t>(ATTR_ORI_WIN_RIGHT_INDEX);
     opParamInfo_.layoutQ = attrs->GetStr(ATTR_LAYOUT_Q_INDEX);
@@ -351,7 +352,7 @@ ge::graphStatus KvQuantSASInfoParser::GetS1Size()
 ge::graphStatus KvQuantSASInfoParser::GetMaxBlockNumPerBatch()
 {
     if (opParamInfo_.oriBlockTable.tensor == nullptr) {
-        OP_LOGE(opName_, "the layout_kv is %s, blockTable must be provided.", KvQuantSASLayoutToSerialString(kvLayout_).c_str());
+        OP_LOGE(opName_, "the layout_kv is %s and topk_value_mode is 1, blockTable must be provided.", KvQuantSASLayoutToSerialString(kvLayout_).c_str());
         return ge::GRAPH_FAILED;
     }
     uint32_t oriDimNum = opParamInfo_.oriBlockTable.tensor->GetStorageShape().GetDimNum();
@@ -517,6 +518,7 @@ void KvQuantSASInfoParser::GenerateInfo(KvQuantSASTilingInfo &sasInfo)
     sasInfo.cmpRatio = *opParamInfo_.cmpRatio;
     sasInfo.oriMaskMode = *opParamInfo_.oriMaskMode;
     sasInfo.cmpMaskMode = *opParamInfo_.cmpMaskMode;
+    sasInfo.topkValueMode = *opParamInfo_.topkValueMode;
     sasInfo.oriWinLeft = *opParamInfo_.oriWinLeft;
     sasInfo.oriWinRight = *opParamInfo_.oriWinRight;
 
@@ -588,7 +590,11 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
             perfMode_ = SASTemplateMode::SWA_TEMPLATE_MODE;
         }
     } else if (tilingInfo->opParamInfo.cmpSparseIndices.tensor != nullptr) {
-        perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+        if (tilingInfo->opParamInfo.oriSparseIndices.tensor != nullptr) {
+            perfMode_ = SASTemplateMode::ORI_CMP_SCFA_TEMPLATE_MODE;
+        } else {
+            perfMode_ = SASTemplateMode::SCFA_TEMPLATE_MODE;
+        }
     } else {
         perfMode_ = SASTemplateMode::CFA_TEMPLATE_MODE;
     }
@@ -634,6 +640,7 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     tilingData_.baseParams.set_cmpRatio(tilingInfo->cmpRatio);
     tilingData_.baseParams.set_oriMaskMode(tilingInfo->oriMaskMode);
     tilingData_.baseParams.set_cmpMaskMode(tilingInfo->cmpMaskMode);
+    tilingData_.baseParams.set_topkValueMode(tilingInfo->topkValueMode);
     tilingData_.baseParams.set_oriWinLeft(tilingInfo->oriWinLeft);
     tilingData_.baseParams.set_oriWinRight(tilingInfo->oriWinRight);
     tilingData_.baseParams.set_sparseBlockSize(tilingInfo->sparseBlockSize);
@@ -651,7 +658,7 @@ ge::graphStatus KvQuantSparseAttnSharedkvTiling::DoOpTiling(KvQuantSASTilingInfo
     uint32_t qLayout = static_cast<uint32_t>(tilingInfo->qLayout);
     uint32_t inputKvLayout = static_cast<uint32_t>(tilingInfo->kvLayout);
     uint32_t tilingKey = GET_TPL_TILING_KEY(0U, qLayout, inputKvLayout, static_cast<uint32_t>(perfMode_),
-        static_cast<uint32_t>(tilingInfo->gSize > 64));
+        static_cast<uint32_t>(tilingInfo->gSize > 64), static_cast<uint32_t>(tilingInfo->topkValueMode));
     context_->SetTilingKey(tilingKey);
     context_->SetScheduleMode(1);
 

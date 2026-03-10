@@ -102,8 +102,8 @@ ge::graphStatus KvQuantSASTilingCheck::CheckFeatureAntiquantDtype() const
 
 ge::graphStatus KvQuantSASTilingCheck::CheckFeatureAntiquantAttr() const
 {
-    OP_CHECK_IF(*opParamInfo_.kvQuantMode != 1,
-        OP_LOGE(opName_, "kv_quant_mode_ only support 1, but got %ld",
+    OP_CHECK_IF(*opParamInfo_.kvQuantMode != 1 && *opParamInfo_.kvQuantMode != 2,
+        OP_LOGE(opName_, "kv_quant_mode_ only support (1, 2), but got %ld",
         *opParamInfo_.kvQuantMode),
         return ge::GRAPH_FAILED);
 

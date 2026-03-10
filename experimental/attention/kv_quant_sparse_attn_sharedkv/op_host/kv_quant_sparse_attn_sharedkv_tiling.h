@@ -46,6 +46,7 @@ TILING_DATA_FIELD_DEF(uint32_t, cmpSparseBlockCount)
 TILING_DATA_FIELD_DEF(float, softmaxScale) // 即 scaleValue
 TILING_DATA_FIELD_DEF(int32_t, oriKvStride)
 TILING_DATA_FIELD_DEF(int32_t, cmpKvStride)
+TILING_DATA_FIELD_DEF(int32_t, topkValueMode)
 TILING_DATA_FIELD_DEF(uint32_t, tileSize)
 TILING_DATA_FIELD_DEF(uint32_t, ropeHeadDim)
 TILING_DATA_FIELD_DEF(uint32_t, cmpRatio)
