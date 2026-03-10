@@ -23,7 +23,6 @@ struct PrologueTraits : public Prologue {
 
     using TensorSrc = AscendC::GlobalTensor<typename Prologue::ElementSrc>;
     using TensorDst = AscendC::GlobalTensor<typename Prologue::ElementDst>;
-
 };
 
 template <>

@@ -107,7 +107,6 @@ public:
         );
     }
     
-
     //fmapShape
     CATLASS_HOST_DEVICE
     Index const &batch() const { return fmap6HDShape_[0]; }
