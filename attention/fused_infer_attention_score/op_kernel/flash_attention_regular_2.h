@@ -12,8 +12,8 @@
  * \file flash_attention_regular.h
  * \brief
  */
-#ifndef FLASH_ATTENTION_REGULAR_H
-#define FLASH_ATTENTION_REGULAR_H
+#ifndef FLASH_ATTENTION_REGULAR_2_H
+#define FLASH_ATTENTION_REGULAR_2_H
 
 #include "kernel_common.hpp"
 
@@ -66,7 +66,7 @@ namespace SplitFuse {
 
         // Methods
         __aicore__ inline
-        FAInferKernel() {}
+        FAInferKernelDecoding() {}
 
         __aicore__ inline
         void operator()(FAIKernelParams const &params)
