@@ -17,6 +17,8 @@
 #include "reduce_scatter_fit_balance_tiling.h"
 
 constexpr static uint64_t L2_CACHE_SIZE = 128 * ONE_MBYTE;
+constexpr static uint64_t UNBALANCE_RATIO = 2;
+constexpr static uint64_t SMALL_K_BOUND = 2048;
 
 void MMReduceScatterFitBalanceTiling::EstimateMMCommTime()
 {
@@ -66,8 +68,13 @@ void MMReduceScatterFitBalanceTiling::SetLongTileLen()
             matmulPerf_.InverseMatmulTime(targetTime, rankTileNum_);
     }
     OPS_LOG_D("MMReduceScatterFitBalanceTiling", "longTileLen %lu", tilingM_.cutRes.longTileLen);
+
+    // adjust the long tile for better pipeline
     if (isLargerThanL2Cache_ && mmInfo_.mValue % tilingM_.cutRes.shortTileLen == 0 &&
         (mmInfo_.nValue >= TWO * mmInfo_.mValue * rankDim_)) {
+        tilingM_.cutRes.longTileLen = tilingM_.cutRes.shortTileLen;
+    } else if (isQuantMatmul_ && ratioCalcComm_ > UNBALANCE_RATIO && mmInfo_.kValue < SMALL_K_BOUND &&
+        mmInfo_.mValue % tilingM_.cutRes.shortTileLen == 0) {
         tilingM_.cutRes.longTileLen = tilingM_.cutRes.shortTileLen;
     }
 }

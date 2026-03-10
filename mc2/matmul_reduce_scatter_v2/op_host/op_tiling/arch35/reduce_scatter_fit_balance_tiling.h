@@ -29,6 +29,7 @@ public:
         commPerf_.SetCommDTypeSize(mmInfo_.outMatrixCDtypeSize);
         tilingM_.SetMinLenByMax(matmulPerf_.GetBaseM());
         tilingM_.SetAlignLength(matmulPerf_.GetBaseM());
+        isQuantMatmul_ = (mmInfo_.inMatrixADtypeSize == 1) && (mmInfo_.inMatrixBDtypeSize == 1);
     }
 
     void EstimateMMCommTime() override;
@@ -38,6 +39,7 @@ public:
 
 private:
     bool isLargerThanL2Cache_ = false;
+    bool isQuantMatmul_ = false;
 };
 
 #endif // __REDUCE_SCATTER_FIT_BALANCE_TILING_H__
