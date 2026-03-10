@@ -14,7 +14,7 @@
 ## 功能说明
 
 - 接口功能：完成AlltoAll通信、Permute(保证通信后地址连续)、Quant、Matmul和Dequant计算的融合，**先通信后计算**，支持K-C量化、K-C动态量化和mx[量化模式](../../../docs/zh/context/量化介绍.md)。
-- 计算公式：假设x1输入shape为(BS, H)，mx量化场景下x1Scale输入shape为(BS, ceil(H/64), 2)，rankSize为NPU卡数
+- 计算公式：假设x1输入shape为(BS, H)，mx量化场景下x1ScaleOptional输入shape为(BS, ceil(H/64), 2)，rankSize为NPU卡数
 
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
 
@@ -277,7 +277,7 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
     <td>groupSize</td>
     <td>输入</td>
     <td>用于Matmul计算三个方向上的量化分组大小。</td>
-    <td>groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。mx量化场景下配置为4295032864，对应[1, 1, 32]通过计算公式计算得出。其余量化场景默认配置为0，取值不生效。</td>
+    <td><ul><li>groupSize输入由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</li><li>mx量化场景下仅支持[groupSizeM, groupSizeN, groupSizeK] = [1, 1, 32]，由于自动推导的原因，groupSize具体取值可以有多个，详细参见<a href="#约束说明">约束说明</a>。其余量化场景默认配置为0，取值不生效。</li><li>支持参数自动推导，当根据计算公式分解的groupSizeM，groupSizeN，groupSizeK任一或多个参数为0时，算子自动推导这些参数值，具体规则详细参见<a href="#约束说明">约束说明</a></li></ul></td>
     <td>INT</td>
     <td>-</td>
     <td>-</td>
@@ -462,6 +462,23 @@ aclnnStatus aclnnAlltoAllQuantMatmul(
   - <term>Ascend 950PR/Ascend 950DT</term>：仅支持x2为非连续tensor，其它非连续tensor均不支持。
 * 传入的x1、x2、x2Scale和output不为空指针，且
   - <term>Ascend 950PR/Ascend 950DT</term>：在x1QuantMode为pertoken动态量化场景下，不支持传入x1ScaleOptional。
+* groupSize相关约束:
+  - 仅当x1ScaleOptional和x2Scale输入都是2维及以上数据时，groupSize取值有效，其他场景需传入0。
+  - 传入的groupSize内部会按如下公式分解得到groupSizeM、groupSizeN、groupSizeK，当其中有1个或多个为0，会根据x1/x2/x1ScaleOptional/x2Scale输入shape重新设置groupSizeM、groupSizeN、groupSizeK用于计算。原理：假设groupSizeM=0，表示m方向量化分组值由接口推断，推断公式为groupSizeM = m / scaleM（需保证m能被scaleM整除），其中m与x1 shape中的m一致，scaleM与x1ScaleOptional shape中的m一致。
+    $$
+    groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32
+    $$
+  - 根据计算公式和自动推导原则，mx量化场景下groupSize支持以下取值：
+    | groupSize | 根据计算公式[gsM,gsN,gsK] | 根据自动推导[gsM,gsN,gsK] |
+    | :------: | :------: | :------: |
+    | 4295032864 | [1,1,32] | - |
+    | 0 | [0,0,0] | [1,1,32] |
+    | 32 | [0,0,32] | [1,1,32] |
+    | 65536 | [0,1,0] | [1,1,32] |
+    | 65568 | [0,1,32] | [1,1,32] |
+    | 4294967296 | [1,0,0] | [1,1,32] |
+    | 4294967328 | [1,0,32] | [1,1,32] |
+    | 4295032832 | [1,1,0] | [1,1,32] |
 * 该算子输入输出的数据类型、数据维度和量化模式根据不同设备型号有不同的限制：
   - <term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>：
     * 量化模式：
