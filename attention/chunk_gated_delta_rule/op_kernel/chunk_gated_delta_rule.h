@@ -65,7 +65,7 @@ public:
         if ASCEND_IS_AIV {
             // 初始化state空间, 原子累加使用
             if (GetBlockIdx() == 0) {
-                InitOutput<bfloat16_t>(finalState_, tiling_->t * tiling_->nv * tiling_->dv, 0);
+                InitOutput<bfloat16_t>(finalState_, tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk, 0);
             }
             // 初始化mask矩阵
             pipe_->InitBuffer(tmpBuff_, tiling_->chunkSize * tiling_->chunkSize * sizeof(float));

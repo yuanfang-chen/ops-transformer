@@ -97,7 +97,8 @@ public:
             return;
         }
         pipe_->InitBuffer(inQueue_, BUFFER_NUM, chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float));
-        pipe_->InitBuffer(outQueue_, BUFFER_NUM, chunkSize_ * chunkSize_ * sizeof(float));
+        uint64_t outQueueSize = AscendC::Std::max((uint64_t)chunkSize_ * chunkSize_ * sizeof(float), (uint64_t)sTP_->Dv_ * sTP_->Dk_ * sizeof(bfloat16_t));
+        pipe_->InitBuffer(outQueue_, BUFFER_NUM, outQueueSize);
         pipe_->InitBuffer(tmpBuff_, (chunkSize_ > sTP_->Dv_ ? chunkSize_ * sTP_->Dk_ * sizeof(float) : sTP_->Dv_ * sTP_->Dk_ * sizeof(float)));
         uint32_t buffOffset = 0;
         DvDkFloat_ = tmpBuff_.GetWithOffset<float>(static_cast<uint32_t>(sTP_->Dv_ * sTP_->Dk_), buffOffset);
