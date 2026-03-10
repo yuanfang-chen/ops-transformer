@@ -28,7 +28,6 @@
 namespace MhcPost {
 using namespace AscendC;
 
-// Double Buffer configuration - Double Buffer提升Memory Bound算子性能
 constexpr uint32_t DOUBLE_BUFFER_DEPTH = 2;  // Double Buffer depth for data tiles
 constexpr uint32_t SINGLE_BUFFER_DEPTH = 1;  // Single Buffer depth for weights
 
@@ -65,6 +64,8 @@ private:
 
     // Intermediate buffers for float computation
     TBuf<QuePosition::VECCALC> hOutF32Buf_;
+    TBuf<QuePosition::VECCALC> hCombF32Buf_;
+    TBuf<QuePosition::VECCALC> hMulF32Buf_;
     TBuf<QuePosition::VECCALC> xF32Buf_;
     TBuf<QuePosition::VECCALC> outF32Buf_;
 
@@ -122,6 +123,8 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::Init(GM_ADDR x, GM_ADDR hRe
 
     // Initialize intermediate buffers
     pipe_->InitBuffer(hOutF32Buf_, tilingData_->dInner * sizeof(float));
+    pipe_->InitBuffer(hCombF32Buf_, tilingData_->dInner * sizeof(float));
+    pipe_->InitBuffer(hMulF32Buf_, tilingData_->dInner * sizeof(float));
     pipe_->InitBuffer(xF32Buf_, xFactor_ * tilingData_->dInner * sizeof(float));
     pipe_->InitBuffer(outF32Buf_, tilingData_->dInner * sizeof(float));
 }
@@ -170,6 +173,8 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsId
     LocalTensor<T> hOutTile = hOutTileQueue_.DeQue<T>();
 
     LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
+    LocalTensor<float> hCombF32 = hCombF32Buf_.Get<float>();
+    LocalTensor<float> hMulF32 = hMulF32Buf_.Get<float>();
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
     LocalTensor<float> xF32 = xF32Buf_.Get<float>();
 
@@ -179,14 +184,16 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOut(int64_t bsId
         LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
 
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
+        Duplicate(hCombF32, 0.0f, dNum);
         for (int64_t j = 0; j < tilingData_->n; j++) {
             CopyInX(bsIdx, dIdx, j, dNum);
             LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
             Cast(xF32, xTile, RoundMode::CAST_NONE, dNum);
-            Axpy(outF32, xF32, hResGm_.GetValue(hResBase + j * tilingData_->n + i), dNum);
+            Muls(hMulF32, xF32, hResGm_.GetValue(hResBase + j * tilingData_->n + i), dNum);
+            Add(hCombF32, hCombF32, hMulF32, dNum);
             xTileQueue_.FreeTensor(xTile);
         }
-
+        Add(outF32, outF32, hCombF32, dNum);
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
         CopyOutTile(bsIdx, dIdx, i, dNum);
@@ -205,6 +212,8 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
     LocalTensor<T> xTile = xTileQueue_.DeQue<T>();
 
     LocalTensor<float> hOutF32 = hOutF32Buf_.Get<float>();
+    LocalTensor<float> hCombF32 = hCombF32Buf_.Get<float>();
+    LocalTensor<float> hMulF32 = hMulF32Buf_.Get<float>();
     LocalTensor<float> xF32 = xF32Buf_.Get<float>();
     LocalTensor<float> outF32 = outF32Buf_.Get<float>();
 
@@ -215,10 +224,12 @@ __aicore__ inline void MhcPostKernel<TEMPLATE_ARGS>::ComputeCopyOutAllX(int64_t 
         LocalTensor<T> outputTile = outputTileQueue_.AllocTensor<T>();
 
         Muls(outF32, hOutF32, hPostGm_.GetValue(hPostBase + i), dNum);
+        Duplicate(hCombF32, 0.0f, dNum);
         for (int64_t j = 0; j < tilingData_->n; j++) {
-            Axpy(outF32, xF32[j * dNumAlign], hResGm_.GetValue(hResBase + j * tilingData_->n + i), dNum);
+            Muls(hMulF32, xF32[j * dNumAlign], hResGm_.GetValue(hResBase + j * tilingData_->n + i), dNum);
+            Add(hCombF32, hCombF32, hMulF32, dNum);
         }
-
+        Add(outF32, outF32, hCombF32, dNum);
         Cast(outputTile, outF32, RoundMode::CAST_RINT, dNum);
         outputTileQueue_.EnQue(outputTile);
         CopyOutTile(bsIdx, dIdx, i, dNum);
