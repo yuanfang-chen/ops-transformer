@@ -349,7 +349,6 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputValue()
     auto valueDesc = context_->GetInputDesc(INDEX_INPUT_VALUE);
     OP_CHECK_NULL_WITH_CONTEXT(context_, valueDesc);
     ge::DataType valueDType = valueDesc->GetDataType();
-
     // 校验数据类型是否合法
     OP_CHECK_IF((KV_SUPPORT_DTYPE.find(valueDType) == KV_SUPPORT_DTYPE.end()),
                 OP_LOGE(context_,
@@ -361,7 +360,6 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputValue()
     OP_CHECK_NULL_WITH_CONTEXT(context_, valueStoreShape);
     valueShape_ = EnsureNotScalar(valueStoreShape->GetStorageShape());
     size_t valueDimNum = valueShape_.GetDimNum();
-
     // 检查形状是否合法
     uint32_t valueDimExpect = (isCacheModeNorm_) ? uint32_t(3) : uint32_t(2);
     OP_CHECK_IF(
@@ -376,7 +374,6 @@ ge::graphStatus GatherPaKvCacheTiling::GetInputOutputValue()
                             valueShape_.GetDim(i), i, keyShape_.GetDim(i)),
                     return ge::GRAPH_FAILED);
     }
-
     if (isCacheModeNorm_) {
         // ND
         hiddenSizeV_ = valueShape_.GetDim(DIM_ONE) * valueShape_.GetDim(DIM_TWO);
