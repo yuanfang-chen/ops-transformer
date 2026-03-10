@@ -2466,6 +2466,15 @@ static aclnnStatus FlashAttentionScoreGradV4GetWorkspace(
         return ret;
     }
 
+    if (softmaxInLayout != nullptr) {
+        if(strcmp(inputLayout, "TND") == 0 && strcmp(softmaxInLayout, "same_as_input") != 0 && strcmp(softmaxInLayout, "") != 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "softmaxInLayout %s is not same_as_input or Empty string, invalid softmaxInLayout, please check", softmaxInLayout);
+            return ACLNN_ERR_PARAM_INVALID;
+        } else if (strcmp(inputLayout, "TND") != 0 && strcmp(softmaxInLayout, "") != 0) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "softmaxInLayout only support inputLayout TND, please check", softmaxInLayout);
+            return ACLNN_ERR_PARAM_INVALID;
+        } 
+    }
     // 输入连续性转换
     const aclTensor *queryCngs = nullptr;
     const aclTensor *keyCngs = nullptr;

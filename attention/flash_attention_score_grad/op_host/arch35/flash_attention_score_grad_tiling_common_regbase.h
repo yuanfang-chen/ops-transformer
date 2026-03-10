@@ -85,6 +85,7 @@ constexpr uint32_t OFFSET_ATTR_IDX = 10;
 constexpr uint32_t OUTDTYPE_ATTR_IDX = 11;
 constexpr uint32_t DS_SCALE_ATTR_IDX = 13;
 constexpr uint32_t P_SCALE_ATTR_IDX = 14;
+constexpr uint32_t SOFTMAX_IN_LAYOUT_ATTR_INDEX = XXL;
 
 constexpr uint32_t GM_ALIGN = 512;
 
@@ -551,6 +552,7 @@ inline std::vector<T> SliceVector(const std::vector<T> &arr, const int64_t step)
 
 ge::graphStatus CheckSoftmaxMaxShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, bool isQuant);
 ge::graphStatus CheckSoftmaxSumShape(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, bool isQuant);
+ge::graphStatus CheckSoftmaxMaxSumTndShape(gert::TilingContext *context, int64_t t1, int64_t n1);
 ge::graphStatus CheckAttentionInShape(gert::TilingContext *context);
 ge::graphStatus CheckShapeValid(gert::TilingContext *context, int64_t b, int64_t n1, int64_t s1, int64_t d);
 ge::graphStatus CheckTndShapeValid(gert::TilingContext *context, int64_t t1, int64_t n1, int64_t d);
