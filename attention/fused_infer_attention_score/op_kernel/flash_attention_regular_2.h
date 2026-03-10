@@ -226,13 +226,12 @@ namespace SplitFuse {
             uint32_t curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile); // 1
             uint32_t curTotalTaskNum = firstBatchTaskNum;
 
-            //  prepare for addding sink
-            // 是否要保留这个变量？
+
             bool isLastStackTile = false;
-            // Go through each task.
+
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
                 isLastStackTile = false;
-                // Get the offset of each core on the GM.
+
                 while (taskIdx >= curTotalTaskNum) {
                     ++curBatch;
                     preTotalTaskNum = curTotalTaskNum;
@@ -259,22 +258,22 @@ namespace SplitFuse {
                         }
                     }
                     curGBlockTile = GetQNBlockTile(qSeqlen, groupSize);
-                    curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile); // 1
+                    curGBlockNum = NpuArch::Detail::Alignment::CeilDiv(groupSize, curGBlockTile);
                     curQSBlockTile = GetQSBlockTile(qSeqlen);
                     curQSBlockNum = NpuArch::Detail::Alignment::CeilDiv(qSeqlen, curQSBlockTile);
                     curQSGBlockTile = curGBlockTile * curQSBlockTile;
-                    curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads); // 2
-                    curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile); // 1
+                    curKvNBlockTile = curGBlockTile < groupSize ? 1 : GetKvNBlockTile(curQSGBlockTile, kvHeads);
+                    curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile);
                     curTotalTaskNum += curQSBlockNum * curGBlockNum * curKvNBlockNum;
                 }
                 uint32_t taskIdxCurBatch = taskIdx - preTotalTaskNum;
                 uint32_t qSBlockIdx = taskIdxCurBatch / (curGBlockNum * curKvNBlockNum);
-                uint32_t gKvNBlockIdx = taskIdxCurBatch - qSBlockIdx * (curGBlockNum * curKvNBlockNum);//0
-                uint32_t gBlockIdx = gKvNBlockIdx / curKvNBlockNum; //0
-                uint32_t kvNBlockIdx = gKvNBlockIdx - gBlockIdx * curKvNBlockNum;//0
+                uint32_t gKvNBlockIdx = taskIdxCurBatch - qSBlockIdx * (curGBlockNum * curKvNBlockNum);
+                uint32_t gBlockIdx = gKvNBlockIdx / curKvNBlockNum;
+                uint32_t kvNBlockIdx = gKvNBlockIdx - gBlockIdx * curKvNBlockNum;
 
-                uint32_t kvNStartIdx = kvNBlockIdx * curKvNBlockTile;//0
-                uint32_t qNStartIdx = kvNStartIdx * groupSize + gBlockIdx * curGBlockTile;//0
+                uint32_t kvNStartIdx = kvNBlockIdx * curKvNBlockTile;
+                uint32_t qNStartIdx = kvNStartIdx * groupSize + gBlockIdx * curGBlockTile;
 
                 uint32_t qSBlockSize = (qSBlockIdx == (curQSBlockNum - 1U)) ?
                     (qSeqlen - qSBlockIdx * curQSBlockTile) : curQSBlockTile;
@@ -313,7 +312,7 @@ namespace SplitFuse {
                 LayoutV layoutVTemp(blockStackNum * pagedBlockSize, strideV);
 #endif
                 for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
-                    // AscendC::printf("+++ kvSIdx %d kvSLoopNumTotal %d preKVNum %d blockStackNum %d\n", kvSIdx, kvSLoopNumTotal, preKVNum, blockStackNum);
+
                     if (kvSIdx < kvSLoopNumTotal) {
                         AscendC::printf("kvSIdx < kvSLoopNumTotal \n");
                         if (kvSIdx + blockStackNum > kvSLoopNumTotal - 1U) {
@@ -323,24 +322,20 @@ namespace SplitFuse {
                         }
                         uint32_t curStackTileMod = stackSeqCount % (PRE_LAUNCH + 1U);
 #ifdef __DAV_C220_CUBE__
-                        // 方案2：待修改完善的搬运方案
-                        // kvNBlockSize是多个kvhead合轴的数量，现在把kvNBlockSize个kvhead对应的Q数据一次性的从gm上搬运到L1上
-                        // qSBlockSize指的是一个qhead对应的qS合轴的大小， gBlockSize指的是一个kvhead， 即一个group中对应的qhead的合轴的大小
-                        // kvNBlockSize指的是一个batch中对应的kvhead合轴的大小
+
                         uint64_t gmOffsetQGmtoL1 = qBOffset + qSOffset + qNStartOffset;
                         if (kvSIdx == 0) {
                             uint32_t taskRowNum = rowNum * kvNBlockSize;
-                            LayoutQ layoutQL1(taskRowNum, embed); // 在gm上的排布是BSND格式， 即先排D,再排N,最后排S
+                            LayoutQ layoutQL1(taskRowNum, embed);
                             uint32_t taskColNum = gBlockSize * kvNBlockSize;
 
-                            //下面的传入参数需要确定
-                            // 传入kvNBlockSize，用于后续跳着取数据时计算每个kvhead的行偏移
+
                             blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, kvNBlockSize);
                         }
 #endif
 
                         for (uint32_t kvNIncreIdx = 0; kvNIncreIdx < kvNBlockSize; kvNIncreIdx++) {
-                            // AscendC::printf("+++ kvNIncreIdx %d kvNBlockSize %d\n", kvNIncreIdx, kvNBlockSize);
+
                             uint64_t gmOffsetQ = qBOffset + qSOffset + qNStartOffset +
                                 static_cast<uint64_t>(kvNIncreIdx * groupSize * embed);
                             uint64_t gmOffsetK = kBOffset + kNStartOffset +
@@ -368,47 +363,40 @@ namespace SplitFuse {
                                 kvNIncreIdx);
                             if (kvNIncreIdx == kvNBlockSize - 1) {
                                 Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(qkReady);
-                                // AscendC::printf("qkready set flag");
                             }
 #endif
                         }
 #ifdef __DAV_C220_VEC__
                         LayoutP layOutP(rowNum * kvNBlockSize, stackSeqTile, stackSeqTilePad);
-                        // 计算基地址
+
                         uint64_t gmOffsetSBase = 
                             static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                             curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                         uint64_t gmOffsetPBase = gmOffsetSBase;
                         LayoutS layOutS(rowNum * kvNBlockSize, stackSeqTile, stackSeqTilePad);
-                        // uint64_t gmOffsetP = gmOffsetS;
+
                         GemmCoord actualBlockShapeQK{rowNum * kvNBlockSize, stackSeqTile, embed};
-                        // AscendC::printf("======= enter new softmax =======\n");
 
-                        // Arch::CrossCoreWaitFlag(qkReady);
 
-                        // 打印QK的结果
-                        // if(AscendC::GetSubBlockIdx() == 0){
-                        //     for(int i = 0 ; i < rowNum * kvNBlockSize ; i++){
-                        //         AscendC::DumpTensor(gS[gmOffsetSBase + i * MAX_KV_STACK_LEN], 10000 + __LINE__, stackSeqTile);
-                        //     }
-                        // }
+
+
 
                         epilogueOnlineSoftmax(
-                            gP[gmOffsetPBase],              // gOutputBase
-                            gS[gmOffsetSBase],              // gInputBase
-                            layOutP,                        // layoutOutput
-                            layOutS,                        // layoutInput
-                            actualBlockShapeQK,             // actualBlockShape
-                            (stackSeqCount == 0),           // isFirstStackTile
-                            0,                              // isLastNoMaskStackTile
-                            qSBlockSize,                    // qSBlockSize
-                            gBlockSize,                     // qNBlockSize
-                            curStackTileMod,                // curStackTileMod
-                            kvNBlockSize,                   // kvNBlockSize
-                            gmOffsetSBase,                  // gmOffsetSBase
-                            gmOffsetPBase,                  // gmOffsetPBase
-                            qkReady,                        // qkReady
-                            softmaxReady);                  // softmaxReady
+                            gP[gmOffsetPBase],
+                            gS[gmOffsetSBase],
+                            layOutP,
+                            layOutS,
+                            actualBlockShapeQK,
+                            (stackSeqCount == 0),
+                            0,
+                            qSBlockSize,
+                            gBlockSize,
+                            curStackTileMod,
+                            kvNBlockSize,
+                            gmOffsetSBase,
+                            gmOffsetPBase,
+                            qkReady,
+                            softmaxReady);
                         Arch::CrossCoreSetFlag<0x2, PIPE_MTE3>(softmaxReady);
 #endif
                     }
@@ -428,7 +416,7 @@ namespace SplitFuse {
                                 static_cast<uint64_t>(kvNIncreIdx * groupSize * embed);
                             uint64_t gmOffsetLse = lseBOffset + lseTokenOffset + qNStartIdx +
                                 static_cast<uint64_t>(kvNIncreIdx * groupSize);
-                            // 使用 embedRoundV 作为步长，使 OTmp 数据连续存储
+  
                             uint32_t oWorkspaceIncreOffset = kvNIncreIdx * rowNum * embedRoundV;
                             uint64_t gmOffsetOTmp =
                                 static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
@@ -436,7 +424,7 @@ namespace SplitFuse {
                             GemmCoord actualBlockShapePV{rowNum, embedV, stackSeqTile};
                             LayoutOTmp layoutOTmp(rowNum, embedV, embedRoundV);
 #ifdef __DAV_C220_CUBE__
-                            // 使用 stackSeqTilePad 作为步长，使 P 数据连续存储
+
                             uint32_t pWorkspaceIncreOffset = kvNIncreIdx * rowNum * stackSeqTilePad;
                             uint64_t gmOffsetP = coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1) +
                                 curStackTileMod * WORKSPACE_BLOCK_SIZE_DB + pWorkspaceIncreOffset;
@@ -460,12 +448,12 @@ namespace SplitFuse {
                                 (kvNIncreIdx == 0));
                             if (kvNIncreIdx == kvNBlockSize - 1) {
                                 Arch::CrossCoreSetFlag<0x2, PIPE_FIX>(pvReady);
-                                // AscendC::printf("pvReady set flag");
+
                             }
 #endif
                         }
 #ifdef __DAV_C220_VEC__
-                        // epilogueRescaleO receives all kvNBlockSize kvheads data at once
+
                         LayoutO layoutO(qSeqlen, embed * qHeads);
                         LayoutOTmp layoutUpdate(rowNum * kvNBlockSize, embed, embedRound);
                         LayoutLse layoutLse(totalQTokens, qHeads);
@@ -474,20 +462,13 @@ namespace SplitFuse {
 
                         Arch::CrossCoreWaitFlag(pvReady);
 
-                        // rescale O - base addresses for all kvNBlockSize kvheads
+
                         uint64_t gmOffsetO = oBOffset + oSOffset + oNStartOffset;
                         uint64_t gmOffsetUpdate = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
                         uint64_t gmOffsetOTmp = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                                 curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                         uint64_t gmOffsetLse = lseBOffset + lseTokenOffset + qNStartIdx;
-                        // AscendC::printf("the 123 subBlockIdx is %d\n", AscendC::GetSubBlockIdx());
-                        
-                        // // 打印 gOTmp 的值（在 epilogueRescaleO 之前）
-                        // AscendC::printf("+++ kvSIdx %d\n", kvSIdx);
-                        // for (uint32_t i = 0; i < rowNum * kvNBlockSize; i++) {
-                        //     AscendC::printf("gOTmp[%d] is %f\n", gmOffsetOTmp + i * embedRoundV, gOTmp[gmOffsetOTmp + i * embedRoundV]);
-                        //     AscendC::DumpTensor(gOTmp[gmOffsetOTmp + i * embedRoundV], 523, embedV);
-                        // }
+
                         
                         epilogueRescaleO(
                             // kvNIncreIdx,
