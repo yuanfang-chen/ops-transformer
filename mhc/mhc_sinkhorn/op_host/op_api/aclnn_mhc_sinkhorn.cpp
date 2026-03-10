@@ -139,6 +139,7 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag
                                              aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
                                              uint64_t *workspaceSize, aclOpExecutor **executor)
 {
+    printf("aclnnMhcSinkhornGetWorkspaceSize\n");
     L2_DFX_PHASE_1(aclnnMhcSinkhorn, DFX_IN(x, outFlag, eps, numIters), DFX_OUT(output, normOut, sumOut));
 
     // 固定写法，创建OpExecutor
@@ -155,17 +156,26 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag
         return ACLNN_SUCCESS;
     }
 
+    printf("outFlag: %d \n", outFlag);
+    printf("eps: %f \n", eps);
+    printf("numIters: %d \n", numIters);
+
+    printf("l0op::Contiguous\n");
     // 将输入x转换成连续的tensor
-    auto xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
+    const aclTensor xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
     CHECK_RET(xContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
-
-    auto kernelOut =
+ 
+    printf("l0op::MhcSinkhorn\n");
+    const aclTensor kernelOut =
         l0op::MhcSinkhorn(xContiguous, outFlag, eps, numIters, output, normOut, sumOut, uniqueExecutor.get());
+    CHECK_RET(kernelOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
+    printf("l0op::ViewCopy\n");
     // 固定写法，将计算结果拷贝到输出outRef上
-    auto viewCopyResult = l0op::ViewCopy(kernelOut, output, uniqueExecutor.get());
+    const aclTensor viewCopyResult = l0op::ViewCopy(kernelOut, output, uniqueExecutor.get());
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
+    printf("uniqueExecutor->GetWorkspaceSize()\n");
     // 固定写法，获取计算过程中需要使用的workspace大小
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor); // 需要把 uniqueExecutor持有executor转移给executor
