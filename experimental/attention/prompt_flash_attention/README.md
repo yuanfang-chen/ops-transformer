@@ -16,7 +16,7 @@ pytest test.py # correctness tests for sequence lengths 10k-20k 1-4 attention he
 python benchmark.py # performance benchmarking - check the constant inputs shapes defined in the script
 ```
 
-The test should be all green and the benchmark should print:
+The test should be all green, and the benchmark result on Ascend910B2 should be:
 ```shell
 ============================================================================================================================================
   DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'  ATTENTION_MATRIX='blocks_optimized_batched'
@@ -35,7 +35,7 @@ The test should be all green and the benchmark should print:
   3   1 118806 118806  128      0.90             N/A                N/A           22129.09              N/A            0.016
 ============================================================================================================================================
 ```
-
+more explanation about benchmarking is [here](benchmark/README.md)
 
 ## Kernel integration plan
 if this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention

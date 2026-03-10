@@ -26,7 +26,8 @@ INPUT_LAYOUT = "BNSD"  # [B, num_heads, seq_len, head_dim]
 B_VALS = [1]
 H_VALS = [3]
 S_VALS = [118_806]  # S_q = S_kv
-# S_VALS = [10_000]  # S_q = S_kv
+# S_VALS = [60_000, 80_000, 100_000, 118_806, 130_000]
+# S_VALS = [10_000]
 D_VALS = [128]   # head dimension
 
 N_REPEATS = 10

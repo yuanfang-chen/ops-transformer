@@ -2,12 +2,12 @@
 
 # Installation
 
-To install the sparse kernel go in the `ops-transformer` folder and run:
+To install the sparse kernel go in the `ops-transformer` project home folder and run:
 
 ```bash
-./build.sh --make_clean -j96 --pkg --soc=ascend910b --ops=prompt_flash_attention
-./build_out/cann-ops-transformer-custom_linux-"$(uname -i)".run
-(cd attention/prompt_flash_attention/torch_interface && bash build.sh custom)
+bash build.sh --make_clean --experimental -j96 --pkg --soc=ascend910b --ops=prompt_flash_attention
+./build/cann-ops-transformer-custom_linux-"$(uname -i)".run
+(cd experimental/attention/prompt_flash_attention/torch_interface && bash build.sh custom)
 ```
 
 ## Parameters
@@ -24,7 +24,6 @@ Using the CAPITAL_LETTERS variables at the top of the file you can ru all the th
     * `blocks_optimized_batched`: our optimized block-sparse kernel. There is a batch dimension, but please keep it 1 for now.
     * `blocks_optimized`: same, without batch dimension (you can use either this or the other)
     * `dense`: all tokens are attended by all tokens
-    * `sparse_block`: like dense, but you can pass a sparse block mask created like in blocks_optimized: Only works for H_VALS = 1!
     * `sparse_block_all_same`: like `sparse_block`, but all heads have the same mask: this works.
     * `lower_triangular`: lower triangular matrix, classic case. It's the default torch_npu behavior
     * `band`: torch_npu band mode: diagonal band. You can set the width of the diagonal with `BAND_PRE_TOKENS` and `BAND_POST_TOKENS`
@@ -127,95 +126,105 @@ Note that for short sequence lengths, the speedups are negligible because overhe
 #### Input
 
 ```python
+DTYPE = torch.bfloat16
+INPUT_LAYOUT = "BNSD"  # [B, num_heads, seq_len, head_dim]
 B_VALS = [1]
 H_VALS = [3]
-S_VALS = [118_806]  # S_q = S_kv
+S_VALS = [60_000, 80_000, 100_000, 118_806, 130_000]  # S_q = S_kv
 D_VALS = [128]   # head dimension
 
-N_REPEATS = 20
+N_REPEATS = 10
 N_WARMUP = 2
-ATTENTION_MATRIX = "blocks_optimized_batched" 
+ATTENTION_MATRIX = "blocks_optimized_batched"   # "dense", "sparse_block_all_same", "lower_triangular", "band", "custom", "blocks_optimized" "blocks_optimized_batched"
 
-SPARSITY_VALS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+SPARSITY_VALS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 BLOCK_SIZE_Q = 128
 BLOCK_SIZE_KV = 512
 BLOCK_MASK_SEED = 1234
 USE_FRAME = True
 
-# Print tensors for manual comparisons
+BAND_PRE_TOKENS = 8
+BAND_POST_TOKENS = 2
+
 PRINT_OUTPUTS = False
 PRINT_MASK = False
-# For printing tensor differneces in blocks
 PRINT_BLOCK_EQUALITY = False
-PRINT_HEIGHT = 128
-PRINT_WIDTH = 8
 
-RUN_REFERENCE = False
-TORCH_REFERENCE = True  # If False, will instead run the torch_npu reference
+RUN_REFERENCE = False  # True <--> enables accuracy compariston
+TORCH_REFERENCE = False  # If False, will instead run the torch_npu reference
 ```
 
-#### Output
+#### Output:
 
 ```
-(base) root@5e47d24afe58:/workspace/ops-transformer/benchmark# python benchmark.py 
 ============================================================================================================================================
-  DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'
+  DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'  ATTENTION_MATRIX='blocks_optimized_batched'
 ============================================================================================================================================
   H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]  Ref_BW_[TB/sec]  Our_BW_[TB/sec]
 --------------------------------------------------------------------------------------------------------------------------------------------
-  3   1 118806 118806  128      0.10             N/A                N/A          198423.45              N/A            0.002
-  3   1 118806 118806  128      0.20             N/A                N/A          175165.15              N/A            0.002
-  3   1 118806 118806  128      0.30             N/A                N/A          152040.25              N/A            0.002
-  3   1 118806 118806  128      0.40             N/A                N/A          128694.68              N/A            0.003
-  3   1 118806 118806  128      0.50             N/A                N/A          105982.90              N/A            0.003
-  3   1 118806 118806  128      0.60             N/A                N/A           85362.30              N/A            0.004
-  3   1 118806 118806  128      0.70             N/A                N/A           64800.79              N/A            0.006
-  3   1 118806 118806  128      0.80             N/A                N/A           44342.04              N/A            0.008
-  3   1 118806 118806  128      0.90             N/A                N/A           22639.43              N/A            0.016
+  3   1  60000  60000  128      0.00             yes           39540.04           42287.86            0.005            0.004
+  3   1  60000  60000  128      0.10             N/A                N/A           38261.13              N/A            0.005
+  3   1  60000  60000  128      0.20             N/A                N/A           34205.20              N/A            0.005
+  3   1  60000  60000  128      0.30             N/A                N/A           30725.77              N/A            0.006
+  3   1  60000  60000  128      0.40             N/A                N/A           26888.40              N/A            0.007
+  3   1  60000  60000  128      0.50             N/A                N/A           23041.55              N/A            0.008
+  3   1  60000  60000  128      0.60             N/A                N/A           19396.84              N/A            0.010
+  3   1  60000  60000  128      0.70             N/A                N/A           15665.37              N/A            0.012
+  3   1  60000  60000  128      0.80             N/A                N/A           12171.41              N/A            0.015
+  3   1  60000  60000  128      0.90             N/A                N/A            8439.49              N/A            0.022
+  3   1  80000  80000  128      0.00             yes           69145.94           75492.80            0.004            0.003
+  3   1  80000  80000  128      0.10             N/A                N/A           68411.87              N/A            0.004
+  3   1  80000  80000  128      0.20             N/A                N/A           61732.04              N/A            0.004
+  3   1  80000  80000  128      0.30             N/A                N/A           54425.49              N/A            0.005
+  3   1  80000  80000  128      0.40             N/A                N/A           47248.43              N/A            0.005
+  3   1  80000  80000  128      0.50             N/A                N/A           39982.01              N/A            0.006
+  3   1  80000  80000  128      0.60             N/A                N/A           33430.32              N/A            0.007
+  3   1  80000  80000  128      0.70             N/A                N/A           26595.97              N/A            0.009
+  3   1  80000  80000  128      0.80             N/A                N/A           19602.85              N/A            0.013
+  3   1  80000  80000  128      0.90             N/A                N/A           13282.41              N/A            0.019
+  3   1 100000 100000  128      0.00             yes          111174.52          117815.22            0.003            0.003
+  3   1 100000 100000  128      0.10             N/A                N/A          106289.33              N/A            0.003
+  3   1 100000 100000  128      0.20             N/A                N/A           95549.62              N/A            0.003
+  3   1 100000 100000  128      0.30             N/A                N/A           83765.51              N/A            0.004
+  3   1 100000 100000  128      0.40             N/A                N/A           72874.36              N/A            0.004
+  3   1 100000 100000  128      0.50             N/A                N/A           61149.34              N/A            0.005
+  3   1 100000 100000  128      0.60             N/A                N/A           49732.42              N/A            0.006
+  3   1 100000 100000  128      0.70             N/A                N/A           39099.00              N/A            0.008
+  3   1 100000 100000  128      0.80             N/A                N/A           27397.11              N/A            0.011
+  3   1 100000 100000  128      0.90             N/A                N/A           17454.23              N/A            0.018
+  3   1 118806 118806  128      0.00             yes          159593.05          171517.10            0.002            0.002
+  3   1 118806 118806  128      0.10             N/A                N/A          153066.28              N/A            0.002
+  3   1 118806 118806  128      0.20             N/A                N/A          136765.43              N/A            0.003
+  3   1 118806 118806  128      0.30             N/A                N/A          120221.88              N/A            0.003
+  3   1 118806 118806  128      0.40             N/A                N/A          104197.14              N/A            0.004
+  3   1 118806 118806  128      0.50             N/A                N/A           87268.88              N/A            0.004
+  3   1 118806 118806  128      0.60             N/A                N/A           71160.35              N/A            0.005
+  3   1 118806 118806  128      0.70             N/A                N/A           54724.87              N/A            0.007
+  3   1 118806 118806  128      0.80             N/A                N/A           38535.49              N/A            0.009
+  3   1 118806 118806  128      0.90             N/A                N/A           22082.29              N/A            0.017
+  3   1 130000 130000  128      0.00             yes          191301.43          209100.46            0.002            0.002
+  3   1 130000 130000  128      0.10             N/A                N/A          184073.00              N/A            0.002
+  3   1 130000 130000  128      0.20             N/A                N/A          164665.89              N/A            0.002
+  3   1 130000 130000  128      0.30             N/A                N/A          145730.24              N/A            0.003
+  3   1 130000 130000  128      0.40             N/A                N/A          125810.19              N/A            0.003
+  3   1 130000 130000  128      0.50             N/A                N/A          106532.20              N/A            0.004
+  3   1 130000 130000  128      0.60             N/A                N/A           87878.38              N/A            0.005
+  3   1 130000 130000  128      0.70             N/A                N/A           67602.93              N/A            0.006
+  3   1 130000 130000  128      0.80             N/A                N/A           48213.34              N/A            0.008
+  3   1 130000 130000  128      0.90             N/A                N/A           28490.92              N/A            0.014
 ============================================================================================================================================
 ```
 
-To run the comparison against `"dense"` mode (standard `torch_npu.npu_prompt_flash_attention`), run 
+The baseline dense `"dense"` mode (standard `torch_npu.npu_fusion_attention`) appears at every sparsity=0.0 row.
 
-```python
-B_VALS = [1]
-H_VALS = [3]
-S_VALS = [118_806]  # S_q = S_kv
-D_VALS = [128]   # head dimension
-
-N_REPEATS = 20
-N_WARMUP = 2
-ATTENTION_MATRIX = "dense" 
-
-SPARSITY_VALS = [1]     # use only one value, won't be used at all, but it determines how many runs
-
-BLOCK_SIZE_Q = 128
-BLOCK_SIZE_KV = 512
-BLOCK_MASK_SEED = 1234
-USE_FRAME = True
-
-# Print tensors for manual comparisons
-PRINT_OUTPUTS = False
-PRINT_MASK = False
-# For printing tensor differneces in blocks
-PRINT_BLOCK_EQUALITY = False
-PRINT_HEIGHT = 128
-PRINT_WIDTH = 8
-
-RUN_REFERENCE = False
-TORCH_REFERENCE = True  # If False, will instead run the torch_npu reference
+## Test setup
 ```
-
-Output:
-
-```
-(base) root@5e47d24afe58:/workspace/ops-transformer/benchmark# python benchmark.py 
-============================================================================================================================================
-  DTYPE=torch.bfloat16  INPUT_LAYOUT='BNSD'
-============================================================================================================================================
-  H   B    S_q   S_kv    D  sparsity   Outputs_equal Ref_Latency_[usec] Our_Latency_[usec]  Ref_BW_[TB/sec]  Our_BW_[TB/sec]
---------------------------------------------------------------------------------------------------------------------------------------------
-  3   1 118806 118806  128      1.00             N/A                N/A          262168.70              N/A            0.001
-============================================================================================================================================
+Ascend 910B2
+Driver: 25.3.rc1   
+OS: ubuntu: 22.04
+CANN: 8.5.0-beta.1
+Python: 3.11.10
+torch: 2.8.0+cpu
+torch_npu: 2.8.0
 ```
