@@ -14,6 +14,7 @@
  */
 
 #include <thread>
+#include <future>
 #include <iostream>
 #include <algorithm>
 #include <cmath>
@@ -199,7 +200,7 @@ int LaunchOneThreadAllGatherAdd(Args &args, TestData &testData)
     } else {
         ret = CompareVector(outputData, testData.rank1_c);
         CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] output compare failed. ret = %d \n", ret); return ret);
-    }                  
+    }
     LOG_PRINT("[INFO] device_%d aclnnAllGatherAdd golden compare successfully.\n", args.rankId);
 
     auto hcclRet = HcclCommDestroy(args.hcclComm);
@@ -283,7 +284,7 @@ int GenerateTestData(TestData &testData)
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] RandomVectorGenerate rank1_a failed. ret = %d \n", ret);  return ret);
     ret = RandomVectorGenerator(testData.rank1_b, testData.rank1_b.size());
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] RandomVectorGenerate rank1_b failed. ret = %d \n", ret);  return ret);
-    
+
     // 计算golden数据
     ret = GatherVectors(testData.rank0_a, testData.rank1_a, testData.gatherOut);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] Generate gatherOut failed. ret = %d \n", ret);  return ret);
@@ -310,7 +311,7 @@ int main(int argc, char *argv[])
     };
     int ret = GenerateTestData(testData);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] GenerateTestData failed. ret = %d \n", ret);  return ret);
-    
+
     // AscendCL初始化
     ret = aclInit(nullptr);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] aclInit failed. ret = %d \n", ret); return ret);
@@ -332,16 +333,23 @@ int main(int argc, char *argv[])
 
     Args args[RANK_DIM];
     // 启动多线程
-    std::vector<std::unique_ptr<std::thread>> threads(RANK_DIM);
+    std::vector<std::future<int>> futures;
     for (uint32_t rankId = 0; rankId < RANK_DIM; rankId++) {
         args[rankId].rankId = rankId;
         args[rankId].hcclComm = comms[rankId];
         args[rankId].stream = stream[rankId];
-        threads[rankId].reset(new(std::nothrow) std::thread(&LaunchOneThreadAllGatherAdd, std::ref(args [rankId]), std::ref(testData)));    
+        futures.push_back(std::async(std::launch::async, &LaunchOneThreadAllGatherAdd,
+                                      std::ref(args[rankId]), std::ref(testData)));
     }
-    for (uint32_t rankId = 0; rankId < RANK_DIM; rankId++) {
-        threads[rankId]->join();
+
+    int final_ret = 0;
+    for (auto& future : futures) {
+        int ret = future.get();
+        if (ret != 0) {
+            final_ret = ret;
+        }
     }
+
     aclFinalize();
-    return 0;
+    return final_ret;
 }
