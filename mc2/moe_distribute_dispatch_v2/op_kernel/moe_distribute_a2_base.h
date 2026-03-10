@@ -99,8 +99,7 @@ COMBINE_TOKENFLAG_SIZE = align32((maxBs + (aivNum / (epWorldSize / 8) + 1)) * si
 | IPC Flag  | Combine Sync Flag 1: GM2IPC                  | (W/2 - 2)MB                                  | 8 * 32B = 256B                            | GetLocalIpcSyncFlagAddr, GetRemoteIpcSyncFlagAddr             |
 | IPC Flag  | Combine Sync Flag 2: SumToWindow--server 0-n | (W/2 - 2)MB + 288B                           | COMBINE_TOKENFLAG_SIZE * epWorldSize / 8B | GetIpcTokenFlagAddr                                           |
 | IPC Flag  | Dispatch Sync flag                           | (W/2 - 1)MB                                  | 8 * 32B = 256B                            | GetLocalIpcSyncFlagAddr, GetRemoteIpcSyncFlagAddr             |
-| IPC Flag  | Dispatch Magic Value                         | W/2MB - 256 * 32B                            | aivNum * 32B                              | UpdateAndGetMagicValue                                        |
-| IPC Flag  | Combine Magic Value                          | W/2MB - 128 * 32B                            | aivNum * 32B                              | UpdateAndGetMagicValue                                        |
+| IPC Flag  | Magic Value, BufferId = Magic Value & 0x1    | W/2MB - 128 * 32B                            | aivNum * 32B                              | UpdateAndGetMagicValue                                        |
 | Pong RDMA | Arrived Flag                                 | W/2MB                                        | A1                                        | GetLocalRecvBuffFlagAddr, GetRemoteRecvBuffFlagAddr           |
 | Pong RDMA | Inner Flag                                   | W/2MB + A1                                   | A1                                        | GetLocalRecvBuffInnerFlagAddr, GetRemoteRecvBuffInnerFlagAddr |
 | Pong RDMA | Inner Data                                   | W/2MB + 2 * A1                               | 1MB - 2 * A1                              | GetLocalRecvBuffInnerDataAddr, GetRemoteRecvBuffInnerDataAddr |
@@ -119,7 +118,6 @@ COMBINE_TOKENFLAG_SIZE = align32((maxBs + (aivNum / (epWorldSize / 8) + 1)) * si
 | -         | -                                            | -                                            | -                                         | -                             |
 | Pong RDMA | Inner Data                                   | W/2MB + 2 * A1                               | 1M - 2 * A1                               | GetLocalSendBuffInnerDataAddr |
 | Pong RDMA | RDMA Data                                    | (W/2 + 1)MB                                  | RDMA_DATA_SIZE                            | GetLocalSendBuffDataAddr      |
-| -         | BufferId                                     | W MB - 32B                                   | 32B                                       | UpdateBufferId                |
 ## WindowOut-Combine--RDMAData
 |           |                                              | Start Addr                                   | Size                                      | Function                 |
 |-----------|----------------------------------------------|----------------------------------------------|-------------------------------------------|--------------------------|
@@ -132,7 +130,7 @@ protected:
     constexpr static uint32_t BUFFER_NUM = 2U;                     // 多buf
     constexpr static uint64_t STATE_OFFSET = 512UL;                // 状态空间偏移地址
     constexpr static uint64_t RDMA_STATUS_SIZE = 1024 * 1024UL;    // 1M
-    constexpr static uint64_t RDMA_BUFFER_ALIGN = 4 * 1024UL;
+    constexpr static uint64_t BUFFER_ALIGN = 512UL;
     constexpr static uint32_t SERVER_RANK_SIZE = 8;
     constexpr static uint32_t UB_32B_ALIGN = 32U;
     constexpr static uint32_t B32_PER_BLOCK = UB_32B_ALIGN / sizeof(int32_t); // 8
@@ -142,7 +140,6 @@ protected:
     constexpr static uint64_t IPC_COMBINE_FLAG_OFFSET = 0UL;
     constexpr static uint64_t IPC_TOKEN_CNT_OFFSET = 0UL;
     constexpr static uint64_t IPC_HALF_NON_DATA_BYTES = 2 * 1024 * 1024UL;
-    constexpr static uint64_t IPC_BUFF_ALIGN = 512UL;
 
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
@@ -159,14 +156,14 @@ public:
         halfWorldSize_ = worldSize / 2U;
         uint64_t maxTokenStructBytes =
             axisH * 2UL + EXTRA_TOKEN_INFO_NUM * RoundUp(axisK, B32_PER_BLOCK) * sizeof(uint32_t); // token的数据类型BF16或FP16，都是2B
-        serverSizeOnRdmaData_ = RoundUp(maxBs * maxTokenStructBytes + UB_32B_ALIGN, RDMA_BUFFER_ALIGN);
-        rankSizeOnIpcData_ = RoundUp(maxBs * maxTokenStructBytes, IPC_BUFF_ALIGN);
+        serverSizeOnRdmaData_ = RoundUp(maxBs * maxTokenStructBytes + UB_32B_ALIGN, BUFFER_ALIGN);
+        rankSizeOnIpcData_ = RoundUp(maxBs * maxTokenStructBytes, BUFFER_ALIGN);
         // ipc addr
         ipcFlagAddrStart_[0] = winSize / 2UL - IPC_HALF_NON_DATA_BYTES;
         ipcFlagAddrStart_[1] = winSize - IPC_HALF_NON_DATA_BYTES;
         uint64_t halfIpcDataSize = rankSizeOnIpcData_ * localMoeExpertNum_ * halfWorldSize_;
-        ipcDataAddrStart_[0] = RoundUp(ipcFlagAddrStart_[0] - halfIpcDataSize, IPC_BUFF_ALIGN);
-        ipcDataAddrStart_[1] = RoundUp(ipcFlagAddrStart_[1] - halfIpcDataSize, IPC_BUFF_ALIGN);
+        ipcDataAddrStart_[0] = RoundUp(ipcFlagAddrStart_[0] - halfIpcDataSize, BUFFER_ALIGN);
+        ipcDataAddrStart_[1] = RoundUp(ipcFlagAddrStart_[1] - halfIpcDataSize, BUFFER_ALIGN);
 
         for (int i = 0; i < SERVER_RANK_SIZE; i++) {
             uint32_t targetRank = curRankId_ / SERVER_RANK_SIZE * SERVER_RANK_SIZE + i;
@@ -179,7 +176,7 @@ public:
         GM_ADDR magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
         AscendC::GlobalTensor<uint64_t> magicGt;
         magicGt.SetGlobalBuffer((__gm__ uint64_t *)(magicAddrStart));
-        uint64_t bufferId = magicGt.GetValue(0) % 2UL;
+        uint64_t bufferId = magicGt.GetValue(0) & 0x1;
         rdmaFlagAddrStart_ = (bufferId & 0x1) ? (winSize / 2UL) : 0UL;
         rdmaDataAddrStart_ = rdmaFlagAddrStart_ + RDMA_STATUS_SIZE;
     }
