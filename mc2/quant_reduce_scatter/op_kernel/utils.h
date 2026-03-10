@@ -16,11 +16,8 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#if __has_include("../common/inc/kernel/mc2_kernel_utils.h")
-#include "../common/inc/kernel/mc2_kernel_utils.h"
-#else
 #include "../../common/inc/kernel/mc2_kernel_utils.h"
-#endif
+
 namespace AscendC {
 
 // 向上取整除法：计算a除以b的向上取整结果
