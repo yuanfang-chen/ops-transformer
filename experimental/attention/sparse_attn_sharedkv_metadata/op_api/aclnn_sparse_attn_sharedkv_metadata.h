@@ -24,6 +24,8 @@ aclnnSparseAttnSharedkvMetadataGetWorkspaceSize(
     const aclTensor* cuSeqLensCmpKvOptional,
     const aclTensor* sequsedQOptional,
     const aclTensor* sequsedKvOptional,
+    const aclTensor* oriTopkLengthOptional,
+    const aclTensor* cmpTopkLengthOptional,
     int64_t numHeadsQ,
     int64_t numHeadsKv,
     int64_t headDim,

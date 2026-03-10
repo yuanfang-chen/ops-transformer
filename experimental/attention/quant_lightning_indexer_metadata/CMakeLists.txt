@@ -9,4 +9,3 @@
 # -----------------------------------------------------------------------------------------------------------
 
 add_modules_sources_aicpu(OPTYPE quant_lightning_indexer ACLNNTYPE aclnn)
-#add_modules_sources_aicpu(DEPENDENCIES quant_lightning_indexer)

@@ -108,7 +108,7 @@ struct SplitResult {
     int64_t maxCost { 0 };            // 慢核开销
     uint32_t numOfFdHead { 0U };        // 归约任务数量
     uint32_t maxS2SplitNum { 0U };      // 单个归约任务最大分核数量
-    uint32_t maxS1GBaseNum { 0U };
+    uint32_t maxS2GBaseNum { 0U };
     FlashDecodeResult fdRes { 0U, 0U };     // FD信息
 
     SplitResult(uint32_t aicNum, uint32_t aivNum) :
@@ -216,7 +216,6 @@ struct AssignContext {
 
     int64_t bN2Cost { 0 };
     uint32_t bN2Block { 0U };
-    uint32_t bn2S1GBaseNum { 0U };
     bool isFinished { false };
     BatchCache batchCache {};
     S1GCache s1GCache {};
@@ -245,6 +244,10 @@ private:
     // util
     uint32_t GetS1SeqSize(uint32_t bIdx);
     uint32_t GetS2SeqSize(uint32_t bIdx);
+    uint32_t GetOriTopkLength(uint32_t bsStride);
+    uint32_t GetCmpTopkLength(uint32_t bsStride);
+    uint32_t GetS1Idx(const BatchCache &batchCache, uint32_t s1GIdx);
+    uint32_t GetBsStride(uint32_t bIdx, uint32_t s1Idx);
     int64_t CalcPreTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     int64_t CalcNextTokenLeftUp(uint32_t s1Size, uint32_t s2Size);
     Range<int64_t> CalcS2TokenRange(uint32_t s1GIdx, const BatchCache &batchCache);
@@ -282,7 +285,6 @@ private:
     // main
     void SplitFD(SplitResult &splitRes);
     void CalcSplitPlan(int64_t costLimit, const SplitContext &splitContext, SplitResult &result);
-    void SplitCore();
 
 private:
     // input
@@ -291,6 +293,8 @@ private:
     Tensor *actSeqLenCmpKv_ = nullptr;
     Tensor *seqUsedQ_ = nullptr;
     Tensor *seqUsedKv_ = nullptr;
+    Tensor *oriTopkLength_ = nullptr;
+    Tensor *cmpTopkLength_ = nullptr;
 
     // output
     Tensor *metaData_ = nullptr;
@@ -331,7 +335,7 @@ private:
     uint32_t attentionMode_ = 1;
     BlockCost<int64_t> typeCost_;
     bool isN128 = false;
-    uint32_t singleCoreS1GBaseNum_ = 0;
+    bool hasOriTopk = false;
     
 private:
     enum class ParamId : uint32_t {
@@ -341,6 +345,8 @@ private:
     actSeqLenCmpKv = 2,
     seqUsedQ = 3,
     seqUsedKv = 4,
+    oriTopkLength = 5,
+    cmpTopkLength = 6,
     // output
     metaData = 0,
     };
