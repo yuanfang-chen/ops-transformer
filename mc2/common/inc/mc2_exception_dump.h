@@ -27,6 +27,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <vector>
+#include "../../moe_distribute_dispatch_v2/op_kernel/moe_distribute_dispatch_tiling.h"
+#include "./mc2_hcom_topo_info.h"
 
 using ops::Mc2GenTaskOpsUtils;
 using ops::NPUARCH_A5;
@@ -34,7 +36,7 @@ using ops::NPUARCH_A5;
 namespace Mc2Exception {
 
 const std::string OP_NAME = "Mc2Exception";
-const uint32_t WIN_SIZE = 1024U * 1024U;
+const uint32_t WIN_SIZE = 1024U * 1024U * 2;
 const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
@@ -140,10 +142,55 @@ inline int ProcessArgs(uint64_t argsAddr, std::vector<uint8_t> &winBuf)
     return 0;
 }
 
+struct TestStruct {
+    uint8_t res[16];
+    char groupName[128];
+    uint8_t res1[136];
+};
+
+inline int ProcessArgs910B(void* devArgsPtr, std::vector<uint8_t> &winBuf)
+{
+    uint64_t argsAddr = 0;
+    auto maxArgNum = devArgsLen / sizeof(uint64_t);
+    std::vector<uint8_t> devArgsVector(devArgsLen, 0);
+    ret = aclrtMemcpy(devArgsVector.data(), devArgsLen, devArgsPtr, devArgsLen, ACL_MEMCPY_DEVICE_TO_HOST);
+    std::vector<uint64_t> devArgsVector64(maxArgNum, 0);
+    std::memcpy(devArgsVector64.data(), devArgsVector.data(), devArgsVector.size());
+    if (!(ret == ACL_SUCCESS)) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
+        return;
+    } else {
+        OP_LOGE(OP_NAME, "aclrtMemcpy address of args succ. ret=%d", ret);
+    }
+
+    // Get win content
+    // std::vector<uint8_t> winContent(WIN_SIZE, 0);
+    // argsAddr = devArgsVector64[1];
+    std::vector<uint8_t> tilingData(sizeof(MoeDistributeDispatchA2TilingData), 0);
+    argsAddr = devArgsVector64[18];
+    ret = aclrtMemcpy(tilingData.data(), sizeof(MoeDistributeDispatchA2TilingData), (void *)argsAddr, sizeof(MoeDistributeDispatchA2TilingData),
+                           ACL_MEMCPY_DEVICE_TO_HOST);
+    MoeDistributeDispatchA2TilingData* tilingDataF = reinterpret_cast<MoeDistributeDispatchA2TilingData*>(tilingData.data());
+    OP_LOGE(OP_NAME, "MoeDistributeDispatchA2TilingData. epWorldSize=%d", tilingDataF->moeDistributeDispatchInfo.epWorldSize);
+    Mc2CcTiling mc2CcTiling = tilingDataF->mc2CcTiling;
+    TestStruct* test = reinterpret_cast<TestStruct*>(&mc2CcTiling);
+    OP_LOGE(OP_NAME, "MoeDistributeDispatchA2TilingData. groupName=%s", test->groupName);
+    uint64_t size;
+    void *buffer;
+    Mc2Hcom::MC2HcomTopology::CommGetHcclBufferByGroup(test->groupName, &buffer, &size);
+    OP_LOGE(OP_NAME, "MoeDistributeDispatchA2TilingData. size=%lu. buffer=%p", size, buffer);
+    buffer -= 0x1800000;
+    ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, (const void *)buffer, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (!(ret == ACL_SUCCESS)) {
+        OP_LOGE(OP_NAME, "aclrtMemcpy win from device to host failed. ret = %d", ret);
+        return;
+    }
+}
+
 inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
 {
     const char* socName = aclrtGetSocName();
-    if(std::strstr(socName, "Ascend950") == nullptr) {
+    if(std::strstr(socName, "Ascend950") == nullptr || std::strstr(socName, "Ascend910B") == nullptr) {
         OP_LOGE(OP_NAME, "The soc version is %s, skip dump process", socName);
         return;
     }
@@ -164,21 +211,27 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     }
     OP_LOGD(OP_NAME, "Get context from args. deviceId=%u, devArgsAddr=%p, devArgsLen=%u", deviceId, devArgsPtr,
             devArgsLen);
+    if (std::strstr(socName, "Ascend950") != nullptr) {
+        uint64_t argsAddr = 0;
+        ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
+        if (!(ret == ACL_SUCCESS)) {
+            OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
+            return;
+        }
 
-    uint64_t argsAddr = 0;
-    ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (!(ret == ACL_SUCCESS)) {
-        OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
-        return;
+        // Get win content
+        std::vector<uint8_t> winContent(WIN_SIZE, 0);
+        
+        if (ProcessArgs(argsAddr, winContent) != 0) {
+            OP_LOGE(OP_NAME, "Failed to get win content.");
+            return;
+        }
+    } else if (std::strstr(socName, "Ascend910B") != nullptr) {
+        if (ProcessArgs910B(devArgsPtr, winContent) != 0) {
+            OP_LOGE(OP_NAME, "Failed to get win content.");
+            return;
+        }
     }
-
-    // Get win content
-    std::vector<uint8_t> winContent(WIN_SIZE, 0);
-    if (ProcessArgs(argsAddr, winContent) != 0) {
-        OP_LOGE(OP_NAME, "Failed to get win content.");
-        return;
-    }
-
     // Write to bin file
     if (DumpToFile(std::string(acldumpGetPath(acldumpType::AIC_ERR_BRIEF_DUMP)), GenDumpFileName(args, op), deviceId,
                    winContent.data()) != 0) {
