@@ -59,6 +59,7 @@ constexpr uint64_t BASE_WORKSPACE_SIZE = 16UL * 1024UL * 1024UL;
 constexpr uint64_t MTE_BLOCK_BYTES = 512UL;
 constexpr uint32_t MTE_K_SPLIT_NUM = 2UL;
 constexpr uint64_t UB_ALIGN = 32UL;
+constexpr uint64_t MAX_K_VALUE = 5120UL;
 
 // tilingKey
 constexpr uint32_t CV_SYNC_M = 92;
@@ -74,7 +75,6 @@ constexpr int32_t SINGLE_CORE_K = 512;
 
 // addRmsNorm 参数设置
 constexpr float EPSILON = 1e-6;
-constexpr float AVG_FACTOR = 1.0 / (float)5120.0;
 
 /**
  * @brief 打印tilingData, addrms  and mamtul tcubetiling
@@ -309,7 +309,10 @@ ge::graphStatus CheckInputOutputTensorDim(
     }
     // 暂不支持bias传入
     OP_CHECK_IF((biasShape != nullptr), OP_LOGE(context->GetNodeName(), "bias input is not support currently."), return ge::GRAPH_FAILED);
-    
+    // K暂时不支持大于5120
+    OP_CHECK_IF(x1Dim1Value > MAX_K_VALUE,
+        OP_LOGE(context->GetNodeName(), "axis K must be less than or equal to 5120, but currently is %lu.", x1Dim1Value),
+        return ge::GRAPH_FAILED);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.M = x1Shape->GetStorageShape().GetDim(0);
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka = x1Dim1Value;
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.N = x2Dim1Value;
@@ -542,7 +545,8 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     
     // 设置 AddRmsNorm 所需参数
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon = EPSILON;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor = AVG_FACTOR;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor = \
+        1.0 / (float)tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
     
     // 做all gather相关数据的计算
     OP_TILING_CHECK(SetAllGatherTiling(context, tilingData) != ge::GRAPH_SUCCESS,
