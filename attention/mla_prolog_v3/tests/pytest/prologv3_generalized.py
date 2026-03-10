@@ -217,6 +217,28 @@ def quant_with_scale(x, qscale, quant_dtype=torch.int8):
     return torch.clamp(scaled_values, min=clip_min, max=clip_max).to(quant_dtype)
 
 
+def _tensor_to_uint8_rows(tensor):
+    tensor = tensor.contiguous()
+    return tensor.view(torch.uint8).reshape(tensor.shape[0], -1)
+
+
+def _merge_quant_cache_repo_payload(base_tensor, quant_dtype, rotary_bf16=None, deq_scale=None):
+    parts = [_tensor_to_uint8_rows(base_tensor)]
+    if rotary_bf16 is not None and rotary_bf16.numel() != 0:
+        parts.append(_tensor_to_uint8_rows(rotary_bf16))
+    if deq_scale is not None and deq_scale.numel() != 0:
+        parts.append(_tensor_to_uint8_rows(deq_scale))
+    if len(parts) == 1:
+        return base_tensor
+    merged_bytes = torch.cat(parts, axis=-1)
+    item_size = torch.empty((), dtype=quant_dtype).element_size()
+    if merged_bytes.shape[-1] % item_size != 0:
+        raise ValueError(
+            f"cannot reinterpret merged byte payload of shape {tuple(merged_bytes.shape)} to {quant_dtype}"
+        )
+    return merged_bytes.contiguous().view(quant_dtype).reshape(merged_bytes.shape[0], -1)
+
+
 def numpy_float8_e4m3fn():
     try:
         from ml_dtypes import float8_e4m3fn
@@ -900,19 +922,22 @@ class GeneralizedPrologV3:
             )
             deq_scale_ckv = deq_scale_ckv.reshape(T, -1)
             norm2_res = norm2_res.reshape(T, Hckv)
+            rotary2_res_early = None
             if self.ckvkr_repo_mode == 1:
                 # Compute rotary2 early for merged storage
                 cos_flat = cos.reshape(T, Dr)
                 sin_flat = sin.reshape(T, Dr)
                 k = splitd2_res2.reshape(T, 1, int(Dr / 2), 2).transpose(3, 2).reshape(T, Dr)
                 rotary2_res_early = (k * cos_flat) + (rotate_half(k) * sin_flat)
-                rotary2_bf16 = rotary2_res_early.to(torch.bfloat16)
-                rotary2_packed = rotary2_bf16.contiguous().view(kv_tile_quant_dtype)
-                norm2_res = torch.cat((norm2_res, rotary2_packed), axis=-1)
+            norm2_res = _merge_quant_cache_repo_payload(
+                norm2_res,
+                kv_tile_quant_dtype,
+                rotary_bf16=rotary2_res_early.to(torch.bfloat16) if rotary2_res_early is not None else None,
+                deq_scale=deq_scale_ckv if self.quant_scale_repo_mode == 1 else None,
+            )
+            if self.ckvkr_repo_mode == 1:
                 Dtile = Dtile + Dr * 2
             if self.quant_scale_repo_mode == 1:
-                deq_scale_ckv_packed = deq_scale_ckv.contiguous().view(kv_tile_quant_dtype)
-                norm2_res = torch.cat((norm2_res, deq_scale_ckv_packed), axis=-1)
                 Dtile = Dtile + Hckv // tile_size * 4
 
         # -------------------------------------------------------------------------------------

@@ -8,15 +8,22 @@ import math
 import random
 import copy
 import ctypes
-import libs.tools as tools
-import tensorflow as tf
-import libs.training.run_aclnn as training
+try:
+    import libs.tools as tools
+except Exception:
+    tools = None
+try:
+    import tensorflow as tf
+except Exception:
+    tf = None
+try:
+    import libs.training.run_aclnn as training
+except Exception:
+    training = None
 try:
     import torch_npu
 except Exception:
     torch_npu = None
-
-cfg_fk = tools.ConfigFmk()
 COLOR_YELLOW = "\033[33m"  # 黄色
 YELLOW_RESET = "\033[0m"  # 重置黄色
 COLOR_GREEN = "\033[32m"
@@ -30,6 +37,21 @@ WEIGHT_QUANT_MODE_FULL_HIF8 = 5
 INT8_DTYPE_MAX = 127.0
 FP8_E4M3_DTYPE_MAX = 448.0
 HIF8_DTYPE_MAX = 32768.0
+
+
+def _get_legacy_device_type():
+    if tools is None or not hasattr(tools, "ConfigFmk"):
+        return "cpu"
+    try:
+        return tools.ConfigFmk().device_type
+    except Exception:
+        return "cpu"
+
+
+def _require_legacy_tools():
+    if tools is None:
+        raise RuntimeError("libs.tools is required for legacy input rewrite paths")
+    return tools
 
 
 def str_to_bool_list(s: str):
@@ -401,6 +423,28 @@ def quant_with_scale(x, qscale, quant_dtype=torch.int8):
     return torch.clamp(scaled_values, min=clip_min, max=clip_max).to(quant_dtype)
 
 
+def _tensor_to_uint8_rows(tensor):
+    tensor = tensor.contiguous()
+    return tensor.view(torch.uint8).reshape(tensor.shape[0], -1)
+
+
+def _merge_quant_cache_repo_payload(base_tensor, quant_dtype, rotary_bf16=None, deq_scale=None):
+    parts = [_tensor_to_uint8_rows(base_tensor)]
+    if rotary_bf16 is not None and rotary_bf16.numel() != 0:
+        parts.append(_tensor_to_uint8_rows(rotary_bf16))
+    if deq_scale is not None and deq_scale.numel() != 0:
+        parts.append(_tensor_to_uint8_rows(deq_scale))
+    if len(parts) == 1:
+        return base_tensor
+    merged_bytes = torch.cat(parts, axis=-1)
+    item_size = torch.empty((), dtype=quant_dtype).element_size()
+    if merged_bytes.shape[-1] % item_size != 0:
+        raise ValueError(
+            f"cannot reinterpret merged byte payload of shape {tuple(merged_bytes.shape)} to {quant_dtype}"
+        )
+    return merged_bytes.contiguous().view(quant_dtype).reshape(merged_bytes.shape[0], -1)
+
+
 def dynamic_quant(inputs, smooth_scale, dtype_max=INT8_DTYPE_MAX, quant_dtype=torch.int32):
     T = inputs.size(0)
     H = inputs.size(1)
@@ -617,8 +661,21 @@ def interleave(tensor: np.ndarray, axis: int, n_group: int = 2) -> np.ndarray:
 
     return transposed
 
-from ml_dtypes import float8_e4m3fn
-from en_dtypes import float8_e8m0
+def _require_ml_dtypes():
+    try:
+        import ml_dtypes
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("ml_dtypes is required for MXFP8 CPU reference paths") from exc
+    return ml_dtypes
+
+
+def _get_ml_dtype(name):
+    ml_dtypes = _require_ml_dtypes()
+    if not hasattr(ml_dtypes, name):
+        raise RuntimeError(f"ml_dtypes does not provide {name}")
+    return getattr(ml_dtypes, name)
+
+
 def dynamic_mx_quant_cq(fp_array: np.ndarray, mx_ele_dtype: str = "float4_e2m1",
                 axis: int = -1, block_size: int = 32, round_mode: str = "rint") -> tuple:
     if not isinstance(fp_array, np.ndarray):
@@ -640,7 +697,7 @@ def dynamic_mx_quant_cq(fp_array: np.ndarray, mx_ele_dtype: str = "float4_e2m1",
     ele_array = _mx_undo_reshape_to_blocks(ele_array, axis, orig_shape, padded_shape)
     share_exp = np.squeeze(share_exp, axis=axis + 1)
     # convert to fp8_e8m0 & fp4/fp8 dtype
-    ele_dtype_np = eval(f"{mx_ele_dtype}")
+    ele_dtype_np = _get_ml_dtype(mx_ele_dtype)
     # share_exp is always float32
     #### scale_array = 2 ** share_exp
     scale_array = share_exp
@@ -783,7 +840,6 @@ def dequant(inputs, deq_scale_q_nope, quant_scale_ckv):
 
 
 def trans_torch_fp8_e8m0_to_bf16(array):
-    from ml_dtypes import bfloat16
     new_array = torch.zeros_like(array).to(torch.bfloat16)
     for i in range(array.size(0)):  # 遍历行
         for j in range(array.size(1)):  # 遍历列
@@ -856,8 +912,7 @@ def get_param(torch_tensor_list, params):
     res['normal_flag'] = True
     res["action_type"] = params['action_type']
     # device
-    cfg_fk = tools.ConfigFmk()
-    res["device"] = cfg_fk.device_type
+    res["device"] = _get_legacy_device_type()
     # flag_list
     res["flaglist"] = str_to_bool_list(params['flaglist'])
     # core params
@@ -1552,11 +1607,15 @@ def cal_mlaprolog(mla_param):
             deq_scale_ckv = deq_scale_ckv.reshape(T, -1)
             norm2_res = norm2_res.reshape(T, Hckv).to(torch.float8_e4m3fn)
             rotary2_res_bf16 = rotary2_res.to(torch.bfloat16)
+            norm2_res = _merge_quant_cache_repo_payload(
+                norm2_res,
+                torch.float8_e4m3fn,
+                rotary_bf16=rotary2_res_bf16 if mla_param["ckvkr_repo_mode"] == 1 else None,
+                deq_scale=deq_scale_ckv if mla_param["quant_scale_repo_mode"] == 1 else None,
+            )
             if mla_param["ckvkr_repo_mode"] == 1:
-                norm2_res = torch.cat((norm2_res, rotary2_res_bf16.view(torch.float8_e4m3fn)), axis = -1)
                 Dtile = Dtile + Dr * 2
             if mla_param["quant_scale_repo_mode"] == 1:
-                norm2_res = torch.cat((norm2_res, deq_scale_ckv.view(torch.float8_e4m3fn)), axis = -1)
                 Dtile = Dtile + Hckv//mla_param["tile_size"] * 4
             print("deq_scale_ckv.dtype:", deq_scale_ckv.dtype)
             if mla_param['action_type'] == 'bm_output_gold':
@@ -1579,17 +1638,15 @@ def cal_mlaprolog(mla_param):
             deq_scale_ckv = deq_scale_ckv.reshape(T, -1)
             norm2_res = norm2_res.reshape(T, Hckv).to(full_quant_mode_config["input_dtype"])
             rotary2_res_bf16 = rotary2_res.to(torch.bfloat16)
+            norm2_res = _merge_quant_cache_repo_payload(
+                norm2_res,
+                full_quant_mode_config["input_dtype"],
+                rotary_bf16=rotary2_res_bf16 if mla_param["ckvkr_repo_mode"] == 1 else None,
+                deq_scale=deq_scale_ckv if mla_param["quant_scale_repo_mode"] == 1 else None,
+            )
             if mla_param["ckvkr_repo_mode"] == 1:
-                norm2_res = torch.cat(
-                    (norm2_res, rotary2_res_bf16.view(full_quant_mode_config["input_dtype"])),
-                    axis=-1,
-                )
                 Dtile = Dtile + Dr * 2
             if mla_param["quant_scale_repo_mode"] == 1:
-                norm2_res = torch.cat(
-                    (norm2_res, deq_scale_ckv.view(full_quant_mode_config["input_dtype"])),
-                    axis=-1,
-                )
                 Dtile = Dtile + Hckv//mla_param["tile_size"] * 4
             if mla_param['action_type'] == 'bm_output_gold':
                 norm2_res = norm2_res.to(torch.float32)
@@ -1806,6 +1863,7 @@ def aclnn_op_func_cpu(torch_tensor_list, params):
     # return results
 
     if "output" not in params["action_type"]:
+        legacy_tools = _require_legacy_tools()
         print("[INFO]Begin to gen index table")
         index_table_shape = mla_param['cache_index_shape']
         if S2==0:
@@ -1837,16 +1895,26 @@ def aclnn_op_func_cpu(torch_tensor_list, params):
         print("===== index_table: ", index_table)
 
         # index_table 覆盖原有的input
-        tools.modify_alcnn_input_file(ids=9, origin_index=[9], type='tensor', mode='rewrite',
-                                      tensors=torch.tensor(index_table, dtype=torch.int64),
-                                      params=params)
+        legacy_tools.modify_alcnn_input_file(
+            ids=9,
+            origin_index=[9],
+            type='tensor',
+            mode='rewrite',
+            tensors=torch.tensor(index_table, dtype=torch.int64),
+            params=params,
+        )
 
         print("*** para: ", mla_param['actual_seq_len'])
         if mla_param['actual_seq_len'] is not None:
             actual_seq_tensor = np.array(mla_param['actual_seq_len'])
-            tools.modify_alcnn_input_file(ids=19, origin_index=[19], type='tensor', mode='rewrite',  # TODO 确定好编号
-                                        tensors=torch.tensor(actual_seq_tensor, dtype=torch.int64),
-                                        params=params)
+            legacy_tools.modify_alcnn_input_file(
+                ids=19,
+                origin_index=[19],
+                type='tensor',
+                mode='rewrite',
+                tensors=torch.tensor(actual_seq_tensor, dtype=torch.int64),
+                params=params,
+            )
 
     mla_param_torch = convert_dict_values_to_torch(mla_param)
     out1, out2, out3, out4, deq_scale_q_nope, query_norm, deq_scale_q_norm = cal_mlaprolog(mla_param_torch)
