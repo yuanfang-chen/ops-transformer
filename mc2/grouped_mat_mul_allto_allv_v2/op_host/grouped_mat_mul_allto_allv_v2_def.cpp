@@ -188,6 +188,7 @@ public:
         this->Attr("group_size").AttrType(OPTIONAL).Int(0);
         this->Attr("comm_quant_dtype").AttrType(OPTIONAL).Int(0);
 
+        OpAICoreConfig aicore_config;
         aicore_config.DynamicCompileStaticFlag(true)
             .DynamicFormatFlag(true)
             .DynamicRankSupportFlag(true)
@@ -196,7 +197,7 @@ public:
             .PrecisionReduceFlag(true)
             .ExtendCfgInfo("aclnnSupport.value", "support_aclnn")
             .ExtendCfgInfo("jitCompile.flag", "static_false")  // 动态shape,复用二进制,后续图支持后修改
-            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel")
+            .ExtendCfgInfo("multiKernelSupportDynamicGraph.value", "multi_kernel");
         this->AICore().AddConfig("ascend950", aicore_config);
         this->MC2().HcclGroup({"group"});
     }

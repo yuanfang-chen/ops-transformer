@@ -54,7 +54,7 @@ static ge::graphStatus CheckShapeDimensions(const gert::StorageShape *shape, uin
 ge::graphStatus TTQuantGroupedMatmulAllToAllvTiling::GetShapeAttrsInfo()
 {
     // base check required para
-    auto status = GmmAlltoAllvTilingBase::GetShapeAttrsInfo();
+    auto status = QuantGmmAlltoAllvTilingBase::GetShapeAttrsInfo();
     if (status != ge::GRAPH_SUCCESS) {
         return ge::GRAPH_FAILED;
     }

@@ -24,9 +24,9 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_matmul_tiling_cfg.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "../../../grouped_mat_mul_allto_allv/op_host/op_tiling/grouped_mat_mul_allto_allv_tiling_base.h"
-#include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-#include "../../../op_kernel/grouped_mat_mul_allto_allv_tiling_key.h"
+#include "../grouped_mat_mul_allto_allv_tiling_base.h"
+#include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_v2_tiling.h"
+#include "../../../op_kernel/grouped_mat_mul_allto_allv_v2_tiling_key.h"
 #include "register/tilingdata_base.h"
 
 namespace optiling {
@@ -83,9 +83,9 @@ struct TilingInferredInfo {
     uint32_t biasLen = 0UL; // 暂不支持bias
 };
 
-class TTQuantGroupedMatmulAllToAllvTiling : public GmmAlltoAllvTilingBase {
+class TTQuantGroupedMatmulAllToAllvTiling : public QuantGmmAlltoAllvTilingBase {
 public:
-    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : GmmAlltoAllvTilingBase(context) {};
+    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : QuantGmmAlltoAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
         TilingBaseClass::Reset(context);
