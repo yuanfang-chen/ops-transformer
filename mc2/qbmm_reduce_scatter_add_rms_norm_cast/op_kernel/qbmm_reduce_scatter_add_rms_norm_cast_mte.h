@@ -115,6 +115,7 @@ protected:
     TPipe *tpipe_{nullptr};
     TBuf<> writeStateBuf_;
     TBuf<> readStateBuf_;
+    TBuf<> resetStateBuf_;
     TBuf<> sumFp32Buf_;
     TBuf<> tokenFp32Buf_;
 
@@ -255,6 +256,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     tpipe_->InitBuffer(outFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
     tpipe_->InitBuffer(writeStateBuf_, 32);
     tpipe_->InitBuffer(readStateBuf_, 32);
+    tpipe_->InitBuffer(resetStateBuf_, 32);
+    
     
     winContext_ = (__gm__ HcclOpResParam*)AscendC::GetHcclContext<HCCL_GROUP_ID_0>();
     rankId_ = winContext_->localUsrRankId;
@@ -341,6 +344,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     selfStateWinTensor.SetGlobalBuffer((__gm__ float*)(stateGM));
     uint32_t offset = coreVid_ * FLOAT_UB_ALIGN_NUM;
     LocalTensor<float> statusTensor = readStateBuf_.Get<float>();
+    LocalTensor<float> resetStatusTensor = resetStateBuf_.Get<float>();
+    Duplicate<float>(resetStatusTensor, 0.0, FLOAT_UB_ALIGN_NUM);
     float flag = -1;
     uint32_t statusCnt = FLOAT_UB_ALIGN_NUM;
     float minTarget = (float)0.5;
@@ -352,6 +357,10 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         SyncFunc<AscendC::HardEvent::MTE2_S>();
         flag = statusTensor(0);
     }   
+    // reset state
+    SyncFunc<AscendC::HardEvent::V_MTE3>();
+    SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
+    DataCopy(selfStateWinTensor[offset], resetStatusTensor, statusCnt);
 }
 
 template<TemplateMC2TypeClass>
@@ -646,10 +655,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
             for (uint32_t j = 0; j < nLoops; ++j) {
                 uint32_t singleN = singleTimeN_;
                 CalcNAxisOffset(j);
-                PipeBarrier<PIPE_ALL>();
                 CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
                 DequantCompute(mmOutGm_, 0, 0, 63, 128, mOffset_, nOffset_);
-                PipeBarrier<PIPE_ALL>();
             }
         }
         SyncAll<true>();
