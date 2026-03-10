@@ -1820,7 +1820,7 @@ static aclnnStatus TransWeightToNz(gmm::GroupedMatmulParams &gmmParams, aclOpExe
       reformatedWeightVec.push_back(reformatedWeight);
     }
     weights = executor->AllocTensorList(reformatedWeightVec.data(), reformatedWeightVec.size());
-  } else { 
+  } else {
     const aclTensorList *&weights = gmmParams.weight;
     const aclTensorList *&x = gmmParams.x;
     CHECK_COND((*x)[0] != nullptr, ACLNN_ERR_PARAM_INVALID, "The first tensor of x is nullptr!");
@@ -1971,6 +1971,7 @@ static void SetParamsTensorEmpty(gmm::GroupedMatmulParams &params, aclOpExecutor
 }
 
 static aclnnStatus CheckOutputShape(const aclTensorList* l0Res, const aclTensorList* y) {
+  OP_LOGD("yangtao CheckOutputShape: l0Res->Size() = %zu, y->Size() = %zu", l0Res->Size(), y->Size());
   CHECK_COND(l0Res->Size() == y->Size(), ACLNN_ERR_PARAM_INVALID, "Output tensor list length is not right.");
   for (size_t i = 0; i < y->Size(); ++i) {
     auto const &resShape = (*l0Res)[i]->GetViewShape();
