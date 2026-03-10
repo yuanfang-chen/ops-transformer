@@ -32,11 +32,10 @@ D_VALS = [128]   # head dimension
 N_REPEATS = 10
 N_WARMUP = 2
 
-# Kind of attention matrix
-# 'sparse_block' does not pass tests because current kernel does not support different masks for different heads.
+# Kind of attention matrix patterns
 # 'sparse_block_all_same' is the same, but with all masks which are the same.
-# 'blocks_optimized' is the new optimized version written by us
-ATTENTION_MATRIX = "blocks_optimized_batched"   # "dense", "sparse_block", "sparse_block_all_same", "lower_triangular", "band", "custom", "blocks_optimized" "blocks_optimized_batched"
+# 'blocks_optimized_batched' is the new optimized version written by us
+ATTENTION_MATRIX = "blocks_optimized_batched"   # "dense", "sparse_block_all_same", "lower_triangular", "band", "custom", "blocks_optimized" "blocks_optimized_batched"
 
 # For block mask and vertical band mask
 SPARSITY_VALS = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
@@ -71,12 +70,14 @@ torch.set_printoptions(
 )
 
 
-def ref_prompt_flash_attention_launcher(torch_reference:bool, q:torch.Tensor, k:torch.Tensor, v:torch.Tensor, head_num:int, scale:float, atten_mask:torch.Tensor, input_layout:str, run_ref_sparsity_0:bool) -> torch.Tensor:
+def ref_prompt_flash_attention_launcher(torch_reference:bool, q:torch.Tensor, k:torch.Tensor, v:torch.Tensor, 
+                                        head_num:int, scale:float, atten_mask:torch.Tensor, input_layout:str, 
+                                        force_dense_sm:bool) -> torch.Tensor:
     """
     runs a reference prompt_flash attention, for correctness comparisons and for baseline time measurements.
     torch_reference = True - launch our custom pythonic model "ref_prompt_flash_attention_fp32" 
                       False -> launch the torch_npu.npu_fusion_attention
-    run_ref_sparsity_0 relevant only for torch_interface=False:
+    force_dense_sm - relevant only for torch_interface=False:
                       True - apply sparse mode 0 (dense) and don't use the provided atten_mask
                       False - apply sparse mode 1 (sparse token mask) and use the provided atten_mask
      
@@ -85,9 +86,9 @@ def ref_prompt_flash_attention_launcher(torch_reference:bool, q:torch.Tensor, k:
         return ref_prompt_flash_attention_fp32(q, k, v, scale, atten_mask=atten_mask)
     else:
         return torch_npu.npu_fusion_attention(q, k, v, head_num=head_num, input_layout=INPUT_LAYOUT, 
-                                       scale=scale, pre_tockens=0, next_tockens=0, 
-                                       atten_mask=atten_mask,
-                                       sparse_mode=0 if run_ref_sparsity_0 else 1)[0]    
+                                              scale=scale, pre_tockens=0, next_tockens=0, 
+                                              atten_mask=atten_mask,
+                                              sparse_mode=0 if force_dense_sm else 1)[0]    
 
 # --------------------------------------------------------------------------- #
 #  bytes-moved calculator
@@ -579,7 +580,7 @@ def gen_pfa_inputs(
 # --------------------------------------------------------------------------- #
 #  attention mask creator
 # --------------------------------------------------------------------------- #
-def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix):
+def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix, emit_atten_mask:bool = True):
     """
     Create attention mask and related parameters for benchmarking.
     
@@ -594,77 +595,83 @@ def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix):
     atten_mask = None
 
     # Mask is broadcastable over [B, H, S_q, S_kv].
-    if attention_matrix == "sparse_block":
-        # Build a block-wise attention mask for this (S_q, S_kv)
-        per_head_block_indices = generate_sparse_blocks_by_row_per_head(
-            s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, sparsity, num_heads=h, base_seed=BLOCK_MASK_SEED
-        )
-        atten_mask = make_block_mask_per_head(
-            s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_indices, device=device
-        )
-        npu_atten_mask = atten_mask
-        sm = 1
-    elif attention_matrix == "sparse_block_all_same":
-        # Determine which blocks to mask based on sparsity, then build mask.
-        block_indices = generate_sparse_blocks_by_row(
-            s_q,
-            s_kv,
-            BLOCK_SIZE_Q,
-            BLOCK_SIZE_KV,
-            sparsity,
-            seed=BLOCK_MASK_SEED,
-        )
-        # Build a block-wise attention mask for this (S_q, S_kv)
-        atten_mask = make_block_mask(
-            s_q,
-            s_kv,
-            BLOCK_SIZE_Q,
-            BLOCK_SIZE_KV,
-            block_indices,
-            device=device,
-        )
-        npu_atten_mask = atten_mask
-        sm = 1
+    if attention_matrix == "sparse_block_all_same":
+        if sparsity > 0 :
+            # Determine which blocks to mask based on sparsity, then build mask.
+            block_indices = generate_sparse_blocks_by_row(
+                s_q,
+                s_kv,
+                BLOCK_SIZE_Q,
+                BLOCK_SIZE_KV,
+                sparsity,
+                seed=BLOCK_MASK_SEED,
+            )
+            # Build a block-wise attention mask for this (S_q, S_kv)
+            atten_mask = make_block_mask(
+                s_q,
+                s_kv,
+                BLOCK_SIZE_Q,
+                BLOCK_SIZE_KV,
+                block_indices,
+                device=device,
+            )
+            npu_atten_mask = atten_mask
+            sm = 1
+        else:
+            atten_mask = None
+            npu_atten_mask = None
+            sm = 0
     elif attention_matrix == "lower_triangular":
-        # Lower-triangular mask
-        atten_mask = make_lower_triangular_mask(
-            s_q,
-            s_kv,
-            device=device,
-        )
-        npu_atten_mask = make_lower_triangular_mask(
-            2048,
-            2048,
-            device=device,
-        )
-        sm = 2
+        if sparsity > 0:
+            # Lower-triangular mask
+            atten_mask = make_lower_triangular_mask(
+                s_q,
+                s_kv,
+                device=device,
+            )
+            npu_atten_mask = make_lower_triangular_mask(
+                2048,
+                2048,
+                device=device,
+            )
+            sm = 2
+        else:
+            atten_mask = None
+            npu_atten_mask = None
+            sm = 0
     elif attention_matrix == "band":
-        atten_mask = make_band_mask(
-            s_q,
-            s_kv,
-            pre_tokens=BAND_PRE_TOKENS,
-            post_tokens=BAND_POST_TOKENS,
-            device=device,
-        )
-        npu_atten_mask = make_lower_triangular_mask(
-            2048,
-            2048,
-            device=device,
-        )
-        sm = 4
-        pre_tok = BAND_PRE_TOKENS
-        post_tok = BAND_POST_TOKENS
+        if sparsity > 0:
+            atten_mask = make_band_mask(
+                s_q,
+                s_kv,
+                pre_tokens=BAND_PRE_TOKENS,
+                post_tokens=BAND_POST_TOKENS,
+                device=device,
+            )
+            npu_atten_mask = make_lower_triangular_mask(
+                2048,
+                2048,
+                device=device,
+            )
+            sm = 4
+            pre_tok = BAND_PRE_TOKENS
+            post_tok = BAND_POST_TOKENS
+        else:
+            atten_mask = None
+            npu_atten_mask = None
+            sm = 0
     elif attention_matrix == "blocks_optimized":
-        per_head_block_indices = generate_sparse_blocks_by_row_per_head(
-            s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, sparsity, num_heads=h, base_seed=BLOCK_MASK_SEED
-        )
-        if RUN_REFERENCE:
+        if emit_atten_mask and sparsity > 0:
+            per_head_block_indices = generate_sparse_blocks_by_row_per_head(
+                s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, sparsity, num_heads=h, base_seed=BLOCK_MASK_SEED
+            )
             atten_mask = make_block_mask_per_head(
                 s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, per_head_block_indices, device=device
             )
-            
-        sabi_blocks = torch.tensor(per_head_block_indices, dtype=torch.uint16, device=device)
-
+                
+            sabi_blocks = torch.tensor(per_head_block_indices, dtype=torch.uint16, device=device)
+        else:
+            atten_mask = None
         npu_atten_mask = None
         sm = 0
     elif attention_matrix == "blocks_optimized_batched":
@@ -680,29 +687,38 @@ def create_attention_mask(b, h, s_q, s_kv, d, sparsity, attention_matrix):
 
         sabi_blocks = torch.tensor(per_batch_head_block_indices, dtype=torch.uint16, device=device)
         
-        if RUN_REFERENCE:
+        if emit_atten_mask and sparsity > 0:
             atten_masks = []
             for block_indices in per_batch_head_block_indices:
                 atten_mask = make_block_mask_per_head(
                     s_q, s_kv, BLOCK_SIZE_Q, BLOCK_SIZE_KV, block_indices, device=device
                 )
                 atten_masks.append(atten_mask)
-        
+            # Combine masks or handle per-batch reference properly
+            atten_mask = torch.cat(atten_masks, dim=0)
+        elif sparsity == 0:
+            # For dense case, no mask needed
+            atten_mask = None
+            
         npu_atten_mask = None
         sm = 0
     elif attention_matrix == "custom":
-        atten_mask = make_custom_mask(
-            s_q,
-            s_kv,
-            device=device,
-        )
+        if sparsity > 0:
+            atten_mask = make_custom_mask(
+                s_q,
+                s_kv,
+                device=device,
+            )
+            sm = 1
+        else:
+            atten_mask = None
+            sm = 0
         npu_atten_mask = atten_mask
-        sm = 1
     else:
-        assert attention_matrix == "dense", "Attention matrix type not implemented, for dense use 'dense'"
-        # No mask
+        assert attention_matrix == "dense", f"Attention matrix type {attention_matrix} is not implemented, for dense use 'dense'"
         atten_mask = None
-        npu_atten_mask = atten_mask
+        npu_atten_mask = None
+        sabi_blocks = None
         sm = 0
 
     return atten_mask, npu_atten_mask, sabi_blocks, sm, scale, pre_tok, post_tok
@@ -721,7 +737,7 @@ def benchmark_prompt_flash_attention():
         return
 
     print("=" * 140)
-    print(f"  {DTYPE=}  {INPUT_LAYOUT=}")
+    print(f"  {DTYPE=}  {INPUT_LAYOUT=}  {ATTENTION_MATRIX=}")
     print("=" * 140)
     print(
         f"{'H':>3} {'B':>3} {'S_q':>6} {'S_kv':>6} {'D':>4} "
@@ -739,7 +755,7 @@ def benchmark_prompt_flash_attention():
         
         # Extract mask creation to separate function
         atten_mask, npu_atten_mask, sabi_blocks, sm, scale, pre_tok, post_tok = create_attention_mask(
-            b, h, s_q, s_kv, d, sparsity, ATTENTION_MATRIX
+            b, h, s_q, s_kv, d, sparsity, ATTENTION_MATRIX, emit_atten_mask=run_ref
         )
 
         if PRINT_MASK and atten_mask is not None:
@@ -775,7 +791,9 @@ def benchmark_prompt_flash_attention():
             )
 
             # Reference implementation (matmul+softmax+matmul) with same mask
-            out_ref = ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, atten_mask=atten_mask, input_layout=INPUT_LAYOUT, run_ref_sparsity_0=run_ref_sparsity_0)               
+            out_ref = ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, 
+                                                          atten_mask=atten_mask, input_layout=INPUT_LAYOUT, 
+                                                          force_dense_sm=run_ref_sparsity_0)               
 
 
             # Compare on CPU for convenience
@@ -869,7 +887,9 @@ def benchmark_prompt_flash_attention():
             # Warm-up
             for i in range(n_warmup):
                 q, k, v, _, _ = input_sets[i]
-                ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, atten_mask=atten_mask, input_layout=INPUT_LAYOUT, run_ref_sparsity_0=run_ref_sparsity_0)               
+                ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, 
+                                                    atten_mask=atten_mask, input_layout=INPUT_LAYOUT, 
+                                                    force_dense_sm=run_ref_sparsity_0)               
             
             torch.npu.synchronize()
 
@@ -880,7 +900,9 @@ def benchmark_prompt_flash_attention():
             start.record()
             for i in range(n_warmup, n_warmup + n_repeat):
                 q, k, v, _, _ = input_sets[i]
-                ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, atten_mask=atten_mask, input_layout=INPUT_LAYOUT, run_ref_sparsity_0=run_ref_sparsity_0)               
+                ref_prompt_flash_attention_launcher(TORCH_REFERENCE, q, k, v, head_num=h, scale=scale, 
+                                                    atten_mask=atten_mask, input_layout=INPUT_LAYOUT, 
+                                                    force_dense_sm=run_ref_sparsity_0)
             end.record()
             torch.npu.synchronize()
 
