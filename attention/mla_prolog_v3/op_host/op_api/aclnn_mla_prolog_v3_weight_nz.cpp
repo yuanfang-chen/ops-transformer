@@ -126,6 +126,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     uint64_t *workspaceSize,
     aclOpExecutor **executor)
 {
+    printf("进入aclnnMlaPrologV3WeightNzGetWorkspaceSize：mla_prolog_v3\op_host\op_api\aclnn_mla_prolog_v3_weight_nz.cpp\n")
     const int WEIGHT_QUANT_MODE_NO_QUANT = 0;
     const int WEIGHT_QUANT_MODE_PARTIAL_QUANT = 1;
     const int WEIGHT_QUANT_MODE_FULL_QUANT = 2;
@@ -160,6 +161,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
     bool queryNormFlag = queryNormHolder.IsTensorNotNull();
     // weightQuantMode != 0:量化场景
     dequantScaleQNormHolder.CheckTensorConditionalNotNull(weightQuantMode != WEIGHT_QUANT_MODE_NO_QUANT && queryNormFlag);
+    printf("即将调用aclnnMlaPrologV3WeightNzGetWorkspaceSize：mla_prolog_v3\op_host\op_api\aclnn_mla_prolog_v3_weight_nz.cpp\n")
     return aclnnInnerMlaPrologV3GetWorkspaceSize(
         tokenX, weightDq, weightUqQr, weightUk, weightDkvKr, rmsnormGammaCq, rmsnormGammaCkv, ropeSin, ropeCos, kvCacheRef, krCacheRef,
         cacheIndexOptional, dequantScaleXOptional, dequantScaleWDqOptional, dequantScaleWUqQrOptional,
@@ -174,6 +176,7 @@ aclnnStatus aclnnMlaPrologV3WeightNzGetWorkspaceSize(
 aclnnStatus aclnnMlaPrologV3WeightNz(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                      const aclrtStream stream)
 {
+    printf("即将调用aclnnInnerMlaPrologV3：mla_prolog_v3\op_host\op_api\aclnn_mla_prolog_v3_weight_nz.cpp\n")
     return aclnnInnerMlaPrologV3(workspace, workspaceSize, executor, stream);
 }
 
