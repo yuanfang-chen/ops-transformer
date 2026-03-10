@@ -110,7 +110,6 @@ public:
     __aicore__ inline void Process();
     __aicore__ inline void AICProcess(uint32_t offsetNd, uint32_t outOffset);
     __aicore__ inline void InitUbBuffers();
-    __aicore__ inline void InitCubeBuffers();
     __aicore__ inline void VectorComputeOffset();
     __aicore__ inline void DataCopyX(uint32_t curMLen, uint32_t curNdLen, uint32_t offsetM, uint32_t offsetNd);
     __aicore__ inline void DataCopyOutInvRmsUb(uint32_t curMLen, uint32_t offsetM);
@@ -124,6 +123,9 @@ public:
     __aicore__ inline void BiasCopyIn();
     __aicore__ inline void AIV1GetHSliceOffset();
     __aicore__ inline void AIV1ProcessHIn(uint64_t offsetT, uint64_t lenT, uint64_t lenD);
+    __aicore__ inline void VFDoV1ProcessHinForN4(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx);
+    __aicore__ inline void VFDoV1ProcessHinForN6(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx);
+    __aicore__ inline void VFDoV1ProcessHinForN8(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx);
     __aicore__ inline void AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT);
     __aicore__ inline void DataCopyOutHPre(uint64_t offset, uint32_t totalElem);
 
@@ -199,9 +201,9 @@ private:
     const MhcPreTilingData *tiling_;
     
     // 运行时状态变量
-    uint32_t chunTSize_ = 192;
+    uint32_t chunTSize_ = 64;
     uint32_t v1ChunkDSize_ = 5120;
-    uint32_t curSingleT_ = 192;  // 当前块的实际大小（可能小于singleM_，如果是最后一个块）
+    uint32_t curSingleT_ = 64;  // 当前块的实际大小（可能小于singleM_，如果是最后一个块）
     uint32_t coreIdx_ = 0;
     uint32_t subBlockIdx_ = 0;
     float scaleMean_ = 0.0f; // 1/nD
@@ -210,7 +212,6 @@ private:
     uint32_t cubeCount_ = 0;
     uint64_t mmCount_ = 0;
     uint64_t vec1Count_ = 0;
-    uint32_t minT_ = 1;
 };
 
 template <class T, class P>
@@ -249,13 +250,6 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     v1ChunkDSize_ = tiling_->v1ChunkDSize;
     hasGamma_ = (tiling_->hasGamma != 0);
 
-    if (N_ == 4){
-        minT_ = 2;
-    }
-    if (N_ == 6){
-        minT_ = 4;
-    }
-
     mnConfig_.m = matrixInfo_.totalLength;
     mnConfig_.n = matrixInfo_.fusionSize;
     mnConfig_.k = matrixInfo_.nD;
@@ -280,22 +274,8 @@ __aicore__ inline void MhcPreKernel<T, P>::Init(InitParams initParams)
     subBlockIdx_ = GetSubBlockIdx();
 
     InitUbBuffers();
-    InitCubeBuffers();
     
     SyncAll<false>();
-}
-
-template <class T, class P>
-__aicore__ inline void MhcPreKernel<T, P>::InitCubeBuffers()
-{
-    // aL1_ = LocalTensor<P>(TPosition::TSCM, 0, mnConfig_.singleCoreM * mnConfig_.singleCoreK);
-    // pipe_->InitBuffer(L1AInQue_, 1, mnConfig_.singleCoreM * mnConfig_.singleCoreK * sizeof(P));
-    // aL1_ = L1AInQue_.AllocTensor<P>();
-    
-    if ASCEND_IS_NOT_AIC {
-        return;
-    }
-
 }
 
 template <class T, class P>
@@ -305,16 +285,15 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
         return;
     }
 
-    pipe_->InitBuffer(xInQueue_, 2, 40 * 1024); // 20KB
-    pipe_->InitBuffer(outQueue_, 2, 20 * 1024); // 32KB
+    pipe_->InitBuffer(xInQueue_, 2, 80 * 1024); // 2 * 80KB
+    pipe_->InitBuffer(outQueue_, 2, 20 * 1024); // 2 * 20KB
     pipe_->InitBuffer(invRmsOutQueue_, 1, (curSingleT_ / 2) * sizeof(P)); // 1KB
 
     if (hasGamma_) {
         pipe_->InitBuffer(gammaInQueue_, 1, ND_LENGTH * sizeof(P)); // 1KB
     }
     
-    // TODO: 全改RegBase后可以淘汰掉tmpBuff
-    pipe_->InitBuffer(tmpBuff_, 105 * 1024); // 120KB
+    pipe_->InitBuffer(tmpBuff_, 40 * 1024); // 40KB
 
     pipe_->InitBuffer(biasInQue_, 1, mnConfig_.n * sizeof(P)); // 1KB
     pipe_->InitBuffer(alphaBuf_, mnConfig_.n * sizeof(P)); // 1KB
@@ -329,10 +308,7 @@ __aicore__ inline void MhcPreKernel<T, P>::InitUbBuffers()
     buffOffset = mnConfig_.n * V1_BASE_T * sizeof(uint32_t) + (curSingleT_ / 2) * sizeof(uint32_t);
     hPreBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
-    inputBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T * V1_BASE_D), buffOffset);
-    buffOffset += mnConfig_.n * V1_BASE_T * V1_BASE_D * sizeof(P);
-    broadCastTmpUb_ = tmpBuff_.GetWithOffset<P>(uint32_t(mnConfig_.n * V1_BASE_T), buffOffset); // 20KB
-    buffOffset += mnConfig_.n * V1_BASE_T * sizeof(P);
+    
     hPostBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
     buffOffset += V1_BASE_T * N_ * sizeof(P);
     // hResBuff_ = tmpBuff_.GetWithOffset<P>(uint32_t(V1_BASE_T * N_), buffOffset);
@@ -600,13 +576,7 @@ __aicore__ inline void MhcPreKernel<T, P>::V0Proluge(uint32_t curNdLen, uint32_t
 template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::V0PostProcess(uint32_t curblock, uint32_t tBlockNum)
 {
-    
-    
-
-    
-
     VFDoV0ProcessInvRms((__ubuf__ P *)invRmsUb_.GetPhyAddr(), vectorOffset_.singleCoreM, scaleMean_, matrixInfo_.normEps);
-
     DataCopyOutInvRmsUb(vectorOffset_.singleCoreM, vectorOffset_.offsetMStart);
 }
 
@@ -649,16 +619,15 @@ __aicore__ inline void MhcPreKernel<T, P>:: AIV1ProcessHIn(uint64_t offsetT, uin
     // x[t,n,d] hpre[t,n] -> h_in[t,d]
     for (uint32_t tIdx = 0; tIdx < lenT; tIdx++) { 
         for (int offsetD = 0; offsetD < D_; offsetD += v1ChunkDSize_) { 
-            lenD = v1ChunkDSize_ < D_ - offsetD ? v1ChunkDSize_ : D_ - offsetD; 
             
-            // N = 4时 适用
+            lenD = v1ChunkDSize_ < D_ - offsetD ? v1ChunkDSize_ : D_ - offsetD; 
             // GM->UB
             LocalTensor<T> xIn = xInQueue_.AllocTensor<T>();
             // copy X
             DataCopyExtParams xInCopyParams;
             xInCopyParams.blockCount = static_cast<uint16_t>(N_);
             xInCopyParams.blockLen = uint32_t(lenD * sizeof(T));
-            xInCopyParams.srcStride = 0;
+            xInCopyParams.srcStride = uint32_t((D_ - lenD) * sizeof(T));
             xInCopyParams.dstStride = 0;
 
             uint32_t rightPadNum = Ceil(lenD, 16) * 16 - lenD;
@@ -668,54 +637,22 @@ __aicore__ inline void MhcPreKernel<T, P>:: AIV1ProcessHIn(uint64_t offsetT, uin
 
             xInQueue_.EnQue(xIn);
             xIn = xInQueue_.DeQue<T>();
-
-            // VF
             LocalTensor<T> hinOut = outQueue_.AllocTensor<T>();
-
-            __ubuf__ P* hInDealBufAddr = (__ubuf__ P*)hInDealBuf.GetPhyAddr();
-            __ubuf__ P* hPreBuffAddr = (__ubuf__ P*)hPreBuff_.GetPhyAddr();
             __ubuf__ T* xInAddr = (__ubuf__ T*)xIn.GetPhyAddr();
-            __ubuf__ T* hinOutAddr = (__ubuf__ T*)hinOut.GetPhyAddr();
-
-            
-            uint16_t eleNumPerVf = 64;
-            uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
-            // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
-            __VEC_SCOPE__
-            {
-                MicroAPI::RegTensor<P> xFp32Reg;
-                MicroAPI::RegTensor<P> hPreReg, hPreFullReg;
-                MicroAPI::RegTensor<T> xInReg;
-                MicroAPI::RegTensor<P> accFp32Reg;
-                MicroAPI::RegTensor<T> outB16Reg;
-                uint32_t curLenD = lenD;
-                for (uint16_t dIdx = 0; dIdx < dLoopCnt; dIdx++) {
-                    MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
-                    MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
-                    
-                    for (uint16_t nIdx = 0; nIdx < (uint16_t)N_; nIdx++) {
-                        // P hPreValue = hPreBuff_.GetValue(tIdx * N_ + nIdx);
-                        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + nIdx * lenD + dIdx * eleNumPerVf);
-                        // cast b16 -> fp32
-                        MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
-
-                        // MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue, mask);
-                        MicroAPI::Load(hPreReg, hPreBuffAddr + tIdx * N_ + nIdx);
-                        MicroAPI::Duplicate(hPreFullReg, hPreReg, mask);
-                        MicroAPI::Mul(xFp32Reg, xFp32Reg, hPreFullReg, mask);
-
-                        // 累加到accFp32Reg
-                        MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
-
-                        // 
-                        // MicroAPI::Axpy
-                    }
-
-                    MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
-                    MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
-                }
+            __ubuf__ T* hinOutAddr = (__ubuf__ T*)hinOut.GetPhyAddr();  
+            switch(N_) {
+                case 4 :
+                        VFDoV1ProcessHinForN4(xInAddr, hinOutAddr, lenD, tIdx);
+                        break;
+                case 6 :
+                        VFDoV1ProcessHinForN6(xInAddr, hinOutAddr, lenD, tIdx);
+                        break;
+                case 8 :
+                        VFDoV1ProcessHinForN8(xInAddr, hinOutAddr, lenD, tIdx);
+                        break;
+                default:
+                        break;
             }
-
 
             // PipeBarrier<PIPE_V>();
 
@@ -732,10 +669,234 @@ __aicore__ inline void MhcPreKernel<T, P>:: AIV1ProcessHIn(uint64_t offsetT, uin
             DataCopyPad(hinGm_[(globalOffsetM_ + offsetT + tIdx) * D_ + offsetD], hinOut, copyParams);
             
             // free tensor
-            outQueue_.FreeTensor(xIn);
+            xInQueue_.FreeTensor(xIn);
             outQueue_.FreeTensor(hinOut);
         }
     } 
+}
+
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN4(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx)
+{
+    uint16_t eleNumPerVf = 64;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
+    __VEC_SCOPE__
+    {
+        MicroAPI::RegTensor<P> xFp32Reg;
+        MicroAPI::RegTensor<T> xInReg;
+        MicroAPI::RegTensor<P> accFp32Reg;
+        MicroAPI::RegTensor<T> outB16Reg;
+        uint32_t curLenD = lenD;
+
+        P hPreValue0 = hPreBuff_.GetValue(tIdx * N_ + 0);
+        P hPreValue1 = hPreBuff_.GetValue(tIdx * N_ + 1);
+        P hPreValue2 = hPreBuff_.GetValue(tIdx * N_ + 2);
+        P hPreValue3 = hPreBuff_.GetValue(tIdx * N_ + 3);
+        for (uint16_t dIdx = 0; dIdx < dLoopCnt; dIdx++) {
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
+            MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
+
+            // nIdx = 0
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 0 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue0, mask);
+
+            // nIdx = 1
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 1 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue1, mask);
+
+
+            // nIdx = 2
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 2 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue2, mask);
+
+
+            // nIdx = 3
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 3 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+
+            MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
+        }
+    }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN6(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx)
+{
+    uint16_t eleNumPerVf = 64;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
+    __VEC_SCOPE__
+    {
+        MicroAPI::RegTensor<P> xFp32Reg;
+        MicroAPI::RegTensor<T> xInReg;
+        MicroAPI::RegTensor<P> accFp32Reg;
+        MicroAPI::RegTensor<T> outB16Reg;
+        uint32_t curLenD = lenD;
+
+        P hPreValue0 = hPreBuff_.GetValue(tIdx * N_ + 0);
+        P hPreValue1 = hPreBuff_.GetValue(tIdx * N_ + 1);
+        P hPreValue2 = hPreBuff_.GetValue(tIdx * N_ + 2);
+        P hPreValue3 = hPreBuff_.GetValue(tIdx * N_ + 3);
+        P hPreValue4 = hPreBuff_.GetValue(tIdx * N_ + 4);
+        P hPreValue5 = hPreBuff_.GetValue(tIdx * N_ + 5);
+        for (uint16_t dIdx = 0; dIdx < dLoopCnt; dIdx++) {
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
+            MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
+
+            // nIdx = 0
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 0 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue0, mask);
+
+            // nIdx = 1
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 1 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue1, mask);
+
+
+            // nIdx = 2
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 2 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue2, mask);
+
+
+            // nIdx = 3
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 3 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 4
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 4 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue4, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 5
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 5 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue5, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
+        }
+    }
+}
+
+template <class T, class P>
+__aicore__ inline void MhcPreKernel<T, P>::VFDoV1ProcessHinForN8(__ubuf__ T* xInAddr, __ubuf__ T* hinOutAddr, uint32_t lenD, uint32_t tIdx)
+{
+    uint16_t eleNumPerVf = 64;
+    uint16_t dLoopCnt = (lenD + eleNumPerVf - 1) / eleNumPerVf;
+    // Cast  Muls(Load + Duplicate + Mul) ReduceSum(for n Add) Cast
+    __VEC_SCOPE__
+    {
+        MicroAPI::RegTensor<P> xFp32Reg;
+        MicroAPI::RegTensor<T> xInReg;
+        MicroAPI::RegTensor<P> accFp32Reg;
+        MicroAPI::RegTensor<T> outB16Reg;
+        uint32_t curLenD = lenD;
+
+        P hPreValue0 = hPreBuff_.GetValue(tIdx * N_ + 0);
+        P hPreValue1 = hPreBuff_.GetValue(tIdx * N_ + 1);
+        P hPreValue2 = hPreBuff_.GetValue(tIdx * N_ + 2);
+        P hPreValue3 = hPreBuff_.GetValue(tIdx * N_ + 3);
+        P hPreValue4 = hPreBuff_.GetValue(tIdx * N_ + 4);
+        P hPreValue5 = hPreBuff_.GetValue(tIdx * N_ + 5);
+        P hPreValue6 = hPreBuff_.GetValue(tIdx * N_ + 6);
+        P hPreValue7 = hPreBuff_.GetValue(tIdx * N_ + 7);
+        for (uint16_t dIdx = 0; dIdx < dLoopCnt; dIdx++) {
+            MicroAPI::MaskReg mask = MicroAPI::UpdateMask<P>(curLenD);
+            MicroAPI::Duplicate<P>(accFp32Reg, static_cast<P>(0.0f), mask);
+
+            // nIdx = 0
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 0 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue0, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue0, mask);
+
+            // nIdx = 1
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 1 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue1, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue1, mask);
+
+
+            // nIdx = 2
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 2 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue2, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue2, mask);
+
+
+            // nIdx = 3
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 3 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue3, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 4
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 4 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue4, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 5
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 5 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue5, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 6
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 6 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue6, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            // nIdx = 7
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(xInReg, xInAddr + 7 * lenD + dIdx * eleNumPerVf);
+            MicroAPI::Cast<float, T, ctHalf2Fp32Zero>(xFp32Reg, xInReg, mask);
+            MicroAPI::Muls(xFp32Reg, xFp32Reg, hPreValue7, mask);
+            MicroAPI::Add(accFp32Reg, accFp32Reg, xFp32Reg, mask);
+            // MicroAPI::Axpy(accFp32Reg, xFp32Reg, hPreValue3, mask);
+
+            MicroAPI::Cast<T, P, ctFp32To16>(outB16Reg, accFp32Reg, mask);
+            MicroAPI::StoreAlign<T, MicroAPI::StoreDist::DIST_PACK_B32>(hinOutAddr + dIdx * eleNumPerVf, outB16Reg, mask);
+        }
+    }
 }
 
 template <class T, class P>
@@ -828,7 +989,7 @@ template <class T, class P>
 __aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uint64_t lenT)
 {
     __ubuf__ P *hPreBuffAddr = (__ubuf__ P *)hPreBuff_.GetPhyAddr();
-    uint32_t totalElem = lenT * N_; // 16 * 4 
+    uint32_t totalElem = lenT * N_;
     uint32_t eleNumPerVf = 64;
     uint16_t nLoopCnt = Ceil(totalElem, eleNumPerVf);
     uint32_t curElemCnt = totalElem;
@@ -852,9 +1013,8 @@ __aicore__ inline void MhcPreKernel<T, P>::AIV1ProcessHPre(uint64_t offsetT, uin
         }
     }
 
-
-    uint64_t offset = globalOffsetM_ + offsetT;
     if (outFlag_) {
+        uint64_t offset = globalOffsetM_ + offsetT;
         DataCopyOutHPre(offset, totalElem);
     }
 }
