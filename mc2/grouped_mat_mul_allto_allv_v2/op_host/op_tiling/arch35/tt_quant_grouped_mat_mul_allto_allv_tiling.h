@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file quant_grouped_mat_mul_allto_allv_gmm_tiling.h
+ * \file tt_quant_grouped_mat_mul_allto_allv_gmm_tiling.h
  * \brief
  */
 
@@ -24,7 +24,7 @@
 #include "tiling_base/tiling_templates_registry.h"
 #include "mc2_matmul_tiling_cfg.h"
 #include "tiling/new_mc2_tiling_utils.h"
-#include "../grouped_mat_mul_allto_allv_tiling_base.h"
+#include "../../../grouped_mat_mul_allto_allv/op_host/op_tiling/grouped_mat_mul_allto_allv_tiling_base.h"
 #include "../../../op_kernel/arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
 #include "../../../op_kernel/grouped_mat_mul_allto_allv_tiling_key.h"
 #include "register/tilingdata_base.h"
@@ -83,14 +83,14 @@ struct TilingInferredInfo {
     uint32_t biasLen = 0UL; // 暂不支持bias
 };
 
-class QuantGroupedMatmulAllToAllvTiling : public GmmAlltoAllvTilingBase {
+class TTQuantGroupedMatmulAllToAllvTiling : public GmmAlltoAllvTilingBase {
 public:
-    explicit QuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : GmmAlltoAllvTilingBase(context) {};
+    explicit TTQuantGroupedMatmulAllToAllvTiling(gert::TilingContext *context) : GmmAlltoAllvTilingBase(context) {};
     void Reset(gert::TilingContext *context) override
     {
         TilingBaseClass::Reset(context);
     }
-    ~QuantGroupedMatmulAllToAllvTiling() override = default;
+    ~TTQuantGroupedMatmulAllToAllvTiling() override = default;
 protected:
     void Reset();
     ge::graphStatus GetShapeAttrsInfo() override;

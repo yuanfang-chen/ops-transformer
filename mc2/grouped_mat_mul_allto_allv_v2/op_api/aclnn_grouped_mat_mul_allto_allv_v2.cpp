@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_quant_grouped_mat_mul_allto_allv.h"
+#include "aclnn_grouped_mat_mul_allto_allv_v2.h"
 #include "acl/acl.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_kernels/transdata.h"
