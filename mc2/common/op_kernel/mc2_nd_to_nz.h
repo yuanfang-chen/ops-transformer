@@ -409,7 +409,7 @@ __aicore__ inline void PrePaddingImplNd2Nz(const GlobalTensor<T> &mmWorkspace, c
     } else {
         c0Size = 16;
     }
-    // N > 491520时，UB的大小每次只够一行数据进行nd2nz，所以nBurstTime的搬运次数需要减去补的pad
+    // N > 491,520时，UB的大小每次只够一行数据进行nd2nz，所以nBurstTime的搬运次数需要减去补的pad
     if (GetSubBlockIdxImpl() == 1 && nBurst == 1) {
         nBurstTimes -= pad_size;
         height -= pad_size;
