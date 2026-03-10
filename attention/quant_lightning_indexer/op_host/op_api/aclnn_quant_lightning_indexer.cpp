@@ -82,11 +82,8 @@ static const aclTensor* GetTensorContiguous(const aclTensor *tensor, aclOpExecut
     }
     auto strides = tensor->GetViewStrides();
     if (!IsContiguous(tensor)) {
-        printf("QuantLightningIndexer's %s tensor is non-contiguous\n", tensorName);
         return calNoContiguous(tensor, executor);
     }
-
-    printf("QuantLightningIndexer's %s tensor is contiguous\n", tensorName);
     tensor = l0op::Contiguous(tensor, executor);
     CHECK_RET(tensor != nullptr, nullptr);
 
