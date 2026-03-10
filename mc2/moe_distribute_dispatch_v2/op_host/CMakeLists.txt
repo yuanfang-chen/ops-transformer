@@ -33,6 +33,7 @@ if (BUILD_OPEN_PROJECT)  # custom
             OP_NAME MoeDistributeDispatchV2
             OPTIONS --cce-auto-sync=off
         )
+        add_definitions(-DMC2_EXCEPTION_HANDLER)
     elseif("${CONDITION_UNIT}" STREQUAL "ascend950")  # 考虑多版本兼容dump功能
         add_definitions(-DMC2_EXCEPTION_HANDLER)
     endif()
