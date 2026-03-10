@@ -68,12 +68,12 @@
 
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
-        permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
+        pOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
         commX1Scale = AlltoAll(x1Scale.view(rankSize, BS/rankSize, ceil(H/64), 2)) \\
-        permuteX1Scale = commX1Scale.permute(1, 0, 2, 3) \\
-        permutedX1Scale = permuteX1Scale.view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
-        output = (permutedOut* permutedX1Scale)@(x2* x2Scale) + bias
+        pScale = commX1Scale.permute(1, 0, 2, 3).view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
+        out[m,n] = \sum_{j=0}^{kLoops-1} ((\sum_{k=0}^{gsK-1} (pOutSlice * x2Slice))* (pScale[m/gsM, j] * x2Scale[j, n/gsN]))+bias[n]
         $$
+        其中，gsM，gsN和gsK分别代表groupSizeM，groupSizeN和groupSizeK；pOutSlice代表通信后的x1第m行长度为groupSizeK的向量，x2Slice代表x2第n列长度为groupSizeK的向量；K轴均从j*groupSizeK起始切片，j的取值范围[0, kLoops)，kLoops = ceil(K / groupSizeK)，K为K轴长度，等于H/*rankSize，支持最后的切片长度不足groupSizeK。对于mx量化模式，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[1，1，32]。
 
 ## 参数说明​
 
