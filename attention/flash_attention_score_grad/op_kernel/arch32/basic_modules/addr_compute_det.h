@@ -96,11 +96,11 @@ public:
         
         if (sparseMode == 1) {
             for (int32_t i = 0; i < dimB; i++) {
-                maxSeqK = max(maxSeqK, getSeqLen(i, seqLenK));
+                maxSeqK = max(maxSeqK, getSeqLen(i, seqLenK, false));
             }
         } else if (sparseMode == 3) {
             for (int32_t i = 0; i < dimB; i++) {
-                if (getSeqLen(i, seqLenQ) != getSeqLen(i, seqLenK)) {
+                if (getSeqLen(i, seqLenQ, true) != getSeqLen(i, seqLenK, false)) {
                     // sparsemode=3，qk不等长情况不使能优化
                     return;
                 }
@@ -148,12 +148,12 @@ private:
 
     __aicore__ inline void UpdateSeqLen() {
         if (layout == TND){
-            dimS1 = getSeqLen(bIdx, seqLenQ);
-            dimS2 = getSeqLen(bIdx, seqLenK);
+            dimS1 = getSeqLen(bIdx, seqLenQ, true);
+            dimS2 = getSeqLen(bIdx, seqLenK, false);
             while ((dimS1 == 0 || dimS2 == 0) && bIdx < dimB - 1) {
                 bIdx++;
-                dimS1 = getSeqLen(bIdx, seqLenQ);
-                dimS2 = getSeqLen(bIdx, seqLenK);
+                dimS1 = getSeqLen(bIdx, seqLenQ, true);
+                dimS2 = getSeqLen(bIdx, seqLenK, false);
             }
             if (bIdx > 0) {
                 lastBatchQSum = getTotalLen(bIdx - 1, seqLenQ);
@@ -170,9 +170,9 @@ private:
         sparseRightBound = dimS1 - dimS2 - nextToken;
     }
 
-    __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len) {
+    __aicore__ inline SEQLEN_TYPE getSeqLen(int32_t i, __gm__ uint8_t *seq_Len, bool isQ = true) {
         if (layout != TND) { 
-            return dimS1;
+            return isQ ? dimS1 : dimS2;
         } 
         
         SEQLEN_TYPE actualSeqlen;
