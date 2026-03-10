@@ -25,6 +25,7 @@
 #endif
 #include "all_gather_matmul_tiling.h"
 
+
 namespace AscendC {
 constexpr uint8_t MC2_DEBUG_ONLY_CUBE = 1;  // 只计算不通信
 constexpr uint8_t MC2_DEBUG_ONLY_AICPU = 4; // 只通信不计算
