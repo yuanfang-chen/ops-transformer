@@ -32,10 +32,10 @@ static const aclTensor *MhcSinkhornAiCore(const aclTensor *x, int64_t outFlag, f
                                           aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
                                           aclOpExecutor *executor)
 {
-    L0_DFX(MhcSinkhornAiCore, x, outFlag, eps, numIters, output, normOut, sumOut);
+    L0_DFX(MhcSinkhornAiCore, x, eps, numIters, outFlag, output, normOut, sumOut);
     // 使用框架宏 ADD_TO_LAUNCHER_LIST_AICORE，将MhcSinkhorn算子加入任务队列
     auto ret = ADD_TO_LAUNCHER_LIST_AICORE(MhcSinkhorn, OP_INPUT(x), OP_OUTPUT(output, normOut, sumOut),
-                                           OP_ATTR(outFlag, eps, numIters));
+                                           OP_ATTR(eps, numIters, outFlag));
     OP_CHECK(ret == ACLNN_SUCCESS, OP_LOGE(ACLNN_ERR_INNER_NULLPTR, "MhcSinkhorn ADD_TO_LAUNCHER_LIST_AICORE failed."),
              return nullptr);
     return output;
