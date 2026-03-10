@@ -10,11 +10,11 @@
 add_op_to_compiled_list()
 if (BUILD_OPEN_PROJECT)
     target_sources(op_host_aclnnExc PRIVATE
-    causal_conv1d_update_def.cpp
+    causal_conv1d_def.cpp
     )
     if("${ASCEND_COMPUTE_UNIT}" STREQUAL "ascend950")
         add_ops_compile_options(
-            OP_NAME CausalConv1dUpdate
+            OP_NAME CausalConv1d
             COMPUTE_UNIT Ascend950PR_9599
             OPTIONS --cce-auto-sync=off
                     -mllvm 
@@ -24,7 +24,7 @@ if (BUILD_OPEN_PROJECT)
         )
     else()
         add_ops_compile_options(
-            OP_NAME CausalConv1dUpdate
+            OP_NAME CausalConv1d
             OPTIONS --cce-auto-sync=off
                     -Wno-deprecated-declarations
                     -Werror
@@ -33,5 +33,5 @@ if (BUILD_OPEN_PROJECT)
 endif()
 
 if(NOT BUILD_OPS_RTY_KERNEL)
-    add_modules_sources(OPTYPE causal_conv1d_update ACLNNTYPE aclnn)
+    add_modules_sources(OPTYPE causal_conv1d ACLNNTYPE aclnn)
 endif()
