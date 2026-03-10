@@ -773,15 +773,15 @@ ge::graphStatus CausalConv1dFnTiling::DoOpTiling()
     // 条件2: 核数限制（考虑因果卷积重叠，使用有效序列长度）
     // 计算并缓存切分信息，避免在 CalculateCuSeqLenTiling 中重复计算
     // 先限制核数，再用限制后的核数计算切分信息
-    uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
-    cachedSplitInfo_ = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, effectiveCoreNum);
+    // uint64_t effectiveCoreNum = LimitCoreNumByDataSize(totalCoreNum_, validSeqLen_, dim_, xDtypeSize_, ubSize_);
+    cachedSplitInfo_ = CalculateCuSeqLenSplitInfo(validSeqLen_, bsOverlap, totalCoreNum_);
     hasCachedSplitInfo_ = true;
 
     uint64_t coreNumForCuSeqLen = cachedSplitInfo_.realCoreNum;
     bool coreNumCondition = (coreNumForCuSeqLen < MIN_CORE_NUM_FOR_DIM_SPLIT);
 
     // 条件3: 每个核处理的dim长度（使用受限后的核数）
-    uint64_t dimPerCore = Ops::Base::CeilDiv(dim_, effectiveCoreNum);
+    uint64_t dimPerCore = Ops::Base::CeilDiv(dim_, totalCoreNum_);
     bool dimPerCoreCondition = (dimPerCore * xDtypeSize_ > MIN_DIM_PER_CORE);
 
     shouldSplitDim = memoryCondition && coreNumCondition && dimPerCoreCondition;
