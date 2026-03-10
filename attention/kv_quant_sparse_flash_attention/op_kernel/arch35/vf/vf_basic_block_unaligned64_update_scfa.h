@@ -17,7 +17,7 @@
 
 #include "vf_basic_block_utils.h"
 #include "../util_regbase.h"
-#include "../kv_quant_sparse_attn_sharedkv_common_arch35.h"
+#include "../kv_quant_sparse_flash_attention_common_arch35.h"
 
 using namespace regbaseutil;
 
