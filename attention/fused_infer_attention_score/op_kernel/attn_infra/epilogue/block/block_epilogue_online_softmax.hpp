@@ -748,6 +748,54 @@ public:
     }
 
     __aicore__ inline
+    void UpdateGlobalRowMax(uint32_t rowNumCurLoop, uint32_t rowNumCurLoopRound, uint32_t columnNum,
+        uint32_t columnNumRound, uint32_t dmUbOffsetCurCycle, uint32_t rowOffset, uint32_t isFirstStackTile)
+    {
+        if (isFirstStackTile) {
+            AscendC::DataCopy(
+                hmUbTensor[rowOffset],
+                lmUbTensor[rowOffset],
+                AscendC::DataCopyParams(1, rowNumCurLoopRound / FLOAT_BLOCK_SIZE, 0, 0));
+            AscendC::PipeBarrier<PIPE_V>();
+        } else {
+            SetVecMask(rowNumCurLoop);
+            // *** hm = vmax(lm, gm)
+            AscendC::Max<float, false>(
+                hmUbTensor[rowOffset],
+                lmUbTensor[rowOffset],
+                gmUbTensor[rowOffset],
+                (uint64_t)0,
+                1,
+                AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+            AscendC::PipeBarrier<PIPE_V>();
+            // *** dm = gm - hm
+            AscendC::Sub<float, false>(
+                dmUbTensor[dmUbOffsetCurCycle],
+                gmUbTensor[rowOffset],
+                hmUbTensor[rowOffset],
+                (uint64_t)0,
+                1,
+                AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+            AscendC::PipeBarrier<PIPE_V>();
+            // *** dm = exp(dm)
+            AscendC::Exp<float, false>(
+                dmUbTensor[dmUbOffsetCurCycle],
+                dmUbTensor[dmUbOffsetCurCycle],
+                (uint64_t)0,
+                1,
+                AscendC::UnaryRepeatParams(1, 1, 8, 8));
+        }
+        AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
+        AscendC::PipeBarrier<PIPE_V>();
+        // *** gm = hm
+        AscendC::DataCopy(
+            gmUbTensor[rowOffset],
+            hmUbTensor[rowOffset],
+            AscendC::DataCopyParams(1, rowNumCurLoopRound / FLOAT_BLOCK_SIZE, 0, 0));
+        AscendC::PipeBarrier<PIPE_V>();
+    }
+
+    __aicore__ inline
     void UpdateGlobalRowMax(AscendC::GlobalTensor<ElementSink> gSink, uint32_t rowNumCurLoop, uint32_t rowNumCurLoopRound, uint32_t columnNum,
         uint32_t columnNumRound, uint32_t dmUbOffsetCurCycle, uint32_t rowOffset, uint32_t isFirstStackTile, bool isLastStackTile, SinkLoopParam &curLoop)
     {
@@ -882,6 +930,41 @@ public:
                 rowNumCurLoopRound,
                 columnNum,
                 columnNumRound);
+        }
+    }
+
+    __aicore__ inline
+    void UpdateGlobalRowSum(uint32_t sUbOffset, uint32_t rowNumCurLoop, uint32_t rowNumCurLoopRound,
+        uint32_t dmUbOffsetCurCycle, uint32_t rowOffset, uint32_t isFirstStackTile)
+    {
+        if (isFirstStackTile) {
+            // *** gl = ll
+            AscendC::DataCopy(
+                glUbTensor[rowOffset],
+                llUbTensor[rowOffset],
+                AscendC::DataCopyParams(1, rowNumCurLoopRound / FLOAT_BLOCK_SIZE, 0, 0));
+            AscendC::PipeBarrier<PIPE_V>();
+        } else {
+            SetVecMask(rowNumCurLoop);
+            // *** gl = dm * gl
+            AscendC::Mul<float, false>(
+                glUbTensor[rowOffset],
+                dmUbTensor[dmUbOffsetCurCycle],
+                glUbTensor[rowOffset],
+                (uint64_t)0,
+                1,
+                AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+            AscendC::PipeBarrier<PIPE_V>();
+            // *** gl = ll + gl
+            AscendC::Add<float, false>(
+                glUbTensor[rowOffset],
+                glUbTensor[rowOffset],
+                llUbTensor[rowOffset],
+                (uint64_t)0,
+                1,
+                AscendC::BinaryRepeatParams(1, 1, 1, 8, 8, 8));
+            AscendC::PipeBarrier<PIPE_V>();
+            AscendC::SetVectorMask<int8_t>((uint64_t)-1, (uint64_t)-1);
         }
     }
 
