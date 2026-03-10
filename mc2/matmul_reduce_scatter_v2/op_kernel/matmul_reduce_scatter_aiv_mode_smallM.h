@@ -84,6 +84,8 @@ public:
     using MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                                      MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV2Func>>::gm_accum;
     using MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
+                                     MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV2Func>>::gm_bias;
+    using MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                                      MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV2Func>>::cGM_;
     using MatmulReduceScatterAivMode<TemplateMMReduceScatterV2Func,
                                      MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV2Func>>::dequant_type;
@@ -309,14 +311,19 @@ __aicore__ inline void MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV
         using ArchTag = Arch::AtlasA2;
         constexpr bool ENABLE_UNIT_FLAG = false;
         constexpr bool ENABLE_SHUFFLE_K = true;
+ 	    constexpr bool aicCalBias = quantFlag && hasBias;   // 如果计算量化后的矩阵乘，bias不由CatlassMatmul负责
         using ElementA = AType;
         using ElementB = BType;
         using ElementC = typename std::conditional<quantFlag, int32_t, cType>::type;
+        using ElementBias = biasType;
 
         using LayoutA = layout::RowMajor;
         using LayoutC = layout::RowMajor;
+        using LayoutBias = layout::VectorLayout;
 
         LayoutA layoutA{static_cast<uint32_t>(m), static_cast<uint32_t>(k_align)};
+        LayoutBias layoutBias{static_cast<uint32_t>(n)};
+
         uint32_t layout_b_row = (TB && !weight_nz) ? static_cast<uint32_t>(k_align) : static_cast<uint32_t>(k);
         uint32_t layout_b_col = (TB || weight_nz) ? static_cast<uint32_t>(n) : static_cast<uint32_t>(n_align);
 
@@ -344,6 +351,9 @@ __aicore__ inline void MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV
             using CopyL1ToL0A = typename Base::CopyL1ToL0A;
             using CopyL1ToL0B = typename Base::CopyL1ToL0B;
             using CopyL0CToGm = typename Base::CopyL0CToGm;
+            using BiasTypeSelector = typename Base::BiasTypeSelector;
+            using CopyGmToL1Bias = typename Base::CopyGmToL1Bias;
+            using CopyL1ToBT = typename Base::CopyL1ToBT;
         };
         using TileCopy = TileCopyOpt;
         GM_ADDR blockmat_output_ptr;
@@ -352,19 +362,20 @@ __aicore__ inline void MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV
         } else {
             blockmat_output_ptr = reinterpret_cast<GM_ADDR>(buff[rank]);
         }
+        using BlockScheduler30 = typename Gemm::Block::GemmIdentityBlockSwizzle<3, 0>;
         GemmCoord processSize{static_cast<uint32_t>(m), static_cast<uint32_t>(n), static_cast<uint32_t>(k)};
         if (m0 == TILE_SHAPE_128) {
             using L1TileShape = GemmShape<TILE_SHAPE_128, TILE_SHAPE_256, L1TileShapeK>; // m n k
             using L0TileShape = GemmShape<TILE_SHAPE_128, TILE_SHAPE_256, L0TileShapeK>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_,
                                                         CType_, void, TileCopy>;
-            using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivModeSmallM<void, void, BlockMmadOpt>;
+            using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivModeSmallM<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             typename MatmulKernel::Params params{
                 processSize,
                 reinterpret_cast<GM_ADDR>(gm_a_src),
                 layoutA,
                 reinterpret_cast<GM_ADDR>(gm_b_src),
-                layoutB,
+                layoutB, reinterpret_cast<GM_ADDR>(gm_bias),
                 blockmat_output_ptr, // mte远端读，结果矩阵直接写在peermem，提供读取能力
                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
                 p_value,
@@ -380,13 +391,13 @@ __aicore__ inline void MatmulReduceScatterAivModeSmallM<TemplateMMReduceScatterV
             using L0TileShape = GemmShape<TILE_SHAPE_256, TILE_SHAPE_128, L0TileShapeK>;
             using BlockMmadOpt = Gemm::Block::BlockMmad<DispatchPolicy, L1TileShape, L0TileShape, AType_, BType_,
                                                         CType_, void, TileCopy>;
-            using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivModeSmallM<void, void, BlockMmadOpt>;
+            using MatmulKernel = Gemm::Kernel::MatmulReduceScatterAivModeSmallM<void, void, BlockMmadOpt, void, BlockScheduler30, aicCalBias>;
             typename MatmulKernel::Params params{
                 processSize,
                 reinterpret_cast<GM_ADDR>(gm_a_src),
                 layoutA,
                 reinterpret_cast<GM_ADDR>(gm_b_src),
-                layoutB,
+                layoutB, reinterpret_cast<GM_ADDR>(gm_bias),
                 blockmat_output_ptr, // mte远端读，结果矩阵直接写在peermem，提供读取能力
                 reinterpret_cast<GM_ADDR>(perChannelScaleGM_),
                 p_value,
