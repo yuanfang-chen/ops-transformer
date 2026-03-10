@@ -28,7 +28,7 @@
 #include "../../common/inc/kernel/gm_ub_gm_copy.h"
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
-template <typename XType, typename YType, Mc2CoreType CoreType, bool A2A_RS_AG>
+template <typename XType, typename YType, Mc2CoreType CoreType, bool basedA2aRsAg>
 class MatmulAllReduceBase;
 } // namespace MatmulAllReduceImpl
 #endif // MATMUL_ALL_REDUCE_BASE_H
