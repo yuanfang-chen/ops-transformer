@@ -1894,6 +1894,7 @@ bool PromptFlashAttentionTilingV2::CheckRope(ContextParamsForPFATiling& contextK
         return false);
     enableIFA = false;
     enableIFAMask = false;
+    enablePFAMerge = false;
     if (queryShapeInfo.d == QUERY_SHAPE_DIM_D_128_TILING_V2) {
         enablePFARope = true;
     } else {
