@@ -58,6 +58,8 @@ struct RunParamStr {  // 分核与切块需要使用到参数
     int64_t cubeSOuterOffset;           // 单个S内 souter的 souterIdx * halfS1RealSize souter层确定
     int64_t mOuterOffset;
     int64_t cubeMOuterOffset;
+    uint32_t oriSparseBlockCount;
+    uint32_t cmpSparseBlockCount;
 
     // lse 输出offset
     int64_t softmaxLseOffset;       // souter层确定
@@ -112,6 +114,8 @@ struct RunInfo {
     int64_t qSNumInOneBlock;
     int64_t oriKvLoopEndIdx;
     int64_t cmpKvLoopEndIdx;
+    uint32_t oriSparseBlockCount;
+    uint32_t cmpSparseBlockCount;
 };
 
 #define COMMON_CONST_INFO \

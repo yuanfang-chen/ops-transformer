@@ -27,7 +27,7 @@ class Network(torch.nn.Module):
         super(Network, self).__init__()
 
     def forward(self, q, ori_kv, cmp_kv, cmp_sparse_indices, ori_block_table, 
-        cmp_block_table, cu_seqlens_q, seqused_kv, sinks, metadata, kv_quant_mode, tile_size, rope_head_dim, 
+        cmp_block_table, cu_seqlens_q, seqused_kv, ori_topk_length, sinks, metadata, kv_quant_mode, tile_size, rope_head_dim, 
         softmax_scale, cmp_ratio, ori_mask_mode, cmp_mask_mode, ori_win_left, ori_win_right, layout_q, layout_kv):
         npu_result, _ = torch_npu.npu_kv_quant_sparse_attn_sharedkv(
                                             q=q,
@@ -38,6 +38,7 @@ class Network(torch.nn.Module):
                                             cmp_block_table=cmp_block_table,
                                             cu_seqlens_q=cu_seqlens_q,
                                             seqused_kv=seqused_kv,
+                                            ori_topk_length=ori_topk_length,
                                             sinks=sinks,
                                             metadata=metadata,
                                             kv_quant_mode=kv_quant_mode,
@@ -84,6 +85,7 @@ def test_sas_quant_process_graph(test_data, device_id=0):
                                                         cu_seqlens_cmp_kv = torch.tensor([]).npu(),
                                                         seqused_q = torch.tensor([]).npu(),
                                                         seqused_kv = metadata_input['seqused_kv'].npu() if input['seqused_kv'] is not None else torch.tensor([]).npu(),
+                                                        ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
                                                         batch_size = metadata_input['batch_size'],
                                                         max_seqlen_q = metadata_input['max_seqlen_q'],
                                                         max_seqlen_kv = metadata_input['max_seqlen_kv'],
@@ -96,8 +98,7 @@ def test_sas_quant_process_graph(test_data, device_id=0):
                                                         layout_q = metadata_input['layout_q'],
                                                         layout_kv = metadata_input['layout_kv'],
                                                         has_ori_kv = metadata_input['has_ori_kv'],
-                                                        has_cmp_kv = metadata_input['has_cmp_kv'],
-                                                        device = "npu:0")
+                                                        has_cmp_kv = metadata_input['has_cmp_kv'])
 
     torch.npu.synchronize()
     metadata.npu()
@@ -112,6 +113,7 @@ def test_sas_quant_process_graph(test_data, device_id=0):
                             cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
                             cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
                             seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
+                            ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
                             sinks=input['sinks'].npu() if input['sinks'] is not None else None,
                             metadata=metadata,
                             kv_quant_mode=input['kv_quant_mode'],
@@ -137,6 +139,7 @@ def test_sas_quant_process_graph(test_data, device_id=0):
                             cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
                             cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
                             seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
+                            ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
                             sinks=input['sinks'].npu() if input['sinks'] is not None else None,
                             metadata=metadata,
                             kv_quant_mode=input['kv_quant_mode'],
@@ -171,6 +174,7 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         cu_seqlens_cmp_kv = torch.tensor([]).npu(),
                                                         seqused_q = torch.tensor([]).npu(),
                                                         seqused_kv = metadata_input['seqused_kv'].npu() if input['seqused_kv'] is not None else torch.tensor([]).npu(),
+                                                        ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
                                                         batch_size = metadata_input['batch_size'],
                                                         max_seqlen_q = metadata_input['max_seqlen_q'],
                                                         max_seqlen_kv = metadata_input['max_seqlen_kv'],
@@ -183,8 +187,7 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         layout_q = metadata_input['layout_q'],
                                                         layout_kv = metadata_input['layout_kv'],
                                                         has_ori_kv = metadata_input['has_ori_kv'],
-                                                        has_cmp_kv = metadata_input['has_cmp_kv'],
-                                                        device = "npu:0")
+                                                        has_cmp_kv = metadata_input['has_cmp_kv'])
     torch.npu.synchronize()
     metadata.npu()
 
@@ -199,6 +202,7 @@ def test_sas_quant_process_ci(test_data, device_id=0):
                                                         cmp_block_table=input['cmp_block_table'].npu() if input['cmp_block_table'] is not None else None,
                                                         cu_seqlens_q=input['cu_seqlens_q'].npu() if input['cu_seqlens_q'] is not None else None,
                                                         seqused_kv=input['seqused_kv'].npu() if input['seqused_kv'] is not None else None,
+                                                        ori_topk_length=input['ori_topk_length'].npu() if input['ori_topk_length'] is not None else None,
                                                         sinks=input['sinks'].npu() if input['sinks'] is not None else None,
                                                         metadata=metadata,
                                                         kv_quant_mode=input['kv_quant_mode'],

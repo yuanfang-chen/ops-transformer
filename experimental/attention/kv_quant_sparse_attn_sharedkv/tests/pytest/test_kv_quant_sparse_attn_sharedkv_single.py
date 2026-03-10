@@ -40,9 +40,10 @@ for _, params in enumerate(ENABLED_PARAMS):
         locals()[f"param_{key}"] = value
 
     param_names = [
-    "Testcase_Name", "layout_q", "layout_kv", "q_type", "ori_kv_type", "cmp_kv_type", "B", "S1", "S2", "N1", "N2", "D", "K",
-    "block_num1", "block_num2", "block_size1", "block_size2", "cu_seqlens_q", "seqused_kv", "softmax_scale", "cmp_ratio",
-    "ori_mask_mode", "cmp_mask_mode", "ori_win_left", "ori_win_right", "kv_quant_mode", "tile_size", "rope_head_dim", "template_run_mode", "actlen_mode","S1EQS2"
+        "Testcase_Name", "layout_q", "layout_kv", "q_type", "ori_kv_type", "cmp_kv_type", "B", "S1", "S2", "N1", "N2", "D", "K",
+        "block_num1", "block_num2", "block_size1", "block_size2", "cu_seqlens_q", "seqused_kv", "softmax_scale", "cmp_ratio",
+        "ori_mask_mode", "cmp_mask_mode", "ori_win_left", "ori_win_right", "kv_quant_mode", "tile_size", "rope_head_dim",
+        "ori_kv_topk_mode", "template_run_mode", "actlen_mode","S1EQS2"
     ]
 
     param_values = [
@@ -74,6 +75,7 @@ for _, params in enumerate(ENABLED_PARAMS):
         locals()["param_kv_quant_mode"],
         locals()["param_tile_size"],
         locals()["param_rope_head_dim"],
+        locals()["param_ori_kv_topk_mode"],
         locals()["param_template_run_mode"],
         locals()["param_actlen_mode"],
         locals()["param_S1EQS2"],
@@ -116,6 +118,7 @@ def sas(param_combinations):   # 初始化参数和tensor
     kv_quant_mode = param_combinations['kv_quant_mode']
     tile_size = param_combinations['tile_size']
     rope_head_dim = param_combinations['rope_head_dim']
+    ori_kv_topk_mode = param_combinations['ori_kv_topk_mode']
     template_run_mode = param_combinations['template_run_mode']
     actlen_mode = param_combinations['actlen_mode']
     S1EQS2 = param_combinations['S1EQS2']
@@ -157,6 +160,26 @@ def sas(param_combinations):   # 初始化参数和tensor
         cu_seqlens_q = QS
         seqused_kv = KVS
     T1 = cu_seqlens_q[-1] if layout_q == "TND" else None
+    # 生成ori_kv_topk
+    if template_run_mode == "ALL_SCFA":
+        if ori_kv_topk_mode == "full":
+            if layout_q == "TND":
+                ori_topk_length = torch.tensor(np.random.uniform(K, K, (T1, 1))).to(torch.int32)
+            elif layout_q == "BSND":
+                ori_topk_length = torch.tensor(np.random.uniform(K, K, (B, S1, 1))).to(torch.int32)
+            else:
+                raise ValueError(f"layout_q is not support {layout_q}")
+        elif ori_kv_topk_mode == "random":
+            if layout_q == "TND":
+                ori_topk_length = torch.tensor(np.random.uniform(0, K, (T1, 1))).to(torch.int32)
+            elif layout_q == "BSND":
+                ori_topk_length = torch.tensor(np.random.uniform(0, K, (B, S1, 1))).to(torch.int32)
+            else:
+                raise ValueError(f"layout_q is not support {layout_q}")
+        else:
+            ori_topk_length = None
+    else:
+        ori_topk_length = None
 
     # maxSeqLen / block_size向上取整
     ori_block_num_per_batch = []
@@ -177,7 +200,8 @@ def sas(param_combinations):   # 初始化参数和tensor
     
     params = Testcase_Name, layout_q, layout_kv, q_type, ori_kv_type, cmp_kv_type, B, S1, T1, N1, N2, D, K, block_num1, \
                 block_num2, block_size1, block_size2, cu_seqlens_q, seqused_kv, softmax_scale, cmp_ratio, ori_mask_mode, \
-                cmp_mask_mode, ori_win_left, ori_win_right, kv_quant_mode, tile_size, rope_head_dim, template_run_mode
+                cmp_mask_mode, ori_win_left, ori_win_right, kv_quant_mode, tile_size, rope_head_dim, ori_topk_length, \
+                template_run_mode
     
     # 输入参数的合法性校验
     try:
