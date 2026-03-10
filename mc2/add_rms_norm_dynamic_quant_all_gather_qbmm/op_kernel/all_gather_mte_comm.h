@@ -40,9 +40,9 @@ constexpr static uint64_t WIN_ADDR_ALIGN = 512UL;   // win区数据部分512B对
 constexpr static uint64_t CV_SYNC_START_OFFSET = 10UL * 1024UL; // CV同步状态相对于通信状态向后偏移10K
 constexpr static uint64_t CV_STATE_ALIGN = 64UL;    // CV同步的标志位间64B对齐
 constexpr static uint64_t WIN_DATA_OFFSET = 100UL * 1024UL * 1024UL;   // win区数据区1区起始偏移，100MB
-constexpr static uint64_t WIN_STATUS_OFFSET = 500UL * 1024UL;   // win区状态区1区起始偏移，500KB
-constexpr static uint64_t WIN_AIV_ZERONE_FLAG_OFFSET = 1000UL * 1024UL;   // V核win区0/1标志位区起始偏移，1000KB
-constexpr static uint64_t WIN_AIC_ZERONE_FLAG_OFFSET = 1005UL * 1024UL;   // C核win区0/1标志位区起始偏移，1005KB
+constexpr static uint64_t WIN_STATUS_OFFSET = 400UL * 1024UL;   // win区状态区1区起始偏移，400KB
+constexpr static uint64_t WIN_AIV_ZERONE_FLAG_OFFSET = 800UL * 1024UL;   // V核win区0/1标志位区起始偏移，800KB
+constexpr static uint64_t WIN_AIC_ZERONE_FLAG_OFFSET = 850UL * 1024UL;   // C核win区0/1标志位区起始偏移，850KB
 constexpr static uint64_t ZERONE_STATUS_ALIGN = 64UL;   // 0/1分区标志位按照64B对齐（刷新DataCache最小单位）
 constexpr static uint32_t ZERONE_STATUS_POS = 0U;       // 0/1分区标志位index
 
@@ -54,24 +54,23 @@ constexpr static uint32_t ZERONE_STATUS_POS = 0U;       // 0/1分区标志位ind
  * │  算子1 0区   │  算子2 0区  │  算子1 1区   │  算子2 1区  │ 算子1 V核 │ 算子1 C核 │  算子2   │
  * │             │             │             │             │ 状态位区  │ 状态位区  │ 状态位区  │
  * ├─────────────┼─────────────┼─────────────┼─────────────┼──────────┼───────────┼──────────┤
- * │    0~250K   │  250~500K   │  500~750K   │  750~1000K  │1000~1005 │ 1005~1010 │1010~1024 │
- * │             │             │             │             │    K     │     K     │    K     │
+ * │    0~200K   │  200~400K   │  400~600K   │   600~800K  │ 800~850K │  850~900K │900~1024K │
  * └─────────────┴─────────────┴─────────────┴─────────────┴──────────┴───────────┴──────────┘
  * 
  * ┌─────────────────────────────────────────────────────────────┐
- * │                    算子1单区 (250K)                          │
+ * │                    算子1单区 (200K)                          │
  * ├─────────────┬────────────────────┬──────────────────────────┤
  * │  通信状态区  │      CV状态区       │        保留区域          │
  * ├─────────────┼────────────────────┼──────────────────────────┤
- * │    0~10K    │     10~40K         │        40~250K           │
+ * │    0~10K    │     10~40K         │        40~200K           │
  * └─────────────┴────────────────────┴──────────────────────────┘
  * 
  * ┌────────────────────────────────────────┐
- * │            算子2单区 (250K)             │
+ * │            算子2单区 (200K)             │
  * ├─────────────┬──────────────────────────┤
  * │  通信状态区  │         保留区域          │
  * ├─────────────┼──────────────────────────┤
- * │    0~10K    │         10~250K          │
+ * │    0~10K    │         10~200K          │
  * └─────────────┴──────────────────────────┘
  *
  *
@@ -96,8 +95,12 @@ public:
     __aicore__ inline void InitParams(uint64_t xSize, uint64_t aivNum, uint32_t sendCoreNumPerRank);
     __aicore__ inline void InitBuffer(TPipe *tPipe);
     __aicore__ inline void ReadAndFlipWinFlag();
+    __aicore__ inline void ReadAndFlipWinFlag();
     __aicore__ inline void WriteStatusToWin();
     __aicore__ inline void ReadStatus();
+    __aicore__ inline GM_ADDR GetWinDataAddrGm(uint32_t rankId, uint32_t winFlag);
+    __aicore__ inline GM_ADDR GetWinStatusAddrGm(uint32_t rankId, uint32_t winFlag);
+    __aicore__ inline GM_ADDR GetWinZeroneFlagAddrGm(uint32_t rankId);
     __aicore__ inline GM_ADDR GetWinDataAddrGm(uint32_t rankId, uint32_t winFlag);
     __aicore__ inline GM_ADDR GetWinStatusAddrGm(uint32_t rankId, uint32_t winFlag);
     __aicore__ inline GM_ADDR GetWinZeroneFlagAddrGm(uint32_t rankId);
@@ -111,8 +114,10 @@ public:
     uint32_t sendCoreNumPerRank_{0};
     uint32_t curRankId_{0};
     uint32_t winFlag_{0};
+    uint32_t winFlag_{0};
 
 private:
+    GlobalTensor<uint32_t> selfWinFlagGMTensor_;
     GlobalTensor<uint32_t> selfWinFlagGMTensor_;
     LocalTensor<float> stateResetTensor_;
 
@@ -130,6 +135,8 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitHcclContext(
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(
     uint64_t xSize, uint64_t aivNum, uint32_t sendCoreNumPerRank)
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(
+    uint64_t xSize, uint64_t aivNum, uint32_t sendCoreNumPerRank)
 {
     aivNum_ = aivNum;
     aivId_ = GetBlockIdx(); // 获取当前核Id
@@ -138,6 +145,20 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::InitParams(
     curRankId_ = hcclContext_->localUsrRankId;
     sendCoreNumPerRank_ = sendCoreNumPerRank;
     curDstId_ = aicId_ / sendCoreNumPerRank_;
+}
+
+template <AllGatherTemplateTypeClass>
+__aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadAndFlipWinFlag()
+{
+    // 处理 0/1 分区标志位
+    uint64_t curCoreFlagAddr = (uint64_t)GetWinZeroneFlagAddrGm(curRankId_) + aivId_ * ZERONE_STATUS_ALIGN;
+    selfWinFlagGMTensor_.SetGlobalBuffer((__gm__ uint32_t*)curCoreFlagAddr);
+    // 获取标志位
+    DataCacheCleanAndInvalid<uint32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfWinFlagGMTensor_);
+    winFlag_ = selfWinFlagGMTensor_.GetValue(ZERONE_STATUS_POS);
+    // 翻转标志位
+    selfWinFlagGMTensor_.SetValue(ZERONE_STATUS_POS, 1 - winFlag_);
+    DataCacheCleanAndInvalid<uint32_t, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(selfWinFlagGMTensor_);
 }
 
 template <AllGatherTemplateTypeClass>
@@ -184,6 +205,7 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::WriteStatusToWin
     SyncFunc<AscendC::HardEvent::MTE2_S>();
     statusTensor(0) = (float)1.0;  // 用1标识
     GM_ADDR remoteWinStateGM = GetWinStatusAddrGm(curDstId_, winFlag_); // 获取当前要写对端卡的状态区地址
+    GM_ADDR remoteWinStateGM = GetWinStatusAddrGm(curDstId_, winFlag_); // 获取当前要写对端卡的状态区地址
     GlobalTensor<float> stateGMTensor;
     stateGMTensor.SetGlobalBuffer((__gm__ float*)remoteWinStateGM);
     SyncFunc<AscendC::HardEvent::S_MTE3>();
@@ -201,6 +223,7 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::WriteStatusToWin
 template <AllGatherTemplateTypeClass>
 __aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
 {
+    GM_ADDR stateGM = GetWinStatusAddrGm(curRankId_, winFlag_); // 获取本卡的状态区用于读取
     GM_ADDR stateGM = GetWinStatusAddrGm(curRankId_, winFlag_); // 获取本卡的状态区用于读取
     GlobalTensor<float> selfStatusWinTensor;
     // 获取当前核所需读取状态位的头地址，状态按32B对齐
@@ -227,10 +250,16 @@ __aicore__ inline void MTECommunication<AllGatherTemplateType>::ReadStatus()
 template <AllGatherTemplateTypeClass>
 __aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinDataAddrGm(
     uint32_t rankId, uint32_t winFlag)
+__aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinDataAddrGm(
+    uint32_t rankId, uint32_t winFlag)
 {
     if (rankId == curRankId_) {
         return (GM_ADDR)(hcclContext_->localWindowsIn + winFlag * WIN_DATA_OFFSET);
+    if (rankId == curRankId_) {
+        return (GM_ADDR)(hcclContext_->localWindowsIn + winFlag * WIN_DATA_OFFSET);
     }
+    return (GM_ADDR)(((HcclRankRelationResV2 *)(hcclContext_->remoteRes[rankId].nextDevicePtr))->windowsIn
+        + winFlag * WIN_DATA_OFFSET);
     return (GM_ADDR)(((HcclRankRelationResV2 *)(hcclContext_->remoteRes[rankId].nextDevicePtr))->windowsIn
         + winFlag * WIN_DATA_OFFSET);
 }
@@ -239,9 +268,26 @@ __aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinDataAdd
 template <AllGatherTemplateTypeClass>
 __aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinStatusAddrGm(
     uint32_t rankId, uint32_t winFlag)
+__aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinStatusAddrGm(
+    uint32_t rankId, uint32_t winFlag)
 {
     if (rankId == curRankId_) {
         return (GM_ADDR)(hcclContext_->localWindowsExp + winFlag * WIN_STATUS_OFFSET);
+    if (rankId == curRankId_) {
+        return (GM_ADDR)(hcclContext_->localWindowsExp + winFlag * WIN_STATUS_OFFSET);
+    }
+    return (GM_ADDR)(((HcclRankRelationResV2 *)(hcclContext_->remoteRes[rankId].nextDevicePtr))->windowsExp
+        + winFlag * WIN_STATUS_OFFSET);
+}
+
+// 获取对应rank的0/1标志位区的地址
+template <AllGatherTemplateTypeClass>
+__aicore__ inline GM_ADDR MTECommunication<AllGatherTemplateType>::GetWinZeroneFlagAddrGm(uint32_t rankId)
+{
+    if ASCEND_IS_AIV {
+        return (GM_ADDR)(GetWinStatusAddrGm(rankId, 0) + WIN_AIV_ZERONE_FLAG_OFFSET);
+    } else {
+        return (GM_ADDR)(GetWinStatusAddrGm(rankId, 0) + WIN_AIC_ZERONE_FLAG_OFFSET);
     }
     return (GM_ADDR)(((HcclRankRelationResV2 *)(hcclContext_->remoteRes[rankId].nextDevicePtr))->windowsExp
         + winFlag * WIN_STATUS_OFFSET);
