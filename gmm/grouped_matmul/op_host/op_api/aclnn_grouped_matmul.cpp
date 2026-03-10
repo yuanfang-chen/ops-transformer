@@ -1820,7 +1820,7 @@ static aclnnStatus TransWeightToNz(gmm::GroupedMatmulParams &gmmParams, aclOpExe
       reformatedWeightVec.push_back(reformatedWeight);
     }
     weights = executor->AllocTensorList(reformatedWeightVec.data(), reformatedWeightVec.size());
-  } else { 
+  } else {
     const aclTensorList *&weights = gmmParams.weight;
     const aclTensorList *&x = gmmParams.x;
     CHECK_COND((*x)[0] != nullptr, ACLNN_ERR_PARAM_INVALID, "The first tensor of x is nullptr!");
@@ -1971,7 +1971,18 @@ static void SetParamsTensorEmpty(gmm::GroupedMatmulParams &params, aclOpExecutor
 }
 
 static aclnnStatus CheckOutputShape(const aclTensorList* l0Res, const aclTensorList* y) {
+  OP_LOGD("yangtao CheckOutputShape: l0Res->Size() = %zu, y->Size() = %zu", l0Res->Size(), y->Size());
   CHECK_COND(l0Res->Size() == y->Size(), ACLNN_ERR_PARAM_INVALID, "Output tensor list length is not right.");
+  for (size_t i = 0; i < l0Res->Size(); ++i) {
+    std::cout << "yangtao - l0Resi-" << i << std::endl;
+    auto const &l0Resi_shape = (*l0Res)[i]->GetViewShape();
+    OP_LOGD("yangtao info: l0Resi_shape shape is = %s", op::ToString(l0Resi_shape).GetString());
+  }
+  for (size_t i = 0; i < y->Size(); ++i) {
+    std::cout << "yangtao - yi-" << i << std::endl;
+    auto const &yi_shape = (*y)[i]->GetViewShape();
+    OP_LOGD("yangtao info: yi_shape shape is = %s", op::ToString(yi_shape).GetString());
+  }
   for (size_t i = 0; i < y->Size(); ++i) {
     auto const &resShape = (*l0Res)[i]->GetViewShape();
     auto const &yShape = (*y)[i]->GetViewShape();
@@ -2364,6 +2375,24 @@ static aclnnStatus aclnnGroupedMatmulGetWorkspaceSizeCommon(const aclTensorList 
       }
   }
   ResetEmptyTensor(gmmParams);  // make empty tensor/tensorList nullptr
+  std::cout << "yangtao " << std::endl;
+  std::cout << transposeX << std::endl;
+  std::cout << transposeWeight << std::endl;
+  for (size_t i = 0; i < x->Size(); ++i) {
+    std::cout << "yangtao - xi-" << i << std::endl;
+    auto const &xi_shape = (*x)[i]->GetViewShape();
+    OP_LOGD("yangtao info: xi_shape shape is = %s", op::ToString(xi_shape).GetString());
+  }
+  for (size_t i = 0; i < weight->Size(); ++i) {
+    std::cout << "yangtao - weighti-" << i << std::endl;
+    auto const &weighti_shape = (*weight)[i]->GetViewShape();
+    OP_LOGD("yangtao info: weighti_shape shape is = %s", op::ToString(weighti_shape).GetString());
+  }
+  for (size_t i = 0; i < y->Size(); ++i) {
+    std::cout << "yangtao - yi-" << i << std::endl;
+    auto const &yi_shape = (*y)[i]->GetViewShape();
+    OP_LOGD("yangtao info: yi_shape shape is = %s", op::ToString(yi_shape).GetString());
+  }
   CHECK_RET(CheckParam(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
   gmmParams.splitItem = CorrectSplitItem(x, y, splitItem);
 
