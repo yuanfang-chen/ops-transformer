@@ -2508,31 +2508,31 @@ bool PromptFlashAttentionTilingArch38::PromptFlashAttentionCheckBmm1(PromptFlash
     if (splitCoreMode == SplitCoreMode::SPLIT_NBS_CUBE) {
         sOuterFactor = sOuterFactor * CV_RATIO;
     }
-    matmul_tiling::MatmulApiTiling bmm1(ascendPlatformInfo);
-
     matmul_tiling::DataType bmm1InputType = matmul_tiling::DataType::DT_FLOAT16;
     matmul_tiling::DataType bmm1OutputType = matmul_tiling::DataType::DT_FLOAT16;
+    matmul_tiling::MatmulApiTiling bmm1(ascendPlatformInfo);
+    
     GetMatMulType(bmm1InputType, bmm1OutputType);
     bmm1.SetAType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1InputType, false);
     bmm1.SetBType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND, bmm1InputType, true);
     bmm1.SetCType(matmul_tiling::TPosition::VECCALC, matmul_tiling::CubeFormat::ND_ALIGN, bmm1OutputType);
 
     int32_t ret = bmm1.SetShape(sOuterFactor, sInnerFactor, tilingData.promptAttentionBaseParams.get_qkHeadSize());
-    OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName, "bmm1 SetShape failed, ret = %d!", ret),
-        return false);
-    int32_t ratio = tilingData.promptAttentionBaseParams.get_headNumRatio();
+    OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(
+        contextKeyParamsPtr->opName, "bmm1 SetShape failed, ret = %d!", ret), return false);
     int32_t strideQ = tilingData.promptAttentionBaseParams.get_qkHeadSize() *
         tilingData.promptAttentionBaseParams.get_headNumSize();
+    int32_t ratio = tilingData.promptAttentionBaseParams.get_headNumRatio();
     if (ratio == 0) {
         return false;
     }
     int32_t strideK = strideQ / ratio;
-    if ((inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND) || (inputLayout == InputLayout::TND)) {
-        if (enableKVAntiquant || (inputLayout == InputLayout::TND && enablePA && paLayoutType == 0)) {
+    if ((inputLayout == InputLayout::TND) || (inputLayout == InputLayout::BSH) || (inputLayout == InputLayout::BSND)) {
+        if ((inputLayout == InputLayout::TND && enablePA && paLayoutType == 0) || enableKVAntiquant) {
             bmm1.SetOrgShape(tilingData.promptAttentionBaseParams.get_seqSize(),
                 tilingData.promptAttentionBaseParams.get_seqInnerSize(),
                 strideQ, tilingData.promptAttentionBaseParams.get_qkHeadSize());
-        } else if (enableIFAMLA || enableIFA) {
+        } else if (enableIFA || enableIFAMLA) {
             bmm1.SetOrgShape(tilingData.promptAttentionBaseParams.get_seqSize(),
             tilingData.promptAttentionBaseParams.get_seqInnerSize(),
             tilingData.promptAttentionBaseParams.get_qkHeadSize(), strideK);
@@ -2541,7 +2541,7 @@ bool PromptFlashAttentionTilingArch38::PromptFlashAttentionCheckBmm1(PromptFlash
             tilingData.promptAttentionBaseParams.get_seqInnerSize(), strideQ, strideK);
         }
     } else if (inputLayout == InputLayout::BNSD) {
-        if (enablePA && paLayoutType == 1) { // The left matrix of PA is BNSD, and the right matrix is BSH.
+        if (paLayoutType && enablePA == 1) { // The left matrix of PA is BNSD, and the right matrix is BSH.
             bmm1.SetOrgShape(tilingData.promptAttentionBaseParams.get_seqSize(),
                 tilingData.promptAttentionBaseParams.get_seqInnerSize(),
                 tilingData.promptAttentionBaseParams.get_qkHeadSize(), strideK);
@@ -2554,35 +2554,35 @@ bool PromptFlashAttentionTilingArch38::PromptFlashAttentionCheckBmm1(PromptFlash
 
     bmm1.SetBias(false);
     ret = bmm1.SetBufferSpace(l1SizeRemain, l0CSize);
-    OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName,
-        "bmm1 SetBufferSpace failed, l1SizeRemain = %ld, l0CSize = %ld, ret = %d!", l1SizeRemain, l0CSize, ret),
-        return false);
+    OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(
+        contextKeyParamsPtr->opName, "bmm1 SetBufferSpace failed, l1SizeRemain = %ld, l0CSize = %ld, ret = %d!",
+        l1SizeRemain, l0CSize, ret), return false);
     if (!enableIFAMLA && enablePA) {
         ret = bmm1.SetFixSplit(sOuterFactor, BLOCK_SIZE_BASE);
     } else {
         ret = bmm1.SetFixSplit(sOuterFactor, sInnerFactor);
     }
+
     OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName,
         "bmm1 SetFixSplit failed, l1SizeRemain = %ld, l0CSize = %ld, sOuterFactor = %u, sInnerFactor = %u, ret = %d!",
-        l1SizeRemain, l0CSize, sOuterFactor, sInnerFactor, ret),
-        return false);
+        l1SizeRemain, l0CSize, sOuterFactor, sInnerFactor, ret), return false);
 
     ret = bmm1.GetTiling(bmm1TilingData);
     if (autoBaseMNK) {
-        uint32_t baseM = std::min(uint32_t(128), sOuterFactor);
         uint32_t baseN = std::min(uint32_t(128), sInnerFactor);
+        uint32_t baseM = std::min(uint32_t(128), sOuterFactor);
         if (enableMatmulNorm) {
             uint32_t baseK = 128U;
             ret = bmm1.SetFixSplit(baseM, baseN, baseK);
             OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName,
-                "bmm1 SetFixSplit failed, ret = %d!", ret),
-                return false);
+                "bmm1 SetFixSplit failed, ret = %d!", ret), return false);
+
             ret = bmm1.GetTiling(bmm1TilingData);
         } else {
-            uint32_t baseK = 64U;
             if (enablePA) {
                 baseN = BLOCK_SIZE_BASE;
             }
+            uint32_t baseK = 64U;
             if (ret != 0) {
                 ret = bmm1.SetFixSplit(baseM, baseN, baseK);
                 OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName,
@@ -2592,15 +2592,15 @@ bool PromptFlashAttentionTilingArch38::PromptFlashAttentionCheckBmm1(PromptFlash
             }
         }
     }
+
     // Get tiling fail for bmm1.
     OP_CHECK_IF(ret != 0, OPS_REPORT_VECTOR_INNER_ERR(contextKeyParamsPtr->opName,
         "bmm1 GetTiling failed, l1SizeRemain = %ld, l0CSize = %ld, sOuterFactor = %u, sInnerFactor = %u, autoBaseMNK = %d,"
-        "ret = %d!", l1SizeRemain, l0CSize, sOuterFactor, sInnerFactor, autoBaseMNK, ret),
-        return false);
+        "ret = %d!", l1SizeRemain, l0CSize, sOuterFactor, sInnerFactor, autoBaseMNK, ret), return false);
 
     bmm1TilingData.set_shareMode(0);
-    bmm1TilingData.set_shareL1Size(l1SizeRemain);
     bmm1TilingData.set_shareL0CSize(l0CSize);
+    bmm1TilingData.set_shareL1Size(l1SizeRemain);
 
     bmm1TilingData.set_shareUbSize(0);
     EnableBmmDoubleBuffer(bmm1TilingData); // Open the double buffer for BMM1 calculation, and BMM1's MTE2 can be bound.
