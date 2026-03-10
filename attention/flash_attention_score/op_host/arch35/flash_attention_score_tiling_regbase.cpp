@@ -940,18 +940,80 @@ ge::graphStatus FlashAttentionScoreTilingRegbase::DoOpTiling()
 }
 
 void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
-    int64_t l2CacheSizeForKandV = L2_CACHE_SIZE * NUM_1024 * NUM_1024;
-    if (bSize == 0 || n2Size == 0 || dBasicBlock == 0 || dVBasicBlock == 0) {
-        OP_LOGE(context_, "The product of bSize[%ld], nSize[%ld], dSize[%ld] and dVSzie[%ld] cannot be zero.",
-            bSize, n1Size, dBasicBlock, dVBasicBlock);
-        thresholdS2Size = std::numeric_limits<int64_t>::max();
-        return;
+    int64_t l2CacheSizeRemain = L2_CACHE_SIZE * NUM_1024 * NUM_1024;
+
+    // 计算attentionMask占用的空间
+    int64_t attenMaskSize = 0;
+    int8_t attenMaskShapeType = inputParamsRegbase_->get_attenMaskShapeType();
+    if (hasAttenMask) {
+        if (sparseMode == static_cast<int64_t>(SparseMode::NO_MASK) ||
+            sparseMode == static_cast<int64_t>(SparseMode::ALL_MASK)) {
+            if (attenMaskShapeType == static_cast<uint8_t>(AttenMaskShapeType::ATTEN_B_N2_G_S1_S2)) {
+                attenMaskSize = bSize * n2Size * gSize * s1Size * s2Size;
+            } else if (attenMaskShapeType == static_cast<uint8_t>(AttenMaskShapeType::ATTEN_B_1_1_S1_S2)) {
+                attenMaskSize = bSize * s1Size * s2Size;
+            } else if (attenMaskShapeType == static_cast<uint8_t>(AttenMaskShapeType::ATTEN_1_1_1_S1_S2)) {
+                attenMaskSize = s1Size * s2Size;
+            }
+        } else if (sparseMode == static_cast<int64_t>(SparseMode::LEFT_UP_CAUSAL) ||
+            sparseMode == static_cast<int64_t>(SparseMode::RIGHT_DOWN_CAUSAL)) {
+            attenMaskSize = COMPRESS_ATTEN_MASK_SIZE;
+        }
+    }
+    OP_LOGD(context_, "AttentionMask my use %ld of L2 cache.", attenMaskSize);
+
+    l2CacheSizeRemain -= attenMaskSize;
+    if (l2CacheSizeRemain < 0) {
+        OP_LOGD(context_, "The attentionMask[%ld] size is larger than the remaining L2 cache", attenMaskSize, l2CacheSizeRemain);
+        l2CacheSizeRemain = 0;
     }
 
-    int64_t typeSize = ge::GetSizeByDataType(inputDtype);
-    // 当bn1比较大时，部分s比较小的场景，性能受限并非在L2cache资源的复用；
-    int64_t bnSize = std::min(bSize * n2Size, static_cast<int64_t>(aicNum));
-    thresholdS2Size = l2CacheSizeForKandV / (bnSize * (dBasicBlock + dVBasicBlock) * typeSize);
+    // 计算外部传入dropout占用的空间
+    int64_t dropMaskSize = 0;
+    if (dropMaskOuter) {
+        dropMaskSize = bSize * n1Size * s1Size * s2Size;
+        dropMaskSize = AlignUp(dropMaskSize, BYTE_BIT_NUM) / BYTE_BIT_NUM;
+    }
+    OP_LOGD(context_, "DropMask my use %ld of L2 cache.", dropMaskSize);
+
+    l2CacheSizeRemain -= dropMaskSize;
+    if (l2CacheSizeRemain < 0) {
+        OP_LOGD(context_, "The dropOutMask[%ld] size is larger than the remaining L2 cache", dropMaskSize, l2CacheSizeRemain);
+        l2CacheSizeRemain = 0;
+    }
+
+    // 计算外部传入pse占用的空间
+    int64_t pseSize = 0;
+    if (pseType == static_cast<int64_t>(PseType::PSE_OUTER_ADD_MUL_TYPE) ||
+        pseType == static_cast<int64_t>(PseType::PSE_OUTER_MUL_ADD_TYPE)) {
+        uint8_t pseShapeType =  static_cast<uint8_t>(inputParamsRegbase_->get_pseShapeType());
+        if (pseShapeType == static_cast<uint8_t>(PseShapeType::PSE_B_N2_G_S1_S2)) {
+            pseSize = bSize * n2Size * gSize * s1Size * s2Size;
+        } else if (pseShapeType == static_cast<uint8_t>(PseShapeType::PSE_B_N2_G_1_S2)) {
+            pseSize = bSize * n2Size * gSize * s2Size;
+        }
+    }
+    OP_LOGD(context_, "PSE my use %ld of L2 cache.", dropMaskSize);
+
+    l2CacheSizeRemain -= pseSize;
+    if (l2CacheSizeRemain < 0) {
+        OP_LOGD(context_, "The PSE[%ld] size is larger than the remaining L2 cache", dropMaskSize, l2CacheSizeRemain);
+        l2CacheSizeRemain = 0;
+    }
+
+    int64_t actualUsedCoreNum = static_cast<int64_t>multiCoreParamsRegbase_->get_coreNum();
+    int64_t s1OuterSize = multiCoreParamsRegbase_->get_s1OuterSize();
+    int64_t nNumPerCalc = CeilDivision(actualUsedCoreNum, s1OuterSize);     // 所有核同时计算时，涉及到headNum的数量
+    // 判断是否能同时存下不同N的两轮计算的数据量
+    int64_t nNum = std::min(2 * nNumPerCalc, bSize * n2Size * gSize);       // 部分场景在两轮计算中就可以完成
+    int64_t dataTypeSize = ge::GetSizeByDataType(inputDtype);
+    int64_t qSize = nNum * dSize * s1Size * dataTypeSize;
+    l2CacheSizeRemain -= qSize;
+    if (l2CacheSizeRemain < 0) {
+        thresholdS2Size = 0;
+    } else {
+        thresholdS2Size = l2CacheSizeRemain / (nNum * (dSize + dSizeV) * dataTypeSize);
+    }
 }
 
 bool FlashAttentionScoreTilingRegbase::IsUseSpliteCoreMode(SparseMode inputSparseMode) {
