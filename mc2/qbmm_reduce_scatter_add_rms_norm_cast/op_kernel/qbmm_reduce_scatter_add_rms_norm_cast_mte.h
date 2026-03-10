@@ -484,9 +484,6 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     Muls(xFp32, xFp32, rstdValue, numCol);
     PipeBarrier<PIPE_V>();
     LocalTensor<YType> yLocal = rowTmpFloatBuf_.Get<YType>();
-    Cast(yLocal, xFp32, RoundMode::CAST_RINT, numCol);
-    PipeBarrier<PIPE_V>();
-    Cast(xFp32, yLocal, RoundMode::CAST_NONE, numCol);
     PipeBarrier<PIPE_V>();
     Mul(xFp32, xFp32, gammaLocal, numCol);
     PipeBarrier<PIPE_V>();
