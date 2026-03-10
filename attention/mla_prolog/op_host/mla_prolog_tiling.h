@@ -185,7 +185,9 @@ enum class WEIGHT_QUANT_MODE:uint8_t {
     NO_QUANT = 0,
     PARTIAL_QUANT = 1,
     FULL_QUANT = 2,
-    MXFP8_FULL_QUANT = 3
+    MXFP8_FULL_QUANT = 3,
+    FP8_FULL_QUANT = 4,
+    HIF8_FULL_QUANT = 5
 };
 
 enum class KV_QUANT_MODE:uint8_t {
