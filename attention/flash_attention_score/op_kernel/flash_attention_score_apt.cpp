@@ -43,12 +43,19 @@ flash_attention_score(__gm__ uint8_t *query, __gm__ uint8_t *key, __gm__ uint8_t
                       __gm__ uint8_t *softmaxMax, __gm__ uint8_t *softmaxSum, __gm__ uint8_t *softmaxOut,
                       __gm__ uint8_t *attentionOut, __gm__ uint8_t *workspace, __gm__ uint8_t *tiling)
 {
+    // REGISTER_TILING_DEFAULT 为 Ascend C 提供的接口, 用于注册用户自定义的 TilingData 结构体。
     REGISTER_TILING_DEFAULT(optiling::FlashAttentionScoreSimplifiedTilingData);
     if constexpr (KernelTypeKey == 1) {
         TPipe tPipe;
+        // REGISTER_TILING_FOR_TILINGKEY 用于在kernel侧注册与TilingKey相匹配的TilingData自定义结构体
+        // 该接口需提供一个逻辑表达式，逻辑表达式以字符串“TILING_KEY_VAR”代指实际TilingKey，表达TilingKey所满足的范围。
+        // 注册TilingKey 第1位为1的TilingData结构体
         REGISTER_TILING_FOR_TILINGKEY("(TILING_KEY_VAR & 0x1)", optiling::FlashAttentionScoreEmptyInputTilingDataRegbase);
+        // GET_TILING_DATA_WITH_STRUCT 可以根据指定的结构体名称获取对应的结构体，常用于针对不同的TilingKey注册了不同结构体的情况下。
         GET_TILING_DATA_WITH_STRUCT(FlashAttentionScoreEmptyInputTilingDataRegbase, tiling_data_in, tiling);
+        // __restrict 用于告诉编译器，同一块内存无法通过两个或以上的指针变量名访问。不满足这个条件而强行指定restrict, 将会出现undefined behavior。
         const FlashAttentionScoreEmptyInputTilingDataRegbase *__restrict tiling_data = &tiling_data_in;
+        // 根据输入的数据类型，选择对应的模板
         #if (ORIG_DTYPE_QUERY == DT_FLOAT16)
             FlashAttentionScoreEmptyTensorRegbase<half> op;
             op.Init(softmaxMax, softmaxSum, attentionOut, tiling_data);

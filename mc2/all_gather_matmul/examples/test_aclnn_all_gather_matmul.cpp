@@ -76,7 +76,7 @@ int launchOneThread_AllGatherMm(Args &args)
     ret = HcclGetCommName(args.hcclComm, hcomName);
     CHECK_RET(ret == ACL_SUCCESS, LOG_PRINT("[ERROR] HcclGetCommName failed. ret: %d\n", ret); return -1);
     LOG_PRINT("[INFO] rank = %d, hcomName = %s, stream = %p\n", args.rankId, hcomName, args.stream);
-    std::vector<int64_t> x1Shape = {128, 256};
+    std::vector<int64_t> x1Shape = {128, 256111};
     std::vector<int64_t> x2Shape = {256, 512};
     std::vector<int64_t> biasShape = {512};
     std::vector<int64_t> outShape = {128 * DEV_NUM, 512};
