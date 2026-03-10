@@ -203,7 +203,7 @@
     <tr>
     <td>group_size</td>
     <td>可选属性</td>
-    <td>用于Matmul计算三个方向上的量化分组大小，其值由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>用于Matmul计算三个方向上的量化分组大小，仅在scale输入都是2维及以上数据时取值有效，其他场景默认传入0即可。</td>
     <td>INT</td>
     <td>-</td>
     </tr>
