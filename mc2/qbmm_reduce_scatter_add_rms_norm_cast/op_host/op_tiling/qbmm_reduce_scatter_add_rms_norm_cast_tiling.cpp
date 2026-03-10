@@ -29,13 +29,13 @@ constexpr uint32_t AIV_TYPE = 3;
 constexpr uint32_t BUFFER_NUM = 1;
 
 // matmul tiling 切分
-constexpr int32_t SINGLE_CORE_M = 126;
-constexpr int32_t SINGLE_CORE_N = 128;
+constexpr int32_t SINGLE_CORE_M = 128;
+constexpr int32_t SINGLE_CORE_N = 256;
 constexpr int32_t SINGLE_CORE_K = 2560;
-constexpr int32_t BASE_M = 126;
-constexpr int32_t BASE_N = 128;
+constexpr int32_t BASE_M = 128;
+constexpr int32_t BASE_N = 256;
 constexpr int32_t BASE_K = 2560;
-constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024 + 252 * 5120 * 4 * BUFFER_NUM;
+constexpr uint32_t SYSTEM_NEED_WORKSPACE = 16U * 1024 * 1024;
 
 using namespace AscendC;
 using namespace ge;
@@ -126,9 +126,14 @@ static void SetTilingKey(gert::TilingContext *context)
 static ge::graphStatus SetWorkSpace(gert::TilingContext *context)
 {
     const char *nodeName = context->GetNodeName();
+
+    const gert::StorageShape *x1Shape = context -> GetInputShape(0);
+    uint32_t M = x1Shape->GetStorageShape().GetDim(0);
+
+
     size_t *workSpaces = context->GetWorkspaceSizes(1);
     OP_TILING_CHECK(workSpaces == nullptr, OP_LOGE(nodeName, "workSpaces is nullptr."), return ge::GRAPH_FAILED);
-    workSpaces[0] = SYSTEM_NEED_WORKSPACE;
+    workSpaces[0] = SYSTEM_NEED_WORKSPACE + M * 5120 * 4;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -139,7 +144,8 @@ static ge::graphStatus SetTCubeTiling(
     matmul_tiling::MultiCoreMatmulTiling mmTiling(*ascendcPlatform);
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
     const char *nodeName = context->GetNodeName();
-    uint32_t M = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M;
+    const gert::StorageShape *x1Shape = context -> GetInputShape(0);
+    uint32_t M = x1Shape->GetStorageShape().GetDim(0);
     uint32_t N = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.N;
     uint32_t Ka = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.Ka;
 
@@ -163,16 +169,17 @@ static ge::graphStatus SetTCubeTiling(
         matmul_tiling::CubeFormat::ND, matmul_tiling::DataType::DT_INT32);
     mmTiling.SetBiasType(matmul_tiling::TPosition::GM, matmul_tiling::CubeFormat::ND,
         matmul_tiling::DataType::DT_INT32);
-    mmTiling.SetOrgShape(252, 5120, 2560);
-    mmTiling.SetShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
+    mmTiling.SetOrgShape(M, 5120, 2560);
     mmTiling.SetSingleShape(SINGLE_CORE_M, SINGLE_CORE_N, SINGLE_CORE_K);
-    mmTiling.SetFixSplit(BASE_M, BASE_N, BASE_K);
+    mmTiling.SetFixSplit(BASE_M, BASE_N, -1);
     mmTiling.EnableBias(false);
     mmTiling.SetBufferSpace(-1, -1, -1);    // 默认使用该AI处理器所有空间
 
     OP_TILING_CHECK(mmTiling.GetTiling(tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling) == -1,
                     OP_LOGE(nodeName, "failed to get tiling matmulTiling."),
                     return ge::GRAPH_FAILED);
+
+    tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.M = M;
     return ge::GRAPH_SUCCESS;
 }
 
