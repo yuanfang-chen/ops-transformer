@@ -17,9 +17,10 @@
 #define ASCENDC_MHC_SINKHORN_H
 
 #include "kernel_operator.h"
+#include "op_kernel/math_util.h"
+#include "op_kernel/platform_util.h"
 #include "mhc_sinkhorn_struct.h"
 #include "mhc_sinkhorn_tiling_key.h"
-#include "platform.h"
 
 namespace MhcSinkhorn {
 using namespace AscendC;
@@ -272,7 +273,7 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         inputQue_.EnQue<float>(inputLocal);
         inputLocal = inputQue_.DeQue<float>();
 
-        uint32_t repeatSize = platform::GetVRegSize() / BLOCK_SIZE * tilingData_.n * tilingData_.n;
+        uint32_t repeatSize = Ops::Base::GetVRegSize() / BLOCK_SIZE * tilingData_.n * tilingData_.n;
         uint16_t repeatTimes = ops::CeilDiv(loopSize, repeatSize);
         __local_mem__ float *inputAddr = (__local_mem__ float *)inputLocal.GetPhyAddr();
         __local_mem__ float *outputAddr = (__local_mem__ float *)outputLocal.GetPhyAddr();
