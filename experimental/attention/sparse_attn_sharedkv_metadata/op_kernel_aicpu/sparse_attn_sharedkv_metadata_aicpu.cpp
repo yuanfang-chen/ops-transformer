@@ -1091,8 +1091,8 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
             metaDataPtr->faMetadata[2 * i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
             metaDataPtr->faMetadata[2 * i + 1][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
             // 单核M基本块最大数量
-            metaDataPtr->faMetadata[2 * i][FA_S2_MAX_NUM] = splitRes.maxS1GBaseNum;
-            metaDataPtr->faMetadata[2 * i + 1][FA_S2_MAX_NUM] = splitRes.maxS1GBaseNum;
+            metaDataPtr->faMetadata[2 * i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum;
+            metaDataPtr->faMetadata[2 * i + 1][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum;
         }
     } else {
         for (size_t i = 0; i < aicCoreNum_; ++i) {
@@ -1112,7 +1112,7 @@ bool SparseAttnSharedkvMetadataCpuKernel::GenMetaData(SplitResult &splitRes) {
             //
             metaDataPtr->faMetadata[i][FA_FIRST_FD_DATA_WORKSPACE_IDX_INDEX] = splitRes.firstFdDataWorkspaceIdx[i];
             // 单核M基本块最大数量
-            metaDataPtr->faMetadata[i][FA_S2_MAX_NUM] = splitRes.maxS1GBaseNum;
+            metaDataPtr->faMetadata[i][FA_S2_MAX_NUM] = splitRes.maxS2GBaseNum;
         }
     }
 
