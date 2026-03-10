@@ -40,7 +40,7 @@ public:
         hasX2 = (x2 != nullptr);
         hasBiasAndExpertIdx = (bias != nullptr) && (expertIdx != nullptr);
         hasScales = scales != nullptr;
-        hasX = x != nullptr;
+        hasX = (x != nullptr);
         hasConstExpert = (constExpertAlpha1 != nullptr) && (constExpertAlpha2 != nullptr) && (v != nullptr);
 
         expandedXGm.SetGlobalBuffer((__gm__ T*)expandedX);
@@ -221,23 +221,24 @@ private:
                     // 直接不计算
                     continue;
                 }
-                if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
-                    // x = x[i]
-                    int64_t i = expertIdxOffset / tilingData->k;
-                    int64_t xGmOffset = i * tilingData->h;
-                    AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
+                if (haxX) {
+                    if (expertIdx >= tilingData->copyExpertStart && expertIdx < tilingData->copyExpertEnd) {
+                        // x = x[i]
+                        int64_t xGmOffset = i * tilingData->h;
+                        AscendC::Copy(expandedXLocal[expandedRowIdxGmValue * tilingData->h], xLocal[rowInnerIdx * tilingData->h], tilingData->h);
+                    }
+                    if (hasConstExpert && expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
+                        // x = a1 * x[i] +  a2 * v
+                        int64_t xGmOffset = i * tilingData->h;
+                        // 不需要有偏移，用完就下一个循环覆盖掉就行
+                        int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * tilingData->h;
+                        vLocal = vLocal * constExpertAlpha2Local;
+                        xLocal = xLocal * constExpertAlpha1Local;
+                        xLocal = xLocal + vLocal;
+                        AscendC::Copy(expandedXLocal[expandedRowIdxGmValue * tilingData->h], xLocal[rowInnerIdx * tilingData->h], tilingData->h);
+                    }
                 }
-                if (expertIdx >= tilingData->constantExpertStart && expertIdx < tilingData->constantExpertEnd) {
-                    // x = a1 * x[i] +  a2 * v
-                    int64_t i = expertIdxOffset / tilingData->k;
-                    int64_t xGmOffset = i * tilingData->h;
-                    // 不需要有偏移，用完就下一个循环覆盖掉就行
-                    int64_t constExpertGmOffset = (expertIdx - tilingData->constantExpertStart) * tilingData->h;
-                    vLocal = vLocal * constExpertAlpha2Local;
-                    xLocal = xLocal * constExpertAlpha1Local;
-                    xLocal = xLocal + vLocal;
-                    AscendC::Copy(expandedXLocal[validK * tilingData->hAligned], xLocal, tilingData->h);
-                }
+
                 if (hasBiasAndExpertIdx) {
                     SetExpertIdxOffset(rowOuterIdx, rowInnerIdx, kIdx);
                     biasGmOffset = expertIdxGm.GetValue(expertIdxOffset) * tilingData->h;
