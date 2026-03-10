@@ -521,6 +521,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
 
         aclTensor *sendCountsTensor = nullptr;
         aclTensor *recvCountsTensor = nullptr;
+        aclTensor *commQuantScaleOptional = nullptr;
 
         int64_t gmmXQuantMode = 1;
         int64_t gmmWQuantMode = 1;
@@ -594,12 +595,14 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
             mmW,
             mmXScale,
             mmWScale,
+            commQuantScaleOptional,
             gmmXQuantMode,
             gmmWQuantMode, 
             mmXQuantMode,
             mmWQuantMode, 
             commQuantMode,
             commQuantDtypeOptional,
+            groupSize,
             hcomName,
             EP_WORLD_SIZE,
             sendCounts,
