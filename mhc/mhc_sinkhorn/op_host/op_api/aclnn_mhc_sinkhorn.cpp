@@ -162,17 +162,17 @@ aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag
 
     printf("l0op::Contiguous\n");
     // 将输入x转换成连续的tensor
-    const aclTensor xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
+    const aclTensor* xContiguous = l0op::Contiguous(x, uniqueExecutor.get());
     CHECK_RET(xContiguous != nullptr, ACLNN_ERR_INNER_NULLPTR);
  
     printf("l0op::MhcSinkhorn\n");
-    const aclTensor kernelOut =
+    const aclTensor* kernelOut =
         l0op::MhcSinkhorn(xContiguous, outFlag, eps, numIters, output, normOut, sumOut, uniqueExecutor.get());
     CHECK_RET(kernelOut != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     printf("l0op::ViewCopy\n");
     // 固定写法，将计算结果拷贝到输出outRef上
-    const aclTensor viewCopyResult = l0op::ViewCopy(kernelOut, output, uniqueExecutor.get());
+    const aclTensor* viewCopyResult = l0op::ViewCopy(kernelOut, output, uniqueExecutor.get());
     CHECK_RET(viewCopyResult != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     printf("uniqueExecutor->GetWorkspaceSize()\n");
