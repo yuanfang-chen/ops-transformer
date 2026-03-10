@@ -46,15 +46,15 @@ namespace ge {
  * @li group_size: An int. Default: 0.
  */
 REG_OP(MatmulAlltoAll)
-    .INPUT(x1, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT8_E4M3FN, DT_FLOAT8_E5M2}))
-    .INPUT(x2, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT8_E4M3FN, DT_FLOAT8_E5M2}))
+    .INPUT(x1, TensorType({DT_BF16, DT_FLOAT16}))
+    .INPUT(x2, TensorType({DT_BF16, DT_FLOAT16}))
     .OPTIONAL_INPUT(bias, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT}))
     .OPTIONAL_INPUT(x1_scale, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(x2_scale, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(comm_scale, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(x1_offset, TensorType({DT_FLOAT}))
     .OPTIONAL_INPUT(x2_offset, TensorType({DT_FLOAT}))
-    .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16, DT_FLOAT}))
+    .OUTPUT(y, TensorType({DT_BF16, DT_FLOAT16}))
     .REQUIRED_ATTR(group, String)
     .REQUIRED_ATTR(world_size, Int)
     .ATTR(all2all_axes, ListInt, {-1, -2})
