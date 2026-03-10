@@ -27,10 +27,10 @@ template <typename T, typename T2, typename pseShiftType, uint32_t s1BaseSize = 
 __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
     __ubuf__ T2 * expUb, __ubuf__ T2 * x_expUb,  __ubuf__ pseShiftType * pseUb, __ubuf__ T * expSumUb, __ubuf__ T * maxUb, 
     __ubuf__ T * maxUbStart, __ubuf__ T * srcUb, __ubuf__ T * qScaleUb, __ubuf__ uint8_t * indexesUb, 
-    __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * maskUbUnroll, __ubuf__ uint32_t * dropMaskUb, __ubuf__ T * sinkUb,
+    __ubuf__ uint32_t * maskUb, __ubuf__ uint32_t * maskUbUnroll, __ubuf__ uint32_t * dropMaskUb,
     const uint32_t nPadding, const uint32_t blockStride, const uint32_t repeatStride, const uint32_t oriTailN, 
     const uint32_t tailN, const float dScale, uint32_t pltOriTailN, uint32_t pltTailN, float divValue, const uint16_t m, const uint32_t pseStride, 
-    const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f)
+    const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, const float deSCaleKValue = 1.0f, const uint32_t sinkValue)
 {
     RegTensor<float> vreg_min;
     RegTensor<float> vreg_sel;
@@ -54,9 +54,8 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
     RegTensor<float> vreg_sel_drop2;
     RegTensor<float> vreg_rowmax_p;
     RegTensor<float> vreg_scale_qk;
-    RegTensor<float> vreg_sink_input_even;
-    RegTensor<float> vreg_sink_input_odd;
-    RegTensor<float> vreg_sink_exp_sum;
+    RegTensor<float> vreg_sink_input;
+    RegTensor<float> vreg_sink_exp;
     // bfloat16_t
     RegTensor<bfloat16_t> vreg_exp_even_bf16;
     RegTensor<bfloat16_t> vreg_exp_odd_bf16;
@@ -92,6 +91,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
     MaskReg preg6;
 
     Duplicate(vreg_min, minValue);
+    Duplicate(vreg_sink_input, sinkValue);
     if constexpr (hasAtten == 1 && isMlaSgd) {
         MicroAPI::LoadAlign<uint32_t, MicroAPI::MaskDist::DIST_DS>
             (preg_compare, ((__ubuf__ uint32_t*)(maskUb)));
@@ -190,11 +190,7 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
             Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
                 vreg_input_max, vreg_max_tmp, preg_all);
             if constexpr (hasSink) {
-                LoadAlign(vreg_sink_input_even, sinkUb + i * s2BaseSize);
-                LoadAlign(vreg_sink_input_odd, sinkUb + floatRepSize + i * s2BaseSize);
-                Max(vreg_max_tmp, vreg_sink_input_even, vreg_sink_input_odd, preg_all);
-                Reduce<MicroAPI::ReduceType::MAX, float, float, MicroAPI::MaskMergeMode::ZEROING>(
-                    vreg_input_max, vreg_max_tmp, preg_all);
+                Max(vreg_input_max, vreg_input_max, vreg_sink_input, preg_all);
             }
         }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
@@ -224,13 +220,9 @@ __simd_vf__ void ProcessVec1NoUpdateGeneralImpl128VF(
         Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
             vreg_exp_sum, vreg_exp_sum, preg_all);
         if constexpr (hasSink) {
-            LoadAlign(vreg_sink_input_even, sinkUb + i * s2BaseSize);
-            LoadAlign(vreg_sink_input_odd, sinkUb + floatRepSize + i * s2BaseSize);
-            ExpSub(vreg_sink_input_even, vreg_sink_input_even, vreg_max_brc, preg_all);
-            ExpSub(vreg_sink_input_odd, vreg_sink_input_odd, vreg_max_brc, preg_all);
-            Add(vreg_sink_exp_sum, vreg_sink_input_even, vreg_sink_input_odd, preg_all);
+            ExpSub(vreg_sink_exp, vreg_sink_input, vreg_max_brc, preg_all);
             Reduce<MicroAPI::ReduceType::SUM, float, float, MicroAPI::MaskMergeMode::ZEROING>(
-                vreg_exp_sum, vreg_sink_exp_sum, preg_all);
+                vreg_exp_sum, vreg_sink_exp, preg_all);
         }
         StoreUnAlign<float, MicroAPI::PostLiteral::POST_MODE_UPDATE>(
             ((__ubuf__ T *&)expSumUb), vreg_exp_sum, ureg_exp_sum, 1);
@@ -340,7 +332,7 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl128(
     const LocalTensor<T>& inMaxTensor, const LocalTensor<uint8_t>& maskTensor, const LocalTensor<pseShiftType>& pseTensor,
     const LocalTensor<uint8_t>& dropTensor, const LocalTensor<uint8_t>& sharedTmpBuffer, const uint16_t m, const uint32_t originN,
     const uint32_t pseStride, const float slopes, const float posShift, const T scale, const float dScaleQK, const T minValue, float keepProb,
-    const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const LocalTensor<T>& sinkTensor = LocalTensor<T>())
+    const LocalTensor<T>& queryScaleUb = LocalTensor<T>(), const float deSCaleKValue = 1.0f, const uint32_t sinkValue)
 {
     // 写的时候固定用65或者33的stride去写，因为正向目前使能settail之后mm2的s1方向必须算满128或者64行
     // stride, high 16bits: blockStride (65*16*2/32)，单位block, low 16bits: repeatStride (1)
@@ -357,7 +349,6 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl128(
     __ubuf__ T * maxUbStart = (__ubuf__ T*)maxTensor.GetPhyAddr();
     __ubuf__ T * srcUb = (__ubuf__ T*)srcTensor.GetPhyAddr();
     __ubuf__ T * qScaleUb = (__ubuf__ T*)queryScaleUb.GetPhyAddr();
-    __ubuf__ T * sinkUb = (__ubuf__ T*)sinkTensor.GetPhyAddr();
     __ubuf__ uint8_t * indexesUb = (__ubuf__ uint8_t*)indexesTensor.GetPhyAddr();
 
 
@@ -375,9 +366,9 @@ __aicore__ inline void ProcessVec1NoUpdateGeneralImpl128(
     float divValue = 1.0f / keepProb;
 
     ProcessVec1NoUpdateGeneralImpl128VF<T, T2, pseShiftType, s1BaseSize, s2BaseSize, hasAtten, pseMode, hasDrop, isMlaSgd, isMlaFullQuant, hasSink>(
-        expUb, x_expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, maskUbUnroll, dropMaskUb, sinkUb, nPadding,
+        expUb, x_expUb, pseUb, expSumUb, maxUb, maxUbStart, srcUb, qScaleUb, indexesUb, maskUb, maskUbUnroll, dropMaskUb, nPadding,
         blockStride, repeatStride, oriTailN, tailN, dScale, pltOriTailN, pltTailN, divValue, m, pseStride, slopes, posShift, scale,
-        dScaleQK, minValue, deSCaleKValue);
+        dScaleQK, minValue, deSCaleKValue, sinkValue);
 }
 } // namespace
 
