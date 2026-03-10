@@ -274,7 +274,7 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         inputLocal = inputQue_.DeQue<float>();
 
         uint32_t repeatSize = Ops::Base::GetVRegSize() / BLOCK_SIZE * tilingData_.n * tilingData_.n;
-        uint16_t repeatTimes = ops::CeilDiv(loopSize, repeatSize);
+        uint16_t repeatTimes = Ops::Base::CeilDiv(loopSize, repeatSize);
         __local_mem__ float *inputAddr = (__local_mem__ float *)inputLocal.GetPhyAddr();
         __local_mem__ float *outputAddr = (__local_mem__ float *)outputLocal.GetPhyAddr();
         __local_mem__ uint32_t *maskAddr = (__local_mem__ uint32_t *)maskLocal.GetPhyAddr();
