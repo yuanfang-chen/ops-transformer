@@ -25,22 +25,25 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
     MicroAPI::MaskReg pregAll = MicroAPI::CreateMask<T, MicroAPI::MaskPattern::ALL>();
 
     // float -> fp8e4m3 类型转换模式结构体
-    static constexpr MicroAPI::CastTrait CAST_TRAIT_FP32_TO_FP8E4M3 = {MicroAPI::RegLayout::ZERO,
+    static constexpr MicroAPI::CastTrait CAST_TRAIT = {MicroAPI::RegLayout::ZERO,
                 MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
-
+    MicroAPI::RegTensor<T> vregSrc;
+    MicroAPI::RegTensor<T> vregQuantScale;
+    MicroAPI::RegTensor<T> vregFloat;
+    MicroAPI::RegTensor<U> vregRes;
+    // 量化系数broadcast到寄存器所有位置
+    MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vregQuantScale, quantScaleBuf);
     for(uint16_t i = 0; i < uint16_t(repeatTimes); i++) {
-        MicroAPI::RegTensor<T> vregSrc;
-        MicroAPI::RegTensor<T> vregQuantScale;
-        MicroAPI::RegTensor<T> vregResFloat;
-        MicroAPI::RegTensor<U> vregRes;
         uint16_t loopOffset = i * floatRepSize;
-        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSrc, inputBuf + loopOffset);
-        // 量化系数broadcast到寄存器所有位置
-        MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_BRC_B32>(vregQuantScale, quantScaleBuf);
-
-        MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregResFloat, vregSrc, vregQuantScale, pregAll);
+        if constexpr (std::is_same<T, float>::value) {
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_NORM>(vregSrc, inputBuf + loopOffset);
+        } else if constexpr (std::is_same<T, bfloat16_t>::value) {
+            MicroAPI::LoadAlign<T, MicroAPI::LoadDist::DIST_UNPACK_B16>(vregSrc, inputBuf + loopOffset);
+            MIcroAPI::Cast<float, T, CAST_TRAIT>(vregFloat, vregSrc, pregAll);
+        }
+        MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregFloat, vregFloat, vregQuantScale, pregAll);
         
-        MicroAPI::Cast<U, float, CAST_TRAIT_FP32_TO_FP8E4M3>(vregRes, vregResFloat, pregAll);
+        MicroAPI::Cast<U, float, CAST_TRAIT>(vregRes, vregFloat, pregAll);
         MicroAPI::StoreAlign<U, MicroAPI::StoreDist::DIST_PACK4_B32>(outputBuf + loopOffset, vregRes, pregAll);   
     }
 }
