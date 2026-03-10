@@ -73,6 +73,7 @@
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_GATHER 1190000  // 多核排序、HIF8 PENTEOKEN量化、GATHER索引
 #define MOE_INIT_ROUTING_V3_SORTMULTICORE_HIF8_PERTOKEN_QUANT_SCATTER 1191000 // 多核排序、HIF8 PENTEOKEN量化、SCATTER索引
 
+
 using namespace AscendC;
 using namespace MoeInitRoutingV3;
 extern "C" __global__ __aicore__ void moe_init_routing_v3(GM_ADDR x, GM_ADDR expertIdx, GM_ADDR scale, GM_ADDR offset,
