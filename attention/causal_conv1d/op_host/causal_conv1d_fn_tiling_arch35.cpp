@@ -407,48 +407,55 @@ CausalConv1dFnTiling::CuSeqLenSplitInfo CausalConv1dFnTiling::CalculateCuSeqLenS
 {
     CuSeqLenSplitInfo info;
 
+    // 带重叠的总载入长度
     info.effectiveTotal = cuSeqLen + (coreNum - 1) * bsOverlap;
-    info.baseLen = info.effectiveTotal / coreNum;
-    info.remainder = info.effectiveTotal % coreNum;
 
-    // blockFactor: 整核的处理长度（前 remainder 个核）
-    info.blockFactor = info.baseLen + (info.remainder > 0 ? 1 : 0);
+    // 单尾核策略：前 (coreNum-1) 个核统一载入 fullLen，最后一个核承担剩余
+    // 使用闭式公式计算，避免逐核遍历
+    uint64_t fullLen = Ops::Base::CeilDiv(info.effectiveTotal, coreNum);
 
-    // 通过累积输出计算实际核数和尾核长度
-    uint64_t accumulated_output = 0;
-    info.realCoreNum = 0;
-    info.blockTailFactor = 0;
-
-    for (uint64_t core_id = 0; core_id < coreNum; ++core_id) {
-        uint64_t core_load_length = info.baseLen + (core_id < info.remainder ? 1 : 0);
-
-        // 这个核能产生的实际输出（去除与前面核的重叠）
-        uint64_t core_output;
-        if (core_id == 0) {
-            core_output = core_load_length;
-        } else {
-            // 后续核：载入量 - 重叠部分 = 输出
-            core_output = core_load_length - bsOverlap;
-        }
-
-        accumulated_output += core_output;
-
-        if (accumulated_output >= cuSeqLen) {
-            // 这个核已经能覆盖所有数据
-            info.realCoreNum = core_id + 1;
-
-            // 计算尾核实际需要的载入长度
-            uint64_t excess = accumulated_output - cuSeqLen;
-            info.blockTailFactor = core_load_length - excess;
-            break;
-        }
+    // 若 fullLen <= 重叠长度，除首核外新增有效输出为 0，直接退化为单核
+    if (coreNum == 1 || fullLen <= bsOverlap) {
+        info.baseLen = fullLen;
+        info.remainder = 0;
+        info.blockFactor = cuSeqLen;      // 单核时整核=尾核=全长
+        info.blockTailFactor = cuSeqLen;
+        info.realCoreNum = 1;
+        return info;
     }
 
-    // 如果循环结束还没break，说明所有核都需要
-    if (info.realCoreNum == 0) {
-        info.realCoreNum = coreNum;
-        info.blockTailFactor = info.baseLen + (coreNum - 1 < info.remainder ? 1 : 0);
+    // 计算需要的核数 t，使有效输出覆盖 cuSeqLen
+    // 有效输出 E(t) = fullLen + (t-1)*(fullLen - bsOverlap)
+    uint64_t netPerCore = fullLen - bsOverlap;
+    uint64_t t;
+    if (cuSeqLen <= fullLen) {
+        t = 1;
+    } else {
+        t = 1 + Ops::Base::CeilDiv(cuSeqLen - fullLen, netPerCore);
+        if (t > coreNum) t = coreNum;
     }
+
+    // 计算尾核载入长度
+    uint64_t tailLen;
+    if (t == 1) {
+        // 单核覆盖
+        tailLen = cuSeqLen;
+    } else {
+        // 前 (t-1) 核的有效输出
+        uint64_t ePrev = fullLen + (t - 2) * netPerCore;
+        // 尾核需要贡献的有效输出
+        uint64_t need = cuSeqLen - ePrev;
+        // 尾核计划载入 = 重叠 + 需要的有效输出
+        uint64_t plannedLast = bsOverlap + need;
+        // 不能超过整核载入长度
+        tailLen = (plannedLast < fullLen) ? plannedLast : fullLen;
+    }
+
+    info.baseLen = fullLen;     // 记录整核载入长度
+    info.remainder = 0;         // 不再使用余数分散策略
+    info.blockFactor = fullLen; // 整核长度
+    info.blockTailFactor = tailLen; // 尾核长度
+    info.realCoreNum = t;       // 实际使用核数
 
     return info;
 }
