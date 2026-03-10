@@ -36,7 +36,7 @@ using ops::NPUARCH_A5;
 namespace Mc2Exception {
 
 const std::string OP_NAME = "Mc2Exception";
-const uint32_t WIN_SIZE = 1024U * 1024U * 2;
+const uint32_t WIN_SIZE = 1024U * 1024U;
 const uint32_t MS_WIDTH = 3U;
 const uint32_t MS_PER_S = 1000U;
 const mode_t FILE_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
