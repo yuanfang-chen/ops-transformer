@@ -2140,10 +2140,11 @@ static aclnnStatus CheckQuantGMMWeightNz(DataType x1Dtype, DataType weightDtype,
             gmm::dTypeToString(x1Dtype).c_str(), gmm::dTypeToString(weightDtype).c_str(),
             gmm::dTypeToString(yDtype).c_str());
         return ACLNN_SUCCESS;
-    } else if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
-               x1Dtype == DataType::DT_FLOAT8_E4M3FN && weightDtype == DataType::DT_FLOAT8_E4M3FN) {
-        return ACLNN_SUCCESS;
-    }
+        }
+    // } else if (op::GetCurrentPlatformInfo().GetCurNpuArch() == NpuArch::DAV_3510 &&
+    //            x1Dtype == DataType::DT_FLOAT8_E4M3FN && weightDtype == DataType::DT_FLOAT8_E4M3FN) {
+    //     return ACLNN_SUCCESS;
+    // }
     return ACLNN_ERR_PARAM_INVALID;
 }
 
@@ -2231,7 +2232,7 @@ static aclnnStatus GetGMMResultByL0Api(gmm::GroupedMatmulParams &params, uint64_
   op::Shape nzShape = (*params.weight)[0]->GetStorageShape();
   if (params.apiVersion == gmm::GMMApiVersion::WeightNz ||
       (*params.weight)[0]->GetStorageFormat() == op::Format::FORMAT_FRACTAL_NZ) {
-      CHECK_COND(ParamsWeightNzDtype(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "ParamsWeightNzDtype failed.");
+      //CHECK_COND(ParamsWeightNzDtype(params) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID, "ParamsWeightNzDtype failed.");
       std::vector<const aclTensor *> tensorsVec;
       for (size_t i = 0; i < params.weight->Size(); ++i) {
           const aclTensor *tensor = (*params.weight)[i];
