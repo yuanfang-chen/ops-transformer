@@ -19,7 +19,7 @@ extern "C" {
 
 /**
  * @brief aclnnQuantLightningIndexer的第一段接口，根据具体的计算流程，计算workspace大小。
- * funtion: aclnnQuantLightningIndexerGetWorkspaceSize
+ * function: aclnnQuantLightningIndexerGetWorkspaceSize
  * parameters :
  * query : required
  * key : required
@@ -64,7 +64,7 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
     aclOpExecutor **executor);
 
 /**
- * funtion: aclnnQuantLightningIndexer
+ * function: aclnnQuantLightningIndexer
  * parameters :
  * workspace : workspace memory addr(input).
  * workspaceSize : size of workspace(input).
