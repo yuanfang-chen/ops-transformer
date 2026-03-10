@@ -1732,7 +1732,6 @@ static ge::graphStatus CheckOutShape(gert::TilingContext *context, const string 
     int64_t queryS = qkvShapeInfo.GetDim(DIM_2);
     int64_t queryT = qkvShapeInfo.GetDim(DIM_3);
     int64_t valueD = qkvShapeInfo.GetDim(DIM_4);
-
     ge::graphStatus ret = ge::GRAPH_SUCCESS;
     if (outputLayoutStr == "NSD") {
         ret = CheckOutShapeInDim3(context, outputLayoutStr, outShape, gert::Shape{queryN, queryS, valueD});
@@ -1883,7 +1882,6 @@ static ge::graphStatus GetValueD(gert::TilingContext *context, const string inpu
         return GetPAValueD(context, valueD);
     }
     auto tempV = context->GetInputShape(VALUE_INDEX);
-    std::cout << "tkd inputLayoutStr" << inputLayoutStr << std::endl;
     if (inputLayoutStr == "NSD" || 
         inputLayoutStr == "TND" || 
         inputLayoutStr == "TND_NTD" || 
@@ -2046,7 +2044,6 @@ ge::graphStatus TilingFusedInferAttentionScore(gert::TilingContext *context)
     string outputLayoutStr = GetOutputLayoutStr(inputLayoutStr);
     auto outShape = context->GetOutputShape(ATTENTION_OUT_INDEX)->GetStorageShape();
     gert::Shape qkvShapeInfo{b, queryN, queryS, queryT, valueD};
-
     OP_CHECK_IF(CheckOutShape(context, outputLayoutStr, outShape, qkvShapeInfo) != ge::GRAPH_SUCCESS,
         OPS_REPORT_VECTOR_INNER_ERR(context->GetNodeName(), "check output shape failed"), return ge::GRAPH_FAILED);
     // 是否路由到IFA
