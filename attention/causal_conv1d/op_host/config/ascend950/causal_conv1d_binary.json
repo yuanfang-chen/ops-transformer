@@ -3,7 +3,7 @@
     "optional_input_mode": "gen_placeholder",
     "op_list": [
         {
-            "bin_filename": "CausalConv1dUpdate_fp16",
+            "bin_filename": "CausalConv1d_fp16",
             "inputs": [
                 {
                     "name": "x",
@@ -127,7 +127,7 @@
             ]
         },
         {
-            "bin_filename": "CausalConv1dUpdate_bf16",
+            "bin_filename": "CausalConv1d_bf16",
             "inputs": [
                 {
                     "name": "x",
