@@ -603,7 +603,7 @@ __aicore__ inline void FANoQuantBlockVecBase<TEMPLATE_BASE_ARGS>::MlaBnsdWithLar
     padParams.paddingValue = 1;
     padParams.rightPadding = 0;
     int64_t firstS1Start = runInfo.sOuterOffset % constInfo.s1Size;
-    attenMaskInfo.attenMaskS1Offset = firstS1Start;    // 0: 默认值
+    attenMaskInfo.attenMaskS1Offset = firstS1Start;
     int64_t maskOffset1 = ComputeAttenMaskOffset<hasAtten, enableKVPrefix, isFd, hasRope, isInfer, dTemplateType>(runInfo, constInfo, attenMaskInfo);
     int64_t preMaskOffset1 = attenMaskInfo.attenMaskOffsetPre;
     if (firstS1Start + runInfo.halfS1RealSize > constInfo.s1Size) {
