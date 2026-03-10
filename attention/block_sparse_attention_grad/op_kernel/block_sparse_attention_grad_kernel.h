@@ -264,7 +264,7 @@ namespace BSA {
             uint32_t basicKVBlockSize = tilingData->basicKVBlockSize;
             uint32_t taskNumPerCore = tilingData->taskNumPerCore;
             uint32_t tailTaskNum = tilingData->tailTaskNum;
-            uint32_t taskLength = tailTaskNum >= coreIdx ? taskNumPerCore : taskNumPerCore + 1;
+            uint32_t taskLength = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
 
             // Initialize global tensors
             AscendC::GlobalTensor<ElementA1> gDout;
@@ -350,10 +350,10 @@ namespace BSA {
                     // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
                     uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
                     if (gBlcokSpaseMask.GetValue(maskOffset)) {
-                        uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen % blockShapeY;
+                        uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen - blockShapeY * idx;
                         uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
                         for (uint32_t loop = 0; loop < kvLoop; loop++) {
-                            curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize % basicKVBlockSize;
+                            curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
                             if (inputLayout == 0) {
                                 curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * kvHeads * headDim;
                             } else {
@@ -372,7 +372,7 @@ namespace BSA {
                                 LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
                                 LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
                                 GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
-                                blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gS[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
+                                blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gDq[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
 
                                 LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
                                 LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);
@@ -400,7 +400,7 @@ namespace BSA {
             LayoutB2 layoutB2(preTaskInfo.curCalKVSize, headDim);
             LayoutC2 layoutC2(preTaskInfo.curCalQSize, headDim);
             GemmCoord actualShape2{preTaskInfo.curCalQSize, headDim, preTaskInfo.curCalKVSize};
-            blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gS[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
+            blockMmad2(gDs[preTaskInfo.sOffset], gK[preTaskInfo.kvOffset], gDq[preTaskInfo.qOffset], layoutA2, layoutB2, layoutC2, actualShape2);
 
             LayoutA3 layoutA3(preTaskInfo.curCalKVSize, preTaskInfo.curCalQSize);
             LayoutB3 layoutB3(preTaskInfo.curCalQSize, headDim);

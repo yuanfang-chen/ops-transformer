@@ -210,7 +210,7 @@ public:
             LayoutC layoutCTile = layoutC.GetTileLayout(MakeCoord(mL0Actual, nActual));
             auto layoutInL0C = LayoutCInL0::MakeLayoutInL0C(MakeCoord(mL0Actual, nActual));
             
-            copyL0CToGm(gC[layoutC.GetOffset(gmCTileCoord)], l0CTensor[l0CPingPongFlag], layoutCTile, layoutInL0C);
+            copyL0CToGm(gC, l0CTensor[l0CPingPongFlag], layoutCTile, layoutInL0C);
             
             AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
             l0CPingPongFlag = 1 - l0CPingPongFlag;
