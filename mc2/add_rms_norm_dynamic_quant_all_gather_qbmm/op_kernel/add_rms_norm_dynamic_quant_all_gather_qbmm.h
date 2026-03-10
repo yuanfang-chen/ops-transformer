@@ -239,8 +239,9 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
         smoothScaleTensor_ = smoothScaleBuf_.Get<float>();
     }
 
+    allGatherMte_.InitParams(tilingData);
     uint64_t winOffset = Ceil(rankSize_ * axisM_ * axisKa_ * sizeof(int8_t), WIN_ALIGN) * WIN_ALIGN;
-    GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn);
+    GM_ADDR selfRankAddr = (GM_ADDR)(winContext_->localWindowsIn + allGatherMte_.GetWinDataOffset());
     GM_ADDR x1WinGM = (__gm__ uint8_t*)(selfRankAddr + rankId_ * axisM_ * axisKa_ * sizeof(int8_t));
     GM_ADDR dynamicScaleWinGM = (__gm__ uint8_t*)(selfRankAddr + winOffset + rankId_ * axisM_ * sizeof(float));
     x1WinGMTensor_.SetGlobalBuffer((__gm__ int8_t*)x1WinGM);
@@ -754,7 +755,7 @@ template<TemplateMC2TypeClass>
 __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>::AllGatherProcess()
 {
     if (GetSubBlockIdx() == 0) {
-        allGatherMte_.Init(tpipe_, tilingData_);
+        allGatherMte_.InitBuffer(tpipe_);
         allGatherMte_.SetRemoteFlag();
         allGatherMte_.WaitRemoteFlag();
         allGatherMte_.ExecuteAllGather(allGatherDataOutAddr_, allGatherScalesOutAddr_);
@@ -782,7 +783,7 @@ __aicore__ inline void AddRmsNormDynamicQuantAllGatherQbmm<TemplateMC2TypeFunc>:
     }
     
     if ASCEND_IS_AIC {
-        allGatherMte_.Init(tpipe_, tilingData_);
+        allGatherMte_.InitBuffer(tpipe_);
         MatmulProcess();
     }
 }
