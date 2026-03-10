@@ -226,7 +226,6 @@ namespace SplitFuse {
             uint32_t curKvNBlockNum = NpuArch::Detail::Alignment::CeilDiv(kvHeads, curKvNBlockTile); // 1
             uint32_t curTotalTaskNum = firstBatchTaskNum;
 
-
             bool isLastStackTile = false;
 
             for (uint32_t taskIdx = coreIdx; taskIdx < totalTaskNum; taskIdx += uint32_t(coreNum)) {
@@ -328,8 +327,6 @@ namespace SplitFuse {
                             uint32_t taskRowNum = rowNum * kvNBlockSize;
                             LayoutQ layoutQL1(taskRowNum, embed);
                             uint32_t taskColNum = gBlockSize * kvNBlockSize;
-
-
                             blockMmadQK.loadQGM(gQ[gmOffsetQGmtoL1], layoutQL1, taskRowNum, taskColNum, qHeads, kvNBlockSize);
                         }
 #endif
@@ -376,10 +373,6 @@ namespace SplitFuse {
                         LayoutS layOutS(rowNum * kvNBlockSize, stackSeqTile, stackSeqTilePad);
 
                         GemmCoord actualBlockShapeQK{rowNum * kvNBlockSize, stackSeqTile, embed};
-
-
-
-
 
                         epilogueOnlineSoftmax(
                             gP[gmOffsetPBase],
@@ -462,14 +455,12 @@ namespace SplitFuse {
 
                         Arch::CrossCoreWaitFlag(pvReady);
 
-
                         uint64_t gmOffsetO = oBOffset + oSOffset + oNStartOffset;
                         uint64_t gmOffsetUpdate = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB);
                         uint64_t gmOffsetOTmp = static_cast<uint64_t>(coreIdx * WORKSPACE_BLOCK_SIZE_DB * (PRE_LAUNCH + 1U) +
                                 curStackTileMod * WORKSPACE_BLOCK_SIZE_DB);
                         uint64_t gmOffsetLse = lseBOffset + lseTokenOffset + qNStartIdx;
 
-                        
                         epilogueRescaleO(
                             // kvNIncreIdx,
                             gO[gmOffsetO],
