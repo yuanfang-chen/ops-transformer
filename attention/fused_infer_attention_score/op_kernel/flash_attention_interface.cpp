@@ -169,7 +169,8 @@ namespace SplitFuse {
 
         using L1TileShapeQK = GemmShape<Q_TILE_CEIL, 128, 128>;
         using L0TileShapeQK = GemmShape<128, 128, 128>;
-        using DispatchPolicyQK = Gemm::MmadAtlasA2FAIQK<PagedCacheFlag, false>;
+        // Use MmadAtlasA2FAIQKDecode dispatch policy for decoding scenario
+        using DispatchPolicyQK = Gemm::MmadAtlasA2FAIQKDecode<PagedCacheFlag, false>;
         using QType = Gemm::GemmType<ElementQ, LayoutQ>;
         using KType = Gemm::GemmType<ElementK, LayoutK>;
         using SType = Gemm::GemmType<ElementS, LayoutS>;
