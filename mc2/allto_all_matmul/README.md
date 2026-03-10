@@ -69,11 +69,13 @@
         $$
         commOut = AlltoAll(x1.view(rankSize, BS/rankSize, H)) \\
         permutedOut = commOut.permute(1, 0, 2).view(BS/rankSize, rankSize*H) \\
-        commX1Scale = AlltoAll(x1Scale.view(rankSize, BS/rankSize, ceil(H/64), 2)) \\
-        permuteX1Scale = commX1Scale.permute(1, 0, 2, 3) \\
-        permutedX1Scale = permuteX1Scale.view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
-        output = (permutedOut* permutedX1Scale)@(x2* x2Scale) + bias
+        commScale = AlltoAll(x1Scale.view(rankSize, BS/rankSize, ceil(H/64), 2)) \\
+        permutedScale = commScale.permute(1, 0, 2, 3).view(BS/rankSize, ceil(H/64)*rankSize, 2) \\
+        out[m,n] = \sum_{j=0}^{kLoops-1} ((\sum_{k=0}^{gsK-1} (x1Slice * x2Slice))* (x1Scale[m/gsM, j] * x2Scale[j, n/gsN]))+bias[n]
+        out[m,n] = \sum_{j=0}^{kLoops-1} ((\sum_{k=0}^{gsK-1} (pOSlice * x2Slice))* (pScale[m/gsM, j] * x2Scale[j, n/gsN]))+bias[n]
+        out[m,n] = out[m,n] + bias[n]
         $$
+        其中，gsM，gsN和gsK分别代表groupSizeM，groupSizeN和groupSizeK；pOSlice代表通信后的x1（permutedOut）第m行长度为groupSizeK的向量，x2Slice代表x2第n列长度为groupSizeK的向量，pScale代表通信后的x1Scale（permutedScale）的向量；K轴均从j*groupSizeK起始切片，j的取值范围[0, kLoops)，kLoops = ceil(K / groupSizeK)，K为K轴长度，等于H/*rankSize，支持最后的切片长度不足groupSizeK。对于mx量化模式，[groupSizeM，groupSizeN，groupSizeK]取值组合仅支持[1，1，32]。
 
 ## 参数说明​
 
@@ -234,7 +236,7 @@
     <tr>
     <td>group_size</td>
     <td>可选属性</td>
-    <td>用于Matmul计算三个方向上的量化分组大小，其值由3个方向的groupSizeM，groupSizeN，groupSizeK三个值拼接组成，每个值占16位，共占用int64_t类型groupSize的低48位（groupSize中的高16位的数值无效），计算公式为：groupSize = groupSizeK | groupSizeN << 16 | groupSizeM << 32。</td>
+    <td>用于Matmul计算三个方向上的量化分组大小。仅在scale输入都是2维及以上数据时取值有效，其他场景默认传入0即可。</td>
     <td>INT</td>
     <td>-</td>
     </tr>

@@ -84,15 +84,15 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 
 - ​**参数说明**​：
 
-    <table style="undefined;table-layout: fixed; width: 1687px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1556px"> <colgroup>
     <col style="width: 154px">
-    <col style="width: 254px">
+    <col style="width: 123px">
     <col style="width: 270px">
-    <col style="width: 295px">
+    <col style="width: 325px">
     <col style="width: 245px">
     <col style="width: 120px">
     <col style="width: 203px">
-    <col style="width: 146px">
+    <col style="width: 116px">
     </colgroup>
     <thead>
     <tr>
@@ -128,7 +128,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     <tr>
     <td>biasOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
     <td>根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
@@ -158,7 +158,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     <tr>
     <td>commScaleOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>低比特通信的量化系数。</td>
     <td>预留参数，暂不支持低比特通信。</td>
     <td>-</td>
@@ -168,7 +168,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     </tr>
     <tr>
     <td>x1OffsetOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>左矩阵的量化偏置。</td>
     <td>预留参数，暂不支持。</td>
     <td>-</td>
@@ -177,7 +177,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <tr>
     <td>x2OffsetOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>右矩阵的量化偏置。</td>
     <td>预留参数，暂不支持。</td>
     <td>-</td>
@@ -186,7 +186,7 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
     <td>-</td>
     <tr>
     <td>alltoAllAxesOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>AlltoAll和Pemute数据交换的方向。</td>
     <td>支持配置空或者[-1, -2]，传入空时默认按[-1, -2]处理，表示将输入由(BS, H2)转为(BS*rankSize, H2/rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
