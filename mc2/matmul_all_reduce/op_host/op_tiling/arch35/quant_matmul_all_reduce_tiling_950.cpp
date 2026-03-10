@@ -121,7 +121,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2HcommRSAG(const char* groupN
 }
 ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
 {
-    quantMatmulAllReduceTilingData_.allReduceBasedAtaSumAg = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
     OP_TILING_CHECK(
         mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType) == mc2tiling::HcclDataType::HCCL_DATA_TYPE_RESERVED,
         VECTOR_INNER_ERR_REPORT_TILING(
@@ -130,7 +130,7 @@ ge::graphStatus QuantMatmulAllReduceTilingA5::SetMc2Hcomm()
     OP_TILING_CHECK(context_->GetAttrs() == nullptr, OP_LOGE(opName_, "failed to get attrs."), return ge::GRAPH_FAILED);
     const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-    if (quantMatmulAllReduceTilingData_.allReduceBasedAtaSumAg && !MutableRCSTilingData().isInputCommQuantScale) {
+    if (isStandardCard4P && !MutableRCSTilingData().isInputCommQuantScale) {
         uint8_t dataType = static_cast<uint8_t>(mc2tiling::ConvertGeTypeToHcclType(opName_, args_.geCType));
         OP_TILING_CHECK(
             SetMc2HcommA2AAG(groupName, reduceType, dataType) != ge::GRAPH_SUCCESS,

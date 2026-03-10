@@ -77,10 +77,10 @@ ge::graphStatus MatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName,
 
 ge::graphStatus MatmulAllReduceTilingA5::SetMc2Hcomm()
 {
-    matmulAllReduce910TilingData_.allReduceBasedAtaSumAg = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
     const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
-    if (matmulAllReduce910TilingData_.allReduceBasedAtaSumAg) {
+    if (isStandardCard4P) {
         OP_TILING_CHECK(
             SetMc2HcommA2AAG(groupName, reduceType) != ge::GRAPH_SUCCESS,
             OP_LOGE(opName_, "set Mc2Hcomm config By SetMc2HcommA2AAG failed."),
