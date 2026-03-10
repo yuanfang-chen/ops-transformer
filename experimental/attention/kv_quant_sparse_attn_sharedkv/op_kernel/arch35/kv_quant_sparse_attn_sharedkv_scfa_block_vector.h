@@ -48,8 +48,12 @@ public:
     static constexpr uint32_t dVTemplateType = 512;
     static constexpr uint32_t dTemplateAlign64 = Align64Func(dVTemplateType);
     static constexpr uint32_t dVTemplateTypeInput = 640;
+    static constexpr uint32_t dCombineBytes = 576; // rope(64 * 2) + nope(448)
+    static constexpr uint32_t scaleBytes = 8;
     static constexpr float R0 = 1.0f;
     static constexpr uint64_t SYNC_SINKS_BUF_FLAG = 6;
+    static constexpr uint32_t DATABLOCK_BYTES = 32;
+    static constexpr uint32_t uint64Touint8 = sizeof(uint64_t) / sizeof(uint8_t);
 
     // ==================== Functions ======================
     __aicore__ inline SCFABlockVec() {};
@@ -93,7 +97,8 @@ private:
     __aicore__ inline void ProcessNotSparseKv(Buffer<BufferType::L1, SyncType::CROSS_CORE_SYNC_FORWARD> &outputL1,
         Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm, const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void CalSparseCalSize(const RunInfo &runInfo, ConstInfo &constInfo);
-    __aicore__ inline int64_t GetkeyOffset(int64_t s2Idx, const RunInfo &runInfo, ConstInfo &constInfo);
+    __aicore__ inline void GetkeyOffset(int64_t s2Idx, int64_t& realKeyOffset, int64_t& realScaleOffset,
+        const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void GetRealCmpS2Idx(int64_t &token0Idx, int64_t &token1Idx, int64_t s2IdxInBase,
         const RunInfo &runInfo, ConstInfo &constInfo);
     __aicore__ inline void CopyInKvNotSparse(LocalTensor<KV_T> kvMergUb, int64_t v0Loop, int64_t dealRow,
@@ -108,7 +113,7 @@ private:
     __aicore__ inline void CopyOutKvUb2Gm(Buffer<BufferType::GM, SyncType::CROSS_CORE_SYNC_FORWARD> &v0ResGm,
         LocalTensor<Q_T> antiKvTensorAsB16, int64_t dealRow, int64_t s2StartIdx, const RunInfo &runInfo,
         ConstInfo &constInfo);
-    __aicore__ inline void CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset);
+    __aicore__ inline void CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset, int64_t scaleOffset);
     /* VEC2_RES_T 表示bmm2ResUb当前的类型，VEC2_RES_T = Q_T那么不需要做Cast。另外，无效行场景当前默认需要做Cast */
     using VEC2_RES_T = T;
     template <typename VEC2_RES_T>
@@ -196,73 +201,92 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetRealCmpS2Idx(int64_t &tok
 }
 
 TEMPLATES_DEF_NO_DEFAULT
-__aicore__ inline int64_t SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Idx, const RunInfo &runInfo, ConstInfo &constInfo)
+__aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::GetkeyOffset(int64_t s2Idx, int64_t& realKeyOffset, int64_t& realScaleOffset,
+    const RunInfo &runInfo, ConstInfo &constInfo)
 {
     if (s2Idx < 0) {
-        return -1;
+        return;
     }
-    int64_t realkeyOffset = 0;
     if constexpr (IS_PA) {
         int64_t blkTableIdx = s2Idx / blockSize;
         int64_t blkTableOffset = s2Idx % blockSize;
-        realkeyOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
-            static_cast<int64_t>(blockSize) * constInfo.dSizeVInput +
-            blkTableOffset * constInfo.dSizeVInput; // BlockNum, BlockSize, N(1), D
+        int64_t paBlockStride = runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx ? constInfo.cmpKvStride : constInfo.oriKvStride;
+        // realKeyOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
+        //     static_cast<int64_t>(blockSize) * constInfo.n2Size * (dCombineBytes + scaleBytes) +
+        //     blkTableOffset * constInfo.n2Size * dCombineBytes +
+        //     (uint64_t)(runInfo.n2oIdx * dCombineBytes); // BlockNum, BlockSize, N(1), D(ROPE+NOPE = 576)
+        // realScaleOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) *
+        //     static_cast<int64_t>(blockSize) * constInfo.n2Size * (dCombineBytes + scaleBytes) +
+        //     static_cast<int64_t>(blockSize) * constInfo.n2Size * dCombineBytes +
+        //     blkTableOffset * scaleBytes;
+        realKeyOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) * paBlockStride +
+            blkTableOffset * constInfo.n2Size * dCombineBytes +
+            (uint64_t)(runInfo.n2oIdx * dCombineBytes); // BlockNum, BlockSize, N(1), D(ROPE+NOPE = 576)
+        realScaleOffset = blockTableGm.GetValue(runInfo.boIdx * maxBlockNumPerBatch + blkTableIdx) * paBlockStride +
+            static_cast<int64_t>(blockSize) * constInfo.n2Size * dCombineBytes +
+            blkTableOffset * scaleBytes;
     } else {
-        realkeyOffset = runInfo.boIdx * constInfo.s2Size + s2Idx; // BSN(1)D
+        realKeyOffset = runInfo.boIdx * constInfo.s2Size + s2Idx; // BSN(1)D
     }
-    return realkeyOffset;
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline void
-SCFABlockVec<TEMPLATE_ARGS>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset)
+SCFABlockVec<TEMPLATE_ARGS>::CopyInSingleKv(LocalTensor<KV_T> kvInUb, int64_t startRow, int64_t keyOffset, int64_t scaleOffset)
 {
+    // 当前仅支持COMBINE模式
+    uint32_t combineDim = dCombineBytes / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(dCombineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     if (keyOffset < 0) {
         return;
     }
     DataCopyExtParams intriParams;
-
+    intriParams.blockLen = dCombineBytes;
     intriParams.blockCount = 1;
     intriParams.dstStride = 0;
     intriParams.srcStride = 0;
+
     DataCopyPadExtParams<KV_T> padParams;
-    // 当前仅支持COMBINE模式
-    uint32_t combineBytes = 640 * sizeof(KV_T);
-    intriParams.blockLen = combineBytes;
-    uint32_t combineDim = combineBytes / sizeof(KV_T);
-    uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     padParams.isPad = true;
     padParams.leftPadding = 0;
     padParams.rightPadding = combineDimAlign - combineDim;
     padParams.paddingValue = 0;
     DataCopyPad(kvInUb[startRow * combineDimAlign], keyGm[keyOffset], intriParams, padParams);
+
+    // 获取scale部分
+    GlobalTensor<uint64_t> keyTmpGm = keyGm.template ReinterpretCast<uint64_t>();
+    uint64_t scaleData = keyTmpGm.GetValue(scaleOffset / uint64Touint8);
+
+    // 将scale写入ub对应位置
+    LocalTensor<uint64_t> kvInTmpUb = kvInUb.template ReinterpretCast<uint64_t>();
+    kvInTmpUb.SetValue((startRow * combineDimAlign + dCombineBytes) / uint64Touint8, scaleData);
 }
 
 TEMPLATES_DEF_NO_DEFAULT
 __aicore__ inline uint32_t SCFABlockVec<TEMPLATE_ARGS>::CopyInKvSparse(LocalTensor<KV_T> kvInUb , int64_t startRow,
     int64_t token0Idx, int64_t token1Idx, const RunInfo &runInfo, ConstInfo &constInfo)
 {
-    int64_t keyOffset0 = GetkeyOffset(token0Idx, runInfo, constInfo);
-    int64_t keyOffset1 = GetkeyOffset(token1Idx, runInfo, constInfo);
+    int64_t keyOffset0 = -1, scaleOffset0 = -1;
+    int64_t keyOffset1 = -1, scaleOffset1 = -1;
+    GetkeyOffset(token0Idx, keyOffset0, scaleOffset0, runInfo, constInfo);
+    GetkeyOffset(token1Idx, keyOffset1, scaleOffset1, runInfo, constInfo);
     if (unlikely(keyOffset0 < 0 && keyOffset1 < 0)) {
         return 0;
     }
-    uint32_t combineBytes = constInfo.dSizeVInput * sizeof(KV_T);
     int64_t keySrcStride = (keyOffset0 > keyOffset1 ? (keyOffset0 - keyOffset1) :
-        (keyOffset1 - keyOffset0)) - combineBytes;
+        (keyOffset1 - keyOffset0)) - dCombineBytes;
     if (unlikely(keyOffset1 < 0)) {
-        CopyInSingleKv(kvInUb, startRow, keyOffset0);
+        CopyInSingleKv(kvInUb, startRow, keyOffset0, scaleOffset0);
     } else if (unlikely(keySrcStride >= INT32_MAX || keySrcStride < 0 || \
         constInfo.sparseBlockSize > 1)) {
         // stride溢出、stride为负数、s2超长等异常场景，还原成2条搬运指令
-        CopyInSingleKv(kvInUb, startRow, keyOffset0);
-        CopyInSingleKv(kvInUb, startRow + 1, keyOffset1);
+        CopyInSingleKv(kvInUb, startRow, keyOffset0, scaleOffset0);
+        CopyInSingleKv(kvInUb, startRow + 1, keyOffset1, scaleOffset1);
     } else {
         DataCopyExtParams intriParams;
         intriParams.blockCount = (keyOffset0 >= 0) + (keyOffset1 >= 0);
-        intriParams.blockLen = combineBytes;
-        intriParams.dstStride = 0;
+        intriParams.blockLen = dCombineBytes;
+        intriParams.dstStride = (dVTemplateTypeInput - dCombineBytes) / DATABLOCK_BYTES;
         intriParams.srcStride = keySrcStride;
         DataCopyPadExtParams<KV_T> padParams;
 
@@ -272,13 +296,25 @@ __aicore__ inline uint32_t SCFABlockVec<TEMPLATE_ARGS>::CopyInKvSparse(LocalTens
         }
 
         // 当前仅支持COMBINE模式
-        uint32_t combineDim = combineBytes / sizeof(KV_T);
-        uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+        uint32_t combineDim = dVTemplateTypeInput / sizeof(KV_T);
+        uint32_t combineDimAlign = CeilAlign(dVTemplateTypeInput, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
         padParams.isPad = true;
         padParams.leftPadding = 0;
         padParams.rightPadding = combineDimAlign - combineDim;
         padParams.paddingValue = 0;
         DataCopyPad(kvInUb[startRow *  combineDimAlign], keyGm[keyOffset], intriParams, padParams);
+
+        // 获取scale部分
+        GlobalTensor<uint64_t> keyTmpGm = keyGm.template ReinterpretCast<uint64_t>();
+        uint64_t scaleOffsetMax = scaleOffset0 > scaleOffset1 ? scaleOffset0 : scaleOffset1;
+        uint64_t scaleOffsetMin = scaleOffset0 < scaleOffset1 ? scaleOffset0 : scaleOffset1;
+        uint64_t scaleData0 = keyTmpGm.GetValue(scaleOffsetMin / uint64Touint8);
+        uint64_t scaleData1 = keyTmpGm.GetValue(scaleOffsetMax / uint64Touint8);
+
+        // 将scale写入ub对应位置
+        LocalTensor<uint64_t> kvInTmpUb = kvInUb.template ReinterpretCast<uint64_t>();
+        kvInTmpUb.SetValue((startRow * combineDimAlign + dCombineBytes) / uint64Touint8, scaleData0);
+        kvInTmpUb.SetValue(((startRow + 1) * combineDimAlign + dCombineBytes) / uint64Touint8, scaleData1);
     }
     return (keyOffset0 > -1) + (keyOffset1 > -1);
 }
@@ -526,13 +562,12 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
     int64_t s2LoopCount = (runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx) ? \
         (runInfo.s2LoopCount - runInfo.oriKvLoopEndIdx) : runInfo.s2LoopCount;
     int64_t s2Idx = s2StartOffset + s2LoopCount * constInfo.s2BaseSize + runInfo.s2StartIdx;
-    uint32_t combineBytes = constInfo.dSizeVInput * sizeof(KV_T);
-    uint32_t combineDim = combineBytes / sizeof(KV_T);
-    uint32_t combineDimAlign = CeilAlign(combineBytes, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
+    uint32_t combineDim = dVTemplateTypeInput / sizeof(KV_T);
+    uint32_t combineDimAlign = CeilAlign(dVTemplateTypeInput, BUFFER_SIZE_BYTE_32B) / sizeof(KV_T);
     DataCopyExtParams intriParams;
     intriParams.blockCount = dealRow;
-    intriParams.blockLen = combineBytes;
-    intriParams.dstStride = 0;
+    intriParams.blockLen = dCombineBytes;
+    intriParams.dstStride = (dVTemplateTypeInput - dCombineBytes) / DATABLOCK_BYTES;
     intriParams.srcStride = 0;
     DataCopyPadExtParams<KV_T> padParams;
     padParams.isPad = true;
@@ -544,6 +579,7 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
         uint64_t dstOffset = 0;
         uint32_t copyFinishElmenCnt = 0;
         uint32_t curSequence = s2Idx;
+        int64_t paBlockStride = runInfo.s2LoopCount >= runInfo.oriKvLoopEndIdx ? constInfo.cmpKvStride : constInfo.oriKvStride;
         while (copyFinishElmenCnt < dealRow) {
             uint64_t blockIdOffset = curSequence / blockSize;
             uint64_t remainElmenCnt = curSequence % blockSize;
@@ -552,10 +588,22 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::CopyInKvNotSparse(LocalTenso
             if (copyElmenCnt + copyFinishElmenCnt > dealRow) {
                 copyElmenCnt = dealRow - copyFinishElmenCnt;
             }
-            uint64_t srcOffset = idInBlockTable * blockSize * constInfo.n2Size * combineBytes +
-                remainElmenCnt * constInfo.n2Size * combineBytes + (uint64_t)(runInfo.n2oIdx * combineBytes); // BlockNum, BlockSize, N, D
+            uint64_t keyOffset = idInBlockTable * paBlockStride + remainElmenCnt * constInfo.n2Size * dCombineBytes +
+                    (uint64_t)(runInfo.n2oIdx * dCombineBytes); // BlockNum, BlockSize, N, D
+            uint64_t scaleOffset = idInBlockTable * paBlockStride + blockSize * constInfo.n2Size * dCombineBytes +
+                remainElmenCnt * scaleBytes;
             intriParams.blockCount = copyElmenCnt; // base s2 size
-            DataCopyPad(kvMergUb[dstOffset * combineDimAlign], keyGm[srcOffset], intriParams, padParams);
+            DataCopyPad(kvMergUb[dstOffset * combineDimAlign], keyGm[keyOffset], intriParams, padParams);
+            // 获取scale部分并将scale写入ub对应位置
+            GlobalTensor<uint64_t> keyTmpGm = keyGm.template ReinterpretCast<uint64_t>();
+            LocalTensor<uint64_t> kvMergTmpUb = kvMergUb.template ReinterpretCast<uint64_t>();
+            for (uint32_t i = 0; i < copyElmenCnt; ++i) {
+                uint64_t scaleData = keyTmpGm.GetValue(scaleOffset / uint64Touint8);
+                kvMergTmpUb.SetValue((dstOffset * combineDimAlign + dCombineBytes + i * dVTemplateTypeInput) / uint64Touint8, scaleData);
+            }
+            SetFlag<HardEvent::S_MTE2>(6);
+            WaitFlag<HardEvent::S_MTE2>(6);
+
             dstOffset += copyElmenCnt;
             copyFinishElmenCnt += copyElmenCnt;
             curSequence += copyElmenCnt;
@@ -997,7 +1045,9 @@ __aicore__ inline void SCFABlockVec<TEMPLATE_ARGS>::InitCubeVecSharedParams(
     sharedParams.oriWinRight = sparseAttnSharedkvBaseParams.oriWinRight;
     sharedParams.tileSize = sparseAttnSharedkvBaseParams.tileSize;
     sharedParams.dSizeRope = sparseAttnSharedkvBaseParams.ropeHeadDim;
-    sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale; 
+    sharedParams.softmaxScale = sparseAttnSharedkvBaseParams.softmaxScale;
+    sharedParams.oriKvStride = sparseAttnSharedkvBaseParams.oriKvStride; 
+    sharedParams.cmpKvStride = sparseAttnSharedkvBaseParams.cmpKvStride; 
     sharedParams.dSize = sparseAttnSharedkvBaseParams.dSize;
     sharedParams.dSizeVInput = sparseAttnSharedkvBaseParams.dSizeVInput;
 

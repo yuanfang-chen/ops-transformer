@@ -284,6 +284,8 @@ __aicore__ inline void KvQuantSparseAttnSharedkvScfa<CubeBlockType, VecBlockType
         constInfo.softmaxScale = sharedParams.softmaxScale;
         constInfo.oriBlockSize = sharedParams.oriBlockSize;
         constInfo.cmpBlockSize = sharedParams.cmpBlockSize;
+        constInfo.oriKvStride = sharedParams.oriKvStride;
+        constInfo.cmpKvStride = sharedParams.cmpKvStride;
         constInfo.oriMaxBlockNumPerBatch = sharedParams.oriMaxBlockNumPerBatch;
         constInfo.cmpMaxBlockNumPerBatch = sharedParams.cmpMaxBlockNumPerBatch;
     }
