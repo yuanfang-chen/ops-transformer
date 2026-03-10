@@ -29,20 +29,19 @@
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
 using Mc2WeightQuantBatchMatmulV2::Mc2QuantType;
-template <typename XType, typename WType, typename YType, class MmType>
+template <typename XType, typename WType, typename YType, class MmType, bool A2A_RS_AG>
 class MatmulAllReduceWeightQuantAdaptiveSplit
-    : public MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR>
+    : public MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, A2A_RS_AG>
 {
 public:
     __aicore__ inline MatmulAllReduceWeightQuantAdaptiveSplit(
         MC2GmAddrs* addrs, QuantGmAddrs* quantAddrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
-        : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR>(
+        : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, A2A_RS_AG>(
               addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
         mc2TilingData_ = (Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData*)tilingData;
         this->tailInfo_.mmTiling = &mc2TilingData_->tailMmASTiling.matmulTiling;
         this->tileInfo_.mmTiling = &mc2TilingData_->tileMmASTiling.matmulTiling;
-        this->allReduceBasedAtaSumAg_ = &mc2TilingData_->allReduceBasedAtaSumAg;
     }
     __aicore__ inline void Process()
     {
@@ -50,7 +49,7 @@ public:
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
         }
-        if (this->allReduceBasedAtaSumAg_){
+        if constexpr(A2A_RS_AG){
             this->ReduceSumAndAllGather();
         }
         this->HcclFinalize();
@@ -72,7 +71,7 @@ protected:
             const uint64_t index = tailFlag ? i + this->paramInTiling_->tileCnt : i;
             this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
         }
-        if (this->allReduceBasedAtaSumAg_){
+        if constexpr(A2A_RS_AG){
             this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
@@ -81,7 +80,7 @@ private:
     Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData* mc2TilingData_;
 };
 
-#define INVOKE_MC2_WEIGHT_QUANT_ADAPTIVE_SPLIT_KERNEL(bTransFlag, offsetFlag, quantType, biasType, vecAntiQuantConfig) \
+#define INVOKE_MC2_WEIGHT_QUANT_ADAPTIVE_SPLIT_KERNEL(bTransFlag, offsetFlag, quantType, biasType, vecAntiQuantConfig, A2A_RS_AG) \
     do {                                                                                                               \
         GET_TILING_DATA_WITH_STRUCT(Mc2Tiling::WeightQuantMatmulAllReduceA5Fp8TilingData, tilingData, tilingGM);       \
         static constexpr Mc2WeightQuantBatchMatmulV2::Arch35::WqmmConfig wqmmCfg = {                                      \
@@ -91,7 +90,7 @@ private:
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                                           \
         \ 
         QuantGmAddrs quantAddrs = {antiquantScaleGM, antiquantOffsetGM, nullptr, nullptr};                             \
-        MatmulAllReduceWeightQuantAdaptiveSplit<DTYPE_X1, DTYPE_X2, DTYPE_Y, OpType> op(                               \
+        MatmulAllReduceWeightQuantAdaptiveSplit<DTYPE_X1, DTYPE_X2, DTYPE_Y, OpType, A2A_RS_AG> op(                    \
             &addrs, &quantAddrs, nullptr, (MC2TilingHeader*)&tilingData, &tPipe);                                      \
         op.Init();                                                                                                     \
         op.Process();                                                                                                  \

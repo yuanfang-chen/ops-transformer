@@ -33,7 +33,6 @@ struct alignas(8) WeightQuantMatmulAllReduceA5TilingData {
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tileRegBaseMmTiling;
     Mc2WeightQuantBatchMatmulV2RegBaseTilingData tailRegBaseMmTiling;
-    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
@@ -45,7 +44,6 @@ struct alignas(8) WeightQuantMatmulAllReduceA5Fp8TilingData {
     Mc2Tiling::RCSTiling param;
     Mc2WeightQuantBatchMatmulV2ASTilingData tileMmASTiling;
     Mc2WeightQuantBatchMatmulV2ASTilingData tailMmASTiling;
-    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
@@ -57,7 +55,6 @@ struct alignas(8) QuantMatmulAllReduceTilingDataA5 {
     Mc2Tiling::RCSTiling param;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tilematmulTiling;
     DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams tailmatmulTiling;
-    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
@@ -69,7 +66,6 @@ struct alignas(8) MatmulAllReduce910TilingDataA5 {
     Mc2Tiling::RCSTiling param;
     Mc2MatMulV3TilingData mC2Mmv3TileTilingData;
     Mc2MatMulV3TilingData mC2Mmv3TailTilingData;
-    bool allReduceBasedAtaSumAg;     // 是否通过AlltoAll+vecSum+allGather等效实现allreduce
 };
 #pragma pack(pop)
 
