@@ -109,7 +109,7 @@ bool MlaPrologTilingCheck::CheckAttrsRange() const
         OP_CHECK_IF(supportedKvQuantMode.find(*context_.kvQuantMode) == supportedKvQuantMode.end(),
             OP_LOGE(context_.opName, "KvQuantMode must be within {0, 1, 2, 3}, actually is %d.", *context_.kvQuantMode),
                 return false);
-                    
+
         const std::set<uint32_t> supportedQueryQuantMode {0U, 1U};
         OP_CHECK_IF(supportedQueryQuantMode.find(*context_.queryQuantMode) == supportedQueryQuantMode.end(),
             OP_LOGE(context_.opName, "QueryQuantMode must be within {0, 1}, actually is %d.", *context_.queryQuantMode),
@@ -194,7 +194,11 @@ ge::graphStatus MlaPrologTilingCheck::CheckDims() const
             static_cast<uint32_t>(QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR),
             static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_NO_QUANT),
             static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR),
-            static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE)
+            static_cast<uint32_t>(QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE),
+            static_cast<uint32_t>(QUANT_MODE::FP8_FULL_QUANT_KV_NO_QUANT),
+            static_cast<uint32_t>(QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR),
+            static_cast<uint32_t>(QUANT_MODE::HIF8_FULL_QUANT_KV_NO_QUANT),
+            static_cast<uint32_t>(QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR),
         };
         OP_CHECK_IF(supportedQuantModes.find(static_cast<uint32_t>(scenarioInfo_.quantMode_)) == supportedQuantModes.end(),
             OP_LOGE(context_.opName, "QUANT_MODE allows only %s, got %u.",
@@ -384,7 +388,9 @@ void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDimsV2()
 void MlaPrologTilingCheck::FillOptionalOutputParamShapeWithDimsV3()
 {
     if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR ||
-        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
+        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
         expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, std::vector<uint32_t>{baseShapeInfo_.tSize, baseShapeInfo_.nSize, 1});
     } else {
         expectedParamInfo_.emplace(DEQUANT_SCALE_Q_NOPE_NAME, std::vector<uint32_t>{0});
@@ -474,6 +480,18 @@ void MlaPrologTilingCheck::FillScenarioParamInfo()
             break;
         case QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TILE:
             FillMxfp8FullKVPertileParamInfo();
+            break;
+        case QUANT_MODE::FP8_FULL_QUANT_KV_NO_QUANT:
+            FillFP8FullQuantParamInfo();
+            break;
+        case QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR:
+            FillFP8FullKVQuantParamInfo();
+            break;
+        case QUANT_MODE::HIF8_FULL_QUANT_KV_NO_QUANT:
+            FillHIF8FullQuantParamInfo();
+            break;
+        case QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR:
+            FillHIF8FullKVQuantParamInfo();
             break;
         default:
             break;
@@ -690,6 +708,26 @@ void MlaPrologTilingCheck::GenActualParamInfo()
     }
 }
 
+void MlaPrologTilingCheck::FillFP8FullQuantParamInfo()
+{
+    FillFullQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillFP8FullKVQuantParamInfo()
+{
+    FillFullKVQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillHIF8FullQuantParamInfo()
+{
+    FillFullQuantParamInfo();
+}
+
+void MlaPrologTilingCheck::FillHIF8FullKVQuantParamInfo()
+{
+    FillFullKVQuantParamInfo();
+}
+
 ge::graphStatus MlaPrologTilingCheck::CheckCkvkrRepoMode()
 {
     ge::graphStatus isCorrect {ge::GRAPH_SUCCESS};
@@ -822,7 +860,9 @@ ge::graphStatus MlaPrologTilingCheck::CheckScenarParam()
         }
     }
     if (scenarioInfo_.quantMode_ == QUANT_MODE::FULL_QUANT_KV_QUANT_PER_TENSOR ||
-        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
+        scenarioInfo_.quantMode_ == QUANT_MODE::MXFP8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::FP8_FULL_QUANT_KV_QUANT_PER_TENSOR ||
+        scenarioInfo_.quantMode_ == QUANT_MODE::HIF8_FULL_QUANT_KV_QUANT_PER_TENSOR) {
         if (*(context_.queryQuantMode) != static_cast<int>(QUERY_QUANT_MODE::PER_TOKEN_HEAD)) {
             OP_LOGE(context_.opName, "The queryQuantMode expected %d, but got %d.",
                 static_cast<int>(QUERY_QUANT_MODE::PER_TOKEN_HEAD), *(context_.queryQuantMode));
