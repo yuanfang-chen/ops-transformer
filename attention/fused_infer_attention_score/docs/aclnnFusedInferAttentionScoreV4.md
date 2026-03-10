@@ -312,7 +312,9 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <td>可选输入</td>
         <td>表示对key/value进行伪量化的因子</td>
         <td><ul><li>不支持空Tensor。</li>
-        <li>支持per-tensor、per-channel、per-token。</li></ul></td>
+        <li>支持per-tensor、per-channel、per-token。</li>
+            <li>建议使用KV伪量化参数分离模式。</li>
+            </ul></td>
         <td>Q_S=1：FLOAT16、BFLOAT16、FLOAT32Q_S&gt;1：FLOAT16</td>
         <td>ND</td>
         <td>见<a href="#AntiQuant">伪量化参数</a></td>
@@ -323,7 +325,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <td>可选输入</td>
         <td>表示对key/value进行伪量化的偏移，配置此项为非对称量化，反之为非对称量化</td>
         <td><ul><li>不支持空Tensor。</li>
-        <li>支持per-tensor、per-channel、per-tokenshape与antiquantScaleOptional保持一致。</li></ul></td>
+        <li>支持per-tensor、per-channel、per-tokenshape与antiquantScaleOptional保持一致。</li><li>建议使用KV伪量化参数分离模式。</li></ul></td>
         <td>与antiquantScaleOptional保持一致</td>
         <td>ND</td>
         <td>与antiquantScaleOptional保持一致</td>
@@ -631,7 +633,7 @@ aclnnStatus aclnnFusedInferAttentionScoreV4(
         <td>表示key/value的head个数</td>
         <td>
         <ul>
-            <li>需要满足numHeads整除numKeyValueHeads。</li>
+            <li>需要满足numHeads整除numKeyValueHeads，GQA非量化场景和Prefill MLA非量化场景下，numHeads与numKeyValueHeads的比值无限制; Decode MLA场景仅支持numHeads与numKeyValueHeads的比值为1、2、4、8、16、32、64、128。</li>
             <li>在BSND、TND、BNSD、NTD、BSND_BNSD、BNSD_BSND、NTD_TND场景下，还需要与shape中的key/value的N轴shape值相同，否则执行异常。</li>
         </ul>
         </td>
