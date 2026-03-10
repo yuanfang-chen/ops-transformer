@@ -964,7 +964,7 @@ void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
 
     l2CacheSizeRemain -= attenMaskSize;
     if (l2CacheSizeRemain < 0) {
-        OP_LOGD(context_, "The attentionMask[%ld] size is larger than the remaining L2 cache.", attenMaskSize, l2CacheSizeRemain);
+        OP_LOGD(context_, "The attentionMask[%ld] size is larger than the remaining L2 cache[%ld].", attenMaskSize, l2CacheSizeRemain);
         l2CacheSizeRemain = 0;
     }
 
@@ -978,7 +978,7 @@ void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
 
     l2CacheSizeRemain -= dropMaskSize;
     if (l2CacheSizeRemain < 0) {
-        OP_LOGD(context_, "The dropOutMask[%ld] size is larger than the remaining L2 cache.", dropMaskSize, l2CacheSizeRemain);
+        OP_LOGD(context_, "The dropOutMask[%ld] size is larger than the remaining L2 cache[%ld].", dropMaskSize, l2CacheSizeRemain);
         l2CacheSizeRemain = 0;
     }
 
@@ -997,7 +997,7 @@ void FlashAttentionScoreTilingRegbase::CalcThresholdForS2Size() {
 
     l2CacheSizeRemain -= pseSize;
     if (l2CacheSizeRemain < 0) {
-        OP_LOGD(context_, "The PSE[%ld] size is larger than the remaining L2 cache.", dropMaskSize, l2CacheSizeRemain);
+        OP_LOGD(context_, "The PSE[%ld] size is larger than the remaining L2 cache[%ld].", pseSize, l2CacheSizeRemain);
         l2CacheSizeRemain = 0;
     }
 
