@@ -175,7 +175,7 @@ int ExecuteIncreFlashAttention(TensorResources& resources, aclrtStream stream,
     constexpr size_t LAYER_OUT_LEN = sizeof(LAYER_OUT_STR);  
     char layerOut[LAYER_OUT_LEN];
     memcpy(layerOut, LAYER_OUT_STR, LAYER_OUT_LEN);
-
+    // test ut
     aclOpExecutor* executor;
     int ret = aclnnIncreFlashAttentionV4GetWorkspaceSize(
         resources.queryTensor, resources.tensorKeyList, resources.tensorValueList, 
