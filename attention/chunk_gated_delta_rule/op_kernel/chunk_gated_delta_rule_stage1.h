@@ -36,6 +36,7 @@ using cT_BF16 = MatmulType<TPosition::GM, CubeFormat::ND, bfloat16_t>;
 using MT_BF16 = matmul::MatmulImpl<aT_BF16, bT_BF16, cT_BF16>;
 
 constexpr uint64_t UB_REST_BYTES = 100 * 1024;  // 100KB
+constexpr uint64_t INVERSE_SHAPE = 32;  // 对角块边长
 constexpr uint64_t STAGEONE_BUFFER_NUM = 1;
 
 struct GDRStageOneInitParams {
@@ -243,7 +244,7 @@ private:
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
             AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, chunkSize, chunkSize, dk, chunkSize, chunkSize, dk, true);    //// 阶段一输出 用于调试
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
-            AttnInverseMMCompute();
+            AttnInverseMMCompute(INVERSE_SHAPE);
             AscendC::CrossCoreWaitFlag(0x6);  //同步3
             kCumDecayCompute();
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
@@ -386,13 +387,12 @@ private:
         Mul(attnUbFloat, attnUbFloat, gammaUbFloat[subBlockIdx * chunkSize * chunkSize / 2], curVecLen);
         PipeBarrier<PIPE_V>();
 
-        uint32_t inverseVecLen = 16;
+        uint32_t inverseVecLen = 32;
         inverseLocal = fp32OutQueue_.AllocTensor<float>();
         Muls(inverseLocal, attnUbFloat, static_cast<float>(-1.0), curVecLen);
         PipeBarrier<PIPE_V>();
 
         InverseAIV(attnBeginOffset, inverseVecLen);
-        InverseAIV(attnBeginOffset + inverseVecLen * chunkSize + inverseVecLen, inverseVecLen);
         fp32OutQueue_.EnQue(inverseLocal);
         DataCopyOutFp32(curVecLen, AttnWsGm_[subBlockIdx * curVecLen]);
     }
@@ -650,26 +650,12 @@ private:
         DataCopyPad(outGCumExpGm_, gCumExpUbFloat, params);  // dst, src   // 阶段一输出
     }
 
-    __aicore__ inline void AttnInverseMMCompute()
+    __aicore__ inline void AttnInverseMMCompute(uint64_t curLen)
     {
-        uint32_t curLen = 16;
-        uint64_t beginAddr = 0;
-        UpdateLowerBlock(beginAddr, curLen);
-        
-        beginAddr = chunkSize * chunkSize / 2 + chunkSize / 2;
-        UpdateLowerBlock(beginAddr, curLen);
-
-        curLen = 32;
-        beginAddr = 0;
-        UpdateLowerBlock(beginAddr, curLen);
-    }
-
-    __aicore__ inline void UpdateLowerBlock(uint64_t beginAddr, uint64_t curLen)
-    {
-        uint64_t leftDown = beginAddr + chunkSize * curLen;
+        uint64_t leftDown = chunkSize * curLen;
         uint64_t rightDown = leftDown + curLen;
         // 右矩阵左下角 @ 右矩阵左上角 -> 右矩阵左下角
-        AICProcess(AttnWsGm_[leftDown], AttnWsGm_[beginAddr], AttnWsGm_[leftDown], chunkSize, chunkSize, chunkSize, curLen, curLen, curLen);
+        AICProcess(AttnWsGm_[leftDown], AttnWsGm_, AttnWsGm_[leftDown], chunkSize, chunkSize, chunkSize, curLen, curLen, curLen);
         SetFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         WaitFlag<HardEvent::FIX_MTE2>(EVENT_ID1);
         // 右矩阵右下角 @ 右矩阵左下角 -> 右矩阵左下角
