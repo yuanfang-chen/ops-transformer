@@ -164,6 +164,7 @@ namespace optiling{
         uint32_t GetQNBlockTile(uint32_t qSeqlen, uint32_t groupSize);
         void FillBasicTilingData(FAInferTilingData &faTilingData);
         void splitBN2S1GS2(FAInferTilingData &faTilingData);
+        void SplitCoreDecodeBS1GN2(FAInferTilingData &faTilingData);
         BatchParams getBatchParams(uint32_t bIdx, uint32_t groupSize);
         void fillCoreInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize, uint64_t perCoreTaskNum);
         void fillSplitInfoForFlashDecode(FAInferTilingData &faTilingData, uint32_t groupSize);
