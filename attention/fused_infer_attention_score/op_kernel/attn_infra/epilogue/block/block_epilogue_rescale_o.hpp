@@ -837,7 +837,7 @@ public:
         uint32_t embed = actualBlockShape.n();
         uint32_t embedRoundV = layoutInput.stride(0);
         uint32_t maxRowNumPerLoop = MAX_UB_O_ELEM_NUM / embed;
-        uint32_t rowNumTile = RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
+        uint32_t rowNumTile = NpuArch::Detail::Alignment::RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
 
         uint32_t subBlockIdx = AscendC::GetSubBlockIdx();
         uint32_t subBlockNum = AscendC::GetSubBlockNum();
@@ -887,7 +887,7 @@ public:
         auto layoutOutLseThisSubBlock = layoutLse;
 
         if (inRowActualThisSubBlock > 0U) {
-            uint32_t rowLoop = CeilDiv(inRowActualThisSubBlock, rowNumTile);
+            uint32_t rowLoop = NpuArch::Detail::Alignment::CeilDiv(inRowActualThisSubBlock, rowNumTile);
             uint32_t needRowLoop = (rowLoop > 1U) ? 1 : 0;
 
             uint32_t proTokenIdx = 0;
