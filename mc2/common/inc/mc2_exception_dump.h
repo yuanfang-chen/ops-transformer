@@ -148,31 +148,26 @@ struct TestStruct {
     uint8_t res1[136];
 };
 
-inline int ProcessArgs910B(void* devArgsPtr, std::vector<uint8_t> &winBuf)
+inline int ProcessArgs910B(void* devArgsPtr, std::vector<uint8_t> &winBuf, uint32_t devArgsLen)
 {
     uint64_t argsAddr = 0;
     auto maxArgNum = devArgsLen / sizeof(uint64_t);
     std::vector<uint8_t> devArgsVector(devArgsLen, 0);
-    ret = aclrtMemcpy(devArgsVector.data(), devArgsLen, devArgsPtr, devArgsLen, ACL_MEMCPY_DEVICE_TO_HOST);
+    auto ret = aclrtMemcpy(devArgsVector.data(), devArgsLen, devArgsPtr, devArgsLen, ACL_MEMCPY_DEVICE_TO_HOST);
     std::vector<uint64_t> devArgsVector64(maxArgNum, 0);
     std::memcpy(devArgsVector64.data(), devArgsVector.data(), devArgsVector.size());
     if (!(ret == ACL_SUCCESS)) {
         OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
-        return;
-    } else {
-        OP_LOGE(OP_NAME, "aclrtMemcpy address of args succ. ret=%d", ret);
+        return -1;
     }
 
-    // Get win content
-    // std::vector<uint8_t> winContent(WIN_SIZE, 0);
-    // argsAddr = devArgsVector64[1];
-    std::vector<uint8_t> tilingData(sizeof(MoeDistributeDispatchA2TilingData), 0);
-    argsAddr = devArgsVector64[18];
-    ret = aclrtMemcpy(tilingData.data(), sizeof(MoeDistributeDispatchA2TilingData), (void *)argsAddr, sizeof(MoeDistributeDispatchA2TilingData),
+    // argsAddr = devArgsVector64[1]; // The loc of mc2 ctx.
+    std::vector<uint8_t> rawTilingData(sizeof(MoeDistributeDispatchA2TilingData), 0);
+    argsAddr = devArgsVector64[18]; // The loc of tiling data.
+    ret = aclrtMemcpy(rawTilingData.data(), sizeof(MoeDistributeDispatchA2TilingData), (void *)argsAddr, sizeof(MoeDistributeDispatchA2TilingData),
                            ACL_MEMCPY_DEVICE_TO_HOST);
-    MoeDistributeDispatchA2TilingData* tilingDataF = reinterpret_cast<MoeDistributeDispatchA2TilingData*>(tilingData.data());
-    OP_LOGE(OP_NAME, "MoeDistributeDispatchA2TilingData. epWorldSize=%d", tilingDataF->moeDistributeDispatchInfo.epWorldSize);
-    Mc2CcTiling mc2CcTiling = tilingDataF->mc2CcTiling;
+    MoeDistributeDispatchA2TilingData* tilingData = reinterpret_cast<MoeDistributeDispatchA2TilingData*>(rawTilingData.data());
+    Mc2CcTiling mc2CcTiling = tilingData->mc2CcTiling;
     TestStruct* test = reinterpret_cast<TestStruct*>(&mc2CcTiling);
     OP_LOGE(OP_NAME, "MoeDistributeDispatchA2TilingData. groupName=%s", test->groupName);
     uint64_t size;
@@ -183,14 +178,15 @@ inline int ProcessArgs910B(void* devArgsPtr, std::vector<uint8_t> &winBuf)
     ret = aclrtMemcpy(winBuf.data(), WIN_SIZE, (const void *)buffer, WIN_SIZE, ACL_MEMCPY_DEVICE_TO_HOST);
     if (!(ret == ACL_SUCCESS)) {
         OP_LOGE(OP_NAME, "aclrtMemcpy win from device to host failed. ret = %d", ret);
-        return;
+        return -1;
     }
+    return 0;
 }
 
 inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const char *op)
 {
     const char* socName = aclrtGetSocName();
-    if(std::strstr(socName, "Ascend950") == nullptr || std::strstr(socName, "Ascend910B") == nullptr) {
+    if(std::strstr(socName, "Ascend950") == nullptr && std::strstr(socName, "Ascend910B") == nullptr) {
         OP_LOGE(OP_NAME, "The soc version is %s, skip dump process", socName);
         return;
     }
@@ -211,6 +207,8 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
     }
     OP_LOGD(OP_NAME, "Get context from args. deviceId=%u, devArgsAddr=%p, devArgsLen=%u", deviceId, devArgsPtr,
             devArgsLen);
+    // Get win content
+    std::vector<uint8_t> winContent(WIN_SIZE, 0);
     if (std::strstr(socName, "Ascend950") != nullptr) {
         uint64_t argsAddr = 0;
         ret = aclrtMemcpy(&argsAddr, sizeof(uint64_t), devArgsPtr, sizeof(uint64_t), ACL_MEMCPY_DEVICE_TO_HOST);
@@ -218,16 +216,12 @@ inline void Mc2ExceptionImpl(aclrtExceptionInfo *args, void *userdata, const cha
             OP_LOGE(OP_NAME, "aclrtMemcpy address of args failed. ret=%d", ret);
             return;
         }
-
-        // Get win content
-        std::vector<uint8_t> winContent(WIN_SIZE, 0);
-        
         if (ProcessArgs(argsAddr, winContent) != 0) {
             OP_LOGE(OP_NAME, "Failed to get win content.");
             return;
         }
     } else if (std::strstr(socName, "Ascend910B") != nullptr) {
-        if (ProcessArgs910B(devArgsPtr, winContent) != 0) {
+        if (ProcessArgs910B(devArgsPtr, winContent, devArgsLen) != 0) {
             OP_LOGE(OP_NAME, "Failed to get win content.");
             return;
         }
