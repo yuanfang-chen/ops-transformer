@@ -145,11 +145,6 @@ bool KvQuantSparseAttnSharedkvMetadataCpuKernel::CheckExistence() {
         KERNEL_LOG_ERROR("seqused_kv must be provided!");
         return false;
     }
-    // ori_topk_length 存在性校验
-    if (!isInvalid(oriTopkLength_) && oriMaskMode_ != 0) {
-        KERNEL_LOG_ERROR("ori_topk_length needs to be enabled only when ori_mask_mode = 0, but got %d", oriMaskMode_);
-        return false;
-    }
     return true;
 }
 
@@ -301,7 +296,10 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, 
     if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
         const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
         for (uint32_t i = 0; i < bIdx; i++) {
-            bsStride += seqUsedPtr[bIdx];
+            if (i == 0) {
+                continue;
+            }
+            bsStride += seqUsedPtr[i - 1];
         }
         bsStride += s1Idx;
         return bsStride;
@@ -309,7 +307,7 @@ uint32_t KvQuantSparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, 
     if (layoutQuery_ == "TND") {
         if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
             const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
-            bsStride = s1Ptr[bIdx + 1U] + s1Idx;
+            bsStride = s1Ptr[bIdx] + s1Idx;
             return bsStride;
         }
     }
