@@ -305,7 +305,10 @@ uint32_t SparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_
     if (seqUsedQ_ != nullptr && seqUsedQ_->GetData() != nullptr) {
         const int32_t *seqUsedPtr = static_cast<const int32_t*>(seqUsedQ_->GetData());
         for (uint32_t i = 0; i < bIdx; i++) {
-            bsStride += seqUsedPtr[bIdx];
+            if (i == 0) {
+                continue;
+            }
+            bsStride += seqUsedPtr[i - 1];
         }
         bsStride += s1Idx;
         return bsStride;
@@ -313,7 +316,7 @@ uint32_t SparseAttnSharedkvMetadataCpuKernel::GetBsStride(uint32_t bIdx, uint32_
     if (layoutQuery_ == "TND") {
         if (actSeqLenQ_ != nullptr && actSeqLenQ_->GetData() != nullptr) {
             const int32_t *s1Ptr =static_cast<const int32_t*>(actSeqLenQ_->GetData());
-            bsStride = s1Ptr[bIdx + 1U] + s1Idx;
+            bsStride = s1Ptr[bIdx] + s1Idx;
             return bsStride;
         }
     }
