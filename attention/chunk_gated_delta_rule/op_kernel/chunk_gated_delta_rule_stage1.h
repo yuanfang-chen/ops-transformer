@@ -240,20 +240,30 @@ private:
     {
         if ASCEND_IS_AIC {
             AscendC::CrossCoreWaitFlag(0x9);  //同步0
-            AICProcess(keyContinousGm_, keyContinousGm_, kkWsGm_, chunkSize, chunkSize, dk, chunkSize, chunkSize, dk, true);    // KK
+            // key @ key.transpose(-1,-2)
+            AICProcess(keyContinousGm_, keyContinousGm_, kkWsGm_, 
+                       chunkSize, chunkSize, dk, chunkSize, chunkSize, dk, true);
             AscendC::CrossCoreSetFlag<0x2, PIPE_FIX>(0x8);  //同步1
-            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, chunkSize, chunkSize, dk, chunkSize, chunkSize, dk, true);    //// 阶段一输出 用于调试
+            // query @ key.transpose(-1,-2)
+            AICProcess(queryContinousGm_, keyContinousGm_, outQkGm_, chunkSize, chunkSize, dk, 
+                       chunkSize, chunkSize, dk, true);
             AscendC::CrossCoreWaitFlag(0x7);  //同步2
+            // 求逆左下角矩阵
             AttnInverseMMCompute(INVERSE_SHAPE);
             AscendC::CrossCoreWaitFlag(0x6);  //同步3
+            // attn @ k_cumdecay
             kCumDecayCompute();
             AscendC::CrossCoreWaitFlag(0x5);  //同步4
-            AICProcess(AttnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize, dv, chunkSize, chunkSize, dv, chunkSize); // 阶段一输出
+            // attn @ v_beta
+            AICProcess(AttnWsGm_, vBetaWsGm_, outVInnerGm_, chunkSize, dv, chunkSize, chunkSize, dv, chunkSize);
         }
         if ASCEND_IS_AIV {
+            // 获取连续QK
             QKPreProcess();
             AscendC::CrossCoreSetFlag<0x2, PIPE_MTE3>(0x9);  //同步0
+            // g_cum_exp = g.cumsum(dim=-1).exp()
             GCumExpCompute();
+            // (g_cum_exp[-1, None] / g_cum_exp)[..., None] * mask
             GammaCompute();
             BetaCopyInWithStride();
             AscendC::CrossCoreWaitFlag(0x8);  //同步1
