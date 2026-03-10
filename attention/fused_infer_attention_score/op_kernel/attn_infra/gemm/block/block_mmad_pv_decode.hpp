@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef GEMM_BLOCK_MMAD_PV_HPP
-#define GEMM_BLOCK_MMAD_PV_HPP
+#ifndef GEMM_BLOCK_MMAD_PV_DECODE_HPP
+#define GEMM_BLOCK_MMAD_PV_DECODE_HPP
 
 #include "../../../attn_infra/base_defs.hpp"
 #include "../../../attn_infra/arch/resource.hpp"
@@ -38,7 +38,7 @@ template <
     class TileCopy_,
     class TileMmad_>
 struct BlockMmad<
-    MmadAtlasA2FAIPV<PAGED_CACHE_FLAG_, ENABLE_UNIT_FLAG_>,
+    MmadAtlasA2FAIPVDecode<PAGED_CACHE_FLAG_, ENABLE_UNIT_FLAG_>,
     L1TileShape_,
     L0TileShape_,
     AType_,
@@ -49,7 +49,7 @@ struct BlockMmad<
     TileMmad_> {
 public:
     // Type Aliases
-    using DispatchPolicy = MmadAtlasA2FAIPV<PAGED_CACHE_FLAG_, ENABLE_UNIT_FLAG_>;
+    using DispatchPolicy = MmadAtlasA2FAIPVDecode<PAGED_CACHE_FLAG_, ENABLE_UNIT_FLAG_>;
     using ArchTag = typename DispatchPolicy::ArchTag;
     using L1TileShape = L1TileShape_;
     using L0TileShape = L0TileShape_;
@@ -283,4 +283,4 @@ protected:
 
 } // namespace NpuArch::Gemm::Block
 
-#endif // GEMM_BLOCK_MMAD_PV_HPP
+#endif // GEMM_BLOCK_MMAD_PV_DECODE_HPP
