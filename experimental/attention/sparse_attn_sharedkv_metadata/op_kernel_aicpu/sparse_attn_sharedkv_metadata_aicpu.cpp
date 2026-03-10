@@ -134,22 +134,26 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
 {
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // cu_seqlens_q 存在性校验
+    // TND Tensor 存在性校验
     if (layoutQuery_ == "TND") {
-        if (isInvalid(actSeqLenQ_)) {
-            KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
+        if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {
+            KERNEL_LOG_ERROR("For layout_q TND, at least one of cu_seqlens_q and seqused_q must be provided!");
+            return false;
+        }
+        
+    }
+    if (layoutKv_ == "TND") {
+        if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv TND, at least one of cu_seqlens_ori_kv and seqused_kv must be provided!");
             return false;
         }
     }
-    // seqused_kv 存在性校验
-    if (isInvalid(seqUsedKv_)) {
-        KERNEL_LOG_ERROR("seqused_kv must be provided!");
-        return false;
-    }
-    // ori_topk_length 存在性校验
-    if (!isInvalid(oriTopkLength_) && oriMaskMode_ != 0) {
-        KERNEL_LOG_ERROR("ori_topk_length needs to be enabled only when ori_mask_mode = 0, but got %d", oriMaskMode_);
-        return false;
+    // layoutKv_ "PA_ND" 存在性校验
+    if (layoutKv_ == "PA_ND") {
+        if (isInvalid(seqUsedKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv PA_ND, seqused_kv must be provided!");
+            return false;
+        }
     }
     return true;
 }
