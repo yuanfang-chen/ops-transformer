@@ -1,0 +1,547 @@
+# aclnnMhcPre
+
+## 产品支持情况
+
+|产品      | 是否支持 |
+|:----------------------------|:-----------:|
+|<term>昇腾910_95 AI处理器</term>|      √     |
+|<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|    ×     |
+|<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|    ×     |
+|<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
+|<term>Atlas 推理系列产品</term>|      ×     |
+|<term>Atlas 训练系列产品</term>|      ×     |
+|<term>Atlas 200/300/500 推理产品</term>|      ×     |
+
+## 功能说明
+
+- 接口功能：基于一系列计算得到MHC架构中hidden层的$H^{res}$和$H^{post}$投影矩阵以及Atten或MLP层的输入矩阵$h^{in}$。
+
+## 计算公式
+
+$$
+\begin{aligned}
+\vec{x^{'}_{l}} &=RMSNorm(\vec{x_{l}})\\
+H^{pre}_l &= \alpha^{pre}_{l} ·(\vec{x^{'}_{l}}\varphi^{pre}_{l}) + b^{pre}_{l}\\
+H^{post}_l &= \alpha^{post}_{l} ·(\vec{x^{'}_{l}}\varphi^{post}_{l}) + b^{post}_{l}\\
+H^{res}_l &= \alpha^{res}_{l} ·(\vec{x^{'}_{l}}\varphi^{res}_{l}) + b^{res}_{l}\\
+H^{pre}_l &= \sigma (H^{pre}_{l})\\
+H^{post}_l &= 2\sigma (H^{post}_{l})\\
+H^{res}_l &= \sigma (H^{res}_{l})\\
+h_{in} &=\vec{x^{'}_{l}}H^{pre}_l
+\end{aligned}
+$$
+
+---
+
+## 函数原型
+
+算子采用两段式接口调用：需先调用`aclnnMhcPreGetWorkspaceSize`获取计算所需的Device侧内存大小，再调用`aclnnMhcPre`执行实际计算。
+
+```c++
+aclnnStatus aclnnMhcPreGetWorkspaceSize(
+    const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
+    int64_t out_flag, double norm_eps, double hc_eps,
+    const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
+    const aclTensor *out_inv_rms, const aclTensor *out_mm_res, const aclTensor *out_h_pre,
+    uint64_t *workspaceSize, aclOpExecutor **executor)
+```
+```c++
+aclnnStatus aclnnMhcPre(
+    void *workspace, uint64_t workspaceSize, aclOpExecutor *executor, aclrtStream stream)
+```
+
+## aclnnMhcPreGetWorkspaceSize
+
+### 参数说明
+| 参数名 | 输入/输出 | 描述 | 使用说明 | 数据类型 | 数据格式 | 维度(shape) | 非连续Tensor |
+|:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
+| x | 输入 | 待计算数据，表示网络中mHC层的输入数据 | 必选参数，不能为空Tensor | BFLOAT16 或 FLOAT16 | ND | ($B,S,n,D$) 或 ($T,n,D$) | √ |
+| phi | 输入 | mHC的参数矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | ($n^2+2n, nD$) | √ |
+| alpha | 输入 | mHC的缩放参数 | 必选参数，不能为空Tensor | FLOAT32 | - | (3) | - |
+| bias | 输入 | mHC的bias参数 | 必选参数，不能为空Tensor | FLOAT32 | - | ($n^2+2n$) | - |
+| gamma | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
+| norm_eps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
+| hc_eps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
+| out_flag | 可选输入 | 表示是否输出mm_res/inv_rms/h_pre，默认为0表示不输出，为1表示全输出 | 可选参数 | INT64 | - | - | - |
+| out_hin | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| out_h_post | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| out_h_res | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
+| out_inv_rms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
+| out_mm_res | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
+| out_h_pre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
+
+### 返回值
+
+返回`aclnnStatus`状态码，第一段接口主要完成入参校验，异常场景如下：
+
+| 返回值 | 错误码 | 描述 |
+|:--- |:--- |:--- |
+| ACLNN_ERR_PARAM_NULLPTR | 161001 | 必选参数或者输出是空指针。|
+| ACLNN_ERR_PARAM_INVALID | 161002 | 输入变量的数据类型和数据格式不在支持的范围内。 |
+| ACLNN_ERR_RUNTIME_ERROR | 361001 | API内存调用npu runtime的接口异常。 |
+
+## aclnnMhcPre
+
+### 参数说明
+
+| 参数名 | 输入/输出 | 描述 |
+|:--- |:--- |:--- |
+| workspace | 输入 | Device侧申请的workspace内存地址，需与第一段接口返回的workspaceSize匹配。 |
+| workspaceSize | 输入 | Device侧workspace内存大小，由`aclnnMhcPreGetWorkspaceSize`接口返回。 |
+| executor | 输入 | 算子执行器，由第一段接口创建，包含计算流程和参数信息。 |
+| stream | 输入 | 指定执行计算任务的Stream，需提前创建并绑定Device。 |
+
+### 返回值
+
+返回`aclnnStatus`状态码。
+
+## 约束说明
+
+### 确定性计算
+
+- aclnnMhcPre 默认采用确定性实现，相同输入多次调用结果一致。
+
+### 公共约束
+1. 输入约束：
+   - 输入Tensor `x`、`phi`、`alpha`、`bias` 不能为空，且必须为Device侧Tensor；
+   - 所有输入/输出Tensor的数据格式仅支持`ACL_FORMAT_ND`；
+2. 内存约束：
+   - Workspace内存需在Device侧申请，且大小需严格匹配第一段接口返回值；
+   - 非连续Tensor无需提前转为连续，算子内部自动处理。
+
+### 规格约束
+
+| 规格项 | 规格 | 规格说明 |
+|:--- |:--- |:--- |
+| T或B*S | 1~65536 | B*S 或T支持512~65536范围（训练及推理Prefill），支持1~512（推理Decode）。|
+| n | 4、6、8 | n值目前支持4, 6, 8。|
+| D | 512~16384 | D支持512~16384范围以内。|
+
+### 典型值
+
+#### 推理Prefill典型shape
+
+| 规格项 | 典型值 |
+|:--- |:--- |
+| T或 B*S | 1024/2048/4096 |
+| n | 4（推荐） |
+| D | 2560/5120（推荐） |
+| eps | 1e-6（推荐） |
+
+#### 推理Decode典型shape
+
+| 规格项 | 典型值 |
+|:--- |:--- |
+| T或 B*S | 低时延场景：B=1, S=2/3/4/5; <br> 高吞吐场景：B=4/8/12/16/20/24/28/32/36/40/44/48/52/56/60, S=2/3 |
+| n | 4（推荐） |
+| D | 2560/5120（推荐） |
+| eps | 1e-6（推荐） |
+
+## 调用示例
+
+以下为C++调用示例，需结合AscendCL环境编译运行。
+
+```c++
+#include <iostream>
+#include <vector>
+#include "acl/acl.h"
+#include "aclnnop/aclnn_mhc_pre.h"
+
+#define CHECK_RET(cond, return_expr) \
+  do {                               \
+    if (!(cond)) {                   \
+      return_expr;                   \
+    }                                \
+  } while (0)
+
+#define LOG_PRINT(message, ...)     \
+  do {                              \
+    printf(message, ##__VA_ARGS__); \
+  } while (0)
+
+// 计算Tensor形状对应的总元素数
+int64_t GetShapeSize(const std::vector<int64_t>& shape) {
+  int64_t size = 1;
+  for (int64_t dim : shape) {
+    size *= dim;
+  }
+  return size;
+}
+
+// 将Device侧Tensor数据拷贝到Host侧并打印
+void PrintTensorData(const std::vector<int64_t>& shape, void* device_addr) {
+  int64_t size = GetShapeSize(shape);
+  std::vector<float> host_data(size, 0.0f);
+  
+  // Device -> Host 数据拷贝
+  aclError ret = aclrtMemcpy(
+      host_data.data(), size * sizeof(float),
+      device_addr, size * sizeof(float),
+      ACL_MEMCPY_DEVICE_TO_HOST
+  );
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Memcpy device to host failed, error: %d\n", ret); 
+            return);
+
+  // 打印前10个元素（示例）
+  LOG_PRINT("Tensor data (first 10 elements): ");
+  for (int i = 0; i < std::min((int64_t)10, size); ++i) {
+    LOG_PRINT("%f ", host_data[i]);
+  }
+  LOG_PRINT("\n");
+}
+
+// 初始化AscendCL环境（Device/Context/Stream）
+int InitAcl(int32_t device_id, aclrtContext& context, aclrtStream& stream) {
+  // 1. 初始化ACL
+  aclError ret = aclInit(nullptr);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclInit failed, error: %d\n", ret); 
+            return -1);
+
+  // 2. 设置Device
+  ret = aclrtSetDevice(device_id);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSetDevice failed, error: %d\n", ret); 
+            return -1);
+
+  // 3. 创建Context
+  ret = aclrtCreateContext(&context, device_id);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtCreateContext failed, error: %d\n", ret); 
+            return -1);
+
+  // 4. 设置当前Context
+  ret = aclrtSetCurrentContext(context);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSetCurrentContext failed, error: %d\n", ret); 
+            return -1);
+
+  // 5. 创建Stream
+  ret = aclrtCreateStream(&stream);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtCreateStream failed, error: %d\n", ret); 
+            return -1);
+
+  return 0;
+}
+
+// 创建Device侧aclTensor（含数据拷贝）
+int CreateAclTensor(
+    const std::vector<float>& host_data,
+    const std::vector<int64_t>& shape,
+    void*& device_addr,
+    aclTensor*& tensor) {
+  // 1. 计算内存大小
+  int64_t size = GetShapeSize(shape) * sizeof(float);
+
+  // 2. 申请Device侧内存
+  aclError ret = aclrtMalloc(&device_addr, size, ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtMalloc failed, error: %d\n", ret); 
+            return -1);
+
+  // 3. Host -> Device 数据拷贝
+  ret = aclrtMemcpy(
+      device_addr, size,
+      host_data.data(), size,
+      ACL_MEMCPY_HOST_TO_DEVICE
+  );
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtMemcpy failed, error: %d\n", ret); 
+            return -1);
+
+  // 4. 计算Tensor的strides（连续Tensor）
+  std::vector<int64_t> strides(shape.size(), 1);
+  for (int64_t i = shape.size() - 2; i >= 0; --i) {
+    strides[i] = strides[i + 1] * shape[i + 1];
+  }
+
+  // 5. 创建aclTensor
+  tensor = aclCreateTensor(
+      shape.data(), shape.size(),
+      ACL_FLOAT, strides.data(), 0,
+      ACL_FORMAT_ND, shape.data(), shape.size(),
+      device_addr
+  );
+  CHECK_RET(tensor != nullptr, 
+            LOG_PRINT("aclCreateTensor failed\n"); 
+            return -1);
+
+  return 0;
+}
+
+int main() {
+  // ========== 1. 初始化环境 ==========
+  int32_t device_id = 0;  // 根据实际Device ID调整
+  aclrtContext context = nullptr;
+  aclrtStream stream = nullptr;
+  
+  int ret = InitAcl(device_id, context, stream);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("InitAcl failed, error: %d\n", ret); 
+            return -1);
+
+  // ========== 2. 构造输入/输出参数 ==========
+  int B = 1;
+  int S = 2048;
+  int n = 4;
+  int D = 2560;
+
+  std::vector<int64_t> x_shape = {B * S, n, D};
+  int64_t x_size = GetShapeSize(x_shape);
+  std::vector<float> x_host_data(x_size, 1.0f);  // 初始化输入数据为1.0
+
+  std::vector<int64_t> phi_shape = {n * n + 2 * n, n * D};
+  int64_t phi_size = GetShapeSize(phi_shape);
+  std::vector<float> phi_host_data(phi_size, 1.0f);  // 初始化输入数据为1.0
+
+  std::vector<int64_t> alpha_shape = {3};
+  int64_t alpha_size = GetShapeSize(alpha_shape);
+  std::vector<float> alpha_host_data(alpha_size, 1.0f);  // 初始化输入数据为1.0
+
+  std::vector<int64_t> bias_shape = {n * n + 2 * n};
+  int64_t bias_size = GetShapeSize(bias_shape);
+  std::vector<float> bias_host_data(bias_size, 1.0f);  // 初始化输入数据为1.0
+
+  std::vector<int64_t> gamma_shape = {n, D};
+  int64_t gamma_size = GetShapeSize(gamma_shape);
+  std::vector<float> gamma_host_data(gamma_size, 1.0f);  // 初始化输入数据为1.0
+
+  // h_in
+  std::vector<int64_t> output_hin_shape = {B * S, D};
+  void* output_hin_device_addr = nullptr;
+  aclTensor* output_hin_tensor = nullptr;
+  // h_post
+  std::vector<int64_t> output_h_post_shape = {B * S, n};
+  void* output_h_post_device_addr = nullptr;
+  aclTensor* output_h_post_tensor = nullptr;
+  // h_res
+  std::vector<int64_t> output_h_res_shape = {B * S, n, n};
+  void* output_h_res_device_addr = nullptr;
+  aclTensor* output_h_res_tensor = nullptr;
+  // inv_rms
+  std::vector<int64_t> output_inv_rms_shape = {B * S};
+  void* output_inv_rms_device_addr = nullptr;
+  aclTensor* output_inv_rms_tensor = nullptr;
+  // h_mix
+  std::vector<int64_t> output_h_mix_shape = {B * S, n * n + 2 * n};
+  void* output_h_mix_device_addr = nullptr;
+  aclTensor* output_h_mix_tensor = nullptr;
+  // h_pre
+  std::vector<int64_t> output_h_pre_shape = {B * S, n};
+  void* output_h_pre_device_addr = nullptr;
+  aclTensor* output_h_pre_tensor = nullptr;
+
+  // 输入x的Device Tensor
+  void* x_device_addr = nullptr;
+  aclTensor* x_tensor = nullptr;
+  ret = CreateAclTensor(x_host_data, x_shape, x_device_addr, x_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create x_tensor failed\n"); 
+            return -1);
+
+  // 输入phi的Device Tensor
+  void* phi_device_addr = nullptr;
+  aclTensor* phi_tensor = nullptr;
+  ret = CreateAclTensor(phi_host_data, phi_shape, phi_device_addr, phi_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create phi_tensor failed\n"); 
+            return -1);
+
+  // 输入alpha的Device Tensor
+  void* alpha_device_addr = nullptr;
+  aclTensor* alpha_tensor = nullptr;
+  ret = CreateAclTensor(alpha_host_data, alpha_shape, alpha_device_addr, alpha_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create alpha_tensor failed\n"); 
+            return -1);
+
+  // 输入bias的Device Tensor
+  void* bias_device_addr = nullptr;
+  aclTensor* bias_tensor = nullptr;
+  ret = CreateAclTensor(bias_host_data, bias_shape, bias_device_addr, bias_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create bias_tensor failed\n"); 
+            return -1);
+
+  // 输入gamma的Device Tensor
+  void* gamma_device_addr = nullptr;
+  aclTensor* gamma_tensor = nullptr;
+  ret = CreateAclTensor(gamma_host_data, gamma_shape, gamma_device_addr, gamma_tensor);
+  CHECK_RET(ret == 0, 
+            LOG_PRINT("Create gamma_tensor failed\n"); 
+            return -1);
+
+  // 输出output的Device Tensor（仅申请内存，无初始数据）
+  // hin
+  ret = aclrtMalloc(&output_hin_device_addr, GetShapeSize(output_hin_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_hin failed, error: %d\n", ret); 
+            return -1);
+  output_hin_tensor = aclCreateTensor(
+      output_hin_shape.data(), output_hin_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_hin_shape.data(), output_hin_shape.size(),
+      output_hin_device_addr
+  );
+
+  // h_post
+  ret = aclrtMalloc(&output_h_post_device_addr, GetShapeSize(output_h_post_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_h_post failed, error: %d\n", ret); 
+            return -1);
+  output_h_post_tensor = aclCreateTensor(
+      output_h_post_shape.data(), output_h_post_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_h_post_shape.data(), output_h_post_shape.size(),
+      output_h_post_device_addr
+  );
+    
+  // h_res
+  ret = aclrtMalloc(&output_h_res_device_addr, GetShapeSize(output_h_res_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_res failed, error: %d\n", ret); 
+            return -1);
+  output_h_res_tensor = aclCreateTensor(
+      output_h_res_shape.data(), output_h_res_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_h_res_shape.data(), output_h_res_shape.size(),
+      output_h_res_device_addr
+  );
+
+  // inv_rms
+  ret = aclrtMalloc(&output_inv_rms_device_addr, GetShapeSize(output_inv_rms_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_inv_rms failed, error: %d\n", ret); 
+            return -1);
+  output_inv_rms_tensor = aclCreateTensor(
+      output_inv_rms_shape.data(), output_inv_rms_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_inv_rms_shape.data(), output_inv_rms_shape.size(),
+      output_inv_rms_device_addr
+  );
+
+  // h_mix
+  ret = aclrtMalloc(&output_h_mix_device_addr, GetShapeSize(output_h_mix_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_h_mix failed, error: %d\n", ret); 
+            return -1);
+  output_h_mix_tensor = aclCreateTensor(
+      output_h_mix_shape.data(), output_h_mix_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_h_mix_shape.data(), output_h_mix_shape.size(),
+      output_h_mix_device_addr
+  );
+
+  // h_pre
+  ret = aclrtMalloc(&output_h_pre_device_addr, GetShapeSize(output_h_pre_shape)*sizeof(float), ACL_MEM_MALLOC_HUGE_FIRST);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("Malloc output_h_pre failed, error: %d\n", ret); 
+            return -1);
+
+  output_h_pre_tensor = aclCreateTensor(
+      output_h_pre_shape.data(), output_h_pre_shape.size(),
+      ACL_FLOAT, nullptr, 0, ACL_FORMAT_ND,
+      output_h_pre_shape.data(), output_h_pre_shape.size(),
+      output_h_pre_device_addr
+  );
+  
+  // MhcPre算子参数   
+  float norm_eps = 1e-6;  // 防除零参数
+  float hc_eps = 1e-6;
+  int64_t out_flag = 1;   // 输出中间结果
+
+  // ========== 3. 调用第一段接口：获取Workspace大小 ==========
+  uint64_t workspace_size = 0;
+  aclOpExecutor* executor = nullptr;
+  
+  aclnnStatus aclnn_ret = aclnnMhcPreGetWorkspaceSize(
+    x, phi, alpha, bias, gamma,
+    out_flag, norm_eps, hc_eps,
+    output_hin_tensor, output_h_post_tensor, output_h_res_tensor,
+    output_inv_rms_tensor, output_h_mix_tensor, output_h_pre_tensor,
+    &workspace_size, &executor);
+
+  CHECK_RET(aclnn_ret == ACLNN_SUCCESS, 
+            LOG_PRINT("aclnnMhcPreGetWorkspaceSize failed, error: %d\n", aclnn_ret); 
+            return -1);
+  
+  // ========== 4. 申请Workspace内存 ==========
+  void* workspace_addr = nullptr;
+  if (workspace_size > 0) {
+    ret = aclrtMalloc(&workspace_addr, workspace_size, ACL_MEM_MALLOC_HUGE_FIRST);
+    CHECK_RET(ret == ACL_SUCCESS, 
+              LOG_PRINT("aclrtMalloc workspace failed, error: %d\n", ret); 
+              return -1);
+  }
+
+  // ========== 5. 调用第二段接口：执行MhcPre计算 ==========
+  aclnn_ret = aclnnMhcPre(
+      workspace_addr,
+      workspace_size,
+      executor,
+      stream
+  );
+  CHECK_RET(aclnn_ret == ACLNN_SUCCESS, 
+            LOG_PRINT("aclnnMhcPre failed, error: %d\n", aclnn_ret); 
+            return -1);
+
+  // ========== 6. 同步Stream并打印结果 ==========
+  ret = aclrtSynchronizeStream(stream);
+  CHECK_RET(ret == ACL_SUCCESS, 
+            LOG_PRINT("aclrtSynchronizeStream failed, error: %d\n", ret); 
+            return -1);
+
+  LOG_PRINT("MhcPre compute success!\n");
+  LOG_PRINT("Output tensor data: ");
+
+  PrintTensorData(output_hin_shape, output_hin_device_addr);
+  PrintTensorData(output_h_post_shape, output_h_post_device_addr);
+  PrintTensorData(output_h_res_shape, output_h_res_device_addr);
+  PrintTensorData(output_inv_rms_shape, output_inv_rms_device_addr);
+  PrintTensorData(output_h_mix_shape, output_h_mix_device_addr);
+  PrintTensorData(output_h_pre_shape, output_h_pre_device_addr);
+
+  // ========== 7. 释放资源 ==========
+  // 销毁Tensor
+  aclDestroyTensor(x_tensor);
+  aclDestroyTensor(phi_tensor);
+  aclDestroyTensor(alpha_tensor);
+  aclDestroyTensor(bias_tensor);
+  aclDestroyTensor(gamma_tensor);
+
+  aclDestroyTensor(output_hin_tensor);
+  aclDestroyTensor(output_h_post_tensor);
+  aclDestroyTensor(output_h_res_tensor);
+  aclDestroyTensor(output_inv_rms_tensor);
+  aclDestroyTensor(output_h_mix_tensor);
+  aclDestroyTensor(output_h_pre_tensor);
+  // 释放Device内存
+
+  aclrtFree(x_device_addr);
+  aclrtFree(phi_device_addr);
+  aclrtFree(alpha_device_addr);
+  aclrtFree(bias_device_addr);
+  aclrtFree(gamma_device_addr);
+
+  aclrtFree(output_hin_device_addr);
+  aclrtFree(output_h_post_device_addr);
+  aclrtFree(output_h_res_device_addr);
+  aclrtFree(output_inv_rms_device_addr);
+  aclrtFree(output_h_mix_device_addr);
+  aclrtFree(output_h_pre_device_addr);
+
+  if (workspace_size > 0) {
+    aclrtFree(workspace_addr);
+  }
+
+  // 销毁Stream/Context，重置Device
+  aclrtDestroyStream(stream);
+  aclrtDestroyContext(context);
+  aclrtResetDevice(device_id);
+  aclFinalize();
+
+  LOG_PRINT("All resources released successfully!\n");
+  return 0;
+}
