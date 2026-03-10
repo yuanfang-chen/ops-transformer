@@ -1674,11 +1674,6 @@ bool PromptFlashAttentionTilingV2::CheckPFAMerge(ContextParamsForPFATiling& cont
     const PFAShapeInfo& queryShapeInfo) const 
 {
     const int32_t pfaMergeGSLimit = pfaMergeQsLimit * pfaMergeGLimit;
-
-    if (queryShapeInfo.s <= 1U) {
-        return true;
-    }
-
     if (queryShapeInfo.d > 256U && (queryShapeInfo.d % 64) != 0) { // 256U, 64: d > 256 must be multiple of 64 for memory alignment
         return false;
     }
