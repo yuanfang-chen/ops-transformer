@@ -74,7 +74,6 @@ constexpr int32_t SINGLE_CORE_K = 512;
 
 // addRmsNorm 参数设置
 constexpr float EPSILON = 1e-6;
-constexpr float AVG_FACTOR = 1.0 / (float)5120.0;
 
 /**
  * @brief 打印tilingData, addrms  and mamtul tcubetiling
@@ -542,7 +541,8 @@ static ge::graphStatus AddRmsNormDynamicQuantAllGatherQbmmTilingFunc(gert::Tilin
     
     // 设置 AddRmsNorm 所需参数
     tilingData->addRmsNormDynamicQuantAllGatherTilingData.epsilon = EPSILON;
-    tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor = AVG_FACTOR;
+    tilingData->addRmsNormDynamicQuantAllGatherTilingData.avgFactor = \
+        1.0 / (float)tilingData->addRmsNormDynamicQuantAllGatherTilingData.Ka;
     
     // 做all gather相关数据的计算
     OP_TILING_CHECK(SetAllGatherTiling(context, tilingData) != ge::GRAPH_SUCCESS,
