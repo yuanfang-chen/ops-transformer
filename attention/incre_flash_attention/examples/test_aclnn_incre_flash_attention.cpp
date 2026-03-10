@@ -177,7 +177,6 @@ int ExecuteIncreFlashAttention(TensorResources& resources, aclrtStream stream,
     errno_t memRet = memcpy_s(layerOut, LAYER_OUT_LEN, LAYER_OUT_STR, LAYER_OUT_LEN);
     if (memRet != EOK) {
         LOG_PRINT("memcpy_s failed. ERROR: %d\n", memRet);
-        return memRet;
     }
 
     aclOpExecutor* executor;
