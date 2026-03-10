@@ -22,6 +22,7 @@ namespace MlaProlog {
 constexpr float INT8_MAX_VALUE = 127.0f;
 constexpr float FP8_E4M3FN_MAX_VALUE = 448.0f;
 constexpr float FP8_E4M3FN_MIN_VALUE = -448.0f;
+constexpr float HIFLOAT8_MAX_VALUE = 32768.0f;
 constexpr uint32_t FP8_E4M3FN_BLOCK_SIZE = 32;
 constexpr uint16_t FP8_E4M3_MAX_EXP = 0x0400;
 constexpr uint16_t MAX_EXP_FOR_BF16 = 0x7f80;
@@ -127,7 +128,8 @@ __aicore__ inline void ComputeVF(__ubuf__ T* xAddr, __ubuf__ O* yAddr, __ubuf__ 
     uint32_t rowCount = col;
     uint16_t vfLoop = (rowCount + VL - 1) / VL;
 
-    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>::value ? FP8_E4M3FN_MAX_VALUE : INT8_MAX_VALUE;
+    constexpr float maxValue = std::is_same<O, fp8_e4m3fn_t>::value ? FP8_E4M3FN_MAX_VALUE : 
+        std::is_same<O, hifloat8>::value ? HIFLOAT8_MAX_VALUE: INT8_MAX_VALUE;
     const float alphaValue = static_cast<float>(1.0) / maxValue;
     ComputeVFImpl<T, C, O>(xAddr, yAddr, scaleAddr, rowIndex, rowCount, dtypeSize, VL, vfLoop, alphaValue);
 }

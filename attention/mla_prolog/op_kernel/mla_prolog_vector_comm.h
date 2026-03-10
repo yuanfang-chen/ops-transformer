@@ -414,9 +414,13 @@ __aicore__ inline void QuantPerChannel(const LocalTensor<int8_t> &outLocal, cons
 __aicore__ inline void QuantPerTensor(const LocalTensor<int8_t> &outLocal, const LocalTensor<float> &inputLocal, const LocalTensor<float> &quantScaleLocal,
                                    const LocalTensor<uint8_t> &shareTmpUb, const Rectangle& rectangleParams)
 {
+#if __CCE_AICORE__ == 310
+    QuantPerTensorVF(outLocal, inputLocal, quantScaleLocal, rectangleParams.row, rectangleParams.col);
+#else
     RowMuls(inputLocal, inputLocal, quantScaleLocal, rectangleParams);
     AscendC::PipeBarrier<PIPE_V>();
     CastFP32ToINT8(outLocal, inputLocal, shareTmpUb, rectangleParams.row * rectangleParams.col);
+#endif
 }
 
 /**
