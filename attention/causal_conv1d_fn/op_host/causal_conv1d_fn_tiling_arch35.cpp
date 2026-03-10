@@ -311,11 +311,6 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
     if (seqStartIndexStorageShape != nullptr) {
         seqStartIndexShape_ = seqStartIndexStorageShape->GetOriginShape();
         batch_ = static_cast<uint32_t>(seqStartIndexShape_.GetDim(DIM_0) - 1);
-    } else {
-        // 没有提供 queryStartLoc，默认 batch = 1，处理全部序列
-        batch_ = 1;
-        // 创建一个默认的 gert::Shape，表示没有分批的情况
-        seqStartIndexShape_ = gert::Shape({0, cuSeqLen_});
     }
 
     // 获取输入数据类型
@@ -798,16 +793,14 @@ uint64_t CausalConv1dFnTiling::GetTilingKey() const
 
 ge::graphStatus CausalConv1dFnTiling::GetWorkspaceSize()
 {
-    // // 基础系统 workspace 大小
-    // uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
+    // 基础系统 workspace 大小
+    uint64_t baseWorkspaceSize = SYS_WORKSPACE_SIZE;
 
-    // // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
-    // uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
+    // 额外申请一个 seq 的空间，大小为 dim * realCoreNum * byte
+    uint64_t seqWorkspaceSize = dim_ * realCoreNum_ * xDtypeSize_;
 
-    // // 总 workspace 大小
-    // workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
-
-    workspaceSize_ = SYS_WORKSPACE_SIZE;
+    // 总 workspace 大小
+    workspaceSize_ = baseWorkspaceSize + seqWorkspaceSize;
 
     return ge::GRAPH_SUCCESS;
 }
@@ -844,7 +837,7 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.tailBlockubTailFactorBS = tailBlockubTailFactorBS_;
     tilingData_.tailBlockubFactorDim = tailBlockubFactorDim_;
     tilingData_.tailBlockubTailFactorDim = tailBlockubTailFactorDim_;
-    tilingData_.realCoreNum = static_cast<uint32_t>(realCoreNum_);
+    tilingData_.realCoreNum = realCoreNum_;
     tilingData_.kernelWidth = kernelWidth_;
     tilingData_.cuSeqLen = cuSeqLen_;
     tilingData_.dim = dim_;
