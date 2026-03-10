@@ -2369,19 +2369,19 @@ static aclnnStatus aclnnGroupedMatmulGetWorkspaceSizeCommon(const aclTensorList 
   std::cout << transposeX << std::endl;
   std::cout << transposeWeight << std::endl;
   for (size_t i = 0; i < x->Size(); ++i) {
-    std::cout << "yangtao - i" << i << std::endl;
+    std::cout << "yangtao - xi-" << i << std::endl;
     auto const &xi_shape = (*x)[i]->GetViewShape();
-    OP_LOGD("yangtao info: xi_shape shape is = %zu", op::ToString(xi_shape).GetString());
+    OP_LOGD("yangtao info: xi_shape shape is = %s", op::ToString(xi_shape).GetString());
   }
   for (size_t i = 0; i < weight->Size(); ++i) {
-    std::cout << "yangtao - i" << i << std::endl;
+    std::cout << "yangtao - weighti-" << i << std::endl;
     auto const &weighti_shape = (*weight)[i]->GetViewShape();
-    OP_LOGD("yangtao info: weighti_shape shape is = %zu", op::ToString(weighti_shape).GetString());
+    OP_LOGD("yangtao info: weighti_shape shape is = %s", op::ToString(weighti_shape).GetString());
   }
   for (size_t i = 0; i < y->Size(); ++i) {
-    std::cout << "yangtao - i" << i << std::endl;
+    std::cout << "yangtao - yi-" << i << std::endl;
     auto const &yi_shape = (*y)[i]->GetViewShape();
-    OP_LOGD("yangtao info: yi_shape shape is = %zu", op::ToString(yi_shape).GetString());
+    OP_LOGD("yangtao info: yi_shape shape is = %s", op::ToString(yi_shape).GetString());
   }
   CHECK_RET(CheckParam(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
   gmmParams.splitItem = CorrectSplitItem(x, y, splitItem);
