@@ -45,30 +45,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_single
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  //ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},       // x
+            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // offset
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},               // antiquantOffset
+            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},            // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -98,30 +98,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_fp16_nd_single
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},             // x
-            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},             // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},             // antiquantScale
-            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},                     // antiquantOffset
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_FLOAT16, ge::FORMAT_ND},    // x
+            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},    // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // offset
+            {{{E, N}, {E, N}}, ge::DT_FLOAT16, ge::FORMAT_ND},    // antiquantScale
+            {{{}, {}}, ge::DT_FLOAT16, ge::FORMAT_ND},            // antiquantOffset
+            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},            // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_FLOAT16, ge::FORMAT_ND}},
@@ -151,30 +151,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_with_o
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantOffset (存在)
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},       // x
+            {{{E, K, N}, {E, K, N}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // offset
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantOffset (存在)
+            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},            // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -204,15 +204,15 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_int8_int4)
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     // NZ格式: (N1, K1, K0, N0)，其中N0=16, K0=32 (对于int4)
@@ -260,30 +260,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_multi_
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},          // x
-            {{{K, N}, {K, N}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                 // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                 // offset
-            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                  // antiquantOffset
-            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},                 // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                 // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND}, // x
+            {{{K, N}, {K, N}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // offset
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},         // antiquantOffset
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},        // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -313,30 +313,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_transb
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_ND},          // weight (transposed)
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},       // x
+            {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_ND}, // weight (transposed)
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // offset
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},               // antiquantOffset
+            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},            // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -366,15 +366,15 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_19
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
@@ -421,30 +421,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_no_spl
     size_t N = 512;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{K, N}, {K, N}}, ge::DT_INT4, ge::FORMAT_ND},                // weight
-            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                      // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},                      // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
-            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},                       // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND}, // x
+            {{{K, N}, {K, N}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // offset
+            {{{N}, {N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},         // antiquantOffset
+            {{{}, {}}, ge::DT_INT64, ge::FORMAT_ND},        // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},        // perTokenScale
         },
         {// output info
          {{{E, M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -474,15 +474,15 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_fp16_output)
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
@@ -529,30 +529,30 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a16w4_bf16_nd_large_
     size_t N = 8192; // 大N值
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     gert::TilingContextPara tilingContextPara(
         "GroupedMatmul", // op_name
         {
             // input info
-            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},                // x
-            {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_ND},          // weight
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // bias
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // scale
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // offset
-            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},                // antiquantScale
-            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},                        // antiquantOffset
-            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},                     // groupList
-            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},                       // perTokenScale
+            {{{M, K}, {M, K}}, ge::DT_BF16, ge::FORMAT_ND},       // x
+            {{{E, N, K}, {E, N, K}}, ge::DT_INT4, ge::FORMAT_ND}, // weight
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // bias
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // scale
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // offset
+            {{{E, N}, {E, N}}, ge::DT_BF16, ge::FORMAT_ND},       // antiquantScale
+            {{{}, {}}, ge::DT_BF16, ge::FORMAT_ND},               // antiquantOffset
+            {{{E}, {E}}, ge::DT_INT64, ge::FORMAT_ND},            // groupList
+            {{{}, {}}, ge::DT_FLOAT, ge::FORMAT_ND},              // perTokenScale
         },
         {// output info
          {{{M}, {N}}, ge::DT_BF16, ge::FORMAT_ND}},
@@ -582,15 +582,15 @@ TEST_F(GroupedWeightQuantBatchMatmulTilingTest, test_tiling_a8w4_nz_groupsize_25
     size_t N = 256;
     size_t E = 2;
     optiling::GMMCompileInfo compileInfo = {
-        32,                                       // aicNum
-        64,                                       // aivNum
-        262144,                                   // ubSize
-        524288,                                   // l1Size
-        196608,                                   // l2Size
-        262144,                                   // l0CSize
-        65536,                                    // l0ASize
-        65536,                                    // l0BSize
-        platform_ascendc::SocVersion::ASCEND950,  // ASCEND950
+        32,                                      // aicNum
+        64,                                      // aivNum
+        262144,                                  // ubSize
+        524288,                                  // l1Size
+        196608,                                  // l2Size
+        262144,                                  // l0CSize
+        65536,                                   // l0ASize
+        65536,                                   // l0BSize
+        platform_ascendc::SocVersion::ASCEND950, // ASCEND950
         NpuArch::DAV_3510,
     };
     size_t N1 = N / 16;
