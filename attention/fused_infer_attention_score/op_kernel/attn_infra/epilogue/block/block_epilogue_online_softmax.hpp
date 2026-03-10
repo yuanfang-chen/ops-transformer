@@ -1151,6 +1151,113 @@ public:
     }
 
     __aicore__ inline
+    void operator()(AscendC::GlobalTensor<ElementOutput> gOutputBase, 
+                    AscendC::GlobalTensor<ElementInput> gInputBase,
+                    const LayoutOutput &layoutOutput, 
+                    const LayoutInput &layoutInput, 
+                    GemmCoord actualBlockShape,
+                    uint32_t isFirstStackTile, 
+                    uint32_t isLastNoMaskStackTile,
+                    uint32_t qSBlockSize, 
+                    uint32_t qNBlockSize, 
+                    uint32_t curStackTileMod,
+                    uint32_t kvNBlockSize,
+                    uint64_t gmOffsetSBase,
+                    uint64_t gmOffsetPBase,
+                    // uint32_t stackSeqTile,
+                    // uint32_t stackSeqTilePad,
+                    Arch::CrossCoreFlag qkReady,
+                    Arch::CrossCoreFlag softmaxReady)
+    {
+        // Arch::CrossCoreWaitFlag(qkReady);
+        uint32_t rowNum = actualBlockShape.m();
+        uint32_t columnNum = actualBlockShape.n();
+        uint32_t columnNumRound = NpuArch::Detail::Alignment::RoundUp(columnNum, BLOCK_SIZE);
+        uint32_t columnNumPad = layoutInput.stride(0);
+
+        uint32_t subBlockIdx = AscendC::GetSubBlockIdx();
+        uint32_t subBlockNum = AscendC::GetSubBlockNum();
+
+        // 直接切分KVhead
+        // AscendC::printf("123123 split kvN than QN");
+        uint32_t kvNSplitSubBlock = kvNBlockSize / subBlockNum;
+        uint32_t kvNThisSubBlock = (kvNBlockSize == 1U) ? 0
+            : (subBlockIdx == 1U) ? (kvNBlockSize - kvNSplitSubBlock) : kvNSplitSubBlock;
+
+        uint32_t qNSplitSubBlock = qNBlockSize / subBlockNum;
+        uint32_t qNThisSubBlock = (qNBlockSize == 1U) ? 0
+            : (subBlockIdx == 1U) ? (qNBlockSize - qNSplitSubBlock) : qNSplitSubBlock;
+
+        // 先切分kvn 不能切分的话就切分qn
+        uint32_t rowSplitSubBlock = (kvNBlockSize == 1) ?
+            (qNSplitSubBlock * kvNBlockSize * qSBlockSize) : (qSBlockSize * qNBlockSize * kvNSplitSubBlock);
+        uint32_t rowActualThisSubBlock = (subBlockIdx == 1) ? (rowNum - rowSplitSubBlock) : rowSplitSubBlock;
+        uint32_t rowOffsetThisSubBlock = subBlockIdx * rowSplitSubBlock;
+        uint32_t maxRowNumPerLoop = MAX_UB_S_ELEM_NUM / columnNumRound;
+        uint32_t rowNumTile = NpuArch::Detail::Alignment::RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
+        rowNumTile = AscendC::Std::min(rowNumTile, FLOAT_VECTOR_SIZE);
+        uint32_t rowLoopNum = NpuArch::Detail::Alignment::CeilDiv(rowActualThisSubBlock, rowNumTile);
+        uint32_t preLoad = 1;
+
+        // AscendC::printf("如何切分》》 kvNSplitSubBlock %d, qNSplitSubBlock %d, rowSplitSubBlock %d rowActualThisSubBlock %d\n", kvNSplitSubBlock, qNSplitSubBlock, rowSplitSubBlock, rowActualThisSubBlock);
+        // AscendC::printf("如何切分》》 rowNumTile %d, rowNumTile %d, rowLoopNum %d\n", rowNumTile, rowNumTile, rowLoopNum);
+
+        for (uint32_t rowLoopIdx = 0; rowLoopIdx < rowLoopNum + preLoad; rowLoopIdx++) {
+            // AscendC::printf(" d45a6s4da56sd4a \n");
+            if (rowLoopIdx < rowLoopNum) {
+                uint32_t pingpongFlag = rowLoopIdx % 2;
+                uint32_t rowOffsetCurLoop = rowLoopIdx * rowNumTile;
+                uint32_t rowOffsetIoGm = rowOffsetCurLoop + rowOffsetThisSubBlock;
+                uint32_t rowNumCurLoop = (rowLoopIdx == rowLoopNum - 1) ?
+                    (rowActualThisSubBlock - rowOffsetCurLoop) : rowNumTile;
+
+                int64_t offsetInput = layoutInput.GetOffset(MatrixCoord(rowOffsetIoGm, 0));
+                auto gInputCurLoop = gInputBase[offsetInput];
+                // QK结果按行均匀排布
+
+                AscendC::WaitFlag<AscendC::HardEvent::V_MTE2>(pingpongFlag);
+
+                // AscendC::printf("如何切分》》 columnNumRound %d, columnNumPad %d\n", columnNumRound, columnNumPad);
+                // 这是逐行搬运进去的,通过设置DataCopyParams,重复搬移rowNumCurLoop次
+                // 实际搬移的长度是columnNumRound，是对齐到UB数据操作单位的大小，会跳过padding的部分数据
+                CopySGmToUb(
+                    gInputCurLoop, (pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound, columnNumPad);
+                AscendC::SetFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
+            }
+            if (rowLoopIdx >= preLoad) {
+                uint32_t delayedRowLoopIdx = rowLoopIdx - preLoad;
+                uint32_t pingpongFlag = delayedRowLoopIdx % 2;
+                uint32_t rowOffsetCurLoop = delayedRowLoopIdx * rowNumTile;
+                uint32_t rowOffsetIoGm = rowOffsetCurLoop + rowOffsetThisSubBlock;
+                uint32_t rowNumCurLoop =
+                    (delayedRowLoopIdx == rowLoopNum - 1) ? (rowActualThisSubBlock - rowOffsetCurLoop) : rowNumTile;
+
+                int64_t offsetOutput = layoutOutput.GetOffset(MatrixCoord(rowOffsetIoGm, 0));
+                auto gOutputCurLoop = gOutputBase[offsetOutput];
+                auto layoutOutputCurLoop = layoutOutput.GetTileLayout(MatrixCoord(rowNumCurLoop, columnNum));
+                AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
+
+                // add sink
+                // SinkLoopParam curSinkLoop(rowOffsetIoGm, rowNumCurLoop, qSBlockSize, rowOffsetThisSubBlock);
+
+                ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
+                SubCoreCompute<false>(
+                    gOutputCurLoop,
+                    // gSink,
+                    layoutOutputCurLoop,
+                    rowOffsetCurLoop,
+                    isFirstStackTile,
+                    isLastNoMaskStackTile,
+                    (delayedRowLoopIdx == 0),
+                    (delayedRowLoopIdx == rowLoopNum - 1),
+                    columnNumRound,
+                    pingpongFlag,
+                    curStackTileMod
+                    );
+            }
+        }
+    }
+    __aicore__ inline
     void operator()(AscendC::GlobalTensor<ElementOutput> gOutput, AscendC::GlobalTensor<ElementInput> gInput, AscendC::GlobalTensor<ElementSink> gSink,
         const LayoutOutput &layoutOutput, const LayoutInput &layoutInput, GemmCoord actualBlockShape,
         uint32_t isFirstStackTile, uint32_t isLastNoMaskStackTile, uint32_t qSBlockSize, uint32_t qNBlockSize,
@@ -1791,6 +1898,7 @@ public:
      }
 
 private:
+    uint32_t kvheadIdx = 0;
     float scaleValue;
     AscendC::LocalTensor<float> lsUbTensor;
     AscendC::LocalTensor<ElementOutput> lpUbTensor;

@@ -134,6 +134,38 @@ public:
         AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID3);
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID3);
     }
+
+    __aicore__ inline
+    void loadQGM(
+        AscendC::GlobalTensor<ElementA> gA,
+        LayoutA layoutA,
+        uint32_t rowNum, uint32_t &singleGroupHeads, uint32_t &qHeads,
+        uint32_t kvNBlockSizeParam = 1)
+    {
+        uint32_t embed = layoutA.shape(1);
+        // 对齐到16的倍数，表示ND转NZ之后，源操作数的一行转化为NZ的多行的行数，一行长度是16
+        uint32_t rowNumRound = NpuArch::Detail::Alignment::RoundUp(rowNum, L1AAlignHelper::M_ALIGNED);
+        // 当前场景下，应该表示的是qsblocksize * kvnblocksize。？是改成qs * g * kvn，将Q一行行的搬运到L1上呢，还是将Q一把全部搬移进去呢。
+        uint32_t tokenNumPerGroup = rowNum / singleGroupHeads;
+        auto layoutSingleANd = layoutA.GetTileLayout(MakeCoord(singleGroupHeads, embed));
+        // layoutA: shape:(rowNum, embed); stride:(embed, 1)
+        // layoutSingleANd: shape:(singleGroupHeads, embed); stride:(embed, 1)
+        LayoutAInL1 layoutAInL1 = LayoutAInL1::template MakeLayout<ElementA>(rowNum, embed);
+        // AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+        copyGmToL1A(
+            l1ATensor, gA,
+            layoutAInL1, layoutSingleANd,
+            tokenNumPerGroup, qHeads * embed, tokenNumPerGroup, BLOCK_SIZE, rowNumRound);
+        AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID3);
+        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID3);
+        // AscendC::DumpTensor(l1ATensor, 137137, 32);
+        
+        // 保存L1上Q矩阵的总行数和每个kvhead对应的行数，用于后续跳着取数据
+        l1ATotalRowNum = rowNum;
+        l1ARowNumPerKvHead = rowNum / kvNBlockSizeParam;
+        l1AEmbedDim = embed;
+        l1AKvNBlockSize = kvNBlockSizeParam;
+    }
     
     __aicore__ inline
     void setBlockParam(uint32_t stackSeqTile, uint32_t &blockStart, uint32_t &blockEnd, uint32_t &curBlockTotalNum, uint32_t blockSize){
@@ -192,6 +224,125 @@ public:
             curBlockIdx++;
         } else{
             blockStartOffset += nowLen;
+        }
+    }
+
+    __aicore__ inline
+    void operator()(AscendC::GlobalTensor<ElementA> gA,
+                    AscendC::GlobalTensor<ElementB> gB,
+                    AscendC::GlobalTensor<ElementC> gC,
+                    AscendC::GlobalTensor<int32_t> gBlockTable,
+                    LayoutA layoutA, LayoutB layoutB, LayoutC layoutC, GemmCoord actualOriShape,
+                    uint32_t nIdx, uint32_t nLoop, uint32_t blockSize, uint32_t strideKV,
+                    uint32_t kvNIncreIdx = 0)
+    {
+        uint32_t rowNum = actualOriShape[COORD_DIM0];
+        uint32_t stackSeqTile = actualOriShape[COORD_DIM1];
+        uint32_t embed = actualOriShape[COORD_DIM2];
+
+        GemmCoord actualShape{rowNum, 0, embed};
+        uint32_t gBOffset = 0;
+
+        // 使用loadQGM时保存的总行数创建L1布局，以便正确计算跨kvhead的偏移
+        // l1ATotalRowNum是所有kvhead的Q数据在L1上的总行数
+        // l1ARowNumPerKvHead是单个kvhead对应的行数
+        LayoutAInL1 layoutAInL1 = LayoutAInL1::template MakeLayout<ElementA>(l1ATotalRowNum, l1AEmbedDim);
+        
+        // 计算当前kvhead在L1上的行偏移
+        // 当kvNIncreIdx = 0时，取N0, N1（第一个kvhead对应的qhead）
+        // 当kvNIncreIdx = 1时，取N2, N3（第二个kvhead对应的qhead）
+        uint32_t kvNRowOffset = kvNIncreIdx * l1ARowNumPerKvHead;
+        AscendC::printf("kvNIncreIdx: %d, kvNRowOffset: %d, l1ARowNumPerKvHead: %d\n", kvNIncreIdx, kvNRowOffset, l1ARowNumPerKvHead);
+
+        uint32_t tileNNumPerBaseBlock = blockSize / l1NDynamic;
+        uint32_t nL1Loop = NpuArch::Detail::Alignment::CeilDiv(stackSeqTile, l1NDynamic);
+        for (uint32_t nL1Idx = 0; nL1Idx < nL1Loop; ++nL1Idx) {
+            uint32_t nowNIdx = nIdx + nL1Idx / tileNNumPerBaseBlock;
+            getBlockShape(actualShape, nL1Idx, nL1Loop, stackSeqTile);
+            getKVOffset(gBlockTable, gBOffset, nowNIdx, nL1Idx % tileNNumPerBaseBlock, strideKV, blockSize);
+            uint32_t mActual = actualShape.m();
+            uint32_t kActual = actualShape.k();
+            uint32_t nActual = actualShape.n();
+            LayoutBInL1 layoutBInL1 = LayoutBInL1::template MakeLayout<ElementB>(kActual, nActual);
+
+            auto layoutBTile = layoutB.GetTileLayout(MakeCoord(kActual, nActual));
+            AscendC::WaitFlag<AscendC::HardEvent::MTE1_MTE2>(l1KvPingPongFlag);
+            copyGmToL1B(l1BTensor[l1KvPingPongFlag], gB[gBOffset], layoutBInL1, layoutBTile);
+            // if(nIdx != 0){
+            //     AscendC::printf("---- nL1Idx %d nL1Loop %d l1NDynamic %d\n", nL1Idx, nL1Loop, l1NDynamic);
+            //     AscendC::DumpTensor(l1BTensor[l1KvPingPongFlag], 10000 + __LINE__, 4);
+            // }
+            AscendC::SetFlag<AscendC::HardEvent::MTE2_MTE1>(l1KvPingPongFlag);
+
+            uint32_t mL0Loop = NpuArch::Detail::Alignment::CeilDiv(mActual, L0TileShape::M);
+            uint32_t kL0Loop = NpuArch::Detail::Alignment::CeilDiv(kActual, L0TileShape::K);
+            for (uint32_t mL0Idx = 0; mL0Idx < mL0Loop; mL0Idx++) {
+                uint32_t mL0Actual = (mL0Idx < mL0Loop - 1U) ? L0TileShape::M : (mActual - mL0Idx * L0TileShape::M);
+                AscendC::WaitFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
+                for (uint32_t kL0Idx = 0; kL0Idx < kL0Loop; kL0Idx++) {
+                    uint32_t kL0Actual = (kL0Idx < kL0Loop - 1U) ? L0TileShape::K : (kActual - kL0Idx * L0TileShape::K);
+
+                    LayoutAInL0 layoutAInL0 = LayoutAInL0::template MakeLayout<ElementA>(mL0Actual, kL0Actual);
+                    // 加入kvNRowOffset，实现跳着取数据：
+                    // 当kvNIncreIdx = 0时，取L1上的N0, N1行（第一个kvhead对应的qhead）
+                    // 当kvNIncreIdx = 1时，取L1上的N2, N3行（第二个kvhead对应的qhead）
+                    MatrixCoord l1ATileCoord{mL0Idx * L0TileShape::M + kvNRowOffset, kL0Idx * L0TileShape::K};
+                    auto l1ATile = l1ATensor[layoutAInL1.GetOffset(l1ATileCoord)];
+                    auto offset = layoutAInL1.GetOffset(l1ATileCoord);
+                    AscendC::printf("kvNIncreIdx: %d, kvNRowOffset: %d, l1ATile offset: %d\n", kvNIncreIdx, kvNRowOffset, offset);
+                    AscendC::DumpTensor(l1ATile, 206206, 256);
+
+                    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag);
+                    copyL1ToL0A(l0ATensor[l0ABPingPongFlag], l1ATile, layoutAInL0, layoutAInL1);
+                    // if ((nIdx == 0U) && (nL1Idx == nL1Loop - 1U) && (mL0Idx == mL0Loop - 1U) && (kL0Idx == kL0Loop - 1U)) {
+                    //     AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(EVENT_ID7);
+                    // }
+
+                    LayoutBInL0 layoutBInL0 = LayoutBInL0::template MakeLayout<ElementB>(kL0Actual, nActual);
+                    MatrixCoord l1BTileCoord{kL0Idx * L0TileShape::K, 0};
+                    auto l1BTile = l1BTensor[l1KvPingPongFlag][layoutBInL1.GetOffset(l1BTileCoord)];
+                    if ((mL0Idx == 0U) && (kL0Idx == 0U)) {
+                        AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(l1KvPingPongFlag);
+                    }
+                    AscendC::WaitFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2U);
+                    copyL1ToL0B(l0BTensor[l0ABPingPongFlag], l1BTile, layoutBInL0, layoutBInL1);
+                    if ((mL0Idx == mL0Loop - 1U) && (kL0Idx == kL0Loop - 1U)) {
+                        AscendC::SetFlag<AscendC::HardEvent::MTE1_MTE2>(l1KvPingPongFlag);
+                    }
+
+                    AscendC::SetFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
+                    AscendC::WaitFlag<AscendC::HardEvent::MTE1_M>(EVENT_ID0);
+                    bool initMmad = (kL0Idx == 0U);
+                    uint32_t mL0Align = (mL0Actual + BLOCK_SIZE - 1U) / BLOCK_SIZE * BLOCK_SIZE;
+                    AscendC::printf("mL0Align: %d, nActual: %d, kL0Actual: %d, initMmad: %d\n", mL0Align, nActual, kL0Actual, initMmad);
+                    tileMmad(l0CTensor[l0CPingPongFlag],
+                        l0ATensor[l0ABPingPongFlag],
+                        l0BTensor[l0ABPingPongFlag],
+                        mL0Align,
+                        nActual,
+                        kL0Actual,
+                        initMmad);
+                    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag);
+                    AscendC::SetFlag<AscendC::HardEvent::M_MTE1>(l0ABPingPongFlag + 2U);
+                    // if(nIdx != 0){
+                    //     AscendC::DumpTensor(l1ATile, 10000 + __LINE__, 32);
+                    //     AscendC::DumpTensor(l1BTile, 10000 + __LINE__, 32);
+                    //     AscendC::DumpTensor(l0CTensor[l0CPingPongFlag], 10000 + __LINE__, 36);
+                    // }
+                    l0ABPingPongFlag = 1U - l0ABPingPongFlag;
+                }
+                AscendC::SetFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
+                AscendC::WaitFlag<AscendC::HardEvent::M_FIX>(EVENT_ID0);
+                MatrixCoord gmCTileCoord{mL0Idx * L0TileShape::M, nL1Idx * l1NDynamic};
+                LayoutC layoutCTile = layoutC.GetTileLayout(MakeCoord(mL0Actual, nActual));
+                auto layoutInL0C = LayoutCInL0::MakeLayoutInL0C(MakeCoord(mL0Actual, nActual));
+                copyL0CToGm(gC[layoutC.GetOffset(gmCTileCoord)], l0CTensor[l0CPingPongFlag], layoutCTile, layoutInL0C);
+                // AscendC::DumpTensor(l0CTensor[l0CPingPongFlag], 777888, 16);
+                // AscendC::DumpTensor(gC[layoutC.GetOffset(gmCTileCoord)], 777888, 16);
+                AscendC::SetFlag<AscendC::HardEvent::FIX_M>(l0CPingPongFlag);
+                l0CPingPongFlag = 1U - l0CPingPongFlag;
+            }
+            l1KvPingPongFlag = 1U - l1KvPingPongFlag;
         }
     }
 
@@ -338,6 +489,12 @@ protected:
 
     uint32_t blockStartOffset = 0;
     uint32_t maxKVStackLen = 0;
+
+    // L1上Q矩阵的布局信息，用于跨kvhead跳着取数据
+    uint32_t l1ATotalRowNum = 0;      // L1上Q矩阵的总行数（所有kvhead）
+    uint32_t l1ARowNumPerKvHead = 0;  // 单个kvhead对应的行数
+    uint32_t l1AEmbedDim = 0;         // embed维度
+    uint32_t l1AKvNBlockSize = 1;     // kvhead合轴数量
 };
 
 ////////////////////////////////////////////////////////////////////
