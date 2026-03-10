@@ -19,8 +19,7 @@
 #include "kernel_operator.h"
 #include "mhc_sinkhorn_struct.h"
 #include "mhc_sinkhorn_tiling_key.h"
-#include "../inc/platform.h"
-#include "../inc/kernel_utils.h"
+#include "platform.h"
 
 namespace MhcSinkhorn {
 using namespace AscendC;
