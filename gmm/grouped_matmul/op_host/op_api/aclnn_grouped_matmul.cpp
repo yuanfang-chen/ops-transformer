@@ -16,7 +16,6 @@
 
 #include <dlfcn.h>
 #include <new>
-#include <iostream>
 
 #include "aclnn_kernels/transdata.h"
 #include "grouped_matmul.h"
@@ -2366,46 +2365,30 @@ static aclnnStatus aclnnGroupedMatmulGetWorkspaceSizeCommon(const aclTensorList 
       }
   }
   ResetEmptyTensor(gmmParams);  // make empty tensor/tensorList nullptr
-  PrintTensorListInfo(x, "x");
-  PrintTensorListInfo(weight, "weight");
   std::cout << "yangtao " << std::endl;
   std::cout << transposeX << std::endl;
   std::cout << transposeWeight << std::endl;
+  for (size_t i = 0; i < x->Size(); ++i) {
+    std::cout << "yangtao - i" << i << std::endl;
+    auto const &xi_shape = (*x)[i]->GetViewShape();
+    OP_LOGD("yangtao info: xi_shape shape is = %zu", op::ToString(xi_shape).GetString());
+  }
+  for (size_t i = 0; i < weight->Size(); ++i) {
+    std::cout << "yangtao - i" << i << std::endl;
+    auto const &weighti_shape = (*weight)[i]->GetViewShape();
+    OP_LOGD("yangtao info: weighti_shape shape is = %zu", op::ToString(weighti_shape).GetString());
+  }
+  for (size_t i = 0; i < y->Size(); ++i) {
+    std::cout << "yangtao - i" << i << std::endl;
+    auto const &yi_shape = (*y)[i]->GetViewShape();
+    OP_LOGD("yangtao info: yi_shape shape is = %zu", op::ToString(yi_shape).GetString());
+  }
   CHECK_RET(CheckParam(gmmParams) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
   gmmParams.splitItem = CorrectSplitItem(x, y, splitItem);
 
   aclnnStatus ret = GetGMMResultByL0Api(gmmParams, workspaceSize, executor);
 
   return ret;
-}
-void PrintTensorListInfo(const aclTensorList* tensorList, const char* name) {
-    if (tensorList == nullptr) {
-        std::cout << name << " is nullptr" << std::endl;
-        return;
-    }
-    std::cout << "yangtao get in " << std::endl;
-    size_t numTensors = aclGetTensorListNumTensors(tensorList);
-    std::cout << name << " contains " << numTensors << " tensors:" << std::endl;
-
-    for (size_t i = 0; i < numTensors; i++) {
-        const aclTensor* tensor = aclGetTensorListElem(tensorList, i);
-        if (tensor == nullptr) {
-            std::cout << "  Tensor " << i << ": nullptr" << std::endl;
-            continue;
-        }
-
-        aclTensorDesc* desc = aclGetTensorDesc(tensor);
-        int64_t numDims = aclGetTensorDescNumDims(desc);
-
-        std::cout << "  Tensor " << i << ": dims=" << numDims << ", shape=[";
-
-        int64_t* shape = aclGetTensorDescShape(desc);
-        for (int64_t j = 0; j < numDims; j++) {
-            std::cout << shape[j];
-            if (j < numDims - 1) std::cout << ", ";
-        }
-        std::cout << "]" << std::endl;
-    }
 }
 }
 
