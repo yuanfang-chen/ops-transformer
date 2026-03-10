@@ -105,7 +105,6 @@ public:
     struct L1Params {
         uint64_t kAL1;
         uint64_t kBL1;
-        // uint64_t kL1;
         uint64_t scaleKL1;
         uint64_t l1BufNum;
     };
@@ -263,7 +262,7 @@ public:
             uint64_t kAlign = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmAKL1, C0_SIZE) * AscendC::BLOCK_CUBE;
             offset = tileL1L0Param.curAlignM * kAlign;
         } else { // nd2nz pading to k 64 align, (k,m)->(m1,k1,k0,m0)
-            uint64_t curNd2NzK = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmAKL1, AscendC::BLOCK_CUBE);
+            uint64_t curNd2NzK = Cgmct::Gemm::CeilAlign(tileL1L0Param.curGmAKL1, AscendC::BLOCK_CUBE);
             if (tileL1L0Param.curPadAKL1 == curNd2NzK) {
                 return;
             }
@@ -296,11 +295,10 @@ public:
             uint64_t kAlign = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmBKL1, C0_SIZE) * AscendC::BLOCK_CUBE;
             offset = tileL1L0Param.curAlignN * kAlign;
         } else { // nd2nz pading to k 64 align, (k,n)->(n1,k1,k0,n0)
-            uint64_t curNd2NzK = Cgmct::Gemm::CeilDiv(tileL1L0Param.curGmBKL1, AscendC::BLOCK_CUBE);
+            uint64_t curNd2NzK = Cgmct::Gemm::CeilAlign(tileL1L0Param.curGmBKL1, AscendC::BLOCK_CUBE);
             if (tileL1L0Param.curPadBKL1 == curNd2NzK) {
                 return;
             }
-            // when format of B is NZ, we reuse code for ND even though we initialize unnecessary extra space
             offset = curNd2NzK * AscendC::BLOCK_CUBE;
             initConstValueParams.repeatTimes = Cgmct::Gemm::CeilDiv(tileL1L0Param.curAlignN, C0_SIZE);
             initConstValueParams.blockNum = tileL1L0Param.curPadBKL1 - curNd2NzK;
@@ -749,7 +747,6 @@ public:
         }
         // Copy out to GM
         AscendC::LocalTensor<float> c1Local = c1Local_[l0cOffset];
-        // 数据搬出到GM或ub
         CopyOut(cGlobal, c1Local, mmadParams.m, mmadParams.n);
         if (enableL0cPingPong_) {
             l0cPingPong_++;
@@ -802,8 +799,8 @@ private:
     uint64_t bL1OneBuffer_ = 0UL;
     uint64_t scaleAL1OneBuffer_ = 0UL;
     uint64_t scaleBL1OneBuffer_ = 0UL;
-    uint64_t l1BufferAOffset_[4] = {0UL};      // default 4 buffer
-    uint64_t l1BufferBOffset_[4] = {0UL};      // default 4 buffer
+    uint64_t l1BufferAOffset_[2] = {0UL};      // default 2 buffer
+    uint64_t l1BufferBOffset_[2] = {0UL};      // default 2 buffer
     uint64_t l1BufferScaleAOffset_[2] = {0UL}; // default 2 buffer
     uint64_t l1BufferScaleBOffset_[2] = {0UL}; // default 2 buffer
     uint64_t l1BufferBiasOffset_[2] = {0UL};   // default 2 buffer
