@@ -640,8 +640,7 @@ private:
 
     __aicore__ inline void DataCopyOutG(uint64_t length)
     {
-        gCumExpUbFloat = 
-        DeQue<float>();
+        gCumExpUbFloat = gOutQueue_.DeQue<float>();
         if (subBlockIdx == 0){
             DataCopyExtParams params{static_cast<uint16_t>(1),
                                     static_cast<uint16_t>(length * sizeof(float)),
