@@ -22,11 +22,8 @@
 #include "moe_distribute_v2_base.h"
 #include "check_winsize.h"
 
-#if __has_include("../common/inc/kernel/moe_distribute_base.h")
-#include "../common/inc/kernel/moe_distribute_base.h"
-#else 
 #include "../../common/inc/kernel/moe_distribute_base.h"
-#endif
+
 
 namespace Mc2Kernel {
 #define TemplateMC2TypeV2LayeredClass typename XType, typename ExpandXOutType, bool StaticQuant, bool DynamicQuant, bool IsSmoothScaleExist
