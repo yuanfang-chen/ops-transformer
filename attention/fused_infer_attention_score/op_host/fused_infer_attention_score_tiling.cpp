@@ -92,6 +92,9 @@ REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010200206, FAInfer
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000000201206, FAInferTilingData)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5000000000010201206, FAInferTilingData)
 
+// Decoding 场景 (pagedCacheFlag == true && qSeqlen == 1 && FP16 && NO_MASK && !lseFlag)
+REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_5200000000010200100, FAInferTilingData)
+
 // Test purposes - using old key
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore, IncreFlashAttentionTilingDataV2)
 REGISTER_TILING_DATA_CLASS(FusedInferAttentionScore_13, IncreFlashAttentionEmptyInputTilingData)
@@ -1360,6 +1363,9 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
             (faInfo.embeddingSize <= 128) && (maxQSeqlen * (faInfo.numHeads / faInfo.kvHeads) <= 128) && (maxQSeqlen <= 16) && (minKVSeqlen >= 1024) && (minQSeqlen > 0) && // 128: embeddingsize need less than 128 128: gsize need less than 128 16: maxqseqlen need less than 16 1024: minkvseqlen need greater than or equal to 1024 0: minqseqlen need greater than 0 
             (isLongSeq || isShortSeq)) {
             faInfo.flashDecodeFlag = true; 
+        }
+        if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1) {
+            faInfo.decodingFlag = true;
         }
     } else {
         faInfo.isTilingSink = true;

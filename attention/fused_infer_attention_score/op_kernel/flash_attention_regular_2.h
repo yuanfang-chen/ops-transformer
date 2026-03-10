@@ -30,7 +30,7 @@ namespace SplitFuse {
         bool PAGED_CACHE_FLAG,
         FaiKernel::MaskType MASK_TYPE = FaiKernel::MaskType::NO_MASK,
         FaiKernel::inputLayout INPUT_LAYOUT = FaiKernel::inputLayout::BSND>
-    class FAInferKernel {
+    class FAInferKernelDecoding {
     public:
         using ArchTag = typename BlockMmadQK::ArchTag;
         using L1TileShape = typename BlockMmadQK::L1TileShape;

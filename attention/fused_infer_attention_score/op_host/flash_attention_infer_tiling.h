@@ -140,6 +140,7 @@ namespace optiling{
         bool learnableSinkFlag = false;
         bool isTilingSink = false;
         bool flashDecodeFlag = false;
+        bool decodingFlag = false;
         string layout;
     };
 
@@ -244,6 +245,7 @@ namespace optiling{
         constexpr uint64_t INNER_LOW_PREC_KEY = 10000;
         constexpr uint64_t LEARNABLE_SINK_KEY = 100000000;
         constexpr uint64_t FLASH_DECODE_KEY = 100000000000000000;
+        constexpr uint64_t DECODING_KEY = 200000000000000000;
         uint64_t tilingKey = SPLIT_FUSE_BASE_KEY;
         if (faInfo_.pagedCacheFlag) {
             tilingKey += static_cast<uint64_t>(PAGED_CACHE_KEY);
@@ -272,7 +274,9 @@ namespace optiling{
         if (faInfo_.innerPrecise == 1) {
             tilingKey += static_cast<uint64_t>(INNER_LOW_PREC_KEY);
         }
-        if ((faInfo_.pagedCacheFlag) && !(faInfo_.maskType == MaskType::SWA_MASK) && !faInfo_.lseFlag && !faInfo_.learnableSinkFlag && !(faInfo_.innerPrecise == 1) && faInfo_.flashDecodeFlag) {
+        if (faInfo_.decodingFlag && faInfo_.dataType == DataType::FP16 && faInfo_.maskType == MaskType::NO_MASK && !faInfo_.lseFlag && !faInfo_.learnableSinkFlag && !(faInfo_.innerPrecise == 1)) {
+            tilingKey += static_cast<uint64_t>(DECODING_KEY);
+        } else if ((faInfo_.pagedCacheFlag) && !(faInfo_.maskType == MaskType::SWA_MASK) && !faInfo_.lseFlag && !faInfo_.learnableSinkFlag && !(faInfo_.innerPrecise == 1) && faInfo_.flashDecodeFlag) {
             tilingKey += static_cast<uint64_t>(FLASH_DECODE_KEY);
         }
         return tilingKey;
