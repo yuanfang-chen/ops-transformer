@@ -15,7 +15,7 @@
 #include "acl/acl_base.h"
 #include "acl/acl_rt.h"
 #include "acl/acl_dump.h"
-#include "kernel/moe_distribute_comm_ctx.h"
+#include "../op_kernel/moe_distribute_comm_ctx.h"
 #include "mc2_log.h"
 #include "mc2_tiling_utils.h"
 #include "mc2_gen_task_ops_utils.h"
