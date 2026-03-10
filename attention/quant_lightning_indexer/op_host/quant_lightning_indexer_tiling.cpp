@@ -17,6 +17,15 @@
 
 #include "../op_kernel/quant_lightning_indexer_template_tiling_key.h"
 
+#include "register/op_def_registry.h"
+#include "log/log.h"
+#include "err/ops_err.h"
+
+#include <register/op_impl_registry.h>
+#include "tiling_base/data_copy_transpose_tiling.h"
+#include "tiling_base/tiling_templates_registry.h"
+#include "tiling_base/tiling_base.h"
+
 using namespace ge;
 using namespace AscendC;
 using std::map;
@@ -358,6 +367,41 @@ ge::graphStatus QLIInfoParser::GetAndCheckOptionalInput()
     return ge::GRAPH_SUCCESS;
 }
 
+ge::graphStatus QLIInfoParser::IsTensorContiguous(uint32_t tensorIdx)
+{
+    auto viewShape = context_->GetInputShape(tensorIdx);
+    auto viewStride = context_->GetInputStride(tensorIdx);
+    OP_CHECK_IF(viewStride == nullptr, OP_LOGE(opName_, "isContiguous check viewStride is nullptr."), return ge::GRAPH_SUCCESS);
+    size_t shapeDim = viewShape->GetShape().GetDimNum();
+    size_t strideDim = viewStride->GetDimNum();
+
+    if (strideDim == 0) {
+        OP_LOGE(opName_, "isContiguous check strideDim is 0.");
+        return ge::GRAPH_SUCCESS; // 连续
+    }
+    if (shapeDim != strideDim) {
+        OP_LOGE(opName_, "isContiguous check strideDim should be %u, but now is %u.", shapeDim, strideDim);
+        return ge::GRAPH_SUCCESS;
+    }
+    return ge::GRAPH_FAILED; // 非连续
+}
+
+size_t QLIInfoParser::GetKeyDimNum()
+{
+    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS) {
+        return opParamInfo_.key.shape->GetStorageShape().GetDimNum();
+    }
+    return opParamInfo_.key.shape->GetShape().GetDimNum();
+}
+
+int64_t QLIInfoParser::GetKeyDim(const size_t idx)
+{
+    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_SUCCESS) {
+        return opParamInfo_.key.shape->GetStorageShape().GetDim(idx);
+    }
+    return opParamInfo_.key.shape->GetShape().GetDim(idx);
+}
+
 ge::graphStatus QLIInfoParser::CheckShapeDim()
 {
     OP_CHECK_IF((opParamInfo_.blockTable.tensor != nullptr) &&
@@ -366,13 +410,13 @@ ge::graphStatus QLIInfoParser::CheckShapeDim()
                 opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
         ((kLayout_ == DataLayout::PA_BSND)||(kLayout_ == DataLayout::BSND)) &&
-        (opParamInfo_.key.shape->GetStorageShape().GetDimNum() != DIM_NUM_FOUR),
+        (GetKeyDimNum() != DIM_NUM_FOUR),
         OP_LOGE(opName_, "the dim num of key's shape should be 4, but now is %u",
-                opParamInfo_.key.shape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                GetKeyDimNum()), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
-        (kLayout_ == DataLayout::TND) && (opParamInfo_.key.shape->GetStorageShape().GetDimNum() != DIM_NUM_THREE),
+        (kLayout_ == DataLayout::TND) && (GetKeyDimNum() != DIM_NUM_THREE),
         OP_LOGE(opName_, "the dim num of key's shape should be 3, but now is %u",
-                opParamInfo_.key.shape->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
+                GetKeyDimNum()), return ge::GRAPH_FAILED);
 
     uint32_t qShapeDim = opParamInfo_.query.shape->GetStorageShape().GetDimNum();
     uint32_t weightsShapeDim = opParamInfo_.weights.shape->GetStorageShape().GetDimNum();
@@ -424,9 +468,9 @@ ge::graphStatus QLIInfoParser::GetAndCheckN2Size()
 {
     // PA_BSND
     if (kLayout_ == DataLayout::TND) {
-        n2Size_ = static_cast<uint32_t>(opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_ONE));
+        n2Size_ = static_cast<uint32_t>(GetKeyDim(DIM_IDX_ONE));
     } else {
-        n2Size_ = static_cast<uint32_t>(opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_TWO));
+        n2Size_ = static_cast<uint32_t>(GetKeyDim(DIM_IDX_TWO));
     }
     OP_LOGI(context_->GetNodeName(), "N2 is %d", n2Size_);
     OP_CHECK_IF(n2Size_ != 1, OP_LOGE(opName_, "key shape[2] is numhead, only support 1."), return ge::GRAPH_FAILED);
@@ -508,7 +552,7 @@ ge::graphStatus QLIInfoParser::GetS1Size()
 
 ge::graphStatus QLIInfoParser::GetAndCheckBlockSize()
 {
-    blockSize_ = static_cast<uint32_t>(opParamInfo_.key.shape->GetStorageShape().GetDim(1));
+    blockSize_ = static_cast<uint32_t>(GetKeyDim(1));
     OP_LOGI(context_->GetNodeName(), "blockSize_ is %d", blockSize_);
 
     OP_CHECK_IF(
@@ -525,7 +569,7 @@ ge::graphStatus QLIInfoParser::GetS2SizeForPageAttention()
         return ge::GRAPH_FAILED;
     }
 
-    int32_t blockCount_ = static_cast<uint32_t>(opParamInfo_.key.shape->GetStorageShape().GetDim(0));
+    int32_t blockCount_ = static_cast<uint32_t>(GetKeyDim(0));
     OP_CHECK_IF((blockCount_ == 0), OP_LOGE(opName_, "input key's block_count cannot be 0."), return ge::GRAPH_FAILED);
 
     maxBlockNumPerBatch_ = opParamInfo_.blockTable.tensor->GetStorageShape().GetDim(1);
@@ -539,9 +583,9 @@ ge::graphStatus QLIInfoParser::GetS2SizeForBatchContinuous()
 {
     std::string layout_key(opParamInfo_.layOutKey);
     if (kLayout_ == DataLayout::BSND) {
-        s2Size_ = opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_ONE);
+        s2Size_ = GetKeyDim(DIM_IDX_ONE);
     } else if (kLayout_ == DataLayout::TND) {
-        s2Size_ = opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_ZERO);
+        s2Size_ = GetKeyDim(DIM_IDX_ZERO);
     }
     OP_CHECK_IF((kLayout_ != DataLayout::BSND) && (kLayout_ != DataLayout::TND),
         OP_LOGE(opName_, "the layout of key is %s, it is unsupported.", layout_key.c_str()),
@@ -558,6 +602,30 @@ ge::graphStatus QLIInfoParser::GetS2Size()
         return GetS2SizeForPageAttention();
     }
     return GetS2SizeForBatchContinuous();
+}
+
+ge::graphStatus QLIInfoParser::GetBlockStride()
+{
+    auto keyStride = context_->GetInputStride(KEY_INDEX);
+    uint32_t keyStrideDimNum = keyStride->GetDimNum();
+
+    if (kLayout_ != DataLayout::PA_BSND) { // 非PA场景
+        if (keyStrideDimNum != 0) {
+            OP_LOGE(opName_, "only supports contiguous key when kLayout_ is not PA.");
+            return ge::GRAPH_FAILED;
+        }
+        return ge::GRAPH_SUCCESS;
+    }
+
+    // PA场景
+    if (keyStrideDimNum != 0) {
+        OP_LOGE(opName_, "kCacheStride shape is [%d, %d, %d, %d].", keyStride->GetStride(0),
+                        keyStride->GetStride(1), keyStride->GetStride(2), keyStride->GetStride(3));
+        blockStride_ = keyStride->GetStride(0);
+    } else {
+        blockStride_ = blockSize_ * n2Size_ * headDim_;
+    }
+    return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
@@ -669,8 +737,8 @@ ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
                return ge::GRAPH_FAILED);
     // -----------------------check D-------------------
     OP_CHECK_IF(
-        ((kLayout_ != DataLayout::TND && opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_THREE) != headDim_)
-        || (kLayout_ == DataLayout::TND && opParamInfo_.key.shape->GetStorageShape().GetDim(DIM_IDX_TWO) != headDim_)),
+        ((kLayout_ != DataLayout::TND && GetKeyDim(DIM_IDX_THREE) != headDim_)
+        || (kLayout_ == DataLayout::TND && GetKeyDim(DIM_IDX_TWO) != headDim_)),
                 OP_LOGE(opName_, "input query, key shape last dim must be same."), return ge::GRAPH_FAILED);
     // -----------------------check N2-------------------
     OP_CHECK_IF((opParamInfo_.attenOut.shape->GetStorageShape().GetDim(outN2Dim) != n2Size_),
@@ -687,7 +755,7 @@ ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
 ge::graphStatus QLIInfoParser::CheckScaleShape()
 {
     uint32_t qShapeDim = opParamInfo_.query.shape->GetStorageShape().GetDimNum();
-    uint32_t kShapeDim = opParamInfo_.key.shape->GetStorageShape().GetDimNum();
+    uint32_t kShapeDim = GetKeyDimNum();
     uint32_t qDequantScaleShapeDim = opParamInfo_.query_dequant_scale.shape->GetStorageShape().GetDimNum();
     uint32_t kDequantScaleShapeDim = opParamInfo_.key_dequant_scale.shape->GetStorageShape().GetDimNum();
     OP_CHECK_IF(qDequantScaleShapeDim != (qShapeDim - 1),
@@ -710,7 +778,7 @@ ge::graphStatus QLIInfoParser::CheckScaleShape()
     // check k scale
     for (uint32_t i = 0; i < (kShapeDim - 1); i++) {
         uint32_t dimValueKeyScale = opParamInfo_.key_dequant_scale.shape->GetStorageShape().GetDim(i);
-        uint32_t dimValueKey = opParamInfo_.key.shape->GetStorageShape().GetDim(i);
+        uint32_t dimValueKey = GetKeyDim(i);
         OP_CHECK_IF(dimValueKeyScale != dimValueKey,
                    OP_LOGE(opName_, "key_dequant_scale's shape[%u] %u and key's shape[%u] %u is not same", i,
                              dimValueKeyScale, i, dimValueKey),
@@ -733,6 +801,7 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     QLIInfo.s1Size = s1Size_;
     QLIInfo.s2Size = s2Size_;
     QLIInfo.gSize = gSize_;
+    QLIInfo.blockStride = blockStride_;
 
     QLIInfo.inputQType = inputQType_;
     QLIInfo.inputKType = inputKType_;
@@ -773,6 +842,9 @@ ge::graphStatus QLIInfoParser::ParseAndCheck(QLITilingInfo &QLIInfo)
         return ge::GRAPH_FAILED;
     }
     if (ge::GRAPH_SUCCESS != ValidateInputShapesMatch() || ge::GRAPH_SUCCESS != CheckScaleShape()) {
+        return ge::GRAPH_FAILED;
+    } 
+    if (ge::GRAPH_SUCCESS != GetBlockStride()) {
         return ge::GRAPH_FAILED;
     }
 
@@ -830,6 +902,7 @@ ge::graphStatus QuantLightningIndexerTiling::DoTiling(QLITilingInfo *tilingInfo)
     tilingData_.set_blockSize(tilingInfo->blockSize);
     tilingData_.set_maxBlockNumPerBatch(tilingInfo->maxBlockNumPerBatch);
     tilingData_.set_sparseMode(tilingInfo->sparseMode);
+    tilingData_.set_blockStride(tilingInfo->blockStride);
     tilingData_.set_usedCoreNum(blockDim);
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());

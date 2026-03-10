@@ -17,6 +17,7 @@
 
 #include "err/ops_err.h"
 #include "log/log.h"
+#include "platform/platform_info.h"
 
 using namespace ge;
 
