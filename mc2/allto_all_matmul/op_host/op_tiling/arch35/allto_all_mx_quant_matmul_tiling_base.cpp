@@ -93,10 +93,10 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckX2Transpose(const gert::Ti
 ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckGroupSize(const gert::TilingContext *context, const char *opName, const OpAttrIndexSchema &indexSchema)
 {
     const gert::RuntimeAttrs *attrs = context->GetAttrs();
-    const int64_t *groupSizePtr = attrs->GetAttrPointer<int64_t>(indexSchema.ALLTOALLMATMUL_ATTR_GROUP_SIZE_INDEX);
+    const int64_t *groupSizePtr = attrs->GetAttrPointer<int64_t>(ALLTOALLMATMUL_ATTR_GROUP_SIZE_INDEX);
     OP_TILING_CHECK(groupSizePtr == nullptr, CUBE_INNER_ERR_REPORT(opName, "GroupSizePtr shouldn't be nullptr"),
                     return ge::GRAPH_FAILED);
-    int64_t groupSize = *groupSizePtr;
+    uint64_t groupSize = static_cast<uint64_t>(*groupSizePtr);
     OP_LOGI(opName, "groupSize=%lu", groupSize);
     mc2tiling::Mc2MatmulShapeInfo shapeInfo = {
         context_->GetInputShape(INPUT_X1_INDEX),
@@ -107,9 +107,9 @@ ge::graphStatus AllToAllMxQuantMatmulTilingBase::CheckGroupSize(const gert::Tili
         *context_->GetAttrs()->GetAttrPointer<bool>(indexSchema.x2Transpose),
         opName
     };
-    int64_t groupSizeK = groupSize & GROUP_MNK_BIT_SIZE;
-    int64_t groupSizeN = (groupSize >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
-    int64_t groupSizeM = (groupSize >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
+    uint64_t groupSizeK = groupSize & GROUP_MNK_BIT_SIZE;
+    uint64_t groupSizeN = (groupSize >> GROUP_N_OFFSET) & GROUP_MNK_BIT_SIZE;
+    uint64_t groupSizeM = (groupSize >> GROUP_M_OFFSET) & GROUP_MNK_BIT_SIZE;
     shapeInfo.isMxfp = true;
     OP_TILING_CHECK(!mc2tiling::Mc2TilingUtils::InferGroupSize(shapeInfo, groupSizeM, groupSizeN, groupSizeK),
         CUBE_INNER_ERR_REPORT(opName, "Failed to execute inferGroupSize in mx scene."),
