@@ -416,7 +416,6 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char*
     const std::string algConfig2 = "AllGather=level0:fullmesh";
     AscendC::Mc2CcTilingConfig mc2CcTilingConfig(groupName, opType1, algConfig1, reduceType, dataType, dataType);
     if (antiQuantType_ != AntiQuantType::PER_GROUP) {
-        weightQuantMatmulAllReduceA5Fp8TilingData_.allReduceBasedAtaSumAg = true;
         OP_TILING_CHECK(
             mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5Fp8TilingData_.mc2InitTiling),
             OP_LOGE(opName_, "Get mc2InitTiling from weightQuantMatmulAllReduceA5Fp8TilingData_ failed."),
@@ -434,7 +433,6 @@ ge::graphStatus WeightQuantMatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char*
             OP_LOGE(opName_, "Get mc2CcTilingComm from weightQuantMatmulAllReduceA5Fp8TilingData_ failed."),
             return ge::GRAPH_FAILED);
     } else {
-        weightQuantMatmulAllReduceA5TilingData_.allReduceBasedAtaSumAg = true;
         OP_TILING_CHECK(
             mc2CcTilingConfig.GetTiling(weightQuantMatmulAllReduceA5TilingData_.mc2InitTiling),
             OP_LOGE(opName_, "Get mc2InitTiling from weightQuantMatmulAllReduceA5TilingData_ failed."),
