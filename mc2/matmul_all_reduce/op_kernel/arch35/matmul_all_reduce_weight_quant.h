@@ -30,13 +30,13 @@
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
 using Mc2WeightQuantBatchMatmulV2::Mc2QuantType;
-template <typename XType, typename WType, typename YType, class MmType, bool A2A_RS_AG>
-class MatmulAllReduceWeightQuantRegBase : public MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, A2A_RS_AG>
+template <typename XType, typename WType, typename YType, class MmType, bool basedA2aRsAg>
+class MatmulAllReduceWeightQuantRegBase : public MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, basedA2aRsAg>
 {
 public:
     __aicore__ inline MatmulAllReduceWeightQuantRegBase(
         MC2GmAddrs* addrs, QuantGmAddrs* quantAddrs, ArnGmAddrs* arnAddrs, MC2TilingHeader* tilingData, TPipe* tPipe)
-        : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, A2A_RS_AG>(
+        : MatmulAllReduceBase<XType, YType, Mc2CoreType::ON_CUBE_AND_VECTOR, basedA2aRsAg>(
               addrs, quantAddrs, arnAddrs, tilingData, tPipe)
     {
         mc2TilingData_ = (Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData*)tilingData;
@@ -49,7 +49,7 @@ public:
         if (this->tailFlag_) {
             InnerProcess(true, this->paramInTiling_->tailCnt, this->tailInfo_);
         }
-        if constexpr(A2A_RS_AG){
+        if constexpr(basedA2aRsAg) {
             this->ReduceSumAndAllGather();
         }
         this->HcclFinalize();
@@ -71,7 +71,7 @@ protected:
             const uint64_t index = tailFlag ? idx + this->paramInTiling_->tileCnt : idx;
             this->PostProcEachTurn(tileInfo.hcclHandleId, tileInfo.aAddrOffset, tileInfo.cAddrOffset, index);
         }
-        if constexpr(A2A_RS_AG){
+        if constexpr(basedA2aRsAg) {
             this->WaitAlltoAllEachTurn(tailFlag, turnCnt);
         }
     }
@@ -80,14 +80,14 @@ private:
     Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData* mc2TilingData_;
 };
 
-#define INVOKE_MC2_WEIGHT_QUANT_KERNEL(bTransFlag, quantType, offsetFlag, weightNz, A2A_RS_AG)        \
+#define INVOKE_MC2_WEIGHT_QUANT_KERNEL(bTransFlag, quantType, offsetFlag, weightNz, basedA2aRsAg)        \
     do {                                                                                                  \
         GET_TILING_DATA_WITH_STRUCT(Mc2Tiling::WeightQuantMatmulAllReduceA5TilingData, tilingData, tilingGM);        \
         using OpType = Mc2WeightQuantBatchMatmulV2::Arch35::Mc2WeightQuantBatchMatmulV2RegBaseKernel<           \
             DTYPE_X1, DTYPE_X2, DTYPE_BIAS, DTYPE_Y, false, bTransFlag, offsetFlag, quantType, weightNz>; \
         MC2GmAddrs addrs = {aGM, bGM, biasGM, addGM, cGM, workspaceGM, cGM};                              \
         QuantGmAddrs quantAddrs = {antiquantScaleGM, antiquantOffsetGM, nullptr, nullptr};                \
-        MatmulAllReduceWeightQuantRegBase<DTYPE_X1, DTYPE_X2, DTYPE_Y, OpType, A2A_RS_AG> op(         \
+        MatmulAllReduceWeightQuantRegBase<DTYPE_X1, DTYPE_X2, DTYPE_Y, OpType, basedA2aRsAg> op(         \
             &addrs, &quantAddrs, nullptr, (MC2TilingHeader*)&tilingData, &tPipe);                         \
         op.Init();                                                                                        \
         op.Process();                                                                                     \
