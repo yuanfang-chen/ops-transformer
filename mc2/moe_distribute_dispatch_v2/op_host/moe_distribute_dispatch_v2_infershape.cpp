@@ -105,7 +105,7 @@ static void InferShapeDynamicScalesA5(gert::Shape *dynamicScalesShape, const ger
     } else if ((quantMode == QuantMode::QUANT_MODE_NO_QUANT) && (scalesShape != nullptr)) {
         dynamicScalesShape->SetDimNum(DIM_TWO);
         dynamicScalesShape->SetDim(0U, a);
-        dynamicScalesShape->SetDim(1U, scalesShape.GetDim(1));
+        dynamicScalesShape->SetDim(1U, scalesShape->GetDim(1));
     } else {
         dynamicScalesShape->SetDimNum(DIM_ONE);
         dynamicScalesShape->SetDim(0U, a);
