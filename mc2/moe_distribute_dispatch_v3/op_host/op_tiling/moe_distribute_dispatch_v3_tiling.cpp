@@ -91,6 +91,7 @@ IMPL_OP_OPTILING(MoeDistributeDispatchV3)
     .Tiling(MoeDistributeDispatchV3TilingFunc)
     .TilingParse<MoeDistributeDispatchCompileInfo>(TilingParseForMoeDistributeDispatchV3);
 
+#ifdef MC2_EXCEPTION_HANDLER
 // Register exception func
 inline void MoeDistributeDispatchV3ExceptionImplWrapper(aclrtExceptionInfo *args, void *userdata)
 {
@@ -99,4 +100,5 @@ inline void MoeDistributeDispatchV3ExceptionImplWrapper(aclrtExceptionInfo *args
 
 IMPL_OP(MoeDistributeDispatchV3)
     .ExceptionDumpParseFunc(MoeDistributeDispatchV3ExceptionImplWrapper);
+#endif
 } // namespace optiling
