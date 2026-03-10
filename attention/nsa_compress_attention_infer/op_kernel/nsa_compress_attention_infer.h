@@ -25,6 +25,11 @@
 #include "common.h"
 #include "iterator.h"
 
+#include "nsa_compress_attention_infer_init.h"
+#include "nsa_compress_attention_infer_copy.h"
+#include "nsa_compress_attention_infer_compute.h"
+#include "nsa_compress_attention_infer_process.h"
+
 using namespace AscendC;
 using namespace matmul;
 
@@ -364,11 +369,5 @@ public:
         #endif
     }
 };
-
-#include "nsa_compress_attention_infer_init.h"
-#include "nsa_compress_attention_infer_copy.h"
-#include "nsa_compress_attention_infer_compute.h"
-#include "nsa_compress_attention_infer_process.h"
-
 } // namespace NSA_COMPRESS_ATTENTION_INFER
 #endif  // NSA_COMPRESS_ATTENTION_INFER_H
