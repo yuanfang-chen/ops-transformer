@@ -65,7 +65,8 @@ public:
         if ASCEND_IS_AIV {
             // 初始化state空间, 原子累加使用
             if (GetBlockIdx() == 0) {
-                InitOutput<bfloat16_t>(finalState_, tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk, 0);
+                InitOutput<lowType>(finalState_, tiling_->b * tiling_->nv * tiling_->dv * tiling_->dk, 0);
+                InitOutput<lowType>(out_, tiling_->t * tiling_->nv * tiling_->dv, 0);
             }
             // 初始化mask矩阵
             pipe_->InitBuffer(tmpBuff_, tiling_->chunkSize * tiling_->chunkSize * sizeof(float));
@@ -175,7 +176,7 @@ public:
                 stage2(cg, curInitState, curFinalState);
                 SyncAll<false>();
 
-                stage3(cg);
+                stage3(cg, seqStart);
                 SyncAll<false>();
             }
         }
@@ -200,7 +201,7 @@ private:
             mm1_.Init(&tiling_->matmulTilingFp32, pipe_);
             mm2_.Init(&tiling_->matmulTilingBf16, pipe_);
         }
-        // Stage2 stageTwoOp;
+        Stage2 stageTwoOp;
         StageTwoParams initStageTwoParams{qPrime_, vInner_, gCumExp_, kCumDecay_, curInitState, kg_,
                                           curFinalState, attnInter_, vNew_,
                                           &mm1_, &mm2_, pipe_, &cg,
@@ -210,9 +211,21 @@ private:
         pipe_->Reset();
     }
 
-    __aicore__ inline void stage3(const ChunkGroup& cg)
+    __aicore__ inline void stage3(ChunkGroup& cg, int seqStart)
     {
-        // todo: stage3, release ub resource after computing
+        if ASCEND_IS_AIC {
+            // 使用 tiling 中的 matmul tiling 数据初始化
+            mm3_.Init(&tiling_->matmulTilingFp32, pipe_);
+            // mm2_.Init(&tiling_->matmulTilingBf16, pipe_);
+        }
+        Stage3 stageThreeOp;
+        StageThreeParams initStageThreeParams{qkt_, gCumExp_, attnInter_, vInner_,
+            stageThreeMask_, stageWsAddr_,
+            out_[seqStart * tiling_->nv * tiling_->dv], &mm3_, pipe_, &cg, tiling_->scale,
+            tiling_->maxGroupLength, tiling_->nv, tiling_->nk, tiling_->dv, tiling_->dk};
+        stageThreeOp.Init(&initStageThreeParams, tiling_->aiCoreNum);
+        stageThreeOp.Process();
+        pipe_->Reset();
     }
 
     // __aicore__ inline void stage1Dump(const ChunkGroup& cg)
@@ -295,6 +308,7 @@ private:
 
     MT1 mm1_;
     MT2 mm2_;
+    MT3 mm3_;
 
     // Stage operators
     GDRStageOne stageOneOp_;
