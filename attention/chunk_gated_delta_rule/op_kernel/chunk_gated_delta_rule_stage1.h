@@ -296,7 +296,7 @@ private:
             validRow = (subBlockIdx == 0) ? chunkSize / 2 : validLen_ - chunkSize / 2;
         }
         LocalTensor<float> tmpTensor;
-        //copyIn
+        // copyIn
         DataCopyInBf16WithStride(validRow, dk, srcGm, Nk_ *dk);
         // compute
         LocalTensor<bfloat16_t> bf16Tensor = fp32InQueue_.DeQue<bfloat16_t>();
@@ -309,7 +309,7 @@ private:
             PipeBarrier<PIPE_V>();
         }
 
-        //copyOut
+        // copyOut
         tmpTensor = fp32OutQueue_.AllocTensor<float>();
         DataCopy(tmpTensor, dstBuffer, rows * dk);
         fp32OutQueue_.EnQue(tmpTensor);
@@ -419,7 +419,7 @@ private:
         auto ei = inverseUbFloat[inverseBufferOffset];
         inverseBufferOffset += inverseVecLen * inverseVecLen;
         auto colBufferGather = colBuffer[inverseBufferOffset];
-        
+
         Duplicate(ei, static_cast<float>(0.0), inverseVecLen);
         Duplicate(yLocal, static_cast<float>(0.0), 2 * inverseVecLen * inverseVecLen); // yLocal清零
         inverseLocal.SetValue(offset, static_cast<float>(1.0));
@@ -454,15 +454,15 @@ private:
             return;
         }
         // tmp = -1.0 * beta * g_cum_exp
-        Mul(gBUbFloat, betaUbFloat, gCumExpUbFloat[subOffset], chunkSize / 2); //  [C/2, 1]
+        Mul(gBUbFloat, betaUbFloat, gCumExpUbFloat[subOffset], chunkSize / 2);
         PipeBarrier<PIPE_V>();
-        Muls(gBUbFloat, gBUbFloat, static_cast<float>(-1), chunkSize / 2); // Muls(dst, src, scalar, count)
+        Muls(gBUbFloat, gBUbFloat, static_cast<float>(-1), chunkSize / 2);
         PipeBarrier<PIPE_V>();
         // k_cumdecay = k * tmp =  -1.0 * k * beta * g_cum_exp
         uint32_t betaShape[2] = {chunkSize / 2, 1};
         uint32_t kShape[2] = {chunkSize / 2, dk};
         gBKLocal = fp32OutQueue_.AllocTensor<float>();
-        Broadcast<float, 2, 1>(gBKLocal, gBUbFloat, kShape, betaShape); // [C/2, 1] -> [C/2, Dk]
+        Broadcast<float, 2, 1>(gBKLocal, gBUbFloat, kShape, betaShape);
         PipeBarrier<PIPE_V>();
         Mul(gBKLocal, gBKLocal, kUbFloatCon, chunkSize * dk / 2);
         fp32OutQueue_.EnQue<float>(gBKLocal);
@@ -575,7 +575,6 @@ private:
 
     __aicore__ inline void GCopyInWithStride()
     {
-        // TODO g 是全局量，两个 subVec 共用，只需 subVec 0 搬全部 chunkSize 行?
         constexpr uint32_t slot = 32 / sizeof(float);
         uint64_t validRow = validLen_;
         DataCopyInFp32WithStride(validRow, 1, gGm_, Nv_);
@@ -641,11 +640,14 @@ private:
 
     __aicore__ inline void DataCopyOutG(uint64_t length)
     {
-        gCumExpUbFloat = gOutQueue_.DeQue<float>();
-        DataCopyExtParams params{static_cast<uint16_t>(1),
+        gCumExpUbFloat = 
+        DeQue<float>();
+        if (subBlockIdx == 0){
+            DataCopyExtParams params{static_cast<uint16_t>(1),
                                     static_cast<uint16_t>(length * sizeof(float)),
                                     0, 0, 0};
-        DataCopyPad(outGCumExpGm_, gCumExpUbFloat, params);  // stage1 out
+            DataCopyPad(outGCumExpGm_, gCumExpUbFloat, params);  // stage1 out
+        }
     }
 
     __aicore__ inline void AttnInverseMMCompute(uint64_t curLen)
