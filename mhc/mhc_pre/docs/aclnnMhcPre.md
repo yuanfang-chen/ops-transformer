@@ -10,7 +10,6 @@
 |<term>Atlas 200I/500 A2 推理产品</term>|      ×     |
 |<term>Atlas 推理系列产品</term>|      ×     |
 |<term>Atlas 训练系列产品</term>|      ×     |
-|<term>Atlas 200/300/500 推理产品</term>|      ×     |
 
 ## 功能说明
 
@@ -25,10 +24,12 @@ H^{post}_l &= \alpha^{post}_{l} ·(\vec{x^{'}_{l}}\varphi^{post}_{l}) + b^{post}
 H^{res}_l &= \alpha^{res}_{l} ·(\vec{x^{'}_{l}}\varphi^{res}_{l}) + b^{res}_{l}\\
 H^{pre}_l &= \sigma (H^{pre}_{l})\\
 H^{post}_l &= 2\sigma (H^{post}_{l})\\
-H^{res}_l &= \sigma (H^{res}_{l})\\
+H^{res}_l &= \text{Sinkhorn-Knopp} (H^{res}_{l})\\
 h_{in} &=\vec{x^{'}_{l}}H^{pre}_l
 \end{aligned}
 $$
+
+ps: `Sinkhorn-Knopp`过程在aclnnMhcSinkhorn接口实现
 
 ---
 
@@ -39,9 +40,9 @@ $$
 ```c++
 aclnnStatus aclnnMhcPreGetWorkspaceSize(
     const aclTensor *x, const aclTensor *phi, const aclTensor *alpha, const aclTensor *bias, const aclTensor *gamma,
-    int64_t out_flag, double norm_eps, double hc_eps,
-    const aclTensor *out_hin, const aclTensor *out_h_post, const aclTensor *out_h_res,
-    const aclTensor *out_inv_rms, const aclTensor *out_mm_res, const aclTensor *out_h_pre,
+    int64_t outFlag, double normEps, double hcEps,
+    const aclTensor *hIn, const aclTensor *hPost, const aclTensor *hRes,
+    const aclTensor *invRms, const aclTensor *hMix, const aclTensor *hPre,
     uint64_t *workspaceSize, aclOpExecutor **executor)
 ```
 ```c++
@@ -59,15 +60,15 @@ aclnnStatus aclnnMhcPre(
 | alpha | 输入 | mHC的缩放参数 | 必选参数，不能为空Tensor | FLOAT32 | - | (3) | - |
 | bias | 输入 | mHC的bias参数 | 必选参数，不能为空Tensor | FLOAT32 | - | ($n^2+2n$) | - |
 | gamma | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
-| norm_eps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
-| hc_eps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
-| out_flag | 可选输入 | 表示是否输出mm_res/inv_rms/h_pre，默认为0表示不输出，为1表示全输出 | 可选参数 | INT64 | - | - | - |
-| h_in | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
-| h_post | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
-| h_res | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
-| inv_rms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
-| h_mix | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
-| h_pre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
+| normEps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
+| hcEps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
+| outFlag | 可选输入 | 表示是否输出mm_res/inv_rms/h_pre，默认为0表示不输出，为1表示全输出 | 可选参数 | INT64 | - | - | - |
+| hIn | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| hPost | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| hRes | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
+| invRms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
+| hMix | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
+| hPre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
 
 ### 返回值
 
@@ -115,26 +116,6 @@ aclnnStatus aclnnMhcPre(
 | T或B*S | 1~65536 | B*S 或T支持512~65536范围（训练及推理Prefill），支持1~512（推理Decode）。|
 | n | 4、6、8 | n目前支持4, 6, 8。|
 | D | 512~16384 | D支持512~16384范围以内，需满足D为32对齐。|
-
-### 典型值
-
-#### 推理Prefill典型shape
-
-| 规格项 | 典型值 |
-|:--- |:--- |
-| T或 B*S | 1024/2048/4096 |
-| n | 4（推荐） |
-| D | 2560/5120（推荐） |
-| eps | 1e-6（推荐） |
-
-#### 推理Decode典型shape
-
-| 规格项 | 典型值 |
-|:--- |:--- |
-| T或 B*S | 低时延场景：B=1, S=2/3/4/5; <br> 高吞吐场景：B=4/8/12/16/20/24/28/32/36/40/44/48/52/56/60, S=2/3 |
-| n | 4（推荐） |
-| D | 2560/5120（推荐） |
-| eps | 1e-6（推荐） |
 
 ## 调用示例
 
