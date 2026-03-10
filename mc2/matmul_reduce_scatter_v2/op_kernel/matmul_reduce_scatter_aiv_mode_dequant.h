@@ -35,20 +35,23 @@
 
 using namespace matmulReduceScatterV2_util;
 namespace dequant {
-template <typename OutputType>
+template <typename BiasType, typename OutputType>
 class DequantRunner {
 public:
     using ArchTag = Arch::AtlasA2;
     using ScaleType = Gemm::GemmType<float, layout::VectorLayout>;
     using PerTokenScaleType = Gemm::GemmType<float, layout::VectorLayout>;
+    using BiasGType = Gemm::GemmType<BiasType, layout::VectorLayout>;
     using CType = Gemm::GemmType<int32_t, layout::RowMajor>;
     using DType = Gemm::GemmType<OutputType, layout::RowMajor>;
     using RowBroadcastMulType = Gemm::GemmType<float, layout::RowMajor>;
     using BroadcastOneBlkType = Gemm::GemmType<float, layout::RowMajor>;
     using OneBlkColumnBroadcastMulType = Gemm::GemmType<float, layout::RowMajor>;
-
+    using RowBroadcastAddType = Gemm::GemmType<float, layout::RowMajor>;
+    
     using EpilogueTileShape = MatrixShape<TILE_SHAPE_64, TILE_SHAPE_128>;
     using TileRowBroadcastMul = Epilogue::Tile::TileRowBroadcastMul<ArchTag, RowBroadcastMulType, EpilogueTileShape>;
+    using TileRowBroadcastAdd = Epilogue::Tile::TileRowBroadcastAdd<ArchTag, RowBroadcastAddType, EpilogueTileShape>;
     using TileBroadcastOneBlk =
         Epilogue::Tile::TileBroadcastOneBlk<ArchTag, BroadcastOneBlkType, EpilogueTileShape::ROW>;
     using TileOneBlkColumnBroadcastMul =
@@ -57,7 +60,7 @@ public:
     using TileScheduler = Epilogue::Tile::EpilogueHorizontalTileSwizzle;
 
     using BlockEpilogue =
-        Epilogue::Block::BlockEpilogue<ArchTag, CType, ScaleType, PerTokenScaleType, DType, TileRowBroadcastMul,
+        Epilogue::Block::BlockEpilogue<ArchTag, CType, ScaleType, PerTokenScaleType, BiasGType, DType, TileRowBroadcastMul, TileRowBroadcastAdd,
                                        TileBroadcastOneBlk, TileOneBlkColumnBroadcastMul, TileCopy, TileScheduler>;
 
     uint32_t DefaultSwizzleDirect = 0;
