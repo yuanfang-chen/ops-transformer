@@ -387,12 +387,11 @@ private:
         Mul(attnUbFloat, attnUbFloat, gammaUbFloat[subBlockIdx * chunkSize * chunkSize / 2], curVecLen);
         PipeBarrier<PIPE_V>();
 
-        uint32_t inverseVecLen = 32;
         inverseLocal = fp32OutQueue_.AllocTensor<float>();
         Muls(inverseLocal, attnUbFloat, static_cast<float>(-1.0), curVecLen);
         PipeBarrier<PIPE_V>();
 
-        InverseAIV(attnBeginOffset, inverseVecLen);
+        InverseAIV(attnBeginOffset, INVERSE_SHAPE);
         fp32OutQueue_.EnQue(inverseLocal);
         DataCopyOutFp32(curVecLen, AttnWsGm_[subBlockIdx * curVecLen]);
     }
