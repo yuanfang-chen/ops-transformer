@@ -13,7 +13,7 @@
 
 ## 功能说明
 
-- 接口功能：完成Matmul计算、Permute(保证通信后地址连续)和AlltoAll通信的融合，**先计算后通信**。
+- 接口功能：完成Matmul计算、Permute（保证通信后地址连续）和AlltoAll通信的融合，**先计算后通信**。
 - 计算公式：假设x1的shape为(BS, H1)，x2的shape为(H1, H2)，rankSize为NPU卡数。
 
   $$
@@ -35,7 +35,7 @@ aclnnStatus aclnnMatmulAlltoAllGetWorkspaceSize(
   const char*        group,
   bool               transposeX1,
   bool               transposeX2,
-  aclTensor*         output,
+  const aclTensor*   output,
   uint64_t*          workspaceSize,
   aclOpExecutor**    executor)
 ```
@@ -52,15 +52,15 @@ aclnnStatus aclnnMatmulAlltoAll(
 
 - ​**参数说明**​：
 
-    <table style="undefined;table-layout: fixed; width: 1656px"> <colgroup>
+    <table style="undefined;table-layout: fixed; width: 1556px"> <colgroup>
     <col style="width: 154px">
-    <col style="width: 223px">
+    <col style="width: 123px">
     <col style="width: 270px">
-    <col style="width: 295px">
+    <col style="width: 325px">
     <col style="width: 245px">
     <col style="width: 120px">
     <col style="width: 203px">
-    <col style="width: 146px">
+    <col style="width: 116px">
     </colgroup>
     <thead>
     <tr>
@@ -96,7 +96,7 @@ aclnnStatus aclnnMatmulAlltoAll(
     </tr>
     <tr>
     <td>biasOptional</td>
-    <td>可选输入</td>
+    <td>输入</td>
     <td>阵乘运算后累加的偏置，对应公式中的bias。</td>
     <td>支持传入空指针场景；根据设备型号对数据类型有不同限制，详细参见<a href="#约束说明">约束说明</a>。</td>
     <td>FLOAT16、BFLOAT16、FLOAT32</td>
@@ -107,7 +107,7 @@ aclnnStatus aclnnMatmulAlltoAll(
     <tr>
     <td>alltoAllAxesOptional</td>
     <td>输入</td>
-    <td>可选输入，AlltoAll和Pemute数据交换的方向。</td>
+    <td>可选输入，AlltoAll和Permute数据交换的方向。</td>
     <td>支持配置空或者[-1, -2]，传入空时默认按[-1, -2]处理，表示将输入由(BS, H2)转为(BS * rankSize, H2 / rankSize)。</td>
     <td>aclIntArray*(元素类型INT64)</td>
     <td>-</td>
@@ -176,7 +176,6 @@ aclnnStatus aclnnMatmulAlltoAll(
     </tr>
     </tbody></table>
 
-
 - **返回值**
 
   aclnnStatus：返回状态码，具体参见[aclnn返回码](../../../docs/zh/context/aclnn返回码.md)。
@@ -202,8 +201,8 @@ aclnnStatus aclnnMatmulAlltoAll(
       <td>输入和输出的必选参数Tensor是空指针。</td>
     </tr>
     <tr>
-        <td rowspan="6">ACLNN_ERR_PARAM_INVALID</td>
-        <td rowspan="6">161002</td>
+        <td rowspan="7">ACLNN_ERR_PARAM_INVALID</td>
+        <td rowspan="7">161002</td>
         <td>输入和输出的数据类型不在支持的范围内。</td>
     </tr>
     <tr>
@@ -507,6 +506,7 @@ aclnnStatus aclnnMatmulAlltoAll(
         return 0;
     }
     ```
+
 - <term>Ascend 950PR/Ascend 950DT</term>：
 
     ```Cpp

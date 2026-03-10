@@ -39,6 +39,10 @@ constexpr uint32_t ATTR_GROUP_LIST_TYPE_IDX = 5;
 
 constexpr uint32_t MAX_X_DIM = 6UL;
 constexpr uint32_t MIN_X_DIM = 2UL;
+constexpr size_t ANTIQUANT_SCALE_DIM_NUM = 4; // MX格式antiquantScale维度数
+constexpr size_t PENULTIMATE_DIM = 2;         // 倒数第2维
+constexpr size_t ANTEPENULTIMATE_DIM = 3;     // 倒数第3维
+constexpr int64_t MX_GROUP_FACTOR = 2;        // MX格式groupNum计算因子
 
 constexpr uint32_t BASIC_BLOCK_BASE_M = 256;
 constexpr uint32_t BASIC_BLOCK_BASE_M_WITH_BIAS = 240;
@@ -60,6 +64,8 @@ constexpr int32_t B16_DATA_SIZE = 2;
 constexpr int32_t B8_DATA_SIZE = 1;
 
 constexpr uint32_t MX_GROUP_SIZE = 32;
+
+constexpr uint32_t AIC_AIV_CORE_RATIO = 2;
 
 struct TailBlockResplitParam {
     uint32_t mainBlockSize = 0;
@@ -219,9 +225,10 @@ public:
     bool SetTiling(gert::TilingContext *context);
 
 protected:
+    bool CheckCoreNum(const gert::TilingContext *context) const;
     bool SetShapeList(const gert::TilingContext *context);
-    bool CheckEmptyTensor(const gert::TilingContext *context);
-    bool CheckTensorListSize(const gert::TilingContext *context);
+    bool CheckEmptyTensor(const gert::TilingContext *context) const;
+    bool CheckTensorListSize(const gert::TilingContext *context) const;
     bool CheckTensorDtype(const gert::TilingContext *context, uint32_t attrIdx, size_t idx,
                           const ge::DataType &tensorDtype, const std::string &tensorType) const;
     bool IsNzFormat(const gert::TilingContext *context, uint32_t attrIdx, size_t idx) const;
@@ -291,6 +298,7 @@ private:
     uint32_t groupNum_ = 0;
     uint32_t groupListType_ = 0;
     uint32_t coreNum_ = 0;
+    uint32_t aivNum_ = 0;
     uint32_t groupSize_ = 0;
     uint8_t cubeNumBlocksN_ = 0;
 
