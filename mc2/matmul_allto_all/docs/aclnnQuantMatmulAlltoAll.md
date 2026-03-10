@@ -84,12 +84,12 @@ aclnnStatus aclnnQuantMatmulAlltoAll(
 
 - ​**参数说明**​：
 
-    <table style="undefined;table-layout: fixed; width: 1687px"> <colgroup>
-    <col style="width: 154px">
-    <col style="width: 254px">
-    <col style="width: 270px">
-    <col style="width: 295px">
-    <col style="width: 245px">
+    <table style="undefined;table-layout: fixed; width: 1600px"> <colgroup>
+    <col style="width: 170px">
+    <col style="width: 120px">
+    <col style="width: 300px">
+    <col style="width: 330px">
+    <col style="width: 211px">
     <col style="width: 120px">
     <col style="width: 203px">
     <col style="width: 146px">
