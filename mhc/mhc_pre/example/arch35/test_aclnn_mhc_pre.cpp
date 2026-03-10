@@ -319,8 +319,8 @@ int main() {
   );
   
   // MhcPre算子参数   
-  float norm_eps = 1e-6;  // 防除零参数
-  float hc_eps = 1e-6;
+  double norm_eps = 1e-6;  // 防除零参数
+  double hc_eps = 1e-6;
   int64_t out_flag = 1;   // 输出中间结果
 
   // ========== 3. 调用第一段接口：获取Workspace大小 ==========
@@ -328,7 +328,7 @@ int main() {
   aclOpExecutor* executor = nullptr;
   
   aclnnStatus aclnn_ret = aclnnMhcPreGetWorkspaceSize(
-    x, phi, alpha, bias, gamma,
+    x_tensor, phi_tensor, alpha_tensor, bias_tensor, gamma_tensor,
     out_flag, norm_eps, hc_eps,
     output_hin_tensor, output_h_post_tensor, output_h_res_tensor,
     output_inv_rms_tensor, output_h_mix_tensor, output_h_pre_tensor,
