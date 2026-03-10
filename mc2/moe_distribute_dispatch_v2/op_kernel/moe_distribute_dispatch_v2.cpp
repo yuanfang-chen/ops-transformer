@@ -125,10 +125,17 @@ REGISTER_TILING_DEFAULT(MoeDistributeDispatchV2TilingData);
     ((ORIG_DTYPE_X == DT_FLOAT16) && (ORIG_DTYPE_EXPAND_X == DT_HIFLOAT8))
     if constexpr (ArchTag == TILINGKEY_TPL_A5) {
         if constexpr (CommMode == TILINGKEY_TPL_MTE) {
-            MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
-            op.Init(nullptr, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
-                    expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
-            op.Process();
+            if constexpr (FullMesh == TILINGKEY_ENABLE_FULLMESH) {
+                MoeDistributeDispatchV2FullMesh<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
+                op.Init(x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                        expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+                op.Process();
+            } else {
+                MoeDistributeDispatchV2<DTYPE_X, DTYPE_EXPAND_X, QuantMode, ScaleMode, false> op;
+                op.Init(nullptr, x, expertIds, scales, xActiveMask, elasticInfo, performanceInfo, expandXOut, dynamicScalesOut, assistInfoOut, 
+                        expertTokenNumsOut, epSendCountsOut, tpSendCountsOut, workspaceGM, &pipe, &tilingData);
+                op.Process();
+            }        
         }
     }
     AscendC::SetCtrlSpr<FLOAT_OVERFLOW_MODE_CTRL, FLOAT_OVERFLOW_MODE_CTRL>(oriOverflowMode);
