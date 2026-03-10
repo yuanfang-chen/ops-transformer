@@ -233,6 +233,14 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
     uint32_t totalQ = (layout_ == InputLayout::TND) ?  queryShape->GetOriginShape().GetDim(TND_DIM_T) : 0;
     uint32_t totalKv = (layout_ == InputLayout::TND) ?  kvShape->GetOriginShape().GetDim(TND_DIM_T) : 0;
 
+    if (layout_ == InputLayout::TND) {
+        maxKvBlockNum_=CeilDiv(totalKv,blockShapeY_);
+    } else {
+        maxKvBlockNum_=CeilDiv(maxKvSeqlen_,blockShapeY_);
+    }
+    maxNumBlocksPerBatch_ = maxKvBlockNum_ * numHeads_;
+    totalQBlocks_ = 0;
+
     std::vector<uint32_t> tasksInBatch(batch_);
     std::vector<uint64_t> qPrefixTokenSum(batch_ + 1, 0);
     std::vector<uint64_t> kvPrefixTokenSum(batch_ + 1, 0);
@@ -258,6 +266,13 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
         uint32_t qBlocks = GetQBlocks(qSeqlen, blockX);
         tasksInBatch[b] = qBlocks * numHeads;
         totalTasks += tasksInBatch[b];
+
+        uint32_t curQblockNum = CeilDiv(qseqlen,blockX) * numHeads;
+        if (b = =0) {
+            firstBatchTaskNum_ = tasksInBatch[b];
+            firstQBlockNum_ = curQblockNum;
+        }
+        totalQBlocks_ += curQblockNum;
 
         qPrefixTokenSum[b + 1] = qPrefixTokenSum[b] + qSeqlen;
         kvPrefixTokenSum[b + 1] = kvPrefixTokenSum[b] + kvSeqlen;
@@ -285,8 +300,8 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
                     uint32_t microBlockInMacro = blockIdx % qBlocksInX;
 
                     curQSeqIdx=macroBlockIdx * blockX + microBlockInMacro * BASIC_BLOCK_SIZE;
-                    preQSeqLengths= qPrefixTokenSum[b] * numHeads*headDim_ + curQSeqIdx*numHeads * headDim_ +curHeadNum * headDim_;
-                    preKVSeqLengths= kvPrefixTokenSum[b] * kvHeads*headDim_ + (curHeadNum /(numHeads/kvHeads)) * headDim_;
+                    preQSeqLengths= qPrefixTokenSum[b] + curQSeqIdx;
+                    preKVSeqLengths= kvPrefixTokenSum[b] ;
                     break;
 
                 }
@@ -303,12 +318,12 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
 
             uint32_t qBlocksInX = CeilDiv(blockX,BASIC_BLOCK_SIZE);
             curQSeqIdx = (blockIdx/ qBlocksInX)* blockX + (blockIdx % qBlocksInX) * BASIC_BLOCK_SIZE;
-            preQSeqLengths = (static_cast<uint64_t>(curBatch) * numHeads * maxQSeqlen_ * headDim_ ) +
-                            (static_cast<uint64_t>(curHeadNum) * maxQSeqlen_ * headDim_ )+
-                            (static_cast<uint64_t>(curQSeqIdx) * headDim_ );
+            preQSeqLengths = (static_cast<uint64_t>(curBatch) * numHeads * maxQSeqlen_) +
+                            (static_cast<uint64_t>(curHeadNum) * maxQSeqlen_ )+
+                            (static_cast<uint64_t>(curQSeqIdx));
             
-            preKVSeqLengths = (static_cast<uint64_t>(curBatch) * kvHeads * maxKvSeqlen_ * headDim_ ) +
-                            (static_cast<uint64_t>(curHeadNum/(numHeads/kvHeads)) * maxKvSeqlen_ * headDim_ );
+            preKVSeqLengths = (static_cast<uint64_t>(curBatch) * kvHeads * maxKvSeqlen_ ) +
+                            (static_cast<uint64_t>(curHeadNum/(numHeads/kvHeads)) * maxKvSeqlen_ );
         }
 
         tilingData_->get_beginBatch()[i] = curBatch;
