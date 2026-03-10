@@ -203,6 +203,10 @@ protected:
     TBuf<TPosition::VECCALC> outFp32Tmp_;
 
     GlobalTensor<ScaleType> scaleGMTensor_;
+
+    uint32_t curAicM;
+    uint32_t m_core_num;
+    uint32_t n_core_num;
 };
 
 template<TemplateMC2TypeClass>
@@ -228,29 +232,36 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 
     mm_.Init(&(tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling), tpipe_);
     InitTilingData(tilingData);
-    singleM_ = 126;
-    singleN_ = 128;
-    baseM_ = 126;
-    baseN_ = 128;
+    singleM_ = singleTimeM_;
+    singleN_ = singleTimeN_;
+
+    
+    // baseM_ = 126;
+    // baseN_ = 128;
+
     ubCalcM_ = 22;
-    ubCalcN_ = 128;
+    ubCalcN_ = baseN_;
+
     ubTmpBuffer_ = 8 * ubCalcM_ * ubCalcN_;
     aicNum_ = 24;
     aivNum_ = 48;
     tpWorldSize_ = 4;
-    singleTpSize_ = (singleM_ / 2) * n_;
+    singleTpSize_ = (m_ / 4) * n_;
     armAvgFactor_ = 1.0f / n_;
     epsilon_ = 1e-6f;
 
     aTrans_ = false;
     bTrans_ = false;
     perTokenScaleAddr_ = perTokenScale;
+
+    m_core_num = CeilDiv(m_, 128);
+    n_core_num = 24 / m_core_num;
     
     // init ub local buffer for dequantCompute
     tpipe_->InitBuffer(vecQueSrc_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(int32_t));
     tpipe_->InitBuffer(vecQueTmp_, ubTmpBuffer_);
     tpipe_->InitBuffer(vecQueOut_, BUFFER_NUM, ubCalcM_ * ubCalcN_ * sizeof(YType));
-    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, 128 * sizeof(ScaleType));
+    tpipe_->InitBuffer(vecQueScale_, BUFFER_NUM, baseN_ * sizeof(ScaleType));
     tpipe_->InitBuffer(vecQuePertokenScale_, BUFFER_NUM, DequantBmm::Align(ubCalcM_, 8U) * sizeof(float));
     tpipe_->InitBuffer(broadcastFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
     tpipe_->InitBuffer(outFp32Tmp_, ubCalcM_ * ubCalcN_ * sizeof(float));
@@ -275,9 +286,9 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     singleCoreK_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.singleCoreK;
     singleCoreM_ = singleTimeM_;
     singleCoreN_ = singleTimeN_;
-    baseM_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseM;
-    baseN_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseN;
-    baseK_ = tilingData->qbmmReduceScatterAddRmsNormCastTilingInfo.matmulTiling.baseK;
+    baseM_ = singleTimeM_;
+    baseN_ = singleTimeN_;
+    baseK_ = singleCoreK_;
 }
 
 template<TemplateMC2TypeClass>
@@ -368,36 +379,49 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
 {
     LocalTensor<float> dstLocalFp32;
     uint32_t curAivM = ubCalcM_;
-    uint32_t curAivN = ubCalcN_;
-    uint32_t mUbLoops = 3;
+    uint32_t curAivN = curAicN;
+
+    uint32_t mUbLoops = CeilDiv(curAicM, ubCalcM_);
     DataCopyPadParams padParams;
     DequantParams dequantParams;
-    DequantBmm::CalcDequantParams(mUbLoops == 1 ? curAicM : ubCalcM_, curAicN, dequantParams);
+    DequantBmm::CalcDequantParams(mUbLoops == 1 ? curAicM : ubCalcM_, curAivN, dequantParams);
     dstLocalFp32 = outFp32Tmp_.Get<float>();
     GlobalTensor<YType> remoteTensor;
     for (uint32_t mUbLoopIdx = 0; mUbLoopIdx < mUbLoops; ++mUbLoopIdx) {
         if (mUbLoopIdx == mUbLoops - 1) {
-            curAivM = 63 - ubCalcM_ * (mUbLoops - 1);
-            DequantBmm::CalcDequantParams(curAivM, curAicN, dequantParams, mUbLoops != 1 && curAivM != ubCalcM_);
+            curAivM = curAicM - ubCalcM_ * (mUbLoops - 1);
+            DequantBmm::CalcDequantParams(curAivM, curAivN, dequantParams, mUbLoops != 1 && curAivM != ubCalcM_);
         }
+
+        uint32_t moffset_begin = mOffset_ + GetSubBlockIdx() * curAicM + mUbLoopIdx * ubCalcM_;
+        uint32_t moffset_end = moffset_begin + curAivM - 1;
+        uint32_t tp_id = moffset_begin / (m_ / 4);
+        uint32_t tp_start = (m_ * tp_id) / 4;
+        uint32_t tp_end = (((tp_id + 1) * m_) / 4) -1;
+        uint32_t m_diff = moffset_begin - tp_start;
+
         LocalTensor<int32_t> srcLocal = vecQueSrc_.AllocTensor<int32_t>();
         LocalTensor<YType> dstLocal = vecQueOut_.AllocTensor<YType>();
         LocalTensor<uint8_t> tmpLocal = vecQueTmp_.Get<uint8_t>();
-        DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), 16, 624, 0};
-        DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), 8, 0, 312};
+
+        // DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), 16, 624, 0};
+        // DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), 8, 0, 312};
+
+        DataCopyParams gm2UbParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * 4 / 32), static_cast<uint16_t>(n_ * sizeof(uint32_t) / 32 - (curAivN * 4 / 32)), 0};
+        DataCopyParams ub2GmParams{static_cast<uint16_t>(curAivM), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(n_ * sizeof(bfloat16_t) / 32 - (curAivN * 2 / 32))};
         
-        uint32_t curAicAivOffset = offsetC_ + GetSubBlockIdx() * 63 * n_  + mUbLoopIdx * ubCalcM_ * n_;
+        uint32_t curAicAivOffset = offsetC_ + GetSubBlockIdx() * curAicM * n_  + mUbLoopIdx * ubCalcM_ * n_;
         DataCopy(srcLocal, mmOutGm_[curAicAivOffset], gm2UbParams);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         LocalTensor<ScaleType> scaleLocal = vecQueScale_.AllocTensor<ScaleType>();
-        DataCopy(scaleLocal, scaleGMTensor_[nOffset_], 128);
+        DataCopy(scaleLocal, scaleGMTensor_[nOffset_], curAivN);
         SyncFunc<AscendC::HardEvent::MTE2_V>();
         AscendDequant(dstLocalFp32, srcLocal, scaleLocal, tmpLocal, dequantParams);
         vecQueScale_.FreeTensor(scaleLocal);
 
         DataCopyParams scale2UbParams{1, 0, 0, 0};
         scale2UbParams.blockLen = curAivM * sizeof(float);
-        uint64_t pertokenScaleOffset = mOffset_ + GetSubBlockIdx() * 63 + mUbLoopIdx * ubCalcM_;
+        uint64_t pertokenScaleOffset = mOffset_ + GetSubBlockIdx() * curAicM + mUbLoopIdx * ubCalcM_;
         uint32_t computedAivN = DequantBmm::Align(curAivN, 8U);  // 8: 32B aligned for float
         uint32_t ubResAlignedN = DequantBmm::Align(curAivN);     // 16: sizeof(yType) is 2, 32B / 2
         const uint32_t broadCastDst[2] = {curAivM, computedAivN};
@@ -428,14 +452,48 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         vecQueSrc_.FreeTensor(srcLocal);
 
         // 计算当前正处于的TP域
-        int32_t remoteRankId = curAicAivOffset / (m_ * n_ / tpWorldSize_);
-        GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
-        remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
-        uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_;
-        uint64_t nOffset = nOffset_;
-        uint32_t dstOffset = tpOffset + nOffset + mUbLoopIdx * ubCalcM_ * n_;
-        DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams);
+        if (moffset_end <= tp_end){
+            int32_t remoteRankId = curAicAivOffset / (m_ * n_ / tpWorldSize_);
+            GM_ADDR remoteWinAddr = GetWindAddrByRankId(remoteRankId);
+            remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
+            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + m_diff * n_;
+            uint64_t nOffset = nOffset_;
+
+            uint32_t dstOffset = tpOffset + nOffset;
+            DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams);
+            
+        } else {
+            uint32_t front_count = tp_end - moffset_begin + 1;
+            uint32_t end_count = moffset_end - tp_end;
+            DataCopyParams ub2GmParams1{static_cast<uint16_t>(front_count), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(320 - (curAivN * 2 / 32))};
+            DataCopyParams ub2GmParams2{static_cast<uint16_t>(end_count), static_cast<uint16_t>(curAivN * 2 / 32), 0, static_cast<uint16_t>(320 - (curAivN * 2 / 32))};
+
+            GM_ADDR remoteWinAddr = GetWindAddrByRankId(tp_id);
+            remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr);
+
+            uint64_t tpOffset = (m_ * n_ / tpWorldSize_) * rankId_ + m_diff * n_;
+
+            uint64_t nOffset = nOffset_;
+
+            uint32_t dstOffset = tpOffset + nOffset;
+            DataCopy(remoteTensor[dstOffset], dstLocal, ub2GmParams1);
+
+            PipeBarrier<PIPE_ALL>();
+
+            GM_ADDR remoteWinAddr2 = GetWindAddrByRankId(tp_id + 1);
+            remoteTensor.SetGlobalBuffer((__gm__ YType*)remoteWinAddr2);
+
+            tpOffset = (m_ * n_ / tpWorldSize_) * rankId_;
+
+            nOffset = nOffset_;
+
+            dstOffset = tpOffset + nOffset;
+            DataCopy(remoteTensor[dstOffset], dstLocal[front_count * curAivN], ub2GmParams2);
+
+        }
         vecQueOut_.FreeTensor(dstLocal);
+
+        
     }
 }
 
@@ -504,7 +562,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     uint32_t endRowId = 0;
     uint32_t rowNum = 0;
     uint32_t tokenIndex = 0;
-    SplitToCore(singleM_ / 2, aivNum_, coreVid_, startRowId, endRowId, rowNum);
+    SplitToCore(m_ / 4, aivNum_, coreVid_, startRowId, endRowId, rowNum);
 
     LocalTensor<float> sumFp32Tensor = sumFp32Buf_.Get<float>();
     LocalTensor<float> tokenFp32Tensor = tokenFp32Buf_.Get<float>();
@@ -521,7 +579,8 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     for(uint32_t tileIdx = 0; tileIdx < rowNum; ++tileIdx) {
         Duplicate<float>(sumFp32Tensor, (float)0.0, BLOCK_LENGTH);
         tokenIndex = startRowId + tileIdx;
-        uint32_t curVidTileOffset = curVidOffset + tileIdx * n_;
+        // uint32_t curVidTileOffset = curVidOffset + tileIdx * n_;
+        uint32_t curVidTileOffset = tokenIndex * 5120;
         for(int tpIndex = 0; tpIndex < tpWorldSize_; ++tpIndex) {
             uint32_t curOffset = curVidTileOffset + tpIndex * singleTpSize_;
             tokenTensor_ = tokenNewQueue_.AllocTensor<YType>();
@@ -589,28 +648,55 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
     uint32_t mDim = CeilDiv(m_, singleCoreM_ * 2);
     uint32_t nDim = CeilDiv(n_, singleCoreN_);
     // cid(0-15)分2个, (16-23)分1个
-    uint32_t mCoreIndx = 0;
-    uint32_t mLoops = 2;
+    uint32_t mCoreIndex = coreCid_ % m_core_num;
+    uint32_t nCoreIndex = coreCid_ / m_core_num;
+
+
+    uint32_t mLoops = 1;
     uint32_t startBlockIdx = 0;
     uint32_t endBlockIdx = 0;
     uint32_t tileNum = 0;
 
-    SplitToCore(n_ / singleTimeN_, aicNum_, coreCid_, startBlockIdx, endBlockIdx, tileNum);
+    SplitToCore(20, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+
+    uint32_t remain_num = m_ % baseM_;
+    singleM_ = baseM_;
+
+    if (remain_num != 0 && mCoreIndex == m_core_num - 1){
+        singleM_ = remain_num;
+    }
+
+    curAicM = singleM_ / 2;
+
     uint32_t nLoops = tileNum;
     // CalcOffset, 默认当前都是ND, 且非转置
-    mOffset_ = static_cast<uint64_t>(mCoreIndx * singleCoreM_);
-    nOffset_fix = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
-    offsetA_ = mOffset_ * k_;
-    offsetB_ = nOffset_;
+    // mOffset_ = static_cast<uint64_t>(mCoreIndx * singleCoreM_);
+
+    nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
+    // offsetA_ = mOffset_ * k_;
+    // offsetB_ = nOffset_;
 
     for (uint32_t i = 0; i < mLoops; ++i) {
-        uint32_t singleM = singleTimeM_;
-        CalcMAxisOffset(i, nLoops);
+        // uint32_t singleM = singleTimeM_;
+        // CalcMAxisOffset(i, nLoops);
         for (uint32_t j = 0; j < nLoops; ++j) {
-            uint32_t singleN = singleTimeN_;
-            CalcNAxisOffset(j);
-            MMCompute(singleM, singleN);
+            singleN_ = baseN_;
+            // CalcNAxisOffset(j);
+            mOffset_ = mCoreIndex * baseM_;
+            nOffset_ = nOffset_fix + j * baseN_;
+
+            uint64_t temp1 = nOffset_ / 32;
+            uint64_t temp2 = nOffset_ % 32;
+
+            offsetA_ = mCoreIndex * baseM_ * 2560;
+            offsetB_ = temp1 * 2560 * 32 + temp2;
+
+            offsetC_ = nOffset_fix + mCoreIndex * baseM_ * 5120 + j * baseN_;
+
+            MMCompute(singleM_, singleN_);
+
             mm_.template GetTensorC<false>(mmOutGm_[offsetC_]);
+
             CrossCoreSetFlag<0x2, PIPE_FIX>(SYNC_AIC_TO_AIV);
         }
     }
@@ -628,28 +714,56 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         uint32_t mDim = CeilDiv(m_, singleCoreM_ * 2);
         uint32_t nDim = CeilDiv(n_, singleCoreN_);
         // cid(0-15)分2个, (16-23)分1个
-        uint32_t mCoreIndx = 0;
-        uint32_t mLoops = 2;
+        
+        uint32_t group_cid = coreVid_ / 2;
+        uint32_t mCoreIndex = group_cid % m_core_num;
+        uint32_t nCoreIndex = group_cid / m_core_num;
+
+
+        uint32_t mLoops = 1;
         uint32_t startBlockIdx = 0;
         uint32_t endBlockIdx = 0;
         uint32_t tileNum = 0;
 
-        SplitToCore(n_ / singleTimeN_, aivNum_ / 2, GetBlockIdx() / 2, startBlockIdx, endBlockIdx, tileNum);
+        SplitToCore(20, n_core_num, nCoreIndex, startBlockIdx, endBlockIdx, tileNum);
+
+        uint32_t remain_num = m_ % baseM_;
+        singleM_ = baseM_;
+
+        if (remain_num != 0 && mCoreIndex == m_core_num - 1){
+            singleM_ = remain_num;
+        }
+
+        curAicM = singleM_ / 2;
+
         uint32_t nLoops = tileNum;
+        
+
         // CalOffset, 默认当前都是ND, 且非转置
-        mOffset_ = static_cast<uint64_t>(mCoreIndx * singleCoreM_);
-        nOffset_fix = static_cast<uint64_t>(startBlockIdx * singleCoreN_);
-        offsetA_ = mOffset_ * k_;
-        offsetB_ = nOffset_;
+        
+        nOffset_fix = static_cast<uint64_t>(startBlockIdx * baseN_);
 
         for (uint32_t i = 0; i < mLoops; ++i) {
-            uint32_t singleM = singleTimeM_;
-            CalcMAxisOffset(i, nLoops);
+            // uint32_t singleM = singleTimeM_;
+            // CalcMAxisOffset(i, nLoops);
             for (uint32_t j = 0; j < nLoops; ++j) {
-                uint32_t singleN = singleTimeN_;
-                CalcNAxisOffset(j);
+                // uint32_t singleN = singleTimeN_;
+                // CalcNAxisOffset(j);
+                uint32_t singleN = baseN_;
                 CrossCoreWaitFlag(SYNC_AIC_TO_AIV);
-                DequantCompute(mmOutGm_, 0, 0, 63, 128, mOffset_, nOffset_);
+                // CalcNAxisOffset(j);
+                mOffset_ = mCoreIndex * baseM_;
+                nOffset_ = nOffset_fix + j * baseN_;
+
+                uint64_t temp1 = nOffset_ / 32;
+                uint64_t temp2 = nOffset_ % 32;
+
+                offsetA_ = mCoreIndex * baseM_ * 2560;
+                offsetB_ = temp1 * 2560 * 32 + temp2;
+
+                offsetC_ = nOffset_fix + mCoreIndex * baseM_ * 5120 + j * baseN_;
+                
+                DequantCompute(mmOutGm_, 0, 0, curAicM, baseN_, mOffset_, nOffset_);
             }
         }
         SyncAll<true>();
@@ -658,7 +772,7 @@ __aicore__ inline void QbmmReduceScatterAddRmsNormCastMte<TemplateMC2TypeFunc>::
         ReadStatus();
         SyncAll<true>();    //确保前4个核都等到了状态，即数据区完全ready
         tpipe_->Reset();
-        tpipe_->InitBuffer(tokenNewQueue_, BUFFER_NUM, 5120 * sizeof(float));   //涉及到Cast的src和dst记得，小cast大要分配大的空间
+        tpipe_->InitBuffer(tokenNewQueue_, BUFFER_NUM, BLOCK_LENGTH * sizeof(float));   //涉及到Cast的src和dst记得，小cast大要分配大的空间
         tpipe_->InitBuffer(sumFp32Buf_, BLOCK_LENGTH * 4);
         tpipe_->InitBuffer(tokenFp32Buf_, BLOCK_LENGTH * 4);
         tpipe_->InitBuffer(tokenBuf_, BLOCK_LENGTH * 2);
