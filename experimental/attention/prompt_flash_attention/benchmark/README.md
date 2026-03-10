@@ -220,8 +220,10 @@ The baseline dense `"dense"` mode (standard `torch_npu.npu_fusion_attention`) ap
 
 ## Test setup
 ```
-Ascend 910B2
-Driver: 25.3.rc1   
+Host CPU: aarch64
+Device: Ascend 910B2
+Device Driver: 25.3.rc1   
+Docker image: `docker pull --platform=arm64 swr.cn-south-1.myhuaweicloud.com/ascendhub/cann:8.5.0-910b-ubuntu22.04-py3.10-ops`
 OS: ubuntu: 22.04
 CANN: 8.5.0-beta.1
 Python: 3.11.10

@@ -35,7 +35,27 @@ The test should be all green, and the benchmark result on Ascend910B2 should be:
   3   1 118806 118806  128      0.90             N/A                N/A           22129.09              N/A            0.016
 ============================================================================================================================================
 ```
-more explanation about benchmarking is [here](benchmark/README.md)
+more explanation about benchmarking is [here](benchmark/README.md). 
+
+To invoke our block-sparse prompt flash attention kernel from python, use a call identicall to  is compatible with torch_npu, just use our provided torch_pfa python interface:
+```python
+import torch
+import torch_pfa
+out = torch_pfa.npu_prompt_flash_attention(
+    q,
+    k,
+    v,
+    sabi_blocks=sabi_blocks,  # our new argument torch.uint16 shape: [batch_size, num_heads, ceil(seq_len/128), ceil(seq_len/512)]
+    actual_seq_lengths=actseqlen,
+    actual_seq_lengths_kv=actseqlenkv,
+    num_heads=h,
+    num_key_value_heads=h,
+    input_layout='BNSD',
+    scale_value=scale,
+    atten_mask=None,
+    sparse_mode=0,
+    )
+```
 
 ## Kernel integration plan
 if this block sparse kernel is of an interest, please consider merging it with the official attention/prompt_flash_attention
