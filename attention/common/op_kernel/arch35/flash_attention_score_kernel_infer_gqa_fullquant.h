@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -9,25 +9,25 @@
  */
 
 /*!
- * \file flash_attention_score_kernel_infer_mla_fullquant.h
+ * \file flash_attention_score_kernel_infer_gqa_fullquant.h
  * \brief
  */
 
-#ifndef FLASH_ATTENTION_SCORE_KERNEL_INFER_MLA_FULLQUANT_H_
-#define FLASH_ATTENTION_SCORE_KERNEL_INFER_MLA_FULLQUANT_H_
-#include "flash_attention_score_kernel_base_fullquant.h"
-#include "vf/vf_flash_decode.h"
-#include "infer_flash_attention_comm.h"
-#include "infer_flash_attention_kvcache.h"
-#include "infer_flash_attention_sparse.h"
+#ifndef FLASH_ATTENTION_SCORE_KERNEL_INFER_GQA_FULLQUANT_H_
+#define FLASH_ATTENTION_SCORE_KERNEL_INFER_GQA_FULLQUANT_H_
+#include "./flash_attention_score_kernel_base_fullquant.h"
+#include "./vf/vf_flash_decode.h"
+#include "./infer_flash_attention_comm.h"
+#include "./infer_flash_attention_kvcache.h"
+#include "./infer_flash_attention_sparse.h"
 
 namespace BaseApi {
 template <typename CubeBlockType, typename VecBlockType>
-class FlashAttentionScoreKernelInferMlaFullquant : public FlashAttentionScoreKernelBaseFullquant<FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
+class FlashAttentionScoreKernelInferGqaFullquant : public FlashAttentionScoreKernelBaseFullquant<FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType> {
 public:
     ARGS_TRAITS;
     static constexpr bool POST_QUANT = !IsSameType<OUTPUT_T, half>::value && !IsSameType<OUTPUT_T, bfloat16_t>::value && !IsSameType<OUTPUT_T, float>::value;
-    using BaseClass = FlashAttentionScoreKernelBaseFullquant<FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
+    using BaseClass = FlashAttentionScoreKernelBaseFullquant<FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>, CubeBlockType, VecBlockType>;
     /* =====================UB变量==================== */
     __aicore__ inline void InitUniqueConstInfo();
     __aicore__ inline void InitUniqueRunInfo(const RunParamStr<isInfer> &runParam, 
@@ -42,7 +42,7 @@ private:
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
-FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
+FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::InitUniqueConstInfo()
 {
     if constexpr (isFd) {
         this->constInfo.splitKVNum = this->sharedParams.splitKVNum;
@@ -72,22 +72,24 @@ FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::InitUni
     }
 
     this->constInfo.transposeLayout = this->sharedParams.transposeLayout;
-    if (this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND)) {
+    if (this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BNSD_BSND) ||
+        this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::NTD_TND)) {
         this->constInfo.attentionOutStride =
             (this->constInfo.n2GDv - this->constInfo.dSizeV) * sizeof(OUTPUT_T);
+    } else if (this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSND_BNSD) ||
+        this->constInfo.transposeLayout == static_cast<uint32_t>(TransposeLayoutEnum::BSH_BNSD)) {
+        this->constInfo.attentionOutStride = 0;
     }
 
-    this->constInfo.n2GD = this->constInfo.n2G * this->constInfo.dSize;
-    this->constInfo.gDR = this->constInfo.gSize * this->constInfo.dSizeRope;
-    this->constInfo.n2GDR = this->constInfo.n2Size * this->constInfo.gDR;
-    this->constInfo.mm1RopeKa = this->constInfo.dSizeRope;
-    this->constInfo.mm1Ka = this->constInfo.dSize;
-    this->constInfo.attentionOutStride = 0;
+    // prefix
+    if constexpr (enableKVPrefix) {
+        this->constInfo.prefixLoopCount = (this->constInfo.actualKVPrefixSize + this->constInfo.s2BaseSize - 1) / this->constInfo.s2BaseSize;
+    }
 }
 
 template <typename CubeBlockType, typename VecBlockType>
 __aicore__ inline void
-FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
+FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::InitUniqueRunInfo(
     const RunParamStr<isInfer> &runParam, RunInfo<isInfer> &runInfo)
 {
     InitTaskParamByRun<CHILD_SPEC_TEMPLATE_ARGS, BaseClass::useDn, BaseClass::enableKVPrefix>(runParam, runInfo);
@@ -95,14 +97,13 @@ FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::InitUni
 }
 
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::ProcessMainLoop()
+__aicore__ inline void FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::ProcessMainLoop()
 {
     int32_t actualCoreNums = this->sharedParams.coreNum;
     if constexpr (isFd) {
         actualCoreNums = this->sharedParams.bSize * this->constInfo.n2Size *
                          this->constInfo.splitKVNum; // b * n2 * splitkv
     }
-
     if (this->aicIdx >= actualCoreNums) {
         return;
     }
@@ -133,8 +134,10 @@ __aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType,
     int64_t taskId = 0;
     bool notLast = true;
     bool isLastBmm1 = false;
+    LocalTensor<INPUT_T> scmTensor[2];
     RunInfo<isInfer> runInfo[4];
     RunParamStr<isInfer> runParam;
+
     if constexpr (isFd) {
         runParam.boIdx = this->aicIdx / (this->constInfo.n2Size * this->constInfo.splitKVNum);
         runParam.n2oIdx = (this->aicIdx / this->constInfo.splitKVNum) % this->constInfo.n2Size;
@@ -255,7 +258,7 @@ __aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType,
 }
 
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::Process()
+__aicore__ inline void FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::Process()
 {
     // SyncAll Cube和Vector都需要调用
     if (this->sharedParams.needInit) {
@@ -273,10 +276,34 @@ __aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType,
 
 // =========================================== private functions ===========================================
 template <typename CubeBlockType, typename VecBlockType>
-__aicore__ inline void FlashAttentionScoreKernelInferMlaFullquant<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
+__aicore__ inline void FlashAttentionScoreKernelInferGqaFullquant<CubeBlockType, VecBlockType>::ComputeAxisIdxByBnAndGs1(
     int64_t bnIndex, int64_t gS1Index, RunParamStr<isInfer> &runParam)
 {
-    runParam.goIdx = gS1Index / this->constInfo.s1OuterSize;
+    constexpr uint64_t fp8QBlockSize = 128U; // 128 is SOuterSize
+    constexpr uint64_t fp8KvBlockSize = 256U; // 256 is SInnerSize
+    if constexpr (layout == LayOutTypeEnum::LAYOUT_NTD) {
+        if (runParam.boIdx == 0 || runParam.boIdx == 1) {
+            this->s1ScaleNumAcc = runParam.boIdx == 0 ? 0 : CeilDiv(this->actualSeqQlenAddr[0], fp8QBlockSize);
+            this->s2ScaleNumAcc = runParam.boIdx == 0 ? 0 : CeilDiv(this->actualSeqKvlenAddr[0], fp8KvBlockSize);
+            this->s1SizeAcc = runParam.boIdx == 0 ? 0 : this->actualSeqQlenAddr[0];
+            this->s2SizeAcc = runParam.boIdx == 0 ? 0 : this->actualSeqKvlenAddr[0];
+        } else {
+            this->s1ScaleNumAcc = CeilDiv(this->actualSeqQlenAddr[0], fp8QBlockSize);
+            this->s2ScaleNumAcc = CeilDiv(this->actualSeqKvlenAddr[0], fp8KvBlockSize);
+            for (uint32_t boIdx = 1; boIdx < runParam.boIdx; boIdx++) {
+                this->s1ScaleNumAcc += CeilDiv(this->actualSeqQlenAddr[boIdx] - this->actualSeqQlenAddr[boIdx - 1], fp8QBlockSize);
+                this->s2ScaleNumAcc += CeilDiv(this->actualSeqKvlenAddr[boIdx] - this->actualSeqKvlenAddr[boIdx - 1], fp8KvBlockSize);
+            }
+            this->s1SizeAcc = this->actualSeqQlenAddr[runParam.boIdx - 1];
+            this->s2SizeAcc = this->actualSeqKvlenAddr[runParam.boIdx - 1];
+        }
+    }
+    // GS1合轴时，g轴信息包含在gS1中；GS1不合轴时，g轴信息包含在bn2g中；
+    if (this->constInfo.isGqa) {
+        runParam.goIdx = gS1Index / this->constInfo.s1OuterSize;
+    } else {
+        runParam.goIdx = bnIndex % this->constInfo.headNumRatio;
+    }
     runParam.s1oIdx = gS1Index % this->constInfo.s1OuterSize;
 }
 }
