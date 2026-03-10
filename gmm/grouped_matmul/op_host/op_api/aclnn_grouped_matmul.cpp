@@ -1973,6 +1973,16 @@ static void SetParamsTensorEmpty(gmm::GroupedMatmulParams &params, aclOpExecutor
 static aclnnStatus CheckOutputShape(const aclTensorList* l0Res, const aclTensorList* y) {
   OP_LOGD("yangtao CheckOutputShape: l0Res->Size() = %zu, y->Size() = %zu", l0Res->Size(), y->Size());
   CHECK_COND(l0Res->Size() == y->Size(), ACLNN_ERR_PARAM_INVALID, "Output tensor list length is not right.");
+  for (size_t i = 0; i < l0Res->Size(); ++i) {
+    std::cout << "yangtao - l0Resi-" << i << std::endl;
+    auto const &l0Resi_shape = (*l0Res)[i]->GetViewShape();
+    OP_LOGD("yangtao info: l0Resi_shape shape is = %s", op::ToString(l0Resi_shape).GetString());
+  }
+  for (size_t i = 0; i < y->Size(); ++i) {
+    std::cout << "yangtao - yi-" << i << std::endl;
+    auto const &yi_shape = (*y)[i]->GetViewShape();
+    OP_LOGD("yangtao info: yi_shape shape is = %s", op::ToString(yi_shape).GetString());
+  }
   for (size_t i = 0; i < y->Size(); ++i) {
     auto const &resShape = (*l0Res)[i]->GetViewShape();
     auto const &yShape = (*y)[i]->GetViewShape();
