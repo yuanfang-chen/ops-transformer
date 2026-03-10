@@ -23,7 +23,7 @@
 #include "lib/matmul_intf.h"
 #include "../common.h"
 #include "matmul_all_reduce_base.h"
-#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
+#include "../../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_asw_kernel.h"
 
 namespace MatmulAllReduceImpl {
 using namespace AscendC;
