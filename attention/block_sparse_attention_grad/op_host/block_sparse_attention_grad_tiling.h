@@ -113,6 +113,9 @@ private:
     uint64_t GenerateTilingKey();
 
 private:
+    uint32_t taskNumPerCore_ = 0;
+    uint32_t tailTaskNum_ = 0;
+
     uint32_t batch_ = 0;
     // uint32_t qSeqlen_ = 0;
     // uint32_t kvSeqlen_ = 0;

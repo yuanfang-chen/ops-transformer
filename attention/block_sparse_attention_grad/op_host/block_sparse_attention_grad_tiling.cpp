@@ -278,8 +278,8 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
         kvPrefixTokenSum[b + 1] = kvPrefixTokenSum[b] + kvSeqlen;
     }
 
-    uint32_t taskNumPerCore = totalTasks / coreNum;
-    uint32_t tailTaskNum = totalTasks % coreNum;
+    taskNumPerCore_ = totalTasks / coreNum;
+    tailTaskNum_ = totalTasks % coreNum;
     uint32_t currentGlobalTaskId = 0;
 
     for (uint32_t i=0; i < coreNum; i++) {
@@ -332,7 +332,7 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
         tilingData_->get_preQSeqLengths()[i] = preQSeqLengths;
         tilingData_->get_preKVSeqLengths()[i] = preKVSeqLengths;
 
-        uint32_t taskLen = (i< tailTaskNum) ? (taskNumPerCore + 1):taskNumPerCore;
+        uint32_t taskLen = (i< tailTaskNum_) ? (taskNumPerCore_ + 1):taskNumPerCore_;
         currentGlobalTaskId += taskLen;
     }
 
@@ -389,6 +389,12 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_inputLayout(static_cast<uint32_t>(layout_));
     tilingData_->set_maxQSeqlen(maxQSeqlen_);
     tilingData_->set_maxKvSeqlen(maxKvSeqlen_);
+
+    tilingData_->set_basicQBlockSize(BASIC_BLOCK_SIZE);
+    tilingData_->set_basicKVBlockSize(BASIC_BLOCK_SIZE);
+    tilingData_->set_taskNumPerCore(taskNumPerCore_);
+    tilingData_->set_tailTaskNum(tailTaskNum_);
+    
 
     // 生成tilingKey（按照开发规范：在tiling层生成）
     uint64_t tilingKey = GenerateTilingKey();
