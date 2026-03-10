@@ -19,7 +19,8 @@ using namespace MhcSinkhorn;
 
 #define TILING_KEY_DATA_NUM_FLOAT32_TENSOR 1
 
-extern "C" __global__ __aicore__ void mhc_sinkhorn(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, 
+template <int64_t TILING_KEY>
+__global__ __aicore__ void mhc_sinkhorn(GM_ADDR h_res, GM_ADDR y, GM_ADDR norm_out, 
                                             GM_ADDR sum_out, GM_ADDR workSpace, GM_ADDR tiling)
 {
     GM_ADDR user = GetUserWorkspace(workSpace);
