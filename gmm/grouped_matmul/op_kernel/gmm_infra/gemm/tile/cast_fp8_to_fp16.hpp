@@ -38,7 +38,6 @@ struct TileCastFp8ToFp16Dequant {
     static_assert(std::is_same_v<LayoutDst, LayoutSrc>, "layout src and dst must be the same.");
 
     static const uint32_t Alignment = 256;
-    // static constexpr uint32_t ELE_NUM_PER_BLK = BYTE_PER_BLK / sizeof(int8_t);
 
     struct Params {
         half scalar;
@@ -129,8 +128,6 @@ struct TileCastFp8ToFp16Dequant {
         uint32_t tileTailLen = tileLen % COMPUTE_LENGTH;
         uint64_t srcProcessOffset, dstProcessOffset;
         uint32_t loadLen = COMPUTE_LENGTH, storeLen, loadRepeat = 1, storeRepeat = 1;
-        // uint32_t srcLoadStride = srcStride, dstLoadStride = tileLenRoundFp8, 
-        //         srcStoreStride = tileLenRoundFp8, dstStoreStride = dstStride;
         for (int ldx=0; ldx < totalLoops; ldx++) {
 
             // Dynamic compute length
@@ -158,10 +155,6 @@ struct TileCastFp8ToFp16Dequant {
                     storeRepeat = loadRepeat;
                 }
             }
-            // uint32_t srcLoadStride = srcStride;
-            // uint32_t dstLoadStride = tileLenRoundFp8;
-            // uint32_t srcStoreStride = tileLenRoundFp8;
-            
             // GM -> UB
             AscendC::DataCopyExtParams dataCopyParamsIn(
                 loadRepeat,
@@ -261,10 +254,7 @@ struct TileCastFp8ToFp16Dequant {
         uint32_t tileTailLen = tileLen % COMPUTE_LENGTH;
         uint64_t srcProcessOffset, dstProcessOffset;
         uint32_t loadLen = COMPUTE_LENGTH, storeLen, loadRepeat = 1, storeRepeat = 1;
-        // uint32_t srcLoadStride = srcStride, dstLoadStride = tileLenRoundFp8, 
-        //         srcStoreStride = tileLenRoundFp8, dstStoreStride = dstStride;
         for (int ldx=0; ldx < totalLoops; ldx++) {
-
             // Dynamic compute length
             if (tileLenRoundFp8 > COMPUTE_LENGTH / 2) {
                 uint32_t fullTileRounds    = ldx / loopsPerTile;
