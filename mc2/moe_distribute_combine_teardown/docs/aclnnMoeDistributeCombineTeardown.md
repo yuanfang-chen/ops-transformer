@@ -112,8 +112,8 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>√</td>
     </tr>
     <tr>
-        <td rowspan="2">expertIds（aclTensor*）</td>
-        <td rowspan="2">输入</td>
+        <td>expertIds（aclTensor*）</td>
+        <td>输入</td>
         <td>每个token的topK个专家索引</td>
         <td>不支持空Tensor。</td>
         <td>INT32</td>
@@ -122,6 +122,8 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>√</td>
     </tr>
     <tr>
+        <td>expandIdx（aclTensor*）</td>
+        <td>输入</td>
         <td>对应aclnnMoeDistributeDispatchSetup中的expandIdx输出</td>
         <td>不支持空Tensor。</td>
         <td>INT32</td>
@@ -220,7 +222,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>-</td>
     </tr>
     <tr>
-        <td>sharedExpertNum </td>
+        <td>sharedExpertNum</td>
         <td>输入</td>
         <td>共享专家数量</td>
         <td>当前取值范围[0, 4]。0表示无共享专家。当前仅支持无共享专家。</td>
@@ -253,7 +255,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>commQuantMode</td>
         <td>输入</td>
         <td>通信量化类型</td>
-        <td>取值范围[0, 1, 2]，0表示通信时不进行量化，当前仅支持0。</td>
+        <td>取值范围[0, 2]，0表示通信时不进行量化，当前仅支持0。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -263,7 +265,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>commType</td>
         <td>输入</td>
         <td>通信方案选择</td>
-        <td>取值范围[0, 1, 2]，0表示AICPU-SDMA方案，1表示CCU方案，2表示URMA方案，当前仅支持2。</td>
+        <td>取值范围[0, 2]，0表示AICPU-SDMA方案，1表示CCU方案，2表示URMA方案，当前仅支持2。</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
@@ -273,7 +275,7 @@ aclnnStatus aclnnMoeDistributeCombineTeardown(
         <td>commAlg</td>
         <td>输入</td>
         <td>通信算法选择</td>
-        <td>仅支持传入空指针</td>
+        <td>仅支持传入空指针或空字符串</td>
         <td>-</td>
         <td>-</td>
         <td>-</td>
