@@ -17,61 +17,57 @@
 - 接口功能：基于一系列计算得到MHC架构中hidden层的$H^{res}$和$H^{post}$投影矩阵以及Atten或MLP层的输入矩阵$h^{in}$。
 
 - 计算公式
-
 $$
 \begin{aligned}
-\vec{x^{'}_{l}} &=\operatorname{RmsNorm}(\vec{x_{l}})\\
+\vec{x^{'}_{l}} &=RMSNorm(\vec{x_{l}})\\
 H^{pre}_l &= \alpha^{pre}_{l} ·(\vec{x^{'}_{l}}\varphi^{pre}_{l}) + b^{pre}_{l}\\
 H^{post}_l &= \alpha^{post}_{l} ·(\vec{x^{'}_{l}}\varphi^{post}_{l}) + b^{post}_{l}\\
 H^{res}_l &= \alpha^{res}_{l} ·(\vec{x^{'}_{l}}\varphi^{res}_{l}) + b^{res}_{l}\\
-H^{pre}_l &= \sigma (H^{pre}_{l}) + hc\_eps\\
+H^{pre}_l &= \sigma (H^{pre}_{l})\\
 H^{post}_l &= 2\sigma (H^{post}_{l})\\
 H^{res}_l &= \sigma (H^{res}_{l})\\
 h_{in} &=\vec{x^{'}_{l}}H^{pre}_l
 \end{aligned}
 $$
-其中：
-$$
-\operatorname{RmsNorm}(x_i)=\frac{x_i}{\operatorname{Rms}(\mathbf{x})} g_i, \quad \text { where } \operatorname{Rms}(\mathbf{x})=\sqrt{\frac{1}{n} \sum_{i=1}^n x_i^2+norm\_eps}
-$$
 
 ---
 
-## 函数原型
-```
-torch_npu.npu_mhc_pre(Tensor x, Tensor phi, Tensor alpha, Tensor bias, *, Tensor? gamma=None, int out_flag=0, float norm_eps=1e-6, float hc_eps=1e-6) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor)
-```
-### 参数说明
+
+
+## 参数说明
 | 参数名 | 输入/输出 | 描述 | 使用说明 | 数据类型 | 数据格式 | 维度(shape) | 非连续Tensor |
 |:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
-| x | 输入 | 待计算数据，表示网络中mHC层的输入数据 | 必选参数，不能为空Tensor | BFLOAT16 或 FLOAT16 | ND | ($B,S,n,D$)、($S,B,n,D$) 或 ($T,n,D$) | √ |
-| phi | 输入 | mHC的参数矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | ($n^2+2n, n*D$) | √ |
+| x | 输入 | 待计算数据，表示网络中mHC层的输入数据 | 必选参数，不能为空Tensor | BFLOAT16 或 FLOAT16 | ND | ($B,S,n,D$) 或 ($T,n,D$) | √ |
+| phi | 输入 | mHC的参数矩阵 | 必选参数，不能为空Tensor | FLOAT32 | ND | ($n^2+2n, nD$) | √ |
 | alpha | 输入 | mHC的缩放参数 | 必选参数，不能为空Tensor | FLOAT32 | - | (3) | - |
 | bias | 输入 | mHC的bias参数 | 必选参数，不能为空Tensor | FLOAT32 | - | ($n^2+2n$) | - |
 | gamma | 可选输入 | 表示进行RmsNorm计算的缩放因子 | 可选参数 | FLOAT32 | ND | ($n, D$) | √ |
 | norm_eps | 可选输入 | RmsNorm的防除零参数 | 可选参数 | FLOAT32 | - | - | - |
 | hc_eps | 可选输入 | $H_{pre}$的sigmoid后的eps参数 | 可选参数 | FLOAT32 | - | - | - |
 | out_flag | 可选输入 | 表示是否输出mm_res/inv_rms/h_pre，默认为0表示不输出，为1表示全输出 | 可选参数 | INT64 | - | - | - |
+| out_hin | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| out_h_post | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$) 或 ($T,D$)  | - |
+| out_h_res | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$) 或 ($T,n,n$) | - |
+| out_inv_rms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$) 或 ($T$) | - |
+| out_mm_res | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$) 或 ($T,n^2+2n$) | - |
+| out_h_pre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$) 或 ($T,n$) | - |
 
-### 返回值参数：
-| 参数名 | 输入/输出 | 描述 | 使用说明 | 数据类型 | 数据格式 | 维度(shape) | 非连续Tensor |
-|:--- |:--- |:--- |:--- |:--- |:--- |:--- |:--- |
-| out_hin | 输出 | 输出的h_in作为Atten/MLP层的输入 | 必选参数 | BFLOAT16 或 FLOAT16  | ND | ($B,S,D$)、($S,B,D$)  或 ($T,D$)  | - |
-| out_h_post | 输出 | 输出的mHC的h_post变换矩阵 | 必选参数 | FLOAT32 | ND | ($B,S,D$)、($S,B,D$)或 ($T,D$)  | - |
-| out_h_res | 输出 | 输出的mHC的h_res变换矩阵（未做sinkhorn变换） | 必选参数 | FLOAT32 | ND | ($B,S,n,n$)、($S,B,n,n$) 或 ($T,n,n$) | - |
-| out_inv_rms | 可选输出 | RmsRorm计算得到的1/r | 可选参数 | FLOAT32 | ND | ($B,S$)、($S,B$) 或 ($T$) | - |
-| out_mm_res | 可选输出 | x与phi矩阵乘的结果 | 可选参数 | FLOAT32 | ND | ($B,S,n^2+2n$)、($S,B,n^2+2n$) 或 ($T,n^2+2n$) | - |
-| out_h_pre | 可选输出 | 做完sigmoid计算之后的h_pre矩阵 | 可选参数 | FLOAT32 | ND | ($B,S,n$)、($S,B,n$) 或 ($T,n$) | - |
+
+
 
 ## 约束说明
 
 ### 确定性计算
 
-- MhcPre 算子默认采用确定性实现，相同输入多次调用结果一致。
+- aclnnMhcPre 默认采用确定性实现，相同输入多次调用结果一致。
 
 ### 公共约束
-- 输入约束：
-   - 输入Tensor `x`、`phi`、`alpha`、`bias` 不能为空，且必须为Device侧Tensor。
+1. 输入约束：
+   - 输入Tensor `x`、`phi`、`alpha`、`bias` 不能为空，且必须为Device侧Tensor；
+   - 所有输入/输出Tensor的数据格式仅支持`ACL_FORMAT_ND`；
+2. 内存约束：
+   - Workspace内存需在Device侧申请，且大小需严格匹配第一段接口返回值；
+   - 非连续Tensor无需提前转为连续，算子内部自动处理。
 
 ### 规格约束
 
@@ -101,24 +97,8 @@ torch_npu.npu_mhc_pre(Tensor x, Tensor phi, Tensor alpha, Tensor bias, *, Tensor
 | D | 2560/5120（推荐） |
 | eps | 1e-6（推荐） |
 
-## 调用示例
-- 单算子模式调用
-```python
-  import torch
-  import torch_npu
-  import numpy as np
+## 调用说明
 
-  T=1024
-  n=4
-  D=2560
-  x = torch.randn(T, n, D, dtype=torch.bfloat16).npu()
-  phi = torch.randn(n * n + 2 * n, n * D, dtype=torch.float32).npu()
-  alpha = torch.tensor([1.0, 1.0, 1.0], dtype=torch.float32).npu()
-  bias_pre = torch.full((n,), 0.01, dtype=torch.float32)
-  bias_post = torch.full((n,), 0.01, dtype=torch.float32)
-  bias_res = torch.full((n, n), 0.01, dtype=torch.float32)
-  bias = torch.cat([bias_pre, bias_post, bias_res.reshape(-1)], dim=0).npu()
-  gamma = torch.randn(n, D, dtype=torch.float32).npu()
-
-  out_doc = torch_npu.npu_mhc_pre(x, phi, alpha, bias, gamma=gamma, out_flag=1)
-```
+| 调用方式      | 调用样例                 | 说明                                                         |
+|--------------|-------------------------|--------------------------------------------------------------|
+| aclnn调用 | [test_aclnn_mhc_pre](examples_david/test_aclnn_mhc_pre.cpp) | 通过接口方式调用[aclnnMhcPre](docs/aclnnMhcPre.md)算子。 |
