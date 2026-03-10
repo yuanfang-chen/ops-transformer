@@ -267,12 +267,12 @@ ge::graphStatus BSAGradTiling::CalculateTaskSplit(gert::TilingContext *context) 
         tasksInBatch[b] = qBlocks * numHeads;
         totalTasks += tasksInBatch[b];
 
-        uint32_t curQblockNum = CeilDiv(qseqlen,blockX) * numHeads;
+        uint32_t curQblockNum = CeilDiv(qSeqlen,blockX) * numHeads;
         if (b = =0) {
             firstBatchTaskNum_ = tasksInBatch[b];
-            firstQBlockNum_ = curQblockNum;
+            firstQBlockNum_ = curQBlockNum;
         }
-        totalQBlocks_ += curQblockNum;
+        totalQBlocks_ += curQBlockNum;
 
         qPrefixTokenSum[b + 1] = qPrefixTokenSum[b] + qSeqlen;
         kvPrefixTokenSum[b + 1] = kvPrefixTokenSum[b] + kvSeqlen;
