@@ -1003,9 +1003,9 @@ __aicore__ inline void PromptFlashAttentionS1s2Bns1X910<PFAT>::Process() {
     AllocGlobalResources();
 
     // Invalidate data cache (used by scalar units, might still be polluted from previous kernels)
-    AscendC::DataCacheCleanAndInvalid<uint16_t, 
-                                      AscendC::CacheLine::ENTIRE_DATA_CACHE, 
-                                      AscendC::DcciDst::CACHELINE_OUT>(this->sabiBaseGm);
+    // AscendC::DataCacheCleanAndInvalid<uint16_t, 
+    //                                   AscendC::CacheLine::ENTIRE_DATA_CACHE, 
+    //                                   AscendC::DcciDst::CACHELINE_OUT>(this->sabiBaseGm);
 
     if constexpr (PFAT::MM_TYPE == MatMulType::MM_IBSHARE_NORM) {
         if (this->tilingData->promptAttentionInitOutputParams.isOneN) {
