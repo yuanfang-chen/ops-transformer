@@ -922,22 +922,18 @@ __aicore__ inline void MoeDistributeDispatchSetup<TemplateMC2TypeFunc>::CurRankC
             uint64_t addr = reinterpret_cast<uint64_t>(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_);
             srcAddr_T.SetGlobalBuffer((__gm__ YOutType*)(yOutGM_ + (moeStartToken + calCnt) * hAlignWinSize_));
             LocalTensor<YOutType> tmpToken = tmpTokenBuf_.Get<YOutType>();
-            DataCopyExtParams copyparams = {1U, hOutSizeAlign_ * 8, 0U, 0U, 0U};
+            DataCopyExtParams copyparams = {1U, hOutSizeAlign_,0U,0U,0U};
             DataCopyPadExtParams<YOutType> copyPadExtParams{false, 0U, 0U, *reinterpret_cast<YOutType*>(uint8_t(0))};
             GM_ADDR rankGM_dst = (__gm__ uint8_t*)(GetWindAddrByRankId(epRankId_) + 
                                             (expertPerSizeOnWin_ * 
                                             (epRankId_ * moeExpertNumPerRank_ + expertIdx))); 
             GlobalTensor<YOutType> dstAddr_T;
             dstAddr_T.SetGlobalBuffer((__gm__ YOutType*)(rankGM_dst));
-            DataCopyPad(tmpToken, srcAddr_T, copyparams, copyPadExtParams);
-            SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-            DataCopyPad(dstAddr_T, tmpToken, copyparams);
-            SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
-            if (statusTensor_((preExpertNum + expertIdx) * 8 + 1) > 8){
-                DataCopyPad(tmpToken, srcAddr_T[(statusTensor_((preExpertNum + expertIdx) * 8 + 1) - 8) * hAlignWinCnt_], copyparams, copyPadExtParams);
+            for (uint32_t i=0; i<statusTensor_((preExpertNum + expertIdx) << 3 | 1); i++){
+                DataCopyPad(tmpToken, srcAddr_T[i * hAlignWinCnt_], copyparams, copyPadExtParams);
                 SyncFunc<AscendC::HardEvent::MTE2_MTE3>();
-                DataCopyPad(dstAddr_T[(statusTensor_((preExpertNum + expertIdx) * 8 + 1) - 8) * hAlignWinCnt_], tmpToken, copyparams);
-                PipeBarrier<PIPE_MTE3>();
+                DataCopyPad(dstAddr_T[i * hAlignWinCnt_], tmpToken, copyparams);
+                SyncFunc<AscendC::HardEvent::MTE3_MTE2>();
             }
             DataCacheCleanAndInvalid<YOutType, CacheLine::SINGLE_CACHE_LINE, DcciDst::CACHELINE_OUT>(dstAddr_T);
         }

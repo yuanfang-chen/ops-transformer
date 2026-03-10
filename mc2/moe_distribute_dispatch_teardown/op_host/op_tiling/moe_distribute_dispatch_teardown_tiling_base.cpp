@@ -392,7 +392,7 @@ const bool MoeDistributeDispatchTeardownTilingBase::CheckOutputTensorShapeDim()
                 nodeName_, "dynamicScalesOut's dim is %lu but should be 1!",
                 dynamicScalesOutShape->GetStorageShape().GetDimNum()),
             return false);
-    } else if ((quantMode == PERGROUP_DYNAMIC_QUANT) && (quantMode == MX_QUANT)) {
+    } else if ((quantMode == PERGROUP_DYNAMIC_QUANT) || (quantMode == MX_QUANT)) {
         OP_TILING_CHECK(
             dynamicScalesOutShape->GetStorageShape().GetDimNum() != TWO_DIMS,
             OP_LOGE(
