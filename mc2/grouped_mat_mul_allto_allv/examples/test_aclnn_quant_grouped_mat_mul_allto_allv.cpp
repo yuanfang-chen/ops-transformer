@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file test_aclnn_grouped_mat_mul_allto_allv.cpp
+ * \file test_aclnn_quant_grouped_mat_mul_allto_allv.cpp
  * \brief
  */
 
@@ -125,10 +125,14 @@ int LaunchOneThreadAlltoAllvGmm(Args &args)
 
     aclTensor *gmmX = nullptr;
     aclTensor *gmmW = nullptr;
+    aclTensor *gmmXScale = nullptr;
+    aclTensor *gmmWScale = nullptr;
     aclTensor *y = nullptr;
 
     aclTensor *mmX = nullptr;
     aclTensor *mmW = nullptr;
+    aclTensor *mmXScale = nullptr;
+    aclTensor *mmWScale = nullptr;
     aclTensor *mmY = nullptr;
 
     aclTensor *sendCountsTensor = nullptr;
@@ -139,7 +143,7 @@ int LaunchOneThreadAlltoAllvGmm(Args &args)
     int64_t mmXQuantMode = 1;
     int64_t mmWQuantMode = 1;
     int64_t commQuantMode = 0;
-    int64_t commQuantDtype = -1;
+    int64_t commQuantDtypeOptional = -1;
     int64_t groupSize = 0;
 
     uint64_t workspaceSize = 0;
@@ -211,7 +215,7 @@ int LaunchOneThreadAlltoAllvGmm(Args &args)
         mmXQuantMode,
         mmWeightQuantMode, 
         commQuantMode,
-        commQuantDtype,
+        commQuantDtypeOptional,
         hcomName,
         EP_WORLD_SIZE,
         sendCounts,

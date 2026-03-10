@@ -191,7 +191,7 @@
   <tr>
    <td>commQuantMode</td>
    <td>输入</td>
-   <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示不量化。</td>
+   <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示非量化。</td>
    <td>INT64</td>
    <td>-</td>
   </tr>
@@ -261,7 +261,7 @@
  </tbody></table>
 
   gmmXQuantMode、gmmWeightQuantMode、mmXQuantMode、mmWeightQuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
-  * 0: 不量化
+  * 0: 非量化
   * 1: pertensor
   * 2: perchannel
   * 3: pertoken

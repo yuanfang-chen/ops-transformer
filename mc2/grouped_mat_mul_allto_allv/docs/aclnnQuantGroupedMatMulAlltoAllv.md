@@ -205,12 +205,12 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     <tr>
     <td>commQuantMode</td>
     <td>输入</td>
-    <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示不量化。</td>
+    <td>低比特通信的量化方式，预留参数，当前仅支持配置为0，表示非量化。</td>
     <td>INT64</td>
     <td>-</td>
     </tr>
     <tr>
-    <td>commQuantDtype</td>
+    <td>commQuantDtypeOptional</td>
     <td>输入</td>
     <td>低比特通信的量化类型，预留参数，当前仅支持配置为-1，表示ACL_DT_UNDEFINED。</td>
     <td>INT64</td>
@@ -226,7 +226,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     <tr>
     <td>epWorldSize</td>
     <td>输入</td>
-    <td>ep通信域size：<br><term>Ascend 950PR/Ascend 950DT</term>支持2、4、8、16、32、64。</td>
+    <td>ep通信域size：支持2、4、8、16、32、64、128、256。</td>
     <td>INT64</td>
     <td>ND</td>
     </tr>
@@ -268,7 +268,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     <tr>
     <td>mmYOptional</td>
     <td>输出</td>
-    <td>共享专家MatMul的输出，数据类型与mmXOptional保持一致，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
+    <td>共享专家MatMul的输出，支持2维，shape为(BS, N2)，仅当传入mmXOptional与mmWeightOptional才输出。</td>
     <td>FLOAT16、BFLOAT16</td>
     <td>ND</td>
     </tr>
@@ -289,7 +289,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
     </tbody></table>
 
   gmmXQuantMode、gmmWeightQuantMode、mmXQuantMode、mmWeightQuantMode、commQuantMode的枚举值跟[量化模式](../../../docs/zh/context/量化介绍.md)关系如下:
-  * 0: 不量化
+  * 0: 非量化
   * 1: pertensor
   * 2: perchannel
   * 3: pertoken
@@ -509,10 +509,14 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
 
         aclTensor *gmmX = nullptr;
         aclTensor *gmmW = nullptr;
+        aclTensor *gmmXScale = nullptr;
+        aclTensor *gmmWScale = nullptr;
         aclTensor *y = nullptr;
 
         aclTensor *mmX = nullptr;
         aclTensor *mmW = nullptr;
+        aclTensor *mmXScale = nullptr;
+        aclTensor *mmWScale = nullptr;
         aclTensor *mmY = nullptr;
 
         aclTensor *sendCountsTensor = nullptr;
@@ -523,7 +527,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
         int64_t mmXQuantMode = 1;
         int64_t mmWQuantMode = 1;
         int64_t commQuantMode = 0;
-        int64_t commQuantDtype = -1;
+        int64_t commQuantDtypeOptional = -1;
         int64_t groupSize = 0;
 
         uint64_t workspaceSize = 0;
@@ -595,7 +599,7 @@ aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(
             mmXQuantMode,
             mmWeightQuantMode, 
             commQuantMode,
-            commQuantDtype,
+            commQuantDtypeOptional,
             hcomName,
             EP_WORLD_SIZE,
             sendCounts,
