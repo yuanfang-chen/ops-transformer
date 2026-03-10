@@ -37,3 +37,4 @@ MANIFEST.in
 
 # third_party
 third_party/
+.codemate

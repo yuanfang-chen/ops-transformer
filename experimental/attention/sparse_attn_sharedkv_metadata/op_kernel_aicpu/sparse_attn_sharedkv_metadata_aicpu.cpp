@@ -134,17 +134,22 @@ bool SparseAttnSharedkvMetadataCpuKernel::CheckSingleParam()
 bool SparseAttnSharedkvMetadataCpuKernel::CheckExistence()
 {
     auto isInvalid = [](Tensor* t) { return t == nullptr || t->GetData() == nullptr; };
-    // TND Tensor 存在性校验
+    auto isValid = [](Tensor* t) { return t != nullptr && t->GetData() != nullptr; };
+    // layout_q TND Tensor 存在性校验
     if (layoutQuery_ == "TND") {
-        if (isInvalid(actSeqLenQ_) && isInvalid(seqUsedQ_)) {
-            KERNEL_LOG_ERROR("For layout_q TND, at least one of cu_seqlens_q and seqused_q must be provided!");
+        if (isInvalid(actSeqLenQ_)) {
+            KERNEL_LOG_ERROR("For layout_q TND, cu_seqlens_q must be provided!");
             return false;
         }
-        
     }
+    // layout_kv TND Tensor 存在性校验
     if (layoutKv_ == "TND") {
-        if (isInvalid(actSeqLenOriKv_) && isInvalid(seqUsedKv_)) {
-            KERNEL_LOG_ERROR("For layout_kv TND, at least one of cu_seqlens_ori_kv and seqused_kv must be provided!");
+        if (isInvalid(actSeqLenOriKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv TND, cu_seqlens_ori_kv must be provided!");
+            return false;
+        }
+        if (isValid(seqUsedKv_)) {
+            KERNEL_LOG_ERROR("For layout_kv TND, seqused_kv should not be provided!");
             return false;
         }
     }
