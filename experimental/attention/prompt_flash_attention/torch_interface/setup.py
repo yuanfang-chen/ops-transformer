@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+# This file is a part of the CANN Open Software.
+# Licensed under CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+# BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
 # Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 import os
 from setuptools import setup
@@ -7,7 +13,11 @@ from ascendc_extension import ascendc_extension
 
 PACKAGE_NAME = 'torch_pfa'
 VERSION = '0.0.1'
-PFA_LIB = os.getenv('PFA_LIB', '')  # 2 options: 'custom'-restricted package containintg only PFA kernel; 'ops_transformer' - full ops_transformer package
+
+# The prompt flash attention library has 2 options: 
+# 1) 'custom'-restricted package containintg only PFA kernel
+# 2) 'ops_transformer' - full ops_transformer package
+PFA_LIB = os.getenv('PFA_LIB', '')
 
 # Libararies and Includes paths\
 if PFA_LIB == 'ops_transformer':
