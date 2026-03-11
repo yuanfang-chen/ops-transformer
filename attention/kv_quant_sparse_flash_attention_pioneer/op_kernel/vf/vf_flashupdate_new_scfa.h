@@ -17,7 +17,7 @@
 
 #include "vf_basic_block_utils.h"
 #include "../util_regbase.h"
-#include "../kv_quant_sparse_flash_attention_common_arch35.h"
+#include "../kv_quant_sparse_flash_attention_pioneer_common.h"
 
 namespace SCFaVectorApi {
 constexpr uint16_t REDUCE_SIZE = 1;

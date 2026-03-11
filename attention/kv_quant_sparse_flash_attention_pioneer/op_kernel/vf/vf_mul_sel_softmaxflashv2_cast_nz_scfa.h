@@ -16,7 +16,7 @@
 #define MUL_SEL_SOFTMAX_FLASH_V2_CAST_NZ_SCFA_INTERFACE_H
 
 #include "../util_regbase.h"
-#include "../kv_quant_sparse_flash_attention_common_arch35.h"
+#include "../kv_quant_sparse_flash_attention_pioneer_common.h"
 #include "vf_basic_block_aligned128_no_update_scfa.h"
 #include "vf_basic_block_aligned128_update_scfa.h"
 #include "vf_basic_block_unaligned64_update_scfa.h"
