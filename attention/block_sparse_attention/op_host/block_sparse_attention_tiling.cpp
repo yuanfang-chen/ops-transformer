@@ -106,8 +106,7 @@ ge::graphStatus BSATiling::GetNpuInfo(gert::TilingContext *rfaContext)
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     aivNum_ = ascendcPlatform.GetCoreNumAiv();
-    // aicNum_ = ascendcPlatform.GetCoreNumAic();
-    aicNum_ = 1;
+    aicNum_ = ascendcPlatform.GetCoreNumAic();
     return ge::GRAPH_SUCCESS;
 }
 
@@ -834,9 +833,6 @@ ge::graphStatus BSATiling::CalculateTaskSplit(gert::TilingContext *rfaContext)
         totalQBlocks_ += curQBlockNum;
     }
     blockDim_ = std::min(aicNum_, totalTaskNum_);
-    uint32_t totalTaskNumMask = batch_ * numHeads_ * maxQBlockNum_;
-    avgRowPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
-    preActivateSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowPerSubCore_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -861,7 +857,9 @@ ge::graphStatus BSATiling::CalculateWorkSpace(gert::TilingContext *rfaContext)
     
     workSpaceSize_ = libapiSize_ + mm1OutSize_ + smOnlineOutSize_ + mm2OutSize_ + updateSize_ + selectNumIdxSize_ + selectIdxSize_ + syncSize_;
     rfaContext->GetWorkspaceSizes(1)[0] = workSpaceSize_;
-    
+    uint32_t totalTaskNumMask = batch_ * numHeads_ * maxQBlockNum_;
+    avgRowPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
+    preActivateSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowPerSubCore_);
     return ge::GRAPH_SUCCESS;
 }
 
