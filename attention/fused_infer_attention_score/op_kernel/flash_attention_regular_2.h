@@ -313,7 +313,7 @@ namespace SplitFuse {
                 for (uint32_t kvSIdx = 0; kvSIdx < kvSLoopNumTotal + preKVNum; kvSIdx += blockStackNum) {
 
                     if (kvSIdx < kvSLoopNumTotal) {
-                        AscendC::printf("kvSIdx < kvSLoopNumTotal \n");
+
                         if (kvSIdx + blockStackNum > kvSLoopNumTotal - 1U) {
                             stackSeqTile = noSkipKvS - kvSIdx * pagedBlockSize;
                         } else {

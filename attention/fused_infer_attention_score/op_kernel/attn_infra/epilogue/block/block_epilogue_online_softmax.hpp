@@ -1057,7 +1057,6 @@ public:
         uint32_t columnNumRound, uint32_t pingpongFlag,
         uint32_t curStackTileMod)
     {
-        // AscendC::printf("调用 SubCoreCompute \n");
         uint32_t rowNumCurLoop = layoutOutput.shape(0);
         uint32_t rowNumCurLoopRound = NpuArch::Detail::Alignment::RoundUp(rowNumCurLoop, FLOAT_BLOCK_SIZE);
         uint32_t columnNum = layoutOutput.shape(1);
@@ -1365,7 +1364,6 @@ public:
                 AscendC::WaitFlag<AscendC::HardEvent::MTE2_V>(pingpongFlag);
 
                 // add sink
-                // SinkLoopParam curSinkLoop(rowOffsetIoGm, rowNumCurLoop, qSBlockSize, rowOffsetThisSubBlock);
 
                 ScaleS((pingpongFlag * MAX_UB_S_ELEM_NUM), rowNumCurLoop, columnNumRound);
                 SubCoreCompute<false>(

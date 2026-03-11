@@ -178,7 +178,7 @@ public:
         AscendC::WaitFlag<AscendC::HardEvent::MTE2_MTE1>(EVENT_ID0);
         if (crossCoreSyncTrigger) {
             Arch::CrossCoreWaitFlag(softmaxFlag);
-            // AscendC::printf("softmaxReady wait flag");
+
         }
 
         uint32_t mL1Loop = CeilDiv(rowNum, L1TileShape::M);

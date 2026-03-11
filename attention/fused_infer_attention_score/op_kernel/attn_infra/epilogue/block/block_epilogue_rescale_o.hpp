@@ -181,7 +181,6 @@ public:
             }
         }
     }
-
     __aicore__ inline
     void CopyOToGm(
         AscendC::GlobalTensor<ElementOutput> gOutput,
@@ -343,10 +342,6 @@ public:
         }
 
         if (isLastStackTile) {
-            // *** gl_block = expand_to_block(gl), 存放于 tv
-            AscendC::printf(" line: %d \n", __LINE__);
-            AscendC::printf(" rowOffsetLoop: %d \n", rowOffsetLoop);
-            AscendC::DumpTensor(glUbTensor[rowOffsetLoop], 22222, 16);
             // *** gl_block = expand_to_block(gl), 存放于 tv
             AscendC::Brcb(
                 tvUbTensor.ReinterpretCast<uint32_t>(),
@@ -819,7 +814,6 @@ public:
 
     __aicore__ inline
     void operator()(
-        // uint32_t kvheadIdx,
         AscendC::GlobalTensor<ElementOutput> gOutput,
         AscendC::GlobalTensor<ElementInput> gInput,
         AscendC::GlobalTensor<ElementUpdate> gUpdate,
@@ -835,8 +829,8 @@ public:
     {
         uint32_t rowNum = actualBlockShape.m();
         uint32_t embed = actualBlockShape.n();
-        uint32_t embedRoundV = layoutInput.stride(0);
-        uint32_t maxRowNumPerLoop = MAX_UB_O_ELEM_NUM / embed;
+        uint32_t embedRoundV = (layoutInput.stride(0) == 0) ? BLOCK_SIZE : layoutInput.stride(0);
+        uint32_t maxRowNumPerLoop = MAX_UB_O_ELEM_NUM / embedRoundV;
         uint32_t rowNumTile = NpuArch::Detail::Alignment::RoundDown(maxRowNumPerLoop, FLOAT_BLOCK_SIZE);
 
         uint32_t subBlockIdx = AscendC::GetSubBlockIdx();
@@ -852,7 +846,7 @@ public:
             ((qNBlockSize == 1U) ? 0
                                  : (subBlockIdx == 1U) ? (qNBlockSize - qNSplitSubBlock)
                                                       : qNSplitSubBlock)
-            : (kvNThisSubBlock * qNBlockSize);  // kvN 切分时，处理该 subblock 所有 kvhead 的 Q heads
+            : (kvNThisSubBlock * qNBlockSize);
 
         uint32_t inRowSplitSubBlock = (kvNBlockSize == 1U) ?
             ((qNBlockSize == 1U) ? (qSBlockSize / subBlockNum) : (qSBlockSize * qNSplitSubBlock)) :
@@ -869,7 +863,6 @@ public:
 
         uint32_t qSThisSubBlock = (kvNBlockSize == 1U) ?
             ((qNBlockSize == 1U) ? inRowActualThisSubBlock : qSBlockSize) : qSBlockSize;
-
 
         int64_t outOffsetSubBlock =
             layoutOutput.GetOffset(MatrixCoord(outRowOffsetThisSubBlock, outColOffsetThisSubBlock));
