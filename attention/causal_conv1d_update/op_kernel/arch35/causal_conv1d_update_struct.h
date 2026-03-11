@@ -50,6 +50,7 @@ int64_t xStride;                  // Stride for x tensor
 int64_t cacheStride;              // Stride for cacheState tensor
 int64_t xInputMode;               // Input mode: 0 for 3D 1 for 2D
 int64_t hasAcceptTokenNum;        // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+int64_t residualConnection;       // Whether use residual connection: 0 for false, 1 for true
 };
 
 #endif

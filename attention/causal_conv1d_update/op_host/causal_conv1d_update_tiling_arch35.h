@@ -52,6 +52,7 @@ constexpr int32_t OUTPUT_CONV_STATES_INDEX = 1;
 constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
 constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
 constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
+constexpr int32_t ATTR_RESIDUAL_CONNECTION_INDEX = 3;
 
 // Constants for validation
 constexpr int64_t DIM_ALIGN_ELEMENT = 128;  // 256 bytes / 2 bytes per element
@@ -143,8 +144,9 @@ private:
     int64_t padSlotId_ = -1;
     int64_t runMode_ = 0;
     int64_t inValidBatchNum_ = 0;
-    int64_t xInputMode_ = 0;  // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
-    int64_t hasAcceptTokenNum_ = 0;  // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+    int64_t xInputMode_ = 0;            // 0 for 3D [batch, seq_len, dim], 1 for 2D [cu_seq_len, dim]
+    int64_t hasAcceptTokenNum_ = 0;     // Whether acceptTokenNum input is provided: 0 for false, 1 for true
+    int64_t residualConnection_ = 0;    // Whether use residual connection: 0 for false, 1 for true
 
     // Tiling parameters
     int64_t limitedCoreNum_ = 0;      // Limited core number based on data size

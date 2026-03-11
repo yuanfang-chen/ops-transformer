@@ -155,6 +155,11 @@ ge::graphStatus CausalConv1dUpdateTiling::GetShapeAttrsInfo()
         runMode_ = *runModePtr;
     }
 
+    const int64_t* residualConnectionPtr = attrs->GetAttrPointer<int64_t>(ATTR_RESIDUAL_CONNECTION_INDEX);
+    if (residualConnectionPtr != nullptr) {
+        residualConnection_ = *residualConnectionPtr;
+    }
+
     // Get convStates shape to retrieve stateLen
     auto convStatesShape = context_->GetInputShape(CONV_STATES_INDEX);
     OP_CHECK_NULL_WITH_CONTEXT(context_, convStatesShape);
