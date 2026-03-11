@@ -99,20 +99,20 @@ __aicore__ inline void GmUbGmCopy<DataType>::InitParams(
     aivNum_ = aivNum; // AIV数量
 
     // 计算理论UB每块可搬运的最大容量（向下 32B 对齐）
-    uint64_t maxPerBlockNum_ = AiVReduceSumImplUtil::FloorAlign(
+    uint64_t maxPerBlockNum_ = FloorAlign(
         TOTAL_UB_SIZE / UB_BUFFER_NUM,
         UB_ALIGN_BYTES
     ) / sizeof(DataType);
 
     // 限制UB每次搬运数据块大小。
-    perBlockNum_ = AiVReduceSumImplUtil::MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
+    perBlockNum_ = MIN(MAX_PER_BLOCK_NUM, maxPerBlockNum_);
 
     // 分核
-    totalBlockNums_ = AiVReduceSumImplUtil::CeilDiv(dataSize, perBlockNum_); // 数据需要搬运的总块数
+    totalBlockNums_ = CeilDiv(dataSize, perBlockNum_); // 数据需要搬运的总块数
 
     // 尾块搬运大小
-    tailBytes_ = AiVReduceSumImplUtil::BlockAlignMod(dataSize, perBlockNum_) * sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的字节大小
-    tailPerBlockNumAlign_ = AiVReduceSumImplUtil::CeilAlign(tailBytes_, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
+    tailBytes_ = BlockAlignMod(dataSize, perBlockNum_) * sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的字节大小
+    tailPerBlockNumAlign_ = CeilAlign(tailBytes_, UB_ALIGN_BYTES) / sizeof(DataType); // 即计算分卡后每片的最后一个搬运数据块的大小, 向上32B对齐
 
     // 核分配策略
     round_ = totalBlockNums_ / aivNum_; // 计算数据分核搬运需要的轮次数
