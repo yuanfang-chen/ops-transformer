@@ -1058,6 +1058,8 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
                           && (groupListType_ == FIXAXISMOVE_GROUP_LIST_TYPE)
                           && (groupType_ == FIXAXISMOVE_GROUP_TYPE) && (actType_ == 0)
                           && !transposeWeight_;
+    bool isWorkspaceValid = (static_cast<int64_t>(FixedAxisMoveWorkspace_) <= tuningConfigWorkspace_) || 
+                            (tuningConfigWorkspace_ == -1);
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
     return isCorrectShape && isTuningInRange && isGroupCorrect && isA8W8_ &&
@@ -1076,12 +1078,10 @@ bool GMMTiling::IsA4W4OptimizeCondition() {
                           && (groupListType_ == A4W4OPTIMIZE_GROUP_LIST_TYPE)
                           && (groupType_ == A4W4OPTIMIZE_GROUP_TYPE) && (actType_ == 0)
                           && !transposeWeight_;
-    bool isWorkspaceValid = (static_cast<int64_t>(FixedAxisMoveWorkspace_) <= tuningConfigWorkspace_) ||
-                           (tuningConfigWorkspace_ == -1);
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
     return isCorrectShape && isTuningInRange && isGroupCorrect && isPerGroupCorrect && isA4W4_ &&
-           isDataTypeCorrect && isConfigCorrect && isWorkspaceValid && !hasBias_ && isFormatValid;
+           isDataTypeCorrect && isConfigCorrect && !hasBias_ && isFormatValid;
 }
 
 bool GMMTiling::IsIntDataType() {
