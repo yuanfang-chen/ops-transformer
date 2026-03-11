@@ -13,6 +13,8 @@
  * \brief
  */
 
+#include "../common/inc/kernel/moe_distribute_base.h"
+
 #ifndef MOE_DISTRIBUTE_V2_BASE_H
 #define MOE_DISTRIBUTE_V2_BASE_H
 
