@@ -17,8 +17,8 @@
 
 #include "matmul_all_reduce_base.h"
 namespace MatmulAllReduceImpl {
-using namespace AiVReduceSumImpl;
 using namespace GmUbGmCopyImpl;
+using namespace AiVReduceSumCastFp32Impl;
 constexpr uint32_t A2A_VSUM_AG_MAX_HANDLE_ID_NUM = 16;
 template <typename XType, typename YType, Mc2CoreType CoreType>
 class MatmulAllReduceBase<XType, YType, CoreType, true>
