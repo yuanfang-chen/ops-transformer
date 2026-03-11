@@ -14,7 +14,7 @@
  */
 
 #ifndef MOE_DISTRIBUTE_V2_BASE_H
-#define MOE_DISTRIBUTE_V2_BASE_H
+#define MOE_DISTRIBUTE_V2_BASE_H 
 
 #include "moe_distribute_v2_constant.h"
 
