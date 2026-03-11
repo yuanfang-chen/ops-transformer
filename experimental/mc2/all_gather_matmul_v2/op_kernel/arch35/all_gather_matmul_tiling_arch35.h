@@ -16,8 +16,7 @@
 #define __ALL_GATHER_MATMUL_TILING_arch35_H_
 
 #include "kernel_tiling/kernel_tiling.h"
-#include "../../common/inc/kernel/mc2_tiling_struct.h"
-#include "../../3rd/mat_mul_v3/op_kernel/arch35/mat_mul_tiling_data.h"
+#include "../matmul/mc2_tiling_struct.h"
 
 namespace Mc2Tiling {
 

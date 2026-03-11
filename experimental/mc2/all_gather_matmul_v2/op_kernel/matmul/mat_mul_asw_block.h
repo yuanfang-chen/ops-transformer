@@ -15,7 +15,7 @@
 #ifndef MMV3_MATMUL_ASW_BLOCK_H
 #define MMV3_MATMUL_ASW_BLOCK_H
 
-#include "../mat_mul_v3_common.h"
+#include "mat_mul_v3_common.h"
 #include "mat_mul_tiling_data.h"
 
 namespace Mc2MatmulV3Advanced {
