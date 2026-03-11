@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef OP_API_INC_MOE_INIT_ROUTING_V3_H_
-#define OP_API_INC_MOE_INIT_ROUTING_V3_H_
+#ifndef OP_API_INC_CAUSAL_CONV1D_H_
+#define OP_API_INC_CAUSAL_CONV1D_H_
 
 #include "aclnn/aclnn_base.h"
 #include "aclnn_util.h"
@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 /**
- * @brief aclnnMoeInitRoutingV3的第一段接口，根据具体的计算流程，计算workspace大小。
+ * @brief aclnnCausalConv1d的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
  */
 ACLNN_API aclnnStatus aclnnCausalConv1dGetWorkspaceSize(const aclTensor *x, const aclTensor *weight,
@@ -30,7 +30,7 @@ ACLNN_API aclnnStatus aclnnCausalConv1dGetWorkspaceSize(const aclTensor *x, cons
                                                         int64_t padSlotId, int64_t runMode, const aclTensor *y,
                                                         uint64_t *workspaceSize, aclOpExecutor **executor);
 
-/* @brief aclnnMoeInitRoutingV3的第二段接口，用于执行计算。 */
+/* @brief aclnnCausalConv1d的第二段接口，用于执行计算。 */
 ACLNN_API aclnnStatus aclnnCausalConv1d(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
                                         aclrtStream stream);
 

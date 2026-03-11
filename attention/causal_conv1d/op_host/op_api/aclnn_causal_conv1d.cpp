@@ -44,10 +44,10 @@ aclnnStatus CausalConv1dCommonProcess(const aclTensor *x, const aclTensor *weigh
         uniqueExecutor->CreateView(x, x->GetViewShape(), x->GetStorageShape(), x->GetViewStrides(), x->GetViewOffset());
     CHECK_COND(xFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for x failed.");
 
-    aclTensor *convStates =
+    aclTensor *convStatesFinal =
         uniqueExecutor->CreateView(convStates, convStates->GetViewShape(), convStates->GetStorageShape(),
                                    convStates->GetViewStrides(), convStates->GetViewOffset());
-    CHECK_COND(convStates != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for convStates failed.");
+    CHECK_COND(convStatesFinal != nullptr, ACLNN_ERR_INNER_NULLPTR, "CreateView for convStates failed.");
 
     weight = l0op::Contiguous(weight, uniqueExecutor.get());
     CHECK_COND(weight != nullptr, ACLNN_ERR_INNER_NULLPTR, "Contiguous weight failed.");
@@ -76,10 +76,13 @@ aclnnStatus CausalConv1dCommonProcess(const aclTensor *x, const aclTensor *weigh
 
     // convStates is an in-place update: the same tensor serves as both input and
     // output. y is always contiguous. Both are passed directly to l0op.
-    bool ok = l0op::CausalConv1d(xFinal, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias,
-                                 numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
-                                 uniqueExecutor.get());
-    CHECK_RET(ok, ACLNN_ERR_INNER_NULLPTR);
+    auto result = std::tuple<aclTensor *, aclTensor *>(nullptr, nullptr);
+    result = l0op::CausalConv1d(xFinal, weight, convStatesFinal, queryStartLoc, cacheIndices, initialStateMode, bias,
+                                numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
+                                uniqueExecutor.get());
+    auto [yOut, convStatesOut] = result;
+    bool hasNullptr = (yOut == nullptr) || (convStatesOut == nullptr);
+    CHECK_RET(hasNullptr != true, ACLNN_ERR_INNER_NULLPTR);
 
     *workspaceSize = uniqueExecutor->GetWorkspaceSize();
     uniqueExecutor.ReleaseTo(executor);
@@ -102,8 +105,8 @@ ACLNN_API aclnnStatus aclnnCausalConv1dGetWorkspaceSize(const aclTensor *x, cons
         DFX_OUT(y, convStates));
     int64_t residualConnection = 0;
     return CausalConv1dCommonProcess(x, weight, convStates, queryStartLoc, cacheIndices, initialStateMode, bias,
-                                            numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection,
-                                            y, workspaceSize, executor);
+                                     numAcceptedTokens, activationMode, padSlotId, runMode, residualConnection, y,
+                                     workspaceSize, executor);
 }
 
 ACLNN_API aclnnStatus aclnnCausalConv1d(void *workspace, uint64_t workspaceSize, aclOpExecutor *executor,
