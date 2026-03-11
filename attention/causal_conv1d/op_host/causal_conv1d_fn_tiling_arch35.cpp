@@ -1,4 +1,4 @@
-/**
+0/**
  * Copyright (c) 2025 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
@@ -26,6 +26,11 @@ constexpr uint64_t INPUT_CACHE_STATES_INDEX = 2;
 constexpr uint64_t INPUT_QUERY_START_LOC_INDEX = 3;
 constexpr uint64_t INPUT_CACHE_INDICES_INDEX = 4;
 constexpr uint64_t INPUT_INITIAL_STATE_MODE_INDEX = 5;
+
+constexpr int32_t ATTR_ACTIVATION_MODE_INDEX = 0;
+constexpr int32_t ATTR_PAD_SLOT_ID_INDEX = 1;
+constexpr int32_t ATTR_RUN_MODE_INDEX = 2;
+constexpr int32_t ATTR_RESIDUAL_CONNECTION_INDEX = 3;
 
 constexpr uint64_t OUTPUT_Y_INDEX = 0;
 constexpr uint64_t OUTPUT_CACHE_STATES_INDEX = 1;
@@ -333,13 +338,13 @@ ge::graphStatus CausalConv1dFnTiling::GetShapeAttrsInfo()
 
     // 读取 padSlotId attribute
     padSlotId_ = -1;
-    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(1) != nullptr) {
-        padSlotId_ = *(context_->GetAttrs()->GetInt(1));
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX) != nullptr) {
+        padSlotId_ = *(context_->GetAttrs()->GetInt(ATTR_PAD_SLOT_ID_INDEX));
     }
 
     residualConnection_ = 0;
-    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(3) != nullptr) {
-        residualConnection_ = *(context_->GetAttrs()->GetInt(3));
+    if (context_->GetAttrs() != nullptr && context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX) != nullptr) {
+        residualConnection_ = *(context_->GetAttrs()->GetInt(ATTR_RESIDUAL_CONNECTION_INDEX));
     }
 
     // 初始化有效 batch 范围（默认为全部 batch）
