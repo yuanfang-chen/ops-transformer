@@ -99,15 +99,11 @@ ge::graphStatus MhcPreBaseTiling::GetInputShape()
 
     matM_ = totalLength_;
     matN_ = phiTensor->GetStorageShape().GetDim(0);  // phi的第二个维度是nD
-    chunkTSize_ = (((totalLength_ + 24 - 1) / 24) + 32 - 1) / 32 * 32;
-    if (chunkTSize_ > 192) {
-        chunkTSize_ = 192;
+    chunkTSize_ = (((totalLength_ + 32 - 1) / 32) + 32 - 1) / 32 * 32;
+    if (chunkTSize_ > 128) {
+        chunkTSize_ = 128;
     }
-    if (N_ == 4) {
-        v1ChunkDSize_ = 5120;
-    } else {
-        v1ChunkDSize_ = 2560;
-    }
+    v1ChunkDSize_ = 5120;
 
     // 检查phi的第二个维度是否等于matK_（即nD）
     uint64_t phiSecondDim = phiTensor->GetStorageShape().GetDim(1);
@@ -180,10 +176,10 @@ void MhcPreBaseTiling::FillTilingData()
     tilingData_.matmulTiling.set_stepM(1);
     tilingData_.matmulTiling.set_stepN(1);
 
-    uint32_t baseN = (matN_ + 16 - 1) / 16 * 16;  // 16: BaseM，16个元素对齐
-    uint32_t baseK = 8 * 1024 / baseN / 8 * 8;  // 8 * 1024: 64k(L0Bsize) / 2(dbL0B) / 4(float), A矩阵不转置且
-                                                // B矩阵转置场景下baseK以C0_size对齐，float场景下为8
-    uint32_t baseM = 8 * 1024 / baseK / 16 * 16;  // 8 * 1024: 64k(L0Bsize) / 2(dbL0A) / 4(float), 16: BaseM，16个元素对齐
+    uint32_t baseM = chunkTSize_;
+    uint32_t baseN = baseM;
+    uint32_t baseK = 8 * 1024 / baseN / 8 * 8; // 8 * 1024: 64k(L0Bsize) / 2(dbL0B) / 4(float), A矩阵不转置且
+                                               // B矩阵转置场景下baseK以C0_size对齐，float场景下为8
 
     tilingData_.matmulTiling.set_baseM(baseM);
     tilingData_.matmulTiling.set_baseN(baseN);
