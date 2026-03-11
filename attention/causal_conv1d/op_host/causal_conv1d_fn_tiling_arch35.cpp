@@ -861,7 +861,7 @@ ge::graphStatus CausalConv1dFnTiling::PostTiling()
     tilingData_.tailBlockubTailFactorBS = tailBlockubTailFactorBS_;
     tilingData_.tailBlockubFactorDim = tailBlockubFactorDim_;
     tilingData_.tailBlockubTailFactorDim = tailBlockubTailFactorDim_;
-    tilingData_.realCoreNum = static_cast<uint32_t>(realCoreNum_);
+    tilingData_.realCoreNum = realCoreNum_;
     tilingData_.kernelWidth = kernelWidth_;
     tilingData_.cuSeqLen = cuSeqLen_;
     tilingData_.dim = dim_;
