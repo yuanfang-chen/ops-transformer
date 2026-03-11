@@ -30,12 +30,6 @@ using namespace Ops::Transformer;
 #ifdef __cplusplus
 extern "C" {
 #endif
-static constexpr int64_t NUM_ACL_STOP_ON_FAILURE = 1;
-static constexpr int64_t ONE_DIMS = 1;
-static constexpr int64_t SCALAR = 1;
-static constexpr int64_t TWO_DIMS = 2;
-static constexpr int64_t KVALUE_MIN = 256;
-static constexpr int64_t KVALUE_MAX = 65535;
 typedef struct {
   uint32_t id;
   const char *funcName;
