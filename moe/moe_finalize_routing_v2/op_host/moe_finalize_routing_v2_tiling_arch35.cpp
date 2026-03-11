@@ -143,6 +143,8 @@ protected:
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetPlatformInfo()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoGetPlatformInfo");
+    printf("MoeFinalizeRoutingV2, DoGetPlatformInfo\n");
     auto platformInfo = context_->GetPlatformInfo();
     OP_CHECK_NULL_WITH_CONTEXT(context_, platformInfo);
 
@@ -174,6 +176,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetPlatformInfo()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::GetK(const gert::StorageShape* scalesShape)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, GetK");
+    printf("MoeFinalizeRoutingV2, GetK\n");
     if (!scalesShape) {
         hasScales_ = false;
         k = 1;
@@ -194,6 +198,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::GetK(const gert::StorageShape* scal
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::GetECH(const gert::StorageShape* expandedXShape)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, GetECH");
+    printf("MoeFinalizeRoutingV2, GetECH\n");
     if (dropPadMode == DROP_LESS_ROW || dropPadMode == DROP_LESS_COL) {
         OP_CHECK_IF(
             expandedXShape->GetStorageShape().GetDimNum() != DROPLESS_EXPANDED_X_DIM_NUM,
@@ -226,6 +232,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::GetECH(const gert::StorageShape* ex
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::GetRow(const gert::StorageShape* expandedRowIdxShape)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, GetRow");
+    printf("MoeFinalizeRoutingV2, GetRow\n");
     OP_CHECK_IF(
         expandedRowIdxShape->GetStorageShape().GetDimNum() != 1,
         OP_LOGE(context_->GetNodeName(), "dim num of expanded_row_idx should be 1."),
@@ -239,6 +247,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::GetRow(const gert::StorageShape* ex
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckBiasShape(const gert::StorageShape* biasShape)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CheckBiasShape");
+    printf("MoeFinalizeRoutingV2, CheckBiasShape\n");
     OP_CHECK_IF(
         biasShape->GetStorageShape().GetDimNum() != BIAS_DIM_NUM,
         OP_LOGE(context_->GetNodeName(), "dim num of bias should be 2."),
@@ -261,6 +271,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckBiasShape(const gert::StorageS
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CheckShapeAndDtypeIsValid");
+    printf("MoeFinalizeRoutingV2, CheckShapeAndDtypeIsValid\n");
     gert::Shape rowIdxShape = {row * k};
     gert::Shape bsh = {row, h};
 
@@ -314,6 +326,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckShapeAndDtypeIsValid()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CheckPartShapeAndDtypeIsValid");
+    printf("MoeFinalizeRoutingV2, CheckPartShapeAndDtypeIsValid\n");
     gert::Shape bsh = {row, h};
 
     auto x2Shape = context_->GetOptionalInputShape(X2_IDX);
@@ -424,6 +438,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CheckPartShapeAndDtypeIsValid()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, FinalCheckShapeAndDtypeIsValid");
+    printf("MoeFinalizeRoutingV2, FinalCheckShapeAndDtypeIsValid\n");
     gert::Shape bsk = {row, k};
     gert::Shape bsh = {row, h};
 
@@ -479,6 +495,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::FinalCheckShapeAndDtypeIsValid()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoGetShapeAttrsInfo");
+    printf("MoeFinalizeRoutingV2, DoGetShapeAttrsInfo\n");
     // attr的实现
     auto attrsPtr = context_->GetAttrs();
     OP_CHECK_NULL_WITH_CONTEXT(context_, attrsPtr);
@@ -578,6 +596,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoGetShapeAttrsInfo()
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInUb)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, RowsHSize");
+    printf("MoeFinalizeRoutingV2, RowsHSize\n");
     return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
            (hasConstantExpert_ ? 1 : 0) * constExpertRangeNum * hAligned * dtypeSize * 3 +
@@ -588,6 +608,8 @@ int64_t MoeFinalizeRoutingV2Regbase::RowsHSize(int64_t rowFactor, bool scalesInU
 
 int64_t MoeFinalizeRoutingV2Regbase::RowsHSizeForKHFullLoad(int64_t rowFactor, bool scalesInUb)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, RowsHSizeForKHFullLoad");
+    printf("MoeFinalizeRoutingV2, RowsHSizeForKHFullLoad\n");
     return (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_)) *
                Ops::Base::CeilDiv(static_cast<uint64_t>(rowFactor * h * dtypeSize), blockSize_) * blockSize_ +
            (scalesInUb && hasScales_ ? 1 : 0) *
@@ -602,6 +624,8 @@ int64_t MoeFinalizeRoutingV2Regbase::RowsHSizeForKHFullLoad(int64_t rowFactor, b
 
 int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactorForKHFullLoad(int64_t ubSizeRemained, bool scalesInUb)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CalcRowFactorForKHFullLoad");
+    printf("MoeFinalizeRoutingV2, CalcRowFactorForKHFullLoad\n");
     int64_t rowFactor = 1;
     int64_t factor = 1;
     while (RowsHSizeForKHFullLoad(rowFactor, scalesInUb) <= ubSizeRemained) {
@@ -625,6 +649,8 @@ int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactorForKHFullLoad(int64_t ubSizeRe
 
 int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactor(int64_t ubSizeRemained, bool scalesInUb)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CalcRowFactor");
+    printf("MoeFinalizeRoutingV2, CalcRowFactor\n");
     int64_t rowFactor = 1;
     int64_t factor = 1;
     while (RowsHSize(rowFactor, scalesInUb) <= ubSizeRemained) {
@@ -649,6 +675,8 @@ int64_t MoeFinalizeRoutingV2Regbase::CalcRowFactor(int64_t ubSizeRemained, bool 
 void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
     int64_t rowOfFormerBlock, int64_t rowOfTailBlock, int64_t rowFactor)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, SetFullLoadTilingData");
+    printf("MoeFinalizeRoutingV2, SetFullLoadTilingData\n");
     int64_t rowLoopOfFormerBlock = Ops::Base::CeilDiv(rowOfFormerBlock, rowFactor);
     rowFactor = Ops::Base::CeilDiv(rowOfFormerBlock, rowLoopOfFormerBlock);
     int64_t rowLoopOfTailBlock = Ops::Base::CeilDiv(rowOfTailBlock, rowFactor);
@@ -680,6 +708,8 @@ void MoeFinalizeRoutingV2Regbase::SetFullLoadTilingData(
 // 切分的地方需要修改
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoOpTilingRowKHFullLoad");
+    printf("MoeFinalizeRoutingV2, DoOpTilingRowKHFullLoad\n");
     int64_t expandedXAlignedByte;
     if (dropPadMode == DROP_LESS_COL || dropPadMode == DROP_LESS_ROW) {
         expandedXAlignedByte = Ops::Base::CeilDiv(static_cast<uint64_t>(row * k * h * dtypeSize), blockSize_) * blockSize_;
@@ -696,6 +726,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingRowKHFullLoad(int64_t row
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoOpTilingKHFullLoad");
+    printf("MoeFinalizeRoutingV2, DoOpTilingKHFullLoad\n");
     int64_t rowFactor = 1;
     if (k == 1) {
         int64_t ubSizeRemained = ubSize_ / DOUBLE_BUFFER;
@@ -712,6 +744,8 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingKHFullLoad(int64_t rowOfF
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoOpTilingHFullLoad");
+    printf("MoeFinalizeRoutingV2, DoOpTilingHFullLoad\n");
     int64_t expandedXAndBiasSize = (1 /* expanded_x */ + static_cast<int64_t>(hasBias_)) * hAligned * dtypeSize;
     int64_t kFactor = ubSize_ / DOUBLE_BUFFER / expandedXAndBiasSize;
     int64_t upper = kFactor;
@@ -739,11 +773,15 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingHFullLoad(int64_t rowOfFo
     tilingData->kLoop = kLoop;
     tilingData->kFactor = kFactor;
     tilingData->tailKFactor = tailKFactor;
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, end DoOpTilingHFullLoad");
+    printf("MoeFinalizeRoutingV2, end DoOpTilingHFullLoad\n");
     return ge::GRAPH_SUCCESS;
 }
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfFormerBlock, int64_t rowOfTailBlock)
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoOpTilingSplitH");
+    printf("MoeFinalizeRoutingV2, DoOpTilingSplitH\n");
     int64_t actualInputNum = INPUT_BUFFER_NUM - static_cast<int64_t>(!hasX1_) - static_cast<int64_t>(!hasX2_) -
                              static_cast<int64_t>(!hasBias_) - static_cast<int64_t>(!hasX_) - static_cast<int64_t>(!hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM;
     int64_t totalBufferNum = actualInputNum + OUTPUT_BUFFER_NUM + (dtype != ge::DataType::DT_FLOAT ? 1 : 0);
@@ -760,11 +798,15 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::DoOpTilingSplitH(int64_t rowOfForme
     tilingData->hFactor = hFactor;
     tilingData->tailHFactor = tailHFactor;
     tilingData->activeNum = dim0OfExpandedX;
+        
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, end DoOpTilingSplitH");
+    printf("MoeFinalizeRoutingV2, end DoOpTilingSplitH\n");
     return ge::GRAPH_SUCCESS;
 }
 
 void MoeFinalizeRoutingV2Regbase::PrintTilingData()
 {
+
     OP_LOGI(
         context_->GetNodeName(),
         "MoeFinalizeRoutingV2 tiling data: numBlocks[%ld] row[%ld] e[%ld] c[%ld] h[%ld] hAligned[%ld] k[%ld]"
@@ -782,6 +824,8 @@ void MoeFinalizeRoutingV2Regbase::PrintTilingData()
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CalcOpTiling");
+    printf("MoeFinalizeRoutingV2, CalcOpTiling\n");
     int64_t rowPerCore = Ops::Base::CeilDiv(row, static_cast<int64_t>(coreNum_));
     usedCoreNum_ = std::min(Ops::Base::CeilDiv(row, rowPerCore), static_cast<int64_t>(coreNum_));
     int64_t rowOfTailBlock = row - (usedCoreNum_ - 1) * rowPerCore;
@@ -821,11 +865,15 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcOpTiling()
         ret != ge::GRAPH_SUCCESS, OP_LOGE(context_->GetNodeName(), "failed to do tiling"),
         return ge::GRAPH_FAILED);
     PrintTilingData();
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, end CalcOpTiling");
+    printf("MoeFinalizeRoutingV2, end CalcOpTiling\n");
     return ge::GRAPH_SUCCESS;
 }
 // 校验 Row-K-H 维度数据是否能全量加载到 UB
 bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsRowKHFullLoad");
+    printf("MoeFinalizeRoutingV2, IsRowKHFullLoad\n");
     int64_t expandedXAlignedByte;
     // 1. 计算expandedX数据的对齐字节数（区分不同的drop/pad模式）
     if (dropPadMode == DROP_LESS_COL || dropPadMode == DROP_LESS_ROW) {
@@ -850,6 +898,9 @@ bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
         DOUBLE_BUFFER * (hasScalevalue + (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) +
         static_cast<int64_t>(hasX_) + static_cast<int64_t>(hasConstantExpert_) * CONST_EXPERT_BUFFER_NUM) * hAlignedByte +
                          hAligned32Byte * OUTPUT_BUFFER_NUM);
+                        
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsRowKHFullLoad, totalSize[%ld], ubSize_[%ld]", totalSize, ubSize_);
+    printf("MoeFinalizeRoutingV2, IsRowKHFullLoad, totalSize[%ld], ubSize_[%ld]\n", totalSize, ubSize_);
     return totalSize <= ubSize_;
 }
 
@@ -858,6 +909,8 @@ bool MoeFinalizeRoutingV2Regbase::IsRowKHFullLoad()
 // 适用于不需要考虑 Row 维度、仅处理 K-H 维度的 MoE 子任务（如专家内数据处理）
 bool MoeFinalizeRoutingV2Regbase::IsKHFullLoad()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsKHFullLoad");
+    printf("MoeFinalizeRoutingV2, IsKHFullLoad\n");
     int64_t scalesAlignedByte = Ops::Base::CeilDiv(static_cast<uint64_t>(k * scaleDtypeSize), blockSize_) * blockSize_;
     int64_t hAlignedByte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * dtypeSize), blockSize_) * blockSize_;
     hAligned = hAlignedByte / dtypeSize;
@@ -875,12 +928,17 @@ bool MoeFinalizeRoutingV2Regbase::IsKHFullLoad()
                                         (static_cast<int64_t>(hasX1_) + static_cast<int64_t>(hasX2_) + static_cast<int64_t>(hasX_) + 
                                         static_cast<int64_t>(hasConstantExpert_) * 3) * hAlignedByte +
                                         hAligned32Byte * OUTPUT_BUFFER_NUM);
+    
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsKHFullLoad, totalSize[%ld], ubSize_[%ld]", totalSize, ubSize_);
+    printf("MoeFinalizeRoutingV2, IsKHFullLoad, totalSize[%ld], ubSize_[%ld]\n", totalSize, ubSize_);
     return totalSize <= ubSize_;
 }
 // 校验 H 维度数据是否能全量加载到 UB
 // 适用于仅处理 H 维度的极小粒度 MoE 任务（如单维度数据转换、偏置叠加）
 bool MoeFinalizeRoutingV2Regbase::IsHFullLoad()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsHFullLoad");
+    printf("MoeFinalizeRoutingV2, IsHFullLoad\n");
     int64_t oneKAlignedByte = static_cast<int64_t>(blockSize_);
     int64_t hAlignedByte = Ops::Base::CeilDiv(static_cast<uint64_t>(h * dtypeSize), blockSize_) * blockSize_;
     hAligned = hAlignedByte / dtypeSize;
@@ -890,11 +948,16 @@ bool MoeFinalizeRoutingV2Regbase::IsHFullLoad()
     int64_t hasScalevalue = hasScales_ ? oneKAlignedByte : 0;
     int64_t totalSize =
         DOUBLE_BUFFER * (hAlignedByte * actualInputNum + hasScalevalue + hAligned32Byte * OUTPUT_BUFFER_NUM);
+
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsHFullLoad, totalSize[%ld], ubSize_[%ld]", totalSize, ubSize_);
+    printf("MoeFinalizeRoutingV2, IsHFullLoad, totalSize[%ld], ubSize_[%ld]\n", totalSize, ubSize_);
     return totalSize <= ubSize_;
 }
 // 此处计算的时候，没有考虑常量专家的 a1 、 a2 和 v 的空间占用
 bool MoeFinalizeRoutingV2Regbase::IsCapable()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, IsCapable");
+    printf("MoeFinalizeRoutingV2, IsCapable\n");
     if (!Ops::Transformer::OpTiling::IsRegbaseSocVersion(context_)) {
         return false;
     }
@@ -909,11 +972,14 @@ bool MoeFinalizeRoutingV2Regbase::IsCapable()
         return true;
     }
     hFullLoad_ = IsHFullLoad();
+
     return true;
 }
 
 ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcTilingKey()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, CalcTilingKey");
+    printf("MoeFinalizeRoutingV2, CalcTilingKey\n");
     if (rowKHFullLoad_) {
         tilingKey_ = FULL_LOAD_ROW_K_H_BASE_TILING_KEY;
     } else if (kHFullLoad_) {
@@ -937,12 +1003,14 @@ ge::graphStatus MoeFinalizeRoutingV2Regbase::CalcTilingKey()
     tilingKey_ += scaleDtypeKey;
 
     OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2 get tiling key: %lx", tilingKey_);
-
+    printf("MoeFinalizeRoutingV2 get tiling key: %lx\n", tilingKey_);
     return ge::GRAPH_SUCCESS;
 }
 
 void MoeFinalizeRoutingV2Regbase::DoPostTiling()
 {
+    OP_LOGI(context_->GetNodeName(), "MoeFinalizeRoutingV2, DoPostTiling");
+    printf("MoeFinalizeRoutingV2, DoPostTiling\n");
     return;
 }
 
