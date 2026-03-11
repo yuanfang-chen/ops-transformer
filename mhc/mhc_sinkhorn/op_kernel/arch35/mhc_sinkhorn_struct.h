@@ -16,7 +16,6 @@ public:
     float eps{0};
     int64_t num_iters{0};
     int64_t out_flag{0};
-    int64_t T{0};
     int64_t n{0};
     int64_t usedCoreNum{0};
     int64_t tNormCoreLoop{0};

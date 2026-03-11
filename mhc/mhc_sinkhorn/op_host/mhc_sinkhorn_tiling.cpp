@@ -186,7 +186,6 @@ void MhcSinkhornTiling::SetTilingData()
     tilingData->eps = eps_;
     tilingData->num_iters = num_iters_;
     tilingData->out_flag = out_flag_;
-    tilingData->T = T_;
     tilingData->n = n_;
     tilingData->usedCoreNum = usedCoreNum_;
     tilingData->tNormCoreLoop = tNormCoreLoop_;

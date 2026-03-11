@@ -22,7 +22,7 @@ extern "C" {
  * @brief aclnnMhcSinkhorn的第一段接口，根据具体的计算流程，计算workspace大小。
  * @domain aclnn_ops_infer
  */
-ACLNN_API aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
+ACLNN_API aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, float eps, int64_t numIters,
                                                        aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
                                                        uint64_t *workspaceSize, aclOpExecutor **executor);
 

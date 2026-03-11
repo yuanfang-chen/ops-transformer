@@ -64,10 +64,7 @@ private:
     const MhcSinkhornTilingData &tilingData_;
     int64_t blockIdx_;
     int64_t loop_;
-    // int64_t tilingData_.tUbFactor;
     int64_t tailLoopSize_;
-    // int64_t T_;
-    // int64_t tilingData_.n;
     TQue<QuePosition::VECOUT, DOUBLE_BUFFER> inputQue_;
     TQue<QuePosition::VECOUT, DOUBLE_BUFFER> outputQue_;
     TBuf<TPosition::VECCALC> maskBuffer_;
@@ -82,9 +79,6 @@ __aicore__ inline void MhcSinkhornSimd::Init(GM_ADDR h_res, GM_ADDR y, GM_ADDR n
     y_.SetGlobalBuffer((__gm__ float *)(y));
     normOut_.SetGlobalBuffer((__gm__ float *)(norm_out));
     sumOut_.SetGlobalBuffer((__gm__ float *)(sum_out));
-    // tilingData_.tUbFactor = tilingData_.tUbFactor;
-    // tilingData_.n = tilingData_.n;
-    // T_ = tilingData_.T;
     pipe_.InitBuffer(maskBuffer_, MASK_BUFFER_SIZE);
     pipe_.InitBuffer(maxBuffer_, MAX_BUFFER_SIZE);
     pipe_.InitBuffer(inputQue_, DOUBLE_BUFFER, tilingData_.tUbFactor * sizeof(float));
@@ -267,8 +261,9 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         DataCopyExtParams dataCopyExtParams{1, static_cast<uint32_t>(loopSize * sizeof(float)), 0, 0, 0};
         DataCopyPad(inputLocal, hRes_[inputOffset], dataCopyExtParams, dataCopyPadExtParams);
 
-        inputQue_.EnQue<float>(inputLocal);
-        inputLocal = inputQue_.DeQue<float>();
+        auto MTE2ToVEventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::MTE2_V));
+        SetFlag<HardEvent::MTE2_V>(MTE2ToVEventID);
+        WaitFlag<HardEvent::MTE2_V>(MTE2ToVEventID);
 
         uint32_t repeatSize = Ops::Base::GetVRegSize() / BLOCK_SIZE * tilingData_.n * tilingData_.n;
         uint16_t repeatTimes = Ops::Base::CeilDiv(loopSize, repeatSize);
@@ -295,9 +290,8 @@ __aicore__ inline void MhcSinkhornSimd::Process()
 
         for (uint16_t i = 0; i < repeatTimes; i++) {
             for (uint16_t j = 0; j < tilingData_.n; j++) {
-                auto curInputAddrCol = outputAddr + i * repeatSize + j;
-                auto curOutputAddrCol = outputAddr + i * repeatSize + j;
-                CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                auto curAddr = outputAddr + i * repeatSize + j;
+                CalcCol(curAddr, curAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                         static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
             }
         }
@@ -310,9 +304,8 @@ __aicore__ inline void MhcSinkhornSimd::Process()
         for (int64_t iter = 0; iter < tilingData_.num_iters - 1; iter++) {
             for (uint16_t i = 0; i < repeatTimes; i++) {
                 for (uint16_t j = 0; j < tilingData_.n; j++) {
-                    auto curInputAddrRow = outputAddr + i * repeatSize + j * tilingData_.n;
-                    auto curOutputAddrRow = outputAddr + i * repeatSize + j * tilingData_.n;
-                    CalcRow(curInputAddrRow, curOutputAddrRow, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                    auto curAddr = outputAddr + i * repeatSize + j * tilingData_.n;
+                    CalcRow(curAddr, curAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                             static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
                 __VEC_SCOPE__
@@ -322,9 +315,8 @@ __aicore__ inline void MhcSinkhornSimd::Process()
                 }
 
                 for (uint16_t j = 0; j < tilingData_.n; j++) {
-                    auto curInputAddrCol = outputAddr + i * repeatSize + j;
-                    auto curOutputAddrCol = outputAddr + i * repeatSize + j;
-                    CalcCol(curInputAddrCol, curOutputAddrCol, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
+                    auto curAddr = outputAddr + i * repeatSize + j;
+                    CalcCol(curAddr, curAddr, maskAddr, maxAddr, static_cast<uint32_t>(dataLen),
                             static_cast<uint32_t>(tilingData_.n), tilingData_.eps);
                 }
             }
@@ -334,8 +326,9 @@ __aicore__ inline void MhcSinkhornSimd::Process()
             }
         }
 
-        outputQue_.EnQue<float>(outputLocal);
-        outputLocal = outputQue_.DeQue<float>();
+        auto VToMTE3EventID = static_cast<event_t>(GetTPipePtr()->FetchEventID(HardEvent::V_MTE3));
+        SetFlag<HardEvent::V_MTE3>(VToMTE3EventID);
+        WaitFlag<HardEvent::V_MTE3>(VToMTE3EventID);
 
         DataCopyPad(y_[inputOffset], outputLocal, dataCopyExtParams);
         outputQue_.FreeTensor<float>(outputLocal);

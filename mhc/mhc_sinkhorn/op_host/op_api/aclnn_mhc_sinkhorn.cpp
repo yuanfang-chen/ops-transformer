@@ -36,45 +36,67 @@ static const int64_t N_VALID_6 = 6;
 static const int64_t N_VALID_8 = 8;
 
 
-static bool CheckNotNull(const aclTensor *x, const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut)
+static bool CheckNotNull(const aclTensor *x, int64_t outFlag, const aclTensor *output, const aclTensor *normOut,
+                         const aclTensor *sumOut)
 {
     OP_CHECK_NULL(x, return false);
     OP_CHECK_NULL(output, return false);
-    OP_CHECK_NULL(normOut, return false);
-    OP_CHECK_NULL(sumOut, return false);
+    if (outFlag) {
+        OP_CHECK_NULL(normOut, return false);
+        OP_CHECK_NULL(sumOut, return false);
+    }
     return true;
 }
 
-static bool CheckDtypeValid(const aclTensor *x, const aclTensor *output, const aclTensor *normOut,
+static bool CheckDtypeValid(const aclTensor *x, int64_t outFlag, const aclTensor *output, const aclTensor *normOut,
                             const aclTensor *sumOut)
 {
     // 检查x的数据类型是否在算子的支持列表内
     OP_CHECK_DTYPE_NOT_SUPPORT(x, DTYPE_SUPPORT_LIST, return false);
     // 检查output的数据类型是否在算子的支持列表内
     OP_CHECK_DTYPE_NOT_SUPPORT(output, DTYPE_SUPPORT_LIST, return false);
-    // 检查normOut的数据类型是否在算子的支持列表内
-    OP_CHECK_DTYPE_NOT_SUPPORT(normOut, DTYPE_SUPPORT_LIST, return false);
-    // 检查sumOut的数据类型是否在算子的支持列表内
-    OP_CHECK_DTYPE_NOT_SUPPORT(sumOut, DTYPE_SUPPORT_LIST, return false);
-    return true;
-}
-
-static bool CheckFormat(const aclTensor *self, const aclTensor *out)
-{
-    // 输入输出的格式需要一致
-    if (self->GetStorageFormat() != out->GetStorageFormat()) {
-        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
-                ToString(self->GetStorageFormat()).GetString(), ToString(out->GetStorageFormat()).GetString());
-        return false;
+    if (outFlag) {
+        // 检查normOut的数据类型是否在算子的支持列表内
+        OP_CHECK_DTYPE_NOT_SUPPORT(normOut, DTYPE_SUPPORT_LIST, return false);
+        // 检查sumOut的数据类型是否在算子的支持列表内
+        OP_CHECK_DTYPE_NOT_SUPPORT(sumOut, DTYPE_SUPPORT_LIST, return false);
     }
     return true;
 }
 
-static bool CheckShape(const aclTensor *x, const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut,
-                       int64_t numIters, int64_t outFlag)
+static bool CheckFormat(const aclTensor *x, int64_t outFlag, const aclTensor *output, const aclTensor *normOut,
+                        const aclTensor *sumOut)
+{
+    // 输入输出的格式需要一致
+    if (x->GetStorageFormat() != output->GetStorageFormat()) {
+        OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+                ToString(x->GetStorageFormat()).GetString(), ToString(output->GetStorageFormat()).GetString());
+        return false;
+    }
+    if (outFlag) {
+        if (x->GetStorageFormat() != normOut->GetStorageFormat()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+                    ToString(x->GetStorageFormat()).GetString(), ToString(normOut->GetStorageFormat()).GetString());
+            return false;
+        }
+        if (x->GetStorageFormat() != output->GetStorageFormat()) {
+            OP_LOGE(ACLNN_ERR_PARAM_INVALID, "Format of input and output should be same. self [%s], out [%s].",
+                    ToString(x->GetStorageFormat()).GetString(), ToString(sumOut->GetStorageFormat()).GetString());
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool CheckShape(const aclTensor *x, int64_t outFlag, const aclTensor *output, const aclTensor *normOut,
+                       const aclTensor *sumOut, int64_t numIters)
 {
     // 校验self的shape是否等于out的shape
     OP_CHECK_SHAPE_NOT_EQUAL(x, output, return false);
+    if (outFlag) {
+        OP_CHECK_SHAPE_NOT_EQUAL(x, normOut, return false);
+        OP_CHECK_SHAPE_NOT_EQUAL(x, sumOut, return false);
+    }
 
     // numIters在1~100范围内
     if (numIters <= MIN_NUMITERS || numIters > MAX_NUMITERS) {
@@ -121,29 +143,34 @@ static inline aclnnStatus CheckParams(const aclTensor *x, int64_t outFlag, float
                                       const aclTensor *output, const aclTensor *normOut, const aclTensor *sumOut)
 {
     // 1. 检查参数是否为空指针
-    CHECK_RET(CheckNotNull(x, output, normOut, sumOut), ACLNN_ERR_PARAM_NULLPTR);
+    CHECK_RET(CheckNotNull(x, outFlag, output, normOut, sumOut), ACLNN_ERR_PARAM_NULLPTR);
 
     // 2. 检查输入的数据类型是否在API支持的数据类型范围之内
-    CHECK_RET(CheckDtypeValid(x, output, normOut, sumOut), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckDtypeValid(x, outFlag, output, normOut, sumOut), ACLNN_ERR_PARAM_INVALID);
 
     // 3. 检查输入形状是否满足
-    CHECK_RET(CheckShape(x, output, normOut, sumOut, numIters, outFlag), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckShape(x, outFlag, output, normOut, sumOut, numIters), ACLNN_ERR_PARAM_INVALID);
 
     // 4. 检查输入输出format是否一致
-    CHECK_RET(CheckFormat(x, output), ACLNN_ERR_PARAM_INVALID);
+    CHECK_RET(CheckFormat(x, outFlag, output, normOut, sumOut), ACLNN_ERR_PARAM_INVALID);
 
     return ACLNN_SUCCESS;
 }
 
-aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, int64_t outFlag, float eps, int64_t numIters,
-                                             aclTensor *output, aclTensor *normOut, aclTensor *sumOut,
-                                             uint64_t *workspaceSize, aclOpExecutor **executor)
+aclnnStatus aclnnMhcSinkhornGetWorkspaceSize(const aclTensor *x, float eps, int64_t numIters, aclTensor *output,
+                                             aclTensor *normOut, aclTensor *sumOut, uint64_t *workspaceSize,
+                                             aclOpExecutor **executor)
 {
-    L2_DFX_PHASE_1(aclnnMhcSinkhorn, DFX_IN(x, outFlag, eps, numIters), DFX_OUT(output, normOut, sumOut));
+    L2_DFX_PHASE_1(aclnnMhcSinkhorn, DFX_IN(x, eps, numIters), DFX_OUT(output, normOut, sumOut));
 
     // 固定写法，创建OpExecutor
     auto uniqueExecutor = CREATE_EXECUTOR();
     CHECK_RET(uniqueExecutor.get() != nullptr, ACLNN_ERR_INNER_CREATE_EXECUTOR);
+
+    int64_t outFlag = 1;
+    if (normOut == nullptr || sumOut == nullptr) {
+        outFlag = 0;
+    }
 
     // 固定写法，参数检查
     auto ret = CheckParams(x, outFlag, eps, numIters, output, normOut, sumOut);
