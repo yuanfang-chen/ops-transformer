@@ -446,16 +446,16 @@ namespace BSA {
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
 
             // pre
-            VecPre(params);
+            // VecPre(params);
 
-            // softmaxgrad
-            VecSoftMaxGrad(params);
+            // // softmaxgrad
+            // VecSoftMaxGrad(params);
 
-            // simply softmax
-            VecOp(params);
+            // // simply softmax
+            // VecOp(params);
 
-            // post
-            VecPost(params);
+            // // post
+            // VecPost(params);
         }
 
         __aicore__ inline
@@ -513,6 +513,7 @@ namespace BSA {
                 actualStrideKV = kvHeads * headDim;
             }
 
+            // uint32_t count = 0;
             uint32_t pingpongFlag = 0;
             uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
 
@@ -562,7 +563,7 @@ namespace BSA {
 
                             preTaskInfo = curInfo;
                             pingpongFlag = 1 - pingpongFlag;
-                            count++;
+                            // count++;
                         }
                         kvBlockBasicOffset += basicKVBlockSize;
                     }
