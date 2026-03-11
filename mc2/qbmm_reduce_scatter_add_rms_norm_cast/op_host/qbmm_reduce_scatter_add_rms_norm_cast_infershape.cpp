@@ -64,6 +64,7 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastInferShape(gert::InferShap
     OPS_CHECK_NULL_WITH_CONTEXT(context, gammaShape);
     OPS_CHECK_NULL_WITH_CONTEXT(context, scaleShape);
  
+    int64_t m = x1Shape->GetDim(0);
      // 获取输出shape
     gert::Shape* y1OutShape = context->GetOutputShape(OUTPUT_Y1_INDEX);
     gert::Shape* y2OutShape = context->GetOutputShape(OUTPUT_Y2_INDEX);
@@ -85,19 +86,19 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastInferShape(gert::InferShap
     // int64_t n = x2Shape->GetDim(2);
     // 设置y1输出shape [M, N/rank_size] (float)
     y1OutShape->SetDimNum(IDX_TWO);
-    y1OutShape->SetDim(IDX_ZERO, 63);
+    y1OutShape->SetDim(IDX_ZERO, m / 4);
     y1OutShape->SetDim(IDX_ONE, 5120);
     OP_LOGD(context->GetNodeName(), "y1 out shape set to [%ld, %ld]",63, 5120);
 
     // 设置y2输出shape [M, N/rank_size] (bf16)
     y2OutShape->SetDimNum(IDX_TWO);
-    y2OutShape->SetDim(IDX_ZERO, 63);
+    y2OutShape->SetDim(IDX_ZERO, m / 4);
     y2OutShape->SetDim(IDX_ONE, 5120);
     OP_LOGD(context->GetNodeName(), "y2 out shape set to [%ld, %ld]", 63, 5120);
 
     // 设置x输出shape [M, N/rank_size] (bf16)
     xOutShape->SetDimNum(IDX_TWO);
-    xOutShape->SetDim(IDX_ZERO, 63);
+    xOutShape->SetDim(IDX_ZERO, m / 4);
     xOutShape->SetDim(IDX_ONE, 5120);
     OP_LOGD(context->GetNodeName(), "x out shape set to [%ld, %ld]", 63, 5120);
 
@@ -112,10 +113,12 @@ static ge::graphStatus QbmmReduceScatterAddRmsNormCastInferDataType(gert::InferD
  
     OP_LOGD(context->GetNodeName(), "QbmmReduceScatterAddRmsNormCastInferDataType begin");
 
+    auto yDtype = context->GetInputDataType(INPUT_Y_INDEX);
+    ge::DataType y2_x_Dtype = yDtype;
     // 设置输出数据类型
     context->SetOutputDataType(OUTPUT_Y1_INDEX, ge::DT_FLOAT);
-    context->SetOutputDataType(OUTPUT_Y2_INDEX, ge::DT_BF16);
-    context->SetOutputDataType(OUTPUT_X_INDEX, ge::DT_BF16);
+    context->SetOutputDataType(OUTPUT_Y2_INDEX, y2_x_Dtype);
+    context->SetOutputDataType(OUTPUT_X_INDEX, y2_x_Dtype);
 
     OP_LOGD(context->GetNodeName(), "QbmmReduceScatterAddRmsNormCastInferDataType end");
     
