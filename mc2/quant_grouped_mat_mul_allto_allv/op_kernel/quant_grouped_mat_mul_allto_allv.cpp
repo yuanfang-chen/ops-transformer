@@ -9,18 +9,17 @@
   */
 
 /* !
-* \file grouped_mat_mul_allto_allv_apt.cpp
+* \file quant_grouped_mat_mul_allto_allv.cpp
 * \brief
 */
 #include "basic_api/kernel_basic_intf.h"
 #include "arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-#include "grouped_mat_mul_allto_allv_tiling_key.h"
-#include "grouped_mat_mul_allto_allv.h"
+#include "quant_grouped_mat_mul_allto_allv_tiling_key.h"
 
-#if __has_include("../allto_allv_grouped_mat_mul_v2/mc2_templates/mc2_templates.h")
-#include "../allto_allv_grouped_mat_mul_v2/mc2_templates/mc2_templates.h"
+#if __has_include("../quant_allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
+#include "../quant_allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"
 #else
-#include "../../allto_allv_grouped_mat_mul_v2/op_kernel/mc2_templates/mc2_templates.h"
+#include "../../quant_allto_allv_grouped_mat_mul/op_kernel/mc2_templates/mc2_templates.h"
 #endif
 
 #if defined(CONST_TILING)
@@ -57,7 +56,7 @@ struct GMMATAVType { // Grouped_Mat_Mul_All_To_Allv_Type
 template <
     bool TILINGKEY_COMPUTE_MATMUL, bool TILINGKEY_GROUPED_MATMUL_TRANS,
     bool TILINGKEY_MATMUL_TRANS, uint8_t TILINGKEY_GMM_QUANT_MODE, uint8_t TILINGKEY_SHARED_MM_QUANT_MODE>
-__global__ __aicore__ void grouped_mat_mul_allto_allv_v2(
+__global__ __aicore__ void quant_grouped_mat_mul_allto_allv(
     GM_ADDR gmmxGM, GM_ADDR gmmweightGM, GM_ADDR sendCountsTensorOptionalGM, GM_ADDR recvCountsTensorOptionalGM,
     GM_ADDR mmxOptionalGM, GM_ADDR mmweightOptionalGM, GM_ADDR gmmxScaleGM, GM_ADDR gmmWeightScaleGM,
     GM_ADDR mmxScaleGM, GM_ADDR mmWeightScaleGM, GM_ADDR commQuantScaleGM,

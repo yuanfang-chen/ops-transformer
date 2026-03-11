@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv_v2_gen_task_training.cpp
+ * \file quant_grouped_mat_mul_allto_allv_gen_task_training.cpp
  * \brief
  */
 #include <vector>
