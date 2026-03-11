@@ -235,16 +235,6 @@ aclnnStatus aclnnMoeDistributeDispatchSetup(
     <td>-</td>
     </tr>
     <tr>
-    <td>yDtype</td>
-    <td>输入</td>
-    <td>表示yOut的数据类型。</td>
-    <td>图模式场景下通过该属性指定yOut数据类型。</td>
-    <td>INT64</td>
-    <td>-</td>
-    <td>-</td>
-    <td>-</td>
-    </tr>
-    <tr>
     <td>yOut</td>
     <td>输出</td>
     <td>表示本卡待发送的通信数据，通信数据对输入token数据做了算法重排；如需量化，先将输入token做量化处理，再对数据做重排。</td>
