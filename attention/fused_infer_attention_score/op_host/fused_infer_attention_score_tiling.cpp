@@ -1365,7 +1365,7 @@ static ge::graphStatus ConvertContextToParamsFAI(gert::TilingContext *context, F
             (isLongSeq || isShortSeq)) {
             faInfo.flashDecodeFlag = true; 
         }
-        if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1) {
+        if (faInfo.pagedCacheFlag && maxQSeqlen == 1 && minQSeqlen == 1 && faInfo.maskType == MaskType::NO_MASK && !faInfo.lseFlag && !faInfo.learnableSinkFlag && (faInfo.innerPrecise == 0)) {
             faInfo.decodingFlag = true;
         }
     } else {
