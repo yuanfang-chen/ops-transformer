@@ -228,6 +228,7 @@ __aicore__ inline void AttentionmaskCopyInForGsLayout(LocalTensor<T> &attenMaskU
                     attenMaskUb[headS1Count * attenMaskSizeAlign], tailS1Size * attenMaskSizeAlign);
         }
     }
+    PipeBarrier<PIPE_V>();
 }
 
 template <typename T>
