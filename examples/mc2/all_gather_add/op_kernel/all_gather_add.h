@@ -112,7 +112,7 @@ __aicore__ inline void AllGatherAdd::Compute()
     AscendC::LocalTensor<half> gatherLocal = inputQueueGather.DeQue<half>();
     AscendC::LocalTensor<half> bLocal = inputQueueB.DeQue<half>();
     AscendC::LocalTensor<half> cLocal = outputQueueC.AllocTensor<half>();
-    AscendC::Add(cLocal, gatherLocal, bLocal, addTileElemNum_);
+    AscendC::Add(cLocal, gatherLocal, gatherLocal, addTileElemNum_);
     outputQueueC.EnQue<half>(cLocal);
     inputQueueGather.FreeTensor(gatherLocal);
     inputQueueB.FreeTensor(bLocal);
