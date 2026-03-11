@@ -1058,8 +1058,6 @@ bool GMMTiling::IsFixedAxisMoveCondition() {
                           && (groupListType_ == FIXAXISMOVE_GROUP_LIST_TYPE)
                           && (groupType_ == FIXAXISMOVE_GROUP_TYPE) && (actType_ == 0)
                           && !transposeWeight_;
-    bool isWorkspaceValid = (static_cast<int64_t>(FixedAxisMoveWorkspace_) <= tuningConfigWorkspace_) ||
-                           (tuningConfigWorkspace_ == -1);
     bool isFormatValid = (wFormat_ == matmul_tiling::CubeFormat::NZ);
 
     return isCorrectShape && isTuningInRange && isGroupCorrect && isA8W8_ &&
