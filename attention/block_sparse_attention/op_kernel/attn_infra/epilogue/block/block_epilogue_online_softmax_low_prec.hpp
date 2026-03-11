@@ -159,7 +159,7 @@ public:
     }
 
     __aicore__ inline
-    void RowsumTileFlexible(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowmaxUb,
+    void RowsumTileFlexible(const AscendC::LocalTensor<half> &srcUb, const AscendC::LocalTensor<half> &rowsumUb,
                             uint32_t numRowsRound, uint32_t numElemsAligned)
     {
         // Vector计算单元每个迭代最多处理256Byte数据，因此half低精度场景，每次迭代最多处理256/2=128个元素
