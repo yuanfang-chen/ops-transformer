@@ -16,7 +16,7 @@
 #include "mc2_gen_task_ops_utils.h"
 #include "platform/platform_info.h"
 #include "graph/ascend_string.h"
-#include "mc2_log.h"
+#include "mc2_common_log.h"
 
 namespace {
 constexpr int64_t INVALID_INT_VAL = -1;
