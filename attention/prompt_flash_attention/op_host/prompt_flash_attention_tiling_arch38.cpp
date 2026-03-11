@@ -1783,12 +1783,12 @@ bool PromptFlashAttentionTilingArch38::CheckPseShiftTypeAndShape(ContextParamsFo
     std::string layoutStr(contextKeyParams.layout);
     pseShiftElemType = contextKeyParams.pseShiftDataType;
 
-    OP_CHECK_IF((pseShiftElemType && inputType == ge::DT_FLOAT16 != ge::DT_FLOAT16),
+    OP_CHECK_IF(((pseShiftElemType != ge::DT_FLOAT16) && inputType == ge::DT_FLOAT16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "q type is fp16, but pse shift type is not fp16, pse shift type = %s", GetPfaDataTypeStr(pseShiftElemType).c_str()),
             return false);
 
-    OP_CHECK_IF((pseShiftElemType && inputType == ge::DT_BF16 != ge::DT_BF16),
+    OP_CHECK_IF(((pseShiftElemType != ge::DT_BF16) && inputType == ge::DT_BF16),
         OPS_REPORT_VECTOR_INNER_ERR(contextKeyParams.opName,
             "q type is bf16, but pse shift type is not bf16, pse shift type = %s", GetPfaDataTypeStr(pseShiftElemType).c_str()),
             return false);
@@ -1812,7 +1812,7 @@ bool PromptFlashAttentionTilingArch38::CheckPseShiftTypeAndShape(ContextParamsFo
     pseShiftTypeByteNum = BYTE_BLOCK / pseShiftElemSize;
 
     pseShiftBatch = pseShiftShape->GetStorageShape().GetDim(0);
-    int64_t pseShiftN = pseShiftShape->GetStorageShape().GetDim(1); // 1: The sirst dimension is N.
+    int64_t pseShiftN = pseShiftShape->GetStorageShape().GetDim(1); // 1: The first dimension is N.
     pseShiftS1 = pseShiftShape->GetStorageShape().GetDim(2); // 2: The second dimension is S1.
     pseShiftS2 = pseShiftShape->GetStorageShape().GetDim(3); // 3: The third dimension is S2.
     OP_CHECK_IF(((pseShiftN != n) || (pseShiftBatch != 1 && pseShiftBatch != b) || (pseShiftS1 < s1) || (pseShiftS2 < s2)),
