@@ -106,8 +106,8 @@ ge::graphStatus BSATiling::GetNpuInfo(gert::TilingContext *rfaContext)
     ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize_);
     libapiSize_ = ascendcPlatform.GetLibApiWorkSpaceSize();
     aivNum_ = ascendcPlatform.GetCoreNumAiv();
-    aicNum_ = ascendcPlatform.GetCoreNumAic();
-    
+    // aicNum_ = ascendcPlatform.GetCoreNumAic();
+    aicNum_ = 1;
     return ge::GRAPH_SUCCESS;
 }
 
@@ -834,6 +834,9 @@ ge::graphStatus BSATiling::CalculateTaskSplit(gert::TilingContext *rfaContext)
         totalQBlocks_ += curQBlockNum;
     }
     blockDim_ = std::min(aicNum_, totalTaskNum_);
+    uint32_t totalTaskNumMask = batch_ * numHeads_ * maxQBlockNum_;
+    avgRowPerSubCore_ = CeilDiv(totalTaskNumMask, blockDim_ * 2);
+    preActivateSubCoreNum_ = CeilDiv(totalTaskNumMask, avgRowPerSubCore_);
     return ge::GRAPH_SUCCESS;
 }
 
@@ -885,6 +888,8 @@ ge::graphStatus BSATiling::FillTilingData(gert::TilingContext *rfaContext)
     tilingData_->set_totalQBlocks(totalQBlocks_);
     tilingData_->set_maxKvBlockNum(maxKvBlockNum_);
     tilingData_->set_maxQBlockNum(maxQBlockNum_);
+    tilingData_->set_avgRowPerSubCore(avgRowPerSubCore_);
+    tilingData_->set_preActivateSubCoreNum(preActivateSubCoreNum_);
     
     tilingData_->set_kvCacheLayout(static_cast<uint32_t>(kvCacheLayout_));
     tilingData_->set_queryLayout(static_cast<uint32_t>(qInputLayout_));
