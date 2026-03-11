@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv_infer_shape.cc
+ * \file quant_grouped_mat_mul_allto_allv_infer_shape.cc
  * \brief
  */
 
@@ -209,7 +209,7 @@ static ge::graphStatus InferDataTypeGroupedMatMulAlltoAllv(gert::InferDataTypeCo
     return ge::GRAPH_SUCCESS;
 }
 
-IMPL_OP_INFERSHAPE(GroupedMatMulAlltoAllvV2)
+IMPL_OP_INFERSHAPE(QuantGroupedMatMulAlltoAllv)
     .InferShape(InferShapeGroupedMatMulAlltoAllv)
     .InferDataType(InferDataTypeGroupedMatMulAlltoAllv);
 }  // namespace ops

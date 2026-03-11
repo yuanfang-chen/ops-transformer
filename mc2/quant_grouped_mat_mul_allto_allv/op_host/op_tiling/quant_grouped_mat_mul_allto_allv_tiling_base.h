@@ -9,7 +9,7 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv_tiling_base.h
+ * \file quant_grouped_mat_mul_allto_allv_tiling_base.h
  * \brief
  */
 #ifndef MC2_GROUPED_MATMUL_ALLTO_ALLV_TILING_H

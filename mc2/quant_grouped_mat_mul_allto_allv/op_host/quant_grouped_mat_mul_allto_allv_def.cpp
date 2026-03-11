@@ -9,17 +9,17 @@
  */
 
 /*!
- * \file grouped_mat_mul_allto_allv_def.cpp
+ * \file quant_grouped_mat_mul_allto_allv_def.cpp
  * \brief
  */
 #include "register/op_def_registry.h"
 
 namespace ops
 {
-class GroupedMatMulAlltoAllvV2 : public OpDef
+class QuantGroupedMatMulAlltoAllv : public OpDef
 {
 public:
-    explicit GroupedMatMulAlltoAllvV2(const char* name) : OpDef(name)
+    explicit QuantGroupedMatMulAlltoAllv(const char* name) : OpDef(name)
     {
         this->Input("gmm_x")
             .ParamType(REQUIRED)
@@ -203,5 +203,5 @@ public:
     }
 };
 
-OP_ADD(GroupedMatMulAlltoAllvV2);
+OP_ADD(QuantGroupedMatMulAlltoAllv);
 }  // namespace ops
