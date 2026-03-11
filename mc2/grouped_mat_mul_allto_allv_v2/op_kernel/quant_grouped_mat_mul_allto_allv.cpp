@@ -9,13 +9,12 @@
   */
 
 /* !
-* \file grouped_mat_mul_allto_allv_apt.cpp
+* \file quant_grouped_mat_mul_allto_allv.cpp
 * \brief
 */
 #include "basic_api/kernel_basic_intf.h"
 #include "arch35/quant_grouped_mat_mul_allto_allv_tiling.h"
-#include "grouped_mat_mul_allto_allv_tiling_key.h"
-#include "grouped_mat_mul_allto_allv.h"
+#include "quant_grouped_mat_mul_allto_allv_tiling_key.h"
 
 #if __has_include("../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h")
 #include "../allto_allv_grouped_mat_mul/mc2_templates/mc2_templates.h"

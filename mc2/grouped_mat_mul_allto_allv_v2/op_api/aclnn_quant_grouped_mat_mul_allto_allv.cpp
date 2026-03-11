@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "aclnn_grouped_mat_mul_allto_allv_v2.h"
+#include "aclnn_quant_grouped_mat_mul_allto_allv.h"
 #include "acl/acl.h"
 #include "aclnn_kernels/common/op_error_check.h"
 #include "aclnn_kernels/transdata.h"
@@ -50,7 +50,7 @@ enum class NnopbaseHcclServerType : uint32_t { // HCCL Server
 static constexpr int64_t DIM_TWO = 2;
 static constexpr int64_t DIM_THREE = 3;
 
-extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvV2GetWorkspaceSize(
+extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *sendCountsTensorOptional,
     const aclTensor *recvCountsTensorOptional, const aclTensor *mmXOptional, const aclTensor *mmWeightOptional,
     const aclTensor *gmmXScaleOptional, const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
@@ -62,7 +62,7 @@ extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvV2GetWorkspaceSize(
     int64_t groupSize, int64_t commQuantDtypeOptional, const aclTensor *yOut, const aclTensor *mmYOptional,
     uint64_t *workspaceSize, aclOpExecutor **executor);
 
-extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllvV2(void *workspace, uint64_t workspaceSize,
+extern "C" aclnnStatus aclnnInnerGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize,
                                                         aclOpExecutor *executor, aclrtStream stream);
 extern "C" void __attribute__((weak)) NnopbaseSetHcclServerType(void *executor, NnopbaseHcclServerType sType);
 
@@ -372,7 +372,7 @@ static aclnnStatus CheckParams(const aclTensor *gmmX, const aclTensor *gmmWeight
     return ACLNN_SUCCESS;
 }
 
-extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2GetWorkspaceSize(
+extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvGetWorkspaceSize(
     const aclTensor *gmmX, const aclTensor *gmmWeight, const aclTensor *gmmXScaleOptional,
     const aclTensor *gmmWeightScaleOptional, const aclTensor *gmmXOffsetOptional,
     const aclTensor *gmmWeightOffsetOptional, const aclTensor *sendCountsTensorOptional,
@@ -397,7 +397,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2GetWorkspaceSize(
 
     char *strGroup = const_cast<char *>(group);
 
-    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvV2GetWorkspaceSize(
+    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvGetWorkspaceSize(
         gmmX, gmmWeight, sendCountsTensorOptional, recvCountsTensorOptional, mmXOptional, mmWeightOptional,
         gmmXScaleOptional, gmmWeightScaleOptional, gmmXOffsetOptional, gmmWeightOffsetOptional, mmXScaleOptional,
         mmWeightScaleOptional, mmXOffsetOptional, mmWeightOffsetOptional, commQuantScaleOptional, strGroup, epWorldSize,
@@ -406,7 +406,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2GetWorkspaceSize(
     return ret;
 }
 
-extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2(void *workspace, uint64_t workspaceSize,
+extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllv(void *workspace, uint64_t workspaceSize,
                                                         aclOpExecutor *executor, aclrtStream stream)
 {
     if (NnopbaseSetHcclServerType) {
@@ -414,7 +414,7 @@ extern "C" aclnnStatus aclnnQuantGroupedMatMulAlltoAllvV2(void *workspace, uint6
             NnopbaseSetHcclServerType(executor, NnopbaseHcclServerType::NNOPBASE_HCCL_SERVER_TYPE_CCU);
         }
     }
-    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllvV2(workspace, workspaceSize, executor, stream);
+    aclnnStatus ret = aclnnInnerGroupedMatMulAlltoAllv(workspace, workspaceSize, executor, stream);
     return ret;
 }
 } // namespace
