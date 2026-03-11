@@ -96,24 +96,25 @@ uint64_t GMMFRWeightQuantTiling::GetTilingKey() constexpr
 // 6、计算Workspace 大小
 ge::graphStatus GMMFRWeightQuantTiling::GetWorkspaceSize()
 {
-    size_t *workspaces = context->GetWorkspaceSizes(1);  // get second variable
-    OP_CHECK_IF(workspaces == nullptr, OP_LOGE(context->GetNodeName(), "workspaces is nullptr."),
-                return false);  // check workspaces is not null
+    size_t *workspaces = context_->GetWorkspaceSizes(1);  // get second variable
+    OP_CHECK_IF(workspaces == nullptr, OP_LOGE(context_->GetNodeName(), "workspaces is nullptr."),
+                return ge::GRAPH_FAILED);  // check workspaces is not null
     workspaces[0] = 16777216U;  // 16 * 1024 * 1024: default workspace size
+    return ge::GRAPH_SUCCESS;
 }
 
 // 7、保存Tiling数据
 ge::graphStatus GMMFRWeightQuantTiling::PostTiling()
 {
-    context->SetBlockDim(coreNum_);
-    OP_CHECK_IF(context->GetRawTilingData() == nullptr, OP_LOGE(context->GetNodeName(), "RawTilingData is nullptr."),
-                return false);
-    errno_t ret = memcpy_s(context->GetRawTilingData()->GetData(), context->GetRawTilingData()->GetCapacity(), reinterpret_cast<void *>(&tilingData_), sizeof(tilingData_));
+    context_->SetBlockDim(coreNum_);
+    OP_CHECK_IF(context_->GetRawTilingData() == nullptr, OP_LOGE(context_->GetNodeName(), "RawTilingData is nullptr."),
+                return ge::GRAPH_FAILED);
+    errno_t ret = memcpy_s(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity(), reinterpret_cast<void *>(&tilingData_), sizeof(tilingData_));
     if (ret != EOK) {
-        OP_LOGE(context->GetNodeName(), "memcpy_s failed, ret = %d", ret);
-        return false;
+        OP_LOGE(context_->GetNodeName(), "memcpy_s failed, ret = %d", ret);
+        return ge::GRAPH_FAILED;
     }
-    context->GetRawTilingData()->SetDataSize(sizeof(tilingData_));
+    context_->GetRawTilingData()->SetDataSize(sizeof(tilingData_));
     return ge::GRAPH_SUCCESS;
 }
 
@@ -282,7 +283,7 @@ bool CheckMxA8W4AttrWithInput(gert::TilingContext *contex) {
             OP_LOGE(contex->GetNodeName(), "Attr shareInputOffset should be >=0."),
             return false);
         OP_CHECK_IF(
-            (*shareInputOffsetPtr) + sharedInputStorageShape->GetDim(0) > outputBS,
+            (*shareInputOffsetPtr) + sharedInputStorageShape->GetOriginShape().GetDim(0) > outputBS,
             OP_LOGE(contex->GetNodeName(), "Attr shareInputOffset[%lu] should less or equal to outputBS[%ld].", 
             (*shareInputOffsetPtr), outputBS),
             return false);
@@ -358,7 +359,7 @@ bool SetMxA8W4NzInput(gert::TilingContext *contex, GMMFRWeightQuantInputParams& 
     if (sharedInputDesc != nullptr) {
         auto sharedInputStorageShape = contex->GetInputShape(SHARE_INPUT_INDEX);
         OP_CHECK_IF(sharedInputStorageShape == nullptr, OP_LOGE(contex->GetNodeName(), "Input sharedInputStorageShape is nullptr."), return false);
-        inputParams.sharedInputLen = sharedInputStorageShape->GetDim(0);
+        inputParams.sharedInputLen = sharedInputStorageShape->GetOriginShape().GetDim(0);
     } else {
         inputParams.sharedInputLen = 0;
         inputParams.residualScale = 0.0f;

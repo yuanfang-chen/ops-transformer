@@ -21,6 +21,7 @@
 #include <unordered_set>
 #include <vector>
 #include <functional>
+#include <string>
 #include "log/log.h"
 #include "register/op_impl_registry.h"
 #include "register/tilingdata_base.h"
@@ -49,6 +50,7 @@ enum class ScenarioType {
 
 
 struct GMMFRWeightQuantInputParams {
+    std::string opName;
     ge::DataType xDtype = ge::DT_INT8;
     ge::DataType wDtype = ge::DT_INT8;
     ge::Format wFormat = ge::FORMAT_ND;
@@ -56,7 +58,7 @@ struct GMMFRWeightQuantInputParams {
     bool xTrans = false;
     bool wTrans = false;
 
-    float sharedInputWeight = 0.0;
+    float sharedInputWeight = 0.0f;
     int64_t shareInputOffset = 0;
 
     int64_t mSize = -1;
@@ -175,6 +177,9 @@ class GMMFRWeightQuantTiling : public Ops::Transformer::OpTiling::TilingBaseClas
         bool SetMxA8W4NzInputFunc();
         bool SetMxA8W4NzConditionFunc();
         bool RunCheckFunc();
+        bool InferScenario();
+        
+        int64_t coreNum_ = 0;
     };
 } // namespace GroupedMatmulFinalizeRoutingArch35WeightQuantTiling
 } // namespace optiling
