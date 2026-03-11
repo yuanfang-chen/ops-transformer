@@ -99,7 +99,7 @@ COMBINE_TOKENFLAG_SIZE = align32((maxBs + (aivNum / (epWorldSize / 8) + 1)) * si
 | IPC Flag  | Combine Sync Flag 1: GM2IPC                  | (W/2 - 2)MB                                  | 8 * 32B = 256B                            | GetLocalIpcSyncFlagAddr, GetRemoteIpcSyncFlagAddr             |
 | IPC Flag  | Combine Sync Flag 2: SumToWindow--server 0-n | (W/2 - 2)MB + 288B                           | COMBINE_TOKENFLAG_SIZE * epWorldSize / 8B | GetIpcTokenFlagAddr                                           |
 | IPC Flag  | Dispatch Sync flag                           | (W/2 - 1)MB                                  | 8 * 32B = 256B                            | GetLocalIpcSyncFlagAddr, GetRemoteIpcSyncFlagAddr             |
-| IPC Flag  | Magic Value, BufferId = Magic Value & 0x1    | W/2MB - 128 * 32B                            | aivNum * 32B                              | UpdateAndGetMagicValue                                        |
+| IPC Flag  | Magic Value, BufferId = Magic Value & 0x1    | W/2MB - 128 * 32B                            | aivNum * 32B                              | UpdateMagicValue, GetMagicValue                               |
 | Pong RDMA | Arrived Flag                                 | W/2MB                                        | A1                                        | GetLocalRecvBuffFlagAddr, GetRemoteRecvBuffFlagAddr           |
 | Pong RDMA | Inner Flag                                   | W/2MB + A1                                   | A1                                        | GetLocalRecvBuffInnerFlagAddr, GetRemoteRecvBuffInnerFlagAddr |
 | Pong RDMA | Inner Data                                   | W/2MB + 2 * A1                               | 1MB - 2 * A1                              | GetLocalRecvBuffInnerDataAddr, GetRemoteRecvBuffInnerDataAddr |
@@ -141,6 +141,22 @@ protected:
     constexpr static uint64_t IPC_TOKEN_CNT_OFFSET = 0UL;
     constexpr static uint64_t IPC_HALF_NON_DATA_BYTES = 2 * 1024 * 1024UL;
 
+private:
+    __aicore__ inline void UpdateMagicValue()
+    {
+        GM_ADDR magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
+        AscendC::GlobalTensor<uint64_t> magicGt;
+        magicGt.SetGlobalBuffer((__gm__ uint64_t *)(magicAddrStart));
+        auto tempLocal = AscendC::LocalTensor<uint64_t>{AscendC::TPosition::LCM, 0, UB_32B_ALIGN / sizeof(uint64_t)};
+        AscendC::DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
+        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
+        tempLocal(0) += 1UL;
+        AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
+        AscendC::DataCopy(magicGt, tempLocal, UB_32B_ALIGN / sizeof(uint64_t));
+        AscendC::PipeBarrier<PIPE_ALL>();
+        magicValue_ = tempLocal(0);
+    }
+
 public:
     __aicore__ inline void Init(uint32_t rankId, uint32_t maxBs, uint32_t worldSize, uint32_t axisH, uint32_t axisK, uint32_t localMoeExpertNum, uint32_t aivNum)
     {
@@ -172,28 +188,16 @@ public:
         localWindowInGM_ = context_.GetWindowsInAddr(curRankId_);
 
         // rdma addr
+        UpdateMagicValue();
         // Get BufferId
-        GM_ADDR magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
-        AscendC::GlobalTensor<uint64_t> magicGt;
-        magicGt.SetGlobalBuffer((__gm__ uint64_t *)(magicAddrStart));
-        uint64_t bufferId = magicGt.GetValue(0) & 0x1;
+        uint64_t bufferId = magicValue_ & 0x1;
         rdmaFlagAddrStart_ = (bufferId & 0x1) ? (winSize / 2UL) : 0UL;
         rdmaDataAddrStart_ = rdmaFlagAddrStart_ + RDMA_STATUS_SIZE;
     }
 
-    __aicore__ inline uint64_t UpdateAndGetMagicValue()
+    __aicore__ inline uint64_t GetMagicValue() const
     {
-        GM_ADDR magicAddrStart = shareAddrs[curRankId_ % SERVER_RANK_SIZE] + ipcFlagAddrStart_[0] + IPC_MAGIC_OFFSET + aivId_ * UB_32B_ALIGN;
-        AscendC::GlobalTensor<uint64_t> magicGt;
-        magicGt.SetGlobalBuffer((__gm__ uint64_t *)(magicAddrStart));
-        auto tempLocal = AscendC::LocalTensor<uint64_t>{AscendC::TPosition::LCM, 0, UB_32B_ALIGN / sizeof(uint64_t)};
-        AscendC::DataCopy(tempLocal, magicGt, UB_32B_ALIGN / sizeof(uint64_t));
-        AscendC::SyncFunc<AscendC::HardEvent::MTE2_S>();
-        tempLocal(0) += 1UL;
-        AscendC::SyncFunc<AscendC::HardEvent::S_MTE3>();
-        AscendC::DataCopy(magicGt, tempLocal, UB_32B_ALIGN / sizeof(uint64_t));
-        AscendC::PipeBarrier<PIPE_ALL>();
-        return tempLocal(0);
+        return magicValue_;
     }
 
     // ===== Sender =====
@@ -244,16 +248,15 @@ public:
     }
 
 protected:
-    AscendC::GlobalTensor<uint32_t> bufferChosenGlobal_;
     uint32_t curRankId_{0U};
     uint32_t aivId_{0};
-    uint32_t bufferId_{0U};
     uint32_t serverNum_{0U};
     uint32_t worldSize_{0U};
     uint32_t halfWorldSize_{0U};
     uint32_t localMoeExpertNum_{0U};
     uint64_t serverSizeOnRdmaData_{0UL};
     uint64_t rankSizeOnIpcData_{0UL};
+    uint64_t magicValue_{0UL};
 
     uint64_t ipcFlagAddrStart_[2]{0UL};
     uint64_t ipcDataAddrStart_[2]{0UL};

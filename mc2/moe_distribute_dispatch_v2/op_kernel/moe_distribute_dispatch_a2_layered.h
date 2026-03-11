@@ -313,7 +313,8 @@ __aicore__ inline void MoeDistributeDispatchA2Layered<TemplateMC2TypeA2layeredFu
     }
 
     // 每次调用magic++,用来区分不同轮次
-    magicVal_ = addrInfo_.UpdateAndGetMagicValue();
+    magicVal_ = addrInfo_.GetMagicValue();
+    AscendC::PipeBarrier<PIPE_ALL>();
 }
 
 template <TemplateMC2TypeA2layeredClass>
