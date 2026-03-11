@@ -11,14 +11,11 @@
 #ifndef CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_FAG_PRE_HPP
 #define CATLASS_EPILOGUE_BLOCK_BLOCK_EPILOGUE_FAG_PRE_HPP
 
-// #include "catlass/catlass.hpp"
-// #include "catlass/arch/resource.hpp"
-// #include "catlass/epilogue/dispatch_policy.hpp"
-// #include "catlass/epilogue/tile/tile_copy.hpp"
-// #include "catlass/gemm_coord.hpp"
-// #include "catlass/matrix_coord.hpp"
-// #include "kernel_operator.h"
-// #include "fag_common/common_header.h"
+#include "../../../attn_infra/arch/resource.hpp"
+#include "../../../attn_infra/epilogue/dispatch_policy.hpp"
+#include "kernel_operator.h"
+#include "lib/matmul_intf.h"
+#include "lib/matrix/matmul/tiling.h"
 
 using namespace AscendC;
 namespace NpuArch::Epilogue::Block {
@@ -37,61 +34,87 @@ public:
     using DispatchPolicy = EpilogueAtlasA2FAGPre;
     using ArchTag = typename DispatchPolicy::ArchTag;
 
-    TPipe *pipe;
+    struct Params {
+        // Data members
+        // GM_ADDR dq;
+        // GM_ADDR dk;
+        // GM_ADDR dv;
+        // GM_ADDR blockSparseMask; 
+        // GM_ADDR blockShape;
+        GM_ADDR dqWrk; 
+        GM_ADDR dkWrk;
+        GM_ADDR dvWrk;
+        GM_ADDR tilingData;
+
+        // Methods
+        __aicore__ inline
+        Params() {}
+
+        __aicore__ inline
+        Params(
+            // GM_ADDR dq_, GM_ADDR dv_, GM_ADDR dv_,
+            GM_ADDR dqWrk_, GM_ADDR dkWrk_, GM_ADDR dvWrk_,
+            GM_ADDR tilingData_
+        ) : 
+            // dq(dq_), dk(dk_), dv(dv_)
+            dqWrk(dqWrk_), dkWrk(dkWrk_), dvWrk(dvWrk_),
+            tilingData(tilingData_)
+        {
+            
+        }    
+    };
+
     GlobalTensor<float> dqWorkSpaceGm, dkWorkSpaceGm, dvWorkSpaceGm;
+    uint64_t cBlockIdx;
 
-    uint32_t cBlockIdx;
-    // query
-    uint32_t qPreBlockFactor;
-    uint32_t qPreBlockTotal;
-    uint32_t qPreBlockTail;
-    uint32_t kvPreBlockFactor;
-    uint32_t kvPreBlockTotal;
-    uint32_t kvPreBlockTail;
+    uint64_t qPreBlockFactor = 0;
+    uint64_t qPreBlockTotal = 0;
+    uint64_t qPreTailNumTmp = 0;
+    uint64_t qPreTailNum = 0;
+    uint64_t qSizeAlign = 0;
+    uint64_t initdqSize = 0;
+    uint64_t dqOffset = 0;
 
-    int64_t initdqSize;
-    int64_t dqOffset;
-    int64_t initdkSize;
-    int64_t dkvOffset;
+    uint64_t kvPreBlockFactor = 0;
+    uint64_t kvPreBlockTotal = 0;
+    uint64_t kvPreTailNumTmp = 0;
+    uint64_t kvPreTailNum = 0;
+    uint64_t kvSizeAlign = 0;
+    uint64_t initdkSize = 0;
+    uint64_t dkvOffset = 0;
+
+    uint64_t usedCoreNum = 0;
 
     __aicore__ inline
-    BlockEpilogue(Arch::Resource<ArchTag> &resource, TPipe *pipe_in, __gm__ uint8_t *dq, 
-        __gm__ uint8_t *dk, __gm__ uint8_t *dv, __gm__ uint8_t *workspace, __gm__ uint8_t * tiling_in)
+    BlockEpilogue(Params const &params)
     {
-        // cBlockIdx = GetBlockIdx();
-        // pipe = pipe_in;
+        cBlockIdx = GetBlockIdx();
+        __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tilingData);
+        usedCoreNum = tilingData->usedVecCoreNum; // 先按这个把，得适配
+        if (cBlockIdx >= usedCoreNum) {
+            return;
+        }
 
-        // AscendC::GlobalTensor<uint64_t> tilingData;
-        // tilingData.SetGlobalBuffer((__gm__ uint64_t *)tiling_in);
-        // int64_t dqWorkSpaceOffset = tilingData.GetValue(TILING_DQ_WORKSPACE_OFFSET);
-        // int64_t dkWorkSpaceOffset = tilingData.GetValue(TILING_DK_WORKSPACE_OFFSET);
-        // int64_t dvWorkSpaceOffset = tilingData.GetValue(TILING_DV_WORKSPACE_OFFSET);
-        // int64_t qSize = tilingData.GetValue(TILING_Q_SIZE);
-        // int64_t kvSize = tilingData.GetValue(TILING_KV_SIZE);
+        qSizeAlign = tilingData->dqSize;
+        kvSizeAlign = tilingData->dkvSize;
+        qPreBlockFactor = (qSizeAlign + usedCoreNum - 1) / usedCoreNum;
+        qPreBlockTotal = (qSizeAlign + qPreBlockFactor - 1) / qPreBlockFactor;
+        qPreTailNumTmp = qSizeAlign % qPreBlockFactor;
+        qPreTailNum = qPreTailNumTmp == 0 ? qPreBlockFactor : qPreTailNumTmp;
 
-        // AscendC::GlobalTensor<uint32_t> tilingDataU32;
-        // tilingDataU32.SetGlobalBuffer((__gm__ uint32_t *)tiling_in);;
-        // uint32_t coreNum = tilingDataU32.GetValue(TILING_CORE_NUM * CONST_2);
+        kvPreBlockFactor = (kvSizeAlign + usedCoreNum - 1) / usedCoreNum;
+        kvPreBlockTotal = (kvSizeAlign + kvPreBlockFactor - 1) / kvPreBlockFactor;
+        kvPreTailNumTmp = kvSizeAlign % kvPreBlockFactor;
+        kvPreTailNum = kvPreTailNumTmp == 0 ? kvPreBlockFactor : kvPreTailNumTmp;
 
-        // // compute tiling params
-        // qPreBlockFactor = (qSize + coreNum - 1) / coreNum;
-        // qPreBlockTotal = (qSize + qPreBlockFactor - 1) / qPreBlockFactor;
-        // int64_t qPreTailNumTmp = qSize % qPreBlockFactor;
-        // qPreBlockTail = qPreTailNumTmp == 0 ? qPreBlockFactor : qPreTailNumTmp;
+        dqWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dqWrk);
+        dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dkWrk);
+        dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)params.dvWrk);
 
-        // kvPreBlockFactor = (kvSize + coreNum - 1) / coreNum;
-        // kvPreBlockTotal = (kvSize + kvPreBlockFactor - 1) / kvPreBlockFactor;
-        // int64_t kvPreTailNumTmp = kvSize % kvPreBlockFactor;
-        // kvPreBlockTail = kvPreTailNumTmp == 0 ? kvPreBlockFactor : kvPreTailNumTmp;
-
-        // dqWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace + dqWorkSpaceOffset / sizeof(float));
-        // dkWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace + dkWorkSpaceOffset / sizeof(float));
-        // dvWorkSpaceGm.SetGlobalBuffer((__gm__ float *)workspace + dvWorkSpaceOffset / sizeof(float));
-
-        // initdqSize = cBlockIdx == qPreBlockTotal - 1 ? qPreBlockTail : qPreBlockFactor;
-        // dqOffset = ((int64_t)cBlockIdx) * qPreBlockFactor;
-        // initdkSize = cBlockIdx == kvPreBlockTotal - 1 ? kvPreBlockTail : kvPreBlockFactor;
-        // dkvOffset = ((int64_t)cBlockIdx) * kvPreBlockFactor;
+        initdqSize = cBlockIdx == qPreBlockTotal - 1 ? qPreTailNum : qPreBlockFactor;
+        dqOffset = ((uint64_t)cBlockIdx) * qPreBlockFactor;
+        initdkSize = cBlockIdx == kvPreBlockTotal - 1 ? kvPreTailNum : kvPreBlockFactor;
+        dkvOffset = ((uint64_t)cBlockIdx) * kvPreBlockFactor;
     }
 
     __aicore__ inline
@@ -99,18 +122,34 @@ public:
     {
     }
 
+    template <int32_t CORE_TYPE = g_coreType>
     __aicore__ inline
-    void operator()()
-    {
-        // // process clear dq dk dv workspace
-        // if (g_coreType == AIV && cBlockIdx < qPreBlockTotal) {
-        //     InitOutput<float>(dqWorkSpaceGm[dqOffset], initdqSize, 0);
-        // }
+    void operator()();
 
-        // if (g_coreType == AIV && cBlockIdx < kvPreBlockTotal) {
-        //     InitOutput<float>(dkWorkSpaceGm[dkvOffset], initdkSize, 0);
-        //     InitOutput<float>(dvWorkSpaceGm[dkvOffset], initdkSize, 0);
-        // }
+    template <>
+    __aicore__ inline
+    void operator()<AscendC::AIC>()
+    {
+
+    }
+
+    template <>
+    __aicore__ inline
+    void operator()<AscendC::AIV>()
+    {
+        if (cBlockIdx >= usedCoreNum) {
+            return;
+        }
+
+        // process clear dq dk dv workspace
+        if (cBlockIdx < qPreBlockTotal) {
+            matmul::InitOutput<float>(dqWorkSpaceGm[dqOffset], initdqSize, 0);
+        }
+
+        if (cBlockIdx < kvPreBlockTotal) {
+            matmul::InitOutput<float>(dkWorkSpaceGm[dkvOffset], initdkSize, 0);
+            matmul::InitOutput<float>(dvWorkSpaceGm[dkvOffset], initdkSize, 0);
+        }
     }
 
 };
