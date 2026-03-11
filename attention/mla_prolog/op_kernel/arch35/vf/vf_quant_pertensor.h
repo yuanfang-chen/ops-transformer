@@ -27,6 +27,8 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
     // float -> fp8e4m3 类型转换模式结构体
     static constexpr MicroAPI::CastTrait CAST_TRAIT = {MicroAPI::RegLayout::ZERO,
                 MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_RINT};
+    static constexpr MicroAPI::CastTrait CAST_TRAIT2 = {MicroAPI::RegLayout::ZERO,
+                MicroAPI::SatMode::NO_SAT, MicroAPI::MaskMergeMode::ZEROING, RoundMode::CAST_ROUND};
     MicroAPI::RegTensor<T> vregSrc;
     MicroAPI::RegTensor<T> vregQuantScale;
     MicroAPI::RegTensor<T> vregFloat;
@@ -42,8 +44,11 @@ __simd_vf__ void QuantPerTensorVFImpl(__ubuf__ T * inputBuf, __ubuf__ T * quantS
             MIcroAPI::Cast<float, T, CAST_TRAIT>(vregFloat, vregSrc, pregAll);
         }
         MicroAPI::Mul<T, MicroAPI::MaskMergeMode::ZEROING>(vregFloat, vregFloat, vregQuantScale, pregAll);
-        
-        MicroAPI::Cast<U, float, CAST_TRAIT>(vregRes, vregFloat, pregAll);
+        if constexpr(std::is_same<U, hifloat8_t>::value){
+            MicroAPI::Cast<U, float, CAST_TRAIT2>(vregRes, vregFloat, pregAll);
+        } else {
+            MicroAPI::Cast<U, float, CAST_TRAIT>(vregRes, vregFloat, pregAll);
+        }
         MicroAPI::StoreAlign<U, MicroAPI::StoreDist::DIST_PACK4_B32>(outputBuf + loopOffset, vregRes, pregAll);   
     }
 }
