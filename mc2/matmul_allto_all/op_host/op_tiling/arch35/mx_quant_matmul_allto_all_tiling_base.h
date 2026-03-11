@@ -35,6 +35,7 @@ constexpr size_t X1_QUANTMODE_VALUES = 6;
 constexpr size_t X2_QUANTMODE_VALUES = 6;
 constexpr uint64_t MX_SCALE_OFFSET = 64;
 constexpr uint64_t EVEN_ALIGN = 2;
+constexpr uint64_t MX_GROUP_SIZE_K = 32;
 
 class MxQuantMatmulAllToAllTilingBase : public MatmulAllToAllTilingBase 
 {
@@ -59,14 +60,14 @@ protected:
     ge::graphStatus CheckMxQuantScaleShapes(const gert::TilingContext *context, const char *opName);
     ge::graphStatus CheckMxQuantInputShapesValid(const gert::TilingContext *context, const char *opName);
     ge::graphStatus SetMxDataTypeInfo(const gert::TilingContext *context, const char *opName,
-                                             TilingContextInfo &contextInfo);
-    
+                                        TilingContextInfo &contextInfo);
     void SetTilingInfo(MatmulAlltoAllTilingInfo &tilingInfo) const;
     void PrintMxQuantMatmulAlltoAllTilingData(QuantMatmulAlltoAllTilingData &outTilingData);
     
 private:
     QuantMatmulAlltoAllTilingData localTilingData_;
-    uint64_t mmMvalueLen = 0;
+    uint64_t mmMvalueLen_ = 0;
+    bool isMxfp4_ = false;
     void PrintMxQuantMatmulAlltoAllTilingInfo(const std::string &opName, MatmulAlltoAllTilingInfo &tilingInfo);
     void PrintMxQuantMMV3TilingData(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
     void PrintExtendMatmulTiling(const std::string &opName, DequantBmm::Mc2QuantBatchMatmulV3TilingDataParams &tiling);
