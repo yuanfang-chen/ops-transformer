@@ -48,8 +48,6 @@ aclnnStatus quantLightningIndexerContiguous(
     CHECK_RET(weights != nullptr, ACLNN_ERR_INNER_NULLPTR);
     queryDequantScale = l0op::Contiguous(queryDequantScale, executor);
     CHECK_RET(queryDequantScale != nullptr, ACLNN_ERR_INNER_NULLPTR);
-    keyDequantScale = l0op::Contiguous(keyDequantScale, executor);
-    CHECK_RET(keyDequantScale != nullptr, ACLNN_ERR_INNER_NULLPTR);
 
     if (actualSeqLengthsQueryOptional) {
         actualSeqLengthsQueryOptional = l0op::Contiguous(actualSeqLengthsQueryOptional, executor);
@@ -133,10 +131,11 @@ aclnnStatus aclnnQuantLightningIndexerGetWorkspaceSize(
     CHECK_RET(quantLightningIndexerContiguous(query, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional,
             actualSeqLengthsKeyOptional, blockTableOptional, l0Executor) == ACLNN_SUCCESS, ACLNN_ERR_PARAM_INVALID);
     const aclTensor *newKey = GetTensorContiguous(key, l0Executor, "key");
+    const aclTensor *newKeyDequantScale = GetTensorContiguous(keyDequantScale, l0Executor, "keyDequantScale");
 
     // 调用L0接口获得输出
     auto l0QuantLightningIndexerOuts = l0op::QuantLightningIndexer(
-            query, newKey, weights, queryDequantScale, keyDequantScale, actualSeqLengthsQueryOptional,
+            query, newKey, weights, queryDequantScale, newKeyDequantScale, actualSeqLengthsQueryOptional,
             actualSeqLengthsKeyOptional, blockTableOptional, queryQuantMode, keyQuantMode, layoutQueryOptional,
             layoutKeyOptional, sparseCount, sparseMode, preTokens, nextTokens, l0Executor);
 

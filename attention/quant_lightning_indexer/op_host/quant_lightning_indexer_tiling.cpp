@@ -367,7 +367,7 @@ ge::graphStatus QLIInfoParser::GetAndCheckOptionalInput()
     return ge::GRAPH_SUCCESS;
 }
 
-ge::graphStatus QLIInfoParser::IsTensorContiguous(uint32_t tensorIdx)
+ge::graphStatus QLIInfoParser::IsTensorContiguous(const uint32_t tensorIdx)
 {
     auto viewShape = context_->GetInputShape(tensorIdx);
     auto viewStride = context_->GetInputStride(tensorIdx);
@@ -383,20 +383,20 @@ ge::graphStatus QLIInfoParser::IsTensorContiguous(uint32_t tensorIdx)
     return ge::GRAPH_SUCCESS; // 非连续
 }
 
-size_t QLIInfoParser::GetKeyDimNum()
+size_t QLIInfoParser::GetTensorDimNum(const uint32_t tensorIdx)
 {
-    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_FAILED) {
-        return opParamInfo_.key.shape->GetStorageShape().GetDimNum();
+    if (IsTensorContiguous(tensorIdx) == ge::GRAPH_FAILED) {
+        return context_->GetInputShape(tensorIdx)->GetStorageShape().GetDimNum();
     }
-    return opParamInfo_.key.shape->GetShape().GetDimNum();
+    return context_->GetInputShape(tensorIdx)->GetShape().GetDimNum();
 }
 
-int64_t QLIInfoParser::GetKeyDim(const size_t idx)
+int64_t QLIInfoParser::GetTensorDim(const uint32_t tensorIdx, const size_t idx)
 {
-    if (IsTensorContiguous(KEY_INDEX) == ge::GRAPH_FAILED) {
-        return opParamInfo_.key.shape->GetStorageShape().GetDim(idx);
+    if (IsTensorContiguous(tensorIdx) == ge::GRAPH_FAILED) {
+        return context_->GetInputShape(tensorIdx)->GetStorageShape().GetDim(idx);
     }
-    return opParamInfo_.key.shape->GetShape().GetDim(idx);
+    return context_->GetInputShape(tensorIdx)->GetShape().GetDim(idx);
 }
 
 ge::graphStatus QLIInfoParser::CheckShapeDim()
@@ -407,13 +407,13 @@ ge::graphStatus QLIInfoParser::CheckShapeDim()
                 opParamInfo_.blockTable.tensor->GetStorageShape().GetDimNum()), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
         ((kLayout_ == DataLayout::PA_BSND)||(kLayout_ == DataLayout::BSND)) &&
-        (GetKeyDimNum() != DIM_NUM_FOUR),
+        (GetTensorDimNum(KEY_INDEX) != DIM_NUM_FOUR),
         OP_LOGE(opName_, "the dim num of key's shape should be 4, but now is %u",
-                GetKeyDimNum()), return ge::GRAPH_FAILED);
+                GetTensorDimNum(KEY_INDEX)), return ge::GRAPH_FAILED);
     OP_CHECK_IF(
-        (kLayout_ == DataLayout::TND) && (GetKeyDimNum() != DIM_NUM_THREE),
+        (kLayout_ == DataLayout::TND) && (GetTensorDimNum(KEY_INDEX) != DIM_NUM_THREE),
         OP_LOGE(opName_, "the dim num of key's shape should be 3, but now is %u",
-                GetKeyDimNum()), return ge::GRAPH_FAILED);
+                GetTensorDimNum(KEY_INDEX)), return ge::GRAPH_FAILED);
 
     uint32_t qShapeDim = opParamInfo_.query.shape->GetStorageShape().GetDimNum();
     uint32_t weightsShapeDim = opParamInfo_.weights.shape->GetStorageShape().GetDimNum();
@@ -465,9 +465,9 @@ ge::graphStatus QLIInfoParser::GetAndCheckN2Size()
 {
     // PA_BSND
     if (kLayout_ == DataLayout::TND) {
-        n2Size_ = static_cast<uint32_t>(GetKeyDim(DIM_IDX_ONE));
+        n2Size_ = static_cast<uint32_t>(GetTensorDim(KEY_INDEX, DIM_IDX_ONE));
     } else {
-        n2Size_ = static_cast<uint32_t>(GetKeyDim(DIM_IDX_TWO));
+        n2Size_ = static_cast<uint32_t>(GetTensorDim(KEY_INDEX, DIM_IDX_TWO));
     }
     OP_LOGI(context_->GetNodeName(), "N2 is %d", n2Size_);
     OP_CHECK_IF(n2Size_ != 1, OP_LOGE(opName_, "key shape[2] is numhead, only support 1."), return ge::GRAPH_FAILED);
@@ -549,7 +549,7 @@ ge::graphStatus QLIInfoParser::GetS1Size()
 
 ge::graphStatus QLIInfoParser::GetAndCheckBlockSize()
 {
-    blockSize_ = static_cast<uint32_t>(GetKeyDim(1));
+    blockSize_ = static_cast<uint32_t>(GetTensorDim(KEY_INDEX, 1));
     OP_LOGI(context_->GetNodeName(), "blockSize_ is %d", blockSize_);
 
     OP_CHECK_IF(
@@ -566,7 +566,7 @@ ge::graphStatus QLIInfoParser::GetS2SizeForPageAttention()
         return ge::GRAPH_FAILED;
     }
 
-    int32_t blockCount_ = static_cast<uint32_t>(GetKeyDim(0));
+    int32_t blockCount_ = static_cast<uint32_t>(GetTensorDim(KEY_INDEX, 0));
     OP_CHECK_IF((blockCount_ == 0), OP_LOGE(opName_, "input key's block_count cannot be 0."), return ge::GRAPH_FAILED);
 
     maxBlockNumPerBatch_ = opParamInfo_.blockTable.tensor->GetStorageShape().GetDim(1);
@@ -580,9 +580,9 @@ ge::graphStatus QLIInfoParser::GetS2SizeForBatchContinuous()
 {
     std::string layout_key(opParamInfo_.layOutKey);
     if (kLayout_ == DataLayout::BSND) {
-        s2Size_ = GetKeyDim(DIM_IDX_ONE);
+        s2Size_ = GetTensorDim(KEY_INDEX, DIM_IDX_ONE);
     } else if (kLayout_ == DataLayout::TND) {
-        s2Size_ = GetKeyDim(DIM_IDX_ZERO);
+        s2Size_ = GetTensorDim(KEY_INDEX, DIM_IDX_ZERO);
     }
     OP_CHECK_IF((kLayout_ != DataLayout::BSND) && (kLayout_ != DataLayout::TND),
         OP_LOGE(opName_, "the layout of key is %s, it is unsupported.", layout_key.c_str()),
@@ -616,6 +616,14 @@ ge::graphStatus QLIInfoParser::GetKCacheBlockStride()
     } else {
         blockStride_ = blockSize_ * n2Size_ * headDim_;
     }
+
+    auto keyScaleStride = context_->GetInputStride(KEY_DEQUANT_SCALE_INDEX);
+    if (IsTensorContiguous(KEY_DEQUANT_SCALE_INDEX) == ge::GRAPH_SUCCESS) {
+        scaleStride_ = keyScaleStride->GetStride(0);
+    } else {
+        scaleStride_ = blockSize_;
+    }
+
     return ge::GRAPH_SUCCESS;
 }
 
@@ -728,8 +736,8 @@ ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
                return ge::GRAPH_FAILED);
     // -----------------------check D-------------------
     OP_CHECK_IF(
-        ((kLayout_ != DataLayout::TND && GetKeyDim(DIM_IDX_THREE) != headDim_)
-        || (kLayout_ == DataLayout::TND && GetKeyDim(DIM_IDX_TWO) != headDim_)),
+        ((kLayout_ != DataLayout::TND && GetTensorDim(KEY_INDEX, DIM_IDX_THREE) != headDim_)
+        || (kLayout_ == DataLayout::TND && GetTensorDim(KEY_INDEX, DIM_IDX_TWO) != headDim_)),
                 OP_LOGE(opName_, "input query, key shape last dim must be same."), return ge::GRAPH_FAILED);
     // -----------------------check N2-------------------
     OP_CHECK_IF((opParamInfo_.attenOut.shape->GetStorageShape().GetDim(outN2Dim) != n2Size_),
@@ -746,9 +754,9 @@ ge::graphStatus QLIInfoParser::ValidateInputShapesMatch()
 ge::graphStatus QLIInfoParser::CheckScaleShape()
 {
     uint32_t qShapeDim = opParamInfo_.query.shape->GetStorageShape().GetDimNum();
-    uint32_t kShapeDim = GetKeyDimNum();
+    uint32_t kShapeDim = GetTensorDimNum(KEY_INDEX);
     uint32_t qDequantScaleShapeDim = opParamInfo_.query_dequant_scale.shape->GetStorageShape().GetDimNum();
-    uint32_t kDequantScaleShapeDim = opParamInfo_.key_dequant_scale.shape->GetStorageShape().GetDimNum();
+    uint32_t kDequantScaleShapeDim = GetTensorDimNum(KEY_DEQUANT_SCALE_INDEX);
     OP_CHECK_IF(qDequantScaleShapeDim != (qShapeDim - 1),
                OP_LOGE(opName_, "the dim num of query_dequant_scale's shape should be %u, but now is %u",
                          qShapeDim - 1, qDequantScaleShapeDim),
@@ -768,8 +776,8 @@ ge::graphStatus QLIInfoParser::CheckScaleShape()
     }
     // check k scale
     for (uint32_t i = 0; i < (kShapeDim - 1); i++) {
-        uint32_t dimValueKeyScale = opParamInfo_.key_dequant_scale.shape->GetStorageShape().GetDim(i);
-        uint32_t dimValueKey = GetKeyDim(i);
+        uint32_t dimValueKeyScale = GetTensorDim(KEY_DEQUANT_SCALE_INDEX, i);
+        uint32_t dimValueKey = GetTensorDim(KEY_INDEX, i);
         OP_CHECK_IF(dimValueKeyScale != dimValueKey,
                    OP_LOGE(opName_, "key_dequant_scale's shape[%u] %u and key's shape[%u] %u is not same", i,
                              dimValueKeyScale, i, dimValueKey),
@@ -793,6 +801,7 @@ void QLIInfoParser::GenerateInfo(QLITilingInfo &QLIInfo)
     QLIInfo.s2Size = s2Size_;
     QLIInfo.gSize = gSize_;
     QLIInfo.blockStride = blockStride_;
+    QLIInfo.scaleStride = scaleStride_;
 
     QLIInfo.inputQType = inputQType_;
     QLIInfo.inputKType = inputKType_;
@@ -894,6 +903,7 @@ ge::graphStatus QuantLightningIndexerTiling::DoTiling(QLITilingInfo *tilingInfo)
     tilingData_.set_maxBlockNumPerBatch(tilingInfo->maxBlockNumPerBatch);
     tilingData_.set_sparseMode(tilingInfo->sparseMode);
     tilingData_.set_blockStride(tilingInfo->blockStride);
+    tilingData_.set_scaleStride(tilingInfo->scaleStride);
     tilingData_.set_usedCoreNum(blockDim);
     tilingData_.SaveToBuffer(context_->GetRawTilingData()->GetData(), context_->GetRawTilingData()->GetCapacity());
     context_->GetRawTilingData()->SetDataSize(tilingData_.GetDataSize());

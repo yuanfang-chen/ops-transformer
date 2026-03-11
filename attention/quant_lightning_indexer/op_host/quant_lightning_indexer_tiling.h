@@ -94,6 +94,7 @@ TILING_DATA_FIELD_DEF(uint32_t, blockSize)
 TILING_DATA_FIELD_DEF(uint32_t, maxBlockNumPerBatch)
 TILING_DATA_FIELD_DEF(uint32_t, sparseMode)
 TILING_DATA_FIELD_DEF(uint32_t, blockStride)
+TILING_DATA_FIELD_DEF(uint32_t, scaleStride)
 END_TILING_DATA_DEF
 REGISTER_TILING_DATA_CLASS(QuantLightningIndexer, QLITilingData)
 
@@ -137,6 +138,7 @@ public:
     uint32_t s1Size = 0;
     int64_t s2Size = 0;
     int64_t blockStride = 0;
+    int64_t scaleStride = 0;
     uint32_t qkHeadDim = 0;
     uint32_t gSize = 0;
     // PageAttention
@@ -198,9 +200,9 @@ public:
     ge::graphStatus GetActualSeqInfo();
     void GenerateInfo(QLITilingInfo &QLIInfo);
     ge::graphStatus ParseAndCheck(QLITilingInfo &QLIInfo);
-    ge::graphStatus IsTensorContiguous(uint32_t tensorIdx);
-    size_t GetKeyDimNum();
-    int64_t GetKeyDim(const size_t idx);
+    ge::graphStatus IsTensorContiguous(const uint32_t tensorIdx);
+    size_t GetTensorDimNum(const uint32_t tensorIdx);
+    int64_t GetTensorDim(const uint32_t tensorIdx, const size_t idx);
 
 public:
     gert::TilingContext *context_ = nullptr;
@@ -223,6 +225,7 @@ public:
     uint32_t maxBlockNumPerBatch_ = 0;
     int32_t blockSize_ = 0;
     int32_t blockStride_ = 0;
+    int32_t scaleStride_ = 0;
     NpuArch npuArch_ = NpuArch::DAV_2201;
     ge::DataType inputQType_ = ge::DT_FLOAT16;
     ge::DataType inputKType_ = ge::DT_FLOAT16;
