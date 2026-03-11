@@ -27,6 +27,10 @@
 #include "attn_infra/gemm/gemm_type.hpp"
 #include "attn_infra/epilogue/block/block_epilogue.hpp"
 #include "attn_infra/epilogue/dispatch_policy.hpp"
+#include "attn_infra/epilogue/block/block_epilogue_fag_pre.hpp"
+#include "attn_infra/epilogue/block/block_epilogue_post.hpp"
+#include "attn_infra/epilogue/block/block_epilogue_softmaxgrad.hpp"
+#include "attn_infra/epilogue/block/block_epilogue_simply_softmax.hpp"
 
 using namespace NpuArch;
 
@@ -59,6 +63,10 @@ namespace BSA {
         using EpilogueFAGSfmg = EpilogueFAGSfmg_;
         using EpilogueFAGOp = EpilogueFAGOp_;
         using EpilogueFAGPost = EpilogueFAGPost_;
+        using PreParams = typename EpilogueFAGPre::Params;
+        using PostParams = typename EpilogueFAGPost::Params;
+        using SfmgParams = typename EpilogueFAGSfmg_::Params;
+        using SfmParams = typename EpilogueFAGOp_::Params;
         using ArchTag = typename BlockMmadBSAG1_::ArchTag;
         using ElementInput = typename BlockMmadBSAG1::ElementA;
 
@@ -436,6 +444,195 @@ namespace BSA {
         void operator()<AscendC::AIV>(Params const &params)
         {
             __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
+
+            // pre
+            VecPre(params);
+
+            // softmaxgrad
+            VecSoftMaxGrad(params);
+
+            // simply softmax
+            VecOp(params);
+
+            // post
+            VecPost(params);
+        }
+
+        __aicore__ inline
+        void VecOp(Params const &params)
+        {
+            uint32_t vecCoreIdx = AscendC::GetBlockIdx(); // vecore 核数idx
+            uint32_t coreIdx = vecCoreIdx / 2; // cube 核数idx
+            uint32_t coreNum = AscendC::GetBlockNum();
+
+            __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
+            uint32_t batch = tilingData->batch;
+            uint32_t numHeads = tilingData->numHeads;
+            uint32_t kvHeads = tilingData->kvHeads;
+            uint32_t groupSize = numHeads / kvHeads;
+            uint32_t headDim = tilingData->headDim;
+            uint32_t maxQSeqlen = tilingData->maxQSeqlen;
+            uint32_t maxKvSeqlen = tilingData->maxKvSeqlen;
+            uint32_t inputLayout = tilingData->inputLayout;
+            uint32_t blockShapeX = tilingData->blockShapeX;
+            uint32_t blockShapeY = tilingData->blockShapeY;
+
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
+
+            uint32_t basicQBlockSize = tilingData->basicQBlockSize;
+            uint32_t basicKVBlockSize = tilingData->basicKVBlockSize;
+            uint32_t taskNumPerCore = tilingData->taskNumPerCore;
+            uint32_t tailTaskNum = tilingData->tailTaskNum;
+            uint32_t taskLength = tailTaskNum > coreIdx ? taskNumPerCore + 1 : taskNumPerCore;
+
+            // Initialize global tensors
+            AscendC::GlobalTensor<bool> gBlcokSpaseMask;
+            gBlcokSpaseMask.SetGlobalBuffer((__gm__ bool *)params.blockSparseMask);
+            AscendC::GlobalTensor<int64_t> gActualQseqlen;
+            gActualQseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualQseqlen);
+            AscendC::GlobalTensor<int64_t> gActualKvseqlen;
+            gActualKvseqlen.SetGlobalBuffer((__gm__ int64_t *)params.actualKvseqlen);
+
+            TaskInfo taskInfo[2]; // 索引以及shape信息
+            TaskInfo preTaskInfo;
+            initTaskInfo(gActualQseqlen, gActualKvseqlen, tilingData, numHeads, kvHeads, groupSize, headDim,
+                maxQSeqlen, maxKvSeqlen, blockShapeX, basicQBlockSize, inputLayout, coreIdx, taskInfo[0]);
+            uint32_t qBlockNum = (maxQSeqlen + blockShapeX - 1) / blockShapeX;
+            uint32_t kvBlockNum = (maxKvSeqlen + blockShapeY - 1) / blockShapeY;
+            uint32_t batchBlocks = numHeads * qBlockNum * kvBlockNum;
+            uint32_t headBlocks = qBlockNum * kvBlockNum;
+
+            uint64_t actualStrideQ = headDim;
+            uint64_t actualStrideKV = headDim;
+            if (inputLayout == 0) {
+                actualStrideQ = numHeads * headDim;
+                actualStrideKV = kvHeads * headDim;
+            }
+
+            uint32_t pingpongFlag = 0;
+            uint64_t gSOffset = coreIdx * WORKSPACE_BLOCK_SIZE_DB;
+
+            for (uint32_t i = 0; i < taskLength; i++) {
+                TaskInfo curInfo = taskInfo[i % 2];
+
+                uint64_t kvBlockOffset = 0;
+                for (uint32_t idx = 0; idx < kvBlockNum; idx++) {
+                    uint64_t kvBlockBasicOffset = 0;
+                    // BlcokSpaseMask shape : [batch, numhead, CeilDiv(maxQSeqlen, blockShapeX), CeilDiv(maxKvSeqlen, blockShapeY)]
+                    uint64_t maskOffset = curInfo.curBatchIdx * batchBlocks + curInfo.curHeadIdx * headBlocks + curInfo.curQBlcokIdx * kvBlockNum + idx;
+                    if (gBlcokSpaseMask.GetValue(maskOffset)) {
+                        uint32_t kvBlockSize = (idx != kvBlockNum - 1) ? blockShapeY : maxKvSeqlen - blockShapeY * idx;
+                        uint32_t kvLoop = (kvBlockSize + basicKVBlockSize - 1) / basicKVBlockSize;
+                        for (uint32_t loop = 0; loop < kvLoop; loop++) {
+                            curInfo.curCalKVSize = (loop != kvLoop - 1) ? basicKVBlockSize : kvBlockSize - basicKVBlockSize * loop;
+                            if (inputLayout == 0) {
+                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * kvHeads * headDim;
+                            } else {
+                                curInfo.kvOffset += (kvBlockOffset * blockShapeY + kvBlockBasicOffset * basicKVBlockSize) * headDim;
+                            }
+                            curInfo.sOffset = gSOffset + WORKSPACE_BLOCK_SIZE * pingpongFlag;
+
+                            GM_ADDR s = params.workspace + curInfo.sOffset;
+                            GM_ADDR softmaxLse = params.softmaxLse;
+                            GM_ADDR dp = params.workspace + sOutSize + curInfo.sOffset;
+                            GM_ADDR blockSparseMask = softmaxLse; // 不需要
+                            GM_ADDR actualSeqQlen = params.actualQseqlen;
+                            GM_ADDR actualSeqKvlen = params.actualKvseqlen;
+                            GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
+                            GM_ADDR pWorkspace = params.workspace + curInfo.sOffset; // 连续
+                            GM_ADDR dsWorkspace = params.workspace + sOutSize + curInfo.sOffset; // 连续
+                            GM_ADDR tilingData = params.tiling;
+                            uint64_t actualRow = curInfo.curCalQSize;
+                            uint64_t actualCol = curInfo.curCalKVSize;
+                            uint64_t processNums = curInfo.curCalQSize * curInfo.curCalKVSize;
+                            uint64_t curCoreBatch = curInfo.curBatchIdx;
+                            uint64_t curCoreN1Idx = curInfo.curHeadIdx;
+                            uint64_t curCoreS1Idx = curInfo.curQSeqIdx; // 不需要
+                            uint64_t curT1Idx = 0; // 不需要
+                            SfmParams sfmParams(s, softmaxLse, dp, blockSparseMask, actualSeqQlen, actualSeqKvlen, sftmgGm, pWorkspace, dsWorkspace, tilingData,
+                                                actualRow, actualCol, processNums, curCoreBatch, curCoreN1Idx, curCoreS1Idx, curT1Idx);
+                            EpilogueFAGOp sStmOp(sfmParams);
+                            sStmOp();
+
+                            // AscendC::CrossCoreSetFlag<2, PIPE_FIX>(CUBE2VEC);
+
+                            preTaskInfo = curInfo;
+                            pingpongFlag = 1 - pingpongFlag;
+                            count++;
+                        }
+                        kvBlockBasicOffset += basicKVBlockSize;
+                    }
+                    kvBlockOffset += kvBlockNum;
+                }
+
+                if (i != taskLength - 1) {
+                    updateNextTaskInfo(gActualQseqlen, gActualKvseqlen, numHeads, kvHeads, groupSize, headDim,
+                        blockShapeX, basicQBlockSize, inputLayout, taskInfo[i % 2], taskInfo[(i + 1) % 2]);
+                }
+            }
+        }
+
+        __aicore__ inline
+        void VecSoftMaxGrad(Params const &params)
+        {
+            __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
+
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
+
+            GM_ADDR sftmgGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize + dVOutSize;
+            SfmgParams SfmgParams(params.dout, params.out, params.actualQseqlen, sftmgGm, params.tiling);
+            EpilogueFAGSfmg_ vecSftmg(SfmgParams);
+            vecSftmg();
+        }
+
+        __aicore__ inline
+        void VecPost(Params const &params)
+        {
+            __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
+
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
+
+            GM_ADDR gDqGm = params.workspace + sOutSize + dPOutSize;
+            GM_ADDR gDkGm = params.workspace + sOutSize + dPOutSize + dQOutSize;
+            GM_ADDR gDvGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize;
+            GM_ADDR actualSeqQlen = params.actualQseqlen;
+            GM_ADDR actualSeqKvlen = params.actualKvseqlen;
+
+            PostParams postParams(params.dq, params.dk, params.dv, gDqGm, gDkGm, gDvGm, params.tiling, actualSeqQlen, actualSeqKvlen);
+            EpilogueFAGPost vecPost(postParams);
+            vecPost();
+        }
+
+        __aicore__ inline
+        void VecPre(Params const &params)
+        {
+            __gm__ BlockSparseAttentionGradTilingData *tilingData = reinterpret_cast<__gm__ BlockSparseAttentionGradTilingData *>(params.tiling);
+
+            uint64_t sOutSize = tilingData->sOutSize;
+            uint64_t dPOutSize = tilingData->dPOutSize;
+            uint64_t dQOutSize = tilingData->dQOutSize;
+            uint64_t dKOutSize = tilingData->dKOutSize;
+            uint64_t dVOutSize = tilingData->dVOutSize;
+
+            GM_ADDR gDqWrkGm = params.workspace + sOutSize + dPOutSize;
+            GM_ADDR gDkWrkGm = params.workspace + sOutSize + dPOutSize + dQOutSize;
+            GM_ADDR gDvWrkGm = params.workspace + sOutSize + dPOutSize + dQOutSize + dKOutSize;
+
+            PreParams preParms(gDqWrkGm, gDkWrkGm, gDvWrkGm, params.tiling);
+            EpilogueFAGPre vecPre(preParms);
+            vecPre();
         }
 
     private:

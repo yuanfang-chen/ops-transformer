@@ -59,13 +59,15 @@ constexpr int MASK_TYPE_INDEX = 3;
 constexpr int SCALE_VALUE_INDEX = 4;
 
 constexpr int VALID_HEAD_DIM_128 = 128;
+constexpr uint64_t VEC_POST_DIVISION = 3; // post 划分的空间块数， input 2份，output 1份
+constexpr uint64_t WORKSPACE_NUM_ALIGN = 256;
 
 namespace optiling {
 
 constexpr uint32_t BASIC_BLOCK_SIZE = 128;
 constexpr uint32_t WORKSPACE_BLOCK_SIZE_DB = 128 * 128 * 2;
 constexpr uint32_t NUM3 = 3;
-
+constexpr uint32_t ONEBLOCK_FLOAT_NUM = 32 / sizeof(float);  // 基本块32字节的float数目
 static inline uint32_t CeilDiv(uint32_t n1, uint32_t n2)
 {
     if (n1 == 0) {
@@ -137,9 +139,12 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
             return ge::GRAPH_FAILED;
            }
         totalTokensT_ = queryShape->GetOriginShape().GetDim(TND_DIM_T);
+        kvTotalSeqlen_ = kvShape->GetStorageShape().GetDim(TND_DIM_T);
         numHeads_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(TND_DIM_N));
         headDim_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(TND_DIM_D));
         kvHeads_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(TND_DIM_N));
+        dqSize_ = totalTokensT_ * numHeads_  * headDim_;
+        dkvSize_ = kvTotalSeqlen_ * kvHeads_  * headDim_;
         auto actualSeqLengths = context->GetOptionalInputTensor(ACTUAL_SEQ_LENGTHS_INDEX);
         if (actualSeqLengths == nullptr) {
             OP_LOGE(context->GetNodeName(), "TND format must have is actualSeqLengthsOptional");
@@ -195,6 +200,8 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
         headDim_ = static_cast<uint32_t>(queryShape->GetOriginShape().GetDim(BNSD_DIM_D));
         kvHeads_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(BNSD_DIM_N));
         maxKvSeqlen_ = static_cast<uint32_t>(kvShape->GetOriginShape().GetDim(BNSD_DIM_S));
+        dqSize_ = batch_ * numHeads_ * maxQSeqlen_ * headDim_;
+        dkvSize_ = batch_ * kvHeads_ * maxKvSeqlen_ * headDim_;
     }
 
     auto blockShapeOptional = context->GetInputTensor(BLOCK_SHAPE_INDEX);
@@ -234,6 +241,27 @@ ge::graphStatus BSAGradTiling::ProcessInput(gert::TilingContext *context)
     numHeads_, kvHeads_);
         return ge::GRAPH_FAILED;
     }
+
+    // post
+    postUbBaseSize_ = static_cast<uint64_t>(ubSize_ - sizeof(BlockSparseAttentionGradTilingData) - 2 * 1024)
+                        / VEC_POST_DIVISION / WORKSPACE_NUM_ALIGN * WORKSPACE_NUM_ALIGN; // 256 字节对齐
+
+    // softmaxGrad
+    // 初始化 buffer
+    // headDim_ 为128 其softmaxgrad 接口最小临时空间：Srck为input last_aix
+    // needSize = isFront ? elementNumPerBlk + srk + 64 : elementNumPerBlk*2 + srck + 64;
+    // 即最小临时空间：(8 * 2 + 64 + 128) * 4 = 832 byte
+    // 设 input(half or bf16) buffer 大小 ： x + x + 2x + 2x + 2x/16 + 832 = 192 * 1024
+    // x 约= 31k 其实还要保存 128 * sizeof(InputDType) 对齐
+    constexpr static uint64_t inputBufferLen = 24 * 1024;                    // castBuffer 24K*2=48K
+    constexpr static uint64_t castBufferLen = 48 * 1024;                     // castBuffer 48K*2=96K
+    uint64_t outputBufferLen = (castBufferLen + headDim_ - 1) / headDim_ * ONEBLOCK_FLOAT_NUM; // 输出(s1,8)
+    uint64_t tempBufferLen = 40 * 1024 - outputBufferLen;
+
+    int64_t singleLoopNBurstNum = inputBufferLen / sizeof(float) / headDim_;
+    auto softmaxGradShape = ge::Shape({singleLoopNBurstNum, headDim_});
+    AscendC::SoftMaxGradTilingFunc(softmaxGradShape, sizeof(float), tempBufferLen,
+                                   tilingData_->softmaxGradTilingData, true);
 
     return ge::GRAPH_SUCCESS;
 }
@@ -359,13 +387,15 @@ ge::graphStatus BSAGradTiling::CalculateWorkSpace(gert::TilingContext *context)
         dQOutSize_ = totalTokensT_ * numHeads_ * headDim_ * sizeof(float);
         dKOutSize_ = totalTokensT_ * kvHeads_ * headDim_ * sizeof(float);
         dVOutSize_ = dKOutSize_;
+        gradSize_ = totalTokensT_ * numHeads_  * ONEBLOCK_FLOAT_NUM * sizeof(float);
     } else {
         dQOutSize_ = batch_ * numHeads_ * maxQSeqlen_ * headDim_ * sizeof(float);
         dKOutSize_ = batch_ * kvHeads_ * maxKvSeqlen_ * headDim_ * sizeof(float);
         dVOutSize_ = dKOutSize_;
+        gradSize_ = batch_ * numHeads_ * maxQSeqlen_ * ONEBLOCK_FLOAT_NUM * sizeof(float);
     }
 
-    workSpaceSize_ = libapiSize_ + sOutSize_ + dPOutSize_ + dQOutSize_ + dKOutSize_ + dVOutSize_;
+    workSpaceSize_ = libapiSize_ + sOutSize_ + dPOutSize_ + dQOutSize_ + dKOutSize_ + dVOutSize_ + gradSize_;
     context->GetWorkspaceSizes(1)[0] = workSpaceSize_;
     
     return ge::GRAPH_SUCCESS;
@@ -406,8 +436,15 @@ ge::graphStatus BSAGradTiling::FillTilingData(gert::TilingContext *context)
     tilingData_->set_dQOutSize(dQOutSize_);
     tilingData_->set_dKOutSize(dKOutSize_);
     tilingData_->set_dVOutSize(dVOutSize_);
+    tilingData_->set_dVOutSize(gradSize_);
     tilingData_->set_scaleValue(scaleValue_);
-
+    tilingData_->set_usedVecCoreNum(blockDim_*2);
+    tilingData_->set_qTotalSeqlen(totalTokensT_);
+    tilingData_->set_kvTotalSeqlen(kvTotalSeqlen_);
+    tilingData_->set_kvTotalSeqlen(dqSize_);
+    tilingData_->set_kvTotalSeqlen(dkvSize_);
+    tilingData_->set_postUbBaseSize(postUbBaseSize_);
+    tilingData_->set_postUbBaseSize(ubSize_ - sizeof(BlockSparseAttentionGradTilingData) - 2 * 1024);
     return ge::GRAPH_SUCCESS;
 }
 

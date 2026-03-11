@@ -103,6 +103,28 @@ namespace BSA {
         using LayoutInput = layout::RowMajor;
         using InputType = Gemm::GemmType<ElementInput, LayoutInput>;
 
+        // // VEC_Pre ：dQ/dK/dV的workspace清零
+        // using EpilogueAtlasA2FAGPre = Epilogue::EpilogueAtlasA2FAGPre;
+        // using EpilogueFAGPre = Epilogue::Block::BlockEpilogue<EpilogueAtlasA2FAGPre, OutputType, UpdateType, InputType>;
+        // // using EpilogueFAGPre = Epilogue::Block::BlockSparePre;
+        // // VEC_Sfmg ：dP = SoftmaxGrad(dOut, out)
+        // using EpilogueAtlasA2FAGSfmg = Epilogue::EpilogueAtlasA2FAGPre;
+        // using EpilogueFAGSfmg = Epilogue::Block::SoftmaxGrad<InputDtype, float, InputLayout>;
+
+        // // VEC_Op：P = simple_softmax(S)，再计算dS = P * Sub(dP, Sfmg)  【cube1 输出S = Q*K^T 及 dP = dOut * V^T】
+        // using EpilogueAtlasA2FAGOp = Epilogue::EpilogueAtlasA2FAGPre;
+        // using EpilogueFAGOp = Epilogue::Block::SimpltSoftmax<float, float, InputLayout>;
+
+        // // VEC_Post：dQ*scale和dK*scale，并搬运输出dQ/dK/dV
+        // using EpilogueAtlasA2FAGPost = Epilogue::EpilogueAtlasA2FAGPre;
+        // using EpilogueFAGPost = Epilogue::Block::BlockPost<InputLayout, InputDtype, UpdateType, InputDtype, EpilogueAtlasA2FAGPost>;
+
+
+        // // Kernel instantiation
+        // using BSAGKernel = BlockSparseAttentionGradKernel<BlockMmadCube1, BlockMmadCube2, BlockMmadCube3,
+        //                                                   EpilogueFAGPre, EpilogueFAGSfmg, EpilogueFAGOp,
+        //                                                   EpilogueFAGPost, InputLayout>;
+
         // VEC_Pre ：dQ/dK/dV的workspace清零
         using EpilogueAtlasA2FAGPre = Epilogue::EpilogueAtlasA2FAGPre;
         using EpilogueFAGPre = Epilogue::Block::BlockEpilogue<EpilogueAtlasA2FAGPre, OutputType, UpdateType, InputType>;

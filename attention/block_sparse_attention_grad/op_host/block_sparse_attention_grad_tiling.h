@@ -49,6 +49,7 @@ TILING_DATA_FIELD_DEF(uint32_t, maxKvSeqlen);  // BNSD格式KV的第三维（S�
 
 // TilingKey for kernel dispatch (生成在tiling层)
 TILING_DATA_FIELD_DEF(uint64_t, tilingKey);
+TILING_DATA_FIELD_DEF(uint64_t, gradSize);
 
 // Workspace大小
 TILING_DATA_FIELD_DEF(uint64_t, sOutSize);
@@ -66,7 +67,14 @@ TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, preKVSeqLengths);
 TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginBatch);
 TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginHead);
 TILING_DATA_FIELD_DEF_ARR(uint32_t, 64, beginQSeqOffset);
-
+TILING_DATA_FIELD_DEF(uint32_t, usedVecCoreNum);
+TILING_DATA_FIELD_DEF(uint32_t, qTotalSeqlen);
+TILING_DATA_FIELD_DEF(uint32_t, kvTotalSeqlen);
+TILING_DATA_FIELD_DEF(uint64_t, dqSize);
+TILING_DATA_FIELD_DEF(uint64_t, dkvSize);
+TILING_DATA_FIELD_DEF(uint64_t, postUbBaseSize);
+TILING_DATA_FIELD_DEF(uint64_t, ubSize);
+TILING_DATA_FIELD_DEF_STRUCT(SoftMaxTiling, softmaxGradTilingData);
 END_TILING_DATA_DEF;
 REGISTER_TILING_DATA_CLASS(BlockSparseAttentionGrad, BlockSparseAttentionGradTilingData)
 
@@ -139,16 +147,23 @@ private:
     uint64_t dQOutSize_ = 0;
     uint64_t dKOutSize_ = 0;
     uint64_t dVOutSize_ = 0;
+    uint64_t gradSize_ = 0;
 
     InputLayout layout_ = InputLayout::TND;
-    
+    uint32_t qTotalSeqlen_ = 0;
+    uint32_t kvTotalSeqlen_ = 0;
+
     uint32_t blockDim_ = 0;
+    uint32_t usedVecCoreNum_ = 20;
     uint32_t aivNum_ = 0;
     uint32_t aicNum_ = 0;
     uint64_t ubSize_ = 0;
+    uint64_t postUbBaseSize_ = 0;
     uint64_t workSpaceSize_ = 0;
     uint64_t libapiSize_ = 0;
     
+    uint64_t dqSize_ = 0; // dq 元素总量
+    uint64_t dkvSize_ = 0; // dkv dv元素总量
     uint32_t maxQSeqlen_ = 0;  // BNSD格式Q的第三维（S维度）
     uint32_t maxKvSeqlen_ = 0;  // BNSD格式KV的第三维（S维度）
     int64_t totalTokensT_ = 0;  // TND格式Q的第一维（T维度，总token数）
