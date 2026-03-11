@@ -37,6 +37,7 @@ using MT_BF16 = matmul::MatmulImpl<aT_BF16, bT_BF16, cT_BF16>;
 
 constexpr uint64_t UB_REST_BYTES = 100 * 1024;  // 100KB
 constexpr uint64_t INVERSE_SHAPE = 32;          // 对角块边长
+constexpr uint64_t INVERSE_COUNT = 5;           // 求逆所需空间
 constexpr uint64_t STAGEONE_BUFFER_NUM = 1;
 
 struct GDRStageOneInitParams {
@@ -102,50 +103,48 @@ public:
             return;
         }
         uint32_t maxLen = AscendC::Std::max(AscendC::Std::max(dv_ / 2, dk_ / 2), chunkSize_);
-        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));
-        pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));
-        pipe_->InitBuffer(gOutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * sizeof(float));
+        pipe_->InitBuffer(fp32InQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));  // 16KB  maxLen=64
+        pipe_->InitBuffer(fp32OutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * maxLen * sizeof(float));  // 16KB
+        pipe_->InitBuffer(gOutQueue_, STAGEONE_BUFFER_NUM, chunkSize_ * sizeof(float));  // 1KB
 
         pipe_->InitBuffer(tmpBuff, UB_REST_BYTES);
         uint32_t buffOffset = 0;
-        betaUbBfloat16 = tmpBuff.GetWithOffset<bfloat16_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
+        betaUbBfloat16 = tmpBuff.GetWithOffset<bfloat16_t>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
         buffOffset += halfChunkSize_ * sizeof(bfloat16_t);
         
-        gCumUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_), buffOffset);
+        gCumUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_), buffOffset);  // 1KB
         buffOffset += chunkSize_ * sizeof(float);
 
-        gBUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset); 
+        gBUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);   // 1KB
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        gEndBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
+        gEndBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        betaUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);
+        betaUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_), buffOffset);  // 1KB
         buffOffset += halfChunkSize_ * sizeof(float);
 
-        gBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);
+        gBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);    // 16KB
         gammaUbFloat = gBroadUbFloat;
         kUbFloat = gBroadUbFloat;
         valueUbFloat = gBroadUbFloat;
         qUbFloat = gBroadUbFloat;
         buffOffset += chunkSize_ * maxLen  * sizeof(float);
         
-        gTransBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);
-        attnUbFloat = gTransBroadUbFloat;
+        gTransBroadUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * maxLen), buffOffset);      // 16KB
+        // attnUbFloat = gTransBroadUbFloat;
         inverseUbFloat = gTransBroadUbFloat[chunkSize_ * halfChunkSize_];
         gCumExpBroadUbFloat = gTransBroadUbFloat;
         qPrimeUbFloat = gTransBroadUbFloat;
         buffOffset += chunkSize_ * maxLen * sizeof(float);
 
-        identityUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(chunkSize_ * halfChunkSize_), buffOffset);
-        buffOffset += chunkSize_ * halfChunkSize_ * sizeof(float);
-
-        qUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_), buffOffset);
+        qUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_), buffOffset);      // 16KB
         buffOffset += halfChunkSize_ * dk_ * sizeof(float);
 
-        kUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_), buffOffset);
+        kUbFloatCon = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * dk_), buffOffset);      // 16KB
         buffOffset += halfChunkSize_ * dk_ * sizeof(float);
 
+        attnUbFloat = tmpBuff.GetWithOffset<float>(static_cast<uint32_t>(halfChunkSize_ * halfChunkSize_ * INVERSE_COUNT), buffOffset);      // 20KB
     }
 
     __aicore__ inline void Init(const GDRStageOneInitParams &initParams, TPipe *pipe, const ChunkGatedDeltaRuleTilingData *tilingData)
@@ -748,7 +747,6 @@ private:
     LocalTensor<float> valueUbFloat;
     LocalTensor<float> attnUbFloat;
     LocalTensor<float> inverseUbFloat;
-    LocalTensor<float> identityUbFloat;
     LocalTensor<float> inverseLocal;
     LocalTensor<float> gCumUbFloat;
     LocalTensor<float> gCumExpUbFloat;
