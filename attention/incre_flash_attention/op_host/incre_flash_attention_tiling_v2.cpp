@@ -3936,6 +3936,7 @@ ge::graphStatus IFATilingV2::GenTilingKey() {
     if (socVersion_ != IfaSocVersion::SOC_ASCEND_950) {
         baseOffset += (static_cast<uint64_t>(perfMode_)) * IFA_PERF_MODE_TILINGKEYOFFSET;
     }
+    UpdateTilingKeyQkoDtype();
     UpdateTilingKeyLayoutType();
     UpdateTilingKeyConfig();
     UpdateTilingKeyPseMode();
@@ -3958,6 +3959,52 @@ ge::graphStatus IFATilingV2::CalcNumBlocks() const {
   ifaContext_->numBlocks = ascendcPlatform.CalcTschBlockDim(aivNum, aicNum, aivNum);  // 暂时与当前代码一致
   OP_LOGD(ifaContext_->opName, "IFA block dim:%u aivNum:%u aicNum:%u.", ifaContext_->numBlocks, aivNum, aicNum);
   return ge::GRAPH_SUCCESS;
+}
+
+using DataTypeTriple = std::tuple<ge::DataType, ge::DataType, ge::DataType>;
+static const std::unordered_map<DataTypeTriple, int> QkoDtypeMap = {
+    {{ge::DT_FLOAT16, ge::DT_INT8, ge::DT_FLOAT16}, QFLOAT16_KINT8_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_INT4, ge::DT_FLOAT16}, QFLOAT16_KINT4_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QFLOAT16_KHIFLOAT8_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16}, QFLOAT16_KFLOAT8_E4M3FN_OFLOAT16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT4_E2M1, ge::DT_FLOAT16}, QFLOAT16_KFLOAT4_E2M1_OFLOAT16},
+    {{ge::DT_BF16, ge::DT_INT8, ge::DT_BF16}, QBF16_KINT8_OBF16},
+    {{ge::DT_BF16, ge::DT_INT4, ge::DT_BF16}, QBF16_KINT4_OBF16},
+    {{ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_BF16}, QBF16_KHIFLOAT8_OBF16},
+    {{ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16}, QBF16_KFLOAT8_E4M3FN_OBF16},
+    {{ge::DT_BF16, ge::DT_FLOAT4_E2M1, ge::DT_BF16}, QBF16_KFLOAT4_E2M1_OBF16},
+    {{ge::DT_BF16, ge::DT_INT8, ge::DT_INT8}, QBF16_KINT8_OINT8},
+    {{ge::DT_FLOAT16, ge::DT_INT8, ge::DT_INT8}, QFLOAT16_KINT8_OINT8},
+    {{ge::DT_BF16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8}, QBF16_KHIFLOAT8_OHIFLOAT8},
+    {{ge::DT_FLOAT16, ge::DT_HIFLOAT8, ge::DT_HIFLOAT8}, QFLOAT16_KHIFLOAT8_OHIFLOAT8},
+    {{ge::DT_BF16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN}, QBF16_KFLOAT8_E4M3FN_OFLOAT8_E4M3FN},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN}, QFLOAT16_KFLOAT8_E4M3FN_OFLOAT8_E4M3FN},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT16}, QFLOAT16_KFLOAT16_OFLOAT16},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_BF16}, QBF16_KBF16_OBF16},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_INT8}, QFLOAT16_KFLOAT16_OINT8},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_HIFLOAT8}, QFLOAT16_KFLOAT16_OHIFLOAT8},
+    {{ge::DT_FLOAT16, ge::DT_FLOAT16, ge::DT_FLOAT8_E4M3FN}, QFLOAT16_KFLOAT16_OFLOAT8_E4M3FN},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_INT8}, QBF16_KBF16_OINT8},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_HIFLOAT8}, QBF16_KBF16_OHIFLOAT8},
+    {{ge::DT_BF16, ge::DT_BF16, ge::DT_FLOAT8_E4M3FN}, QBF16_KBF16_OFLOAT8_E4M3FN},
+    {{ge::DT_INT8, ge::DT_DT_INT8, ge::DT_FLOAT16}, QINT8_KINT8_OFLOAT16},
+    {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OFLOAT16},
+    {{ge::DT_FLOAT8_E4M3FN, ge::DT_FLOAT8_E4M3FN, ge::DT_BF16}, QFLOAT8_E4M3FN_KFLOAT8_E4M3FN_OBF16},
+    {{ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_FLOAT16}, QHIFLOAT8_KHIFLOAT8_OFLOAT16},
+    {{ge::DT_HIFLOAT8, ge::DT_HIFLOAT8, ge::DT_BF16}, QHIFLOAT8_KHIFLOAT8_OBF16},
+};
+
+void IFATilingV2::UpdateTilingKeyQkoDtype() 
+{
+    DataTypeTriple key = std::make_tuple(inputQType_, inputKvType_, outputType_);
+    auto it = kQkoDtypeMap.find(key);
+
+    if (it != kQkoDtypeMap.end()) {
+        qkoDtype = it->second;
+    } else {
+        qkoDtype = -1; // 或使用默认枚举值
+        OP_LOGE(ifaContext_->opName, "query key ouput datatype check failed!");
+    }
 }
 
 void IFATilingV2::UpdateTilingKeyLayoutType() {
@@ -4358,13 +4405,13 @@ ge::graphStatus IFATilingV2::DoOpTiling()
                 OPS_REPORT_VECTOR_INNER_ERR(context_->GetNodeName(), "fail to convert to IFAParams"),
                 return ge::GRAPH_FAILED);
     ret = DoSubOpTiling(ifaContext);
-    uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
+    uint64_t tiling_key = GET_TPL_TILING_KEY(static_cast<uint64_t>(qkoDtype), static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
                                             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
                                             static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
     context_->SetTilingKey(tiling_key);
     OP_LOGI(ifaContext.opName, "The new template tilingkey is %llu.", tiling_key);
-    OP_LOGI(ifaContext.opName, "The new template tilingkey param is inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.", 
-            static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
+    OP_LOGI(ifaContext.opName, "The new template tilingkey param is qkoDtype: %llu, inOutLayoutType: %llu, config: %llu, pseMode: %llu,quantMode: %llu, hasAttenMask: %llu, hasRope: %llu, isPa: %llu, isFd: %llu, emptyTensor: %llu, PFAMask: %llu, pFAMatMulType: %llu, enableKVPrefix: %llu.", 
+            static_cast<uint64_t>(qkoDtype), static_cast<uint64_t>(inOutLayoutType), static_cast<uint64_t>(config),
             static_cast<uint64_t>(pseMode), static_cast<uint64_t>(quantMode), hasAttenMask, hasRope, isPa, isFd, emptyTensor, 
             static_cast<uint64_t>(PFAMask), static_cast<uint64_t>(pFAMatMulType), enableKVPrefix);
     return ret;
@@ -4391,6 +4438,7 @@ ge::graphStatus IFATilingV2::DoSubOpTiling(IncreFlashAttentionContext& ifaContex
                     return ge::GRAPH_FAILED);
         PromptFlashAttentionTilingData tilingData;
         ret = flashTilingV2.DoSubOpTiling(tilingData, contextParamsForPFATiling);
+        qkoDtype = flashTilingV2.qkoDtype;
         inOutLayoutType = flashTilingV2.inOutLayoutType;
         config = flashTilingV2.config;
         pseMode = flashTilingV2.pseMode;
