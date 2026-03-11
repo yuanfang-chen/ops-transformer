@@ -1,23 +1,23 @@
 # aclnnMlaPrologV2WeightNz
 
-**须知：该接口后续版本会废弃，请使用最新接口aclnnMlaPrologV3WeightNz。**
+**须知：该接口计划于 2026 年 12 月废弃，请优先迁移到 `aclnnMlaPrologV3WeightNz`。当前 `aclnnMlaPrologV2WeightNz*` 直调接口在 Ascend950 上会返回不支持。**
 
 ## 产品支持情况
 
 |产品      | 是否支持 |
 |:----------------------------|:-----------:|
-|<term>Ascend 950PR/Ascend 950DT</term>|      √     |
+|<term>Ascend 950PR/Ascend 950DT</term>|      ×     |
 |<term>Atlas A3 训练系列产品/Atlas A3 推理系列产品</term>|      √     |
 |<term>Atlas A2 训练系列产品/Atlas A2 推理系列产品</term>|      √     |
 
 ## 功能说明
 
--  **接口功能**：推理场景，Multi-Head Latent Attention前处理的计算。主要计算过程分为五路；
-    -  首先对输入$x$乘以$W^{DQ}$进行下采样和RmsNorm后分为两路，第一路乘以$W^{UQ}$和$W^{UK}$经过两次上采样后得到$q^N$；第二路乘以$W^{QR}$后经过旋转位置编码（ROPE）得到$q^R$。
-    -  第三路是输入$x$乘以$W^{DKV}$进行下采样和RmsNorm后传入Cache中得到$k^C$；
-    -  第四路是输入$x$乘以$W^{KR}$后经过旋转位置编码后传入另一个Cache中得到$k^R$；
-    -  第五路是输出$q^N$经过DynamicQuant后得到的量化参数。
-    -  权重参数WeightDq、WeightUqQr和WeightDkvKr需要以NZ格式传入
+-  **接口功能**：用于推理场景下的 Multi-Head Latent Attention 前处理计算。主要计算过程分为五路：
+    -  首先对输入$x$乘以$W^{DQ}$进行下采样并执行 RmsNorm，然后分成两路；第一路依次乘以$W^{UQ}$和$W^{UK}$，经过两次上采样后得到$q^N$；第二路乘以$W^{QR}$后执行旋转位置编码（ROPE），得到$q^R$。
+    -  第三路对输入$x$乘以$W^{DKV}$并执行 RmsNorm 后写入 Cache，得到$k^C$；
+    -  第四路对输入$x$乘以$W^{KR}$后执行旋转位置编码，再写入另一组 Cache，得到$k^R$；
+    -  第五路仅在 `queryOut` 为 INT8 且 `kvCacheRef` 为 INT8 的场景下生效，用于输出$q^N$对应的反量化参数。
+    -  权重参数 `weightDq`、`weightUqQr` 和 `weightDkvKr` 需要以 NZ 格式传入。
 
 -  **计算公式**：
 
@@ -67,7 +67,7 @@
     k^R = Cache(ROPE(x \cdot W^{KR}))
     $$
 
-    Dequant Scale Query Nope 计算公式：
+    Dequant Scale Query Nope 计算公式（仅在 `queryOut` 为 INT8 且 `kvCacheRef` 为 INT8 的场景下输出）：
 
     $$
     dequantScaleQNope = {RowMax(abs(q^{N})) / 127}
@@ -131,7 +131,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
   | tokenX                     | 输入      | 公式中用于计算Query和Key的输入tensor。          | - 支持B=0,S=0,T=0的空Tensor                                                                                                              | BFLOAT16、INT8 | ND         | - BS合轴：(T,He) <br>- BS非合轴：(B,S,He) | ×                       |
     | weightDq                   | 输入      | 公式中用于计算Query的下采样权重矩阵$W^{DQ}$      |  - 不支持空Tensor                                                                                                                         | BFLOAT16、INT8 | FRACTAL_NZ | (He,Hcq)             | ×                       |
     | weightUqQr                 | 输入      | 公式中用于计算Query的上采样权重矩阵$W^{UQ}$和位置编码权重矩阵$W^{QR}$。 |  - 不支持空Tensor <br> dtype为INT8（量化场景）：<br> 1. 需为per-tensor量化输入 <br>2. 非量化输出时必传dequantScaleWUqQrOptional <br>3. 量化输出时必传dequantScaleWUqQrOptional、quantScaleCkvOptional、quantScaleCkrOptional <br>4. smoothScalesCqOptional可选传 <br> dtype为BFLOAT16（非量化场景）： <br>1. dequantScaleWUqQrOptional、quantScaleCkvOptional、quantScaleCkrOptional、smoothScalesCqOptional必须传空指针 | BFLOAT16、INT8 | FRACTAL_NZ | (Hcq,N*(D+Dr))       | ×                       |
-    | weightUk                   | 输入      | 公式中用于计算Key的上采样权重$W^{UK}$。           |  - 不支持空Tensor       | BFLOAT16       | ND         | (N,D,Hckv)           | ×                       |
+    | weightUk                   | 输入      | 公式中用于计算 Query 第二次上采样的权重矩阵$W^{UK}$。 |  - 不支持空Tensor       | BFLOAT16       | ND         | (N,D,Hckv)           | ×                       |
     | weightDkvKr                | 输入      | 公式中用于计算Key的下采样权重矩阵$W^{DKV}$和位置编码权重矩阵$W^{KR}$。 |  - 不支持空Tensor                                        | BFLOAT16、INT8 | FRACTAL_NZ | (He,Hckv+Dr)         | ×                      |
     | rmsnormGammaCq             | 输入      | 计算$c^Q$的RmsNorm公式中的$\gamma$参数。          |  - 不支持空Tensor                                                  | BFLOAT16       | ND         | (Hcq)                | ×                       |
     | rmsnormGammaCkv            | 输入      | 计算$c^{KV}$的RmsNorm公式中的$\gamma$参数。        |  - 不支持空Tensor                                                         | BFLOAT16       | ND         | (Hckv)               | ×                       |
@@ -140,7 +140,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
     | cacheIndex                 | 输入      | 用于存储kvCache和krCache的索引。                  |  - 支持B=0,S=0,T=0的空Tensor <br> 取值范围需在[0,BlockNum*BlockSize)内                                                                   | INT64          | ND         | - BS合轴：(T) <br>- BS非合轴：(B,S)      | ×                       |
     | kvCacheRef                 | 输入      | 用于cache索引的aclTensor，计算结果原地更新（对应公式中的$k^C$）。       |  - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0                                                                         | BFLOAT16、INT8 | ND         | (BlockNum,BlockSize,Nkv,Hckv) | ×                       |
     | krCacheRef                 | 输入      | 用于key位置编码的cache，计算结果原地更新（对应公式中的$k^R$）。 | - 支持B=0,Skv=0的空Tensor；Nkv与N关联，N是超参，故Nkv不支持等于0                                                                          | BFLOAT16、INT8 | ND         | (BlockNum,BlockSize,Nkv,Dr) | ×                       |
-    | dequantScaleXOptional      | 输入      | tokenX的反量化参数。  |  - 数据格式支持ND | FLOAT          | ND         | - BS合轴：(T) <br>- BS非合轴：(B*S,1)                          | ×                       |
+    | dequantScaleXOptional      | 输入      | tokenX的反量化参数。  |  - 仅 `tokenX` 为 INT8 时使用 | FLOAT          | ND         | - BS合轴：(T,1) <br>- BS非合轴：(B*S,1)                          | ×                       |
     | dequantScaleWDqOptional    | 输入      | weightDq的反量化参数。|  - 数据格式支持ND        | FLOAT          | ND         | (1,Hcq)                         | ×                       |
     | dequantScaleWUqQrOptional  | 输入      | 用于MatmulQcQr矩阵乘后反量化操作的per-channel参数。 |  - 支持非空Tensor（仅INT8 dtype场景需传）                                                                                                 | FLOAT          | ND         | (1,N*(D+Dr))         | ×                       |
     | dequantScaleWDkvKrOptional | 输入      | weightDkvKr的反量化参数。 |  - 数据格式支持ND | FLOAT          | ND         |  (1, Hckv+Dr)                        | ×                       |
@@ -152,7 +152,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
     | cacheModeOptional          | 输入      | 表示kvCache的模式。                                        |  - 用户未特意指定时，建议传入"PA_BSND" <br> - 仅支持char*类型 <br> - 可选值为"PA_BSND"、"PA_NZ"                                           | CHAR*          | -          | -                         | -                       |
     | queryOut                   | 输出      | 公式中Query的输出tensor（对应$q^N$）。             | -                                                                                                                      | BFLOAT16、INT8 | ND         | - BS合轴：(T,N,Hckv) <br>- BS非合轴：(B,S,N,Hckv) | ×                       |
     | queryRopeOut               | 输出      | 公式中Query位置编码的输出tensor（对应$q^R$）。      | -                                                                                                                          | BFLOAT16       | ND         |- BS合轴：(T,N,Dr) <br>- BS非合轴：(B,S,N,Dr) | ×                       |
-  | dequantScaleQNopeOutOptional  | 输出   | Query输出的反量化参数。 | -    | FLOAT    | ND  | - BS合轴：(T,1) <br>- BS非合轴：(B*S,1)    | × |
+  | dequantScaleQNopeOutOptional  | 输出   | Query 输出的反量化参数。 | - 仅在 `queryOut` 为 INT8 且 `kvCacheRef` 为 INT8 的场景需要真实输出；如需获取真实结果，建议传入非空Tensor <br> - 其他场景下可传 `nullptr` 或空Tensor；若传 `nullptr`，接口内部会创建占位 Tensor | FLOAT    | ND  | - BS合轴：(T,N,1) <br>- BS非合轴：(B*S,N,1)    | × |
   | workspaceSize              | 输出      | 返回需在Device侧申请的workspace大小。  | - 仅用于输出结果，无需输入配置 - 数据类型为uint64_t* | -              | -          | -                                  |-   |
   | executor                   | 输出      | 返回op执行器，包含算子计算流程。        | - 仅用于输出结果，无需输入配置 - 数据类型为aclOpExecutor**    | -              | -          | -                                  |-   |
 
@@ -165,7 +165,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
     |------------------------|----------------------|----------------------------------------------------------------------|
     | ACLNN_ERR_PARAM_NULLPTR | 161001               | 必须传入的参数（如接口核心依赖的输入/输出参数）中存在空指针。         |
     | ACLNN_ERR_PARAM_INVALID | 161002               | 输入参数的 shape（维度/尺寸）、dtype（数据类型）不在接口支持的范围内。 |
-    | ACLNN_ERR_RUNTIME_ERROR | 361001               | API 内存调用 NPU Runtime 接口时发生异常（如 Runtime 服务未启动、内存申请失败等）。 |
+    | ACLNN_ERR_RUNTIME_ERROR | 361001               | API 内存调用 NPU Runtime 接口时发生异常，或在 Ascend950 上调用了当前不支持的直调接口。 |
     | ACLNN_ERR_INNER_TILING_ERROR | 561002          | tiling发生异常，入参的dtype类型或者shape错误。 |
 
 ## aclnnMlaPrologV2WeightNz
@@ -188,14 +188,14 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
 
 - 确定性计算：
   - aclnnMlaPrologV2WeightNz默认确定性实现。
-当前A5暂未完全支持A2、A3上MlaProlog的入参泛化范围及接口支持场景，具体说明如下
+- 当前 `aclnnMlaPrologV2WeightNz*` 直调接口仅支持 A2、A3；在 Ascend950 上调用会直接返回 `ACLNN_ERR_RUNTIME_ERROR`。以下约束说明仅适用于 A2、A3 直调场景。
 - shape 格式字段含义说明
 
   | 字段名       | 英文全称/含义                  | 取值规则与说明                                                                 |
   |--------------|--------------------------------|------------------------------------------------------------------------------|
   | B            | Batch（输入样本批量大小）      | 取值范围：0~65536                                                           |
-  | S            | Seq-Length（输入样本序列长度） | A2、A3取值范围：不限制 <br> A5取值范围：0、1                                                              |
-  | He           | Hidden-Size（隐藏层大小）        | A2、A3取值固定为：1024、2048、3072、4096、5120、6144、7168、7680、8192<br> A5取值固定为：7168                                                    |
+  | S            | Seq-Length（输入样本序列长度） | 取值范围：不限制                                                              |
+  | He           | Hidden-Size（隐藏层大小）        | 取值固定为：1024、2048、3072、4096、5120、6144、7168、7680、8192                                                    |
   | Hcq          | q 低秩矩阵维度                 | 取值固定为：1536                                                           |
   | N            | Head-Num（多头数）             | 取值范围：1、2、4、8、16、32、64、128                                       |
   | Hckv         | kv 低秩矩阵维度                | 取值固定为：512                                                             |
@@ -204,7 +204,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
   | Nkv          | kv 的 head 数                  | 取值固定为：1                                                               |
   | BlockNum     | PagedAttention 场景下的块数    | 取值为计算 `B*Skv/BlockSize` 的结果后向上取整（Skv 表示 kv 的序列长度，允许取 0） |
   | BlockSize    | PagedAttention 场景下的块大小  | 取值范围：16~1024，且为16的倍数<br>                                                       |
-  | T            | BS 合轴后的大小                | A2、A3取值范围：0~1048576；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维 <br>A5暂不支持BS合轴 |
+  | T            | BS 合轴后的大小                | 取值范围：0~1048576；注：若采用 BS 合轴，此时 tokenX、ropeSin、ropeCos 均为 2 维，cacheIndex 为 1 维，queryOut、queryRopeOut 为 3 维 |
 
 - weight_dq，weight_uq_qr，weight_dkv_kr在不转置的情况下各个维度的表示：（k，n）。
 -   shape约束：
@@ -225,7 +225,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
     -   B、S、T、Skv值允许一个或多个取0，即Shape与B、S、T、Skv值相关的入参允许传入空Tensor，其余入参不支持传入空Tensor。
         - 如果B、S、T取值为0，则queryOut、queryRopeOut输出空Tensor，kvCacheRef、krCacheRef不做更新。
         - 如果Skv取值为0，则queryOut、queryRopeOut、dequantScaleQNopeOutOptional正常计算，kvCacheRef、krCacheRef不做更新，即输出空Tensor。
-- aclnnMlaPrologV2WeightNz接口支持场景：A2、A3支持以下所有场景，A5当前仅支持非量化场景
+- aclnnMlaPrologV2WeightNz接口支持场景：A2、A3支持以下所有场景；Ascend950 不支持当前直调接口
   <table style="table-layout: auto;" border="1">
     <tr>
       <th colspan="2">场景</th>
@@ -589,7 +589,7 @@ aclnnStatus aclnnMlaPrologV2WeightNz(
 
 ## 调用示例
 
-A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
+A2、A3 直调示例代码如下，仅供参考，具体编译和执行过程请参考[编译与运行样例](../../../docs/zh/context/编译与运行样例.md)。
 
   ```Cpp
   #include <iostream>
@@ -961,7 +961,7 @@ A2、A3示例代码如下，仅供参考，具体编译和执行过程请参考[
       return 0;
   }
   ```
-  A5示例代码如下，仅供参考。
+  Ascend950 当前不支持 `aclnnMlaPrologV2WeightNz*` 直调接口；下面的 A5 代码片段仅作为历史示例保留，请勿直接用于当前接口调用。如需在 Ascend950 上使用，请迁移到 `aclnnMlaPrologV3WeightNz*`。
   ```Cpp
   #include <iostream>
   #include <vector>
