@@ -77,7 +77,7 @@ ge::graphStatus MatmulAllReduceTilingA5::SetMc2HcommA2AAG(const char* groupName,
 
 ge::graphStatus MatmulAllReduceTilingA5::SetMc2Hcomm()
 {
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     const char* groupName = context_->GetAttrs()->GetAttrPointer<char>(static_cast<int>(0));
     const uint32_t reduceType = HcclReduceOp::HCCL_REDUCE_SUM;
     if (isStandardCard4P) {
@@ -136,7 +136,7 @@ uint64_t MatmulAllReduceTilingA5::GetTilingKey() const
     if (!matmulAllReduce910TilingData_.param.isAdd) {
         matmulWithAdd = false;
     }
-    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum);
+    bool isStandardCard4P = mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_);
     bool isA2ARSAG = isStandardCard4P;
     const uint64_t tilingKey = GET_TPL_TILING_KEY(  \
         MMTYPE_FP_MM,                               \
@@ -202,7 +202,7 @@ ge::graphStatus MatmulAllReduceTilingA5::GetWorkspaceSize()
         workspaceSize_);
     myWorkSpaceSize_ = std::max(myWorkSpaceSize_, workspaceSize_);
     size_t* workspaces = context_->GetWorkspaceSizes(1);
-    if(mc2tiling::IsStandardCard4P(args_.rankDim, args_.aicCoreNum)){
+    if(mc2tiling::IsStandardCard4P(args_.rankDim, npuArch_)){
         GetWorkspaceSizeInStandardCard4P();
     }
     workspaces[0] = myWorkSpaceSize_;
