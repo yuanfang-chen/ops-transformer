@@ -218,7 +218,7 @@ bool QbmmReduceScatterAddRmsNormCastCheckTiling::CheckTensorDataType(const gert:
         Ops::Base::ToString(scaleDtype).c_str()), return false);
     OP_TILING_CHECK(perTokenScaleDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of pertokenScale should be float, but current dtype is %s.",
         Ops::Base::ToString(perTokenScaleDtype).c_str()), return false);
-    OP_TILING_CHECK(gammaDtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of gamma should be the float, but current gamma dtype is %s.",
+    OP_TILING_CHECK((gammaDtype != ge::DT_FLOAT) && (gammaDtype != ge::DT_BF16), OP_LOGE(nodeName, "The dataType of gamma should be the float, but current gamma dtype is %s.",
         Ops::Base::ToString(gammaDtype).c_str()), return false);
     OP_TILING_CHECK(y1Dtype != ge::DT_FLOAT, OP_LOGE(nodeName, "The dataType of y1 should be the float, but current y1 dtype is %s.",
         Ops::Base::ToString(y1Dtype).c_str()), return false);
